@@ -368,6 +368,62 @@ const SHOTS = [
 	// their own line or crush the asset's name, and no gate in this repository can measure
 	// either. LIGHT, for the same reason `project-detail-narrow` is: the muted text these rows
 	// are mostly made of measures tighter against 1.4.3's floor there.
+	// THE THREE 360px SHOTS. `states-and-navigation.md` names 1440, 1024, 768, 460 and 360 as
+	// the widths to check, and `P06`/`P07` repeat 360 on their own; 460 was the only narrow
+	// width this table captured, so the smallest one the design package asks for was the one
+	// nothing had ever looked at. 360 is not a second breakpoint — the sheets declare one
+	// container threshold each — it is the width at which the composition that threshold
+	// releases either still fits or does not, which only a picture can answer.
+	// P03, THE RECOVERY SCREEN — a state no capture could reach at all before `&recovery`
+	// existed: it needs a stored last target naming a plan the project does not hold, and
+	// `harness-shot` navigates and screenshots and clicks nothing, so there is no gesture
+	// available to it that would remove a plan between the read and the shutter.
+	//
+	// `&plans=2` because P03's own image note says two remaining plans is an EXAMPLE rather than
+	// a fixed count — but the point of the picture is the warning strip and the recovery heading
+	// ABOVE the remaining plans, and 26 rows would push both out of the frame the way they push
+	// the price section out of `project-detail`'s.
+	//
+	// Both schemes, because the warning strip is the one region on this surface with a colour of
+	// its own (`--text-warning`, plus a `color-mix` tint of the pane's background): the two
+	// palettes resolve that mix differently and neither picture predicts the other. The 460 shot
+	// is the sidebar leaf's real width, where the strip's icon-and-text row either wraps or does
+	// not.
+	{
+		name: 'project-detail-recovery',
+		query: '?project=project-1&plans=2&recovery',
+		selector: PROJECT_VIEW,
+	},
+	{
+		name: 'project-detail-recovery-light',
+		query: '?project=project-1&plans=2&recovery&theme=light',
+		selector: PROJECT_VIEW,
+	},
+	{
+		name: 'project-detail-recovery-narrow',
+		query: '?project=project-1&plans=2&recovery&theme=light',
+		selector: PROJECT_VIEW,
+		width: 460,
+	},
+	{
+		name: 'home-narrow-360',
+		query: '?projects=10&theme=light',
+		selector: PROJECT_VIEW,
+		width: 360,
+	},
+	{
+		name: 'project-detail-narrow-360',
+		query: '?project=project-1&theme=light',
+		selector: PROJECT_VIEW,
+		width: 360,
+	},
+	{
+		name: 'project-detail-prices-narrow-360',
+		query: '?project=project-1&section=prices&theme=light',
+		selector: PROJECT_VIEW,
+		width: 360,
+		scrollTo: '.rp-asset-price-header',
+	},
 	{
 		name: 'project-detail-prices-narrow',
 		query: '?project=project-1&section=prices&theme=light',

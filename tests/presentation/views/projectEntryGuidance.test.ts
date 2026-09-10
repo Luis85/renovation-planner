@@ -55,6 +55,14 @@ function rig(over: Partial<RenovationProjectDeps> = {}, listed: PlanListing = Pr
 
 const titles = (wrapper: VueWrapper): string[] => wrapper.findAll('.rp-project-detail__entry-title').map((el) => el.text());
 const actions = (wrapper: VueWrapper) => wrapper.findAll<HTMLButtonElement>('.rp-project-detail__entry-action');
+/** §6's three ranks, read off the DOM rather than off the descriptor that produced them. */
+const ranks = (wrapper: VueWrapper): string[] =>
+	actions(wrapper).map(
+		(button) =>
+			[...button.element.classList]
+				.find((name) => name.startsWith('rp-project-detail__entry-action--'))
+				?.replace('rp-project-detail__entry-action--', '') ?? 'none',
+	);
 
 describe('the three entry paths', () => {
 	it('offers the note first on a project with no plans, and names starting rather than continuing', async () => {
@@ -64,7 +72,7 @@ describe('the three entry paths', () => {
 		expect(wrapper.text()).toContain('What would you like to start with?');
 		expect(wrapper.text()).toContain('You can start with a note. A floor plan is optional.');
 		expect(titles(wrapper)).toEqual(['Describe your renovation', 'Start with a plan', 'Set project prices']);
-		expect(actions(wrapper)[0]?.classes()).toContain('mod-cta');
+		expect(ranks(wrapper)).toEqual(['primary', 'secondary', 'understated']);
 		expect(actions(wrapper)[0]?.text()).toBe('Open project note');
 	});
 
@@ -86,7 +94,54 @@ describe('the three entry paths', () => {
 		expect(wrapper.text()).toContain('What would you like to do next?');
 		expect(wrapper.text()).not.toContain('A floor plan is optional');
 		expect(titles(wrapper)).toEqual(['Continue with a plan', 'Describe your renovation', 'Set project prices']);
-		expect(actions(wrapper)[0]?.classes()).toContain('mod-cta');
+		expect(ranks(wrapper)).toEqual(['primary', 'secondary', 'understated']);
+	});
+
+	/**
+	 * §6 specifies THREE ranks — primary, secondary, understated — and the first version drew two:
+	 * only `at === 0` took a distinguishing class, so the second and third entries rendered
+	 * identically and the ordering carried the whole meaning. The rank travels on the descriptor
+	 * and is read from the DOM here, so a rank that stops reaching the element fails rather than
+	 * merely looking the same.
+	 */
+	it('gives each entry its own priority class, three ranks rather than two', async () => {
+		const { wrapper } = rig();
+		await flushPromises();
+
+		expect(new Set(ranks(wrapper)).size).toBe(3);
+	});
+
+	/**
+	 * P02 forbids both by name: "Do not nest buttons inside interactive entry buttons. Decorative
+	 * chevrons add no focus stop." `HostIcon` renders an `aria-hidden` `<span>`, so the glyph and
+	 * the chevron are neither focusable nor announced — and the ROW is not a control either, so
+	 * the entry's one labelled action is the only thing in it that can be tabbed to.
+	 */
+	it('adds no focus stop and no nested control for the row glyphs', async () => {
+		const { wrapper } = rig();
+		await flushPromises();
+
+		const entry = wrapper.get('.rp-project-detail__entry');
+		expect(entry.findAll('button')).toHaveLength(1);
+		for (const icon of entry.findAll('.rp-host-icon')) {
+			expect(icon.attributes('aria-hidden')).toBe('true');
+			expect(icon.attributes('tabindex')).toBeUndefined();
+			expect(icon.element.tagName).toBe('SPAN');
+		}
+	});
+
+	/**
+	 * P01, P02 and P07 all draw the visibility control BELOW the entries. It was above the
+	 * region's own heading, so the first thing on the page was an offer to remove it. Asserted as
+	 * document ORDER, because presence was already true when it sat in the wrong place.
+	 */
+	it('puts the guidance toggle below the entries', async () => {
+		const { wrapper } = rig();
+		await flushPromises();
+
+		const entries = wrapper.get('.rp-project-detail__entries').element;
+		const toggle = wrapper.get('.rp-project-guidance__toggle').element;
+		expect(entries.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 
 	/**
@@ -180,12 +235,21 @@ describe('the three entry paths', () => {
 	 * Hiding guidance drops the EXPLANATIONS and keeps every action — P01's own acceptance
 	 * criterion ("hiding guidance removes no core capability"), asked of the three entries and of
 	 * the downstream pair beside them.
+	 *
+	 * **The pair moved BELOW the plan list**, out of this region, so the count here is the three
+	 * entries plus the toggle and the whole-surface count is asked of `wrapper` rather than of
+	 * `.rp-project-guidance`. Both are asserted, because "the region kept its own three" and "the
+	 * surface kept all five" are different claims and only the second one is the criterion.
 	 */
 	it('keeps all five actions when guidance is hidden, and restores the explanations', async () => {
 		const state = session();
 		const { wrapper } = rig({ session: state });
 		await flushPromises();
 		const before = actions(wrapper).map((button) => button.text());
+		const downstream = wrapper
+			.findAll('.rp-project-detail__body > .rp-project-detail__entry-row button')
+			.map((button) => button.text());
+		expect(downstream).toHaveLength(2);
 
 		await wrapper.get('.rp-project-guidance__toggle').trigger('click');
 
@@ -193,7 +257,10 @@ describe('the three entry paths', () => {
 		expect(titles(wrapper)).toEqual([]);
 		expect(wrapper.findAll('.rp-project-detail__entry-body')).toHaveLength(0);
 		expect(actions(wrapper).map((button) => button.text())).toEqual(before);
-		expect(wrapper.findAll('.rp-project-guidance button')).toHaveLength(6);
+		expect(wrapper.findAll('.rp-project-guidance button')).toHaveLength(4);
+		expect(
+			wrapper.findAll('.rp-project-detail__body > .rp-project-detail__entry-row button').map((button) => button.text()),
+		).toEqual(downstream);
 
 		await wrapper.get('.rp-project-guidance__toggle').trigger('click');
 

@@ -1,15 +1,22 @@
 <script setup lang="ts">
 /**
- * The Home surface's filter line (design spec §7) — an input across the pane, quiet at rest,
- * with the count at its trailing edge.
+ * The Home surface's filter line (design spec §7, P00 region 2) — an input across the pane,
+ * quiet at rest, with a leading search glyph inside it and the match count BESIDE it.
  *
  * **The count is the pane's STATE LINE, not decoration**, which is the discipline the declined
  * teletext candidate donated to this direction: `4 projects` at rest and `2 of 4` while
  * filtering, so the field has a job at every vault size. The direction's own recorded risk was
- * that two projects turn a search field into furniture; this is the answer to it — and until
- * Task D the count was rendered BESIDE the field rather than inside it, which left the box that
- * raise exists to fill as empty as if the raise had never been taken. The input and the count
- * are one bordered control now; the template's own comment carries the rest.
+ * that two projects turn a search field into furniture.
+ *
+ * **The count has moved back OUT of the field, and that reverses Task D deliberately rather
+ * than by forgetting it.** Task D put it inside because the field was an empty rectangle with a
+ * number floating beside it; what actually filled that rectangle is the search glyph P00 draws
+ * at its leading edge, which the field did not have then. P00 and P06 both put the count
+ * outside — beside the field when the pane is wide, wrapped under it when it is narrow — and a
+ * count inside a bordered box reads as something the box owns rather than as the pane's state.
+ * The wrapping is `flex-wrap` on this element and NOT a container query, so it happens at
+ * whatever width the field's own basis stops fitting rather than at a number somebody has to
+ * keep in step with the row threshold.
  *
  * **It owns no state.** The query is the LIST's, handed down and emitted back — so Escape's
  * meaning, the no-match block and the row highlighting all read one value. A field holding its
@@ -20,6 +27,7 @@
  * first row, and only the list knows whether there is one.
  */
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue';
+import HostIcon from '../components/HostIcon.vue';
 import { tr } from '../i18n/strings';
 
 const props = defineProps<{ query: string; shown: number; total: number }>();
@@ -51,7 +59,7 @@ const countText = computed(() => {
 			: tr('view.project.count-many', { count: String(props.total) });
 	}
 	return tr('view.project.filter.matches', {
-		shown: String(props.shown),
+		matches: String(props.shown),
 		total: String(props.total),
 	});
 });
@@ -139,21 +147,21 @@ defineExpose({ focus: (): void => input.value?.focus() });
 			:for="inputId"
 		>{{ tr('view.project.filter.label') }}</label>
 		<!--
-			THE FIELD IS THE INPUT AND THE COUNT TOGETHER, in one bordered box.
+			THE FIELD IS THE GLYPH AND THE INPUT, in one bordered box.
 
-			§3's teletext raise is that at rest the field IS the pane's count line. Rendering the
-			count OUTSIDE the input is what left a full-pane-width empty rectangle with a number
-			floating beside it — the "search field as furniture" this direction's own recorded
-			risk names, shipped by the very region written to answer it. Task D's capture is
-			where that was seen.
-
-			So the BORDER moves off the `<input>` onto this wrapper (`project-filter.css`) and
-			the count sits at its trailing edge, inside. The count keeps its behaviour exactly:
-			`10 projects` at rest, `2 of 10` while filtering, immediate. It is deliberately NOT
-			the input's `placeholder` — a placeholder vanishes on input, and this count's whole
-			value is that it changes WHILE you type.
+			The BORDER lives on this wrapper rather than on the `<input>` (`project-filter.css`)
+			so the glyph sits inside the control the user sees rather than beside it, and the
+			focus ring lights the whole box. That much is Task D's and is unchanged; what left
+			is the count, which P00 draws outside.
 		-->
 		<div class="rp-project-filter__field">
+			<!-- P00's search glyph, `aria-hidden` at HostIcon's own root: the visually-hidden
+			     `<label>` above is the field's name and a decorative icon must not become a
+			     second one. -->
+			<HostIcon
+				name="search"
+				class="rp-project-filter__glyph"
+			/>
 			<input
 				:id="inputId"
 				ref="input"
@@ -164,16 +172,20 @@ defineExpose({ focus: (): void => input.value?.focus() });
 				@input="$emit('update:query', ($event.target as HTMLInputElement).value)"
 				@keydown="onInputKeydown"
 			>
-			<!--
-				THE VISIBLE COUNT, immediate. `aria-hidden` because the live region below carries
-				the same fact for assistive technology, and two elements announcing one number is
-				how a screen reader ends up saying it twice.
-			-->
-			<span
-				class="rp-project-filter__count"
-				aria-hidden="true"
-			>{{ countText }}</span>
 		</div>
+		<!--
+			THE VISIBLE COUNT, immediate, beside the field at P00's width and wrapped under it at
+			P06's. `aria-hidden` because the live region below carries the same fact for
+			assistive technology, and two elements announcing one number is how a screen reader
+			ends up saying it twice.
+
+			It is deliberately NOT the input's `placeholder` — a placeholder vanishes on input,
+			and this count's whole value is that it changes WHILE you type.
+		-->
+		<span
+			class="rp-project-filter__count"
+			aria-hidden="true"
+		>{{ countText }}</span>
 		<!--
 			THE ANNOUNCEMENT, debounced and visually hidden. Separate from the line above because
 			the two have different timing requirements and one element cannot have both: the

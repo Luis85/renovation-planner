@@ -48,19 +48,27 @@ describe('the browser harness Home fixture', () => {
 
 		const el = view.contentEl;
 
-		// Thirty projects plus the Continue row, which is a `.rp-project-list__row` too.
-		expect(el.querySelectorAll('.rp-project-list__row')).toHaveLength(31);
-		// The facts slot with real facts in it, which is the half only the index can supply.
-		// `toContain` on the joined text rather than an index into the list: the rows are
+		// Thirty projects, and THIRTY: the Continue entry is P00's card now and no longer wears
+		// `.rp-project-list__row`, so this count is the project rows alone. It is asserted
+		// separately below.
+		expect(el.querySelectorAll('.rp-project-list__row')).toHaveLength(30);
+		// The fact COLUMNS with real facts in them, which is the half only the index can supply.
+		// `toContain` on the collected text rather than an index into the list: the rows are
 		// SORTED, so an assertion keyed on position would pin the collator's output rather than
 		// the seed's.
-		const facts = [...el.querySelectorAll('.rp-project-row__facts')].map((node) => node.textContent);
-		expect(facts).toContain('4 plans · EUR');
-		// §8's content rule: an empty entry renders NOTHING and its neighbours close up, so the
-		// project seeded with no plans shows its currency alone. A fixture where every project
-		// had plans could not demonstrate it, and this is the assertion that keeps one that
-		// does.
-		expect(facts).toContain('EUR');
+		const plans = [...el.querySelectorAll('.rp-project-row__plans')].map((node) => node.textContent);
+		expect(plans).toContain('4 plans');
+		// P00's `Last worked` column, which comes from the vault's file stats and from nothing
+		// the repository holds — a seed that reached only the repositories draws thirty blank
+		// cells here.
+		const worked = [...el.querySelectorAll('.rp-project-row__worked')].map((node) => node.textContent);
+		expect(worked.filter((text) => text !== '').length).toBeGreaterThan(0);
+		// The content rule: an empty entry renders NOTHING, so the project seeded with no plans
+		// draws no plan-count element at all while still drawing its currency. A fixture where
+		// every project had plans could not demonstrate it, and this is the assertion that keeps
+		// one that does.
+		expect(el.querySelectorAll('.rp-project-row__currency')).toHaveLength(30);
+		expect(el.querySelectorAll('.rp-project-row__plans').length).toBeLessThan(30);
 		// PRD §83's marker, which needs the project's note filed inside the library folder —
 		// a fact about the INDEX path and about nothing the repository holds.
 		expect(el.querySelectorAll('.rp-project-list__overlap')).toHaveLength(1);
@@ -109,9 +117,10 @@ describe('the browser harness Home fixture', () => {
 
 		const el = view.contentEl;
 
-		// The Continue row and nothing else — no project row survives the query.
-		expect(el.querySelectorAll('.rp-project-list__row')).toHaveLength(1);
-		expect(el.querySelector('.rp-project-list__row')?.classList.contains('rp-continue')).toBe(true);
+		// No project row survives the query, and the Continue CARD is unaffected by it — the
+		// filter narrows the index, and Continue names a stored context rather than a match.
+		expect(el.querySelectorAll('.rp-project-list__row')).toHaveLength(0);
+		expect(el.querySelector('.rp-continue')).not.toBeNull();
 		expect(el.querySelector('.rp-project-list__no-match')).not.toBeNull();
 		expect(el.querySelector('.rp-project-list__create-named')?.textContent).toContain(
 			'Dachgeschossausbauwintergartensanierungsplanungsbesprechung',

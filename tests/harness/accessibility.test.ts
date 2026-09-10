@@ -415,12 +415,11 @@ describe('axe against the mounted view', () => {
 	/**
 	 * The DETAIL state with no plans, scanned WITH its action button — design slice 21.
 	 *
-	 * CLAUDE.md recorded `planEditor.noZones` as the one action-carrying empty state no axe scan
-	 * in this repository reached, and this slice must not make that two:
-	 * `renovationProject.noPlans` carries a button from its first commit, so it is graded here
-	 * rather than joining that gap. It is the third button-carrying empty state to exist, and
-	 * all three are scanned in this file since the improvement pass closed `noZones` with a
-	 * fixture — see the last case in this block.
+	 * **What "its action" now names is the plan section's own `New plan`**, and the change is P01's:
+	 * the centred `EmptyState` card that used to draw here is the "duplicate large empty card below
+	 * the same creation action" §6 refuses, so the region is a heading plus one muted line plus that
+	 * one control. The scan is unchanged in what it is FOR — an action-carrying region graded with
+	 * the header around it — and changed in which element carries the action.
 	 *
 	 * `flushPromises()` before scanning is load-bearing, and this file has already been burned by
 	 * its absence: the mount is synchronous while `ProjectDetailStore.hydrate` settles a tick
@@ -443,8 +442,8 @@ describe('axe against the mounted view', () => {
 		await view.setState({ projectId: 'project-1' }, {} as ViewStateResult);
 		await flushPromises();
 
-		expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
-		expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-plan-list__empty')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-plan-list__create')).not.toBeNull();
 		expect(view.contentEl.querySelector('.rp-project-detail__back')).not.toBeNull();
 
 		const results = await axe.run(view.contentEl, runOptions);
@@ -529,13 +528,23 @@ describe('axe against the mounted view', () => {
 		await view.setState({ projectId: 'project-1', section: 'prices' }, {} as ViewStateResult);
 		await flushPromises();
 
+		// P04's rows REST, so the section has TWO pictures and each draws controls the other
+		// does not: the invitation and its accessible name here, the labelled field and its
+		// Apply/Cancel there. Both are scanned, because a scan of one says nothing about the
+		// other and the presence assertions are what keep an empty subtree from passing.
+		const invitation = view.contentEl.querySelector('.rp-asset-price-edit');
 		expect(view.contentEl.querySelector('.rp-asset-price-title')).not.toBeNull();
-		expect(view.contentEl.querySelector('.rp-asset-price-input')).not.toBeNull();
+		expect(invitation).not.toBeNull();
 		expect(view.contentEl.querySelector('.rp-asset-price-clear')).not.toBeNull();
 
-		const results = await axe.run(view.contentEl, runOptions);
+		expect((await axe.run(view.contentEl, runOptions)).violations).toEqual([]);
 
-		expect(results.violations).toEqual([]);
+		(invitation as HTMLButtonElement).click();
+		await flushPromises();
+		expect(view.contentEl.querySelector('.rp-asset-price-input')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-asset-price-apply')).not.toBeNull();
+
+		expect((await axe.run(view.contentEl, runOptions)).violations).toEqual([]);
 		await view.onClose();
 	});
 

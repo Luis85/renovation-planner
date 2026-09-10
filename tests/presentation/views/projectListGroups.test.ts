@@ -44,7 +44,7 @@ describe('ProjectList groups', () => {
 		// than reimplemented with ARIA — and it is collapsed by default.
 		expect(details.element.tagName).toBe('DETAILS');
 		expect(details.attributes('open')).toBeUndefined();
-		expect(details.find('summary').text()).toContain('Completed (2)');
+		expect(details.find('summary').text()).toContain('Completed projects (2)');
 		// §11 asks for an `<h3>` per group heading. Without one this group is absent from
 		// assistive-technology heading navigation while its two siblings are listed — the one
 		// group whose contents are hidden by default being also the one nobody can navigate to.
@@ -102,6 +102,100 @@ describe('ProjectList groups', () => {
 		await details.trigger('toggle');
 
 		expect((wrapper.vm as unknown as { completedOpen: boolean }).completedOpen).toBe(true);
+	});
+
+	/**
+	 * **A SEARCH REVEALS MATCHING COMPLETED PROJECTS** (P00's layout item 5), and the defect this
+	 * closes was silent and complete: `completedOpen` was seeded from the session and nothing
+	 * watched the query, so a query matching only a completed project rendered a COLLAPSED group,
+	 * no rows and no explanation — while the filter line beside it read `1 of 4`. The one state
+	 * the pane was telling the truth about was the one the user could not see.
+	 *
+	 * Driven through the real input rather than by setting a ref, because `query` is this
+	 * component's own internal state written only by `ProjectFilter`'s `@update:query`.
+	 */
+	it('reveals matching completed projects during a search', async () => {
+		const wrapper = mount(ProjectList, { props: { projects: MIXED, unreadable: 0 } });
+
+		expect(wrapper.get('.rp-project-list__completed').attributes('open')).toBeUndefined();
+
+		await wrapper.get('.rp-project-filter__input').setValue('Attic');
+
+		const details = wrapper.get('.rp-project-list__completed');
+
+		expect(details.attributes('open')).toBeDefined();
+		expect(details.findAll('.rp-project-list__name').map((el) => el.text())).toEqual(['Attic']);
+		// The contrast that makes the reveal worth anything: the group the query narrowed to
+		// nothing is gone, so the only rows on screen are the ones inside the disclosure.
+		expect(wrapper.find('.rp-project-list__group--projects').exists()).toBe(false);
+	});
+
+	/**
+	 * **THE REVEAL DOES NOT WRITE THE PREFERENCE, which is the half a naive fix loses.** Binding
+	 * `:open` to `completedOpen || queryIsNonEmpty` is easy; the trap is that the `<details>`
+	 * element fires `toggle` when that binding changes under it, indistinguishably from a user's
+	 * click — so a handler that recorded every toggle would leave the group expanded forever
+	 * after one search, on a preference the user never expressed and which the session then
+	 * persists across remounts.
+	 *
+	 * Asserted on `completedOpen` — the ref the session snapshot is taken from — rather than on
+	 * the element, because the element is SUPPOSED to be open here. The two disagreeing is the
+	 * whole point of there being two.
+	 */
+	it('reveals without recording a preference the user never expressed', async () => {
+		const wrapper = mount(ProjectList, { props: { projects: MIXED, unreadable: 0 } });
+		const open = (): boolean => (wrapper.vm as unknown as { completedOpen: boolean }).completedOpen;
+
+		await wrapper.get('.rp-project-filter__input').setValue('Attic');
+		await wrapper.get('.rp-project-list__completed').trigger('toggle');
+
+		expect(wrapper.get('.rp-project-list__completed').attributes('open')).toBeDefined();
+		expect(open()).toBe(false);
+
+		// And clearing the query puts it back where the preference says, rather than leaving the
+		// reveal behind as a sticky expansion.
+		await wrapper.get('.rp-project-filter__input').setValue('');
+
+		expect(wrapper.get('.rp-project-list__completed').attributes('open')).toBeUndefined();
+	});
+
+	/**
+	 * `focusFirstRow` READS THE REVEAL, not the preference, and the two differ during a search.
+	 * Arrowing down from the filter fell through to `return false` while the rows it would have
+	 * reached were on screen — so the key did nothing, which is the worst of the three possible
+	 * behaviours because it looks like the surface has no keyboard model at all.
+	 */
+	it('arrows from the filter into the revealed completed rows', async () => {
+		const wrapper = mount(ProjectList, { props: { projects: MIXED, unreadable: 0 }, attachTo: document.body });
+
+		await wrapper.get('.rp-project-filter__input').setValue('Attic');
+		await wrapper.get('.rp-project-filter__input').trigger('keydown', { key: 'ArrowDown' });
+
+		expect((document.activeElement as HTMLElement).dataset.projectId).toBe('Attic');
+		wrapper.unmount();
+	});
+
+	/**
+	 * P00'S COLUMN HEADING STRIP, and the two things it must NOT become. It is presentational
+	 * chrome above the rows: `aria-hidden` keeps it out of the accessibility tree (each row's
+	 * accessible name already carries its own facts, and a heading read before every row is
+	 * noise), and it adds no focusable element, because P00's own image clarifications refuse a
+	 * new table/keyboard model — §7's roving tabindex over `<button>`s in a `<ul>` is the model.
+	 *
+	 * Both halves, and the count: five headings for the five named tracks, which is what the
+	 * shared `--rp-project-columns` track list is built around.
+	 */
+	it('heads the wide columns without becoming a table or a focus stop', () => {
+		const wrapper = mount(ProjectList, { props: { projects: MIXED, unreadable: 0 } });
+		const strip = wrapper.get('.rp-project-list__columns');
+
+		expect(strip.attributes('aria-hidden')).toBe('true');
+		expect(strip.findAll('.rp-project-list__column').map((el) => el.text()))
+			.toEqual(['Project', 'Plans', 'Currency', 'Status', 'Last worked']);
+		expect(strip.findAll('button, a, input, [tabindex]')).toHaveLength(0);
+		// The rows stay buttons in a list — no `<table>` and no `role="grid"` came with it.
+		expect(wrapper.findAll('table')).toHaveLength(0);
+		expect(wrapper.get('.rp-project-list__group--projects .rp-project-list').element.tagName).toBe('UL');
 	});
 
 	/**

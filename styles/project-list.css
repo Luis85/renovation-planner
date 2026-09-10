@@ -21,193 +21,34 @@
  */
 
 /*
- * THE FACTS SLOT. `flex-shrink: 0` because the NAME is the half that gives way, which
- * `forms.css` records finding at 460px: a flex item's `min-width` is `auto`, so anything that
- * CAN shrink is what loses, and the row's trailing facts are the ones a user is reading it for.
+ * **THE FACTS SLOT, THE TICK STRIP AND THE RESERVED STATUS-WORD COLUMN ARE ALL GONE.**
+ * `ProjectRow` drew all three until the design package's P00/P06 replaced them with two fact
+ * COLUMNS and a status pill (`styles/project-row.css`); `src/prototypes/StatusTicks.vue` kept
+ * `.rp-project-row__facts` and the strip alive for one more increment as the only surface that
+ * still emitted them, and retiring that specimen retired the rules with it.
  *
- * **`min-width: 12ch` is HALF THE COLUMN ARMATURE (design spec §3), and it is MEASURED.** Before
- * it, exactly one edge on this surface aligned across rows — the strip's right edge, and only
- * because it is last in a right-packed cluster — so `4 plans · EUR`, `EUR` and `One plan · EUR`
- * each began and ended wherever that row's own name length left them. That is the defect §3's
- * Crouwel-grid raise names in so many words, still standing in the surface that promised to fix
- * it.
+ * What the strip's rules recorded is worth knowing about before anyone draws one again, and it
+ * is in this file's history rather than restated here: a measured reversal on `--text-muted`
+ * versus `--text-faint` for the unreached cells (1.50:1 in dark, which is not a difference), and
+ * the finding that the legibility complaint behind it was really about CELL SIZE — 3px cells at
+ * a 1px gap read as one filled bar, which is the proportion a positional map of a ten-member
+ * enum must not look like. `git log -- styles/project-list.css` is where both live.
  *
- * WHAT WON, so the next locale is CHECKED against this rather than re-measured blind: the widest
- * facts string across `en.ts` and `de.ts`, rendered at 12px `--font-ui-smaller` in a real
- * browser, is **`One plan · EUR` at 90.31px = 11.82ch**, with `12 Pläne · EUR` second at
- * 11.54ch. 12ch is the ceiling of the larger. A THIRD locale, or a plan count past two digits,
- * is checked by rendering its own longest string against 12ch — and by nothing here, since jsdom
- * lays nothing out.
- *
- * `ch` rather than `px` for the reason the container threshold is in `rem`: it follows the font
- * the host gives us, and this plugin ships into somebody else's themed vault. What `ch` cannot
- * follow is the RATIO between a font's `0` advance and its lowercase, so a face where that
- * differs makes 12ch generous or tight. Tight is safe: `min-width` is a FLOOR, so an overlong
- * string widens its own slot and breaks the column for that row rather than truncating.
- *
- * `text-align: right` so the reserved slack falls BETWEEN the two columns rather than inside
- * one, which is what makes the currency line up down the list. The row's own `text-align: left`
- * (`list-row.css`) is what this overrides, and it is inert on the row itself — a flex item is
- * not inline content — while it is live here, on a span whose content IS inline.
- *
- * **SCOPED TO `.rp-project-row`, and a capture is what made that necessary rather than tidy.**
- * `ContinueRow` reuses this class for its DATE — the same reuse the narrow sheet's `order` rules
- * are scoped against — so an unqualified reservation gave that date a 91.7px box it does not
- * fill. On the wide row nothing moved (the whole cluster is right-packed and the date is
- * right-aligned inside its slot), and at 460px the second line starts with the date, so the
- * reservation indented it 22px from the leading edge every other row's second line starts at.
- * Measured off `home-stress-narrow` before and after. The Continue row is explicitly not a peer
- * of these rows — its tail is two buttons — so it has no column to be in and wants no slot.
- *
- * The shared half stays unscoped, because the muted colour, the smaller size and `flex-shrink`
- * are what that row genuinely takes from this class.
+ * The two RESERVATIONS went first, in the same package: `.rp-project-row__facts`'s
+ * `min-width: 12ch` and `.rp-project-row__status-word`'s `min-width: 20ch` were half of design
+ * spec §3's column armature each, and a grid states that armature once instead —
+ * `--rp-project-columns` in `styles/project-row.css` carries both numbers forward, re-derived
+ * against the new tracks.
  */
-.rp-project-row__facts {
-	flex-shrink: 0;
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-}
-
-.rp-project-row .rp-project-row__facts {
-	min-width: 12ch;
-	text-align: right;
-}
 
 /*
- * THE STATUS, and the strip beside it. The word and the strip are one flex line so the strip
- * sits with the word it describes rather than at the row's own edge, where a §83 marker would
- * come between them.
+ * THE STATUS BOX. On the real row this is a grid cell holding a pill; on the specimen it is a
+ * flex line holding the strip. Both want the same thing from this rule, so it is unchanged.
  */
 .rp-project-row__status {
 	display: flex;
 	align-items: center;
 	gap: var(--size-2-2);
-}
-
-/*
- * THE OTHER HALF OF THE ARMATURE, and it is on the WORD rather than on the status box — which is
- * what lets the number above it be exactly "the longest status word" instead of that plus a gap
- * plus a strip width in a `calc()`. The span exists for this rule and for nothing else.
- *
- * WHAT WON: **`Bestandsdokumentation` (AS_BUILT) at 146.28px = 19.145ch**, against
- * `Bestandsaufnahme` at 15.213ch and `Procurement` — English's longest — at 10.037ch. 20ch is
- * the ceiling. The locale gap is the whole reason this is sized across both: an English-only
- * measurement would have reserved half of what German needs, and a German row would then break
- * the column on every AS_BUILT project.
- *
- * **`text-align: right`, and this is the decision the two alignments differ on.** Right-aligning
- * keeps the word against its own strip at a constant distance and puts the reserved slack
- * between the facts column and the status column — air between columns, which is what a column
- * armature looks like. Left-aligning would align the words' first letters and put the same slack
- * INSIDE the status, between a word and the strip that is its own positional map: measured, an
- * `Idee` row would sit 128px from its strip in German. §6 makes the word and the strip one flex
- * line precisely so they are read as one thing, and air inside that pair costs more than a
- * ragged left edge.
- *
- * So what aligns: the status slot's left edge, every status word's RIGHT edge, and the strip's
- * right edge — which stays the outer rule it already was. A row carrying PRD §83's marker is
- * outside all three, because the marker takes the tail; that was already true of the strip
- * before this rule existed.
- *
- * Released at narrow (`project-list-narrow.css`), where the row is two lines and a reserved
- * column aligns nothing a reader can follow.
- *
- * **UNSCOPED, where the facts reservation three rules up is scoped to `.rp-project-row` — and the
- * asymmetry is stated because it is the exact shape of the defect that scoping fixed.** The facts
- * rule needs the qualifier because `ContinueRow` reuses `.rp-project-row__facts` for its date;
- * this class has no second emitter at all. `ContinueRow` renders its own status as a bare
- * `.rp-project-list__status` and never wraps the word, so there is nothing here for a scope to
- * exclude. If that row ever gains a `__status-word`, this rule needs the same qualifier its
- * sibling has — and it will want it, because the Continue row has no column to be in.
- */
-.rp-project-row__status-word {
-	min-width: 20ch;
-	text-align: right;
-}
-
-/*
- * FOUR-PIXEL CELLS AT A TWO-PIXEL GAP, which is Task D's answer to the first picture ever taken
- * of this strip: at 3px and 1px the ten cells read as ONE FILLED BAR — a proportion — and the
- * count, which is the only thing that makes this a positional map of a ten-member enum rather
- * than a progress meter, could not be taken at a glance in either scheme.
- *
- * TEN STAYS. Five larger cells would read better and would be a lie about the arc: §6's own
- * argument for a strip over a badge is that the stages ARE an arc, so a reader counting cells is
- * reading the real thing. The width bought is 58px against 39px, spent where there is room — the
- * strip is DROPPED below the container threshold, so the extra 19px exists only on the wide row,
- * and it is one of the two figures that moved that threshold from 36rem to 41rem.
- */
-.rp-project-row__ticks {
-	display: flex;
-	gap: 2px;
-}
-
-/*
- * TEN CELLS, at the two tokens the design spec §6 names: reached `--text-normal`, unreached
- * `--text-faint`.
- *
- * **`--text-muted` WAS TRIED FOR THE UNREACHED CELLS AND MEASURED WORSE, and the measurement is
- * recorded here because the reasoning for it is genuinely persuasive.** The argument was that
- * `--text-faint` is the token this same branch DELETED from the foot line for measuring 2.30:1
- * on the light scheme against WCAG 1.4.3's 4.5:1, and that a token established as too faint to
- * read should not then carry a distinction a reader is asked to make. What that argument misses
- * is WHICH distinction: the unreached cells are a TRACK, and the thing a reader has to be able
- * to see is reached AGAINST unreached, not unreached against the page.
- *
- * Both, in a real browser, at this cell size:
- *
- * The hexes differ per scheme and are given per scheme, because these numbers are the evidence
- * for a reversal a later reader may well want to re-check and a table labelled with one scheme's
- * values is a table they cannot:
- *
- *                    light                            dark
- *                    hex      on page  vs reached     hex      on page  vs reached
- *   --text-faint     #ababab    2.30      6.93        #666666    2.97      4.11
- *   --text-muted     #5c5c5c    6.69      2.38        #b3b3b3    8.13      1.50
- *
- * (`--text-normal` is #222222 light and #dadada dark; the page is #ffffff and #1c1c1c.)
- *
- * 1.50:1 is not a difference. Raising the token makes every unreached cell easy to see and makes
- * the strip stop saying anything at all in the dark scheme, which is the one scheme Obsidian
- * ships as its default — a positional map of a ten-stage arc rendered as ten cells of one grey.
- * The five border tokens were measured too and are worse in the other direction (1.27–2.29
- * against the page).
- *
- * **What the observation behind that argument was really about is the CELL SIZE, and that is
- * fixed above.** "Barely present in light" was measured on 3px cells at a 1px gap, where an
- * unreached cell is a hairline that anti-aliases into its neighbours; the same colour as a 4px
- * block at a 2px gap is plainly a block. So the width change discharges the finding and the
- * token change was a second remedy for a defect the first one had already closed.
- *
- * The strip is `aria-hidden` and the status word is the accessible name, so no contrast floor
- * binds either number — this is legibility, and it is settled by looking rather than by a gate.
- *
- * No hue at either end — the status WORD beside them is the second channel, and PRD's
- * accessibility section and SDD §85 both refuse a status carried by colour.
- *
- * **NOT `currentColor`, and the reason is the CONTRACT rather than the gate.** The design spec
- * §6 says both things in one sentence — "ten cells drawn from `currentColor`" and "cells up to
- * and including the current stage at `--text-normal`, the rest at `--text-faint`" — and the two
- * cannot both hold: `currentColor` resolves to a single inherited colour, so it can produce the
- * strip's SHAPE and not its two states. These cells sit inside `.rp-project-list__status`, which
- * `forms.css` sets to `--text-muted`, so an inheriting strip would draw every cell that one
- * muted grey and a reached cell would have to be told apart by an opacity — dimmer than the
- * `--text-normal` the spec asks for at one end, and bearing no relation to `--text-faint` at the
- * other, with a theme moving `--text-faint` relative to `--text-muted` moving nothing here at
- * all. It is also the arrangement the table above measures at 1.50:1 in dark, from the other
- * direction. Naming the two tokens gives up nothing on the themed-vault half either: a
- * `var()` on an Obsidian token is exactly what SDD §84's check asks to see, so both spellings
- * clear that gate and the gate is not what decides between them.
- */
-.rp-project-row__tick {
-	width: 4px;
-	height: var(--size-2-3);
-	border-radius: 1px;
-	background-color: var(--text-faint);
-}
-
-.rp-project-row__tick--reached {
-	background-color: var(--text-normal);
 }
 
 /*
@@ -239,15 +80,80 @@
 	font-weight: var(--font-semibold);
 }
 
+/*
+ * THE PANE'S TITLE AT P00'S DISPLAY SCALE. `forms.css` sets `--font-ui-large`, which is the
+ * size of a section heading and is what made the mockup's one display line read as another row
+ * of chrome. `--h2-size`/`--h2-weight` rather than a number, so a themed vault's own type scale
+ * decides — the same reason every colour here is a token.
+ *
+ * The fallbacks are stated because these two are THEME variables rather than the `--size-*`
+ * primitives: a theme that declares neither would otherwise leave the declaration invalid and
+ * the title back at its inherited size, silently.
+ */
+.rp-project-list__header .rp-project-list__title {
+	font-size: var(--h2-size, 1.462em);
+	font-weight: var(--h2-weight, 600);
+	line-height: var(--line-height-tight, 1.3);
+}
+
+/* P00's `+` beside `New project`, and the same for any glyph a header button gains: the icon
+   and its words are one line rather than two stacked boxes. */
+.rp-project-list__header .rp-project-list__create {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
 .rp-project-list__completed {
 	margin-block-start: var(--size-4-4);
 }
 
-/* The disclosure triangle is the host's own; the summary is given the row's hit height so it
-   clears WCAG 2.5.8's 24px floor like everything else on this surface. */
+/*
+ * THE DISCLOSURE, with P00's rotating chevron in place of the host's own triangle.
+ *
+ * The NATIVE `<details>`/`<summary>` semantics are untouched — the state is still announced by
+ * the host rather than reimplemented with ARIA. What changes is only the marker: the UA triangle
+ * is removed and a `::before` chevron drawn in its place, rotated a quarter turn when the
+ * element is open. `list-style: none` is what removes it in Firefox and the `::-webkit-details-marker`
+ * rule is what removes it in Chromium, which is the browser this plugin actually ships into;
+ * both are stated because a marker left behind beside the drawn one is two disclosure
+ * indicators disagreeing.
+ *
+ * The chevron is CSS rather than a `HostIcon`, because a `<summary>` may not contain the
+ * heading AND an icon without the icon becoming part of the summary's own announced content —
+ * and `aria-hidden` on a child of the element whose name is being computed is not reliable
+ * across screen readers. A border-drawn glyph is announced by nothing at all.
+ *
+ * The summary keeps the row's hit height so it clears WCAG 2.5.8's 24px floor like everything
+ * else on this surface; the narrow sheet raises it to 44 with the rows.
+ */
 .rp-project-list__completed > summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
 	min-height: var(--size-4-6);
+	padding-inline: var(--size-4-2);
+	list-style: none;
 	cursor: pointer;
+}
+
+.rp-project-list__completed > summary::-webkit-details-marker {
+	display: none;
+}
+
+.rp-project-list__completed > summary::before {
+	flex: 0 0 auto;
+	width: 6px;
+	height: 6px;
+	border-top: var(--border-width) solid var(--text-muted);
+	border-right: var(--border-width) solid var(--text-muted);
+	transform: rotate(45deg);
+	transition: transform 120ms ease;
+	content: "";
+}
+
+.rp-project-list__completed[open] > summary::before {
+	transform: rotate(135deg);
 }
 
 /*
@@ -263,7 +169,7 @@
  */
 .rp-project-list__completed > summary .rp-project-list__group-title {
 	display: inline;
-	padding-block-end: 0;
+	padding: 0;
 }
 
 .rp-project-list__completed > summary:focus-visible {

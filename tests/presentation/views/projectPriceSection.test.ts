@@ -10,7 +10,7 @@
  * subscription registered and never acted on looks identical from the wiring side.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { mount, flushPromises, type VueWrapper } from '@vue/test-utils';
+import { mount, flushPromises, type DOMWrapper, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import ViewRoot from '../../../src/presentation/views/ViewRoot.vue';
 import {
@@ -169,12 +169,22 @@ async function mountSection(options: {
 	};
 }
 
+/**
+ * P04's rows REST until asked, so a case about the FIELD has to open the editor the way a user
+ * does. Cases about the saved value read `.rp-asset-price-yours` instead, which is the better
+ * assertion anyway: a prefilled control is not a statement about what is in force.
+ */
+async function openEditor(wrapper: VueWrapper): Promise<Omit<DOMWrapper<HTMLInputElement>, 'exists'>> {
+	await wrapper.get('.rp-asset-price-edit').trigger('click');
+	return wrapper.get<HTMLInputElement>('.rp-asset-price-input');
+}
+
 describe('the project detail state’s price section', () => {
 	it('draws the rows it read at mount', async () => {
 		const { wrapper } = await mountSection({ rows: [priceRow(money('19.50'))] });
 
 		expect(wrapper.get('.rp-asset-price-title').text()).toBe(t('en', 'view.project.prices-title'));
-		expect((wrapper.get('.rp-asset-price-input').element as HTMLInputElement).value).toBe('19.50');
+		expect(wrapper.get('.rp-asset-price-yours').text()).toContain('19.50');
 	});
 
 	/**
@@ -214,7 +224,7 @@ describe('the project detail state’s price section', () => {
 		await flushPromises();
 
 		expect(harness.listAssetPrices).toHaveBeenCalledTimes(2);
-		expect((harness.wrapper.get('.rp-asset-price-input').element as HTMLInputElement).value).toBe('30.00');
+		expect(harness.wrapper.get('.rp-asset-price-yours').text()).toContain('30.00');
 	});
 
 	/**
@@ -229,7 +239,7 @@ describe('the project detail state’s price section', () => {
 		await flushPromises();
 
 		expect(harness.listAssetPrices).toHaveBeenCalledTimes(2);
-		expect((harness.wrapper.get('.rp-asset-price-input').element as HTMLInputElement).value).toBe('30.00');
+		expect(harness.wrapper.get('.rp-asset-price-yours').text()).toContain('30.00');
 	});
 
 	/**
@@ -301,7 +311,7 @@ describe('the project detail state’s price section', () => {
 		const harness = await mountSection({ rows: [priceRow(null)] });
 
 		harness.setRows([priceRow(money('19.50'))]);
-		const input = harness.wrapper.get('.rp-asset-price-input');
+		const input = await openEditor(harness.wrapper);
 		await input.setValue('19.50');
 		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
@@ -315,7 +325,9 @@ describe('the project detail state’s price section', () => {
 			}),
 		);
 		expect(harness.listAssetPrices).toHaveBeenCalledTimes(2);
-		expect((harness.wrapper.get('.rp-asset-price-input').element as HTMLInputElement).value).toBe('19.50');
+		// The editor closes on a confirmed write, so the re-read's value is read where it now
+		// lives: the row's own saved figure.
+		expect(harness.wrapper.get('.rp-asset-price-yours').text()).toContain('19.50');
 	});
 
 	/**
@@ -330,12 +342,14 @@ describe('the project detail state’s price section', () => {
 			err({ category: 'Validation', code: 'asset-price.currency-mismatch', message: 'dev' }),
 		);
 
-		const input = harness.wrapper.get('.rp-asset-price-input');
+		const input = await openEditor(harness.wrapper);
 		await input.setValue('19.50');
 		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();
 
 		expect(harness.listAssetPrices).toHaveBeenCalledTimes(1);
+		// A refusal leaves the editor OPEN over the user's own text — the correctable draft the
+		// price editor states ask for, and the difference from the accepted round above.
 		expect((harness.wrapper.get('.rp-asset-price-input').element as HTMLInputElement).value).toBe('19.50');
 	});
 
@@ -388,20 +402,26 @@ describe('the project detail state’s price section', () => {
 			}),
 		);
 		expect(harness.listAssetPrices).toHaveBeenCalledTimes(2);
-		expect((harness.wrapper.get('.rp-asset-price-input').element as HTMLInputElement).value).toBe('');
+		// The override is gone, so the row rests with no saved figure and the invitation reads as
+		// setting a first price rather than editing one.
+		expect(harness.wrapper.find('.rp-asset-price-yours').exists()).toBe(false);
+		expect(harness.wrapper.get('.rp-asset-price-edit').text()).toBe(t('en', 'view.project.price-set'));
 	});
 	it('reports a saved write separately from refresh failure and retries only the read', async () => {
 		let failRead = false;
 		const refusal: RepositoryError = { category: 'Persistence', code: 'asset-price.frontmatter-invalid', message: 'read failed' };
 		const harness = await mountSection({ listAssetPrices: () => Promise.resolve(failRead ? err(refusal) : ok([priceRow(money('19.50'))])) });
 		failRead = true;
-		await harness.wrapper.get('input').setValue('12,50');
+		await (await openEditor(harness.wrapper)).setValue('12,50');
 		await harness.wrapper.get('.rp-asset-price-apply').trigger('click');
 		await flushPromises();
 		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
 		expect(harness.wrapper.get('.rp-asset-price-failure').text()).toContain('Saved;');
-		expect(harness.wrapper.get('input').attributes('readonly')).toBeDefined();
-		expect(harness.wrapper.get('input').attributes('aria-disabled')).toBe('true');
+		// The write was CONFIRMED, so the editor closes on it — and the lock the stale display
+		// needs moves to the invitation: `Refresh display` is the only thing this row offers
+		// until the read succeeds, which is PBI-09's "retry repeats the read, not the write".
+		expect(harness.wrapper.findAll('.rp-asset-price-input')).toHaveLength(0);
+		expect(harness.wrapper.get('.rp-asset-price-edit').attributes('disabled')).toBeDefined();
 		failRead = false;
 		await harness.wrapper.get('.rp-price-refresh').trigger('click'); await flushPromises();
 		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
@@ -440,7 +460,7 @@ describe('the project detail state’s price section', () => {
 		harness.catalogueChanged();
 		await flushPromises();
 
-		await harness.wrapper.get('input').setValue('12,50');
+		await (await openEditor(harness.wrapper)).setValue('12,50');
 		await harness.wrapper.get('.rp-asset-price-apply').trigger('click');
 		await flushPromises();
 		expect(harness.setAssetPriceOverride).toHaveBeenCalledTimes(1);
@@ -523,7 +543,7 @@ describe('the project detail state’s price section', () => {
 		});
 		harness.setAssetPriceOverride.mockImplementationOnce(() => hold);
 
-		const input = harness.wrapper.get('.rp-asset-price-input');
+		const input = await openEditor(harness.wrapper);
 		await input.setValue('19.50');
 		await input.trigger('keydown', { key: 'Enter' });
 		await flushPromises();

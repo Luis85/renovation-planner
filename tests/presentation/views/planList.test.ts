@@ -77,6 +77,40 @@ describe('PlanList', () => {
 	});
 
 	/**
+	 * **A native `<details>`, open by default** — P02's "Plans initially visible" and its optional
+	 * "Collapse plans" in one element, with `aria-expanded`, keyboard operation and the open state
+	 * supplied by the browser. `components/component-library.md` names the mechanism outright:
+	 * "existing native details/summary is valid".
+	 *
+	 * `New plan` sits on the summary's line and OUTSIDE the `<summary>`, because a button inside
+	 * one is the nested interactive element P02 forbids by name.
+	 */
+	it('is a native disclosure, open, with the create action outside its summary', () => {
+		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor' }] } });
+
+		const disclosure = wrapper.get<HTMLDetailsElement>('.rp-plan-list__disclosure');
+		expect(disclosure.element.tagName).toBe('DETAILS');
+		expect(disclosure.element.open).toBe(true);
+		expect(wrapper.get('.rp-plan-list__summary').element.tagName).toBe('SUMMARY');
+		expect(wrapper.find('.rp-plan-list__summary button').exists()).toBe(false);
+		expect(wrapper.find('.rp-plan-list__section > .rp-plan-list__create').exists()).toBe(true);
+	});
+
+	/**
+	 * The counted form once there is something to count and the bare noun otherwise — P02 draws
+	 * `Plans (3)` and P01 draws `Plans`. "Plans (0)" states an emptiness the line under it already
+	 * states.
+	 */
+	it.each([
+		{ what: 'nothing', plans: [] as { id: string; name: string }[], title: 'Plans' },
+		{ what: 'two plans', plans: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], title: 'Plans (2)' },
+	])('heads the section for $what', ({ plans, title }) => {
+		const wrapper = mount(PlanList, { props: { plans } });
+
+		expect(wrapper.get('.rp-plan-list__title').text()).toBe(title);
+	});
+
+	/**
 	 * **The hole jsdom cannot see, and this repository has already paid for once**
 	 * (`rp-save-state-error` against a template emitting `rp-save-state-save-error`): jsdom
 	 * resolves no CSS, so a class the template emits and no partial declares renders unstyled

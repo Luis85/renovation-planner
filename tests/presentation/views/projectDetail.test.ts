@@ -61,28 +61,29 @@ describe('ProjectDetail', () => {
 	});
 
 	/**
-	 * **The heading LEVEL, in the branch a just-created project always lands in.** Task 7 added
-	 * a heading-order case for the POPULATED branch — `Plans` is an `<h3>` under the project's
-	 * `<h2>` — and the empty branch was left drawing `EmptyState`'s hard-coded `<h2>`, which
-	 * announces "No plans yet" as a PEER of the project rather than as content of its plans
-	 * region. A check written for the case its author had in mind, with the defect in the one
-	 * beside it; reported by a review bot.
+	 * **P01's "compact empty plan row", and the large centred card it replaced.**
 	 *
-	 * Asserted as the TAG, and it is the ONLY instrument for this decision rather than the
-	 * smaller of two. This case first said Task 10's axe scan "would catch it, three tasks
-	 * later, as a heading-order violation"; Task 10 measured that false. axe's `heading-order`
-	 * reports a SKIPPED level, and the defect here is a PEER one — `<h2>` under `<h2>` — so
-	 * with `:heading-level="3"` deleted from `ProjectDetail`, every case in
-	 * `tests/harness/accessibility.test.ts` stays green, including the two that scan this
-	 * component's own two branches. A claim about what another check will catch is worth
-	 * exactly as much as the run that measured it.
+	 * §6 refuses the card by name — "no duplicate large empty card below the same creation
+	 * action. A compact empty plan row is sufficient" — because the guidance region directly above
+	 * already offers `Create first plan`. What is left is the section's own heading and one muted
+	 * line, so the region states the fact and stops.
+	 *
+	 * The heading LEVEL is asserted with it, and this is the ONLY instrument for that decision.
+	 * The card's own headline was an `<h2>` — announcing "No plans yet" as a PEER of the project —
+	 * until `:heading-level="3"` was passed; the disclosure's `<h3>` carries it now. This case
+	 * first said an axe scan "would catch it, as a heading-order violation", and that was measured
+	 * false: axe's `heading-order` reports a SKIPPED level, and `<h2>` under `<h2>` is a peer. A
+	 * claim about what another check will catch is worth exactly as much as the run that measured
+	 * it.
 	 */
-	it('gives the no-plans empty state the plans subsection heading level', () => {
+	it('draws a compact empty plan row rather than a second creation card', () => {
 		const wrapper = mount(ProjectDetail, {
 			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' }, ...PRICE_PROPS },
 		});
 
-		expect(wrapper.get('.rp-empty-state__headline').element.tagName).toBe('H3');
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(false);
+		expect(wrapper.get('.rp-plan-list__empty').text()).toBe('b');
+		expect(wrapper.get('.rp-plan-list__title').element.tagName).toBe('H3');
 		expect(wrapper.get('.rp-project-detail__name').element.tagName).toBe('H2');
 	});
 
@@ -99,44 +100,42 @@ describe('ProjectDetail', () => {
 
 		expect(wrapper.find('.rp-project-detail__back').exists()).toBe(true);
 		expect(wrapper.find('.rp-project-detail__open-note').exists()).toBe(true);
-		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
-		expect(wrapper.find('.rp-plan-list').exists()).toBe(false);
+		expect(wrapper.find('.rp-plan-list__empty').exists()).toBe(true);
+		expect(wrapper.findAll('.rp-plan-list__row')).toHaveLength(0);
 	});
 
 	/**
-	 * P12: on `readOnly` (mobile) a zero-plan project used to suppress the empty state
-	 * ENTIRELY — `planEmpty` folded `readOnly` into the same null as a failed read — so a
-	 * mobile project with no plans drew a bare `Plans` heading and an empty list instead of the
-	 * onboarding copy. Red before that fix: `.rp-empty-state` did not exist at all under
-	 * `readOnly: true`.
+	 * P12: on `readOnly` (mobile) a zero-plan project used to suppress its empty region ENTIRELY —
+	 * `planEmpty` folded `readOnly` into the same null as a failed read — so a mobile project with
+	 * no plans drew a bare `Plans` heading and nothing else.
 	 *
 	 * **The ACTION then stopped being dropped too**, which is the mobile task's own extension 4a:
 	 * a label that disappears on one device reads as a state with nothing to do rather than as a
-	 * refusal, so it stays drawn, `aria-disabled`, and pointing at the surface's one notice.
+	 * refusal, so it stays drawn, disabled, and pointing at the surface's one notice. Since the
+	 * compact row replaced the card, that action is the plan section's own `New plan` — the same
+	 * intent the card's button carried.
 	 */
-	it('keeps the no-plans empty state and its refused action on a read-only surface', () => {
+	it('keeps the empty plan line and its refused action on a read-only surface', () => {
 		const wrapper = mount(ProjectDetail, {
 			props: { project: PROJECT, plans: [], unreadablePlans: 0, readOnly: true, readOnlyReasonId: 'rp-1-0', emptyState: { headline: 'h', body: 'b', actionLabel: 'a' }, ...PRICE_PROPS },
 		});
 
-		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
-		expect(wrapper.get('.rp-empty-state__action').text()).toBe('a');
-		expect(wrapper.get('.rp-empty-state__action').attributes('aria-disabled')).toBe('true');
-		expect(wrapper.get('.rp-empty-state__action').attributes('aria-describedby')).toBe('rp-1-0');
+		expect(wrapper.find('.rp-plan-list__empty').exists()).toBe(true);
+		expect(wrapper.get('.rp-plan-list__create').attributes('disabled')).toBeDefined();
+		expect(wrapper.get('.rp-plan-list__create').attributes('aria-describedby')).toBe('rp-1-0');
 	});
 
 	/**
-	 * The empty state's action is the SAME intent the plan list's header button carries, so a
-	 * project with no plans is not a project with no way to make one. Asserted on the emit
+	 * A project with no plans is not a project with no way to make one. Asserted on the emit
 	 * rather than on the button's presence: a rendered action wired to nothing is exactly the
 	 * "live control that does nothing" slice 14's amendment refuses.
 	 */
-	it('emits createPlan from the empty state’s own action', async () => {
+	it('emits createPlan from the plan section’s own action', async () => {
 		const wrapper = mount(ProjectDetail, {
 			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' }, ...PRICE_PROPS },
 		});
 
-		await wrapper.get('.rp-empty-state__action').trigger('click');
+		await wrapper.get('.rp-plan-list__create').trigger('click');
 
 		expect(wrapper.emitted('createPlan')).toHaveLength(1);
 	});
@@ -156,14 +155,149 @@ describe('ProjectDetail', () => {
 		expect(wrapper.emitted('openPlan')).toEqual([['plan-1']]);
 	});
 
-	it('says which currency the project is priced in, beside its status', () => {
+	/**
+	 * **The bare code is what the mockups draw and the sentence is what the accessible name
+	 * needs**, so both are rendered and only one is read: the visible half is `aria-hidden` and
+	 * the `view.project.currency` sentence is off-screen. "EUR" alone is a word rather than a
+	 * fact about this project; "Priced in EUR" beside a name at display size is a caption where
+	 * the design asks for a code.
+	 */
+	it('shows the bare currency code and names it fully for a screen reader', () => {
 		const wrapper = mount(ProjectDetail, {
 			props: { project: { ...PROJECT, currency: 'GBP' }, plans: [], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
-		expect(wrapper.get('.rp-project-detail__currency').text()).toBe(
+		const currency = wrapper.get('.rp-project-detail__currency');
+		expect(currency.get('[aria-hidden="true"]').text()).toBe('GBP');
+		expect(currency.get('.rp-visually-hidden').text()).toBe(
 			t('en', 'view.project.currency', { currency: 'GBP' }),
 		);
+	});
+
+	/**
+	 * **A read that kept nothing and refused something is not an empty project**, which the state
+	 * matrix forbids outright ("All plans unreadable | Explain unreadability | Pretending
+	 * confirmed emptiness"). A notice saying SOME notes refused, over a list with no rows, says
+	 * exactly that: the readable plans it points at do not exist.
+	 */
+	it.each([
+		{ what: 'every plan note refused', rows: [] as { id: string; name: string }[], key: 'view.project.all-plans-unreadable' as const },
+		{ what: 'some refused', rows: [{ id: 'plan-1', name: 'Ground floor' }], key: 'view.project.some-plans-unreadable' as const },
+	])('says which unreadable-plan case it is when $what', ({ rows, key }) => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: rows, unreadablePlans: 2, emptyState: null, ...PRICE_PROPS },
+		});
+
+		expect(wrapper.get('.rp-view-notice').text()).toBe(t('en', key));
+	});
+
+	/**
+	 * **The retry sits OUTSIDE the live region.** `role="status"` on the wrapper re-announced the
+	 * control with the sentence on every re-render; only the sentence changes, so only the
+	 * sentence is in the region.
+	 */
+	it('keeps the plan-read retry out of the live region', () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, plansFailure: 'nope', emptyState: null, ...PRICE_PROPS },
+		});
+
+		expect(wrapper.get('.rp-view-notice p').attributes('role')).toBe('status');
+		// The WRAPPER carries no role of its own — which is where it was, and is why the button
+		// was re-announced with the sentence on every render.
+		expect(wrapper.get('.rp-view-notice').attributes('role')).toBeUndefined();
+		expect(wrapper.find('.rp-view-notice button').exists()).toBe(true);
+	});
+
+	/**
+	 * **The warning is ABOVE the guidance**, which the state matrix requires by name ("Some plans
+	 * unreadable | Readable plans plus warning | Guidance concealing warning"). At 460px the three
+	 * stacked entry cards push a warning drawn after them below the fold, so the region the user is
+	 * told about is the one they cannot see. Asserted as document ORDER rather than as presence,
+	 * because presence was already true when the defect existed.
+	 */
+	it('draws the partial-read warning above the guidance region', () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 1, emptyState: null, ...PRICE_PROPS },
+		});
+
+		const notice = wrapper.get('.rp-view-notice').element;
+		const guidance = wrapper.get('.rp-project-guidance').element;
+		expect(notice.compareDocumentPosition(guidance) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	/**
+	 * P03 in the detail state: the warning names the miss with an ICON and text rather than with
+	 * colour, and the recovery heading is what focus moves to — before it existed the element that
+	 * had focus was unmounted by the navigation and the caret fell to `<body>`.
+	 */
+	it('draws the recovery warning with an icon beside its text', () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, missingPlan: true, emptyState: null, ...PRICE_PROPS },
+		});
+
+		expect(wrapper.get('.rp-recovery__warning').text()).toContain(t('en', 'view.project.resume-missing-plan'));
+		expect(wrapper.get('.rp-recovery__warning .rp-host-icon').attributes('aria-hidden')).toBe('true');
+		expect(wrapper.get('.rp-recovery__title').text()).toBe(t('en', 'view.project.recovery-title'));
+	});
+
+	/**
+	 * **Focus is CALLED rather than taken at mount**, which is a timing fact rather than a style
+	 * one: `missingPlan` is resolved after the store's status reaches `'ready'`, so an
+	 * `onMounted` here read it as `false` every time — measured in the recovery capture, which
+	 * showed the ring on the project's name. `ProjectDetailState` calls this once its first
+	 * hydrate has settled, and only for a navigation.
+	 *
+	 * Both targets, because the recovery heading outranking the project's own is the whole of
+	 * P03's "focus explanation/heading meaningfully, not an unrelated button".
+	 */
+	it.each([
+		{ what: 'the recovery heading after a failed resumption', missingPlan: true, selector: '.rp-recovery__title' },
+		{ what: 'the project heading otherwise', missingPlan: false, selector: '.rp-project-detail__name' },
+	])('moves focus to $what', ({ missingPlan, selector }) => {
+		const wrapper = mount(ProjectDetail, {
+			attachTo: document.body,
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, missingPlan, emptyState: null, ...PRICE_PROPS },
+		});
+		expect(document.activeElement).toBe(document.body);
+
+		(wrapper.vm as unknown as { focusEntry: () => void }).focusEntry();
+
+		expect(document.activeElement).toBe(wrapper.get(selector).element);
+		wrapper.unmount();
+	});
+
+	/**
+	 * The body scroller's offset travels through the leaf-local session, so a `rebind` remount or
+	 * a details/prices round trip does not drop the user to the top. Both halves, because a
+	 * restore with nothing saving it is a value nothing writes.
+	 */
+	it('restores the body scroll it was given and reports every change', async () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, initialScroll: 120, emptyState: null, ...PRICE_PROPS },
+		});
+		const body = wrapper.get('.rp-project-detail__body');
+
+		expect(body.element.scrollTop).toBe(120);
+		body.element.scrollTop = 45;
+		await body.trigger('scroll');
+
+		expect(wrapper.emitted('scrolled')).toEqual([[45]]);
+	});
+
+	/**
+	 * P02's stated sequence is header then question then three entries then the expanded plan
+	 * list, and these two sat between the entries and the plans. Both stay reachable; they are
+	 * one region later.
+	 */
+	it('puts the schedule and quote doors below the plan list', () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
+		});
+
+		const plans = wrapper.get('.rp-plan-list__section').element;
+		const downstream = wrapper.get('.rp-project-detail__body > .rp-project-detail__entry-row').element;
+		expect(plans.compareDocumentPosition(downstream) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+		expect(wrapper.findAll('.rp-project-detail__body > .rp-project-detail__entry-row button')).toHaveLength(2);
 	});
 
 	/**
@@ -173,7 +307,9 @@ describe('ProjectDetail', () => {
 	 * transcribed.
 	 */
 	it('declares a rule for every class it actually emits', () => {
-		const css = readFileSync('styles/project-detail.css', 'utf8');
+		// BOTH partials, because the entry-path rules live in `project-entry.css` — a scan that
+		// reads one of an element's two homes reports a missing rule for every class in the other.
+		const css = [readFileSync('styles/project-detail.css', 'utf8'), readFileSync('styles/project-entry.css', 'utf8')].join('\n');
 		const wrapper = mount(ProjectDetail, {
 			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});

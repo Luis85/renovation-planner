@@ -85,3 +85,64 @@ Original PNGs are retained as **German UI localization references**, not English
 - Domain project status labels come from the existing status enum/localization map; this package creates no new statuses or percentage mapping.
 - Error copy must use the existing error taxonomy. Do not display Retry for errors that cannot be retried.
 
+## Amendments (2026-09-09)
+
+The table above is the source of truth for the project surfaces' copy, and this section records
+every place the shipped strings deliberately do NOT match it. Each entry is a deviation kept on
+purpose; everything not listed here was reconciled to the table.
+
+1. **German stays formal (Sie) throughout.** The table's German column uses the du-form in
+   several rows (`Womit möchtest du beginnen?`, `Halte fest, …`, `Zeichne einen Grundriss …`,
+   `Hinterlege eigene Preise …`, `Du kannst mit einer Notiz beginnen.`, `Wähle einen anderen
+   Plan`, `Prüfe den aktuellen Wert, bevor du …`). The shipped locale is Sie-form everywhere and
+   stays that way: register is a fact about the whole file rather than about a row, and
+   `tests/presentation/i18n/strings.test.ts` refuses a du-form imperative anywhere in `de.ts`.
+   Read the German column as *wording*, not as *register*.
+2. **German asset vocabulary stays `Objekt` / `Objekte`.** The table's German column says
+   `Asset`, `Asset-Bibliothek`, `Neues Asset`, `Asset nicht mehr verfügbar`. The shipped locale
+   says `Objekt` and `Objekt-Bibliothek`, a repo-wide decision pinned by the forbidden-word case
+   in `strings.test.ts` (`Material` → `Objekt`) and by every key under
+   `view.asset-library.*`. One German noun per concept beats matching this table row.
+3. **`view.project.some-plans-unreadable` keeps a second sentence.** The table states it as
+   `Some plans could not be read.` alone; the shipped string adds `Open the diagnostics report to
+   see which notes refused.` because that sentence names a next action the user needs and can
+   take — the diagnostics report is a real command and a real settings row, and it lists the
+   refused notes by name. The `{count}` placeholder the string used to carry IS dropped, per the
+   table.
+4. **`view.project.resume-missing-project` and `view.project.draft-body` are unchanged.**
+   Neither has a row in the table, and both still say something true about their own surface.
+   `view.project.resume-missing-plan` DID lose its second sentence, because the recovery screen
+   (`view.project.recovery-title` / `.recovery-body`) is what offers the way on now.
+5. **`view.project.count-one` / `.count-many` and `view.project.filter.placeholder` are
+   unchanged.** The table's `Search count` row is the FILTERING state
+   (`{matches} of {total} projects`); the resting count line and the field's placeholder hint are
+   separate strings with no row here.
+6. **German plan vocabulary: `Plan` / `Pläne` on the project surfaces, `Grundriss` in the plan
+   editor.** The terminology section is explicit that a plan is a planning entity rather than a
+   drawing of a floor, so `view.project.plans-title`, `view.project.create-plan`,
+   `view.project.some-plans-unreadable`, `empty.project.no-plans.*`, `form.new-plan.title`,
+   `empty.project.no-projects.body` and `plan.empty-name` now say `Plan`/`Pläne`. `Grundriss`
+   deliberately SURVIVES in two places:
+   - the plan editor's own vocabulary (`view.plan-editor.name`, `command.open-plan-editor`,
+     `command.set-plan-background`, `background.*`, `plan.none`, every `editor.*`, `planning.*`
+     and `renovation.*` key, and `empty.plan.no-background.body`), which is a different surface
+     and not this package's to rename; and
+   - `view.project.guidance-optional-plan` and `view.project.entry-plan-start-body`, where the
+     English original says *floor plan* and means one — a literal drawing the user may or may not
+     have. `Grundriss` is the correct German word there, not a leftover.
+7. **`asset-price.external-modification` still tells the user to discard.**
+   `asset-price.revision-conflict` was changed to preserve the draft for deliberate
+   reapplication (the table's `Conflict` row); its sibling, raised one cause along by an
+   out-of-plugin edit, has no row in this table and was left alone rather than reworded on
+   inference. It is now the one sentence on that surface still naming discard as the remedy, and
+   is the obvious next amendment.
+8. **New keys live in `locales/en/projectNavigation.ts` and `locales/de/projectNavigation.ts`,
+   not in `en.ts` / `de.ts`.** Purely mechanical: `en.ts` is AT its 400-line `max-lines` budget.
+   `StringKey` derives from the spread either way, so no caller can tell which file answered.
+9. **German `view.project.detail-loading` is `Wird geladen …`** — a narrow no-break space before
+   the ellipsis, matching every other German loading string in the file, where the table writes
+   `Wird geladen…`.
+10. **`view.project.filter.placeholder` changed even though it has no row** — `Filter by name` /
+    `Nach Namen filtern` became `Search by name` / `Nach Namen suchen`. Not a deviation from the
+    table but a consequence of one: the label above it now says `Search projects`, and a field
+    labelled *search* whose own hint said *filter* named one control two ways.

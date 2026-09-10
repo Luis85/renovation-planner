@@ -37,19 +37,19 @@ export const de: Partial<Record<StringKey, string>> = {
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.price-apply': 'Übernehmen',
-	'view.project.price-cancel': 'Entwurf verwerfen',
-	'view.project.price-saved-refresh-failed': 'Gespeichert; die Anzeige konnte nicht aktualisiert werden. Aktualisieren Sie die Anzeige vor der nächsten Bearbeitung.',
-	'view.project.price-refresh': 'Preise aktualisieren',
+	'view.project.price-cancel': 'Abbrechen',
+	'view.project.price-saved-refresh-failed': 'Gespeichert; die Anzeige konnte nicht aktualisiert werden.',
+	'view.project.price-refresh': 'Anzeige aktualisieren',
 	'view.project.price-foreign': 'Andere Währung; in diesem Projekt nicht verwendbar',
 	'view.project.price-none-usable': 'Kein verwendbarer Preis',
-	'view.project.draft-title': 'Preisentwürfe verwerfen?',
+	'view.project.draft-title': 'Ungespeicherte Änderungen verwerfen?',
 	'view.project.draft-body': 'Beim Verlassen dieses Bereichs werden nicht übernommene Preisentwürfe verworfen.',
-	'view.project.draft-stay': 'Hier bleiben',
-	'view.project.draft-discard': 'Verwerfen und verlassen',
+	'view.project.draft-stay': 'Weiter bearbeiten',
+	'view.project.draft-discard': 'Verwerfen und fortfahren',
 	'view.project.price-pending': 'Preis wird gespeichert…',
 	'view.project.resume-indexing': 'Das letzte Ziel wird noch eingelesen. Versuchen Sie es nach dem Laden erneut.',
 	'view.project.resume-missing-project': 'Das letzte Projekt ist nicht mehr verfügbar. Wählen Sie ein Projekt aus der Übersicht.',
-	'view.project.resume-missing-plan': 'Der letzte Plan ist nicht mehr verfügbar. Sie können das zugehörige Projekt weiterhin öffnen.',
+	'view.project.resume-missing-plan': 'Der letzte Plan ist nicht mehr verfügbar.',
 	'view.project.resume-unreadable': 'Das letzte Ziel konnte nicht geöffnet oder gelesen werden. Ihr gespeicherter Kontext bleibt erhalten.',
 	'view.project.resume-retry': 'Erneut versuchen',
 	'view.project.resume-open-project': 'Projekt öffnen',
@@ -229,10 +229,12 @@ export const de: Partial<Record<StringKey, string>> = {
 	// Zwei davon überschreiben absichtlich einen Suffix-Eintrag: `toUserMessage` fragt zuerst
 	// `hasLocaleKey(error.code)`, und auf dieser Oberfläche gibt es nichts neu zu laden.
 	'asset-price.currency-mismatch': 'Ein Preis muss in der Währung des Projekts angegeben sein.',
+	// Kein „Verwerfen“ mehr: der Entwurf bleibt absichtlich erhalten, damit er bewusst erneut
+	// übernommen werden kann.
 	'asset-price.revision-conflict':
-		'Dieser Preis wurde an anderer Stelle geändert. Verwerfen Sie Ihre Eingabe, um den aktuellen zu sehen.',
+		'Dieser Preis wurde an anderer Stelle geändert. Prüfen Sie den aktuellen Wert, bevor Sie Ihren Entwurf erneut übernehmen.',
 	'asset-price.external-modification':
-		'Dieser Preis wurde außerhalb des Plugins bearbeitet. Verwerfen Sie Ihre Eingabe, um den aktuellen zu sehen.',
+		'Dieser Preis wurde außerhalb des Plugins bearbeitet. Prüfen Sie den aktuellen Wert, bevor Sie Ihren Entwurf erneut übernehmen.',
 	'asset-price.project-not-found': 'Dieses Projekt ist nicht mehr vorhanden.',
 	'asset-price.asset-not-found': 'Dieses Objekt ist nicht mehr vorhanden.',
 	'asset-price.write-failed': 'Der Preis konnte nicht gespeichert werden.',
@@ -268,8 +270,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'notice.severity.warning': 'Warnung',
 	'notice.severity.error': 'Fehler',
 	'notice.dismiss': 'Schließen',
-	'empty.project.no-projects.headline': 'Noch keine Renovierungsprojekte',
-	'empty.project.no-projects.body': 'Ein Renovierungsprojekt enthält Ihre Grundrisse, Zonen, Objekte und Kosten. Erstellen Sie eines, um zu beginnen.',
+	'empty.project.no-projects.headline': 'Noch keine Projekte',
+	// `Pläne`, nicht `Grundrisse`: auf den Projektoberflächen ist ein Plan eine Planungseinheit
+	// und kein gezeichneter Grundriss. Das Wort `Grundriss` bleibt dem Plan-Editor vorbehalten.
+	'empty.project.no-projects.body': 'Ein Renovierungsprojekt enthält Ihre Pläne, Zonen, Objekte und Kosten. Erstellen Sie eines, um zu beginnen.',
 	'empty.plan.no-background.headline': 'Noch kein Plandokument',
 	'empty.plan.no-background.body': 'Legen Sie einen Grundriss, Lageplan, eine Skizze oder einen Gartenplan als Hintergrund dieses Plans fest und kalibrieren Sie ihn, damit Flächen in echten Einheiten herauskommen.',
 	'empty.plan.no-zones.headline': 'Noch keine Räume',
@@ -295,9 +299,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.project.loading': 'Projekte werden geladen …',
 	// Kein zweiter Satz über einen Diagnosebericht — den gibt es in diesem Build inzwischen
 	// sehr wohl; der Grund steht jetzt am gleichen Schlüssel in `en.ts` und ist ein anderer.
-	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden.',
+	'view.project.some-unreadable': 'Einige Projekte konnten nicht gelesen werden.',
 	'view.project.some-plans-unreadable':
-		'{count} Grundriss(e) in diesem Projekt konnten nicht gelesen werden. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
+		'Einige Pläne konnten nicht gelesen werden. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'form.new-project.title': 'Neues Renovierungsprojekt',
 	'form.new-project.name': 'Name',
 	'form.new-project.status': 'Status',
@@ -315,38 +319,39 @@ export const de: Partial<Record<StringKey, string>> = {
 	'form.new-project.status.complete': 'Abgeschlossen',
 	'form.new-project.status.as-built': 'Bestandsdokumentation',
 	'empty.project.no-projects.action': 'Projekt erstellen',
-	'view.project.list-title': 'Renovierungsprojekte',
+	'view.project.list-title': 'Projekte',
 	'view.project.create': 'Neues Projekt',
-	// `Grundriss`/`Grundrisse` is this file's own word for a plan ('command.open-plan-editor':
-	// 'Grundriss-Editor öffnen') — the vocabulary comes from the file, never from a dictionary.
-	'view.project.back': 'Zurück zu den Projekten',
-	'view.project.open-note': 'Notiz öffnen',
+	// `Grundriss` bleibt das Wort des PLAN-EDITORS ('command.open-plan-editor':
+	// 'Grundriss-Editor öffnen'). Auf den Projektoberflächen heißt eine Planungseinheit `Plan`,
+	// wie in der Terminologie des Design-Pakets: ein Plan ist keine Zeichnung eines Geschosses.
+	'view.project.back': 'Alle Projekte',
+	'view.project.open-note': 'Projektnotiz öffnen',
 	'view.project.currency': 'Kalkuliert in {currency}',
-	'view.project.plans-title': 'Grundrisse',
-	'view.project.create-plan': 'Neuer Grundriss',
-	'view.project.filter.label': 'Projekte filtern',
-	'view.project.filter.placeholder': 'Nach Namen filtern',
+	'view.project.plans-title': 'Pläne',
+	'view.project.create-plan': 'Neuer Plan',
+	'view.project.filter.label': 'Projekte suchen',
+	'view.project.filter.placeholder': 'Nach Namen suchen',
 	'view.project.count-one': '1 Projekt',
 	'view.project.count-many': '{count} Projekte',
-	'view.project.filter.matches': '{shown} von {total}',
-	'view.project.filter.none': 'Kein Projekt passt zu „{query}“.',
-	'view.project.filter.clear': 'Filter zurücksetzen',
-	'view.project.create-named': 'Neues Projekt namens „{query}“',
-	'view.project.group.continue': 'Weitermachen',
+	'view.project.filter.matches': '{matches} von {total} Projekten',
+	'view.project.filter.none': 'Keine Projekte passen zu „{query}“.',
+	'view.project.filter.clear': 'Suche zurücksetzen',
+	'view.project.create-named': 'Projekt „{query}“ anlegen',
+	'view.project.group.continue': 'Fortsetzen',
 	'view.project.group.projects': 'Projekte',
-	'view.project.group.completed': 'Abgeschlossen ({count})',
-	'view.project.continue.resume': 'Weitermachen',
-	'view.project.continue.open': 'Öffnen',
+	'view.project.group.completed': 'Abgeschlossene Projekte ({count})',
+	'view.project.continue.resume': 'Fortsetzen',
+	'view.project.continue.open': 'Projekt öffnen',
 	'view.project.plans-one': '1 Plan',
 	'view.project.plans-many': '{count} Pläne',
 	'view.project.keys': '↵ öffnen · {mod}↵ Notiz öffnen',
 	// Der Preisbereich eines Projekts. Ein Asset heißt hier `Objekt`, niemals `Material` —
 	// `tests/presentation/i18n/strings.test.ts` weist diesen Wert zurück, und Slice 14 hat ihn
 	// vierzig Zeilen unter dem Kommentar wieder eingeführt, das seine Entfernung festhielt.
-	'view.project.prices-title': 'Objektpreise',
-	'view.project.price-catalogue': 'Bibliothekspreis',
-	'view.project.price-yours': 'Dieses Projekt',
-	'view.project.price-set': 'Preis festlegen',
+	'view.project.prices-title': 'Projektpreise',
+	'view.project.price-catalogue': 'Katalogpreis',
+	'view.project.price-yours': 'Eigener Projektpreis',
+	'view.project.price-set': 'Eigenen Preis festlegen',
 	'view.project.price-clear': 'Projektpreis entfernen',
 	'view.project.no-assets': 'Die Bibliothek enthält noch keine Objekte',
 	// Zeigt die FORM, statt sie zu beschreiben — genau wie die englische Fassung, und aus
@@ -371,20 +376,18 @@ export const de: Partial<Record<StringKey, string>> = {
 	// benennt eine Löschung, der andere nur eine fehlgeschlagene Lektüre der Notiz. Ein
 	// gemeinsamer Schlüssel würde einer Person sagen, ihr Objekt sei fort, obwohl seine Notiz
 	// heute lediglich nicht gelesen werden kann.
-	'view.project.price-orphan': 'Dieses Objekt ist nicht mehr in der Bibliothek',
-	'view.project.price-unreadable':
-		'Die Notiz zu diesem Objekt konnte nicht gelesen werden. Der Preis kann hier erst wieder '
-		+ 'festgelegt werden, wenn die Notiz repariert ist.',
-	'form.new-plan.title': 'Neuer Grundriss',
+	'view.project.price-orphan': 'Objekt nicht mehr verfügbar',
+	'view.project.price-unreadable': 'Objekt konnte nicht gelesen werden',
+	'form.new-plan.title': 'Neuer Plan',
 	'form.new-plan.name': 'Name',
 	// SIEZEN, wie jeder andere Fließtext in dieser Datei ('Erstellen Sie eines, um zu beginnen.',
 	// 'Zeichnen Sie die erste Zone auf diesem Plan.'): die englische Vorlage kennt diese
 	// Unterscheidung nicht, und zwei Anreden in einer Oberfläche sind derselbe Fehler wie zwei
 	// Namen für eine Sache.
-	'empty.project.no-plans.headline': 'Noch keine Grundrisse',
-	'empty.project.no-plans.body': 'Fügen Sie einen Grundriss hinzu, um Zonen zu zeichnen und Mengen zu ermitteln.',
-	'empty.project.no-plans.action': 'Neuer Grundriss',
-	'view.project.gone': 'Dieses Projekt existiert nicht mehr.',
+	'empty.project.no-plans.headline': 'Noch keine Pläne',
+	'empty.project.no-plans.body': 'Fügen Sie einen Plan hinzu, um Zonen zu zeichnen und Mengen zu ermitteln.',
+	'empty.project.no-plans.action': 'Neuer Plan',
+	'view.project.gone': 'Dieses Projekt ist nicht mehr verfügbar.',
 	'view.project.gone-body': 'Es wurde möglicherweise gelöscht oder aus diesem Vault verschoben. Gehen Sie zurück zur Projektliste.',
 	// 'überlappt', the verb `settings.library-overlaps-source` already uses for the same
 	// relation — one noun and one verb per concept, which is the rule the 'Material'/'Objekt'
@@ -394,7 +397,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',
 	'project.invalid-date': 'Geben Sie ein echtes Kalenderdatum ein.',
-	'plan.empty-name': 'Ein Grundriss braucht einen Namen.',
+	'plan.empty-name': 'Ein Plan braucht einen Namen.',
 	// Design slice A10. „Objekt“ für Asset, nie „Material“ — siehe die Korrektur in Slice 11.
 	//
 	// Die Kategorie `material` heißt hier deshalb „Baustoff“ und nicht „Material“: das ist

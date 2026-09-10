@@ -123,36 +123,83 @@ const resumeMessage = computed(() => {
 	}
 });
 const recoveryProjectId = computed(() => resumeState.value === 'missing-plan' ? stored.value?.projectId ?? null : null);
+/**
+ * Retry only where the existing error policy permits one — the read/access failure and nothing
+ * else. `indexing` is loading (`onProjectsChanged` re-resolves it), and both confirmed absences
+ * have nothing to re-read: on `missing-project` the stored target was already cleared, so the
+ * button made the explanation vanish and reported that as recovery.
+ */
+const resumeRetryable = computed(() => resumeState.value === 'unreadable');
 function openRecoveryProject(): void {
 	if (recoveryProjectId.value !== null) context.navigate(recoveryProjectId.value);
 }
-async function resolvePlan(resume: ContinueContext, ticket: number): Promise<void> {
-	const listed = await context.queries.listPlansByProject(resume.projectId);
-	if (ticket !== resolveTicket || disposed) return;
-	if (isErr(listed)) { resumeState.value = 'unreadable'; return; }
-	storedPlan.value = listed.value.plans.find((plan) => plan.id === resume.planId) ?? null;
-	resumeState.value = storedPlan.value ? 'ready' : listed.value.unreadable > 0 ? 'unreadable' : 'missing-plan';
+/**
+ * Whether the target this resolve VALIDATED is still the stored one.
+ *
+ * `resolveTicket` is local to this mount, so a write landing during an await — the palette's
+ * plan open, another leaf, another pane — is invisible to it and the stale resolve went on to
+ * declare a NEWER target missing. Asked before either terminal state, and only there: a
+ * `'ready'` or a read failure claims nothing about a target that has since moved.
+ */
+async function stillStored(resume: ContinueContext): Promise<boolean> {
+	const now = await context.continueContext();
+	return now !== null && now.projectId === resume.projectId && (now.planId ?? null) === (resume.planId ?? null);
 }
+async function resolvePlan(resume: ContinueContext, ticket: number): Promise<'ready' | 'unreadable' | 'missing-plan' | null> {
+	const listed = await context.queries.listPlansByProject(resume.projectId);
+	if (ticket !== resolveTicket || disposed) return null;
+	if (isErr(listed)) return 'unreadable';
+	const plan = listed.value.plans.find((candidate) => candidate.id === resume.planId) ?? null;
+	if (plan !== null) { storedPlan.value = plan; return 'ready'; }
+	if (listed.value.unreadable > 0) return 'unreadable';
+	if (!(await stillStored(resume)) || ticket !== resolveTicket || disposed) return null;
+	return 'missing-plan';
+}
+/**
+ * The resolution, computed THEN assigned — one write per run rather than a reset followed by an
+ * answer.
+ *
+ * The reset was unconditional and this function runs on every `onProjectsChanged` delivery, so
+ * any project note touched anywhere in the vault drove the live region through `none` and back
+ * to the same sentence. A ref assigned its current value notifies nothing, which is the whole
+ * mechanism; `null` means "an obsolete run, write nothing".
+ */
 async function resolveStored(): Promise<void> {
 	const ticket = ++resolveTicket;
 	const resume = await context.continueContext();
 	if (ticket !== resolveTicket || disposed) return;
-	stored.value = resume;
+	const settle = (state: typeof resumeState.value): void => {
+		stored.value = resume;
+		resumeState.value = state;
+	};
 	storedPlan.value = null;
-	resumeState.value = 'none';
-	if (!resume) return;
-	if (!context.indexScanCompleted()) { resumeState.value = 'indexing'; return; }
+	if (!resume) { settle('none'); return; }
+	if (!context.indexScanCompleted()) { settle('indexing'); return; }
 	const found = await context.queries.getProject(resume.projectId);
 	if (ticket !== resolveTicket || disposed) return;
-	if (isErr(found)) { resumeState.value = 'unreadable'; return; }
-	if (!found.value) { context.forgetContinue(resume); resumeState.value = 'missing-project'; return; }
-	if (resume.planId === null) { resumeState.value = 'ready'; return; }
-	await resolvePlan(resume, ticket);
+	if (isErr(found)) { settle('unreadable'); return; }
+	if (!found.value) {
+		if (!(await stillStored(resume)) || ticket !== resolveTicket || disposed) return;
+		context.forgetContinue(resume);
+		settle('missing-project');
+		return;
+	}
+	if (resume.planId === null) { settle('ready'); return; }
+	const state = await resolvePlan(resume, ticket);
+	if (state !== null) settle(state);
 }
 async function onResume(resume: ContinueContext): Promise<void> {
 	if (context.readOnly && resume.planId !== null) return;
 	await resolveStored();
-	if (disposed || resumeState.value !== 'ready' || stored.value?.projectId !== resume.projectId || stored.value.planId !== resume.planId) return;
+	if (disposed) return;
+	// P03's entry: the project is there and its last plan is confirmed gone, so the pane goes to
+	// that project rather than reporting the miss beside a list of others. No substitute plan is
+	// chosen and the stored target is not cleared — `ProjectDetail` re-derives the miss from it.
+	if (resumeState.value === 'missing-plan' && stored.value?.projectId === resume.projectId) {
+		context.navigate(resume.projectId);
+		return;
+	}
+	if (resumeState.value !== 'ready' || stored.value?.projectId !== resume.projectId || stored.value.planId !== resume.planId) return;
 	if (resume.planId === null) { context.navigate(resume.projectId); return; }
 	const ticket = resolveTicket;
 	const outcome = await context.openPlan(resume.planId);
@@ -429,6 +476,8 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 				<ResumeRecovery
 					:message="resumeMessage"
 					:project-id="recoveryProjectId"
+					:retryable="resumeRetryable"
+					:loading="resumeState === 'indexing'"
 					@retry="resolveStored"
 					@open-project="openRecoveryProject"
 				/>

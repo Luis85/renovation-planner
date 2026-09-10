@@ -1,26 +1,33 @@
 <script setup lang="ts">
 /**
- * One project as a list row — the Home design spec §6's anatomy, extracted out of
- * `ProjectList.vue` because the list around it grows four regions and a row living inside it
- * would be edited by every one of them.
+ * One project as a list row — the design package's P00 (wide) and P06 (narrow) anatomy:
+ * a leading decorative glyph, the name, the facts, a status PILL and a trailing chevron.
+ *
+ * **The ten-cell tick strip is gone and this is where it went.** It was design spec §6's
+ * reading of the lifecycle as an arc; the design package draws a chip instead, and the user
+ * decided between the two. `projectStatusStage`, `StatusTicks.vue` and the strip's own rules
+ * went with it in a follow-up — the module outlived the row by exactly one increment, because
+ * a prototype still imported it, which a grep found and the file itself could not say.
+ *
+ * **The dot carries ONE colour for every status (`--text-accent`), deliberately.** A
+ * status-to-colour mapping is a mapping this design package does not define, and inventing one
+ * here would be a second answer to what a status means. The translated WORD is the whole
+ * accessible name either way, which is SDD §85's rule: a status is never carried by colour.
  *
  * **It keeps `ProjectList`'s class names for the name, the status and the §83 marker.** Those
  * three have shipped rules in `forms.css` and `project-list-overlap.css` that were each found
- * by a capture and are each argued for where they live; renaming them would be re-litigating
- * three settled layout findings inside a change about composition. It is also what keeps
- * `projectList.test.ts` and `projectListOverlap.test.ts` addressing the row they already
- * address. What is NEW here gets `rp-project-row__*` — the facts slot and the tick strip — so
- * the two vintages are legible.
+ * by a capture and are each argued for where they live. What is NEW here gets
+ * `rp-project-row__*`.
  *
  * It DISPATCHES nothing and opens nothing: it emits an id, `ProjectList` re-emits it and the
  * VIEW decides what that means. That is design slice 16's division, unchanged.
  */
 import { computed } from 'vue';
 import type { ProjectSummaryDto } from '../read-models/PlanDto';
+import HostIcon from '../components/HostIcon.vue';
 import { statusLabel } from './statusLabel';
-import { PROJECT_STATUS_STAGE_COUNT, projectStatusStage } from './projectStatusStage';
 import { splitMatch } from './projectFilter';
-import { tr } from '../i18n/strings';
+import { currentLanguage, tr } from '../i18n/strings';
 import { opensNote } from './platformModifier';
 
 /**
@@ -41,13 +48,6 @@ import { opensNote } from './platformModifier';
  * VISIBLE: a mount that forgets it draws the name with no highlight, which is exactly what a
  * row above no filter is meant to look like. Nothing is silently wrong and nothing costs
  * anything it should not.
- *
- * **Both of today's mounts pass it**, so the optionality is currently unexercised in production
- * — an earlier draft of this paragraph justified it by naming the Continue group and the
- * prototypes, and NEITHER exists: the Continue group is a later task's, and no prototype mounts
- * this component at all (`StatusTicks.vue`'s own header says why it duplicates the markup
- * instead). A reason that names a caller is a reason a grep can check, and that one was never
- * run.
  */
 /**
  * `withDefaults` rather than `tabbable ?? true` at the point of use: a TS type of `boolean`
@@ -64,9 +64,9 @@ const props = withDefaults(
 		query?: string;
 		/**
 		 * Whether this row is the roving group's one tab stop (Task 8, design spec §7). `true`
-		 * by default so a row drawn OUTSIDE a roving group — the Continue row, a harness
-		 * prototype — is an ordinary control, which is what §7 requires of it. `ProjectList` is
-		 * the one caller that ever passes `false`.
+		 * by default so a row drawn OUTSIDE a roving group — a harness prototype — is an
+		 * ordinary control, which is what §7 requires of it. `ProjectList` is the one caller
+		 * that ever passes `false`.
 		 */
 		tabbable?: boolean;
 	}>(),
@@ -86,48 +86,70 @@ const emit = defineEmits<{ open: [projectId: string]; openNote: [projectId: stri
 const runs = computed(() => splitMatch(props.project.name, props.query, props.collator));
 
 /**
- * The facts slot's content, in the order §8 specifies, with EMPTY ENTRIES ABSENT rather than
- * blank.
+ * THE PLAN COUNT, and `null` rather than `''` for a project with none.
  *
- * The governing rule from the confirmed brief: the row must look complete today, not like a
- * card with holes. A slot with nothing in it renders nothing — no dash, no `—`, no skeleton,
- * no "not yet calculated" — and its neighbours close up. A project with no plans therefore
- * shows its currency alone, not `0 plans · EUR`.
+ * The governing content rule from the confirmed brief is unchanged: the row must look complete
+ * today, not like a card with holes. A slot with nothing in it renders nothing — no dash, no
+ * em-dash, no skeleton — and its neighbours close up. What changed is HOW: P00 gives plans and
+ * currency their own columns under their own headings, so the two are two elements rather than
+ * one joined string. At WIDE width closing up is what a grid does anyway — an absent item
+ * leaves an empty cell under its own heading, which reads as an empty cell rather than as a
+ * hole. At NARROW there is no heading to explain the gap, so the narrow sheet moves the
+ * currency into the count's track with an adjacent-sibling selector
+ * (`.rp-project-list__name + .rp-project-row__currency`) that matches only when this is `null`.
+ * `null` rather than `''` is what makes the element ABSENT, and that selector reads absence.
  *
  * The singular is `view.project.plans-one`, whose English copy SPELLS THE NUMERAL OUT (`One
  * plan`); `en.ts` records the lint reason at the key. Picking by `count === 1` here is the
  * whole of this plugin's plural machinery — `t` has none.
  *
- * **Budget and progress are RESERVED and render nothing.** §8 specifies this slot to receive
- * them, in that order, when and only when a query supplies them — and no query derives either
- * from real requirements and real costs yet. A builder may not approximate either, and may not
- * add a third fact here without amending the spec.
+ * **The counted PHRASE at both widths, where P00's mockup draws a bare numeral under its
+ * `Plans` heading.** A bare numeral is only readable while the heading is on screen, and the
+ * heading is dropped at narrow — so the numeral would be a naked digit in the one composition
+ * that cannot explain it. One string, both widths.
  */
-const facts = computed(() => {
-	const entries: string[] = [];
-	if (props.project.planCount > 0) {
-		entries.push(
-			props.project.planCount === 1
-				? tr('view.project.plans-one')
-				: tr('view.project.plans-many', { count: String(props.project.planCount) }),
-		);
-	}
-	entries.push(props.project.currency);
-	return entries.join(' · ');
+const plans = computed(() => {
+	// `> 0` rather than `!== 0`, which is what this test has always been and is deliberately not
+	// "simplified": the two differ on a count that is not a number at all, and the strict form
+	// renders `undefined plans` where this one renders nothing.
+	if (!(props.project.planCount > 0)) return null;
+	return props.project.planCount === 1
+		? tr('view.project.plans-one')
+		: tr('view.project.plans-many', { count: String(props.project.planCount) });
 });
 
 /**
- * The lifecycle arc as ten cells, or `null` for a status this build cannot place — in which
- * case no strip is drawn at all and the translated word stands alone, which is exactly the
- * composition the narrow row already uses, so nothing extra had to be designed for it.
+ * P00's `Last worked` column — a required index fact (`ProjectSummaryDto.lastWorked`) the row
+ * drew nowhere until this package asked for it. It is LAST WORKED and not "last opened", which
+ * P00's own data contract states in so many words.
  *
- * `reached` is inclusive of the current stage: a project at DESIGN has three of ten cells
- * filled, not two, because the stage it is AT is one it has reached.
+ * An ABSOLUTE short date, never a relative time. A relative time needs a live ticker, makes
+ * every test time-dependent, and "worked on yesterday" is a wireframe's nicety rather than a
+ * requirement. Moved here from `ContinueRow`, which stopped drawing a date when its row became
+ * P00's card — so this is a relocation rather than a second copy of the formatter.
+ *
+ * Empty rather than a dash when there is no date, per the content rule above. Dropped entirely
+ * at narrow (P06: "Date may be omitted"), by the narrow sheet rather than by a branch here —
+ * P06 also says the visually omitted date retains its value, and `display: none` is what makes
+ * the wide composition and the narrow one one component.
  */
-const ticks = computed(() => {
-	const stage = projectStatusStage(props.project.status);
-	if (stage === null) return null;
-	return Array.from({ length: PROJECT_STATUS_STAGE_COUNT }, (_, cell) => cell <= stage);
+const worked = computed(() => {
+	const at = new Date(props.project.lastWorked ?? '');
+
+	// **A DATE THIS CANNOT READ RENDERS NOTHING, and the guard is `Number.isNaN` rather than a
+	// `=== null` test on the field.** `Intl.DateTimeFormat.format` THROWS a `RangeError` on an
+	// invalid date, and this is a computed inside a `v-for` — so one unreadable value does not
+	// blank one cell, it takes down the render of the whole list and leaves an empty pane. Found
+	// exactly that way: a test double supplying `{ id, name, status }` and no `lastWorked` at all
+	// turned seven unrelated `ViewRoot` cases red with `Unhandled error during execution of
+	// render function`, and the pane drew nothing.
+	//
+	// The field is typed `string | null`, so in production `?? ''` covers the declared absence
+	// and the NaN check covers a value that is present and unparseable — which no type can rule
+	// out, since it arrives from the vault's own file stats through the index. A row that cannot
+	// be dated is still a row; a display-only fact must never be able to remove one.
+	if (Number.isNaN(at.getTime())) return '';
+	return new Intl.DateTimeFormat(currentLanguage(), { dateStyle: 'medium' }).format(at);
 });
 
 /**
@@ -181,8 +203,9 @@ function onAuxClick(event: MouseEvent): void {
 }
 
 /**
- * `Mod+↵` opens the note; a bare `↵` is the button's own native activation and is deliberately
- * NOT handled here — intercepting it would reimplement what the element already does.
+ * `Mod+Enter` opens the note; a bare Enter is the button's own native activation and is
+ * deliberately NOT handled here — intercepting it would reimplement what the element already
+ * does.
  */
 function onKeydown(event: KeyboardEvent): void {
 	if (event.key !== 'Enter' || !opensNote(event)) return;
@@ -202,6 +225,13 @@ function onKeydown(event: KeyboardEvent): void {
 		@auxclick="onAuxClick"
 		@keydown="onKeydown"
 	>
+		<!-- P00's leading glyph. `HostIcon` is `aria-hidden` at its own root, so this adds
+		     nothing to the row's accessible name — it is decoration beside text that already
+		     says everything. -->
+		<HostIcon
+			name="house"
+			class="rp-project-row__glyph"
+		/>
 		<!-- The half that gives way. `title` is what makes a truncated name readable at all,
 		     and it is the shipped rule `forms.css` records finding at 460px. -->
 		<!--
@@ -218,38 +248,36 @@ function onKeydown(event: KeyboardEvent): void {
 			:key="at"
 			:class="{ 'rp-project-row__match': run.matched }"
 		>{{ run.text }}</span></span>
-		<span class="rp-project-row__facts">{{ facts }}</span>
+		<!-- ABSENT rather than empty at zero, which is what the narrow separator rule reads. -->
+		<span
+			v-if="plans !== null"
+			class="rp-project-row__plans"
+		>{{ plans }}</span>
+		<span class="rp-project-row__currency">{{ project.currency }}</span>
 		<span class="rp-project-list__status rp-project-row__status">
-			<!-- The word is WRAPPED rather than left as a bare text node, and the span exists for
-			     exactly one rule: `project-list.css` gives it a reserved `min-width` in `ch`, so
-			     the status words form a column instead of landing wherever each name's length
-			     left them (design spec §3's armature). Sizing the status BOX instead would put
-			     the strip's own width and the gap beside it into that number, and the number is
-			     meant to be re-derivable as "the longest status word" and nothing else. -->
-			<span class="rp-project-row__status-word">{{ statusLabel(project.status) }}</span>
-			<!-- `aria-hidden` and text-free, so the WORD above stays the whole accessible name.
-			     The strip is an enhancement over a channel that is already complete, which is
-			     what makes dropping it at narrow lossless rather than a downgrade. -->
-			<span
-				v-if="ticks !== null"
-				class="rp-project-row__ticks"
+			<!-- THE PILL. The dot is `aria-hidden` and text-free, so the WORD is the whole
+			     accessible name — a status is never carried by colour (SDD §85), and one
+			     accent dot for every status is what keeps this from becoming a status-to-colour
+			     mapping this package has not defined. -->
+			<span class="rp-project-row__pill"><span
+				class="rp-project-row__dot"
 				aria-hidden="true"
-			>
-				<span
-					v-for="(reached, cell) in ticks"
-					:key="cell"
-					class="rp-project-row__tick"
-					:class="{ 'rp-project-row__tick--reached': reached }"
-				/>
-			</span>
+			/>{{ statusLabel(project.status) }}</span>
 		</span>
+		<span class="rp-project-row__worked">{{ worked }}</span>
 		<!-- PRD §83's marker, unchanged from design slice 19: a CSS-drawn triangle on the
 		     class's `::before` and a translated sentence as the element's own text, so the row
 		     says what is wrong to a reader who cannot see the colour and to one who cannot see
-		     the glyph alike. It sits AFTER the status and never shrinks. -->
+		     the glyph alike. It sits AFTER the status and takes a line of its own. -->
 		<span
 			v-if="project.libraryOverlap"
 			class="rp-project-list__overlap"
 		>{{ tr('view.project.library-overlap') }}</span>
+		<!-- P00's trailing chevron. Decorative and `aria-hidden` at HostIcon's own root, so it
+		     adds NO focus stop: the row is already one `<button>`. -->
+		<HostIcon
+			name="chevron-right"
+			class="rp-project-row__chevron"
+		/>
 	</button>
 </template>

@@ -81,7 +81,7 @@ describe('continue-row.css', () => {
 	 * what the control does.
 	 */
 	it('refuses to shrink either action', () => {
-		expect(bodyOf('.rp-continue__resume,\n.rp-continue__open')).toContain('flex-shrink: 0');
+		expect(bodyOf('.rp-continue__actions')).toContain('flex-shrink: 0');
 	});
 
 	/**
@@ -100,24 +100,42 @@ describe('continue-row.css', () => {
 	});
 
 	/**
-	 * **THE TWO HALVES OF "the same armature as every other row", which was false for three
-	 * tasks and which four captures showed.** Every other row is a `<button>` and inherits
-	 * Obsidian's bare `button` rule; this row is a `<div>` and inherits none of it. Two of that
-	 * rule's declarations are visible — `font-size: var(--font-ui-small)` and
-	 * `white-space: nowrap` — and are NOT part of the button-ness `list-row.css` strips, so
-	 * without them the Continue row drew at the interface's default size above a list of small
-	 * ones. Asserted TOGETHER because either alone leaves the row a different shape, and each
-	 * reads as an ordinary tidy-up to a reader who does not know the `<div>` is why.
+	/**
+	 * **P00'S CARD: a border, a radius and a tint, on Obsidian's own tokens.** All three, because
+	 * any one alone draws something that is not a card — a tint with no border is a stripe, a
+	 * border with no tint is an outlined row, and the surface already refused outlined rows once
+	 * (`list-row.css`'s `box-shadow: none`).
 	 *
-	 * Both are RESTATEMENTS of a rule this row cannot inherit, which is the one case where a
-	 * hard-coded agreement with somebody else's stylesheet is the honest answer: a `<div>` has
-	 * nothing to inherit from and the sameness is the component's own stated contract.
+	 * `--background-secondary` is asserted BY NAME rather than as "some token", because it is the
+	 * same token the status pill wears (`project-row.css`) and one tint across the surface's two
+	 * tinted blocks is the thing being kept. `styles-assemble.mjs` already refuses a literal, so
+	 * this is not about the themed-vault half.
 	 */
-	it('restates the two button declarations a div cannot inherit', () => {
+	it('draws P00’s card: bordered, rounded and tinted on the pill’s own token', () => {
+		const body = bodyOf('.rp-project-list .rp-continue');
+
+		expect(body).toContain('border: var(--border-width) solid var(--background-modifier-border)');
+		expect(body).toContain('border-radius: var(--radius-m)');
+		expect(body).toContain('background-color: var(--background-secondary)');
+	});
+
+	/**
+	 * **THE ONE DECLARATION A `<div>` STILL CANNOT INHERIT.** Every other row is a `<button>` and
+	 * inherits Obsidian's bare `button` rule; this card is a `<div>` and inherits none of it, so
+	 * `font-size: var(--font-ui-small)` is restated or the card draws at the interface's default
+	 * size above a list of small rows — which four captures showed for three tasks.
+	 *
+	 * **`white-space: nowrap` was the second half of this pair and is deliberately NOT restated
+	 * any more.** It belonged to a one-line row. The card has two name lines, each of which
+	 * truncates on its own (`min-width: 0` plus an ellipsis), and `nowrap` on the container would
+	 * apply to the action labels as well. Dropped rather than kept, and said here so the next
+	 * reader does not restore it as a missing half.
+	 */
+	it('restates the one button declaration a div cannot inherit, and not the retired one', () => {
 		const body = bodyOf('.rp-project-list .rp-continue');
 
 		expect(body).toContain('font-size: var(--font-ui-small)');
-		expect(body).toContain('white-space: nowrap');
+		expect(body).not.toContain('white-space: nowrap');
 	});
 
 	/**

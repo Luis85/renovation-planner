@@ -1,0 +1,274 @@
+/*
+ * The project row's P00/P06 anatomy — the leading glyph, the status pill, the trailing chevron
+ * and the wide-width column heading strip the design package's mockups draw.
+ *
+ * Its own partial rather than more of `project-list.css`, which stood at 394 lines against the
+ * 400-line cap when this work started: the cut is a budget, not a new organising idea.
+ * Imported directly after `project-list.css` and before `project-list-narrow.css`, which is the
+ * slot these rules need — the narrow sheet overrides row layout at equal specificity and must
+ * stay last.
+ *
+ * Every colour is an Obsidian variable, at every nesting depth; the build fails on a literal.
+ */
+
+/*
+ * ONE TRACK LIST, TWO CONSUMERS — the heading strip and every row read this custom property,
+ * so the headings sit over the columns they name by construction rather than by two lists
+ * somebody has to keep equal. A second declaration is exactly how a heading strip drifts one
+ * track out of step with its rows, which no gate in this repository could see (jsdom lays
+ * nothing out).
+ *
+ * Declared on the GROUP rather than on the `<ul>` because the heading strip is a SIBLING of
+ * that list: `.rp-project-list__columns` is not a descendant of `.rp-project-list`, so a
+ * property declared there would not reach it.
+ *
+ * THE SEVEN TRACKS, and the four fixed ones are MEASURED. Every figure below was read in a real
+ * Chromium off this harness at 1600, in BOTH locales, from the shipped elements themselves —
+ * the probe appends a span carrying the real class into the real list and reads its
+ * `getBoundingClientRect`, so what is recorded is what the browser lays out rather than a
+ * character count. Each track is the ceiling of the widest thing that has to fit in it, which
+ * is the LONGER OF ITS HEADING AND ITS WIDEST DATUM — and for two of the four the heading is
+ * what wins, which is the finding worth keeping:
+ *
+ *                     heading            widest datum          track
+ *   glyph             —                  18.00 (--icon-size)   var(--icon-size, 18px)
+ *   name              45.91 `Projekt`    the pane's            `minmax(0, 1fr)`
+ *   plans             < 45.91 `Pläne`    48.27 `One plan`      4rem   =  64px
+ *   currency          60.58 `Währung`    21.50 `EUR`           4.5rem =  72px
+ *   status            < 45.91 `Status`  154.59 the AS_BUILT    10rem  = 160px
+ *                                              pill, German
+ *   worked           117.41 `Zuletzt    69.59 `Aug 31, 2026`   8rem   = 128px
+ *                           bearbeitet`
+ *   chevron           —                  18.00 (--icon-size)   var(--icon-size, 18px)
+ *
+ * **THE TWO GLYPH TRACKS ARE STATED AND MUST NOT BE `auto`, which is the defect the first
+ * capture of this strip showed.** `auto` sizes to CONTENT, and the heading strip has no glyph
+ * and no chevron — so its first and last tracks collapsed to zero and every heading sat 18px
+ * plus a gap to the left of the column it names. Measured off `home-whole`: `Project` at x=17
+ * against a row name at x=32. A shared track list only shares what does not depend on each
+ * consumer's own content. The fallback repeats `.rp-host-icon`'s own (`editor-icons.css`), so
+ * the track and the glyph inside it read the same variable and cannot disagree.
+ *
+ * The two heading-driven tracks (`currency`, `worked`) would each be less than half their size
+ * if the data decided, and the two data-driven ones are German and English respectively — so a
+ * track list measured in ONE locale, or from the rows alone, is wrong in four places out of
+ * four. `Bestandsdokumentation` is measured AS A PILL (154.59) rather than as a word: the chip
+ * adds a 6px dot, a `--size-2-2` gap and 2 × `--size-4-2` of padding around it.
+ *
+ * **`rem` AND NOT `ch`, and that is a correctness requirement rather than a preference.** This
+ * one custom property is read by two elements with different font sizes — the heading strip
+ * inherits the pane's, the row is a `<button>` and wears Obsidian's `--font-ui-small` — and
+ * `var()` substitutes the TEXT of the value, so a `ch` track resolves against each consumer's
+ * own font and the headings would sit a few pixels off their columns. `rem` resolves against
+ * the root in both, which still follows the user's own interface font size; that is also why
+ * the container threshold is in `rem`. A THIRD locale is checked by rendering its own longest
+ * heading and datum against these four, and by nothing here — jsdom lays nothing out.
+ *
+ * Tight is safe on the DATA: a fixed track plus `text-overflow` means an over-long datum
+ * ellipses inside its own column rather than widening it and breaking the armature for that
+ * row. It is not safe on a HEADING, which is why the headings are what these are sized on.
+ */
+.rp-project-list__group {
+	--rp-project-columns: var(--icon-size, 18px) minmax(0, 1fr) 4rem 4.5rem 10rem 8rem var(--icon-size, 18px);
+}
+
+/*
+ * THE ROW IS A GRID, where `list-row.css` makes it a flex line.
+ *
+ * Flex cannot hold a column armature across separate elements: it distributes free space, so
+ * every row's slots land wherever that row's own name length left them unless each one carries
+ * a reserved `min-width` — which is exactly what `project-list.css` used to do for the facts
+ * and the status word, in two rules whose comments each ran to forty lines. A grid states the
+ * armature once, and the heading strip can share it.
+ *
+ * **`height: auto` is load-bearing and its absence is a defect this surface has already
+ * shipped twice.** A row is a `<button>` and Obsidian's own `button` rule sets
+ * `height: var(--input-height)` — a FIXED 30px — so a row with more content than that
+ * OVERFLOWS rather than growing. The wide row now carries a pill and can carry the §83 marker
+ * on a second grid line, so it needs the release at BOTH widths and not only at narrow, where
+ * `project-list-narrow.css` already had it.
+ *
+ * `min-height` keeps WCAG 2.5.8's floor once `height` stops deciding, and it is stated here
+ * rather than inherited from `list-row.css` only because that value (24px) is what the narrow
+ * sheet raises to 44; the wide row's rhythm is set by the block padding below.
+ *
+ * `align-items: center` because the tracks have different content heights (an 18px icon, a
+ * text line, a padded pill) and the mockup's rows read as one baseline band.
+ */
+.rp-project-list .rp-project-row {
+	display: grid;
+	grid-template-columns: var(--rp-project-columns);
+	align-items: center;
+	gap: var(--size-4-2);
+	height: auto;
+	min-height: var(--size-4-6);
+	padding-block: var(--size-4-3);
+}
+
+/*
+ * EXPLICIT PLACEMENT FOR EVERY CHILD, and auto-placement is not an option rather than not a
+ * preference: two of these children are `v-if`'d — the plan count on a project with none, and
+ * the §83 marker — so auto-placement would slide the chevron out of its own track on exactly
+ * the rows those two are absent from, and a marked row would push it onto a second grid line.
+ * Measured as a mutation rather than argued: dropping these six declarations puts the chevron
+ * in the `Last worked` column on any project with zero plans.
+ */
+.rp-project-row__glyph { grid-column: 1; }
+.rp-project-row .rp-project-list__name { grid-column: 2; }
+.rp-project-row__plans { grid-column: 3; }
+.rp-project-row__currency { grid-column: 4; }
+.rp-project-row .rp-project-row__status { grid-column: 5; }
+.rp-project-row__worked { grid-column: 6; }
+.rp-project-row__chevron { grid-column: 7; }
+
+/*
+ * THE §83 MARKER TAKES A LINE OF ITS OWN, under the name and across everything to its right.
+ *
+ * On the flex row it took the tail and `project-list-narrow.css` had to give it `order: 3` to
+ * keep it there. In a grid there is no tail to take: the marker is `flex-shrink: 0` by its own
+ * sheet's deliberate rule (a truncated warning no longer says what it is about), so putting it
+ * in any data track would either widen that track for every row or clip the sentence. A second
+ * grid line costs the marked row its own height and costs an unmarked row nothing, because the
+ * implicit row only exists where the element does.
+ *
+ * `justify-self: start` so the sentence is as wide as it is rather than as wide as five tracks.
+ */
+.rp-project-row .rp-project-list__overlap {
+	grid-column: 2 / -1;
+	grid-row: 2;
+	justify-self: start;
+}
+
+/*
+ * THE TWO DECORATIVE GLYPHS. Muted rather than `--text-normal`: they are decoration beside text
+ * that already says everything, and P00 draws them quieter than the name they flank. The
+ * chevron is the quieter of the two — it says "this row goes somewhere", which the row's
+ * being a button already says.
+ */
+.rp-project-row__glyph {
+	color: var(--text-muted);
+}
+
+.rp-project-row__chevron {
+	color: var(--text-faint);
+	justify-self: end;
+}
+
+/*
+ * THE TWO FACT COLUMNS, muted and one step smaller — the treatment `project-list.css` gave the
+ * one joined facts slot they replace, restated here because that class no longer reaches them.
+ *
+ * `min-width: 0` and the ellipsis because a grid item's `min-width` is `auto` too: an overlong
+ * datum would otherwise widen its own track and break the column for that row rather than
+ * truncating, which is the one thing a fixed armature must not do.
+ */
+.rp-project-row__plans,
+.rp-project-row__currency,
+.rp-project-row__worked {
+	min-width: 0;
+	overflow: hidden;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-overflow: ellipsis;
+}
+
+/*
+ * THE STATUS PILL, which replaces the ten-cell tick strip.
+ *
+ * The strip read the ten statuses as an ARC and drew where on it a project was; P00 and P06
+ * both draw a chip, and the user decided between the two. What the pill keeps from the strip is
+ * the property that mattered: the translated WORD is the whole accessible name, so the status
+ * is never carried by colour (SDD §85, PRD's accessibility section).
+ *
+ * **ONE DOT COLOUR FOR EVERY STATUS — `--text-accent`.** A status-to-colour mapping is a
+ * mapping this design package does not define, and a builder may not invent one: ten statuses
+ * would need ten tokens, each of them a claim about what that stage MEANS, and the mockup's own
+ * two dots differ only because its sample data does. The dot is a bullet, not a signal.
+ *
+ * `--background-secondary` for the chip and NOT `--background-modifier-hover`, which is the
+ * obvious reach and is wrong here for a measurable reason: `list-row.css` gives the row that
+ * exact colour on `:hover`, so a hovered row would swallow its own pill.
+ *
+ * `inline-flex` and `min-width: 0` so the pill hugs its word inside a track that is wider than
+ * most words, and `overflow-wrap: anywhere` so the one word longer than the track wraps inside
+ * the chip rather than widening it.
+ */
+.rp-project-row__pill {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	min-width: 0;
+	padding: var(--size-2-1) var(--size-4-2);
+	border-radius: var(--radius-l);
+	background-color: var(--background-secondary);
+	color: var(--text-normal);
+	overflow-wrap: anywhere;
+}
+
+.rp-project-row__dot {
+	flex: 0 0 auto;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background-color: var(--text-accent);
+}
+
+/*
+ * THE ROW RHYTHM. A rule BETWEEN rows and never around them: a border on every row draws a box
+ * per project, which is the outlined-box composition `list-row.css` records stripping
+ * `box-shadow` to escape. `li + li` puts it on the join, so the first row has no line above it
+ * and the last none below — the mockup's own picture.
+ *
+ * On the `<li>` rather than on the row `<button>` because the button carries the pane's inline
+ * padding, so a border on it would stop short of both edges while the mockup's rules run the
+ * full width of the list.
+ */
+.rp-project-list > li + li {
+	border-top: var(--border-width) solid var(--background-modifier-border);
+}
+
+/*
+ * P00'S COLUMN HEADING STRIP, sharing the rows' tracks through the one custom property above.
+ *
+ * The INLINE padding must equal the row's (`list-row.css`'s `var(--size-2-2) var(--size-4-2)`)
+ * or the two grids start at different offsets and every heading sits half a gutter off its
+ * column. It is stated here rather than inherited, because this element is not a row and has no
+ * rule to inherit it from.
+ *
+ * `aria-hidden` in the template keeps it out of the accessibility tree; this sheet keeps it out
+ * of the tab order by giving it nothing focusable. It is DROPPED below the container threshold
+ * by `project-list-narrow.css`, where the rows stop being columns for it to head.
+ */
+.rp-project-list__columns {
+	display: grid;
+	grid-template-columns: var(--rp-project-columns);
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-2) var(--size-4-2);
+	border-bottom: var(--border-width) solid var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * **THE HEADINGS START AT TRACK 2, and this rule is the whole of what puts them there.**
+ * Tracks 1 and 7 are the row's two glyphs and have no name, so auto-placement drops the first
+ * heading into the 18px glyph track and shifts all five one column left — measured off
+ * `home-whole`, where `Project` rendered as `P…` above the house icon and `Plans` sat over the
+ * project names.
+ *
+ * `:first-child` rather than a modifier class on that one heading, because the five are drawn
+ * by a `v-for` over a key list and a per-item class would be a second thing to keep in step
+ * with the order. Auto-placement is safe for the remaining four in a way it is not on the row:
+ * no heading is conditional, so they always fall in the same four tracks.
+ */
+.rp-project-list__column:first-child {
+	grid-column: 2;
+}
+
+.rp-project-list__column {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}

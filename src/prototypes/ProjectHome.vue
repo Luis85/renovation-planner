@@ -306,7 +306,9 @@ const summedCount = 23;
 			:aria-labelledby="tabId(active)"
 			tabindex="0"
 		>
-			<div class="rp-plan-list__header">
+			<!-- `__section`, not the retired `__header`: the shipped region became a native
+			     disclosure whose create button shares the summary's grid row (P02). -->
+			<div class="rp-plan-list__section">
 				<h3 class="rp-plan-list__title">
 					Plans
 				</h3>

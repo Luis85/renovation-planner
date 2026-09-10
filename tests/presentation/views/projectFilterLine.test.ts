@@ -4,6 +4,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ProjectFilter from '../../../src/presentation/views/ProjectFilter.vue';
+import HostIcon from '../../../src/presentation/components/HostIcon.vue';
 import ProjectList from '../../../src/presentation/views/ProjectList.vue';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
@@ -33,7 +34,7 @@ describe('ProjectFilter', () => {
 
 	it('turns the count into a ratio while filtering', () => {
 		expect(line({ query: 'ki', shown: 2, total: 4 }).find('.rp-project-filter__count').text()).toBe(
-			'2 of 4',
+			'2 of 4 projects',
 		);
 	});
 
@@ -55,7 +56,7 @@ describe('ProjectFilter', () => {
 
 		await wrapper.setProps({ query: 'ki', shown: 2, total: 4 });
 
-		expect(wrapper.find('.rp-project-filter__count').text()).toBe('2 of 4');
+		expect(wrapper.find('.rp-project-filter__count').text()).toBe('2 of 4 projects');
 		expect(wrapper.find('.rp-project-filter__announcement').text()).toBe('4 projects');
 		vi.useRealTimers();
 	});
@@ -74,25 +75,44 @@ describe('ProjectFilter', () => {
 		const input = wrapper.find('input');
 		const label = wrapper.find('label');
 
-		expect(label.text()).toBe('Filter projects');
+		expect(label.text()).toBe('Search projects');
 		expect(label.attributes('for')).toBe(input.attributes('id'));
-		expect(input.attributes('placeholder')).toBe('Filter by name');
+		expect(input.attributes('placeholder')).toBe('Search by name');
 	});
 
 	/**
-	 * THE COUNT IS INSIDE THE FIELD, which is what makes §3's teletext raise true: at rest the
-	 * field IS the pane's count line. Rendered outside it — which is what shipped until Task D —
-	 * the control is a full-pane-width empty box with a number floating beside it.
+	 * **THE FIELD HOLDS THE GLYPH AND THE INPUT, AND THE COUNT SITS OUTSIDE IT — which reverses
+	 * Task D on purpose, so the reversal is argued rather than left to read as a regression.**
 	 *
-	 * Asserted on the DOM relationship rather than on the class alone, because a build that
-	 * declared the wrapper and left the count as its sibling would satisfy any check that only
-	 * asks whether `.rp-project-filter__field` exists.
+	 * Task D moved the count INSIDE the bordered box because a capture showed a full-pane-width
+	 * empty rectangle with a number floating beside it — the "search field as furniture" risk
+	 * this direction records. What actually fills that rectangle is P00's search glyph at the
+	 * field's leading edge, which the field did not have then; and P00 and P06 both draw the
+	 * count outside — beside the field when the pane is wide, wrapped under it when narrow. A
+	 * count inside a bordered box reads as something the box owns rather than as the pane's
+	 * state, which is the opposite of §3's teletext raise.
+	 *
+	 * Asserted on the DOM RELATIONSHIP in both directions, because a build that left the count
+	 * inside would satisfy any check that only asks whether the two elements exist.
 	 */
-	it('puts the count inside the same bordered field as the input', () => {
-		const field = line().get('.rp-project-filter__field');
+	it('puts the glyph inside the bordered field and the count outside it', () => {
+		const wrapper = line();
+		const field = wrapper.get('.rp-project-filter__field');
 
 		expect(field.find('input').exists()).toBe(true);
-		expect(field.find('.rp-project-filter__count').exists()).toBe(true);
+		expect(field.findComponent(HostIcon).props('name')).toBe('search');
+		expect(field.find('.rp-project-filter__count').exists()).toBe(false);
+		expect(wrapper.find('.rp-project-filter__count').exists()).toBe(true);
+	});
+
+	/**
+	 * The glyph is DECORATION beside a field that already has a real `<label>`, so it must add
+	 * nothing to the accessible name. `HostIcon` carries `aria-hidden` at its own root; this
+	 * pins that the filter uses that component rather than a bare span, which would draw no icon
+	 * in a vault and pass a class-only assertion.
+	 */
+	it('leaves the search glyph out of the accessibility tree', () => {
+		expect(line().findComponent(HostIcon).attributes('aria-hidden')).toBe('true');
 	});
 
 	/**
@@ -154,7 +174,7 @@ describe('ProjectFilter', () => {
 		// screen reader is not read five ratios for one word. The VISIBLE count moved on the
 		// first keystroke and is already correct — that is the case above.
 		expect(announced).toBe('4 projects');
-		expect(wrapper.find('.rp-project-filter__announcement').text()).toBe('1 of 4');
+		expect(wrapper.find('.rp-project-filter__announcement').text()).toBe('1 of 4 projects');
 		vi.useRealTimers();
 	});
 
@@ -219,7 +239,7 @@ describe('the filter line inside ProjectList', () => {
 			'Küche',
 		]);
 		expect(wrapper.find('.rp-project-list__completed').exists()).toBe(false);
-		expect(wrapper.find('.rp-project-filter__count').text()).toBe('2 of 3');
+		expect(wrapper.find('.rp-project-filter__count').text()).toBe('2 of 3 projects');
 	});
 
 	it('matches diacritics through the list’s own hoisted collator', async () => {
@@ -252,7 +272,7 @@ describe('the filter line inside ProjectList', () => {
 	 * Task 7's no-match block is gated on the QUERY, not merely on an empty `matching` list —
 	 * and this is the one production state where the two disagree: every project note refused,
 	 * so `matching` is empty with NOTHING typed. Without the `query.trim().length > 0` half of
-	 * the guard this would draw `No project matches ""` beside a notice already explaining why
+	 * the guard this would draw `No projects match ""` beside a notice already explaining why
 	 * the vault looks empty, which is a second, wrong account of the same fact.
 	 */
 	it('draws no no-match block either, over the same empty-and-unread list', () => {

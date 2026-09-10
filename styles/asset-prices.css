@@ -68,25 +68,17 @@
 }
 
 /*
- * A WRAPPING flex row, so a narrow leaf (460px is an Obsidian sidebar's real width) puts the
- * input and the button on their own line rather than crushing the name.
- *
- * `.rp-asset-price-name` takes the slack with `flex-grow: 1`, which is slice 19's own lesson
- * stated where it applies: a third item in a `space-between` row pushes the other two to
- * wherever each row's name length happens to leave them, so the statuses stop forming a column.
- * Giving the slack to ONE item puts it in one place.
+ * The row's own chrome — its padding and the rule under it. The LAYOUT moved to
+ * `project-prices.css`, which composes the same four values as a labelled column strip: this
+ * file is the shared asset-price row and that one is P04's own composition of it, so a
+ * `display` here would be a second answer to a question the later partial already settles.
  */
 .rp-asset-price-row {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--size-4-2);
 	padding: var(--size-2-2) var(--size-4-2);
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .rp-asset-price-name {
-	flex-grow: 1;
 	min-width: 0;
 	overflow: hidden;
 	white-space: nowrap;
@@ -108,27 +100,19 @@
  * **The field's own label is a LABEL, not a heading**, and the first capture of this section is
  * what said so: `FieldError` mints a `<label>` per row and Obsidian's own body type drew it at
  * full size directly above the input, so every row read as a titled block and the row's real
- * name — at its left edge — read as a caption. The pair is a column so the label sits over its
- * own input rather than over the whole row, and both are muted and small, which is what makes
- * the ASSET the row's heading again.
+ * name — at its left edge — read as a caption. Both are muted and small, which is what makes the
+ * ASSET the row's heading again.
  *
- * The FIXED basis is the second half of that same capture. The label used to carry the asset
- * name visibly, so it sized this column and a long name shoved that row's input and its button
- * right — measured, three rows starting at x=923, x=887 and x=923, which is slice 19's
- * `.rp-project-list__overlap` defect (a third item in a row moving the other two) arriving on a
- * third surface. The name moved into a visually hidden span and the block takes a fixed width, so
- * every row's input and button share one left edge whatever the row is called.
+ * The block's FIXED BASIS used to live beside this rule and is gone: it hand-rolled a column so
+ * that a long asset name could not shove one row's input right, and `project-prices.css`'s grid
+ * now states that column outright — for the RESTING rows too, which a basis on the editor could
+ * never reach. At narrow it was the defect: a `14rem` basis is what stopped the editor filling
+ * the line.
  *
  * `.rp-field-error` is `FieldError`'s own wrapper and is styled generically in `forms.css`; only
- * its behaviour INSIDE this row is set here, so nothing about the shared component moves.
+ * its behaviour INSIDE this row is set here and in `project-prices.css`, so nothing about the
+ * shared component moves.
  */
-.rp-asset-price-row .rp-field-error {
-	display: flex;
-	flex-direction: column;
-	flex: 0 0 14rem;
-	gap: var(--size-2-1);
-}
-
 .rp-asset-price-row .rp-field-error label {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
@@ -181,7 +165,6 @@
 	outline-offset: 2px;
 }
 
-.rp-asset-price-row { flex-wrap: wrap; gap: var(--size-4-2); }
 .rp-asset-price-row label { white-space: normal; }
 .rp-asset-price-row button { white-space: normal; height: auto; min-height: var(--input-height); }
 .rp-asset-price-name { overflow-wrap: anywhere; }
@@ -191,8 +174,4 @@
 .rp-asset-price-row .rp-asset-price-cancel:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
-}
-@container (max-width: 640px) {
-	.rp-asset-price-name { flex-basis: 100%; white-space: normal; }
-	.rp-asset-price-catalogue, .rp-asset-price-yours { flex: 1 1 12rem; }
 }

@@ -21,4 +21,27 @@ export const deProjectNavigation = {
 	'view.project.entry-prices-body': 'Hinterlegen Sie eigene Preise, sobald Sie sie kennen.',
 	'view.project.prices-open': 'Preise ansehen',
 	'view.project.prices-back': 'Zurück zum Projekt',
+
+	// Siehe `en/projectNavigation.ts`: diese Schlüssel liegen hier, weil `en.ts` sein
+	// `max-lines`-Budget bereits ausgeschöpft hat.
+	'view.project.all-unreadable': 'Projekte konnten nicht gelesen werden.',
+	'view.project.all-plans-unreadable': 'Pläne konnten nicht gelesen werden.',
+	'view.project.detail-loading': 'Wird geladen …',
+	'view.project.recovery-title': 'Wählen Sie einen anderen Plan',
+	'view.project.recovery-body': 'Sie können mit einem der vorhandenen Pläne weiterarbeiten oder einen neuen Plan anlegen.',
+	'view.project.price-used': 'Verwendeter Preis',
+	'view.project.price-unsaved': 'Nicht gespeichert',
+	'view.project.price-saved': 'Gespeichert',
+	'view.project.price-edit': 'Bearbeiten',
+	'view.project.plans-count': 'Pläne ({count})',
+	// P04's price table: the heading over the asset NAME column, and the resting label a row
+	// with no override carries beside its `Set project price` action. Both are in the P04
+	// mockup and in no row of `ui-copy.md`, which is why they arrive here rather than there.
+	'view.project.column-asset': 'Objekt',
+	'view.project.price-none': 'Kein eigener Preis',
+	'view.project.column-project': 'Projekt',
+	'view.project.column-plans': 'Pläne',
+	'view.project.column-currency': 'Währung',
+	'view.project.column-status': 'Status',
+	'view.project.column-last-worked': 'Zuletzt bearbeitet',
 } as const;

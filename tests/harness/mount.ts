@@ -387,8 +387,22 @@ const seedProject = (projectId: string, planCount: number) => (
  * The view is reached through a THUNK because it does not exist yet: `makeView` takes these
  * deps as its argument. Called only from a click, long after the constructor has returned.
  */
-const harnessDetailDeps = (projectId: string, planCount: number, view: () => RenovationProjectView): RenovationProjectDeps => ({
+const harnessDetailDeps = (projectId: string, planCount: number, recovery: boolean, view: () => RenovationProjectView): RenovationProjectDeps => ({
 	...defaultRenovationProjectDeps(seedProject(projectId, planCount)),
+	/**
+	 * `?recovery` (P03): a stored last target naming a plan this project does not hold, which is
+	 * the ONE fact the recovery screen is derived from — `ProjectDetailState` re-reads the
+	 * continue context on every hydrate and compares it against the plans it just listed.
+	 *
+	 * A knob rather than a seeded-then-deleted plan, because `harness-shot` navigates and
+	 * screenshots and clicks nothing: there is no gesture available to it that would remove a
+	 * plan between the read and the capture. The id is deliberately one `HARNESS_PLAN_NAMES`
+	 * cannot mint, so no plan count can accidentally resolve it.
+	 *
+	 * The shared default answers `null` here, so a capture without this knob is the ordinary
+	 * detail state and nothing about it moves.
+	 */
+	...(recovery ? { continueContext: () => Promise.resolve({ projectId, planId: 'plan-removed' }) } : {}),
 	// `''` is the LIST, which is the sentinel `RenovationProjectView.getState` writes and
 	// `projectIdFrom` parses back — not a value this page invents.
 	navigate: (id, section) => {
@@ -461,6 +475,8 @@ export interface HarnessMountOptions {
 	 */
 	readonly plans?: number;
 	readonly section?: 'details' | 'prices';
+	/** `?recovery`: the stored last target names a plan this project does not hold — P03. */
+	readonly recovery?: boolean;
 	/** `?projects=<n>`: the LIST state over that many of `HOME_PROJECTS`. */
 	readonly projects?: number;
 	/** `?q=<text>`: what the filter starts with. Only meaningful beside `projects`. */
@@ -498,7 +514,7 @@ export function mountHarness(root: HTMLElement, options: HarnessMountOptions = {
 	// this whole capture tool exists against.
 	const view: RenovationProjectView =
 		projectId !== undefined && projectId !== null
-			? makeView(harnessDetailDeps(projectId, planCount, () => view))
+			? makeView(harnessDetailDeps(projectId, planCount, options.recovery === true, () => view))
 			: projects === undefined
 				? makeView()
 				: makeView(harnessHomeDeps(projects, initialQuery, () => view));

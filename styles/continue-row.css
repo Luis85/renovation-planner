@@ -1,80 +1,127 @@
 /*
- * THE CONTINUE ROW — design spec §7's "where the user was", as a row.
+ * THE CONTINUE CARD — P00/P06's "where the user was".
  *
  * Split out of `project-list.css` in Task 12, which is a fact about a BUDGET rather than a
  * new organising idea: that file sat at exactly the 400-line cap
  * (`scripts/styles-assemble.mjs` counts every line, comments and blanks included, and throws
  * ABOVE the cap), so it had zero headroom and the next line of anything failed the build.
- * The Continue row is the newest and most self-contained region on this surface and has a
- * component file of its own, so it is the seam that cuts nothing: the alternative — splitting
- * row rules from list chrome — runs straight through
- * `.rp-project-list .rp-project-list__row`'s descendant pairs.
  *
- * IMPORTED AFTER `project-list.css` and that position is load-bearing for the same reason
- * that file's own is: everything here overrides a shared row declaration from `list-row.css`
- * at equal or higher specificity.
+ * IMPORTED AFTER `project-list.css`, and the position is still load-bearing though the reason
+ * has changed: it used to be that everything here overrode a shared row declaration from
+ * `list-row.css`. **The card is no longer a `.rp-project-list__row`**, so `list-row.css` does
+ * not reach it at all — what the position buys now is that these rules come after
+ * `project-row.css`'s, which sets grid properties on a class this element does not carry
+ * either. Corrected rather than deleted, because a false reason for a true position is what a
+ * later reader tidies the position away on.
  *
- * **No rule in this file is inside a container query, and the sentence here used to say one
- * was** — it claimed the position also mattered because "the shared `container-name` these
- * rules narrow inside is declared there". This row's narrow behaviour is a single
- * `flex-wrap: wrap` that lives with every other narrow rule on this surface
- * (`project-list-narrow.css`, which owns the container declaration since Task D), and nothing
- * here queries anything. Corrected rather than deleted, because a false reason for a true
- * position is what a later reader tidies the position away on.
+ * **No rule in this file is inside a container query.** The card's narrow composition — the two
+ * actions going full-width and stacking, P06 — lives with every other narrow rule on this
+ * surface, in `project-list-narrow.css`, which owns the container declaration.
  *
  * Every colour is an Obsidian variable, at every nesting depth — the assembler fails the
  * build on a literal, a bare colour word included.
  */
 
 /*
- * Two buttons, not the row, are the target here: the shared hover/cursor come back off.
+ * **IT WAS A ROW AND IT IS A CARD, and that reverses this component's own oldest argument on
+ * purpose.** `ContinueRow.vue`'s header used to say it must be "the same armature as every
+ * other row … never a different shape", with a raised card named as the composition that
+ * direction had not locked. P00 and P06 lock it. The header keeps the old argument and says
+ * why it still binds: a card must not smuggle in a continue-first structure, and this one does
+ * not — same two destinations, and the list below is still the index.
+ *
+ * The border, the radius and the tint are Obsidian's own tokens. `--background-secondary` is
+ * the same token the status pill wears (`project-row.css`), which is deliberate: the two are
+ * the surface's only tinted blocks and one tint reads as one system.
  *
  * **THE TWO DECLARATIONS A `<div>` DOES NOT INHERIT, and their absence is what made this row a
- * different shape from every row below it.** `list-row.css` flattens a `<button>`; this row is a
- * `<div>` with two buttons inside it (its own header says why), so Obsidian's bare `button` rule
- * — which sets `font-size: var(--font-ui-small)` and `white-space: nowrap` and is NOT part of the
- * button-ness `list-row.css` strips — reaches every project row and reaches nothing here. The
- * captures showed it as a larger, wrapping name above a list of small ones. Restated rather than
- * inherited, because a `<div>` has no rule to inherit it from and the sameness is the contract.
+ * different shape from every row below it.** Obsidian's bare `button` rule — which sets
+ * `font-size: var(--font-ui-small)` and is NOT part of the button-ness `list-row.css` strips —
+ * reaches every project row and reaches nothing here. The captures showed it as a larger name
+ * above a list of small ones. Restated rather than inherited, because a `<div>` has no rule to
+ * inherit it from. `white-space: nowrap` is NOT restated any more: it belonged to a one-line
+ * row, and this card's two name lines each truncate on their own (`min-width: 0` plus the
+ * ellipsis below).
  */
 .rp-project-list .rp-continue {
-	cursor: default;
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-3);
+	padding: var(--size-4-3);
+	border: var(--border-width) solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	color: var(--text-normal);
 	font-size: var(--font-ui-small);
-	white-space: nowrap;
+	cursor: default;
 }
 
-.rp-project-list .rp-continue:hover {
-	background-color: transparent;
+/* The leading glyph, quieter than the name beside it — the same treatment `project-row.css`
+   gives the row's own. */
+.rp-continue__glyph {
+	flex: 0 0 auto;
+	color: var(--text-muted);
+}
+
+/*
+ * THE TWO NAME LINES: the project, and the plan muted underneath. `min-width: 0` because a
+ * flex item's is `auto`, so without it a long project name would push the two actions off the
+ * card instead of truncating — the exact defect `forms.css` records finding on the row at
+ * 460px, met here on a different box.
+ *
+ * `flex: 1` so the card's slack lands between the names and the actions, which is what keeps
+ * the actions at the trailing edge whatever the name's length.
+ */
+.rp-continue__names {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+
+/*
+ * BOTH LINES TRUNCATE. The project line takes `.rp-project-list__name`'s shipped rule from
+ * `forms.css` (`min-width: 0`, `overflow: hidden`, `white-space: nowrap`, the ellipsis) and
+ * needs nothing here; the plan line is this file's own and restates it, because it carries no
+ * shared class. `title` on both is what makes a truncated one readable — the shipped rule
+ * `forms.css` records finding at 460px, applied to the second line too.
+ */
+.rp-continue__plan {
+	overflow: hidden;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }
 
 /*
  * THE TWO ACTIONS DO NOT SHRINK, and this is the declaration the 400-line wall pushed out of
- * Task 11 rather than a new idea — it was disclosed as owed and is restored here with the
- * space to say why.
+ * Task 11 rather than a new idea.
  *
- * A flex item's `min-width` is `auto`, so anything that CAN shrink is what loses. The name
- * already carries `min-width: 0` and an ellipsis (`forms.css`), so it is meant to be the half
- * that gives — but once it has collapsed to nothing these two buttons are the only remaining
- * shrinkable items on the row, and a `Continue` clipped to `Contin` is a control that no
- * longer says what it does. The row wraps at narrow (the container query below), which is the
- * designed answer to a row that will not fit; shrinking the controls is the undesigned one.
+ * A flex item's `min-width` is `auto`, so anything that CAN shrink is what loses. The names
+ * already carry `min-width: 0` and an ellipsis, so they are meant to be the half that gives —
+ * but once they have collapsed these two buttons are the only remaining shrinkable items, and
+ * a `Resume` clipped to `Resu` is a control that no longer says what it does. The card stacks
+ * them at narrow (`project-list-narrow.css`), which is the designed answer to a card that will
+ * not fit; shrinking the controls is the undesigned one.
  */
-.rp-continue__resume,
-.rp-continue__open {
+.rp-continue__actions {
+	display: flex;
 	flex-shrink: 0;
+	gap: var(--size-4-2);
 }
 
 /*
- * THE FOCUS RING, and its `outline-offset` is `+2px` where the ROW's is `-2px` — an asymmetry
+ * THE FOCUS RING, and its `outline-offset` is `+2px` where a ROW's is `-2px` — an asymmetry
  * that reads as an inconsistency and is not one, so the reason is written here rather than
  * left for a later reader to "tidy" into agreement.
  *
  * `.rp-project-list .rp-project-list__row:focus-visible` (`forms.css`) draws INSIDE its own
  * box, because that row is edge-to-edge: it is `width: 100%` inside the pane's own padding, so
  * an outward ring would be drawn partly outside the scroll container and clipped on at least
- * one side. These two buttons are INSET — they sit at the trailing end of a row that already
- * has `--size-4-2` of inline padding around them — so an outward ring has room to draw and
- * reads as a ring around the control rather than as a border inside it.
+ * one side. These two buttons are INSET — they sit inside a card that already has
+ * `--size-4-3` of padding around them — so an outward ring has room to draw and reads as a
+ * ring around the control rather than as a border inside it.
  *
  * Same rule, two boxes, two right answers. The vendored app.css reduction carries
  * `a { outline: none }` and puts nothing back, so the ring is stated rather than inherited

@@ -209,14 +209,40 @@ describe('the renovation project view', () => {
 	 * draws the list with zero rows — which is the right picture (a header and a way to create
 	 * one, beside the warning) and not the one the sentence promised.
 	 */
-	it('warns instead of inviting when every project note refused', async () => {
+	/**
+	 * **"SOME" AND "ALL" ARE TWO DIFFERENT SENTENCES, and this surface said the first about both
+	 * until P00's data-contract rule — "unreadable projects are not 'no projects'" — was read the
+	 * other way round too.** With no readable project at all, `Some projects could not be read`
+	 * is a claim about a partial list that does not exist: the reader is told part of what they
+	 * can see is missing while nothing at all is on screen. `view.project.all-unreadable` is the
+	 * counterpart.
+	 *
+	 * The two sibling cases below hold the other side — a MIXED vault keeps `some-unreadable`,
+	 * and a clean one gets no notice — so a build that swapped the branch, or dropped it and
+	 * always said one thing, fails at whichever end it broke.
+	 */
+	it('says every project refused, not that some did, when none could be read', async () => {
 		const view = await open(answering([], 3));
 
 		const notice = view.contentEl.querySelector('.rp-view-notice');
-		expect(notice?.textContent?.trim()).toBe(t('en', 'view.project.some-unreadable'));
+		expect(notice?.textContent?.trim()).toBe(t('en', 'view.project.all-unreadable'));
 		expect(view.contentEl.querySelector('.rp-empty-state')).toBeNull();
 		expect(view.contentEl.querySelector('.rp-project-list__header')).not.toBeNull();
 		expect(view.contentEl.querySelectorAll('.rp-project-list__row')).toHaveLength(0);
+		await view.onClose();
+	});
+
+	/**
+	 * THE OTHER BRANCH: one project read and three refused is a PARTIAL list, which is exactly
+	 * what `some-unreadable` describes and what P00 requires to stay usable. Without this case
+	 * the branch above could be a rename rather than a branch.
+	 */
+	it('keeps “some” for a vault whose list is partial rather than empty', async () => {
+		const view = await open(answering([PROJECT], 3));
+
+		expect(view.contentEl.querySelector('.rp-view-notice')?.textContent?.trim())
+			.toBe(t('en', 'view.project.some-unreadable'));
+		expect(view.contentEl.querySelectorAll('.rp-project-list__row')).toHaveLength(1);
 		await view.onClose();
 	});
 

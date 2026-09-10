@@ -1,6 +1,8 @@
 // Pinned Lucide SVG nodes for the test-only Obsidian renderer. See ../fixtures/editor-icons/README.md and LICENSE.
 export const editorIconNodes: Readonly<Record<string, readonly { tag: string; attributes: Readonly<Record<string, string>> }[]>> = {
   "info": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"path","attributes":{"d":"M12 16v-4"}},{"tag":"path","attributes":{"d":"M12 8h.01"}}],
+  "arrow-left": [{"tag":"path","attributes":{"d":"m12 19-7-7 7-7"}},{"tag":"path","attributes":{"d":"M19 12H5"}}],
+  "chevron-left": [{"tag":"path","attributes":{"d":"m15 18-6-6 6-6"}}],
   "arrow-right": [{"tag":"path","attributes":{"d":"M5 12h14"}},{"tag":"path","attributes":{"d":"m12 5 7 7-7 7"}}],
   "arrow-up-right": [{"tag":"path","attributes":{"d":"M7 7h10v10"}},{"tag":"path","attributes":{"d":"M7 17 17 7"}}],
   "chevron-down": [{"tag":"path","attributes":{"d":"m6 9 6 6 6-6"}}],
@@ -36,6 +38,7 @@ export const editorIconNodes: Readonly<Record<string, readonly { tag: string; at
   "triangle-alert": [{"tag":"path","attributes":{"d":"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"}},{"tag":"path","attributes":{"d":"M12 9v4"}},{"tag":"path","attributes":{"d":"M12 17h.01"}}],
   "circle-alert": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"line","attributes":{"x1":"12","x2":"12","y1":"8","y2":"12"}},{"tag":"line","attributes":{"x1":"12","x2":"12.01","y1":"16","y2":"16"}}],
   "circle-check": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"path","attributes":{"d":"m16 9-5.5 5.5L8 12"}}],
+  "search": [{"tag":"path","attributes":{"d":"m21 21-4.34-4.34"}},{"tag":"circle","attributes":{"cx":"11","cy":"11","r":"8"}}],
   "rotate-cw": [{"tag":"path","attributes":{"d":"M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"}},{"tag":"path","attributes":{"d":"M21 3v5h-5"}}],
   "rotate-ccw": [{"tag":"path","attributes":{"d":"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"}},{"tag":"path","attributes":{"d":"M3 3v5h5"}}],
   "eye": [{"tag":"path","attributes":{"d":"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"}},{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"3"}}],

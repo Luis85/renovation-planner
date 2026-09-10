@@ -27,7 +27,7 @@ The Standard Plan View is the editor's safe home state. No entity is selected. T
 - Property tree identifies the current floor.
 - Canvas fits the floor to the available viewport.
 - Inspector shows floor name, room count, total area, planned-change count, estimated cost, and a room list.
-- Room status is not drawn on the canvas: a room draws as its name and area, its thin outline shows unless its walls enclose it, and it takes a faint fill only while selected or hovered (decision of 2026-09-10, `docs/superpowers/specs/2026-09-10-plan-editor-canvas-fidelity-design.md`). The Inspector room list does not show status yet either — a known gap.
+- Room status is not drawn on the canvas: a room draws as its name and area, its thin outline shows unless its walls enclose it, and it takes a faint fill only while selected or hovered (decision of 2026-09-10, `docs/superpowers/specs/2026-09-10-plan-editor-canvas-fidelity-design.md`). Status is shown in the selected room's Inspector, as a Status row beside Type, Floor and Area; the room list rows stay name and area.
 - Floating action control contains Select, Pan and Add. Pan was added on 2026-09-10 after user testing; Space+drag and middle-drag remain the gesture routes.
 
 ## Interactions

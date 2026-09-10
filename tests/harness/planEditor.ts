@@ -107,8 +107,8 @@ const HARNESS_PROJECT: ProjectSummaryDto = {
 
 /**
  * A small flat we can recognise at a glance — rooms of plausible domestic sizes in
- * millimetres, one of each status (drawn nowhere in the editor since the 2026-09-10 canvas
- * fidelity pass — see M01 — kept so a future status UI has all three to show), and one zone
+ * millimetres, one of each status (off the canvas since the 2026-09-10 canvas fidelity pass;
+ * the Room Inspector's Status row shows it — see M01), and one zone
  * with a non-rectangular outline so the polygon path is not being judged on rectangles alone.
  */
 export const HARNESS_ZONES: readonly ZoneDto[] = [

@@ -5650,9 +5650,11 @@ visible. Enclosure is asked of the structure being DRAWN — `useDrawnStructure`
 `StructureLayer` and `ZoneLayer` — so a group move or a wall drag never hides or shows the
 outline against walls other than the ones on screen.
 
-**Status is shown nowhere in the editor now.** The spec assumed the Inspector's room list showed
-it; nothing in `src/` reads `statusAppearance`'s `captionKey`, and the room list draws no status.
-M01 records the gap; showing it is a follow-up. **Hover:** `InteractionLayer.vue` adds a
+**Status moved to the Room Inspector.** The spec assumed the Inspector's room list already showed
+it; nothing in `src/` read `statusAppearance`'s `captionKey`, so taking status off the canvas
+showed it nowhere. `RoomInspector.vue` gained a Status row beside Type, Floor and Area — M00's
+first use case is the room's status at a glance — while the compact room list rows stay name and
+area. **Hover:** `InteractionLayer.vue` adds a
 `hover-fill` at 0.06 under the hover outline, for a closed shape only (`hoverClosed`).
 
 Parked: the selection and hover fill still tint the inner half of a walled room's walls (a clip

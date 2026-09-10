@@ -230,6 +230,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.inspector.floor.no-rooms': 'Dieses Geschoss hat noch keine Räume.',
 	'editor.inspector.type': 'Typ',
 	'editor.inspector.floor-context': 'Geschoss',
+	'editor.inspector.status': 'Status',
 	'editor.zone-type.Room': 'Raum',
 	'editor.zone-type.Garden': 'Garten',
 	'editor.zone-type.Terrace': 'Terrasse',

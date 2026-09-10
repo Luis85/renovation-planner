@@ -78,7 +78,8 @@ integrated tree". `remaining-plan.md`'s row *P2 – Leistungs- und Aufräumprüf
 fixtures, the latency and frame budgets and twelve close/reopen cycles against unchanged budgets,
 and names no driver. On `main`, `scripts/editor-recovery-check.mjs` is the one script found that
 asserts zero stages, listeners, images and object URLs after a close, and it loops three times.
-`git log --all -S'trackedResources'` finds no commit, so the driver behind the twelve-cycle rerun is
+No file under `scripts/`, `tests/` or `src/` contains `trackedResources` (`git grep trackedResources -- scripts tests src` answers nothing, and
+`git log --all -S 'trackedResources' -- scripts tests src` finds no commit), so the driver behind the twelve-cycle rerun is
 not in the repository.
 
 So the three Tasks beneath this PBI owe their run against `5dcc1f20` or later, and that run owes

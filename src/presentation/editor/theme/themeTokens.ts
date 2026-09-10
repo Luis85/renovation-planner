@@ -17,6 +17,8 @@ export const THEME_TOKENS = {
 	zoneStroke: '--text-normal',
 	zoneLabel: '--text-normal',
 	zoneCaption: '--text-muted',
+	/** The light interior between a wall's two edge lines — a surface, not ink. */
+	wallFill: '--background-secondary',
 	accent: '--interactive-accent',
 	zoneRoom: '--color-blue',
 	zoneGarden: '--color-green',

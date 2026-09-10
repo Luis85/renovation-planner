@@ -130,6 +130,16 @@ describe('resolving the theme', () => {
 	});
 
 	/**
+	 * The wall body is the one token that is a SURFACE rather than ink: it has to sit between
+	 * two `--text-normal` edges and read as lighter than them in a light vault and lifted in a
+	 * dark one, which is exactly what `--background-secondary` is for. Pinned by name because
+	 * the walk below would pass with any variable at all.
+	 */
+	it('names the theme secondary surface for the wall body', () => {
+		expect(THEME_TOKENS.wallFill).toBe('--background-secondary');
+	});
+
+	/**
 	 * Keyed by the VARIABLE, not by the token's position: two roles may legitimately name
 	 * the same variable (`zoneStroke` and `zoneLabel` are both `--text-normal`), so a
 	 * per-token sentinel would have them overwrite each other and the assertion would be

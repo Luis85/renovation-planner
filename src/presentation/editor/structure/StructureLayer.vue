@@ -61,12 +61,34 @@ const elementDraft = computed(() => {
 			:tokens="tokens"
 			:zoom="zoom"
 		/>
+		<!--
+			A wall is drawn TWICE, and the two passes run over ALL walls rather than per wall.
+			Pass 1 is every wall as a `zoneStroke` stroke at `thickness + 2 / zoom`; pass 2 is
+			every wall as a `wallFill` stroke at `thickness`, painted over it. What is left
+			visible of pass 1 is a 1 px dark line along each side, which is the double-line
+			wall M01 draws — and inside a joint, wall B's body covers wall A's edge, so a mitred
+			corner falls out with no union, no offset polygons and no T-joint cases. The
+			previous single stroke at `opacity: 0.65` doubled its alpha wherever two walls
+			overlapped, which drew a dark square at every corner. A free wall end keeps a 1 px
+			dark cap from pass 1: the architectural convention for a wall end, intended.
+			`OpeningSymbols` below cuts through both passes with a `canvasBackground` stroke
+			at `thickness + 2 / zoom`, the same width as pass 1.
+		-->
+		<VLine
+			v-for="wall in structure.walls"
+			:key="'edge-' + wall.id"
+			:config="{ name: 'wall-edge', points: wallPoints(wall), stroke: tokens.zoneStroke, strokeWidth: wall.thickness + 2 / zoom, lineCap: 'butt', lineJoin: 'miter' }"
+		/>
+		<VLine
+			v-for="wall in structure.walls"
+			:key="'body-' + wall.id"
+			:config="{ name: 'wall-body', points: wallPoints(wall), stroke: tokens.wallFill, strokeWidth: wall.thickness, lineCap: 'butt', lineJoin: 'miter' }"
+		/>
 		<VGroup
 			v-for="wall in structure.walls"
 			:key="wall.id"
 			:config="{ name: wall.id }"
 		>
-			<VLine :config="{ points: wallPoints(wall), stroke: tokens.zoneStroke, strokeWidth: wall.thickness, opacity: 0.65 }" />
 			<VLine
 				v-if="selected(wall.id) || runtime.openingMove.hostId.value === wall.id"
 				:config="{ points: wallPoints(wall), stroke: tokens.accent, strokeWidth: 2 / zoom, dash: [7 / zoom, 4 / zoom] }"

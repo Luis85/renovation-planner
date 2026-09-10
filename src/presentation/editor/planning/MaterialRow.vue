@@ -6,10 +6,19 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { tr } from '../../i18n/strings';
 import { ref } from 'vue';
 import { formatPlanningNumber } from '../../i18n/planningFormat';
+import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
+import { EMPTY_DEPTH } from '../../../domain/renovation/PlanningDepth';
 defineProps<{ row: ReturnType<typeof materialRows>[number]; number: number }>();
 const emit = defineEmits<{ remove: [id: string] }>();
 const planning = usePlanningContext(), session = useRenovationSession();
 const expanded = ref(false);
+/** Purchase quantities belong to one Material and block its deletion, so they need a way out too. */
+function clearProcurement(requirementId: string, name: string): void {
+	void planning.runtime.renovation.change(read => {
+		const renovation = read.plan.entity.renovation ?? EMPTY_RENOVATION, depth = renovation.depth ?? EMPTY_DEPTH;
+		return { renovation: { ...renovation, depth: { ...depth, procurement: depth.procurement.filter(item => item.requirementId !== requirementId) } }, intended: read.geometry.document.intended };
+	}, tr('planning.clear-procurement-impact', { name }));
+}
 </script>
 <template>
 	<tbody
@@ -75,6 +84,13 @@ const expanded = ref(false);
 						@click="planning.edit('procurement', row.entity.id)"
 					>
 						{{ tr('planning.procurement') }}
+					</button><button
+						v-if="row.procurement"
+						type="button"
+						:disabled="planning.blocked.value"
+						@click="clearProcurement(row.entity.id, row.name)"
+					>
+						{{ tr('planning.clear-procurement') }}
 					</button><button
 						type="button"
 						@click="planning.runtime.renovation.focus(session.roomId, 'costs', row.entity.id)"

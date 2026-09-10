@@ -6,9 +6,19 @@ import type { costRows } from './planningProjection';
 import { usePlanningContext } from './planningContext';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { tr } from '../../i18n/strings';
+import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
+import { EMPTY_DEPTH } from '../../../domain/renovation/PlanningDepth';
 const props = defineProps<{ row: ReturnType<typeof costRows>[number] }>();
 const planning = usePlanningContext(), session = useRenovationSession();
 const selected = computed(() => !!session.focusedId && [props.row.record.id, props.row.record.requirementId].includes(session.focusedId));
+/** A saved Cost is the one planning record nothing else could remove, so a Material it links to could never be deleted either. */
+function remove(): void {
+	const { id, title } = props.row.record;
+	void planning.runtime.renovation.change(read => {
+		const renovation = read.plan.entity.renovation ?? EMPTY_RENOVATION, depth = renovation.depth ?? EMPTY_DEPTH;
+		return { renovation: { ...renovation, depth: { ...depth, costs: depth.costs.filter(item => item.id !== id) } }, intended: read.geometry.document.intended };
+	}, tr('planning.delete-cost-impact', { name: title }));
+}
 </script>
 <template>
 	<li
@@ -61,6 +71,13 @@ const selected = computed(() => !!session.focusedId && [props.row.record.id, pro
 				@click="planning.runtime.renovation.focus(session.roomId, 'documents', row.record.id.startsWith('estimate:') ? row.record.requirementId : row.record.id)"
 			>
 				{{ tr('renovation.documents') }}
+			</button><button
+				v-if="!row.record.id.startsWith('estimate:')"
+				type="button"
+				:disabled="planning.blocked.value"
+				@click="remove"
+			>
+				{{ tr('renovation.delete') }}
 			</button>
 		</div>
 	</li>

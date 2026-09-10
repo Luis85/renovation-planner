@@ -15,7 +15,9 @@ import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
  * selection's DTO (SDD §59) carries only the zone's raw name and area; `overview` reads the
  * SAME zone back out of `ProjectStore`'s own hydrated map and turns it into the zone's
  * homeowner-facing TYPE (ADR-0016's seven-member vocabulary, `editor.zone-type.*`) and which
- * FLOOR it is on, beside the same area figure formatted the one way `formatArea` does. Two
+ * FLOOR it is on, beside the same area figure formatted the one way `formatArea` does, and its
+ * STATUS through `statusAppearance`'s caption — the one place status is read since it left the
+ * canvas (canvas fidelity spec, 2026-09-10). Two
  * navigation lists follow it — `HomeownerQuestionNav` (What's here / What will change / What
  * needs doing) and `LinkedContentList` (Costs, Documents, Photos, Notes) — both driven by
  * `overview.unavailableSections`, `INSPECTOR_SECTIONS`' own closed list of what this build has
@@ -61,6 +63,7 @@ import { useEditorRuntime } from '../runtime';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import { formatArea } from './formatArea';
 import { buildRoomOverview, type RoomOverviewDto } from '../../read-models/roomOverview';
+import { statusAppearance, type StatusAppearance } from '../layers/zone/ZoneRenderModel';
 import RequirementRow from './RequirementRow.vue';
 import HomeownerQuestionNav from './HomeownerQuestionNav.vue';
 import LinkedContentList from './LinkedContentList.vue';
@@ -108,10 +111,11 @@ const pickedAssetId = ref('');
  * hydrated. `dto.id` is read through `String(...)` because `ZoneId` is a branded string and
  * `ProjectStore.zones` is keyed by the bare kind.
  */
-const overview = computed<RoomOverviewDto | null>(() => {
+const overview = computed<(RoomOverviewDto & { readonly status: StatusAppearance }) | null>(() => {
 	const zone = dto.value.kind === 'zone' ? projectStore.zones.get(String(dto.value.id)) : undefined;
 	const plan = projectStore.plan;
-	return zone && plan ? buildRoomOverview(zone, plan) : null;
+	// Status is read here since it left the canvas (canvas fidelity spec, 2026-09-10).
+	return zone && plan ? { ...buildRoomOverview(zone, plan), status: statusAppearance(zone.status) } : null;
 });
 
 /**
@@ -186,6 +190,8 @@ const unavailableNavigation = computed(() => overview.value && !runtime.renovati
 			<dd>{{ overview.floorName }}</dd>
 			<dt>{{ tr('editor.inspector.area') }}</dt>
 			<dd>{{ formatArea(overview.record.areaMm2) }}</dd>
+			<dt>{{ tr('editor.inspector.status') }}</dt>
+			<dd>{{ tr(overview.status.captionKey) }}</dd>
 		</dl>
 
 		<ObjectRotationControls :id="dto.id" />

@@ -25,9 +25,9 @@ export interface CreateZoneInput {
 	/**
 	 * Optional, and `Zone.create` owns the default. Here because the domain has always
 	 * accepted one and this input was the only thing unable to express it — which made
-	 * every zone the app can create `Planned`, and the status channel of the canvas
-	 * (§17's dash patterns) unreachable from inside Obsidian. CHANGING a status is slice
-	 * 8's; stating one at creation is this command's.
+	 * every zone the app can create `Planned`, and any status but that one unreachable
+	 * from inside Obsidian. CHANGING a status is slice 8's; stating one at creation is
+	 * this command's.
 	 */
 	readonly status?: ZoneStatus;
 	readonly geometry: CurvedPolygon;

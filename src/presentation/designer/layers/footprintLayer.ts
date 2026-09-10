@@ -9,10 +9,12 @@ import type { ThemeTokens } from '../../editor/theme/themeTokens';
  * into it, tracing replaces it, and `dimensions` is always its bounding box (§88). Everything
  * else the designer draws is measured against it.
  *
- * **Solid, and that is the vocabulary rather than a default.** The plan editor already means
- * "provisional" by a dashed outline and "committed" by a solid one (`ZoneRenderModel`'s
- * `statusAppearance`), so the footprint is solid and `clearanceLayer.ts` is dashed. A second
- * distinction invented here for the same question is a second vocabulary a user has to learn.
+ * **Solid, and that is the vocabulary rather than a default.** The plan editor's zones used
+ * to mean "provisional" by a dashed outline and "committed" by a solid one
+ * (`ZoneRenderModel`'s `statusAppearance`, before the 2026-09-10 canvas fidelity spec took
+ * status off the canvas entirely); this module keeps that pairing as its own vocabulary now
+ * — the footprint is solid and `clearanceLayer.ts` is dashed. A second distinction invented
+ * here for the same question would still be one a user has to learn twice.
  *
  * `OutlineConfig` and `flatPoints` are declared here and imported by the clearance rather than
  * spelled twice: the two ARE one shape drawn two ways, and two copies of the type would be free

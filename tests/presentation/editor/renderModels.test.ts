@@ -68,19 +68,8 @@ describe('how a zone looks', () => {
 		expect(statusAppearance(status).captionKey).toMatch(/^zone\.status\./);
 	});
 
-	/**
-	 * §85: status must be distinguishable without colour. The dash pattern is one of the two
-	 * non-colour channels, so no two statuses may share one — a duplicate would silently
-	 * merge two states on a grayscale print.
-	 */
-	it('gives every status a distinct dash pattern', () => {
-		const patterns = ZONE_STATUSES.map((status) => statusAppearance(status).dash.join(','));
-
-		expect(new Set(patterns).size).toBe(ZONE_STATUSES.length);
-	});
-
 	it('answers for an unknown status too, with its own caption', () => {
-		expect(statusAppearance('Demolished')).toEqual({ dash: [2, 2], captionKey: 'zone.status.unknown' });
+		expect(statusAppearance('Demolished')).toEqual({ captionKey: 'zone.status.unknown' });
 	});
 });
 
@@ -127,6 +116,16 @@ describe('resolving the theme', () => {
 			document.documentElement.style.removeProperty(variable);
 		}
 		document.documentElement.style.removeProperty('color');
+	});
+
+	/**
+	 * The wall body is the one token that is a SURFACE rather than ink: it has to sit between
+	 * two `--text-normal` edges and read as lighter than them in a light vault and lifted in a
+	 * dark one, which is exactly what `--background-secondary` is for. Pinned by name because
+	 * the walk below would pass with any variable at all.
+	 */
+	it('names the theme secondary surface for the wall body', () => {
+		expect(THEME_TOKENS.wallFill).toBe('--background-secondary');
 	});
 
 	/**

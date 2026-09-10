@@ -86,8 +86,10 @@ interface SampleZone {
  *
  * Chosen to exercise every channel §17's zone rendering has, because a sample that only
  * demonstrates one of them cannot show a defect in the others: four zone TYPES so the
- * fills differ, all three STATUSES so the dash patterns differ, and one non-rectangular
- * outline so the polygon path is not being judged on rectangles alone.
+ * fills differ, all three STATUSES so the Room Inspector's Status row has each to show (status
+ * left the canvas in the 2026-09-10 canvas fidelity pass), and one non-rectangular outline so
+ * the polygon path is not being judged on
+ * rectangles alone.
  */
 const SAMPLE_ZONES: readonly SampleZone[] = [
 	{

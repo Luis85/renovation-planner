@@ -6,15 +6,17 @@ import { flatPoints, type OutlineConfig } from './footprintLayer';
  * The space an asset needs AROUND itself — an oven's door swing, a chair's pull-out — drawn
  * over the footprint it belongs to (design slice B4).
  *
- * **Dashed, against the footprint's solid**, which is the plan editor's existing vocabulary for
- * provisional against committed rather than a new one: the clearance is a region a plan must
- * keep free, not a thing that occupies it, and a user reading the canvas has already learnt
- * that distinction from `ZoneRenderModel.statusAppearance`.
+ * **Dashed, against the footprint's solid**, which reuses `footprintLayer.ts`'s own
+ * provisional-against-committed vocabulary rather than inventing a second one: the clearance
+ * is a region a plan must keep free, not a thing that occupies it. Zones no longer carry a
+ * dashed/solid distinction of their own to borrow — status stopped drawing on the plan
+ * editor's canvas on 2026-09-10 (canvas fidelity spec) — so this pairing now lives here
+ * first rather than being learnt from `ZoneRenderModel.statusAppearance` beforehand.
  *
  * The dash lengths are SCREEN pixels, not world millimetres, because the stroke they belong to
- * sets `strokeScaleEnabled: false` — the same pairing `ZoneRenderModel` documents. A dash
- * measured in millimetres would collapse into a solid line at any zoom that made the shape
- * small enough to see whole, which is exactly when the distinction is needed.
+ * sets `strokeScaleEnabled: false`. A dash measured in millimetres would collapse into a solid
+ * line at any zoom that made the shape small enough to see whole, which is exactly when the
+ * distinction is needed.
  */
 const CLEARANCE_DASH_PX = [8, 6];
 

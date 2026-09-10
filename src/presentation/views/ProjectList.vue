@@ -26,6 +26,7 @@ import ProjectFilter from './ProjectFilter.vue';
 import ContinueRow from './ContinueRow.vue';
 import { isCompleted, nameCollator, orderProjects } from './projectOrder';
 import { matchesQuery } from './projectFilter';
+import type { StringKey } from '../i18n/locales/en';
 import { currentLanguage, tr } from '../i18n/strings';
 import { useRovingFocus, type RovingFocus } from './useRovingFocus';
 import { modifierLabel } from './platformModifier';
@@ -305,6 +306,36 @@ const filteredToNothing = computed(
 );
 
 /**
+ * The questions the template used to ask INLINE, named once each.
+ *
+ * Not template sugar, and not taste: fallow scores an SFC's `<template>` as ONE synthetic unit,
+ * so `readOnly ? readOnlyReasonId : undefined` written at three buttons is three branches inside
+ * a single 626-line function, and this template breached the cognitive threshold at 16 on
+ * exactly that arithmetic — while no question it asks is hard. CI is where that was measured;
+ * the same shape had already been cleared once on `AssetPriceRow.vue`'s template in this branch.
+ *
+ * ONLY the two TERNARIES are named. The four `length > 0` guards stay inline: cognitive
+ * complexity scores boolean operators and nesting, not a plain comparison, so lifting them buys
+ * nothing on the metric and this file is AT its 400-line budget — `skipComments` is on, so four
+ * one-line computeds are four real lines it does not have. What was MEASURED is the result, not
+ * the counterfactual: naming all six broke `max-lines` at 402 before fallow ever ran, and naming
+ * the two ternaries alone takes the template from cognitive 16 to under the threshold, with
+ * `npm run analyze` reporting 0 above it on a fresh coverage run.
+ *
+ * `refusalReason` is the sharpest of the two: it is ONE fact — this surface refuses writes and here
+ * is why — and three inline spellings of it are three places for the reason to stop travelling
+ * with the refusal (requirement 4a), which is the defect the ternary exists to prevent.
+ */
+const refusalReason = computed(() => (props.readOnly === true ? props.readOnlyReasonId : undefined));
+/**
+ * Which unreadable sentence applies. `projects.length` and not `matching.length`: a query that
+ * hides every readable row has not made the vault unreadable.
+ */
+const unreadableMessage = computed<StringKey>(() =>
+	props.projects.length === 0 ? 'view.project.all-unreadable' : 'view.project.some-unreadable',
+);
+
+/**
  * **Both no-match actions live inside a block that UNMOUNTS the instant either one succeeds**
  * — `Clear filter` empties the query and restores every row; `New project named "…"` opens a
  * dialog whose successful create re-hydrates the list, and the created project (named from
@@ -373,7 +404,7 @@ function rememberRow(event: Event): void {
 			type="button"
 			class="rp-project-list__create"
 			:disabled="readOnly"
-			:aria-describedby="readOnly ? readOnlyReasonId : undefined"
+			:aria-describedby="refusalReason"
 			@click="$emit('create', '')"
 		>
 			<!-- P00's `+`, decorative and `aria-hidden` at HostIcon's own root, so the button's
@@ -425,7 +456,7 @@ function rememberRow(event: Event): void {
 		class="rp-view-notice"
 		role="status"
 	>
-		{{ tr(projects.length === 0 ? 'view.project.all-unreadable' : 'view.project.some-unreadable') }}
+		{{ tr(unreadableMessage) }}
 	</p>
 	<!--
 		ZERO OR ONE ROW, and absent rather than empty when there is nothing to resume — not a
@@ -579,7 +610,7 @@ function rememberRow(event: Event): void {
 			type="button"
 			class="rp-project-list__create-named"
 			:disabled="readOnly"
-			:aria-describedby="readOnly ? readOnlyReasonId : undefined"
+			:aria-describedby="refusalReason"
 			@click="$emit('create', query.trim())"
 		>
 			{{ tr('view.project.create-named', { query: query.trim() }) }}
@@ -604,7 +635,7 @@ function rememberRow(event: Event): void {
 			type="button"
 			class="rp-view-aside__create-asset"
 			:disabled="readOnly"
-			:aria-describedby="readOnly ? readOnlyReasonId : undefined"
+			:aria-describedby="refusalReason"
 			@click="$emit('createAsset')"
 		>
 			{{ tr('view.asset.create') }}

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import HostIcon from '../../components/HostIcon.vue';
 import ChangeLegend from './ChangeLegend.vue';
-import { usePlanEditorContext } from '../PlanEditorContext';
+import PropertyTree from './PropertyTree.vue';
 import StructureList from '../structure/StructureList.vue';
 /** Current Project → Floor context and presentation layers, with the non-canvas entity
  * routes disclosed separately. Stores survive modeless panel hiding and reflow. */
@@ -23,8 +22,7 @@ import { useSpatialRecords } from './useSpatialRecords';
 const props = defineProps<{ plan: PlanDto | null }>();
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
-const { stale, project } = storeToRefs(useProjectStore());
-const context = usePlanEditorContext();
+const { stale } = storeToRefs(useProjectStore());
 const records = useSpatialRecords();
 // Per-leaf on the runtime so selection mode survives panel reflow.
 const toggleSelection = runtime.multiSelectionMode;
@@ -55,26 +53,7 @@ const entries = computed(() => layerCatalogue(props.plan, toggles.value, stale.v
 			<h2 class="rp-editor-panel-title">
 				{{ tr('editor.shell.property') }}
 			</h2>
-			<button
-				v-if="project && context.navigation"
-				type="button"
-				class="rp-property-context__project"
-				@click="context.navigation.project(project.id)"
-			>
-				<HostIcon name="house" />{{ project.name }}
-			</button>
-			<p
-				v-else-if="project"
-				class="rp-property-context__project"
-			>
-				<HostIcon name="house" />{{ project.name }}
-			</p>
-			<p
-				class="rp-property-context__floor"
-				aria-current="page"
-			>
-				<HostIcon name="grid-2x-2" />{{ plan?.name ?? tr('editor.floor') }}
-			</p>
+			<PropertyTree />
 		</section>
 		<section class="rp-property-layers">
 			<h2 class="rp-editor-panel-title">

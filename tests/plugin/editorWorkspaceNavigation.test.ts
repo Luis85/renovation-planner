@@ -45,4 +45,13 @@ describe('editor host navigation composition', () => {
 		await expect(navigation.project('project-house')).resolves.toBeUndefined();
 		expect(lines.some(line => line.event === 'plan-editor.open-project-failed')).toBe(true);
 	});
+	it('opens a sibling plan through the real revealPlanEditor, for the Property tree', async () => {
+		const workspace = new FakeWorkspace();
+		const navigation = editorWorkspaceNavigation(workspace as never, recorder);
+
+		await expectDefined(navigation.plan, 'plan navigation')('plan-first');
+
+		expect(workspace.leaves).toHaveLength(1);
+		expect(workspace.leaves[0]?.state).toMatchObject({ type: 'renovation-plan-editor', state: { planId: 'plan-first' } });
+	});
 });

@@ -5582,7 +5582,11 @@ and `Persist a wall as one spatial identity`'s `## Outcome` reads its achieved o
 Spec: `docs/superpowers/specs/2026-09-10-plan-editor-sidebar-polish-design.md`. One PR.
 
 What landed: the Plan editor hides Obsidian's view header (reversing `styles/chrome.css`'s
-recorded argument for keeping it; the tab strip and the context bar both still name the plan);
+recorded argument for keeping it; that argument turned out to rest on a false premise —
+`getDisplayText()` returns the fixed string "Plan editor" for every leaf, so the header never
+named the plan either, and hiding it loses no identity the tab strip did not already lack;
+the editor's own context bar is the one surface naming the project and plan, and the tab
+strip still only names the leaf);
 Pan draws a `hand` icon and STAYS in the floating actions by a user-testing decision that
 reverses M01's "no persistent Pan mode" — M01 and component library §6 carry the dated
 amendment; the Layers list is five user-vocabulary rows (`layerCatalogue` takes a

@@ -162,3 +162,8 @@ variables only; the build's colour check refuses anything else.
 - §3's Notes and photos row says `ZoneLayer` and `RenovationLayer` "go quiet": only the
   annotation layer draws evidence pins; the zone layer uses the same list for caption
   clearance, so toggling the row removes the pins and releases the captions.
+- Decision 1's premise — "the tab strip keeps naming the plan" — was wrong: `getDisplayText()`
+  returns the fixed string "Plan editor" for every leaf, so the tab strip never named the
+  plan, before or after this change. The decision stands anyway, on the argument it actually
+  needed: the header said only "Plan editor" too, so hiding it loses no identity, and the
+  editor's own context bar is the one surface that names the project and plan.

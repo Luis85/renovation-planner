@@ -111,6 +111,8 @@ request. Scope is zones (Rooms and Areas) only; Walls and completed groups are o
 CANVAS CLICK-THROUGH: the locked zone is not a pointer target on the canvas but stays visible,
 listed, selectable from the sidebar and editable through Inspector forms. That reverses this
 PBI's "Out of scope: making it unselectable" for the canvas and withdraws acceptance criterion 4
-(refusing edits). Criteria 2, 3, 5, 6 and 7 hold under the canonical-state arm of criterion 6:
+(refusing edits). Criterion 1 narrows to Rooms and Areas; Walls and completed groups are
+withdrawn, per ADR-0027's "Revisit when". Criteria 2, 3, 5, 6 and 7 hold under the
+canonical-state arm of criterion 6:
 each lock change is one reversible `EditZoneDetailsCommand` and survives reload. Delivered on
 branch `feat/zone-lock-and-detail-plans` by `docs/superpowers/plans/2026-09-10-zone-lock.md`.

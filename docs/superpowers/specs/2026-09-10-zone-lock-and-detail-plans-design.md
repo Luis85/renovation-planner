@@ -122,8 +122,11 @@ A version conflict is the same stale-read path every other zone write uses.
 - `canvasCandidates`: a locked zone is not a candidate; unlocked and structure candidates are.
 - `SelectTool` / marquee / context menu: clicking inside a locked zone over an unlocked one
   selects the unlocked one; clicking a locked zone alone clears selection.
-- `SetZoneLockedCommand`: lock, unlock, unchanged no-op, version conflict, event published.
-- Reversible adapter: undo and redo each restore the prior lock.
+- `EditZoneDetailsCommand` with `ZoneDetails.locked` — lock, unlock, undo/redo as one step, a
+  details edit without `locked` leaves the lock alone, unchanged lock is no-write, event published
+  (see tests/application/commands/editZoneDetails.test.ts).
+- `EditZoneDetailsCommand`'s own `execute`/`undo` (no separate adapter): redo after undo restores
+  the prior lock exactly, per the same test as above.
 - Mapper/repository: v1 reads as unlocked; locked saves v2; unlocked saves v1; round trip on the
   disk-backed fixture vault.
 - `RoomSummaryList` in jsdom: toggle dispatches, `aria-pressed` follows the store, row click

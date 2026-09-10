@@ -11,8 +11,7 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import OpeningSymbols from './OpeningSymbols.vue';
 import { type Wall } from '../../../domain/spatial/Structure';
-import { validateStructure } from '../../../domain/spatial/structureGeometry';
-import { draftStructure, isStructureTool } from './structureDraft';
+import { useDrawnStructure } from './drawnStructure';
 import ElementShapes from '../elements/ElementShapes.vue';
 import { isElementTool } from '../elements/elementDraft';
 import WallDraftOverlay from './WallDraftOverlay.vue';
@@ -24,13 +23,7 @@ const editor = useEditorStore();
 const draftViewport = computed(() => ({ min: { x: -props.transform.x / props.zoom, y: -props.transform.y / props.zoom },
 	max: { x: (editor.stageSize.width - props.transform.x) / props.zoom, y: (editor.stageSize.height - props.transform.y) / props.zoom } }));
 const task = runtime.structureTask;
-const draftPreview = computed(() => {
-	if (!isStructureTool(runtime.activeToolId.value)) return null;
-	const proposed = draftStructure(task.draft, project.structure);
-	if (!proposed || runtime.activeToolId.value === 'draw-wall') return proposed;
-	return validateStructure(proposed, project.structure.boundaries.map(boundary => boundary.roomId)).ok ? proposed : null;
-});
-const structure = computed(() => runtime.curveTask.preview.value?.structure ?? runtime.groupActions?.preview.value?.structure ?? runtime.structureActions.preview.value ?? draftPreview.value ?? project.structure);
+const structure = useDrawnStructure();
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
 const wallPoints = (wall: Wall): number[] => points(arcPolyline({ ...wall, bulge: wall.bulge ?? 0 }, 0.25 / props.zoom));
 const passes = computed(() => structure.value.walls.map(wall => wallPasses(wall, structure.value.walls, props.zoom)));

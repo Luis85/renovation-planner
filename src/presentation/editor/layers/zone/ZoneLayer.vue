@@ -15,6 +15,7 @@ import type { ThemeTokens } from '../../theme/themeTokens';
 import type { NodeTransform } from '../../viewport/Viewport';
 import { toZoneRenderModel } from './ZoneRenderModel';
 import { enclosedByBoundary } from '../../../../domain/spatial/encloseRoom';
+import { useDrawnStructure } from '../../structure/drawnStructure';
 import ZoneShape from './ZoneShape.vue';
 import { useSelectionStore } from '../../selection/selection-store';
 import type { EvidencePin } from '../../planning/evidencePins';
@@ -34,7 +35,7 @@ const props = defineProps<{
 	zoom: number;
 }>();
 
-const { zones, structure } = storeToRefs(useProjectStore());
+const { zones } = storeToRefs(useProjectStore()), structure = useDrawnStructure();
 const selection = useSelectionStore();
 const session = useRenovationSession(), workspace = useWorkspaceStore();
 const captionObstacles = computed(() => session.visible && workspace.layerVisibility.annotation ? props.pins : []);

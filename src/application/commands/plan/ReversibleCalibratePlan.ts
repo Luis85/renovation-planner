@@ -12,7 +12,7 @@ import { scale as scaleShape } from '../../../core/geometry/operations';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { planCalibrated } from '../../../domain/plan/Plan.events';
 import { planError } from '../../../domain/plan/Plan.errors';
-import { deriveCalibration, nonFiniteRescaleError, validateCalibration } from '../../../domain/plan/Calibration';
+import { deriveCalibration, nonFiniteRescaleError, validateCalibration, type Calibration } from '../../../domain/plan/Calibration';
 import { zoneGeometryChanged } from '../../../domain/zone/Zone.events';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
@@ -69,6 +69,15 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 		}
 		const { calibration, scaleCorrection } = derived.value;
 		const origin: Point = { x: 0, y: 0 };
+		// Typed `Calibration`, never null: `PlanGeometryDocument.calibration` is nullable in
+		// general, but this document's is always this value, so validating the local needs no
+		// null check whose other arm nothing can reach.
+		const rescaledCalibration: Calibration = {
+			pointA: scaleShape(calibration.pointA, scaleCorrection, origin),
+			pointB: scaleShape(calibration.pointB, scaleCorrection, origin),
+			knownDistance: calibration.knownDistance,
+			pixelsPerWorldUnit: calibration.pixelsPerWorldUnit,
+		};
 		// The rescale anchors at the world origin: background sizing and every zone move
 		// uniformly, so alignment between them is preserved — only what the numbers MEAN
 		// in millimetres changes.
@@ -76,12 +85,7 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 			...previous,
 			...(previous.intended ? { intended: scaleStructure(previous.intended, scaleCorrection) } : {}),
 			...(previous.structure ? { structure: scaleStructure(previous.structure, scaleCorrection) } : {}),
-			calibration: {
-				pointA: scaleShape(calibration.pointA, scaleCorrection, origin),
-				pointB: scaleShape(calibration.pointB, scaleCorrection, origin),
-				knownDistance: calibration.knownDistance,
-				pixelsPerWorldUnit: calibration.pixelsPerWorldUnit,
-			},
+			calibration: rescaledCalibration,
 			objects: previous.objects.map((object) => ({
 				...object,
 				points: scaleShape({ points: object.points }, scaleCorrection, origin).points,
@@ -99,10 +103,8 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 			const checked = validateStructure(structure, document.objects.map(object => object.id));
 			if (!checked.ok) return checked;
 		}
-		if (document.calibration !== null) {
-			const checked = validateCalibration(document.calibration);
-			if (!checked.ok) return checked;
-		}
+		const checkedCalibration = validateCalibration(rescaledCalibration);
+		if (!checkedCalibration.ok) return checkedCalibration;
 		return ok(document);
 }
 

@@ -115,7 +115,6 @@ it('keeps manual file text and an empty suggestion list when no catalogue capabi
 	expect(w.get('input').element).toHaveProperty('value', 'Photos/known.png'); expect(w.findAll('option')).toHaveLength(0);
 });
 
-
 it('does not steal focus after a native evidence-type change when another control takes ownership', async () => {
 	const { wrapper: w, dispatch } = await setup();
 	const details = w.get('.rp-photo-details').element as HTMLDetailsElement; details.open = true;
@@ -126,4 +125,21 @@ it('does not steal focus after a native evidence-type change when another contro
 		await settle(); expect(document.activeElement).toBe(outside);
 		expect(w.get('[name="type"]').element).toHaveProperty('value', 'document'); expect(dispatch).not.toHaveBeenCalled();
 	} finally { outside.remove(); }
+});
+
+it('drops a second image import while the first is still writing, protecting against a double-fire', async () => {
+	const rig = await setup(), w = rig.wrapper, pending = defer<Awaited<ReturnType<EvidenceFiles['importFile']>>>();
+	const importFile = vi.fn<EvidenceFiles['importFile']>(() => pending.promise);
+	vi.spyOn(rig.files, 'importFile').mockImplementation(importFile);
+	const first = new File(['first'], 'first.png'); Object.defineProperty(first, 'arrayBuffer', { value: () => Promise.resolve(new Uint8Array([1]).buffer) });
+	const second = new File(['second'], 'second.png'); Object.defineProperty(second, 'arrayBuffer', { value: () => Promise.resolve(new Uint8Array([2]).buffer) });
+	const input = w.get<HTMLInputElement>('input[type="file"]').element;
+	// Both files fire before Vue's own patch can mark the input aria-disabled, exactly like a
+	// double-click: the second must be stopped by the internal `working` guard, not the DOM one.
+	Object.defineProperty(input, 'files', { value: [first], configurable: true }); input.dispatchEvent(new Event('change', { bubbles: true }));
+	Object.defineProperty(input, 'files', { value: [second], configurable: true }); input.dispatchEvent(new Event('change', { bubbles: true }));
+	await settle();
+	expect(importFile).toHaveBeenCalledOnce();
+	pending.resolve(ok('Photos/first.png')); await settle();
+	expect(w.get<HTMLInputElement>('[name="path"]').element.value).toBe('Photos/first.png');
 });

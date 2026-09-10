@@ -31,3 +31,17 @@ it('encloses a curved Room with the same arc and reuses a reversed existing curv
 	const points = groupPoints({ objects: [room], structure: result.structure }, [room.id, ...result.wallIds]);
 	expect(groupPivot(points)?.x).toBeCloseTo(2000, 8); expect(groupPivot(points)?.y).toBeCloseTo(1250, 8);
 });
+it('refuses to enclose a Room whose outline is not itself a valid polygon', () => {
+	const room = { id: 'room-too-few', points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }] };
+	const result = encloseRoom(room, EMPTY_STRUCTURE, { height: 2400, thickness: 150 }, () => 'wall-unreachable');
+	expect(result.ok).toBe(false);
+	if (result.ok) return;
+	expect(result.error).toMatchObject({ category: 'Geometry', code: 'polygon-too-few-points' });
+});
+it('refuses an enclosure whose caller hands back the same wall id for two different edges', () => {
+	const room = { id: 'room-collision', points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 3000 }, { x: 0, y: 3000 }] };
+	const result = encloseRoom(room, EMPTY_STRUCTURE, { height: 2400, thickness: 150 }, () => 'wall-collision');
+	expect(result.ok).toBe(false);
+	if (result.ok) return;
+	expect(result.error).toMatchObject({ category: 'Validation', code: 'spatial.intersection' });
+});

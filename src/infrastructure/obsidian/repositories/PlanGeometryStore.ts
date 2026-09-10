@@ -51,11 +51,13 @@ function validateCurveEntries(dto: PlanGeometryDTO): Result<void, ValidationErro
 	return ok(undefined);
 }
 
+/**
+ * `readUnlocked` is the only caller, and it refuses a PRESENT non-numeric `schemaVersion`
+ * (`plan-geometry.schema-version-malformed`) before it calls this, so a present key is already a
+ * number here. A second `typeof` check would guard an arm no read can reach.
+ */
 function schemaVersionOf(parsed: unknown): number {
-	if (typeof parsed === 'object' && parsed !== null && 'schemaVersion' in parsed) {
-		const value: unknown = parsed['schemaVersion'];
-		if (typeof value === 'number') return value;
-	}
+	if (typeof parsed === 'object' && parsed !== null && 'schemaVersion' in parsed) return parsed['schemaVersion'] as number;
 	return 0;
 }
 

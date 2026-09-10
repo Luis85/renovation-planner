@@ -126,6 +126,22 @@ describe('wall/opening actions and impact forms', () => {
 		expect(value.project.structure.walls).toHaveLength(3); expect(value.project.structure.openings).toHaveLength(0); expect(value.selection.selectedIds).toEqual([]);
 		await value.runtime.dispatcher.undo(); expect(value.project.structure.walls).toHaveLength(4); expect(value.project.structure.openings[0].hostId).toBe('wall-a');
 	});
+	it('names an edited wall’s room by id when no peer zone matches, and prunes its boundary on removal', async () => {
+		const value = await rig();
+		const before = expectOk(await value.geometry.read(value.plan.id));
+		const structure = before.document.structure as typeof WALL_LOOP;
+		const withBoundary = { ...structure, boundaries: [{ roomId: 'missing-room', wallIds: ['wall-a', 'wall-b', 'wall-c'] }] };
+		expectOk(await value.geometry.write(value.plan.id, { ...before.document, structure: withBoundary, objects: [...before.document.objects, { id: 'missing-room', points: [] }] }, before.version));
+		await value.runtime.refreshProjection();
+		const editing = value.runtime.structureActions.edit('wall-a'); await settle();
+		expect(value.wrapper.find('.rp-dialog').text()).toContain('missing-room');
+		value.dialogs.resolve('cancel'); await editing;
+		const removing = value.runtime.structureActions.remove('wall-a'); await settle();
+		expect(value.dialogs.current).toMatchObject({ message: expect.stringContaining('Room boundary associations removed: 1') });
+		value.dialogs.resolve('confirm'); await removing;
+		expect(value.project.structure.boundaries).toEqual([]);
+		expect(value.project.structure.walls.some(wall => wall.id === 'wall-a')).toBe(false);
+	});
 	it('guards unavailable, busy and stale actions, reports read failures and ignores late reads', async () => {
 		const value = await rig(), actions = value.runtime.structureActions;
 		value.project.stale = true; await actions.edit('wall-a'); await actions.remove('wall-a'); expect(value.dialogs.current).toBeNull(); value.project.stale = false;

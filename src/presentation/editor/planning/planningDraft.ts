@@ -65,7 +65,10 @@ export function materialInput(draft: PlanningDraft): MaterialInput {
 }
 function replace<T extends { id: string }>(values: readonly T[], record: T): T[] { return [...values.filter(item => item.id !== record.id), record]; }
 function evidenceDescription(draft: PlanningDraft): string {
-	return draft.type === 'photo' && !draft.title.trim() ? draft.path.split('/').at(-1) ?? draft.path : draft.title;
+	// `split` with a string separator always answers at least one element (`''` gives `['']`),
+	// so the last segment exists for every path, unlike `.at(-1)`'s declared `string | undefined`.
+	const segments = draft.path.split('/');
+	return draft.type === 'photo' && !draft.title.trim() ? segments[segments.length - 1] : draft.title;
 }
 export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline): RenovationInput {
 	const renovation = baseline.plan.entity.renovation ?? EMPTY_RENOVATION, depth = renovation.depth ?? EMPTY_DEPTH;

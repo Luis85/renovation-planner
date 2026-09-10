@@ -1,6 +1,6 @@
 ---
 type: Task
-order: 10
+order: 50
 status: New
 horizon: "MVP"
 release: "[[MVP]]"
@@ -42,14 +42,16 @@ stale authority is believed precisely because it is the authority.
 
 ## Approach
 
-Rewrite only the stale sentences, citing ADR-0020, ADR-0021, ADR-0022 and ADR-0023 wherever one of
-them now decides, and record the search used to find them in the change. Keep what still holds
+Rewrite only the stale sentences, citing ADR-0020, ADR-0021 or ADR-0022 wherever one of them now
+decides, and record the search used to find them in the change. ADR-0023, generic spatial elements,
+is not accepted — its status reads "Implementation in progress, 2026-09-07" — so a sentence resting
+on it cites it as undecided rather than as the decision. Keep what still holds
 under ADR-0017, and keep the absences §97 itself names.
 
 ## Acceptance criteria
 
-1. §17's layer tree, §60 and §96 state what the build has, citing ADR-0020 to ADR-0023 where they
-   decide it.
+1. §17's layer tree, §60 and §96 state what the build has, citing ADR-0020 to ADR-0022 where they
+   decide it, and ADR-0023 only as not accepted.
 2. Every "reserved", "PROPOSED", "not yet", "do not exist yet" and "once their domains exist"
    sentence in the three sections is either still true with its reason stated, or amended. The
    search used is recorded in the change.

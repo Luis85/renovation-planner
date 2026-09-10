@@ -593,74 +593,84 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 		// `no-restricted-imports` on that line. Both assertions above filter by rule id
 		// rather than counting diagnostics, so the extra one is invisible to them by
 		// construction — noted because a count-based assertion would have broken here.
+	});
+});
 
-		/**
-		 * The network GLOBALS, which the assertions above cannot reach.
-		 *
-		 * They report under `no-restricted-globals`, a different rule KEY — measured — so a
-		 * matrix built entirely on `no-restricted-imports` is blind to them however many cells
-		 * it has. Slice 11's diagnostics-stay-on-the-device claim rests on both halves, and
-		 * only the import half had a probe.
-		 *
-		 * **NOT `fetch`, and a draft used it.** `eslint-plugin-obsidianmd` bans `app`, `fetch`
-		 * and `localStorage` across ALL of `src/`, so a `fetch` diagnostic says nothing about
-		 * the network ban specifically. Measured:
-		 *
-		 * | planted | `application/queries` | `core` (no network ban) |
-		 * | --- | --- | --- |
-		 * | `fetch` | reports | **reports** |
-		 * | `XMLHttpRequest` | reports | silent |
-		 * | `WebSocket` | reports | silent |
-		 *
-		 * So a later `.vue` override keeping only the marketplace globals would allow every
-		 * real network door while the `fetch` probe stayed green. Every independently
-		 * removable network-only global is planted instead.
-		 *
-		 * I had measured this exact fact one round earlier — it is the reason the negative case
-		 * below was skipped — and drew only half the conclusion from it. Knowing `fetch` is
-		 * banned everywhere is precisely what makes it useless as the POSITIVE probe too.
-		 */
-		// ALL EIGHT for the positive cells — the complete `NETWORK_GLOBALS` list, transcribed.
-		// A draft probed three and omitted `navigator`, `window`, `globalThis` and `self`, so an
-		// extension-specific override keeping the three named ones would leave every cell green
-		// while `navigator.sendBeacon(...)` and `globalThis.fetch(...)` became available there.
-		// Cells-versus-spellings again, on the globals axis.
-		const ALL_NETWORK_GLOBALS = [
-			'fetch',
-			'XMLHttpRequest',
-			'WebSocket',
-			'EventSource',
-			'navigator',
-			'window',
-			'globalThis',
-			'self',
-		] as const;
+/**
+ * The network GLOBALS, which the assertions above cannot reach.
+ *
+ * They report under `no-restricted-globals`, a different rule KEY — measured — so a
+ * matrix built entirely on `no-restricted-imports` is blind to them however many cells
+ * it has. Slice 11's diagnostics-stay-on-the-device claim rests on both halves, and
+ * only the import half had a probe.
+ *
+ * **NOT `fetch`, and a draft used it.** `eslint-plugin-obsidianmd` bans `app`, `fetch`
+ * and `localStorage` across ALL of `src/`, so a `fetch` diagnostic says nothing about
+ * the network ban specifically. Measured:
+ *
+ * | planted | `application/queries` | `core` (no network ban) |
+ * | --- | --- | --- |
+ * | `fetch` | reports | **reports** |
+ * | `XMLHttpRequest` | reports | silent |
+ * | `WebSocket` | reports | silent |
+ *
+ * So a later `.vue` override keeping only the marketplace globals would allow every
+ * real network door while the `fetch` probe stayed green. Every independently
+ * removable network-only global is planted instead.
+ *
+ * I had measured this exact fact one round earlier — it is the reason the negative case
+ * below was skipped — and drew only half the conclusion from it. Knowing `fetch` is
+ * banned everywhere is precisely what makes it useless as the POSITIVE probe too.
+ */
+// ALL EIGHT for the positive cells — the complete `NETWORK_GLOBALS` list, transcribed.
+// A draft probed three and omitted `navigator`, `window`, `globalThis` and `self`, so an
+// extension-specific override keeping the three named ones would leave every cell green
+// while `navigator.sendBeacon(...)` and `globalThis.fetch(...)` became available there.
+// Cells-versus-spellings again, on the globals axis.
+const ALL_NETWORK_GLOBALS = [
+	'fetch',
+	'XMLHttpRequest',
+	'WebSocket',
+	'EventSource',
+	'navigator',
+	'window',
+	'globalThis',
+	'self',
+] as const;
 
-		// A NARROWER list for the negative cells, and the asymmetry is measured rather than
-		// cautious. Banned in a block with NO network ban:
-		//   `fetch`               — everywhere, by `eslint-plugin-obsidianmd` across `src/`
-		//   `navigator`, `window` — in `core`/`domain`, by the DOM block
-		// The other five are silent wherever no network ban applies, so only they can carry a
-		// negative. Asserting the full list negatively would assert something false.
-		const NETWORK_ONLY_GLOBALS = ['XMLHttpRequest', 'WebSocket', 'EventSource', 'globalThis', 'self'] as const;
-		// A plain REFERENCE, not `new ...`: `navigator`, `window`, `globalThis` and `self` are
-		// not constructors, so a `new` form would be a TypeError in four of the eight cells and
-		// the probe would be testing its own source rather than the rule.
-		/**
-		 * ONE module carrying every name, matched BY LINE — not one lint call per global.
-		 *
-		 * The import probes already work this way and for the same two reasons: a
-		 * line-matched assertion tells "this one went silent" from "the others still fire",
-		 * which a per-name loop only achieves by paying for a separate ESLint call each time.
-		 * Batching takes this file from ~556 calls to ~195; see the budget in Step 7.
-		 */
-		const globalsSource = (names: readonly string[]): string => {
-			const body = names.map((name) => `export const reach_${name} = () => ${name};`).join('\n');
-			return extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
-		};
+// A NARROWER list for the negative cells, and the asymmetry is measured rather than
+// cautious. Banned in a block with NO network ban:
+//   `fetch`               — everywhere, by `eslint-plugin-obsidianmd` across `src/`
+//   `navigator`, `window` — in `core`/`domain`, by the DOM block
+// The other five are silent wherever no network ban applies, so only they can carry a
+// negative. Asserting the full list negatively would assert something false.
+const NETWORK_ONLY_GLOBALS = ['XMLHttpRequest', 'WebSocket', 'EventSource', 'globalThis', 'self'] as const;
+// A plain REFERENCE, not `new ...`: `navigator`, `window`, `globalThis` and `self` are
+// not constructors, so a `new` form would be a TypeError in four of the eight cells and
+// the probe would be testing its own source rather than the rule.
+/**
+ * ONE module carrying every name, matched BY LINE — not one lint call per global.
+ *
+ * The import probes already work this way and for the same two reasons: a
+ * line-matched assertion tells "this one went silent" from "the others still fire",
+ * which a per-name loop only achieves by paying for a separate ESLint call each time.
+ * Batching takes this file from ~556 calls to ~195; see the budget in Step 7.
+ */
+const globalsSource = (names: readonly string[], extension: string): string => {
+	const body = names.map((name) => `export const reach_${name} = () => ${name};`).join('\n');
+	return extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
+};
 
-		it.runIf(block.networkGlobals === true)('reports every network global under its own rule', async () => {
-			const found = await lintDetailed(globalsSource(ALL_NETWORK_GLOBALS), pathFor(block, extension));
+// The network cases iterate only the blocks each one applies to. Every cell used to declare
+// BOTH behind `it.runIf(block.networkGlobals …)`, which reported the inapplicable half as 65
+// permanent skips on every run — and a skip count that never reaches 0 is exactly where a
+// forgotten `.skip` hides. An `if` around the declaration is no way out either: oxlint's
+// `vitest/no-conditional-tests` refuses it, measured. Every full name is unchanged, because
+// these tables carry the same `$key` and `.%s` titles as the matrix above.
+describe.each(BAN_BLOCKS.filter((block) => block.networkGlobals === true))('$key', (block) => {
+	describe.each(block.extensions)('.%s', (extension) => {
+		it('reports every network global under its own rule', async () => {
+			const found = await lintDetailed(globalsSource(ALL_NETWORK_GLOBALS, extension), pathFor(block, extension));
 			const reported = found
 				.filter((d) => d.ruleId === 'no-restricted-globals')
 				.map((d) => d.line - lineOffset(extension))
@@ -672,7 +682,11 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
 			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
 		});
+	});
+});
 
+describe.each(BAN_BLOCKS.filter((block) => block.networkGlobals !== true))('$key', (block) => {
+	describe.each(block.extensions)('.%s', (extension) => {
 		/**
 		 * And a block with no network ban stays SILENT on them — the negative half, which the
 		 * network-only names make writable for the first time.
@@ -684,8 +698,8 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 		 * would pass the positive case everywhere and the matrix would say nothing about where
 		 * the ban is keyed.
 		 */
-		it.runIf(block.networkGlobals !== true)('stays silent on network globals where no network ban applies', async () => {
-			const found = await lintDetailed(globalsSource(NETWORK_ONLY_GLOBALS), pathFor(block, extension));
+		it('stays silent on network globals where no network ban applies', async () => {
+			const found = await lintDetailed(globalsSource(NETWORK_ONLY_GLOBALS, extension), pathFor(block, extension));
 
 			expect(found.map((d) => d.ruleId)).not.toContain('no-restricted-globals');
 			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');

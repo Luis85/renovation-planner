@@ -38,7 +38,7 @@ export function createGroupRotation(context: PlanEditorContext, runtime: GroupOp
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.rotation.title', { name: snapshot.name }), component: markRaw(GroupRotationDialog), busy, props: {
 				summary: tr('editor.group.transform-hint'), affectedNeighbours, form: { element, pivot, busy, blocked, latest, inputBlocked: blocked,
 					retry: createDraftRetry(runtime.refreshProjection, () => operations.current(snapshot), context.commands.logger), openSource: () => context.openPlanNote(), logger: context.commands.logger,
-					dispatch: send, preview: (points: readonly Point[] | null) => { if (snapshot.generation === operations.generation.value) preview(points ? snapshot : null, points ?? undefined); } },
+					dispatch: send, preview: (points: readonly Point[] | null) => preview(points ? snapshot : null, points ?? undefined) },
 			} });
 		});
 	}

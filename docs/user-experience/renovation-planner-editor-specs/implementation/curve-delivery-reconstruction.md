@@ -1,10 +1,6 @@
 # Curve delivery reconstruction
 
-Current follow-up: [PR #111 implementation and automated verification](curve-delivery.md).
-Manual acceptance is user-owned and pending. The text below is the historical
-reconstruction receipt, not the current verification status.
-
-Historical status: source reconstructed; all verification pending on that delivery tree. No
+Status: source reconstructed; all verification pending on this delivery tree. No
 test, type, lint, build or browser execution was performed during reconstruction.
 Historical receipts in curved-boundaries.md remain evidence of their original trees,
 not proof of this new concern composition or rendered-screen acceptance.

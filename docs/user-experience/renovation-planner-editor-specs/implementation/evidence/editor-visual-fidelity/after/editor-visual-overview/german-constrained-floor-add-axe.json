@@ -40,9 +40,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<button type=\"button\" class=\"rp-panel-rail__button\" data-rp-rail=\"details\" aria-expanded=\"true\">Details</button>",
+          "html": "<span>Details zu Ground floor</span>",
           "target": [
-            "button[data-rp-rail=\"details\"]"
+            "button[data-rp-rail=\"details\"] > span:nth-child(2)"
           ],
           "failureSummary": "Fix any of the following:\n  Could not parse color string oklch(0.999994 0.0000497986 none / 0.067)"
         },
@@ -90,6 +90,31 @@
           "all": [],
           "none": [],
           "impact": "serious",
+          "html": "<button type=\"button\" class=\"rp-primary-actions__button\" data-rp-action=\"pan\" aria-pressed=\"false\" aria-disabled=\"false\">Verschieben</button>",
+          "target": [
+            "button[data-rp-action=\"pan\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
           "html": "<button type=\"button\" class=\"rp-primary-actions__button\" data-rp-action=\"add\" aria-haspopup=\"menu\" aria-expanded=\"true\" aria-disabled=\"false\">",
           "target": [
             "button[data-rp-action=\"add\"]"
@@ -104,87 +129,13 @@
                 "contrastRatio": 0,
                 "fontSize": "9.8pt (13px)",
                 "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
+                "messageKey": "colorParse",
+                "expectedContrastRatio": "4.5:1",
+                "colorParse": "oklch(0.999994 0.0000497986 none / 0.067)"
               },
               "relatedNodes": [],
               "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<p class=\"rp-add-menu__title\">Hinzufügen</p>",
-          "target": [
-            ".rp-add-menu__title"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.8pt (13px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<input type=\"search\" class=\"rp-add-menu__search\" aria-label=\"Suchen, was hinzugefügt werden soll\" placeholder=\"Suchen, was hinzugefügt werden soll\" style=\"\">",
-          "target": [
-            ".rp-add-menu__search"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<h3 id=\"rp-1-41\" role=\"presentation\">Struktur</h3>",
-          "target": [
-            "#rp-1-41"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.8pt (13px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
+              "message": "Could not parse color string oklch(0.999994 0.0000497986 none / 0.067)"
             }
           ],
           "all": [],
@@ -194,7 +145,7 @@
           "target": [
             "button[data-rp-entry=\"room\"] > .rp-add-menu__item-label"
           ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+          "failureSummary": "Fix any of the following:\n  Could not parse color string oklch(0.999994 0.0000497986 none / 0.067)"
         },
         {
           "any": [
@@ -204,12 +155,13 @@
                 "contrastRatio": 0,
                 "fontSize": "9.0pt (12px)",
                 "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
+                "messageKey": "colorParse",
+                "expectedContrastRatio": "4.5:1",
+                "colorParse": "oklch(0.999994 0.0000497986 none / 0.067)"
               },
               "relatedNodes": [],
               "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
+              "message": "Could not parse color string oklch(0.999994 0.0000497986 none / 0.067)"
             }
           ],
           "all": [],
@@ -219,7 +171,7 @@
           "target": [
             "button[data-rp-entry=\"room\"] > .rp-add-menu__item-description"
           ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+          "failureSummary": "Fix any of the following:\n  Could not parse color string oklch(0.999994 0.0000497986 none / 0.067)"
         },
         {
           "any": [
@@ -240,9 +192,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-label\">Wand</span>",
+          "html": "<button type=\"button\" class=\"rp-inspector-drawer__close\">Panel schließen</button>",
           "target": [
-            "button[data-rp-entry=\"wall\"] > .rp-add-menu__item-label"
+            ".rp-inspector-drawer__close"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -252,7 +204,7 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
+                "fontSize": "15.0pt (20px)",
                 "fontWeight": "normal",
                 "messageKey": "bgOverlap",
                 "expectedContrastRatio": "4.5:1"
@@ -265,59 +217,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-description\">Für präzise Grundrisse</span>",
+          "html": "<h3>Ground floor</h3>",
           "target": [
-            "button[data-rp-entry=\"wall\"] > .rp-add-menu__item-description"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.8pt (13px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-label\">Tür</span>",
-          "target": [
-            "button[data-rp-entry=\"door\"] > .rp-add-menu__item-label"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-description\">Eine Öffnung zwischen zwei Räumen</span>",
-          "target": [
-            "button[data-rp-entry=\"door\"] > .rp-add-menu__item-description"
+            ".rp-floor-inspector > h3:nth-child(1)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -340,34 +242,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-label\">Fenster</span>",
+          "html": "<button type=\"button\" data-rp-action=\"reference\" aria-disabled=\"false\">Referenzplan konfigurieren</button>",
           "target": [
-            "button[data-rp-entry=\"window\"] > .rp-add-menu__item-label"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-description\">Eine Öffnung für Licht und Luft</span>",
-          "target": [
-            "button[data-rp-entry=\"window\"] > .rp-add-menu__item-description"
+            ".rp-floor-inspector > button[data-rp-action=\"reference\"]"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -390,9 +267,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-label\">Öffnung</span>",
+          "html": "<dt>Räume</dt>",
           "target": [
-            "button[data-rp-entry=\"opening\"] > .rp-add-menu__item-label"
+            ".rp-editor-inspector-fields > dt:nth-child(1)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -402,7 +279,32 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "shortTextContent",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element content is too short to determine if it is actual text content"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<dd data-rp-stat=\"rooms\" class=\"rp-floor-inspector__stat\">4</dd>",
+          "target": [
+            "dd[data-rp-stat=\"rooms\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
                 "fontWeight": "normal",
                 "messageKey": "bgOverlap",
                 "expectedContrastRatio": "4.5:1"
@@ -415,9 +317,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-description\">Ein offener Durchgang durch eine Wand</span>",
+          "html": "<dt>Flächen</dt>",
           "target": [
-            "button[data-rp-entry=\"opening\"] > .rp-add-menu__item-description"
+            "dt:nth-child(3)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -427,7 +329,32 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "shortTextContent",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element content is too short to determine if it is actual text content"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<dd data-rp-stat=\"areas\" class=\"rp-floor-inspector__stat\">0</dd>",
+          "target": [
+            "dd[data-rp-stat=\"areas\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
                 "fontWeight": "normal",
                 "messageKey": "bgOverlap",
                 "expectedContrastRatio": "4.5:1"
@@ -440,9 +367,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<h3 id=\"rp-1-42\" role=\"presentation\">Grundstück</h3>",
+          "html": "<dt>Gesamtfläche</dt>",
           "target": [
-            "#rp-1-42"
+            "dt:nth-child(5)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -465,34 +392,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-label\">Fläche</span>",
+          "html": "<dd data-rp-stat=\"total-area\" class=\"rp-floor-inspector__stat\">48 m²</dd>",
           "target": [
-            "button[data-rp-entry=\"area\"] > .rp-add-menu__item-label"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-description\">Eine Außenfläche ohne Wände</span>",
-          "target": [
-            "button[data-rp-entry=\"area\"] > .rp-add-menu__item-description"
+            "dd[data-rp-stat=\"total-area\"]"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -515,9 +417,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-label\">Weg</span>",
+          "html": "<dt>Geplante Änderungen</dt>",
           "target": [
-            "button[data-rp-entry=\"path\"] > .rp-add-menu__item-label"
+            ".rp-floor-planning-metric > dt"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -527,7 +429,32 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
+                "fontSize": "16.5pt (22px)",
+                "fontWeight": "normal",
+                "messageKey": "shortTextContent",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element content is too short to determine if it is actual text content"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<dd data-rp-stat=\"planned-changes\" class=\"rp-floor-inspector__stat\">1</dd>",
+          "target": [
+            "dd[data-rp-stat=\"planned-changes\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
                 "fontWeight": "normal",
                 "messageKey": "bgOverlap",
                 "expectedContrastRatio": "4.5:1"
@@ -540,9 +467,34 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-description\">Eine Route zum Gehen oder Fahren</span>",
+          "html": "<h4>Geplante Kosten</h4>",
           "target": [
-            "button[data-rp-entry=\"path\"] > .rp-add-menu__item-description"
+            "h4"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "16.5pt (22px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<p data-rp-stat=\"renovation-cost\" class=\"rp-renovation-estimate\">0,00 EUR</p>",
+          "target": [
+            ".rp-renovation-estimate"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -565,59 +517,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-label\">Zaun</span>",
+          "html": "<span>Wählen Sie einen Raum auf der Zeichenfläche oder in der Liste aus, um Details zu sehen.</span>",
           "target": [
-            "button[data-rp-entry=\"fence\"] > .rp-add-menu__item-label"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-description\">Markiert die Grenze eines Grundstücks</span>",
-          "target": [
-            "button[data-rp-entry=\"fence\"] > .rp-add-menu__item-description"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<h3 id=\"rp-1-43\" role=\"presentation\">Planung</h3>",
-          "target": [
-            "#rp-1-43"
+            ".rp-floor-inspector__guidance > span:nth-child(2)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -640,34 +542,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-label\">Objekt</span>",
+          "html": "<h3 class=\"rp-editor-panel-subtitle\">Räume</h3>",
           "target": [
-            "button[data-rp-entry=\"item\"] > .rp-add-menu__item-label"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
-                "fontWeight": "normal",
-                "messageKey": "bgOverlap",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [],
-              "impact": "serious",
-              "message": "Element's background color could not be determined because it is overlapped by another element"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-description\">Ein einzelnes Möbelstück oder Gerät</span>",
-          "target": [
-            "button[data-rp-entry=\"item\"] > .rp-add-menu__item-description"
+            ".rp-floor-inspector > .rp-editor-panel-subtitle"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -690,9 +567,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-label\">Messung</span>",
+          "html": "<span>Wohnzimmer</span>",
           "target": [
-            "button[data-rp-entry=\"measurement\"] > .rp-add-menu__item-label"
+            "li:nth-child(1) > .rp-room-list__row--annotated.rp-room-list__row > span:nth-child(1)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
@@ -715,9 +592,259 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"rp-add-menu__item-description\">Eine auf dem Plan vermerkte Distanz</span>",
+          "html": "<span class=\"rp-room-list__area\">18 m²</span>",
           "target": [
-            "button[data-rp-entry=\"measurement\"] > .rp-add-menu__item-description"
+            "li:nth-child(1) > .rp-room-list__row--annotated.rp-room-list__row > .rp-room-list__area"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-room-list__annotation\">Geplante Änderungen: 0</span>",
+          "target": [
+            "li:nth-child(1) > .rp-room-list__row--annotated.rp-room-list__row > .rp-room-list__annotation"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>Flur</span>",
+          "target": [
+            "li:nth-child(2) > .rp-room-list__row--annotated.rp-room-list__row > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-room-list__area\">12 m²</span>",
+          "target": [
+            "li:nth-child(2) > .rp-room-list__row--annotated.rp-room-list__row > .rp-room-list__area"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-room-list__annotation\">Geplante Änderungen: 0</span>",
+          "target": [
+            "li:nth-child(2) > .rp-room-list__row--annotated.rp-room-list__row > .rp-room-list__annotation"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>Badezimmer</span>",
+          "target": [
+            "li:nth-child(3) > .rp-room-list__row--annotated.rp-room-list__row > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-room-list__area\">6 m²</span>",
+          "target": [
+            "li:nth-child(3) > .rp-room-list__row--annotated.rp-room-list__row > .rp-room-list__area"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-room-list__annotation\">Geplante Änderungen: 0</span>",
+          "target": [
+            "li:nth-child(3) > .rp-room-list__row--annotated.rp-room-list__row > .rp-room-list__annotation"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>Küche</span>",
+          "target": [
+            "li:nth-child(4) > .rp-room-list__row--annotated.rp-room-list__row > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-room-list__area\">12 m²</span>",
+          "target": [
+            "li:nth-child(4) > .rp-room-list__row--annotated.rp-room-list__row > .rp-room-list__area"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-room-list__annotation\">Geplante Änderungen: 1</span>",
+          "target": [
+            "li:nth-child(4) > .rp-room-list__row--annotated.rp-room-list__row > .rp-room-list__annotation"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         }

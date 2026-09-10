@@ -1,7 +1,7 @@
 [
   {
     "scenario": "light",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
       "--text-accent": "hsl(258, 88%, 66%)",
@@ -17,11 +17,11 @@
       {
         "state": "saved-item",
         "violations": 0,
-        "incompleteChecks": 0
+        "incompleteChecks": 1
       }
     ],
     "storage": "production commands and repositories over FakeVault",
-    "itemId": "element-01M1YP4XCS52X4NT6548F1YJ3H",
+    "itemId": "element-01M240ARFRPSKB1Z1H2QGASTKV",
     "rectangle": "invalid input, focus and reflow retained; Enter applied four corners",
     "lifecycle": "save, named outline edit, undo/redo, confirmed removal and undo",
     "zoom": "viewport reflow only; not browser zoom",
@@ -30,7 +30,7 @@
   },
   {
     "scenario": "dark",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "hsl(258, 88%, 66%)",
       "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
@@ -46,11 +46,11 @@
       {
         "state": "saved-item",
         "violations": 0,
-        "incompleteChecks": 0
+        "incompleteChecks": 1
       }
     ],
     "storage": "production commands and repositories over FakeVault",
-    "itemId": "element-01M1YP5768DYVFXB9Z5VYAAK86",
+    "itemId": "element-01M240AZ388K8XB05SVQY5TS6N",
     "rectangle": "invalid input, focus and reflow retained; Enter applied four corners",
     "lifecycle": "save, named outline edit, undo/redo, confirmed removal and undo",
     "zoom": "viewport reflow only; not browser zoom",
@@ -59,7 +59,7 @@
   },
   {
     "scenario": "custom-accent",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "#7c246b",
       "--text-accent": "#7c246b",
@@ -75,11 +75,11 @@
       {
         "state": "saved-item",
         "violations": 0,
-        "incompleteChecks": 0
+        "incompleteChecks": 1
       }
     ],
     "storage": "production commands and repositories over FakeVault",
-    "itemId": "element-01M1YP5GD7D5H64148F7EV1XFX",
+    "itemId": "element-01M240B5JJ9956ZE3JBB1RTGCP",
     "rectangle": "invalid input, focus and reflow retained; Enter applied four corners",
     "lifecycle": "save, named outline edit, undo/redo, confirmed removal and undo",
     "zoom": "viewport reflow only; not browser zoom",
@@ -88,7 +88,7 @@
   },
   {
     "scenario": "german-constrained",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "hsl(258, 88%, 66%)",
       "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
@@ -108,7 +108,7 @@
       }
     ],
     "storage": "production commands and repositories over FakeVault",
-    "itemId": "element-01M1YP5SWB77CJRQ5CFX45EXJQ",
+    "itemId": "element-01M240BBTGBGDB416Q0HKW6DCQ",
     "rectangle": "invalid input, focus and reflow retained; Enter applied four corners",
     "lifecycle": "save, named outline edit, undo/redo, confirmed removal and undo",
     "zoom": "viewport reflow only; not browser zoom",

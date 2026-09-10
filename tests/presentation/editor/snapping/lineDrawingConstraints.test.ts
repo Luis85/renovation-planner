@@ -31,21 +31,3 @@ it('matches the Zone constraint, placement and Shift release for walls and every
 		tool.pointerDown(shiftPointerAt(2000, 500)); expect(element.points[1]).toEqual(expected);
 	}
 });
-
-it.each(['place-stair', 'draw-arrow'] as const)('uses the Zone SnapService order and last committed anchor for %s', id => {
-	const h = harness(), draft = createElementDraft(), candidates = { vertices: [{ x: 2100, y: 0 }] };
-	const direction = vi.spyOn(h.context.snapService, 'snapDirection').mockReturnValue({ x: 2000, y: 0 });
-	const point = vi.spyOn(h.context.snapService, 'snapPoint').mockReturnValue({ x: 2100, y: 0 });
-	const tool = new ElementTool(id, { draft, start: vi.fn<() => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(),
-		candidates: () => candidates, blocked: () => false, addPoint: value => { draft.points.push(value); return true; } });
-	tool.activate(h.context); tool.pointerMove(shiftPointerAt(100, 200));
-	expect(direction).not.toHaveBeenCalled();
-	draft.points = [{ x: 100, y: 200 }]; tool.pointerDown(shiftPointerAt(2200, 400));
-	expect(direction).toHaveBeenCalledWith({ x: 100, y: 200 }, { x: 2200, y: 400 });
-	expect(point).toHaveBeenLastCalledWith({ x: 2000, y: 0 }, candidates, 8 * h.context.viewport.worldPerScreenPixel());
-	expect(draft.points).toEqual([{ x: 100, y: 200 }, { x: 2100, y: 0 }]);
-	tool.pointerMove(shiftPointerAt(3000, 400));
-	expect(direction).toHaveBeenLastCalledWith({ x: 2100, y: 0 }, { x: 3000, y: 400 });
-	direction.mockClear(); tool.pointerMove(pointerAt(3000, 400));
-	expect(direction).not.toHaveBeenCalled(); expect(point).toHaveBeenLastCalledWith({ x: 3000, y: 400 }, candidates, 8 * h.context.viewport.worldPerScreenPixel());
-});

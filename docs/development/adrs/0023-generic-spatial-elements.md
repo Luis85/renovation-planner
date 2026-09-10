@@ -1,5 +1,8 @@
 # ADR-0023 — Generic spatial elements in the floor sidecar
 
+Spatial rotation uses these existing world-coordinate element facts; its expanded interaction
+and source-command contract is recorded in [ADR-0025](0025-spatial-rotation.md).
+
 Status: Implementation in progress, 2026-09-07. Final combined verification and host acceptance remain open.
 
 ## Context

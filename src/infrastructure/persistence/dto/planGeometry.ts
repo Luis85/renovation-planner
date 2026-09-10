@@ -60,8 +60,8 @@ const OpeningSwingSchema = z.object({ hinge: z.enum(['start', 'end']), side: z.e
 const StructureSchemaV5 = StructureSchemaV4.extend({ openings: z.array(StructureSchema.shape.openings.element.extend({ swing: OpeningSwingSchema.optional() })) });
 const PlanGeometrySchemaV5 = PlanGeometrySchemaV4.extend({ schemaVersion: z.literal(5), structure: StructureSchemaV5.optional(), intended: StructureSchemaV5.optional() });
 /** Any persisted version, for a reader that asks only what the file DECLARES (no migration). */
-export const PlanGeometrySchemaV6 = PlanGeometrySchemaV5.extend({ schemaVersion: z.literal(6), groups: z.array(z.object({
-	id: z.string().startsWith('group-'), name: z.string().min(1).max(100).regex(/\S/), memberIds: z.array(z.string().min(1)).min(1),
+const PlanGeometrySchemaV6 = PlanGeometrySchemaV5.extend({ schemaVersion: z.literal(6), groups: z.array(z.object({
+	id: z.string().startsWith('group-'), name: z.string().trim().min(1).max(100), memberIds: z.array(z.string().min(1)).min(1),
 })).optional() });
 const BulgeSchema = z.number().min(-1).max(1);
 export const SpatialObjectGeometrySchemaV7 = SpatialObjectGeometrySchemaV1.extend({ bulges: z.array(BulgeSchema).optional() })

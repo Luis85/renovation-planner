@@ -10,6 +10,7 @@ import { installObsidianDom } from '../../helpers/dom';
 import { resizeTo } from '../../helpers/layout';
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { defer } from '../../helpers/async';
 import { mountPlanEditor, runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { harnessDeps, HARNESS_PLAN } from '../../harness/planEditor';
 import { referenceWorkspace } from '../../harness/referenceWorkspace';
@@ -339,4 +340,15 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 		expect([...r.stack.vault.entries]).toEqual(before);
 	});
 
+});
+
+
+it('does not recreate reference error UI when an in-flight final dispatch rejects after leaf disposal', async () => {
+	const r = await rig(); await open(r); await prepare(r); await measure(r);
+	const before = [...r.stack.vault.entries], pending = defer<void>();
+	const run = vi.spyOn(runtimeOf(r.harness).dispatcher, 'run').mockImplementationOnce(async () => { await pending.promise; throw new Error('retired reference dispatch'); });
+	await submit(r); expect(run).toHaveBeenCalledOnce();
+	mounted.splice(mounted.indexOf(r.harness), 1); r.harness.unmount(); pending.resolve(); await settle();
+	expect(r.harness.wrapper.element.isConnected).toBe(false); expect([...r.stack.vault.entries]).toEqual(before);
+	expect(useDialogStore(r.harness.pinia).current).toBeNull();
 });

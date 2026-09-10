@@ -29,7 +29,7 @@ export function createCurveTask(context: PlanEditorContext, runtime: CurveTaskRu
 	}
 	const available = computed(() => context.commands.groups !== undefined && selection.selectedIds.length === 1 && current(selection.selectedIds[0]) !== null);
 	const permitted = computed(() => alive && !runtime.writesBlocked.value && session.perspective !== 'review');
-	const blocked = computed(() => !permitted.value || (target.value !== null && !ownsSelection(target.value.id)) || state.loading || state.busy || state.conflict || saves.state === 'saving');
+	const blocked = computed(() => !permitted.value || state.loading || state.busy || state.conflict || saves.state === 'saving');
 	const edges = computed(() => target.value ? curveEdges(target.value) : []);
 	const preview = computed(() => target.value && baseline.value && !state.conflict ? curveDocument(baseline.value.document, target.value) : null);
 	const validation = computed(() => target.value && baseline.value ? curveError(baseline.value.document, target.value) : null);
@@ -94,9 +94,9 @@ export function createCurveTask(context: PlanEditorContext, runtime: CurveTaskRu
 		finally { if (ticket === epoch) state.busy = false; }
 	}
 	watch(() => target.value ? JSON.stringify(current(target.value.id)?.geometry) : null, value => { if (target.value && !state.busy && value !== source) state.conflict = true; }, { flush: 'sync' });
-	watch(() => selection.selectedIds.join('|'), () => { if (target.value || state.loading) cancel(); }, { flush: 'sync' });
+	watch(() => selection.selectedIds.join('|'), () => { if (target.value && !state.busy) void nextTick(cancel); });
 	// Failed read-back pauses this draft; its typed values survive until retry or explicit exit.
-	watch(() => session.perspective, value => { if (value === 'review' && (target.value || state.loading)) cancel(); }, { flush: 'sync' });
+	watch(() => session.perspective, value => { if (value === 'review' && target.value && !state.busy) void nextTick(cancel); });
 	runtime.toolManager.register(new CurveTool({ target: () => target.value, blocked: () => blocked.value, busy: () => state.busy, set, choose, stop, cancel, finish: () => { void finish(); } }));
 	onBeforeUnmount(() => { alive = false; stop(); });
 	return { target, state, available, blocked, edges, preview, validation, open, choose, set, input, finish, cancel };

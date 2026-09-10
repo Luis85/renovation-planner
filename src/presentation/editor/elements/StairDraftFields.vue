@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { EditorRuntime } from '../runtime';
 import { DEFAULT_STAIR_RUN } from '../../../domain/spatial/stairGeometry';
 import { parseStairInput, stairText, type StairText } from './stairInput';
@@ -14,18 +14,9 @@ const centreline = computed(() => {
 	return [start, { x: start.x, y: start.y - DEFAULT_STAIR_RUN }];
 });
 const text = ref(stairText(centreline.value, draft.stair));
-const touched = reactive({ width: false, run: false });
-watch(() => [draft.points, draft.stair, draft.pendingInput], () => {
-	if (draft.pendingInput) return;
-	text.value = stairText(centreline.value, draft.stair);
-	touched.width = false; touched.run = false;
-}, { deep: true });
-const parsed = computed(() => parseStairInput(centreline.value, text.value, draft.stair, touched));
-function update(value: StairText, field: keyof StairText): void {
-	if (props.task.blocked.value) return;
-	if (field === 'width' || field === 'run') touched[field] = true;
-	text.value = value; draft.pendingInput = true;
-}
+watch(() => [draft.points, draft.stair], () => { if (!draft.pendingInput) text.value = stairText(centreline.value, draft.stair); }, { deep: true });
+const parsed = computed(() => parseStairInput(centreline.value, text.value, draft.stair));
+function update(value: StairText): void { if (!props.task.blocked.value) { text.value = value; draft.pendingInput = true; } }
 function apply(): void {
 	const value = parsed.value;
 	if (props.task.blocked.value || !value.points) return;

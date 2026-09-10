@@ -26,12 +26,7 @@ import type { RotationShape } from '../elements/objectRotation';
 export function createGroupActions(context: PlanEditorContext, runtime: GroupOperationRuntime) {
 	const project = useProjectStore(), selection = useSelectionStore(), workspace = useWorkspaceStore(), editor = useEditorStore();
 	const operations = createGroupOperations(context, runtime), rotation = createGroupRotation(context, runtime, operations);
-	function savedSelection(ids: readonly string[]) {
-		// Alt can focus an opening without selecting the saved group of its host.
-		if (ids.length === 1 && project.structure.openings.some(opening => opening.id === ids[0])) return null;
-		return selectedGroup(project.groups, ids, project.structure);
-	}
-	const saved = computed(() => savedSelection(selection.selectedIds));
+	const saved = computed(() => selectedGroup(project.groups, selection.selectedIds, project.structure));
 	const spatialIds = computed(() => new Set([...project.zones.keys(), ...project.structure.walls.map(item => item.id), ...project.structure.openings.map(item => item.id), ...project.structure.elements?.map(item => item.id) ?? []]));
 	function expandSelection(id: string, deep = false): readonly string[] {
 		if (deep) return spatialIds.value.has(id) ? [id] : [];
@@ -71,21 +66,19 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 		const enclosed = encloseRoom(room, snapshot.document.structure ?? EMPTY_STRUCTURE, { height: 2400, thickness: 150 }, () => createEntityId('wall'));
 		if (!enclosed.ok) { notifyOperationFailure(enclosed.error); return; }
 		const existing = snapshot.document.groups?.find(item => item.memberIds.includes(id));
-		const groupId = existing?.id ?? createEntityId('group');
-		const groups = regroup(snapshot.document.groups ?? [], { id: groupId, name: existing?.name ?? defaultName(id),
+		const groups = regroup(snapshot.document.groups ?? [], { id: existing?.id ?? createEntityId('group'), name: existing?.name ?? defaultName(id),
 			memberIds: [id, ...enclosed.value.wallIds] }, enclosed.value.structure);
-		const enclosedGroup = groups.find(item => item.id === groupId);
-		if (enclosedGroup && await operations.commit(snapshot, { ...snapshot.document, structure: enclosed.value.structure, groups })) choose(groupMembers(enclosedGroup, project.structure));
+		if (await operations.commit(snapshot, { ...snapshot.document, structure: enclosed.value.structure, groups })) choose(groupMembers(groups[groups.length - 1], project.structure));
 	}
 	function actions(ids: readonly string[]): readonly CanvasGroupAction[] {
-		const result: CanvasGroupAction[] = [], existing = savedSelection(ids), generation = operations.generation.value;
+		const result: CanvasGroupAction[] = [], existing = selectedGroup(project.groups, ids, project.structure);
 		const focused = selection.focusedId;
 		if (ids.length > 1 && focused && ids.includes(focused)) result.push({ id: 'inspect', label: 'editor.group.select-member', run: () => choose([focused]) });
 		if (ids.length === 1 && !existing && expandSelection(ids[0]).length > 1) result.push({ id: 'select-group', label: 'editor.group.select-saved', run: () => choose(expandSelection(ids[0])) });
 		if (existing) result.push({ id: 'ungroup', label: 'editor.group.ungroup', disabled: disabled.value, run: () => ungroup(ids) });
 		else if (groupRoots(ids, project.structure).length > 1) result.push({ id: 'group', label: 'editor.group.group', disabled: disabled.value, run: () => group(ids) });
 		if (ids.length === 1 && project.zones.get(ids[0])?.zoneType === 'Room') result.push({ id: 'enclose', label: 'editor.group.enclose', disabled: disabled.value, run: () => enclose(ids[0]) });
-		return result.map(action => ({ ...action, run: () => { if (generation === operations.generation.value) return action.run(); } }));
+		return result;
 	}
 	provideCanvasGroupActions({ actions, expandSelection });
 	const moveDependencies: GroupMoveDependencies = { capture: operations.capture, current: operations.current,

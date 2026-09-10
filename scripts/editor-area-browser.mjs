@@ -95,7 +95,7 @@ export async function escapeAreaTool(page) {
 }
 
 /** The editor journeys share browser, theme, viewport and error checks. */
-export async function runAreaBrowserMatrix(directory, query, journey, ready = '.rp-task-banner', browserOptions = {}) {
+export async function runAreaBrowserMatrix(directory, query, journey, ready = '.rp-task-banner') {
 	const started = Date.now(), images = new Set();
 	const out = `harness-shots/${directory}`;
 	await mkdir(out, { recursive: true });
@@ -104,7 +104,7 @@ export async function runAreaBrowserMatrix(directory, query, journey, ready = '.
 	let browser;
 	const results = [];
 	try {
-		browser = await chromium.launch({ ...browserOptions, executablePath: await resolveChromiumExecutable(), headless: true });
+		browser = await chromium.launch({ executablePath: await resolveChromiumExecutable(), headless: true });
 		for (const scenario of [
 			{ name: 'light', query: '&theme=light', width: 1440 },
 			{ name: 'dark', query: '', width: 1440 },

@@ -40,11 +40,61 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<button type=\"button\" class=\"rp-panel-rail__button\" data-rp-rail=\"details\" aria-expanded=\"true\">Details</button>",
+          "html": "<span>Details zu Raum 1</span>",
           "target": [
-            "button[data-rp-rail=\"details\"]"
+            "button[data-rp-rail=\"details\"] > span:nth-child(2)"
           ],
           "failureSummary": "Fix any of the following:\n  Could not parse color string oklch(0.999994 0.0000497986 none / 0.067)"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span aria-hidden=\"true\">3 m</span>",
+          "target": [
+            "span[data-rp-room-edge=\"1\"] > span[aria-hidden=\"true\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span aria-hidden=\"true\">4 m</span>",
+          "target": [
+            "span[data-rp-room-edge=\"2\"] > span[aria-hidden=\"true\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
         {
           "any": [
@@ -168,6 +218,31 @@
           "html": "<button type=\"button\" class=\"rp-primary-actions__button\" data-rp-action=\"select\" aria-pressed=\"true\" aria-disabled=\"false\">",
           "target": [
             "button[data-rp-action=\"select\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button type=\"button\" class=\"rp-primary-actions__button\" data-rp-action=\"pan\" aria-pressed=\"false\" aria-disabled=\"false\">Verschieben</button>",
+          "target": [
+            "button[data-rp-action=\"pan\"]"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },

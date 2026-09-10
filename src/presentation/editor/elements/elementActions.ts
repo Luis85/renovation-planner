@@ -20,8 +20,7 @@ import { elementInput } from './elementInput';
 import { elementEditPresentation } from './elementEditPresentation';
 import { err } from '../../../core/result/Result';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
-import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
-import type { RenovationBaseline, RenovationServices } from '../../../application/commands/renovation/RenovationCommand';
+import type { RenovationBaseline } from '../../../application/commands/renovation/RenovationCommand';
 
 function elementFrom(baseline: RenovationBaseline, id: string): NamedSpatialElement | null {
  const geometry = baseline.geometry.document.structure?.elements?.find(item => item.id === id);
@@ -33,11 +32,10 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 	const removal = createSpatialRemoval(context, runtime);
 	const active = ref(false), preview = ref<NamedSpatialElement | null>(null);
 	const blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective !== 'plan' || runtime.activeToolId.value !== 'select');
-	let alive = true;
-	const rotationEpoch = ref(0);
-	watch(() => JSON.stringify([runtime.activeToolId.value, session.perspective, selection.selectedIds, project.structure.elements, project.plan?.spatialElements]), () => { rotationEpoch.value++; preview.value = null; }, { flush: 'sync' });
+	let alive = true, rotationEpoch = 0;
+	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { rotationEpoch += 1; preview.value = null; }, { flush: 'sync' });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
-	onBeforeUnmount(() => { alive = false; rotationEpoch.value++; preview.value = null; });
+	onBeforeUnmount(() => { alive = false; preview.value = null; });
 	function matchesProjection(baseline: RenovationBaseline, id: string): boolean {
 		const geometry = baseline.geometry.document.structure?.elements?.find(item => item.id === id);
 		const name = baseline.plan.entity.spatialElements?.find(item => item.id === id)?.name;
@@ -52,51 +50,46 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		const element = elementFrom(result.value, id);
 		return element ? { baseline: result.value, element } : null;
 	}
-	async function operate(id: string, action: (value: NonNullable<Awaited<ReturnType<typeof read>>>, current: () => boolean) => Promise<void>): Promise<void> {
+	async function operate(id: string, action: (value: NonNullable<Awaited<ReturnType<typeof read>>>) => Promise<void>): Promise<void> {
 		if (!alive || active.value || blocked.value || dialogs.current || !context.commands.renovation) return;
 		active.value = true;
-		const epoch = rotationEpoch.value, current = () => alive && epoch === rotationEpoch.value && !blocked.value;
-		try { const value = await read(id); if (value && current()) await action(value, current); }
+		try { const value = await read(id); if (value && alive && !blocked.value) await action(value); }
 		catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.element.operation-failed'); }
-		finally { rotationEpoch.value++; active.value = false; preview.value = null; }
+		finally { active.value = false; preview.value = null; }
 	}
 	function edit(id: string): Promise<void> {
-		return operate(id, async ({ baseline, element }, current) => {
-			const captured = rotationEpoch.value, busy = ref(false), latest = ref<string | null>(null), formBlocked = computed(() => !current());
-			let attempt: { content: string; command: ReturnType<RenovationServices['command']> } | null = null;
+		const selected = selection.selectedIds.join('|');
+		return operate(id, async ({ baseline, element }) => {
+			if (selection.selectedIds.join('|') !== selected) return;
+			const busy = ref(false), latest = ref<string | null>(null);
 			const presentation = elementEditPresentation(element, async value => {
-					if (!current() || latest.value || !context.commands.renovation) return err(staleWriteRefusal());
-					const content = JSON.stringify(value);
-					// A compensated attempt owns its advanced revisions; retry that command.
-					if (attempt?.content !== content) attempt = { content, command: context.commands.renovation.command(baseline, elementInput(baseline, { ...element, ...value }), runtime.structureTask.ledger) };
-					const result = await runtime.dispatcher.run(attempt.command);
-					if (alive && !result.ok && (WRITE_BOUNDARY_CODES.some(code => result.error.code.endsWith(code)) || result.error.code === 'undo.superseded')) { latest.value = tr('editor.element.changed'); await runtime.refreshProjection(); }
+					if (!alive || blocked.value || latest.value || !context.commands.renovation) return err(staleWriteRefusal());
+					const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, ...value }), runtime.structureTask.ledger));
+					if (alive && !result.ok && (result.error.code.includes('conflict') || result.error.code === 'undo.superseded')) { latest.value = tr('editor.element.changed'); await runtime.refreshProjection(); }
 					return result;
-				}, value => { if (captured === rotationEpoch.value) preview.value = current() ? value : null; });
+				}, value => { preview.value = value; });
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.element.edit', { name: element.name }), component: presentation.component, busy, props: {
-				points: element.points, name: element.name, busy, blocked: formBlocked, latest, inputBlocked: computed(() => captured !== rotationEpoch.value || save.state === 'saving' || save.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
+				points: element.points, name: element.name, busy, blocked, latest, inputBlocked: computed(() => save.state === 'saving' || save.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger,
 				...presentation.props,
 			} });
 		});
 	}
 	function remove(id: string): Promise<void> {
-		return operate(id, async ({ baseline, element }, current) => {
-			const materials = await removalSources(context, [id]); if (!current()) return;
+		return operate(id, async ({ baseline, element }) => {
+			const materials = await removalSources(context, [id]); if (!alive) return;
 			if (!materials.ok) { notifyOperationFailure(materials.error); return; }
 			const references = [...materials.value, ...renovationReferents(baseline.plan.entity.renovation ?? EMPTY_RENOVATION, id)];
 			if (references.length) { await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), message: tr('renovation.links', { names: references.join(', ') }) }); return; }
 			const answer = await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), danger: true, message: tr('editor.element.delete-impact', { name: element.name }) });
 			if (!alive || answer !== 'confirm' || !context.commands.renovation) return;
-			if (!current()) { notifyOperationFailure(staleWriteRefusal()); return; }
 			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, element, true), runtime.structureTask.ledger));
 			if (alive && !result.ok) notifyOperationFailure(result.error);
 		});
 	}
 	function move(id: string, points: readonly Point[], original: SpatialElement): Promise<void> {
-		if (JSON.stringify(points) === JSON.stringify(original.points)) return Promise.resolve();
-		const epoch = rotationEpoch.value;
+		const epoch = rotationEpoch;
 		return operate(id, async ({ baseline, element }) => {
-			if (epoch !== rotationEpoch.value) return;
+			if (epoch !== rotationEpoch) return;
 			if (element.kind !== original.kind || JSON.stringify(element.points) !== JSON.stringify(original.points) || JSON.stringify(element.stair) !== JSON.stringify(original.stair)) { notifyOperationFailure(staleWriteRefusal()); return; }
 			if (!context.commands.renovation) return;
 			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, points }), runtime.structureTask.ledger));

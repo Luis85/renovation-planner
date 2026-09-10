@@ -1,6 +1,0 @@
-
-> renovation-planner@0.1.0 analyze
-> fallow --format json --output-file C:\Users\lum\AppData\Local\Temp/pr113-analyze-baseline.json
-
-   0.179819000s  WARN fallow: skipped 1 hidden directory that contains source files (.claude). Hidden directories are not traversed and no config field adds one: analyze it with fallow --root .claude if it holds first-party source, or add '.claude/**' to ignorePatterns to silence this.
-Report written to C:\Users\lum\AppData\Local\Temp/pr113-analyze-baseline.json

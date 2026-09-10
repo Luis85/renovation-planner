@@ -10,6 +10,14 @@ with Details closed. The same action in the Inspector preserves the current name
 corners when switching to the existing free-form drawing task. See the
 [implementation and pending acceptance](../implementation/room-edge-measurements.md).
 
+## Exact retyped dimensions — 2026-09-08
+
+Both the selected rectangular Room's modal dimensions and inline width/depth control treat
+an explicit input event as exact input even when its text matches the initial rounded display.
+Retyping `1.234` for a stored 1234.4 mm width therefore requests 1234 mm. Untouched axes preserve
+their full stored coordinates. An explicit input whose resulting geometry is already identical
+remains a no-op with no history. Preview and commit use the same edited-axis proposal.
+
 ![M03 — Add Room](../images/M03-add-room.png)
 
 ## Screen description

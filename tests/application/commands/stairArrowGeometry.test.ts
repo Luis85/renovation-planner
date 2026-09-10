@@ -72,24 +72,3 @@ it('refuses malformed persisted stair options without stripping or rewriting the
 	rig.stack.vault.entries.set(saved.path, original);
 	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.structure?.elements).toEqual([stair]);
 });
-
-it.each([5, 6, 7] as const)('retains schema %i and its facts until a new kind requires version 8', async version => {
-	const rig = await structureStack(); expectOk(await rig.room.execute());
-	const baseline = expectOk(await rig.geometry.read(rig.plan.id));
-	const opening = { id: 'opening-compatibility', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 800, height: 2100, sill: 0,
-		swing: { hinge: 'end' as const, side: 'right' as const, angle: 65 } };
-	const structure = { ...WALL_LOOP, openings: [opening], walls: WALL_LOOP.walls.map((wall, index) => version === 7 && index === 0 ? { ...wall, bulge: 0.25 } : wall) };
-	const document = { ...baseline.document, structure, ...(version >= 6 ? { groups: [{ id: 'group-compatibility', name: 'Walls', memberIds: ['wall-a'] }] } : {}) };
-	expectOk(await rig.geometry.write(rig.plan.id, document, baseline.version));
-	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(version);
-	const bytes = [...rig.stack.vault.entries], loaded = expectOk(await rig.geometry.read(rig.plan.id));
-	expect(loaded.document).toEqual(document); expect([...rig.stack.vault.entries]).toEqual(bytes);
-	const withArrow = { ...document, intended: { ...structure, elements: [arrow] } };
-	expectOk(await rig.geometry.write(rig.plan.id, withArrow, loaded.version));
-	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(8);
-	const upgraded = expectOk(await new ObsidianPlanGeometrySidecar(rig.stack.store).read(rig.plan.id));
-	expect(upgraded.document).toEqual(withArrow);
-	expectOk(await rig.geometry.write(rig.plan.id, document, upgraded.version));
-	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(version);
-	expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(document);
-});

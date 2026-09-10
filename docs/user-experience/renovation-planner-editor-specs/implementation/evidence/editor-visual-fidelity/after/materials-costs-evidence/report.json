@@ -1,7 +1,7 @@
 [
   {
     "scenario": "light",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "hsl(calc(258 - 1), calc(88% * 1.01), calc(66% * 1.075))",
       "--text-accent": "hsl(258, 88%, 66%)",
@@ -11,43 +11,43 @@
     "gallery": {
       "images": 6,
       "phase": "during",
-      "selectedId": "record-01M1YNWN9AGS9X955Q02BK4J6M",
+      "selectedId": "record-01M24046GS28HS4PQDC1EHN0QC",
       "selectedDate": "2026-08-28",
       "work": "Floor finish",
       "visibility": {
         ".rp-renovation-inspector > h3": {
           "x": 1097,
-          "y": 102.59375,
+          "y": 107,
           "width": 312,
           "height": 25
         },
         ".rp-evidence-filters": {
           "x": 1097,
-          "y": 225.984375,
+          "y": 245,
           "width": 312,
           "height": 68
         },
         "[data-rp-new-evidence]": {
           "x": 1097,
-          "y": 305.984375,
+          "y": 858.84375,
           "width": 312,
           "height": 30
         },
         ".rp-evidence-gallery li:first-child": {
           "x": 1097,
-          "y": 347.984375,
+          "y": 325,
           "width": 152,
           "height": 119
         },
         ".rp-evidence-gallery li:last-child": {
           "x": 1257,
-          "y": 601.984375,
+          "y": 579,
           "width": 152,
           "height": 119
         },
-        ".rp-renovation-list > [data-rp-record=\"record-01M1YNWN9AGS9X955Q02BK4J6M\"]": {
+        ".rp-renovation-list > [data-rp-record=\"record-01M24046GS28HS4PQDC1EHN0QC\"]": {
           "x": 1097,
-          "y": 732.984375,
+          "y": 710,
           "width": 312,
           "height": 136.84375
         }
@@ -197,6 +197,18 @@
           ],
           "reviewMarkers": [],
           "controls": [
+            {
+              "x": 414.59375,
+              "y": 242.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 206.34375,
+              "y": 406.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
             {
               "x": 203.34375,
               "y": 77.109375,
@@ -356,6 +368,18 @@
           "reviewMarkers": [],
           "controls": [
             {
+              "x": 431.59375,
+              "y": 229.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 223.34375,
+              "y": 393.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
               "x": 220.34375,
               "y": 64.109375,
               "width": 49.78125,
@@ -514,6 +538,18 @@
           "reviewMarkers": [],
           "controls": [
             {
+              "x": 431.59375,
+              "y": 229.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 223.34375,
+              "y": 393.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
               "x": 121.234375,
               "y": 64.109375,
               "width": 248,
@@ -547,7 +583,7 @@
               "fontSize": 16,
               "bounds": {
                 "x": 154.2439024390244,
-                "y": 275.42195121951215,
+                "y": 354.50625,
                 "width": 182,
                 "height": 21
               }
@@ -557,7 +593,7 @@
               "fontSize": 14,
               "bounds": {
                 "x": 154.2439024390244,
-                "y": 297.82195121951213,
+                "y": 376.90625,
                 "width": 182,
                 "height": 16
               }
@@ -567,7 +603,7 @@
               "fontSize": 11.9,
               "bounds": {
                 "x": 154.2439024390244,
-                "y": 316.02195121951206,
+                "y": 395.10624999999993,
                 "width": 182,
                 "height": 13.899999999999977
               }
@@ -671,6 +707,18 @@
           ],
           "reviewMarkers": [],
           "controls": [
+            {
+              "x": 431.59375,
+              "y": 149.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 223.34375,
+              "y": 313.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
             {
               "x": 121.234375,
               "y": 44,
@@ -830,6 +878,18 @@
           "reviewMarkers": [],
           "controls": [
             {
+              "x": 414.59375,
+              "y": 242.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 206.34375,
+              "y": 406.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
               "x": 203.34375,
               "y": 77.109375,
               "width": 49.78125,
@@ -849,60 +909,60 @@
       "inputs": "six explicit synthetic PNG files linked through native production forms",
       "reviewIssues": {
         "decisions": [
-          "decision-01M1YNWSR6KBFS6Z31HH3074VM",
-          "decision-01M1YNWSXFEY61E07C5704KARF"
+          "decision-01M2404AYYAHX32380N44CBS5F",
+          "decision-01M2404B40ADYVB8ZNRSCMKGB6"
         ],
         "questions": [
           "Which oil finish?",
           "Which floor finish sample?"
         ],
-        "roomId": "zone-01M1YNWBZRJK0NFB65JVC52575",
+        "roomId": "zone-01M2403YBDGN05D3A90VNYG8S3",
         "visibility": {
           ".rp-review-inspector > h3": {
             "x": 1097,
-            "y": 102.59375,
+            "y": 71,
             "width": 312,
             "height": 25
           },
           ".rp-review-rooms": {
             "x": 1097,
-            "y": 203.4375,
+            "y": 171.84375,
             "width": 312,
             "height": 222
           },
           ".rp-review-summary .rp-transformation-summary": {
             "x": 1097,
-            "y": 431.4375,
+            "y": 399.84375,
             "width": 312,
-            "height": 89.765625
+            "height": 107.953125
           },
           "[data-rp-action=\"review-open-room\"]": {
             "x": 1097,
-            "y": 674.203125,
+            "y": 660.796875,
             "width": 312,
             "height": 36
           },
           ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(1)": {
             "x": 1097,
-            "y": 756.203125,
+            "y": 742.796875,
             "width": 312,
             "height": 50
           },
           ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(2)": {
             "x": 1097,
-            "y": 810.203125,
+            "y": 796.796875,
             "width": 312,
             "height": 50
           },
           "[data-rp-action=\"review-note\"]": {
             "x": 1097,
-            "y": 910.203125,
+            "y": 896.796875,
             "width": 312,
             "height": 34
           }
         },
         "marker": {
-          "roomId": "zone-01M1YNWBZRJK0NFB65JVC52575",
+          "roomId": "zone-01M2403YBDGN05D3A90VNYG8S3",
           "number": 1,
           "stayedInReview": true,
           "cameraBefore": {
@@ -931,7 +991,7 @@
   },
   {
     "scenario": "dark",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "hsl(258, 88%, 66%)",
       "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
@@ -941,43 +1001,43 @@
     "gallery": {
       "images": 6,
       "phase": "during",
-      "selectedId": "record-01M1YNX7EGRXTNAVYKFTP4BDFH",
+      "selectedId": "record-01M2404SFES0G3ZG60ZHY20GQK",
       "selectedDate": "2026-08-28",
       "work": "Floor finish",
       "visibility": {
         ".rp-renovation-inspector > h3": {
           "x": 1097,
-          "y": 102.59375,
+          "y": 107,
           "width": 312,
           "height": 25
         },
         ".rp-evidence-filters": {
           "x": 1097,
-          "y": 225.984375,
+          "y": 245,
           "width": 312,
           "height": 68
         },
         "[data-rp-new-evidence]": {
           "x": 1097,
-          "y": 305.984375,
+          "y": 858.84375,
           "width": 312,
           "height": 30
         },
         ".rp-evidence-gallery li:first-child": {
           "x": 1097,
-          "y": 347.984375,
+          "y": 325,
           "width": 152,
           "height": 119
         },
         ".rp-evidence-gallery li:last-child": {
           "x": 1257,
-          "y": 601.984375,
+          "y": 579,
           "width": 152,
           "height": 119
         },
-        ".rp-renovation-list > [data-rp-record=\"record-01M1YNX7EGRXTNAVYKFTP4BDFH\"]": {
+        ".rp-renovation-list > [data-rp-record=\"record-01M2404SFES0G3ZG60ZHY20GQK\"]": {
           "x": 1097,
-          "y": 732.984375,
+          "y": 710,
           "width": 312,
           "height": 136.84375
         }
@@ -1127,6 +1187,18 @@
           ],
           "reviewMarkers": [],
           "controls": [
+            {
+              "x": 414.59375,
+              "y": 242.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 206.34375,
+              "y": 406.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
             {
               "x": 203.34375,
               "y": 77.109375,
@@ -1286,6 +1358,18 @@
           "reviewMarkers": [],
           "controls": [
             {
+              "x": 431.59375,
+              "y": 229.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 223.34375,
+              "y": 393.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
               "x": 220.34375,
               "y": 64.109375,
               "width": 49.78125,
@@ -1444,6 +1528,18 @@
           "reviewMarkers": [],
           "controls": [
             {
+              "x": 431.59375,
+              "y": 229.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 223.34375,
+              "y": 393.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
               "x": 121.234375,
               "y": 64.109375,
               "width": 248,
@@ -1477,7 +1573,7 @@
               "fontSize": 16,
               "bounds": {
                 "x": 154.2439024390244,
-                "y": 275.42195121951215,
+                "y": 354.50625,
                 "width": 182,
                 "height": 21
               }
@@ -1487,7 +1583,7 @@
               "fontSize": 14,
               "bounds": {
                 "x": 154.2439024390244,
-                "y": 297.82195121951213,
+                "y": 376.90625,
                 "width": 182,
                 "height": 16
               }
@@ -1497,7 +1593,7 @@
               "fontSize": 11.9,
               "bounds": {
                 "x": 154.2439024390244,
-                "y": 316.02195121951206,
+                "y": 395.10624999999993,
                 "width": 182,
                 "height": 13.899999999999977
               }
@@ -1601,6 +1697,18 @@
           ],
           "reviewMarkers": [],
           "controls": [
+            {
+              "x": 431.59375,
+              "y": 149.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 223.34375,
+              "y": 313.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
             {
               "x": 121.234375,
               "y": 44,
@@ -1760,6 +1868,18 @@
           "reviewMarkers": [],
           "controls": [
             {
+              "x": 414.59375,
+              "y": 242.875,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 206.34375,
+              "y": 406.0625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
               "x": 203.34375,
               "y": 77.109375,
               "width": 49.78125,
@@ -1779,60 +1899,60 @@
       "inputs": "six explicit synthetic PNG files linked through native production forms",
       "reviewIssues": {
         "decisions": [
-          "decision-01M1YNXBEHQBD4V4V0F9B2SH5G",
-          "decision-01M1YNXBK31SQ88GE2KFN6J23W"
+          "decision-01M2404XRASBFQM8C7VDHKQJBX",
+          "decision-01M2404XXKBJ30BZTJHESP5QY5"
         ],
         "questions": [
           "Which oil finish?",
           "Which floor finish sample?"
         ],
-        "roomId": "zone-01M1YNX05S56VCBVAG9N4FZ53A",
+        "roomId": "zone-01M2404HENSE6MMS1NHBF8B66C",
         "visibility": {
           ".rp-review-inspector > h3": {
             "x": 1097,
-            "y": 102.59375,
+            "y": 71,
             "width": 312,
             "height": 25
           },
           ".rp-review-rooms": {
             "x": 1097,
-            "y": 203.4375,
+            "y": 171.84375,
             "width": 312,
             "height": 222
           },
           ".rp-review-summary .rp-transformation-summary": {
             "x": 1097,
-            "y": 431.4375,
+            "y": 399.84375,
             "width": 312,
-            "height": 89.765625
+            "height": 107.953125
           },
           "[data-rp-action=\"review-open-room\"]": {
             "x": 1097,
-            "y": 674.203125,
+            "y": 660.796875,
             "width": 312,
             "height": 36
           },
           ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(1)": {
             "x": 1097,
-            "y": 756.203125,
+            "y": 742.796875,
             "width": 312,
             "height": 50
           },
           ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(2)": {
             "x": 1097,
-            "y": 810.203125,
+            "y": 796.796875,
             "width": 312,
             "height": 50
           },
           "[data-rp-action=\"review-note\"]": {
             "x": 1097,
-            "y": 910.203125,
+            "y": 896.796875,
             "width": 312,
             "height": 34
           }
         },
         "marker": {
-          "roomId": "zone-01M1YNX05S56VCBVAG9N4FZ53A",
+          "roomId": "zone-01M2404HENSE6MMS1NHBF8B66C",
           "number": 1,
           "stayedInReview": true,
           "cameraBefore": {
@@ -1842,7 +1962,7 @@
           },
           "cameraFramed": {
             "x": 47.999999999999986,
-            "y": 114.87499999999997,
+            "y": 127.375,
             "zoom": 0.18475
           }
         },
@@ -1861,7 +1981,7 @@
   },
   {
     "scenario": "custom-accent",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "#7c246b",
       "--text-accent": "#7c246b",
@@ -1871,43 +1991,43 @@
     "gallery": {
       "images": 6,
       "phase": "during",
-      "selectedId": "record-01M1YNXS0PQ4KYCJG0X3QH2K52",
+      "selectedId": "record-01M2405BHYKVZ4YK8WBMVMQYJD",
       "selectedDate": "2026-08-28",
       "work": "Floor finish",
       "visibility": {
         ".rp-renovation-inspector > h3": {
           "x": 713,
-          "y": 102.59375,
+          "y": 111,
           "width": 256,
           "height": 25
         },
         ".rp-evidence-filters": {
           "x": 713,
-          "y": 225.984375,
+          "y": 249,
           "width": 256,
           "height": 68
         },
         "[data-rp-new-evidence]": {
           "x": 713,
-          "y": 305.984375,
+          "y": 799.84375,
           "width": 256,
           "height": 30
         },
         ".rp-evidence-gallery li:first-child": {
           "x": 713,
-          "y": 347.984375,
+          "y": 329,
           "width": 124,
           "height": 98
         },
         ".rp-evidence-gallery li:last-child": {
           "x": 845,
-          "y": 559.984375,
+          "y": 541,
           "width": 124,
           "height": 98
         },
-        ".rp-renovation-list > [data-rp-record=\"record-01M1YNXS0PQ4KYCJG0X3QH2K52\"]": {
+        ".rp-renovation-list > [data-rp-record=\"record-01M2405BHYKVZ4YK8WBMVMQYJD\"]": {
           "x": 713,
-          "y": 669.984375,
+          "y": 651,
           "width": 256,
           "height": 136.84375
         }
@@ -2057,6 +2177,18 @@
           ],
           "reviewMarkers": [],
           "controls": [
+            {
+              "x": 253.125,
+              "y": 307.453125,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 125.609375,
+              "y": 410.09375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
             {
               "x": 122.609375,
               "y": 202.25,
@@ -2215,6 +2347,18 @@
           ],
           "reviewMarkers": [],
           "controls": [
+            {
+              "x": 270.125,
+              "y": 294.453125,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 142.609375,
+              "y": 397.09375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
             {
               "x": 139.609375,
               "y": 189.25,
@@ -2374,6 +2518,18 @@
           "reviewMarkers": [],
           "controls": [
             {
+              "x": 270.125,
+              "y": 294.453125,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 142.609375,
+              "y": 397.09375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
               "x": 40.5,
               "y": 189.25,
               "width": 248,
@@ -2407,7 +2563,7 @@
               "fontSize": 16,
               "bounds": {
                 "x": 73.51219512195118,
-                "y": 221.2560975609756,
+                "y": 278.5375,
                 "width": 182,
                 "height": 21
               }
@@ -2417,7 +2573,7 @@
               "fontSize": 14,
               "bounds": {
                 "x": 73.51219512195118,
-                "y": 243.65609756097558,
+                "y": 300.9375,
                 "width": 182,
                 "height": 16
               }
@@ -2427,7 +2583,7 @@
               "fontSize": 11.9,
               "bounds": {
                 "x": 73.51219512195118,
-                "y": 261.8560975609756,
+                "y": 319.13750000000005,
                 "width": 182,
                 "height": 13.899999999999977
               }
@@ -2531,6 +2687,18 @@
           ],
           "reviewMarkers": [],
           "controls": [
+            {
+              "x": 270.125,
+              "y": 134.453125,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 142.609375,
+              "y": 237.09375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
             {
               "x": 40.5,
               "y": 44,
@@ -2690,6 +2858,18 @@
           "reviewMarkers": [],
           "controls": [
             {
+              "x": 253.125,
+              "y": 307.453125,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 125.609375,
+              "y": 410.09375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
               "x": 122.609375,
               "y": 202.25,
               "width": 49.78125,
@@ -2709,60 +2889,60 @@
       "inputs": "six explicit synthetic PNG files linked through native production forms",
       "reviewIssues": {
         "decisions": [
-          "decision-01M1YNXX0HANN5V53VNZM1AWGW",
-          "decision-01M1YNXX40GNEE4H5NQVS8SYGY"
+          "decision-01M2405FRK796Q90V2K9AH3C1Y",
+          "decision-01M2405FX33D5SZY220W8TJYW8"
         ],
         "questions": [
           "Which oil finish?",
           "Which floor finish sample?"
         ],
-        "roomId": "zone-01M1YNXHPJM3HVP17PGNR810B4",
+        "roomId": "zone-01M24053RZQRJ1H4ZZ5K7M7C59",
         "visibility": {
           ".rp-review-inspector > h3": {
             "x": 713,
-            "y": 102.59375,
+            "y": 71,
             "width": 256,
             "height": 25
           },
           ".rp-review-rooms": {
             "x": 713,
-            "y": 203.4375,
+            "y": 171.84375,
             "width": 256,
             "height": 222
           },
           ".rp-review-summary .rp-transformation-summary": {
             "x": 713,
-            "y": 431.4375,
+            "y": 399.84375,
             "width": 256,
             "height": 107.953125
           },
           "[data-rp-action=\"review-open-room\"]": {
             "x": 713,
-            "y": 692.390625,
+            "y": 660.796875,
             "width": 256,
             "height": 36
           },
           ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(1)": {
             "x": 713,
-            "y": 774.390625,
+            "y": 742.796875,
             "width": 256,
             "height": 50
           },
           ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(2)": {
             "x": 713,
-            "y": 828.390625,
+            "y": 796.796875,
             "width": 256,
             "height": 50
           },
           "[data-rp-action=\"review-note\"]": {
             "x": 713,
-            "y": 928.390625,
+            "y": 896.796875,
             "width": 256,
             "height": 34
           }
         },
         "marker": {
-          "roomId": "zone-01M1YNXHPJM3HVP17PGNR810B4",
+          "roomId": "zone-01M24053RZQRJ1H4ZZ5K7M7C59",
           "number": 1,
           "stayedInReview": true,
           "cameraBefore": {
@@ -2772,7 +2952,7 @@
           },
           "cameraFramed": {
             "x": 48.000000000000036,
-            "y": 239.00000000000003,
+            "y": 251.5,
             "zoom": 0.102
           }
         },
@@ -2791,7 +2971,7 @@
   },
   {
     "scenario": "german-constrained",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "theme": {
       "--interactive-accent": "hsl(258, 88%, 66%)",
       "--text-accent": "hsl(calc(258 - 3), calc(88% * 1.02), calc(66% * 1.15))",
@@ -2801,43 +2981,43 @@
     "gallery": {
       "images": 6,
       "phase": "during",
-      "selectedId": "record-01M1YNY7HYXKHW46KNZVRVGJMV",
+      "selectedId": "record-01M2405WKDQ45EEE9ZP5981DQG",
       "selectedDate": "2026-08-28",
       "work": "Floor finish",
       "visibility": {
         ".rp-renovation-inspector > h3": {
           "x": 109,
-          "y": 98.4375,
+          "y": -6.15625,
           "width": 335,
           "height": 25
         },
         ".rp-evidence-filters": {
           "x": 109,
-          "y": 221.828125,
+          "y": 131.84375,
           "width": 335,
           "height": 68
         },
         "[data-rp-new-evidence]": {
           "x": 109,
-          "y": 301.828125,
+          "y": 805.5625,
           "width": 335,
           "height": 30
         },
         ".rp-evidence-gallery li:first-child": {
           "x": 109,
-          "y": 343.828125,
+          "y": 211.84375,
           "width": 163.5,
           "height": 127.625
         },
         ".rp-evidence-gallery li:last-child": {
           "x": 280.5,
-          "y": 615.078125,
+          "y": 483.09375,
           "width": 163.5,
           "height": 127.625
         },
-        ".rp-renovation-list > [data-rp-record=\"record-01M1YNY7HYXKHW46KNZVRVGJMV\"]": {
+        ".rp-renovation-list > [data-rp-record=\"record-01M2405WKDQ45EEE9ZP5981DQG\"]": {
           "x": 109,
-          "y": 754.703125,
+          "y": 622.71875,
           "width": 335,
           "height": 170.84375
         }
@@ -2845,25 +3025,25 @@
       "captionControls": {
         "before": {
           "origin": {
-            "x": 69.53125,
-            "y": 119.84375
+            "x": 72,
+            "y": 151.84375
           },
           "camera": {
-            "x": 48.00000000000001,
-            "y": 249.8536585365854,
-            "zoom": 0.03585365853658536
+            "x": 48.00000000000002,
+            "y": 245.60975609756102,
+            "zoom": 0.03560975609756097
           },
           "size": {
-            "width": 390,
-            "height": 722
+            "width": 388,
+            "height": 712
           },
           "captions": [
             {
               "text": "Küche",
               "fontSize": 16,
               "bounds": {
-                "x": 28.707317073170724,
-                "y": 140.44374999999997,
+                "x": 28.21951219512197,
+                "y": 136.209375,
                 "width": 182,
                 "height": 21
               }
@@ -2872,8 +3052,8 @@
               "text": "12 m²",
               "fontSize": 14,
               "bounds": {
-                "x": 28.707317073170724,
-                "y": 162.84375,
+                "x": 28.21951219512197,
+                "y": 158.609375,
                 "width": 182,
                 "height": 16
               }
@@ -2882,8 +3062,8 @@
               "text": "Geplant",
               "fontSize": 11.9,
               "bounds": {
-                "x": 28.707317073170724,
-                "y": 181.04375,
+                "x": 28.21951219512197,
+                "y": 176.809375,
                 "width": 182,
                 "height": 13.900000000000006
               }
@@ -2918,9 +3098,9 @@
                 "y": 2280
               },
               "bounds": {
-                "x": 39.34146341463415,
-                "y": 316.6,
-                "width": 46,
+                "x": 39.24390243902441,
+                "y": 311.80000000000007,
+                "width": 46.000000000000014,
                 "height": 30
               }
             },
@@ -2930,8 +3110,8 @@
                 "y": 2040.0000000000002
               },
               "bounds": {
-                "x": 148.33658536585367,
-                "y": 307.9951219512196,
+                "x": 147.49756097560976,
+                "y": 303.2536585365854,
                 "width": 46,
                 "height": 30
               }
@@ -2942,9 +3122,9 @@
                 "y": 1860
               },
               "bounds": {
-                "x": 85.23414634146341,
-                "y": 301.5414634146342,
-                "width": 46.000000000000014,
+                "x": 84.82439024390246,
+                "y": 296.8439024390244,
+                "width": 46,
                 "height": 30
               }
             },
@@ -2954,8 +3134,8 @@
                 "y": 2460
               },
               "bounds": {
-                "x": 99.57560975609755,
-                "y": 323.05365853658543,
+                "x": 99.06829268292685,
+                "y": 318.209756097561,
                 "width": 46,
                 "height": 30
               }
@@ -2966,8 +3146,8 @@
                 "y": 660
               },
               "bounds": {
-                "x": 125.39024390243901,
-                "y": 258.51707317073175,
+                "x": 124.70731707317074,
+                "y": 254.11219512195123,
                 "width": 46,
                 "height": 30
               }
@@ -2978,8 +3158,8 @@
                 "y": 600
               },
               "bounds": {
-                "x": 50.81463414634146,
-                "y": 256.36585365853665,
+                "x": 50.63902439024392,
+                "y": 251.97560975609758,
                 "width": 46,
                 "height": 30
               }
@@ -2988,14 +3168,26 @@
           "reviewMarkers": [],
           "controls": [
             {
-              "x": 94.8125,
-              "y": 201.84375,
+              "x": 196.546875,
+              "y": 281.59375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 97.328125,
+              "y": 363.015625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 94.328125,
+              "y": 197.609375,
               "width": 49.78125,
               "height": 52
             },
             {
               "x": 15.109375,
-              "y": 285.625,
+              "y": 281.015625,
               "width": 49.78125,
               "height": 52
             }
@@ -3003,25 +3195,25 @@
         },
         "panned": {
           "origin": {
-            "x": 69.53125,
-            "y": 119.84375
+            "x": 72,
+            "y": 151.84375
           },
           "camera": {
-            "x": 65,
-            "y": 236.85365853658539,
-            "zoom": 0.03585365853658536
+            "x": 65.00000000000003,
+            "y": 232.60975609756102,
+            "zoom": 0.03560975609756097
           },
           "size": {
-            "width": 390,
-            "height": 722
+            "width": 388,
+            "height": 712
           },
           "captions": [
             {
               "text": "Küche",
               "fontSize": 16,
               "bounds": {
-                "x": 45.707317073170714,
-                "y": 127.44374999999997,
+                "x": 45.21951219512198,
+                "y": 123.209375,
                 "width": 182,
                 "height": 21
               }
@@ -3030,8 +3222,8 @@
               "text": "12 m²",
               "fontSize": 14,
               "bounds": {
-                "x": 45.707317073170714,
-                "y": 149.84374999999994,
+                "x": 45.21951219512198,
+                "y": 145.609375,
                 "width": 182,
                 "height": 16
               }
@@ -3040,8 +3232,8 @@
               "text": "Geplant",
               "fontSize": 11.9,
               "bounds": {
-                "x": 45.707317073170714,
-                "y": 168.04374999999996,
+                "x": 45.21951219512198,
+                "y": 163.809375,
                 "width": 182,
                 "height": 13.900000000000006
               }
@@ -3076,8 +3268,8 @@
                 "y": 2280
               },
               "bounds": {
-                "x": 56.34146341463415,
-                "y": 303.6,
+                "x": 56.243902439024424,
+                "y": 298.80000000000007,
                 "width": 46,
                 "height": 30
               }
@@ -3088,8 +3280,8 @@
                 "y": 2040.0000000000002
               },
               "bounds": {
-                "x": 165.33658536585364,
-                "y": 294.9951219512195,
+                "x": 164.49756097560976,
+                "y": 290.2536585365854,
                 "width": 46,
                 "height": 30
               }
@@ -3100,8 +3292,8 @@
                 "y": 1860
               },
               "bounds": {
-                "x": 102.2341463414634,
-                "y": 288.54146341463417,
+                "x": 101.82439024390246,
+                "y": 283.8439024390244,
                 "width": 46,
                 "height": 30
               }
@@ -3112,8 +3304,8 @@
                 "y": 2460
               },
               "bounds": {
-                "x": 116.57560975609755,
-                "y": 310.0536585365854,
+                "x": 116.06829268292685,
+                "y": 305.209756097561,
                 "width": 46,
                 "height": 30
               }
@@ -3124,8 +3316,8 @@
                 "y": 660
               },
               "bounds": {
-                "x": 142.390243902439,
-                "y": 245.51707317073175,
+                "x": 141.70731707317077,
+                "y": 241.11219512195123,
                 "width": 46,
                 "height": 30
               }
@@ -3136,24 +3328,36 @@
                 "y": 600
               },
               "bounds": {
-                "x": 67.81463414634146,
-                "y": 243.3658536585366,
-                "width": 46,
-                "height": 30
+                "x": 67.63902439024393,
+                "y": 238.9756097560976,
+                "width": 46.000000000000014,
+                "height": 29.99999999999997
               }
             }
           ],
           "reviewMarkers": [],
           "controls": [
             {
-              "x": 111.8125,
-              "y": 188.84375,
+              "x": 213.546875,
+              "y": 268.59375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 114.328125,
+              "y": 350.015625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 111.328125,
+              "y": 184.609375,
               "width": 49.78125,
               "height": 52
             },
             {
               "x": 15.109375,
-              "y": 272.625,
+              "y": 268.015625,
               "width": 49.78125,
               "height": 52
             }
@@ -3161,25 +3365,25 @@
         },
         "editing": {
           "origin": {
-            "x": 69.53125,
-            "y": 119.84375
+            "x": 72,
+            "y": 151.84375
           },
           "camera": {
-            "x": 65,
-            "y": 236.85365853658539,
-            "zoom": 0.03585365853658536
+            "x": 65.00000000000003,
+            "y": 232.60975609756102,
+            "zoom": 0.03560975609756097
           },
           "size": {
-            "width": 390,
-            "height": 744
+            "width": 388,
+            "height": 712
           },
           "captions": [
             {
               "text": "Küche",
               "fontSize": 16,
               "bounds": {
-                "x": 45.707317073170714,
-                "y": 127.44374999999997,
+                "x": 45.21951219512198,
+                "y": 123.209375,
                 "width": 182,
                 "height": 21
               }
@@ -3188,8 +3392,8 @@
               "text": "12 m²",
               "fontSize": 14,
               "bounds": {
-                "x": 45.707317073170714,
-                "y": 149.84374999999994,
+                "x": 45.21951219512198,
+                "y": 145.609375,
                 "width": 182,
                 "height": 16
               }
@@ -3198,8 +3402,8 @@
               "text": "Geplant",
               "fontSize": 11.9,
               "bounds": {
-                "x": 45.707317073170714,
-                "y": 168.04374999999996,
+                "x": 45.21951219512198,
+                "y": 163.809375,
                 "width": 182,
                 "height": 13.900000000000006
               }
@@ -3234,8 +3438,8 @@
                 "y": 2280
               },
               "bounds": {
-                "x": 56.34146341463415,
-                "y": 303.6,
+                "x": 56.243902439024424,
+                "y": 298.80000000000007,
                 "width": 46,
                 "height": 30
               }
@@ -3246,8 +3450,8 @@
                 "y": 2040.0000000000002
               },
               "bounds": {
-                "x": 165.33658536585364,
-                "y": 294.9951219512195,
+                "x": 164.49756097560976,
+                "y": 290.2536585365854,
                 "width": 46,
                 "height": 30
               }
@@ -3258,8 +3462,8 @@
                 "y": 1860
               },
               "bounds": {
-                "x": 102.2341463414634,
-                "y": 288.54146341463417,
+                "x": 101.82439024390246,
+                "y": 283.8439024390244,
                 "width": 46,
                 "height": 30
               }
@@ -3270,8 +3474,8 @@
                 "y": 2460
               },
               "bounds": {
-                "x": 116.57560975609755,
-                "y": 310.0536585365854,
+                "x": 116.06829268292685,
+                "y": 305.209756097561,
                 "width": 46,
                 "height": 30
               }
@@ -3282,8 +3486,8 @@
                 "y": 660
               },
               "bounds": {
-                "x": 142.390243902439,
-                "y": 245.51707317073175,
+                "x": 141.70731707317077,
+                "y": 241.11219512195123,
                 "width": 46,
                 "height": 30
               }
@@ -3294,24 +3498,36 @@
                 "y": 600
               },
               "bounds": {
-                "x": 67.81463414634146,
-                "y": 243.3658536585366,
-                "width": 46,
-                "height": 30
+                "x": 67.63902439024393,
+                "y": 238.9756097560976,
+                "width": 46.000000000000014,
+                "height": 29.99999999999997
               }
             }
           ],
           "reviewMarkers": [],
           "controls": [
             {
-              "x": 12.703125,
-              "y": 188.84375,
+              "x": 213.546875,
+              "y": 268.59375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 114.328125,
+              "y": 350.015625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 12.21875,
+              "y": 184.609375,
               "width": 248,
               "height": 150.6875
             },
             {
               "x": 15.109375,
-              "y": 272.625,
+              "y": 268.015625,
               "width": 49.78125,
               "height": 52
             }
@@ -3319,25 +3535,25 @@
         },
         "clamped": {
           "origin": {
-            "x": 69.53125,
-            "y": 119.84375
+            "x": 72,
+            "y": 151.84375
           },
           "camera": {
-            "x": 65,
-            "y": 76.8536585365854,
-            "zoom": 0.03585365853658536
+            "x": 65.00000000000003,
+            "y": 72.60975609756103,
+            "zoom": 0.03560975609756097
           },
           "size": {
-            "width": 390,
-            "height": 744
+            "width": 388,
+            "height": 712
           },
           "captions": [
             {
               "text": "Küche",
               "fontSize": 16,
               "bounds": {
-                "x": 45.707317073170714,
-                "y": 201.28749999999997,
+                "x": 45.21951219512198,
+                "y": 231.45937500000002,
                 "width": 182,
                 "height": 21
               }
@@ -3346,8 +3562,8 @@
               "text": "12 m²",
               "fontSize": 14,
               "bounds": {
-                "x": 45.707317073170714,
-                "y": 223.6875,
+                "x": 45.21951219512198,
+                "y": 253.85937500000006,
                 "width": 182,
                 "height": 16
               }
@@ -3356,10 +3572,10 @@
               "text": "Geplant",
               "fontSize": 11.9,
               "bounds": {
-                "x": 45.707317073170714,
-                "y": 241.8875,
+                "x": 45.21951219512198,
+                "y": 272.05937500000005,
                 "width": 182,
-                "height": 13.900000000000006
+                "height": 13.899999999999977
               }
             }
           ],
@@ -3392,8 +3608,8 @@
                 "y": 2280
               },
               "bounds": {
-                "x": 56.34146341463415,
-                "y": 143.60000000000002,
+                "x": 56.243902439024424,
+                "y": 138.80000000000007,
                 "width": 46,
                 "height": 30
               }
@@ -3404,8 +3620,8 @@
                 "y": 2040.0000000000002
               },
               "bounds": {
-                "x": 165.33658536585364,
-                "y": 134.99512195121955,
+                "x": 164.49756097560976,
+                "y": 130.25365853658542,
                 "width": 46,
                 "height": 30
               }
@@ -3416,8 +3632,8 @@
                 "y": 1860
               },
               "bounds": {
-                "x": 102.2341463414634,
-                "y": 128.54146341463417,
+                "x": 101.82439024390246,
+                "y": 123.84390243902445,
                 "width": 46,
                 "height": 30
               }
@@ -3428,8 +3644,8 @@
                 "y": 2460
               },
               "bounds": {
-                "x": 116.57560975609755,
-                "y": 150.05365853658537,
+                "x": 116.06829268292685,
+                "y": 145.209756097561,
                 "width": 46,
                 "height": 30
               }
@@ -3440,8 +3656,8 @@
                 "y": 660
               },
               "bounds": {
-                "x": 142.390243902439,
-                "y": 85.51707317073173,
+                "x": 141.70731707317077,
+                "y": 81.11219512195127,
                 "width": 46,
                 "height": 30
               }
@@ -3452,9 +3668,9 @@
                 "y": 600
               },
               "bounds": {
-                "x": 67.81463414634146,
-                "y": 83.36585365853662,
-                "width": 46,
+                "x": 67.63902439024393,
+                "y": 78.97560975609761,
+                "width": 46.000000000000014,
                 "height": 30
               }
             }
@@ -3462,14 +3678,26 @@
           "reviewMarkers": [],
           "controls": [
             {
-              "x": 12.703125,
+              "x": 213.546875,
+              "y": 108.59375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 114.328125,
+              "y": 190.015625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 12.21875,
               "y": 44,
               "width": 248,
               "height": 150.6875
             },
             {
               "x": 15.109375,
-              "y": 112.625,
+              "y": 108.015625,
               "width": 49.78125,
               "height": 52
             }
@@ -3477,25 +3705,25 @@
         },
         "restored": {
           "origin": {
-            "x": 69.53125,
-            "y": 119.84375
+            "x": 72,
+            "y": 151.84375
           },
           "camera": {
-            "x": 48.00000000000001,
-            "y": 249.8536585365854,
-            "zoom": 0.03585365853658536
+            "x": 48.00000000000002,
+            "y": 245.60975609756102,
+            "zoom": 0.03560975609756097
           },
           "size": {
-            "width": 390,
-            "height": 722
+            "width": 388,
+            "height": 712
           },
           "captions": [
             {
               "text": "Küche",
               "fontSize": 16,
               "bounds": {
-                "x": 28.707317073170724,
-                "y": 140.44374999999997,
+                "x": 28.21951219512197,
+                "y": 136.209375,
                 "width": 182,
                 "height": 21
               }
@@ -3504,8 +3732,8 @@
               "text": "12 m²",
               "fontSize": 14,
               "bounds": {
-                "x": 28.707317073170724,
-                "y": 162.84375,
+                "x": 28.21951219512197,
+                "y": 158.609375,
                 "width": 182,
                 "height": 16
               }
@@ -3514,8 +3742,8 @@
               "text": "Geplant",
               "fontSize": 11.9,
               "bounds": {
-                "x": 28.707317073170724,
-                "y": 181.04375,
+                "x": 28.21951219512197,
+                "y": 176.809375,
                 "width": 182,
                 "height": 13.900000000000006
               }
@@ -3550,9 +3778,9 @@
                 "y": 2280
               },
               "bounds": {
-                "x": 39.34146341463415,
-                "y": 316.6,
-                "width": 46,
+                "x": 39.24390243902441,
+                "y": 311.80000000000007,
+                "width": 46.000000000000014,
                 "height": 30
               }
             },
@@ -3562,8 +3790,8 @@
                 "y": 2040.0000000000002
               },
               "bounds": {
-                "x": 148.33658536585367,
-                "y": 307.9951219512196,
+                "x": 147.49756097560976,
+                "y": 303.2536585365854,
                 "width": 46,
                 "height": 30
               }
@@ -3574,9 +3802,9 @@
                 "y": 1860
               },
               "bounds": {
-                "x": 85.23414634146341,
-                "y": 301.5414634146342,
-                "width": 46.000000000000014,
+                "x": 84.82439024390246,
+                "y": 296.8439024390244,
+                "width": 46,
                 "height": 30
               }
             },
@@ -3586,8 +3814,8 @@
                 "y": 2460
               },
               "bounds": {
-                "x": 99.57560975609755,
-                "y": 323.05365853658543,
+                "x": 99.06829268292685,
+                "y": 318.209756097561,
                 "width": 46,
                 "height": 30
               }
@@ -3598,8 +3826,8 @@
                 "y": 660
               },
               "bounds": {
-                "x": 125.39024390243901,
-                "y": 258.51707317073175,
+                "x": 124.70731707317074,
+                "y": 254.11219512195123,
                 "width": 46,
                 "height": 30
               }
@@ -3610,8 +3838,8 @@
                 "y": 600
               },
               "bounds": {
-                "x": 50.81463414634146,
-                "y": 256.36585365853665,
+                "x": 50.63902439024392,
+                "y": 251.97560975609758,
                 "width": 46,
                 "height": 30
               }
@@ -3620,14 +3848,26 @@
           "reviewMarkers": [],
           "controls": [
             {
-              "x": 94.8125,
-              "y": 201.84375,
+              "x": 196.546875,
+              "y": 281.59375,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 97.328125,
+              "y": 363.015625,
+              "width": 43.78125,
+              "height": 34.84375
+            },
+            {
+              "x": 94.328125,
+              "y": 197.609375,
               "width": 49.78125,
               "height": 52
             },
             {
               "x": 15.109375,
-              "y": 285.625,
+              "y": 281.015625,
               "width": 49.78125,
               "height": 52
             }
@@ -3639,71 +3879,71 @@
       "inputs": "six explicit synthetic PNG files linked through native production forms",
       "reviewIssues": {
         "decisions": [
-          "decision-01M1YNYB6WPVSNMEY4ZZ3T27VX",
-          "decision-01M1YNYB9XXEBFT3RVEDJ778C9"
+          "decision-01M24060HFHEN9BX0PVMXY5KDR",
+          "decision-01M24060NMSHJHQ07QR09D1NFT"
         ],
         "questions": [
           "Welches Öl?",
           "Welches Bodenmuster?"
         ],
-        "roomId": "zone-01M1YNY23M93X4J45NBMXKG404",
+        "roomId": "zone-01M2405NHP09D87YJHAKECCWD8",
         "visibility": {
           ".rp-review-inspector > h3": {
             "x": 109,
-            "y": 160.4375,
+            "y": 198.84375,
             "width": 335,
             "height": 25
           },
           ".rp-review-rooms": {
             "x": 109,
-            "y": 261.28125,
+            "y": 299.6875,
             "width": 335,
             "height": 276
           },
           ".rp-review-summary .rp-transformation-summary": {
             "x": 109,
-            "y": 543.28125,
+            "y": 581.6875,
             "width": 335,
             "height": 89.765625
           },
           "[data-rp-action=\"review-open-room\"]": {
             "x": 109,
-            "y": 786.046875,
+            "y": 824.453125,
             "width": 335,
             "height": 36
           },
           ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(1)": {
             "x": 109,
-            "y": 868.046875,
+            "y": 906.453125,
             "width": 335,
             "height": 50
           },
           ".rp-review-inspector > ol.rp-renovation-list > li:nth-child(2)": {
             "x": 109,
-            "y": 922.046875,
+            "y": 960.453125,
             "width": 335,
             "height": 50
           },
           "[data-rp-action=\"review-note\"]": {
             "x": 109,
-            "y": 1022.046875,
+            "y": 1060.453125,
             "width": 335,
             "height": 34
           }
         },
         "marker": {
-          "roomId": "zone-01M1YNY23M93X4J45NBMXKG404",
+          "roomId": "zone-01M2405NHP09D87YJHAKECCWD8",
           "number": 1,
           "stayedInReview": true,
           "cameraBefore": {
-            "x": 48.00000000000001,
-            "y": 249.8536585365854,
-            "zoom": 0.03585365853658536
+            "x": 48.00000000000002,
+            "y": 245.60975609756102,
+            "zoom": 0.03560975609756097
           },
           "cameraFramed": {
-            "x": 48.000000000000014,
-            "y": 248.74999999999997,
-            "zoom": 0.0735
+            "x": 47.99999999999999,
+            "y": 246.50000000000003,
+            "zoom": 0.073
           }
         },
         "viewport": "460 × 1000",

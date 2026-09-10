@@ -1,9 +1,8 @@
 # Stair and Arrow delivery reconstruction
 
-Current status: the PR #114 follow-up is recorded in
-[Stair/Arrow completion](stair-arrow-completion.md). Manual acceptance is user-owned and pending.
-The reconstruction record below is historical: no checks were executed at that initial
-checkpoint, and its source receipts did not certify the reconstructed tree.
+Status: reconstructed source; verification pending. No tests, type checks, linters,
+builds or browser journeys were executed for this delivery tree. Original verification
+receipts describe their original source trees and do not certify this reconstruction.
 
 Base: Curve delivery `0a049e270de7b0dbdd4ba88e000866fe34f8634d`.
 Branch: `codex/editor-deliver-stairs`. PR base: `codex/editor-deliver-groups`.

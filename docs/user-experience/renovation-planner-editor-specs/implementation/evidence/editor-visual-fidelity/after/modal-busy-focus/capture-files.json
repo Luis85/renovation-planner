@@ -1,0 +1,62 @@
+{
+  "source": "5a244a92bcea930b8294899e514e0eca1860a286",
+  "started": 1788988569574,
+  "completed": 1788988613065,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "light-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1788988583372.0012,
+      "sha256": "d2e54c636eff7b0c3db1f3e556ddbe0b6e3a99dd6078a3302277a16e6c4c8a12"
+    },
+    {
+      "name": "light-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1788988586205.2595,
+      "sha256": "d0f241f4a95b1131b3afa5e2ed8e25ca4ed0ee1d0d21f43cdec910482824ec93"
+    },
+    {
+      "name": "dark-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1788988592306.8855,
+      "sha256": "5f3a8aa060f5b7cef21682ceb384314f1d7e2a66c2da023777499cccd8c3405d"
+    },
+    {
+      "name": "dark-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1788988595173.1643,
+      "sha256": "7741209c2a34ae0c6e4ec4386ab6fc976697e017adbb5ebb76a73f52aa181898"
+    },
+    {
+      "name": "custom-accent-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1788988601263.5076,
+      "sha256": "403bc258159b6616325577521b65964fdd3b536e05bdd535d190ab2b9d5b437a"
+    },
+    {
+      "name": "custom-accent-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1788988604179.5508,
+      "sha256": "37aef30879a8d00cd83fbdd1c12a03120cd0458571f3dec6781988f88b3818bc"
+    },
+    {
+      "name": "german-constrained-renovation-pending.png",
+      "kind": "image",
+      "modifiedAt": 1788988609608.5552,
+      "sha256": "b685e1b3b4d8e87d203df018e3d96ab4e76012559743dabf309a00e8ecb9c0fd"
+    },
+    {
+      "name": "german-constrained-planning-pending.png",
+      "kind": "image",
+      "modifiedAt": 1788988611857.2021,
+      "sha256": "239ce57591ab9c58aa3b68f938a0437e3490ce685b7e73db79cf40bcb99fb5d1"
+    },
+    {
+      "name": "report.json",
+      "kind": "data",
+      "modifiedAt": 1788988612976.741,
+      "sha256": "01c36a8d45a7d0c2075aa949c2f80ce3a2a54b3e32814ce7b48d028a77c6ed95"
+    }
+  ]
+}

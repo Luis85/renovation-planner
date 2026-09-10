@@ -47,7 +47,6 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 	const working = ref(false), generation = ref(0), preview = ref<NamedRotationShape | null>(null);
 	let alive = true;
 	const target = computed(() => {
-		if (runtime.groups?.target.value) return runtime.groups.target.value;
 		if (selection.selectedIds.length !== 1) return selection.selectedIds.length > 1 ? runtime.groupRotationTarget?.(selection.selectedIds[0]) ?? null : null;
 		const shape = projectedRotationTarget(project, selection.selectedIds[0], Boolean(runtime.wall));
 		return shape && rotationPivot(shape) ? { ...shape, generation: generation.value } : null;
@@ -69,7 +68,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 		return shape && rotationPivot(shape) ? { ...shape, generation: generation.value } : null;
 	});
 	function clear(): void { preview.value = null; runtime.renderState.previewPolygon = null; runtime.renderState.rotationDegrees = null; runtime.renderState.rotationInteraction = null; runtime.renderState.rotationHoverId = null; runtime.wall?.previewRotation(null); runtime.groups?.previewRotation(null); }
-	watch(() => JSON.stringify([runtime.activeToolId.value, session.perspective, selection.selectedIds, selection.selectedIds.map(id => projectedRotationTarget(project, id, Boolean(runtime.wall)))]), () => { generation.value++; clear(); }, { flush: 'sync' });
+	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { generation.value++; clear(); }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; generation.value++; clear(); });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	const visibleBounds = computed(() => ({ min: screenToWorld(screenPoint(0, 0), editor.viewport, STAGE_PIXELS), max: screenToWorld(screenPoint(editor.stageSize.width, editor.stageSize.height), editor.viewport, STAGE_PIXELS) }));
@@ -103,7 +102,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 			if (!baseline.ok) { notifyOperationFailure(baseline.error); await runtime.refreshProjection(); return; }
 			await action(baseline.value, epoch);
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.rotation.failed'); }
-		finally { generation.value++; working.value = false; clear(); }
+		finally { working.value = false; clear(); }
 	}
 	async function move(id: string, points: readonly Point[], original: RotationShape): Promise<void> {
 		if (original.kind === 'group') { if (!blocked.value && !active.value) await runtime.groups?.moveRotation(points, original); return; }
@@ -121,7 +120,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 		if (target.value?.kind === 'wall') { if (!blocked.value && !active.value) await runtime.wall?.rotateWall(id, degrees); return; }
 		await operate(id, async (baseline, epoch) => {
 			const element = baseline.shape, pivot = rotationPivot(element); if (!pivot) return;
-			const latest = ref<string | null>(null), busy = ref(false), formBlocked = computed(() => epoch !== generation.value || blocked.value);
+			const latest = ref<string | null>(null), busy = ref(false);
 			const dispatch = async (points: readonly Point[]) => {
 				if (!alive || epoch !== generation.value || blocked.value || latest.value) return err(staleWriteRefusal());
 				const result = await runtime.dispatcher.run(baseline.command(points));
@@ -129,8 +128,8 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 				return result;
 			};
 			if (degrees !== undefined) { const points = rotationPoints(element, degrees, pivot); if (points && rotationChanged(element.points, points)) { const result = await dispatch(points); if (alive && !result.ok) notifyOperationFailure(result.error); } return; }
-			await dialogs.openDialog({ kind: 'form', title: tr('editor.rotation.title', { name: element.name }), component: markRaw(ObjectRotationForm), busy, props: { element, pivot, busy, blocked: formBlocked, latest, inputBlocked: computed(() => epoch !== generation.value || saves.state === 'saving' || saves.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger, dispatch,
-				preview: (points: readonly Point[] | null) => { if (alive && epoch === generation.value) { if (points) previewShape(id, points); else clear(); } },
+			await dialogs.openDialog({ kind: 'form', title: tr('editor.rotation.title', { name: element.name }), component: markRaw(ObjectRotationForm), busy, props: { element, pivot, busy, blocked, latest, inputBlocked: computed(() => saves.state === 'saving' || saves.unrecoveredWrite || latest.value !== null), retry, openSource: runtime.openPlanNote, logger: context.commands.logger, dispatch,
+				preview: (points: readonly Point[] | null) => { if (alive && epoch === generation.value && points) previewShape(id, points); else clear(); },
 			} });
 		});
 	}

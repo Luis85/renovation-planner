@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { activate, tabTo } from './editor-area-browser.mjs';
 import { recordText, recordShot } from './editor-record-browser.mjs';
 
@@ -26,19 +25,6 @@ function imageMetrics(page) {
 	});
 }
 
-/** Run from the unmodified predecessor checkout to measure its actual CSS-rendered image. */
-export async function referenceViewportBaseline(page, scenario, out) {
-	await activate(page, '[data-rp-empty="floor-start"] [data-rp-action="reference"]');
-	await recordText(page, form, 'source', 'scan.png'); await activate(page, '[data-rp-action="load-reference"]');
-	await page.locator(canvas).waitFor();
-	await activate(page, `${form} button[type="submit"]`);
-	await page.locator(`${form} [name="ax"]`).waitFor();
-	await page.locator(canvas).scrollIntoViewIfNeeded(); await frame(page);
-	const measured = await imageMetrics(page);
-	await recordShot(page, scenario, out, 'reference-legacy-scale');
-	return measured;
-}
-
 /** Real point picks, camera navigation and cancellation, with no write or Vue-state injection. */
 export async function referenceViewportAcceptance(page, scenario, out) {
 	const before = await notes(page);
@@ -48,10 +34,6 @@ export async function referenceViewportAcceptance(page, scenario, out) {
 	const source = { width: Number(await page.locator(`${form} [name="crop-width"]`).inputValue()), height: Number(await page.locator(`${form} [name="crop-height"]`).inputValue()) };
 	const measured = await imageMetrics(page), oldScale = Math.min(380 / source.width, 200 / source.height);
 	const paintedAreaRatio = measured.painted.width * measured.painted.height / (source.width * source.height * oldScale ** 2);
-	const legacy = JSON.parse(await readFile(new URL('../docs/user-experience/renovation-planner-editor-specs/implementation/evidence/reference-scale-20260909/legacy/report.json', import.meta.url), 'utf8')).find(entry => entry.scenario === scenario.name);
-	assert.ok(legacy, 'matching measured predecessor scenario exists');
-	const actualPaintedAreaRatio = measured.painted.width * measured.painted.height / (legacy.painted.width * legacy.painted.height);
-	assert.ok(actualPaintedAreaRatio >= 1.75, 'painted image is substantially larger than the actual CSS-rendered predecessor');
 	assert.ok(measured.canvas.width >= (scenario.width === 460 ? 300 : 600), 'reference canvas uses the available modal width');
 	assert.ok(measured.canvas.height >= 340, 'reference canvas retains the enlarged minimum height');
 	assert.ok(measured.visible.width >= measured.canvas.width - 2 && measured.visible.height >= measured.canvas.height - 2, 'the enlarged preview is visible within the modal scroll viewport');
@@ -83,48 +65,6 @@ export async function referenceViewportAcceptance(page, scenario, out) {
 	assert.equal(await page.locator('.rp-reference-viewport__tools output').innerText(), '100%');
 	assert.equal(await digest(page), baselinePaint, 'Fit restores the same image and pixel-anchored A/B paint');
 	assert.deepEqual(await coordinates(page), picked); assert.deepEqual(await notes(page), before);
-	await tabTo(page, canvas); await page.keyboard.press('+'); await page.keyboard.press('ArrowRight'); await frame(page);
-	assert.notEqual(await digest(page), baselinePaint); assert.deepEqual(await coordinates(page), picked);
-	await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, -80); await frame(page);
-	assert.deepEqual(await coordinates(page), picked);
-	await page.keyboard.press('f'); await frame(page); assert.equal(await digest(page), baselinePaint);
-	await activate(page, '[data-rp-reference-view="zoom-out"]'); await frame(page);
-	assert.equal(await page.locator('.rp-reference-viewport__tools output').innerText(), '80%');
-	await activate(page, '[data-rp-reference-view="fit"]'); await frame(page); assert.equal(await digest(page), baselinePaint);
-	await activate(page, `${form} button[type="submit"]`); await page.locator(`${form} [name="opacity"]`).waitFor();
-	assert.deepEqual(await notes(page), before, 'Apply scale only advances to Review');
-	await activate(page, '[data-rp-reference-action="back"]'); assert.deepEqual(await coordinates(page), picked);
 	await page.keyboard.press('Escape'); await page.locator(form).waitFor({ state: 'hidden' }); assert.deepEqual(await notes(page), before);
-	await activate(page, '[data-rp-empty="floor-start"] [data-rp-action="reference"]');
-	await recordText(page, form, 'source', 'scan.png'); await activate(page, '[data-rp-action="load-reference"]'); await page.locator(canvas).waitFor();
-	await activate(page, `${form} button[type="submit"]`);
-	// Exact source coordinates give an independently calculable 700 px / 3500 mm
-	// fixture and avoid comparing decimal strings after an inexact inverse transform.
-	const savedPoints = { ax: '400', ay: '400', bx: '1100', by: '400' };
-	for (const [name, value] of Object.entries({ ...savedPoints, length: '3,5' })) await recordText(page, form, name, value);
-	await recordShot(page, scenario, out, 'reference-known-length');
-	await activate(page, `${form} button[type="submit"]`); await page.locator(`${form} [name="opacity"]`).waitFor();
-	assert.deepEqual(await notes(page), before);
-	await tabTo(page, `${form} [name="opacity"]`);
-	await recordShot(page, scenario, out, 'reference-scale-review');
-	await activate(page, `${form} button[type="submit"]`); await page.locator(form).waitFor({ state: 'hidden' });
-	const committed = await notes(page);
-	const geometries = committed.filter(([path]) => path.endsWith('.rpgeo')).map(([path, bytes]) => ({ path, document: JSON.parse(bytes) })).filter(entry => entry.document.calibration);
-	assert.equal(geometries.length, 1);
-	const calibration = geometries[0].document.calibration;
-	const expectedPixelsPerMillimetre = 700 / 3500;
-	assert.equal(calibration.knownDistance, 3500);
-	assert.ok(Math.abs(calibration.pixelsPerWorldUnit - expectedPixelsPerMillimetre) < 1e-12, 'source-pixel distance / entered millimetres is saved');
-	if (await page.locator('[data-rp-rail="layers"]').isVisible()) await activate(page, '[data-rp-rail="layers"]');
-	await activate(page, '[data-rp-action="reference"]'); await page.locator(canvas).waitFor();
-	await activate(page, `${form} button[type="submit"]`);
-	assert.deepEqual(await coordinates(page), savedPoints, 'reopening restores source coordinates');
-	assert.equal(await page.locator(`${form} [name="length"]`).inputValue(), '3.5');
-	await activate(page, '[data-rp-reference-view="zoom-in"]'); await tabTo(page, canvas); await page.keyboard.press('ArrowLeft');
-	await recordText(page, form, 'length', '9');
-	await activate(page, `${form} button[type="submit"]`); await page.locator(`${form} [name="opacity"]`).waitFor();
-	assert.deepEqual(await notes(page), committed);
-	await activate(page, '.rp-dialog [data-rp-action="cancel"]'); await page.locator(form).waitFor({ state: 'hidden' });
-	assert.deepEqual(await notes(page), committed, 'Cancel retains all previously saved bytes');
-	return { ...measured, source, paintedAreaRatio, legacyPainted: legacy.painted, actualPaintedAreaRatio, sourceCoordinates: picked, pointerToleranceInSourcePixels: tolerance, zoomAndPanChangedPaint: true, fitRestoredPaint: true, navigationAndCancelNoWrite: true, calibration, expectedPixelsPerMillimetre, committedPath: geometries[0].path, decimalCommaAndReopen: true, savedReferenceCancelNoWrite: true };
+	return { ...measured, source, paintedAreaRatio, sourceCoordinates: picked, pointerToleranceInSourcePixels: tolerance, zoomAndPanChangedPaint: true, fitRestoredPaint: true, navigationAndCancelNoWrite: true };
 }

@@ -17,11 +17,7 @@ export function encloseRoom(room: CurvedPolygon & { id: string }, structure: Str
 		walls.push(wall); wallIds.push(wall.id); createdIds.push(wall.id);
 	}
 	if (new Set(wallIds).size !== wallIds.length) return err(spatialError('intersection'));
-	const boundaries = [...structure.boundaries], boundaryIndex = boundaries.findIndex(item => item.roomId === room.id);
-	const enclosedBoundary = { roomId: room.id, wallIds };
-	if (boundaryIndex < 0) boundaries.push(enclosedBoundary);
-	else boundaries[boundaryIndex] = enclosedBoundary;
-	const result: Structure = { ...structure, walls, boundaries };
+	const result: Structure = { ...structure, walls, boundaries: [...structure.boundaries.filter(boundary => boundary.roomId !== room.id), { roomId: room.id, wallIds }] };
 	const checked = validateStructure(result, [...new Set([...structure.boundaries.map(boundary => boundary.roomId), room.id])]);
 	return checked.ok ? ok({ structure: result, wallIds, createdIds }) : checked;
 }

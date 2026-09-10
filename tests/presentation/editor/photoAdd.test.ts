@@ -114,3 +114,16 @@ it('keeps manual file text and an empty suggestion list when no catalogue capabi
 	await w.setProps({ modelValue: 'Photos/known.png' }); await vi.advanceTimersByTimeAsync(150);
 	expect(w.get('input').element).toHaveProperty('value', 'Photos/known.png'); expect(w.findAll('option')).toHaveLength(0);
 });
+
+
+it('does not steal focus after a native evidence-type change when another control takes ownership', async () => {
+	const { wrapper: w, dispatch } = await setup();
+	const details = w.get('.rp-photo-details').element as HTMLDetailsElement; details.open = true;
+	const select = w.get<HTMLSelectElement>('[name="type"]').element, outside = document.createElement('button');
+	outside.textContent = 'Another action'; document.body.append(outside);
+	try {
+		select.focus(); select.value = 'document'; select.dispatchEvent(new Event('change', { bubbles: true })); outside.focus();
+		await settle(); expect(document.activeElement).toBe(outside);
+		expect(w.get('[name="type"]').element).toHaveProperty('value', 'document'); expect(dispatch).not.toHaveBeenCalled();
+	} finally { outside.remove(); }
+});

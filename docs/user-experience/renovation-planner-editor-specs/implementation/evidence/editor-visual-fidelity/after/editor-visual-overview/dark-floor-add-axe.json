@@ -28,6 +28,102 @@
                 "contrastRatio": 0,
                 "fontSize": "9.8pt (13px)",
                 "fontWeight": "normal",
+                "messageKey": "elmPartiallyObscured",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<aside class=\"rp-editor-layers\" tabindex=\"-1\" data-rp-region=\"layers\" aria-label=\"Property and layers\">",
+                  "target": [
+                    ".rp-editor-layers"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it's partially obscured by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>Reference plan</span>",
+          "target": [
+            "label[for=\"rp-1-1\"] > span:nth-child(2)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "elmPartiallyObscured",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<aside class=\"rp-editor-layers\" tabindex=\"-1\" data-rp-region=\"layers\" aria-label=\"Property and layers\">",
+                  "target": [
+                    ".rp-editor-layers"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it's partially obscured by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span class=\"rp-layer-opacity\">65%</span>",
+          "target": [
+            ".rp-layer-opacity"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "elmPartiallyObscured",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<aside class=\"rp-editor-layers\" tabindex=\"-1\" data-rp-region=\"layers\" aria-label=\"Property and layers\">",
+                  "target": [
+                    ".rp-editor-layers"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it's partially obscured by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button type=\"button\" class=\"rp-layer-list__action\" data-rp-action=\"set-scale\">Set scale</button>",
+          "target": [
+            ".rp-layer-list__action"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
                 "messageKey": "colorParse",
                 "expectedContrastRatio": "4.5:1",
                 "colorParse": "oklch(0.999994 0.0000497986 none / 0.067)"

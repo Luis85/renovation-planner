@@ -6,12 +6,12 @@ import type { EditorPointerEvent, EditorTool } from '../tools/editor-tool';
 export class OpeningMoveTool implements EditorTool {
 	readonly id = 'move-opening';
 	private context: EditorContext | null = null;
-	constructor(private readonly actions: { move(point: Point, commit: boolean): void; stop(): void; clear(): void; saving(): boolean }) {}
+	constructor(private readonly actions: { move(point: Point, tolerance: number, commit: boolean): void; stop(): void; clear(): void; saving(): boolean }) {}
 	activate(context: EditorContext): void { this.context = context; }
 	deactivate(): void { this.context = null; this.actions.stop(); }
 	canDeactivate(): boolean { return !this.actions.saving(); }
 	private point(event: EditorPointerEvent, commit: boolean): void {
-		if (this.context && !this.actions.saving()) this.actions.move(event.worldPoint, commit);
+		if (this.context && !this.actions.saving()) this.actions.move(event.worldPoint, 8 * this.context.viewport.worldPerScreenPixel(), commit);
 	}
 	pointerDown(event: EditorPointerEvent): void { if (event.button === 'primary') this.point(event, true); }
 	pointerMove(event: EditorPointerEvent): void { this.point(event, false); }

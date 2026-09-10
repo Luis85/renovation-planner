@@ -1,9 +1,5 @@
 # Curved Room and Wall boundaries
 
-Current concern receipt: [PR #111 follow-up](curve-delivery.md), incorporating the
-latest #110 Group6 implementation. The checkpoints below are historical; manual
-acceptance remains user-owned and pending and does not block the implementation step.
-
 Baseline: combined `aa5fddd9`, including verified Group6 `587f0266`, opening swing5, input,
 hover-arrow and all-edge measurement continuations. Parent reserves curve sidecar7 before
 Stair8. This topic is in progress and is not accepted release evidence.

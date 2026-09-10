@@ -1,5 +1,24 @@
 # M02 — Add Menu
 
+## Spatial rotation continuation — 2026-09-08
+
+Every free spatial item (Room, Area, Object, Path, Fence and Measurement) has a rotation handle
+and keyboard-accessible **Rotate by…**, clockwise 90° and counterclockwise 90° actions.
+Positive relative degrees turn clockwise in the downward-y world; decimal point/comma are
+accepted. The pivot stays fixed, all points transform rigidly from the immutable baseline,
+and Shift snaps pointer turns to 15° with visible angle feedback. Free-item Apply/release
+saves once; Cancel/Escape/tool exit discards, and zero/full turns add no history. Selection,
+identity, links and separate Planned geometry remain intact across save, reload and Undo/Redo.
+
+Walls rotate about their midpoint with hosted openings attached. Connected junction endpoints
+follow, independent Room outlines do not, and impact review/Apply precedes the write. A selected
+door/window/opening offers **Rotate host wall** rather than detaching it. Invalid intersections,
+containment, conflicts and readback failure retain their guarded outcomes. The handle's visible
+circular arrow and at least 44 px grab region avoid dimension/corner controls. Reference plans
+retain setup rotation; this action does not create group transforms or catalogue orientation.
+See [ADR-0025](../../../development/adrs/0025-spatial-rotation.md) and
+[release traceability](../implementation/release-2026-09-08.md).
+
 ![M02 — Add Menu](../images/M02-add-menu.png)
 
 ## Screen description

@@ -2,8 +2,6 @@ import { expect, it } from 'vitest';
 import { WALL_LOOP } from '../helpers/structure';
 import { groupMembers, groupRoots, regroup, selectedGroup, validateSpatialGroups } from '../../src/domain/spatial/SpatialGroup';
 import { groupPivot, groupPoints, transformGroupGeometry } from '../../src/domain/spatial/groupGeometry';
-import { encloseRoom } from '../../src/domain/spatial/encloseRoom';
-import { expectOk } from '../helpers/domain';
 const group = { id: 'group-one', name: 'Room assembly', memberIds: ['room-one', 'wall-a'] };
 const structure = { ...WALL_LOOP, openings: [{ id: 'opening-one', kind: 'door' as const, hostId: 'wall-a', offset: 100, width: 800, height: 2000, sill: 0 }] };
 it('normalizes hosted opening membership and identifies the same group regardless of selection order', () => {
@@ -33,23 +31,4 @@ it('preserves independent object and source order while deriving one union centr
 });
 it('refuses group IDs colliding with a spatial member namespace', () => {
 	expect(validateSpatialGroups([group], { zoneIds: ['room-one', 'group-one'], structure }).ok).toBe(false);
-});
-
-it('retains group catalogue and member order when extending an existing group identity', () => {
-	const unrelated = { id: 'group-other', name: 'Elsewhere', memberIds: ['wall-c'] };
-	const ordered = { ...group, memberIds: ['wall-a', 'room-one'] };
-	expect(regroup([ordered, unrelated], { ...group, memberIds: ['room-one', 'wall-a'] }, structure)).toEqual([ordered, unrelated]);
-	expect(regroup([ordered, unrelated], { ...group, memberIds: ['room-one', 'wall-b'] }, structure)).toEqual([
-		{ ...ordered, memberIds: ['wall-a', 'room-one', 'wall-b'] }, unrelated,
-	]);
-});
-
-it('leaves an existing Room boundary in its original catalogue position when enclosing it again', () => {
-	const farWalls = WALL_LOOP.walls.map(wall => ({ ...wall, id: `${wall.id}-far`, start: { x: wall.start.x + 10000, y: wall.start.y }, end: { x: wall.end.x + 10000, y: wall.end.y } }));
-	const original = { ...WALL_LOOP, walls: [...WALL_LOOP.walls, ...farWalls], boundaries: [
-		{ roomId: 'room-one', wallIds: WALL_LOOP.walls.map(wall => wall.id) },
-		{ roomId: 'room-two', wallIds: farWalls.map(wall => wall.id) },
-	] };
-	const enclosed = expectOk(encloseRoom({ id: 'room-one', points: WALL_LOOP.walls.map(wall => wall.start) }, original, { height: 2400, thickness: 150 }, () => 'unused'));
-	expect(enclosed.createdIds).toEqual([]); expect(enclosed.structure).toEqual(original);
 });

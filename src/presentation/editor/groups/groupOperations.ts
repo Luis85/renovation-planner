@@ -62,7 +62,7 @@ export function createGroupOperations(context: PlanEditorContext, runtime: Group
 				return result;
 			});
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.group.failed'); }
-		finally { generation.value++; working.value = false; preview.value = null; }
+		finally { working.value = false; preview.value = null; }
 	}
 	async function commit(snapshot: GroupSnapshot, next: PlanGeometryDocument): Promise<boolean> {
 		if (sameGeometryDocument(snapshot.document, next)) return current(snapshot);
@@ -77,7 +77,7 @@ export function createGroupOperations(context: PlanEditorContext, runtime: Group
 			}
 			const result = await dispatch(next); saved = result.ok; if (alive && !result.ok) notifyOperationFailure(result.error);
 		});
-		return saved && alive;
+		return saved;
 	}
 	return { document, generation, working, blocked, preview, capture, current, operate, commit };
 }

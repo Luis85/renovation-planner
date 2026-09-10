@@ -33,9 +33,9 @@
               },
               "relatedNodes": [
                 {
-                  "html": "<aside class=\"rp-editor-inspector\" tabindex=\"-1\" data-rp-region=\"inspector\" aria-label=\"Inspector\">",
+                  "html": "<aside class=\"rp-editor-layers\" tabindex=\"-1\" data-rp-region=\"layers\" aria-label=\"Property and layers\">",
                   "target": [
-                    ".rp-editor-inspector"
+                    ".rp-editor-layers"
                   ]
                 }
               ],
@@ -46,11 +46,118 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<h2 class=\"rp-editor-panel-title\">Inspector</h2>",
+          "html": "<h2 class=\"rp-editor-panel-title\">Property</h2>",
           "target": [
-            ".rp-editor-inspector > h2"
+            ".rp-property-context > h2"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "elmPartiallyObscured",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<aside class=\"rp-editor-layers\" tabindex=\"-1\" data-rp-region=\"layers\" aria-label=\"Property and layers\">",
+                  "target": [
+                    ".rp-editor-layers"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it's partially obscured by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<p class=\"rp-property-context__project\">",
+          "target": [
+            ".rp-property-context__project"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "bold",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<strong role=\"status\">Item</strong>",
+          "target": [
+            "strong"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"rp-1-8\">Draw the item outline, or enter its position and size in details.</span>",
+          "target": [
+            "#rp-1-8"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button type=\"button\" class=\"rp-task-banner__cancel\" aria-disabled=\"false\">Cancel</button>",
+          "target": [
+            ".rp-task-banner__cancel"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },
         {
           "any": [

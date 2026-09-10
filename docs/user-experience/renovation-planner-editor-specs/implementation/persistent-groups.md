@@ -43,15 +43,7 @@ Enclose with walls creates missing matching edges, a boundary record and the gro
 history step. It reuses existing exact matching walls rather than duplicating them. Curved
 Room/Wall enclosure will use the later schema7 arc primitives and exact arc bounds.
 
-## Current storage follow-up
-
-PR #110 incorporates the updated #109 and fixes demonstrated group/member-order and
-name round-trip gaps. Current automated checks, reconstruction/recovery evidence and
-remaining gate failures are recorded in [the delivery receipt](group-storage-delivery.md).
-Manual acceptance is user-owned and pending; it does not block this storage step.
-Group interaction UI and the overall editor plan remain separate work.
-
-## Historical foundation verification
+## Verification status
 
 Foundation checks pass: TypeScript, whole-tree Oxlint and scoped ESLint. Four targeted
 files cover33 unique passing cases across the initial run and exact reruns: the initial

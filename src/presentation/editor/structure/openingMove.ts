@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch, type Ref } from 'vue
 import type { Point } from '../../../core/geometry/Point';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { Structure } from '../../../domain/spatial/Structure';
+import { projectOntoWall } from '../../../domain/spatial/Structure';
 import { openingOffsetAt } from '../../../domain/spatial/openingGeometry';
 import { openingValidationError, validSpatialPoint } from '../../../domain/spatial/structureGeometry';
 import type { PlanGeometryDocument, PlanGeometrySnapshot } from '../../../application/ports/PlanGeometrySidecar';
@@ -18,6 +19,7 @@ import { useDialogStore } from '../../dialogs/dialog-store';
 import { notifyFault, notifyOperationFailure } from '../../notices/notify';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
 import { spatialMessage } from './spatialMessage';
+import { tr } from '../../i18n/strings';
 import { OpeningMoveTool } from './OpeningMoveTool';
 
 /** Temporary direct manipulation over the existing guarded StructureCommand boundary. */
@@ -30,7 +32,7 @@ export function createOpeningMove(context: PlanEditorContext,
 	const baseline = shallowRef<PlanGeometrySnapshot | null>(null);
 	let target = '', generation = 0, alive = true;
 	let armed: PlanGeometryDocument | null = null;
-	let pending: { point: Point; write: boolean } | null = null;
+	let pending: { point: Point; tolerance: number } | null = null;
 	const permitted = computed(() => !runtime.writesBlocked.value && session.perspective !== 'review' && workspace.layerVisibility.architecture && !dialogs.current);
 	const available = computed(() => !!context.commands.structure && permitted.value && !state.active.value && save.state !== 'saving' && runtime.activeToolId.value === 'select' && !runtime.toolManager.gestureInFlight);
 	function clear(): void { pending = null; state.preview.value = null; message.value = ''; }
@@ -54,10 +56,11 @@ export function createOpeningMove(context: PlanEditorContext,
 		}
 		finally { if (ticket === generation) saving.value = false; }
 	}
-	function proposal(point: Point): Structure | null {
+	function proposal(point: Point, tolerance: number): Structure | null {
 		const structure = baseline.value?.document.structure;
 		const opening = structure?.openings.find(item => item.id === target), host = structure?.walls.find(item => item.id === hostId.value);
 		if (!structure || !opening || !host) return null;
+		if (projectOntoWall(host, point).distance > Math.max(host.thickness / 2, tolerance)) { message.value = tr('editor.opening-move.off-host'); return null; }
 		const offset = openingOffsetAt(host, point, opening.width);
 		if (offset === null) return null;
 		const moved = { ...opening, offset };
@@ -66,13 +69,12 @@ export function createOpeningMove(context: PlanEditorContext,
 		message.value = error ? spatialMessage(error) : '';
 		return error ? null : next;
 	}
-	function move(point: Point, write: boolean): void {
+	function move(point: Point, tolerance: number, write: boolean): void {
 		if (!current(generation) || saving.value || save.state === 'saving' || !validSpatialPoint(point)) return;
-		// Keep the latest hover until the first click; later input must not replace that click.
-		if (loading.value) { if (!pending?.write) pending = { point: { ...point }, write }; return; }
+		if (loading.value) { if (write && !pending) pending = { point, tolerance }; return; }
 		const snapshot = baseline.value;
 		if (!snapshot || !matches(snapshot)) { runtime.returnToSelect(); return; }
-		const next = proposal(point); state.preview.value = next;
+		const next = proposal(point, tolerance); state.preview.value = next;
 		if (!write || !next) return;
 		if (sameGeometryDocument({ ...snapshot.document, structure: next }, snapshot.document)) { runtime.returnToSelect(); return; }
 		void commit(next, snapshot);
@@ -84,8 +86,8 @@ export function createOpeningMove(context: PlanEditorContext,
 			if (!result?.ok) { if (result) notifyOperationFailure(result.error); runtime.returnToSelect(); return; }
 			if (!matches(result.value) || !armed || !sameGeometryDocument(armed, { objects: [], structure: result.value.document.structure, calibration: result.value.document.calibration })) { notifyOperationFailure(staleWriteRefusal()); runtime.returnToSelect(); await runtime.refreshProjection(); return; }
 			baseline.value = result.value; loading.value = false;
-			const input = pending; pending = null;
-			if (input) move(input.point, input.write);
+			const click = pending; pending = null;
+			if (click) move(click.point, click.tolerance, true);
 		} catch (cause) { if (current(ticket)) { notifyFault(cause, context.commands.logger, 'editor.structure.read-failed'); runtime.returnToSelect(); } }
 		finally { if (ticket === generation) loading.value = false; }
 	}

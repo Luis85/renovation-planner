@@ -12,14 +12,6 @@ function setup(candidates: readonly SpatialObjectCandidate[], interactions: Sele
 	tool.activate(harness.context); return { ...harness, tool, move };
 }
 describe('empty-canvas marquee selection', () => {
-	it('includes a stair footprint when the marquee misses its canonical centreline', () => {
-		const points = [{ x: 100, y: 0 }, { x: 100, y: 200 }], hitPoints = [{ x: 50, y: 0 }, { x: 150, y: 0 }, { x: 150, y: 200 }, { x: 50, y: 200 }];
-		const { tool, context, move } = setup([{ id: 'element-stair', kind: 'stair', points, hitPoints }]);
-		tool.pointerDown(pointerAt(0, 50)); tool.pointerUp(pointerAt(70, 100));
-		expect(context.selection.selectedIds).toEqual(['element-stair']);
-		expect(points).toEqual([{ x: 100, y: 0 }, { x: 100, y: 200 }]);
-		expect(move).not.toHaveBeenCalled();
-	});
 	it('adds and removes a whole group with Shift while Alt inspects only the member', () => {
 		const start = vi.fn<(ids: readonly string[], event: EditorPointerEvent) => boolean>(() => false);
 		const { tool, context, move } = setup([{ id: 'one', points: square }], { expandSelection: (_id, deep) => deep ? ['one'] : ['one', 'two'], selectionMove: { active: false, start, move: () => undefined, finish: () => undefined, cancel: () => undefined } });
@@ -44,6 +36,14 @@ describe('empty-canvas marquee selection', () => {
 		tool.pointerDown(shiftPointerAt(-100, -100)); tool.pointerMove(shiftPointerAt(100, 100));
 		tool.pointerUp({ ...shiftPointerAt(100, 100), button: 'secondary' }); expect(context.renderState.marquee).not.toBeNull();
 		tool.pointerUp(shiftPointerAt(100, 100)); expect(context.selection.selectedIds).toEqual(['one']); expect(context.renderState.marquee).toBeNull();
+		expect(move).not.toHaveBeenCalled();
+	});
+	it('includes a stair footprint when the marquee misses its canonical centreline', () => {
+		const points = [{ x: 100, y: 0 }, { x: 100, y: 200 }], hitPoints = [{ x: 50, y: 0 }, { x: 150, y: 0 }, { x: 150, y: 200 }, { x: 50, y: 200 }];
+		const { tool, context, move } = setup([{ id: 'element-stair', kind: 'stair', points, hitPoints }]);
+		tool.pointerDown(pointerAt(0, 50)); tool.pointerUp(pointerAt(70, 100));
+		expect(context.selection.selectedIds).toEqual(['element-stair']);
+		expect(points).toEqual([{ x: 100, y: 0 }, { x: 100, y: 200 }]);
 		expect(move).not.toHaveBeenCalled();
 	});
 	it('intersects real geometry, excludes a diagonal bounding-box false positive, and writes no command', () => {

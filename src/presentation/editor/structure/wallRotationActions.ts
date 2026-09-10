@@ -38,8 +38,8 @@ export function createWallRotationActions(context: PlanEditorContext,
 	let alive = true;
 	const epoch = ref(0);
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
-	watch(() => JSON.stringify([editor.activeToolId, session.perspective, selection.selectedIds, project.structure, project.plan?.calibration]), () => { epoch.value += 1; if (rotationHostId.value !== null) { state.preview.value = null; rotationHostId.value = null; } }, { flush: 'sync' });
-	onBeforeUnmount(() => { alive = false; epoch.value++; state.preview.value = null; rotationHostId.value = null; });
+	watch(() => [editor.activeToolId, session.perspective, selection.selectedIds.join('|')], () => { epoch.value += 1; if (rotationHostId.value !== null) { state.preview.value = null; rotationHostId.value = null; } }, { flush: 'sync' });
+	onBeforeUnmount(() => { alive = false; state.preview.value = null; rotationHostId.value = null; });
 	/** Admission is distinct from a captured operation's lifetime: active is set after this gate. */
 	function canStart(id: string): boolean {
 		return alive && !state.active.value && !rotationBlocked.value && !dialogs.current
@@ -73,11 +73,11 @@ export function createWallRotationActions(context: PlanEditorContext,
 			await dialogs.openDialog({ kind: 'form', title: tr(id === wall.id ? 'editor.rotation.wall-title' : 'editor.rotation.host-title', { name }), component: markRaw(WallRotationForm), busy, props: {
 				structure, wallId: wall.id, degrees, busy, blocked: formBlocked, retired: computed(() => epoch.value !== captured), retry, openSource: () => context.openPlanNote(),
 				roomNames: Object.fromEntries(structure.boundaries.map(boundary => [boundary.roomId, project.zones.get(boundary.roomId)?.name ?? boundary.roomId])),
-				preview: (value: Structure | null) => { if (captured === epoch.value) state.preview.value = !retired(captured) ? value : null; },
+				preview: (value: Structure | null) => { state.preview.value = !retired(captured) ? value : null; },
 				dispatch: (next: Structure) => retired(captured) ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline, structure: next, ledger })),
 			} });
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.wall.rotation-failed'); }
-		finally { epoch.value++; state.active.value = false; state.preview.value = null; rotationHostId.value = null; }
+		finally { state.active.value = false; state.preview.value = null; rotationHostId.value = null; }
 	}
 	function previewRotation(id: string | null, degrees?: number, original?: Wall): void {
 		const wall = id === null ? undefined : hostWall(project.structure, id);

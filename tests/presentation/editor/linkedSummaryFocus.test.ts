@@ -65,3 +65,15 @@ it('does not return focus into the removed leaf when the host closes during link
 		expect(document.activeElement).toBe(outside); expect([...rig.stack.vault.entries]).toEqual(bytes);
 	} finally { outside.remove(); }
 });
+
+
+it('preserves a host-selected external focus target during connected-leaf linked navigation', async () => {
+	const rig = await setup(1280), before = [...rig.stack.vault.entries];
+	const opener = rig.wrapper.get<HTMLButtonElement>('[data-rp-linked="materials"]').element;
+	const outside = document.createElement('button'); outside.textContent = 'Host action'; document.body.append(outside);
+	try {
+		opener.focus(); opener.click(); outside.focus(); await settle();
+		expect(opener.isConnected).toBe(false); expect(rig.session.mode).toBe('materials');
+		expect(document.activeElement).toBe(outside); expect([...rig.stack.vault.entries]).toEqual(before);
+	} finally { outside.remove(); }
+});

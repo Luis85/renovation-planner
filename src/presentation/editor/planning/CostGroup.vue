@@ -37,7 +37,7 @@ function focusWork(event: MouseEvent): void {
 			<span v-else>{{ tr('planning.totals-refused') }}</span>
 		</summary>
 		<CostTotals
-			v-if="totals"
+			v-if="totals && rows.length > 1"
 			:totals="totals"
 		/>
 		<ol class="rp-renovation-list">

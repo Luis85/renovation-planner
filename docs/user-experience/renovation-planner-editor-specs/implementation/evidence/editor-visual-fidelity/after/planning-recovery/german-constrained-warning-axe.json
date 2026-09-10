@@ -6,13 +6,31 @@
       "nodes": [
         {
           "target": [
-            "button[data-rp-rail=\"details\"]"
+            "button[data-rp-rail=\"details\"] > span:nth-child(2)"
           ],
           "summary": "Fix any of the following:\n  Could not parse color string oklch(0.999994 0.0000497986 none / 0.067)"
         },
         {
           "target": [
+            "span[data-rp-room-edge=\"1\"] > span[aria-hidden=\"true\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            "span[data-rp-room-edge=\"2\"] > span[aria-hidden=\"true\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
             "button[data-rp-action=\"select\"]"
+          ],
+          "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "target": [
+            "button[data-rp-action=\"pan\"]"
           ],
           "summary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         },

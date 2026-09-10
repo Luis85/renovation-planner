@@ -5,7 +5,7 @@
       "screen": "M00",
       "reference": "M00-kitchen-selected-overview.png",
       "capture": "light-M00-room.png",
-      "finalCapture": "editor-visual-overview/light-M00-connected-room.png",
+      "finalCapture": "editor-visual-overview/light-M00-room-design.png",
       "referenceSize": [
         1487,
         1058
@@ -16,7 +16,7 @@
       ],
       "afterSize": [
         1440,
-        900
+        1000
       ],
       "referenceCrop": {
         "x": 55,
@@ -34,14 +34,14 @@
         "x": 1080,
         "y": 52,
         "width": 360,
-        "height": 812
+        "height": 912
       }
     },
     {
       "screen": "M01",
       "reference": "M01-standard-plan-view.png",
       "capture": "light-M01-floor.png",
-      "finalCapture": "editor-visual-overview/light-M01-connected-floor.png",
+      "finalCapture": "editor-visual-overview/light-M01-floor-design.png",
       "referenceSize": [
         1487,
         1058
@@ -52,7 +52,7 @@
       ],
       "afterSize": [
         1440,
-        900
+        1000
       ],
       "referenceCrop": {
         "x": 55,
@@ -70,7 +70,7 @@
         "x": 1080,
         "y": 52,
         "width": 360,
-        "height": 812
+        "height": 912
       }
     },
     {
@@ -257,7 +257,7 @@
       "screen": "M07",
       "reference": "M07-wall-selected.png",
       "capture": "materials-costs-evidence/light-wall-inspector.png",
-      "finalCapture": "editor-visual-overview/light-M07-connected-wall.png",
+      "finalCapture": "editor-visual-overview/light-M07-wall-design.png",
       "referenceSize": [
         1487,
         1058
@@ -268,7 +268,7 @@
       ],
       "afterSize": [
         1440,
-        900
+        1000
       ],
       "referenceCrop": {
         "x": 55,
@@ -286,7 +286,7 @@
         "x": 1080,
         "y": 52,
         "width": 360,
-        "height": 812
+        "height": 912
       }
     },
     {
@@ -473,7 +473,7 @@
       "screen": "M13",
       "reference": "M13-room-costs.png",
       "capture": "materials-costs-evidence/dark-costs.png",
-      "finalCapture": "editor-downstream/dark-room-costs.png",
+      "finalCapture": "editor-downstream/dark-room-costs-design.png",
       "referenceSize": [
         1487,
         1058
@@ -484,7 +484,7 @@
       ],
       "afterSize": [
         1440,
-        900
+        1000
       ],
       "referenceCrop": {
         "x": 55,
@@ -502,7 +502,7 @@
         "x": 1080,
         "y": 52,
         "width": 360,
-        "height": 812
+        "height": 912
       }
     },
     {
@@ -581,7 +581,7 @@
       "screen": "M16",
       "reference": "M16-constrained-workspace.png",
       "capture": "materials-costs-evidence/german-constrained-materials.png",
-      "finalCapture": "materials-costs-evidence/german-constrained-materials.png",
+      "finalCapture": "editor-visual-overview/dark-M16-closed-constrained.png",
       "referenceSize": [
         1487,
         1058
@@ -591,8 +591,8 @@
         900
       ],
       "afterSize": [
-        460,
-        900
+        880,
+        1000
       ],
       "referenceCrop": {
         "x": 55,
@@ -609,8 +609,8 @@
       "afterDetail": {
         "x": 0,
         "y": 0,
-        "width": 460,
-        "height": 900
+        "width": 880,
+        "height": 1000
       }
     },
     {

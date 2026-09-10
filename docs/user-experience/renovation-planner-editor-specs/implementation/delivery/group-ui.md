@@ -1,9 +1,5 @@
 # Group UI delivery reconstruction
 
-Current PR #113 follow-up: [implementation and automated verification](../group-ui-delivery.md).
-The reconstruction receipt below is historical; manual acceptance is user-owned
-and pending, and does not block the current implementation step.
-
 Status: **cumulative validation pending**. Branch `codex/editor-deliver-groups`
 was reconstructed independently from clean Curve7/UI tip
 `0a049e270de7b0dbdd4ba88e000866fe34f8634d`. The independently reconstructed Opening

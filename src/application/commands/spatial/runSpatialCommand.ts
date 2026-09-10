@@ -14,12 +14,7 @@ export async function runSpatialCommand(
 	if (state.retired) return err(markUncompensated(faults.recovery()));
 	if (state.busy || state.applied === forward) return ok('no-write');
 	state.busy = true;
-	const applied = state.applied;
 	try { return await operation(); }
-	catch (cause) {
-		const error = faults.unexpected(cause);
-		if (state.applied !== applied) { state.retired = true; return err(markUncompensated(error)); }
-		return err(error);
-	}
+	catch (cause) { return err(faults.unexpected(cause)); }
 	finally { state.busy = false; }
 }

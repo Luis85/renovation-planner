@@ -21,20 +21,10 @@ import { pointerAt } from '../../helpers/tool-context';
 import { hoverRotation } from '../../helpers/rotationHover';
 import { err, ok } from '../../../src/core/result/Result';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
+import { defer } from '../../helpers/async';
 const mounted: { unmount(): void }[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
 const element: NamedSpatialElement = { id: 'element-object', kind: 'object', name: 'Desk', points: [{ x: 500, y: 500 }, { x: 2500, y: 500 }, { x: 2500, y: 1500 }, { x: 500, y: 1500 }] };
-
-it('refuses a frozen Room rotation after a peer changes only its curve metadata', async () => {
-	const rig = await setup(); rig.selection.select([rig.room.id]); await settle();
-	const original = expectDefined(rig.runtime.rotationActions.target.value, 'original target');
-	const points = expectDefined(rotationPoints(original, 90, expectDefined(rotationPivot(original), 'pivot')), 'rotation');
-	const service = expectDefined(rig.deps.commands.groups, 'geometry service'), baseline = expectOk(await service.read(rig.plan.id));
-	expectOk(await service.command({ planId: rig.plan.id, baseline, ledger: rig.runtime.structureTask.ledger, document: { ...baseline.document, objects: baseline.document.objects.map(object => object.id === rig.room.id ? { ...object, bulges: [0.25, 0, 0, 0] } : object) } }).execute());
-	await rig.runtime.refreshProjection(); const bytes = [...rig.stack.vault.entries];
-	await rig.runtime.rotationActions.move(original.id, points, original);
-	expect([...rig.stack.vault.entries]).toEqual(bytes); expect(rig.runtime.rotationActions.preview.value).toBeNull();
-});
 async function setup(source: NamedSpatialElement = element) {
 	const rig = await renovationEditor(); mounted.push(rig); rig.changePlan(); await settle();
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
@@ -237,4 +227,53 @@ it('continues a frozen pointer draft through a geometry-identical projection ref
 	await rig.runtime.refreshProjection(); tool.pointerMove(pointerAt(1900, 1600)); await settle();
 	const preview = expectDefined(rig.runtime.rotationActions.preview.value, 'retained preview').points;
 	tool.pointerUp(pointerAt(1900, 1600)); await settle(); expect(rig.project.structure.elements?.[0].points).toEqual(preview);
+});
+
+it.each([false, true])('handles a rejected rotation baseline with disposed=%s without leaking geometry or notices', async disposed => {
+	const rig = await setup(), pending = defer<void>(), cause = new Error('rotation source unavailable');
+	const bytes = [...rig.stack.vault.entries], log = vi.spyOn(rig.deps.commands.logger, 'error');
+	vi.spyOn(rig.renovation, 'read').mockImplementationOnce(async () => { await pending.promise; throw cause; });
+	const operation = rig.runtime.rotationActions.rotate(element.id, 90); await settle();
+	if (disposed) { rig.unmount(); mounted.splice(mounted.indexOf(rig), 1); }
+	pending.resolve(undefined); await operation;
+	expect(log.mock.calls.some(([event]) => event === 'editor.rotation.failed')).toBe(!disposed);
+	expect(rig.runtime.rotationActions.preview.value).toBeNull(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+it.each(['kind', 'curve'] as const)('refuses a drag snapshot after a peer changes only its %s metadata', async changed => {
+	const rig = await setup();
+	if (changed === 'curve') { rig.selection.select([rig.room.id]); await settle(); }
+	const original = expectDefined(rig.runtime.rotationActions.target.value, 'original target'), points = expectDefined(rotationPoints(original, 90, expectDefined(rotationPivot(original), 'pivot')), 'rotation');
+	if (changed === 'kind') {
+		const baseline = expectOk(await rig.renovation.read(rig.plan.id));
+		expectOk(await rig.renovation.command(baseline, elementInput(baseline, { ...element, kind: 'path' }), rig.runtime.structureTask.ledger).execute());
+	} else {
+		const service = expectDefined(rig.deps.commands.groups, 'geometry service'), baseline = expectOk(await service.read(rig.plan.id));
+		expectOk(await service.command({ planId: rig.plan.id, baseline, ledger: rig.runtime.structureTask.ledger, document: { ...baseline.document, objects: baseline.document.objects.map(object => object.id === rig.room.id ? { ...object, bulges: [0.25, 0, 0, 0] } : object) } }).execute());
+	}
+	await rig.runtime.refreshProjection(); const bytes = [...rig.stack.vault.entries];
+	await rig.runtime.rotationActions.move(original.id, points, original);
+	expect([...rig.stack.vault.entries]).toEqual(bytes); expect(rig.runtime.rotationActions.preview.value).toBeNull();
+});
+
+it('restores Plan content with a new revision when the guarded pointer rotation write is refused', async () => {
+	const rig = await setup(), original = expectDefined(rig.runtime.rotationActions.target.value, 'target');
+	const before = expectOk(await rig.renovation.read(rig.plan.id)), planPath = expectDefined(rig.stack.index.getPath(rig.plan.id), 'Plan note path');
+	const unrelatedBytes = [...rig.stack.vault.entries].filter(([path]) => path !== planPath);
+	const points = expectDefined(rotationPoints(original, 90, expectDefined(rotationPivot(original), 'pivot')), 'turned points');
+	const write = vi.spyOn(rig.geometry, 'write').mockResolvedValueOnce(err(injectedPersistenceError())), savePlan = vi.spyOn(rig.stack.plans, 'save');
+	await rig.runtime.rotationActions.move(original.id, points, original); await settle();
+	expect(write).toHaveBeenCalledExactlyOnceWith(rig.plan.id, expect.objectContaining({ structure: expect.objectContaining({ elements: [expect.objectContaining({ id: element.id, points })] }) }), before.geometry.version);
+	expect(savePlan).toHaveBeenCalledTimes(2);
+	expect(savePlan.mock.calls[0][1]).toEqual(before.plan.version);
+	expect(savePlan.mock.calls[1][1]).toEqual(expect.objectContaining({ revision: before.plan.version.revision + 1 }));
+	const after = expectOk(await rig.renovation.read(rig.plan.id));
+	expect(after.geometry).toEqual(before.geometry); expect(after.plan.entity).toEqual(before.plan.entity);
+	expect(after.plan.version.revision).toBe(before.plan.version.revision + 2);
+	expect([...rig.stack.vault.entries].filter(([path]) => path !== planPath)).toEqual(unrelatedBytes);
+	expect(rig.runtime.rotationActions.active.value).toBe(false); expect(rig.runtime.rotationActions.preview.value).toBeNull(); expect(rig.runtime.renderState.rotationDegrees).toBeNull();
+	// The next Undo must reach the preceding successful insertion, not a phantom failed rotation.
+	await rig.runtime.undo(); await settle();
+	expect(rig.project.structure.elements?.some(item => item.id === element.id) ?? false).toBe(false);
+	expect(rig.project.zones.has(rig.room.id)).toBe(true);
 });

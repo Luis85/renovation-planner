@@ -19,8 +19,7 @@ function content(document: PlanGeometryDocument): unknown {
 	return [c ? [point(c.pointA), point(c.pointB), c.knownDistance, c.pixelsPerWorldUnit] : null,
 		document.objects.toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(object => [object.id, object.points.map(point), curves(object.bulges, object.points.length)]),
 		structureContent(document.structure), structureContent(document.intended),
-		// Group and member order are persisted history facts, including deletion restoration.
-		(document.groups ?? []).map(group => [group.id, group.name, group.memberIds])];
+		(document.groups ?? []).toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(group => [group.id, group.name, group.memberIds.toSorted()])];
 }
 
 export function sameGeometryDocument(a: PlanGeometryDocument, b: PlanGeometryDocument): boolean {

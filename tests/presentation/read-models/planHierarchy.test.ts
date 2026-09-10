@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { err, isErr } from '../../../src/core/result/Result';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
@@ -8,6 +9,9 @@ import { ancestryOf, NO_HIERARCHY, readPlanHierarchy } from '../../../src/presen
 import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { expectFound, expectOk } from '../../helpers/domain';
 import { makePlan, makeProject, makeZone, squareAt } from '../../helpers/entities';
+
+/** A `Query` double that refuses every call, for exercising `readPlanHierarchy`'s `isErr` arms. */
+const failingQuery = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' } as const)) };
 
 async function scene() {
 	const plans = new InMemoryPlanRepository(), zones = new InMemoryZoneRepository(), project = makeProject();
@@ -54,6 +58,53 @@ describe('readPlanHierarchy', () => {
 
 		expect(expectOk(await readPlanHierarchy(s.queries, 'plan-missing'))).toEqual(NO_HIERARCHY);
 	});
+
+	/**
+	 * Spec §4.9: "Parent plan deleted or unreadable — Chain ends at the project; no guide."
+	 * The zone note itself still resolves (zones are indexed independently of their plan
+	 * note), so a fix keyed only on the zone lookup would still draw a guide here.
+	 */
+	it('draws no guide once the parent plan is gone, even though its zone note still resolves', async () => {
+		const s = await scene();
+		expectOk(await s.plans.delete(s.site.id, expectFound(await s.plans.getById(s.site.id)).version));
+		expectFound(await s.zones.getById(s.houseZone.id));
+
+		const house = expectOk(await readPlanHierarchy(s.queries, s.house.id));
+		expect(house.parentZone).toBeNull();
+		expect(house.parentZoneMissing).toBe(false);
+		expect(house.ancestry).toEqual([]);
+	});
+
+	it('answers a failed plan read with isErr', async () => {
+		const s = await scene();
+		const result = await readPlanHierarchy({ ...s.queries, getPlan: failingQuery }, s.house.id);
+		expect(isErr(result)).toBe(true);
+	});
+
+	it('answers a failed plans-listing read with isErr', async () => {
+		const s = await scene();
+		const result = await readPlanHierarchy({ ...s.queries, listPlans: failingQuery }, s.house.id);
+		expect(isErr(result)).toBe(true);
+	});
+
+	it('answers a failed zones read with isErr', async () => {
+		const s = await scene();
+		const result = await readPlanHierarchy({ ...s.queries, findZonesByPlan: failingQuery }, s.house.id);
+		expect(isErr(result)).toBe(true);
+	});
+
+	it('carries the parent zone’s curve bulges into the outline when it has any', async () => {
+		const plans = new InMemoryPlanRepository(), zones = new InMemoryZoneRepository(), project = makeProject();
+		const site = makePlan({ projectId: project.id, name: 'Site' });
+		const curvedZone = makeZone({ projectId: project.id, planId: site.id, name: 'Yard', zoneType: 'Custom', geometry: { points: squareAt().points, bulges: [0.25, 0, 0, 0] } });
+		const child = makePlan({ projectId: project.id, name: 'Yard detail', parent: { planId: site.id, zoneId: curvedZone.id } });
+		expectOk(await plans.save(site, 'absent'));
+		expectOk(await plans.save(child, 'absent'));
+		expectOk(await zones.save(curvedZone, 'absent'));
+		const queries = { getPlan: new GetPlan(plans), listPlans: new ListPlansByProject(plans), findZonesByPlan: new FindZonesByPlan(zones) };
+		const hierarchy = expectOk(await readPlanHierarchy(queries, child.id));
+		expect(hierarchy.parentZone?.bulges).toEqual([0.25, 0, 0, 0]);
+	});
 });
 
 describe('ancestryOf', () => {
@@ -62,5 +113,10 @@ describe('ancestryOf', () => {
 		const planA = makePlan({ id: a, projectId: project.id, name: 'A', parent: { planId: b, zoneId: 'zone-x' as never } });
 		const planB = makePlan({ id: b, projectId: project.id, name: 'B', parent: { planId: a, zoneId: 'zone-y' as never } });
 		expect(ancestryOf(planA, [planA, planB])).toEqual([{ id: b, name: 'B' }]);
+	});
+
+	it('answers an empty chain for a plan with no parent', () => {
+		const planWithoutParent = makePlan({ projectId: makeProject().id, name: 'Site' });
+		expect(ancestryOf(planWithoutParent, [planWithoutParent])).toEqual([]);
 	});
 });

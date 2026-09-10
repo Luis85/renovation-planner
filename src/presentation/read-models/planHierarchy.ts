@@ -75,6 +75,37 @@ function detailPlansOf(plan: Plan, plans: readonly Plan[]): DetailPlanDto[] {
  * `ok(NO_HIERARCHY)` for a plan that no longer exists — `ProjectStore`'s own read already draws
  * that state, so a second answer here would only repeat it.
  */
+/**
+ * The parent-zone half of the hierarchy (ancestry, the outline to draw as a guide, and whether
+ * that outline is missing). Split out of `readPlanHierarchy` to keep that function's branches
+ * under the complexity budget — `plan.parent` is non-null in every caller.
+ *
+ * A parent plan not among `listedPlans` (deleted or unreadable) answers no guide at all
+ * (spec §4.9: "Parent plan deleted or unreadable — Chain ends at the project; no guide"),
+ * without asking `findZonesByPlan` — the zone note may still resolve on its own, independently
+ * of its plan, and a guide drawn from it would contradict the ended ancestry. `parentZoneMissing`
+ * stays reserved for a parent plan that IS loaded but whose named zone no longer resolves.
+ */
+async function parentHierarchyOf(
+	queries: HierarchyQueries,
+	parent: NonNullable<Plan['parent']>,
+	plan: Plan,
+	listedPlans: readonly Plan[],
+): Promise<Result<Pick<PlanHierarchyDto, 'ancestry' | 'parentZone' | 'parentZoneMissing'>, RepositoryError>> {
+	const ancestry = ancestryOf(plan, listedPlans);
+	if (!listedPlans.some((item) => item.id === parent.planId)) {
+		return ok({ ancestry, parentZone: null, parentZoneMissing: false });
+	}
+	const zones = await queries.findZonesByPlan.execute({ planId: parent.planId });
+	if (isErr(zones)) return zones;
+	const zone = zones.value.loaded.find((loaded) => loaded.entity.id === parent.zoneId)?.entity;
+	return ok({
+		ancestry,
+		parentZone: zone === undefined ? null : { name: zone.name, points: [...zone.geometry.points], ...(zone.geometry.bulges ? { bulges: [...zone.geometry.bulges] } : {}) },
+		parentZoneMissing: zone === undefined,
+	});
+}
+
 export async function readPlanHierarchy(queries: HierarchyQueries, planId: string): Promise<Result<PlanHierarchyDto, RepositoryError>> {
 	const found = await queries.getPlan.execute({ planId: planId as PlanId });
 	if (isErr(found)) return found;
@@ -84,14 +115,7 @@ export async function readPlanHierarchy(queries: HierarchyQueries, planId: strin
 	if (isErr(listed)) return listed;
 	const detailPlans = detailPlansOf(plan, listed.value.plans);
 	if (plan.parent === null) return ok({ ...NO_HIERARCHY, detailPlans });
-	const parent = plan.parent;
-	const zones = await queries.findZonesByPlan.execute({ planId: parent.planId });
-	if (isErr(zones)) return zones;
-	const zone = zones.value.loaded.find((loaded) => loaded.entity.id === parent.zoneId)?.entity;
-	return ok({
-		ancestry: ancestryOf(plan, listed.value.plans),
-		detailPlans,
-		parentZone: zone === undefined ? null : { name: zone.name, points: [...zone.geometry.points], ...(zone.geometry.bulges ? { bulges: [...zone.geometry.bulges] } : {}) },
-		parentZoneMissing: zone === undefined,
-	});
+	const parentHierarchy = await parentHierarchyOf(queries, plan.parent, plan, listed.value.plans);
+	if (isErr(parentHierarchy)) return parentHierarchy;
+	return ok({ ...parentHierarchy.value, detailPlans });
 }

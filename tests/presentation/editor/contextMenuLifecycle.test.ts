@@ -65,6 +65,10 @@ it('refuses native text/control context menus and active drawing or drag input w
 		expect(context(input).defaultPrevented).toBe(false); expect(context(editable).defaultPrevented).toBe(false);
 		expect(context(rig.wrapper.get('[data-rp-action="select"]').element).defaultPrevented).toBe(false);
 		rig.runtime.setTool('draw-path'); await settle(); expect(key(rig.canvasEl, 'ContextMenu').defaultPrevented).toBe(false);
+		// Camera mode — no active tool at all — is neither 'select' nor 'pan' either, and it is
+		// the one state where `activeToolId.value` is genuinely `null` rather than some other
+		// tool's id.
+		rig.runtime.setTool(null); await settle(); expect(key(rig.canvasEl, 'ContextMenu').defaultPrevented).toBe(false);
 		rig.runtime.setTool('select'); rig.runtime.toolManager.pointerDown(pointerAt(-10000, -10000));
 		expect(key(rig.canvasEl, 'ContextMenu').defaultPrevented).toBe(false); rig.runtime.toolManager.cancelGesture();
 		await rig.wrapper.get('[data-rp-action="pan"]').trigger('click');

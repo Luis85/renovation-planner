@@ -152,8 +152,8 @@ export class SelectTool implements EditorTool {
 
 		const { candidates, target, rotationControl } = this.targetAt(context, event);
 		// A press is exactly when the predicted hover stops meaning anything, on every path
-		// out of this method — a body hit, a handle hit, a miss that clears the selection, and
-		// a target the candidate list no longer has: the pointer is about to act rather than
+		// out of this method — a body hit, a handle hit and a miss that clears the
+		// selection: the pointer is about to act rather than
 		// merely look, and the resolved target below is what that action works from. The KIND
 		// goes with the id: they are one fact in two fields (see `RenderState`).
 		context.renderState.hoveredObjectId = null;
@@ -164,8 +164,10 @@ export class SelectTool implements EditorTool {
 			return;
 		}
 		if (target.kind === 'rotation') { this.startRotation(context, event, target.id, rotationControl); return; }
-		const hit = candidates.find((candidate) => candidate.id === target.id);
-		if (hit === undefined) return;
+		// `resolveSelectionTarget` was handed this same `candidates` array, and every non-rotation
+		// id it answers comes out of it: `handleAt` and `badgeAt` find the id there first, and
+		// `bodyAt` iterates it. A rotation target has already returned above.
+		const hit = candidates.find((candidate) => candidate.id === target.id) as SpatialObjectCandidate;
 		if (this.focusSelectedMember(context, event, hit.id)) return;
 		if (target.kind === 'body' && this.selectGroup(context, event, hit.id)) return;
 		if (hit.kind) { this.selectStructure(context, event, hit, target); return; }

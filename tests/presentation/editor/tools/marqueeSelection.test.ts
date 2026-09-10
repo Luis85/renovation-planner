@@ -87,4 +87,17 @@ describe('empty-canvas marquee selection', () => {
 		marquee.move(context, pointerAt(50, 50));
 		expect(marquee.active).toBe(false); expect(context.renderState.marquee).toBeNull();
 	});
+	it('leaves a group drag running on a non-primary release, rather than committing it', () => {
+		// A mouse shares one pointerId across its buttons: a reflexive right-click mid-drag
+		// must not commit the group move at the half-finished position the way a stray
+		// secondary release on an ordinary drag must not (the same rule `pointerUp`'s own
+		// primary-button guard states for a solo drag, restated for `SelectionInteractions`).
+		let active = true;
+		const start = vi.fn<(ids: readonly string[], event: EditorPointerEvent) => boolean>(() => true), moveGroup = vi.fn<(event: EditorPointerEvent) => void>(), finish = vi.fn<(event: EditorPointerEvent) => void>();
+		const { tool } = setup([{ id: 'one', points: square }], { expandSelection: (_id, deep) => deep ? ['one'] : ['one', 'two'], selectionMove: { get active() { return active; }, start, move: moveGroup, finish, cancel: () => { active = false; } } });
+
+		tool.pointerUp({ ...pointerAt(70, 70), button: 'secondary' });
+
+		expect(finish).not.toHaveBeenCalled();
+	});
 });

@@ -9,7 +9,8 @@ import { transformGroupGeometry } from '../../../src/domain/spatial/groupGeometr
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
 import { ReversibleMoveZoneCommand } from '../../../src/presentation/editor/tools/reversible-move-zone-command';
 import type { ZoneId } from '../../../src/domain/zone/ZoneId';
-import { err } from '../../../src/core/result/Result';
+import { err, ok } from '../../../src/core/result/Result';
+import type { ZoneRepository } from '../../../src/application/ports/ZoneRepository';
 import { MigrationRunner } from '../../../src/infrastructure/persistence/migration/MigrationRunner';
 import { PLAN_GEOMETRY_MIGRATIONS } from '../../../src/infrastructure/persistence/migration/geometry/plan/plan-geometry.migrations';
 import { ObsidianPlanGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
@@ -97,4 +98,26 @@ it('encloses a Room and creates its group in one reversible write, reusing exact
 	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.groups?.[0].memberIds).toHaveLength(5);
 	expectOk(await command.undo()); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(baseline.document);
 	expect(expectFound(await rig.stack.zones.getById(roomId)).entity.geometry.points).toEqual(room.points);
+});
+it('treats a repository with no versioning support as superseding an in-flight move, writing nothing', async () => {
+	const rig = await structureStack(); expectOk(await rig.room.execute());
+	const roomId = expectDefined(rig.room.createdZoneId, 'Room') as ZoneId;
+	// No `prepareGeometryVersions` at all — the port marks it optional for exactly a
+	// repository like this, and the command must not assume every implementer has it.
+	const noVersioning: ZoneRepository = {
+		getById: () => Promise.resolve(ok(null)),
+		save: () => Promise.reject(new Error('unused in this test')),
+		delete: () => Promise.reject(new Error('unused in this test')),
+		listByProject: () => Promise.resolve(ok({ loaded: [], refused: 0 })),
+		listByPlan: () => Promise.resolve(ok({ loaded: [], refused: 0 })),
+	};
+	const groups = groupGeometryServices(rig.geometry, noVersioning, rig.stack.events);
+	const baseline = expectOk(await groups.read(rig.plan.id));
+	const room = expectDefined(baseline.document.objects.find(object => object.id === roomId), 'Room outline');
+	const moved = { ...room, points: room.points.map(point => ({ x: point.x + 10, y: point.y })) };
+	const document = { ...baseline.document, objects: baseline.document.objects.map(object => object.id === roomId ? moved : object) };
+	const command = groups.command({ planId: rig.plan.id, baseline, document, ledger: rig.ledger });
+	const write = vi.spyOn(rig.geometry, 'write');
+	expect(await command.execute()).toMatchObject({ ok: false, error: { code: 'undo.superseded' } });
+	expect(write).not.toHaveBeenCalled();
 });

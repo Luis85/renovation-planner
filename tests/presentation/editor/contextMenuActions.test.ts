@@ -5,6 +5,7 @@ import { settle, settleUntil } from '../../helpers/editor';
 import { expectFound, expectOk } from '../../helpers/domain';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
+import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -28,6 +29,25 @@ it('opens real Add and Fit routes, keeps unavailable framing inert, and limits R
 	rig.selection.select([rig.room.id]); await menu(rig);
 	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit']);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+it('fits nothing when the plan empties out between the menu opening and the click landing', async () => {
+	// `actions` is a `computed`: the button's `disabled` and its `run` closure's `ids.length
+	// === 0` both come from the SAME evaluation that built the currently-rendered menu, not
+	// from whatever the store holds the instant the click actually lands. Emptying the plan
+	// with no tick in between (before Vue's own re-render would have caught up) is what makes
+	// the two disagree — `fit(true)` re-reads `frame()` fresh and finds nothing to bound.
+	const rig = await setup(), fit = vi.spyOn(useEditorStore(rig.pinia), 'fitTo');
+	rig.selection.clear();
+	await menu(rig);
+	const button = rig.wrapper.get('[data-rp-context-action="fit"]');
+	expect(button.attributes('aria-disabled')).toBeUndefined();
+
+	rig.project.zones = new Map();
+	rig.project.structure = EMPTY_STRUCTURE;
+	await button.trigger('click');
+
+	expect(fit).not.toHaveBeenCalled();
 });
 
 it('routes Area shape and metadata actions to their existing forms and persists metadata through real history', async () => {

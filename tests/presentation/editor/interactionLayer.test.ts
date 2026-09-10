@@ -17,6 +17,7 @@ import type Konva from 'konva';
 import { mountPlanEditorCanvas, runtimeOf, settle, type EditorHarness } from '../../helpers/editor';
 import { activateTool, click, pointer, rig } from '../../helpers/planEditorRig';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
+import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import {
 	POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX,
 	POLYGON_CLOSE_TARGET_RADIUS_PX,
@@ -385,6 +386,33 @@ describe('the interaction layer hover outline', () => {
 		await settle();
 
 		expect(linesNamed(harness, 'hover-outline')).toHaveLength(0);
+
+		harness.unmount();
+	});
+});
+
+/**
+ * `multiOutlines` draws one numbered outline per selected zone with NO vertex handles — the
+ * layer's own comment says a group edit gets no handles. Its `anchor` is `null` for a zone
+ * with no geometry at all (an empty `points`), which is what withholds that one's badge and
+ * number while its (empty) outline still draws.
+ */
+describe('the interaction layer multi-selection outlines', () => {
+	it('numbers every selected zone, and withholds the badge for one with no geometry at all', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const project = useProjectStore();
+		// Pinia unwraps a setup store's own refs at the store's public surface — `project.zones`
+		// is the raw Map, not a `Ref`, so a fresh Map is what replaces it.
+		project.zones = new Map([...project.zones, ['zone-no-geometry', {
+			id: 'zone-no-geometry', planId: 'plan-ground', name: 'Blank', zoneType: 'Room', status: 'Planned', points: [],
+		}]]) as never;
+
+		useSelectionStore().select(['zone-kitchen', 'zone-no-geometry'] as never);
+		await settle();
+
+		expect(linesNamed(harness, 'selection-outline')).toHaveLength(2);
+		// One badge only — the geometry-less zone's anchor is null, so it draws no badge.
+		expect(interactionLayer(harness.stage).find('.selection-badge')).toHaveLength(1);
 
 		harness.unmount();
 	});

@@ -45,6 +45,26 @@ describe('spatial element drafts and real selection projections', () => {
 		tool.finish(); expect(finish).toHaveBeenCalledOnce(); tool.pointerUp(); tool.deactivate(); expect(stop).toHaveBeenCalledOnce();
 		tool.pointerMove(pointerAt(20, 30)); expect(r.dispatched).toEqual([]);
 	});
+	it('places no point when a press becomes blocked between its own two blocked() reads', () => {
+		// `pointerDown` asks `inputContext()` once for itself and once again, implicitly,
+		// through the `pointerMove` it calls — and `inputContext()` re-reads `blocked()` each
+		// time rather than caching it. A `blocked()` that flips true between those two reads
+		// (the trust path clamping shut mid-gesture) leaves `pointerMove`'s own guard refusing
+		// to set `draft.cursor`, so the press's `if (this.deps.draft.cursor)` finds it still
+		// null and never calls `addPoint`.
+		const draft = createElementDraft(), start = vi.fn<(id: string) => void>(), stop = vi.fn<() => void>(), finish = vi.fn<() => void>();
+		const addPoint = vi.fn<(point: Point) => boolean>(point => { draft.points.push(point); return true; });
+		let reads = 0;
+		const blocked = () => { reads += 1; return reads > 1; };
+		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked, candidates: () => ({}) });
+		const r = toolContext();
+		tool.activate(r.context);
+
+		tool.pointerDown(pointerAt(10, 20));
+
+		expect(draft.cursor).toBeNull();
+		expect(addPoint).not.toHaveBeenCalled();
+	});
 	it('translates Object/line bodies only on a completed meaningful primary drag', () => {
 		const preview = vi.fn<(id: string | null, points?: readonly Point[]) => void>(), move = vi.fn<(id: string, points: readonly Point[]) => void>();
 		const gesture = new ElementMove({ previewElement: preview, moveElement: move }), r = toolContext({ worldPerScreenPixel: 10 });

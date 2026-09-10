@@ -22,4 +22,5 @@ it('bounds image search before mapping or sorting a large vault and excludes doc
 	getFiles.mockClear();
 	expect(files.list({ limit: 0 })).toEqual([]);
 	expect(getFiles).not.toHaveBeenCalled();
+	expect(files.list({ imagesOnly: true, limit: Number.POSITIVE_INFINITY })).toHaveLength(20);
 });

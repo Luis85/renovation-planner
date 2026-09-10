@@ -1,16 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { storeToRefs } from 'pinia';
 import HostIcon from '../../components/HostIcon.vue';
 import ReferenceLayerAppearance from './ReferenceLayerAppearance.vue';
 import type { PlanDto } from '../../read-models/PlanDto';
 import { tr } from '../../i18n/strings';
-import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { LayerEntry } from '../layers/layerCatalogue';
 const props = defineProps<{ entry: LayerEntry; plan?: PlanDto | null; ids: { readonly checkbox: string; readonly reason: string; readonly actionReason: string } }>();
 const emit = defineEmits<{ activateTool: [toolId: 'calibrate'] }>();
-const workspace = useWorkspaceStore();
-const { layerVisibility } = storeToRefs(workspace);
 const separateActionReason = computed(() => {
 	const entry = props.entry;
 	return entry.action !== null && !entry.action.enabled && entry.action.reasonKey !== entry.reasonKey ? entry.action.reasonKey : null;
@@ -49,16 +45,16 @@ function actionReasonId(entry: LayerEntry): string | undefined {
 			:id="ids.checkbox"
 			type="checkbox"
 			class="rp-visually-hidden"
-			:checked="layerVisibility[entry.konvaLayer]"
+			:checked="entry.visible()"
 			:disabled="entry.state === 'supported-empty'"
 			:aria-describedby="entry.reasonKey !== null ? ids.reason : undefined"
-			@change="workspace.toggleLayer(entry.konvaLayer)"
+			@change="entry.toggle()"
 		>
 		<label
 			:for="ids.checkbox"
 			class="rp-layer-toggle"
 		>
-			<HostIcon :name="layerVisibility[entry.konvaLayer] ? 'eye' : 'eye-off'" />
+			<HostIcon :name="entry.visible() ? 'eye' : 'eye-off'" />
 			<span>{{ tr(entry.labelKey) }}</span>
 			<ReferenceLayerAppearance
 				v-if="entry.id === 'reference' && plan?.background"

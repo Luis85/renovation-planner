@@ -12,8 +12,10 @@ import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
+import type { KonvaLayerId } from '../scene/KonvaLayers';
 import type { PlanDto } from '../../read-models/PlanDto';
-import { layerCatalogue } from '../layers/layerCatalogue';
+import { layerCatalogue, type LayerToggle, type LayerToggles } from '../layers/layerCatalogue';
 import LayerList from './LayerList.vue';
 import RoomSummaryList from './RoomSummaryList.vue';
 import { useSpatialRecords } from './useSpatialRecords';
@@ -26,7 +28,20 @@ const context = usePlanEditorContext();
 const records = useSpatialRecords();
 // Per-leaf on the runtime so selection mode survives panel reflow.
 const toggleSelection = runtime.multiSelectionMode;
-const entries = computed(() => layerCatalogue(props.plan, stale.value));
+const workspace = useWorkspaceStore();
+const konva = (layer: KonvaLayerId): LayerToggle => ({
+	visible: () => workspace.layerVisibility[layer],
+	toggle: () => workspace.toggleLayer(layer),
+});
+/** Every row's home, in one place: three Konva layers, the session flag, the notes gate. */
+const toggles = computed<LayerToggles>(() => ({
+	reference: konva('background'),
+	rooms: konva('zone'),
+	walls: konva('architecture'),
+	planned: runtime.renovation.available ? { visible: () => session.visible, toggle: () => { session.visible = !session.visible; } } : null,
+	notes: { visible: () => workspace.notesVisible, toggle: workspace.toggleNotes },
+}));
+const entries = computed(() => layerCatalogue(props.plan, toggles.value, stale.value));
 </script>
 
 <template>
@@ -71,18 +86,6 @@ const entries = computed(() => layerCatalogue(props.plan, stale.value));
 				:plan="plan"
 				@activate-tool="runtime.setTool"
 			/>
-			<label
-				v-if="runtime.renovation.available"
-				class="rp-layer-toggle"
-			>
-				<input
-					v-model="session.visible"
-					type="checkbox"
-					class="rp-visually-hidden"
-				>
-				<HostIcon :name="session.visible ? 'eye' : 'eye-off'" />
-				<span>{{ tr('editor.shell.planned-layer') }}</span>
-			</label>
 			<details
 				v-if="session.perspective !== 'review'"
 				class="rp-reference-options"

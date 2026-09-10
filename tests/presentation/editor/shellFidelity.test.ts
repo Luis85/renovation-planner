@@ -40,7 +40,8 @@ it('keeps the accessible element list in a disclosure and layer visibility separ
 	expect(disclosure.attributes('open')).toBeUndefined();
 	expect(disclosure.find(`[data-rp-id="${rig.room.id}"]`).exists()).toBe(true);
 	const saved = [...rig.stack.vault.entries];
-	const visibility = rig.wrapper.get('.rp-property-layers > .rp-layer-toggle input');
+	// Planned changes is the fourth row (reference, rooms, walls, planned, notes)
+	const visibility = rig.wrapper.findAll('.rp-layer-list input[type="checkbox"]')[3];
 	await visibility.setValue(false);
 	expect(rig.session.visible).toBe(false);
 	expect([...rig.stack.vault.entries]).toEqual(saved);

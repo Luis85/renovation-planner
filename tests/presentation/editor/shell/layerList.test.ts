@@ -16,11 +16,28 @@ describe('LayerList, mounted inside the editor', () => {
 		const harness = await mountPlanEditorCanvas();
 
 		const boxes = harness.wrapper.findAll('.rp-layer-list input[type="checkbox"]');
-		expect(boxes).toHaveLength(2);
+		// reference, rooms, walls, notes — the fixture editor has no renovation session, so no Planned row
+		expect(boxes).toHaveLength(4);
 
 		await boxes[1].setValue(false);
 
 		expect(useWorkspaceStore().layerVisibility.zone).toBe(false);
+	});
+
+	/**
+	 * Notes and photos is the fourth row in this rig (reference, rooms, walls, notes — no
+	 * renovation session, so no Planned row) and its own gate lives on `WorkspaceStore`
+	 * rather than on a Konva layer (`PlanCanvas` reads `notesVisible` to gate evidence pins).
+	 */
+	it('toggles WorkspaceStore.notesVisible from the Notes and photos row', async () => {
+		const harness = await mountPlanEditorCanvas();
+
+		const boxes = harness.wrapper.findAll('.rp-layer-list input[type="checkbox"]');
+		expect(useWorkspaceStore().notesVisible).toBe(true);
+
+		await boxes[3].setValue(false);
+
+		expect(useWorkspaceStore().notesVisible).toBe(false);
 	});
 
 	/**

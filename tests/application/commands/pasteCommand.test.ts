@@ -33,6 +33,19 @@ const SOURCE: ClipboardFloor = {
 };
 const CLIP = expectDefined(captureClipboard(SOURCE, ['zone-source', 'element-arrow']), 'clipboard');
 
+/** Two Rooms: the first with WALL_LOOP's walls and a boundary, the second bare, both in one group. */
+const TWO_ROOM_SOURCE: ClipboardFloor = {
+	rooms: [
+		{ key: 'zone-source', name: 'Kitchen', zoneType: 'Room', points: WALL_LOOP.walls.map(item => item.start) },
+		{ key: 'zone-second', name: 'Pantry', zoneType: 'Room', points: [{ x: 20000, y: 0 }, { x: 21000, y: 0 }, { x: 21000, y: 1000 }] },
+	],
+	structure: { ...WALL_LOOP, boundaries: [{ roomId: 'zone-source', wallIds: ['wall-a', 'wall-b', 'wall-c', 'wall-d'] }] },
+	names: [],
+	groups: [{ id: 'group-two', name: 'Kitchen and pantry', memberIds: ['zone-source', 'zone-second'] }],
+};
+const CLIP2 = expectDefined(captureClipboard(TWO_ROOM_SOURCE, ['zone-source', 'zone-second']), 'two-room clipboard');
+const TWO_ROOM_TARGET: Point = { x: 15000, y: 0 };
+
 /** A paste wired over a real stack — `renovationStack`'s floor (a Room, its walls) or `structureStack`'s empty one. */
 function wire<T extends Awaited<ReturnType<typeof structureStack>>>(base: T) {
 	const { stack, plan, geometry, ledger } = base;
@@ -180,6 +193,42 @@ it('undoes the rooms already written when reading the floor for a later step fai
 	}
 });
 
+it('undoes and redoes a two-room paste under the same zone ids, structure, groups and names', async () => {
+	const r = await rig(), before = await r.floor();
+	const command = new PasteCommand(r.deps, { planId: r.plan.id, clipboard: CLIP2, target: TWO_ROOM_TARGET });
+	expectOk(await command.execute());
+	const pasted = await r.floor();
+	expect(pasted.zones).toHaveLength(before.zones.length + 2);
+	expect(command.pastedIds).toHaveLength(2 + pasted.structure.walls.length - before.structure.walls.length);
+	expectOk(await command.undo());
+	const undone = await r.floor();
+	expect(undone.zones.map(zone => zone.id)).toEqual(before.zones.map(zone => zone.id));
+	expect(undone.structure).toEqual(before.structure);
+	expect(undone.groups).toEqual(before.groups);
+	expect(undone.names).toEqual(before.names);
+	expectOk(await command.execute());
+	const redone = await r.floor();
+	expect(redone.zones.map(zone => zone.id)).toEqual(pasted.zones.map(zone => zone.id));
+	expect(redone.structure).toEqual(pasted.structure);
+	expect(redone.groups).toEqual(pasted.groups);
+	expect(redone.names).toEqual(pasted.names);
+});
+
+it('undoes the first room when the second room of a two-room paste fails to save', async () => {
+	const r = await rig(), before = await r.floor();
+	const save = r.stack.zones.save.bind(r.stack.zones);
+	let calls = 0;
+	vi.spyOn(r.stack.zones, 'save').mockImplementation((zone, expected) =>
+		++calls === 2 ? Promise.resolve(err(injectedPersistenceError())) : save(zone, expected));
+	const command = new PasteCommand(r.deps, { planId: r.plan.id, clipboard: CLIP2, target: TWO_ROOM_TARGET });
+	const error = expectErr(await command.execute());
+	expect(error.code).toBe('test.injected-failure');
+	expect(leftWritesBehind(error)).toBe(false);
+	const after = await r.floor();
+	expect(after.zones.map(zone => zone.id)).toEqual(before.zones.map(zone => zone.id));
+	expect(after.structure).toEqual(before.structure);
+});
+
 it('refuses and writes nothing when the first room fails to save', async () => {
 	const r = await rig(), before = await r.floor();
 	vi.spyOn(r.stack.zones, 'save').mockResolvedValueOnce(err(injectedPersistenceError()));
@@ -197,8 +246,11 @@ it('skips the structure and group steps for a room copied with no walls and no g
 	};
 	const clip = expectDefined(captureClipboard(floor, ['zone-lone']), 'lone-room clipboard');
 	const r = wire(await structureStack()), before = await r.floor();
+	const structureRead = vi.spyOn(r.deps.renovation, 'read'), groupsRead = vi.spyOn(r.deps.groups, 'read');
 	const command = new PasteCommand(r.deps, { planId: r.plan.id, clipboard: clip, target: { x: 10000, y: 0 } });
 	expectOk(await command.execute());
+	expect(structureRead).not.toHaveBeenCalled();
+	expect(groupsRead).not.toHaveBeenCalled();
 	const after = await r.floor();
 	expect(after.zones).toHaveLength(before.zones.length + 1);
 	expect(after.structure).toEqual(before.structure);

@@ -63,7 +63,7 @@ function wired(refusing: { projects?: ProjectRepository; plans?: PlanRepository;
 		// `stack.plans` for the READ side even when the write side is refusing: the plan a
 		// zone create resolves its project through has to be findable, or the zone would fail
 		// on the reference rather than on the save under test.
-		createPlan: new CreatePlanCommand(plans, projects, events),
+		createPlan: new CreatePlanCommand(plans, projects, refusing.zones ?? stack.zones, events),
 		createZone: new CreateZoneCommand(refusing.zones ?? stack.zones, stack.plans, events),
 	} as unknown as PersistenceServices;
 	return { stack, services };

@@ -2,7 +2,7 @@ import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { ReferenceError } from '../../../core/errors/AppError';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { ProjectId } from '../../../domain/project/ProjectId';
-import { Plan } from '../../../domain/plan/Plan';
+import { Plan, type PlanParent } from '../../../domain/plan/Plan';
 import { createPlanId } from '../../../domain/plan/PlanId';
 import type { PlanBackgroundRef } from '../../../domain/plan/PlanBackgroundRef';
 import { planCreated } from '../../../domain/plan/Plan.events';
@@ -10,6 +10,7 @@ import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import type { ProjectRepository } from '../../ports/ProjectRepository';
+import type { ZoneRepository } from '../../ports/ZoneRepository';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { Loaded } from '../../ports/versioning';
 
@@ -18,6 +19,8 @@ export interface CreatePlanInput {
 	readonly name: string;
 	readonly background?: PlanBackgroundRef | null;
 	readonly layers?: readonly string[];
+	/** Makes the new plan a detail plan of this zone (ADR-0028). */
+	readonly parent?: PlanParent;
 }
 
 export type CreatePlanError = ReferenceError | RepositoryError;
@@ -32,6 +35,7 @@ export class CreatePlanCommand
 	constructor(
 		private readonly plans: PlanRepository,
 		private readonly projects: ProjectRepository,
+		private readonly zones: ZoneRepository,
 		private readonly events: EventBus,
 	) {}
 
@@ -50,6 +54,10 @@ export class CreatePlanCommand
 		if (found.value === null) {
 			return err(referenceError('plan.project-not-found', `Project ${input.projectId} not found.`));
 		}
+		if (input.parent) {
+			const refused = await this.refuseParent(input.projectId, input.parent);
+			if (refused !== null) return err(refused);
+		}
 		const created = Plan.create({ ...input, id: createPlanId() });
 		if (isErr(created)) {
 			return created;
@@ -62,5 +70,21 @@ export class CreatePlanCommand
 			planCreated({ planId: saved.value.entity.id, projectId: saved.value.entity.projectId }),
 		);
 		return ok({ plan: saved.value });
+	}
+
+	/** The parent plan exists in THIS project and the zone sits on that plan, or the reason it does not. */
+	private async refuseParent(projectId: ProjectId, parent: PlanParent): Promise<CreatePlanError | null> {
+		const plan = await this.plans.getById(parent.planId);
+		if (isErr(plan)) return plan.error;
+		if (plan.value === null) return referenceError('plan.parent-plan-not-found', `Plan ${parent.planId} not found.`);
+		if (plan.value.entity.projectId !== projectId) {
+			return referenceError('plan.parent-project-mismatch', `Plan ${parent.planId} belongs to another project.`);
+		}
+		const zone = await this.zones.getById(parent.zoneId);
+		if (isErr(zone)) return zone.error;
+		if (zone.value === null || zone.value.entity.planId !== parent.planId) {
+			return referenceError('plan.parent-zone-not-found', `Zone ${parent.zoneId} is not on plan ${parent.planId}.`);
+		}
+		return null;
 	}
 }

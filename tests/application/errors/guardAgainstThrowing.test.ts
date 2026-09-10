@@ -6,6 +6,7 @@ import { guardCommand, guardQuery } from '../../../src/application/errors/guardA
 import { createVaultExceptionMapper, type VaultExceptionMapper } from '../../../src/application/errors/exceptionMapper';
 import type { Logger } from '../../../src/application/ports/Logger';
 import { CreatePlanCommand } from '../../../src/application/commands/plan/CreatePlan';
+import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { CreateProjectCommand } from '../../../src/application/commands/project/CreateProject';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
@@ -188,7 +189,7 @@ function editorServices(): Fixture[] {
 		commandCase('CreateProjectCommand', new CreateProjectCommand(projects, events, currencyOf('EUR')) as never, 'command.createProject.failed', {
 			name: 'Kitchen',
 		}),
-		commandCase('CreatePlanCommand', new CreatePlanCommand(plans, projects, events) as never, 'command.createPlan.failed', {
+		commandCase('CreatePlanCommand', new CreatePlanCommand(plans, projects, new InMemoryZoneRepository(), events) as never, 'command.createPlan.failed', {
 			projectId: plan.projectId,
 			name: 'Ground floor',
 		}),

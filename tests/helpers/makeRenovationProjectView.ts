@@ -57,6 +57,7 @@ import { ListPlansByProject } from '../../src/application/queries/ListPlansByPro
 import { ListProjects } from '../../src/application/queries/ListProjects';
 import { ListProjectAssetPrices } from '../../src/application/queries/ListProjectAssetPrices';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { IndexProjectListFacts } from '../../src/infrastructure/obsidian/repositories/IndexProjectListFacts';
 import { IndexLibraryOverlaps } from '../../src/infrastructure/obsidian/repositories/IndexLibraryOverlaps';
@@ -296,7 +297,7 @@ export const defaultRenovationProjectDeps = (
 		}),
 		commands: {
 			createProject: new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency),
-			createPlan: new CreatePlanCommand(plans, projects, events),
+			createPlan: new CreatePlanCommand(plans, projects, new InMemoryZoneRepository(), events),
 			// REAL commands over the SAME `assets`/`overrides` this file's `listAssetPrices`
 			// reads through, not refusals: a stand-in that refuses what production answers turns
 			// a tool built for looking into one that shows a false picture, and the price section

@@ -25,7 +25,12 @@ export function areaNumericWorkspace(base: PlanEditorDeps, planDto: PlanDto, zon
 	const zones = new InMemoryZoneRepository();
 	const requirements = new InMemoryRequirementRepository();
 	const events = dispatchingEventBus();
-	const plan = expectOk(Plan.create({ ...planDto, id: planDto.id as PlanId, projectId: planDto.projectId as ProjectId }));
+	const plan = expectOk(Plan.create({
+		...planDto,
+		id: planDto.id as PlanId,
+		projectId: planDto.projectId as ProjectId,
+		parent: planDto.parent ? { planId: planDto.parent.planId as PlanId, zoneId: planDto.parent.zoneId as ZoneId } : undefined,
+	}));
 	const ready = (async () => {
 		expectOk(await plans.save(plan, 'absent'));
 		for (const dto of zoneDtos) {

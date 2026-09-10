@@ -54,6 +54,16 @@ const SpatialElementMetadataSchema = z.array(z.object({ id: z.string().startsWit
 const PlanFrontmatterSchemaV6 = PlanFrontmatterSchemaV5.extend({ 'schema-version': z.literal(6), 'spatial-elements': SpatialElementMetadataSchema.optional() });
 const PlanFrontmatterSchemaV7 = PlanFrontmatterSchemaV6.extend({ 'schema-version': z.literal(7) });
 /** Explicit evidence dates must be refused by older writers that would strip them. */
-export const PlanFrontmatterSchemaV8 = PlanFrontmatterSchemaV7.extend({ 'schema-version': z.literal(8) });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV8>;
+const PlanFrontmatterSchemaV8 = PlanFrontmatterSchemaV7.extend({ 'schema-version': z.literal(8) });
+/**
+ * A detail plan's link to the zone it details (ADR-0028). Both keys are optional in the schema
+ * because the discriminator migration lifts every older note to 9 in memory; the mapper refuses a
+ * note carrying only one of them. Written only for a plan that has a parent.
+ */
+export const PlanFrontmatterSchemaV9 = PlanFrontmatterSchemaV8.extend({
+	'schema-version': z.literal(9),
+	'parent-plan': z.string().min(1).optional(),
+	'parent-zone': z.string().min(1).optional(),
+});
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8, PlanFrontmatterSchemaV9]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV9>;

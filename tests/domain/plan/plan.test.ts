@@ -7,6 +7,19 @@ import { expectErr, expectOk } from '../../helpers/domain';
 
 const projectId = () => createProjectId();
 
+describe('Plan parent', () => {
+	it('carries an optional parent through every with-method, and refuses itself as parent', () => {
+		const id = createPlanId();
+		const parent = { planId: createPlanId(), zoneId: 'zone-house' as never };
+		const plan = expectOk(Plan.create({ id, projectId: projectId(), name: 'House', parent }));
+		expect(plan.parent).toEqual(parent);
+		expect(expectOk(plan.withBackground(null)).parent).toEqual(parent);
+		expect(expectOk(plan.withCalibration(null)).parent).toEqual(parent);
+		expect(expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'Site' })).parent).toBeNull();
+		expect(expectErr(Plan.create({ id, projectId: projectId(), name: 'Loop', parent: { ...parent, planId: id } })).code).toBe('plan.parent-is-self');
+	});
+});
+
 describe('Plan.create', () => {
 	it('constructs with defaults: no background, no calibration, empty layers', () => {
 		const plan = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: ' Ground floor ' }));

@@ -41,6 +41,8 @@ export interface PlanDto {
 	 */
 	readonly calibration: Calibration | null;
 	readonly layers: readonly string[];
+	/** Present only for a detail plan (ADR-0028). */
+	readonly parent?: { readonly planId: string; readonly zoneId: string };
 }
 
 export interface ZoneDto {
@@ -135,6 +137,7 @@ export function toPlanDto(plan: Plan): PlanDto {
 		background: plan.background,
 		calibration: plan.calibration,
 		layers: plan.layers,
+		...(plan.parent ? { parent: { planId: plan.parent.planId, zoneId: plan.parent.zoneId } } : {}),
 	};
 }
 

@@ -8,6 +8,13 @@ import { PLAN_BACKGROUND_KINDS, type PlanBackgroundRef } from './PlanBackgroundR
 import { planError } from './Plan.errors';
 import type { PlanId } from './PlanId';
 import type { SpatialElementMetadata } from '../spatial/SpatialElement';
+import type { ZoneId } from '../zone/ZoneId';
+
+/** The zone of another plan this plan details (ADR-0028). Set once at creation and never moved. */
+export interface PlanParent {
+	readonly planId: PlanId;
+	readonly zoneId: ZoneId;
+}
 
 /**
  * The ONE answer to "is this a usable background reference", shared by `create` and
@@ -52,6 +59,7 @@ export interface CreatePlanProps {
 	readonly name: string;
 	readonly background?: PlanBackgroundRef | null;
 	readonly layers?: readonly string[];
+	readonly parent?: PlanParent | null;
 }
 
 interface PlanFields {
@@ -63,6 +71,7 @@ interface PlanFields {
 	readonly background: PlanBackgroundRef | null;
 	readonly calibration: Calibration | null;
 	readonly layers: readonly string[];
+	readonly parent: PlanParent | null;
 }
 
 /**
@@ -80,6 +89,7 @@ export class Plan {
 	readonly background: PlanBackgroundRef | null;
 	readonly calibration: Calibration | null;
 	readonly layers: readonly string[];
+	readonly parent: PlanParent | null;
 
 	private constructor(fields: PlanFields) {
 		this.spatialElements = fields.spatialElements;
@@ -90,6 +100,7 @@ export class Plan {
 		this.background = fields.background;
 		this.calibration = fields.calibration;
 		this.layers = fields.layers;
+		this.parent = fields.parent;
 	}
 
 	static create(props: CreatePlanProps): Result<Plan, ValidationError> {
@@ -99,6 +110,9 @@ export class Plan {
 		if (props.renovation) {
 			const valid = validateRenovation(props.renovation);
 			if (!valid.ok) return valid;
+		}
+		if (props.parent && props.parent.planId === props.id) {
+			return err(planError('parent-is-self', 'A plan cannot detail a zone of itself.'));
 		}
 		const name = props.name.trim();
 		if (!name) {
@@ -123,6 +137,7 @@ export class Plan {
 				background,
 				calibration: null,
 				layers: [...layers],
+				parent: props.parent ? { planId: props.parent.planId, zoneId: props.parent.zoneId } : null,
 			}),
 		);
 	}
@@ -179,6 +194,7 @@ export class Plan {
 			background: this.background,
 			calibration: this.calibration,
 			layers: this.layers,
+			parent: this.parent,
 		};
 	}
 }

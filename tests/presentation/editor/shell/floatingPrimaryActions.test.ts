@@ -59,4 +59,19 @@ describe('FloatingPrimaryActions', () => {
 
 		expect(primaryActions.emitted('openAdd')).toHaveLength(1);
 	});
+
+	/**
+	 * Pan is a persistent button by decision of 2026-09-10 (user testing reversed M01's
+	 * "no persistent Pan mode"), and it draws an icon like its two neighbours rather than
+	 * being the one text-only control in the group. The fixture assertion is what proves the
+	 * harness can draw it: `HostIcon` marks a name with no fixture `data-icon-missing`.
+	 */
+	it('draws Pan with the hand icon, and the harness has a fixture for it', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const icon = harness.wrapper.find('button[data-rp-action="pan"] .rp-host-icon');
+
+		expect(icon.exists()).toBe(true);
+		expect(icon.attributes('data-icon')).toBe('hand');
+		expect(icon.attributes('data-icon-missing')).toBeUndefined();
+	});
 });

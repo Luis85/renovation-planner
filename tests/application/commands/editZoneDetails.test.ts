@@ -69,4 +69,34 @@ describe('Area details use one versioned Zone transaction', () => {
 		expectOk(await command.undo()); expect(expectFound(await r.stack.zones.getById(original.entity.id)).entity).toEqual(original.entity);
 		expectOk(await command.execute()); expect(expectFound(await r.stack.zones.getById(original.entity.id)).entity.name).toBe('Garden patio');
 	});
+	it('locks and unlocks through the same transaction, as one undo step with its event', async () => {
+		const r = await seed(), published = vi.spyOn(r.events, 'publish');
+		const details = { name: r.original.entity.name, zoneType: r.original.entity.zoneType };
+		const command = new EditZoneDetailsCommand(r.zones, r.events, r.ledger, {
+			zoneId: r.input.zoneId, expected: r.original.version,
+			forward: { ...details, locked: true }, inverse: { ...details, locked: false },
+		});
+		expect(await command.execute()).toEqual({ ok: true, value: 'wrote' });
+		expect(expectFound(await r.zones.getById(r.input.zoneId)).entity.locked).toBe(true);
+		expect(published).toHaveBeenCalledTimes(1);
+		expectOk(await command.undo());
+		expect(expectFound(await r.zones.getById(r.input.zoneId)).entity).toEqual(r.original.entity);
+		expectOk(await command.execute());
+		expect(expectFound(await r.zones.getById(r.input.zoneId)).entity.locked).toBe(true);
+		expect(published).toHaveBeenCalledTimes(3);
+	});
+	it('leaves the lock alone when a details edit does not name it, and treats an unchanged lock as no write', async () => {
+		const r = await seed();
+		const lockedSave = expectOk(await r.zones.save(r.original.entity.withLocked(true), r.original.version));
+		const rename = new EditZoneDetailsCommand(r.zones, r.events, r.ledger, {
+			zoneId: r.input.zoneId, expected: lockedSave.version,
+			forward: { name: 'Patio', zoneType: 'Terrace' }, inverse: { name: 'Area 1', zoneType: 'Custom' },
+		});
+		expectOk(await rename.execute());
+		expect(expectFound(await r.zones.getById(r.input.zoneId)).entity).toMatchObject({ name: 'Patio', locked: true });
+		const live = expectFound(await r.zones.getById(r.input.zoneId));
+		const same = { name: 'Patio', zoneType: 'Terrace' as const, locked: true };
+		expect(await new EditZoneDetailsCommand(r.zones, r.events, r.ledger, { zoneId: r.input.zoneId, expected: live.version, forward: same, inverse: same }).execute())
+			.toEqual({ ok: true, value: 'no-write' });
+	});
 });

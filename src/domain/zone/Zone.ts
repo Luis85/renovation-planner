@@ -116,10 +116,7 @@ export class Zone {
 		return checked;
 	}
 
-	// Unconsumed by src/ until a later task wires `EditZoneDetailsCommand` to it (this
-	// plan's Task 3). Suppressed here rather than deleted, the same as `perimeter()` below.
 	/** Lock or unlock; nothing about a lock can be invalid, so this answers a Zone rather than a Result. */
-	// fallow-ignore-next-line unused-class-member
 	withLocked(locked: boolean): Zone {
 		return new Zone({ ...this.fields(), locked });
 	}

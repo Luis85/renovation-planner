@@ -145,3 +145,20 @@ variables only; the build's colour check refuses anything else.
 - `styles/chrome.css` docblock rewritten (section 1), M01 and component library amended
   (section 2).
 - CLAUDE.md is not edited: it names neither the header decision nor the layer row count.
+
+## Deviations
+
+- §4 names `src/plugin/planEditorDeps.ts` for `EditorNavigation.plan`; it is wired in
+  `src/plugin/editorWorkspaceNavigation.ts` (which `planEditorDeps.ts` calls to build
+  `navigation`) through `renovationProjectOpenPlan`, which wraps `revealPlanEditor`.
+- §4 names `PlanEditorRoot.vue (hydrate)` and `PlanRepository.listByProject`; sibling plans
+  load in `ProjectStore`'s hydrate routine (the one the root calls, which re-runs after
+  commands) through the `ListPlansByProject` application query, because presentation may not
+  reach a repository.
+- §3 says `layerCatalogue` takes the plan, the workspace store, the renovation session and
+  `writesBlocked`; it takes the plan, a `LayerToggles` bundle of `visible()`/`toggle()`
+  closures built by `PropertyLayerPanel`, and `writesBlocked`, so the catalogue stays a pure
+  function.
+- §3's Notes and photos row says `ZoneLayer` and `RenovationLayer` "go quiet": only the
+  annotation layer draws evidence pins; the zone layer uses the same list for caption
+  clearance, so toggling the row removes the pins and releases the captions.

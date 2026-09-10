@@ -5576,3 +5576,30 @@ with its host and placement through a fresh stack' (0fd81e5d), also green on fir
 same pass fixed the two later threads on the pull request: the `#90 stays open` bullet is now the closed record,
 and `Persist a wall as one spatial identity`'s `## Outcome` reads its achieved outcome instead of
 "Not started."
+
+## Plan editor sidebar and chrome polish, 2026-09-10
+
+Spec: `docs/superpowers/specs/2026-09-10-plan-editor-sidebar-polish-design.md`. One PR.
+
+What landed: the Plan editor hides Obsidian's view header (reversing `styles/chrome.css`'s
+recorded argument for keeping it; the tab strip and the context bar both still name the plan);
+Pan draws a `hand` icon and STAYS in the floating actions by a user-testing decision that
+reverses M01's "no persistent Pan mode" — M01 and component library §6 carry the dated
+amendment; the Layers list is five user-vocabulary rows (`layerCatalogue` takes a
+`LayerToggles` bundle of `visible()`/`toggle()` closures and no longer names a Konva layer),
+with "Planned changes" folded into the list and a new "Notes and photos" row over
+`WorkspaceStore.notesVisible`, gated once where `PlanCanvas` computes evidence pins; a
+`PropertyTree` of the project's sibling plans (`PlanEditorQueryServices.listPlans` →
+`ProjectStore.plans`, navigation through the new `EditorNavigation.plan` over
+`revealPlanEditor`); and every sidebar section is a `<details>` in the order Property,
+Layers (legend at its foot), Rooms and areas, Walls and openings, the last one closed.
+
+What was deferred and why: the mockup's reference-layer lock (interaction spec §56, nothing
+today mis-drags a reference); `role="tree"` with arrow-key roving on the Property tree (two
+levels, Tab-reachable buttons; the roving arrives with a third level); grouped layers per §54
+(five rows do not need headings).
+
+Lesson: the Konva seven-layer stack was never the problem — it is a paint order (SDD §17) and
+correct. What was wrong was the PANEL borrowing its vocabulary, which made "Planned changes",
+a visibility cutting across three layers, impossible to offer as a row. Keying a row by a
+predicate rather than by a scene id is what made the fifth row cost one `ref`.

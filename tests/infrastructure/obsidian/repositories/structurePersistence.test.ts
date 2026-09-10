@@ -19,6 +19,10 @@ describe('ADR-SO sidecar compatibility and refusal', () => {
 		expect(legacy.schemaVersion).toBe(1);
 		const migrate = PLAN_GEOMETRY_MIGRATIONS[0].migrate;
 		const next = migrate(legacy); expect(migrate(next)).toEqual(next); expect(migrate(null)).toBeNull(); expect(migrate(7)).toBe(7);
+		// Every step, not only the first, passes a non-object input through unchanged rather
+		// than reshaping it: `MigrationRunner` never hands one a primitive in practice (a chain
+		// gap throws first), but each step is a pure function tested at its own boundary.
+		for (const step of PLAN_GEOMETRY_MIGRATIONS.slice(1)) { expect(step.migrate(null)).toBeNull(); expect(step.migrate(7)).toBe(7); }
 		expectOk(await geometry.write(plan.id, { ...before.document, structure: WALL_LOOP }, before.version));
 		expect(JSON.parse(expectDefined(stack.vault.entries.get(path), 'sidecar')).schemaVersion).toBe(2);
 		expect(expectOk(await geometry.read(plan.id)).document.objects).toEqual(before.document.objects);

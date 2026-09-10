@@ -66,4 +66,19 @@ describe('Room boundary deletion history through actual repositories', () => {
 		expectOk(await geometry.write(plan.id, { ...now.document, structure: undefined }, now.version));
 		expect(expectErr(await history.restore(zone)).code).toBe('spatial.boundary-missing');
 	});
+	it('falls back to the empty structure catalogue when restoring a solely-grouped Room with no boundary snapshot', async () => {
+		const rig = await structureStack(); expectOk(await rig.room.execute());
+		const id = rig.room.createdZoneId as ZoneId;
+		const zone = expectFound(await rig.stack.zones.getById(id)).entity;
+		const baseline = expectOk(await rig.geometry.read(rig.plan.id));
+		const solo = { id: 'group-solo', name: 'Solo', memberIds: [id] };
+		const grouped = expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.document, groups: [solo] }, baseline.version));
+		const history = new RoomBoundaryHistory(rig.geometry);
+		expectOk(await history.capture(zone));
+		// Simulates the Room's own deletion emptying the group of its sole member — the
+		// group vanishes entirely, exactly as `removeGroupMembers` would leave it.
+		expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.document, groups: [] }, grouped));
+		expectOk(await history.restore(zone));
+		expect(expectOk(await rig.geometry.read(rig.plan.id)).document.groups).toEqual([solo]);
+	});
 });

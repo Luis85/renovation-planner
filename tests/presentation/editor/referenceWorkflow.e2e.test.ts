@@ -2,6 +2,7 @@ import { useSelectionStore } from '../../../src/presentation/editor/selection/se
 import axe from 'axe-core';
 import { runOptions } from '../../harness/axeOptions';
 import ReferencePreview from '../../../src/presentation/editor/reference/ReferencePreview.vue';
+import ReferencePrepare from '../../../src/presentation/editor/reference/ReferencePrepare.vue';
 import { previewTransform } from '../../../src/presentation/editor/reference/referenceSetup';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
@@ -338,6 +339,16 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 		const transition = r.harness.wrapper.get(FORM).trigger('submit'); r.harness.unmount(); await transition;
 		expect(r.harness.fileListeners()).toBe(0); expect(r.harness.canvasEl?.isConnected).toBe(false);
 		expect([...r.stack.vault.entries]).toEqual(before);
+	});
+
+	it('applies a crop replacement emitted directly by the source form, covering the model bridge', async () => {
+		const r = await rig(); await open(r); await prepare(r);
+		const prepareForm = r.harness.wrapper.getComponent(ReferencePrepare);
+		prepareForm.vm.$emit('update:crop', { x: 5, y: 5, width: 750, height: 550 });
+		await settle();
+		expect(r.harness.wrapper.get('input[name="crop-x"]').element).toHaveProperty('value', '5');
+		expect(r.harness.wrapper.get('input[name="crop-width"]').element).toHaveProperty('value', '750');
+		await cancel(r); r.harness.unmount();
 	});
 
 });

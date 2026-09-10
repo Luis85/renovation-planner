@@ -84,3 +84,10 @@ it('refuses invalid swing, keeps cancellation write-free and rejects peer change
 	await rig.runtime.structureActions.moveOpeningToPoint(door.id, { x: 2500, y: 0 });
 	expect(rig.dialogs.current).toBeNull();
 });
+
+it('ignores a move to a non-finite point without opening a review dialog', async () => {
+	const rig = await setup([door]); rig.selection.select([door.id as never]); await settle();
+	await rig.runtime.structureActions.moveOpeningToPoint(door.id, { x: Number.NaN, y: 0 });
+	expect(rig.dialogs.current).toBeNull();
+	expect(rig.project.structure.openings).toEqual([door]);
+});

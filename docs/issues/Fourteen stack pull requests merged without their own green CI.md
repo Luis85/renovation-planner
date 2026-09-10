@@ -66,7 +66,7 @@ repository deletes a head branch on merge. What remains:
 | `origin` | `codex/editor-evidence-fidelity-initial` | 4 commits not on `main` |
 | `origin` | `codex/editor-evidence-rotation-initial` | 6 commits not on `main` |
 | `origin` | `codex/editor-release-verification` | 16 commits not on `main` |
-| local only | ten `fix/editor-deliver-*` branches: creation, curves, group-storage, input, openings, photos, reference, room-edges, rotation-ui and shell | not on `main`; each is ahead of its deleted stack head, and no tip is on GitHub |
+| local only, now deleted | ten `fix/editor-deliver-*` branches: creation, curves, group-storage, input, openings, photos, reference, room-edges, rotation-ui and shell | every commit classified and what `main` lacked ported to `test/salvage-editor-deliver`; see "Salvage of the ten local branches" |
 | local only | `fix/editor-deliver-details` (`e4195dfd`) | on `main`, recorded content-free by `a92cdd7c` |
 
 Each `fix/editor-deliver-*` branch is checked out in its own worktree under `.worktrees/codex/`,
@@ -75,7 +75,8 @@ beside `editor-integration` (`integrate/editor-stack`) and `editor-top`
 `probe-costs` and `probe-costs2`. The three `codex/editor-evidence-*` branches and
 `codex/editor-release-verification` were never stack heads; the integration ledger recorded them
 only as left where they were. **Whether any unmerged branch carries a change `main` lacks**, rather
-than a version of one #115 superseded, is not established.
+than a version of one #115 superseded, is established for the ten local branches below and not
+for the four `codex/editor-*` branches on `origin`.
 
 **The ten local branches were never pushed under their own names, but each tracks a stack head.**
 `fix/editor-deliver-<name>` tracks `codex/editor-deliver-<name>`, the head branch of one of #102 to
@@ -86,11 +87,39 @@ answers "No commit found" for all ten tips, so those commits exist only in this 
 those ten, the open question above is exactly the commits each holds beyond its head.
 `fix/editor-deliver-details` is level with its head, #101's.
 
+## Salvage of the ten local branches
+
+Done on 2026-09-10 against `origin/main` at `ada324f9`. The ten branches held 19 commits. Each was
+classified by content, never by message: 8 already on `main`, 1 superseded, 9 still valuable in
+part, and 1 harmful.
+
+- **Already on `main`.** `git cherry` marks five of `shell`'s
+  commits as patch-identical to `main`. The sixth, `c5020fce`, has its one hunk in `main` through
+  `138c6a59`. `rotation-ui`'s helper and both of its call sites are byte-identical on `main`.
+  `creation`'s `8d696306` drives the same Finish arm as a case `main` already has.
+- **Superseded.** `shell`'s `0cb9e3db` split `LayerList.vue` and `PersistentWarningStrip.vue` for
+  template complexity. `main` solved that differently: it split the row into `LayerRow.vue` and
+  lifted the strip's row conditions into functions, and `npm run analyze` passes on it.
+- **Still valuable.** A baseline `npm run test:coverage` on `main` left 312 branches, 174
+  statements and 55 functions uncovered. Every candidate test case was then run alone under
+  coverage. 29 cases reached at least one of those arms and were ported; the rest reached nothing
+  new, duplicated a kept case, or were already on `main`. Five unreachable-guard removals were
+  re-proven against `main`'s code, and their proof comments were rewritten.
+- **Harmful.** `input`'s `ElementTool` guard removal was dropped, together with `d7f31099`, which only
+  reworded its comment. That guard is reachable through the class's public constructor: a
+  `blocked()` whose answer changes between the two reads in one press reaches it. The case proving
+  that is one of the 29 ported cases.
+
+The pull request from `test/salvage-editor-deliver` carries the per-commit table and the arm-level
+evidence. The ten branches and their `.worktrees/codex/` worktrees were deleted after it was
+opened. `shell`'s worktree also held an untracked `fix.patch`. That file is `c5020fce`'s own hunk,
+and it already reverse-applies to `main`.
+
 ## The question still open
 
-What happens to the branches and worktrees above. Deleting a branch discards whatever only it
-holds, so the decision is the product owner's. This note records the question and does not take
-it.
+What happens to the four `codex/editor-*` branches and `fix/editor-visual-acceptance` on `origin`.
+Deleting a branch discards whatever only it holds, so the decision is the product owner's. This
+note records the question and does not take it.
 
 ## Alternatives
 

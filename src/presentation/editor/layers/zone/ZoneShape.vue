@@ -97,7 +97,9 @@ const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + c
 	stroke: props.tokens.canvasBackground, strokeWidth: 2, fillAfterStrokeEnabled: true }));
 
 const statusCaption = computed(() => tr(appearance.value.captionKey));
-const groupConfig = computed(() => ({ name: props.model.id, listening: false }));
+/** A locked zone stays readable but recedes, so what can still be clicked stands out (ADR-0027). */
+const LOCKED_OPACITY = 0.5;
+const groupConfig = computed(() => ({ name: props.model.id, listening: false, opacity: props.model.locked ? LOCKED_OPACITY : 1 }));
 const fillConfig = computed(() => ({ points: flatPoints.value, closed: true, fill: fill.value,
 	opacity: props.selected ? 0.12 : 0.025, listening: false, perfectDrawEnabled: false }));
 const outlineConfig = computed(() => ({ points: flatPoints.value, closed: true, stroke: props.tokens.zoneStroke,

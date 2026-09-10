@@ -50,6 +50,8 @@ export interface ZoneDto {
 	readonly name: string;
 	readonly zoneType: string;
 	readonly status: string;
+	/** Present only while locked (ADR-0027): the canvas clicks through a locked zone. */
+	readonly locked?: true;
 	/** World millimetres, straight from `Zone.geometry` — never screen coordinates. */
 	readonly points: readonly Point[];
 }
@@ -144,6 +146,7 @@ export function toZoneDto(zone: Zone): ZoneDto {
 		name: zone.name,
 		zoneType: zone.zoneType,
 		status: zone.status,
+		...(zone.locked ? { locked: true as const } : {}),
 		// Copied, not aliased. The entity's own array is frozen only by convention, and a
 		// render model handed the same reference would let a later slice's edit reach back
 		// into a loaded entity — the one direction the read pipeline must not have.

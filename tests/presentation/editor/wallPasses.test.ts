@@ -23,6 +23,16 @@ describe('wallPasses', () => {
 		expect(passes.edge.slice(2)).toEqual([4130, 0]);
 	});
 
+	it('extends a joint by the JOINED wall\'s half thickness, so neither wall of an unequal L pokes past the other', () => {
+		const thin = { ...wall('wall-thin', { x: 0, y: 0 }, { x: 4000, y: 0 }), thickness: 100 };
+		const thick = wall('wall-thick', { x: 4000, y: 0 }, { x: 4000, y: 3000 });
+		const thinPasses = wallPasses(thin, [thin, thick], 0.1), thickPasses = wallPasses(thick, [thin, thick], 0.1);
+		expect(thinPasses.body.slice(2)).toEqual([4120, 0]);
+		expect(thinPasses.edge.slice(2)).toEqual([4130, 0]);
+		expect(thickPasses.body.slice(0, 2)).toEqual([4000, -50]);
+		expect(thickPasses.edge.slice(0, 2)).toEqual([4000, -60]);
+	});
+
 	it('leaves a free end unextended in the body and 1 / zoom long in the edge, the dark cap', () => {
 		const passes = wallPasses(north, [north], 0.1);
 		expect(passes.body).toEqual([0, 0, 4000, 0]);

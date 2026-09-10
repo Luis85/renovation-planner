@@ -70,12 +70,14 @@ const elementDraft = computed(() => {
 			is left of the edge pass is a 1 px dark line along each side, M01's double-line wall.
 			The pass ORDER closes a joint's inner corner: wall B's body covers wall A's edge.
 			Both passes are butt-capped, so `wallPasses` carries each past a SHARED endpoint
-			(body `thickness / 2`, edge `1 / zoom` further), which closes the OUTER corner; a
-			free end gets only the edge's extra `1 / zoom`, its 1 px dark cap.
+			(body by the largest half thickness among the walls it JOINS, edge `1 / zoom`
+			further), which closes the OUTER corner; a free end gets only the edge's extra
+			`1 / zoom`, its 1 px dark cap.
 			Refused: `lineCap: 'square'` draws every free end `thickness / 2` too long.
 			Refused: chaining walls into mitred polylines is exact at any angle, but more code.
-			ponytail: exact at right-angle joints; a non-right joint leaves a small wedge or nub.
-			Chain the walls if that shows. The selection dash and handles keep the unextended
+			ponytail: exact where two walls meet at a right angle, whatever their thicknesses; a
+			non-right joint, or unequal walls through a T, leaves a small wedge or nub. Chain the
+			walls if that shows. The selection dash and handles keep the unextended
 			centreline. `OpeningSymbols` cuts both passes at the edge pass's width.
 		-->
 		<VLine

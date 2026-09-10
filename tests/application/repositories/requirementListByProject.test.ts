@@ -20,8 +20,8 @@ import type { RequirementId } from '../../../src/domain/requirement/RequirementI
  * bodies caring which host they are driving. `seedPlan`, `corruptRequirementNote` and
  * `dropNoteKeepIndexEntry` are all no-ops or absent on the in-memory row: it holds nothing
  * but Requirement objects, so there is no index to intersect, no note to corrupt and no
- * index entry that can outlive one, which is also why the `it.runIf(hasVault)` cases never
- * call the latter two.
+ * index entry that can outlive one, which is also why the latter two are called only from
+ * the vault-backed table below, which never iterates this row.
  */
 interface RequirementRow {
 	requirements: RequirementRepository;
@@ -136,13 +136,19 @@ async function openDiskRow(): Promise<RequirementRow> {
 // The two REAL implementations, plus the second host. `createRepositoryStack` and
 // `openFixtureVault` both build `ObsidianRequirementRepository` — over `FakeVault` and
 // over disk — so listing only those two compares one implementation against itself. The
-// third column is `hasVault` and it is REQUIRED: three cases below are vault-backed only
-// and gate on it, so a two-column row leaves `hasVault` an undefined free variable.
-describe.each([
+// third column is `hasVault` and it is REQUIRED: the four vault-backed cases iterate only the
+// rows it marks, in their own table below. They used to be declared on every row behind
+// `it.runIf(hasVault)`, which reported the in-memory row's four as permanent skips on every
+// run; an `if (hasVault)` around them is refused by oxlint's `vitest/no-conditional-tests`.
+// A row missing the column drops out of those four SILENTLY — a case never declared is not
+// even reported as skipped.
+const ROWS = [
 	['in-memory', openInMemoryRequirements, false],
 	['obsidian/fake-vault', openFakeVaultRow, true],
 	['obsidian/disk', openDiskRow, true],
-] as const)('listByProject (%s)', (_name, open, hasVault) => {
+] as const;
+
+describe.each(ROWS)('listByProject (%s)', (_name, open) => {
 	it('returns this project’s requirements and nothing else', async () => {
 		const row = await open();
 		try {
@@ -165,10 +171,34 @@ describe.each([
 		}
 	});
 
+	it('does not try to parse a plan as a requirement', async () => {
+		// `getIdsByProject` is a MIXED axis: plans, zones and requirements all carry a
+		// `projectId`. Without the type intersection this inflates `refused` on every
+		// ordinary project — see the mutation in the docstring of the port method.
+		const row = await open();
+		try {
+			const projectA = createProjectId();
+			await row.seedProject(projectA);
+			await row.seedPlan(projectA);
+			const requirementId = await seedRequirement(row, projectA);
+
+			const listed = await row.requirements.listByProject(projectA);
+
+			expect(listed.ok).toBe(true);
+			if (!listed.ok) return;
+			expect(listed.value.loaded.map((l) => l.entity.id)).toEqual([requirementId]);
+			expect(listed.value.refused).toBe(0);
+		} finally {
+			row.dispose();
+		}
+	});
+});
+
+describe.each(ROWS.filter(([, , hasVault]) => hasVault))('listByProject (%s)', (_name, open) => {
 	// The two unreadable-note cases are VAULT-BACKED ONLY: `InMemoryRequirementRepository`
 	// always answers `ok()` off its own store and has no note to make unreadable, so a stub
 	// pretending to refuse here would be testing the stub rather than the repository.
-	it.runIf(hasVault)('counts an unreadable note instead of refusing the whole list', async () => {
+	it('counts an unreadable note instead of refusing the whole list', async () => {
 		const row = await open();
 		try {
 			const projectA = createProjectId();
@@ -193,7 +223,7 @@ describe.each([
 	// never as a read failure — so it must land in neither `loaded` nor `refused`. Vault-backed
 	// only, for the same reason as the unreadable-note cases above: the in-memory store has no
 	// index to go stale, so there is nothing to drive this with.
-	it.runIf(hasVault)('drops a stale index entry rather than counting it as refused', async () => {
+	it('drops a stale index entry rather than counting it as refused', async () => {
 		const row = await open();
 		try {
 			const projectA = createProjectId();
@@ -213,7 +243,7 @@ describe.each([
 		}
 	});
 
-	it.runIf(hasVault)('counts only THIS project’s unreadable note', async () => {
+	it('counts only THIS project’s unreadable note', async () => {
 		const row = await open();
 		try {
 			const projectA = createProjectId();
@@ -242,32 +272,10 @@ describe.each([
 		}
 	});
 
-	it('does not try to parse a plan as a requirement', async () => {
-		// `getIdsByProject` is a MIXED axis: plans, zones and requirements all carry a
-		// `projectId`. Without the type intersection this inflates `refused` on every
-		// ordinary project — see the mutation in the docstring of the port method.
-		const row = await open();
-		try {
-			const projectA = createProjectId();
-			await row.seedProject(projectA);
-			await row.seedPlan(projectA);
-			const requirementId = await seedRequirement(row, projectA);
-
-			const listed = await row.requirements.listByProject(projectA);
-
-			expect(listed.ok).toBe(true);
-			if (!listed.ok) return;
-			expect(listed.value.loaded.map((l) => l.entity.id)).toEqual([requirementId]);
-			expect(listed.value.refused).toBe(0);
-		} finally {
-			row.dispose();
-		}
-	});
-
 	// Vault-backed only, for the same reason as the two unreadable-note cases above: the
 	// write guarantee this pins is `DeleteZoneCommand`'s, and only a real note can be made
 	// unreadable to prove `listByZone` still returns on the first one rather than skipping.
-	it.runIf(hasVault)('leaves listByZone strict', async () => {
+	it('leaves listByZone strict', async () => {
 		const row = await open();
 		try {
 			const projectA = createProjectId();

@@ -413,11 +413,12 @@ describe('the fixture vault adapter', () => {
 	 * because a failing assertion between the two would otherwise leave a fixture directory
 	 * in the working tree — measured, by watching this case fail.
 	 *
-	 * **Skipped where the platform will not create a symlink at all** — Windows needs
+	 * **Skipped on a machine that will not create a symlink at all** — Windows needs
 	 * Developer Mode or elevation and throws `EPERM` otherwise. `skipIf` rather than a branch
 	 * around the assertion, so the skip is REPORTED by the runner instead of passing silently:
-	 * on that leg this case asserts nothing, and the guard it covers is exercised by the
-	 * Ubuntu legs only.
+	 * on such a machine this case asserts nothing. No CI leg is one, Windows included —
+	 * measured: CI run 34445960897 reported the same skipped count on `windows-latest` as on
+	 * the three Ubuntu legs, so this case ran on all four. The skip is a LOCAL one.
 	 */
 	it.skipIf(!canSymlink)('refuses a fixture containing a symlink', () => {
 		const staging = mkdtempSync(join(tmpdir(), 'rp-symlink-case-'));

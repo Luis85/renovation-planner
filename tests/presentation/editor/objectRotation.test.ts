@@ -151,7 +151,7 @@ it('abandons a running rotation as soon as its shape stops being rotatable', () 
 	const context = toolContext().context, previewRotation = vi.fn<NonNullable<RotationGestureDeps['previewRotation']>>();
 	let permitted = true;
 	const gesture = new ElementRotation({ previewRotation, commitRotation: vi.fn<NonNullable<RotationGestureDeps['commitRotation']>>(), canRotateShape: () => permitted });
-	gesture.start(context, pointerAt(600, 200), element);
+	gesture.start(context, pointerAt(600, 200), element, control);
 	expect(gesture.active).toBe(true);
 	permitted = false;
 	gesture.move(context, pointerAt(600, 260));

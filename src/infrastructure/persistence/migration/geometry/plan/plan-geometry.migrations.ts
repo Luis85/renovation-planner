@@ -12,4 +12,16 @@ export const PLAN_GEOMETRY_MIGRATIONS: Migration[] = [{
 }, {
 	fromVersion: 3, toVersion: 4,
 	migrate: input => typeof input === 'object' && input !== null ? { ...input, schemaVersion: 4 } : input,
+}, {
+	fromVersion: 4, toVersion: 5,
+	migrate: input => typeof input === 'object' && input !== null ? { ...input, schemaVersion: 5 } : input,
+}, {
+	fromVersion: 5, toVersion: 6,
+	migrate: input => typeof input === 'object' && input !== null ? { ...input, schemaVersion: 6 } : input,
+}, {
+	fromVersion: 6, toVersion: 7,
+	migrate: input => typeof input === 'object' && input !== null ? { ...input, schemaVersion: 7 } : input,
+}, {
+	fromVersion: 7, toVersion: 8,
+	migrate: input => typeof input === 'object' && input !== null ? { ...input, schemaVersion: 8 } : input,
 }];

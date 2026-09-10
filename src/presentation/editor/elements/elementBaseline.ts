@@ -20,7 +20,7 @@ export function createElementBaseline(context: PlanEditorContext, runtime: Pick<
 	function stop(): void { generation++; retrying = false; Object.assign(draft, createElementDraft()); baseline.value = null; }
 	function matches(read: RenovationBaseline): boolean {
 		return sameElementMetadata(project.plan?.spatialElements, read.plan.entity.spatialElements) && sameGeometryDocument(
-			{ objects: [], calibration: project.plan?.calibration ?? null, structure: project.structure, intended: project.intended },
+			{ objects: [], calibration: project.plan?.calibration ?? null, groups: project.groups, structure: project.structure, intended: project.intended },
 			{ ...read.geometry.document, objects: [], structure: read.geometry.document.structure ?? EMPTY_STRUCTURE });
 	}
 	async function readBaseline(ticket: number): Promise<void> {

@@ -1,6 +1,9 @@
 /* Native canvas controls share the editor's host tokens and remain screen-sized on zoom. */
 .rp-dimension-labels { --rp-dimension-max-height: 240px; position: absolute; inset: 0; pointer-events: none; }
 .rp-dimension-anchor { position: absolute; transform: translateX(-50%); }
+.rp-room-edge-guides { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.rp-room-edge-guides line { stroke: var(--interactive-accent); stroke-width: 1px; }
+.rp-room-edge-measurement { transform: translate(-50%, -50%); padding: 3px 6px; border: 1px solid var(--background-modifier-border); border-radius: 4px; background: var(--background-primary); color: var(--text-normal); font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; }
 .rp-dimension-anchor:has(.rp-inline-dimension) { z-index: 2; }
 .rp-dimension-label, .rp-inline-dimension, .rp-direct-actions { pointer-events: auto; }
 .renovation-plan-editor .rp-dimension-label { min-height: 28px; padding: 3px 9px; border: 1px solid var(--interactive-accent); border-radius: 5px; color: var(--text-normal); background: var(--background-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }

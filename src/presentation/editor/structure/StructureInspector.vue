@@ -4,10 +4,13 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
-import { formatMetres } from '../shell/formatLength';
-import { wallLength } from '../../../domain/spatial/Structure';
+import StructureFacts from './StructureFacts.vue';
 import StructureRenovationEntry from './StructureRenovationEntry.vue';
+import { useOpeningMoveAction } from './useOpeningMoveAction';
+import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
+import CurveAction from '../curves/CurveAction.vue';
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
+const moveOpening = useOpeningMoveAction();
 const id = computed(() => String(selection.selectedIds[0]));
 const wall = computed(() => project.structure.walls.find(candidate => candidate.id === id.value));
 const opening = computed(() => project.structure.openings.find(candidate => candidate.id === id.value));
@@ -29,24 +32,11 @@ async function act(event: Event, remove: boolean): Promise<void> {
 		class="rp-structure-inspector"
 	>
 		<h3>{{ tr(wall ? 'editor.add.wall.label' : `editor.add.${opening!.kind}.label`) }}</h3>
-		<dl class="rp-editor-inspector-fields">
-			<template v-if="wall">
-				<dt>{{ tr('editor.structure.length') }}</dt><dd>{{ formatMetres(wallLength(wall)) }} m</dd>
-				<dt>{{ tr('editor.structure.thickness') }}</dt><dd>{{ formatMetres(wall.thickness) }} m</dd>
-				<dt>{{ tr('editor.structure.height') }}</dt><dd>{{ formatMetres(wall.height) }} m</dd>
-				<dt>{{ tr('editor.structure.rooms') }}</dt><dd>{{ rooms.length ? rooms.join(', ') : tr('editor.structure.no-rooms') }}</dd>
-			</template>
-			<template v-else-if="opening">
-				<dt>{{ tr('editor.structure.host') }}</dt><dd>{{ tr('editor.structure.wall-number', { n: String(project.structure.walls.findIndex(wall => wall.id === opening!.hostId) + 1) }) }}</dd>
-				<template
-					v-for="field in (['offset', 'width', 'height', 'sill'] as const)"
-					:key="field"
-				>
-					<dt>{{ tr(`editor.structure.${field}`) }}</dt><dd>{{ formatMetres(opening[field]) }} m</dd>
-				</template>
-			</template>
-		</dl>
-		<StructureRenovationEntry />
+		<StructureFacts
+			:wall="wall"
+			:opening="opening"
+			:rooms="rooms"
+		/>
 		<button
 			type="button"
 			:aria-disabled="paused"
@@ -55,10 +45,27 @@ async function act(event: Event, remove: boolean): Promise<void> {
 		>
 			{{ tr('editor.structure.edit') }}
 		</button>
+		<button
+			v-if="opening"
+			type="button"
+			:aria-disabled="!runtime.openingMove.available.value"
+			data-rp-action="move-opening"
+			@click="moveOpening(id, $event.currentTarget as HTMLElement)"
+		>
+			{{ tr('editor.opening-move.action') }}
+		</button>
 		<details>
-			<summary>{{ tr('editor.structure.more') }}</summary><button
+			<summary>{{ tr('editor.structure.more') }}</summary>
+			<ObjectRotationControls :id="id" />
+			<CurveAction
+				v-if="wall"
+				:id="id"
+			/>
+			<StructureRenovationEntry />
+			<button
 				type="button"
 				:aria-disabled="paused"
+				data-rp-action="delete-structure"
 				@click="act($event, true)"
 			>
 				{{ tr('editor.structure.delete') }}

@@ -30,6 +30,7 @@ const walls = computed(() => project.structure.walls.map((wall, index) => ({
 					type="button"
 					class="rp-structure-list__row"
 					:aria-pressed="wall.selected"
+					:data-rp-id="wall.id"
 					@click="runtime.selectAndFrame(wall.id, $event.shiftKey)"
 				>
 					{{ wall.name }}
@@ -43,6 +44,7 @@ const walls = computed(() => project.structure.walls.map((wall, index) => ({
 							type="button"
 							class="rp-structure-list__row"
 							:aria-pressed="opening.selected"
+							:data-rp-id="opening.id"
 							@click="runtime.selectAndFrame(opening.id, $event.shiftKey)"
 						>
 							{{ opening.name }}

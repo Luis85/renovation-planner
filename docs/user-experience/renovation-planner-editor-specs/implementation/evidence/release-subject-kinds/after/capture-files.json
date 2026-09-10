@@ -1,0 +1,110 @@
+{
+  "source": "2f1b32b07a30aaafcc680ee74a8383cf792b54b8",
+  "started": 1788875338840,
+  "completed": 1788875443573,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788875382000,
+      "sha256": "0b57a4b7dbd89e82fb5eaa7dd2d2baebdc7f4732a63b232916d2528cf54b5bb8"
+    },
+    {
+      "name": "light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788875384000,
+      "sha256": "177f1ae3ac9aac1364776ccae542d9ec224b0de1528d2c555993253fe33fb05f"
+    },
+    {
+      "name": "light-M08-identical-descriptions.png",
+      "kind": "image",
+      "modifiedAt": 1788875386000,
+      "sha256": "fcbe8ed0af651b309be15939be44f7a069cbf3defb61e1c8b7e1c40002da4a77"
+    },
+    {
+      "name": "light-M09-identical-descriptions.png",
+      "kind": "image",
+      "modifiedAt": 1788875388000,
+      "sha256": "846b675aaf0a0a4c1c648160191acb88b1aaecce94db3db403ad19c55fb5ea6f"
+    },
+    {
+      "name": "dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788875400000,
+      "sha256": "0304906bbcbeb29bedc0eba71f0ea25a7ee566d1c2ede8127d672e33899a7bb7"
+    },
+    {
+      "name": "dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788875402000,
+      "sha256": "02af7cbf07443de214b74dbada48f329f225d25e1459e507bfa4347a7589fd14"
+    },
+    {
+      "name": "dark-M08-identical-descriptions.png",
+      "kind": "image",
+      "modifiedAt": 1788875404000,
+      "sha256": "5f79a5dca7b92f05a463475bdefc6e739f8b4981dab694c40ea52f4b89669134"
+    },
+    {
+      "name": "dark-M09-identical-descriptions.png",
+      "kind": "image",
+      "modifiedAt": 1788875406000,
+      "sha256": "03770c7c3444e655cbf348ef7dd09db922e4a18e46050270082c22f85c955834"
+    },
+    {
+      "name": "custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788875420000,
+      "sha256": "e5d0c0c9691eb357bd450c98e2417765825a48bb1d72ce16560cc4a591ee21f5"
+    },
+    {
+      "name": "custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788875420000,
+      "sha256": "a94522a1edf7eac26dcde1d124ae8f80845354fd6cdaf7495d701149700853dd"
+    },
+    {
+      "name": "custom-accent-M08-identical-descriptions.png",
+      "kind": "image",
+      "modifiedAt": 1788875422000,
+      "sha256": "6f7c7950995c0738ecaa883c5a7e5a2d2709a78996139c32bcbf5a73b80bf6ef"
+    },
+    {
+      "name": "custom-accent-M09-identical-descriptions.png",
+      "kind": "image",
+      "modifiedAt": 1788875424000,
+      "sha256": "eb2f9c7ea46a256a0df7e2fc12cc7d2863a27d49777dde1d3be533d0b2f8103b"
+    },
+    {
+      "name": "german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1788875438000,
+      "sha256": "f6605a37310dc5b5dec8cfac12c331df61478bf77344d17345744b3a4cd4fbb2"
+    },
+    {
+      "name": "german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1788875440000,
+      "sha256": "6df9a907081f8cc57258069d2ce54fa1a40120aee06421b287d4064c40e622f1"
+    },
+    {
+      "name": "german-constrained-M08-identical-descriptions.png",
+      "kind": "image",
+      "modifiedAt": 1788875442000,
+      "sha256": "4ce5cc72ae72b0d65d8951255eb0416cd711b2acd2ede37fc631e68bc6c7b23a"
+    },
+    {
+      "name": "german-constrained-M09-identical-descriptions.png",
+      "kind": "image",
+      "modifiedAt": 1788875444000,
+      "sha256": "c2be39237357b1810521c3a9b37ddcf8312941369de8c4c4e91e5403acd2cd14"
+    },
+    {
+      "name": "report.json",
+      "kind": "data",
+      "modifiedAt": 1788875444000,
+      "sha256": "d95a779329d35c2d727e35916902e827097109f8a6ef8b694ea2c45ad2a680a0"
+    }
+  ]
+}

@@ -1,5 +1,11 @@
 # M08 — Existing Room Details
 
+Release fidelity continuation (2026-09-08): Existing rows and canvas markers identify the
+saved surface/element kind alongside the description. Floor and Wall details with identical
+descriptions remain distinguishable without opening Edit. Labels reuse the existing EN/DE
+vocabulary; record identity, condition and storage are unchanged. Current evidence is tracked
+in [release screen fidelity](../implementation/release-screen-fidelity.md).
+
 ![M08 — Existing Room Details](../images/M08-existing-room-details.png)
 
 ## Screen description

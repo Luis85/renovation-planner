@@ -1,5 +1,6 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { Structure } from '../../domain/spatial/Structure';
+import type { SpatialGroup } from '../../domain/spatial/SpatialGroup';
 import type { PlanGeometrySidecar } from '../../application/ports/PlanGeometrySidecar';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { PlanId } from '../../domain/plan/PlanId';
@@ -44,6 +45,7 @@ export interface AssetOptionDto {
  * declined to load, and the view speaks of zones the user cannot see.
  */
 export interface ZoneScene {
+	readonly groups?: readonly SpatialGroup[];
 	readonly intended?: Structure;
 	readonly structure?: Structure;
 	readonly zones: readonly ZoneDto[];
@@ -211,6 +213,7 @@ export function createPlanEditorQueries(queries: {
 			if (isErr(found)) return found;
 			return ok({
 				zones: found.value.loaded.map((loaded) => toZoneDto(loaded.entity)),
+				...(geometry?.ok && geometry.value.document.groups ? { groups: geometry.value.document.groups } : {}),
 				...(geometry?.ok && geometry.value.document.structure ? { structure: geometry.value.document.structure } : {}),
 				...(geometry?.ok && geometry.value.document.intended ? { intended: geometry.value.document.intended } : {}),
 				unreadable: found.value.refused,

@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import type { ZoneId } from '../../../domain/zone/ZoneId';
-import RoomNameAction from '../naming/RoomNameAction.vue';
+import RoomRenovationActions from './RoomRenovationActions.vue';
 import DownstreamAction from './DownstreamAction.vue';
-import OutlineEditAction from '../resize/OutlineEditAction.vue';
 import { usePlanningContext } from '../planning/planningContext';
 import PlanningInspector from '../planning/PlanningInspector.vue';
 import { computed } from 'vue';
@@ -22,7 +20,7 @@ import TransformationSummary from './TransformationSummary.vue';
 import RenovationLinkedSummary from './RenovationLinkedSummary.vue';
 import { inRenovationScope } from './renovationSummary';
 import { useRenovationContextLabel } from './renovationContextLabel';
-defineProps<{ room: ZoneDto }>();
+const props = defineProps<{ room: ZoneDto }>();
 const planning = usePlanningContext();
 const contextLabel = useRenovationContextLabel();
 const runtime = useEditorRuntime(), project = useProjectStore(), session = useRenovationSession(), actions = runtime.renovation;
@@ -30,6 +28,7 @@ const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 const subjects = computed(() => value.value.subjects.filter(item => inRenovationScope(item, session.roomId, session.targetId) && item[session.mode === 'existing' ? 'existing' : 'planned']));
 const work = computed(() => orderedWork(value.value).filter(item => inRenovationScope(item, session.roomId, session.targetId)));
 const decisions = computed(() => value.value.decisions.filter(item => session.targetId && session.targetId !== session.roomId ? subjects.value.some(subject => subject.id === item.subjectId) : item.roomId === session.roomId));
+const roomMetadataVisible = computed(() => session.mode === 'overview' && (!session.targetId || session.targetId === props.room.id));
 const empty = computed(() => !(session.mode === 'work' ? work.value.length : subjects.value.length));
 function remove(id: string, name: string, proposalOnly = false): void {
 	const materials = planning.baseline.value?.materials.filter(({ entity }) => entity.source?.workId === id || entity.source?.outcomeId === id).map(({ entity }) => planning.baseline.value?.catalogue.find(item => item.asset.id === entity.assetId)?.asset.name ?? entity.id) ?? [];
@@ -41,7 +40,7 @@ function remove(id: string, name: string, proposalOnly = false): void {
 </script>
 <template>
 	<p
-		v-if="!session.targetId || session.targetId === room.id"
+		v-if="roomMetadataVisible"
 		class="rp-room-metadata"
 	>
 		{{ formatArea(toSpatialRecordDto(room).areaMm2) }} · {{ tr('renovation.calculated') }}
@@ -55,16 +54,6 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		:room-id="room.id"
 	/>
 	<template v-if="session.mode === 'overview'">
-		<details
-			v-if="!session.targetId || session.targetId === room.id"
-			class="rp-room-more-actions"
-		>
-			<summary>{{ tr('editor.structure.more') }}</summary>
-			<div class="rp-planning-actions">
-				<RoomNameAction :zone-id="room.id as ZoneId" />
-				<OutlineEditAction :zone-id="room.id as ZoneId" />
-			</div>
-		</details>
 		<RenovationLinkedSummary
 			v-if="planning.context.commands.planning"
 			:room-id="room.id"
@@ -78,19 +67,6 @@ function remove(id: string, name: string, proposalOnly = false): void {
 	</template>
 	<PlanningInspector v-else-if="!['existing', 'planned', 'work'].includes(session.mode)" />
 	<template v-else>
-		<DownstreamAction
-			v-if="session.mode === 'work'"
-			section="schedule"
-		/>
-		<button
-			type="button"
-			class="mod-cta"
-			:disabled="actions.blocked.value"
-			data-rp-action="new-record"
-			@click="actions.edit(session.mode as 'existing' | 'planned' | 'work', room.id)"
-		>
-			{{ tr(`renovation.edit.${session.mode as 'existing' | 'planned' | 'work'}`) }}
-		</button>
 		<p v-if="empty">
 			{{ tr('renovation.empty') }}
 		</p>
@@ -107,9 +83,29 @@ function remove(id: string, name: string, proposalOnly = false): void {
 		/>
 		<button
 			type="button"
+			class="mod-cta"
+			:disabled="actions.blocked.value"
+			data-rp-action="new-record"
+			@click="actions.edit(session.mode as 'existing' | 'planned' | 'work', room.id)"
+		>
+			{{ tr(`renovation.add.${session.mode as 'existing' | 'planned' | 'work'}`) }}
+		</button>
+		<RenovationLinkedSummary
+			v-if="planning.context.commands.planning && session.mode === 'existing'"
+			:room-id="room.id"
+			:target-id="session.targetId"
+			evidence-only
+		/>
+		<DownstreamAction
+			v-if="session.mode === 'work'"
+			section="schedule"
+		/>
+		<button
+			type="button"
 			@click="runtime.openPlanNote()"
 		>
 			{{ tr('renovation.note') }}
 		</button>
 	</template>
+	<RoomRenovationActions :room="room" />
 </template>

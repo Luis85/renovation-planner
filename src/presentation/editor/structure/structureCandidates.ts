@@ -1,9 +1,14 @@
-import { openingPoints, type Structure } from '../../../domain/spatial/Structure';
+import { openingPoints, wallLength, type Structure } from '../../../domain/spatial/Structure';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
+import { spatialElementFootprint } from '../../../domain/spatial/stairGeometry';
 export function structureCandidates(structure: Structure): SpatialObjectCandidate[] {
 	return [
-		...(structure.elements ?? []).map(element => ({ id: element.id, kind: element.kind, points: element.points })),
-		...structure.walls.map(wall => ({ id: wall.id, kind: 'wall' as const, points: [wall.start, wall.end], width: wall.thickness })),
-		...structure.openings.map(opening => ({ id: opening.id, kind: 'opening' as const, points: openingPoints(opening, structure.walls) })),
+		...(structure.elements ?? []).map(element => ({ ...element, ...(element.kind === 'stair' ? { hitPoints: spatialElementFootprint(element) } : {}) })),
+		...structure.walls.map(wall => ({ id: wall.id, kind: 'wall' as const, points: [wall.start, wall.end], bulges: [wall.bulge ?? 0, 0], width: wall.thickness })),
+		...structure.openings.map(opening => {
+			const host = structure.walls.find(wall => wall.id === opening.hostId);
+			const bulge = host ? Math.tan(Math.atan(host.bulge ?? 0) * opening.width / wallLength(host)) : 0;
+			return { id: opening.id, kind: 'opening' as const, points: openingPoints(opening, structure.walls), bulges: [bulge, 0], width: host?.thickness };
+		}),
 	];
 }

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { structureStack, WALL_LOOP } from '../../../helpers/structure';
 import { expectDefined, expectErr, expectOk } from '../../../helpers/domain';
 import { PLAN_GEOMETRY_MIGRATIONS } from '../../../../src/infrastructure/persistence/migration/geometry/plan/plan-geometry.migrations';
+import { MigrationRunner } from '../../../../src/infrastructure/persistence/migration/MigrationRunner';
+
+const migrations = new MigrationRunner();
+migrations.registerAll('plan-geometry', PLAN_GEOMETRY_MIGRATIONS);
+const latestSchema = migrations.latestVersions['plan-geometry'];
 
 describe('ADR-SO sidecar compatibility and refusal', () => {
 	it('migrates v1 idempotently in memory and never rewrites legacy notes or polygons on read', async () => {
@@ -19,7 +24,7 @@ describe('ADR-SO sidecar compatibility and refusal', () => {
 		expect(expectOk(await geometry.read(plan.id)).document.objects).toEqual(before.document.objects);
 		for (const [name, content] of bytes.filter(([entryPath]) => entryPath.endsWith('.md'))) expect(stack.vault.entries.get(name)).toBe(content);
 	});
-	it.each([5, 200])('refuses a future schema %i without writes', async schemaVersion => {
+	it.each([latestSchema + 1, latestSchema + 200])('refuses a future schema %i without writes', async schemaVersion => {
 		const { stack, plan, geometry } = await structureStack();
 		const path = expectDefined(stack.index.getGeometrySidecarPath(plan.id), 'sidecar path');
 		const dto = JSON.parse(expectDefined(stack.vault.entries.get(path), 'sidecar'));

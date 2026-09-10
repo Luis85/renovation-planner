@@ -70,3 +70,13 @@ describe('planning dialogs retire their callbacks with the editor leaf', () => {
 		expect(saved.geometry.document.structure?.elements?.[0].points).toEqual(element.points);
 	});
 });
+
+
+it('admits only one planning dialog when a native Add action is activated twice in the same turn', async () => {
+	const rig = await setup(); rig.runtime.renovation.focus(rig.room.id, 'costs'); await settle();
+	const open = vi.spyOn(rig.dialogs, 'openDialog'), before = [...rig.stack.vault.entries];
+	const button = rig.wrapper.get<HTMLButtonElement>('[data-rp-new-cost]').element;
+	button.click(); button.click(); await settle();
+	expect(open).toHaveBeenCalledOnce(); expect(rig.wrapper.findAll('[data-rp-form="planning"]')).toHaveLength(1);
+	rig.dialogs.resolve('cancel'); await settle(); expect([...rig.stack.vault.entries]).toEqual(before);
+});

@@ -1,4 +1,13 @@
+import { openingMoveEn } from './openingMove';
+import { openingEn } from './opening';
+import { curvesEn } from './curves';
+import { referenceViewportEn } from './referenceViewport';
+import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
+import { stairsArrowsEn } from './stairsArrows';
+import { inputEn } from './input';
+import { groupsEn } from './groups';
+import { creationEn } from './creation';
 /**
  * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
  * the add-menu catalogue, the Inspector (its floor and room panels, its requirements
@@ -26,6 +35,11 @@ import { objectEn } from './object';
  */
 import { structureEn } from './structure';
 export const editorEn = {
+	...curvesEn,
+	...groupsEn,
+	...stairsArrowsEn,
+	...inputEn,
+	...creationEn,
 	'editor.direct.edit-shape': 'Edit shape',
 	'editor.direct.edit-length': 'Edit length',
 	'editor.direct.mark-change': 'Mark change',
@@ -37,6 +51,10 @@ export const editorEn = {
 	'editor.dimension.task': 'Edit room dimension',
 	'editor.dimension.instruction': 'Enter a length in metres. Apply saves the change. Escape cancels.',
 	...objectEn,
+	...openingEn,
+	...openingMoveEn,
+	...referenceViewportEn,
+	...editorShellEn,
 	"editor.element.name-required": "Enter a name.",
 	"editor.element.edit": "Edit {name}",
 	"editor.element.edit-action": "Edit name and coordinates",
@@ -53,7 +71,9 @@ export const editorEn = {
 	'editor.room.snapped': "Snapped to nearby geometry.",
 	'editor.add.note.context-required': "Select one room and wait for its notes to load before adding a note.",
 	'zone.category-change': "Room and area identity cannot be changed here.",
-	"editor.room.free-shape": "Switch to free-shape room",
+	"editor.room.free-shape": "Draw a free-form room",
+	"editor.room.free-shape-hint": "For an irregular room, place corners on the plan or enter their coordinates.",
+	"editor.room.edge-length": "Edge {edge}: {length} m",
 	"editor.outline.action": "Edit outline coordinates",
 	"editor.outline.title": "Edit {name} outline",
 	"editor.outline.hint": "Enter corner coordinates in metres. Apply updates this outline in one step. Connected walls keep their own geometry.",

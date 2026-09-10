@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { inRenovationScope } from '../renovation/renovationSummary';
+import { roomPinPosition } from './roomPinPosition';
 
 export interface EvidencePin extends Evidence, Point { readonly number: number }
 
@@ -18,8 +19,8 @@ export function useEvidencePins(readEvidence: () => readonly Evidence[]) {
 		return rows.flatMap((item, index) => {
 			const room = project.zones.get(item.roomId);
 			if (!item.pin || !room?.points.length) return [];
-			const xs = room.points.map(point => point.x), ys = room.points.map(point => point.y);
-			return [{ ...item, number: index + 1, x: Math.min(...xs) + item.pin.x * (Math.max(...xs) - Math.min(...xs)), y: Math.min(...ys) + item.pin.y * (Math.max(...ys) - Math.min(...ys)) }];
+			const position = roomPinPosition(room, item.pin);
+			return position ? [{ ...item, number: index + 1, ...position }] : [];
 		});
 	});
 }

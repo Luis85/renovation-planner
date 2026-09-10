@@ -54,6 +54,11 @@ it.each([false, true])('shows unavailable linked sections only without connected
 	expect(rig.wrapper.find('.rp-linked-content').exists()).toBe(!planning);
 	expect(rig.wrapper.find('[data-rp-mode="costs"]').exists()).toBe(planning);
 });
+it('keeps semantic navigation available without exposing an empty planning disclosure', async () => {
+	const rig = await setup(false); rig.runtime.renovation.focus(rig.room.id, 'existing'); await settle();
+	expect(rig.wrapper.find('[data-rp-room-navigation]').exists()).toBe(false);
+	expect(rig.wrapper.findAll('.rp-room-navigation__button').map(button => button.attributes('data-rp-mode'))).toEqual(['existing', 'work', 'planned']);
+});
 it('opens connected Costs from Plan while retaining the Room', async () => {
 	const rig = await setup(); await rig.runtime.renovation.perspective('plan'); await settle();
 	await rig.wrapper.get('[data-rp-mode="costs"]').trigger('click'); await settle();
@@ -78,8 +83,9 @@ it('retains keyboard focus through Room views and returns it to Details when Ove
 		button.element.focus(); expect(document.activeElement).toBe(button.element);
 		await button.trigger('click'); await settle();
 		expect(rig.wrapper.get('.rp-room-navigation').element).toBe(nav);
-		expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-room-navigation]').element);
-		expect(rig.wrapper.get('.rp-room-navigation').isVisible()).toBe(false);
+		expect(document.activeElement).toBe(rig.wrapper.get(`[data-rp-mode="${mode}"]`).element);
+		expect(rig.wrapper.get('.rp-room-navigation').isVisible()).toBe(true);
+		expect(rig.wrapper.get(`[data-rp-mode="${mode}"]`).attributes('aria-pressed')).toBe('true');
 		await rig.wrapper.get('[data-rp-room-navigation]').trigger('click');
 		expect(rig.wrapper.get('.rp-room-navigation').isVisible()).toBe(true);
 		expect(rig.selection.selectedIds).toEqual([rig.room.id]);

@@ -11,11 +11,11 @@ export function createRoomResizeAction(context: PlanEditorContext, runtime: Room
 	const action = createRoomEditAction(context, runtime, {
 		faultEvent: 'editor.resize.open.faulted',
 		latest: current => {
-			const bounds = current?.zoneType === 'Room' ? roomDimensions(current.points) : null;
+			const bounds = current?.zoneType === 'Room' ? roomDimensions(current.points, current.bulges) : null;
 			return bounds !== null ? tr('editor.resize.latest', dimensionTexts(bounds)) : tr('editor.resize.latest-unavailable');
 		},
 		form: ({ entity, version }, { busy, blocked, latest, commit }) => {
-			const box = roomDimensions(entity.geometry.points);
+			const box = roomDimensions(entity.geometry.points, entity.geometry.bulges);
 			if (box === null) return null;
 			return { kind: 'form', title: tr('editor.resize.title', { name: entity.name }), component: markRaw(RoomDimensionsForm), busy,
 				props: { points: entity.geometry.points, box, busy, blocked, latest, logger: context.commands.logger,

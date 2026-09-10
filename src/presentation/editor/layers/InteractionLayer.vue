@@ -34,22 +34,31 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import type { ThemeTokens } from '../theme/themeTokens';
-import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
+import { STAGE_PIXELS, worldToScreen, viewportTransform } from '../viewport/Viewport';
 import { SELECTION_BADGE_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
 import RoomDraftSketch from './RoomDraftSketch.vue';
+import MarqueeOverlay from './MarqueeOverlay.vue';
 import { structureCandidates } from '../structure/structureCandidates';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import GestureSketch from './GestureSketch.vue';
+import ObjectRotationHandle from '../elements/ObjectRotationHandle.vue';
 import SnapGuides from './SnapGuides.vue';
+import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
+import { polygonPolyline } from '../../../core/geometry/curvePolyline';
+import CurveHandles from '../curves/CurveHandles.vue';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
 const editorStore = useEditorStore();
 const projectStore = useProjectStore();
 const { zones } = storeToRefs(projectStore);
-const candidates = computed(() => new Map<string, SpatialObjectCandidate>([...zones.value, ...structureCandidates(projectStore.structure).map(item => [item.id, item] as const)]));
-const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 const runtime = useEditorRuntime();
+const candidates = computed(() => {
+	const preview = runtime.curveTask.preview.value ?? runtime.groupActions?.preview.value, objects = new Map(preview?.objects.map(object => [object.id, object]));
+	return new Map<string, SpatialObjectCandidate>([...[...zones.value].map(([id, zone]) => [id, { ...zone, ...objects.get(id) }] as const),
+		...structureCandidates(preview?.structure ?? projectStore.structure).map(item => [item.id, item] as const)]);
+});
+const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 
 function toScreen(point: { x: number; y: number }) {
 	return worldToScreen(point, editorStore.viewport, STAGE_PIXELS);
@@ -63,7 +72,8 @@ function toScreen(point: { x: number; y: number }) {
 const previewFlat = computed(() => {
 	const preview = runtime.renderState.previewPolygon;
 	if (preview === null || preview.length < 2) return null;
-	return preview.flatMap((point) => {
+	const selected = selectedIds.value.length === 1 ? zones.value.get(selectedIds.value[0]) : undefined;
+	return polygonPolyline({ points: preview, bulges: selected?.bulges }, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap((point) => {
 		const at = toScreen(point);
 		return [at.x, at.y];
 	});
@@ -84,45 +94,45 @@ const hoverOutlineFlat = computed(() => {
 	if (id === null || selectedIds.value.some((selected) => String(selected) === id)) return null;
 	const zone = candidates.value.get(id);
 	if (zone === undefined) return null;
-	return zone.points.flatMap((point) => {
+	return spatialOutlinePoints(zone, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap((point) => {
 		const at = toScreen(point);
 		return [at.x, at.y];
 	});
 });
 const hoverClosed = computed(() => {
 	const kind = candidates.value.get(runtime.renderState.hoveredObjectId ?? '')?.kind;
-	return kind === undefined || kind === 'object';
+	return kind === undefined || kind === 'object' || kind === 'stair';
 });
 
 /**
  * Vertex handles belong to a single selection. Multiple selections use numbered outlines.
  */
-const selectedScreenPoints = computed(() => {
+const selectedGeometry = computed(() => {
 	const ids = selectedIds.value;
 	const id = ids.length === 1 ? ids.at(0) : undefined;
 	if (id === undefined) return null;
 	const zone = zones.value.get(id);
 	if (zone === undefined) return null; // e.g. deleted while selected, before refresh lands
-	return zone.points.map((point) => toScreen(point));
+	return candidates.value.get(id) ?? zone;
 });
+const selectedScreenPoints = computed(() => selectedGeometry.value?.points.map(point => toScreen(point)) ?? null);
 
-const selectedFlat = computed(() =>
-	selectedScreenPoints.value === null
-		? null
-		: selectedScreenPoints.value.flatMap((at) => [at.x, at.y]),
-);
+const selectedFlat = computed(() => {
+	const geometry = selectedGeometry.value;
+	return geometry ? polygonPolyline(geometry, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap(point => { const at = toScreen(point); return [at.x, at.y]; }) : null;
+});
 
 /** Multiple selections show all outlines, without handles suggesting a group edit. */
 const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selectedIds.value.flatMap((id) => {
 	const zone = candidates.value.get(id);
 	return zone === undefined ? [] : [{
 		id,
-		closed: zone.kind === undefined || zone.kind === 'object',
+		closed: zone.kind === undefined || zone.kind === 'object' || zone.kind === 'stair',
 		number: selectedIds.value.indexOf(id) + 1,
 		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
 		strokeWidth: focusedId.value === id ? 3 : 2,
 		badgeStrokeWidth: focusedId.value === id ? 3 : 1.5,
-		points: zone.points.flatMap((point) => {
+		points: spatialOutlinePoints(zone, 0.25 / viewportTransform(editorStore.viewport).scaleX).flatMap((point) => {
 			const at = toScreen(point);
 			return [at.x, at.y];
 		}),
@@ -130,7 +140,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 }));
 
 /** Room outlines stay editable in Plan and Renovate; Review draws no editing handles. */
-const editableVertices = computed(() => renovationSession.perspective !== 'review' ? selectedScreenPoints.value : []);
+const editableVertices = computed(() => renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' ? selectedScreenPoints.value : []);
 </script>
 
 <template>
@@ -138,6 +148,7 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 		<VLine
 			v-if="previewFlat !== null"
 			:config="{
+				name: 'geometry-preview',
 				points: previewFlat,
 				closed: true,
 				stroke: props.tokens.accent,
@@ -172,6 +183,11 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 			}"
 		/>
 		<RoomDraftSketch
+			:tokens="props.tokens"
+			:to-screen="toScreen"
+		/>
+		<MarqueeOverlay
+			:bounds="runtime.renderState.marquee"
 			:tokens="props.tokens"
 			:to-screen="toScreen"
 		/>
@@ -239,5 +255,16 @@ const editableVertices = computed(() => renovationSession.perspective !== 'revie
 				/>
 			</template>
 		</template>
+		<VGroup :config="{ name: 'rotation-handle-viewport', ...viewportTransform(editorStore.viewport) }">
+			<CurveHandles
+				v-if="runtime.curveTask.target.value"
+				:tokens="props.tokens"
+				:zoom="editorStore.viewport.zoom"
+			/>
+			<ObjectRotationHandle
+				:tokens="props.tokens"
+				:zoom="editorStore.viewport.zoom"
+			/>
+		</VGroup>
 	</VLayer>
 </template>

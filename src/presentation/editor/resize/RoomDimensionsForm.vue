@@ -24,16 +24,17 @@ const props = defineProps<{
 const emit = defineEmits<{ submit: [] }>();
 const hintId = useId();
 const attempted = ref(false);
+const edited = ref({ width: false, depth: false });
 let alive = true;
 onBeforeUnmount(() => { alive = false; props.preview(null); });
 const form = useFormCommit({
 	initial: dimensionTexts(props.box), logger: props.logger, errorMap: {}, toUserMessage: trError,
 	// submit validates synchronously before this single form dispatch.
-	dispatch: (text: DimensionsText): Promise<DispatchResult> => props.dispatch(dimensionProposal(props.points, props.box, text).polygon as Polygon),
+	dispatch: (text: DimensionsText): Promise<DispatchResult> => props.dispatch(dimensionProposal(props.points, props.box, text, edited.value).polygon as Polygon),
 });
 const refuseInput = useDialogFormBusy(form.submitting, props.busy);
 const { formEl, focusFirstInvalidControl } = useInvalidFieldFocus();
-const proposal = computed(() => dimensionProposal(props.points, props.box, form.values.value));
+const proposal = computed(() => dimensionProposal(props.points, props.box, form.values.value, edited.value));
 watchEffect(() => props.preview(proposal.value.polygon));
 const changed = computed(() => JSON.stringify(proposal.value.polygon?.points) !== JSON.stringify(props.points));
 const blocked = computed(() => props.blocked.value || form.submitting.value);
@@ -47,7 +48,10 @@ const previewText = computed(() => {
 const axes = ['width', 'depth'] as const;
 function input(axis: keyof DimensionsText, event: Event): void {
 	const control = event.target as HTMLInputElement;
-	if (!refuseInput(control, form.values.value[axis])) form.setField(axis, control.value);
+	if (!refuseInput(control, form.values.value[axis])) {
+		edited.value[axis] = true;
+		form.setField(axis, control.value);
+	}
 }
 function error(axis: keyof DimensionsText): string | null {
 	const reason = proposal.value.errors[axis];

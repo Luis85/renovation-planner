@@ -1,7 +1,7 @@
 [
   {
     "scenario": "light",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "existing": {
       "retainedApplyFocus": true,
       "choiceRestored": "floor",
@@ -9,7 +9,7 @@
     },
     "material": {
       "retainedApplyFocus": true,
-      "choiceRestored": "asset-01M1YP96F24EXW5HPHE5GDYFNY",
+      "choiceRestored": "asset-01M251FRT2244HHYR3V2ZD49V4",
       "busyEscapeAndTab": true
     },
     "counts": {
@@ -30,7 +30,7 @@
   },
   {
     "scenario": "dark",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "existing": {
       "retainedApplyFocus": true,
       "choiceRestored": "floor",
@@ -38,7 +38,7 @@
     },
     "material": {
       "retainedApplyFocus": true,
-      "choiceRestored": "asset-01M1YP9H6CW6WNMN46PJ1CF2ZQ",
+      "choiceRestored": "asset-01M251G1S4K9QTTD12PN5BSYJY",
       "busyEscapeAndTab": true
     },
     "counts": {
@@ -59,7 +59,7 @@
   },
   {
     "scenario": "custom-accent",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "existing": {
       "retainedApplyFocus": true,
       "choiceRestored": "floor",
@@ -67,7 +67,7 @@
     },
     "material": {
       "retainedApplyFocus": true,
-      "choiceRestored": "asset-01M1YP9RM1TEYERFEDDZBNTDVW",
+      "choiceRestored": "asset-01M251GAYMWKR9VT72W9ZBQWJC",
       "busyEscapeAndTab": true
     },
     "counts": {
@@ -88,7 +88,7 @@
   },
   {
     "scenario": "german-constrained",
-    "browser": "152.0.4191.62",
+    "browser": "151.0.7922.34",
     "existing": {
       "retainedApplyFocus": true,
       "choiceRestored": "floor",
@@ -96,7 +96,7 @@
     },
     "material": {
       "retainedApplyFocus": true,
-      "choiceRestored": "asset-01M1YPA0K5YG9PEA8801SSQ87P",
+      "choiceRestored": "asset-01M251GKY6TMFXT3GPC0CJCY02",
       "busyEscapeAndTab": true
     },
     "counts": {

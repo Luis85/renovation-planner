@@ -222,6 +222,7 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
  'src/application/commands/renovation/MaterialCommand.ts::MaterialCommand': rows(['execute', 'undo'], 'MaterialCommand'),
 	'src/application/commands/renovation/RenovationCommand.ts::RenovationCommand': rows(['execute', 'undo'], 'RenovationCommand'),
 	'src/application/commands/spatial/StructureCommand.ts::StructureCommand': rows(['execute', 'undo'], 'StructureCommand'),
+	'src/application/commands/spatial/GroupGeometryCommand.ts::GroupGeometryCommand': rows(['execute', 'undo'], 'GroupGeometryCommand'),
 	'src/application/commands/plan/ConfigurePlanReference.ts::ConfigurePlanReference': rows(['execute', 'undo'], 'ConfigurePlanReference'),
 	'src/application/commands/zone/reversible-rename-zone-command.ts::ReversibleRenameZoneCommand':
 		rows(['execute', 'undo'], 'reversible-rename-zone-command'),

@@ -44,25 +44,25 @@ import { tr } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import type { ToolId } from '../tools/editor-tool';
 import { useEditorRuntime } from '../runtime';
-import AreaCornerEditor from '../add/AreaCornerEditor.vue';
-import StructureTaskForm from '../structure/StructureTaskForm.vue';
+import TaskDrawingControls from './TaskDrawingControls.vue';
 import { isStructureTool } from '../structure/structureDraft';
 import { isElementTool } from '../elements/elementDraft';
+import { useTaskbarClearance } from './useTaskbarClearance';
 
 const runtime = useEditorRuntime();
+const isCurves = computed(() => runtime.activeToolId.value === 'edit-curves');
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
 const isElement = computed(() => isElementTool(runtime.activeToolId.value));
 const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
-function freeRoomName(event: Event): void {
-	const input = event.target as HTMLInputElement;
-	if (runtime.areaCorners.editable.value) runtime.roomDraft.setName(input.value);
-	else input.value = runtime.roomDraft.name;
-}
 
 const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey; finish?: true }>>> = {
+	'edit-curves': { nameKey: 'editor.curves.action', instructionKey: 'editor.curves.instruction', finish: true },
+	'move-opening': { nameKey: 'editor.opening-move.action', instructionKey: 'editor.opening-move.instruction' },
 	'edit-room-dimension': { nameKey: 'editor.dimension.task', instructionKey: 'editor.dimension.instruction' },
 	'place-object': { nameKey: 'editor.add.item.label', instructionKey: 'editor.element.banner.object', finish: true },
+	'place-stair': { nameKey: 'editor.add.stair.label', instructionKey: 'editor.stair.banner', finish: true },
+	'draw-arrow': { nameKey: 'editor.add.arrow.label', instructionKey: 'editor.arrow.banner', finish: true },
 	'draw-path': { nameKey: 'editor.add.path.label', instructionKey: 'editor.element.banner.path', finish: true },
 	'draw-fence': { nameKey: 'editor.add.fence.label', instructionKey: 'editor.element.banner.fence', finish: true },
 	measure: { nameKey: 'editor.add.measurement.label', instructionKey: 'editor.element.banner.measurement', finish: true },
@@ -82,13 +82,15 @@ const task = computed(() => {
 });
 
 const root = ref<HTMLElement | null>(null);
+const taskbarClearance = useTaskbarClearance(root);
 const instructionId = useId();
 const isArea = computed(() => runtime.activeToolId.value === 'draw-area');
 const isOutline = computed(() => isArea.value || runtime.activeToolId.value === 'draw-polygon');
-const finishLabel = computed(() => tr(isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
-const canFinish = computed(() => isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
+const finishLabel = computed(() => tr(isCurves.value ? 'editor.curves.save' : isStructure.value
+	? runtime.activeToolId.value === 'draw-wall' ? 'editor.creation.finish-walls' : 'editor.creation.finish-opening'
+	: isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
+const canFinish = computed(() => isCurves.value ? !runtime.curveTask.blocked.value && runtime.curveTask.target.value !== null && runtime.curveTask.validation.value === null && runtime.curveTask.state.invalidField === null : isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 const showSnapHint = computed(() => runtime.activeToolId.value === 'draw-room' && runtime.renderState.snapGuides.length > 0);
-const isFreeRoom = computed(() => runtime.activeToolId.value === 'draw-polygon');
 const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
 const finishDescription = computed(() => [instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' '));
 
@@ -101,7 +103,9 @@ const finishDescription = computed(() => [instructionId, runtime.writesBlocked.v
  */
 function onFinish(): void {
 	if (!canFinish.value || runtime.writesBlocked.value) return;
-	if (isElement.value) void runtime.elementTask.finish();
+	if (isCurves.value) void runtime.curveTask.finish();
+	else if (isStructure.value) void runtime.structureTask.finish();
+	else if (isElement.value) void runtime.elementTask.finish();
 	else if (isOutline.value) runtime.finishArea();
 	else void runtime.createRoom();
 }
@@ -153,6 +157,7 @@ watch(task, (next) => {
 		ref="root"
 		class="rp-task-banner"
 		:class="{ 'rp-task-banner--structure': isStructure }"
+		:style="{ '--rp-taskbar-clearance': `${taskbarClearance}px` }"
 		role="region"
 		:aria-label="tr('editor.task.banner')"
 	>
@@ -162,32 +167,15 @@ watch(task, (next) => {
 			role="status"
 		>{{ tr('editor.room.snapped') }}</span>
 		<span
-			v-if="!isStructure"
 			:id="instructionId"
 		>{{ tr(task.instructionKey) }}</span>
-		<label v-if="isFreeRoom">{{ tr('editor.room.name') }}
-			<input
-				name="free-room-name"
-				type="text"
-				:value="runtime.roomDraft.name"
-				:readonly="!runtime.areaCorners.editable.value"
-				@input="freeRoomName"
-			>
-		</label>
-		<AreaCornerEditor v-if="isOutline" />
-		<StructureTaskForm v-if="isStructure" />
-		<label
-			v-if="isArea"
-			class="rp-task-banner__repeat"
-		>
-			<input
-				v-model="runtime.keepAddingAreas.value"
-				type="checkbox"
-			>
-			{{ tr('editor.area.keep-adding') }}
-		</label>
+		<span
+			v-if="runtime.activeToolId.value === 'move-opening'"
+			role="status"
+		>{{ runtime.openingMove.loading.value ? tr('editor.opening-move.loading') : runtime.openingMove.saving.value ? tr('editor.opening-move.saving') : runtime.openingMove.message.value }}</span>
+		<TaskDrawingControls />
 		<button
-			v-if="task.finish"
+			v-if="task.finish || isStructure"
 			type="button"
 			class="rp-task-banner__finish"
 			:aria-disabled="finishBlocked"

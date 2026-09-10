@@ -10,6 +10,7 @@ import { area } from '../../../core/geometry/operations';
 import { formatArea } from '../shell/formatArea';
 import { formatMetres } from '../shell/formatLength';
 import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
+import ObjectRotationControls from './ObjectRotationControls.vue';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 const session = useRenovationSession();
@@ -34,10 +35,17 @@ async function edit(event: Event): Promise<void> {
 		<p v-if="element.kind === 'object' && measuredArea?.ok">
 			{{ formatArea(measuredArea.value) }}
 		</p>
+		<p v-else-if="element.kind === 'stair' && element.stair">
+			{{ tr('editor.stair.summary', { width: formatMetres(element.stair.width), run: formatMetres(elementLength(element)), treads: String(element.stair.treads), direction: tr(element.stair.direction === 'up' ? 'editor.stair.up' : 'editor.stair.down') }) }}
+		</p>
 		<p v-else>
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
 		<StructureRenovationEntry />
+		<ObjectRotationControls
+			v-if="session.perspective === 'plan'"
+			:id="element.id"
+		/>
 		<button
 			v-if="session.perspective === 'renovate'"
 			type="button"

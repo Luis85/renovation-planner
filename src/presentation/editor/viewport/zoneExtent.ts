@@ -5,6 +5,7 @@ import type { Point } from '../../../core/geometry/Point';
 /** Everything zoom-to-fit needs of a zone: where it is. */
 export interface ExtentCandidate {
 	readonly points: readonly Point[];
+	readonly hitPoints?: readonly Point[];
 }
 
 /**
@@ -31,7 +32,7 @@ export interface ExtentCandidate {
 export function boundsOfZones(zones: readonly ExtentCandidate[]): BoundingBox | null {
 	let union: BoundingBox | null = null;
 	for (const zone of zones) {
-		const box = boundingBoxOf(zone);
+		const box = boundingBoxOf(zone.hitPoints ? { points: zone.hitPoints } : zone);
 		if (!box.ok) continue;
 		union = union === null ? box.value : {
 			min: { x: Math.min(union.min.x, box.value.min.x), y: Math.min(union.min.y, box.value.min.y) },

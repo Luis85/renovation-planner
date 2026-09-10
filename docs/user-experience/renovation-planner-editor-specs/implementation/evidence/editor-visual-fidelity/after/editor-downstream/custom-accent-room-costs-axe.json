@@ -26,16 +26,16 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "15.0pt (20px)",
+                "fontSize": "9.0pt (12px)",
                 "fontWeight": "normal",
                 "messageKey": "elmPartiallyObscured",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<aside class=\"rp-editor-inspector\" tabindex=\"-1\" data-rp-region=\"inspector\" aria-label=\"Inspector\">",
+                  "html": "<aside class=\"rp-editor-layers\" tabindex=\"-1\" data-rp-region=\"layers\" aria-label=\"Property and layers\">",
                   "target": [
-                    ".rp-editor-inspector"
+                    ".rp-editor-layers"
                   ]
                 }
               ],
@@ -46,9 +46,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<h3>Room 1</h3>",
+          "html": "<h2 class=\"rp-editor-panel-title\">Property</h2>",
           "target": [
-            ".rp-renovation-inspector > h3"
+            ".rp-property-context > .rp-editor-panel-title"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
         },
@@ -58,31 +58,149 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.0pt (12px)",
+                "fontSize": "9.8pt (13px)",
                 "fontWeight": "normal",
-                "messageKey": "elmPartiallyObscured",
+                "messageKey": "bgOverlap",
                 "expectedContrastRatio": "4.5:1"
               },
-              "relatedNodes": [
-                {
-                  "html": "<aside class=\"rp-editor-inspector\" tabindex=\"-1\" data-rp-region=\"inspector\" aria-label=\"Inspector\">",
-                  "target": [
-                    ".rp-editor-inspector"
-                  ]
-                }
-              ],
+              "relatedNodes": [],
               "impact": "serious",
-              "message": "Element's background color could not be determined because it's partially obscured by another element"
+              "message": "Element's background color could not be determined because it is overlapped by another element"
             }
           ],
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<p class=\"rp-room-metadata\">12 m² · Calculated from room geometry</p>",
+          "html": "<span aria-hidden=\"true\">3 m</span>",
           "target": [
-            ".rp-room-metadata"
+            "span[data-rp-room-edge=\"1\"] > span[aria-hidden=\"true\"]"
           ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span aria-hidden=\"true\">4 m</span>",
+          "target": [
+            "span[data-rp-room-edge=\"2\"] > span[aria-hidden=\"true\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button type=\"button\" class=\"rp-dimension-label\" data-rp-dimension=\"width\" aria-disabled=\"false\" aria-label=\"Edit room width, 4 m\">4 m </button>",
+          "target": [
+            "button[data-rp-dimension=\"width\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button type=\"button\" class=\"rp-dimension-label\" data-rp-dimension=\"depth\" aria-disabled=\"false\" aria-label=\"Edit room depth, 3 m\">3 m </button>",
+          "target": [
+            "button[data-rp-dimension=\"depth\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button type=\"button\" data-rp-canvas-edit=\"\" aria-disabled=\"false\">",
+          "target": [
+            "button[data-rp-canvas-edit=\"\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgOverlap",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element's background color could not be determined because it is overlapped by another element"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button type=\"button\" data-rp-canvas-detail=\"\" aria-expanded=\"false\" aria-controls=\"rp-1-28\" aria-disabled=\"false\">",
+          "target": [
+            "button[data-rp-canvas-detail=\"\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it is overlapped by another element"
         }
       ]
     }

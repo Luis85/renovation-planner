@@ -28,6 +28,7 @@ export interface ZoneRenderModel {
 	readonly areaMm2: number;
 	/** World millimetres. */
 	readonly points: readonly Point[];
+	readonly bulges?: readonly number[];
 }
 
 export function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel {
@@ -42,6 +43,7 @@ export function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel {
 		// a pan — which is the check that the viewport transform really lives on the Group
 		// and not in a per-vertex conversion someone reintroduced.
 		points: zone.points,
+		bulges: zone.bulges,
 	};
 }
 
@@ -105,10 +107,10 @@ export function statusAppearance(status: string): StatusAppearance {
  * a Polygon is unvalidated by design (slice 2), so a render model legitimately arrives
  * holding one.
  */
-export function labelAnchor(points: readonly Point[]): Point {
+export function labelAnchor(points: readonly Point[], bulges?: readonly number[]): Point {
 	if (points.length === 0) return { x: 0, y: 0 };
-	const center = centroid({ points });
+	const center = centroid({ points, bulges });
 	if (!center.ok) return points[0];
-	const inside = contains({ points }, center.value);
+	const inside = contains({ points, bulges }, center.value);
 	return inside.ok && inside.value ? center.value : points[0];
 }

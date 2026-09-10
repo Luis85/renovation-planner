@@ -47,6 +47,7 @@ import type { DimensionAxis } from '../add/room-draft-store';
 import type { LengthRefusal } from './formatLength';
 import { formatArea } from './formatArea';
 import FieldError from '../../components/FieldError.vue';
+import FreeShapeRoomAction from '../add/FreeShapeRoomAction.vue';
 
 /**
  * `parseMetres`'s three refusals, each with the sentence that names what to do instead. A
@@ -88,16 +89,6 @@ const NO_FIGURE = '–';
 const runtime = useEditorRuntime();
 const editor = useEditorStore();
 const draft = runtime.roomDraft;
-async function freeShape(event: Event): Promise<void> {
-	if (runtime.writesBlocked.value || draft.submitting) return;
-	const leaf = (event.currentTarget as HTMLElement).closest<HTMLElement>('.renovation-plan-editor');
-	const name = draft.name, points = draft.geometry?.points ?? [];
-	runtime.setTool('draw-polygon');
-	draft.setName(name);
-	points.forEach((point, index) => { runtime.toolManager.editActiveCorner(index, point); });
-	await nextTick(); await nextTick();
-	leaf?.querySelector<HTMLElement>('.rp-area-corners summary')?.focus();
-}
 
 const root = ref<HTMLElement | null>(null);
 const nameId = useId();
@@ -240,14 +231,10 @@ onBeforeUnmount(() => {
 			{{ tr('editor.room.new.heading') }}
 		</h3>
 
-		<button
-			type="button"
-			data-rp-action="free-shape-room"
-			:disabled="runtime.writesBlocked.value || draft.submitting"
-			@click="freeShape"
-		>
-			{{ tr('editor.room.free-shape') }}
-		</button>
+		<FreeShapeRoomAction />
+		<p class="rp-new-room__hint">
+			{{ tr('editor.room.free-shape-hint') }}
+		</p>
 
 		<div class="rp-new-room__field">
 			<label :for="nameId">{{ tr('editor.room.name') }}</label>

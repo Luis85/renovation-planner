@@ -599,6 +599,8 @@ describe('every service leaving the composition root is guarded', () => {
 			// reviewNoteAction is exercised through actual repositories in guardedRenovation.test.ts.
 			'editorDeps.commands',
 			'editorDeps.commands.events',
+			// Argument-taking Group factory: composed read/execute/undo boundaries and retry are driven by guardedGroups.test.ts.
+			'editorDeps.commands.groups',
 			'editorDeps.commands.logger',
 			// Argument-taking factory: all three doors are exercised by guardedReferencePlan.test.ts.
 			// Planning factory doors are driven by planningEditorServices.test.ts.

@@ -4,6 +4,7 @@ import type { PlanningServices } from '../../application/commands/renovation/Pla
 import type { EvidenceFiles } from '../../application/ports/EvidenceFiles';
 import { referencePlanServices, type ReferencePlanServices } from '../../application/commands/plan/ConfigurePlanReference';
 import type { StructureServices } from '../../application/commands/spatial/StructureCommand';
+import type { GroupGeometryServices } from '../../application/commands/spatial/GroupGeometryCommand';
 import { err, type Result } from '../../core/result/Result';
 import { createEventBus, type EventBus } from '../../core/events/EventBus';
 import type {
@@ -64,6 +65,7 @@ export interface CalibratePlanTransaction {
  * boundary is exactly what has no per-transaction state.
  */
 export interface PlanEditorCommandServices {
+	readonly groups?: GroupGeometryServices;
 	readonly tradeCatalogue?: NamedCatalogueServices<Trade>;
 	readonly planning?: PlanningServices;
 	readonly evidenceFiles?: EvidenceFiles;

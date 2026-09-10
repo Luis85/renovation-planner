@@ -5,6 +5,7 @@ import type { Calibration } from '../../domain/plan/Calibration';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { EntityVersion } from './versioning';
 import type { Structure } from '../../domain/spatial/Structure';
+import type { SpatialGroup } from '../../domain/spatial/SpatialGroup';
 
 /**
  * One geometry entry of the plan sidecar (ADR-002/ADR-011), raised to domain shapes: the
@@ -12,12 +13,14 @@ import type { Structure } from '../../domain/spatial/Structure';
  * The id is the owning spatial object's (today: always a Zone note's id).
  */
 export interface SpatialObjectGeometry {
+	readonly bulges?: readonly number[];
 	readonly id: string;
 	readonly points: readonly Point[];
 }
 
 /** The whole editable content of one plan's sidecar, calibration included. */
 export interface PlanGeometryDocument {
+	readonly groups?: readonly SpatialGroup[];
 	readonly intended?: Structure;
 	readonly structure?: Structure;
 	readonly calibration: Calibration | null;

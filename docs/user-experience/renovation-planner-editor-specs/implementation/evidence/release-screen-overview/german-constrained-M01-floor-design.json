@@ -1,0 +1,48 @@
+{
+  "viewport": {
+    "width": 460,
+    "height": 1000
+  },
+  "bounds": {
+    ".rp-floor-inspector > h3:first-of-type": {
+      "x": 109,
+      "y": 201.4375,
+      "width": 335,
+      "height": 25
+    },
+    ".rp-floor-planning-summary": {
+      "x": 109,
+      "y": 392.96875,
+      "width": 335,
+      "height": 88.734375
+    },
+    ".rp-floor-inspector__guidance": {
+      "x": 109,
+      "y": 497.703125,
+      "width": 335,
+      "height": 63.6875
+    },
+    ".rp-floor-inspector .rp-room-list:has(.rp-room-list__row--annotated)": {
+      "x": 109,
+      "y": 630.28125,
+      "width": 335,
+      "height": 232
+    }
+  },
+  "sample": {
+    "roomId": "zone-01M20MRGQXKTR3KQRHQNQBH37B",
+    "role": "floor/element viewport sample; selected entity IDs are recorded separately"
+  },
+  "selection": {
+    "ids": [],
+    "focusedId": null
+  },
+  "input": "Only viewport height changes; no scroll/focus reset",
+  "camera": {
+    "x": 48.00000000000001,
+    "y": 249.8536585365854,
+    "zoom": 0.03585365853658536
+  },
+  "constrained": true,
+  "vaultAndSelectionUnchanged": true
+}

@@ -12,6 +12,21 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: create native straight Stairs with editable width, run, tread count and direction, and Direction arrows with editable points. Their schema-8 geometry uses existing guarded history, full stair footprints for selection and grouping, and explicit native/application icon registration.
+- Plan editor: save groups, select and move their members together, rotate assemblies, and enclose a Room with walls in one undoable operation. Hosted openings and hidden group members follow their walls and group.
+
+- Plan geometry: versioned circular Room and Wall boundaries retain curve parameters through persistence and legacy point transforms, with analytic measurements and curve-aware version observations.
+- Editor: edit Room and Wall curves with numbered bend handles or precise depth/radius fields; measurements, snapping, material quantities, photo-pin bounds, rotation, selection, hosted openings and exact undo follow the curved geometry.
+
+- Plan geometry: persist flat spatial groups in schema 6, transform their members atomically, and preserve membership through individual deletion and Undo.
+
+- Plan editor: show actual Room edge lengths during rotation, point editing and free-form creation, and expose free-form Room drawing directly in the creation task banner.
+
+- Plan editor: show small curved-arrow controls on hovered item edges, with generous pointer targets and click-to-angle input, while preserving selected groups and ordinary overlap cycling.
+
+- Plan editor: rotate a single Room, Area, Object, Path, Fence or Measurement through guarded pointer and numeric angle actions, preserving saved identities, metadata, item order and exact Undo/Redo. Quarter turns retain axis-aligned Room sizing.
+- Plan editor: rotate a wall around its midpoint with connected wall ends and hosted openings. Door, Window and Opening selections rotate their host through impact review, preserving opening measurements, independent Room outlines and intended geometry, with guarded Undo/Redo and read-only recovery.
+
 - Evidence supports explicit capture/document dates without inferring file timestamps, stable gallery/pin date order during recovery, and navigation to its separately linked Work. Dated Plans use schema 8 so older writers cannot discard the field.
 - Evidence pins show host type symbols beside their numbers, and Room captions remain clear of pins. Inspector overview links preserve native focus when their source control disappears.
 
@@ -153,7 +168,17 @@ entries are added by the pull request that earns them, never invented at release
   asks oxlint which files it lints so a narrowed `ignorePatterns` fails the build instead of
   quietly shrinking the gate.
 
+### Fixed
+
+- Curved Room containment treats round-off at a tangent as one contact, and failed read-back preserves a paused curve draft for retry.
+- Existing and Planned detail rows and canvas markers show their saved surface or element kind, so identical descriptions remain distinguishable.
+
 ### Changed
+
+- Existing room details show saved photos in a contextual strip and expose calculated floor area when expanded. Photo navigation preserves spatial context and camera; a peer removal restores owned keyboard focus.
+
+- Plan editor: keep renovation state and evidence type switches visible, show contextual room headings and compact expandable records, and place creation and continuation actions after the relevant content. Expanded cost groups retain all reconciled stages.
+- Spatial rotation uses a recognizable circular-arrow handle with a larger grab area, pivot and angle feedback, and localized numeric and quarter-turn controls in each eligible Inspector. Openings explicitly rotate with their host wall.
 
 - Build with Vite instead of esbuild, per the SDD's stack: single CJS bundle into `dist/`,
   a dev-server browser harness, and `@vitejs/plugin-vue` one line away when the first Vue
@@ -214,6 +239,8 @@ entries are added by the pull request that earns them, never invented at release
 - Asset library: a clear control on the search field; a hint when a new asset's name matches an existing one.
 
 ### Fixed
+
+- Plan editor: Object-first overlap selection follows the confirmed interaction contract, while clicking a selected Object, Opening or Wall in a mixed selection focuses it without collapsing the set. Explicitly retyped Room dimensions apply their exact numeric value, preserving untouched coordinates and true no-op history. Fresh persisted-opening tests cover all kinds, subsequent edits, host guards and read-only recovery without write replay.
 
 - Keep Room rename/resize controls consistent with planning and unrecovered-write pauses, reload changed evidence thumbnails at the same resource path, and return keyboard focus into an already-open panel when its rail is activated again.
 

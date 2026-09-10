@@ -7,13 +7,18 @@ export async function type(page, name, value, scope = '.rp-structure-task') {
 	await page.keyboard.press('Control+A'); await page.keyboard.type(value);
 }
 async function add(page, kind) {
+	const details = page.locator('[data-rp-rail="details"]');
+	const detailsWasClosed = await details.isVisible() && await details.getAttribute('aria-expanded') === 'false';
 	await activate(page, '[data-rp-action="add"]');
 	await page.locator('.rp-add-menu').waitFor();
 	for (let i = 0; i < 15; i++) {
 		if (await page.locator(`[data-rp-entry="${kind}"]`).evaluate(el => el === document.activeElement)) break;
 		await page.keyboard.press('ArrowDown');
 	}
-	await page.keyboard.press('Enter'); await page.locator('.rp-structure-task').waitFor();
+	await page.keyboard.press('Enter'); await page.locator('.rp-task-banner--structure').waitFor();
+	if (detailsWasClosed) assert.equal(await details.getAttribute('aria-expanded'), 'false', 'structure creation leaves Details closed until requested');
+	// This journey chooses numeric entry. Drawing itself does not open the constrained drawer.
+	await panel(page, 'details'); await page.locator('.rp-structure-task').waitFor();
 	await page.waitForFunction(() => document.querySelector('.rp-structure-task button')?.getAttribute('aria-disabled') === 'false');
 }
 async function reference(page) {
@@ -27,7 +32,8 @@ async function reference(page) {
 	await page.locator(scope).waitFor({ state: 'hidden' });
 }
 export async function panel(page, name) {
-	if (await page.locator(`[data-rp-rail="${name}"]`).isVisible()) await activate(page, `[data-rp-rail="${name}"]`);
+	const rail = page.locator(`[data-rp-rail="${name}"]`);
+	if (await rail.isVisible() && await rail.getAttribute('aria-expanded') !== 'true') await activate(page, `[data-rp-rail="${name}"]`);
 }
 async function capture(page, scenario, out, name) {
 	assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'no page horizontal overflow');
@@ -95,7 +101,7 @@ async function journey(page, scenario, out) {
 	await activate(page, '[data-rp-action="edit-structure"]'); await page.locator('.rp-dialog form').waitFor();
 	await type(page, 'width', '1.2', '.rp-dialog'); await activate(page, '.rp-dialog form button[type="submit"]'); await activate(page, '.rp-dialog form button[type="submit"]');
 	await page.locator('.rp-dialog').waitFor({ state: 'hidden' });
-	await activate(page, '.rp-structure-inspector summary'); await activate(page, '.rp-structure-inspector details button');
+	await activate(page, '.rp-structure-inspector summary'); await activate(page, '[data-rp-action="delete-structure"]');
 	await page.locator('.rp-dialog').waitFor(); await capture(page, scenario, out, 'delete-impact');
 	await activate(page, '.rp-dialog [data-rp-action="confirm"]'); await page.locator('.rp-dialog').waitFor({ state: 'hidden' });
 	await activate(page, '[data-rp-action="undo"]');

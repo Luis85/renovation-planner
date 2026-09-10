@@ -1,23 +1,10 @@
 <script setup lang="ts">
+import HostIcon from '../../components/HostIcon.vue';
+import ChangeLegend from './ChangeLegend.vue';
+import { usePlanEditorContext } from '../PlanEditorContext';
 import StructureList from '../structure/StructureList.vue';
-/**
- * §60's layers region, replaced by the truthful two-entry catalogue (Task 14): what used to
- * be seven checkboxes for §17's whole Konva stage — four of them layers nothing ever draws
- * into — is the Reference plan and the Rooms, plus Set scale on the reference row, which is
- * Calibrate's only door since Task 13 retired the toolbar.
- *
- * The class stays `rp-editor-layers` (not renamed to match the new content) so
- * `shell.test.ts`'s region assertions and this panel's CSS width survive Task 13's shell
- * split unchanged; only what is INSIDE it changed.
- *
- * **`tabindex="-1"` and `data-rp-region="layers"` make this aside PROGRAMMATICALLY focusable
- * and nothing else** (R10). A pane growing from `constrained` back to `full` closes the
- * overlay that stood in for this region — the overlay draws this very component inside itself
- * — and the rail button a close would normally return focus to is removed by the same
- * transition, so `ResponsiveEditorShell.measure` focuses this region instead of leaving the
- * keyboard user on `<body>`. `-1` rather than `0` because that is the whole of it: this is a
- * surviving TARGET, not a new Tab stop, and the panel's own controls are what a user tabs to.
- */
+/** Current Project → Floor context and presentation layers, with the non-canvas entity
+ * routes disclosed separately. Stores survive modeless panel hiding and reflow. */
 import ReferenceAction from '../reference/ReferenceAction.vue';
 import { computed } from 'vue';
 import { useRenovationSession } from '../renovation/renovationSession';
@@ -34,22 +21,12 @@ import { useSpatialRecords } from './useSpatialRecords';
 const props = defineProps<{ plan: PlanDto | null }>();
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
-/**
- * Design spec §2.9's `writesBlocked`, read directly from `ProjectStore` rather than from
- * `runtime.writesBlocked` — the same call `StatusBar.vue`'s own header makes for the
- * identical reason: this component is discoverable and mountable STANDALONE by the harness
- * index (every real `.vue` under `src/presentation/` is), and injecting the runtime there
- * throws with no `PlanEditorRoot` above it to provide one.
- */
-const { stale } = storeToRefs(useProjectStore());
+const { stale, project } = storeToRefs(useProjectStore());
+const context = usePlanEditorContext();
 const records = useSpatialRecords();
-// Per-leaf on the runtime, not local: this panel is unmounted by every overlay close.
+// Per-leaf on the runtime so selection mode survives panel reflow.
 const toggleSelection = runtime.multiSelectionMode;
 const entries = computed(() => layerCatalogue(props.plan, stale.value));
-// Computed rather than interpolated inline: a plan-less heading (still loading, missing,
-// failed) is just the region name, and building that branch in the template needs a nested
-// `<template>` that fails `vue/singleline-html-element-content-newline`.
-const heading = computed(() => (props.plan === null ? tr('editor.floor') : `${tr('editor.floor')} — ${props.plan.name}`));
 </script>
 
 <template>
@@ -59,39 +36,82 @@ const heading = computed(() => (props.plan === null ? tr('editor.floor') : `${tr
 		data-rp-region="layers"
 		:aria-label="tr('editor.property-panel')"
 	>
-		<h2 class="rp-editor-panel-title">
-			{{ heading }}
-		</h2>
-		<ReferenceAction v-if="session.perspective !== 'review'" />
-		<LayerList
-			v-if="session.perspective !== 'review'"
-			:entries="entries"
-			@activate-tool="runtime.setTool"
-		/>
-		<StructureList />
-		<label v-if="runtime.renovation.available">
-			<input
-				v-model="session.visible"
-				type="checkbox"
+		<section class="rp-property-context">
+			<h2 class="rp-editor-panel-title">
+				{{ tr('editor.shell.property') }}
+			</h2>
+			<button
+				v-if="project && context.navigation"
+				type="button"
+				class="rp-property-context__project"
+				@click="context.navigation.project(project.id)"
 			>
-			{{ tr('renovation.visible') }}
-		</label>
-		<RoomSummaryList
-			v-if="records.length > 0"
-			:records="records"
-			:heading="tr('editor.selection.records')"
-			:toggle-selection="toggleSelection"
-		/>
-		<label v-if="records.length > 1">
-			<input
-				v-model="toggleSelection"
-				type="checkbox"
-				data-rp-action="multiple-selection"
+				<HostIcon name="house" />{{ project.name }}
+			</button>
+			<p
+				v-else-if="project"
+				class="rp-property-context__project"
 			>
-			{{ tr('editor.selection.toggle-mode') }}
-		</label>
-		<p v-if="records.length > 1">
-			{{ tr('editor.selection.hint') }}
-		</p>
+				<HostIcon name="house" />{{ project.name }}
+			</p>
+			<p
+				class="rp-property-context__floor"
+				aria-current="page"
+			>
+				<HostIcon name="grid-2x-2" />{{ plan?.name ?? tr('editor.floor') }}
+			</p>
+		</section>
+		<section class="rp-property-layers">
+			<h2 class="rp-editor-panel-title">
+				{{ tr('editor.rail.layers') }}
+			</h2>
+			<LayerList
+				v-if="session.perspective !== 'review'"
+				:entries="entries"
+				:plan="plan"
+				@activate-tool="runtime.setTool"
+			/>
+			<label
+				v-if="runtime.renovation.available"
+				class="rp-layer-toggle"
+			>
+				<input
+					v-model="session.visible"
+					type="checkbox"
+					class="rp-visually-hidden"
+				>
+				<HostIcon :name="session.visible ? 'eye' : 'eye-off'" />
+				<span>{{ tr('editor.shell.planned-layer') }}</span>
+			</label>
+			<details
+				v-if="session.perspective !== 'review'"
+				class="rp-reference-options"
+			>
+				<summary>{{ tr('editor.shell.reference-options') }}</summary>
+				<ReferenceAction />
+			</details>
+		</section>
+		<ChangeLegend v-if="runtime.renovation.available" />
+		<details class="rp-property-elements">
+			<summary>{{ tr('editor.shell.elements') }}</summary>
+			<StructureList />
+			<RoomSummaryList
+				v-if="records.length > 0"
+				:records="records"
+				:heading="tr('editor.selection.records')"
+				:toggle-selection="toggleSelection"
+			/>
+			<label v-if="records.length > 1">
+				<input
+					v-model="toggleSelection"
+					type="checkbox"
+					data-rp-action="multiple-selection"
+				>
+				{{ tr('editor.selection.toggle-mode') }}
+			</label>
+			<p v-if="records.length > 1">
+				{{ tr('editor.selection.hint') }}
+			</p>
+		</details>
 	</aside>
 </template>

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import { mount } from '@vue/test-utils';
 import type Konva from 'konva';
@@ -175,6 +175,7 @@ function mountStandalone(dto: InspectorDto) {
 	setActivePinia(createPinia());
 	const runtime = {
 		inspectorDto: ref(dto),
+		rotationActions: { target: computed(() => null), available: computed(() => false), blocked: computed(() => true), active: computed(() => false), rotate: () => Promise.resolve() } satisfies Pick<EditorRuntime['rotationActions'], 'target' | 'available' | 'blocked' | 'active' | 'rotate'>,
 		outlineEdit: { blocked: ref(false), editOutline: () => Promise.resolve() },
 		inspectorRequirements: ref([]),
 		assetOptions: ref([]),
@@ -209,6 +210,7 @@ describe('the Room Inspector, mounted standalone', () => {
 		expect(wrapper.find('.rp-question-nav').exists()).toBe(false);
 		expect(wrapper.find('.rp-linked-content').exists()).toBe(false);
 		expect(room.find('.rp-editor-inspector-delete').exists()).toBe(true);
+		expect(room.find('.rp-object-rotation-actions').exists()).toBe(false);
 	});
 });
 

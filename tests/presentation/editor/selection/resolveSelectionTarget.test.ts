@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveSelectionTarget } from '../../../../src/presentation/editor/selection/resolveSelectionTarget';
+import { structureCandidates } from '../../../../src/presentation/editor/structure/structureCandidates';
+import { WALL_LOOP } from '../../../helpers/structure';
 
 /**
  * The ONE answer to "what would a click here select" (design spec §6.1) — see the function's
@@ -16,6 +18,36 @@ describe('resolveSelectionTarget', () => {
 	const below = square('below', 0, 0, 1000);
 	const above = square('above', 500, 500, 1000);
 	const base = { candidates: [below, above], selectedIds: [], handleToleranceWorld: 50 };
+
+	it('ranks Object before Opening before Wall before Room across paint orders and cycles every overlap', () => {
+		const structure = { ...WALL_LOOP, openings: [{ id: 'opening-a', kind: 'window' as const, hostId: 'wall-a', offset: 500, width: 1000, height: 1000, sill: 700 }] };
+		const room = square('room', 0, 0, 4000);
+		const object = { ...square('object', 600, -100, 400), kind: 'object' as const };
+		const all = [object, ...structureCandidates(structure), room];
+		const order = ['object', 'opening-a', 'wall-a', 'room'];
+		for (const candidates of [all, all.toReversed()]) {
+			const hit = { candidates, selectedIds: [], worldPoint: { x: 800, y: 0 }, handleToleranceWorld: 10 };
+			expect(resolveSelectionTarget(hit)).toEqual({ kind: 'body', id: 'object' });
+			for (const [index, id] of order.entries()) {
+				expect(resolveSelectionTarget({ ...hit, selectedIds: [id], cycle: true })).toEqual({ kind: 'body', id: order[(index + 1) % order.length] });
+			}
+			expect(resolveSelectionTarget({ ...hit, worldPoint: { x: 9000, y: 9000 }, cycle: true })).toBeNull();
+		}
+	});
+	it('preserves object stacking within kind without mutating candidates and lets handles and badges take precedence', () => {
+		const first = { ...square('first-object', -100, -100, 1200), kind: 'object' as const };
+		const last = { ...first, id: 'last-object' };
+		const candidates = [first, last, below];
+		const original = candidates.slice();
+		const hit = { ...base, candidates, worldPoint: { x: 500, y: 500 } };
+		expect(resolveSelectionTarget(hit)).toEqual({ kind: 'body', id: 'last-object' });
+		expect(resolveSelectionTarget({ ...hit, candidates: candidates.toReversed() })).toEqual({ kind: 'body', id: 'first-object' });
+		expect(candidates).toEqual(original);
+		expect(resolveSelectionTarget({ ...hit, selectedIds: ['below'], worldPoint: { x: 0, y: 0 } })).toEqual({ kind: 'handle', id: 'below', vertexIndex: 0 });
+		const badge = { ...hit, selectedIds: ['first-object', 'below'], worldPoint: { x: 0, y: 0 }, badgeToleranceWorld: 150 };
+		expect(resolveSelectionTarget(badge)).toEqual({ kind: 'body', id: 'below' });
+		expect(resolveSelectionTarget({ ...badge, cycle: true })).toEqual({ kind: 'body', id: 'below' });
+	});
 
 	it('picks the topmost body where two overlap', () => {
 		expect(resolveSelectionTarget({ ...base, worldPoint: { x: 700, y: 700 } })).toEqual({ kind: 'body', id: 'above' });
@@ -72,5 +104,33 @@ describe('resolveSelectionTarget', () => {
 				worldPoint: { x: 100, y: 100 },
 			}),
 		).toEqual({ kind: 'body', id: 'below' });
+	});
+
+	it('measures a collapsed edge from its own endpoint instead of dividing by its length', () => {
+		// Two identical consecutive points give the projection no length to divide by. The
+		// distance is still the one from that endpoint, so the record stays selectable.
+		const collapsed = { id: 'marker', kind: 'path' as const, points: [{ x: 0, y: 0 }, { x: 0, y: 0 }] };
+		const at = (x: number) =>
+			resolveSelectionTarget({
+				candidates: [collapsed],
+				selectedIds: [],
+				handleToleranceWorld: 50,
+				worldPoint: { x, y: 0 },
+			});
+		expect(at(10)).toEqual({ kind: 'body', id: 'marker' });
+		expect(at(400)).toBeNull();
+	});
+
+	it('offers no multi-selection badge at all when no badge tolerance is supplied', () => {
+		const input = {
+			candidates: [below, above],
+			selectedIds: ['below', 'above'],
+			handleToleranceWorld: 50,
+			worldPoint: { x: 100, y: 100 },
+		};
+		// With a tolerance the press lands on the badge anchored at the outline's first point.
+		expect(resolveSelectionTarget({ ...input, badgeToleranceWorld: 200 })).toEqual({ kind: 'body', id: 'below' });
+		// Without one it is no badge rather than an unbounded one, so the body answers instead.
+		expect(resolveSelectionTarget(input)).toEqual({ kind: 'body', id: 'below' });
 	});
 });

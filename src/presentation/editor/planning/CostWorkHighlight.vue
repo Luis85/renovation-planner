@@ -6,7 +6,8 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { inRenovationScope } from '../renovation/renovationSummary';
 import { structureRecords } from '../structure/structureRecords';
 import type { ThemeTokens } from '../theme/themeTokens';
-defineProps<{ tokens: ThemeTokens; zoom: number }>();
+import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
+const props = defineProps<{ tokens: ThemeTokens; zoom: number }>();
 const project = useProjectStore(), session = useRenovationSession();
 const outlines = computed(() => {
 	if (session.perspective !== 'renovate' || session.mode !== 'costs') return [];
@@ -20,7 +21,8 @@ const outlines = computed(() => {
 	const targets = new Set(spatialContexts(work).filter(item => inRenovationScope(item, session.roomId, session.targetId)).map(item => item.targetId));
 	return [...targets].flatMap(id => {
 		const target = geometry.get(id);
-		return target?.points.length ? [{ id, points: target.points.flatMap(point => [point.x, point.y]), closed: project.zones.has(id) || target.zoneType === 'object' }] : [];
+		const shape = target && { ...target, kind: 'kind' in target ? target.kind === 'room' || target.kind === 'area' ? undefined : target.kind : undefined };
+		return shape?.points.length ? [{ id, points: spatialOutlinePoints(shape, 0.25 / props.zoom).flatMap(point => [point.x, point.y]), closed: project.zones.has(id) || ['object', 'stair'].includes(shape.zoneType) }] : [];
 	});
 });
 </script>

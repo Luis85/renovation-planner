@@ -4,7 +4,7 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { resizeTo } from '../../helpers/layout';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk } from '../../helpers/domain';
-async function start(r: Awaited<ReturnType<typeof renovationEditor>>, kind: 'path' | 'fence' | 'measurement') {
+async function start(r: Awaited<ReturnType<typeof renovationEditor>>, kind: 'path' | 'fence' | 'measurement' | 'arrow') {
 	await r.wrapper.get('[data-rp-action="add"]').trigger('click'); await r.wrapper.get(`[data-rp-entry="${kind}"]`).trigger('click'); await settle();
 	await settleUntil(() => !r.runtime.elementTask.draft.loading, 'element baseline');
 }
@@ -13,7 +13,7 @@ async function point(r: Awaited<ReturnType<typeof renovationEditor>>, x: string,
 	await r.wrapper.get('.rp-element-task form').trigger('submit'); await settle();
 }
 describe('linear element production paths', () => {
-	it.each(['path', 'fence', 'measurement'] as const)('creates/selects/edits/deletes %s with atomic label and geometry history', async kind => {
+	it.each(['path', 'fence', 'measurement', 'arrow'] as const)('creates/selects/edits/deletes %s with atomic label and geometry history', async kind => {
 		const r = await renovationEditor(true); r.changePlan(); await settle();
 		try {
 			await start(r, kind); await r.wrapper.get('input[name="element-name"]').setValue('Garden route');

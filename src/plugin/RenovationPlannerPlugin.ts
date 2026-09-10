@@ -21,6 +21,7 @@ import type { AssetLibraryDeps } from '../presentation/library/AssetLibraryDeps'
 import { ProjectSuggestModal } from '../presentation/modals/ProjectSuggestModal';
 import { entriesOfType } from './indexEntries';
 import { registerPlanEditorCommands } from './planEditorCommands';
+import { registerEditorIcons } from './editorIconRegistration';
 import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
@@ -182,6 +183,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// unload attaches one to a vault with no plugin left to remove it.
 		activateNotices();
 		this.disposers.push(disposeNotices);
+		this.disposers.push(registerEditorIcons());
 
 		// The logger is deliberately AHEAD of §9's first step rather than inside its list:
 		// it is not one of the things bootstrap sets up, it is what the setup steps report
@@ -989,7 +991,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			try {
 				dispose();
 			} catch (cause) {
-				// G7: `root!` is assigned only after two disposers are already pushed, so a
+				// G7: `root!` is assigned only after early disposers are already pushed, so a
 				// disposer faulting ahead of that assignment — or a root cleared out from under
 				// an otherwise-loaded plugin — must not take this catch down with it.
 				(this.root?.logger ?? this.logger).error('plugin.unload.disposer-failed', { cause });

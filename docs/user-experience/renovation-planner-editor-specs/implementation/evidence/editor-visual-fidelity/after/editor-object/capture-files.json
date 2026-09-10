@@ -1,0 +1,206 @@
+{
+  "source": "22772267dfb85456ed69c389ff844297182072a0",
+  "started": 1789023079718,
+  "completed": 1789023111572,
+  "imageSource": "Actual successful page.screenshot calls; no PNG directory scan",
+  "files": [
+    {
+      "name": "light-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023088607.2876,
+      "sha256": "cdf1e549a2f2f657bad6097132b2f64afc63dfffb1bd05fe1efb157ddd02ea0b"
+    },
+    {
+      "name": "light-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023088757.2437,
+      "sha256": "2b65c94befe90c881fb8788f49e53c1c6226179fd6bb78c90bc556efafda8ead"
+    },
+    {
+      "name": "light-invalid-rectangle.png",
+      "kind": "image",
+      "modifiedAt": 1789023089716.3108,
+      "sha256": "75fa18d62a1fed8b25ccd232a2548450db2eba00ffd5d3a69057d85bf4ef7ee2"
+    },
+    {
+      "name": "light-rectangle-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023090307.1284,
+      "sha256": "5260e10a007474bd13e5895a9b4a0e3ecc2651b0b7dfacfa8394ae80fafe1118"
+    },
+    {
+      "name": "light-saved-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023090470.7246,
+      "sha256": "6b4e71d0755625093f32c3b3ab9ba1c17e2910e30a80cfc4b73bd8a8e138b437"
+    },
+    {
+      "name": "light-restored-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023091499.5825,
+      "sha256": "9a4aecc3b774224b75352fa3b37fdcfffe9878613b85b43cd31a234041695c97"
+    },
+    {
+      "name": "dark-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023095190.7285,
+      "sha256": "84f4e39b78b1b3d29f84459fe6f9a0dcb66b0ea487b3ccb5bc21479b224a5095"
+    },
+    {
+      "name": "dark-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023095346.0337,
+      "sha256": "5a30cb1e021ba132a97479e72455ebb5f13bc05b80dca2f48dca3744f44fdd00"
+    },
+    {
+      "name": "dark-invalid-rectangle.png",
+      "kind": "image",
+      "modifiedAt": 1789023096283.409,
+      "sha256": "68bd0eddff1dba2f611f630fbbd968ec5bd6c693775bf66fdf8b0155eb466567"
+    },
+    {
+      "name": "dark-rectangle-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023096872.1292,
+      "sha256": "9b508c81c849194463bae839f9c29b5ff9d8d1dda6a10f44b5cee13d9f535dda"
+    },
+    {
+      "name": "dark-saved-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023097037.4104,
+      "sha256": "dd4ff25905f7b2e7c517f81f2bc5c48f6ab004f736ed30f591203bdd004e79a7"
+    },
+    {
+      "name": "dark-restored-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023098044.021,
+      "sha256": "aac3a14eb4173eab234f1779a436188c65c159ee7a0a813ae949c6337b7cd832"
+    },
+    {
+      "name": "custom-accent-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023101732.9705,
+      "sha256": "4aab9ed9fb9e7339a76c9ebf94e5e74e2f689582b5f528311096f58fb98c88fd"
+    },
+    {
+      "name": "custom-accent-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023101870.7466,
+      "sha256": "033ff00aae8a4cd21dc215f17991a0fccf6d4b51487fd8b5f849014aa0545a1f"
+    },
+    {
+      "name": "custom-accent-invalid-rectangle.png",
+      "kind": "image",
+      "modifiedAt": 1789023102790.864,
+      "sha256": "5dabc08b59d275c37f44336b3f63b4f3a06ba5008bd248b6256012bdfff6e461"
+    },
+    {
+      "name": "custom-accent-rectangle-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023103339.9539,
+      "sha256": "a82be0760db1af736abb65650c87688316a43d5162c0de4220259657c5579b8f"
+    },
+    {
+      "name": "custom-accent-saved-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023103493.7925,
+      "sha256": "9a6968fe0abef983ca915db14b2ecf57efac7cb2868ac9ae0dcda4a3e383617d"
+    },
+    {
+      "name": "custom-accent-restored-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023104493.501,
+      "sha256": "f2253b3ff44bb7a9c460a5626d7f6f846acc79321adba98ee1c7974ca68a5d0c"
+    },
+    {
+      "name": "german-constrained-closed-loop.png",
+      "kind": "image",
+      "modifiedAt": 1789023108671.202,
+      "sha256": "f7c6bd45be26fde14209b29f78509dfb44efbc3c2d9fc320bb9e622ec1aa387c"
+    },
+    {
+      "name": "german-constrained-wall-inspector.png",
+      "kind": "image",
+      "modifiedAt": 1789023108796.9954,
+      "sha256": "05bf19ed45e68f80c03524c0f63175cac085cf9f1a3a3d892a20c74f65db0c70"
+    },
+    {
+      "name": "german-constrained-invalid-rectangle.png",
+      "kind": "image",
+      "modifiedAt": 1789023109755.483,
+      "sha256": "22b407914b9e3f7bc5b66485ff8468537344d4d84b41ec944c55fcce6329f7ca"
+    },
+    {
+      "name": "german-constrained-rectangle-preview.png",
+      "kind": "image",
+      "modifiedAt": 1789023110277.985,
+      "sha256": "3a977a28e8197e649f03dfe4e3a9db07b64ca3cbc47113db28683dc4bcac77dd"
+    },
+    {
+      "name": "german-constrained-saved-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023110425.066,
+      "sha256": "d9b0c0ef65f8337d932ef80cd6836b86952a1c16ad5917bb48a55bc244e76109"
+    },
+    {
+      "name": "german-constrained-restored-item.png",
+      "kind": "image",
+      "modifiedAt": 1789023111460.5796,
+      "sha256": "d31fa45d9f923fac61d3f0223746180f4dc91f2c4c82dd9459afc115846dce23"
+    },
+    {
+      "name": "custom-accent-invalid-rectangle-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023103241.7847,
+      "sha256": "4c75fb86fb35c898bcab5cea5e9f57b259cc8582373a581eb632a06c40092082"
+    },
+    {
+      "name": "custom-accent-saved-item-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023103789.4346,
+      "sha256": "e23f0d469fe666012ce47622808d7a861441fd743b6758d17211158ff648e132"
+    },
+    {
+      "name": "dark-invalid-rectangle-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023096757.3242,
+      "sha256": "07dce3539e9d40855b7f04fb676cb7108ae0e794ed12087b3ff3f03464d657db"
+    },
+    {
+      "name": "dark-saved-item-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023097328.5725,
+      "sha256": "da42dea6ca6267c1d737584646f56b22af7c69f295ebea135f48d9df9225795a"
+    },
+    {
+      "name": "german-constrained-invalid-rectangle-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023110175.824,
+      "sha256": "3d128c68582fdd2b5caa4ef0d83b2db68f41a6819b41d8658529504e3769a054"
+    },
+    {
+      "name": "german-constrained-saved-item-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023110689.5007,
+      "sha256": "dcc106e2c5c0083a78ed5dbf524ba7a1c9050783c73c528e7fe1542ab61ef05e"
+    },
+    {
+      "name": "light-invalid-rectangle-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023090176.3254,
+      "sha256": "07dce3539e9d40855b7f04fb676cb7108ae0e794ed12087b3ff3f03464d657db"
+    },
+    {
+      "name": "light-saved-item-axe.json",
+      "kind": "data",
+      "modifiedAt": 1789023090786.9915,
+      "sha256": "da42dea6ca6267c1d737584646f56b22af7c69f295ebea135f48d9df9225795a"
+    },
+    {
+      "name": "report.json",
+      "kind": "data",
+      "modifiedAt": 1789023111474.8916,
+      "sha256": "ec90c4ee00b73eb749c04bebe6ed925ad86c22e3b9d4b42d5a91517208e70c37"
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 import { Decimal } from 'decimal.js';
-import { area } from '../../core/geometry/operations';
-import type { Point } from '../../core/geometry/Point';
+import { area, perimeter } from '../../core/geometry/operations';
+import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import { err, ok } from '../../core/result/Result';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
-import { EMPTY_STRUCTURE, type Structure } from '../spatial/Structure';
+import { EMPTY_STRUCTURE, wallLength, type Structure } from '../spatial/Structure';
 import { elementLength, type SpatialElement } from '../spatial/SpatialElement';
 
 export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'opening-area', 'element-length', 'object-area', 'count', 'manual'] as const;
@@ -21,7 +21,7 @@ export interface RequirementSource {
 	readonly minimum: string;
 }
 export interface QuantityGeometry {
-	readonly objects: readonly { id: string; points: readonly Point[] }[];
+	readonly objects: readonly (CurvedPolygon & { readonly id: string })[];
 	readonly structure?: Structure;
 	readonly intended?: Structure;
 }
@@ -43,15 +43,16 @@ function roomMeasurement(source: RequirementSource, roomId: string, geometry: Qu
  const room = geometry.objects.find(item => item.id === roomId);
  if (!room || source.targetId !== roomId) return null;
  if (source.rule === 'count') return { raw: 1, unit: 'piece' };
- if (source.rule === 'room-area') { const measured = area({ points: [...room.points] }); return measured.ok ? { raw: measured.value, unit: 'm2' } : null; }
+ if (source.rule === 'room-area') { const measured = area(room); return measured.ok ? { raw: measured.value, unit: 'm2' } : null; }
  if (source.rule !== 'room-perimeter') return null;
- return { raw: room.points.reduce((sum, point, index) => { const next = room.points[(index + 1) % room.points.length]; return sum + Math.hypot(next.x - point.x, next.y - point.y); }, 0), unit: 'm' };
+ const measured = perimeter(room);
+ return measured.ok ? { raw: measured.value, unit: 'm' } : null;
 }
 type Measurement = { raw: number; unit: MeasurementUnit };
 function wallMeasurement(source: RequirementSource, structure: Structure): Measurement | null {
  const wall = structure.walls.find(item => item.id === source.targetId);
  if (!wall) return null;
- const length = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
+ const length = wallLength(wall);
  if (source.rule === 'count') return { raw: 1, unit: 'piece' };
  if (source.rule === 'wall-length') return { raw: length, unit: 'm' };
  if (source.rule !== 'wall-gross' && source.rule !== 'wall-net') return null;

@@ -144,4 +144,47 @@ describe('CreatePlanCommand', () => {
 		expect(expectOk(await s.plans.listByProject(s.project.id)).loaded.map((loaded) => loaded.entity.name)).toEqual(['Site']);
 		expect(s.events.published).toHaveLength(0);
 	});
+
+	it('surfaces a failed parent PLAN read instead of mistaking it for "not found"', async () => {
+		const { projects, zones, events, seed } = wired();
+		const project = await seed();
+		class FailingRead extends InMemoryPlanRepository {
+			override getById() {
+				return Promise.resolve(injectedReadFailure());
+			}
+		}
+		const plans = new FailingRead();
+		const error = expectErr(
+			await new CreatePlanCommand(plans, projects, zones, events).execute({
+				projectId: project.id,
+				name: 'House',
+				parent: { planId: 'plan-x' as never, zoneId: 'zone-x' as never },
+			}),
+		);
+		expect(error.code).toBe('test.injected-failure');
+		expect(error.category).toBe('Persistence');
+		expect(expectOk(await plans.listByProject(project.id)).loaded).toHaveLength(0);
+		expect(events.published).toHaveLength(0);
+	});
+
+	it('surfaces a failed parent ZONE read instead of mistaking it for "not found"', async () => {
+		const s = await parentScene();
+		class FailingRead extends InMemoryZoneRepository {
+			override getById() {
+				return Promise.resolve(injectedReadFailure());
+			}
+		}
+		const zones = new FailingRead();
+		const error = expectErr(
+			await new CreatePlanCommand(s.plans, s.projects, zones, s.events).execute({
+				projectId: s.project.id,
+				name: 'House',
+				parent: { planId: s.site.id, zoneId: s.house.id },
+			}),
+		);
+		expect(error.code).toBe('test.injected-failure');
+		expect(error.category).toBe('Persistence');
+		expect(expectOk(await s.plans.listByProject(s.project.id)).loaded.map((loaded) => loaded.entity.name)).toEqual(['Site']);
+		expect(s.events.published).toHaveLength(0);
+	});
 });

@@ -64,6 +64,7 @@ import { buildRoomOverview, type RoomOverviewDto } from '../../read-models/roomO
 import RequirementRow from './RequirementRow.vue';
 import HomeownerQuestionNav from './HomeownerQuestionNav.vue';
 import LinkedContentList from './LinkedContentList.vue';
+import ZoneLockRow from './ZoneLockRow.vue';
 
 const runtime = useEditorRuntime();
 const projectStore = useProjectStore();
@@ -164,6 +165,16 @@ const pausedAttrs = computed(() =>
  * `.value` repeated at the one call site — the same reasoning as `pausedAttrs` above. */
 const paused = computed(() => runtime.writesBlocked.value);
 const unavailableNavigation = computed(() => overview.value && !runtime.renovation.available ? overview.value : null);
+
+/**
+ * The lock row's own version of `pausedAttrs` above: `overview` can be briefly `null` while it
+ * loads, so this folds that null-guard and the `locked` read into one flat boolean rather than
+ * nesting the badge's `v-if` inside a wrapping `v-if="overview !== null"` — the nesting is what
+ * pushed this template's cognitive complexity over budget (`npm run analyze`, fallow's template
+ * check), the same way this task's own paused-state bindings did for `pausedAttrs`. Optional
+ * chaining rather than a guard, matching `SpatialInspectorActions`'s `overview?.record` below.
+ */
+const zoneLocked = computed(() => overview.value?.record.locked === true);
 </script>
 
 <template>
@@ -187,6 +198,12 @@ const unavailableNavigation = computed(() => overview.value && !runtime.renovati
 			<dt>{{ tr('editor.inspector.area') }}</dt>
 			<dd>{{ formatArea(overview.record.areaMm2) }}</dd>
 		</dl>
+
+		<ZoneLockRow
+			:zone-id="dto.id"
+			:name="dto.name"
+			:locked="zoneLocked"
+		/>
 
 		<ObjectRotationControls :id="dto.id" />
 		<SpatialInspectorActions

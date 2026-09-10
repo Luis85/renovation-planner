@@ -196,6 +196,63 @@
 }
 
 /*
+ * A row and its lock toggle side by side (ADR-0027). The row keeps its own `display: block`
+ * inside the flex item, so the text-alignment argument above still holds.
+ */
+.rp-room-list .rp-room-list__item {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+}
+
+.rp-room-list .rp-room-list__item > .rp-room-list__row {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+/* Qualified to (0,2,0) so Obsidian's `button:not(.clickable-icon)` at (0,1,1) cannot win. */
+.rp-room-list .rp-editor-inspector-lock,
+.rp-editor-inspector-lock-row .rp-editor-inspector-lock {
+	flex: none;
+	padding: var(--size-2-2);
+	color: var(--text-muted);
+	background-color: transparent;
+	box-shadow: none;
+}
+
+.rp-room-list .rp-editor-inspector-lock[aria-pressed='true'],
+.rp-editor-inspector-lock-row .rp-editor-inspector-lock[aria-pressed='true'] {
+	color: var(--text-normal);
+}
+
+/*
+ * The ring, for the reason `styles/editor-shell.css`'s own `:focus-visible` comment gives at
+ * length: suppressing `box-shadow` above drops Obsidian's default ring along with it, so this
+ * button needs its own — the same shape as `.rp-editor-inspector-delete:focus-visible` above.
+ */
+.rp-room-list .rp-editor-inspector-lock:focus-visible,
+.rp-editor-inspector-lock-row .rp-editor-inspector-lock:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-editor-inspector-lock-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	margin: 0 0 var(--size-4-2);
+}
+
+.rp-editor-inspector-locked {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/*
  * The Room Inspector's two navigation lists (Task 16): `HomeownerQuestionNav` and
  * `LinkedContentList` share one shape, since every row in both is UNAVAILABLE in this
  * increment — text plus a reason, never a live control. The `--unavailable` state carries a

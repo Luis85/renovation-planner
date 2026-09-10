@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { mount } from '@vue/test-utils';
-import { nextTick } from 'vue';
+import { flushPromises, mount } from '@vue/test-utils';
+import { nextTick, ref } from 'vue';
 import RoomSummaryList from '../../../../src/presentation/editor/shell/RoomSummaryList.vue';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../../src/presentation/editor/runtime';
+import { PLAN_EDITOR_CONTEXT } from '../../../../src/presentation/editor/PlanEditorContext';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import type { SpatialRecordDto } from '../../../../src/presentation/read-models/spatialRecords';
+import { ok } from '../../../../src/core/result/Result';
 
 /**
  * `RoomSummaryList` mounted STANDALONE, with a stub `EditorRuntime` rather than the real
@@ -24,17 +26,29 @@ import type { SpatialRecordDto } from '../../../../src/presentation/read-models/
  */
 const RECORDS: readonly SpatialRecordDto[] = [
 	{ kind: 'room', id: 'zone-kitchen', planId: 'plan-ground', name: 'Kitchen', zoneType: 'Room', points: [], areaMm2: 0 },
-	{ kind: 'area', id: 'zone-terrace', planId: 'plan-ground', name: 'Terrace', zoneType: 'Terrace', points: [], areaMm2: 0 },
+	{ kind: 'area', id: 'zone-terrace', planId: 'plan-ground', name: 'Terrace', zoneType: 'Terrace', points: [], areaMm2: 0, locked: true },
 ];
+
+const KITCHEN_VERSION = { revision: 3 };
+
+/** Matches the pattern `requirementStaleness.test.ts` uses for the same port. */
+type LogLine = (event: string, context?: Record<string, unknown>) => void;
 
 function mountList(selectAndFrame = vi.fn<(id: string) => void>()) {
 	setActivePinia(createPinia());
-	const runtime = { selectAndFrame } as unknown as EditorRuntime;
+	const commitEdit = vi.fn<(edit: unknown) => Promise<boolean>>(() => Promise.resolve(true));
+	const runtime = { selectAndFrame, commitEdit, writesBlocked: ref(false) } as unknown as EditorRuntime;
+	const context = {
+		commands: {
+			logger: { debug: vi.fn<LogLine>(), info: vi.fn<LogLine>(), warn: vi.fn<LogLine>(), error: vi.fn<LogLine>() },
+			zones: { getById: () => Promise.resolve(ok({ entity: { name: 'Kitchen', zoneType: 'Room', locked: false }, version: KITCHEN_VERSION })) },
+		},
+	};
 	const wrapper = mount(RoomSummaryList, {
 		props: { records: RECORDS, heading: 'Rooms' },
-		global: { provide: { [EDITOR_RUNTIME as symbol]: runtime } },
+		global: { provide: { [EDITOR_RUNTIME as symbol]: runtime, [PLAN_EDITOR_CONTEXT as symbol]: context } },
 	});
-	return { wrapper, selectAndFrame };
+	return { wrapper, selectAndFrame, commitEdit };
 }
 
 describe('RoomSummaryList', () => {
@@ -69,5 +83,24 @@ describe('RoomSummaryList', () => {
 		expect(selectAndFrame).toHaveBeenCalledWith('zone-kitchen', false);
 		await rows[1].trigger('click', { shiftKey: true });
 		expect(selectAndFrame).toHaveBeenLastCalledWith('zone-terrace', true);
+	});
+
+	it('puts a named lock toggle beside every row, pressed only for a locked record', () => {
+		const { wrapper } = mountList();
+		const toggles = wrapper.findAll('[data-rp-lock]');
+		expect(toggles.map((toggle) => toggle.attributes('aria-pressed'))).toEqual(['false', 'true']);
+		expect(toggles.map((toggle) => toggle.attributes('aria-label'))).toEqual(['Lock Kitchen', 'Unlock Terrace']);
+	});
+
+	it('dispatches the lock as one details edit against the version it just read', async () => {
+		const { wrapper, commitEdit, selectAndFrame } = mountList();
+		await wrapper.get('[data-rp-lock="zone-kitchen"]').trigger('click');
+		await flushPromises();
+		expect(commitEdit).toHaveBeenCalledWith({
+			kind: 'details', zoneId: 'zone-kitchen', expected: KITCHEN_VERSION,
+			forward: { name: 'Kitchen', zoneType: 'Room', locked: true },
+			inverse: { name: 'Kitchen', zoneType: 'Room', locked: false },
+		});
+		expect(selectAndFrame).not.toHaveBeenCalled();
 	});
 });

@@ -1,6 +1,5 @@
 export const editorShellEn = {
 	'editor.shell.property': 'Property',
-	'editor.shell.elements': 'Elements',
 	'editor.shell.reference-options': 'Reference options',
 	'editor.shell.locked': 'Locked',
 	'editor.shell.unlocked': 'Unlocked',

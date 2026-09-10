@@ -1,7 +1,6 @@
 import type { editorShellEn } from '../en/editorShell';
 export const editorShellDe: Record<keyof typeof editorShellEn, string> = {
 	'editor.shell.property': 'Grundstück',
-	'editor.shell.elements': 'Elemente',
 	'editor.shell.reference-options': 'Referenzoptionen',
 	'editor.shell.locked': 'Gesperrt',
 	'editor.shell.unlocked': 'Entsperrt',

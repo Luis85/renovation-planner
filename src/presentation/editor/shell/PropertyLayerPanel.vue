@@ -49,16 +49,22 @@ const entries = computed(() => layerCatalogue(props.plan, toggles.value, stale.v
 		data-rp-region="layers"
 		:aria-label="tr('editor.property-panel')"
 	>
-		<section class="rp-property-context">
-			<h2 class="rp-editor-panel-title">
+		<details
+			class="rp-sidebar-section rp-property-context"
+			open
+		>
+			<summary class="rp-editor-panel-title">
 				{{ tr('editor.shell.property') }}
-			</h2>
+			</summary>
 			<PropertyTree />
-		</section>
-		<section class="rp-property-layers">
-			<h2 class="rp-editor-panel-title">
+		</details>
+		<details
+			class="rp-sidebar-section rp-property-layers"
+			open
+		>
+			<summary class="rp-editor-panel-title">
 				{{ tr('editor.rail.layers') }}
-			</h2>
+			</summary>
 			<LayerList
 				v-if="session.perspective !== 'review'"
 				:entries="entries"
@@ -72,11 +78,15 @@ const entries = computed(() => layerCatalogue(props.plan, toggles.value, stale.v
 				<summary>{{ tr('editor.shell.reference-options') }}</summary>
 				<ReferenceAction />
 			</details>
-		</section>
-		<ChangeLegend v-if="runtime.renovation.available" />
-		<details class="rp-property-elements">
-			<summary>{{ tr('editor.shell.elements') }}</summary>
-			<StructureList />
+			<ChangeLegend v-if="runtime.renovation.available" />
+		</details>
+		<details
+			class="rp-sidebar-section rp-property-rooms"
+			open
+		>
+			<summary class="rp-editor-panel-title">
+				{{ tr('editor.selection.records') }}
+			</summary>
 			<RoomSummaryList
 				v-if="records.length > 0"
 				:records="records"
@@ -94,6 +104,12 @@ const entries = computed(() => layerCatalogue(props.plan, toggles.value, stale.v
 			<p v-if="records.length > 1">
 				{{ tr('editor.selection.hint') }}
 			</p>
+		</details>
+		<details class="rp-sidebar-section rp-property-elements">
+			<summary class="rp-editor-panel-title">
+				{{ tr('editor.structure.list') }}
+			</summary>
+			<StructureList />
 		</details>
 	</aside>
 </template>

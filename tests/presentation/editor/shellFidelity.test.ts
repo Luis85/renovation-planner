@@ -36,9 +36,9 @@ it('switches perspectives with roving keyboard focus while preserving selection,
 
 it('keeps the accessible element list in a disclosure and layer visibility separate from saved data', async () => {
 	rig = await renovationEditor();
-	const disclosure = rig.wrapper.get('.rp-property-elements');
-	expect(disclosure.attributes('open')).toBeUndefined();
-	expect(disclosure.find(`[data-rp-id="${rig.room.id}"]`).exists()).toBe(true);
+	const walls = rig.wrapper.get('.rp-property-elements');
+	expect(walls.attributes('open')).toBeUndefined();
+	expect(rig.wrapper.get('.rp-property-rooms').find(`[data-rp-id="${rig.room.id}"]`).exists()).toBe(true);
 	const saved = [...rig.stack.vault.entries];
 	// Planned changes is the fourth row (reference, rooms, walls, planned, notes)
 	const visibility = rig.wrapper.findAll('.rp-layer-list input[type="checkbox"]')[3];

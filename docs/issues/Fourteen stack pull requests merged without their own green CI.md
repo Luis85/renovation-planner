@@ -66,7 +66,7 @@ repository deletes a head branch on merge. What remains:
 | `origin` | `codex/editor-evidence-fidelity-initial` | 4 commits not on `main` |
 | `origin` | `codex/editor-evidence-rotation-initial` | 6 commits not on `main` |
 | `origin` | `codex/editor-release-verification` | 16 commits not on `main` |
-| local only | ten `fix/editor-deliver-*` branches: creation, curves, group-storage, input, openings, photos, reference, room-edges, rotation-ui and shell | not on `main`, never pushed |
+| local only | ten `fix/editor-deliver-*` branches: creation, curves, group-storage, input, openings, photos, reference, room-edges, rotation-ui and shell | not on `main`; each is ahead of its deleted stack head, and no tip is on GitHub |
 | local only | `fix/editor-deliver-details` (`e4195dfd`) | on `main`, recorded content-free by `a92cdd7c` |
 
 Each `fix/editor-deliver-*` branch is checked out in its own worktree under `.worktrees/codex/`,
@@ -76,6 +76,15 @@ beside `editor-integration` (`integrate/editor-stack`) and `editor-top`
 `codex/editor-release-verification` were never stack heads; the integration ledger recorded them
 only as left where they were. **Whether any unmerged branch carries a change `main` lacks**, rather
 than a version of one #115 superseded, is not established.
+
+**The ten local branches were never pushed under their own names, but each tracks a stack head.**
+`fix/editor-deliver-<name>` tracks `codex/editor-deliver-<name>`, the head branch of one of #102 to
+#111, deleted from `origin` on merge and an ancestor of `main`. Every one is ahead of that head:
+shell by 10 (and behind by 5), input by 3 (behind by 1), creation by 2, curves, group-storage and
+openings by 1 (each behind by 1), and photos, reference, room-edges and rotation-ui by 1. GitHub
+answers "No commit found" for all ten tips, so those commits exist only in this repository. For
+those ten, the open question above is exactly the commits each holds beyond its head.
+`fix/editor-deliver-details` is level with its head, #101's.
 
 ## The question still open
 

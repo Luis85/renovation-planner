@@ -46,8 +46,10 @@ watch(selectedIds, async (ids, previous) => {
 </script>
 
 <template>
+	<!-- Visually hidden: this line is for assistive tech, `FloorSpatialLists` draws the visible hint.
+		A drawn line here took layout for one tick on every deselect, pushing the canvas down. -->
 	<p
-		class="rp-selection-guidance"
+		class="rp-selection-guidance rp-visually-hidden"
 		role="status"
 	>
 		{{ guidance }}

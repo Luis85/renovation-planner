@@ -10,6 +10,7 @@ import type { ZoneType } from '../../src/domain/zone/ZoneType';
 import type { ZoneStatus } from '../../src/domain/zone/ZoneStatus';
 import type { PlanId } from '../../src/domain/plan/PlanId';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
+import type { Structure } from '../../src/domain/spatial/Structure';
 import type { Loaded } from '../../src/application/ports/versioning';
 import type { ZoneRepository } from '../../src/application/ports/ZoneRepository';
 import { PlanEditorView, type PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
@@ -106,9 +107,9 @@ const HARNESS_PROJECT: ProjectSummaryDto = {
 
 /**
  * A small flat we can recognise at a glance — rooms of plausible domestic sizes in
- * millimetres, one of each status so the non-colour channels (dash pattern, caption) can
- * be compared side by side, and one zone with a non-rectangular outline so the polygon
- * path is not being judged on rectangles alone.
+ * millimetres, one of each status (the Inspector still shows it, though the canvas no longer
+ * draws status as a dash or a caption), and one zone with a non-rectangular outline so the
+ * polygon path is not being judged on rectangles alone.
  */
 export const HARNESS_ZONES: readonly ZoneDto[] = [
 	{
@@ -165,6 +166,30 @@ export const HARNESS_ZONES: readonly ZoneDto[] = [
 		],
 	},
 ];
+
+/**
+ * The Kitchen's four walls, a door in the south wall and a window in the north one. Present
+ * since 2026-09-10 because the fixture had NO walls before it, so no capture ever drew a
+ * joint or an opening — and the wall stroke's alpha had been doubling at every corner in a
+ * real vault while every gate stayed green. Terrace and Garden stay open on purpose: the
+ * same frame then photographs a room with walls and a room whose outline is its own.
+ *
+ * Wall order follows the zone's vertex order (north, east, south, west), so the loop reads
+ * the way `harness-kitchen`'s polygon does. Opening offsets run from each wall's `start`.
+ */
+export const HARNESS_STRUCTURE: Structure = {
+	walls: [
+		{ id: 'harness-wall-north', start: { x: 0, y: 0 }, end: { x: 4200, y: 0 }, thickness: 240, height: 2600 },
+		{ id: 'harness-wall-east', start: { x: 4200, y: 0 }, end: { x: 4200, y: 3000 }, thickness: 240, height: 2600 },
+		{ id: 'harness-wall-south', start: { x: 4200, y: 3000 }, end: { x: 0, y: 3000 }, thickness: 240, height: 2600 },
+		{ id: 'harness-wall-west', start: { x: 0, y: 3000 }, end: { x: 0, y: 0 }, thickness: 240, height: 2600 },
+	],
+	openings: [
+		{ id: 'harness-door', kind: 'door', hostId: 'harness-wall-south', offset: 1500, width: 900, height: 2100, sill: 0, swing: { hinge: 'start', side: 'left', angle: 90 } },
+		{ id: 'harness-window', kind: 'window', hostId: 'harness-wall-north', offset: 1500, width: 1200, height: 1200, sill: 900 },
+	],
+	boundaries: [{ roomId: 'harness-kitchen', wallIds: ['harness-wall-north', 'harness-wall-east', 'harness-wall-south', 'harness-wall-west'] }],
+};
 
 /**
  * The one zone the `?stale` knob is allowed to delete — never the one a capture SELECTS, so
@@ -287,7 +312,7 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			// right one. See [[Project-hydration fakes ignore the requested project ID]].
 			getProject: (id) => Promise.resolve(ok(id === HARNESS_PROJECT.id ? structuredClone(HARNESS_PROJECT) : null)),
 			findZonesByPlan: () =>
-				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0 })),
+				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0, structure: structuredClone(HARNESS_STRUCTURE) })),
 			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`
 			// for why EMPTY rather than refused, and for what a refusal bundle costs a READ.
 			...emptyRequirementReads(),

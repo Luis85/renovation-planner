@@ -139,3 +139,23 @@ it.each([90, -90, 180, 270, 450, -450])('keeps exact axis-aligned Room dimension
 	const box = expectDefined(roomDimensions(points), 'axis-aligned Room remains resizable');
 	expect(box.max.x - box.min.x).toBe(degrees % 180 === 0 ? 4000 : 3000); expect(box.max.y - box.min.y).toBe(degrees % 180 === 0 ? 3000 : 4000);
 });
+
+it('answers no pivot for an open path whose consecutive points coincide', () => {
+	// The length-weighted centre divides by the total length, so a zero-length span has no
+	// centre to report rather than a NaN one.
+	expect(rotationPivot({ id: 'path-collapsed', kind: 'path', points: [{ x: 500, y: 500 }, { x: 500, y: 500 }] })).toBeNull();
+	expect(rotationPivot({ id: 'path-open', kind: 'path', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }] })).toEqual({ x: 500, y: 0 });
+});
+
+it('abandons a running rotation as soon as its shape stops being rotatable', () => {
+	const context = toolContext().context, previewRotation = vi.fn<NonNullable<RotationGestureDeps['previewRotation']>>();
+	let permitted = true;
+	const gesture = new ElementRotation({ previewRotation, commitRotation: vi.fn<NonNullable<RotationGestureDeps['commitRotation']>>(), canRotateShape: () => permitted });
+	gesture.start(context, pointerAt(600, 200), element);
+	expect(gesture.active).toBe(true);
+	permitted = false;
+	gesture.move(context, pointerAt(600, 260));
+	expect(gesture.active).toBe(false);
+	expect(previewRotation).toHaveBeenLastCalledWith(null);
+	expect(context.renderState.rotationDegrees).toBeNull();
+});

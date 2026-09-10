@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SelectTool } from '../../../../src/presentation/editor/tools/select-tool';
+import { MarqueeSelection } from '../../../../src/presentation/editor/selection/MarqueeSelection';
 import type { SpatialObjectCandidate, SelectToolDeps } from '../../../../src/presentation/editor/tools/select-tool';
 import type { SelectionInteractions } from '../../../../src/presentation/editor/selection/selectionInteractions';
 import type { EditorPointerEvent } from '../../../../src/presentation/editor/tools/editor-tool';
@@ -73,5 +74,17 @@ describe('empty-canvas marquee selection', () => {
 		tool.pointerDown(pointerAt(50, 50)); tool.pointerMove(pointerAt(70, 70)); tool.pointerUp(pointerAt(70, 70));
 		expect(context.selection.selectedIds).toEqual(['one', 'two']); expect(start.mock.calls[0]?.[0]).toEqual(['one', 'two']);
 		expect(moveGroup).toHaveBeenCalledOnce(); expect(finish).toHaveBeenCalledOnce(); expect(move).not.toHaveBeenCalled();
+	});
+	it('marquees past a record with no drawable points and over an edge that only crosses the box', () => {
+		// Neither endpoint of the path is inside the box, so only the edge test can find it.
+		const crossing: SpatialObjectCandidate = { id: 'path', kind: 'path', points: [{ x: 0, y: 50 }, { x: 200, y: 50 }] };
+		const { tool, context, move } = setup([{ id: 'empty', points: [] }, crossing]);
+		tool.pointerDown(pointerAt(80, 20)); tool.pointerMove(pointerAt(120, 80)); tool.pointerUp(pointerAt(120, 80));
+		expect(context.selection.selectedIds).toEqual(['path']); expect(move).not.toHaveBeenCalled();
+	});
+	it('ignores marquee movement that no press ever started', () => {
+		const { context } = toolContext(), marquee = new MarqueeSelection();
+		marquee.move(context, pointerAt(50, 50));
+		expect(marquee.active).toBe(false); expect(context.renderState.marquee).toBeNull();
 	});
 });

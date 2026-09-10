@@ -4,7 +4,9 @@ import { rotatedGroup, translatedGroup, adjustedNeighbours } from '../../../src/
 import { GroupMoveGesture, type GroupMoveDependencies } from '../../../src/presentation/editor/groups/GroupMoveGesture';
 import { rotationPivot, rotationPoints } from '../../../src/presentation/editor/elements/objectRotation';
 import { expectDefined } from '../../helpers/domain';
-import { pointerAt, toolContext } from '../../helpers/tool-context';
+import { pointerAt, shiftPointerAt, toolContext } from '../../helpers/tool-context';
+import { SelectTool, type SelectToolDeps, type SpatialObjectCandidate } from '../../../src/presentation/editor/tools/select-tool';
+import { ok } from '../../../src/core/result/Result';
 import { MarqueeSelection } from '../../../src/presentation/editor/selection/MarqueeSelection';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
 import type { PlanGeometryDocument } from '../../../src/application/ports/PlanGeometrySidecar';
@@ -63,4 +65,24 @@ it('expands saved groups from visible marquee hits and retains hidden selected m
 	expect(context.selection.selectedIds).toEqual(['hidden', 'visible']);
 	marquee.start(context, { ...pointerAt(0, 0), modifiers: { shift: false, alt: true, ctrl: false } });
 	marquee.finish(context, pointerAt(15, 15), visible, expandFixture); expect(context.selection.selectedIds).toEqual(['visible']);
+});
+
+it('leaves a one-member saved group to ordinary Shift selection rather than its group route', () => {
+	const square = [{ x: 20, y: 20 }, { x: 80, y: 20 }, { x: 80, y: 80 }, { x: 20, y: 80 }];
+	const candidates: SpatialObjectCandidate[] = [{ id: 'one', points: square }];
+	const build = (expandSelection: (id: string, deep: boolean) => readonly string[]) => {
+		const harness = toolContext();
+		const tool = new SelectTool({ expandSelection, spatialObjects: () => candidates,
+			createMoveGesture: vi.fn<SelectToolDeps['createMoveGesture']>(() => ({ execute: () => Promise.resolve(ok('wrote' as const)), undo: () => Promise.resolve(ok('wrote' as const)) })),
+			reportRejected: vi.fn<SelectToolDeps['reportRejected']>(), reportInvalidInput: vi.fn<SelectToolDeps['reportInvalidInput']>() });
+		tool.activate(harness.context); return { tool, context: harness.context };
+	};
+	// An expansion of one is not an assembly, so Shift toggles that record the ordinary way.
+	const single = build(() => ['one']);
+	single.tool.pointerDown(shiftPointerAt(50, 50)); single.tool.pointerUp(shiftPointerAt(50, 50));
+	expect(single.context.selection.selectedIds).toEqual(['one']);
+	// A real assembly still takes the group route and brings its whole membership in.
+	const assembly = build(() => ['one', 'two']);
+	assembly.tool.pointerDown(shiftPointerAt(50, 50)); assembly.tool.pointerUp(shiftPointerAt(50, 50));
+	expect(assembly.context.selection.selectedIds).toEqual(['one', 'two']);
 });

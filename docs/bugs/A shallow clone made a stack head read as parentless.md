@@ -1,6 +1,6 @@
 ---
 type: Bug
-order: 10
+order: 40
 status: Done
 started: ""
 finished: ""
@@ -47,12 +47,12 @@ with `origin/main`, and #115's head not an ancestor.
 - Comparing the pre-merge `main`, `db8e445b`, with `dc1bb351` answers `diverged`, with merge base
   `ec342370` — the fork the integration itself measured for #94 to #115.
 
-**Why the local answer differed.** `C:\Projects\renovation-planner` is a shallow repository:
-`git rev-parse --is-shallow-repository` answers `true`, and `.git/shallow` holds exactly one line,
+**Why the local answer differed.** `C:\Projects\renovation-planner` was a shallow repository:
+`git rev-parse --is-shallow-repository` answered `true`, and `.git/shallow` held exactly one line,
 `dc1bb3515dde752a14bd109e18b7d00a0430f623`, last written on 2026-09-09 at 18:42. Git treats a
 commit listed there as having no parents, so every local walk stopped at #116: depth 1, no merge
 base, unrelated histories. The object itself was never parentless — `git cat-file -p dc1bb351`
-prints its `parent 689cf45b` line in the same repository. Every worktree under `.worktrees/` shares
+printed its `parent 689cf45b` line in the same repository. Every worktree under `.worktrees/` shares
 that repository's `.git`, so every one of them inherited the boundary.
 
 **Which command wrote the boundary is not established.** A depth-limited fetch writes such a line,
@@ -91,12 +91,16 @@ stale when a lower branch moved.
   ancestry answer, so the misreading cost a wrong sentence in three records rather than wrong code
   on `main`. #119 landed as the merge commit `5dcc1f20`. Whether merging #116 onto #115 directly
   would have been simpler than carrying the tree is not established.
-- **This note is the correction of record.** The message of `a92cdd7c` cannot change on `main`.
-  Pull request #119's description still carries the claim and can be edited; that is left to its
-  author.
-- **Not changed: the repository is still shallow.** `git fetch --unshallow` removes the boundary.
-  It changes the owner's checkout rather than the register, so it is left to them. Until then,
-  every negative local ancestry answer whose walk passes through `dc1bb351` is unreliable.
+- **This note is the correction of record for `a92cdd7c`.** That merge commit's message cannot
+  change on `main` and still says "a parentless lineage". Pull request #119's description was
+  corrected on 2026-09-10: it now opens with a dated correction that explains the shallow-clone
+  error and names this Bug.
+- **The repository was unshallowed on 2026-09-10.** `git fetch --unshallow origin` ran with the
+  operator's approval. `git rev-parse --is-shallow-repository` now answers `false` and
+  `.git/shallow` is gone. Locally, `dc1bb351` now has ancestry depth 2573 rather than 1, parent
+  `689cf45b`, and merge base `ec342370` with the pre-merge `main`, `db8e445b` — the parent and
+  merge base GitHub answered above. Local ancestry answers through `dc1bb351`, negative ones
+  included, can be believed again.
 
 ## Lesson
 

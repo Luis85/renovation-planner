@@ -4,6 +4,10 @@ Date: 2026-09-10 · One PR off `main` at `dd2942eb`. Sibling of
 `2026-09-10-plan-editor-sidebar-polish-design.md`, which owns the sidebar and chrome and
 touches nothing on the canvas; this one owns the canvas's drawing and touches nothing else.
 
+Amended during implementation (2026-09-10): the walls' joint extension, the enclosed-outline
+rule and the status gap are recorded in `docs/development/agent-guide-increment-history.md`,
+section "The canvas fidelity pass, 2026-09-10".
+
 ## Why this exists
 
 `docs/user-experience/renovation-planner-editor-specs/screens/M01-standard-plan-view.md` is the
@@ -18,7 +22,8 @@ against the mockup and against the harness's own `plan-editor-light` capture, th
 2. **Rooms.** `ZoneShape.vue` gives every room a dashed outline per status, a colour tint per
    zone type and a third caption line ("Planned", "In progress"). The mockup draws none of
    that: the wall is the room's edge, there is no resting fill, and the label is name plus
-   area. Status lives in the Inspector's room list.
+   area. Status was assumed to move to the Inspector's room list; it does not — nothing in
+   `src/` reads it, there or anywhere else (see Records).
 3. **The harness fixture has no walls.** `findZonesByPlan` in `tests/harness/planEditor.ts`
    answers no `structure`, so no capture has ever drawn a wall, a joint or an opening. That is
    why the first two went unseen through every green gate.
@@ -29,7 +34,8 @@ mockup has it. Neither changes.
 Decisions taken with the user, in order:
 
 1. Room status leaves the canvas. A room keeps a fill only while selected or hovered; the dash
-   pattern and the status caption go.
+   pattern and the status caption go. (Status is not shown in the Inspector either — see
+   Records.)
 2. Walls are drawn in two passes over the same polylines rather than as a unioned polygon.
 3. The fixture gains a minimal wall loop around the Kitchen; no second, mockup-mirroring floor.
 
@@ -47,11 +53,15 @@ The single `VLine` per wall becomes two passes over ALL walls, both fully opaque
 | 1 | `tokens.zoneStroke` | `thickness + 2 / zoom` | the two dark edge lines |
 | 2 | `tokens.wallFill` | `thickness` | the light interior, painted over pass 1 |
 
-Pass 2 of wall B paints over pass 1 of wall A inside their shared joint, so a mitred corner
-falls out without geometry: no union, no offset polygons, no T-joint cases. A free wall end
-shows a 1 px dark cap from pass 1, which is the architectural convention for a wall end and is
-intended. Both passes are `lineCap: 'butt'`, `lineJoin: 'miter'`. Curved walls go through
-`arcPolyline` exactly as today.
+Pass 2 of wall B paints over pass 1 of wall A inside their shared joint, closing the joint's
+INNER corner by pass order alone. The OUTER corner needs more than order: `wallPasses.ts`
+extends each wall past a shared joint by the largest half-thickness among the other walls
+there (the edge pass a further `1 / zoom`), which is what closes it — a mitred corner falls
+out of that extension, not of the passes by themselves, with no union, no offset polygons and
+no T-joint cases. A free wall end gets only the edge's own `1 / zoom` extension, which is what
+shows as a 1 px dark cap, the architectural convention for a wall end and intended. Both passes
+are `lineCap: 'butt'`, `lineJoin: 'miter'`. Curved walls go through `arcPolyline` exactly as
+today.
 
 The v-for structure changes from one `VGroup` per wall holding stroke, selection dash and
 handles, to: pass 1 over all walls, pass 2 over all walls, then the existing per-wall group
@@ -79,10 +89,11 @@ Files: `src/presentation/editor/layers/zone/ZoneShape.vue`,
   both rest on the group's child list not changing shape.
 - `statusConfig` and its `VText` are removed. `nameConfig` keeps `offsetY: CAPTION_PX * 1.6`;
   `areaConfig` keeps `offsetY: 0`, so the pair sits where the mockup puts name over area.
-- `StatusAppearance` loses `dash`; `captionKey` stays because `RoomInspector.vue` reads it.
-  `zoneFillToken` and the seven zone-type tokens stay, since the selected fill still reads
-  them. The designer's footprint and clearance layers cite `statusAppearance` in prose only
-  and import nothing from it.
+- `StatusAppearance` loses `dash`; `captionKey` stays as vocabulary for a future status UI —
+  nothing reads it today, `RoomInspector.vue` included (see Records). `zoneFillToken` and the
+  seven zone-type tokens stay, since the selected fill still reads them. The designer's
+  footprint and clearance layers cite `statusAppearance` in prose only and import nothing
+  from it.
 
 ### 3. Hover fill
 
@@ -149,8 +160,8 @@ corner, a door and a window.
 
 ## Records
 
-- M01's Layout section gains one line: room status is shown in the Inspector room list, not on
-  the canvas, dated 2026-09-10.
+- M01's Layout section gains one line: room status is shown nowhere in the editor — not on the
+  canvas and not in the Inspector room list — dated 2026-09-10.
 - Increment-history entry: the fixture carried no walls, so the wall look went unphotographed
   through every green gate; the alpha-doubling corner; and the two-pass rendering with the
   union it refuses.

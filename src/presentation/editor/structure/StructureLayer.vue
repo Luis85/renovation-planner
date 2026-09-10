@@ -69,7 +69,9 @@ const elementDraft = computed(() => {
 			Refused: `lineCap: 'square'` draws every free end `thickness / 2` too long.
 			Refused: chaining walls into mitred polylines is exact at any angle, but more code.
 			ponytail: exact where two walls meet at a right angle, whatever their thicknesses; a
-			non-right joint, or unequal walls through a T, leaves a small wedge or nub. Chain the
+			non-right joint, or unequal walls through a T, leaves a small wedge or nub, most often
+			a straight run changing thickness at a shared endpoint, where the thicker body pokes
+			past the thinner wall's face and leaves a 1 px dark line across it. Chain the
 			walls if that shows. The selection dash and handles keep the unextended
 			centreline. `OpeningSymbols` cuts both passes at the edge pass's width.
 		-->

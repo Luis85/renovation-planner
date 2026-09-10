@@ -15,6 +15,7 @@ import { useCanvasGroupActions } from './canvasGroupActions';
 import { useCanvasMenuActions, type CanvasMenuAction } from './useCanvasMenuActions';
 import { canvasCandidates } from './canvasCandidates';
 import { structureRecords } from '../structure/structureRecords';
+import HostIcon from '../../components/HostIcon.vue';
 const emit = defineEmits<{ openAdd: [] }>();
 const anchor = ref<HTMLElement | null>(null), menu = ref<HTMLElement | null>(null), open = ref(false), position = ref({ left: '0px', top: '0px' });
 const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), dialogs = useDialogStore(), groups = useCanvasGroupActions();
@@ -22,8 +23,6 @@ const actions = useCanvasMenuActions(() => emit('openAdd'));
 const workspace = useWorkspaceStore();
 /** The one object the menu acts on, named the way the rest of the editor names it; nothing for an empty or multiple selection. */
 const title = computed(() => { if (selection.selectedIds.length !== 1) return null; const id = selection.selectedIds[0]; return project.zones.get(id)?.name ?? structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements).find(item => item.id === id)?.name ?? null; });
-/** Where a group changes between two neighbouring items, which is where a separator goes. */
-function dividerBefore(index: number): boolean { return index > 0 && actions.value[index - 1].group !== actions.value[index].group; }
 let menuIds: readonly string[] = [];
 let root: HTMLElement | null = null, canvas: HTMLElement | null = null, opener: HTMLElement | null = null;
 function editing(target: EventTarget | null): boolean { return target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !== null; }
@@ -112,26 +111,19 @@ onBeforeUnmount(() => { root?.removeEventListener('contextmenu', context); root?
 				>
 					{{ title }}
 				</div>
-				<template
-					v-for="(action, index) in actions"
+				<button
+					v-for="action in actions"
 					:key="action.id"
+					type="button"
+					role="menuitem"
+					tabindex="-1"
+					:aria-disabled="action.disabled || undefined"
+					:title="action.disabled && action.reason ? tr(action.reason) : undefined"
+					:data-rp-context-action="action.id"
+					@click="run(action)"
 				>
-					<div
-						v-if="dividerBefore(index)"
-						role="separator"
-					/>
-					<button
-						type="button"
-						role="menuitem"
-						tabindex="-1"
-						:aria-disabled="action.disabled || undefined"
-						:title="action.disabled && action.reason ? tr(action.reason) : undefined"
-						:data-rp-context-action="action.id"
-						@click="run(action)"
-					>
-						{{ tr(action.label) }}
-					</button>
-				</template>
+					<HostIcon :name="action.icon" />{{ tr(action.label) }}
+				</button>
 			</div>
 		</Teleport>
 	</div>

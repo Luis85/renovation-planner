@@ -10,10 +10,10 @@ import { usePlanFrame } from '../viewport/usePlanFrame';
 import { useCanvasGroupActions } from './canvasGroupActions';
 import { useRenovationSession } from '../renovation/renovationSession';
 
-/** Menu order is the group order: view, then mode, then the object's own actions, then what destroys it. */
-export type CanvasMenuGroup = 'view' | 'mode' | 'object' | 'destructive';
-export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly disabled?: boolean; readonly reason?: StringKey; run(): void | Promise<void> }
-const GROUP_ORDER: readonly CanvasMenuGroup[] = ['view', 'mode', 'object', 'destructive'];
+/** Menu order is the group order: create first, then view, mode, the object's own actions, and last what destroys it. */
+export type CanvasMenuGroup = 'create' | 'view' | 'mode' | 'object' | 'destructive';
+export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly disabled?: boolean; readonly reason?: StringKey; run(): void | Promise<void> }
+const GROUP_ORDER: readonly CanvasMenuGroup[] = ['create', 'view', 'mode', 'object', 'destructive'];
 export function useCanvasMenuActions(add: () => void) {
 	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
 	const moveOpening = useOpeningMoveAction();
@@ -26,28 +26,28 @@ export function useCanvasMenuActions(add: () => void) {
 		const structure = [...project.structure.walls, ...project.structure.openings].some(item => item.id === id);
 		const element = project.structure.elements?.some(item => item.id === id);
 		if (zone) {
-			result.push({ id: 'edit', label: 'editor.input.edit', group: 'object', disabled: blocked || runtime.outlineEdit.blocked.value, run: () => runtime.outlineEdit.editOutline(id as ZoneId) });
-			result.push({ id: 'rename', label: 'editor.input.rename', group: 'object', disabled: blocked, run: () => zone.zoneType === 'Room' ? runtime.renameRoom(id as ZoneId) : runtime.areaDetails.editAreaDetails(id as ZoneId) });
-			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', disabled: blocked, run: () => runtime.deleteZone(id as ZoneId, zone.name) });
+			result.push({ id: 'edit', label: 'editor.input.edit', group: 'object', icon: 'pencil', disabled: blocked || runtime.outlineEdit.blocked.value, run: () => runtime.outlineEdit.editOutline(id as ZoneId) });
+			result.push({ id: 'rename', label: 'editor.input.rename', group: 'object', icon: 'text-cursor-input', disabled: blocked, run: () => zone.zoneType === 'Room' ? runtime.renameRoom(id as ZoneId) : runtime.areaDetails.editAreaDetails(id as ZoneId) });
+			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked, run: () => runtime.deleteZone(id as ZoneId, zone.name) });
 		} else if (structure || element) {
 			const actions = structure ? runtime.structureActions : runtime.elementActions;
-			result.push({ id: 'edit', label: 'editor.input.edit', group: 'object', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
-			if (project.structure.openings.some(item => item.id === id)) result.push({ id: 'move-opening', label: 'editor.opening-move.action', group: 'object', disabled: !runtime.openingMove.available.value, run: () => moveOpening(id) });
-			if (element) result.push({ id: 'rename', label: 'editor.input.rename', group: 'object', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
-			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', disabled: blocked || actions.active.value, run: () => actions.remove(id) });
+			result.push({ id: 'edit', label: 'editor.input.edit', group: 'object', icon: 'pencil', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
+			if (project.structure.openings.some(item => item.id === id)) result.push({ id: 'move-opening', label: 'editor.opening-move.action', group: 'object', icon: 'move-horizontal', disabled: !runtime.openingMove.available.value, run: () => moveOpening(id) });
+			if (element) result.push({ id: 'rename', label: 'editor.input.rename', group: 'object', icon: 'text-cursor-input', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
+			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked || actions.active.value, run: () => actions.remove(id) });
 		}
 		return result;
 	}
 	return computed<readonly CanvasMenuAction[]>(() => {
 		const ids = selection.selectedIds, id = ids[0];
 		const blocked = runtime.writesBlocked.value, review = session.perspective === 'review', panning = runtime.activeToolId.value === 'pan';
-		const result: CanvasMenuAction[] = [{ id: 'fit', label: ids.length ? 'editor.view.fit-selection' : 'editor.view.fit-floor', group: 'view', disabled: frame(ids.length === 0) === null, run: () => fit(ids.length === 0) }];
+		const result: CanvasMenuAction[] = [{ id: 'fit', label: ids.length ? 'editor.view.fit-selection' : 'editor.view.fit-floor', group: 'view', icon: 'maximize', disabled: frame(ids.length === 0) === null, run: () => fit(ids.length === 0) }];
 		if (review) return result;
-		result.push(panning ? { id: 'select', label: 'editor.primary.select', group: 'mode', run: () => runtime.setTool('select') } : { id: 'pan', label: 'editor.input.pan', group: 'mode', run: () => runtime.setTool('pan') });
-		if (!ids.length) result.push({ id: 'add', label: 'editor.primary.add', group: 'object', disabled: blocked, run: add });
+		result.push(panning ? { id: 'select', label: 'editor.primary.select', group: 'mode', icon: 'mouse-pointer-2', run: () => runtime.setTool('select') } : { id: 'pan', label: 'editor.input.pan', group: 'mode', icon: 'hand', run: () => runtime.setTool('pan') });
+		if (!ids.length) result.push({ id: 'add', label: 'editor.primary.add', group: 'create', icon: 'plus', disabled: blocked, run: add });
 		if (ids.length === 1) result.push(...singleActions(id, blocked));
 		const rotation = runtime.rotationActions.target.value;
-		if (rotation) result.push({ id: 'rotate', label: 'editor.input.rotate', group: 'object', disabled: blocked || runtime.rotationActions.blocked.value, run: () => runtime.rotationActions.rotate(rotation.id) });
+		if (rotation) result.push({ id: 'rotate', label: 'editor.input.rotate', group: 'object', icon: 'rotate-cw', disabled: blocked || runtime.rotationActions.blocked.value, run: () => runtime.rotationActions.rotate(rotation.id) });
 		result.push(...groups.actions(ids).map(action => ({ ...action, group: 'object' as const })));
 		return GROUP_ORDER.flatMap(group => result.filter(action => action.group === group)).map(action => ({ ...action, reason: action.reason ?? reason(action.disabled === true) }));
 	});

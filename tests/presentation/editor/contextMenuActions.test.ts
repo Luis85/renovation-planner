@@ -105,20 +105,23 @@ it('offers Select while panning and Pan while selecting, in every branch, and sw
 	await rig.wrapper.get('[data-rp-context-action="pan"]').trigger('keydown', { key: 'Escape' });
 });
 
-it('groups the menu with separators, names the single object it acts on, and keeps Delete last', async () => {
+it('puts Add first and Delete last, draws one known icon per item, and names the single object it acts on', async () => {
 	const rig = await setup();
+	rig.selection.clear(); await menu(rig);
+	const empty = rig.wrapper.get('.rp-canvas-context-menu');
+	expect(empty.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['add', 'fit', 'pan']);
+	expect(empty.find('[role="separator"]').exists()).toBe(false); expect(empty.find('.rp-canvas-context-menu-title').exists()).toBe(false);
+	await empty.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select([rig.room.id]); await menu(rig);
 	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
 	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(rig.room.name);
-	expect(menuEl.findAll('[role="separator"]').length).toBeGreaterThanOrEqual(2);
 	const ids = menuEl.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'));
 	expect(ids[0]).toBe('fit'); expect(ids.at(-1)).toBe('delete');
+	for (const item of menuEl.findAll('[data-rp-context-action]')) { expect(item.find('.rp-host-icon[data-icon]').exists()).toBe(true); expect(item.find('[data-icon-missing]').exists()).toBe(false); }
 	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select(['wall-a' as never]); await menu(rig);
 	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe('Wall 1');
-	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
-	rig.selection.clear(); await menu(rig);
-	expect(rig.wrapper.find('.rp-canvas-context-menu-title').exists()).toBe(false);
+	for (const item of rig.wrapper.findAll('[data-rp-context-action]')) expect(item.find('[data-icon-missing]').exists()).toBe(false);
 });
 
 it('tells why a greyed action is unavailable', async () => {

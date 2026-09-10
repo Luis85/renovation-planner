@@ -30,14 +30,14 @@
     }
   },
   "sample": {
-    "roomId": "zone-01M240G2F2H9X0TVXBDHPZNXXB",
+    "roomId": "zone-01M251H4F8VENH040FQ43D9X4F",
     "role": "selected-room"
   },
   "selection": {
     "ids": [
-      "zone-01M240G2F2H9X0TVXBDHPZNXXB"
+      "zone-01M251H4F8VENH040FQ43D9X4F"
     ],
-    "focusedId": "zone-01M240G2F2H9X0TVXBDHPZNXXB"
+    "focusedId": "zone-01M251H4F8VENH040FQ43D9X4F"
   },
   "input": "Native Tab to [data-rp-room-navigation], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
   "camera": {

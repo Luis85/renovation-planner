@@ -1,74 +1,74 @@
 {
-  "commit": "5a244a92bcea930b8294899e514e0eca1860a286",
-  "priorEvidenceCommit": "dc1bb3515dde752a14bd109e18b7d00a0430f623",
+  "commit": "22772267dfb85456ed69c389ff844297182072a0",
+  "priorEvidenceCommit": "f6ad547b0400e2f8f103051cd6ce28280281c46d",
   "priorEvidencePolicy": "Previously committed artifacts remain in Git history; same output names are refreshed.",
-  "startedAt": "2026-09-09T21:10:16.417Z",
-  "completedAt": "2026-09-09T21:18:29.813Z",
+  "startedAt": "2026-09-10T06:47:16.459Z",
+  "completedAt": "2026-09-10T06:55:49.080Z",
   "steps": [
     {
       "script": "editor-planning-check.mjs",
       "args": [
         "--design"
       ],
-      "elapsedMs": 79970
+      "elapsedMs": 87380
     },
     {
       "script": "editor-renovation-check.mjs",
       "args": [
         "--design"
       ],
-      "elapsedMs": 29843
+      "elapsedMs": 36360
     },
     {
       "script": "editor-reference-check.mjs",
       "args": [],
-      "elapsedMs": 42786
+      "elapsedMs": 44896
     },
     {
       "script": "editor-visual-resilience.mjs",
       "args": [],
-      "elapsedMs": 14552
+      "elapsedMs": 16883
     },
     {
       "script": "editor-visual-overview.mjs",
       "args": [
         "--design"
       ],
-      "elapsedMs": 54536
+      "elapsedMs": 57103
     },
     {
       "script": "editor-object-check.mjs",
       "args": [],
-      "elapsedMs": 32848
+      "elapsedMs": 33064
     },
     {
       "script": "editor-recovery-check.mjs",
       "args": [],
-      "elapsedMs": 96117
+      "elapsedMs": 96956
     },
     {
       "script": "editor-modal-busy-check.mjs",
       "args": [],
-      "elapsedMs": 46564
+      "elapsedMs": 42170
     },
     {
       "script": "editor-downstream-check.mjs",
       "args": [
         "--design"
       ],
-      "elapsedMs": 48593
+      "elapsedMs": 49559
     },
     {
       "script": "editor-visual-fidelity-shots.mjs",
       "args": [
         "after"
       ],
-      "elapsedMs": 39016
+      "elapsedMs": 39468
     },
     {
       "script": "editor-visual-comparisons.mjs",
       "args": [],
-      "elapsedMs": 7958
+      "elapsedMs": 8098
     }
   ],
   "images": [
@@ -82,7 +82,7 @@
     },
     {
       "path": "after/materials-costs-evidence/light-material-draft.png",
-      "sha256": "a799cddaf9ad42dc945cbdf1f073ba2f87685e944125985d2bd4438a405a377e"
+      "sha256": "55a661b4d14667b177f6176186db948fa3f5d4c1592b07f493c875fecc239f71"
     },
     {
       "path": "after/materials-costs-evidence/light-materials.png",
@@ -102,7 +102,7 @@
     },
     {
       "path": "after/materials-costs-evidence/light-notes.png",
-      "sha256": "32e5f53312ee27a11faf59e4e5e44a793ee868cddd42cb0f61742ed048489dd2"
+      "sha256": "2b9386799ec7db75ab20bc997dd3500b55a5c8c434709d6a297300e728396a44"
     },
     {
       "path": "after/materials-costs-evidence/light-photos.png",
@@ -134,7 +134,7 @@
     },
     {
       "path": "after/materials-costs-evidence/dark-closed-loop.png",
-      "sha256": "73c3a2022b5be2f8127a1bdbb9a6541d47dea541904c500e4f4245a181a38f0d"
+      "sha256": "bcc33a23aa23e95469a2df0804aa08e789685d9adae86d0c047d2d1da8cabb19"
     },
     {
       "path": "after/materials-costs-evidence/dark-wall-inspector.png",
@@ -162,7 +162,7 @@
     },
     {
       "path": "after/materials-costs-evidence/dark-notes.png",
-      "sha256": "b0c1d9a8f35ab28152adea815652130fc4952473a8de72a50d30383f0c575167"
+      "sha256": "f4f8efd8d78b75c305ea0768bd46c17ed4813f432e8bf09e59781bf503b6abed"
     },
     {
       "path": "after/materials-costs-evidence/dark-photos.png",
@@ -170,7 +170,7 @@
     },
     {
       "path": "after/materials-costs-evidence/dark-photos-gallery.png",
-      "sha256": "20bbdfc93b9708a6bb13ae71d12c6aa89e7d5931dc404ee3daf58c60c58bf31c"
+      "sha256": "ea7281f768750e8adeed31a35f2e0497f64b753c108a83771f59d712334ddb6c"
     },
     {
       "path": "after/materials-costs-evidence/dark-caption-inline.png",
@@ -194,7 +194,7 @@
     },
     {
       "path": "after/materials-costs-evidence/custom-accent-closed-loop.png",
-      "sha256": "b25c169ba4c603e2b37bb63321a0a0bb6cc10339eafb1ec89dd87930bcec2c09"
+      "sha256": "88d9a603e0a44e1b962b5da3862a9f8cfc7feee9dd5744f5007089f933f679bd"
     },
     {
       "path": "after/materials-costs-evidence/custom-accent-wall-inspector.png",
@@ -222,11 +222,11 @@
     },
     {
       "path": "after/materials-costs-evidence/custom-accent-notes.png",
-      "sha256": "1eb2de4ccb75236667b633206596881acb8ba0134e545a53dd28d14b802f0b83"
+      "sha256": "2e728a5ad4bde2555604e0bbf513e48086c7e9b8e85b85db3a9f04be2bef1c49"
     },
     {
       "path": "after/materials-costs-evidence/custom-accent-photos.png",
-      "sha256": "8033d7df914d903f51624f9b8dd5678e8d30ca68089617c2d6bc60c7d6288f93"
+      "sha256": "31fe629c2f1ed6bb18b0df050627b61e0d7b95a09262154123dacd6b19207d86"
     },
     {
       "path": "after/materials-costs-evidence/custom-accent-photos-gallery.png",
@@ -282,7 +282,7 @@
     },
     {
       "path": "after/materials-costs-evidence/german-constrained-notes.png",
-      "sha256": "fa7c5ca4191386eaaf72ce44d1dd56e97d61847578d9b0ae3a8da732299708af"
+      "sha256": "62ec7c7c047cb47cee8dc44631145e8359adc96de048110ffda812ae33e43f11"
     },
     {
       "path": "after/materials-costs-evidence/german-constrained-photos.png",
@@ -290,7 +290,7 @@
     },
     {
       "path": "after/materials-costs-evidence/german-constrained-photos-gallery.png",
-      "sha256": "53dcaa2f3059e6805db4042c9c35bd94fcb89f3535fe39e8b2771bd857605149"
+      "sha256": "9631972ab75f39f4766fbd3f2bfe63252a4e3a07a0b0e046699130641f0f933e"
     },
     {
       "path": "after/materials-costs-evidence/german-constrained-caption-inline.png",
@@ -314,7 +314,7 @@
     },
     {
       "path": "after/renovation-workflow/light-closed-loop.png",
-      "sha256": "8b1df68eb9353650e0d4546836a8f4505be3c402fd779c59a3aeafdc56dd6180"
+      "sha256": "5f4b300a09e494109ef9a1f2393ff60d9ed521c9168f52dcf4bc8751a8980273"
     },
     {
       "path": "after/renovation-workflow/light-wall-inspector.png",
@@ -538,7 +538,7 @@
     },
     {
       "path": "after/editor-visual-overview/light-closed-loop.png",
-      "sha256": "8b1df68eb9353650e0d4546836a8f4505be3c402fd779c59a3aeafdc56dd6180"
+      "sha256": "d489859de78f076206db57f11c14f1c138781f381fdaa94f81020b919a820e7b"
     },
     {
       "path": "after/editor-visual-overview/light-wall-inspector.png",
@@ -562,7 +562,7 @@
     },
     {
       "path": "after/editor-visual-overview/light-M00-room-design.png",
-      "sha256": "8063228a3025b445c0d9a91452d1ed372c89481928bf1f28636afd853e53e458"
+      "sha256": "87f9bc22770afcf878b895c153a79cbc38196d179bc8aaca246980b702a5420a"
     },
     {
       "path": "after/editor-visual-overview/light-M16-closed-constrained.png",
@@ -658,7 +658,7 @@
     },
     {
       "path": "after/editor-visual-overview/custom-accent-closed-loop.png",
-      "sha256": "b352724390841ddc195a272443938a38b88467a56f21afdbdda4dc6e4be63a44"
+      "sha256": "88d9a603e0a44e1b962b5da3862a9f8cfc7feee9dd5744f5007089f933f679bd"
     },
     {
       "path": "after/editor-visual-overview/custom-accent-wall-inspector.png",
@@ -778,7 +778,7 @@
     },
     {
       "path": "after/editor-object/light-closed-loop.png",
-      "sha256": "23951a9c3e5c7190d67baec87f11aad9eb9cc3dc9a5f42cede3dfddb2a5ba1c1"
+      "sha256": "cdf1e549a2f2f657bad6097132b2f64afc63dfffb1bd05fe1efb157ddd02ea0b"
     },
     {
       "path": "after/editor-object/light-wall-inspector.png",
@@ -786,7 +786,7 @@
     },
     {
       "path": "after/editor-object/light-invalid-rectangle.png",
-      "sha256": "23e10c01da34c706c75e013ba273d704274997aeb0eeb34ab4bb91e1d97b1889"
+      "sha256": "75fa18d62a1fed8b25ccd232a2548450db2eba00ffd5d3a69057d85bf4ef7ee2"
     },
     {
       "path": "after/editor-object/light-rectangle-preview.png",
@@ -802,7 +802,7 @@
     },
     {
       "path": "after/editor-object/dark-closed-loop.png",
-      "sha256": "5b08ec9090801edf1b4e5d1cb76d1d4b8a98142028dbe106540cd562fc6747a4"
+      "sha256": "84f4e39b78b1b3d29f84459fe6f9a0dcb66b0ea487b3ccb5bc21479b224a5095"
     },
     {
       "path": "after/editor-object/dark-wall-inspector.png",
@@ -834,11 +834,11 @@
     },
     {
       "path": "after/editor-object/custom-accent-invalid-rectangle.png",
-      "sha256": "6be62966693288b6e5a610f590b0f3114aa13f8a1649d28c429956e00931ff34"
+      "sha256": "5dabc08b59d275c37f44336b3f63b4f3a06ba5008bd248b6256012bdfff6e461"
     },
     {
       "path": "after/editor-object/custom-accent-rectangle-preview.png",
-      "sha256": "c0d0c55c8550981953340b72913e297332caacd375284a9ab6297a5078c37279"
+      "sha256": "a82be0760db1af736abb65650c87688316a43d5162c0de4220259657c5579b8f"
     },
     {
       "path": "after/editor-object/custom-accent-saved-item.png",
@@ -874,7 +874,7 @@
     },
     {
       "path": "after/planning-recovery/light-closed-loop.png",
-      "sha256": "23951a9c3e5c7190d67baec87f11aad9eb9cc3dc9a5f42cede3dfddb2a5ba1c1"
+      "sha256": "cdf1e549a2f2f657bad6097132b2f64afc63dfffb1bd05fe1efb157ddd02ea0b"
     },
     {
       "path": "after/planning-recovery/light-wall-inspector.png",
@@ -902,7 +902,7 @@
     },
     {
       "path": "after/planning-recovery/light-notes.png",
-      "sha256": "448088b8d5677b6fd759b768313ed65d0af1eec4cc336238d9198ddad043e7d7"
+      "sha256": "5e5fbe68275a146023592a43121045233f45cccb441329c009848bb23eb5547d"
     },
     {
       "path": "after/planning-recovery/light-photos.png",
@@ -966,7 +966,7 @@
     },
     {
       "path": "after/planning-recovery/dark-notes.png",
-      "sha256": "7fb43b19da6db8cdc585a49917a69fe88cb11105a0d76f45d3d2ed81cb06775a"
+      "sha256": "6925a78381f4b02535e90cc3b64058041a33ec07298b77763050c624cefcf39b"
     },
     {
       "path": "after/planning-recovery/dark-photos.png",
@@ -998,11 +998,11 @@
     },
     {
       "path": "after/planning-recovery/dark-large-photos.png",
-      "sha256": "749ffc49b5024067b35a4cbfe392a26e54d306161c3760ba2187fc408f98f0a2"
+      "sha256": "e924e4e60c888d8c6fb69eaacfae0ef075e870cc512b7c5eaf70c8f55e310aa8"
     },
     {
       "path": "after/planning-recovery/custom-accent-closed-loop.png",
-      "sha256": "4aab9ed9fb9e7339a76c9ebf94e5e74e2f689582b5f528311096f58fb98c88fd"
+      "sha256": "87c0adffcc932aa52ec4a6a250b7bc77ecdb09eafdf4ee1ed7e2be528cb2ef0a"
     },
     {
       "path": "after/planning-recovery/custom-accent-wall-inspector.png",
@@ -1014,7 +1014,7 @@
     },
     {
       "path": "after/planning-recovery/custom-accent-materials.png",
-      "sha256": "fbeed27288134b1bf0156ce90a9b037e100f674554999df95f94c8e2d4533c85"
+      "sha256": "4fe3719de7d316f67ca971fd3fb5106cd6b51557e73c9c44a093685b8e4a4390"
     },
     {
       "path": "after/planning-recovery/custom-accent-partial-payment.png",
@@ -1022,7 +1022,7 @@
     },
     {
       "path": "after/planning-recovery/custom-accent-costs.png",
-      "sha256": "6f36036094813c7381cc456f69ead38305b70850080015fa9d18075db9e38555"
+      "sha256": "fe06dfdff87ce8aaa82e335f24a73dc2b25b7048300d0256073814346bd6044d"
     },
     {
       "path": "after/planning-recovery/custom-accent-documents.png",
@@ -1030,7 +1030,7 @@
     },
     {
       "path": "after/planning-recovery/custom-accent-notes.png",
-      "sha256": "0fcbb1cc1c443919944e55b7709ad0291c7334b68a8d2444bb038ef6ef6ec113"
+      "sha256": "988190a0c26ff735cd49ba3a6d32d669c8b6e53aaa54cd81deec8157c26fc4fd"
     },
     {
       "path": "after/planning-recovery/custom-accent-photos.png",
@@ -1054,7 +1054,7 @@
     },
     {
       "path": "after/planning-recovery/custom-accent-changed-source.png",
-      "sha256": "40a6307235bf741efead96819abb2117d21f14d383efa00f1fa4c84e7b88fb14"
+      "sha256": "ccdbbb6808306eb3dda9d9f769754ff2cb2754bd5eeeebd5cc14454bb960bbbb"
     },
     {
       "path": "after/planning-recovery/custom-accent-zoom-reflow.png",
@@ -1062,7 +1062,7 @@
     },
     {
       "path": "after/planning-recovery/custom-accent-large-photos.png",
-      "sha256": "849775aec67793fdf99afc11bfad8007fcf059d7fe68567c5406b4b32446813c"
+      "sha256": "e3343cdda295aa4513b9e2af1f549059c82aa96fcdf5ac4c7624c94c40e8df11"
     },
     {
       "path": "after/planning-recovery/german-constrained-closed-loop.png",
@@ -1094,7 +1094,7 @@
     },
     {
       "path": "after/planning-recovery/german-constrained-notes.png",
-      "sha256": "f1d601df828291ab31bc74dfc14f69df28ccda5794acf7c92a7e4213ee84d8a9"
+      "sha256": "4df797adfb25c20cb1376176fa47a8e60c5aabcad503af5bd763b81092b3dc87"
     },
     {
       "path": "after/planning-recovery/german-constrained-photos.png",
@@ -1126,19 +1126,19 @@
     },
     {
       "path": "after/planning-recovery/german-constrained-large-photos.png",
-      "sha256": "aeb7ac7d519d58e2b8e3e92d71b03e8b811b29a8d1e79b98c4e783ebee4c31c5"
+      "sha256": "d6801d9b7535e6d2c124d4496bad5dc9be9d5112f21dc087e17277f9f4504e1e"
     },
     {
       "path": "after/modal-busy-focus/light-renovation-pending.png",
-      "sha256": "d2e54c636eff7b0c3db1f3e556ddbe0b6e3a99dd6078a3302277a16e6c4c8a12"
+      "sha256": "f62a1172374fdf645e64f7aa27d9f17b1eb3cc4cb75262e047a7b6183c020f41"
     },
     {
       "path": "after/modal-busy-focus/light-planning-pending.png",
-      "sha256": "d0f241f4a95b1131b3afa5e2ed8e25ca4ed0ee1d0d21f43cdec910482824ec93"
+      "sha256": "12aaa1a620e36a70486fad0ebba2aa01b8c5b95ebc6d496a25b1eb4184452deb"
     },
     {
       "path": "after/modal-busy-focus/dark-renovation-pending.png",
-      "sha256": "5f3a8aa060f5b7cef21682ceb384314f1d7e2a66c2da023777499cccd8c3405d"
+      "sha256": "b02a8164a54d35501909a8965d00d9f245bee434cdce2c7f7a8106eabfce4eba"
     },
     {
       "path": "after/modal-busy-focus/dark-planning-pending.png",
@@ -1146,15 +1146,15 @@
     },
     {
       "path": "after/modal-busy-focus/custom-accent-renovation-pending.png",
-      "sha256": "403bc258159b6616325577521b65964fdd3b536e05bdd535d190ab2b9d5b437a"
+      "sha256": "1b6570ae2ddccdfc7157d04d3cd6349c5ea3636ab669eae9501fe09841922700"
     },
     {
       "path": "after/modal-busy-focus/custom-accent-planning-pending.png",
-      "sha256": "37aef30879a8d00cd83fbdd1c12a03120cd0458571f3dec6781988f88b3818bc"
+      "sha256": "97daad3490441b941efc05628ac76763115b1a020f33b5458a770875c8a39ddc"
     },
     {
       "path": "after/modal-busy-focus/german-constrained-renovation-pending.png",
-      "sha256": "b685e1b3b4d8e87d203df018e3d96ab4e76012559743dabf309a00e8ecb9c0fd"
+      "sha256": "e39d2555dbc1b1a42035ba88a64298fa5ceaefebcaee8ba3b31d937fb9769ca5"
     },
     {
       "path": "after/modal-busy-focus/german-constrained-planning-pending.png",
@@ -1162,7 +1162,7 @@
     },
     {
       "path": "after/editor-downstream/light-closed-loop.png",
-      "sha256": "89149437f115e6e61b6726df894f7261954531e4399b1043100a76d9c3870ab2"
+      "sha256": "fbdf1347080c3477b1910823da594e921a814ea550f03f3601a0e64fc79e4c1b"
     },
     {
       "path": "after/editor-downstream/light-wall-inspector.png",
@@ -1198,7 +1198,7 @@
     },
     {
       "path": "after/editor-downstream/dark-closed-loop.png",
-      "sha256": "7047925d886a83cd333b9b6da255fc28ccdf55734b23b221deaa46f8e1cfa3b5"
+      "sha256": "8f6a3230f70378650f53292a96cf61a4554e4d91b055fc149caf73cad58f8b12"
     },
     {
       "path": "after/editor-downstream/dark-wall-inspector.png",
@@ -1234,7 +1234,7 @@
     },
     {
       "path": "after/editor-downstream/custom-accent-closed-loop.png",
-      "sha256": "034c3be867878d7eacac8be839987053b26919e929c9a137af9c6b991237fc68"
+      "sha256": "45e8db48b908af07129e8bf15499a3416e61133aa15aa0ec6c5b2c4f0eb332e2"
     },
     {
       "path": "after/editor-downstream/custom-accent-wall-inspector.png",
@@ -1250,7 +1250,7 @@
     },
     {
       "path": "after/editor-downstream/custom-accent-room-work.png",
-      "sha256": "a6e32bc538330ad98d49388a7fcb8d5fe61da74defaed1137598d8f84e94b723"
+      "sha256": "81224e69743739826446fdd63e395fb7b0dd1a96f557f1c2e3dc345047f10b08"
     },
     {
       "path": "after/editor-downstream/custom-accent-room-costs.png",
@@ -1370,7 +1370,7 @@
     },
     {
       "path": "comparisons/M00-full.png",
-      "sha256": "3f8a361ea46d12da5bd544e05e29d6f8eca5c61fb7d26d9b3051f8329646df16"
+      "sha256": "0059bd881a455867f8fa9d25667e8f9004093081130ab064556709019736c857"
     },
     {
       "path": "comparisons/M00-detail.png",
@@ -1402,11 +1402,11 @@
     },
     {
       "path": "comparisons/M04-full.png",
-      "sha256": "0f16d40e4e0d2f2492647d9f44b8d8287530d0f664b1fadb1423fb569c7c4e77"
+      "sha256": "953056cf6f6b5a73d0ce2b84240510063177414cb9452d9622222403c443695a"
     },
     {
       "path": "comparisons/M04-detail.png",
-      "sha256": "e8a817fb0d1f7892ec2f96fd92453de05470642c45e1cc4759b36139f2fcc468"
+      "sha256": "65af832c4c1d502d76042946655e769807ace4cb040e844312bcd662f5f4b862"
     },
     {
       "path": "comparisons/M05-full.png",

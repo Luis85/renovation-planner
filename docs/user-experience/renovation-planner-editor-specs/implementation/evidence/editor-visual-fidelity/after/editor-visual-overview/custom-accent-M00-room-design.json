@@ -30,14 +30,14 @@
     }
   },
   "sample": {
-    "roomId": "zone-01M2409T7DFSSYWVG6T3EZSEGP",
+    "roomId": "zone-01M251AZ2BS18Z4VJ8RMK7R7J4",
     "role": "selected-room"
   },
   "selection": {
     "ids": [
-      "zone-01M2409T7DFSSYWVG6T3EZSEGP"
+      "zone-01M251AZ2BS18Z4VJ8RMK7R7J4"
     ],
-    "focusedId": "zone-01M2409T7DFSSYWVG6T3EZSEGP"
+    "focusedId": "zone-01M251AZ2BS18Z4VJ8RMK7R7J4"
   },
   "input": "Only viewport height changes; no scroll/focus reset",
   "camera": {

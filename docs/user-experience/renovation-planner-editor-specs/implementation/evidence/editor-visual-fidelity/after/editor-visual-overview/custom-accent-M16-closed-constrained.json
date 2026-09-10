@@ -9,14 +9,14 @@
     "zoom": 0.04975609756097561
   },
   "sample": {
-    "roomId": "zone-01M2409T7DFSSYWVG6T3EZSEGP",
+    "roomId": "zone-01M251AZ2BS18Z4VJ8RMK7R7J4",
     "role": "selected-room"
   },
   "selection": {
     "ids": [
-      "zone-01M2409T7DFSSYWVG6T3EZSEGP"
+      "zone-01M251AZ2BS18Z4VJ8RMK7R7J4"
     ],
-    "focusedId": "zone-01M2409T7DFSSYWVG6T3EZSEGP"
+    "focusedId": "zone-01M251AZ2BS18Z4VJ8RMK7R7J4"
   },
   "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
   "vaultAndSelectionUnchanged": true

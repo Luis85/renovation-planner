@@ -11,7 +11,7 @@
     "gallery": {
       "images": 6,
       "phase": "during",
-      "selectedId": "record-01M24046GS28HS4PQDC1EHN0QC",
+      "selectedId": "record-01M2514VH4N8K6JQXHMV16HDZJ",
       "selectedDate": "2026-08-28",
       "work": "Floor finish",
       "visibility": {
@@ -45,7 +45,7 @@
           "width": 152,
           "height": 119
         },
-        ".rp-renovation-list > [data-rp-record=\"record-01M24046GS28HS4PQDC1EHN0QC\"]": {
+        ".rp-renovation-list > [data-rp-record=\"record-01M2514VH4N8K6JQXHMV16HDZJ\"]": {
           "x": 1097,
           "y": 710,
           "width": 312,
@@ -909,14 +909,14 @@
       "inputs": "six explicit synthetic PNG files linked through native production forms",
       "reviewIssues": {
         "decisions": [
-          "decision-01M2404AYYAHX32380N44CBS5F",
-          "decision-01M2404B40ADYVB8ZNRSCMKGB6"
+          "decision-01M251502T6TKMXGCA2B38EV32",
+          "decision-01M251507FVWQ0CJ9H34FBBSDW"
         ],
         "questions": [
           "Which oil finish?",
           "Which floor finish sample?"
         ],
-        "roomId": "zone-01M2403YBDGN05D3A90VNYG8S3",
+        "roomId": "zone-01M2514H61JBWFYZ033B3PFR7W",
         "visibility": {
           ".rp-review-inspector > h3": {
             "x": 1097,
@@ -962,7 +962,7 @@
           }
         },
         "marker": {
-          "roomId": "zone-01M2403YBDGN05D3A90VNYG8S3",
+          "roomId": "zone-01M2514H61JBWFYZ033B3PFR7W",
           "number": 1,
           "stayedInReview": true,
           "cameraBefore": {
@@ -1001,7 +1001,7 @@
     "gallery": {
       "images": 6,
       "phase": "during",
-      "selectedId": "record-01M2404SFES0G3ZG60ZHY20GQK",
+      "selectedId": "record-01M2515EBBRJMXTY75M613HBQP",
       "selectedDate": "2026-08-28",
       "work": "Floor finish",
       "visibility": {
@@ -1035,7 +1035,7 @@
           "width": 152,
           "height": 119
         },
-        ".rp-renovation-list > [data-rp-record=\"record-01M2404SFES0G3ZG60ZHY20GQK\"]": {
+        ".rp-renovation-list > [data-rp-record=\"record-01M2515EBBRJMXTY75M613HBQP\"]": {
           "x": 1097,
           "y": 710,
           "width": 312,
@@ -1899,14 +1899,14 @@
       "inputs": "six explicit synthetic PNG files linked through native production forms",
       "reviewIssues": {
         "decisions": [
-          "decision-01M2404XRASBFQM8C7VDHKQJBX",
-          "decision-01M2404XXKBJ30BZTJHESP5QY5"
+          "decision-01M2515JQ8CWK4245A8HW959JX",
+          "decision-01M2515JW1NM76N2BAXKVFEYD9"
         ],
         "questions": [
           "Which oil finish?",
           "Which floor finish sample?"
         ],
-        "roomId": "zone-01M2404HENSE6MMS1NHBF8B66C",
+        "roomId": "zone-01M251565P8MDD8MNTZZ8EA459",
         "visibility": {
           ".rp-review-inspector > h3": {
             "x": 1097,
@@ -1952,7 +1952,7 @@
           }
         },
         "marker": {
-          "roomId": "zone-01M2404HENSE6MMS1NHBF8B66C",
+          "roomId": "zone-01M251565P8MDD8MNTZZ8EA459",
           "number": 1,
           "stayedInReview": true,
           "cameraBefore": {
@@ -1991,7 +1991,7 @@
     "gallery": {
       "images": 6,
       "phase": "during",
-      "selectedId": "record-01M2405BHYKVZ4YK8WBMVMQYJD",
+      "selectedId": "record-01M25162B8473NYZPATR19SP5P",
       "selectedDate": "2026-08-28",
       "work": "Floor finish",
       "visibility": {
@@ -2025,7 +2025,7 @@
           "width": 124,
           "height": 98
         },
-        ".rp-renovation-list > [data-rp-record=\"record-01M2405BHYKVZ4YK8WBMVMQYJD\"]": {
+        ".rp-renovation-list > [data-rp-record=\"record-01M25162B8473NYZPATR19SP5P\"]": {
           "x": 713,
           "y": 651,
           "width": 256,
@@ -2889,14 +2889,14 @@
       "inputs": "six explicit synthetic PNG files linked through native production forms",
       "reviewIssues": {
         "decisions": [
-          "decision-01M2405FRK796Q90V2K9AH3C1Y",
-          "decision-01M2405FX33D5SZY220W8TJYW8"
+          "decision-01M25166XP1D68V3YHZGEYZ8V6",
+          "decision-01M251672C4EG3MFEY01KY9J87"
         ],
         "questions": [
           "Which oil finish?",
           "Which floor finish sample?"
         ],
-        "roomId": "zone-01M24053RZQRJ1H4ZZ5K7M7C59",
+        "roomId": "zone-01M2515S04PG1Z9K6B3PAQVFGK",
         "visibility": {
           ".rp-review-inspector > h3": {
             "x": 713,
@@ -2942,7 +2942,7 @@
           }
         },
         "marker": {
-          "roomId": "zone-01M24053RZQRJ1H4ZZ5K7M7C59",
+          "roomId": "zone-01M2515S04PG1Z9K6B3PAQVFGK",
           "number": 1,
           "stayedInReview": true,
           "cameraBefore": {
@@ -2952,7 +2952,7 @@
           },
           "cameraFramed": {
             "x": 48.000000000000036,
-            "y": 251.5,
+            "y": 239.00000000000003,
             "zoom": 0.102
           }
         },
@@ -2981,7 +2981,7 @@
     "gallery": {
       "images": 6,
       "phase": "during",
-      "selectedId": "record-01M2405WKDQ45EEE9ZP5981DQG",
+      "selectedId": "record-01M2516MCWTGVD51S4C5W2WNWD",
       "selectedDate": "2026-08-28",
       "work": "Floor finish",
       "visibility": {
@@ -3015,7 +3015,7 @@
           "width": 163.5,
           "height": 127.625
         },
-        ".rp-renovation-list > [data-rp-record=\"record-01M2405WKDQ45EEE9ZP5981DQG\"]": {
+        ".rp-renovation-list > [data-rp-record=\"record-01M2516MCWTGVD51S4C5W2WNWD\"]": {
           "x": 109,
           "y": 622.71875,
           "width": 335,
@@ -3879,14 +3879,14 @@
       "inputs": "six explicit synthetic PNG files linked through native production forms",
       "reviewIssues": {
         "decisions": [
-          "decision-01M24060HFHEN9BX0PVMXY5KDR",
-          "decision-01M24060NMSHJHQ07QR09D1NFT"
+          "decision-01M2516RBXKJN76R4HSAKY9YY5",
+          "decision-01M2516RG8Q5J7F5YKQDJBAAYV"
         ],
         "questions": [
           "Welches Öl?",
           "Welches Bodenmuster?"
         ],
-        "roomId": "zone-01M2405NHP09D87YJHAKECCWD8",
+        "roomId": "zone-01M2516D8J483KPKG6RCTHMWX3",
         "visibility": {
           ".rp-review-inspector > h3": {
             "x": 109,
@@ -3932,7 +3932,7 @@
           }
         },
         "marker": {
-          "roomId": "zone-01M2405NHP09D87YJHAKECCWD8",
+          "roomId": "zone-01M2516D8J483KPKG6RCTHMWX3",
           "number": 1,
           "stayedInReview": true,
           "cameraBefore": {
@@ -3942,7 +3942,7 @@
           },
           "cameraFramed": {
             "x": 47.99999999999999,
-            "y": 246.50000000000003,
+            "y": 224.99999999999997,
             "zoom": 0.073
           }
         },

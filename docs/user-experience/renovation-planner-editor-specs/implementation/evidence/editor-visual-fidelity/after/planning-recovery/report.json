@@ -55,11 +55,11 @@
         "catalogue": 24,
         "photos": 40,
         "imageDimensions": "1600 × 1200",
-        "firstRoom": "zone-01M240C1HWTEE13ATZ417YEJV8"
+        "firstRoom": "zone-01M251D7CEDGZ6DYFKMZS4ET12"
       },
-      "usableMs": 611.3000000119209,
-      "selectionMs": 66.79999999701977,
-      "inspectorMs": 52.099999994039536,
+      "usableMs": 659.5999999940395,
+      "selectionMs": 66.3999999910593,
+      "inspectorMs": 48.5,
       "pan": {
         "samples": 59,
         "medianMs": 16.699999999999818,
@@ -225,15 +225,15 @@
         "catalogue": 24,
         "photos": 40,
         "imageDimensions": "1600 × 1200",
-        "firstRoom": "zone-01M240CRHTYHKZR9TJEDT73Q6P"
+        "firstRoom": "zone-01M251DY4TCWQD2NY3WV9NM6RW"
       },
-      "usableMs": 675,
-      "selectionMs": 64.29999999701977,
-      "inspectorMs": 49.30000001192093,
+      "usableMs": 629.9000000059605,
+      "selectionMs": 62.8999999910593,
+      "inspectorMs": 48.19999998807907,
       "pan": {
         "samples": 59,
         "medianMs": 16.699999999999818,
-        "p95Ms": 16.899999999999636,
+        "p95Ms": 16.800000000000182,
         "sceneBefore": {
           "materialMarkers": 0,
           "camera": {
@@ -263,7 +263,7 @@
       "materialPan": {
         "samples": 59,
         "medianMs": 16.699999999999818,
-        "p95Ms": 16.900000000000546,
+        "p95Ms": 16.800000000000182,
         "sceneBefore": {
           "materialMarkers": 3,
           "camera": {
@@ -395,11 +395,11 @@
         "catalogue": 24,
         "photos": 40,
         "imageDimensions": "1600 × 1200",
-        "firstRoom": "zone-01M240DEKVPQTQ3ES329BGRNVZ"
+        "firstRoom": "zone-01M251EMHN18QJXSBWANDPB89B"
       },
-      "usableMs": 653.4000000059605,
-      "selectionMs": 66.70000000298023,
-      "inspectorMs": 50.6000000089407,
+      "usableMs": 618.8000000119209,
+      "selectionMs": 63.6000000089407,
+      "inspectorMs": 51.70000000298023,
       "pan": {
         "samples": 59,
         "medianMs": 16.699999999999818,
@@ -433,7 +433,7 @@
       "materialPan": {
         "samples": 59,
         "medianMs": 16.699999999999818,
-        "p95Ms": 16.800000000000182,
+        "p95Ms": 16.799999999999272,
         "sceneBefore": {
           "materialMarkers": 3,
           "camera": {
@@ -565,11 +565,11 @@
         "catalogue": 24,
         "photos": 40,
         "imageDimensions": "1600 × 1200",
-        "firstRoom": "zone-01M240E3RS0J0WQH0Y8T81YVV6"
+        "firstRoom": "zone-01M251F9XAZA9K2GSA5RWTP1P0"
       },
-      "usableMs": 608.2999999970198,
-      "selectionMs": 71.70000000298023,
-      "inspectorMs": 45.900000005960464,
+      "usableMs": 644.7999999970198,
+      "selectionMs": 62.8999999910593,
+      "inspectorMs": 41.30000001192093,
       "pan": {
         "samples": 59,
         "medianMs": 16.699999999999818,
@@ -603,7 +603,7 @@
       "materialPan": {
         "samples": 59,
         "medianMs": 16.699999999999818,
-        "p95Ms": 16.800000000000182,
+        "p95Ms": 16.899999999999636,
         "sceneBefore": {
           "materialMarkers": 3,
           "camera": {

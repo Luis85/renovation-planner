@@ -65,14 +65,14 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M24091DZNQPNSH2364WJKCDW",
+            "roomId": "zone-01M251A5FFDJDV1544HQJWTJS4",
             "role": "selected-room"
           },
           "selection": {
             "ids": [
-              "zone-01M24091DZNQPNSH2364WJKCDW"
+              "zone-01M251A5FFDJDV1544HQJWTJS4"
             ],
-            "focusedId": "zone-01M24091DZNQPNSH2364WJKCDW"
+            "focusedId": "zone-01M251A5FFDJDV1544HQJWTJS4"
           },
           "input": "Only viewport height changes; no scroll/focus reset",
           "camera": {
@@ -94,14 +94,14 @@
             "zoom": 0.09012195121951219
           },
           "sample": {
-            "roomId": "zone-01M24091DZNQPNSH2364WJKCDW",
+            "roomId": "zone-01M251A5FFDJDV1544HQJWTJS4",
             "role": "selected-room"
           },
           "selection": {
             "ids": [
-              "zone-01M24091DZNQPNSH2364WJKCDW"
+              "zone-01M251A5FFDJDV1544HQJWTJS4"
             ],
-            "focusedId": "zone-01M24091DZNQPNSH2364WJKCDW"
+            "focusedId": "zone-01M251A5FFDJDV1544HQJWTJS4"
           },
           "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
           "vaultAndSelectionUnchanged": true
@@ -140,7 +140,7 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M24091QB5SWEW4V3GAA2DYS7",
+            "roomId": "zone-01M251A5SF7E7EM48B5481GZVZ",
             "role": "floor/element viewport sample; selected entity IDs are recorded separately"
           },
           "selection": {
@@ -185,14 +185,14 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M24091QB5SWEW4V3GAA2DYS7",
+            "roomId": "zone-01M251A5SF7E7EM48B5481GZVZ",
             "role": "floor/element viewport sample; selected entity IDs are recorded separately"
           },
           "selection": {
             "ids": [
-              "wall-01M24091DXGM5NEKF0BBQCVMN8"
+              "wall-01M251A5FD6C67XNT42K0MBRWT"
             ],
-            "focusedId": "wall-01M24091DXGM5NEKF0BBQCVMN8"
+            "focusedId": "wall-01M251A5FD6C67XNT42K0MBRWT"
           },
           "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
           "camera": {
@@ -278,14 +278,14 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M2409DTXF47GX00YECKXV2PG",
+            "roomId": "zone-01M251AJK48ZCDK4EVNKWNCKZF",
             "role": "selected-room"
           },
           "selection": {
             "ids": [
-              "zone-01M2409DTXF47GX00YECKXV2PG"
+              "zone-01M251AJK48ZCDK4EVNKWNCKZF"
             ],
-            "focusedId": "zone-01M2409DTXF47GX00YECKXV2PG"
+            "focusedId": "zone-01M251AJK48ZCDK4EVNKWNCKZF"
           },
           "input": "Only viewport height changes; no scroll/focus reset",
           "camera": {
@@ -307,14 +307,14 @@
             "zoom": 0.09012195121951219
           },
           "sample": {
-            "roomId": "zone-01M2409DTXF47GX00YECKXV2PG",
+            "roomId": "zone-01M251AJK48ZCDK4EVNKWNCKZF",
             "role": "selected-room"
           },
           "selection": {
             "ids": [
-              "zone-01M2409DTXF47GX00YECKXV2PG"
+              "zone-01M251AJK48ZCDK4EVNKWNCKZF"
             ],
-            "focusedId": "zone-01M2409DTXF47GX00YECKXV2PG"
+            "focusedId": "zone-01M251AJK48ZCDK4EVNKWNCKZF"
           },
           "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
           "vaultAndSelectionUnchanged": true
@@ -353,7 +353,7 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M2409E3X84YF32880VXDGJ7Y",
+            "roomId": "zone-01M251AJW5M9X0JZCV6SD5TA3Z",
             "role": "floor/element viewport sample; selected entity IDs are recorded separately"
           },
           "selection": {
@@ -398,14 +398,14 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M2409E3X84YF32880VXDGJ7Y",
+            "roomId": "zone-01M251AJW5M9X0JZCV6SD5TA3Z",
             "role": "floor/element viewport sample; selected entity IDs are recorded separately"
           },
           "selection": {
             "ids": [
-              "wall-01M2409DTVMCVVXTZGF719HWY6"
+              "wall-01M251AJK2ZKTBA0FR7BFK7PPJ"
             ],
-            "focusedId": "wall-01M2409DTVMCVVXTZGF719HWY6"
+            "focusedId": "wall-01M251AJK2ZKTBA0FR7BFK7PPJ"
           },
           "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
           "camera": {
@@ -491,14 +491,14 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M2409T7DFSSYWVG6T3EZSEGP",
+            "roomId": "zone-01M251AZ2BS18Z4VJ8RMK7R7J4",
             "role": "selected-room"
           },
           "selection": {
             "ids": [
-              "zone-01M2409T7DFSSYWVG6T3EZSEGP"
+              "zone-01M251AZ2BS18Z4VJ8RMK7R7J4"
             ],
-            "focusedId": "zone-01M2409T7DFSSYWVG6T3EZSEGP"
+            "focusedId": "zone-01M251AZ2BS18Z4VJ8RMK7R7J4"
           },
           "input": "Only viewport height changes; no scroll/focus reset",
           "camera": {
@@ -520,14 +520,14 @@
             "zoom": 0.04975609756097561
           },
           "sample": {
-            "roomId": "zone-01M2409T7DFSSYWVG6T3EZSEGP",
+            "roomId": "zone-01M251AZ2BS18Z4VJ8RMK7R7J4",
             "role": "selected-room"
           },
           "selection": {
             "ids": [
-              "zone-01M2409T7DFSSYWVG6T3EZSEGP"
+              "zone-01M251AZ2BS18Z4VJ8RMK7R7J4"
             ],
-            "focusedId": "zone-01M2409T7DFSSYWVG6T3EZSEGP"
+            "focusedId": "zone-01M251AZ2BS18Z4VJ8RMK7R7J4"
           },
           "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
           "vaultAndSelectionUnchanged": true
@@ -566,7 +566,7 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M2409TFZCNXQ1MJJ5H1AN0CY",
+            "roomId": "zone-01M251AZAQZAJS7TPWYPCHSGC1",
             "role": "floor/element viewport sample; selected entity IDs are recorded separately"
           },
           "selection": {
@@ -611,14 +611,14 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M2409TFZCNXQ1MJJ5H1AN0CY",
+            "roomId": "zone-01M251AZAQZAJS7TPWYPCHSGC1",
             "role": "floor/element viewport sample; selected entity IDs are recorded separately"
           },
           "selection": {
             "ids": [
-              "wall-01M2409T7ASTEZ7ZE2HQBKTZSQ"
+              "wall-01M251AZ28GS8VXW2XK3RK1NFH"
             ],
-            "focusedId": "wall-01M2409T7ASTEZ7ZE2HQBKTZSQ"
+            "focusedId": "wall-01M251AZ28GS8VXW2XK3RK1NFH"
           },
           "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
           "camera": {
@@ -704,14 +704,14 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M240A6A7XV1XAMF9K04FM9TZ",
+            "roomId": "zone-01M251BBH2790714M20WEW4Y97",
             "role": "selected-room"
           },
           "selection": {
             "ids": [
-              "zone-01M240A6A7XV1XAMF9K04FM9TZ"
+              "zone-01M251BBH2790714M20WEW4Y97"
             ],
-            "focusedId": "zone-01M240A6A7XV1XAMF9K04FM9TZ"
+            "focusedId": "zone-01M251BBH2790714M20WEW4Y97"
           },
           "input": "Only viewport height changes; no scroll/focus reset",
           "camera": {
@@ -733,14 +733,14 @@
             "zoom": 0.03560975609756097
           },
           "sample": {
-            "roomId": "zone-01M240A6A7XV1XAMF9K04FM9TZ",
+            "roomId": "zone-01M251BBH2790714M20WEW4Y97",
             "role": "selected-room"
           },
           "selection": {
             "ids": [
-              "zone-01M240A6A7XV1XAMF9K04FM9TZ"
+              "zone-01M251BBH2790714M20WEW4Y97"
             ],
-            "focusedId": "zone-01M240A6A7XV1XAMF9K04FM9TZ"
+            "focusedId": "zone-01M251BBH2790714M20WEW4Y97"
           },
           "input": "Resize, native panel Close when open, then Tab to canvas; original panel restored through its rail; no Fit or private camera change",
           "vaultAndSelectionUnchanged": true
@@ -779,7 +779,7 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M240A6KWB715M3BBQJYN6F3C",
+            "roomId": "zone-01M251BBTDZVG3CXS5A7B8VABV",
             "role": "floor/element viewport sample; selected entity IDs are recorded separately"
           },
           "selection": {
@@ -824,14 +824,14 @@
             }
           },
           "sample": {
-            "roomId": "zone-01M240A6KWB715M3BBQJYN6F3C",
+            "roomId": "zone-01M251BBTDZVG3CXS5A7B8VABV",
             "role": "floor/element viewport sample; selected entity IDs are recorded separately"
           },
           "selection": {
             "ids": [
-              "wall-01M240A6A553BBH8XW5BC2GY25"
+              "wall-01M251BBGZNNHEF86E6VF40X6K"
             ],
-            "focusedId": "wall-01M240A6A553BBH8XW5BC2GY25"
+            "focusedId": "wall-01M251BBGZNNHEF86E6VF40X6K"
           },
           "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
           "camera": {

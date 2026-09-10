@@ -24,14 +24,14 @@
     }
   },
   "sample": {
-    "roomId": "zone-01M2409E3X84YF32880VXDGJ7Y",
+    "roomId": "zone-01M251AJW5M9X0JZCV6SD5TA3Z",
     "role": "floor/element viewport sample; selected entity IDs are recorded separately"
   },
   "selection": {
     "ids": [
-      "wall-01M2409DTVMCVVXTZGF719HWY6"
+      "wall-01M251AJK2ZKTBA0FR7BFK7PPJ"
     ],
-    "focusedId": "wall-01M2409DTVMCVVXTZGF719HWY6"
+    "focusedId": "wall-01M251AJK2ZKTBA0FR7BFK7PPJ"
   },
   "input": "Native Tab to [data-rp-action=\"edit-structure\"], Control+Home and wheel upward inside Inspector; no direct scroll/focus mutation",
   "camera": {

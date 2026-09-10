@@ -5,8 +5,9 @@
  * areas, Walls and openings. The first three open; the walls list closed, because it is the
  * keyboard route to walls rather than something the mockup draws at rest.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { mountPlanEditorCanvas } from '../../../helpers/editor';
+import { renovationEditor } from '../../../helpers/renovationEditor';
 
 describe('sidebar sections', () => {
 	it('draws four collapsible sections in order with the walls list closed', async () => {
@@ -23,10 +24,25 @@ describe('sidebar sections', () => {
 		expect(sections.every((s) => s.find('summary').exists())).toBe(true);
 	});
 
-	it('keeps the change legend inside the Layers section', async () => {
-		const harness = await mountPlanEditorCanvas();
-		const layers = harness.wrapper.get('.rp-property-layers');
-		// The legend only draws with a renovation session; when absent, nothing else may draw it either.
-		expect(harness.wrapper.findAll('.rp-change-legend').length).toBe(layers.findAll('.rp-change-legend').length);
+	let rig: Awaited<ReturnType<typeof renovationEditor>> | undefined;
+	afterEach(() => { rig?.unmount(); rig = undefined; });
+
+	it('places the change legend at the foot of the Layers section, after Reference options, and nowhere else', async () => {
+		// With a renovation session active, runtime.renovation.available is true, so the
+		// legend actually draws - unlike the plain-fixture mount above, this rig can tell
+		// "inside the Layers section" from "nowhere at all".
+		rig = await renovationEditor();
+		const legends = rig.wrapper.findAll('.rp-change-legend');
+		expect(legends).toHaveLength(1);
+
+		const layers = rig.wrapper.get('.rp-property-layers');
+		expect(layers.findAll('.rp-change-legend')).toHaveLength(1);
+
+		const legendEl = legends[0].element;
+		const referenceEl = layers.get('.rp-reference-options').element;
+		// Last element child of the section: at its foot, not merely somewhere inside it.
+		expect(layers.element.lastElementChild).toBe(legendEl);
+		// Comes after Reference options in document order.
+		expect(referenceEl.compareDocumentPosition(legendEl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 	});
 });

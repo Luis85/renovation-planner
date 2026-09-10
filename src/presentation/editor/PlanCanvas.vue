@@ -53,7 +53,9 @@ const project = useProjectStore();
 const selection = useSelectionStore();
 const runtime = useEditorRuntime();
 // Pins and caption obstacles use the same retained evidence facts as the Inspector.
-const evidencePins = useEvidencePins(() => runtime.planning.baseline.value?.plan.entity.renovation?.depth?.evidence ?? []);
+const allEvidencePins = useEvidencePins(() => runtime.planning.baseline.value?.plan.entity.renovation?.depth?.evidence ?? []);
+/** The Layers panel's Notes and photos row: one gate for both layers that draw pins. */
+const evidencePins = computed(() => (workspace.notesVisible ? allEvidencePins.value : []));
 const existingPhotos = useExistingPhotos();
 const dimensionLayout = shallowRef<DimensionObstacleLayout>({ bounds: [], viewport: null });
 const context = usePlanEditorContext();

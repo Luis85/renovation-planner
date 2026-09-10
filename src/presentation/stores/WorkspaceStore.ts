@@ -23,6 +23,18 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	const gridVisible = ref(false);
 
 	/**
+	 * Whether evidence pins — notes and photos — are drawn. The Layers panel's "Notes and
+	 * photos" row (sidebar polish, 2026-09-10). Not a Konva layer: pins are drawn by the zone
+	 * AND the annotation layers, so the gate sits where `PlanCanvas` computes the pin list
+	 * rather than on either layer's `visible`.
+	 */
+	const notesVisible = ref(true);
+
+	function toggleNotes(): void {
+		notesVisible.value = !notesVisible.value;
+	}
+
+	/**
 	 * Internal: `toggleLayer` is the whole public surface, because a Layers panel offers a
 	 * checkbox and nothing else. An exported setter with no caller is dead code by this
 	 * project own gate; slice 6 exports one in the change that needs to set a layer without
@@ -73,12 +85,15 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		layerVisibility.value = defaultLayerVisibility();
 		layoutMode.value = 'full';
 		overlay.value = 'none';
+		notesVisible.value = true;
 	}
 
 	return {
 		gridVisible,
 		layerVisibility,
 		toggleLayer,
+		notesVisible,
+		toggleNotes,
 		layoutMode,
 		overlay,
 		setLayoutMode,

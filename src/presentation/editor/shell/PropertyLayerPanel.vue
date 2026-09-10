@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import HostIcon from '../../components/HostIcon.vue';
 import ChangeLegend from './ChangeLegend.vue';
-import { usePlanEditorContext } from '../PlanEditorContext';
+import PropertyTree from './PropertyTree.vue';
 import StructureList from '../structure/StructureList.vue';
 /** Current Project → Floor context and presentation layers, with the non-canvas entity
  * routes disclosed separately. Stores survive modeless panel hiding and reflow. */
@@ -12,8 +11,10 @@ import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
+import type { KonvaLayerId } from '../scene/KonvaLayers';
 import type { PlanDto } from '../../read-models/PlanDto';
-import { layerCatalogue } from '../layers/layerCatalogue';
+import { layerCatalogue, type LayerToggle, type LayerToggles } from '../layers/layerCatalogue';
 import LayerList from './LayerList.vue';
 import RoomSummaryList from './RoomSummaryList.vue';
 import { useSpatialRecords } from './useSpatialRecords';
@@ -21,12 +22,34 @@ import { useSpatialRecords } from './useSpatialRecords';
 const props = defineProps<{ plan: PlanDto | null }>();
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
-const { stale, project } = storeToRefs(useProjectStore());
-const context = usePlanEditorContext();
+const { stale } = storeToRefs(useProjectStore());
 const records = useSpatialRecords();
 // Per-leaf on the runtime so selection mode survives panel reflow.
 const toggleSelection = runtime.multiSelectionMode;
-const entries = computed(() => layerCatalogue(props.plan, stale.value));
+const workspace = useWorkspaceStore();
+const konva = (layer: KonvaLayerId): LayerToggle => ({
+	visible: () => workspace.layerVisibility[layer],
+	toggle: () => workspace.toggleLayer(layer),
+});
+/** Every row's home, in one place: three Konva layers, the session flag, the notes gate. */
+const toggles = computed<LayerToggles>(() => ({
+	reference: konva('background'),
+	rooms: konva('zone'),
+	walls: konva('architecture'),
+	planned: runtime.renovation.available ? { visible: () => session.visible, toggle: () => { session.visible = !session.visible; } } : null,
+	notes: { visible: () => workspace.notesVisible, toggle: workspace.toggleNotes },
+}));
+/**
+ * Review withholds Set scale and Reference options (nothing there is reachable while
+ * perspectives are read-only), but the two rows that write NOTHING to the vault — Planned
+ * changes and Notes and photos, both pure rendering toggles on `WorkspaceStore`/the session —
+ * stay reachable: before the sidebar fold (Task 4) Planned changes sat outside `LayerList`
+ * with no perspective gate at all, so Review already showed it (Ruling R13).
+ */
+const entries = computed(() => {
+	const all = layerCatalogue(props.plan, toggles.value, stale.value);
+	return session.perspective === 'review' ? all.filter((entry) => entry.id === 'planned' || entry.id === 'notes') : all;
+});
 </script>
 
 <template>
@@ -36,53 +59,27 @@ const entries = computed(() => layerCatalogue(props.plan, stale.value));
 		data-rp-region="layers"
 		:aria-label="tr('editor.property-panel')"
 	>
-		<section class="rp-property-context">
-			<h2 class="rp-editor-panel-title">
+		<details
+			class="rp-sidebar-section rp-property-context"
+			open
+		>
+			<summary class="rp-editor-panel-title">
 				{{ tr('editor.shell.property') }}
-			</h2>
-			<button
-				v-if="project && context.navigation"
-				type="button"
-				class="rp-property-context__project"
-				@click="context.navigation.project(project.id)"
-			>
-				<HostIcon name="house" />{{ project.name }}
-			</button>
-			<p
-				v-else-if="project"
-				class="rp-property-context__project"
-			>
-				<HostIcon name="house" />{{ project.name }}
-			</p>
-			<p
-				class="rp-property-context__floor"
-				aria-current="page"
-			>
-				<HostIcon name="grid-2x-2" />{{ plan?.name ?? tr('editor.floor') }}
-			</p>
-		</section>
-		<section class="rp-property-layers">
-			<h2 class="rp-editor-panel-title">
+			</summary>
+			<PropertyTree />
+		</details>
+		<details
+			class="rp-sidebar-section rp-property-layers"
+			open
+		>
+			<summary class="rp-editor-panel-title">
 				{{ tr('editor.rail.layers') }}
-			</h2>
+			</summary>
 			<LayerList
-				v-if="session.perspective !== 'review'"
 				:entries="entries"
 				:plan="plan"
 				@activate-tool="runtime.setTool"
 			/>
-			<label
-				v-if="runtime.renovation.available"
-				class="rp-layer-toggle"
-			>
-				<input
-					v-model="session.visible"
-					type="checkbox"
-					class="rp-visually-hidden"
-				>
-				<HostIcon :name="session.visible ? 'eye' : 'eye-off'" />
-				<span>{{ tr('editor.shell.planned-layer') }}</span>
-			</label>
 			<details
 				v-if="session.perspective !== 'review'"
 				class="rp-reference-options"
@@ -90,11 +87,15 @@ const entries = computed(() => layerCatalogue(props.plan, stale.value));
 				<summary>{{ tr('editor.shell.reference-options') }}</summary>
 				<ReferenceAction />
 			</details>
-		</section>
-		<ChangeLegend v-if="runtime.renovation.available" />
-		<details class="rp-property-elements">
-			<summary>{{ tr('editor.shell.elements') }}</summary>
-			<StructureList />
+			<ChangeLegend v-if="runtime.renovation.available" />
+		</details>
+		<details
+			class="rp-sidebar-section rp-property-rooms"
+			open
+		>
+			<summary class="rp-editor-panel-title">
+				{{ tr('editor.selection.records') }}
+			</summary>
 			<RoomSummaryList
 				v-if="records.length > 0"
 				:records="records"
@@ -112,6 +113,12 @@ const entries = computed(() => layerCatalogue(props.plan, stale.value));
 			<p v-if="records.length > 1">
 				{{ tr('editor.selection.hint') }}
 			</p>
+		</details>
+		<details class="rp-sidebar-section rp-property-elements">
+			<summary class="rp-editor-panel-title">
+				{{ tr('editor.structure.list') }}
+			</summary>
+			<StructureList />
 		</details>
 	</aside>
 </template>

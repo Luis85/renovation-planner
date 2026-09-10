@@ -1,20 +1,39 @@
 /* M00–M17 shared chrome. Native controls retain the established state/command paths. */
-.renovation-plan-editor .rp-property-context { padding-bottom: 20px; border-bottom: 1px solid var(--background-modifier-border); }
-.renovation-plan-editor .rp-property-context__project,
-.renovation-plan-editor .rp-property-context__floor {
-	display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px;
-	margin: 4px 0; padding: 8px; height: auto; white-space: normal; text-align: start;
-	color: var(--text-normal); background: transparent; border: 1px solid transparent; box-shadow: none;
+.renovation-plan-editor .rp-sidebar-section { padding-block: 12px; border-bottom: 1px solid var(--background-modifier-border); }
+.renovation-plan-editor .rp-sidebar-section:last-child { border-bottom: 0; }
+.renovation-plan-editor .rp-sidebar-section > summary {
+	display: flex; align-items: center; gap: 6px; margin: 0; padding-block: 6px; cursor: pointer; list-style: none;
 }
-.renovation-plan-editor .rp-property-context__floor {
-	margin-inline-start: 12px; width: calc(100% - 12px); border-radius: var(--radius-s);
+.renovation-plan-editor .rp-sidebar-section > summary::-webkit-details-marker { display: none; }
+.renovation-plan-editor .rp-sidebar-section > summary::after {
+	content: ''; margin-inline-start: auto; width: 8px; height: 8px;
+	border-inline-end: 2px solid var(--text-muted); border-block-end: 2px solid var(--text-muted);
+	transform: rotate(-45deg); transition: transform 120ms ease;
+}
+.renovation-plan-editor .rp-sidebar-section[open] > summary::after { transform: rotate(45deg); }
+.renovation-plan-editor .rp-sidebar-section > summary:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.renovation-plan-editor .rp-property-tree__project,
+.renovation-plan-editor .rp-property-tree__floor {
+	display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px;
+	margin: 2px 0; padding: 8px; height: auto; white-space: normal; text-align: start;
+	color: var(--text-normal); background: transparent; border: 1px solid transparent; box-shadow: none; border-radius: var(--radius-s);
+}
+.renovation-plan-editor .rp-property-tree__floors {
+	list-style: none; margin: 0; padding: 0 0 0 14px;
+	border-inline-start: 1px solid var(--background-modifier-border); margin-inline-start: 12px;
+}
+.renovation-plan-editor .rp-property-tree__floor[aria-current="page"] {
 	background: var(--background-modifier-active-hover); border-color: var(--background-modifier-border);
 	font-weight: var(--font-semibold);
 }
-.renovation-plan-editor .rp-property-context__project:hover { background: var(--background-modifier-hover); }
-.renovation-plan-editor .rp-property-context__project:focus-visible,
+.renovation-plan-editor button.rp-property-tree__project:hover,
+.renovation-plan-editor button.rp-property-tree__floor:hover { background: var(--background-modifier-hover); }
+.renovation-plan-editor button.rp-property-tree__project:focus-visible,
+.renovation-plan-editor button.rp-property-tree__floor:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.renovation-plan-editor .rp-property-rooms .rp-editor-panel-subtitle,
+.renovation-plan-editor .rp-property-elements .rp-structure-list > h3 { display: none; }
+.renovation-plan-editor .rp-property-layers .rp-layer-list { margin-top: 4px; }
 .renovation-plan-editor .rp-layer-list .rp-layer-list__action:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
-.renovation-plan-editor .rp-property-layers { padding-block: 20px 12px; }
 .renovation-plan-editor .rp-layer-list__row { display: block; margin: 0; padding-block: 5px; }
 .renovation-plan-editor .rp-layer-toggle {
 	display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 0;
@@ -29,15 +48,12 @@
 .renovation-plan-editor .rp-layer-list .rp-layer-list__action { margin: 0 0 4px 24px; padding: 3px 8px; min-height: 26px; background: transparent; box-shadow: none; }
 .renovation-plan-editor .rp-layer-list__reason { display: block; margin: 2px 0 4px 24px; }
 .renovation-plan-editor .rp-reference-options { margin-top: 6px; }
-.renovation-plan-editor .rp-reference-options > summary,
-.renovation-plan-editor .rp-property-elements > summary { padding-block: 8px; cursor: pointer; }
+.renovation-plan-editor .rp-reference-options > summary { padding-block: 8px; cursor: pointer; }
 .renovation-plan-editor .rp-reference-options > button { width: 100%; margin-block: 6px; height: auto; white-space: normal; }
-.renovation-plan-editor .rp-property-elements { border-top: 1px solid var(--background-modifier-border); margin-top: 20px; }
-.renovation-plan-editor .rp-property-elements > summary { font-weight: var(--font-semibold); }
-.renovation-plan-editor .rp-property-elements > label { display: flex; gap: 6px; align-items: start; }
-.renovation-plan-editor .rp-property-elements > p { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.renovation-plan-editor .rp-property-rooms > label { display: flex; gap: 6px; align-items: start; }
+.renovation-plan-editor .rp-property-rooms > p { font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .renovation-plan-editor .rp-change-legend {
-	display: grid; gap: 14px; padding: 14px 10px; margin-top: 18px;
+	display: grid; gap: 14px; padding: 14px 10px; margin-top: 12px;
 	border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m);
 	background: var(--background-secondary); font-size: var(--font-ui-smaller);
 }

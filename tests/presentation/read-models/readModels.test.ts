@@ -20,6 +20,7 @@ import { GetPlan } from '../../../src/application/queries/GetPlan';
  * not compile runs none of them.
  */
 import { GetProject } from '../../../src/application/queries/GetProject';
+import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
 import type { ProjectRowFacts } from '../../../src/application/ports/ProjectListFacts';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
@@ -268,6 +269,7 @@ describe('the plan editor query boundary', () => {
 		});
 		for (const refused of [
 			await queries.getProject('project-1'),
+			await queries.listPlans('project-1'),
 			await queries.findZonesByPlan('plan-1'),
 			await queries.getRequirementsForZone('zone-1'),
 			await queries.listAssets(),
@@ -354,5 +356,39 @@ describe('the plan editor query boundary', () => {
 		expect(expectOk(await bare.listAssets())).toEqual([]);
 		expect(expectOk(await bare.listRequirementsReferencing('zone-1'))).toEqual([]);
 		expect(expectOk(await bare.listReassignmentTargets('zone-1'))).toEqual([]);
+		expect(expectOk(await bare.listPlans('project-1'))).toEqual([]);
+	});
+
+	/**
+	 * `listPlans` — the Property tree's sibling floors (sidebar polish, 2026-09-10). Wired
+	 * through a real `ListPlansByProject` over `InMemoryPlanRepository`, mirroring `wired()`
+	 * above, so the mapped success proves the DTO conversion rather than a hand-rolled stub.
+	 */
+	it('answers a project\'s plans as DTOs, mapped through the same boundary as getPlan', async () => {
+		const { plans, zones, projects, project, plan } = await wired();
+		const second = makePlan({ projectId: project.id, name: 'First floor' });
+		expectOk(await plans.save(second, 'absent'));
+		const queries = createPlanEditorQueries({
+			getPlan: new GetPlan(plans),
+			getProject: new GetProject(projects),
+			findZonesByPlan: new FindZonesByPlan(zones),
+			listPlansByProject: new ListPlansByProject(plans),
+		});
+
+		const found = expectOk(await queries.listPlans(project.id));
+
+		expect(found).toEqual([toPlanDto(plan), toPlanDto(second)]);
+	});
+
+	it('surfaces a failed plan-listing read as an error rather than an empty tree', async () => {
+		const failing = createPlanEditorQueries({
+			getPlan: { execute: () => Promise.resolve(ok(null)) },
+			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
+			listPlansByProject: {
+				execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })),
+			},
+		} as never);
+
+		expect(expectErr(await failing.listPlans('project-1'))).toMatchObject({ category: 'Persistence' });
 	});
 });

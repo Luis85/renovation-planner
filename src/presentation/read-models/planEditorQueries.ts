@@ -1,4 +1,5 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
+import type { ListPlansByProjectInput, PlanListResult } from '../../application/queries/ListPlansByProject';
 import type { Structure } from '../../domain/spatial/Structure';
 import type { SpatialGroup } from '../../domain/spatial/SpatialGroup';
 import type { PlanGeometrySidecar } from '../../application/ports/PlanGeometrySidecar';
@@ -72,6 +73,12 @@ export interface PlanEditorQueryServices {
 	 * fact about the project LIST's read, not about a plan's.
 	 */
 	getProject(projectId: string): Promise<Result<ProjectSummaryDto | null, RepositoryError>>;
+	/**
+	 * Every plan of a project, for the Property tree's sibling floors (sidebar polish,
+	 * 2026-09-10). Loaded plans only: the refused count is the project detail state's to
+	 * report, and this surface draws a tree, not a warning.
+	 */
+	listPlans(projectId: string): Promise<Result<readonly PlanDto[], RepositoryError>>;
 	findZonesByPlan(planId: string): Promise<Result<ZoneScene, RepositoryError>>;
 	/**
 	 * Slice 10's Requirements panel rows for one zone. The query's own DTO is handed on
@@ -139,6 +146,7 @@ export function unavailablePlanEditorQueries(): PlanEditorQueryServices {
 	return {
 		getPlan: refuseUnrecovered,
 		getProject: refuseUnrecovered,
+		listPlans: refuseUnrecovered,
 		findZonesByPlan: refuseUnrecovered,
 		getRequirementsForZone: refuseUnrecovered,
 		listAssets: refuseUnrecovered,
@@ -167,6 +175,8 @@ export function createPlanEditorQueries(queries: {
 	readonly getPlan: Query<GetPlanInput, Result<Loaded<PlanEntity> | null, RepositoryError>>;
 	readonly getProject: Query<GetProjectInput, Result<Loaded<ProjectEntity> | null, RepositoryError>>;
 	readonly findZonesByPlan: Query<FindZonesByPlanInput, Result<ZoneListing, RepositoryError>>;
+	/** Optional for the same reason the slice-10 members are: test rigs that draw no tree answer empty. */
+	readonly listPlansByProject?: Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>;
 	/** Production composition always passes both slice-10 members; omitted only by editor
 	 * test rigs that mount no Requirements panel content, which then answer empty. */
 	readonly getRequirementsForZone?: Query<ZoneId, Result<readonly RequirementInspectorDTO[], RepositoryError>>;
@@ -205,6 +215,13 @@ export function createPlanEditorQueries(queries: {
 			return ok(
 				found.value === null ? null : toProjectSummaryDto(found.value.entity, false, UNKNOWN_ROW_FACTS),
 			);
+		},
+		async listPlans(projectId) {
+			const listed = queries.listPlansByProject;
+			if (!listed) return ok([]);
+			const found = await listed.execute({ projectId: projectId as ProjectId });
+			if (isErr(found)) return found;
+			return ok(found.value.plans.map(toPlanDto));
 		},
 		async findZonesByPlan(planId) {
 			const geometry = await queries.geometry?.read(planId as PlanId);

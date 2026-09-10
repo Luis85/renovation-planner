@@ -179,7 +179,7 @@ Markers require a list equivalent and stable label/number within their view cont
 
 ### `FloatingPrimaryActions`
 
-**Responsibility:** Keep Select and Add reachable without a permanent tool ribbon.
+**Responsibility:** Keep Select, Pan and Add reachable without a permanent tool ribbon. Pan joined the pair on 2026-09-10 after user testing; the interaction spec's "should not occupy primary toolbar space" is overridden by that decision for this control only.
 
 **Inputs:** active safe state, Add availability.  
 **Events:** return to Select, open Add menu.

@@ -6,4 +6,5 @@ export const inputDe: Record<keyof typeof inputEn, string> = {
 	'editor.input.rename': 'Umbenennen',
 	'editor.input.rotate': 'Drehen',
 	'editor.input.delete': 'Löschen',
+	'editor.input.unavailable': 'Nicht verfügbar, solange ein anderes Werkzeug oder eine Bearbeitung aktiv ist.',
 };

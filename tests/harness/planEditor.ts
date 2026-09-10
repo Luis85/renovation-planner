@@ -313,6 +313,7 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			// call that asked for the wrong field indistinguishable from one that asked for the
 			// right one. See [[Project-hydration fakes ignore the requested project ID]].
 			getProject: (id) => Promise.resolve(ok(id === HARNESS_PROJECT.id ? structuredClone(HARNESS_PROJECT) : null)),
+			listPlans: () => Promise.resolve(ok([structuredClone(HARNESS_PLAN)])),
 			findZonesByPlan: () =>
 				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0, structure: structuredClone(HARNESS_STRUCTURE) })),
 			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`

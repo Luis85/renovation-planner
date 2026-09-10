@@ -16,11 +16,27 @@ describe('LayerList, mounted inside the editor', () => {
 		const harness = await mountPlanEditorCanvas();
 
 		const boxes = harness.wrapper.findAll('.rp-layer-list input[type="checkbox"]');
-		expect(boxes).toHaveLength(2);
+		// reference, rooms, walls, notes — the fixture editor has no renovation session, so no Planned row
+		expect(boxes).toHaveLength(4);
 
-		await boxes[1].setValue(false);
+		await harness.wrapper.get('[data-rp-layer="rooms"]').setValue(false);
 
 		expect(useWorkspaceStore().layerVisibility.zone).toBe(false);
+	});
+
+	/**
+	 * Notes and photos is the fourth row in this rig (reference, rooms, walls, notes — no
+	 * renovation session, so no Planned row) and its own gate lives on `WorkspaceStore`
+	 * rather than on a Konva layer (`PlanCanvas` reads `notesVisible` to gate evidence pins).
+	 */
+	it('toggles WorkspaceStore.notesVisible from the Notes and photos row', async () => {
+		const harness = await mountPlanEditorCanvas();
+
+		expect(useWorkspaceStore().notesVisible).toBe(true);
+
+		await harness.wrapper.get('[data-rp-layer="notes"]').setValue(false);
+
+		expect(useWorkspaceStore().notesVisible).toBe(false);
 	});
 
 	/**
@@ -35,8 +51,7 @@ describe('LayerList, mounted inside the editor', () => {
 	it('renders the reference row disabled with its reason when there is no background, and reuses that SAME element for Set scale rather than duplicating the sentence', async () => {
 		const harness = await mountPlanEditorCanvas();
 
-		const boxes = harness.wrapper.findAll('.rp-layer-list input[type="checkbox"]');
-		const reference = boxes[0];
+		const reference = harness.wrapper.get('[data-rp-layer="reference"]');
 		expect(reference.attributes('disabled')).toBeDefined();
 
 		const reasonId = reference.attributes('aria-describedby');
@@ -76,10 +91,9 @@ describe('LayerList, mounted inside the editor', () => {
 		useProjectStore(harness.pinia).stale = true;
 		await settle();
 
-		const boxes = harness.wrapper.findAll('.rp-layer-list input[type="checkbox"]');
 		// The checkbox itself carries no reason here — `entry.reasonKey` is null once a
 		// background exists — so nothing under it duplicates the action's own sentence.
-		expect(boxes[0].attributes('aria-describedby')).toBeUndefined();
+		expect(harness.wrapper.get('[data-rp-layer="reference"]').attributes('aria-describedby')).toBeUndefined();
 
 		const action = harness.wrapper.find('button[data-rp-action="set-scale"]');
 		expect(action.attributes('aria-disabled')).toBe('true');

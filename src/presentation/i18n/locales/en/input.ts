@@ -5,4 +5,5 @@ export const inputEn = {
 	'editor.input.rename': 'Rename',
 	'editor.input.rotate': 'Rotate',
 	'editor.input.delete': 'Delete',
+	'editor.input.unavailable': 'Not available while another tool or edit is active.',
 } as const;

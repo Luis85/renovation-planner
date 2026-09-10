@@ -19,6 +19,7 @@ import { mountHarness } from '../harness/mount';
 import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
 import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
+import { t } from '../../src/presentation/i18n/strings';
 import {
 	MAX_GLOB_BRANCHES,
 	expandGlobBranches,
@@ -785,6 +786,31 @@ describe('the browser harness', () => {
 		// Enough rows that `.rp-plan-list`'s own scrolling is a thing a capture can show. A
 		// list that fits its pane looks identical with the rule deleted.
 		expect(detail?.querySelectorAll('.rp-plan-list__row').length).toBeGreaterThan(8);
+	});
+
+	/**
+	 * `?plans=0` (design slice 22), the knob `project-detail-new` is the whole reason for: the
+	 * entry guidance's START variant only draws on a project with no plans, and every fixture this
+	 * page had seeded 26. Driven here for the same reason the case above is — that capture waits
+	 * on `.renovation-planner-view`, which the 26-plan detail state satisfies, so a knob that
+	 * stopped reaching the seed would photograph the active variant under the new one's name and
+	 * exit 0.
+	 *
+	 * The heading is asserted rather than the row count, because the row count is what a broken
+	 * knob and a broken VARIANT RULE have in common; the start heading is drawn only when both
+	 * held.
+	 */
+	it('seeds a project with no plans at all when asked for none', async () => {
+		const { view } = mountHarness(document.body, { projectId: 'project-1', plans: 0 });
+
+		await flushPromises();
+
+		const detail = view.contentEl.querySelector('.rp-project-detail');
+
+		expect(detail?.querySelectorAll('.rp-plan-list__row').length).toBe(0);
+		expect(detail?.querySelector('.rp-project-guidance h3')?.textContent?.trim()).toBe(
+			t('en', 'view.project.guidance-start-title'),
+		);
 	});
 
 	/**

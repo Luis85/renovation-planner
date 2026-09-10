@@ -72,15 +72,18 @@ export function setLanguage(tag: string): void {
 export const apiVersion = '1.13.0';
 
 /**
- * Obsidian's static platform flags. The real export carries a dozen members; `isMacOS` is the
- * only one anything in `src/` reads (`platformModifier.ts`'s `opensNote`/`modifierLabel`), so
- * per this file's own policy it is the only one modelled — a member nothing exercises cannot
- * be caught drifting from the real API.
+ * Obsidian's static platform flags. The real export carries a dozen members; two are read by
+ * anything in `src/` — `isMacOS` (`platformModifier.ts`'s `opensNote`/`modifierLabel`) and
+ * `isMobile` (the project view's `readOnly`, the mobile refusal in the editor and designer
+ * views, and five palette `checkCallback`s) — so per this file's own policy those two are the
+ * ones modelled; a member nothing exercises cannot be caught drifting from the real API.
  *
  * A plain mutable object, matching the real declaration's `boolean` (not `readonly boolean`):
- * a test drives the non-default platform by assigning `Platform.isMacOS` directly before
- * mounting, and defaults to `false` because that is the platform every other fixture here
- * already assumes (`getLanguage` answers `'en'`, not a German locale, for the same reason).
+ * a test drives the non-default platform by assigning a member directly before mounting, and
+ * both default to `false` because that is the platform every other fixture here already
+ * assumes (`getLanguage` answers `'en'`, not a German locale, for the same reason). A suite
+ * that assigns one owes its later cases the reset — CLAUDE.md's Testing section says which
+ * member is driven where.
  */
 export const Platform = {
 	isMacOS: false,

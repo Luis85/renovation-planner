@@ -33,6 +33,7 @@ import { opensNote } from './platformModifier';
  */
 const props = defineProps<{
 	readOnly?: boolean;
+	readOnlyReasonId?: string;
 	project: ProjectSummaryDto;
 	/** The resolved plan this will resume, or `null` when the context names the project alone. */
 	plan: PlanSummaryDto | null;
@@ -119,6 +120,7 @@ const worked = computed(() => {
 			type="button"
 			class="rp-continue__resume"
 			:disabled="readOnly && plan !== null"
+			:aria-describedby="readOnly && plan !== null ? readOnlyReasonId : undefined"
 			@click="$emit('resume')"
 		>
 			{{ tr('view.project.continue.resume') }}

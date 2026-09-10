@@ -236,6 +236,7 @@ entries are added by the pull request that earns them, never invented at release
   site; the view/ribbon icon is one exported constant (`RENOVATION_PROJECT_ICON`); the
   workflows' Node versions are test-pinned to the `engines` floor
   (`tests/release/manifest.test.ts`).
+- Asset library: a clear control on the search field; a hint when a new asset's name matches an existing one.
 
 ### Fixed
 
@@ -287,6 +288,8 @@ entries are added by the pull request that earns them, never invented at release
 - The vault-write lint boundary now exempts `src/infrastructure/obsidian/` — the
   sanctioned writer no longer trips the rule whose message names it as the sanctioned
   writer — with the shared SVG bans restated there per the flat-config override rule.
+- Asset library: price column aligns on the decimal point and prints unit symbols; column headings leave with their cells and are announced; used-in rows wrap; the repair strip lays out in columns.
+- Asset library: comma decimals accepted in price, waste and height; an undeclared category or unit stays visible; Keep editing returns focus to the edited field; Back restores the shelves' scroll position.
 
 ## [0.1.0] - 2026-08-22
 

@@ -38,6 +38,12 @@ import { modifierLabel } from './platformModifier';
 const props = defineProps<{
 	session?: ProjectSession;
 	readOnly?: boolean;
+	/**
+	 * The id of `ViewRoot`'s ONE mobile notice, or absent on desktop. Handed down beside
+	 * `readOnly` rather than derived here: the notice is a fact about the SURFACE and this
+	 * component draws neither it nor the detail state that shares it.
+	 */
+	readOnlyReasonId?: string;
 	projects: readonly ProjectSummaryDto[];
 	unreadable: number;
 	/**
@@ -319,9 +325,10 @@ function rememberRow(event: Event): void {
 			{{ tr('view.project.list-title') }}
 		</h2>
 		<button
-			v-if="!readOnly"
 			type="button"
 			class="rp-project-list__create"
+			:disabled="readOnly"
+			:aria-describedby="readOnly ? readOnlyReasonId : undefined"
 			@click="$emit('create', '')"
 		>
 			{{ tr('view.project.create') }}
@@ -398,6 +405,7 @@ function rememberRow(event: Event): void {
 				<ContinueRow
 					:project="continueProject.project"
 					:read-only="readOnly"
+					:read-only-reason-id="readOnlyReasonId"
 					:plan="continueProject.plan"
 					@resume="$emit('resume', { projectId: continueProject.project.id, planId: continueProject.planId })"
 					@open="$emit('open', continueProject.project.id)"
@@ -514,9 +522,10 @@ function rememberRow(event: Event): void {
 			{{ tr('view.project.filter.clear') }}
 		</button>
 		<button
-			v-if="!readOnly"
 			type="button"
 			class="rp-project-list__create-named"
+			:disabled="readOnly"
+			:aria-describedby="readOnly ? readOnlyReasonId : undefined"
 			@click="$emit('create', query.trim())"
 		>
 			{{ tr('view.project.create-named', { query: query.trim() }) }}
@@ -538,9 +547,10 @@ function rememberRow(event: Event): void {
 	<p class="rp-project-list__foot rp-view-aside">
 		<span class="rp-project-list__keys">{{ keyLegend }}</span>
 		<button
-			v-if="!readOnly"
 			type="button"
 			class="rp-view-aside__create-asset"
+			:disabled="readOnly"
+			:aria-describedby="readOnly ? readOnlyReasonId : undefined"
 			@click="$emit('createAsset')"
 		>
 			{{ tr('view.asset.create') }}

@@ -657,6 +657,7 @@ describe('the headless harness capture script', () => {
 			'plan-editor-unsupported',
 			'project-detail',
 			'project-detail-narrow',
+			'project-detail-new',
 			'project-detail-prices',
 			'project-detail-prices-narrow',
 		]);
@@ -865,6 +866,11 @@ describe('the headless harness capture script', () => {
 		// dark. Pinned for the same reason the index shots pin theirs: a scheme chosen by
 		// measurement and recorded only in prose is a scheme that silently flips back.
 		expect(source).toMatch(/name: 'project-detail-narrow'[^}]*theme=light/);
+		// `&plans=0` is the only thing that makes the START variant's shot different from the wide
+		// one above it: both wait on `.renovation-planner-view`, which the 26-plan fixture
+		// satisfies just as well, so a dropped parameter photographs the active layout under a
+		// name promising the new-project one and exits 0.
+		expect(source).toMatch(/name: 'project-detail-new'[^}]*query: '\?project=[^']*&plans=0'/);
 	});
 
 	/**

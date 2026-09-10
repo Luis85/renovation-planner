@@ -28,7 +28,7 @@ export const deAssetLibrary = {
 	'view.asset-library.search.label': 'Objekte durchsuchen',
 	'view.asset-library.search.placeholder': 'Nach Name, Lieferant oder SKU suchen',
 	'view.asset-library.search.results': '{count} passende Objekte',
-	'view.asset-library.unselected': 'Nichts ausgewählt.',
+	'view.asset-library.unselected': 'Wählen Sie ein Objekt, um seine Definition zu sehen.',
 	'view.asset-library.assets': '{count} Objekte',
 	'view.asset-library.used-in': 'Verwendet in',
 	'view.asset-library.used-in.none': 'In keinem Projekt verwendet',
@@ -36,8 +36,8 @@ export const deAssetLibrary = {
 	'view.asset-library.used-in.vault-root': 'Vault-Stammverzeichnis',
 	// §11 item 6's Wort neben der Markierung — die deutsche UI sagt "Übersteuert"
 	// (`editor.inspector.requirement.overridden`), nicht "überschrieben".
-	'view.asset-library.used-in.overridden': 'Übersteuert diesen Preis',
-	'view.asset-library.open-designer': 'Designer öffnen',
+	'view.asset-library.used-in.overridden': 'Projektspezifischer Preis',
+	'view.asset-library.open-designer': 'Form bearbeiten',
 	'view.asset-library.open-note': 'Notiz öffnen',
 	'view.asset-library.back': 'Zurück zur Bibliothek',
 	'view.asset-library.delete': 'Löschen',
@@ -97,7 +97,7 @@ export const deAssetLibrary = {
 	'empty.asset-library.no-assets.headline': 'Noch keine Objekte',
 	'empty.asset-library.no-assets.body':
 		'Ein Objekt ist ein Baustoff, Einbauteil, eine Pflanze oder ein Möbelstück, das Sie einmal bepreisen und in jedem Projekt wiederverwenden. Legen Sie eines an, um die Bibliothek aufzubauen.',
-	'empty.asset-library.no-assets.action': 'Neues Objekt',
+	'empty.asset-library.no-assets.action': 'Erstes Objekt anlegen',
 	'empty.asset-library.no-matches.headline': 'Keine passenden Objekte',
 	'empty.asset-library.no-matches.body':
 		'Keine Objekte entsprechen dieser Suche. Versuchen Sie einen anderen Namen, Lieferanten oder eine andere SKU.',
@@ -117,4 +117,17 @@ export const deAssetLibrary = {
 	"view.asset-library.draft.saved": "Objekt gespeichert",
 	"view.asset-library.outside-search": "Das ausgewählte Objekt liegt außerhalb der Suchergebnisse.",
 	"view.asset-library.used-in.library-price": "Bibliothekspreis",
+	// Short symbols for a table cell, beside the long labels a form control shows. `m²` and
+	// `m³` are glyphs rather than words; the rest are the shortest reading a row can carry.
+	// Housed here rather than in `de.ts` for the same `max-lines` reason as the rest of this
+	// file.
+	'form.new-asset.unit-symbol.piece': 'Stk.',
+	'form.new-asset.unit-symbol.m': 'm',
+	'form.new-asset.unit-symbol.m2': 'm²',
+	'form.new-asset.unit-symbol.m3': 'm³',
+	'form.new-asset.unit-symbol.hour': 'Std.',
+	'form.new-asset.unit-symbol.day': 'Tag',
+	'form.new-asset.unit-symbol.fixed': 'pauschal',
+	'form.new-asset.similar.exists': 'Ein Objekt namens „{name}“ gibt es bereits.',
+	'form.new-asset.similar.show': 'Anzeigen',
 } satisfies Partial<Record<StringKey, string>>;

@@ -87,6 +87,9 @@ function deps() {
 			// `renovationProjectWiring.test.ts`, `makeRenovationProjectView.ts` — the compiler
 			// holds those) or about the parser rather than the deps. There is no fifth.
 			rememberContinue: () => undefined,
+			// Task 2 (design slice 22)'s sibling of `rememberContinue`, stated for the identical
+			// reason: no case in this file drives a reliably missing project either.
+			forgetContinue: () => undefined,
 		},
 		createAsset,
 		setAssetFootprintFromDimensions,
@@ -263,6 +266,30 @@ describe('ViewRoot, creating an asset', () => {
 
 		expect(openAsset).toHaveBeenCalledTimes(1);
 		expect(openAsset).toHaveBeenCalledWith(ASSET.id);
+	});
+
+	/**
+	 * AL03's other arm, reached without mounting the real form: this surface passes no
+	 * `findExisting` (it has no catalogue reachable to search — see `onCreateAsset`'s own
+	 * docblock), so the hint itself is `assetLibraryRootDoors.test.ts`'s to prove. What belongs
+	 * here is only that `openNewAssetDialog` resolving `created: false` still reaches
+	 * `context.openAsset` with the id it named, exactly as a real creation does — resolved
+	 * directly through the dialog store, the same shape `NewAssetForm.showExisting` emits.
+	 */
+	it('opens the designer on an existing asset the dialog resolved to, not just a created one', async () => {
+		setActivePinia(createPinia());
+		const { context, openAsset } = deps();
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+		});
+		await flushPromises();
+
+		await wrapper.get('.rp-view-aside__create-asset').trigger('click');
+		await flushPromises();
+		useDialogStore().resolve({ action: 'submit', values: { assetId: 'existing', created: false } });
+		await flushPromises();
+
+		expect(openAsset).toHaveBeenCalledWith('existing');
 	});
 
 	/** The other half: a cancelled dialog made nothing, so there is nothing to open. */

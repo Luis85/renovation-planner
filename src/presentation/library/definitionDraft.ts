@@ -6,6 +6,7 @@ import type { AssetCategory } from '../../domain/asset/AssetCategory';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
 import type { StringKey } from '../i18n/locales/en';
 import { tr } from '../i18n/strings';
+import { normalizeDecimalInput } from './decimalInput';
 
 export interface DefinitionDraft {
 	name: string; category: string; unit: string; unitCost: string;
@@ -33,10 +34,10 @@ export function validateDefinition(draft: DefinitionDraft, currency: string): Pa
 	const errors: Partial<Record<keyof DefinitionDraft, string>> = {};
 	if (!draft.name.trim()) errors.name = tr('view.asset-library.draft.required');
 	for (const key of ['unitCost', 'waste', 'height'] as const) {
-		if (key === 'height' && draft[key].trim() === '') continue;
+		if (key === 'height' && normalizeDecimalInput(draft[key]) === '') continue;
 		try {
-			const value = new Decimal(draft[key].trim());
-			if (key === 'unitCost') moneyOf(draft[key].trim(), currency);
+			const value = new Decimal(normalizeDecimalInput(draft[key]));
+			if (key === 'unitCost') moneyOf(normalizeDecimalInput(draft[key]), currency);
 			// `lessThan(0)`, not `isNegative()`: decimal.js reports negative ZERO as negative,
 			// and a field of zero arrived at by typing "-0" is still a legitimate zero (C6).
 			if (!value.isFinite() || value.lessThan(0) || (key === 'waste' && value.gt(100))) {
@@ -47,15 +48,15 @@ export function validateDefinition(draft: DefinitionDraft, currency: string): Pa
 	return errors;
 }
 // `validateDefinition` is the gate: `save()` always runs it first, against the identical
-// trimmed values and the identical `baseline.currency` this function goes on to use, and
+// normalized values and the identical `baseline.currency` this function goes on to use, and
 // refuses anything `moneyOf`/`Decimal` cannot parse before this function is ever called.
 // No try/catch belt here, and the three parses below are not one identical shape: `unitCost`
 // and `waste` are the same `Decimal`/`moneyOf` call the gate already made against the same
-// trimmed string and currency, so nothing that passed the gate can fail here a second time.
+// normalized string and currency, so nothing that passed the gate can fail here a second time.
 // `height` is not a `Decimal` parse at all — it is `Number()`, which never throws (`NaN` at
-// worst) regardless of trimming, so it needs no belt for a different reason than its siblings.
-// A caller that skips the gate and hands in unparseable `unitCost`/`waste` gets an uncaught
-// throw, which is a caller error a pure diff is not responsible for hiding.
+// worst) regardless of normalization, so it needs no belt for a different reason than its
+// siblings. A caller that skips the gate and hands in unparseable `unitCost`/`waste` gets an
+// uncaught throw, which is a caller error a pure diff is not responsible for hiding.
 export function definitionChanges(draft: DefinitionDraft, baseline: CatalogueEntryDto): UpdateAssetInput['changes'] {
 	const before = definitionDraft(baseline);
 	const changes: UpdateAssetInput['changes'] = {};
@@ -65,8 +66,11 @@ export function definitionChanges(draft: DefinitionDraft, baseline: CatalogueEnt
 	}
 	if (draft.category !== before.category) changes.category = draft.category as AssetCategory;
 	if (draft.unit !== before.unit) changes.unit = draft.unit as MeasurementUnit;
-	if (draft.unitCost !== before.unitCost) changes.unitCost = moneyOf(draft.unitCost.trim(), baseline.currency);
-	if (draft.waste.trim() !== before.waste) changes.wasteFactorDefault = new Decimal(draft.waste.trim()).div(100);
-	if (draft.height.trim() !== before.height) changes.height = draft.height.trim() === '' ? null : Number(draft.height.trim());
+	const unitCost = normalizeDecimalInput(draft.unitCost);
+	const waste = normalizeDecimalInput(draft.waste);
+	const height = normalizeDecimalInput(draft.height);
+	if (unitCost !== before.unitCost) changes.unitCost = moneyOf(unitCost, baseline.currency);
+	if (waste !== before.waste) changes.wasteFactorDefault = new Decimal(waste).div(100);
+	if (height !== before.height) changes.height = height === '' ? null : Number(height);
 	return changes;
 }

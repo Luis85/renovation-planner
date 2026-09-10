@@ -124,3 +124,10 @@ The tables above preserve the adoption baseline. The project-plan implementation
 The strict Resume PBI still requires editor load confirmation beyond host leaf opening. The unavailable-target PBI still requires clearing a missing-project target. The mobile PBI still requires its plugin-wide disabled-with-reason policy and real-device measurement. The shared Apply issue records the project-price decision without changing the shared hook or claiming the Asset Library work.
 
 Current contracts, automated evidence and live-host blockers are in the [project execution record](../user-experience/renovation-planner-project-specs/implementation/execution-record.md).
+
+## Amendment 1 (2026-09-08)
+
+Rows PBI-05, PBI-06, PBI-14 and EN-02 above describe the tree at adoption time. PR #70 shipped
+`useDefinitionDraft` (one explicit Save/Discard over one `UpdateAsset` write), so PBI-05 is Met,
+PBI-06 and PBI-14 are Met with it, and EN-02 is discharged; the rows are left as written and this
+amendment is the correction.

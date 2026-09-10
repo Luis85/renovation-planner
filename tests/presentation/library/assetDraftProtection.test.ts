@@ -61,4 +61,13 @@ describe('asset draft navigation protection', () => {
 		expect(useDialogStore().current?.kind).toBe('confirm');
 		useDialogStore().resolve('cancel'); await settle(); root.unmount();
 	});
+	it('returns focus to the field being edited after Keep editing', async () => {
+		const a = anEntry(); const b = anEntry({ name: 'Paint' });
+		const root = await mountRoot({ entries: [a, b], assetId: ref(a.assetId), attach: true });
+		await root.get('[data-field="sku"]').setValue('draft-sku');
+		await root.get(`[data-asset-id="${b.assetId}"]`).trigger('click'); await settle();
+		useDialogStore().resolve('cancel'); await settle();
+		expect((document.activeElement as HTMLElement | null)?.dataset['field']).toBe('sku');
+		root.unmount();
+	});
 });

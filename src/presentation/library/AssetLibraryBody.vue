@@ -50,7 +50,7 @@
  * No `<style>` block, ever (`vue/no-restricted-block`): every class here is already declared in
  * `styles/asset-library.css`.
  */
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import EmptyState from '../components/EmptyState.vue';
 import AssetShelves from './AssetShelves.vue';
 import UnreadableStrip from './UnreadableStrip.vue';
@@ -219,10 +219,20 @@ watch(drawnAssetIds, (assetIds) => void store.setVisibleMarks(assetIds, context.
 async function onOpenNoteRow(path: string): Promise<void> {
 	if ((await context.openNote(path)) === 'missing') emit('rehydrate');
 }
+
+const bodyEl = ref<HTMLElement | null>(null);
+/** AL10's Back-restores-scroll: the root reads the shelves' current offset through this door. */
+function shelvesElement(): HTMLElement | null {
+	return bodyEl.value?.querySelector<HTMLElement>('.rp-al-shelves') ?? null;
+}
+defineExpose({ shelvesElement });
 </script>
 
 <template>
-	<div class="rp-al-body">
+	<div
+		ref="bodyEl"
+		class="rp-al-body"
+	>
 		<p
 			class="rp-al-results"
 			role="status"

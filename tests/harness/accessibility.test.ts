@@ -98,7 +98,7 @@
  * one.
  */
 import axe from 'axe-core';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 import { flushPromises } from '@vue/test-utils';
 import { prototypeEntries } from './entries';
@@ -118,7 +118,7 @@ import { unavailableRenovationProjectCommands } from '../../src/presentation/vie
 import { ok } from '../../src/core/result/Result';
 import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 import NewProjectForm from '../../src/presentation/views/NewProjectForm.vue';
-import type { ViewStateResult } from 'obsidian';
+import { Platform, type ViewStateResult } from 'obsidian';
 import type { AssetPriceRowDto } from '../../src/application/queries/ListProjectAssetPrices';
 
 /**
@@ -145,6 +145,15 @@ beforeEach(() => {
 	document.body.innerHTML = '';
 });
 
+/**
+ * `Platform` is a plain mutable object in the `obsidian` mock, so the mobile case below assigns
+ * `isMobile` and the later cases IN THIS FILE are owed the reset — the `suite` project takes no
+ * `isolate: false`, so it stops at the file boundary (CLAUDE.md's Testing section).
+ */
+afterEach(() => {
+	Platform.isMobile = false;
+});
+
 describe('axe against the mounted view', () => {
 	/**
 	 * Proves the mechanism itself bites, on a fragment unrelated to `src/` — a check that
@@ -168,6 +177,32 @@ describe('axe against the mounted view', () => {
 		const results = await axe.run(bad, runOptions);
 
 		expect(results.violations.map((violation) => violation.id)).toContain('image-alt');
+	});
+
+	/**
+	 * THE MOBILE SURFACE, and the harness CAN set it: `RenovationProjectView.mount` reads
+	 * `Platform.isMobile` into the context, and `Platform` is a plain mutable object in the mock —
+	 * so this is the real view drawing its real read-only shape, with no knob added for it.
+	 *
+	 * It is the most new ARIA one task has put on this surface: an `aria-describedby` on every
+	 * refused control, pointing at one notice. `aria-valid-attr-value` is what grades that the id
+	 * RESOLVES — a describedby naming nothing is the failure `app-id-prefix.ts` exists to prevent
+	 * and that nothing else here can see. Asserted as a rule that RAN rather than inferred from an
+	 * empty violations list, for the reason the case below states at length about `.rp-empty-state`.
+	 */
+	it('reports no semantic violations on the read-only surface mobile draws', async () => {
+		Platform.isMobile = true;
+		const { view } = mountHarness(document.body);
+		await flushPromises();
+
+		const notice = view.contentEl.querySelector('.rp-mobile-notice');
+		expect(notice?.id).toBeTruthy();
+		expect(view.contentEl.querySelector('.rp-empty-state__action')?.getAttribute('aria-describedby')).toBe(notice?.id);
+
+		const results = await axe.run(view.contentEl, runOptions);
+
+		expect(results.violations).toEqual([]);
+		expect(results.passes.map((pass) => pass.id)).toContain('aria-valid-attr-value');
 	});
 
 	it('reports no semantic violations on the surface RenovationProjectView actually draws', async () => {

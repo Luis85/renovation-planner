@@ -300,9 +300,23 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 		return entries.value.find((entry) => entry.assetId === assetId) ?? null;
 	}
 
+	/**
+	 * The `New asset` door's similar-name hint (AL03), and `entryFor`'s sibling for the same
+	 * reason: a single DTO answered by NAME rather than by id, over the WHOLE catalogue rather
+	 * than `visibleEntries` — a name typed into the create dialog has nothing to do with §6.1's
+	 * search field, and matching it against the filtered list would miss an asset the search
+	 * happens to be hiding.
+	 */
+	function findByName(name: string): CatalogueEntryDto | null {
+		const wanted = name.trim().toLowerCase();
+		if (wanted === '') return null;
+		return entries.value.find((entry) => entry.name.trim().toLowerCase() === wanted) ?? null;
+	}
+
 	return {
 		visibleEntries,
 		entryFor,
+		findByName,
 		/**
 		 * §3.6's `54 assets` — the whole catalogue's size, which is the one fact about the
 		 * unfiltered listing anything outside this store needs.

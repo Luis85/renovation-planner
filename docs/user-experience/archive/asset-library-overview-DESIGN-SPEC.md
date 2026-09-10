@@ -1570,7 +1570,7 @@ and **29% of a 680px one**.
 | --- | --- |
 | ≥ 720px | Shelves + inspector rail, rail 280px |
 | 560–720px | Rail narrows to 240px; the row drops its supplier slot, then its waste slot |
-| < 560px | **The rail stops being a rail.** Selecting a row replaces the shelves with the inspector in full, headed by a `‹ Back to library` control |
+| < 560px | **The rail stops being a rail.** Selecting a row replaces the shelves with the inspector in full, headed by a `Back to library` control |
 
 The last row is the honest answer to the open question the concepts README left standing — *nothing
 collapses a rail* — for this surface only. At 460px, an Obsidian sidebar leaf's real width, two
@@ -1580,6 +1580,9 @@ rather than two.
 
 **460px is a required capture width**, alongside the default. It is where the project row's name
 defect was found, and where this row has four more slots to lose.
+
+The control's label is the words alone; an earlier draft wrote a chevron in one table and not in
+§6.2, and the code follows §6.2.
 
 ---
 

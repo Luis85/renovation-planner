@@ -59,7 +59,7 @@ export function downstreamWorkspace(reference: ReturnType<typeof referenceWorksp
 		if (type !== RENOVATION_PROJECT_VIEW) throw new Error(`Unexpected downstream view: ${type}`);
 		const deps = renovationProjectDeps(root, workspace as unknown as Workspace, vault, {
 			projectId: null, indexScanCompleted: () => scanned,
-			continueContext: () => Promise.resolve(null), rememberContinue: () => undefined,
+			continueContext: () => Promise.resolve(null), rememberContinue: () => undefined, forgetContinue: () => undefined,
 			navigate: (projectId, section) => { void navigateToProject({ workspace: workspace as unknown as Workspace,
 				reportFault: cause => { throw cause; } }, RENOVATION_PROJECT_VIEW, projectId, leaf as never, section); },
 		});

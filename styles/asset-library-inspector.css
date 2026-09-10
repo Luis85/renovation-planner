@@ -103,6 +103,7 @@
 	display: flex;
 	align-items: baseline;
 	justify-content: space-between;
+	flex-wrap: wrap;
 	gap: var(--size-4-2);
 	padding: var(--size-2-1) 0;
 	border-bottom: 1px solid var(--background-modifier-border);
@@ -128,9 +129,9 @@
  */
 .rp-al-used__project {
 	display: flex;
+	flex: 1 1 16ch;
 	flex-direction: column;
-	min-width: 0;
-	overflow: hidden;
+	min-width: 14ch;
 }
 
 .rp-al-used__path {
@@ -348,6 +349,7 @@
 	align-items: center;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
 }
 
 .rp-al-used__override-mark {
@@ -357,11 +359,11 @@
 	background-color: currentColor;
 }
 
-/* The name half of a row, which is what grows — the override mark is the third child that
-   would otherwise decide where every row's mark starts. */
-.rp-al-used__name {
-	overflow-wrap: anywhere;
-}
+/* The name grows and keeps its words whole; what forces the WRAP is `.rp-al-used__project`'s
+   own 14ch minimum beside the mark's fixed width, not this rule. `overflow-wrap: anywhere`
+   broke a name one CHARACTER per line at the 240px rail (browse case step 12, 51.8px tall vs
+   19.6px) before that minimum existed. */
+.rp-al-used__name { overflow-wrap: normal; word-break: normal; }
 
 /*
  * The sentence on a withheld `Delete`, referenced by `aria-describedby` rather than by a

@@ -371,6 +371,11 @@ export const defaultRenovationProjectDeps = (
 		// above — this harness has no store of its own to remember into.
 		continueContext: () => Promise.resolve(null),
 		rememberContinue: () => undefined,
+		// Task 2 (design slice 22). Inert like `rememberContinue` above, for the same reason —
+		// this file must stay free of `vitest` (see this file's own header on the harness/jsdom
+		// split), so it cannot hand out a `vi.fn()`. A case that asserts a call spies its own,
+		// exactly as `navigate`/`rememberContinue`/`openPlan` already do in `rig()`.
+		forgetContinue: () => undefined,
 	};
 	return defaults;
 };

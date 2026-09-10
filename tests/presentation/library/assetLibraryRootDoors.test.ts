@@ -37,7 +37,7 @@ import { tr } from '../../../src/presentation/i18n/strings';
 import { makeAsset } from '../../helpers/entities';
 import { installObsidianDom } from '../../helpers/dom';
 import { settle } from '../../helpers/async';
-import { anEntry, mountRoot } from '../../helpers/assetLibraryRootHarness';
+import { anEntry, fakeQueries, mountRoot } from '../../helpers/assetLibraryRootHarness';
 
 installObsidianDom();
 
@@ -106,6 +106,35 @@ describe('AssetLibraryRoot, the New asset door', () => {
 		);
 		expect(openDesigner).not.toHaveBeenCalled();
 		expect(root.attributes('data-selected-asset-id')).toBe(ASSET.id);
+	});
+
+	/**
+	 * AL03's hint, asked of the ROOT rather than of the form: `findExisting` is
+	 * `createAsset`'s own composition, over the whole catalogue rather than the search-filtered
+	 * `visibleEntries` — matched by name here with the search field left untouched, which is
+	 * what proves the two are not the same list. Asserted on the READ COUNT staying flat, since
+	 * "selects the existing asset" is equally true of a build that quietly re-created it.
+	 */
+	it('selects the existing asset the form pointed at without creating or re-reading', async () => {
+		const existing = anEntry({ name: 'Oak plank floor' });
+		const listCatalogue = vi.fn<AssetLibraryQueryServices['listCatalogue']>(() =>
+			Promise.resolve(ok({ entries: [existing], unreadable: [] })),
+		);
+		const root = await mountRoot({
+			entries: [existing],
+			queries: { ...fakeQueries([existing], []), listCatalogue },
+		});
+		const reads = listCatalogue.mock.calls.length;
+
+		await root.get('.rp-al-create').trigger('click');
+		await settle();
+		await root.get('[data-field="name"]').setValue('oak plank floor');
+		await root.get('.rp-similar-name button').trigger('click');
+		await settle();
+
+		expect(root.attributes('data-selected-asset-id')).toBe(existing.assetId);
+		expect(listCatalogue.mock.calls.length).toBe(reads);
+		root.unmount();
 	});
 
 	/** The other half: a cancelled dialog made nothing, so there is nothing to open. */

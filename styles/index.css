@@ -74,6 +74,14 @@
 @import "./asset-library.css";
 @import "./asset-mark.css";
 @import "./asset-shelf.css";
+/*
+ * AFTER `asset-shelf.css` because it was the second half of it until the 400-line cap forced
+ * the split, and that keeps it after `list-row.css` too — `.rp-al-shelf .rp-al-row` overrides
+ * three of that file's properties at equal specificity, so a position before it would hand the
+ * row back the shared rule's width, border and cursor. Nothing else in the sheet declares a
+ * property one of its selectors sets, so nothing but that ordering is load-bearing.
+ */
+@import "./asset-row.css";
 @import "./asset-library-inspector.css";
 
 @import "./editor-reference.css";

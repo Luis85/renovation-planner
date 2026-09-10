@@ -242,6 +242,43 @@ describe('searching, in the narrow composition', () => {
 	});
 });
 
+describe('the narrow composition\'s scroll restore', () => {
+	it('restores the shelves scroll position on Back at a narrow width (AL10)', async () => {
+		narrow();
+		const root = await mountLibrary();
+		const shelves = root.get('.rp-al-shelves').element;
+		shelves.scrollTop = 120;
+		await root.get(`[data-asset-id="${ALDER.assetId}"]`).trigger('click'); await settle();
+		shelves.scrollTop = 0;
+		await root.get('.rp-al-inspector__back').trigger('click'); await settle();
+		expect(root.get('.rp-al-shelves').element.scrollTop).toBe(120);
+	});
+
+	it('leaves a wide pane\'s live scroll position alone when the selection leaves', async () => {
+		const root = await mountLibrary();
+		const shelves = root.get('.rp-al-shelves').element;
+		shelves.scrollTop = 300;
+		await root.get(`[data-asset-id="${ALDER.assetId}"]`).trigger('click'); await settle();
+		shelves.scrollTop = 500;
+		await root.get('.rp-al-search__input').setValue('birch'); await settle();
+		expect(root.get('.rp-al-shelves').element.scrollTop).toBe(500);
+	});
+});
+
+describe('the clear-search control on the field', () => {
+	it('offers a clear control while the search holds text and returns focus to the field', async () => {
+		const root = await mountLibrary();
+		expect(root.find('.rp-al-search__clear').exists()).toBe(false);
+		await root.get('.rp-al-search__input').setValue('alder');
+		const clear = root.get('.rp-al-search__clear');
+		expect(clear.attributes('aria-label')).toBe('Clear search');
+		await clear.trigger('click'); await settle();
+		expect((root.get('.rp-al-search__input').element as HTMLInputElement).value).toBe('');
+		expect(active()?.classList.contains('rp-al-search__input')).toBe(true);
+		expect(root.find('.rp-al-search__clear').exists()).toBe(false);
+	});
+});
+
 describe('§4\'s loading row, in the narrow composition', () => {
 	/**
 	 * *"The shell, with a loading line in the shelves region. **Never a spinner over an empty

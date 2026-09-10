@@ -143,7 +143,7 @@ describe('NewAssetForm', () => {
 		expect(setFootprintFromDimensions).toHaveBeenCalledWith(
 			expect.objectContaining({ assetId: asset.id, width: 1200, depth: 800 }),
 		);
-		expect(wrapper.emitted('submit')).toEqual([[asset.id]]);
+		expect(wrapper.emitted('submit')?.[0]).toEqual([{ assetId: asset.id, created: true }]);
 	});
 
 	it('creates the asset with no footprint when dimensions are left empty', async () => {
@@ -283,7 +283,7 @@ describe('NewAssetForm', () => {
 
 		const wrapper = await mountAndSubmit(
 			{ createAsset, setFootprintFromDimensions: footprintOk() },
-			{ unitCostAmount: '4,50' },
+			{ unitCostAmount: '1,2,3' },
 		);
 
 		expect(createAsset).not.toHaveBeenCalled();
@@ -333,7 +333,7 @@ describe('NewAssetForm', () => {
 		expect(createAsset).toHaveBeenCalledTimes(1);
 		expect(setFootprintFromDimensions).toHaveBeenCalledTimes(2);
 		expect(setFootprintFromDimensions.mock.calls[1][0].assetId).toBe(asset.id);
-		expect(wrapper.emitted('submit')).toEqual([[asset.id]]);
+		expect(wrapper.emitted('submit')?.[0]).toEqual([{ assetId: asset.id, created: true }]);
 	});
 
 	/**
@@ -647,5 +647,36 @@ describe('NewAssetForm', () => {
 
 		expect(createAsset).toHaveBeenCalledTimes(1);
 		expect(wrapper.emitted('submit')).toHaveLength(1);
+	});
+
+	it('reads a comma decimal price and dispatches a dot decimal', async () => {
+		const createAsset = vi.fn<CreateAsset>(() => Promise.resolve(ok(makeAsset())));
+		const wrapper = mount(NewAssetForm, {
+			props: { createAsset, setFootprintFromDimensions: footprintOk(), logger: recorder, defaultCurrency: 'EUR' },
+		});
+		await wrapper.get('[data-field="name"]').setValue('Tile adhesive');
+		await wrapper.get('[data-field="unitCostAmount"]').setValue('4,50');
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+		expect(createAsset).toHaveBeenCalledTimes(1);
+		expect(createAsset.mock.calls[0]?.[0].unitCostAmount).toBe('4.50');
+	});
+
+	it('emits created: true after a real creation', async () => {
+		const asset = makeAsset();
+		const wrapper = mount(NewAssetForm, {
+			props: {
+				createAsset: () => Promise.resolve(ok(asset)),
+				setFootprintFromDimensions: footprintOk(),
+				logger: recorder,
+				defaultCurrency: 'EUR',
+			},
+		});
+		await wrapper.get('[data-field="name"]').setValue('Tile adhesive');
+		await wrapper.get('[data-field="unitCostAmount"]').setValue('4.50');
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(wrapper.emitted('submit')?.[0]).toEqual([{ assetId: asset.id, created: true }]);
 	});
 });

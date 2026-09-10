@@ -9,6 +9,7 @@ defineProps<{
 	assetPricesFailure: string | null;
 	pricesLoading?: boolean;
 	readOnly?: boolean;
+	readOnlyReasonId?: string;
 	draftReset?: number;
 	currency: string;
 	commitAssetPrice: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>;
@@ -43,6 +44,7 @@ defineEmits<{ refresh: []; editState: [assetId: string, dirty: boolean, pending:
 		v-if="!pricesLoading && (assetPricesFailure === null || assetPrices.length > 0)"
 		:rows="assetPrices"
 		:read-only="readOnly"
+		:read-only-reason-id="readOnlyReasonId"
 		:draft-reset="draftReset"
 		:refresh-blocked="assetPricesFailure !== null"
 		:currency="currency"

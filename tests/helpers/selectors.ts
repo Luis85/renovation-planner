@@ -522,6 +522,7 @@ const RENDERED_KEYS: ReadonlySet<string> = new Set([
 	'of',
 	'direction',
 	'value',
+	'name',
 ]);
 
 /**
@@ -592,6 +593,12 @@ export function show(selector: Selector): string {
 					// function: an identity that distinguishes them, which is what the caller needs,
 					// rather than a reconstruction of the text, which would need a lookup table.
 					if ('value' in component) return `::${component.kind}(${String(component.value)})`;
+
+					// A "custom" pseudo-element is lightningcss's fallback for one it does not recognize
+					// by kind — a vendor pseudo like `::-webkit-search-cancel-button` — and it carries the
+					// source spelling verbatim in `name`, prefix included, rather than the separate
+					// `vendorPrefix` field the known kinds use.
+					if ('name' in component) return `::${String(component.name)}`;
 
 					return `::${prefixOf(component)}${component.kind}`;
 				}

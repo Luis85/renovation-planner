@@ -82,7 +82,7 @@ const declared = new Set(
 );
 
 /**
- * `Open designer` and `Open note` (`AssetInspector.vue`'s `.rp-al-action--designer` /
+ * `Edit shape` and `Open note` (`AssetInspector.vue`'s `.rp-al-action--designer` /
  * `--note`), by name, with a reason — the same shape `tests/helpers/buttonRules.ts`'s
  * `DEFERS_TO_THE_HOST` already uses for `.rp-dialog-button` staying bare, and CLAUDE.md's own
  * "asserted by exact key set" rule for a carve-out: a drift in this set is caught at the
@@ -182,5 +182,63 @@ describe('the classes the library, shared-component and designer surfaces emit',
 		const undeclared = [...emitted].filter((name) => !declared.has(name) && !UNSTYLED_LIBRARY_MODIFIERS.has(name));
 
 		expect(undeclared).toEqual([]);
+	});
+});
+
+describe('shelf column headings and cells', () => {
+	/** Interaction rules §10: "Remove column headings together with their cells." */
+	it('hide the heading row and the waste cell under ONE container threshold', () => {
+		const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//gu, '');
+		const blocks = [...sheet.matchAll(/@container rp-al-shelves \(width < ([\d.]+rem)\)\s*\{([\s\S]*?)\n\}/gu)];
+		const hidingHeadings = blocks.filter(([, , body]) => /\.rp-al-columns\s*\{[^}]*display:\s*none/u.test(body)).map(([, w]) => w);
+		const hidingWaste = blocks.filter(([, , body]) => /\.rp-al-row__waste\s*\{[^}]*display:\s*none/u.test(body)).map(([, w]) => w);
+		expect(hidingHeadings).toHaveLength(1);
+		expect(hidingWaste).toEqual(hidingHeadings);
+	});
+
+	/** Same rule, over the supplier column specifically: its heading (`.rp-al-columns__supplier`)
+	 *  must leave in the SAME block as its cell (`.rp-al-row__supplier`), not a different one and
+	 *  not never (fix round finding — the heading used to stay put while its column vanished). */
+	it('hides the supplier heading together with the supplier cell', () => {
+		const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//gu, '');
+		const blocks = [...sheet.matchAll(/@container rp-al-shelves \(width < ([\d.]+rem)\)\s*\{([\s\S]*?)\n\}/gu)];
+		const hidingSupplierCell = blocks.filter(([, , body]) => /\.rp-al-row__supplier\s*\{[^}]*display:\s*none/u.test(body)).map(([, w]) => w);
+		const hidingSupplierHeading = blocks.filter(([, , body]) => /\.rp-al-columns__supplier\s*\{[^}]*display:\s*none/u.test(body)).map(([, w]) => w);
+		expect(hidingSupplierCell).toHaveLength(1);
+		expect(hidingSupplierHeading).toEqual(hidingSupplierCell);
+	});
+
+	/**
+	 * A heading that outgrows its track CLIPS rather than drawing across the heading beside it.
+	 * German `Verschnitt` needed 57px in the 5ch waste track and overlapped `Lieferant`; English
+	 * `Waste` measured 35/35 and fitted, so no capture in an English locale could have shown it
+	 * (PR #98, `AL10-1440-light-de`). Widening that track to 9ch is the measurement for the two
+	 * locales that ship; THIS is the category guard for the third nobody has measured, and it is
+	 * pinned here rather than only in a capture because the capture is outside `npm run check`.
+	 */
+	it('clips a column heading instead of letting it overlap the next one', () => {
+		const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//gu, '');
+		const rule = /\.rp-al-columns\s*>\s*\*\s*\{([^}]*)\}/u.exec(sheet);
+
+		expect(rule).not.toBeNull();
+		expect(rule?.[1]).toMatch(/overflow:\s*hidden/u);
+		expect(rule?.[1]).toMatch(/text-overflow:\s*ellipsis/u);
+		expect(rule?.[1]).toMatch(/min-width:\s*0/u);
+	});
+});
+
+describe('the search field\'s native cancel button', () => {
+	/**
+	 * Chromium (Obsidian runs on Electron/Chromium) draws its own "x" on a non-empty
+	 * `type="search"` input, in the same trailing slot `.rp-al-search__clear` occupies, and
+	 * clicking it bypasses `clearSearchField()` entirely (no focus return, no Vue handler) —
+	 * review finding. One clear affordance, ours: the native one is suppressed.
+	 */
+	it('hides the native ::-webkit-search-cancel-button on the search input', () => {
+		const sheet = assembleStyles().replace(/\/\*[\s\S]*?\*\//gu, '');
+		const rule = /\.rp-al-search__input::-webkit-search-cancel-button\s*\{([^}]*)\}/u.exec(sheet);
+
+		expect(rule).not.toBeNull();
+		expect(rule?.[1]).toMatch(/display:\s*none/u);
 	});
 });

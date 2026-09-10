@@ -12,6 +12,8 @@ import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
 import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps, type ProjectSession, type ProjectOpenOutcome } from '../../../src/presentation/views/RenovationProjectContext';
 import { installObsidianDom } from '../../helpers/dom';
 import { defaultRenovationProjectDeps, makeView } from '../../helpers/makeRenovationProjectView';
+import { recorder } from '../../helpers/logger';
+import { ContinueContextStore } from '../../../src/infrastructure/obsidian/plugin-data/continueContextStore';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { ok, err } from '../../../src/core/result/Result';
 import { createMoney } from '../../../src/core/money/Money';
@@ -30,7 +32,7 @@ function rig(over: Partial<RenovationProjectDeps> = {}) {
 	const base = defaultRenovationProjectDeps();
 	const pinia = createPinia();
 	const context: RenovationProjectDeps = {
-		...base, session: session(), navigate: vi.fn<RenovationProjectDeps['navigate']>(), rememberContinue: vi.fn<RenovationProjectDeps['rememberContinue']>(), openPlan: vi.fn<RenovationProjectDeps['openPlan']>(() => Promise.resolve('opened' as const)),
+		...base, session: session(), navigate: vi.fn<RenovationProjectDeps['navigate']>(), rememberContinue: vi.fn<RenovationProjectDeps['rememberContinue']>(), forgetContinue: vi.fn<RenovationProjectDeps['forgetContinue']>(), openPlan: vi.fn<RenovationProjectDeps['openPlan']>(() => Promise.resolve('opened' as const)),
 		queries: { ...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })), getProject: () => Promise.resolve(ok(project)), listPlansByProject: () => Promise.resolve(ok({ plans: [plan], unreadable: 0 })) },
 		...over,
 	};
@@ -96,6 +98,7 @@ describe('project experience', () => {
 		await flushPromises();
 		expect(wrapper.text()).toContain('saved context is retained');
 		expect(context.rememberContinue).not.toHaveBeenCalled();
+		expect(context.forgetContinue).not.toHaveBeenCalled();
 	});
 
 	it('offers the project when its plan disappeared; retries without a substitute plan', async () => {
@@ -103,6 +106,7 @@ describe('project experience', () => {
 		const { wrapper, context } = rig({ continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }), queries: { ...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })), getProject: () => Promise.resolve(ok(project)), listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })) } });
 		await flushPromises();
 		expect(wrapper.text()).toContain('last plan is no longer available');
+		expect(context.forgetContinue).not.toHaveBeenCalled();
 		await wrapper.get('.rp-resume-recovery button:last-child').trigger('click');
 		expect(context.navigate).toHaveBeenCalledWith(project.id);
 		expect(context.openPlan).not.toHaveBeenCalled();
@@ -144,7 +148,7 @@ describe('project experience', () => {
 		const base = defaultRenovationProjectDeps();
 		const { wrapper, context } = rig({ projectId: project.id, section: 'prices', readOnly: true, queries: { ...base.queries, getProject: () => Promise.resolve(ok(project)), listAssetPrices: () => Promise.resolve(ok([priceRow()])) } });
 		await flushPromises();
-		expect(wrapper.find('input').exists()).toBe(false);
+		expect(wrapper.get<HTMLInputElement>('.rp-asset-price-input').element.disabled).toBe(true);
 		expect(wrapper.text()).toContain('12.00 EUR');
 		await wrapper.get('.rp-project-detail__back').trigger('click');
 		expect(context.navigate).toHaveBeenCalledWith(project.id);
@@ -204,20 +208,77 @@ describe('project experience', () => {
 		await flushPromises();
 		await wrapper.get('.rp-plan-list__row').trigger('click'); await flushPromises();
 		expect(context.rememberContinue).not.toHaveBeenCalled();
+		expect(context.forgetContinue).not.toHaveBeenCalled();
 	});
 
-	it.each(['project-error', 'project-missing', 'plan-error', 'plan-unreadable'] as const)('keeps the saved target recoverable for %s', async (problem) => {
+	it.each(['project-error', 'plan-error', 'plan-unreadable'] as const)('keeps the saved target recoverable for %s', async (problem) => {
 		const base = defaultRenovationProjectDeps();
 		const { wrapper, context } = rig({ continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }), queries: {
 			...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })),
-			getProject: () => Promise.resolve(problem === 'project-error' ? failure : ok(problem === 'project-missing' ? null : project)),
+			getProject: () => Promise.resolve(problem === 'project-error' ? failure : ok(project)),
 			listPlansByProject: () => Promise.resolve(problem === 'plan-error' ? failure : ok({ plans: [], unreadable: 1 })),
 		} });
 		await flushPromises();
 		expect(wrapper.find('.rp-resume-recovery').exists()).toBe(true);
 		expect(wrapper.find('.rp-continue__resume').exists()).toBe(false);
 		expect(context.rememberContinue).not.toHaveBeenCalled();
-		expect(wrapper.text()).toContain(problem === 'project-missing' ? 'last project is no longer available' : 'saved context is retained');
+		expect(context.forgetContinue).not.toHaveBeenCalled();
+		expect(wrapper.text()).toContain('saved context is retained');
+	});
+
+	/**
+	 * Task 2 (design slice 22)'s own case, pulled out of the table above rather than added to
+	 * it: a reliably missing project — the index scan has completed AND `getProject` answered
+	 * `ok(null)` — is the ONE branch that clears the stored target rather than keeping it
+	 * recoverable, so it needs its own positive assertion instead of joining the "not called"
+	 * table it used to sit in.
+	 */
+	it('forgets the stored target exactly once when the project is reliably missing', async () => {
+		const base = defaultRenovationProjectDeps();
+		const { wrapper, context } = rig({ continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }), queries: {
+			...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })),
+			getProject: () => Promise.resolve(ok(null)),
+		} });
+		await flushPromises();
+		expect(wrapper.find('.rp-resume-recovery').exists()).toBe(true);
+		expect(wrapper.text()).toContain('last project is no longer available');
+		expect(context.forgetContinue).toHaveBeenCalledOnce();
+		expect(context.rememberContinue).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The compare-and-clear half of the same branch, asked of the STORE rather than of a spy: the
+	 * ticket guarding `resolveStored` is local to one `ViewRoot` while the store is process-wide,
+	 * so a newer target written during the `getProject` await — the palette's plan open, another
+	 * leaf, another pane — must survive the clear that the stale one earned. A spy asserting the
+	 * argument would prove nothing about what is left in the store, so the real store runs here
+	 * over an in-memory adapter.
+	 */
+	it('clears only the target it validated, so a newer one written during the read survives', async () => {
+		const entries = new Map<string, unknown>();
+		const store = new ContinueContextStore({
+			loadLocalStorage: (key) => entries.get(key) ?? null,
+			saveLocalStorage: (key, data) => { if (data === null) entries.delete(key); else entries.set(key, data); },
+		}, 'continue-context', recorder);
+		await store.write({ projectId: project.id, planId: plan.id });
+		let release!: (found: Awaited<ReturnType<RenovationProjectDeps['queries']['getProject']>>) => void;
+		const base = defaultRenovationProjectDeps();
+		rig({
+			continueContext: () => store.read(),
+			rememberContinue: (context) => void store.write(context),
+			forgetContinue: (validated) => void store.clear(validated),
+			queries: {
+				...base.queries, listProjects: () => Promise.resolve(ok({ projects: [project], unreadable: 0 })),
+				getProject: () => new Promise((resolve) => { release = resolve; }),
+			},
+		});
+		await flushPromises();
+
+		await store.write({ projectId: 'p2', planId: null });
+		release(ok(null));
+		await flushPromises();
+
+		expect(await store.read()).toEqual({ projectId: 'p2', planId: null });
 	});
 
 	it('ignores a slow Resume opening after another project is selected', async () => {
@@ -243,7 +304,7 @@ describe('project experience', () => {
 		const { wrapper, context } = rig({ readOnly: true, continueContext: () => Promise.resolve({ projectId: project.id, planId: plan.id }) });
 		await flushPromises();
 		expect(wrapper.get('.rp-continue__resume').attributes('disabled')).toBeDefined();
-		expect(wrapper.find('.rp-project-list__create').exists()).toBe(false);
+		expect(wrapper.get('.rp-project-list__create').attributes('disabled')).toBeDefined();
 		wrapper.getComponent(ContinueRow).vm.$emit('resume');
 		wrapper.getComponent(ProjectList).vm.$emit('create', 'New');
 		wrapper.getComponent(ProjectList).vm.$emit('createAsset');

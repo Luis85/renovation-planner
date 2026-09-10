@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueEntries';
 import { ASSET_CATEGORY_LABELS, MEASUREMENT_UNIT_LABELS } from '../views/assetLabels';
 import type { AssetCategory } from '../../domain/asset/AssetCategory';
@@ -14,20 +15,42 @@ const props = defineProps<{ entry: CatalogueEntryDto }>();
 const form = useDefinitionDraft(() => props.entry);
 const selectFields = new Set<keyof DefinitionDraft>(['category', 'unit']);
 const fields = Object.keys(DEFINITION_LABELS) as (keyof DefinitionDraft)[];
-function options(key: keyof DefinitionDraft): readonly string[] {
+/**
+ * The declared vocabulary, plus the baseline's OWN value when it is outside it (D04: an
+ * unknown category is shown, never coerced). Without that option a `<select>` bound to an
+ * undeclared value renders EMPTY, and the first save of any other field would carry whatever
+ * the browser picked. The option is labelled with the raw value because no locale key exists
+ * for a word this build does not declare; the parser side of that PBI is separate.
+ */
+function declaredOptions(key: keyof DefinitionDraft): readonly string[] {
 	return key === 'category' ? ASSET_CATEGORIES : Object.keys(UNIT_KIND);
 }
+function isDeclared(key: keyof DefinitionDraft, option: string): boolean {
+	return declaredOptions(key).includes(option);
+}
+function options(key: keyof DefinitionDraft): readonly string[] {
+	const declared = declaredOptions(key);
+	const own = props.entry[key === 'category' ? 'category' : 'unit'];
+	return isDeclared(key, own) ? declared : [own, ...declared];
+}
 function optionLabel(key: keyof DefinitionDraft, option: string): string {
-	return tr(key === 'category' ? ASSET_CATEGORY_LABELS[option as AssetCategory] : MEASUREMENT_UNIT_LABELS[option as MeasurementUnit]);
+	if (!isDeclared(key, option)) return option;
+	return key === 'category' ? tr(ASSET_CATEGORY_LABELS[option as AssetCategory]) : tr(MEASUREMENT_UNIT_LABELS[option as MeasurementUnit]);
 }
 function fieldLabel(key: keyof DefinitionDraft): string {
 	const suffix: Partial<Record<keyof DefinitionDraft, string>> = { unitCost: ` (${props.entry.currency})`, waste: ' (%)', height: ' (mm)' };
 	return tr(DEFINITION_LABELS[key]) + (suffix[key] ?? '');
 }
+const formEl = ref<HTMLFormElement | null>(null);
+form.onKeep(() => {
+	const key = form.lastEdited.value ?? fields[0];
+	formEl.value?.querySelector<HTMLElement>(`[data-field="${key}"]`)?.focus();
+});
 </script>
 
 <template>
 	<form
+		ref="formEl"
 		class="rp-al-definition"
 		@submit.prevent="form.save()"
 	>
@@ -77,6 +100,7 @@ function fieldLabel(key: keyof DefinitionDraft): string {
 							:data-field="key"
 							:aria-label="fieldLabel(key)"
 							:disabled="form.locked.value"
+							@change="form.markEdited(key)"
 						>
 							<option
 								v-for="option in options(key)"
@@ -95,6 +119,7 @@ function fieldLabel(key: keyof DefinitionDraft): string {
 							:data-field="key"
 							:aria-label="fieldLabel(key)"
 							:readonly="form.locked.value"
+							@input="form.markEdited(key)"
 						>
 					</FieldError>
 				</dd>

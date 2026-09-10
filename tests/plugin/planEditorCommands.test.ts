@@ -12,8 +12,8 @@
  * palette in every vault that had no plan notes, and a picker over the Project Index has no
  * such precondition.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
-import { TFile, type Command } from 'obsidian';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { Platform, TFile, type Command } from 'obsidian';
 // Mock-only surface, imported BY NAME. `FuzzySuggestModal`, `Notice` carry members
 // the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
 // `'obsidian'` specifier type-checks against a surface that has no such thing. The
@@ -23,6 +23,7 @@ import { TFile, type Command } from 'obsidian';
 import { FuzzySuggestModal, Notice } from '../helpers/obsidian-mock';
 import { registerPlanEditorCommands } from '../../src/plugin/planEditorCommands';
 import type { PluginCommandHost } from '../../src/plugin/commandHost';
+import type { ContinueContext } from '../../src/application/continueContext';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { SetPlanBackgroundCommand } from '../../src/application/commands/plan/SetPlanBackground';
 import { ReversibleSetPlanBackgroundCommand } from '../../src/application/commands/plan/ReversibleSetPlanBackground';
@@ -50,11 +51,23 @@ interface Wired {
 	readonly commands: Command[];
 	readonly plans: InMemoryPlanRepository;
 	readonly planId: string;
+	readonly projectId: string;
 	readonly vaultFiles: TFile[];
+	/** Every context `rememberContinue` was handed, in order. */
+	readonly remembered: ContinueContext[];
 }
 
 async function wired(
-	options: { withPersistence?: boolean; files?: string[]; indexed?: boolean } = {},
+	options: {
+		withPersistence?: boolean;
+		files?: string[];
+		indexed?: boolean;
+		/** The picked entry carries no `projectId` — a project-less index row. */
+		omitProjectId?: boolean;
+		/** A workspace to reveal through instead of the default `FakeWorkspace` — how a
+		 * reveal failure is driven, the same shape `revealPlanEditor.test.ts` uses. */
+		workspace?: unknown;
+	} = {},
 ): Promise<Wired> {
 	const plans = new InMemoryPlanRepository();
 	const projectId = createProjectId();
@@ -66,10 +79,15 @@ async function wired(
 	// something: an unfiltered `entries()` would pass every assertion about the plan row.
 	index.upsert({ id: projectId, type: 'renovation-project', path: 'Renovation/Sample.md' });
 	if (options.indexed !== false) {
-		index.upsert({ id: plan.id, type: 'renovation-plan', path: PLAN_NOTE, projectId });
+		index.upsert({
+			id: plan.id,
+			type: 'renovation-plan',
+			path: PLAN_NOTE,
+			...(options.omitProjectId ? {} : { projectId }),
+		});
 	}
 
-	const workspace = new FakeWorkspace();
+	const workspace = (options.workspace as FakeWorkspace | undefined) ?? new FakeWorkspace();
 	const commands: Command[] = [];
 	const vaultFiles = (options.files ?? ['Plans/ground.png', 'Notes/readme.md']).map((path) => file(path));
 
@@ -85,6 +103,7 @@ async function wired(
 			vault: { getFiles: () => vaultFiles },
 		} as never,
 		root: {
+			logger: { error: () => undefined, warn: () => undefined, info: () => undefined, debug: () => undefined },
 			persistence:
 				options.withPersistence === false
 					? null
@@ -96,8 +115,9 @@ async function wired(
 		addCommand: (command) => commands.push(command),
 	};
 
-	registerPlanEditorCommands(host);
-	return { host, workspace, commands, plans, planId: plan.id, vaultFiles };
+	const remembered: ContinueContext[] = [];
+	registerPlanEditorCommands(host, (context) => remembered.push(context));
+	return { host, workspace: workspace as FakeWorkspace, commands, plans, planId: plan.id, projectId, vaultFiles, remembered };
 }
 
 /**
@@ -131,24 +151,45 @@ beforeEach(() => {
 	activateNotices();
 });
 
+// `Platform` is a plain mutable object in the mock, so a case that assigns `isMobile` owes the
+// later cases IN THIS FILE the reset — the `suite` project takes no `isolate: false`, so it stops
+// at the file boundary (CLAUDE.md's Testing section).
+afterEach(() => {
+	Platform.isMobile = false;
+});
+
 describe('open plan editor', () => {
 	/**
-	 * The whole point of the change: NO precondition. The previous version answered `false`
-	 * to `checkCallback` unless a plan note was the active file, which is why the command was
-	 * invisible in a vault whose plan notes nothing could create — so this asserts the
-	 * ABSENCE of the gate, not the presence of a callback.
+	 * The whole point of THAT change: no VAULT precondition. The version before it answered
+	 * `false` unless a plan note was the active file, which is why the command was invisible in a
+	 * vault whose plan notes nothing could create — so this asserts the absence of that gate, and
+	 * it is asserted through the check ANSWERING rather than through the check being absent.
+	 *
+	 * A `checkCallback` again since the mobile task, and the two questions are not the same kind:
+	 * "is the right note open" is something the vault can change, "is this a phone" is not. The
+	 * mobile case below is the other half of this one.
 	 */
-	it('is a plain callback with no active-file precondition', async () => {
+	it('answers the palette on a desktop vault with no plan note open', async () => {
 		const { commands } = await wired();
 
-		expect(commands[0].checkCallback).toBeUndefined();
-		expect(typeof commands[0].callback).toBe('function');
+		expect(commands[0].checkCallback?.(true)).toBe(true);
+		expect(FuzzySuggestModal.opened).toHaveLength(0);
+	});
+
+	it('stays out of the palette on mobile, opening no picker', async () => {
+		const { commands } = await wired();
+		Platform.isMobile = true;
+
+		expect(commands[0].checkCallback?.(true)).toBe(false);
+		expect(commands[0].checkCallback?.(false)).toBe(false);
+
+		expect(FuzzySuggestModal.opened).toHaveLength(0);
 	});
 
 	it('offers every plan the index holds, and nothing that is not one', async () => {
 		const { commands } = await wired();
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 
 		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<{ path: string }>;
 		expect(picker.getItems().map((item) => item.path)).toEqual([PLAN_NOTE]);
@@ -160,7 +201,7 @@ describe('open plan editor', () => {
 	it('opens the editor for the plan the user picks', async () => {
 		const { commands, workspace, planId } = await wired();
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 		// Opening the picker must not open a leaf: choosing is what acts.
 		expect(workspace.leaves).toHaveLength(0);
 
@@ -175,7 +216,7 @@ describe('open plan editor', () => {
 	it('says so rather than opening an empty picker when the vault has no plans', async () => {
 		const { commands } = await wired({ indexed: false });
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 
 		expect(FuzzySuggestModal.opened).toHaveLength(0);
 		expect(Notice.shown).toEqual([t('en', 'plan.none')]);
@@ -185,7 +226,7 @@ describe('open plan editor', () => {
 	it('says so when settings were never recovered', async () => {
 		const { commands } = await wired({ withPersistence: false });
 
-		commands[0].callback?.();
+		commands[0].checkCallback?.(false);
 
 		expect(FuzzySuggestModal.opened).toHaveLength(0);
 		expect(Notice.shown).toEqual([t('en', 'plan.none')]);
@@ -196,6 +237,56 @@ describe('open plan editor', () => {
 
 		expect(commands[0].id).toBe('open-plan-editor');
 		expect(commands[0].name).toBe(t('en', 'command.open-plan-editor'));
+	});
+
+	/**
+	 * The Resume target (design slice 22, Task 3): a palette open is one of the two main-flow
+	 * doors the requirement note names, and it routes through the same `renovationProjectOpenPlan`
+	 * seam the project surface uses, so a confirmed leaf open records the plan the way a row
+	 * click already does.
+	 */
+	it('remembers the picked plan as the Resume target once the reveal opens', async () => {
+		const { commands, planId, projectId, remembered } = await wired();
+
+		commands[0].checkCallback?.(false);
+		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<unknown>;
+		picker.choose(picker.getItems()[0]);
+		await flush();
+
+		expect(remembered).toEqual([{ projectId, planId }]);
+	});
+
+	it('remembers nothing when the reveal fails', async () => {
+		// The same shape `revealPlanEditor.test.ts` uses to force a fault: a candidate whose
+		// own view state throws, caught by `revealCandidate`'s outer boundary.
+		const exploding = {
+			getLeavesOfType: () => [
+				{
+					getViewState: () => {
+						throw new Error('state exploded');
+					},
+				},
+			],
+		};
+		const { commands, remembered } = await wired({ workspace: exploding });
+
+		commands[0].checkCallback?.(false);
+		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<unknown>;
+		picker.choose(picker.getItems()[0]);
+		await flush();
+
+		expect(remembered).toEqual([]);
+	});
+
+	it('remembers nothing when the picked entry carries no project id', async () => {
+		const { commands, remembered } = await wired({ omitProjectId: true });
+
+		commands[0].checkCallback?.(false);
+		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<unknown>;
+		picker.choose(picker.getItems()[0]);
+		await flush();
+
+		expect(remembered).toEqual([]);
 	});
 });
 
@@ -211,6 +302,22 @@ describe('set plan background', () => {
 		workspace.activeView = activePlanEditor(planId);
 
 		expect(commands[1].checkCallback?.(true)).toBe(true);
+		expect(FuzzySuggestModal.opened).toHaveLength(0);
+	});
+
+	/**
+	 * The platform refusal is asked BEFORE the active-view question, so this case sets the active
+	 * view that would otherwise answer `true` — asserting the guard rather than the absence of an
+	 * editor mobile could not have mounted anyway.
+	 */
+	it('stays out of the palette on mobile even with a plan editor active', async () => {
+		const { commands, workspace, planId } = await wired();
+		workspace.activeView = activePlanEditor(planId);
+		Platform.isMobile = true;
+
+		expect(commands[1].checkCallback?.(true)).toBe(false);
+		expect(commands[1].checkCallback?.(false)).toBe(false);
+
 		expect(FuzzySuggestModal.opened).toHaveLength(0);
 	});
 

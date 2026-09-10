@@ -32,7 +32,8 @@
  * keying by file was the sixth instance of this same defect, because adding an adapter class to
  * an already-disposed module leaves the file-key set unchanged and the assertion passes with no
  * behavioural row. So: every `class <Name>` declared in any file under `src/**` whose file
- * mentions `undo` anywhere, PLUS the transitive `extends` closure of that set — a standalone
+ * matches `UNDO_WORD` (`undo` as an identifier, not as a stem), PLUS the transitive `extends`
+ * closure of that set — a standalone
  * `class NewAdapter extends ReversibleBase {}` in a file mentioning `undo` nowhere is still
  * caught, because its base is in the base set. This is still textual: no type resolution, no
  * layer list, no export filter.
@@ -136,7 +137,18 @@ function keyOf(decl: Pick<ClassDecl, 'file' | 'name'>): string {
 }
 
 /**
- * The base set (a class whose FILE mentions `undo` anywhere) plus its transitive `extends`
+ * `undo` as an identifier or a camelCase segment (`undo()`, `execute/undo`, `undoSuperseded`,
+ * `undoEnsureFolder`), never as the stem of another English word. A bare `includes('undo')` pulled
+ * `ContinueContextStore` into the walk through "undocumented" in a docblock, and the prose was
+ * reworded to dodge the instrument; the same match had held four prose-only classes in scope
+ * through "undone", "undoing" and "undoable". Case-sensitive on purpose — the substring match was,
+ * so `UndoableCommand` and a prose "Undo" never counted, and widening to them would be a second
+ * change measured nowhere.
+ */
+const UNDO_WORD = /\bundo(?![a-z])/;
+
+/**
+ * The base set (a class whose FILE matches `UNDO_WORD`) plus its transitive `extends`
  * closure, matched by class NAME rather than by file — a subclass declares `extends Base`
  * with no knowledge of which file `Base` lives in. Repeated until nothing new is added.
  */
@@ -152,7 +164,7 @@ function undoRelatedClasses(): readonly ClassDecl[] {
 
 	const undoFiles = new Set(
 		sourceFilesUnder('src')
-			.filter((file) => readFileSync(file, 'utf8').includes('undo'))
+			.filter((file) => UNDO_WORD.test(readFileSync(file, 'utf8')))
 			.map((file) => toPosix(file)),
 	);
 	const inScope = new Set<string>();
@@ -279,7 +291,7 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 		'a query — declares execute, never undo',
 	),
 	// Pulled into scope by the WORD rather than by any undo behaviour: the walk's file filter
-	// is `text.includes('undo')`, and `ReferenceLocks`'s header now cites
+	// is `UNDO_WORD`, and `ReferenceLocks`'s header now cites
 	// `undoDeleteResolution.ts` and its test while stating the rule that a subscriber must
 	// never acquire a reference lock. Neither class has an execute/undo pair of any kind.
 	'src/application/reference/ReferenceLocks.ts::ReferenceLocks': notAnAdapter(
@@ -290,27 +302,15 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 		'one ReferenceLocks session; declares acquire/release, never execute or undo',
 	),
 	'src/domain/plan/Plan.ts::Plan': notAnAdapter('a domain entity; "undo" appears only in prose'),
-	'src/domain/requirement/Requirement.ts::Requirement': notAnAdapter(
-		'a domain entity; "undo" appears only in prose',
-	),
 	'src/infrastructure/obsidian/repositories/AssetGeometryStore.ts::AssetGeometryStore': notAnAdapter(
 		'the geometry sidecar port implementation the asset-design adapters write through; no ' +
 			'execute/undo of its own',
-	),
-	'src/infrastructure/obsidian/repositories/ObsidianPlanRepository.ts::ObsidianPlanRepository': notAnAdapter(
-		'a repository; "undo" appears only in prose',
 	),
 	'src/infrastructure/obsidian/repositories/ObsidianProjectRepository.ts::ObsidianProjectRepository':
 		notAnAdapter('a repository; "undo" appears only in prose'),
 	'src/infrastructure/obsidian/repositories/ObsidianZoneRepository.ts::ObsidianZoneRepository': notAnAdapter(
 		'a repository; "undo" appears only in prose',
 	),
-	'src/infrastructure/persistence/index/ReconcilingProjectIndex.ts::ReconcilingProjectIndex':
-		notAnAdapter(
-			'the ProjectIndex decorator that keeps §5.1a\'s promote/demote invariant for every ' +
-				'writer; it announces the exclusion and promotion changes it makes itself, and has ' +
-				'no execute/undo — "undo" appears only in prose',
-		),
 	'src/plugin/RenovationPlannerPlugin.ts::RenovationPlannerPlugin': notAnAdapter(
 		'the plugin bootstrap; "undo" appears only in prose',
 	),
@@ -321,9 +321,6 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 		'an ItemView; "undo" appears only in prose',
 	),
 	'src/presentation/designer/tools/set-anchor-tool.ts::SetAnchorTool': notAnAdapter(
-		'implements EditorTool, not UndoableCommand — no execute/undo pair',
-	),
-	'src/presentation/designer/tools/set-facing-tool.ts::SetFacingTool': notAnAdapter(
 		'implements EditorTool, not UndoableCommand — no execute/undo pair',
 	),
 	'src/presentation/editor/tools/calibrate-tool.ts::CalibrateTool': notAnAdapter(

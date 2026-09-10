@@ -24,6 +24,8 @@ const draftGuard = useLibraryDraftGuard();
 
 const shellEl = ref<HTMLElement | null>(null);
 const searchEl = ref<HTMLInputElement | null>(null);
+const bodyRef = ref<InstanceType<typeof AssetLibraryBody> | null>(null);
+let savedScrollTop = 0;
 
 function hydrate(): Promise<void> {
 	return store.hydrate(context.queries, context.indexScanCompleted);
@@ -76,6 +78,36 @@ watch(
 
 const paneAssetId = computed(() => (showingSelection.value ? (selectedId.value ?? '') : ''));
 
+/**
+ * AL10: "Back restores the list with the same search, groups, and scroll position." Below
+ * 35rem `.rp-al-body` is `display: none` while the inspector owns the pane, and a hidden
+ * element's scroll offset is lost, so it is read before the swap and written back after it.
+ *
+ * Watches `paneAssetId` rather than `showingSelection` itself: `showingSelection` defaults to
+ * `true` (it is meaningless until a selection exists), so the FIRST ever selection from a fresh
+ * mount sets it to `true` again — a no-op Vue never re-fires a watcher for — and the shelves'
+ * scroll offset would never be captured. `paneAssetId` is the same value the narrow-composition
+ * CSS itself keys on (`data-selected-asset-id`), so it changes on exactly the transitions that
+ * actually hide or reveal `.rp-al-shelves`.
+ *
+ * On a WIDE pane the shelves never leave — AL10's own condition ("when the narrow pane switches
+ * to the inspector") never applies. Restoring there anyway snaps a scroll position the user is
+ * still actively controlling back to a stale offset the moment `paneAssetId` clears for any other
+ * reason (e.g. typing into search flips `store.searching`). So restore is gated on
+ * `shelvesWithdrawn(shellEl.value)` read at the moment the pane leaves the selection: inside a
+ * `flush: 'sync'` watch the DOM has not yet applied the width-driven layout change, so it reflects
+ * whether the shelves were actually hidden, not whether they are about to be.
+ */
+watch(paneAssetId, async (now, before) => {
+	const shelves = bodyRef.value?.shelvesElement() ?? null;
+	if (shelves === null) return;
+	if (now !== '' && before === '') { savedScrollTop = shelves.scrollTop; return; }
+	if (now !== '' || before === '') return;
+	if (!shelvesWithdrawn(shellEl.value)) return;
+	await nextTick();
+	shelves.scrollTop = savedScrollTop;
+}, { flush: 'sync' });
+
 function publish(assetId: AssetId | null, expanded: ReadonlySet<string>): void {
 	context.publishViewState(assetId ?? '', [...expanded]);
 }
@@ -89,6 +121,12 @@ async function focusAfterSwap(selector: string, swapped: () => boolean): Promise
 function onClearSearch(): void {
 	store.query = '';
 	void focusAfterSwap('.rp-al-inspector__back', () => true);
+}
+
+/** AL02's "accessible clear action" on the field itself; the no-matches empty state keeps its own. */
+function clearSearchField(): void {
+	store.query = '';
+	searchEl.value?.focus();
 }
 
 function toggleShelf(category: string): void {
@@ -150,20 +188,26 @@ async function deleteSelectedAsset(assetId: AssetId): Promise<void> {
 
 async function createAsset(): Promise<void> {
 	if (dialogs.current !== null) return;
-	const createdId = await openNewAssetDialog({
+	const outcome = await openNewAssetDialog({
 		dialogs,
 		busy: newAssetBusy,
 		commands: context.commands,
 		logger: context.logger,
+		findExisting: (name) => {
+			const hit = store.findByName(name);
+			return hit === null ? null : { assetId: hit.assetId, name: hit.name };
+		},
 	});
-	if (createdId === null) return;
-	await hydrate();
-	const created = store.entryFor(createdId);
-	if (created !== null) {
-		store.query = '';
-		expandedCategories.value = new Set([...expandedCategories.value, created.category]);
+	if (outcome === null) return;
+	if (outcome.created) {
+		await hydrate();
+		const created = store.entryFor(outcome.assetId);
+		if (created !== null) {
+			store.query = '';
+			expandedCategories.value = new Set([...expandedCategories.value, created.category]);
+		}
 	}
-	performSelect(createdId);
+	performSelect(outcome.assetId);
 }
 async function onCreateAsset(): Promise<void> {
 	await draftGuard.leave(createAsset);
@@ -199,17 +243,28 @@ watch(context.assetId, async (assetId) => {
 		/>
 		<template v-if="failure === null || store.status === 'ready'">
 			<div class="rp-al-toolbar">
-				<label class="rp-al-search">
-					<span class="rp-al-search__label">{{ tr('view.asset-library.search.label') }}</span>
-					<input
-						ref="searchEl"
-						v-model="store.query"
-						type="search"
-						class="rp-al-search__input"
-						:placeholder="tr('view.asset-library.search.placeholder')"
-						@keydown.esc="store.query = ''"
+				<div class="rp-al-search">
+					<label class="rp-al-search__field">
+						<span class="rp-al-search__label">{{ tr('view.asset-library.search.label') }}</span>
+						<input
+							ref="searchEl"
+							v-model="store.query"
+							type="search"
+							class="rp-al-search__input"
+							:placeholder="tr('view.asset-library.search.placeholder')"
+							@keydown.esc="clearSearchField"
+						>
+					</label>
+					<button
+						v-if="store.query !== ''"
+						type="button"
+						class="rp-al-search__clear"
+						:aria-label="tr('empty.asset-library.no-matches.action')"
+						@click="clearSearchField"
 					>
-				</label>
+						×
+					</button>
+				</div>
 				<button
 					type="button"
 					class="rp-al-create"
@@ -227,6 +282,7 @@ watch(context.assetId, async (assetId) => {
 				</div>
 				<template v-else>
 					<AssetLibraryBody
+						ref="bodyRef"
 						:expanded="expandedCategories"
 						:selected-id="selectedId"
 						@toggle="toggleShelf"

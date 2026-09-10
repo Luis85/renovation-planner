@@ -295,4 +295,35 @@ describe('axe against the asset library', () => {
 			view.containerEl.remove();
 		}
 	});
+
+	/**
+	 * Task A/C4 review: the clear button used to be a second labelable descendant of
+	 * `<label class="rp-al-search">`, alongside the input it shared that label with — invalid
+	 * nesting no other case here scans, since the two empty-state cases above both search into a
+	 * dead end where the whole toolbar's field is the only interactive thing left standing. This
+	 * scans the field WITH a result showing, so the clear button, the label and a real matched row
+	 * are all in the tree axe grades at once.
+	 */
+	it('reports no semantic violations with the clear-search control showing beside a matched row', async () => {
+		const view = await mountLibraryWith([anAxeCatalogueEntry()]);
+		const field = view.contentEl.querySelector<HTMLInputElement>('.rp-al-search__input');
+
+		try {
+			expect(field).not.toBeNull();
+			const input = field as HTMLInputElement;
+			input.value = 'Oak';
+			input.dispatchEvent(new Event('input'));
+			await flushPromises();
+
+			expect(view.contentEl.querySelector('.rp-al-search__clear')).not.toBeNull();
+			expect(view.contentEl.querySelector('.rp-al-row')).not.toBeNull();
+
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			await view.onClose();
+			view.containerEl.remove();
+		}
+	});
 });

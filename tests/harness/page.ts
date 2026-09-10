@@ -6,7 +6,9 @@
  * (Task B10) opens the asset designer the same way, `?view=asset-library` (Task 17) opens the
  * asset library — with `&asset=<id>` seeding a selection, which is what §7's narrow composition
  * needs to draw at all — `?project=<id>` opens the Renovation Project view's DETAIL state on a
- * seeded project of that id rather than its list, `?projects=<n>` and `?q=<text>` (Task 12) open
+ * seeded project of that id rather than its list — with `&plans=<n>` seeding that many plans
+ * instead of the default full list, which is what reaches slice 22's start variant at `0` —
+ * `?projects=<n>` and `?q=<text>` (Task 12) open
  * its LIST state over a seeded vault of that size with the filter already carrying that query,
  * and `?index` (or an `?entry=`) opens the harness index. A query parameter rather than a second
  * page, for the same reason `?theme`, `?phone` and `?lang` are ones: a headless screenshot needs
@@ -193,6 +195,13 @@ if (wantsIndex) {
 	 * empty vault the bare root already draws.
 	 */
 	const asked = Math.max(0, Number.parseInt(params.get('projects') ?? '', 10));
+	/**
+	 * `?plans=<n>` (design slice 22): how many plans the seeded DETAIL project holds, so a capture
+	 * can reach the start variant its entry guidance draws at zero. Parsed and clamped exactly as
+	 * `?projects=` is, for the reasons that knob's own paragraph gives — a negative slices from
+	 * the END and would photograph a full list under a URL asking for an empty one.
+	 */
+	const askedPlans = Math.max(0, Number.parseInt(params.get('plans') ?? '', 10));
 	view = wantsPlanEditor
 		? mountPlanEditorHarness(document.body, {
 				select: selectZoneId ?? undefined,
@@ -211,6 +220,7 @@ if (wantsIndex) {
 				? mountAssetLibraryHarness(document.body, params.get('asset'), params.get('assets') === '0').view
 				: mountHarness(document.body, {
 						projectId: params.get('project'),
+						plans: Number.isFinite(askedPlans) ? askedPlans : undefined,
 						projects: Number.isFinite(asked) ? asked : undefined,
 						initialQuery: params.get('q') ?? undefined,
 						section: params.get('section') === 'prices' ? 'prices' : 'details',

@@ -24,6 +24,7 @@ import { provideEditorRuntime } from './runtime';
 import { useEditorArrival } from './renovation/editorArrival';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
+import { usePlanHierarchyStore } from '../stores/PlanHierarchyStore';
 import { useSaveStateStore } from './save-state/save-state-store';
 import DialogHost from '../dialogs/DialogHost.vue';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
@@ -64,6 +65,7 @@ const planning = providePlanningContext(context, runtime);
 provideReviewPresentation(context, runtime);
 provideNoteCreation(runtime, planning);
 const projectStore = useProjectStore();
+const planHierarchy = usePlanHierarchyStore();
 const selection = useSelectionStore();
 const dialogs = useDialogStore(), editor = useEditorStore();
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
@@ -265,6 +267,7 @@ function retireAddMenu(): void {
 
 function hydrate(): void {
 	void runtime.refreshProjection().catch(cause => { if (root.value) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); });
+	void planHierarchy.load(context.queries, context.planId).catch(cause => { if (root.value) notifyFault(cause, context.commands.logger, 'editor.hierarchy.failed'); });
 }
 
 /**

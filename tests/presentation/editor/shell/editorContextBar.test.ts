@@ -4,8 +4,10 @@
  * replacing the toolbar `EditorToolbar.vue` used to carry.
  */
 import { describe, expect, it } from 'vitest';
+import { ok } from '../../../../src/core/result/Result';
 import { t } from '../../../../src/presentation/i18n/strings';
-import { fakeQueries, mountPlanEditor, mountPlanEditorCanvas } from '../../../helpers/editor';
+import { fakeQueries, mountPlanEditor, mountPlanEditorCanvas, settle } from '../../../helpers/editor';
+import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../../helpers/planFixtures';
 
 describe('EditorContextBar', () => {
 	it('names the project and the floor as a breadcrumb', async () => {
@@ -50,5 +52,34 @@ describe('EditorContextBar', () => {
 		const harness = await mountPlanEditorCanvas();
 		expect(harness.wrapper.find('.rp-editor-toolbar').exists()).toBe(false);
 		expect(harness.wrapper.find('[role="toolbar"]').exists()).toBe(false);
+	});
+
+	it('puts the plan ancestry between the project and the floor, each crumb opening its plan', async () => {
+		const opened: string[] = [];
+		const harness = await mountPlanEditorCanvas({
+			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: (id) => { opened.push(id); return Promise.resolve(); } },
+			queries: {
+				...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site' }, { id: 'plan-house', name: 'House' }], detailPlans: [], parentZone: null, parentZoneMissing: true })),
+			},
+		});
+		await settle();
+		expect(harness.wrapper.findAll('.rp-context-bar__crumb').map((crumb) => crumb.text())).toEqual(['Willow House', 'Site', 'House', 'Ground floor']);
+		await harness.wrapper.get('.rp-context-bar [data-rp-open-plan="plan-site"]').trigger('click');
+		expect(opened).toEqual(['plan-site']);
+		expect(harness.wrapper.text()).toContain(t('en', 'editor.input.parent-zone-missing'));
+	});
+
+	it('draws the ancestry crumbs as text when the leaf has no navigation', async () => {
+		const harness = await mountPlanEditorCanvas({
+			queries: {
+				...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site' }], detailPlans: [], parentZone: null, parentZoneMissing: false })),
+			},
+		});
+		await settle();
+
+		expect(harness.wrapper.find('.rp-context-bar [data-rp-open-plan]').exists()).toBe(false);
+		expect(harness.wrapper.findAll('.rp-context-bar__crumb').map((crumb) => crumb.text())).toEqual(['Willow House', 'Site', 'Ground floor']);
 	});
 });

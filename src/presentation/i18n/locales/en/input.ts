@@ -9,4 +9,5 @@ export const inputEn = {
 	'editor.input.unlock': 'Unlock {name}',
 	'editor.input.locked': 'Locked',
 	'editor.input.unavailable': 'Not available while another tool or edit is active.',
+	'editor.input.parent-zone-missing': 'The room this plan details no longer exists',
 } as const;

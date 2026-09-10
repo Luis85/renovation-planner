@@ -24,9 +24,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
 	/**
 	 * Whether evidence pins — notes and photos — are drawn. The Layers panel's "Notes and
-	 * photos" row (sidebar polish, 2026-09-10). Not a Konva layer: pins are drawn by the zone
-	 * AND the annotation layers, so the gate sits where `PlanCanvas` computes the pin list
-	 * rather than on either layer's `visible`.
+	 * photos" row (sidebar polish, 2026-09-10). Not a Konva layer: the annotation layer draws
+	 * the pins and the zone layer uses the same list for caption clearance, so the gate sits
+	 * where `PlanCanvas` computes the pin list rather than on either layer's `visible`.
 	 */
 	const notesVisible = ref(true);
 

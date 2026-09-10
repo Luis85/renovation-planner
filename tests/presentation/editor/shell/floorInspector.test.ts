@@ -78,6 +78,8 @@ describe('the guidance region', () => {
 		await nextTick();
 
 		expect(harness.wrapper.find('.rp-selection-guidance').text()).toBe(t('en', 'editor.inspector.floor.guidance'));
+		// Announced, never drawn: a visible line here pushed the canvas down for one tick on every deselect.
+		expect(harness.wrapper.find('.rp-selection-guidance').classes()).toContain('rp-visually-hidden');
 
 		harness.changePlan();
 		await settle();

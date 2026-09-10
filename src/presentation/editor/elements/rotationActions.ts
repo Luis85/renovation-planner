@@ -21,7 +21,6 @@ import { screenPoint, screenToWorld, STAGE_PIXELS, worldPerScreenPixel } from '.
 import ObjectRotationForm from './ObjectRotationForm.vue';
 import { rotationChanged, rotationDegreesBetween, rotationHandleGeometry, rotationPivot, rotationPoints, type NamedRotationShape, type RotationShape } from './objectRotation';
 import { projectedRotationTarget, readRotationBaseline, type RotationBaseline } from './rotationBaseline';
-import { layoutRotationControls } from './rotationControl';
 import type { createGroupActions } from '../groups/groupActions';
 
 export type RotationRuntime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & {
@@ -80,8 +79,8 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 	const displayControls = computed(() => {
 		const shape = displayTarget.value;
 		if (!permitted(shape) || !shape || active.value || !sourceVisible(shape, workspace.layerVisibility)) return [];
-		const pivot = rotationPivot(shape);
-		return pivot ? layoutRotationControls(shape, pivot, worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value) : [];
+		const control = rotationHandleGeometry(shape, worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value);
+		return control ? [control] : [];
 	});
 	function previewShape(id: string | null, points?: readonly Point[]): void {
 		if (id === null) { clear(); return; }

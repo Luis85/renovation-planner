@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ElementRotation, type RotationGestureDeps } from '../../../src/presentation/editor/elements/ElementRotation';
 import { rotationHandleGeometry, rotationPoints } from '../../../src/presentation/editor/elements/objectRotation';
-import { layoutRotationControls, rotationControlApproachContains, rotationControlContains } from '../../../src/presentation/editor/elements/rotationControl';
+import { layoutRotationControl, rotationControlApproachContains, rotationControlContains } from '../../../src/presentation/editor/elements/rotationControl';
 import { resolveSelectionTarget } from '../../../src/presentation/editor/selection/resolveSelectionTarget';
 import { screenPoint } from '../../../src/presentation/editor/viewport/Viewport';
 import { pointerAt, toolContext } from '../../helpers/tool-context';
@@ -9,20 +9,26 @@ import { expectDefined } from '../../helpers/domain';
 import { SelectTool, type SelectToolDeps } from '../../../src/presentation/editor/tools/select-tool';
 
 const shape = { id: 'object', kind: 'object' as const, points: [{ x: 100, y: 200 }, { x: 500, y: 200 }, { x: 500, y: 400 }, { x: 100, y: 400 }] };
-it.each([0.2, 1, 4])('places bounded edge arrows with separate 44px rectangles at scale %s', scale => {
-	const pivot = { x: 300, y: 300 }, controls = layoutRotationControls(shape, pivot, scale);
-	expect(controls.length).toBeGreaterThan(0); expect(controls.length).toBeLessThanOrEqual(4);
-	for (const [index, control] of controls.entries()) {
-		expect(control.widthPx).toBe(44); expect((control.bounds.max.y - control.bounds.min.y) / scale).toBeCloseTo(44);
-		expect(Math.hypot(control.handle.x - control.anchor.x, control.handle.y - control.anchor.y) / scale).toBeLessThanOrEqual(36);
-		for (const other of controls.slice(index + 1)) expect(control.bounds.max.x < other.bounds.min.x || other.bounds.max.x < control.bounds.min.x || control.bounds.max.y < other.bounds.min.y || other.bounds.max.y < control.bounds.min.y).toBe(true);
-	}
+it.each([0.2, 1, 4])('places one bounded edge arrow with a 44px rectangle at scale %s', scale => {
+	const control = expectDefined(layoutRotationControl(shape, { x: 300, y: 300 }, scale), 'edge arrow');
+	expect(control.widthPx).toBe(44); expect((control.bounds.max.y - control.bounds.min.y) / scale).toBeCloseTo(44);
+	expect(Math.hypot(control.handle.x - control.anchor.x, control.handle.y - control.anchor.y) / scale).toBeLessThanOrEqual(36);
 });
 it('keeps a tiny item’s approach corridor hover-only, without turning it into an oversized click target', () => {
-	const control = expectDefined(layoutRotationControls(shape, { x: 300, y: 300 }, 50)[0], 'tiny item control');
+	const control = expectDefined(layoutRotationControl(shape, { x: 300, y: 300 }, 50), 'tiny item control');
 	const point = { x: control.anchor.x + (control.handle.x - control.anchor.x) * 0.15, y: control.anchor.y + (control.handle.y - control.anchor.y) * 0.15 };
 	expect(rotationControlApproachContains(control, point, 50)).toBe(true);
 	expect(rotationControlContains(control.bounds, point)).toBe(false);
+});
+it.each([0.2, 1, 4])('reaches the arrow from every point of its edge along a straight path, and nowhere far beyond, at scale %s', scale => {
+	const control = expectDefined(layoutRotationControl(shape, { x: 300, y: 300 }, scale), 'edge arrow');
+	const [a, b] = control.edge;
+	for (let along = 0; along <= 10; along++) {
+		const from = { x: a.x + (b.x - a.x) * along / 10, y: a.y + (b.y - a.y) * along / 10 };
+		for (let step = 0; step <= 10; step++) expect(rotationControlApproachContains(control, { x: from.x + (control.handle.x - from.x) * step / 10, y: from.y + (control.handle.y - from.y) * step / 10 }, scale)).toBe(true);
+	}
+	expect(rotationControlApproachContains(control, { x: 300, y: 300 }, scale)).toBe(false);
+	expect(rotationControlApproachContains(control, { x: control.handle.x, y: control.handle.y + 3 * (control.handle.y - control.anchor.y) }, scale)).toBe(false);
 });
 it('uses the expansion port before taking a fresh target and refuses a retired selection', () => {
 	const context = toolContext().context, control = expectDefined(rotationHandleGeometry(shape, 1), 'control');

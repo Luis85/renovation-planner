@@ -46,11 +46,17 @@ export class InMemoryProjectIndex implements ProjectIndex {
 		return [...this.excludedByPath.values()];
 	}
 
+	/**
+	 * An axis whose key did not change is left alone rather than deleted and re-added: a `Set`
+	 * re-add moves the id to the END, and these lists are the plan's zone order — so locking or
+	 * renaming a zone jumped its row, and its draw order, to the bottom.
+	 */
 	upsert(entry: ProjectIndexEntry): void {
 		const previous = this.byId.get(entry.id);
-		if (previous) this.unindex(previous);
 		this.byId.set(entry.id, entry);
-		this.index(entry);
+		this.move(this.idsByType, previous?.type, entry.type, entry.id);
+		this.move(this.idsByProject, previous?.projectId, entry.projectId, entry.id);
+		this.move(this.spatialIdsByPlan, previous?.planId, entry.planId, entry.id);
 	}
 
 	remove(id: EntityId<string>): void {
@@ -95,6 +101,12 @@ export class InMemoryProjectIndex implements ProjectIndex {
 		this.idsByType.get(entry.type)?.delete(entry.id);
 		if (entry.projectId) this.idsByProject.get(entry.projectId)?.delete(entry.id);
 		if (entry.planId) this.spatialIdsByPlan.get(entry.planId)?.delete(entry.id);
+	}
+
+	private move(map: Map<string, Set<string>>, from: string | undefined, to: string | undefined, id: string): void {
+		if (from === to) return;
+		if (from) map.get(from)?.delete(id);
+		if (to) this.addTo(map, to, id);
 	}
 
 	private addTo(map: Map<string, Set<string>>, key: string, id: string): void {

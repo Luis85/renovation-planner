@@ -219,11 +219,11 @@ kind — `detailPlanActions.ts`, `useCanvasMenuActions.ts`):
 
 The detail-plan list refreshes on hydrate and after this leaf's own Create. The plan-change
 source filters `PlanCreated` by the created plan's own id, so a detail plan created from a
-different leaf of the same parent appears on that leaf's next hydrate rather than immediately;
-widening the source is not worth a payload change for that case. (implementation, 2026-09-11:
-`src/application/events/planChangeSource.ts` does not subscribe to `PlanCreated` at all — it is
-absent from `PLAN_CHANGE_EVENTS` — so a detail plan created in another leaf of the same parent
-appears on this leaf's next hydrate, with no filtering-by-id involved.)
+different leaf of the same parent appears the next time that editor opens or retries rather than
+immediately; widening the source is not worth a payload change for that case. (implementation,
+2026-09-11: `src/application/events/planChangeSource.ts` does not subscribe to `PlanCreated` at
+all — it is absent from `PLAN_CHANGE_EVENTS` — so a detail plan created in another leaf of the
+same parent appears the next time this editor opens or retries, with no filtering-by-id involved.)
 
 ### 4.7 Going up
 

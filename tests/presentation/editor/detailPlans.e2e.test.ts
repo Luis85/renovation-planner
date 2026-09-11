@@ -1,17 +1,21 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
 import { referenceWorkspace } from '../../harness/referenceWorkspace';
 import { HARNESS_PLAN, harnessDeps } from '../../harness/planEditor';
-import { mountPlanEditorCanvas, runtimeOf, settle, settleUntil } from '../../helpers/editor';
+import { fakeQueries, mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle, settleUntil } from '../../helpers/editor';
 import { expectFound, expectOk } from '../../helpers/domain';
+import { err, ok } from '../../../src/core/result/Result';
 import { CreatePlanCommand } from '../../../src/application/commands/plan/CreatePlan';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
-import { readPlanHierarchy } from '../../../src/presentation/read-models/planHierarchy';
+import { NO_HIERARCHY, readPlanHierarchy } from '../../../src/presentation/read-models/planHierarchy';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
+import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
+import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 
 const unmounts: (() => void)[] = [];
 afterEach(() => { for (const unmount of unmounts.splice(0)) unmount(); });
@@ -33,6 +37,38 @@ async function rig() {
 	const menu = async () => { harness.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle(); };
 	return { workspace, stack, harness, runtime, selection, dialogs, opened, menu };
 }
+
+const HYDRATION_FAULT: RepositoryError = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' };
+
+/**
+ * D1: `planHierarchy.load` used to run inside `hydrate()`, which `PlanEditorRoot` also
+ * re-runs on every `onPlanChanged` event of THIS plan — a zone gesture, a background change,
+ * a delete — none of which can change what the parent-zone guide or the detail-plan list
+ * show. It now loads at mount and on the editor's retry path only.
+ */
+it('loads the hierarchy once at mount, again on retry, but not on a plan-change event', async () => {
+	let calls = 0;
+	const hierarchy: NonNullable<PlanEditorQueryServices['hierarchy']> = () => {
+		calls += 1;
+		return Promise.resolve(ok(NO_HIERARCHY));
+	};
+	// The plan read fails and keeps failing, so the failure view's retry action stays offered
+	// after being used once — the same shape `planEditorFailure.test.ts` drives.
+	const getPlan = () => Promise.resolve(err(HYDRATION_FAULT));
+	const harness = await mountPlanEditor({ queries: { ...fakeQueries(null), getPlan, hierarchy } });
+	await flushPromises();
+	expect(calls).toBe(1);
+
+	harness.changePlan();
+	await flushPromises();
+	expect(calls).toBe(1);
+
+	await harness.wrapper.get('.rp-view-failure__action').trigger('click');
+	await flushPromises();
+	expect(calls).toBe(2);
+
+	harness.wrapper.unmount();
+});
 
 it('creates a detail plan named after the zone, opens it, and then lists it under that zone', async () => {
 	const r = await rig();

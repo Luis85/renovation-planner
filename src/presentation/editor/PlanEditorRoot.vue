@@ -265,9 +265,24 @@ function retireAddMenu(): void {
 	addButton.value = null;
 }
 
-function hydrate(): void {
+function refreshProjection(): void {
 	void runtime.refreshProjection().catch(cause => { if (root.value) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); });
+}
+
+function loadHierarchy(): void {
 	void planHierarchy.load(context.queries, context.planId).catch(cause => { if (root.value) notifyFault(cause, context.commands.logger, 'editor.hierarchy.failed'); });
+}
+
+/**
+ * Both reads together — mount and the two retry doors (`onFailureAction`, the stale
+ * warning's `retry`). A plan-change event runs `refreshProjection` alone: nothing a
+ * hierarchy read returns (ancestry, detail plans, the parent-zone outline) can change from
+ * THIS plan's own zone/background/delete events, so re-running it there was a read with no
+ * event that could invalidate it.
+ */
+function hydrate(): void {
+	refreshProjection();
+	loadHierarchy();
 }
 
 /**
@@ -340,9 +355,11 @@ onMounted(() => {
 	hydrate();
 });
 
-// The SAME routine on both occasions — open, and this plan changing underneath the view.
-// A second "refresh" path would be a second answer to what the canvas is showing.
-onBeforeUnmount(context.onPlanChanged(hydrate));
+// Mount and a plan-change event both re-read the projection, through the SAME routine — a
+// second "refresh" path would be a second answer to what the canvas is showing. The
+// hierarchy read is NOT part of that routine here (see `hydrate`'s own docblock): it loads
+// at mount and on retry, never on a per-event refresh.
+onBeforeUnmount(context.onPlanChanged(refreshProjection));
 const visibleOverlay = computed(() => renovationSession.perspective === 'plan' ? overlay.value : null);
 const showFloorStart = computed(() => visibleOverlay.value !== null && emptyStateKey.value === 'noBackground');
 const showAddMenu = computed(() => renovationSession.perspective !== 'review' && addMenuOpen.value);

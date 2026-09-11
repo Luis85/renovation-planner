@@ -46,8 +46,8 @@ trigger, met by a lighter structure than the Floor identity ADR-0017 anticipated
 - ADR-0017's "no persisted hierarchy" is amended to one optional, immutable link.
 - A vault opened in an older build refuses detail plan notes.
 - Deleting a zone leaves its detail plans; they lose the guide and say so.
-- A detail plan created in one leaf appears in another leaf of the same parent on that leaf's next
-  hydrate, not immediately.
+- A detail plan created in one leaf appears in another leaf of the same parent the next time that
+  leaf opens or retries, not immediately.
 
 ## Revisit when
 

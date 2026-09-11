@@ -1,4 +1,7 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
+import type { AssetDesignDto, AssetDesignError } from '../../application/queries/GetAssetDesign';
+import type { AssetId } from '../../domain/asset/AssetId';
+import { readAssetShapes, type AssetShapeAnswer } from './assetShapes';
 import type { ListPlansByProjectInput, PlanListResult } from '../../application/queries/ListPlansByProject';
 import { readPlanHierarchy, type PlanHierarchyDto } from './planHierarchy';
 import type { Structure } from '../../domain/spatial/Structure';
@@ -119,6 +122,12 @@ export interface PlanEditorQueryServices {
 	 * double that predates it already means.
 	 */
 	hierarchy?(planId: string): Promise<Result<PlanHierarchyDto, RepositoryError>>;
+	/**
+	 * The shapes placements are drawn and measured from, per asset. Optional for the reason the
+	 * slice-10 members are: a rig with no asset library answers nothing, and every placement is
+	 * then drawn as a placeholder rather than hidden.
+	 */
+	assetShapes?(assetIds: readonly string[]): Promise<ReadonlyMap<string, AssetShapeAnswer>>;
 }
 
 /**
@@ -190,8 +199,10 @@ export function createPlanEditorQueries(queries: {
 	readonly listAssets?: Query<void, Result<readonly Asset[], RepositoryError>>;
 	readonly listRequirementsReferencing?: Query<ReferencedTarget, Result<readonly ReferencingGroup[], RepositoryError>>;
 	readonly listReassignmentTargets?: Query<ReferencedTarget, Result<readonly ReassignmentTargetDto[], RepositoryError>>;
+	readonly getAssetDesign?: Query<AssetId, Result<AssetDesignDto, AssetDesignError>>;
 }): PlanEditorQueryServices {
 	const listPlansByProject = queries.listPlansByProject;
+	const getAssetDesign = queries.getAssetDesign;
 	return {
 		...(listPlansByProject === undefined
 			? {}
@@ -202,6 +213,7 @@ export function createPlanEditorQueries(queries: {
 							planId,
 						),
 				}),
+		...(getAssetDesign ? { assetShapes: (ids: readonly string[]) => readAssetShapes(getAssetDesign, ids) } : {}),
 		async getPlan(planId) {
 			const found = await queries.getPlan.execute({ planId: planId as PlanId });
 			if (isErr(found)) return found;

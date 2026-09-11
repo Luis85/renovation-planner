@@ -546,6 +546,7 @@ export function createCompositionRoot(
 				...guarded.queries,
 				...guarded.requirementQueries,
 				listPlansByProject: guarded.listPlansByProject,
+				getAssetDesign: guarded.assetDesign.get,
 			}),
 			subscriptions: slice10.subscriptions,
 			markers,

@@ -2,6 +2,9 @@ import { groupGeometryServices } from '../../src/application/commands/spatial/Gr
 import { renovationServices } from '../../src/application/commands/renovation/RenovationCommand';
 import { createPlanChangeSource } from '../../src/application/events/planChangeSource';
 import { createVaultFileChangeSource } from '../../src/infrastructure/obsidian/vault/vaultFileChanges';
+import { GetAssetDesignQuery } from '../../src/application/queries/GetAssetDesign';
+import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
+import { readAssetShapes } from '../../src/presentation/read-models/assetShapes';
 import { planningWorkspace } from './planningWorkspace';
 import { createRepositoryStack } from '../helpers/vault';
 import { makeAsset, makePlan, makeProject } from '../helpers/entities';
@@ -56,6 +59,7 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 		queries: { ...base.queries,
 			getPlan: async () => { await ready; const result = await stack.plans.getById(plan.id); return result.ok ? ok(result.value ? toPlanDto(result.value.entity) : null) : result; },
 			findZonesByPlan: async () => { await ready; const snapshot = await geometry.read(plan.id); if (!snapshot.ok) return snapshot; const result = await stack.zones.listByPlan(plan.id); return result.ok ? ok({ zones: result.value.loaded.map(z => toZoneDto(z.entity)), unreadable: result.value.refused, structure: snapshot.value.document.structure, intended: snapshot.value.document.intended, groups: snapshot.value.document.groups }) : result; },
+			assetShapes: async ids => { await ready; return readAssetShapes(new GetAssetDesignQuery(stack.assets, new ObsidianAssetGeometrySidecar(stack.assetGeometry)), ids); },
 		},
 		commands: { ...base.commands, groups: groupGeometryServices(geometry, stack.zones, stack.events), referencePlan: services, zones: stack.zones, events: stack.events,
 			...(planning ? planningWorkspace(stack, geometry) : { renovation: renovationServices(stack.plans, geometry, stack.events) }),

@@ -309,7 +309,12 @@ describe('mount and unmount', () => {
 		// PAIR is what stops a build that merges the two doors back together from passing —
 		// one that subscribed both to `onPlanChanged` would read 2 and 0 again.
 		expect(planListeners).toBe(1);
-		expect(catalogueListeners).toBe(1);
+		// TWO on the catalogue door now: the assign picker's reload above, and
+		// `watchAssetShapes` (`assetShapeLoader.ts`), which re-reads placement shapes when the
+		// library changes — its own door rather than more traffic through the picker's, for the
+		// reason `onCatalogueChanged`'s docblock states about every door on this context: two
+		// readers with different questions share one subscription only by coincidence.
+		expect(catalogueListeners).toBe(2);
 		// The two doors the unit-cost block added. Counted for the same reason and asserted the
 		// same way: each is a subscription the runtime takes once and must give back once.
 		expect(priceListeners).toBe(1);

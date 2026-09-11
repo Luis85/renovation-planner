@@ -7,9 +7,11 @@ import type { RotationGestureDeps } from './ElementRotation';
 import { createCurveTask, type CurveTaskRuntime } from '../curves/curveTask';
 import { createGroupActions } from '../groups/groupActions';
 import type { SelectionInteractions } from '../selection/selectionInteractions';
+import { watchAssetShapes } from './assetShapeLoader';
 
 /** Compose the existing per-leaf element/rotation actions and their shared pointer bindings. */
 export function createSpatialEditing(context: PlanEditorContext, runtime: Parameters<typeof createElementTask>[1] & Parameters<typeof createElementActions>[1] & Omit<RotationRuntime, 'elementActions'> & CurveTaskRuntime) {
+	watchAssetShapes(context);
 	const elementTask = createElementTask(context, runtime);
 	const elementActions = createElementActions(context, runtime);
 	const groupActions = createGroupActions(context, { ...runtime, spatialBusy: () => elementActions.active.value || runtime.wall?.active.value === true });

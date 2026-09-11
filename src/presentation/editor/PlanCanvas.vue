@@ -31,6 +31,7 @@ import type { BackgroundStatus } from './layers/background/BackgroundRenderModel
 import EditorSurface from './surface/EditorSurface.vue';
 import type { StringKey } from '../i18n/locales/en';
 import BackgroundLayer from './layers/background/BackgroundLayer.vue';
+import ParentZoneGuide from './hierarchy/ParentZoneGuide.vue';
 import EmptyLayer from './layers/EmptyLayer.vue';
 import InteractionLayer from './layers/InteractionLayer.vue';
 import ZoneLayer from './layers/zone/ZoneLayer.vue';
@@ -120,7 +121,12 @@ const framedBounds = usePlanFrame();
 					:file-changes="context.onVaultFileChanged"
 					@status="(status) => emit('backgroundStatus', status)"
 					@reference-points="onReferencePoints"
-				/>
+				>
+					<ParentZoneGuide
+						:tokens="props.tokens"
+						:zoom="viewport.zoom"
+					/>
+				</BackgroundLayer>
 				<StructureLayer
 					:transform="transform"
 					:tokens="props.tokens"

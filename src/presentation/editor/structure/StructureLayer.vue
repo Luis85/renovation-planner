@@ -14,6 +14,7 @@ import { type Wall } from '../../../domain/spatial/Structure';
 import { useDrawnStructure } from './drawnStructure';
 import ElementShapes from '../elements/ElementShapes.vue';
 import { isElementTool } from '../elements/elementDraft';
+import { withElementPreviews } from '../elements/elementPreviews';
 import WallDraftOverlay from './WallDraftOverlay.vue';
 import { wallPasses } from './wallPasses';
 import { useEditorStore } from '../../stores/EditorStore';
@@ -33,7 +34,7 @@ const noDraftPoints: readonly Point[] = [];
 const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall' ? task.draft.points : noDraftPoints);
 function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
-const elements = computed(() => (structure.value.elements ?? []).map(element => runtime.rotationActions.preview.value?.id === element.id ? { ...element, name: runtime.rotationActions.preview.value.name, points: runtime.rotationActions.preview.value.points } : runtime.elementActions.preview.value?.id === element.id ? runtime.elementActions.preview.value : ({ ...element, name: elementNames.value.get(element.id) ?? element.id })));
+const elements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind !== 'asset'), elementNames.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value));
 const elementDraft = computed(() => {
 	const draft = runtime.elementTask.draft;
 	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];

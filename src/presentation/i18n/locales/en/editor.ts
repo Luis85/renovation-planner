@@ -428,6 +428,7 @@ export const editorEn = {
 	'editor.view': 'View',
 	'editor.view.fit-floor': 'Fit floor',
 	'editor.view.fit-selection': 'Fit selection',
+	'editor.view.fit-nothing': 'Nothing on this floor to fit yet.',
 	'editor.view.zoom-in': 'Zoom in',
 	'editor.view.zoom-out': 'Zoom out',
 	'editor.view.grid': 'Show grid',

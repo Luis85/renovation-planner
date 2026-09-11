@@ -47,7 +47,8 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	return computed<readonly CanvasMenuAction[]>(() => {
 		const ids = selection.selectedIds, id = ids[0];
 		const blocked = runtime.writesBlocked.value, review = session.perspective === 'review', panning = runtime.activeToolId.value === 'pan';
-		const result: CanvasMenuAction[] = [{ id: 'fit', label: ids.length ? 'editor.view.fit-selection' : 'editor.view.fit-floor', group: 'view', icon: 'maximize', disabled: frame(ids.length === 0) === null, run: () => fit(ids.length === 0) }];
+		const nothingToFit = frame(ids.length === 0) === null;
+		const result: CanvasMenuAction[] = [{ id: 'fit', label: ids.length ? 'editor.view.fit-selection' : 'editor.view.fit-floor', group: 'view', icon: 'maximize', disabled: nothingToFit, ...(nothingToFit ? { reason: 'editor.view.fit-nothing' as const } : {}), run: () => fit(ids.length === 0) }];
 		// Hidden rather than greyed when nothing selected is copyable: every disabled reason here names an edit, and Copy is not one.
 		if (clipboard?.canCopy.value) result.push({ id: 'copy', label: 'editor.input.copy', group: 'object', icon: 'copy', run: () => { clipboard.copy(); } });
 		if (review) return result;

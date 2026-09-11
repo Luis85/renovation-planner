@@ -38,6 +38,8 @@ import ZoneLayer from './layers/zone/ZoneLayer.vue';
 import StructureLayer from './structure/StructureLayer.vue';
 import RenovationLayer from './renovation/RenovationLayer.vue';
 import { usePlanFrame } from './viewport/usePlanFrame';
+import { usePlanHierarchyStore } from '../stores/PlanHierarchyStore';
+import { guideFramePoints } from './hierarchy/parentZoneGuide';
 import CanvasGrid from './layers/CanvasGrid.vue';
 import RoomDimensionLabels from './resize/RoomDimensionLabels.vue';
 import DirectActionPopover from './selection/DirectActionPopover.vue';
@@ -87,8 +89,9 @@ const transform = computed(() => viewportTransform(viewport.value));
  */
 const { referencePoints } = storeToRefs(editor);
 function onReferencePoints(points: readonly Point[]): void { referencePoints.value = points; }
-watch([referencePoints, () => editor.stageSize, () => layerVisibility.value.background], ([points]) => {
- const bounds = boundsOfZones([{ points }]);
+const planHierarchy = usePlanHierarchyStore();
+watch([referencePoints, () => planHierarchy.hierarchy.parentZone, () => editor.stageSize, () => layerVisibility.value.background], ([points, parentZone]) => {
+ const bounds = boundsOfZones([{ points }, { points: guideFramePoints(parentZone) }]);
  if (bounds !== null && project.zones.size === 0 && project.structure.walls.length === 0 && !project.structure.elements?.length && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
 }, { flush: 'post' });
 const framedBounds = usePlanFrame();

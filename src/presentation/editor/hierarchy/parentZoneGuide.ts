@@ -1,3 +1,5 @@
+import { polygonPolyline } from '../../../core/geometry/curvePolyline';
+import type { Point } from '../../../core/geometry/Point';
 import type { ParentZoneOutlineDto } from '../../read-models/planHierarchy';
 
 /**
@@ -13,4 +15,13 @@ export function guideOutline(zone: ParentZoneOutlineDto): ParentZoneOutlineDto {
 	const minX = Math.min(...zone.points.map((point) => point.x));
 	const minY = Math.min(...zone.points.map((point) => point.y));
 	return { ...zone, points: zone.points.map((point) => ({ x: point.x - minX, y: point.y - minY })) };
+}
+
+/**
+ * The guide as points a frame can bound: its polyline at 1 mm, curves included, so Fit and the
+ * first-open fit frame what is drawn rather than only its vertices. Empty without a parent zone,
+ * which `boundsOfZones` skips.
+ */
+export function guideFramePoints(zone: ParentZoneOutlineDto | null): readonly Point[] {
+	return zone === null ? [] : polygonPolyline(guideOutline(zone));
 }

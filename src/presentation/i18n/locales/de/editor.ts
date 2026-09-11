@@ -342,6 +342,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.view': 'Ansicht',
 	'editor.view.fit-floor': 'Etage einpassen',
 	'editor.view.fit-selection': 'Auswahl einpassen',
+	'editor.view.fit-nothing': 'Auf diesem Geschoss gibt es noch nichts zum Einpassen.',
 	'editor.view.zoom-in': 'Vergrößern',
 	'editor.view.zoom-out': 'Verkleinern',
 	'editor.view.grid': 'Raster anzeigen',

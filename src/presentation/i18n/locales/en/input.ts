@@ -14,4 +14,6 @@ export const inputEn = {
 	'editor.input.parent-zone-missing': 'The room or area this plan details no longer exists',
 	'editor.input.detail-plan-new': 'New detail plan',
 	'editor.input.detail-plan-open': 'Open {name}',
+	'editor.input.detail-plan-guide-caption': '{name} · outline from {plan}',
+	'editor.input.detail-plan-guide-explainer': 'The dashed outline is {name} from {plan}. It is a guide only and is not saved on this plan. Add a reference plan cropped at the same top-left corner and set its scale, and the two line up.',
 } as const;

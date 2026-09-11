@@ -1,6 +1,6 @@
 import { polygonPolyline } from '../../../core/geometry/curvePolyline';
 import type { Point } from '../../../core/geometry/Point';
-import type { ParentZoneOutlineDto } from '../../read-models/planHierarchy';
+import type { ParentZoneOutlineDto, PlanHierarchyDto } from '../../read-models/planHierarchy';
 
 /**
  * The parent zone moved so its bounding box's top-left corner is world origin (ADR-0028). A new
@@ -24,4 +24,14 @@ export function guideOutline(zone: ParentZoneOutlineDto): ParentZoneOutlineDto {
  */
 export function guideFramePoints(zone: ParentZoneOutlineDto | null): readonly Point[] {
 	return zone === null ? [] : polygonPolyline(guideOutline(zone));
+}
+
+/**
+ * What the guide is a copy of, for its caption and the Inspector's explanation: the parent zone's
+ * name and the plan that zone sits on (the nearest ancestor). `null` when either is missing,
+ * which leaves the caption as the bare name and the Inspector silent.
+ */
+export function guideSource(hierarchy: PlanHierarchyDto): { readonly name: string; readonly plan: string } | null {
+	const plan = hierarchy.ancestry.at(-1);
+	return hierarchy.parentZone === null || plan === undefined ? null : { name: hierarchy.parentZone.name, plan: plan.name };
 }

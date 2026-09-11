@@ -269,6 +269,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.floor': 'Geschoss',
 	'editor.layer.reference-plan': 'Referenzplan',
 	'editor.layer.reference-plan.none': 'Diesem Geschoss wurde noch kein Referenzplan hinzugefügt.',
+	'editor.layer.reference-plan.guide-only': 'Zeigt den Umriss des Raums oder der Fläche, zu der dieser Plan gehört.',
 	'editor.layer.reference-plan.set-scale': 'Maßstab festlegen',
 	'editor.layer.rooms': 'Räume',
 	'editor.calibrate.distance.title': 'Reale Entfernung festlegen',

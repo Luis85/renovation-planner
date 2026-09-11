@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
 import { ok } from '../../../src/core/result/Result';
-import { guideFramePoints, guideOutline } from '../../../src/presentation/editor/hierarchy/parentZoneGuide';
+import { guideFramePoints, guideOutline, guideSource } from '../../../src/presentation/editor/hierarchy/parentZoneGuide';
 import { DEFAULT_VIEWPORT } from '../../../src/presentation/editor/viewport/Viewport';
 import { NO_HIERARCHY } from '../../../src/presentation/read-models/planHierarchy';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
@@ -64,6 +64,36 @@ describe('guideFramePoints', () => {
 		expect(guideFramePoints(null)).toEqual([]);
 		const xs = guideFramePoints(HOUSE).map((p) => p.x), ys = guideFramePoints(HOUSE).map((p) => p.y);
 		expect([Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]).toEqual([0, 0, 10000, 8000]);
+	});
+});
+
+const FROM_SITE = { ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan' }], parentZone: HOUSE };
+
+describe('guideSource', () => {
+	it('names the parent zone and the plan it sits on, and nothing without both', () => {
+		expect(guideSource(FROM_SITE)).toEqual({ name: 'House', plan: 'Site plan' });
+		expect(guideSource({ ...FROM_SITE, parentZone: null })).toBeNull();
+		expect(guideSource({ ...FROM_SITE, ancestry: [] })).toBeNull();
+	});
+});
+
+describe('explaining the guide on the canvas', () => {
+	it('captions the guide with its source', async () => {
+		const harness = await mountPlanEditorCanvas({ zones: [], queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok(FROM_SITE)) } });
+		await settle();
+		expect(harness.stage.findOne<Konva.Text>('.parent-zone-guide-caption')?.text()).toBe(t('en', 'editor.input.detail-plan-guide-caption', { name: 'House', plan: 'Site plan' }));
+		harness.unmount();
+	});
+
+	it('makes the Reference row a live toggle while a guide is drawn, and hiding it hides the guide', async () => {
+		const harness = await mountPlanEditorCanvas({ zones: [], queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok(FROM_SITE)) } });
+		await settle();
+		const checkbox = harness.wrapper.get('[data-rp-layer="reference"]');
+		expect(checkbox.attributes('disabled')).toBeUndefined();
+		await checkbox.trigger('change');
+		await settle();
+		expect(harness.stage.findOne<Konva.Line>('.parent-zone-guide')?.isVisible()).toBe(false);
+		harness.unmount();
 	});
 });
 

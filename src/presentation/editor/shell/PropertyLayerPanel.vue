@@ -11,6 +11,7 @@ import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import type { KonvaLayerId } from '../scene/KonvaLayers';
 import type { PlanDto } from '../../read-models/PlanDto';
@@ -23,6 +24,7 @@ const props = defineProps<{ plan: PlanDto | null }>();
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
 const { stale } = storeToRefs(useProjectStore());
+const { hierarchy } = storeToRefs(usePlanHierarchyStore());
 const records = useSpatialRecords();
 // Per-leaf on the runtime so selection mode survives panel reflow.
 const toggleSelection = runtime.multiSelectionMode;
@@ -47,7 +49,7 @@ const toggles = computed<LayerToggles>(() => ({
  * with no perspective gate at all, so Review already showed it (Ruling R13).
  */
 const entries = computed(() => {
-	const all = layerCatalogue(props.plan, toggles.value, stale.value);
+	const all = layerCatalogue(props.plan, toggles.value, stale.value, hierarchy.value.parentZone !== null);
 	return session.perspective === 'review' ? all.filter((entry) => entry.id === 'planned' || entry.id === 'notes') : all;
 });
 </script>

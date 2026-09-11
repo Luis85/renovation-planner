@@ -315,6 +315,7 @@ export const editorEn = {
 	'editor.floor': 'Floor',
 	'editor.layer.reference-plan': 'Reference plan',
 	'editor.layer.reference-plan.none': 'No reference plan has been added to this floor.',
+	'editor.layer.reference-plan.guide-only': 'Shows the outline of the room or area this plan details.',
 	'editor.layer.reference-plan.set-scale': 'Set scale',
 	'editor.layer.rooms': 'Rooms',
 	'editor.calibrate.distance.title': 'Set the real-world distance',

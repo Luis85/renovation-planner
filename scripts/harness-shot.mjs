@@ -445,13 +445,14 @@ const SHOTS = [
 	{ name: 'plan-editor-dark', query: '?view=plan-editor', selector: FLOOR_STATE },
 	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: FLOOR_STATE },
 	// Detail-plan polish (2026-09-11): a fresh detail plan and a locked zone, the two states the
-	// `?detail` and `?locked=` knobs exist for. The detail shots wait on the floor state until the
-	// guide explainer exists to wait on; the narrow one waits on the constrained rail like
-	// `plan-editor-narrow`, because the Inspector is not on screen at that width. The locked shots
-	// wait on a pressed lock toggle in the floor Inspector, which only renders once the knob has
-	// locked a zone.
-	{ name: 'plan-editor-detail', query: '?view=plan-editor&detail&theme=light', selector: FLOOR_STATE },
-	{ name: 'plan-editor-detail-dark', query: '?view=plan-editor&detail', selector: FLOOR_STATE },
+	// `?detail` and `?locked=` knobs exist for. The two wide detail shots wait on the guide
+	// explainer rather than the bare floor state: it draws only once the hierarchy read has
+	// landed, which is exactly the moment the guide (and the caption naming it) is on screen. The
+	// narrow one waits on the constrained rail like `plan-editor-narrow`, because the Inspector is
+	// not on screen at that width. The locked shots wait on a pressed lock toggle in the floor
+	// Inspector, which only renders once the knob has locked a zone.
+	{ name: 'plan-editor-detail', query: '?view=plan-editor&detail&theme=light', selector: '.rp-floor-inspector__guide' },
+	{ name: 'plan-editor-detail-dark', query: '?view=plan-editor&detail', selector: '.rp-floor-inspector__guide' },
 	{
 		name: 'plan-editor-detail-narrow-de',
 		query: '?view=plan-editor&detail&theme=light&lang=de',

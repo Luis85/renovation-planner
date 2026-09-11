@@ -22,7 +22,10 @@ import FloorSpatialLists from './FloorSpatialLists.vue';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import RenovationLinkedSummary from '../renovation/RenovationLinkedSummary.vue';
 import { computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
+import { guideSource } from '../hierarchy/parentZoneGuide';
 import { renovationSummary } from '../renovation/renovationSummary';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import HostIcon from '../../components/HostIcon.vue';
@@ -43,6 +46,9 @@ const context = usePlanEditorContext();
  */
 const summary = useFloorSummary();
 const project = useProjectStore();
+const { hierarchy } = storeToRefs(usePlanHierarchyStore());
+/** A detail plan's outline explained where nothing covers it (ADR-0028), while there is still a reference plan to line it up with. */
+const guide = computed(() => (project.plan?.background === null ? guideSource(hierarchy.value) : null));
 const starting = computed(() => project.emptyStateKey === 'noBackground' && project.zones.size === 0 && project.unreadableZones === 0);
 const roomAnnotations = computed(() => new Map(summary.value?.rooms.map(room => [room.id,
 	project.stale || project.unreadableZones > 0
@@ -79,6 +85,12 @@ const count = (value: number): string => String(value);
 		class="rp-floor-inspector"
 	>
 		<h3>{{ summary.floor.name }}</h3>
+		<p
+			v-if="guide"
+			class="rp-floor-inspector__guide"
+		>
+			{{ tr('editor.input.detail-plan-guide-explainer', guide) }}
+		</p>
 		<ReferenceAction />
 		<section
 			v-if="starting"

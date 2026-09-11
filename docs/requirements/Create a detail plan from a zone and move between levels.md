@@ -129,4 +129,14 @@ parent-zone-missing and parent-plan-missing reads), `tests/presentation/editor/p
 (the three parent-refusal cases). The manual walkthrough is
 `docs/tests/cases/Build detail plans from site to floor.md` and has not yet been run in a vault.
 
-**2026-09-11** — Detail-plan polish (`docs/superpowers/plans/2026-09-11-detail-plan-polish.md`) after a first vault user could not tell what the dashed outline was: the create dialog is titled for the zone, the guide's caption names its source plan, the floor Inspector explains it, Fit frames it, and a failed hierarchy read is said in the Property tree rather than presenting a parentless plan. Evidence: `tests/presentation/editor/parentZoneGuide.test.ts`, `tests/presentation/editor/shell/floorInspector.test.ts`, `tests/presentation/stores/planHierarchyStore.test.ts`. The manual walkthrough is still unrun.
+**2026-09-11** — Detail-plan polish (`docs/superpowers/plans/2026-09-11-detail-plan-polish.md`)
+after a first vault user could not tell what the dashed outline was: the create dialog is titled
+for the zone, the guide's caption names its source plan, the floor Inspector explains it, Fit
+frames it, and a failed hierarchy read is said in the Property tree rather than presenting a
+parentless plan. Evidence: `tests/presentation/editor/parentZoneGuide.test.ts`,
+`tests/presentation/editor/shell/floorInspector.test.ts`,
+`tests/presentation/stores/planHierarchyStore.test.ts`,
+`tests/presentation/editor/shell/propertyTree.test.ts`,
+`tests/presentation/editor/detailPlans.e2e.test.ts`, and
+`tests/presentation/editor/shell/editorContextBar.test.ts`. The manual walkthrough is still
+unrun.

@@ -64,7 +64,16 @@ unlocks it. Lock and unlock are saved with the zone and can be undone.
 
 ## Build detail plans from a zone
 
-Right-click a zone such as House or Garden and choose **New detail plan**. The dialog is titled for that zone, and the new plan is named after it and opens in its own tab. There it shows the zone's outline as a dashed guide in the top-left corner, captioned with the zone and the plan it comes from; with nothing selected, the Inspector says what the outline is. **Fit floor** frames the guide while the Reference plan layer is visible, and that layer's eye hides it. Crop the new plan's reference image at the same corner and calibrate it, and the drawing lines up with the guide. A zone can have several detail plans, for example one per floor, and its right-click menu lists **Open** for each. On a detail plan, the breadcrumb and the Property tree list every plan above it, and each name opens that plan. If the zone is later deleted, the outline disappears and the Property tree says so.
+Right-click a zone such as House or Garden and choose **New detail plan**. The dialog is titled
+for that zone, and the new plan is named after it and opens in its own tab. There it shows the
+zone's outline as a dashed guide in the top-left corner, captioned with the zone and the plan it
+comes from; with nothing selected and until a reference plan is added, the Inspector says what
+the outline is. **Fit floor** frames the guide while the Reference plan layer is visible, and
+that layer's eye hides it. Crop the new plan's reference image at the same corner and calibrate
+it, and the drawing lines up with the guide. A zone can have several detail plans, for example
+one per floor, and its right-click menu lists **Open** for each. On a detail plan, the breadcrumb
+and the Property tree list every plan above it, and each name opens that plan. If the zone is
+later deleted, the outline disappears and the Property tree says so.
 
 ## Group and enclose a room
 

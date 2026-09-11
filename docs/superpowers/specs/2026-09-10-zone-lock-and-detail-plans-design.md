@@ -247,15 +247,21 @@ extends ADR-0017's two-segment breadcrumb without adding persisted hierarchy bey
   detail plan does not move it, because it is derived on every hydrate rather than stored.
 - Hidden when the background layer is hidden.
 
-(detail-plan polish, 2026-09-11: a whole-plan fit and the empty-plan first-open fit include the guide while the background layer is visible, exactly as they include the reference; a selection fit never does. The caption reads "{name} · outline from {plan}", the floor Inspector explains the guide while the plan has no background, and with a guide but no background the Reference plan layer row is a live toggle — `usePlanFrame.ts`, `ParentZoneGuide.vue`, `FloorInspector.vue`, `layerCatalogue.ts`.)
+(detail-plan polish, 2026-09-11: a whole-plan fit and the empty-plan first-open fit include the
+guide while the background layer is visible, exactly as they include the reference; a selection
+fit never does. The caption reads "{name} · outline from {plan}", the floor Inspector explains
+the guide while the plan has no background, and with a guide but no background the Reference plan
+layer row is a live toggle — `usePlanFrame.ts`, `ParentZoneGuide.vue`, `FloorInspector.vue`,
+`layerCatalogue.ts`.)
 
 ### 4.9 When the parent is gone
 
 | Situation | Behaviour |
 | --- | --- |
-| Parent zone deleted or unreadable | Plan opens normally; no guide; the property context shows "Parent zone no longer exists". Up-link to the parent plan still works. |
+| Parent zone deleted or unreadable | Plan opens normally; no guide; the property context shows "The room or area this plan details no longer exists, so its outline is not shown." Up-link to the parent plan still works. |
 | Parent plan deleted or unreadable | Chain ends at the project; no guide. |
 | Zone with detail plans is deleted | Allowed, no extra warning; detail plans survive (see §5). |
+| Hierarchy read fails | Plan opens with the last hierarchy it had (none on first open); the Property tree says "Could not read which plans this one sits under." |
 
 ### 4.10 Documentation
 

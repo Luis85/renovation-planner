@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick, ref, type Ref } from 'vue';
 import RoomSummaryList from '../../../../src/presentation/editor/shell/RoomSummaryList.vue';
+import ZoneLockToggle from '../../../../src/presentation/editor/shell/ZoneLockToggle.vue';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../../src/presentation/editor/runtime';
 import { PLAN_EDITOR_CONTEXT } from '../../../../src/presentation/editor/PlanEditorContext';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
@@ -182,5 +183,65 @@ describe('RoomSummaryList', () => {
 
 		expect(getById).toHaveBeenCalledTimes(1);
 		expect(commitEdit).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * `ZoneLockToggle`'s `finally` guards `busy.value = false` with the same `alive` flag its
+	 * `catch` guards `notifyFault` with (set false in `onBeforeUnmount`), and only the `catch`
+	 * half had a test (the pair above). Vue raises no warning and schedules no work for a plain
+	 * `ref` write after a component unmounts — confirmed by running this exact scenario with the
+	 * `finally`'s guard made unconditional, which produced neither a thrown error nor an
+	 * `app.config.warnHandler`/`console.warn`/`console.error` call either way — so a spy on any
+	 * of those cannot tell the guarded and unguarded code apart. The one observable that remains
+	 * is the ref's own value, read straight off the unmounted instance the same way
+	 * `projectListGroups.test.ts`'s `completedOpen` and `editorArrival.test.ts`'s
+	 * `navigateToRecord` already reach into a script-setup binding no prop or emit carries.
+	 */
+	it('leaves busy set rather than clearing it when a pending read resolves after the toggle unmounts', async () => {
+		const zoneRead = ok({ entity: { name: 'Kitchen', zoneType: 'Room', locked: false }, version: KITCHEN_VERSION });
+		let resolveZone!: () => void;
+		const getById = vi.fn<() => Promise<typeof zoneRead>>(() => new Promise((resolve) => {
+			resolveZone = () => resolve(zoneRead);
+		}));
+		const { wrapper } = mountList(vi.fn(), { getById });
+		const lockToggle = wrapper.findComponent(ZoneLockToggle);
+
+		void wrapper.get('[data-rp-lock="zone-kitchen"]').trigger('click');
+		wrapper.unmount();
+		resolveZone();
+		await flushPromises();
+
+		expect((lockToggle.vm as unknown as { busy: boolean }).busy).toBe(true);
+	});
+
+	it('leaves busy set rather than clearing it when a pending read rejects after the toggle unmounts', async () => {
+		let rejectZone!: (cause: unknown) => void;
+		const getById = vi.fn<() => Promise<never>>(() => new Promise((_resolve, reject) => {
+			rejectZone = reject;
+		}));
+		vi.spyOn(notices, 'notifyFault').mockImplementation(() => undefined);
+		const { wrapper } = mountList(vi.fn(), { getById });
+		const lockToggle = wrapper.findComponent(ZoneLockToggle);
+
+		void wrapper.get('[data-rp-lock="zone-kitchen"]').trigger('click');
+		wrapper.unmount();
+		rejectZone(new Error('retired zone read'));
+		await flushPromises();
+
+		expect((lockToggle.vm as unknown as { busy: boolean }).busy).toBe(true);
+	});
+
+	it('clears busy so a completed, still-mounted toggle can dispatch a second time', async () => {
+		const { wrapper, commitEdit } = mountList();
+		const toggle = wrapper.get('[data-rp-lock="zone-kitchen"]');
+
+		await toggle.trigger('click');
+		await flushPromises();
+		expect(toggle.attributes('aria-disabled')).toBeUndefined();
+
+		await toggle.trigger('click');
+		await flushPromises();
+
+		expect(commitEdit).toHaveBeenCalledTimes(2);
 	});
 });

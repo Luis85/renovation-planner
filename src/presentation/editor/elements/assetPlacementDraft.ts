@@ -9,11 +9,11 @@ export interface AssetPlacementDraft {
 	assetId: string; name: string; shape: AssetShape | null;
 	preview: readonly [Point, Point] | null;
 	text: { x: string; y: string };
-	busy: boolean; error: AppError | null;
+	busy: boolean; conflict: boolean; error: AppError | null;
 }
 
 export function createAssetPlacementDraft(): AssetPlacementDraft {
-	return reactive({ assetId: '', name: '', shape: null, preview: null, text: { x: '', y: '' }, busy: false, error: null });
+	return reactive({ assetId: '', name: '', shape: null, preview: null, text: { x: '', y: '' }, busy: false, conflict: false, error: null });
 }
 
 /**

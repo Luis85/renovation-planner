@@ -84,6 +84,7 @@ it('reports a placement written from a stale baseline through the mapped error, 
 	const draft = rig.runtime.elementTask.assets.draft;
 	await settleUntil(() => draft.error !== null && !draft.busy, 'the conflict');
 	expect(draft.error?.code).toMatch(/revision-conflict$/);
+	expect(draft.conflict).toBe(true);
 	const alert = rig.wrapper.get('[data-rp-form="asset-place"] [role="alert"]').text();
 	expect(alert).toBe(trError(draft.error as NonNullable<typeof draft.error>));
 	expect(alert).not.toBe(draft.error?.message);

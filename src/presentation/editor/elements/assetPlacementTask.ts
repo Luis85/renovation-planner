@@ -4,7 +4,6 @@ import { createEntityId } from '../../../core/identity/generateId';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
-import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 import type { AssetShapeAnswer } from '../../read-models/assetShapes';
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
@@ -15,6 +14,7 @@ import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { useSelectionStore } from '../selection/selection-store';
+import { recordDraftFailure } from '../tools/with-stale-gate';
 import { AssetPlacementTool } from './AssetPlacementTool';
 import { createAssetPlacementDraft } from './assetPlacementDraft';
 import { elementInput } from './elementInput';
@@ -49,8 +49,7 @@ export function createAssetPlacementTask(context: PlanEditorContext, runtime: Pi
 			if (!baseline.ok) { draft.error = baseline.error; return false; }
 			const result = await runtime.dispatcher.run(services.command(baseline.value, elementInput(baseline.value, element), runtime.ledger));
 			if (result.ok) { draft.error = null; return true; }
-			draft.error = result.error;
-			if (WRITE_BOUNDARY_CODES.some(code => result.error.code.endsWith(code))) await runtime.refreshProjection();
+			await recordDraftFailure(draft, result.error, () => runtime.refreshProjection());
 			return false;
 		} catch (cause) { notifyFault(cause, context.commands.logger, 'editor.asset.write-failed'); return false; }
 		finally { draft.busy = false; }
@@ -59,7 +58,7 @@ export function createAssetPlacementTask(context: PlanEditorContext, runtime: Pi
 	async function choose(options: readonly { readonly id: string; readonly name: string }[]): Promise<void> {
 		const picked = await pickPlaceable(tr('editor.asset.pick-title'), options);
 		if (!picked) return;
-		Object.assign(draft, { assetId: picked.id, name: picked.answer.name, shape: picked.answer.shape, preview: null, error: null, text: { x: '', y: '' } });
+		Object.assign(draft, { assetId: picked.id, name: picked.answer.name, shape: picked.answer.shape, preview: null, error: null, conflict: false, text: { x: '', y: '' } });
 		runtime.setTool('place-asset');
 	}
 
@@ -76,7 +75,7 @@ export function createAssetPlacementTask(context: PlanEditorContext, runtime: Pi
 		const picked = await pickPlaceable(tr('editor.asset.replace-title'), options);
 		const name = project.plan?.spatialElements?.find(item => item.id === elementId)?.name;
 		if (!picked || !name) return;
-		draft.error = null;
+		draft.error = null; draft.conflict = false;
 		if (!(await write({ ...current, assetId: picked.id, name })) && draft.error) notifyOperationFailure(draft.error);
 	}
 

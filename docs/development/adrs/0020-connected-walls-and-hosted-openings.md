@@ -58,6 +58,14 @@ between a Room note write and compensation remains the existing ADR-0019 recover
 Acceptance evidence and remaining gaps are recorded with Phase 5, separately from this contract.
 
 
+## Room on the inner faces — 2026-09-11
+
+A Room offered by a closed wall loop is created on the walls' inner faces: its outline is the
+loop's centre lines moved inward by each wall's half thickness, mitred at the corners. It was
+the centre lines, which counted half of every wall as floor. A loop whose inner faces cannot
+meet is refused with `spatial.wall-offset`. Explicit enclosure follows the same rule from the
+other direction (ADR-0026's amendment).
+
 ## Opening swing and point-placement extension — 2026-09-08
 
 The user-approved opening-usability concern adds optional host-relative `Opening.swing`

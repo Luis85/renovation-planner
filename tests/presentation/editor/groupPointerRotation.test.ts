@@ -38,7 +38,7 @@ it('releases an edge-arrow group rotation as one reversible command', async () =
 	// The released group stays rotated while its write is pending instead of flicking back.
 	expect(rig.runtime.groupActions.preview.value).not.toBeNull(); unblock();
 	await settleUntil(() => rig.write.mock.calls.length === 1 && !rig.runtime.groupActions.active.value, 'group pointer rotation saved');
-	expect(rig.project.structure.walls[0].start).toEqual({ x: 3500, y: -500 });
+	expect(rig.project.structure.walls[0].start.x).toBeCloseTo(3575, 9); expect(rig.project.structure.walls[0].start.y).toBeCloseTo(-575, 9);
 	const after = expectOk(await rig.geometry.read(rig.plan.id)).document;
 	await rig.runtime.undo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(rig.before);
 	await rig.runtime.redo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(after); expect(rig.write).toHaveBeenCalledTimes(3);

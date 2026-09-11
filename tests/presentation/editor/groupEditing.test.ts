@@ -38,6 +38,14 @@ it('encloses a Room in one saved group and restores both walls and membership on
 	await rig.runtime.undo(); expect(rig.project.groups).toEqual([]); expect(rig.project.structure.walls).toEqual([]);
 	await rig.runtime.redo(); expect(rig.project.groups).toEqual([group]); expect(rig.project.structure.walls).toHaveLength(4);
 });
+it('encloses a Room beside another Room with one centred wall on the edge they share and the rest outside', async () => {
+	const { rig, room } = await setup(false);
+	const pantry = makeZone({ projectId: rig.plan.projectId, planId: rig.plan.id, zoneType: 'Room', name: 'Pantry', geometry: { points: [{ x: 4000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 3000 }, { x: 4000, y: 3000 }] } });
+	expectOk(await rig.stack.zones.save(pantry, 'absent')); await rig.runtime.refreshProjection();
+	rig.selection.select([room.id]); await settle();
+	await rig.wrapper.get('[data-rp-group-action="enclose"]').trigger('click'); await settleUntil(() => rig.project.groups.length === 1, 'enclosure beside a Room');
+	expect(rig.project.structure.walls.map(wall => [wall.start, wall.end])).toEqual([[{ x: -75, y: -75 }, { x: 4000, y: -75 }], [{ x: 4000, y: -75 }, { x: 4000, y: 3075 }], [{ x: 4000, y: 3075 }, { x: -75, y: 3075 }], [{ x: -75, y: 3075 }, { x: -75, y: -75 }]]);
+});
 it('moves a grouped Room, walls and later hosted opening from the immutable pointer baseline with one write', async () => {
 	const { rig, room } = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id));
 	const wall = rig.project.structure.walls[0], opening = { id: 'opening-group', kind: 'door' as const, hostId: wall.id, offset: 300, width: 900, height: 2100, sill: 0, swing: { hinge: 'end' as const, side: 'right' as const, angle: 45 } };
@@ -56,7 +64,7 @@ it('moves a grouped Room, walls and later hosted opening from the immutable poin
 	release(); await settleUntil(() => !rig.runtime.groupActions.active.value, 'group move');
 	expect(rig.runtime.groupActions.preview.value).toBeNull();
 	expect(rig.project.zones.get(room.id)?.points[0]).toEqual({ x: 500, y: 300 });
-	expect(rig.project.structure.walls[0].start).toEqual({ x: 500, y: 300 }); expect(rig.project.structure.openings).toEqual([opening]);
+	expect(rig.project.structure.walls[0].start).toEqual({ x: 425, y: 225 }); expect(rig.project.structure.openings).toEqual([opening]);
 	await rig.runtime.undo(); expect(rig.project.zones.get(room.id)?.points).toEqual(room.geometry.points); expect(rig.project.structure.openings).toEqual([opening]);
 	await rig.runtime.redo(); expect(rig.project.zones.get(room.id)?.points[0]).toEqual({ x: 500, y: 300 });
 });
@@ -77,7 +85,7 @@ it('rotates hidden members with the saved group, retaining exact cardinal coordi
 	expect(shape.kind).toBe('group'); const write = vi.spyOn(rig.geometry, 'write');
 	await rig.runtime.rotationActions.rotate(shape.id, 90);
 	expect(write).toHaveBeenCalledTimes(1); const expected = expectDefined(rotationPoints({ ...shape, kind: 'room', points: room.geometry.points }, 90, pivot), 'rotated Room');
-	expect(rig.project.zones.get(room.id)?.points).toEqual(expected); expect(rig.project.structure.walls[0].start).toEqual(expected[0]);
+	expect(rig.project.zones.get(room.id)?.points).toEqual(expected); expect(rig.project.structure.walls[0].start).toEqual({ x: expected[0].x + 75, y: expected[0].y - 75 });
 	await rig.runtime.undo(); expect(rig.project.zones.get(room.id)?.points).toEqual(room.geometry.points);
 });
 it('shows grouped numeric rotation preview and cancels without persisting', async () => {
@@ -130,7 +138,7 @@ it('never replays a saved group rotation during repeated failed readback recover
 	await rig.runtime.rotationActions.rotate(shape.id, 90); expect(write).toHaveBeenCalledTimes(1); expect(rig.project.stale).toBe(true);
 	for (let index = 0; index < 2; index++) { await rig.runtime.refreshProjection(); expect(write).toHaveBeenCalledTimes(1); }
 	read.mockRestore(); await rig.runtime.refreshProjection(); expect(rig.project.stale).toBe(false); expect(write).toHaveBeenCalledTimes(1);
-	await rig.runtime.undo(); expect(rig.project.structure.walls[0].start).toEqual({ x: 0, y: 0 });
+	await rig.runtime.undo(); expect(rig.project.structure.walls[0].start).toEqual({ x: -75, y: -75 });
 });
 it('reviews connected walls outside an explicitly partial selection before applying a group move', async () => {
 	const { rig, room } = await setup(), wall = rig.project.structure.walls[0], write = vi.spyOn(rig.geometry, 'write');
@@ -141,8 +149,8 @@ it('reviews connected walls outside an explicitly partial selection before apply
 	rig.dialogs.resolve('cancel'); await cancelled; expect(rig.runtime.groupActions.preview.value).toBeNull();
 	const accepted = rig.runtime.groupActions.moveBy({ dx: 100, dy: 100 });
 	await settleUntil(() => rig.dialogs.current?.kind === 'confirm', 'renewed wall review'); rig.dialogs.resolve('confirm'); await accepted;
-	expect(write).toHaveBeenCalledTimes(1); expect(rig.project.structure.walls[0].start).toEqual({ x: 100, y: 100 });
-	expect(rig.project.structure.walls[1].start).toEqual({ x: 4100, y: 100 }); expect(rig.project.structure.walls[2].start).toEqual({ x: 4000, y: 3000 });
+	expect(write).toHaveBeenCalledTimes(1); expect(rig.project.structure.walls[0].start).toEqual({ x: 25, y: 25 });
+	expect(rig.project.structure.walls[1].start).toEqual({ x: 4175, y: 25 }); expect(rig.project.structure.walls[2].start).toEqual({ x: 4075, y: 3075 });
 });
 it('submits numeric group rotation once and freezes its input while the write is pending', async () => {
 	const { rig } = await setup(), shape = expectDefined(rig.runtime.rotationActions.target.value, 'group');
@@ -163,10 +171,10 @@ it('encloses and rotates a curved Room while preserving each persisted bend and 
 	await rig.wrapper.get('[data-rp-group-action="enclose"]').trigger('click');
 	await settleUntil(() => rig.project.groups.length === 1 && !rig.runtime.groupActions.active.value, 'curved enclosure');
 	const before = expectOk(await rig.geometry.read(rig.plan.id)).document;
-	expect(before.structure?.walls[0].bulge).toBe(0.25);
+	const bend = expectDefined(before.structure?.walls[0].bulge, 'the outside arc'); expect(bend).toBeGreaterThan(0.25);
 	const shape = expectDefined(rig.runtime.rotationActions.target.value, 'curved group'); await rig.runtime.rotationActions.rotate(shape.id, 37.5);
 	const after = expectOk(await rig.geometry.read(rig.plan.id)).document;
-	expect(after.objects[0].bulges).toEqual([0.25, 0, 0, 0]); expect(after.structure?.walls[0].bulge).toBe(0.25); expect(after.objects[0].points).not.toEqual(before.objects[0].points);
+	expect(after.objects[0].bulges).toEqual([0.25, 0, 0, 0]); expect(after.structure?.walls[0].bulge).toBe(bend); expect(after.objects[0].points).not.toEqual(before.objects[0].points);
 	await rig.runtime.undo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
 });
 it('selects an individual group member for editing and restores the saved group without changing membership', async () => {

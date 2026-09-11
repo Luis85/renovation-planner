@@ -65,6 +65,7 @@ export const structureEn = {
 	'spatial.read-failed': 'The room boundary could not be read.',
 	'spatial.boundary-missing': 'The walls of this room boundary no longer exist.',
 	'spatial.boundary-invalid': 'The room boundary cannot be restored safely. Reopen the floor before editing.',
+	'spatial.wall-offset': 'The walls cannot follow this room outline on its outside. Remove the straight corner or the tight curve where they fail to meet.',
 	'spatial.group-restore-conflict': 'The previous group membership cannot be restored safely. Reopen the floor and review the group before continuing.',
 	'spatial.write-failed': 'The change to the walls and openings could not be saved. Your draft is retained; try again.',
 	'spatial.recovery-required': 'This step can no longer be applied. Reopen the floor before editing.',

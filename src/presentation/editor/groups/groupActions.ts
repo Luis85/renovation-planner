@@ -63,7 +63,8 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 		const snapshot = operations.capture([id], true), zone = project.zones.get(id);
 		if (!snapshot || zone?.zoneType !== 'Room') return;
 		const room = snapshot.document.objects.find(object => object.id === id); if (!room) return;
-		const enclosed = encloseRoom(room, snapshot.document.structure ?? EMPTY_STRUCTURE, { height: 2400, thickness: 150 }, () => createEntityId('wall'));
+		const neighbours = snapshot.document.objects.filter(object => object.id !== id && project.zones.get(object.id)?.zoneType === 'Room');
+		const enclosed = encloseRoom(room, snapshot.document.structure ?? EMPTY_STRUCTURE, { height: 2400, thickness: 150 }, () => createEntityId('wall'), neighbours);
 		if (!enclosed.ok) { notifyOperationFailure(enclosed.error); return; }
 		const existing = snapshot.document.groups?.find(item => item.memberIds.includes(id));
 		const groups = regroup(snapshot.document.groups ?? [], { id: existing?.id ?? createEntityId('group'), name: existing?.name ?? defaultName(id),

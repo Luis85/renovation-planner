@@ -10,8 +10,10 @@ import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { expectFound, expectOk } from '../../helpers/domain';
 import { makePlan, makeProject, makeZone, squareAt } from '../../helpers/entities';
 
+/** The one error `failingQuery` ever answers, named so a case can assert `readPlanHierarchy` forwards THIS object rather than merely something with `ok: false`. */
+const FAILING_QUERY_ERROR = { category: 'Persistence', code: 'x', message: 'y' } as const;
 /** A `Query` double that refuses every call, for exercising `readPlanHierarchy`'s `isErr` arms. */
-const failingQuery = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' } as const)) };
+const failingQuery = { execute: () => Promise.resolve(err(FAILING_QUERY_ERROR)) };
 
 async function scene() {
 	const plans = new InMemoryPlanRepository(), zones = new InMemoryZoneRepository(), project = makeProject();
@@ -75,22 +77,25 @@ describe('readPlanHierarchy', () => {
 		expect(house.ancestry).toEqual([]);
 	});
 
-	it('answers a failed plan read with isErr', async () => {
+	it('answers a failed plan read with isErr, carrying that query’s own error', async () => {
 		const s = await scene();
 		const result = await readPlanHierarchy({ ...s.queries, getPlan: failingQuery }, s.house.id);
 		expect(isErr(result)).toBe(true);
+		expect(result).toEqual(err(FAILING_QUERY_ERROR));
 	});
 
-	it('answers a failed plans-listing read with isErr', async () => {
+	it('answers a failed plans-listing read with isErr, carrying that query’s own error', async () => {
 		const s = await scene();
 		const result = await readPlanHierarchy({ ...s.queries, listPlans: failingQuery }, s.house.id);
 		expect(isErr(result)).toBe(true);
+		expect(result).toEqual(err(FAILING_QUERY_ERROR));
 	});
 
-	it('answers a failed zones read with isErr', async () => {
+	it('answers a failed zones read with isErr, carrying that query’s own error', async () => {
 		const s = await scene();
 		const result = await readPlanHierarchy({ ...s.queries, findZonesByPlan: failingQuery }, s.house.id);
 		expect(isErr(result)).toBe(true);
+		expect(result).toEqual(err(FAILING_QUERY_ERROR));
 	});
 
 	it('carries the parent zone’s curve bulges into the outline when it has any', async () => {

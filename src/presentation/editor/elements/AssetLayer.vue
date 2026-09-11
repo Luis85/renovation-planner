@@ -15,6 +15,12 @@ const project = useProjectStore(), shapes = useAssetShapeStore(), selection = us
 const structure = useDrawnStructure();
 const names = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
 const placements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind === 'asset'), names.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value));
+const preview = computed(() => {
+	const draft = runtime.elementTask.assets.draft;
+	return runtime.activeToolId.value === 'place-asset' && draft.preview && draft.shape
+		? [{ id: 'element-preview', kind: 'asset' as const, assetId: draft.assetId, name: draft.name, points: draft.preview }] : [];
+});
+const previewShape = (assetId: string) => assetId === runtime.elementTask.assets.draft.assetId ? runtime.elementTask.assets.draft.shape : null;
 </script>
 <template>
 	<VLayer :config="{ name: 'asset', listening: false, visible: props.visible, ...props.transform }">
@@ -23,6 +29,14 @@ const placements = computed(() => withElementPreviews((structure.value.elements 
 			:shape-of="shapes.shapeOf"
 			:selected-ids="selection.selectedIds"
 			:hovered-id="runtime.renderState.hoveredObjectId"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
+		<AssetShapes
+			:placements="preview"
+			:shape-of="previewShape"
+			:selected-ids="['element-preview']"
+			:hovered-id="null"
 			:tokens="tokens"
 			:zoom="zoom"
 		/>

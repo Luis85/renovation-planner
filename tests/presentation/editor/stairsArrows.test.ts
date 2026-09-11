@@ -29,7 +29,7 @@ async function setup(kind: 'stair' | 'arrow', constrained = false) {
 	}
 	expect(useWorkspaceStore(rig.pinia).overlay).toBe(constrained ? 'inspector' : 'none');
 	await rig.wrapper.get('[data-rp-action="add"]').trigger('click');
-	expect(rig.wrapper.findAll('[data-rp-entry]')).toHaveLength(13);
+	expect(rig.wrapper.findAll('[data-rp-entry]')).toHaveLength(14);
 	expect(rig.wrapper.find('[data-icon-missing]').exists()).toBe(false);
 	await rig.wrapper.get(`[data-rp-entry="${kind}"]`).trigger('click');
 	await settleUntil(() => !rig.runtime.elementTask.draft.loading, 'element baseline');

@@ -67,8 +67,12 @@ function elementMeasurement(source: RequirementSource, element: SpatialElement |
  if (element.kind === 'object' && source.rule === 'object-area') { const measured = area({ points: element.points }); return measured.ok ? { raw: measured.value, unit: 'm2' } : null; }
  return null;
 }
+/** The structure to read for a source's state: `intended` only for an intended source, `structure` otherwise. */
+function sourceStructure(source: RequirementSource, geometry: QuantityGeometry): Structure {
+	return (source.state === 'intended' ? geometry.intended ?? geometry.structure : geometry.structure) ?? EMPTY_STRUCTURE;
+}
 function measurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry): Measurement | null {
- const structure = (source.state === 'intended' ? geometry.intended ?? geometry.structure : geometry.structure) ?? EMPTY_STRUCTURE;
+ const structure = sourceStructure(source, geometry);
  const opening = structure.openings.find(item => item.id === source.targetId);
  if (opening && source.rule === 'opening-area') return { raw: opening.width * opening.height, unit: 'm2' };
  if (opening && source.rule === 'count') return { raw: 1, unit: 'piece' };
@@ -78,20 +82,22 @@ function measurement(source: RequirementSource, roomId: string, geometry: Quanti
 function placementCount(source: RequirementSource, roomId: string, geometry: QuantityGeometry, assetId: string | undefined): number | null {
 	const room = geometry.objects.find(item => item.id === roomId);
 	if (!room || source.targetId !== roomId || !assetId) return null;
-	const structure = (source.state === 'intended' ? geometry.intended ?? geometry.structure : geometry.structure) ?? EMPTY_STRUCTURE;
+	const structure = sourceStructure(source, geometry);
 	return (structure.elements ?? []).filter(element => {
 		if (element.kind !== 'asset' || element.assetId !== assetId) return false;
 		const inside = contains(room, membershipProbe(element));
 		return inside.ok && inside.value;
 	}).length;
 }
+/** The `'placement-count'` rule's whole `sourceMeasurement` result, kept out of that function's own complexity budget. */
+function placementCountMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry, unit: MeasurementUnit, assetId: string | undefined) {
+	const counted = placementCount(source, roomId, geometry, assetId);
+	return counted !== null && unit === 'piece' ? ok(new Decimal(counted)) : err(sourceError());
+}
 /** Raw world measurement for the existing quantity engine; no synthetic room outline. */
 export function sourceMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry, unit: MeasurementUnit, assetId?: string) {
 	if (!validRequirementSource(source)) return err(sourceError());
-	if (source.rule === 'placement-count') {
-		const counted = placementCount(source, roomId, geometry, assetId);
-		return counted !== null && unit === 'piece' ? ok(new Decimal(counted)) : err(sourceError());
-	}
+	if (source.rule === 'placement-count') return placementCountMeasurement(source, roomId, geometry, unit, assetId);
 	if (source.rule === 'manual') {
 		const factor = unit === 'm' ? 1000 : unit === 'm2' ? 1_000_000 : 1;
 		if (!['m', 'm2', 'piece'].includes(unit) || !measurement({ ...source, rule: 'count' }, roomId, geometry)) return err(sourceError());

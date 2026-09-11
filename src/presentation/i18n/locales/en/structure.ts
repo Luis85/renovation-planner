@@ -57,6 +57,7 @@ export const structureEn = {
 	'editor.structure.error.host-missing': 'Choose an existing wall to host this opening.',
 	'editor.structure.error.opening-containment': 'The opening must fit within the wall length and height. Change its position or dimensions.',
 	'editor.structure.error.opening-overlap': 'Openings on one wall cannot overlap. Choose another position or width.',
+	'editor.structure.error.opening-split': 'A new wall cannot start inside a door, window or opening. Choose a point beside it.',
 	'editor.structure.error.boundary': 'Close a simple boundary and give the room a name before creating it.',
 	'editor.structure.error.room-missing': 'A room boundary refers to missing walls or a missing room. Reopen the floor after repairing the reference.',
 	'editor.structure.error.duplicate-id': 'The structure contains repeated identities. Reopen the floor before editing.',

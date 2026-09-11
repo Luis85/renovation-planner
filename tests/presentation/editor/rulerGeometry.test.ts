@@ -188,24 +188,34 @@ describe('rulerMarks', () => {
  * pixels.
  */
 /** A shape whose only job is to carry the marks the painter reads back off it. */
+const SHAPE_STROKE = 'rgb(41, 84, 220)';
 function shapeHolding(marks: unknown): Konva.Shape {
-	return { getAttr: () => marks } as unknown as Konva.Shape;
+	return { getAttr: () => marks, stroke: () => SHAPE_STROKE } as unknown as Konva.Shape;
 }
 
 describe('painting the ruler marks', () => {
 	interface Stroked {
 		readonly width: number;
+		readonly style: string;
 		readonly segments: number[][];
 	}
 
+	/**
+	 * Its style starts at the canvas default, black, because that is what a real context holds
+	 * when Konva calls a `sceneFunc`: Konva applies the transform and sets `strokeStyle` only
+	 * inside `strokeShape`, which a function issuing its own strokes never calls. A recorder
+	 * that ignored the style drew the set-scale tape's bars and ticks black under an accent spine,
+	 * and stayed green while doing it.
+	 */
 	function record(): { readonly context: Konva.Context; readonly strokes: Stroked[] } {
 		const strokes: Stroked[] = [];
-		let width = 0;
+		let width = 0, style = '#000000';
 		let current: number[][] = [];
 		let pending: number[] = [];
 		const context = {
-			setAttr(key: string, value: number) {
-				if (key === 'lineWidth') width = value;
+			setAttr(key: string, value: number | string) {
+				if (key === 'lineWidth') width = value as number;
+				if (key === 'strokeStyle') style = value as string;
 			},
 			beginPath() {
 				current = [];
@@ -217,7 +227,7 @@ describe('painting the ruler marks', () => {
 				current.push([...pending, x, y]);
 			},
 			stroke() {
-				strokes.push({ width, segments: current });
+				strokes.push({ width, style, segments: current });
 			},
 		};
 		return { context: context as unknown as Konva.Context, strokes };
@@ -237,6 +247,14 @@ describe('painting the ruler marks', () => {
 		expect(bars.segments).toEqual(marks.endBars.map((bar) => [...bar]));
 		expect(ticks.segments).toEqual(marks.ticks.map((tick) => [...tick]));
 		expect(bars.width).toBeGreaterThan(ticks.width);
+	});
+
+	it("strokes the bars and ticks in the shape's own stroke colour, not the canvas default", () => {
+		const { context, strokes } = record();
+
+		paintRulerMarks(context, shapeHolding(rulerMarks(screenPoint(0, 0), screenPoint(RULER_TICK_SPACING_PX * 6, 0))));
+
+		expect(strokes.map((stroke) => stroke.style)).toEqual([SHAPE_STROKE, SHAPE_STROKE]);
 	});
 
 	it('opens no path for a run of marks it has none of', () => {

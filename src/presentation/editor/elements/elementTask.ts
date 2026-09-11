@@ -18,7 +18,7 @@ import { createElementDraft, draftElement, ELEMENT_TOOLS, type ElementToolId } f
 import { elementInput } from './elementInput';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 
-export function createElementTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { ledger: WriteLedger }) {
+export function createElementTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'setTool' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { ledger: WriteLedger }) {
 	const project = useProjectStore(), selection = useSelectionStore(), save = useSaveStateStore();
 	const draft = createElementDraft(), reads = createElementBaseline(context, runtime, draft);
 	const { baseline, needsRead, retry } = reads;
@@ -64,8 +64,16 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		} catch (cause) { if (reads.current(ticket)) notifyFault(cause, context.commands.logger, 'editor.element.write-failed'); }
 		finally { if (reads.current(ticket)) draft.busy = false; }
 	}
+	/** Starts a measurement at `point` from outside its pointer — the canvas context menu — once its baseline is read, unless the tool changed meanwhile. */
+	async function measureFrom(point: Point): Promise<void> {
+		runtime.setTool('measure');
+		if (runtime.activeToolId.value !== 'measure') return;
+		const ticket = reads.ticket();
+		await reads.ready();
+		if (reads.current(ticket)) addPoint(point);
+	}
 	for (const id of Object.keys(ELEMENT_TOOLS) as ElementToolId[]) runtime.toolManager.register(new ElementTool(id, {
 		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, finish: () => { void finish(); }, candidates: () => candidates.value,
 	}));
-	return { draft, blocked, canFinish, needsRead, retry, setPoints, addPoint, undoPoint, finish, available: context.commands.renovation !== undefined };
+	return { draft, blocked, canFinish, needsRead, retry, setPoints, addPoint, undoPoint, finish, measureFrom, available: context.commands.renovation !== undefined };
 }

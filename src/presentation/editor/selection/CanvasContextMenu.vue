@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { tr } from '../../i18n/strings';
 import type { EntityId } from '../../../core/identity/EntityId';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -22,9 +22,9 @@ import type { Point } from '../../../core/geometry/Point';
 const emit = defineEmits<{ openAdd: [] }>();
 const anchor = ref<HTMLElement | null>(null), menu = ref<HTMLElement | null>(null), open = ref(false), position = ref({ left: '0px', top: '0px' });
 const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), dialogs = useDialogStore(), groups = useCanvasGroupActions();
-/** Where the menu was opened, in world millimetres — where its Paste lands (design spec §4). */
-let openedAt: Point = { x: 0, y: 0 };
-const actions = useCanvasMenuActions(() => emit('openAdd'), () => openedAt);
+/** Where the menu was opened, in world millimetres — where its Paste lands (design spec §4), and where a wall's actions and Measure start. A ref, so those items are rebuilt for every opening. */
+const openedAt = shallowRef<Point>({ x: 0, y: 0 });
+const actions = useCanvasMenuActions(() => emit('openAdd'), () => openedAt.value);
 const workspace = useWorkspaceStore(), assetShapes = useAssetShapeStore();
 /** The one object the menu acts on, named the way the rest of the editor names it; nothing for an empty or multiple selection. */
 const title = computed(() => { if (selection.selectedIds.length !== 1) return null; const id = selection.selectedIds[0]; return project.zones.get(id)?.name ?? structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements).find(item => item.id === id)?.name ?? null; });
@@ -69,7 +69,7 @@ async function show(event: MouseEvent | KeyboardEvent): Promise<void> {
 	event.preventDefault(); event.stopPropagation();
 	const bounds = canvas.getBoundingClientRect();
 	const x = keyboard ? bounds.width / 2 : event.clientX - bounds.left, y = keyboard ? bounds.height / 2 : event.clientY - bounds.top;
-	openedAt = keyboard ? stageCentreWorld(editor.stageSize, editor.viewport) : screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS);
+	openedAt.value = keyboard ? stageCentreWorld(editor.stageSize, editor.viewport) : screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS);
 	const host = root.getBoundingClientRect(), menuX = x + bounds.left - host.left, menuY = y + bounds.top - host.top;
 	selectContext(contextTarget(event, x, y), keyboard, event);
 	opener = keyboard && target instanceof HTMLElement ? target : canvas;

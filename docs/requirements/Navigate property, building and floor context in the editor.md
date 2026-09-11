@@ -93,3 +93,11 @@ replaces the current Project or Plan authorities with presentation state.
 - [M05 — New Floor Start](../user-experience/renovation-planner-editor-specs/screens/M05-new-floor-start.md)
 - [Editor component library: EditorContextBar and PropertyTree](../user-experience/renovation-planner-editor-specs/components/component-library.md)
 - [Editor interaction specification: Property Navigation and Changing Floors](../user-experience/renovation-planner-editor-specs/Renovation%20Planner%20%E2%80%94%20Editor%20Interaction%20%26%20Mental%20Model%20Specification.md)
+
+## Amendments
+
+**2026-09-10** — [ADR-0028](../development/adrs/0028-a-plan-may-detail-a-zone-of-another-plan.md)
+adds a plan-to-zone parent link. The context bar and the sidebar's Property tree now show a
+detail plan's ancestry as `Project › Site › House › Ground floor`, each crumb opening its plan
+through the editor's plan reveal. The out-of-scope line about persisting hierarchy is narrowed
+accordingly; Building and Floor entities remain out of scope.

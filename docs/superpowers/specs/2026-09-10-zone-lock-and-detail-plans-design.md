@@ -151,7 +151,9 @@ deletion, and finding the parent plan needs no zone read.
   'parent-zone': z.string().min(1) })`, added to the union.
 - `planSchemaVersion` returns 9 when `plan.parent` is set, before its existing checks.
   Parentless plans keep writing whatever version they write today.
-- A v9 note missing either key fails the schema like any other malformed note.
+- Both keys are optional in the v9 schema, because the discriminator migration lifts every older
+  note to 9 in memory. The mapper refuses a note carrying only one of them with
+  `plan.frontmatter-invalid` (implementation plan, 2026-09-10).
 
 ### 4.3 Command
 
@@ -177,6 +179,10 @@ The command stays outside canvas history, as "New plan" in the project view is t
   zones through `findZonesByPlan` and picking `parent.zoneId`.
 
 `unavailablePlanEditorQueries` refuses all three like the others.
+
+**Implementation refinement (2026-09-10):** the three answers are one optional member,
+`hierarchy(planId)`, returning `{ ancestry, detailPlans, parentZone, parentZoneMissing }`, because
+they come from the same two reads and a dozen editor test doubles implement this interface.
 
 ### 4.5 Navigation
 

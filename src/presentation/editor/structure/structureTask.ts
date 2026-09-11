@@ -1,7 +1,6 @@
 import { computed, onBeforeUnmount, shallowRef } from 'vue';
-import type { AppError } from '../../../core/errors/AppError';
 import type { EntityId } from '../../../core/identity/EntityId';
-import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
+import { recordDraftFailure } from '../tools/with-stale-gate';
 import type { PlanGeometrySnapshot } from '../../../application/ports/PlanGeometrySidecar';
 import { undoSuperseded, type WriteLedger } from '../../../application/editor/WriteLedger';
 import { sameGeometryDocument } from '../../../application/commands/spatial/sameGeometryDocument';
@@ -73,11 +72,6 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 		const command = createZoneHistory(context, ledger, { planId: context.planId as PlanId, name: draft.roomName, zoneType: 'Room', geometry: { points } });
 		return { execute: () => command.execute(), undo: () => command.undo(), get createdZoneId() { return command.createdZoneId; }, points };
 	}
-	async function failed(error: AppError): Promise<void> {
-		draft.error = error;
-		draft.conflict = WRITE_BOUNDARY_CODES.some(code => error.code.endsWith(code)) || error.code === 'undo.superseded';
-		if (draft.conflict) await runtime.refreshProjection();
-	}
 	/** The validated draft and its optional Room. The loop is appended after the floor's existing walls; the Room sits on their inner faces. */
 	function prepareDraft(objectIds: readonly string[]) {
 		const valid = validateDraftStructure(draft, project.structure, objectIds);
@@ -101,7 +95,7 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 		try {
 			const result = await runtime.dispatcher.run(command);
 			if (!alive || ticket !== generation) return;
-			if (!result.ok) { await failed(result.error); return; }
+			if (!result.ok) { await recordDraftFailure(draft, result.error, () => runtime.refreshProjection()); return; }
 			const id = draft.kind === 'draw-wall' ? structure.walls[structure.walls.length - 1].id : structure.openings[structure.openings.length - 1].id;
 			selection.select([id as EntityId<string>]); draft.busy = false; runtime.returnToSelect();
 		} catch (cause) { if (alive && ticket === generation) notifyFault(cause, context.commands.logger, 'editor.structure.write-failed'); }

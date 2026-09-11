@@ -6,17 +6,16 @@ import type { RenovationBaseline, RenovationServices } from '../../../applicatio
 import type { Point } from '../../../core/geometry/Point';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import { spatialError } from '../../../domain/spatial/structureGeometry';
-import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 import { createEntityId } from '../../../core/identity/generateId';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { notifyFault } from '../../notices/notify';
 import { roomSnapCandidates } from '../snapping/roomSnapCandidates';
+import { recordDraftFailure } from '../tools/with-stale-gate';
 import { ElementTool } from './ElementTool';
 import { createElementDraft, draftElement, ELEMENT_TOOLS, type ElementToolId } from './elementDraft';
 import { elementInput } from './elementInput';
-import type { AppError } from '../../../core/errors/AppError';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 
 export function createElementTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { ledger: WriteLedger }) {
@@ -31,10 +30,6 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 	function stop(): void { reads.stop(); draftId = ''; attempt = null; }
 	function start(id: ElementToolId): void { draftId = ''; attempt = null; reads.start(id); }
 
-	async function failed(error: AppError): Promise<void> {
-		draft.error = error; draft.conflict = WRITE_BOUNDARY_CODES.some(code => error.code.endsWith(code)) || error.code === 'undo.superseded';
-		if (draft.conflict) await runtime.refreshProjection();
-	}
 	function commandFor(element: NamedSpatialElement, read: RenovationBaseline, services: RenovationServices) {
 		const content = JSON.stringify(element);
 		if (attempt?.content !== content) attempt = { content, command: services.command(read, elementInput(read, element), runtime.ledger) };
@@ -63,7 +58,7 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 			const result = await runtime.dispatcher.run(commandFor(element, read, context.commands.renovation));
 			if (!reads.current(ticket)) return;
 			if (!result.ok) {
-				await failed(result.error); return;
+				await recordDraftFailure(draft, result.error, () => runtime.refreshProjection()); return;
 			}
 			selection.select([element.id as ReturnType<typeof createEntityId>]); draft.busy = false; runtime.returnToSelect();
 		} catch (cause) { if (reads.current(ticket)) notifyFault(cause, context.commands.logger, 'editor.element.write-failed'); }

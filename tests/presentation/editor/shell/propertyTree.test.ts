@@ -6,10 +6,10 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { ok } from '../../../../src/core/result/Result';
-import { tr } from '../../../../src/presentation/i18n/strings';
+import { t, tr } from '../../../../src/presentation/i18n/strings';
 import type { PlanDto } from '../../../../src/presentation/read-models/PlanDto';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_PROJECT } from '../../../helpers/planFixtures';
-import { mountPlanEditorCanvas } from '../../../helpers/editor';
+import { mountPlanEditorCanvas, settle } from '../../../helpers/editor';
 
 const FIRST: PlanDto = { ...FIXTURE_PLAN, id: 'plan-first', name: 'First floor' };
 const queries = () => ({ ...fakeQueries(FIXTURE_PLAN), listPlans: () => Promise.resolve(ok([FIXTURE_PLAN, FIRST])) });
@@ -65,5 +65,84 @@ describe('PropertyTree', () => {
 
 		const floors = harness.wrapper.get('.rp-property-tree').findAll('.rp-property-tree__floor');
 		expect(floors[1].text()).toContain(tr('editor.floor'));
+	});
+
+	/**
+	 * Since the PropertyTreeRow refactor, an unnamed sibling floor drawn as a BUTTON (navigation
+	 * present, not the current plan) renders the same fallback label — findings round 1, item 3:
+	 * the button branch had no assertion of its own, so the behaviour was accidental rather than
+	 * deliberate.
+	 */
+	it('falls back to the floor label for an unnamed plan drawn as a button', async () => {
+		const unnamed: PlanDto = { ...FIXTURE_PLAN, id: 'plan-unnamed', name: '' };
+		const harness = await mountPlanEditorCanvas({
+			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: () => Promise.resolve() },
+			queries: { ...fakeQueries(FIXTURE_PLAN), listPlans: () => Promise.resolve(ok([FIXTURE_PLAN, unnamed])) },
+		});
+
+		// FIXTURE_PLAN is the current floor and stays text (disabled); only the unnamed sibling
+		// is a button, so it is the sole element here rather than index 1 as in the text case above.
+		const floors = harness.wrapper.get('.rp-property-tree').findAll('button.rp-property-tree__floor');
+		expect(floors).toHaveLength(1);
+		expect(floors[0].text()).toContain(tr('editor.floor'));
+	});
+
+	/**
+	 * Findings round 1, item 2: the only prior ancestry assertion
+	 * (`editorContextBar.test.ts`) checks `.rp-context-bar`, which `PropertyTree`'s own ancestry
+	 * rows never draw into — this file had none.
+	 */
+	it('puts the plan ancestry between the project row and the floors, each row opening its plan', async () => {
+		const opened: string[] = [];
+		const harness = await mountPlanEditorCanvas({
+			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: (id) => { opened.push(id); return Promise.resolve(); } },
+			queries: {
+				...fakeQueries(FIXTURE_PLAN),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site' }, { id: 'plan-house', name: 'House' }], detailPlans: [], parentZone: null, parentZoneMissing: false })),
+			},
+		});
+		await settle();
+
+		const tree = harness.wrapper.get('.rp-property-tree');
+		const rows = tree.findAll('[data-rp-open-plan]');
+		expect(rows.map((row) => row.text())).toEqual(['Site', 'House']);
+		expect(rows.every((row) => row.element.tagName === 'BUTTON')).toBe(true);
+
+		await tree.get('[data-rp-open-plan="plan-site"]').trigger('click');
+		expect(opened).toEqual(['plan-site']);
+	});
+
+	it('draws the ancestry rows as text when the leaf has no navigation', async () => {
+		const harness = await mountPlanEditorCanvas({
+			queries: {
+				...fakeQueries(FIXTURE_PLAN),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site' }], detailPlans: [], parentZone: null, parentZoneMissing: false })),
+			},
+		});
+		await settle();
+
+		const tree = harness.wrapper.get('.rp-property-tree');
+		expect(tree.find('[data-rp-open-plan]').exists()).toBe(false);
+		expect(tree.text()).toContain('Site');
+	});
+
+	it('shows the missing-parent line when the hierarchy reports one, and nothing when it does not', async () => {
+		const missing = await mountPlanEditorCanvas({
+			queries: {
+				...fakeQueries(FIXTURE_PLAN),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [], detailPlans: [], parentZone: null, parentZoneMissing: true })),
+			},
+		});
+		await settle();
+		expect(missing.wrapper.get('.rp-property-tree').text()).toContain(t('en', 'editor.input.parent-zone-missing'));
+
+		const present = await mountPlanEditorCanvas({
+			queries: {
+				...fakeQueries(FIXTURE_PLAN),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [], detailPlans: [], parentZone: null, parentZoneMissing: false })),
+			},
+		});
+		await settle();
+		expect(present.wrapper.get('.rp-property-tree').text()).not.toContain(t('en', 'editor.input.parent-zone-missing'));
 	});
 });

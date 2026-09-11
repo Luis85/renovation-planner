@@ -8,7 +8,7 @@ import { tr } from '../../i18n/strings';
 import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import { useProjectStore } from '../../stores/ProjectStore';
 import NewPlanForm from '../../views/NewPlanForm.vue';
-import { PLAN_EDITOR_CONTEXT } from '../PlanEditorContext';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../PlanEditorContext';
 import type { CanvasMenuAction } from '../selection/useCanvasMenuActions';
 
 /**
@@ -27,9 +27,8 @@ export function useDetailPlanActions() {
 	const context = inject(PLAN_EDITOR_CONTEXT), project = useProjectStore(), dialogs = useDialogStore(), store = usePlanHierarchyStore();
 	const { hierarchy } = storeToRefs(store);
 
-	async function create(zoneId: string, name: string): Promise<void> {
-		if (context === undefined) return;
-		const createPlan = context.commands.createPlan, open = context.navigation?.plan?.bind(context.navigation), plan = project.plan;
+	async function create(ctx: PlanEditorContext, zoneId: string, name: string): Promise<void> {
+		const createPlan = ctx.commands.createPlan, open = ctx.navigation?.plan?.bind(ctx.navigation), plan = project.plan;
 		if (createPlan === undefined || open === undefined || plan === null || dialogs.current !== null) return;
 		let created = null as string | null;
 		const result = await dialogs.openDialog({
@@ -40,7 +39,7 @@ export function useDetailPlanActions() {
 				projectId: plan.projectId,
 				initialName: name,
 				parent: { planId: plan.id as PlanId, zoneId: zoneId as ZoneId },
-				logger: context.commands.logger,
+				logger: ctx.commands.logger,
 				dispatch: async (input: CreatePlanInput) => {
 					const saved = await createPlan.execute(input);
 					if (saved.ok) created = saved.value.plan.entity.id;
@@ -49,7 +48,7 @@ export function useDetailPlanActions() {
 			},
 		});
 		if (result === 'cancel' || created === null) return;
-		await store.load(context.queries, context.planId);
+		await store.load(ctx.queries, ctx.planId);
 		await open(created);
 	}
 
@@ -58,7 +57,7 @@ export function useDetailPlanActions() {
 		const open = context.navigation?.plan?.bind(context.navigation);
 		if (context.commands.createPlan === undefined || open === undefined) return [];
 		return [
-			{ id: 'detail-plan-new', label: 'editor.input.detail-plan-new', group: 'create', icon: 'circle-plus', disabled: blocked, run: () => create(zoneId, name) },
+			{ id: 'detail-plan-new', label: 'editor.input.detail-plan-new', group: 'create', icon: 'circle-plus', disabled: blocked, run: () => create(context, zoneId, name) },
 			...hierarchy.value.detailPlans
 				.filter((detail) => detail.parentZoneId === zoneId)
 				.map((detail): CanvasMenuAction => ({ id: `detail-plan-open:${detail.id}`, label: 'editor.input.detail-plan-open', group: 'object', icon: 'file-text', params: { name: detail.name }, run: () => open(detail.id) })),

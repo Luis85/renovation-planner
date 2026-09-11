@@ -31,7 +31,7 @@ export function useCanvasMenuActions(add: () => void) {
 			result.push({ id: 'edit', label: 'editor.input.edit', group: 'object', icon: 'pencil', disabled: blocked || runtime.outlineEdit.blocked.value, run: () => runtime.outlineEdit.editOutline(id as ZoneId) });
 			result.push({ id: 'rename', label: 'editor.input.rename', group: 'object', icon: 'text-cursor-input', disabled: blocked, run: () => zone.zoneType === 'Room' ? runtime.renameRoom(id as ZoneId) : runtime.areaDetails.editAreaDetails(id as ZoneId) });
 			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked, run: () => runtime.deleteZone(id as ZoneId, zone.name) });
-			result.push(...detailPlans(id, zone.name, blocked || session.perspective === 'review'));
+			result.push(...detailPlans(id, zone.name, blocked));
 		} else if (structure || element) {
 			const actions = structure ? runtime.structureActions : runtime.elementActions;
 			result.push({ id: 'edit', label: 'editor.input.edit', group: 'object', icon: 'pencil', disabled: blocked || actions.active.value, run: () => actions.edit(id) });

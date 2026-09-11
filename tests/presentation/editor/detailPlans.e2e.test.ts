@@ -11,6 +11,7 @@ import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPla
 import { readPlanHierarchy } from '../../../src/presentation/read-models/planHierarchy';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
+import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 
 const unmounts: (() => void)[] = [];
 afterEach(() => { for (const unmount of unmounts.splice(0)) unmount(); });
@@ -62,6 +63,69 @@ it('offers no detail-plan action for a multi-selection', async () => {
 	const b = expectOk(await r.workspace.deps.commands.createZone.execute({ planId: r.workspace.plan.id, name: 'B', zoneType: 'Custom', geometry: { points } })).zone.entity;
 	await r.runtime.refreshProjection();
 	r.selection.select([a.id, b.id]);
+	await r.menu();
+	expect(r.harness.wrapper.find('[data-rp-context-action="detail-plan-new"]').exists()).toBe(false);
+});
+
+it('creates nothing and navigates nowhere when the new-plan dialog is cancelled', async () => {
+	const r = await rig();
+	const points = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }];
+	const house = expectOk(await r.workspace.deps.commands.createZone.execute({ planId: r.workspace.plan.id, name: 'House', zoneType: 'Custom', geometry: { points } })).zone.entity;
+	await r.runtime.refreshProjection();
+	r.selection.select([house.id]);
+	const before = expectOk(await r.stack.plans.listByProject(r.workspace.plan.projectId)).loaded.length;
+	await r.menu();
+	await r.harness.wrapper.get('[data-rp-context-action="detail-plan-new"]').trigger('click');
+	await settleUntil(() => r.dialogs.current !== null, 'new plan dialog');
+	r.dialogs.resolve('cancel');
+	await settle();
+	expect(r.dialogs.current).toBeNull();
+	expect(expectOk(await r.stack.plans.listByProject(r.workspace.plan.projectId)).loaded).toHaveLength(before);
+	expect(r.opened).toEqual([]);
+});
+
+it('opens only one dialog and creates only one plan when New is invoked twice before the menu closes', async () => {
+	// The menu closes on click (`CanvasContextMenu.run`: `close()` then a fire-and-forgotten
+	// `action.run()`), so re-driving the guard through the menu itself needs both clicks
+	// dispatched before Vue's own reactivity has flushed that close — the same "two
+	// activations in one tick" shape CLAUDE.md names for the leaf-creating doors. Firing both
+	// `trigger('click')` calls before awaiting either does that: `create()`'s synchronous
+	// prelude (through `dialogs.openDialog`'s synchronous `current.value = descriptor`) has
+	// already run by the time the second dispatch reaches the same still-mounted button.
+	const r = await rig();
+	const points = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }];
+	const house = expectOk(await r.workspace.deps.commands.createZone.execute({ planId: r.workspace.plan.id, name: 'House', zoneType: 'Custom', geometry: { points } })).zone.entity;
+	await r.runtime.refreshProjection();
+	r.selection.select([house.id]);
+	const before = expectOk(await r.stack.plans.listByProject(r.workspace.plan.projectId)).loaded.length;
+	await r.menu();
+	const button = r.harness.wrapper.get('[data-rp-context-action="detail-plan-new"]');
+	await Promise.all([button.trigger('click'), button.trigger('click')]);
+	await settleUntil(() => r.dialogs.current !== null, 'new plan dialog');
+	r.dialogs.resolve('cancel');
+	await settle();
+	expect(r.dialogs.current).toBeNull();
+	expect(expectOk(await r.stack.plans.listByProject(r.workspace.plan.projectId)).loaded).toHaveLength(before);
+	expect(r.opened).toEqual([]);
+});
+
+it('disables New like its sibling zone actions when writes are blocked, and offers no detail-plan action in review perspective', async () => {
+	const r = await rig();
+	const points = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }];
+	const house = expectOk(await r.workspace.deps.commands.createZone.execute({ planId: r.workspace.plan.id, name: 'House', zoneType: 'Custom', geometry: { points } })).zone.entity;
+	await r.runtime.refreshProjection();
+	r.selection.select([house.id]);
+	const project = useProjectStore(r.harness.pinia);
+	project.stale = true;
+	await r.menu();
+	const newEntry = r.harness.wrapper.get('[data-rp-context-action="detail-plan-new"]');
+	expect(newEntry.attributes('aria-disabled')).toBe('true');
+	expect(newEntry.attributes('title')).toBe(r.harness.wrapper.get('[data-rp-context-action="delete"]').attributes('title'));
+	await newEntry.trigger('keydown', { key: 'Escape' });
+	project.stale = false;
+
+	await r.runtime.renovation.perspective('review');
+	r.selection.select([house.id]);
 	await r.menu();
 	expect(r.harness.wrapper.find('[data-rp-context-action="detail-plan-new"]').exists()).toBe(false);
 });

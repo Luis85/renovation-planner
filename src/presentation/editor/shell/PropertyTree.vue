@@ -87,14 +87,12 @@ function rowOpener(planId: string, disabled = false): (() => void) | undefined {
 		<p
 			v-if="failed"
 			class="rp-editor-inspector-empty"
-			role="status"
 		>
 			{{ tr('editor.input.hierarchy-unreadable') }}
 		</p>
 		<p
 			v-else-if="hierarchy.parentZoneMissing"
 			class="rp-editor-inspector-empty"
-			role="status"
 		>
 			{{ tr('editor.input.parent-zone-missing') }}
 		</p>

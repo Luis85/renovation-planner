@@ -6,6 +6,7 @@ import { guideFramePoints, guideOutline, guideSource } from '../../../src/presen
 import { DEFAULT_VIEWPORT } from '../../../src/presentation/editor/viewport/Viewport';
 import { NO_HIERARCHY } from '../../../src/presentation/read-models/planHierarchy';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { t } from '../../../src/presentation/i18n/strings';
 import { expectDefined } from '../../helpers/domain';
@@ -132,5 +133,16 @@ describe('framing a detail plan on its guide', () => {
 		await settle();
 		expect((await menuFit(detail)).attributes('aria-disabled')).not.toBe('true');
 		detail.unmount();
+	});
+
+	it('greys Fit selection with the generic reason, not fit-nothing, when ids are selected but none is framable', async () => {
+		const harness = await mountPlanEditorCanvas(withGuide());
+		await settle();
+		useSelectionStore(harness.pinia).select(['not-a-real-zone' as never]);
+		await settle();
+		const greyed = await menuFit(harness);
+		expect(greyed.attributes('aria-disabled')).toBe('true');
+		expect(greyed.attributes('title')).toBe(t('en', 'editor.input.unavailable'));
+		harness.unmount();
 	});
 });

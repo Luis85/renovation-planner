@@ -231,6 +231,6 @@ describe('PropertyTree', () => {
 			queries: { ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' } as const)) },
 		});
 		await settle();
-		expect(harness.wrapper.get('.rp-property-tree [role="status"]').text()).toBe(t('en', 'editor.input.hierarchy-unreadable'));
+		expect(harness.wrapper.get('.rp-property-tree').text()).toContain(t('en', 'editor.input.hierarchy-unreadable'));
 	});
 });

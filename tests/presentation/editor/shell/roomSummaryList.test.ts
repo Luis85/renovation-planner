@@ -193,9 +193,12 @@ describe('RoomSummaryList', () => {
 	 * `finally`'s guard made unconditional, which produced neither a thrown error nor an
 	 * `app.config.warnHandler`/`console.warn`/`console.error` call either way — so a spy on any
 	 * of those cannot tell the guarded and unguarded code apart. The one observable that remains
-	 * is the ref's own value, read straight off the unmounted instance the same way
+	 * is the ref's own value, read straight off `wrapper.vm` — the same reach-in
 	 * `projectListGroups.test.ts`'s `completedOpen` and `editorArrival.test.ts`'s
-	 * `navigateToRecord` already reach into a script-setup binding no prop or emit carries.
+	 * `navigateToRecord` already use to reach a script-setup binding no prop or emit carries,
+	 * but only on a MOUNTED instance. That the reach-in stays readable after
+	 * `wrapper.unmount()` is new here, and was confirmed empirically: these two tests were run
+	 * with the `finally`'s guard made unconditional and watched fail.
 	 */
 	it('leaves busy set rather than clearing it when a pending read resolves after the toggle unmounts', async () => {
 		const zoneRead = ok({ entity: { name: 'Kitchen', zoneType: 'Room', locked: false }, version: KITCHEN_VERSION });

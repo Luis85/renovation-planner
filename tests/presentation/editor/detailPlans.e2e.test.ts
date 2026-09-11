@@ -56,6 +56,40 @@ it('creates a detail plan named after the zone, opens it, and then lists it unde
 	expect(r.opened).toEqual([created.id, created.id]);
 });
 
+/**
+ * Findings round 2, item 5: `useDetailPlanActions.create`'s `if (saved.ok)` false arm — a
+ * `createPlan` refusal, the only UI path the three parent refusal codes take — had no case.
+ * Deleting the zone between opening the dialog and submitting is what makes the real command
+ * answer `plan.parent-zone-not-found`, the same refusal a stale menu (opened before another
+ * leaf deleted the zone) would produce.
+ */
+it('creates nothing and stays open showing the refusal when the create command refuses', async () => {
+	const r = await rig();
+	const points = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }];
+	const house = expectOk(await r.workspace.deps.commands.createZone.execute({ planId: r.workspace.plan.id, name: 'House', zoneType: 'Custom', geometry: { points } })).zone.entity;
+	await r.runtime.refreshProjection();
+	r.selection.select([house.id]);
+	const before = expectOk(await r.stack.plans.listByProject(r.workspace.plan.projectId)).loaded.length;
+	await r.menu();
+	await r.harness.wrapper.get('[data-rp-context-action="detail-plan-new"]').trigger('click');
+	await settleUntil(() => r.dialogs.current !== null, 'new plan dialog');
+
+	// The zone the dialog was opened for is gone by the time it submits — a stale menu, or
+	// another leaf's delete racing this one — so the real command's own `refuseParent` check
+	// answers `plan.parent-zone-not-found` rather than anything this test fabricates.
+	expectOk(await r.workspace.deps.commands.deleteZone.execute({ zoneId: house.id }));
+
+	const form = r.harness.wrapper.get('.rp-dialog-form');
+	await form.trigger('submit');
+	await settle();
+
+	expect(r.dialogs.current).not.toBeNull();
+	expect(r.harness.wrapper.find('.rp-dialog-form').exists()).toBe(true);
+	expect(r.harness.wrapper.find('.rp-form-banner').exists()).toBe(true);
+	expect(expectOk(await r.stack.plans.listByProject(r.workspace.plan.projectId)).loaded).toHaveLength(before);
+	expect(r.opened).toEqual([]);
+});
+
 it('offers no detail-plan action for a multi-selection', async () => {
 	const r = await rig();
 	const points = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }];

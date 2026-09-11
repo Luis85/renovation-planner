@@ -63,9 +63,10 @@ building on it, then a plan for a floor inside that building.
   the chain simply stops one level early.
 - **4b** — The plan is still readable but its named zone has since been deleted. No guide is
   drawn, and the Property tree says the room or area this plan details no longer exists.
-- **5a** — Writes are paused, or the leaf offers no plan navigation at all. **New detail plan**
-  is not offered (in review perspective) or is shown disabled with the same reason every other
-  paused zone action carries.
+- **5a** — Writes are paused: **New detail plan** is shown disabled with the same reason every
+  other paused zone action carries, and that zone's **Open {name}** entries stay offered. In
+  review perspective, or when the leaf offers no plan navigation or no create-plan command, no
+  detail-plan entries are offered at all.
 
 ## Guarantee
 

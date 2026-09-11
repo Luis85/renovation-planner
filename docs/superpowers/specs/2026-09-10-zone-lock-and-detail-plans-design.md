@@ -208,11 +208,12 @@ widening the source is not worth a payload change for that case.
 
 ### 4.7 Going up
 
-`PropertyLayerPanel`'s property context and `EditorContextBar` both render one derived chain:
-`Project › Site › House › Ground floor`. Project and each ancestor are buttons
-(`navigation.project` / `navigation.plan`); the current plan is `aria-current="page"` text. A
-missing ancestor simply ends the chain after the project. This extends ADR-0017's two-segment
-breadcrumb without adding persisted hierarchy beyond §4.2.
+The sidebar's Property tree (`PropertyTree.vue`) and `EditorContextBar` both render one derived
+chain: `Project › Site › House › Ground floor` (implementation, 2026-09-11: main replaced
+`PropertyLayerPanel`'s property context with `PropertyTree.vue` before this landed). Project and
+each ancestor are buttons (`navigation.project` / `navigation.plan`); the current plan is
+`aria-current="page"` text. A missing ancestor simply ends the chain after the project. This
+extends ADR-0017's two-segment breadcrumb without adding persisted hierarchy beyond §4.2.
 
 ### 4.8 The outline guide
 
@@ -254,8 +255,10 @@ breadcrumb without adding persisted hierarchy beyond §4.2.
 - Mapper: parentless plans write their old version; a parent writes v9; v9 round trip on the
   fixture vault; v9 without `parent-zone` is refused.
 - `CreatePlanCommand`: success with parent, and each of the three refusals.
-- `getPlanAncestry`: three levels in order, missing ancestor ends the chain, a cycle stops.
-- `listDetailPlans`: filters by parent, excludes other projects' plans.
+- `readPlanHierarchy` / `hierarchy(planId)` (implementation, 2026-09-11: §4.4's refinement merged
+  the three separate queries into this one read): ancestry three levels in order, missing
+  ancestor ends the chain, a cycle stops; detail plans filtered by parent, excluding other
+  projects' plans.
 - Guide placement: a zone at (30000, 12000) yields a guide whose bounding corner is (0, 0).
 - Context menu: *New detail plan…* and one *Open* per child for a zone; neither for a wall or
   for a multi-selection; disabled when writes are blocked.

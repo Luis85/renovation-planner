@@ -10,7 +10,7 @@ import { useDialogStore } from '../../dialogs/dialog-store';
 import { useSelectionStore } from './selection-store';
 import { resolveSelectionTarget } from './resolveSelectionTarget';
 import { structureCandidates } from '../structure/structureCandidates';
-import { screenPoint, screenToWorld, STAGE_PIXELS } from '../viewport/Viewport';
+import { screenPoint, screenToWorld, stageCentreWorld, STAGE_PIXELS } from '../viewport/Viewport';
 import { useCanvasGroupActions } from './canvasGroupActions';
 import { useCanvasMenuActions, type CanvasMenuAction } from './useCanvasMenuActions';
 import { canvasCandidates } from './canvasCandidates';
@@ -58,7 +58,7 @@ async function show(event: MouseEvent | KeyboardEvent): Promise<void> {
 	event.preventDefault(); event.stopPropagation();
 	const bounds = canvas.getBoundingClientRect();
 	const x = keyboard ? bounds.width / 2 : event.clientX - bounds.left, y = keyboard ? bounds.height / 2 : event.clientY - bounds.top;
-	openedAt = screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS);
+	openedAt = keyboard ? stageCentreWorld(editor.stageSize, editor.viewport) : screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS);
 	const host = root.getBoundingClientRect(), menuX = x + bounds.left - host.left, menuY = y + bounds.top - host.top;
 	selectContext(contextTarget(event, x, y), keyboard, event);
 	opener = keyboard && target instanceof HTMLElement ? target : canvas;

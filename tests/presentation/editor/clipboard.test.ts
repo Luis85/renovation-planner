@@ -9,12 +9,15 @@ import { referenceWorkspace } from '../../harness/referenceWorkspace';
 import { HARNESS_PLAN, harnessDeps } from '../../harness/planEditor';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
-installObsidianDom();
+import { placeAt } from '../../helpers/layout';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { createEditorClipboard, type EditorClipboard } from '../../../src/presentation/editor/clipboard/editorClipboard';
 import { screenPoint, screenToWorld, stageCentreWorld, STAGE_PIXELS, worldToScreen } from '../../../src/presentation/editor/viewport/Viewport';
 import { groupPivot } from '../../../src/domain/spatial/groupGeometry';
 import type { Point } from '../../../src/core/geometry/Point';
+import type { PlanId } from '../../../src/domain/plan/PlanId';
+
+installObsidianDom();
 
 type Rig = Awaited<ReturnType<typeof renovationEditor>>;
 const cleanups: (() => void)[] = [];
@@ -172,4 +175,47 @@ it('pastes on one floor what was copied on another', async () => {
 	await settleUntil(() => added(target, before).length === 1, 'the room pasted onto the other floor');
 	expect(added(target, before)[0].name).toBe('Studio');
 	expect(source.project.zones.size).toBe(sourceZones);
+});
+
+it('pastes from a keyboard-opened menu at the view centre, measured from the stage rather than the canvas box', async () => {
+	const rig = await setup(), editor = useEditorStore(rig.pinia), before = new Set(rig.project.zones.keys());
+	rig.selection.select([rig.room.id]); key(rig.canvasEl, { key: 'c', ctrlKey: true });
+	// A box that measures other than the stage — a transform or sub-pixel rounding — must not move where Paste lands.
+	placeAt(rig.canvasEl, 0, 0, 1000, 800);
+	await keyboardMenu(rig); expect(menuIds(rig)).toContain('paste');
+	await rig.wrapper.get('[data-rp-context-action="paste"]').trigger('click');
+	await settleUntil(() => added(rig, before).length === 1, 'the pasted room');
+	expectCentred(added(rig, before)[0].points, stageCentreWorld(editor.stageSize, editor.viewport));
+});
+
+/** Holds `service.read` until the returned release runs: an edit reading its baseline, before its form opens. */
+function holdRead(service: { read(planId: PlanId): Promise<unknown> }): () => void {
+	const read = service.read.bind(service);
+	let release!: () => void;
+	const gate = new Promise<void>(resolve => { release = resolve; });
+	vi.spyOn(service, 'read').mockImplementation(async planId => { await gate; return read(planId); });
+	return release;
+}
+
+it('offers no paste while a structure or element edit is in flight, from the menu or the shortcut', async () => {
+	const rig = await setup();
+	rig.selection.select([rig.room.id]); key(rig.canvasEl, { key: 'c', ctrlKey: true });
+	for (const [actions, service, at] of [[rig.runtime.structureActions, rig.services, 20000], [rig.runtime.elementActions, rig.renovation, 40000]] as const) {
+		const before = new Set(rig.project.zones.keys()), release = holdRead(service);
+		const editing = actions.edit('wall-a');
+		expect(actions.active.value).toBe(true);
+		pointAt(rig, { x: at, y: at });
+		await keyboardMenu(rig);
+		const paste = rig.wrapper.get('[data-rp-context-action="paste"]');
+		expect(paste.attributes('aria-disabled')).toBe('true');
+		expect(paste.attributes('title')).toBe('Not available while another tool or edit is active.');
+		await paste.trigger('keydown', { key: 'Escape' });
+		expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(false);
+		await settle();
+		expect(rig.project.zones.size).toBe(before.size);
+		// Released with the selection moved, so the edit ends without opening a form; Paste comes back.
+		rig.selection.clear(); release(); await editing; vi.restoreAllMocks();
+		expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(true);
+		await settleUntil(() => added(rig, before).length === 1, 'the paste once the edit ended');
+	}
 });

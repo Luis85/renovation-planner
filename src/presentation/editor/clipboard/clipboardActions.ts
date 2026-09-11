@@ -16,7 +16,7 @@ import { createZoneHistory } from '../add/createZoneHistory';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
 
-type ClipboardRuntime = Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask'>;
+type ClipboardRuntime = Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask' | 'structureActions' | 'elementActions'>;
 
 /** Copy and Paste for ONE leaf, over the clipboard every leaf shares (design spec §6). */
 function createClipboardActions(context: PlanEditorContext, runtime: ClipboardRuntime) {
@@ -25,10 +25,13 @@ function createClipboardActions(context: PlanEditorContext, runtime: ClipboardRu
 		rooms: [...project.zones.values()].map(zone => ({ key: zone.id, name: zone.name, zoneType: zone.zoneType, points: zone.points, bulges: zone.bulges })),
 		structure: project.structure, names: project.plan?.spatialElements ?? [], groups: project.groups,
 	}, selection.selectedIds));
-	/** Everything a paste needs, or `null` whenever one would be refused — Review and a stale floor included. */
+	/**
+	 * Everything a paste needs, or `null` whenever one would be refused — Review and a stale floor included — or would
+	 * strand an element or structure edit already reading its baseline, whose save would then refuse as stale.
+	 */
 	const ready = computed(() => {
-		const clipboard = context.clipboard.value, { renovation, groups } = context.commands;
-		return clipboard && renovation && groups && !runtime.writesBlocked.value && session.perspective !== 'review' ? { clipboard, renovation, groups } : null;
+		const clipboard = context.clipboard.value, { renovation, groups } = context.commands, editing = runtime.structureActions.active.value || runtime.elementActions.active.value;
+		return clipboard && renovation && groups && !runtime.writesBlocked.value && !editing && session.perspective !== 'review' ? { clipboard, renovation, groups } : null;
 	});
 	function copy(): boolean {
 		// Plain data, never the store's reactive proxies: the clipboard outlives this leaf.
@@ -48,14 +51,14 @@ function createClipboardActions(context: PlanEditorContext, runtime: ClipboardRu
 			else reportDispatchFailure(result.error);
 		} catch (cause) { notifyFault(cause, context.commands.logger, 'editor.clipboard.paste-failed'); }
 	}
-	return { canCopy: computed(() => copied.value !== null), canPaste: computed(() => ready.value !== null), pending: computed(() => context.clipboard.value !== null), copy, paste };
+	return { canCopy: computed(() => copied.value !== null), canPaste: computed(() => ready.value !== null), hasClipboard: computed(() => context.clipboard.value !== null), copy, paste };
 }
 
 export type ClipboardActions = ReturnType<typeof createClipboardActions>;
 const KEY: InjectionKey<ClipboardActions> = Symbol('renovation-planner:editor-clipboard');
 
 /** Provided by `PlanEditorRoot` rather than added to `EditorRuntime`, whose file is at its line budget. */
-export function provideClipboardActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask'>): ClipboardActions {
+export function provideClipboardActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask' | 'structureActions' | 'elementActions'>): ClipboardActions {
 	const actions = createClipboardActions(context, runtime);
 	provide(KEY, actions);
 	return actions;

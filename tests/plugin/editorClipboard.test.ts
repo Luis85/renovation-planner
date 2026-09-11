@@ -5,6 +5,7 @@ import { PLAN_EDITOR_VIEW, type PlanEditorDeps } from '../../src/presentation/vi
 import { loadedPlugin } from '../helpers/plugin';
 import { FakeLeaf } from '../helpers/workspace';
 import { installEditorEnvironment } from '../helpers/editor';
+import { expectDefined } from '../helpers/domain';
 
 installEditorEnvironment();
 
@@ -17,8 +18,8 @@ const clipboardOf = (view: unknown) => (view as { deps: PlanEditorDeps }).deps.c
  */
 it('hands every Plan Editor leaf the same clipboard', async () => {
 	const { plugin } = await loadedPlugin(DEFAULT_SETTINGS);
-	const factory = plugin.views.get(PLAN_EDITOR_VIEW);
-	const first = factory?.(new FakeLeaf() as never), second = factory?.(new FakeLeaf() as never);
+	const factory = expectDefined(plugin.views.get(PLAN_EDITOR_VIEW), 'the Plan Editor view factory');
+	const first = factory(new FakeLeaf() as never), second = factory(new FakeLeaf() as never);
 	expect(clipboardOf(first)).toBeDefined();
 	expect(clipboardOf(second)).toBe(clipboardOf(first));
 });

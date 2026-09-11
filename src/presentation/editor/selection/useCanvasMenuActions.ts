@@ -44,11 +44,12 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		const ids = selection.selectedIds, id = ids[0];
 		const blocked = runtime.writesBlocked.value, review = session.perspective === 'review', panning = runtime.activeToolId.value === 'pan';
 		const result: CanvasMenuAction[] = [{ id: 'fit', label: ids.length ? 'editor.view.fit-selection' : 'editor.view.fit-floor', group: 'view', icon: 'maximize', disabled: frame(ids.length === 0) === null, run: () => fit(ids.length === 0) }];
-		if (clipboard && ids.length) result.push({ id: 'copy', label: 'editor.input.copy', group: 'object', icon: 'copy', disabled: !clipboard.canCopy.value, run: () => { clipboard.copy(); } });
+		// Hidden rather than greyed when nothing selected is copyable: every disabled reason here names an edit, and Copy is not one.
+		if (clipboard?.canCopy.value) result.push({ id: 'copy', label: 'editor.input.copy', group: 'object', icon: 'copy', run: () => { clipboard.copy(); } });
 		if (review) return result;
 		result.push(panning ? { id: 'select', label: 'editor.primary.select', group: 'mode', icon: 'mouse-pointer-2', run: () => runtime.setTool('select') } : { id: 'pan', label: 'editor.input.pan', group: 'mode', icon: 'hand', run: () => runtime.setTool('pan') });
 		if (!ids.length) result.push({ id: 'add', label: 'editor.primary.add', group: 'create', icon: 'plus', disabled: blocked, run: add });
-		if (clipboard?.pending.value) result.push({ id: 'paste', label: 'editor.input.paste', group: 'create', icon: 'clipboard-paste', disabled: !clipboard.canPaste.value, run: () => clipboard.paste(opened()) });
+		if (clipboard?.hasClipboard.value) result.push({ id: 'paste', label: 'editor.input.paste', group: 'create', icon: 'clipboard-paste', disabled: !clipboard.canPaste.value, run: () => clipboard.paste(opened()) });
 		if (ids.length === 1) result.push(...singleActions(id, blocked));
 		const rotation = runtime.rotationActions.target.value;
 		if (rotation) result.push({ id: 'rotate', label: 'editor.input.rotate', group: 'object', icon: 'rotate-cw', disabled: blocked || runtime.rotationActions.blocked.value, run: () => runtime.rotationActions.rotate(rotation.id) });

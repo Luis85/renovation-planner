@@ -15,6 +15,7 @@ import { useCanvasGroupActions } from './canvasGroupActions';
 import { useCanvasMenuActions, type CanvasMenuAction } from './useCanvasMenuActions';
 import { canvasCandidates } from './canvasCandidates';
 import { structureRecords } from '../structure/structureRecords';
+import { plainPress } from '../surface/keyboard';
 import HostIcon from '../../components/HostIcon.vue';
 import type { Point } from '../../../core/geometry/Point';
 const emit = defineEmits<{ openAdd: [] }>();
@@ -78,7 +79,16 @@ async function show(event: MouseEvent | KeyboardEvent): Promise<void> {
 	menu.value.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
 }
 function context(event: MouseEvent): void { void show(event); }
-function key(event: KeyboardEvent): void { if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) void show(event); }
+function key(event: KeyboardEvent): void {
+	if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) void show(event);
+	else if ((event.key === 'Delete' || event.key === 'Backspace') && plainPress(event) && !event.defaultPrevented && !unavailable(event)) deleteKey(event);
+}
+/** Delete and Backspace run this menu's own Delete for the selection (spec §9), so the key never means anything the menu does not. */
+function deleteKey(event: KeyboardEvent): void {
+	const action = actions.value.find(item => item.id === 'delete' && !item.disabled);
+	if (!action) return;
+	event.preventDefault(); event.stopPropagation(); close(open.value); void action.run();
+}
 function outside(event: PointerEvent): void { if (open.value && !menu.value?.contains(event.target as Node)) close(false); }
 function leave(event: FocusEvent): void { if (open.value && (!event.relatedTarget || !root?.contains(event.relatedTarget as Node))) close(false); }
 function navigation(event: KeyboardEvent): void {

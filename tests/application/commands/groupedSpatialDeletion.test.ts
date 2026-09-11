@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { groupDeletionStack } from '../../helpers/groupDeletion';
 import { expectDefined, expectErr, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
-import { spatialRemovalInput } from '../../../src/presentation/editor/elements/spatialRemovalInput';
+import { spatialRemovalInput } from '../../../src/application/commands/spatial/spatialRemovalInput';
 import { err } from '../../../src/core/result/Result';
 
 afterEach(() => vi.restoreAllMocks());

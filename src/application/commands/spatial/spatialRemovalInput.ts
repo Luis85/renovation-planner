@@ -1,4 +1,4 @@
-import type { RenovationBaseline, RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
+import type { RenovationBaseline, RenovationInput } from '../renovation/RenovationCommand';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
 
 function without(structure: Structure, ids: ReadonlySet<string>): Structure {

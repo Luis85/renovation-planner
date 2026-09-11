@@ -7,6 +7,7 @@ export const groupsEn = {
 	'editor.group.number': 'Group {n}',
 	'editor.group.group': 'Group selected items',
 	'editor.group.ungroup': 'Ungroup',
+	'editor.group.delete': 'Delete group',
 	'editor.group.enclose': 'Enclose with walls and group',
 	'editor.group.saved': 'Saved group',
 	'editor.group.select-member': 'Select focused item',

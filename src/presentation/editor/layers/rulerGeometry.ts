@@ -133,15 +133,18 @@ function strokeAll(context: Konva.Context, segments: readonly FlatSegment[], wid
  * from. A closure would leave the attribute decorative, and an assertion against a value
  * nothing draws from is the no-op assertion this project has already been caught by.
  *
- * Konva calls this with the shape's context already set up (`strokeStyle` from `stroke`,
- * the layer transform applied), so only the width — which differs between a bar and a tick —
- * is set here. `context.setAttr` rather than a bare assignment: Konva's `Context` records
- * state changes for its own tracing, and a direct write to the underlying 2D context is
- * invisible to it.
+ * Konva calls this with the transform applied and NOTHING else: it sets `strokeStyle` only
+ * inside `strokeShape`, which a function issuing its own strokes never calls, so the colour is
+ * set here from the shape's own `stroke` along with the width, which differs between a bar and
+ * a tick. This docblock once said Konva set the colour, and the bars and ticks painted in the
+ * canvas default, black, under an accent spine. `context.setAttr` rather than a bare
+ * assignment: Konva's `Context` records state changes for its own tracing, and a direct write
+ * to the underlying 2D context is invisible to it.
  */
 export function paintRulerMarks(context: Konva.Context, shape: Konva.Shape): void {
 	const marks = shape.getAttr('marks') as RulerMarks | null | undefined;
 	if (marks === null || marks === undefined) return;
+	context.setAttr('strokeStyle', shape.stroke());
 	strokeAll(context, marks.endBars, BAR_STROKE_PX);
 	strokeAll(context, marks.ticks, TICK_STROKE_PX);
 }

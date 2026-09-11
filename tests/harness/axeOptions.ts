@@ -42,8 +42,12 @@ export const runOptions: Parameters<typeof axe.run>[1] = {
  * costs nothing new.
  *
  * **Raising it blinds nothing**: each `settleUntil` still fails first, by name, at its own
- * 4s deadline — this only bounds the SUM, deliberately far above the worst sum measured so
- * far (8.9s + 4s ≈ 13s) so a contended runner cannot reach it. Applied to the BLOCK, not to
- * individual cases, so a case added later inherits it instead of rediscovering this.
+ * 4s deadline — this only bounds the SUM. Applied to the BLOCK, not to individual cases, so a
+ * case added later inherits it instead of rediscovering this.
+ *
+ * **30s was not "far above" on `verify (windows-latest, 22)` under coverage**: every harness
+ * index entry there took 18-26s (`the picker` 19.0s, `prototype:ProjectHome` 26.6s) and
+ * `prototype:WorkPackageFilters` failed at 30.39s (PR #140, a change touching no harness code),
+ * against ~2s per entry locally. 60s is twice that worst CI measurement.
  */
-export const HARNESS_SCAN_MS = 30_000;
+export const HARNESS_SCAN_MS = 60_000;

@@ -3,7 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { mountPlanEditorCanvas, settle, settleUntil } from '../../helpers/editor';
 import { Notice } from '../../helpers/obsidian-mock';
-import { expectDefined } from '../../helpers/domain';
+import { expectDefined, expectOk } from '../../helpers/domain';
+import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { WALL_LOOP } from '../../helpers/structure';
 import { referenceWorkspace } from '../../harness/referenceWorkspace';
 import { HARNESS_PLAN, harnessDeps } from '../../harness/planEditor';
@@ -200,9 +201,16 @@ function holdRead(service: { read(planId: PlanId): Promise<unknown> }): () => vo
 it('offers no paste while a structure or element edit is in flight, from the menu or the shortcut', async () => {
 	const rig = await setup();
 	rig.selection.select([rig.room.id]); key(rig.canvasEl, { key: 'c', ctrlKey: true });
-	for (const [actions, service, at] of [[rig.runtime.structureActions, rig.services, 20000], [rig.runtime.elementActions, rig.renovation, 40000]] as const) {
+	// A real element, not a stand-in id: `elementActions.edit` on an id `elementFrom` cannot find
+	// ends its own in-flight window through the not-found arm rather than the genuine baseline
+	// read this case means to hold — `wall-a` names a WALL, which `elementActions` never resolves.
+	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
+	const desk = { id: 'element-clipboard-guard-desk', kind: 'object' as const, name: 'Desk', points: [{ x: 500, y: 500 }, { x: 1500, y: 500 }, { x: 1500, y: 1500 }, { x: 500, y: 1500 }] };
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, elementInput(baseline, desk), rig.runtime.structureTask.ledger)));
+	await rig.runtime.refreshProjection();
+	for (const [actions, service, at, targetId] of [[rig.runtime.structureActions, rig.services, 20000, 'wall-a'], [rig.runtime.elementActions, rig.renovation, 40000, desk.id]] as const) {
 		const before = new Set(rig.project.zones.keys()), release = holdRead(service);
-		const editing = actions.edit('wall-a');
+		const editing = actions.edit(targetId);
 		expect(actions.active.value).toBe(true);
 		pointAt(rig, { x: at, y: at });
 		await keyboardMenu(rig);

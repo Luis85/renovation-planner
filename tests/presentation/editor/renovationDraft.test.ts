@@ -1,7 +1,7 @@
 import { withPlanRenovation } from '../../../src/domain/plan/Plan';
 import { describe, expect, it } from 'vitest';
 import { renovationStack } from '../../helpers/renovation';
-import { expectOk } from '../../helpers/domain';
+import { expectDefined, expectOk } from '../../helpers/domain';
 import { applyRenovationDraft, renovationDraft, renovationTargetDraft } from '../../../src/presentation/editor/renovation/renovationDraft';
 import { applyPlannedGeometry, geometryFields, plannedGeometryDraft } from '../../../src/presentation/editor/renovation/plannedGeometry';
 import { removeRenovationRecord } from '../../../src/presentation/editor/renovation/renovationRemoval';
@@ -16,7 +16,8 @@ describe('renovation draft semantics and spatial proposals', () => {
 	it.each(['existing', 'planned', 'work', 'decision'] as const)('creates and updates %s without aliasing its Existing source', async kind => {
 		const rig = await renovationStack(), baseline = expectOk(await rig.read());
 		const draft = renovationDraft(kind, rig.roomId, 'absent'); expect(draft.subject.existing !== null).toBe(kind === 'existing');
-		const updated = applyRenovationDraft(baseline, draft); expect(updated.renovation.subjects.length + updated.renovation.work.length + updated.renovation.decisions.length).toBe(1);
+		const updated = applyRenovationDraft(baseline, draft), updatedRenovation = expectDefined(updated.renovation, 'updated renovation');
+		expect(updatedRenovation.subjects.length + updatedRenovation.work.length + updatedRenovation.decisions.length).toBe(1);
 		const plan = expectOk(withPlanRenovation(baseline.plan.entity, rig.value)), existing = { ...baseline, plan: { ...baseline.plan, entity: plan } };
 		const id = kind === 'work' ? rig.value.work[0].id : kind === 'decision' ? rig.value.decisions[0].id : rig.value.subjects[0].id;
 		const edit = renovationDraft(kind, rig.roomId, id, rig.value); expect(applyRenovationDraft(existing, edit).renovation).toEqual(rig.value);
@@ -32,7 +33,7 @@ describe('renovation draft semantics and spatial proposals', () => {
 		expect(baseline.geometry.document.structure?.walls[0].end.x).toBe(4000);
 		const read = { plan: { ...baseline.plan, entity: expectOk(withPlanRenovation(baseline.plan.entity, result.renovation)) }, geometry: { ...baseline.geometry, document: { ...baseline.geometry.document, intended: result.intended } } };
 		expect(plannedGeometryDraft(read, subject).kind).toBe('wall');
-		const discarded = removeRenovationRecord(read, subject.id, true); expect(discarded.renovation.subjects[0]).toMatchObject({ existing: subject.existing, planned: null });
+		const discarded = removeRenovationRecord(read, subject.id, true); expect(expectDefined(discarded.renovation, 'discarded renovation').subjects[0]).toMatchObject({ existing: subject.existing, planned: null });
 		expect(discarded.intended?.walls.find(w => w.id === 'wall-a')).toEqual(baseline.geometry.document.structure?.walls[0]);
 		expect(discarded.intended?.boundaries).toEqual(baseline.geometry.document.structure?.boundaries);
 	});
@@ -57,14 +58,14 @@ describe('renovation draft semantics and spatial proposals', () => {
 		const draft = plannedGeometryDraft(baseline, subject); draft.kind = 'wall';
 		const preview = expectOk(applyPlannedGeometry(baseline, { renovation: { subjects: [subject], work: [], decisions: [] }, intended: undefined }, subject, draft));
 		expect(draft.id).toBe('');
-		expect(preview.intended?.walls.at(-1)?.id).toBe(preview.renovation.subjects[0].targetId);
+		expect(preview.intended?.walls.at(-1)?.id).toBe(expectDefined(preview.renovation, 'preview renovation').subjects[0].targetId);
 	});
 	it('rejects invalid measurements and treats nonspatial and Existing-only drafts as metadata', async () => {
 		const rig = await renovationStack(), baseline = expectOk(await rig.read()), subject = rig.value.subjects[0], input = { renovation: rig.value, intended: undefined };
 		const draft = plannedGeometryDraft(baseline, subject); expect(geometryFields(draft)).toEqual([]); expect(expectOk(applyPlannedGeometry(baseline, input, subject, draft))).toEqual(input);
 		draft.kind = 'wall'; draft.text.x = 'invalid'; expect(applyPlannedGeometry(baseline, input, subject, draft)).toMatchObject({ ok: false });
 		expect(expectOk(applyPlannedGeometry(baseline, input, { ...subject, planned: null }, draft))).toEqual(input);
-		expect(removeRenovationRecord(baseline, 'absent', false).renovation.subjects).toEqual([]);
+		expect(expectDefined(removeRenovationRecord(baseline, 'absent', false).renovation, 'renovation').subjects).toEqual([]);
 	});
 	it.each(['spatial.numeric', 'renovation.cycle', 'undo.superseded', 'plan.revision-conflict', 'renovation.state', 'renovation.write-failed'])('explains %s without leaking internal error text', code => {
 		expect(renovationMessage({ category: code.endsWith('write-failed') ? 'Persistence' : 'Validation', code, message: 'private internal detail' })).not.toContain('private internal');
@@ -94,7 +95,7 @@ it('adds and discards intended geometry on a legacy plan with no current structu
  expect(proposal.intended?.walls).toHaveLength(1); expect(legacy.geometry.document.structure).toBeUndefined();
  const saved = { ...legacy, plan: { ...legacy.plan, entity: expectOk(withPlanRenovation(legacy.plan.entity, proposal.renovation)) }, geometry: { ...legacy.geometry, document: { ...legacy.geometry.document, intended: proposal.intended } } };
  const discarded = removeRenovationRecord(saved, subject.id, true);
- expect(discarded.intended).toEqual(EMPTY_STRUCTURE); expect(discarded.renovation.subjects).toEqual([]);
+ expect(discarded.intended).toEqual(EMPTY_STRUCTURE); expect(expectDefined(discarded.renovation, 'discarded renovation').subjects).toEqual([]);
 });
 
 

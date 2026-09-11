@@ -29,7 +29,7 @@ export interface RenovationBaseline {
 }
 export interface RenovationInput {
 	readonly spatial?: { readonly structure: PlanGeometryDocument['structure']; readonly metadata: Plan['spatialElements'] };
-	readonly renovation: Renovation;
+	readonly renovation: Renovation | undefined;
 	readonly intended: PlanGeometryDocument['intended'];
 }
 export interface RenovationServices {
@@ -39,11 +39,11 @@ export interface RenovationServices {
 type CheckLinks = (plan: Plan, document: PlanGeometryDocument) => Promise<Result<void, AppError>>;
 interface Dependencies { plans: PlanRepository; geometry: PlanGeometrySidecar; events: EventBus; checkLinks?: CheckLinks }
 
-export function validateRenovationInput(renovation: Renovation, document: PlanGeometryDocument): Result<void, AppError> {
-	const valid = validateRenovation(renovation);
+export function validateRenovationInput(renovation: Renovation | undefined, document: PlanGeometryDocument): Result<void, AppError> {
+	const valid = validateRenovation(renovation ?? EMPTY_RENOVATION);
 	if (!valid.ok) return valid;
 	const roomIds = document.objects.map(item => item.id);
-	const targets = validateRenovationTargets(renovation, { ...document, roomIds });
+	const targets = validateRenovationTargets(renovation ?? EMPTY_RENOVATION, { ...document, roomIds });
 	if (!targets.ok) return targets;
 	for (const candidate of [document.structure, document.intended]) {
 		if (!candidate) continue;
@@ -102,7 +102,7 @@ class RenovationCommand {
 			if (!plan.ok) return plan;
 			const document = this.proposedGeometry(forward);
 			if (!validElementMetadataLinks(plan.value.spatialElements, [document.structure?.elements, document.intended?.elements])) return err(planError('invalid-spatial-elements', 'Element metadata and geometry must identify the same elements.'));
-			const valid = validateRenovationInput(renovation ?? EMPTY_RENOVATION, document);
+			const valid = validateRenovationInput(renovation, document);
 			if (!valid.ok) return valid;
 			const links = await this.deps.checkLinks?.(plan.value, document);
 			if (links && !links.ok) return links;

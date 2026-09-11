@@ -24,7 +24,7 @@ describe('shared editor records through repository history', () => {
 		const rig = await planningStack(); expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());
 		expectOk(await rig.renovation.command(expectOk(await rig.read()), { renovation: { ...rig.value, depth: rig.depth }, intended: undefined }, rig.ledger).execute());
 		const baseline = expectOk(await rig.read()), input = removeRenovationRecord(baseline, 'decision-finish', false);
-		expect(input.renovation.depth).toEqual(rig.depth);
+		expect(expectDefined(input.renovation, 'input renovation').depth).toEqual(rig.depth);
 		const command = rig.renovation.command(baseline, input, rig.ledger); expectOk(await command.execute());
 		expect(expectOk(await rig.read()).plan.entity.renovation?.depth).toEqual(rig.depth);
 		expectOk(await command.undo()); expect(expectOk(await rig.read()).plan.entity.renovation?.decisions).toHaveLength(1);
@@ -48,7 +48,8 @@ describe('shared editor records through repository history', () => {
 		expectOk(await command.undo()); expect(sameRenovation(expectOk(await rig.read()).plan.entity.renovation, baseline.plan.entity.renovation)).toBe(true);
 		expectOk(await command.execute());
 		const repeated = expectOk(batchRenovationInput(expectOk(await rig.read()), targets(rig.roomId), { ...draft, kind, id: item.id }));
-		const records = kind === 'work' ? repeated.renovation.work : repeated.renovation.depth?.evidence ?? [];
+		const repeatedRenovation = expectDefined(repeated.renovation, 'repeated renovation');
+		const records = kind === 'work' ? repeatedRenovation.work : repeatedRenovation.depth?.evidence ?? [];
 		expect(records.filter(record => record.id === item.id)).toHaveLength(1); expect(records.find(record => record.id === item.id)?.links).toHaveLength(1);
 	});
 	it.each(['door', 'window', 'opening'] as const)('marks walls and a hosted %s in one intended-state command, preserving current geometry', async kind => {
@@ -57,9 +58,10 @@ describe('shared editor records through repository history', () => {
 		expectOk(await rig.geometry.write(rig.plan.id, { ...initial.geometry.document, structure: { ...structure, openings: [{ id: 'opening-shared', hostId: 'wall-a', kind, offset: 500, width: 900, height: 2100, sill: 0 }] } }, initial.geometry.version));
 		const baseline = expectOk(await rig.read());
 		const proposed = expectOk(batchRenovationInput(baseline, targets(rig.roomId), { ...draft, kind: 'remove' }));
+		const proposedRenovation = expectDefined(proposed.renovation, 'proposed renovation');
 		expect(proposed.intended?.walls.map(item => item.id)).not.toContain('wall-a');
-		expect(proposed.renovation.subjects.filter(item => item.planned?.change === 'remove').length).toBeGreaterThanOrEqual(2);
-		expect(proposed.renovation.subjects.find(item => item.targetId === 'opening-shared')).toMatchObject({ kind: kind === 'opening' ? 'other' : kind, existing: { description: `${kind.charAt(0).toUpperCase() + kind.slice(1)} · Wall 1` } });
+		expect(proposedRenovation.subjects.filter(item => item.planned?.change === 'remove').length).toBeGreaterThanOrEqual(2);
+		expect(proposedRenovation.subjects.find(item => item.targetId === 'opening-shared')).toMatchObject({ kind: kind === 'opening' ? 'other' : kind, existing: { description: `${kind.charAt(0).toUpperCase() + kind.slice(1)} · Wall 1` } });
 		expect(proposed.intended?.openings).toEqual([]);
 		const command = rig.renovation.command(baseline, proposed, rig.ledger); expectOk(await command.execute());
 		expect(expectOk(await rig.read()).geometry.document.structure).toEqual(baseline.geometry.document.structure);
@@ -71,7 +73,7 @@ describe('shared editor records through repository history', () => {
 		const rig = await planningStack(), baseline = expectOk(await rig.read());
 		const modified = expectOk(batchRenovationInput(baseline, targets(rig.roomId), { ...draft, kind: 'modify' }));
 		const second = expectOk(batchRenovationInput({ ...baseline, plan: { ...baseline.plan, entity: expectOk(withPlanRenovation(baseline.plan.entity, modified.renovation)) } }, targets(rig.roomId), { ...draft, kind: 'modify', title: 'Paint' }));
-		expect(second.renovation.subjects.map(item => item.id)).toEqual(modified.renovation.subjects.map(item => item.id));
+		expect(expectDefined(second.renovation, 'second renovation').subjects.map(item => item.id)).toEqual(expectDefined(modified.renovation, 'modified renovation').subjects.map(item => item.id));
 		expect(batchRenovationInput(baseline, targets(rig.roomId), { ...draft, title: '' }).ok).toBe(false);
 		expect(batchRenovationInput(baseline, targets('missing-room'), draft).ok).toBe(false);
 		expect(batchRenovationInput(baseline, [], draft).ok).toBe(true);
@@ -81,7 +83,7 @@ describe('shared editor records through repository history', () => {
 		expectOk(await rig.geometry.write(rig.plan.id, { ...initial.geometry.document, structure: undefined }, initial.geometry.version));
 		const baseline = expectOk(await rig.read());
 		const input = expectOk(batchRenovationInput(baseline, [{ roomId: rig.roomId, targetId: rig.roomId, name: 'Floor', kind: 'floor' }], { ...draft, kind: 'modify', title: 'Retain and oil boards' }));
-		expect(input.intended).toBeUndefined(); expect(input.renovation.subjects).toHaveLength(1);
+		expect(input.intended).toBeUndefined(); expect(expectDefined(input.renovation, 'input renovation').subjects).toHaveLength(1);
 		expectOk(await rig.renovation.command(baseline, input, rig.ledger).execute());
 		expect(expectOk(await rig.read()).plan.entity.renovation?.subjects[0].planned?.description).toBe('Retain and oil boards');
 	});

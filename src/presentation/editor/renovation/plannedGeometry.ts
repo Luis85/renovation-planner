@@ -4,7 +4,7 @@ import { err, ok } from '../../../core/result/Result';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
 import { editWall, spatialError } from '../../../domain/spatial/structureGeometry';
 import { formatMetres, parseCoordinateMetres } from '../shell/formatLength';
-import type { RenovationSubject } from '../../../domain/renovation/Renovation';
+import { EMPTY_RENOVATION, type RenovationSubject } from '../../../domain/renovation/Renovation';
 import type { SpatialElement } from '../../../domain/spatial/SpatialElement';
 import type { CoordinateEdits } from '../resize/outlineProposal';
 import { plannedElementGeometry } from '../elements/plannedElementGeometry';
@@ -81,5 +81,8 @@ export function applyPlannedGeometry(baseline: RenovationBaseline, input: Renova
 		values[field] = parsed.mm;
 	}
 	const intended = changeGeometry(current, before, { ...draft, id }, change, values);
-	return ok({ renovation: { ...input.renovation, subjects: input.renovation.subjects.map(item => item.id === subject.id ? { ...item, targetId: id } : item) }, intended });
+	// This edits a subject that already exists on the floor's own renovation, so `input.renovation`
+	// (built by `applyRenovationDraft`) is always real here; the fallback only keeps the type honest.
+	const renovation = input.renovation ?? EMPTY_RENOVATION;
+	return ok({ renovation: { ...renovation, subjects: renovation.subjects.map(item => item.id === subject.id ? { ...item, targetId: id } : item) }, intended });
 }

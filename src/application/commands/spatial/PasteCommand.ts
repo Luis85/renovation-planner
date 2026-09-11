@@ -2,7 +2,6 @@ import type { AppError } from '../../../core/errors/AppError';
 import type { Point } from '../../../core/geometry/Point';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
-import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { placedRooms, placedStructure, type ClipboardIdPrefix, type PlacedStructure, type SpatialClipboard } from '../../../domain/spatial/clipboard';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
@@ -34,7 +33,7 @@ function mergedStructure(baseline: RenovationBaseline, placed: PlacedStructure):
 /** The floor's own structure and element names, with the paste's appended; renovation and planned geometry untouched. */
 function spatialInput(baseline: RenovationBaseline, placed: PlacedStructure): RenovationInput {
 	return {
-		renovation: baseline.plan.entity.renovation ?? EMPTY_RENOVATION,
+		renovation: baseline.plan.entity.renovation,
 		intended: baseline.geometry.document.intended,
 		spatial: { structure: mergedStructure(baseline, placed), metadata: [...baseline.plan.entity.spatialElements ?? [], ...placed.names] },
 	};

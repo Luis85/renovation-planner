@@ -64,7 +64,7 @@ describe('ordinary vault evidence and owned generated projections', () => {
  expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());
  let baseline = expectOk(await rig.read()); expectOk(await rig.renovation.command(baseline, { renovation: { ...rig.value, depth: rig.depth }, intended: undefined }, rig.ledger).execute()); baseline = expectOk(await rig.read());
  const cost = planningDraft('cost', baseline, rig.roomId, rig.cost.id), evidence = planningDraft('evidence', baseline, rig.roomId, rig.evidence.id);
- expect(cost.facts[0].amount).toBe('500'); expect(evidence.title).toBe(rig.evidence.description); expect(planningInput(cost, baseline).renovation.depth?.costs[0]).toEqual(rig.cost); expect(planningInput(evidence, baseline).renovation.depth?.evidence[0]).toEqual(rig.evidence);
+ expect(cost.facts[0].amount).toBe('500'); expect(evidence.title).toBe(rig.evidence.description); expect(expectDefined(planningInput(cost, baseline).renovation, 'renovation').depth?.costs[0]).toEqual(rig.cost); expect(expectDefined(planningInput(evidence, baseline).renovation, 'renovation').depth?.evidence[0]).toEqual(rig.evidence);
  });
 });
 

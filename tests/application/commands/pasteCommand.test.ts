@@ -172,8 +172,10 @@ it('refuses the undo after an outside write and leaves the paste in place', asyn
 	expectOk(await new CreateZoneCommand(r.stack.zones, r.stack.plans, r.stack.events).execute({ planId: r.plan.id, name: 'Hall', zoneType: 'Room', geometry: { points: [{ x: -5000, y: 0 }, { x: -4000, y: 0 }, { x: -4000, y: 1000 }] } }));
 	expect(expectErr(await command.undo()).code).toBe('undo.superseded');
 	const after = await r.floor();
-	// `objects` and `zones` are excluded here: the outside "Hall" create legitimately added one of
-	// each, and that is what this test is proving the refused undo did not also touch.
+	// `objects` and `zones` are not part of `expectSidecarUnchanged` — every other case in this
+	// file asserts them separately alongside it. This one doesn't: the outside "Hall" create
+	// legitimately added one of each, and that is what this test is proving the refused undo did
+	// not also touch.
 	expectSidecarUnchanged(after, pasted);
 });
 
@@ -218,6 +220,18 @@ it('pastes onto a floor that has no structure yet', async () => {
 	const r = wire(await structureStack());
 	expectOk(await r.paste().execute());
 	expect((await r.floor()).structure.walls).toHaveLength(4);
+});
+
+it('leaves a plan with no renovation without one after a paste, its undo and its redo', async () => {
+	const r = wire(await structureStack()), before = await r.floor();
+	expect(before.plan.renovation).toBeUndefined();
+	const command = r.paste();
+	expectOk(await command.execute());
+	expect((await r.floor()).plan.renovation).toBeUndefined();
+	expectOk(await command.undo());
+	expect((await r.floor()).plan.renovation).toBeUndefined();
+	expectOk(await command.execute());
+	expect((await r.floor()).plan.renovation).toBeUndefined();
 });
 
 it('writes nothing when the floor cannot be read for the check, and undoes the rooms when a later step\'s read fails', async () => {
@@ -322,6 +336,7 @@ it('refuses a hand-built clipboard whose opening names a host wall it never capt
 	expect(save).not.toHaveBeenCalled();
 	expect(mintId).not.toHaveBeenCalled();
 	const after = await r.floor();
+	expect(after.objects).toEqual(before.objects);
 	expectSidecarUnchanged(after, before);
 });
 
@@ -330,5 +345,6 @@ it('answers no-write for an undo attempted before the first execute', async () =
 	expect(expectOk(await r.paste().undo())).toBe('no-write');
 	const after = await r.floor();
 	expect(after.zones.map(zone => zone.id)).toEqual(before.zones.map(zone => zone.id));
+	expect(after.objects).toEqual(before.objects);
 	expectSidecarUnchanged(after, before);
 });

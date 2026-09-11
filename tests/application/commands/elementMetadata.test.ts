@@ -22,6 +22,17 @@ describe('element labels and geometry commit together through the existing trans
 		expect(result).toMatchObject({ ok: false, error: { uncompensatedWrite: true } });
 		const current = expectOk(await r.read()); expect(current.plan.entity.spatialElements?.[0].name).toBe('Peer label'); expect(current.geometry.document).toEqual(baseline.geometry.document);
 	});
+	it('leaves a plan with no renovation without one after adding an element, its undo and its redo', async () => {
+		const r = await renovationStack(), initial = expectOk(await r.read());
+		expect(initial.plan.entity.renovation).toBeUndefined();
+		const command = r.renovation.command(initial, elementInput(initial, element), r.ledger);
+		expectOk(await command.execute());
+		expect(expectOk(await r.read()).plan.entity.renovation).toBeUndefined();
+		expectOk(await command.undo());
+		expect(expectOk(await r.read()).plan.entity.renovation).toBeUndefined();
+		expectOk(await command.execute());
+		expect(expectOk(await r.read()).plan.entity.renovation).toBeUndefined();
+	});
 	it('refuses deleting an element used by material provenance before losing its label or geometry', async () => {
 		const r = await planningStack(), initial = expectOk(await r.read());
 		expectOk(await r.renovation.command(initial, elementInput(initial, element), r.ledger).execute());

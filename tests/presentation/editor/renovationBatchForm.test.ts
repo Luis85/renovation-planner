@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { ref } from 'vue';
 import { planningStack } from '../../helpers/planning';
-import { expectOk } from '../../helpers/domain';
+import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle } from '../../helpers/editor';
 import { defer } from '../../helpers/async';
 import { err, ok } from '../../../src/core/result/Result';
@@ -36,7 +36,7 @@ it('validates a real vault file before creating shared evidence', async () => {
 	await rig.wrapper.get('form').trigger('submit'); expect(rig.wrapper.get('[role="alert"]').text()).toContain('Choose an available file');
 	await rig.wrapper.findAll('select')[1].setValue('Notes/walls.md'); await rig.wrapper.findAll('select')[2].setValue('photo'); await rig.wrapper.get('form').trigger('keydown', { key: 'x' }); await rig.wrapper.get('form').trigger('submit'); await rig.wrapper.get('form').trigger('submit');
 	expect(rig.dispatch).toHaveBeenCalledOnce();
-	expect(rig.dispatch.mock.calls[0][0].renovation.depth?.evidence[0].type).toBe('photo');
+	expect(expectDefined(rig.dispatch.mock.calls[0][0].renovation, 'renovation').depth?.evidence[0].type).toBe('photo');
 });
 it('retains native focus, preview and normalized evidence subpath during a pending batch save', async () => {
 	const rig = await setup('evidence'), w = rig.wrapper, pending = defer<DispatchResult>();
@@ -49,15 +49,15 @@ it('retains native focus, preview and normalized evidence subpath during a pendi
 	expect(path.element.value).toBe('Notes/walls.md'); expect(document.activeElement).toBe(path.element);
 	expect(submit.text()).toBe('Apply'); expect(w.get<HTMLInputElement>('input').element.readOnly).toBe(true);
 	await submit.trigger('click'); expect(rig.dispatch).toHaveBeenCalledOnce();
-	expect(rig.dispatch.mock.calls[0][0].renovation.depth?.evidence[0].subpath).toBe('#Survey');
+	expect(expectDefined(rig.dispatch.mock.calls[0][0].renovation, 'renovation').depth?.evidence[0].subpath).toBe('#Survey');
 	pending.resolve(ok('wrote')); await settle(); expect(w.emitted('submit')).toHaveLength(1);
 });
 it('attaches an existing Work record once while retaining its identity and facts', async () => {
 	const rig = await setup(); await rig.wrapper.get('select').setValue('work-sand');
 	await rig.wrapper.get('form').trigger('submit'); await rig.wrapper.get('form').trigger('submit');
 	expect(rig.dispatch).toHaveBeenCalledOnce();
-	const input = rig.dispatch.mock.calls[0][0];
-	expect(input.renovation.work).toHaveLength(1); expect(input.renovation.work[0]).toMatchObject({ id: 'work-sand', title: 'Sand floor' }); expect(input.renovation.work[0].links).toHaveLength(2);
+	const input = rig.dispatch.mock.calls[0][0], inputRenovation = expectDefined(input.renovation, 'input renovation');
+	expect(inputRenovation.work).toHaveLength(1); expect(inputRenovation.work[0]).toMatchObject({ id: 'work-sand', title: 'Sand floor' }); expect(inputRenovation.work[0].links).toHaveLength(2);
 });
 it.each(['refusal', 'throw'] as const)('retains a failed batch draft and freezes further submission after %s', async failure => {
 	const rig = await setup(); await rig.wrapper.get('input').setValue('Keep this work');
@@ -81,7 +81,7 @@ it('attaches an existing evidence record without requiring its file to be chosen
 	const wrapper = mount(RenovationBatchForm, { attachTo: document.body, props: { kind: 'evidence', baseline: { ...baseline, plan: { ...baseline.plan, entity: expectOk(withPlanRenovation(baseline.plan.entity, { ...rig.value, depth: rig.depth })) } }, targets: [{ roomId: rig.roomId, targetId: 'wall-a', name: 'Wall', kind: 'wall' }], busy: rig.busy, paused: rig.paused, dispatch: rig.dispatch } });
 	mounted.push(wrapper);
 	await wrapper.get('select').setValue(rig.evidence.id); await wrapper.get('form').trigger('submit'); await wrapper.get('form').trigger('submit');
-	expect(rig.dispatch.mock.calls[0][0].renovation.depth?.evidence[0]).toMatchObject({ id: rig.evidence.id, path: rig.evidence.path, links: [{ roomId: rig.roomId, targetId: 'wall-a' }] });
+	expect(expectDefined(rig.dispatch.mock.calls[0][0].renovation, 'renovation').depth?.evidence[0]).toMatchObject({ id: rig.evidence.id, path: rig.evidence.path, links: [{ roomId: rig.roomId, targetId: 'wall-a' }] });
 });
 it('explains affected hosted openings and linked records in the removal preview', async () => {
 	const rig = await setup('remove'), baseline = expectOk(await rig.read());

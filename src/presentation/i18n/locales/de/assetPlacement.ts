@@ -11,4 +11,10 @@ export const assetPlacementDe: Record<keyof typeof assetPlacementEn, string> = {
 	'editor.asset.no-shape': 'Dieses Objekt hat noch keine Grundfläche. Legen Sie sie zuerst im Objektdesigner fest.',
 	'editor.asset.unscaled': 'Die Grundfläche dieses Objekts hat noch keinen Maßstab. Kalibrieren Sie sie zuerst im Objektdesigner.',
 	'editor.asset.unreadable': 'Die Form dieses Objekts konnte nicht gelesen werden.',
+	'editor.asset.dimensions': '{width} × {depth} m',
+	'editor.asset.missing': 'Dieses Objekt existiert nicht mehr. Ersetzen Sie es oder löschen Sie die Platzierung.',
+	'editor.asset.open-designer': 'Im Designer öffnen',
+	'editor.asset.replace': 'Objekt ersetzen…',
+	'editor.asset.replace-title': 'Objekt ersetzen',
+	'editor.asset.add-material': 'Als Baustoff hinzufügen',
 };

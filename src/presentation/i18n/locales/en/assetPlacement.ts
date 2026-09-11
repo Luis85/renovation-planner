@@ -10,4 +10,10 @@ export const assetPlacementEn = {
 	'editor.asset.no-shape': 'This asset has no footprint yet. Give it one in the asset designer first.',
 	'editor.asset.unscaled': 'The footprint of this asset has no scale yet. Calibrate it in the asset designer first.',
 	'editor.asset.unreadable': 'The shape of this asset could not be read.',
+	'editor.asset.dimensions': '{width} × {depth} m',
+	'editor.asset.missing': 'This asset no longer exists. Replace it or delete the placement.',
+	'editor.asset.open-designer': 'Open in designer',
+	'editor.asset.replace': 'Replace asset…',
+	'editor.asset.replace-title': 'Replace asset',
+	'editor.asset.add-material': 'Add as material',
 };

@@ -8,7 +8,7 @@ import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 import type { AssetShapeAnswer } from '../../read-models/assetShapes';
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
-import { notifyFault, notifyWarning } from '../../notices/notify';
+import { notifyFault, notifyOperationFailure, notifyWarning } from '../../notices/notify';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { useProjectStore } from '../../stores/ProjectStore';
 import type { PlanEditorContext } from '../PlanEditorContext';
@@ -69,6 +69,17 @@ export function createAssetPlacementTask(context: PlanEditorContext, runtime: Pi
 		if (await write({ id, kind: 'asset', assetId: draft.assetId, points, name: draft.name })) selection.select([id]);
 	}
 
+	/** Repoint one placement at another asset under its own name. No task form is open to show a refusal, so it is reported here. */
+	async function replace(elementId: string, options: readonly { readonly id: string; readonly name: string }[]): Promise<void> {
+		const current = project.structure.elements?.find(item => item.id === elementId);
+		if (current?.kind !== 'asset' || blocked.value) return;
+		const picked = await pickPlaceable(tr('editor.asset.replace-title'), options);
+		const name = project.plan?.spatialElements?.find(item => item.id === elementId)?.name;
+		if (!picked || !name) return;
+		draft.error = null;
+		if (!(await write({ ...current, assetId: picked.id, name })) && draft.error) notifyOperationFailure(draft.error);
+	}
+
 	runtime.toolManager.register(new AssetPlacementTool({ draft, walls: () => project.structure.walls, blocked: () => blocked.value, place: points => { void place(points); } }));
-	return { draft, blocked, choose, place, pickPlaceable, write, available: context.commands.renovation !== undefined && context.queries.assetShapes !== undefined };
+	return { draft, blocked, choose, place, replace, pickPlaceable, write, available: context.commands.renovation !== undefined && context.queries.assetShapes !== undefined };
 }

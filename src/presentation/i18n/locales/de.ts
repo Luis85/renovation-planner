@@ -2,6 +2,7 @@ import { deProjectNavigation } from './de/projectNavigation';
 import { projectWorkDe } from './de/projectWork';
 import { deSaveState } from './de/saveState';
 import { planningDe } from './de/planning';
+import { planDe } from './de/plan';
 /**
  * German. `Partial` on purpose: a key this table does not answer falls back to English
  * PER KEY in `t`, so an incomplete translation degrades one string at a time instead of
@@ -32,6 +33,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	...deProjectNavigation,
 	...renovationDe,
 	...planningDe,
+	...planDe,
 	...editorDe,
 	...deMobile,
 	'command.open-project': 'Renovierungsprojekt öffnen',
@@ -123,7 +125,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'command.open-asset-designer': 'Objekt-Designer öffnen',
 	'command.create-sample-project': 'Beispielprojekt anlegen',
 	'command.new-project': 'Neues Projekt',
-	'plan.none': 'In diesem Vault gibt es noch keine Grundrisse.',
 	'asset.none': 'In diesem Vault gibt es noch keine Objekte.',
 	'sample.project.name': 'Beispiel-Renovierung',
 	'sample.plan.name': 'Erdgeschoss',
@@ -397,7 +398,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',
 	'project.invalid-date': 'Geben Sie ein echtes Kalenderdatum ein.',
-	'plan.empty-name': 'Ein Plan braucht einen Namen.',
 	// Design slice A10. „Objekt“ für Asset, nie „Material“ — siehe die Korrektur in Slice 11.
 	//
 	// Die Kategorie `material` heißt hier deshalb „Baustoff“ und nicht „Material“: das ist
@@ -429,10 +429,6 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Geben Sie diesem Objekt zuerst einen Umriss; Freiraum, Ankerpunkt und Ausrichtung beziehen sich jeweils darauf.',
 	'asset.not-found': 'Dieses Objekt existiert nicht mehr.',
 	'asset.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Datenblatt.',
-	'plan.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Plandokument.',
-	'plan.parent-plan-not-found': 'Der Raum oder die Fläche, den bzw. die dieser Plan detaillieren würde, hat keinen eigenen Plan mehr.',
-	'plan.parent-project-mismatch': 'Dieser Plan gehört zu einem anderen Projekt.',
-	'plan.parent-zone-not-found': 'Dieser Raum oder diese Fläche ist nicht mehr auf dem zugehörigen Plan vorhanden.',
 	'plan-geometry.write-failed': 'Der Referenzmaßstab konnte nicht gespeichert werden. Ihr Entwurf bleibt erhalten; versuchen Sie es erneut.',
 	'reference.compensation-failed': 'Die Referenz konnte nicht gespeichert und das Geschoss nicht wiederhergestellt werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.',
 	'asset.dimensions-incomplete': 'Ein Rechteck braucht Breite und Tiefe.',
@@ -516,7 +512,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'undo.superseded':
 		'Diese Änderung wurde nach diesem Schritt an anderer Stelle bearbeitet; ein Rückgängigmachen würde diese Bearbeitung verwerfen. Laden Sie neu und machen Sie es erneut rückgängig, wenn Sie es weiterhin möchten.',
 	'zone.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
-	'plan.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
 	'undo.before-execute': 'Noch nichts rückgängig zu machen.',
 	...deSaveState,
 	...deAssetLibrary,

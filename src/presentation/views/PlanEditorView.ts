@@ -4,7 +4,7 @@ import { createApp, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import PlanEditorRoot from '../editor/PlanEditorRoot.vue';
-import { PLAN_EDITOR_CONTEXT, type PlanEditorContext, type EditorNavigation } from '../editor/PlanEditorContext';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext, type EditorNavigation, type DeviceStorage } from '../editor/PlanEditorContext';
 import type {
 	PlanEditorCommandServices,
 } from '../editor/planEditorCommands';
@@ -65,6 +65,8 @@ export interface PlanEditorDeps {
 	 * that forgets it does not compile rather than giving each leaf a private clipboard.
 	 */
 	readonly clipboard: EditorClipboard;
+	/** The side panels' per-device layout slot. Required, for `clipboard`'s reason. */
+	readonly panelLayout: DeviceStorage;
 	readonly onThemeChange: (listener: () => void) => () => void;
 	/**
 	 * Subscribe to the domain events that mean "this Plan changed", filtered to one plan
@@ -269,6 +271,7 @@ export class PlanEditorView extends ItemView {
 			commands: this.deps.commands,
 			vault: this.deps.vault,
 			clipboard: this.deps.clipboard,
+			panelLayout: this.deps.panelLayout,
 			onThemeChange: this.deps.onThemeChange,
 			onPlanChanged: (listener) => this.deps.onPlanChanged(planId, listener),
 			// Passed straight through rather than partially applied: there is no id to bind.

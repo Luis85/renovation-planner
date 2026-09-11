@@ -35,6 +35,7 @@ import { FakeLeaf } from '../helpers/workspace';
 import { settleUntil } from '../helpers/settle';
 import { selectMultipleOnceReady } from './multiSelectionKnob';
 import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
+import { memoryDeviceStorage } from '../helpers/deviceStorage';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -406,6 +407,7 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			readBinary: () => Promise.resolve(new ArrayBuffer(0)),
 		} as unknown as BackgroundVault,
 		clipboard: createEditorClipboard(),
+		panelLayout: memoryDeviceStorage(),
 		// The page's own scheme toggle changes the body class, and the plugin's variables
 		// resolve from it — so a "theme change" here is exactly what Obsidian's `css-change`
 		// means, and the toggle drives it through this.

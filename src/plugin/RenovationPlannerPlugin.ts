@@ -43,6 +43,7 @@ import type { LibraryPersistOutcome } from './settings/libraryMigration';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { ContinueContextStore } from '../infrastructure/obsidian/plugin-data/continueContextStore';
+import { DeviceLocalStore } from '../infrastructure/obsidian/plugin-data/deviceLocalStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { runDetached } from './runDetached';
@@ -751,9 +752,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 		});
 	}
 
-	/** ONE spelling of the Plan Editor's bundle, for the factory and the rebind. */
+	/**
+	 * ONE spelling of the Plan Editor's bundle, for the factory and the rebind.
+	 *
+	 * The panel-layout slot is constructed here rather than memoised beside `continueStore`
+	 * below: unlike that store, `DeviceLocalStore` holds no state of its own past the adapter
+	 * and key it was built with — every `read`/`write` goes straight through to `this.app` — so
+	 * a fresh instance per call answers identically to a shared one, and there is nothing a
+	 * rebind could lose.
+	 */
 	private planEditorViewDeps(): PlanEditorDeps {
-		return planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard);
+		const panelLayout = new DeviceLocalStore(this.app, `${this.manifest.id}:panel-layout`, this.root.logger);
+		return planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard, panelLayout);
 	}
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */

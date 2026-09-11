@@ -2,7 +2,7 @@ import Konva from 'konva';
 import { createPinia, type Pinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext, type DeviceStorage } from '../../src/presentation/editor/PlanEditorContext';
 import { createEditorClipboard, type EditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../src/presentation/editor/runtime';
@@ -22,6 +22,7 @@ import { emptyBackgroundVault } from './background';
 import { installCanvas } from './canvas';
 import { installObsidianDom } from './dom';
 import { installResizeObserver, placeAt, resizeTo } from './layout';
+import { memoryDeviceStorage } from './deviceStorage';
 // `settle` is imported for local use below (`mountPlanEditor`); `settleUntil` is re-exported
 // without a local binding, since nothing in this file calls it directly. Both now live in the
 // dependency-free `tests/helpers/settle.ts` rather than here, for the same reason `fakeQueries`
@@ -62,6 +63,8 @@ export interface EditorHarnessOptions {
 	readonly vault?: BackgroundVault;
 	/** The clipboard this leaf shares; two mounts given one holder are two floors of one plugin. */
 	readonly clipboard?: EditorClipboard;
+	/** Where this leaf's side panel layout persists; defaults to a fresh in-memory slot. */
+	readonly panelLayout?: DeviceStorage;
 	/**
 	 * Skip the ordinary post-mount `resizeTo` this harness otherwise gives the shell root, so a
 	 * case can size the root a different way — `clientWidthFor` (`tests/helpers/layout.ts`) —
@@ -242,6 +245,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		commands: options.commands ?? defaultPlanEditorCommands(options.zones ?? FIXTURE_ZONES),
 		vault: options.vault ?? emptyBackgroundVault(),
 		clipboard: options.clipboard ?? createEditorClipboard(),
+		panelLayout: options.panelLayout ?? memoryDeviceStorage(),
 		onThemeChange: (listener) => {
 			themeListeners.add(listener);
 			return () => themeListeners.delete(listener);

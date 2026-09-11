@@ -37,6 +37,7 @@ import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 import { createEditorClipboard } from '../../../src/presentation/editor/clipboard/editorClipboard';
+import { memoryDeviceStorage } from '../../helpers/deviceStorage';
 import { installEditorEnvironment, settle, sizedShellRoot } from '../../helpers/editor';
 import { placeAt, resizeTo } from '../../helpers/layout';
 import { FakeLeaf } from '../../helpers/workspace';
@@ -97,6 +98,7 @@ function reopenDeps(): PlanEditorDeps {
 			readBinary: () => Promise.resolve(new ArrayBuffer(0)),
 		} as unknown as BackgroundVault,
 		clipboard: createEditorClipboard(),
+		panelLayout: memoryDeviceStorage(),
 		onThemeChange: noSubscription,
 		onPlanChanged: noSubscription,
 		onCatalogueChanged: noSubscription,

@@ -27,7 +27,10 @@ it('opens real Add and Fit routes, keeps unavailable framing inert, and limits R
 	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit']);
 	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select([rig.room.id]); await menu(rig);
-	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit']);
+	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit', 'copy']);
+	// Something on the clipboard still offers no Paste in Review.
+	await rig.wrapper.get('[data-rp-context-action="copy"]').trigger('click'); await menu(rig);
+	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit', 'copy']);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 

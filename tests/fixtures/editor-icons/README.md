@@ -30,3 +30,7 @@ The context-menu fixtures were taken from the same pinned revision, where two na
 from the ones older Lucide releases used: `trash.svg` (once `trash-2`) and
 `square-dashed-mouse-pointer.svg` (once `box-select`). The production component requests those
 pinned names; whether the installed host catalogue answers them is not verified here.
+
+`copy.svg` and `clipboard-paste.svg` (the canvas context menu's Copy and Paste) were taken from the
+same pinned revision; whether the installed host catalogue answers `clipboard-paste` is not
+verified here.

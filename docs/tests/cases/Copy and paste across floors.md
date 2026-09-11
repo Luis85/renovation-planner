@@ -31,7 +31,9 @@ enabled, and one project with two floors — on the ground floor, a Room drawn w
 
 1. Ground floor: select the Room, the object and the door. Press Ctrl+C (Cmd+C on macOS).
    **Expect:** nothing visible changes; no notice.
-2. Open the first floor in a second tab. Point at an empty spot and press Ctrl+V.
+2. Open the first floor in a second tab. Click an empty spot on the canvas — the shortcut reaches
+   the editor only while focus is inside it, and opening a tab focuses nothing there — then, with
+   the pointer still on that spot, press Ctrl+V.
    **Expect:** the Room, its walls, the door and the object appear centred under the pointer,
    selected. The Room keeps its name. The Zones folder holds a second note with that name
    (suffixed with its id).
@@ -40,9 +42,12 @@ enabled, and one project with two floors — on the ground floor, a Room drawn w
 5. Right-click an empty spot on the first floor. **Expect:** Paste is listed with a paste icon;
    choosing it pastes centred where you right-clicked.
 6. Point at the Room pasted in step 2 and press Ctrl+V again.
-   **Expect:** a notice begins "Walls cross or overlap."; nothing is added.
-7. Click into the Inspector's name field and press Ctrl+V. **Expect:** Obsidian pastes text into
-   the field; the canvas does not paste.
+   **Expect:** a notice begins "Walls cross or overlap."; nothing is added, and the Zones folder
+   gains no note — the refusal is checked before any note is written, so none reaches the trash
+   either.
+7. Click into the Inspector's name field and press Ctrl+V. **Expect:** the canvas adds nothing;
+   the field receives whatever the system clipboard holds (step 1's copy did not put anything
+   there).
 8. Switch to Review. Right-click the Room pasted in step 4. **Expect:** Copy is listed, Paste is not.
 9. Close and reopen the first floor. **Expect:** what steps 4 and 5 wrote is still there.
 

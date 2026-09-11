@@ -13,6 +13,9 @@ The Phase 5 continuation adds [Draw connected walls and openings](../cases/Draw%
 Its traceability separates automated/FakeVault and browser evidence from still-unperformed live
 host/screenreader acceptance. It is a supplemental journey, outside the historical 344-step
 census below; that dated census is not a claim that the new journey was accepted in Obsidian.
+[[Copy and paste across floors]] is outside that census too: its steps are a list with no
+`Reachable by` verdicts yet, so neither the triage column's "every step" nor its step counts
+include it.
 
 The cases that can only be run **by a human, inside Obsidian**. Everything here exists
 because `npm run check` cannot see it.
@@ -675,3 +678,9 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   scan they hydrate against. Its step 4 is the one place "reading does not write" is read off the
   note's own `revision` on disk, and its step 7 is where a duplicate note or a second sidecar
   object under one id would be visible at all.
+- [[Copy and paste across floors]] — Ctrl/Cmd+C and Ctrl/Cmd+V in the Plan Editor over a
+  clipboard every leaf shares: a Room with its walls, a door and an object pasted onto another
+  floor as one undo step. What only a vault shows is Obsidian's own handling of both chords
+  inside a leaf, the host's `copy` and `clipboard-paste` menu icons, and the paste written into
+  real notes across two floors. Its steps carry no `Reachable by` verdicts yet (see the head of
+  this file).

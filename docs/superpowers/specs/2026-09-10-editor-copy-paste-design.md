@@ -75,7 +75,9 @@ Pure, beside the capture function: `placeClipboard(clip, target, zoneIds, mintId
 zone geometries and the structure, element-metadata and group additions for the target floor.
 
 - Every point translated so the pivot lands on `target` (world millimetres — calibration is per
-  plan, so a copy keeps its real size across floors).
+  plan, so a copy keeps its real size across floors). That holds between calibrated plans: an
+  uncalibrated plan draws at placeholder scale 1, so a copy between a calibrated and an
+  uncalibrated plan changes apparent size.
 - New ids through the injected `mintId` (`createEntityId` in production): `wall-`, `opening-`,
   `element-`, `group-`. Zone ids are NOT minted here — they come back from the zone writes (§5,
   step 1) and are passed in.
@@ -125,8 +127,9 @@ sidecar receipts versus steps 2 and 3's generation checks) is asserted by a test
 builds on it — it is the design's one unverified assumption.
 
 **Known refusal.** `validateStructure` accepts only end-to-end wall junctions, so a paste whose
-walls cross or overlap an existing wall is refused with the existing intersection message. The
-user moves the pointer and pastes again. Snapping or splitting walls is out of scope (§9).
+walls cross or overlap an existing wall is refused with the existing intersection message. That
+structure refusal is checked before any zone is written, so a refused paste writes nothing;
+compensation covers failures after that point. The user moves the pointer and pastes again. Snapping or splitting walls is out of scope (§9).
 
 ## 6. Wiring
 

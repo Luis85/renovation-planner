@@ -5,8 +5,8 @@
 the editor's keyboard shortcuts; the editor interaction spec §65 lists Duplicate in the Room and
 Wall context menus. Duplicate is NOT delivered here (§9).
 **Baseline:** `main` at `c6db3854`.
-**Status:** proposed design. The implementation plan is derived from it. Where this document and
-the SDD disagree, the SDD is the authority.
+**Status:** implemented by `docs/superpowers/plans/2026-09-10-editor-copy-paste.md`; the manual
+case `docs/tests/cases/Copy and paste across floors.md` has not been run in a vault.
 
 ## 1. What this increment delivers
 
@@ -58,9 +58,11 @@ accounts for arcs and stairs — so placement is one translation.
 ## 3. Where the clipboard lives
 
 Each editor leaf mounts its own Vue app and Pinia (SDD §12), so a clipboard shared across floors
-cannot be a store. It is a tiny holder — `get(): SpatialClipboard | null`, `set(clip)` — declared
-in `src/presentation/editor/clipboard.ts`, constructed ONCE as a field of `RenovationPlannerPlugin`
-and handed to every leaf through `PlanEditorDeps`. A plugin field survives the settings-save
+cannot be a store. It is `EditorClipboard`, a Vue `ShallowRef<SpatialClipboard | null>` created by
+`createEditorClipboard()` in `src/presentation/editor/clipboard/editorClipboard.ts`, constructed
+ONCE as a field of `RenovationPlannerPlugin` and handed to every leaf through `PlanEditorDeps` — a
+ref rather than a plain holder because Vue's reactivity is not scoped to one app, so a Copy in one
+leaf re-evaluates another leaf's Paste menu item. A plugin field survives the settings-save
 remount that rebuilds the composition root. It does not survive an Obsidian reload, which is
 acceptable for an in-app clipboard.
 
@@ -129,17 +131,22 @@ user moves the pointer and pastes again. Snapping or splitting walls is out of s
 ## 6. Wiring
 
 - **Shortcuts.** `surface/historyShortcut.ts` gains C and V beside Z and Y, so both inherit its
-  guards: ignored while a field is being edited, a dialog is open, the event is already handled,
-  or a gesture is in flight. `preventDefault` only when the editor acted, so a copy inside a text
-  field stays native. Paste additionally no-ops when `writesBlocked` or the clipboard is empty.
+  guards: ignored while a field is being edited, a dialog is open, or the event is already
+  handled. Copy claims the chord — and copies — only when there was something to copy; Paste
+  claims it whenever it could write, then claims but ignores it (`preventDefault` without
+  pasting) during a gesture or on an OS autorepeat, exactly as Undo is. So a copy inside a text
+  field stays native. Paste additionally claims nothing when `writesBlocked` or the clipboard is
+  empty.
 - **Context menu.** `useCanvasMenuActions` gains `copy` (group `object`, shown with a non-empty
   selection, every perspective) and `paste` (group `create`, shown when the clipboard is
   non-empty, hidden in Review exactly as the other edits are, disabled with the existing reason
   when writes are blocked). Icons: `copy`, `clipboard-paste` — the harness draws only icon names
   it has a pinned fixture for under `tests/fixtures/editor-icons`, so both are added there.
   Review returns early after `fit` today; `copy` is pushed before that return.
-- **Runtime.** `runtime.ts` exposes `copySelection()` and `paste(target)`; both the shortcut and
-  the menu call these — one action, every input.
+- **Actions.** `clipboard/clipboardActions.ts` holds `copy()` and `paste(target?)`, provided by
+  `PlanEditorRoot` and injected by the context menu — not members of `EditorRuntime`, because
+  `runtime.ts` is at its line budget. Both the shortcut and the menu call these — one action,
+  every input.
 - **Selection.** After a successful paste the selection is exactly the pasted ids (zones, walls,
   openings, elements), focused on the first.
 - **Copy.** English and German keys: the two menu labels and any refusal sentence not already

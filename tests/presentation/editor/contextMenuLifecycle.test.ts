@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
-import { settle } from '../../helpers/editor';
+import { settle, settleUntil } from '../../helpers/editor';
 import { pointerAt } from '../../helpers/tool-context';
+import { expectOk } from '../../helpers/domain';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { worldToScreen, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
 
@@ -99,6 +100,39 @@ it('a dialog opened before menu paint owns focus and suppresses later context ev
 	expect(rig.wrapper.get('.rp-dialog').element.contains(document.activeElement)).toBe(true);
 	expect(key(rig.canvasEl, 'ContextMenu').defaultPrevented).toBe(false);
 	rig.dialogs.resolve('cancel'); await pending;
+});
+
+it('targets the unlocked zone beneath a locked one, and offers no zone target over the locked zone alone (Z3, spec §3.10 row 2)', async () => {
+	const rig = await setup();
+	const under = expectOk(await rig.deps.commands.createZone.execute({
+		planId: rig.plan.id, name: 'Nook', zoneType: 'Room',
+		geometry: { points: [{ x: 500, y: 500 }, { x: 1500, y: 500 }, { x: 1500, y: 1500 }, { x: 500, y: 1500 }] },
+	})).zone.entity;
+	await rig.runtime.refreshProjection();
+	await rig.wrapper.get(`[data-rp-lock="${rig.room.id}"]`).trigger('click');
+	await settleUntil(() => rig.project.zones.get(rig.room.id)?.locked === true, 'room locked');
+
+	const editor = useEditorStore(rig.pinia);
+	editor.fitTo({ min: { x: -1000, y: -1000 }, max: { x: 5000, y: 4000 } }, editor.stageSize);
+	const box = rig.canvasEl.getBoundingClientRect();
+
+	// (1000, 1000) sits inside both the locked room (0,0)-(4000,3000) and the unlocked Nook
+	// (500,500)-(1500,1500): the click-through case.
+	const overlap = worldToScreen({ x: 1000, y: 1000 }, editor.viewport, STAGE_PIXELS);
+	rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + overlap.x, clientY: box.top + overlap.y }));
+	await settle();
+	expect(rig.selection.selectedIds).toEqual([under.id]);
+	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe('Nook');
+	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
+
+	// (3000, 2500) sits inside the locked room only — nothing else there to click through to.
+	rig.selection.select([under.id]);
+	await settle();
+	const lockedOnly = worldToScreen({ x: 3000, y: 2500 }, editor.viewport, STAGE_PIXELS);
+	rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + lockedOnly.x, clientY: box.top + lockedOnly.y }));
+	await settle();
+	expect(rig.selection.selectedIds).toEqual([]);
+	expect(rig.wrapper.find('[data-rp-context-action="edit"]').exists()).toBe(false);
 });
 
 it('restores the canvas when a keyboard opener disappears and removes listeners on leaf disposal', async () => {

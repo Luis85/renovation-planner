@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: lock a zone from the Rooms and areas list or its Inspector so the canvas clicks through it while it stays visible, listed and undoable. Locked zone notes are saved as zone schema 2, which older builds refuse until the zone is unlocked.
+- Plan editor: create a detail plan from a zone's context menu, open existing detail plans from the same menu, walk back up through the breadcrumb, and trace inside the parent zone's outline guide. Detail plan notes are saved as plan schema 9, which older builds refuse.
 - Plan editor: create native straight Stairs with editable width, run, tread count and direction, and Direction arrows with editable points. Their schema-8 geometry uses existing guarded history, full stair footprints for selection and grouping, and explicit native/application icon registration.
 - Plan editor: save groups, select and move their members together, rotate assemblies, and enclose a Room with walls in one undoable operation. Hosted openings and hidden group members follow their walls and group.
 

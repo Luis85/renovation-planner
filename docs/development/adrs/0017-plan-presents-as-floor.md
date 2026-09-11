@@ -46,3 +46,10 @@ A project has two buildings, or two plans must be aligned as floors of one build
 - Vertical-slice specification §4.5 (Property, Building, Floor rows), §5.6
 - Design spec §2.2
 - `docs/requirements/Navigate property, building and floor context in the editor.md`
+
+## Amendment — 2026-09-10
+
+Its revisit trigger was met and answered by
+[ADR-0028](0028-a-plan-may-detail-a-zone-of-another-plan.md): a plan may carry one optional,
+immutable link to a zone of another plan. "No persisted hierarchy" now reads "no hierarchy beyond
+that link"; there is still no `Floor`, `Building` or `Property` entity.

@@ -96,7 +96,9 @@ const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + c
 	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
 	stroke: props.tokens.canvasBackground, strokeWidth: 2, fillAfterStrokeEnabled: true }));
 
-const groupConfig = computed(() => ({ name: props.model.id, listening: false }));
+/** A locked zone stays readable but recedes, so what can still be clicked stands out (ADR-0027). */
+const LOCKED_OPACITY = 0.5;
+const groupConfig = computed(() => ({ name: props.model.id, listening: false, opacity: props.model.locked ? LOCKED_OPACITY : 1 }));
 // Invisible at rest and translucent when selected: M01 draws no resting fill, and the node
 // stays MOUNTED at zero opacity because `ZoneLayer`'s paint order and `scene.test.ts`'s
 // `flatPoints` identity case both rest on this group's child list keeping its shape.

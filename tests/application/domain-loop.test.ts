@@ -46,7 +46,7 @@ describe('the domain loop, end to end', () => {
 		).project.entity;
 
 		const plan = expectOk(
-			await new CreatePlanCommand(plans, projects, events).execute({
+			await new CreatePlanCommand(plans, projects, zones, events).execute({
 				projectId: project.id,
 				name: 'Top floor',
 			}),

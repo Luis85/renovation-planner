@@ -21,6 +21,8 @@ export interface SpatialRecordDto {
 	readonly bulges?: readonly number[];
 	readonly hitPoints?: readonly Point[];
 	readonly areaMm2: number;
+	/** Copied from `ZoneDto.locked`; present only while locked. */
+	readonly locked?: true;
 }
 
 export function toSpatialRecordDto(zone: ZoneDto): SpatialRecordDto {
@@ -36,6 +38,7 @@ export function toSpatialRecordDto(zone: ZoneDto): SpatialRecordDto {
 		// A polygon Core refuses has no area; 0 is the honest figure and the canvas still draws
 		// whatever points it has, which is `boundsOfZones`'s own rule for a degenerate zone.
 		areaMm2: measured.ok ? measured.value : 0,
+		...(zone.locked ? { locked: true as const } : {}),
 	};
 }
 

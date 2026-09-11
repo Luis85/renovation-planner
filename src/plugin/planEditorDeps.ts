@@ -75,6 +75,7 @@ export function planEditorDeps(
 					reviewNote: reviewNoteAction(vault, workspace, persistence.index, root.logger),
 										structure: guardedStructure(structureServices(persistence.geometry, root.eventBus), root.logger),
 					createZone: persistence.createZone,
+					createPlan: persistence.createPlan,
 					referencePlan: guardedReferencePlan(referencePlanServices(persistence.plans, persistence.geometry, root.eventBus, persistence.files), root.logger),
 					moveObject: persistence.moveZone,
 					deleteZone: persistence.deleteZone,

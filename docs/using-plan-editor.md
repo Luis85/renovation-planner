@@ -53,6 +53,24 @@ elements to create shared Work or Evidence, apply a planned change, or inspect t
 A shared record keeps one identity across its linked contexts. Deletion shows its impact
 and refuses unresolved references; removing walls does not reshape independent Rooms.
 
+## Lock a zone so the canvas clicks through it
+
+A large zone such as the whole site sits under everything else and catches every click. Open
+**Rooms and areas** in the left panel and press the lock button beside the zone (or use the same button
+in its Inspector). A locked zone stays on the plan, slightly faded, but clicking, hovering,
+dragging a selection box or right-clicking on the canvas ignores it and reaches whatever is
+inside or on top of it. It is still listed, so its row still selects it, and the same button
+unlocks it. Lock and unlock are saved with the zone and can be undone.
+
+## Build detail plans from a zone
+
+Right-click a zone such as House or Garden and choose **New detail plan**. The new plan is named
+after the zone, opens in its own tab and shows that zone's outline as a dashed guide in its top-left
+corner; crop its reference image at the same corner and calibrate it, and the drawing lines up with
+the guide. A zone can have several detail plans, for example one per floor, and its right-click
+menu lists **Open** for each. On a detail plan, the breadcrumb and the Property tree list every
+plan above it, and each name opens that plan.
+
 ## Group and enclose a room
 
 Choose **Group selected items** to save a reusable selection with the floor. A normal click

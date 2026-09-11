@@ -29,6 +29,8 @@ export interface ZoneRenderModel {
 	/** World millimetres. */
 	readonly points: readonly Point[];
 	readonly bulges?: readonly number[];
+	/** Drawn dimmed while locked; see `ZoneShape`. */
+	readonly locked?: true;
 }
 
 export function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel {
@@ -44,6 +46,7 @@ export function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel {
 		// and not in a per-vertex conversion someone reintroduced.
 		points: zone.points,
 		bulges: zone.bulges,
+		...(zone.locked ? { locked: true as const } : {}),
 	};
 }
 

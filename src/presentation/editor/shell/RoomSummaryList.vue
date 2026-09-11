@@ -15,6 +15,7 @@ import { formatArea } from './formatArea';
 import type { SpatialRecordDto } from '../../read-models/spatialRecords';
 import type { EntityId } from '../../../core/identity/EntityId';
 import HostIcon from '../../components/HostIcon.vue';
+import ZoneLockToggle from './ZoneLockToggle.vue';
 
 defineProps<{
 	readonly records: readonly SpatialRecordDto[];
@@ -45,6 +46,7 @@ function isSelected(id: string): boolean {
 		<li
 			v-for="record in records"
 			:key="record.id"
+			class="rp-room-list__item"
 		>
 			<button
 				type="button"
@@ -61,6 +63,11 @@ function isSelected(id: string): boolean {
 					<HostIcon name="chevron-right" />
 				</template>
 			</button>
+			<ZoneLockToggle
+				:zone-id="record.id"
+				:name="record.name"
+				:locked="record.locked === true"
+			/>
 		</li>
 	</ul>
 </template>

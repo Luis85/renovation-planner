@@ -11,16 +11,18 @@ import { useCanvasGroupActions } from './canvasGroupActions';
 import { useRenovationSession } from '../renovation/renovationSession';
 import type { Point } from '../../../core/geometry/Point';
 import { useClipboardActions } from '../clipboard/clipboardActions';
+import { useDetailPlanActions } from '../hierarchy/detailPlanActions';
 import { deleteItems, multiDeleteBlocked } from './deleteSelection';
 
 /** Menu order is the group order: create first, then view, mode, the object's own actions, and last what destroys it. */
 export type CanvasMenuGroup = 'create' | 'view' | 'mode' | 'object' | 'destructive';
-export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly disabled?: boolean; readonly reason?: StringKey; run(): void | Promise<void> }
+export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly params?: Readonly<Record<string, string>>; readonly disabled?: boolean; readonly reason?: StringKey; run(): void | Promise<void> }
 const GROUP_ORDER: readonly CanvasMenuGroup[] = ['create', 'view', 'mode', 'object', 'destructive'];
 export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
 	const moveOpening = useOpeningMoveAction(), clipboard = useClipboardActions();
 	const frame = usePlanFrame(), groups = useCanvasGroupActions(), session = useRenovationSession();
+	const detailPlans = useDetailPlanActions();
 	function fit(all: boolean): void { const bounds = frame(all); if (bounds) editor.fitTo(bounds, editor.stageSize); }
 	/** Why a greyed item is greyed: a stale floor first, since that one blocks everything, else whatever tool or edit is in flight. */
 	function reason(disabled: boolean): StringKey | undefined { return !disabled ? undefined : runtime.writesBlocked.value ? 'editor.stale-write-refused' : 'editor.input.unavailable'; }
@@ -32,6 +34,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 			result.push({ id: 'edit', label: 'editor.input.edit', group: 'object', icon: 'pencil', disabled: blocked || runtime.outlineEdit.blocked.value, run: () => runtime.outlineEdit.editOutline(id as ZoneId) });
 			result.push({ id: 'rename', label: 'editor.input.rename', group: 'object', icon: 'text-cursor-input', disabled: blocked, run: () => zone.zoneType === 'Room' ? runtime.renameRoom(id as ZoneId) : runtime.areaDetails.editAreaDetails(id as ZoneId) });
 			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked, run: () => runtime.deleteZone(id as ZoneId, zone.name) });
+			result.push(...detailPlans(id, zone.name, blocked));
 		} else if (structure || element) {
 			const actions = structure ? runtime.structureActions : runtime.elementActions;
 			result.push({ id: 'edit', label: 'editor.input.edit', group: 'object', icon: 'pencil', disabled: blocked || actions.active.value, run: () => actions.edit(id) });

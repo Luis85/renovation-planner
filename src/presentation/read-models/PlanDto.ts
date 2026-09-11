@@ -41,6 +41,8 @@ export interface PlanDto {
 	 */
 	readonly calibration: Calibration | null;
 	readonly layers: readonly string[];
+	/** Present only for a detail plan (ADR-0028). */
+	readonly parent?: { readonly planId: string; readonly zoneId: string };
 }
 
 export interface ZoneDto {
@@ -50,6 +52,8 @@ export interface ZoneDto {
 	readonly name: string;
 	readonly zoneType: string;
 	readonly status: string;
+	/** Present only while locked (ADR-0027): the canvas clicks through a locked zone. */
+	readonly locked?: true;
 	/** World millimetres, straight from `Zone.geometry` — never screen coordinates. */
 	readonly points: readonly Point[];
 }
@@ -133,6 +137,7 @@ export function toPlanDto(plan: Plan): PlanDto {
 		background: plan.background,
 		calibration: plan.calibration,
 		layers: plan.layers,
+		...(plan.parent ? { parent: { planId: plan.parent.planId, zoneId: plan.parent.zoneId } } : {}),
 	};
 }
 
@@ -144,6 +149,7 @@ export function toZoneDto(zone: Zone): ZoneDto {
 		name: zone.name,
 		zoneType: zone.zoneType,
 		status: zone.status,
+		...(zone.locked ? { locked: true as const } : {}),
 		// Copied, not aliased. The entity's own array is frozen only by convention, and a
 		// render model handed the same reference would let a later slice's edit reach back
 		// into a loaded entity — the one direction the read pipeline must not have.

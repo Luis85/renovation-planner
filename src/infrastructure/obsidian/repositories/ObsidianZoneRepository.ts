@@ -19,7 +19,7 @@ import {
 	zoneToGeometryEntry,
 	zoneToPersistence,
 } from '../../persistence/mappers/zoneMapper';
-import { ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFrontmatter';
+import { ZoneFrontmatterSchema } from '../../persistence/dto/zoneFrontmatter';
 import { SpatialObjectGeometrySchemaV7 } from '../../persistence/dto/planGeometry';
 import { parsePersisted } from '../../persistence/mappers/parse';
 import {
@@ -117,6 +117,14 @@ function sidecarUnreadable(planId: unknown, cause: unknown): PersistenceError {
 	return persistenceError('zone.sidecar-unreadable', `The geometry sidecar for plan ${String(planId)} could not be read.`, cause);
 }
 
+/**
+ * Which frontmatter keys an update must retire explicitly (ADR-0027): `writeOwnedFrontmatter`
+ * merges, so omission cannot remove a key, and `locked` is written only while true.
+ */
+function retiredZoneKeys(zone: Zone): string[] {
+	return zone.locked ? [] : ['locked'];
+}
+
 // Zone-version calculation is shared with grouped sidecar writes in zoneVersion.ts.
 export class ObsidianZoneRepository implements ZoneRepository {
 	private readonly queues = new KeyedQueues();
@@ -152,7 +160,7 @@ export class ObsidianZoneRepository implements ZoneRepository {
 		if (opened.status === 'missing') return Promise.resolve(ok(null));
 		if (opened.status === 'error') return Promise.resolve(err(opened.error));
 
-		const parsed = parsePersisted(ZoneFrontmatterSchemaV1, opened.migrated, 'zone.frontmatter-invalid', 'Zone note');
+		const parsed = parsePersisted(ZoneFrontmatterSchema, opened.migrated, 'zone.frontmatter-invalid', 'Zone note');
 		if (!parsed.ok) return Promise.resolve(err(persistenceError('zone.frontmatter-invalid', parsed.error.message)));
 
 		// The sidecar half. A live note whose plan's sidecar cannot be read is a broken
@@ -251,7 +259,7 @@ export class ObsidianZoneRepository implements ZoneRepository {
 		const nextRevision = (currentVersion?.revision ?? 0) + 1;
 		const dto: Record<string, unknown> = { ...zoneToPersistence(zone, nextRevision) };
 		const geometryEntry = zoneToGeometryEntry(zone);
-		const frontmatterOk = ZoneFrontmatterSchemaV1.safeParse(dto).success;
+		const frontmatterOk = ZoneFrontmatterSchema.safeParse(dto).success;
 		const geometryOk = SpatialObjectGeometrySchemaV7.safeParse(geometryEntry).success;
 		if (!frontmatterOk || !geometryOk) {
 			return err(validationFailure('The zone failed pre-write validation.'));
@@ -262,7 +270,7 @@ export class ObsidianZoneRepository implements ZoneRepository {
 		try {
 			if (existing) {
 				notePath = existing.path;
-				await writeOwnedFrontmatter(this.deps.fileManager, existing, dto);
+				await writeOwnedFrontmatter(this.deps.fileManager, existing, dto, retiredZoneKeys(zone));
 			} else {
 				// The derived folder, for the INSERT alone. `undefined` is a refusal rather
 				// than a fallback: writing to a defaulted path when the real one is unknown

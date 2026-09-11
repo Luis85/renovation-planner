@@ -24,6 +24,7 @@ import { provideEditorRuntime } from './runtime';
 import { useEditorArrival } from './renovation/editorArrival';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
+import { usePlanHierarchyStore } from '../stores/PlanHierarchyStore';
 import { useSaveStateStore } from './save-state/save-state-store';
 import DialogHost from '../dialogs/DialogHost.vue';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
@@ -66,6 +67,7 @@ const planning = providePlanningContext(context, runtime);
 provideReviewPresentation(context, runtime);
 provideNoteCreation(runtime, planning);
 const projectStore = useProjectStore();
+const planHierarchy = usePlanHierarchyStore();
 const selection = useSelectionStore();
 const dialogs = useDialogStore(), editor = useEditorStore();
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
@@ -97,8 +99,12 @@ const overlay = computed(() => {
 	const tool = runtime.activeToolId.value;
 	if (startDismissed.value || runtime.referenceActive.value || key === null || (tool !== null && tool !== 'select')) return null;
 	if (key === 'noZones' && plan.value?.background?.appearance) return null;
-	// Reference onboarding must not obscure selected geometry or its focus badges.
-	if (key === 'noBackground' && (projectStore.zones.size > 0 || unreadableZones.value > 0 || selection.selectedIds.length > 0)) return null;
+	// Reference onboarding must not obscure selected geometry, its focus badges, or a
+	// drawable parent-zone guide (ADR-0028, V1 investigation Q1): a fresh detail plan has no
+	// background, no zones and no selection, so without this clause the guide the user
+	// guide promises "at the top-left of the empty canvas" opened hidden under this panel
+	// until the user dismissed it or set a background.
+	if (key === 'noBackground' && (projectStore.zones.size > 0 || unreadableZones.value > 0 || selection.selectedIds.length > 0 || planHierarchy.hierarchy.parentZone !== null)) return null;
 	return resolveEmptyState(EMPTY_STATE_CONTENT.planEditor[key]);
 });
 
@@ -266,8 +272,24 @@ function retireAddMenu(): void {
 	addButton.value = null;
 }
 
-function hydrate(): void {
+function refreshProjection(): void {
 	void runtime.refreshProjection().catch(cause => { if (root.value) notifyFault(cause, context.commands.logger, 'editor.refresh.failed'); });
+}
+
+function loadHierarchy(): void {
+	void planHierarchy.load(context.queries, context.planId).catch(cause => { if (root.value) notifyFault(cause, context.commands.logger, 'editor.hierarchy.failed'); });
+}
+
+/**
+ * Both reads together — mount and the two retry doors (`onFailureAction`, the stale
+ * warning's `retry`). A plan-change event runs `refreshProjection` alone: nothing a
+ * hierarchy read returns (ancestry, detail plans, the parent-zone outline) can change from
+ * THIS plan's own zone/background/delete events, so re-running it there was a read with no
+ * event that could invalidate it.
+ */
+function hydrate(): void {
+	refreshProjection();
+	loadHierarchy();
 }
 
 /**
@@ -340,9 +362,11 @@ onMounted(() => {
 	hydrate();
 });
 
-// The SAME routine on both occasions — open, and this plan changing underneath the view.
-// A second "refresh" path would be a second answer to what the canvas is showing.
-onBeforeUnmount(context.onPlanChanged(hydrate));
+// Mount and a plan-change event both re-read the projection, through the SAME routine — a
+// second "refresh" path would be a second answer to what the canvas is showing. The
+// hierarchy read is NOT part of that routine here (see `hydrate`'s own docblock): it loads
+// at mount and on retry, never on a per-event refresh.
+onBeforeUnmount(context.onPlanChanged(refreshProjection));
 const visibleOverlay = computed(() => renovationSession.perspective === 'plan' ? overlay.value : null);
 const showFloorStart = computed(() => visibleOverlay.value !== null && emptyStateKey.value === 'noBackground');
 const showAddMenu = computed(() => renovationSession.perspective !== 'review' && addMenuOpen.value);

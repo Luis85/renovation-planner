@@ -41,6 +41,8 @@ import type { RequirementRepository } from '../../application/ports/RequirementR
 import type { AssetRepository } from '../../application/ports/AssetRepository';
 import type { Zone } from '../../domain/zone/Zone';
 import type { ZoneId } from '../../domain/zone/ZoneId';
+import type { CreatePlanError, CreatePlanInput } from '../../application/commands/plan/CreatePlan';
+import type { Plan } from '../../domain/plan/Plan';
 
 /**
  * The reversible calibration, as the editor consumes it. A STRUCTURAL type rather than the
@@ -78,6 +80,11 @@ export interface PlanEditorCommandServices {
 		CreateZoneInput,
 		Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>
 	>;
+	/**
+	 * Creating a detail plan from a zone (ADR-0028). OPTIONAL: `unavailablePlanEditorCommands`
+	 * and the editor test doubles omit it, and the context menu offers no detail-plan action then.
+	 */
+	readonly createPlan?: Command<CreatePlanInput, Result<{ plan: Loaded<Plan> }, CreatePlanError>>;
 	readonly moveObject: Command<
 		MoveSpatialObjectInput,
 		Result<MoveSpatialObjectResult, ReferenceError | GeometryError | RepositoryError>

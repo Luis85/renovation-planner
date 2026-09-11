@@ -1,6 +1,7 @@
 import { enProjectNavigation } from './en/projectNavigation';
 import { projectWorkEn } from './en/projectWork';
 import { planningEn } from './en/planning';
+import { planEn } from './en/plan';
 import { enAssetLibrary } from './en-assetLibrary';
 import { editorEn } from './en/editor';
 import { renovationEn } from './en/renovation';
@@ -38,6 +39,7 @@ export const en = {
 	...enProjectNavigation,
 	...renovationEn,
 	...planningEn,
+	...planEn,
 	...editorEn,
 	...enMobile,
 	'command.open-project': 'Open renovation project',
@@ -93,7 +95,6 @@ export const en = {
 	// exists even though the design spec's own count of the surface's vocabulary is fifteen and
 	// not sixteen. No default hotkey: see `view.project.keys` below for why.
 	'command.new-project': 'New project',
-	'plan.none': 'This vault has no renovation plans yet.',
 	'asset.none': 'This vault has no assets yet.',
 	'sample.project.name': 'Sample renovation',
 	'sample.plan.name': 'Ground floor',
@@ -529,16 +530,6 @@ export const en = {
 	'project.unknown-status': 'Choose a status from the list.',
 	'project.target-before-start': 'Target completion must be on or after the start date.',
 	'project.invalid-date': 'Enter a real calendar date.',
-	// Design slice 21's New plan form, keyed by the exact code `Plan.create` raises — minted
-	// through `planError`'s `plan.${code}` template (`src/domain/plan/Plan.errors.ts`), so a
-	// grep for the whole string finds nothing. A missing entry here does not degrade to
-	// silence, it degrades to the generic Validation sentence under a field the user can see.
-	//
-	// `plan.project-not-found` gets no entry and needs none: `NewPlanForm` never routes it to
-	// a field or to a banner — the project is gone, so the form emits `projectGone` and the
-	// view notifies and navigates. The three background codes `Plan.create` also mints have no
-	// entry for the plainer reason: that form sends no background.
-	'plan.empty-name': 'A plan needs a name.',
 	// Design slice A10's creation form, and the asset designer's whole refusal vocabulary
 	// behind it. Keyed by the exact `AppError.code`, for the reason the slice 16 block above
 	// states: `toUserMessage`'s lookup is `error.code in en`, so an `error.`-prefixed key
@@ -600,7 +591,6 @@ export const en = {
 	// need a picker that returns an unsupported kind or a page below one, and both pickers narrow
 	// those before they answer.
 	'asset.background-not-found': 'That file is no longer in the vault. Choose another spec sheet.',
-	'plan.background-not-found': 'That file is no longer in the vault. Choose another plan document.',
 	// The two ConfigurePlanReference refusals that reach the reference form's error line. The
 	// command's other two stay absent for reasons `toUserMessage.test.ts`'s exclusion table
 	// carries: `plan.unsupported-background` is unreachable through the form, and
@@ -823,7 +813,6 @@ export const en = {
 	// name the same fact from the user's side, so one English sentence serves them; kept as two
 	// keys because they are two distinct `AppError.code`s minted in different modules.
 	'zone.nothing-to-undo': 'Nothing to undo yet.',
-	'plan.nothing-to-undo': 'Nothing to undo yet.',
 	'undo.before-execute': 'Nothing to undo yet.',
 	// The diagnostics report's own keys. `session-only` is the first of this increment's two
 	// recorded limitations, put on the surface where the user meets it rather than only in a

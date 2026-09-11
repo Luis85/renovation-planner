@@ -1,12 +1,15 @@
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { EMPTY_DEPTH } from '../../../domain/renovation/PlanningDepth';
 import type { CalculationError, ValidationError } from '../../../core/errors/AppError';
-import type { Result } from '../../../core/result/Result';
+import { err, type Result } from '../../../core/result/Result';
+import { planError } from '../../../domain/plan/Plan.errors';
 import { Plan } from '../../../domain/plan/Plan';
+import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { PlanFrontmatterSchema, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
 import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
 function planSchemaVersion(plan: Plan): number {
+	if (plan.parent) return 9;
 	const { work, depth = EMPTY_DEPTH } = plan.renovation ?? EMPTY_RENOVATION;
 	if (depth.evidence.some(item => item.date !== undefined)) return 8;
 	if (work.some(item => item.responsibility === 'trade' || item.schedule !== undefined)) return 7;
@@ -40,6 +43,7 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 		'background-page': background?.kind === 'pdf' ? (background.page ?? 1) : null,
 		layers: [...plan.layers],
 		...(background?.appearance ? { 'reference-appearance': background.appearance } : {}),
+		...(plan.parent ? { 'parent-plan': plan.parent.planId, 'parent-zone': plan.parent.zoneId } : {}),
 	};
 }
 
@@ -48,6 +52,18 @@ function fromDto(
 	calibration: Plan['calibration'],
 ): Result<Plan, ValidationError | CalculationError> {
 	const path = dto['background-path'];
+	const parentPlan = dto['parent-plan'], parentZone = dto['parent-zone'];
+	if ((parentPlan === undefined) !== (parentZone === undefined)) {
+		// `planError` prefixes `plan.`, so this is the same `plan.frontmatter-invalid` a schema refusal carries.
+		return err(planError('frontmatter-invalid', 'parent-plan and parent-zone must be set together.'));
+	}
+	// A hand-edited note naming ITSELF as its own parent reads as parentless rather than
+	// refusing the whole note — `Plan.create`'s `plan.parent-is-self` guard stays for the
+	// CREATION path, where a self-link can only be a bug in the caller; here it is user data,
+	// and a two-plan cycle already opens fine (`ancestryOf` stops the walk). Retired on this
+	// plan's next save: `planToPersistence` never re-derives `parent-plan` from `dto.id`, so
+	// the write that follows a read persists `parent: null` and the stale keys are gone.
+	const selfParent = parentPlan !== undefined && parentPlan === dto.id;
 	const constructed = Plan.create({
 		spatialElements: dto['spatial-elements'],
 		renovation: dto.renovation,
@@ -63,6 +79,7 @@ function fromDto(
 				}
 			: null,
 		layers: dto.layers,
+		parent: parentPlan !== undefined && parentZone !== undefined && !selfParent ? { planId: parentPlan as Plan['id'], zoneId: parentZone as ZoneId } : null,
 	});
 	if (!constructed.ok) {
 		return constructed;

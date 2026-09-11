@@ -1,5 +1,6 @@
 import { err, ok } from '../../../core/result/Result';
 import type { EventBus } from '../../../core/events/EventBus';
+import type { Zone } from '../../../domain/zone/Zone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { ZoneType } from '../../../domain/zone/ZoneType';
 import { zoneDetailsChanged } from '../../../domain/zone/Zone.events';
@@ -10,7 +11,8 @@ import { recordRelatedWrite } from '../../editor/recordRelatedWrite';
 import type { DispatchResult } from '../DispatchOutcome';
 import { loadZone } from './loadZone';
 
-export interface ZoneDetails { readonly name: string; readonly zoneType: ZoneType }
+/** `locked` absent leaves the lock untouched (ADR-0027); name and type are always restated. */
+export interface ZoneDetails { readonly name: string; readonly zoneType: ZoneType; readonly locked?: boolean }
 export interface EditZoneDetailsInput {
 	readonly zoneId: ZoneId;
 	readonly forward: ZoneDetails;
@@ -34,10 +36,13 @@ export class EditZoneDetailsCommand {
 		if (!loaded.ok) return loaded;
 		const conflict = checkExpectedVersion('zone', zoneId, loaded.value.version, expected);
 		if (conflict) return err(conflict);
-		const current = loaded.value.entity, updated = current.withDetails(details.name, details.zoneType);
-		if (!updated.ok) return updated;
-		if (updated.value.name === current.name && updated.value.zoneType === current.zoneType) return ok('no-write');
-		const saved = await this.zones.save(updated.value, expected);
+		const current = loaded.value.entity, renamed = current.withDetails(details.name, details.zoneType);
+		if (!renamed.ok) return renamed;
+		// Typed rather than inferred so fallow resolves `withLocked` through this explicit annotation (CLAUDE.md Gotchas). Do not inline.
+		const base: Zone = renamed.value;
+		const updated = details.locked === undefined ? base : base.withLocked(details.locked);
+		if (updated.name === current.name && updated.zoneType === current.zoneType && updated.locked === current.locked) return ok('no-write');
+		const saved = await this.zones.save(updated, expected);
 		if (!saved.ok) return saved;
 		this.generation = this.ledger.observe(zoneId, loaded.value.version);
 		recordRelatedWrite(this.ledger, saved.value);

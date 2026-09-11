@@ -179,6 +179,28 @@ describe('the Room Inspector, through the real mounted editor', () => {
 		expect(harness.wrapper.find('.rp-linked-content').exists()).toBe(false);
 		expect(room.find('.rp-editor-inspector-delete').exists()).toBe(true);
 	});
+
+	/**
+	 * `ZoneLockRow`'s badge branch and `ZoneLockToggle`'s pressed state, unit 3 of this fix
+	 * round's findings: neither had a direct Inspector-level assertion before, only coverage
+	 * inherited through `zoneLock.e2e.test.ts`'s single locked-then-undo path.
+	 */
+	it('shows the Locked badge and a pressed toggle for a locked zone, and neither for an unlocked one', async () => {
+		const locked: ZoneDto = { ...FIXTURE_ZONES[0], locked: true };
+		harness = await mountPlanEditorCanvas({ zones: [locked, FIXTURE_ZONES[1]] });
+
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+		const lockedRoom = harness.wrapper.find('.rp-room-inspector');
+		expect(lockedRoom.find('.rp-editor-inspector-locked').text()).toBe(t('en', 'editor.input.locked'));
+		expect(lockedRoom.get('[data-rp-lock="zone-kitchen"]').attributes('aria-pressed')).toBe('true');
+
+		useSelectionStore().select(['zone-terrace' as never]);
+		await settle();
+		const unlockedRoom = harness.wrapper.find('.rp-room-inspector');
+		expect(unlockedRoom.find('.rp-editor-inspector-locked').exists()).toBe(false);
+		expect(unlockedRoom.get('[data-rp-lock="zone-terrace"]').attributes('aria-pressed')).toBe('false');
+	});
 });
 
 /**

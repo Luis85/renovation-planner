@@ -6,17 +6,30 @@ import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import HostIcon from '../../components/HostIcon.vue';
 import { EDITOR_PERSPECTIVE_ICONS } from '../editorIcons';
 import EditorViewMenu from './EditorViewMenu.vue';
+import EditorContextCrumb from './EditorContextCrumb.vue';
 
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
 const context = usePlanEditorContext();
 const { project, plan } = storeToRefs(useProjectStore());
+const { hierarchy } = storeToRefs(usePlanHierarchyStore());
 const perspectives: readonly Perspective[] = ['plan', 'renovate', 'review'];
+/**
+ * The ancestry crumb's click handler, or `undefined` to draw it as text — plain script
+ * rather than a ternary inline in the template, because vue-tsc does not narrow `plan` into
+ * the arrow function a template expression creates (`TS2722`) the way it narrows one written
+ * in `<script setup>`.
+ */
+function crumbOpener(planId: string): (() => void) | undefined {
+	const navigatePlan = context.navigation?.plan;
+	return navigatePlan ? () => navigatePlan(planId) : undefined;
+}
 async function switchPerspective(event: KeyboardEvent, current: Perspective): Promise<void> {
 	if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
 	const delta = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : ['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 0;
@@ -50,6 +63,13 @@ async function switchPerspective(event: KeyboardEvent, current: Perspective): Pr
 				v-else-if="project?.name"
 				class="rp-context-bar__crumb"
 			>{{ project.name }}</span>
+			<EditorContextCrumb
+				v-for="ancestor in hierarchy.ancestry"
+				:key="ancestor.id"
+				:name="ancestor.name"
+				:open-plan-id="ancestor.id"
+				:on-open="crumbOpener(ancestor.id)"
+			/>
 			<span
 				v-if="plan?.name"
 				class="rp-context-bar__crumb"

@@ -209,5 +209,7 @@ watch(referencePoints, points => emit('referencePoints', points), { immediate: t
 				listening: false,
 			}"
 		/>
+		<!-- A surface's own non-listening overlays that belong with the reference (ADR-0028's guide). -->
+		<slot />
 	</VLayer>
 </template>

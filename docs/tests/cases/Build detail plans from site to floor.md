@@ -11,9 +11,7 @@ Run `npm run test-build`, reload Obsidian in this repository's vault and enable 
    House zone.
 2. Lock the site zone from **Rooms and areas**. Click inside the House zone on the canvas: House is
    selected, not the site. Right-click inside it: the menu is House's.
-3. Choose **New detail plan**. The name reads `House`. Create it: a new editor tab opens on
-   `House`, the breadcrumb reads `Project › Site plan › House`, and a dashed `House` outline sits
-   at the top-left of the empty canvas.
+3. Choose **New detail plan**. The dialog was titled `New detail plan for House`; a dashed outline captioned `House · outline from Site plan` sits at the top-left of the empty canvas, fully in view; with nothing selected the Inspector explains the outline. Press `Shift+1`: the outline stays framed. Turn off **Reference plan** in Layers: the outline hides.
 4. Set up a reference image for `House` cropped at the building's top-left corner and calibrate
    it. The dashed outline and the drawing line up.
 5. In `House`, draw a Footprint zone and create **New detail plan** `Ground floor` from it. The

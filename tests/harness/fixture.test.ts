@@ -139,7 +139,7 @@ describe('the harness fixture', () => {
 		expect(structure?.walls).toHaveLength(4);
 		expect(structure?.openings.map(opening => opening.kind).toSorted()).toEqual(['door', 'window']);
 		expect(structure?.boundaries).toEqual([{ roomId: 'harness-kitchen', wallIds: structure?.walls.map(wall => wall.id) }]);
-		for (const wall of structure?.walls ?? []) expect(wall.thickness).toBe(240);
+		for (const wall of structure?.walls ?? []) expect(wall.thickness).toBe(200);
 	});
 });
 

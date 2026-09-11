@@ -21,11 +21,12 @@ it('validates actual arc intersections rather than the invisible chord', () => {
 	expect(wallsConflict(wall, { start: wall.end, end: { x: 4000, y: 3000 } })).toBe(false);
 	expect(wallsConflict(wall, { ...wall, start: wall.end, end: wall.start, bulge: -wall.bulge })).toBe(true);
 });
-it('encloses a curved Room with the same arc and reuses a reversed existing curve', () => {
+it('encloses a curved Room with a concentric arc outside it and reuses a reversed existing curve', () => {
 	const room = { id: 'room-curved', points: [wall.start, wall.end, { x: 4000, y: 3000 }, { x: 0, y: 3000 }], bulges: [0.25, 0, 0, 0] };
 	let count = 0;
 	const result = expectOk(encloseRoom(room, EMPTY_STRUCTURE, { height: 2400, thickness: 150 }, () => `wall-made-${count++}`));
-	expect(result.structure.walls[0].bulge).toBe(0.25);
+	const arc = result.structure.walls[0];
+	expect(alongWall(arc, wallLength(arc) / 2).y).toBeCloseTo(-575, 9); expect(arc.bulge).toBeGreaterThan(0.25);
 	const reversed = { ...result.structure, walls: result.structure.walls.map(value => ({ ...value, start: value.end, end: value.start, ...(value.bulge ? { bulge: -value.bulge } : {}) })) };
 	expect(expectOk(encloseRoom(room, reversed, { height: 2400, thickness: 150 }, () => `wall-made-${count++}`)).createdIds).toEqual([]);
 	const points = groupPoints({ objects: [room], structure: result.structure }, [room.id, ...result.wallIds]);

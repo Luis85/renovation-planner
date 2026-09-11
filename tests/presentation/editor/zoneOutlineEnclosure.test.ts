@@ -44,7 +44,7 @@ it('hides, but keeps mounted, the outline of a room its boundary walls enclose; 
 });
 
 it('shows the outline again once one boundary wall moves off its edge', async () => {
-	const walls = HARNESS_STRUCTURE.walls.map(wall => wall.id === 'wall-harness-west' ? { ...wall, start: { x: -200, y: 3000 }, end: { x: -200, y: 0 } } : wall);
+	const walls = HARNESS_STRUCTURE.walls.map(wall => wall.id === 'wall-harness-west' ? { ...wall, start: { x: -300, y: 3100 }, end: { x: -300, y: -100 } } : wall);
 	const { kitchen } = await outlines({ ...HARNESS_STRUCTURE, walls });
 	expect(kitchen.visible()).toBe(true);
 });
@@ -55,7 +55,7 @@ it('keeps the outline hidden mid-drag while a group preview carries the room and
 	gesture.move(pointerAt(1600, 1000)); await settle();
 	const preview = expectDefined(rig.runtime.groupActions.preview.value, 'group preview');
 	expect(preview.objects.find(object => object.id === kitchenId)?.points[0]).toEqual({ x: 600, y: 0 });
-	expect(preview.structure?.walls.find(wall => wall.id === 'wall-harness-west')?.end).toEqual({ x: 600, y: 0 });
+	expect(preview.structure?.walls.find(wall => wall.id === 'wall-harness-west')?.end).toEqual({ x: 500, y: -100 });
 	expect(kitchen.visible()).toBe(false);
 	gesture.cancel();
 });
@@ -64,6 +64,6 @@ it('shows the outline mid-drag while a wall preview carries one boundary wall of
 	const { rig, kitchen } = await outlines(HARNESS_STRUCTURE);
 	rig.runtime.structureActions.previewWall('wall-harness-west', { x: -200, y: 0 }); await settle();
 	expect(rig.runtime.structureActions.preview.value?.walls.find(wall => wall.id === 'wall-harness-west')?.end).toEqual({ x: -200, y: 0 });
-	expect(rig.project.structure.walls.find(wall => wall.id === 'wall-harness-west')?.end).toEqual({ x: 0, y: 0 });
+	expect(rig.project.structure.walls.find(wall => wall.id === 'wall-harness-west')?.end).toEqual({ x: -100, y: -100 });
 	expect(kitchen.visible()).toBe(true);
 });

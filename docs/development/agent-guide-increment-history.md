@@ -5663,3 +5663,35 @@ integer camera positions (predates this pass). Capture gaps: the Garden is out o
 five `plan-editor-*` shots read for this pass, and the door sits under the Edit-shape popover in
 `plan-editor-selected`. Out of scope, as the spec said: the mockup's furniture and sanitary
 symbols, wall hatching, the navy label colour, and a second fixture mirroring M01's floor.
+
+## Walls outside the room, 2026-09-11
+
+Why: Enclose with walls put every wall's centre line on the room edge, so half of each wall
+stood inside the room and counted as its floor. The user asked for the inner face on the edge.
+
+**Geometry.** `core/geometry/offsetOutline.ts` moves each outline edge its own distance along the
+outward normal (sign from the signed area, curves included) and mitres the corners where the
+moved neighbours meet; a curve stays concentric and its bulge is re-derived from the new
+endpoints. When both neighbours carry a corner to one point — no distance, a collinear run, a
+tangent curve — that point is taken EXACTLY, which is what keeps a zero-distance edge's corners
+bit-identical and therefore reusable by `wallOnEdge`'s exact match. No meeting point, or a curve
+moved through its centre, is refused (`outline-offset-unsolvable` → `spatial.wall-offset`).
+
+**Enclosure** (`encloseRoom`) moves each edge half the default thickness, except an edge another
+Room shares exactly or one a wall is already centred on: those stay at zero, so neighbours share
+one centred wall and a room enclosed before this change does not grow a second ring. Corners snap
+to an existing wall end within tolerance before the exact reuse. A closed wall loop's Room is the
+loop moved inward by each wall's half thickness (`roomInsideWalls`, called from `structureTask`).
+
+**Outline hiding.** `enclosedByBoundary` stopped asking for exact endpoints: a boundary wall runs
+along an edge when three points of its centre line sit at 0 or half its own thickness outward of
+the edge's line or circle, and it passes the edge's midpoint. Endpoints could not be the rule any
+more — a shared wall extends past the room corner to meet an outside wall. This closes the canvas
+fidelity pass's parked item: the selection and hover fill no longer tint the walls, because the
+walls are no longer inside the outline.
+
+Refused, and each is a ceiling rather than an oversight: Rooms touching along edges of different
+lengths, and a collinear corner between a shared and an outside edge, are refused rather than
+given a jog wall; a near-semicircle moved outward past 180° fails wall validation; existing walls
+are not migrated. `HARNESS_STRUCTURE` walls the Kitchen outside it at 200 mm, so the captures
+photograph the new placement.

@@ -25,12 +25,13 @@ export interface LayerToggles {
 	readonly reference: LayerToggle;
 	readonly rooms: LayerToggle;
 	readonly walls: LayerToggle;
+	readonly assets: LayerToggle;
 	/** `null` when the renovation session is not available: no row is offered. */
 	readonly planned: LayerToggle | null;
 	readonly notes: LayerToggle;
 }
 
-export type LayerEntryId = 'reference' | 'rooms' | 'walls' | 'planned' | 'notes';
+export type LayerEntryId = 'reference' | 'rooms' | 'walls' | 'assets' | 'planned' | 'notes';
 
 export interface LayerEntry {
 	readonly id: LayerEntryId;
@@ -77,6 +78,7 @@ export function layerCatalogue(plan: PlanDto | null, toggles: LayerToggles, writ
 		},
 		{ id: 'rooms', labelKey: 'editor.layer.rooms', ...AVAILABLE, ...toggles.rooms },
 		{ id: 'walls', labelKey: 'editor.structure.list', ...AVAILABLE, ...toggles.walls },
+		{ id: 'assets', labelKey: 'editor.layer.assets', ...AVAILABLE, ...toggles.assets },
 	];
 	if (toggles.planned !== null) entries.push({ id: 'planned', labelKey: 'editor.shell.planned-layer', ...AVAILABLE, ...toggles.planned });
 	entries.push({ id: 'notes', labelKey: 'editor.shell.notes-layer', ...AVAILABLE, ...toggles.notes });

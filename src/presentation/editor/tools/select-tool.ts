@@ -33,6 +33,7 @@ export interface SpatialObjectCandidate {
 	/** A derived hit/framing projection; gestures always retain the canonical points. */
 	readonly hitPoints?: readonly Point[];
 	readonly stair?: StairOptions;
+	readonly assetId?: string;
 }
 
 /**

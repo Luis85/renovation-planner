@@ -36,6 +36,7 @@ const toggles = computed<LayerToggles>(() => ({
 	reference: konva('background'),
 	rooms: konva('zone'),
 	walls: konva('architecture'),
+	assets: konva('asset'),
 	planned: runtime.renovation.available ? { visible: () => session.visible, toggle: () => { session.visible = !session.visible; } } : null,
 	notes: { visible: () => workspace.notesVisible, toggle: workspace.toggleNotes },
 }));

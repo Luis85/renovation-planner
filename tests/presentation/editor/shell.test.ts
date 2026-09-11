@@ -226,17 +226,18 @@ describe('the five regions', () => {
  * mounts the new panel in the old one's place.
  */
 describe('the layers panel', () => {
-	it('offers one labelled checkbox per catalogue entry — Reference plan, Rooms, Walls and openings, Notes and photos', async () => {
+	it('offers one labelled checkbox per catalogue entry — Reference plan, Rooms, Walls and openings, Assets, Notes and photos', async () => {
 		const harness = await mountCanvas();
 
 		const rows = harness.wrapper.findAll('.rp-layer-list__row');
 
 		// The fixture editor offers no renovation session, so no Planned changes row.
-		expect(rows).toHaveLength(4);
+		expect(rows).toHaveLength(5);
 		expect(rows[0].find('label').text()).toBe(t('en', 'editor.layer.reference-plan'));
 		expect(rows[1].find('label').text()).toBe(t('en', 'editor.layer.rooms'));
 		expect(rows[2].find('label').text()).toBe(t('en', 'editor.structure.list'));
-		expect(rows[3].find('label').text()).toBe(t('en', 'editor.shell.notes-layer'));
+		expect(rows[3].find('label').text()).toBe(t('en', 'editor.layer.assets'));
+		expect(rows[4].find('label').text()).toBe(t('en', 'editor.shell.notes-layer'));
 		expect(rows.every((row) => row.find('input').attributes('type') === 'checkbox')).toBe(true);
 	});
 

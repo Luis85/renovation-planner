@@ -35,8 +35,9 @@ export type RotationRuntime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' 
 	};
 };
 /** Group controls use aggregate member visibility; singleton controls follow their source layer. */
-function sourceVisible(shape: NamedRotationShape, layers: { readonly zone: boolean; readonly architecture: boolean }): boolean {
+function sourceVisible(shape: NamedRotationShape, layers: { readonly zone: boolean; readonly architecture: boolean; readonly asset: boolean }): boolean {
 	if (shape.kind === 'group') return shape.visible === true;
+	if (shape.kind === 'asset') return layers.asset;
 	return shape.kind === 'room' || shape.kind === 'area' ? layers.zone : layers.architecture;
 }
 /**

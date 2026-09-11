@@ -109,6 +109,7 @@ it('leaves fields, dialogs, chords, empty clipboards, stale floors and Review al
 	}
 	expect(key(button(), { key: 'C', metaKey: true }).defaultPrevented).toBe(true);
 	rig.project.stale = true;
+	expect(key(button(), { key: 'c', ctrlKey: true }).defaultPrevented).toBe(true);
 	expect(key(button(), { key: 'v', ctrlKey: true }).defaultPrevented).toBe(false);
 	rig.project.stale = false;
 	await rig.runtime.renovation.perspective('review'); await settle();

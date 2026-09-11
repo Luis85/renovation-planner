@@ -24,3 +24,26 @@ const LAYOUT_DEPENDENT_RULES = ['color-contrast', 'color-contrast-enhanced', 'ta
 export const runOptions: Parameters<typeof axe.run>[1] = {
 	rules: Object.fromEntries(LAYOUT_DEPENDENT_RULES.map((id) => [id, { enabled: false }])),
 };
+
+/**
+ * A describe-level case budget for a block whose every case is a cold mount or transform,
+ * one or more `settleUntil` waits (each keeping its own 4s `SETTLE_BUDGET_MS` deadline and
+ * its own named failure text — see `tests/helpers/settle.ts`), and a full axe scan — three
+ * costs that together can exceed vitest's 5000ms default under load even though no single
+ * wait is slow.
+ *
+ * Originally local to `accessibility.test.ts`'s harness-index block (cold Vite transform +
+ * settle + scan, worst entry 930ms quiet, timed out on `verify (windows-latest, 22)` at
+ * `environment 296.94s` contention). `structureJourney.test.ts`'s mounted-editor journey
+ * (14 settles + a full-editor axe scan, measured 8.9s under coverage + 22-way contention)
+ * shares the exact shape, moved here per that file's own "a third file" rule alongside
+ * `areaCreation.test.ts`, `roomNaming.test.ts` and `roomResize.test.ts` — every file with
+ * this shape already imports `runOptions` from this module, so importing this constant too
+ * costs nothing new.
+ *
+ * **Raising it blinds nothing**: each `settleUntil` still fails first, by name, at its own
+ * 4s deadline — this only bounds the SUM, deliberately far above the worst sum measured so
+ * far (8.9s + 4s ≈ 13s) so a contended runner cannot reach it. Applied to the BLOCK, not to
+ * individual cases, so a case added later inherits it instead of rediscovering this.
+ */
+export const HARNESS_SCAN_MS = 30_000;

@@ -5,9 +5,12 @@ import { mountPlanEditorHarness } from './planEditor';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver, placeAt, resizeTo } from '../helpers/layout';
 import { settleUntil, sizedShellRoot } from '../helpers/editor';
-import { runOptions } from './axeOptions';
+import { HARNESS_SCAN_MS, runOptions } from './axeOptions';
 
-describe('Area visual harness scenario', () => {
+// A mounted editor, several bounded settles and a full axe scan per case — the same shape
+// `HARNESS_SCAN_MS`'s docblock (`./axeOptions`) derives the budget for; every settle keeps
+// its own 4s named deadline, so this bounds only the SUM.
+describe('Area visual harness scenario', { timeout: HARNESS_SCAN_MS }, () => {
 	it.each([1280, 460])('provides the numeric outline and real creation/Undo/Redo in memory at %i px', async (width) => {
 		installCanvas();
 		installResizeObserver();

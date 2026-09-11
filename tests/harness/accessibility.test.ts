@@ -105,7 +105,7 @@ import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountAssetDesignerHarness } from './assetDesigner';
-import { runOptions } from './axeOptions';
+import { HARNESS_SCAN_MS, runOptions } from './axeOptions';
 import { detailDeps, mountWithDrawRoom, price, refusingWith } from './accessibilityFixtures';
 import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
@@ -1064,30 +1064,12 @@ describe('axe against the mounted view', () => {
  * set has to come from the tree.
  */
 /**
- * **Every case in this block is a cold Vite transform, then a bounded settle, then a full axe
- * run — and only the middle one of those three was bounded.** `settleUntil` throws its own
- * NAMED error at `SETTLE_BUDGET_MS` (4s), deliberately under vitest's 5000ms default so a real
- * hang reports as "timed out waiting for ..." rather than as an anonymous case timeout. What
- * that leaves is about a second of the default budget for the transform and the scan combined,
- * which is not a budget anybody chose: `prototype:AssetLibrary` is 930ms of it on a quiet
- * machine, the heaviest of the prototypes and roughly twice its siblings.
- *
- * `verify (windows-latest, 22)` duly spent the 5000ms on exactly that entry while all three
- * Ubuntu legs passed, on a run whose own summary reads `environment 296.94s` — contention, not
- * a regression, and the same signature `settleUntil`'s docblock already records from
- * `verify (ubuntu-latest, 26)` one level down.
- *
- * **Raising it blinds nothing**, which is the whole reason it is safe: the settle keeps its own
- * 4s deadline and its own sentence, so a condition that never holds still fails there first and
- * still says what it was waiting for. This budget bounds only the SUM, and it is deliberately
- * far above it so that a contended runner cannot reach it — the same trade `ESLINT_BOOT_MS`
- * already makes for the files that boot a type-aware linter.
- *
- * On the BLOCK rather than on the three cases, so the next scan added here inherits it instead
- * of being the one that rediscovers this.
+ * Every case in this block is a cold Vite transform, then a bounded settle, then a full axe
+ * run — worst measured 930ms quiet, timed out on `verify (windows-latest, 22)` under
+ * contention. `HARNESS_SCAN_MS`'s own docblock (`./axeOptions`) carries the full derivation;
+ * this is now a shared budget, not a local one — `structureJourney.test.ts` and three other
+ * mounted-editor journey files share this exact shape and import the same constant.
  */
-const HARNESS_SCAN_MS = 30_000;
-
 describe('axe against the harness index', { timeout: HARNESS_SCAN_MS }, () => {
 	it.each([
 		['the picker', 'index'],

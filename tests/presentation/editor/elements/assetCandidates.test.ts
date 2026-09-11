@@ -30,6 +30,14 @@ describe('asset placements as canvas candidates', () => {
 		const candidates = canvasCandidates([room], structure, { zone: true, architecture: true, asset: true }, shapeOf);
 		expect(resolveSelectionTarget({ candidates, selectedIds: [], worldPoint: { x: 1350, y: 1250 }, handleToleranceWorld: 0 })?.id).toBe('element-radiator');
 	});
+	it('still admits a placement inside a locked room, and still resolves a click to it', () => {
+		const lockedRoom = { ...room, locked: true };
+		const ids = canvasCandidates([lockedRoom], structure, { zone: true, architecture: true, asset: true }, shapeOf).map(item => item.id);
+		expect(ids).not.toContain('room');
+		expect(ids).toContain('element-radiator');
+		const candidates = canvasCandidates([lockedRoom], structure, { zone: true, architecture: true, asset: true }, shapeOf);
+		expect(resolveSelectionTarget({ candidates, selectedIds: [], worldPoint: { x: 1350, y: 1250 }, handleToleranceWorld: 0 })?.id).toBe('element-radiator');
+	});
 	it('rotates a placement about its anchor', () => {
 		expect(rotationPivot({ id: radiator.id, kind: 'asset', points: radiator.points })).toEqual({ x: 1000, y: 1000 });
 	});

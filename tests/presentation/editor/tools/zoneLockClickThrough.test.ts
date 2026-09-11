@@ -39,7 +39,7 @@ function build(): { tool: SelectTool; context: ReturnType<typeof toolContext>['c
 	const gestures: unknown[] = [];
 	const deps: SelectToolDeps = {
 		spatialObjects: (): readonly SpatialObjectCandidate[] =>
-			canvasCandidates(zones, EMPTY_STRUCTURE, { zone: true, architecture: true }),
+			canvasCandidates(zones, EMPTY_STRUCTURE, { zone: true, architecture: true, asset: true }),
 		createMoveGesture: (zoneId, forward, inverse) => {
 			gestures.push({ zoneId, forward, inverse });
 			return { execute: () => Promise.resolve(ok('wrote' as const)), undo: () => Promise.resolve(ok('wrote' as const)) };

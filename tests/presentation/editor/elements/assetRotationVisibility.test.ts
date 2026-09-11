@@ -20,6 +20,29 @@ afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
  * gates — `handleGeometry` reads only the selected `target` and `sourceVisible`, with no
  * hover precondition, unlike `displayControls`/`displayTarget`.
  */
+/**
+ * G3 (2026-09-11 integration fix, ADR-0027): `lockAllowsCanvas` only looks up a `room`/`area`
+ * shape, so a lock on the room a placement stands in has no bearing on the placement's own
+ * rotation handle — the invariant `rotationActions.ts`'s own docblock states ("A lock has no
+ * bearing on ... a spatial element"). Locking through the same sidebar door
+ * `zoneLockRotation.test.ts` uses.
+ */
+it('keeps a placement\'s rotation handle and canRotateId live when the room around it locks', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+	const shapes = useAssetShapeStore(rig.pinia);
+	await settleUntil(() => shapes.answerFor(radiator.id)?.kind === 'placeable', 'asset shape loaded');
+	rig.selection.select([id as never]); await settle();
+	expect(rig.runtime.rotationActions.handle.value).not.toBeNull();
+	expect(rig.runtime.rotationActions.canRotateId(id)).toBe(true);
+
+	await rig.wrapper.get(`[data-rp-lock="${rig.room.id}"]`).trigger('click');
+	await settleUntil(() => rig.project.zones.get(rig.room.id)?.locked === true, 'room locked');
+
+	expect(rig.runtime.rotationActions.handle.value).not.toBeNull();
+	expect(rig.runtime.rotationActions.canRotateId(id)).toBe(true);
+});
 it('offers a rotation handle for a selected placement while the Assets layer is visible, and none once it is hidden', async () => {
 	const rig = await assetPlacementRig(); mounted.push(rig);
 	const radiator = await rig.saveAsset('Radiator');

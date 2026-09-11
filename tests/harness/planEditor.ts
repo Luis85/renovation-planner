@@ -683,6 +683,25 @@ async function enterAreaTaskOnceReady(root: HTMLElement): Promise<void> {
 	canvas.focus();
 }
 
+/**
+ * Wraps a knob's fire-and-forget promise so a rejection that lands after its caller has moved
+ * on cannot escape as a process-level unhandled rejection naming no test.
+ *
+ * The `.then` below attaches a handler in the SAME microtask turn the knob starts — the part
+ * that actually matters, since attaching one only LATER, after the promise has already
+ * rejected with nothing listening, does not retroactively un-report it. The rejection is
+ * captured rather than rethrown here, so the promise this function returns can never itself
+ * become a second unhandled rejection: it always resolves, to a thunk that is a no-op on
+ * success and rethrows the original error on failure. `mountPlanEditorHarness` collects one of
+ * these per knob it starts and replays them from inside `view.onClose`.
+ */
+function guardKnob(promise: Promise<void>): Promise<() => void> {
+	return promise.then(
+		() => () => undefined,
+		(error: unknown) => () => { throw error; },
+	);
+}
+
 export function mountPlanEditorHarness(
 	root: HTMLElement,
 	options: PlanEditorHarnessOptions = {},
@@ -720,15 +739,38 @@ export function mountPlanEditorHarness(
 	// and deletes its own sacrifice zone before selecting `options.select`, so a capture asking
 	// for both gets the projection staled first and its chosen zone selected second, rather than
 	// whichever of two independent `selectZoneOnceReady` calls happened to click last.
+	//
+	// Each is still fire-and-forget for the reason `open` above is — a headless capture's URL
+	// cannot await anything — but each is now wrapped by `guardKnob` rather than left bare
+	// `void`, and collected, so a knob's late rejection can be replayed from `view.onClose`
+	// below instead of escaping as an unhandled rejection naming no test.
+	const knobs: Array<Promise<() => void>> = [];
 	if (options.stale === true) {
-		void driveStaleKnobOnceReady(leafEl, options.select);
+		knobs.push(guardKnob(driveStaleKnobOnceReady(leafEl, options.select)));
 	} else if (options.select !== undefined) {
-		void selectZoneOnceReady(leafEl, options.select);
+		knobs.push(guardKnob(selectZoneOnceReady(leafEl, options.select)));
 	}
-	if (options.add === true) void openAddMenuOnceReady(leafEl);
-	if (options.area === true) void enterAreaTaskOnceReady(leafEl);
-	if (options.numericArea === true) void enterNumericArea(leafEl);
-	if (options.room !== undefined) void enterRoomTaskOnceReady(leafEl, options.room);
+	if (options.add === true) knobs.push(guardKnob(openAddMenuOnceReady(leafEl)));
+	if (options.area === true) knobs.push(guardKnob(enterAreaTaskOnceReady(leafEl)));
+	if (options.numericArea === true) knobs.push(guardKnob(enterNumericArea(leafEl)));
+	if (options.room !== undefined) knobs.push(guardKnob(enterRoomTaskOnceReady(leafEl, options.room)));
+
+	// Every caller's teardown is `await view.onClose()` (`grep -rn "view.onClose()" tests/harness`
+	// today prints 8 files), so wrapping it here surfaces a late knob failure as THAT case's own
+	// failure — with no test file touched. Awaited BEFORE `unmount()`/`contentEl.empty()` so a
+	// knob that is still legitimately catching up (the common case a `?select` capture relies
+	// on) gets to finish against a live tree instead of being raced by teardown the way the M11
+	// flake was; only a knob that is genuinely stuck pays its own `SETTLE_BUDGET_MS` there, and
+	// it now does so as this case's own named failure rather than as a process-level rejection.
+	const originalOnClose = view.onClose.bind(view);
+	view.onClose = async () => {
+		const replays = await Promise.all(knobs);
+		try {
+			return await originalOnClose();
+		} finally {
+			for (const replay of replays) replay();
+		}
+	};
 
 	return { leafEl, view };
 }

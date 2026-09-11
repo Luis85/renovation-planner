@@ -94,7 +94,9 @@ const captionScale = computed(() => 1 / props.zoom);
 const captionDisplacement = computed(() => captionOffsetY(anchor.value, props.pins, props.zoom, props.dimensionObstacles, props.captionViewport));
 const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + captionDisplacement.value, width: 180, offsetX: 90, align: 'center',
 	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
-	stroke: props.tokens.canvasBackground, strokeWidth: 2, fillAfterStrokeEnabled: true }));
+	// `perfectDrawEnabled: false`: a locked zone's translucent group would otherwise send this
+	// fill-and-stroke text through the stage's buffer canvas, which throws while the stage is 0×0.
+	stroke: props.tokens.canvasBackground, strokeWidth: 2, fillAfterStrokeEnabled: true, perfectDrawEnabled: false }));
 
 /** A locked zone stays readable but recedes, so what can still be clicked stands out (ADR-0027). */
 const LOCKED_OPACITY = 0.5;

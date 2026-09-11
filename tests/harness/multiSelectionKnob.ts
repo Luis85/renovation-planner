@@ -15,5 +15,7 @@ export async function selectMultipleOnceReady(root: HTMLElement, ids: readonly s
 	}
 	const details = root.querySelector<HTMLButtonElement>('[data-rp-rail="details"]');
 	if (details !== null) details.click();
-	await settleUntil(() => root.querySelector('.rp-multi-selection') !== null, 'the multiple selection Inspector');
+	// Ends on the click, like `selectZoneOnceReady`. A trailing wait for `.rp-multi-selection` is
+	// fire-and-forget work still pending when a caller that saw the Inspector first closes the
+	// view — it then times out as an unhandled rejection. Every caller waits for it itself.
 }

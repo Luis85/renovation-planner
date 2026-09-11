@@ -50,5 +50,6 @@ const RequirementFrontmatterSchemaV1 = z.object({
 });
 
 const RequirementFrontmatterSchemaV2 = RequirementFrontmatterSchemaV1.extend({ 'schema-version': z.literal(2), source: RequirementSourceSchema.optional() });
-export const RequirementFrontmatterSchemaV3 = RequirementFrontmatterSchemaV2.extend({ 'schema-version': z.literal(3) });
-export const RequirementFrontmatterSchema = z.union([RequirementFrontmatterSchemaV1, RequirementFrontmatterSchemaV2, RequirementFrontmatterSchemaV3]);
+const RequirementFrontmatterSchemaV3 = RequirementFrontmatterSchemaV2.extend({ 'schema-version': z.literal(3) });
+export const RequirementFrontmatterSchemaV4 = RequirementFrontmatterSchemaV3.extend({ 'schema-version': z.literal(4) });
+export const RequirementFrontmatterSchema = z.union([RequirementFrontmatterSchemaV1, RequirementFrontmatterSchemaV2, RequirementFrontmatterSchemaV3, RequirementFrontmatterSchemaV4]);

@@ -311,7 +311,7 @@ async function measuredSource(deps: RequirementRowDeps, requirement: Requirement
 	let sourceZone: { area(): Result<number, unknown> } | null = zone;
 	if (requirement.source) {
 		const geometry = await deps.geometry?.read(requirement.source.planId as PlanId);
-		const measured = geometry?.ok ? sourceMeasurement(requirement.source, requirement.origin.zoneId, geometry.value.document, requirement.unit) : null;
+		const measured = geometry?.ok ? sourceMeasurement(requirement.source, requirement.origin.zoneId, geometry.value.document, requirement.unit, requirement.assetId) : null;
 		sourceZone = measured?.ok ? { area: () => ok(measured.value.toNumber()) } : null;
 	}
 	return sourceZone;

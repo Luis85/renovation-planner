@@ -19,7 +19,7 @@ export function registerOnPlanningChanged(events: EventBus, deps: CascadeDeps & 
 		if (!listed.ok || !geometry.ok || listed.value.refused) { deps.notify.cascadeAborted(id); return; }
 		const changed = listed.value.loaded.filter(({ entity }) => {
 			if (!entity.source || entity.source.planId !== id) return false;
-			const raw = sourceMeasurement(entity.source, entity.origin.zoneId, geometry.value.document, entity.unit);
+			const raw = sourceMeasurement(entity.source, entity.origin.zoneId, geometry.value.document, entity.unit, entity.assetId);
 			const measured = raw.ok ? toMeasuredQuantity(raw.value, entity.unit) : null;
 			return !measured?.ok || !new Decimal(entity.calculatedFrom.zoneArea.value).eq(measured.value.value);
 		});

@@ -92,7 +92,7 @@ describe('persistence composition', () => {
 			quote: 1,
 			zone: 2,
 			asset: 1,
-			requirement: 3,
+			requirement: 4,
 			'asset-price': 1,
 			'plan-geometry': 9,
 		});

@@ -1,12 +1,13 @@
 import { Decimal } from 'decimal.js';
-import { area, perimeter } from '../../core/geometry/operations';
+import { area, contains, perimeter } from '../../core/geometry/operations';
 import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import { err, ok } from '../../core/result/Result';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
 import { EMPTY_STRUCTURE, wallLength, type Structure } from '../spatial/Structure';
+import { membershipProbe } from '../spatial/assetPlacement';
 import { elementLength, type SpatialElement } from '../spatial/SpatialElement';
 
-export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'opening-area', 'element-length', 'object-area', 'count', 'manual'] as const;
+export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'opening-area', 'element-length', 'object-area', 'count', 'placement-count', 'manual'] as const;
 /** Geometry references stay on the Requirement; procurement and payment facts do not. */
 export interface RequirementSource {
 	readonly planId: string;
@@ -73,9 +74,24 @@ function measurement(source: RequirementSource, roomId: string, geometry: Quanti
  if (opening && source.rule === 'count') return { raw: 1, unit: 'piece' };
  return elementMeasurement(source, structure.elements?.find(item => item.id === source.targetId)) ?? wallMeasurement(source, structure) ?? roomMeasurement(source, roomId, geometry);
 }
+/** How many placements of `assetId` probe inside the room, in the source's state; zero is an answer, a missing room is not. */
+function placementCount(source: RequirementSource, roomId: string, geometry: QuantityGeometry, assetId: string | undefined): number | null {
+	const room = geometry.objects.find(item => item.id === roomId);
+	if (!room || source.targetId !== roomId || !assetId) return null;
+	const structure = (source.state === 'intended' ? geometry.intended ?? geometry.structure : geometry.structure) ?? EMPTY_STRUCTURE;
+	return (structure.elements ?? []).filter(element => {
+		if (element.kind !== 'asset' || element.assetId !== assetId) return false;
+		const inside = contains(room, membershipProbe(element));
+		return inside.ok && inside.value;
+	}).length;
+}
 /** Raw world measurement for the existing quantity engine; no synthetic room outline. */
-export function sourceMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry, unit: MeasurementUnit) {
+export function sourceMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry, unit: MeasurementUnit, assetId?: string) {
 	if (!validRequirementSource(source)) return err(sourceError());
+	if (source.rule === 'placement-count') {
+		const counted = placementCount(source, roomId, geometry, assetId);
+		return counted !== null && unit === 'piece' ? ok(new Decimal(counted)) : err(sourceError());
+	}
 	if (source.rule === 'manual') {
 		const factor = unit === 'm' ? 1000 : unit === 'm2' ? 1_000_000 : 1;
 		if (!['m', 'm2', 'piece'].includes(unit) || !measurement({ ...source, rule: 'count' }, roomId, geometry)) return err(sourceError());

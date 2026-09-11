@@ -67,7 +67,7 @@ export function prepareMaterial(baseline: PlanningBaseline, input: MaterialInput
 	if (!validDecimal(input.waste) || (input.override && !validDecimal(input.override))) return err(sourceError());
 	const selected = baseline.catalogue.find(item => item.asset.id === input.assetId);
 	if (!selected || input.source.planId !== baseline.plan.entity.id) return err(sourceError());
-	const raw = sourceMeasurement(input.source, input.roomId, baseline.geometry.document, selected.asset.unit);
+	const raw = sourceMeasurement(input.source, input.roomId, baseline.geometry.document, selected.asset.unit, input.assetId);
 	if (!raw.ok) return raw;
 	const before = baseline.materials.find(item => item.entity.id === input.id)?.entity;
 	const figures = deriveRequirementFigures({ zoneAreaMm2: 0, rawMeasurement: raw.value, assetUnit: selected.asset.unit,

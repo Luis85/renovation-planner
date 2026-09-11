@@ -54,6 +54,12 @@ function moneyOrNull(value: unknown): string | null {
 		: null;
 }
 
+/** The lowest schema that holds this source: an older build refuses a rule it does not know as newer, never as corrupt. */
+function requirementSchemaVersion(source: Requirement['source']): 1 | 2 | 3 | 4 {
+	if (!source) return 1;
+	if (source.rule === 'placement-count') return 4;
+	return source.rule === 'element-length' || source.rule === 'object-area' ? 3 : 2;
+}
 /**
  * Markdown ↔ Requirement. Every `*-calculated` / `*-override` / `calculated-from-*`
  * decimal is a quoted STRING on disk (ADR-010); the mapper is the only place the
@@ -67,7 +73,7 @@ export function requirementToPersistence(
 	const currency = requirement.calculatedFrom.unitCost.currency;
 	return {
 		type: REQUIREMENT_TYPE,
-		'schema-version': requirement.source?.rule === 'element-length' || requirement.source?.rule === 'object-area' ? 3 : requirement.source ? 2 : 1,
+		'schema-version': requirementSchemaVersion(requirement.source),
 		...(requirement.source ? { source: requirement.source } : {}),
 		id: requirement.id,
 		revision,

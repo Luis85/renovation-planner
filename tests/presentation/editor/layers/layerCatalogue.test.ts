@@ -16,7 +16,7 @@ function toggles(planned: LayerToggle | null = toggle()): LayerToggles {
 
 /**
  * The layers this editor can honestly offer, in the user's vocabulary (interaction spec §54,
- * §55): five rows, none of them a Konva layer by name. Sidebar polish, 2026-09-10.
+ * §55): six rows, none of them a Konva layer by name. Sidebar polish, 2026-09-10.
  */
 describe('layerCatalogue', () => {
 	it('lists the six rows in the mockup order', () => {

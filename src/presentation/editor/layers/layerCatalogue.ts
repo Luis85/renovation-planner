@@ -18,7 +18,7 @@ export interface LayerToggle {
 
 /**
  * Where each row's visibility LIVES, handed in by the panel rather than reached for here, so
- * this stays a pure function of a plan and a bundle of closures. Three are Konva layers in
+ * this stays a pure function of a plan and a bundle of closures. Four are Konva layers in
  * `WorkspaceStore`, one is the renovation session's own flag and one is the store's notes gate.
  */
 export interface LayerToggles {

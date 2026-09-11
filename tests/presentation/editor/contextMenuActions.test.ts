@@ -1,17 +1,39 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
+import { assetPlacementRig } from '../../helpers/assetPlacement';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectFound, expectOk } from '../../helpers/domain';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useAssetShapeStore } from '../../../src/presentation/stores/AssetShapeStore';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
+import { worldToScreen, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
 async function setup() { const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle(); return rig; }
 async function menu(rig: Awaited<ReturnType<typeof setup>>) { rig.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle(); }
 async function action(rig: Awaited<ReturnType<typeof setup>>, id: string) { await menu(rig); await rig.wrapper.get(`[data-rp-context-action="${id}"]`).trigger('click'); await settle(); }
+
+it('right-clicks a placed asset by its real footprint, not the 500 mm placeholder square', async () => {
+	const rig = await assetPlacementRig();
+	try {
+		const radiator = await rig.saveAsset('Radiator');
+		const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+		const shapes = useAssetShapeStore(rig.pinia);
+		await settleUntil(() => shapes.answerFor(radiator.id)?.kind === 'placeable', 'asset shape loaded');
+		rig.selection.clear();
+		// 350 mm along the long (800 mm) axis from the anchor: inside the real 800×600
+		// footprint (600..1400 × 700..1300) but outside the 500 mm placeholder square
+		// (750..1250 × 750..1250) — a point the placeholder would miss and the real
+		// footprint would hit.
+		const editor = useEditorStore(rig.pinia), at = worldToScreen({ x: 1350, y: 1000 }, editor.viewport, STAGE_PIXELS), box = rig.canvasEl.getBoundingClientRect();
+		rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + at.x, clientY: box.top + at.y }));
+		await settle();
+		expect(rig.selection.selectedIds).toEqual([id]);
+	} finally { rig.unmount(); }
+});
 
 it('opens real Add and Fit routes, keeps unavailable framing inert, and limits Review to viewing', async () => {
 	const rig = await setup(), editor = useEditorStore(rig.pinia), fit = vi.spyOn(editor, 'fitTo'), bytes = [...rig.stack.vault.entries];

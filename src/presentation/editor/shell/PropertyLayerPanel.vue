@@ -31,7 +31,7 @@ const konva = (layer: KonvaLayerId): LayerToggle => ({
 	visible: () => workspace.layerVisibility[layer],
 	toggle: () => workspace.toggleLayer(layer),
 });
-/** Every row's home, in one place: three Konva layers, the session flag, the notes gate. */
+/** Every row's home, in one place: four Konva layers, the session flag, the notes gate. */
 const toggles = computed<LayerToggles>(() => ({
 	reference: konva('background'),
 	rooms: konva('zone'),

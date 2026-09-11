@@ -47,9 +47,11 @@ function selectContext(hit: string | undefined, keyboard: boolean, event: MouseE
 	// component mounts only inside a Plan Editor tree, and `runtime.ts`'s `buildRuntime` always
 	// calls `createSpatialEditing` -> `createGroupActions` -> `provideCanvasGroupActions` before
 	// any descendant can reach `useEditorRuntime()` at all (it throws with no provider), so the
-	// method is never actually absent here. A non-null assertion rather than `?? [hit]` for that
-	// reason: the fallback was an uncovered branch no test could reach honestly.
-	if (hit && (event.altKey || !selection.selectedIds.some(id => id === hit))) selection.select(groups.expandSelection!(hit, event.altKey).map(id => id as EntityId<string>));
+	// method is never actually absent here. A type-only cast rather than `?? [hit]` for that
+	// reason (`typescript/no-non-null-assertion` refuses `!`): the fallback was an uncovered
+	// branch no test could reach honestly.
+	const expandSelection = groups.expandSelection as NonNullable<typeof groups.expandSelection>;
+	if (hit && (event.altKey || !selection.selectedIds.some(id => id === hit))) selection.select(expandSelection(hit, event.altKey).map(id => id as EntityId<string>));
 	else if (!keyboard && !hit) selection.clear();
 	if (hit) selection.focus(hit as EntityId<string>);
 	menuIds = [...selection.selectedIds];
@@ -84,11 +86,12 @@ function navigation(event: KeyboardEvent): void {
 	if (event.key === 'Tab') { event.preventDefault(); event.stopPropagation(); close(); return; }
 	if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
 	event.preventDefault(); event.stopPropagation();
-	// `menu.value` is typed nullable only because the ref starts that way; `navigation` is bound
-	// as `@keydown` on the very element the ref points at (below), so it cannot run before Vue
-	// has set the ref — a non-null assertion rather than `?? []`, which was an uncovered branch
-	// no test could reach honestly.
-	const items = [...menu.value!.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+	// The element the LISTENER is bound to, not the `menu` ref: `navigation` runs only as the
+	// native `@keydown` handler attached to the menu's own element (below), and the DOM sets
+	// `currentTarget` to that element for every dispatch — a browser guarantee rather than a
+	// ref-timing assumption, so no nullable read (`menu.value?... ?? []`, an uncovered branch no
+	// test could reach honestly) is needed at all.
+	const items = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]')];
 	const index = items.indexOf(document.activeElement as HTMLElement);
 	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
 	items[next]?.focus();

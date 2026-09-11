@@ -140,12 +140,16 @@ compensation covers failures after that point. The user moves the pointer and pa
   pasting) during a gesture or on an OS autorepeat, exactly as Undo is. So a copy inside a text
   field stays native. Paste additionally claims nothing when `writesBlocked` or the clipboard is
   empty.
-- **Context menu.** `useCanvasMenuActions` gains `copy` (group `object`, shown with a non-empty
-  selection, every perspective) and `paste` (group `create`, shown when the clipboard is
-  non-empty, hidden in Review exactly as the other edits are, disabled with the existing reason
-  when writes are blocked). Icons: `copy`, `clipboard-paste` — the harness draws only icon names
-  it has a pinned fixture for under `tests/fixtures/editor-icons`, so both are added there.
-  Review returns early after `fit` today; `copy` is pushed before that return.
+- **Context menu.** `useCanvasMenuActions` gains `copy` (group `object`, shown only when the
+  selection holds something copyable, every perspective — hidden rather than shown disabled,
+  since Copy is not an edit and a greyed item could only offer an edit's own reason) and `paste`
+  (group `create`, shown when the clipboard is non-empty, hidden in Review exactly as the other
+  edits are, disabled with the existing "another tool or edit is active" reason when writes are
+  blocked or a structure, element, rotation or group edit is already reading its baseline or has
+  a form open — any of those saves would otherwise refuse as stale once the edit resumes). Icons:
+  `copy`, `clipboard-paste` — the harness draws only icon names it has a pinned fixture for under
+  `tests/fixtures/editor-icons`, so both are added there. Review returns early after `fit` today;
+  `copy` is pushed before that return.
 - **Actions.** `clipboard/clipboardActions.ts` holds `copy()` and `paste(target?)`, provided by
   `PlanEditorRoot` and injected by the context menu — not members of `EditorRuntime`, because
   `runtime.ts` is at its line budget. Both the shortcut and the menu call these — one action,

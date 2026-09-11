@@ -15,6 +15,7 @@ import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { createEditorClipboard, type EditorClipboard } from '../../../src/presentation/editor/clipboard/editorClipboard';
 import { screenPoint, screenToWorld, stageCentreWorld, STAGE_PIXELS, worldToScreen } from '../../../src/presentation/editor/viewport/Viewport';
 import { groupPivot } from '../../../src/domain/spatial/groupGeometry';
+import ObjectRotationForm from '../../../src/presentation/editor/elements/ObjectRotationForm.vue';
 import type { Point } from '../../../src/core/geometry/Point';
 import type { PlanId } from '../../../src/domain/plan/PlanId';
 
@@ -226,4 +227,41 @@ it('offers no paste while a structure or element edit is in flight, from the men
 		expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(true);
 		await settleUntil(() => added(rig, before).length === 1, 'the paste once the edit ended');
 	}
+});
+
+/**
+ * C-B3: a rotation reads its own baseline and then saves too (`rotationActions.ts`'s `operate`,
+ * `readRotationBaseline`), the same shape the structure/element edit case above guards against —
+ * a paste landing mid-read (or while its form is open) would make the rotation's later save
+ * refuse as stale. `ready` in `clipboardActions.ts` folds in `runtime.rotationActions.active`,
+ * which is already exposed on `EditorRuntime` (no line added to `runtime.ts`). A real ELEMENT
+ * rather than the room: `readElementBaseline` reads through `renovation.read`, the same method
+ * `holdRead` above already knows how to hold — the room's own `readZoneBaseline` goes through
+ * `zones.getById` instead, a second lever this case does not need.
+ */
+it('offers no paste while a rotation is reading its baseline, from the menu or the shortcut', async () => {
+	const rig = await setup(), before = new Set(rig.project.zones.keys());
+	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
+	const desk = { id: 'element-rotation-guard-desk', kind: 'object' as const, name: 'Desk', points: [{ x: 3000, y: 3000 }, { x: 3500, y: 3000 }, { x: 3500, y: 3500 }, { x: 3000, y: 3500 }] };
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, elementInput(baseline, desk), rig.runtime.structureTask.ledger)));
+	await rig.runtime.refreshProjection();
+	rig.selection.select([rig.room.id]); key(rig.canvasEl, { key: 'c', ctrlKey: true });
+	rig.selection.select([desk.id as never]);
+	const release = holdRead(rig.renovation);
+	const rotating = rig.runtime.rotationActions.rotate(desk.id);
+	expect(rig.runtime.rotationActions.active.value).toBe(true);
+	pointAt(rig, { x: 20000, y: 20000 });
+	await keyboardMenu(rig);
+	const paste = rig.wrapper.get('[data-rp-context-action="paste"]');
+	expect(paste.attributes('aria-disabled')).toBe('true');
+	expect(paste.attributes('title')).toBe('Not available while another tool or edit is active.');
+	await paste.trigger('keydown', { key: 'Escape' });
+	expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(false);
+	await settle();
+	expect(rig.project.zones.size).toBe(before.size);
+	release();
+	await settleUntil(() => rig.wrapper.findComponent(ObjectRotationForm).exists(), 'Room rotation form');
+	rig.dialogs.resolve('cancel'); await rotating; vi.restoreAllMocks();
+	expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(true);
+	await settleUntil(() => added(rig, before).length === 1, 'the paste once the rotation ended');
 });

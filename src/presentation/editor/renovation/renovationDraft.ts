@@ -1,6 +1,6 @@
 import { createEntityId } from '../../../core/identity/generateId';
 import { EMPTY_RENOVATION, type Renovation, type RenovationSubject, type WorkPackage, type RenovationDecision } from '../../../domain/renovation/Renovation';
-import type { RenovationInput, RenovationBaseline } from '../../../application/commands/renovation/RenovationCommand';
+import type { RenovationEditInput, RenovationBaseline } from '../../../application/commands/renovation/RenovationCommand';
 import { tr } from '../../i18n/strings';
 import type { Opening } from '../../../domain/spatial/Structure';
 import type { SpatialElement } from '../../../domain/spatial/SpatialElement';
@@ -57,7 +57,7 @@ function detailKind(opening: Opening | undefined, element: SpatialElement | unde
 function upsert<T extends { id: string }>(items: readonly T[], item: T): readonly T[] {
 	return items.some(other => other.id === item.id) ? items.map(other => other.id === item.id ? item : other) : [...items, item];
 }
-export function applyRenovationDraft(baseline: RenovationBaseline, draft: RenovationDraft): RenovationInput {
+export function applyRenovationDraft(baseline: RenovationBaseline, draft: RenovationDraft): RenovationEditInput {
 	const value = baseline.plan.entity.renovation ?? EMPTY_RENOVATION;
 	const renovation = draft.kind === 'work' ? { ...value, work: upsert(value.work, draft.work) }
 		: draft.kind === 'decision' ? { ...value, decisions: upsert(value.decisions, draft.decision) }

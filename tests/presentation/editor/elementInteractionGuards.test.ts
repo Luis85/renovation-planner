@@ -6,6 +6,7 @@ import { settle, settleUntil } from '../../helpers/editor';
 import { defer } from '../../helpers/async';
 import { err, ok } from '../../../src/core/result/Result';
 import { withPlanSpatialElements } from '../../../src/domain/plan/Plan';
+import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { pointerAt } from '../../helpers/tool-context';
 import { resizeTo } from '../../helpers/layout';
@@ -102,9 +103,10 @@ it('conditionally compensates a refused drag write without changing the displaye
 
 it('refuses single-element deletion when shared Work still refers to that target', async () => {
  const rig = await setup(), baseline = expectOk(await rig.renovation.read(rig.plan.id));
- const value = expectDefined(baseline.plan.entity.renovation, 'renovation');
+ // Adding the element wrote no register into this plan, so the shared Work starts one.
+ expect(baseline.plan.entity.renovation).toBeUndefined();
  const work = { id: 'work-shared-path', roomId: rig.room.id, targetId: rig.room.id, links: [{ roomId: rig.room.id, targetId: element.id }], title: 'Prepare shared surfaces', description: '', order: 0, progress: 'pending' as const, responsibility: 'unassigned' as const, outcomes: [], dependencies: [] };
- expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: { ...value, work: [work] }, intended: baseline.geometry.document.intended }, rig.runtime.structureTask.ledger)));
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: { ...EMPTY_RENOVATION, work: [work] },intended: baseline.geometry.document.intended }, rig.runtime.structureTask.ledger)));
  const bytes = [...rig.stack.vault.entries], command = vi.spyOn(rig.renovation, 'command');
  const removal = rig.runtime.elementActions.remove(element.id); await settle();
  expect(rig.wrapper.get('.rp-dialog').text()).toContain(work.title); rig.dialogs.resolve('confirm'); await removal;

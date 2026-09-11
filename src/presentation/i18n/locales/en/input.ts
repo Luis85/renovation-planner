@@ -4,6 +4,8 @@ export const inputEn = {
 	'editor.input.edit': 'Edit',
 	'editor.input.rename': 'Rename',
 	'editor.input.rotate': 'Rotate',
+	'editor.input.copy': 'Copy',
+	'editor.input.paste': 'Paste',
 	'editor.input.delete': 'Delete',
 	'editor.input.lock': 'Lock {name}',
 	'editor.input.unlock': 'Unlock {name}',

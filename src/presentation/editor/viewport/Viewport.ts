@@ -115,6 +115,11 @@ export function screenToWorld(point: ScreenPoint, viewport: Viewport, dpr: numbe
 	return { x: point.x / scale + viewport.pan.x, y: point.y / scale + viewport.pan.y };
 }
 
+/** The world point under the middle of a stage — where a gesture with no pointer lands. */
+export function stageCentreWorld(size: StageSize, viewport: Viewport): Point {
+	return screenToWorld(screenPoint(size.width / 2, size.height / 2), viewport, STAGE_PIXELS);
+}
+
 /**
  * How many world millimetres one screen pixel spans at the current camera — the scalar
  * every screen-sized tolerance is converted through (a vertex handle's grab radius, a

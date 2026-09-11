@@ -4,7 +4,7 @@ import { EMPTY_RENOVATION, type RenovationSubject, type WorkPackage } from '../.
 import { EMPTY_DEPTH, type Evidence } from '../../../domain/renovation/PlanningDepth';
 import { spatialContexts, type SpatialLink } from '../../../domain/renovation/SharedLinks';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
-import { validateRenovationInput, type RenovationBaseline, type RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
+import { validateRenovationInput, type RenovationBaseline, type RenovationEditInput } from '../../../application/commands/renovation/RenovationCommand';
 import { tr } from '../../i18n/strings';
 
 export interface BatchTarget extends SpatialLink { readonly name: string; readonly kind: RenovationSubject['kind'] }
@@ -20,7 +20,7 @@ function replace<T extends { id: string }>(items: readonly T[], value: T): T[] {
 
 export function batchRenovationInput(baseline: RenovationBaseline, targets: readonly BatchTarget[], draft: BatchDraft) {
 	const value = baseline.plan.entity.renovation ?? EMPTY_RENOVATION;
-	let input: RenovationInput = { renovation: value, intended: baseline.geometry.document.intended };
+	let input: RenovationEditInput = { renovation: value, intended: baseline.geometry.document.intended };
 	const first = targets[0];
 	if (!first) return validateBatch(input, baseline);
 	if (draft.kind === 'work') {
@@ -35,7 +35,7 @@ export function batchRenovationInput(baseline: RenovationBaseline, targets: read
 	} else input = changeTargets(baseline, targets, draft);
 	return validateBatch(input, baseline);
 }
-function validateBatch(input: RenovationInput, baseline: RenovationBaseline) {
+function validateBatch(input: RenovationEditInput, baseline: RenovationBaseline) {
 	const valid = validateRenovationInput(input.renovation, { ...baseline.geometry.document, intended: input.intended });
 	return valid.ok ? ok(input) : valid;
 }
@@ -60,7 +60,7 @@ function changedSubjects(values: readonly RenovationSubject[], targets: readonly
 function removedTargets(before: Structure, ids: ReadonlySet<string>): Structure {
  return { ...before, elements: before.elements?.filter(item => !ids.has(item.id)), walls: before.walls.filter(item => !ids.has(item.id)), openings: before.openings.filter(item => !ids.has(item.id)), boundaries: before.boundaries.filter(item => !item.wallIds.some(id => ids.has(id))) };
 }
-function changeTargets(baseline: RenovationBaseline, targets: readonly BatchTarget[], draft: BatchDraft): RenovationInput {
+function changeTargets(baseline: RenovationBaseline, targets: readonly BatchTarget[], draft: BatchDraft): RenovationEditInput {
  const value = baseline.plan.entity.renovation ?? EMPTY_RENOVATION, current = baseline.geometry.document.structure ?? EMPTY_STRUCTURE;
  const before = baseline.geometry.document.intended ?? current;
  const affected = affectedTargets(current, targets, draft.kind === 'remove'), ids = new Set(affected.map(item => item.targetId));

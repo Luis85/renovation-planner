@@ -16,6 +16,17 @@ async function setup(kind: Kind) {
 	return { ...rig, before, command };
 }
 
+it('leaves a plan with no renovation without one after a mixed deletion, its undo and its redo', async () => {
+	const rig = await setup('mixed');
+	expect(rig.before.plan.entity.renovation).toBeUndefined();
+	expectOk(await rig.command.execute());
+	expect(expectOk(await rig.renovation.read(rig.plan.id)).plan.entity.renovation).toBeUndefined();
+	expectOk(await rig.command.undo());
+	expect(expectOk(await rig.renovation.read(rig.plan.id)).plan.entity.renovation).toBeUndefined();
+	expectOk(await rig.command.execute());
+	expect(expectOk(await rig.renovation.read(rig.plan.id)).plan.entity.renovation).toBeUndefined();
+});
+
 it.each(['wall', 'object', 'mixed'] as const)('prunes %s membership through its existing command and restores exact repeated history after reopening', async kind => {
 	const rig = await setup(kind);
 	const remaining = rig.group.memberIds.filter(id => !(kind !== 'object' && id === 'wall-a') && !(kind !== 'wall' && id === rig.object.id));

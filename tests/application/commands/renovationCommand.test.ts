@@ -97,6 +97,17 @@ describe('renovation transactions through Markdown and sidecar repositories', ()
 		expect(failure.code).toContain('revision-conflict'); expect(leftWritesBehind(failure)).toBe(false);
 		const live = expectOk(await rig.read()); expect(live.plan.entity.renovation).toBeUndefined(); expect(live.geometry.document.objects).toEqual([]);
 	});
+	it('writes no renovation for an input that carries none, on a plan that had none', async () => {
+		const rig = await renovationStack(), baseline = expectOk(await rig.read());
+		expect(baseline.plan.entity.renovation).toBeUndefined();
+		const command = rig.renovation.command(baseline, { renovation: undefined, intended: undefined }, rig.ledger);
+		expectOk(await command.execute());
+		expect(expectOk(await rig.read()).plan.entity.renovation).toBeUndefined();
+		expectOk(await command.undo());
+		expect(expectOk(await rig.read()).plan.entity.renovation).toBeUndefined();
+		expectOk(await command.execute());
+		expect(expectOk(await rig.read()).plan.entity.renovation).toBeUndefined();
+	});
 	it('reads absent plans and sidecar refusals without partial baselines', async () => {
 		const rig = await renovationStack(); vi.spyOn(rig.stack.plans, 'getById').mockResolvedValueOnce(ok(null)); expect((await rig.read()).ok).toBe(false);
 		vi.spyOn(rig.geometry, 'read').mockResolvedValueOnce(err(fault)); expect(await rig.read()).toEqual(err(fault));

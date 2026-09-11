@@ -20,6 +20,8 @@ it('opens real Add and Fit routes, keeps unavailable framing inert, and limits R
 	await action(rig, 'fit'); expect(fit).toHaveBeenCalledOnce();
 	rig.selection.select([rig.room.id]); await action(rig, 'fit'); expect(fit).toHaveBeenCalledTimes(2);
 	rig.selection.select(['retired-selection' as never]); await menu(rig);
+	// Nothing copyable is no Copy at all: a greyed one could only offer an edit's reason, and Copy is not an edit.
+	expect(rig.wrapper.find('[data-rp-context-action="copy"]').exists()).toBe(false);
 	const unavailable = rig.wrapper.get('[data-rp-context-action="fit"]'); expect(unavailable.attributes('aria-disabled')).toBe('true');
 	await unavailable.trigger('click'); expect(fit).toHaveBeenCalledTimes(2);
 	await unavailable.trigger('keydown', { key: 'Escape' });
@@ -27,7 +29,10 @@ it('opens real Add and Fit routes, keeps unavailable framing inert, and limits R
 	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit']);
 	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select([rig.room.id]); await menu(rig);
-	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit']);
+	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit', 'copy']);
+	// Something on the clipboard still offers no Paste in Review.
+	await rig.wrapper.get('[data-rp-context-action="copy"]').trigger('click'); await menu(rig);
+	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit', 'copy']);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 
@@ -129,7 +134,7 @@ it('tells why a greyed action is unavailable', async () => {
 	rig.selection.select([rig.room.id]); rig.project.stale = true; await menu(rig);
 	expect(rig.wrapper.get('[data-rp-context-action="delete"]').attributes('title')).toBe('Editing is paused until the floor is re-read.');
 	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
-	rig.project.stale = false; await rig.runtime.setTool('pan'); rig.selection.select([rig.room.id]); await menu(rig);
+	rig.project.stale = false; rig.runtime.setTool('pan'); rig.selection.select([rig.room.id]); await menu(rig);
 	expect(rig.wrapper.get('[data-rp-context-action="fit"]').attributes('title')).toBeUndefined();
 	expect(rig.wrapper.get('[data-rp-context-action="rotate"]').attributes('title')).toBe('Not available while another tool or edit is active.');
 });

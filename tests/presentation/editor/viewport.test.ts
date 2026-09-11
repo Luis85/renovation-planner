@@ -13,6 +13,7 @@ import {
 	panBy,
 	screenPoint,
 	screenToWorld,
+	stageCentreWorld,
 	STAGE_PIXELS,
 	viewportTransform,
 	worldPerScreenPixel,
@@ -304,4 +305,8 @@ describe('fitViewport', () => {
 		// the camera inside out and answer a negative zoom.
 		expect(fitViewport(BOUNDS, STAGE, 300, CURRENT_ZOOM)).toBeNull();
 	});
+});
+
+it('answers the world point under the centre of a stage', () => {
+	expect(stageCentreWorld({ width: 800, height: 600 }, { pan: { x: 100, y: -50 }, zoom: 2 })).toEqual({ x: 300, y: 100 });
 });

@@ -9,15 +9,17 @@ import { useSelectionStore } from './selection-store';
 import { usePlanFrame } from '../viewport/usePlanFrame';
 import { useCanvasGroupActions } from './canvasGroupActions';
 import { useRenovationSession } from '../renovation/renovationSession';
+import type { Point } from '../../../core/geometry/Point';
+import { useClipboardActions } from '../clipboard/clipboardActions';
 import { useDetailPlanActions } from '../hierarchy/detailPlanActions';
 
 /** Menu order is the group order: create first, then view, mode, the object's own actions, and last what destroys it. */
 export type CanvasMenuGroup = 'create' | 'view' | 'mode' | 'object' | 'destructive';
 export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly params?: Readonly<Record<string, string>>; readonly disabled?: boolean; readonly reason?: StringKey; run(): void | Promise<void> }
 const GROUP_ORDER: readonly CanvasMenuGroup[] = ['create', 'view', 'mode', 'object', 'destructive'];
-export function useCanvasMenuActions(add: () => void) {
+export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
-	const moveOpening = useOpeningMoveAction();
+	const moveOpening = useOpeningMoveAction(), clipboard = useClipboardActions();
 	const frame = usePlanFrame(), groups = useCanvasGroupActions(), session = useRenovationSession();
 	const detailPlans = useDetailPlanActions();
 	function fit(all: boolean): void { const bounds = frame(all); if (bounds) editor.fitTo(bounds, editor.stageSize); }
@@ -45,9 +47,12 @@ export function useCanvasMenuActions(add: () => void) {
 		const ids = selection.selectedIds, id = ids[0];
 		const blocked = runtime.writesBlocked.value, review = session.perspective === 'review', panning = runtime.activeToolId.value === 'pan';
 		const result: CanvasMenuAction[] = [{ id: 'fit', label: ids.length ? 'editor.view.fit-selection' : 'editor.view.fit-floor', group: 'view', icon: 'maximize', disabled: frame(ids.length === 0) === null, run: () => fit(ids.length === 0) }];
+		// Hidden rather than greyed when nothing selected is copyable: every disabled reason here names an edit, and Copy is not one.
+		if (clipboard?.canCopy.value) result.push({ id: 'copy', label: 'editor.input.copy', group: 'object', icon: 'copy', run: () => { clipboard.copy(); } });
 		if (review) return result;
 		result.push(panning ? { id: 'select', label: 'editor.primary.select', group: 'mode', icon: 'mouse-pointer-2', run: () => runtime.setTool('select') } : { id: 'pan', label: 'editor.input.pan', group: 'mode', icon: 'hand', run: () => runtime.setTool('pan') });
 		if (!ids.length) result.push({ id: 'add', label: 'editor.primary.add', group: 'create', icon: 'plus', disabled: blocked, run: add });
+		if (clipboard?.hasClipboard.value) result.push({ id: 'paste', label: 'editor.input.paste', group: 'create', icon: 'clipboard-paste', disabled: !clipboard.canPaste.value, run: () => clipboard.paste(opened()) });
 		if (ids.length === 1) result.push(...singleActions(id, blocked));
 		const rotation = runtime.rotationActions.target.value;
 		if (rotation) result.push({ id: 'rotate', label: 'editor.input.rotate', group: 'object', icon: 'rotate-cw', disabled: blocked || runtime.rotationActions.blocked.value, run: () => runtime.rotationActions.rotate(rotation.id) });

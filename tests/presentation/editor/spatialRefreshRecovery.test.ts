@@ -74,4 +74,24 @@ describe('integrated spatial refresh recovery', () => {
 		expect(rig.runtime.inspectorDto.value).toBe(previous); expect(rig.project.status).toBe('ready');
 		rig.changePlan(); await settle(); expect(report).toHaveBeenCalledOnce(); expect(rig.project.refreshing).toBe(false);
 	});
+	/**
+	 * `PlanEditorRoot.vue`'s own `hydrate()` — `void runtime.refreshProjection().catch(cause =>
+	 * { if (root.value) notifyFault(...); })` — reads its OWN component's root ref rather than
+	 * `error`/`status`, because a rejection can still arrive after this leaf has already
+	 * unmounted (the plan changed again, or the leaf closed) while an earlier `refreshProjection`
+	 * was still in flight: `onBeforeUnmount` only flips `active` for a NEW call, not one already
+	 * awaiting. `runtime.refreshProjection` is stubbed directly, rather than one of the queries it
+	 * reads, so this drives exactly that guard and nothing the query's own internal "latest wins"
+	 * coalescing (`createLatestRead`) might otherwise do with a promise still pending at dispose.
+	 */
+	it('drops a refresh rejection that lands after the leaf that started it has already unmounted', async () => {
+		const rig = await setup(), report = vi.spyOn(notices, 'notifyFault').mockImplementation(() => undefined), fault = new Error('read fault');
+		let rejectRead!: (cause: unknown) => void;
+		vi.spyOn(rig.runtime, 'refreshProjection').mockReturnValueOnce(new Promise((_resolve, reject) => { rejectRead = reject; }));
+		rig.changePlan();
+		rig.unmount();
+		rejectRead(fault);
+		await settle();
+		expect(report).not.toHaveBeenCalled();
+	});
 });

@@ -10,16 +10,19 @@ import { useDialogStore } from '../../dialogs/dialog-store';
 import { useSelectionStore } from './selection-store';
 import { resolveSelectionTarget } from './resolveSelectionTarget';
 import { structureCandidates } from '../structure/structureCandidates';
-import { screenPoint, screenToWorld, STAGE_PIXELS } from '../viewport/Viewport';
+import { screenPoint, screenToWorld, stageCentreWorld, STAGE_PIXELS } from '../viewport/Viewport';
 import { useCanvasGroupActions } from './canvasGroupActions';
 import { useCanvasMenuActions, type CanvasMenuAction } from './useCanvasMenuActions';
 import { canvasCandidates } from './canvasCandidates';
 import { structureRecords } from '../structure/structureRecords';
 import HostIcon from '../../components/HostIcon.vue';
+import type { Point } from '../../../core/geometry/Point';
 const emit = defineEmits<{ openAdd: [] }>();
 const anchor = ref<HTMLElement | null>(null), menu = ref<HTMLElement | null>(null), open = ref(false), position = ref({ left: '0px', top: '0px' });
 const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), dialogs = useDialogStore(), groups = useCanvasGroupActions();
-const actions = useCanvasMenuActions(() => emit('openAdd'));
+/** Where the menu was opened, in world millimetres — where its Paste lands (design spec §4). */
+let openedAt: Point = { x: 0, y: 0 };
+const actions = useCanvasMenuActions(() => emit('openAdd'), () => openedAt);
 const workspace = useWorkspaceStore();
 /** The one object the menu acts on, named the way the rest of the editor names it; nothing for an empty or multiple selection. */
 const title = computed(() => { if (selection.selectedIds.length !== 1) return null; const id = selection.selectedIds[0]; return project.zones.get(id)?.name ?? structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements).find(item => item.id === id)?.name ?? null; });
@@ -39,7 +42,16 @@ function contextTarget(event: MouseEvent | KeyboardEvent, x: number, y: number):
 	return resolveSelectionTarget({ candidates, selectedIds: selection.selectedIds, worldPoint: screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS), handleToleranceWorld: 0, cycle: event.altKey })?.id;
 }
 function selectContext(hit: string | undefined, keyboard: boolean, event: MouseEvent | KeyboardEvent): void {
-	if (hit && (event.altKey || !selection.selectedIds.some(id => id === hit))) selection.select((groups.expandSelection?.(hit, event.altKey) ?? [hit]).map(id => id as EntityId<string>));
+	// `groups.expandSelection` is optional only on the interface (`CanvasGroupActionsProvider`,
+	// for a bare consumer with nothing above it — `canvasGroupActions.test.ts`'s own case): this
+	// component mounts only inside a Plan Editor tree, and `runtime.ts`'s `buildRuntime` always
+	// calls `createSpatialEditing` -> `createGroupActions` -> `provideCanvasGroupActions` before
+	// any descendant can reach `useEditorRuntime()` at all (it throws with no provider), so the
+	// method is never actually absent here. A type-only cast rather than `?? [hit]` for that
+	// reason (`typescript/no-non-null-assertion` refuses `!`): the fallback was an uncovered
+	// branch no test could reach honestly.
+	const expandSelection = groups.expandSelection as NonNullable<typeof groups.expandSelection>;
+	if (hit && (event.altKey || !selection.selectedIds.some(id => id === hit))) selection.select(expandSelection(hit, event.altKey).map(id => id as EntityId<string>));
 	else if (!keyboard && !hit) selection.clear();
 	if (hit) selection.focus(hit as EntityId<string>);
 	menuIds = [...selection.selectedIds];
@@ -55,6 +67,7 @@ async function show(event: MouseEvent | KeyboardEvent): Promise<void> {
 	event.preventDefault(); event.stopPropagation();
 	const bounds = canvas.getBoundingClientRect();
 	const x = keyboard ? bounds.width / 2 : event.clientX - bounds.left, y = keyboard ? bounds.height / 2 : event.clientY - bounds.top;
+	openedAt = keyboard ? stageCentreWorld(editor.stageSize, editor.viewport) : screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS);
 	const host = root.getBoundingClientRect(), menuX = x + bounds.left - host.left, menuY = y + bounds.top - host.top;
 	selectContext(contextTarget(event, x, y), keyboard, event);
 	opener = keyboard && target instanceof HTMLElement ? target : canvas;
@@ -73,7 +86,12 @@ function navigation(event: KeyboardEvent): void {
 	if (event.key === 'Tab') { event.preventDefault(); event.stopPropagation(); close(); return; }
 	if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
 	event.preventDefault(); event.stopPropagation();
-	const items = [...menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []];
+	// The element the LISTENER is bound to, not the `menu` ref: `navigation` runs only as the
+	// native `@keydown` handler attached to the menu's own element (below), and the DOM sets
+	// `currentTarget` to that element for every dispatch — a browser guarantee rather than a
+	// ref-timing assumption, so no nullable read (`menu.value?... ?? []`, an uncovered branch no
+	// test could reach honestly) is needed at all.
+	const items = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]')];
 	const index = items.indexOf(document.activeElement as HTMLElement);
 	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
 	items[next]?.focus();

@@ -1,5 +1,5 @@
 import { createEntityId } from '../../../core/identity/generateId';
-import type { RenovationBaseline, RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
+import type { RenovationBaseline, RenovationEditInput } from '../../../application/commands/renovation/RenovationCommand';
 import { err, ok } from '../../../core/result/Result';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
 import { editWall, spatialError } from '../../../domain/spatial/structureGeometry';
@@ -58,7 +58,7 @@ function changeGeometry(current: Structure, before: Structure, draft: PlannedGeo
 		return { ...before, openings: [...before.openings.filter(item => item.id !== id), opening] };
 	}
 }
-export function applyPlannedGeometry(baseline: RenovationBaseline, input: RenovationInput, subject: RenovationSubject, draft: PlannedGeometryDraft) {
+export function applyPlannedGeometry(baseline: RenovationBaseline, input: RenovationEditInput, subject: RenovationSubject, draft: PlannedGeometryDraft) {
 	if (draft.kind === 'none') return ok(input);
 	const current = baseline.geometry.document.structure ?? EMPTY_STRUCTURE;
 	const before = input.intended ?? current;

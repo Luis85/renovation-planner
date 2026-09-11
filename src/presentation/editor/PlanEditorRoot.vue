@@ -48,7 +48,8 @@ import AddMenu from './add/AddMenu.vue';
 import TemporaryToolBanner from './shell/TemporaryToolBanner.vue';
 import { useSelectionStore } from './selection/selection-store';
 import { routeEscape } from './escapeRouting';
-import { editorHistoryShortcut } from './surface/historyShortcut';
+import { editorClipboardShortcut, editorHistoryShortcut } from './surface/historyShortcut';
+import { provideClipboardActions } from './clipboard/clipboardActions';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { useEditorStore } from '../stores/EditorStore';
 import CanvasContextMenu from './selection/CanvasContextMenu.vue';
@@ -59,6 +60,7 @@ provideTradeCatalogue(context.commands.tradeCatalogue, context.commands.logger);
 // state and `setTool` is what the noZones action calls, and this is the same runtime object
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
+const clipboard = provideClipboardActions(context, runtime);
 const navigateToRecord = useEditorArrival(context, runtime);
 defineExpose({ navigateToRecord });
 const planning = providePlanningContext(context, runtime);
@@ -215,7 +217,8 @@ function onOpenAdd(): void {
  * handler routes temporary tasks and selection from controls outside the canvas.
  */
 function onRootKeydown(event: KeyboardEvent): void {
-	if (editorHistoryShortcut(event, runtime, { modal: dialogs.current !== null, gesture: runtime.toolManager.gestureInFlight || editor.dragState !== null })) return;
+	const state = { modal: dialogs.current !== null, gesture: runtime.toolManager.gestureInFlight || editor.dragState !== null };
+	if (editorHistoryShortcut(event, runtime, state) || editorClipboardShortcut(event, clipboard, state)) return;
 	if (!addMenuOpen.value || event.key !== 'Escape') return;
 	event.stopPropagation();
 	event.preventDefault();

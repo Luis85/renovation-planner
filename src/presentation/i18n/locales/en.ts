@@ -601,6 +601,12 @@ export const en = {
 	// those before they answer.
 	'asset.background-not-found': 'That file is no longer in the vault. Choose another spec sheet.',
 	'plan.background-not-found': 'That file is no longer in the vault. Choose another plan document.',
+	// CreatePlanCommand's detail-plan parent guard (ADR-0028): the zone's own plan, project or
+	// zone raced away between the zone context menu opening and New detail plan being
+	// dispatched. "Room or area" rather than "zone", per ADR-0016's homeowner split.
+	'plan.parent-plan-not-found': 'The room or area this plan would detail no longer has a plan of its own.',
+	'plan.parent-project-mismatch': 'That plan belongs to a different project.',
+	'plan.parent-zone-not-found': 'That room or area is no longer on its plan.',
 	// The two ConfigurePlanReference refusals that reach the reference form's error line. The
 	// command's other two stay absent for reasons `toUserMessage.test.ts`'s exclusion table
 	// carries: `plan.unsupported-background` is unreachable through the form, and

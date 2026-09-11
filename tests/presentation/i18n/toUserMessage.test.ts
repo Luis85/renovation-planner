@@ -176,18 +176,6 @@ const GENERIC_APPLICATION_CODES: Readonly<Record<string, string>> = {
 	'renovation.restore-failed':
 		"The same shape one command over: RenovationCommand's plan restore THROWS after a failed "
 		+ 'sidecar write and is wrapped on the spot as the cause of `renovation.compensation-failed`.',
-	'plan.parent-plan-not-found':
-		"CreatePlanCommand's detail-plan parent guard (ADR-0028): the zone's own plan deleted "
-		+ 'between the zone context menu opening and New detail plan being dispatched. The same '
-		+ 'load-or-fail race as plan.plan-not-found, with nothing more specific to say.',
-	'plan.parent-project-mismatch':
-		'The same guard refusing a parent plan from another project. Unreachable through the '
-		+ "zone context menu, which only ever names the right-clicked zone's own plan and "
-		+ 'project; a defensive check with no wired caller that can trigger it.',
-	'plan.parent-zone-not-found':
-		"The same guard's zone half: the zone deleted, or moved off that plan, between the menu "
-		+ 'opening and the command dispatching. The same race as zone.zone-not-found, with '
-		+ 'nothing more specific to say.',
 };
 
 describe('toUserMessage', () => {

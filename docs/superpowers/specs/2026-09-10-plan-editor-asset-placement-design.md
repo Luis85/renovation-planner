@@ -1,11 +1,12 @@
 # Plan editor asset placement — design
 
-Date: 2026-09-10 · Off `main` at `c6db3854`. First of two increments connecting the Plan editor
-to the rest of the plugin; the second, a renovation overlay on the canvas (per-room cost, work
-and status drawn on the plan), gets its own brainstorm and spec after this one, because it will
-draw placements and their costs. Touches the canvas's Asset layer and element plumbing, so it
-lands after — or rebases over — `2026-09-10-plan-editor-canvas-fidelity-design.md`, which owns
-the canvas's drawing and is not yet implemented.
+Date: 2026-09-10, amended 2026-09-11 · Off `main` at `c6db3854`. First of two increments
+connecting the Plan editor to the rest of the plugin; the second, a renovation overlay on the
+canvas (per-room cost, work and status drawn on the plan), gets its own brainstorm and spec after
+this one, because it will draw placements and their costs. Touches the canvas's Asset layer and
+element plumbing, so it lands after — or rebases over —
+`2026-09-10-plan-editor-canvas-fidelity-design.md`, which owns the canvas's drawing and is not yet
+implemented.
 
 ## Why this exists
 
@@ -28,6 +29,16 @@ Decisions taken with the user, in order:
 5. **A placement is a new spatial element kind stored as two points** and its footprint is
    derived from the library asset, never copied.
 
+Amended 2026-09-11 after planning read the code, also with the user:
+
+6. **Room membership is a probe point 10 mm in front of the anchor**, not the footprint centre, so
+   the quantity measurement stays pure and synchronous and never reads an asset.
+7. **`DeleteAsset` ignores placements.** They degrade to visible placeholders; the refusal and the
+   "Placed N times" line are withdrawn.
+8. **The picker is the editor's own `entity-picker` dialog**, not `AssetSuggestModal`.
+9. **Two schema bumps**: the plan geometry sidecar (8 → 9) and the requirement note (3 → 4).
+10. **The layers panel gains an Assets row.**
+
 ## Scope
 
 ### 1. Domain and storage
@@ -45,46 +56,49 @@ Decisions taken with the user, in order:
 - `placedOutline(element, shape)` → `{ footprint, clearance }` in world millimetres: the asset's
   footprint and clearance, taken relative to `shape.anchor`, rotated by
   `atan2(facingPoint − anchor) − shape.facing`, translated to the anchor.
-- It is the ONLY derivation of a placement's outline. `spatialElementFootprint`
-  (`src/domain/spatial/stairGeometry.ts`) routes the `'asset'` arm through it, given an
-  asset-shape lookup its callers pass in.
-- Move, rotate and group transforms already map `points`; mapping two points preserves both
-  position and direction, so those tools need no placement-specific arm.
+- `membershipProbe(element)` → the point 10 mm from the anchor towards `facingPoint`.
+- `backDepth(shape)` → how far the footprint reaches behind the anchor, measured against the
+  asset's own facing; wall snapping uses it.
+- It is the ONLY derivation of a placement's outline. Move, rotate and group transforms already
+  map `points`; mapping two points preserves both position and direction, so those tools need no
+  placement-specific arm.
 
 **Storage** — placements sit in `structure.elements` and `intended.elements` of the plan
 geometry sidecar, exactly where objects do. The existing/planned diff, groups, renovation
 targets and evidence pins apply unchanged. The element's name defaults to the asset's name
 through the existing element metadata.
 
-**Compatibility** — an older build would refuse a sidecar containing `'asset'` as invalid. The
-sidecar's schema version rises by one with an empty upward migration, so an older build reports
-the newer version rather than corruption. Planning confirms the migration runner's behaviour and
-wording.
+**Compatibility** — a build reading a newer file reports `plan-geometry.schema-version-unsupported`
+rather than a validation failure only if the version says so. The sidecar schema therefore gains
+V9 (the element enum widened to `'asset'`, `assetId` declared), `writtenSchema` answers 9 only for
+a file holding an asset element, and an empty 8 → 9 migration is appended.
 
-**Every `kind === 'object'` branch** (about twenty across `src/presentation/editor/` and
-`src/domain/`) is reviewed for an `'asset'` arm; planning lists them from a grep, and a
-finds-something-at-all case keeps that list honest.
+**Every `kind === 'object'` branch** is reviewed for an `'asset'` arm; the plan lists them from a
+grep. Most need none once an asset candidate carries `hitPoints`.
 
 ### 2. Placing and editing
 
 **Starting** — the Add menu (`src/presentation/editor/add/creationCatalogue.ts`) gains
-**Asset…**, opening `src/presentation/modals/AssetSuggestModal.ts` with its placeholder taken as
-a parameter rather than hard-coded to the designer command. Candidates come from `ListAssets`
-plus `ListAssetOutlines`. Choosing an asset whose outline is `unscaled`, `none` or `refused`
-does not start the tool; a notice says why.
+**Asset…**. It opens the editor's existing `entity-picker` dialog over the runtime's cached
+`assetOptions`. The chosen asset's shape is read through a new editor query over the asset
+geometry sidecar. An asset whose shape is absent, still awaiting a scale, or unreadable does not
+start the tool; a notice says why.
 
 **The `place-asset` tool** — registered against the declared `ToolId`:
 
 - A preview footprint follows the pointer; each click places one copy; Escape ends the tool.
-- **Snap**: an anchor within snap tolerance of a wall face projects onto that face
-  (`projectOntoWall` offset by half the thickness) and faces away from the wall. Otherwise it is
-  free and keeps the asset's own facing. The existing snap toggle turns this off.
+- **Snap**: when the pointer is within snap tolerance of a wall, the placement faces away from
+  that wall and its footprint's back edge sits on the wall's face (centre line offset by half the
+  thickness, plus `backDepth`). Otherwise it is free and keeps the asset's own facing. The
+  existing snap toggle turns this off.
 - **Keyboard path**: typed X/Y coordinates in the tool's task form, as `place-object` has.
-- **Which state**: the same rule `place-object` follows today; planning confirms it.
-- **Undo**: one `CommandHistory` entry per placement.
+- **Which state**: existing `structure`, through `RenovationCommand`, as `place-object` writes.
+  A planned placement is made through the renovation flow elements already use.
+- **Undo**: one `CommandHistory` entry per placement. The baseline is re-read before every
+  placement, because `RenovationCommand` checks the version it was built from.
 - **No pre-placement rotation**; the existing Rotate handle and "Rotate by…" apply afterwards.
-- **`EditorSurface.vue` is at 399 of 400 lines**: the tool takes its input through the
-  `EditorTool` interface and adds nothing to that file.
+- **`EditorSurface.vue` (399 of 400 lines) and `runtime.ts` (400 of 400) gain nothing**: the tool
+  is registered beside the element tools in `elements/spatialEditing.ts`.
 
 **Drawing** — the Asset layer stops being an `EmptyLayer`:
 
@@ -92,7 +106,9 @@ does not start the tool; a notice says why.
 - Clearance as a faint dashed outline **only while selected or hovered**.
 - A missing asset draws as a marked placeholder at its anchor.
 - Every colour is an Obsidian CSS variable (SDD §84; the build refuses a literal).
-- Hit-testing, marquee, Alt-cycling and groups use the derived footprint.
+- Hit-testing, marquee, Alt-cycling and groups use the derived footprint as `hitPoints`.
+- **Layers**: a sixth row, **Assets**, toggles the `asset` Konva layer and filters asset
+  candidates out of pointer admission while hidden.
 
 **Inspector** — `ElementInspector` gains an asset branch: the asset's name, its dimensions and
 **Open in designer**; the renovation sequence objects already have; and **Add as material**
@@ -106,17 +122,21 @@ when the room has no `placement-count` material for this asset.
 - The source is the ordinary shape: `{ planId, targetId: <the material's room>, state, rule }`,
   so `validRequirementSource` is unchanged.
 - The measurement counts `'asset'` elements in that state's structure whose `assetId` is the
-  material's and which belong to that room. `sourceMeasurement` gains an `assetId` parameter.
+  material's and whose `membershipProbe` lies inside that room. `sourceMeasurement` gains an
+  optional `assetId` parameter, which all six call sites already hold.
 - **Zero placements is 0 pieces**, a valid answer rather than a source error.
-- **Belonging is the derived footprint's centre**, not the anchor: a wall-snapped anchor sits on
-  the room's edge and would count in both neighbours or neither. A placeholder with no outline
-  falls back to its anchor.
+- A placeholder counts exactly like any placement: membership needs no asset.
 
-**Recalculation** — placing, moving and deleting publish `PlanStructureChanged`, which
-`src/application/event-handlers/requirement/onPlanningChanged.ts` already recalculates on. A
-designer footprint edit can move a centre across a room edge, so the cascade also recalculates
-`placement-count` materials on the asset shape's update event (planning confirms its name;
-`onAssetUpdated.ts` exists).
+**Why a probe and not the centre** — the centre needs the asset's footprint, and
+`sourceMeasurement` is pure, synchronous and called from six sites that have none. A wall-snapped
+anchor sits on the wall face; 10 mm along the facing is inside the room the asset faces.
+
+**Recalculation** — a placement written through `RenovationCommand` publishes
+`PlanRenovationChanged`, which `onPlanningChanged` already recalculates on. A designer edit
+cannot change a count, so no subscription to `AssetDesignChanged` is added.
+
+**Schema** — the requirement note gains V4; the mapper writes 4 only for a `placement-count`
+source, and a 3 → 4 discriminator migration is appended.
 
 **Add as material** opens the existing Materials form pre-filled — this asset, this room, the
 current perspective's state, `placement-count` — and saves through the existing requirement
@@ -124,28 +144,25 @@ command on confirmation. Nothing is created unasked.
 
 ### 4. Deleted and missing assets, errors
 
-**Deleting a placed asset** — a new query `ListPlacementsReferencing(assetId)` reads every plan
-sidecar through the project index.
+**Deleting a placed asset** changes nothing in `DeleteAsset`. Placements are never rewritten by
+an asset delete; they become missing-asset placeholders. Refusing was measured against the shared
+`deleteWithReferences` flow and would dead-end it: with no requirements that flow dispatches at
+once and reads `reference.referents-exist` as a stale read. Rewriting placements is one write per
+plan across many sidecars with no crash journal (the ADR-0019 gap). A "Used in" line for
+placements in the Asset library is a later increment.
 
-- `DeleteAsset` with **no resolution** (the script and migration path) refuses while placements
-  exist, as it does for requirements.
-- The delete dialog shows "Placed N times on M plans" beside the requirement count. **Whatever
-  resolution is chosen, placements are never rewritten** — they become missing-asset
-  placeholders. Rewriting them is one write per plan across many sidecars with no crash journal
-  (the ADR-0019 gap); a visible placeholder is honest and needs no cross-file write.
-
-**Missing-asset placeholder** (deleted, or its geometry `refused`):
+**Missing-asset placeholder** (deleted, or its geometry unreadable):
 
 - Drawn as a marked symbol at the anchor; selectable, movable, deletable.
-- The Inspector says why, mapped from the `ListAssetOutlines` `refused` code or the absence of
-  the asset, and offers **Replace asset…** — the picker, repointing this one placement in one
-  undoable command.
-- `placement-count` still counts it (by anchor), so the shopping list does not quietly shrink.
+- The Inspector says why and offers **Replace asset…** — the picker, repointing this one
+  placement in one undoable command.
+- `placement-count` still counts it, so the shopping list does not quietly shrink.
 - An unavailable library while the editor is open reads as every placement missing, never as no
   placements.
 
-**Errors** — place, move and replace are each one sidecar write. A failed write rejects the
-command, leaves the canvas as it was and reports through `notifyError`; never a raw message.
+**Errors** — place, move and replace are each one command through the editor dispatcher. A
+failed write rejects the command, leaves the canvas as it was and reports through the
+dispatcher's existing error surface; never a raw message.
 
 ## Out of scope
 
@@ -155,6 +172,7 @@ command, leaves the canvas as it was and reports through `notifyError`; never a 
 - Rotating the preview before a click.
 - A sidebar asset palette and drag-and-drop.
 - Per-placement numbered material markers; the per-room markers are unchanged.
+- Placement counts in the Asset library or its delete dialog.
 - The renovation overlay — the next increment.
 
 ## Testing
@@ -162,25 +180,26 @@ command, leaves the canvas as it was and reports through `notifyError`; never a 
 **Node** (pure):
 
 - `assetPlacement`: rotation and translation for an off-origin anchor, a non-zero asset facing,
-  with and without clearance; and the load-bearing property — moving, rotating and
-  group-rotating the two stored points yields the same footprint as transforming the derived one.
+  with and without clearance; `backDepth`; `membershipProbe`; and the load-bearing property —
+  rotating the two stored points about any pivot yields the same footprint as rotating the
+  derived one.
 - `validSpatialElement`: `'asset'` with one or three points, coincident points, or no `assetId`
   refused; `assetId` on another kind refused.
-- `placement-count`: centre inside; a wall-snapped placement on a shared edge counted in exactly
-  one room; existing versus planned; placeholder by anchor; zero.
-- Sidecar schema bump: migration round-trip; an older schema refuses as newer, not as corrupt.
+- `placement-count`: inside; a wall-snapped placement on a shared wall counted only in the room it
+  faces; existing versus planned; another asset's placements ignored; zero.
+- Sidecar V9 and requirement V4: round-trip, `writtenSchema` minimality, and the latest-version
+  pins.
 
-**Application** (`createRepositoryStack` / `openFixtureVault`): `ListPlacementsReferencing`
-across two projects; `DeleteAsset` refusing without a resolution and leaving placements with
-one; recalculation after place, move, delete and an asset footprint update.
+**Application**: recalculation of a `placement-count` material after a placement is written.
 
 **jsdom**: the tool (preview, click, Escape, wall snap, typed coordinates, one undo entry per
-placement); the Asset layer (footprint, clearance only when selected, placeholder); the Inspector
-(Add as material opens the pre-filled form, Replace asset…); the picker's notice for an unusable
-outline; axe over the new Inspector branch.
+placement, a second placement not conflicting); the Asset layer (footprint, clearance only when
+selected, placeholder); the Assets layer row; the Inspector (Add as material opens the pre-filled
+form, Replace asset…); the picker's notice for an unusable shape; axe over the new Inspector
+branch.
 
-**Harness**: the fixture plan gains three placements, one missing; `harness-shot` in both schemes
-and at `--width=460`.
+**Harness**: the fixture plan gains placements, one missing; `harness-shot` in both schemes and at
+`--width=460`.
 
 **Manual**: `docs/tests/cases/Place an asset on a plan.md`, written and recorded as not run until
 walked in a vault.

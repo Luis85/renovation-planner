@@ -71,11 +71,6 @@ function detailPlansOf(plan: Plan, plans: readonly Plan[]): DetailPlanDto[] {
 }
 
 /**
- * The editor's one hierarchy read (ADR-0028): two reads for any plan, three for a detail plan.
- * `ok(NO_HIERARCHY)` for a plan that no longer exists — `ProjectStore`'s own read already draws
- * that state, so a second answer here would only repeat it.
- */
-/**
  * The parent-zone half of the hierarchy (ancestry, the outline to draw as a guide, and whether
  * that outline is missing). Split out of `readPlanHierarchy` to keep that function's branches
  * under the complexity budget — `plan.parent` is non-null in every caller.
@@ -106,6 +101,11 @@ async function parentHierarchyOf(
 	});
 }
 
+/**
+ * The editor's one hierarchy read (ADR-0028): two reads for any plan, three for a detail plan.
+ * `ok(NO_HIERARCHY)` for a plan that no longer exists — `ProjectStore`'s own read already draws
+ * that state, so a second answer here would only repeat it.
+ */
 export async function readPlanHierarchy(queries: HierarchyQueries, planId: string): Promise<Result<PlanHierarchyDto, RepositoryError>> {
 	const found = await queries.getPlan.execute({ planId: planId as PlanId });
 	if (isErr(found)) return found;

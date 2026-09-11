@@ -51,6 +51,7 @@ import StructureInspector from '../structure/StructureInspector.vue';
 import RenovationInspector from '../renovation/RenovationInspector.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { structureRecords } from '../structure/structureRecords';
+import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import ElementInspector from '../elements/ElementInspector.vue';
 import ElementTaskForm from '../elements/ElementTaskForm.vue';
 import { isElementTool } from '../elements/elementDraft';
@@ -64,7 +65,8 @@ const { activeToolId } = storeToRefs(useEditorStore());
 const project = useProjectStore();
 const rooms = useSpatialRecords();
 const renovationSession = useRenovationSession();
-const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements)]);
+const assetShapes = useAssetShapeStore();
+const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements, assetShapes.shapeOf)]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
 </script>
 

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { defaultLayerVisibility, type KonvaLayerId } from '../editor/scene/KonvaLayers';
 import type { LayoutMode } from '../editor/shell/layoutMode';
+import { clampPanelWidth, defaultPanelLayout, type PanelLayout, type PanelSide, type PanelState } from '../editor/shell/panelLayout';
 
 /**
  * Editor CHROME state (SDD §14): the per-Konva-layer visibility toggles the Layers panel
@@ -12,9 +13,11 @@ import type { LayoutMode } from '../editor/shell/layoutMode';
  * than going through a command. Layout mode and overlay state are the same. Nothing here
  * reaches a repository, and reopening a Plan Editor starts from the defaults.
  *
- * **Which FULL-mode panels are open is deliberately not here** (2026-09-04, spec §5.6, R11).
- * Full-mode panels remain visible. The View menu owns grid visibility and automatic object
- * snapping; neither changes the floor or a saved record. Each leaf has its own Pinia scope.
+ * **The full-mode side panels' widths and collapsed state ARE here** (2026-09-12 side panels
+ * spec), and they are the one thing in this store that outlives the leaf: `ResponsiveEditorShell`
+ * restores them from per-device storage on mount and writes them back on every committed change.
+ * The store itself still reaches no repository. The View menu owns grid visibility and automatic
+ * object snapping; neither changes the floor or a saved record. Each leaf has its own Pinia scope.
  */
 export const useWorkspaceStore = defineStore('workspace', () => {
 	const layerVisibility = ref<Record<KonvaLayerId, boolean>>(defaultLayerVisibility());
@@ -32,6 +35,18 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
 	function toggleNotes(): void {
 		notesVisible.value = !notesVisible.value;
+	}
+
+	/** Both side panels in the full layout — see `panelLayout.ts`. Replaced, never mutated. */
+	const panelLayout = ref<PanelLayout>(defaultPanelLayout());
+
+	function setPanel(side: PanelSide, patch: Partial<PanelState>): void {
+		const next = { ...panelLayout.value[side], ...patch };
+		panelLayout.value = { ...panelLayout.value, [side]: { width: clampPanelWidth(side, next.width), collapsed: next.collapsed } };
+	}
+
+	function restorePanelLayout(layout: PanelLayout): void {
+		panelLayout.value = layout;
 	}
 
 	/**
@@ -87,6 +102,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		layoutMode.value = 'full';
 		overlay.value = 'none';
 		notesVisible.value = true;
+		panelLayout.value = defaultPanelLayout();
 	}
 
 	return {
@@ -100,6 +116,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		setLayoutMode,
 		openOverlay,
 		closeOverlay,
+		panelLayout,
+		setPanel,
+		restorePanelLayout,
 		reset,
 	};
 });

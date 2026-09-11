@@ -208,6 +208,7 @@ export function harnessEditorContext(): PlanEditorContext {
 		// `harnessDeps` carries the whole reasoning, including why `zones` is left refusing.
 		commands: deps.commands,
 		vault: deps.vault,
+		clipboard: deps.clipboard,
 		onThemeChange: deps.onThemeChange,
 		onPlanChanged: (listener) => deps.onPlanChanged(HARNESS_PLAN.id, listener),
 		// No id to bind, so it passes straight through — the same shape the real view uses.

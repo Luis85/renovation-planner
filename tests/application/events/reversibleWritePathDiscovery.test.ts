@@ -223,6 +223,8 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 	'src/application/commands/renovation/RenovationCommand.ts::RenovationCommand': rows(['execute', 'undo'], 'RenovationCommand'),
 	'src/application/commands/spatial/StructureCommand.ts::StructureCommand': rows(['execute', 'undo'], 'StructureCommand'),
 	'src/application/commands/spatial/GroupGeometryCommand.ts::GroupGeometryCommand': rows(['execute', 'undo'], 'GroupGeometryCommand'),
+	// Writes no file itself: every event is its composed commands', which is what its rows assert.
+	'src/application/commands/spatial/PasteCommand.ts::PasteCommand': rows(['execute', 'undo'], 'PasteCommand'),
 	'src/application/commands/plan/ConfigurePlanReference.ts::ConfigurePlanReference': rows(['execute', 'undo'], 'ConfigurePlanReference'),
 	'src/application/commands/zone/reversible-rename-zone-command.ts::ReversibleRenameZoneCommand':
 		rows(['execute', 'undo'], 'reversible-rename-zone-command'),

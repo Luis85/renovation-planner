@@ -19,6 +19,7 @@ import {
 	type PlanEditorCommandServices,
 } from '../../src/presentation/editor/planEditorCommands';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
+import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { formatMetres } from '../../src/presentation/editor/shell/formatLength';
 import { installObsidianDom } from '../helpers/dom';
@@ -404,6 +405,7 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			getResourcePath: () => '',
 			readBinary: () => Promise.resolve(new ArrayBuffer(0)),
 		} as unknown as BackgroundVault,
+		clipboard: createEditorClipboard(),
 		// The page's own scheme toggle changes the body class, and the plugin's variables
 		// resolve from it — so a "theme change" here is exactly what Obsidian's `css-change`
 		// means, and the toggle drives it through this.

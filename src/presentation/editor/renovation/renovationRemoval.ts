@@ -1,10 +1,10 @@
 import type { Structure } from '../../../domain/spatial/Structure';
-import type { RenovationBaseline, RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
+import type { RenovationBaseline, RenovationEditInput, RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { editWall } from '../../../domain/spatial/structureGeometry';
 
 /** Invariants reject remaining Work/Decision referents; this never cascades away records. */
-export function removeRenovationRecord(read: RenovationBaseline, id: string, proposalOnly: boolean): RenovationInput {
+export function removeRenovationRecord(read: RenovationBaseline, id: string, proposalOnly: boolean): RenovationEditInput {
 	const value = read.plan.entity.renovation ?? EMPTY_RENOVATION;
 	const subject = value.subjects.find(item => item.id === id);
 	let intended = read.geometry.document.intended;

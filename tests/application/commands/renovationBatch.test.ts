@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { planningStack } from '../../helpers/planning';
+import { renovationStack } from '../../helpers/renovation';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { EMPTY_DEPTH } from '../../../src/domain/renovation/PlanningDepth';
 import { batchRenovationInput, type BatchDraft } from '../../../src/presentation/editor/renovation/renovationBatch';
+import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
+import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 import { renovationReferents, validateRenovationTargets } from '../../../src/domain/renovation/renovationTargets';
 import { sameRenovation } from '../../../src/domain/renovation/sameRenovation';
 import { validSharedLinks } from '../../../src/domain/renovation/SharedLinks';
@@ -75,6 +78,25 @@ describe('shared editor records through repository history', () => {
 		expect(batchRenovationInput(baseline, targets(rig.roomId), { ...draft, title: '' }).ok).toBe(false);
 		expect(batchRenovationInput(baseline, targets('missing-room'), draft).ok).toBe(false);
 		expect(batchRenovationInput(baseline, [], draft).ok).toBe(true);
+	});
+	it('restores an element the current structure still carries when a batch is not a removal', async () => {
+		const rig = await renovationStack(), initial = expectOk(await rig.read());
+		const fence: NamedSpatialElement = { id: 'element-fence', name: 'Garden fence', kind: 'fence', points: [{ x: 0, y: 0 }, { x: 3000, y: 0 }] };
+		const path: NamedSpatialElement = { id: 'element-other', name: 'Garden path', kind: 'path', points: [{ x: 0, y: 1000 }, { x: 3000, y: 1000 }] };
+		expectOk(await rig.renovation.command(initial, elementInput(initial, fence), rig.ledger).execute());
+		const withFence = expectOk(await rig.read());
+		expectOk(await rig.renovation.command(withFence, elementInput(withFence, path), rig.ledger).execute());
+		const baseline = expectOk(await rig.read());
+		const target = { roomId: rig.roomId, targetId: fence.id, name: fence.name, kind: 'other' as const };
+		const removed = expectOk(batchRenovationInput(baseline, [target], { ...draft, kind: 'remove' }));
+		expectOk(await rig.renovation.command(baseline, removed, rig.ledger).execute());
+		const afterRemoval = expectOk(await rig.read());
+		expect(afterRemoval.geometry.document.intended?.elements).toEqual([{ id: path.id, kind: path.kind, points: path.points }]);
+		const restored = expectOk(batchRenovationInput(afterRemoval, [target], { ...draft, kind: 'modify' }));
+		expect(restored.intended?.elements).toEqual([
+			{ id: path.id, kind: path.kind, points: path.points },
+			{ id: fence.id, kind: fence.kind, points: fence.points },
+		]);
 	});
 	it('changes a Room finish without manufacturing wall geometry in a Room-first plan', async () => {
 		const rig = await planningStack(), initial = expectOk(await rig.read());

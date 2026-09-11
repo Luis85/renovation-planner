@@ -78,6 +78,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCompositionRoot } from '../../src/plugin/composition-root';
 import { planEditorDeps } from '../../src/plugin/planEditorDeps';
+import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import { assetLibraryDeps } from '../../src/plugin/assetLibraryDeps';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { guardCommand } from '../../src/application/errors/guardAgainstThrowing';
@@ -507,7 +508,7 @@ describe('every service leaving the composition root is guarded', () => {
 		const fromPersistence = discover(persistence, 'persistence');
 		// The editor's bundle is the second door out of the root, and the only one handing
 		// over a factory. Surveyed with the same instrument, into the same report.
-		const fromEditor = discover(planEditorDeps(root, {} as never, {} as never), 'editorDeps');
+		const fromEditor = discover(planEditorDeps(root, {} as never, {} as never, createEditorClipboard()), 'editorDeps');
 		// The library's own bundle, surveyed with the same instrument into the same report: a
 		// view-deps builder that is not walked is a place a raw command can be composed with
 		// every gate green. Two OTHERS are still unwalked and this comment says so rather than

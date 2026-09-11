@@ -5,6 +5,7 @@ import * as groupModule from '../../src/application/commands/spatial/GroupGeomet
 import type { GroupGeometryServices } from '../../src/application/commands/spatial/GroupGeometryCommand';
 import { createCompositionRoot } from '../../src/plugin/composition-root';
 import { planEditorDeps } from '../../src/plugin/planEditorDeps';
+import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
 import { structureStack, WALL_LOOP } from '../helpers/structure';
@@ -27,7 +28,7 @@ async function setup() {
 	return { ...rig, root, persistence };
 }
 function composed(rig: Awaited<ReturnType<typeof setup>>) {
-	const deps = planEditorDeps(rig.root, new FakeWorkspace() as unknown as Workspace, rig.stack.deps.vault);
+	const deps = planEditorDeps(rig.root, new FakeWorkspace() as unknown as Workspace, rig.stack.deps.vault, createEditorClipboard());
 	const groups = expectDefined(deps.commands.groups, 'composed Group service');
 	expect(Object.keys(groups).toSorted()).toEqual(['command', 'read']);
 	return groups;

@@ -9,6 +9,7 @@ import type {
 	PlanEditorCommandServices,
 } from '../editor/planEditorCommands';
 import type { BackgroundVault } from '../editor/layers/background/BackgroundRenderModel';
+import type { EditorClipboard } from '../editor/clipboard/editorClipboard';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from './app-id-prefix';
@@ -59,6 +60,11 @@ export interface PlanEditorDeps {
 	 */
 	readonly openNote: (entityId: string) => Promise<ProjectOpenOutcome>;
 	readonly vault: BackgroundVault;
+	/**
+	 * The ONE clipboard the plugin holds for every Plan Editor leaf. Required, so a composition
+	 * that forgets it does not compile rather than giving each leaf a private clipboard.
+	 */
+	readonly clipboard: EditorClipboard;
 	readonly onThemeChange: (listener: () => void) => () => void;
 	/**
 	 * Subscribe to the domain events that mean "this Plan changed", filtered to one plan
@@ -262,6 +268,7 @@ export class PlanEditorView extends ItemView {
 			queries: this.deps.queries,
 			commands: this.deps.commands,
 			vault: this.deps.vault,
+			clipboard: this.deps.clipboard,
 			onThemeChange: this.deps.onThemeChange,
 			onPlanChanged: (listener) => this.deps.onPlanChanged(planId, listener),
 			// Passed straight through rather than partially applied: there is no id to bind.

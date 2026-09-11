@@ -14,6 +14,7 @@ import { buildProjectIndexEntries } from '../infrastructure/persistence/index/bu
 import { projectIndexRebuilt } from '../application/events/projectIndex.events';
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presentation/views/PlanEditorView';
+import { createEditorClipboard } from '../presentation/editor/clipboard/editorClipboard';
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../presentation/designer/AssetDesignerView';
 import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
 import { ASSET_LIBRARY_VIEW, AssetLibraryView } from '../presentation/library/AssetLibraryView';
@@ -134,6 +135,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * empty the diagnostics snapshot as a side effect nobody asked for.
 	 */
 	private readonly ledger = new InMemoryDiagnosticsLedger();
+
+	/** One clipboard for every Plan Editor leaf, surviving the settings-save rebind. */
+	private readonly editorClipboard = createEditorClipboard();
 
 	/** What `onunload` has to undo, in the order it was claimed. */
 	private readonly disposers: (() => void)[] = [];
@@ -749,7 +753,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the Plan Editor's bundle, for the factory and the rebind. */
 	private planEditorViewDeps(): PlanEditorDeps {
-		return planEditorDeps(this.root, this.app.workspace, this.app.vault);
+		return planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard);
 	}
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */

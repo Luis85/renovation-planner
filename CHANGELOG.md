@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Plan editor: place Asset library assets on a plan from Add → Asset…, one click per copy, snapped to face the room when placed against a wall or at typed coordinates. Each placement draws the asset's footprint, facing and clearance, hits and rotates by that footprint, shows its size in the Inspector, and can be replaced or opened in the asset designer. A placement of a deleted asset stays as a placeholder. Plan geometry holding a placement is saved as schema 9, which older builds refuse.
+- Materials: count an asset's placements in a room with the `placement-count` rule, which recalculates when a placement changes and can be added from a placement's Inspector. Requirement notes using it are saved as requirement schema 4, which older builds refuse.
 - Plan editor: lock a zone from the Rooms and areas list or its Inspector so the canvas clicks through it while it stays visible, listed and undoable. Locked zone notes are saved as zone schema 2, which older builds refuse until the zone is unlocked.
 - Plan editor: create a detail plan from a zone's context menu, open existing detail plans from the same menu, walk back up through the breadcrumb, and trace inside the parent zone's outline guide. Detail plan notes are saved as plan schema 9, which older builds refuse.
 - Plan editor: create native straight Stairs with editable width, run, tread count and direction, and Direction arrows with editable points. Their schema-8 geometry uses existing guarded history, full stair footprints for selection and grouping, and explicit native/application icon registration.

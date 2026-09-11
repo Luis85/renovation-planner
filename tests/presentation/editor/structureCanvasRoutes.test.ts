@@ -28,10 +28,13 @@ describe('inherited canvas keyboard and drag runtime routes', () => {
 		rig.selection.select(['wall-a' as never]); await settle();
 		rig.runtime.toolManager.pointerDown(pointerAt(4000, 0)); rig.runtime.toolManager.pointerMove(pointerAt(5000, 0));
 		expect(rig.runtime.structureActions.preview.value?.walls[0].end.x).toBe(5000);
-		rig.runtime.toolManager.pointerUp(pointerAt(5000, 0)); await settle();
-		expect(rig.project.structure.walls[0].end.x).toBe(4000);
+		rig.runtime.toolManager.pointerUp(pointerAt(5000, 0));
+		// The dragged end stays drawn while the baseline is read and the review form opens.
+		expect(rig.runtime.structureActions.preview.value?.walls[0].end.x).toBe(5000); await settle();
+		expect(rig.project.structure.walls[0].end.x).toBe(4000); expect(rig.runtime.structureActions.preview.value?.walls[0].end.x).toBe(5000);
 		const form = rig.wrapper.get('.rp-dialog form'); await form.trigger('submit'); await form.trigger('submit'); await settle();
 		expect(rig.project.structure.walls[0].end.x).toBe(5000); expect(rig.project.structure.walls[1].start.x).toBe(5000);
+		expect(rig.runtime.structureActions.preview.value).toBeNull();
 	});
 	it('refuses a drag form based on a stale projection and refreshes the peer geometry', async () => {
 		const rig = await setup(), baseline = expectOk(await rig.geometry.read(rig.plan.id));

@@ -41,7 +41,7 @@ it('admits only finite unmodified primary group drags and ignores secondary rele
 	expect(gesture.start(ids, pointerAt(NaN, 0))).toBe(false);
 	gesture.start(ids, pointerAt(0, 0)); gesture.move(pointerAt(20, 30)); gesture.finish({ ...pointerAt(20, 30), button: 'secondary' });
 	expect(gesture.active).toBe(true); expect(commit).not.toHaveBeenCalled(); gesture.finish(pointerAt(50, 60));
-	expect(commit).toHaveBeenCalledExactlyOnceWith(snapshot, { dx: 50, dy: 60 }); expect(preview).toHaveBeenLastCalledWith(null);
+	expect(commit).toHaveBeenCalledExactlyOnceWith(snapshot, { dx: 50, dy: 60 }); expect(preview).toHaveBeenLastCalledWith(snapshot, { dx: 50, dy: 60 });
 });
 it('cancels stale or nonfinite movement and produces no ghost or write for a refused capture', () => {
 	const snapshot = expectDefined(captureGroup(document, ids, 0), 'selection'), commit = vi.fn<GroupMoveDependencies['commit']>(async () => {}), preview = vi.fn<GroupMoveDependencies['preview']>();

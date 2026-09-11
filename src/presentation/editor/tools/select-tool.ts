@@ -265,16 +265,20 @@ export class SelectTool implements EditorTool {
 		}
 		return false;
 	}
+	private finishWallGesture(event: EditorPointerEvent): boolean {
+		if (!this.wallGesture || event.button !== 'primary') return false;
+		const gesture = this.wallGesture; this.wallGesture = null;
+		if (Math.hypot(event.worldPoint.x - gesture.start.x, event.worldPoint.y - gesture.start.y) <= 1) { this.deps.previewWall?.(null); return true; }
+		// The dragged end stays previewed through the read and the review form; `editWall` clears it.
+		this.deps.previewWall?.(gesture.id, event.worldPoint);
+		this.deps.editWall?.(gesture.id, event.worldPoint);
+		return true;
+	}
 	pointerUp(event: EditorPointerEvent): void {
 		if (this.finishSelectionGesture(event)) return;
 		if (this.elementRotation.active && this.context) { this.elementRotation.finish(this.context, event); return; }
 		if (this.elementMove.active && this.context) { this.elementMove.finish(this.context, event); return; }
-		if (this.wallGesture && event.button === 'primary') {
-			const gesture = this.wallGesture; this.wallGesture = null;
-			this.deps.previewWall?.(null);
-			if (Math.hypot(event.worldPoint.x - gesture.start.x, event.worldPoint.y - gesture.start.y) > 1) this.deps.editWall?.(gesture.id, event.worldPoint);
-			return;
-		}
+		if (this.finishWallGesture(event)) return;
 		const context = this.context;
 		const gesture = this.gesture;
 		if (context === null || gesture === null) return;
@@ -419,15 +423,21 @@ export class SelectTool implements EditorTool {
 		// Re-validation at the point geometry becomes command input: snapping is arithmetic
 		// and must not be trusted blindly (SDD §26's tool-level layer).
 		const polygonResult = createPolygon(forwardPoints);
-		context.renderState.previewPolygon = null;
 		if (!polygonResult.ok) {
+			context.renderState.previewPolygon = null;
 			// Pre-dispatch: no command exists yet, so no indicator has heard about this.
 			this.deps.reportInvalidInput(polygonResult.error);
 			return;
 		}
+		// The ghost stays at the drop until the dispatcher has written AND read back: clearing it
+		// first drew the saved geometry for that whole window, so the zone flicked back.
+		context.renderState.previewPolygon = polygonResult.value.points;
+		const shown = context.renderState.previewPolygon;
 		const result = await context.commandDispatcher.run(
 			this.deps.createMoveGesture(zoneId, polygonResult.value, inverse),
 		);
+		// Anything that took the field while this write was pending (a new drag) owns it now.
+		if (context.renderState.previewPolygon === shown) context.renderState.previewPolygon = null;
 		if (!result.ok) this.deps.reportRejected(result.error);
 	}
 }

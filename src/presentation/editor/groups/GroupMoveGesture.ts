@@ -30,7 +30,11 @@ export class GroupMoveGesture {
 		const gesture = this.gesture; if (!gesture || event.button !== 'primary') return;
 		const delta = { dx: event.worldPoint.x - gesture.start.x, dy: event.worldPoint.y - gesture.start.y };
 		const valid = finite(event) && this.deps.current(gesture.snapshot) && Math.hypot(delta.dx, delta.dy) > CLICK_EPSILON_PX * gesture.scale;
-		this.cancel(); if (valid) void this.deps.commit(gesture.snapshot, delta);
+		if (!valid) { this.cancel(); return; }
+		// The preview stays at the drop until `commit` settles: clearing it here drew the saved
+		// geometry for the length of the write and its read-back, so the group flicked back.
+		this.gesture = null; this.deps.preview(gesture.snapshot, delta);
+		void this.deps.commit(gesture.snapshot, delta);
 	}
 	cancel(): void { this.gesture = null; this.deps.preview(null); }
 }

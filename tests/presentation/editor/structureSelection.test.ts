@@ -80,8 +80,8 @@ describe('typed wall and opening selection', () => {
 		tool.pointerDown(pointerAt(4000, 0)); expect(tool.hasDraft()).toBe(true);
 		tool.pointerMove(pointerAt(5000, 0)); expect(previewWall).toHaveBeenLastCalledWith('wall-a', { x: 5000, y: 0 });
 		tool.pointerUp({ ...pointerAt(5000, 0), button: 'secondary' }); expect(editWall).not.toHaveBeenCalled();
-		tool.pointerUp(pointerAt(5000, 0)); expect(editWall).toHaveBeenCalledExactlyOnceWith('wall-a', { x: 5000, y: 0 });
-		tool.pointerDown(pointerAt(4000, 0)); tool.pointerUp(pointerAt(4000, 0)); expect(editWall).toHaveBeenCalledOnce();
+		tool.pointerUp(pointerAt(5000, 0)); expect(editWall).toHaveBeenCalledExactlyOnceWith('wall-a', { x: 5000, y: 0 }); expect(previewWall).toHaveBeenLastCalledWith('wall-a', { x: 5000, y: 0 });
+		tool.pointerDown(pointerAt(4000, 0)); tool.pointerUp(pointerAt(4000, 0)); expect(editWall).toHaveBeenCalledOnce(); expect(previewWall).toHaveBeenLastCalledWith(null);
 		tool.pointerDown(pointerAt(4000, 0)); tool.cancel(); expect(tool.hasDraft()).toBe(false); expect(previewWall).toHaveBeenLastCalledWith(null);
 		tool.pointerDown(pointerAt(800, 0)); tool.pointerUp(pointerAt(1000, 0)); expect(context.selection.selectedIds).toEqual(['opening-a']);
 		expect(createMoveGesture).not.toHaveBeenCalled(); tool.deactivate();

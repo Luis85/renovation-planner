@@ -86,15 +86,20 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			if (alive && !result.ok) notifyOperationFailure(result.error);
 		});
 	}
-	function move(id: string, points: readonly Point[], original: SpatialElement): Promise<void> {
+	async function move(id: string, points: readonly Point[], original: SpatialElement): Promise<void> {
 		const epoch = rotationEpoch;
-		return operate(id, async ({ baseline, element }) => {
-			if (epoch !== rotationEpoch) return;
-			if (element.kind !== original.kind || JSON.stringify(element.points) !== JSON.stringify(original.points) || JSON.stringify(element.stair) !== JSON.stringify(original.stair)) { notifyOperationFailure(staleWriteRefusal()); return; }
-			if (!context.commands.renovation) return;
-			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, points }), runtime.structureTask.ledger));
-			if (alive && !result.ok) notifyOperationFailure(result.error);
-		});
+		try {
+			await operate(id, async ({ baseline, element }) => {
+				if (epoch !== rotationEpoch) return;
+				if (element.kind !== original.kind || JSON.stringify(element.points) !== JSON.stringify(original.points) || JSON.stringify(element.stair) !== JSON.stringify(original.stair)) { notifyOperationFailure(staleWriteRefusal()); return; }
+				if (!context.commands.renovation) return;
+				const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, points }), runtime.structureTask.ledger));
+				if (alive && !result.ok) notifyOperationFailure(result.error);
+			});
+		} finally {
+			// A pointer drop leaves its preview up until here; `operate` refusing before its own `finally` must not strand it.
+			if (preview.value?.id === id) preview.value = null;
+		}
 	}
 	function previewElement(id: string | null, points?: readonly Point[]): void {
 		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;

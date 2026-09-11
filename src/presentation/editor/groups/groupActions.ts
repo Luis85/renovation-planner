@@ -84,7 +84,7 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 	const moveDependencies: GroupMoveDependencies = { capture: operations.capture, current: operations.current,
 		scale: () => worldPerScreenPixel(editor.viewport, STAGE_PIXELS),
 		preview: (snapshot, delta) => { operations.preview.value = snapshot && delta ? translatedGroup(snapshot, delta) : null; },
-		commit: async (snapshot, delta) => { await operations.commit(snapshot, translatedGroup(snapshot, delta)); },
+		commit: async (snapshot, delta) => { try { await operations.commit(snapshot, translatedGroup(snapshot, delta)); } finally { operations.preview.value = null; } },
 	};
 	const selectionMove = new GroupMoveGesture(moveDependencies);
 	watch(operations.generation, () => selectionMove.cancel(), { flush: 'sync' });

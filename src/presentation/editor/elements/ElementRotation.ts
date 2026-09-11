@@ -84,11 +84,17 @@ export class ElementRotation {
 		if (context.writesBlocked() || !finitePointer(event) || !this.canContinue(gesture)) { this.cancel(); return; }
 		const points = this.update(gesture, event);
 		const clicked = !gesture.dragging && rotationControlContains(gesture.control.bounds, event.worldPoint);
+		if (!clicked && points && gesture.dragging && rotationChanged(gesture.shape.points, points) && !context.writesBlocked()) {
+			// The released angle stays previewed until `commitRotation` settles; clearing it here drew
+			// the saved shape for the length of the read, review and write, so it flicked back.
+			this.deps.previewRotation?.(gesture.shape.id, points); this.end();
+			this.deps.commitRotation?.(gesture.shape.id, points, gesture.shape); return;
+		}
 		this.cancel();
-		if (clicked) { this.deps.requestRotation?.(gesture.shape.id); return; }
-		if (points && gesture.dragging && rotationChanged(gesture.shape.points, points) && !context.writesBlocked()) this.deps.commitRotation?.(gesture.shape.id, points, gesture.shape);
+		if (clicked) this.deps.requestRotation?.(gesture.shape.id);
 	}
-	cancel(): void {
+	cancel(): void { this.end(); this.deps.previewRotation?.(null); }
+	private end(): void {
 		if (this.gesture) {
 			this.gesture.context.renderState.rotationDegrees = null;
 			this.gesture.context.renderState.rotationInteraction = null;
@@ -96,6 +102,6 @@ export class ElementRotation {
 			this.gesture.context.renderState.hoveredObjectId = null;
 			this.gesture.context.renderState.rotationHoverId = null;
 		}
-		this.gesture = null; this.deps.previewRotation?.(null);
+		this.gesture = null;
 	}
 }

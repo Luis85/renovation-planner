@@ -5,7 +5,7 @@
  * through the ONE `navigation.plan` door; without one the rows are text.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { ok } from '../../../../src/core/result/Result';
+import { err, ok } from '../../../../src/core/result/Result';
 import { t, tr } from '../../../../src/presentation/i18n/strings';
 import type { PlanDto } from '../../../../src/presentation/read-models/PlanDto';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_PROJECT } from '../../../helpers/planFixtures';
@@ -224,5 +224,13 @@ describe('PropertyTree', () => {
 		});
 		await settle();
 		expect(present.wrapper.get('.rp-property-tree').text()).not.toContain(t('en', 'editor.input.parent-zone-missing'));
+	});
+
+	it('says the hierarchy could not be read rather than drawing a parentless plan', async () => {
+		const harness = await mountPlanEditorCanvas({
+			queries: { ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' } as const)) },
+		});
+		await settle();
+		expect(harness.wrapper.get('.rp-property-tree [role="status"]').text()).toBe(t('en', 'editor.input.hierarchy-unreadable'));
 	});
 });

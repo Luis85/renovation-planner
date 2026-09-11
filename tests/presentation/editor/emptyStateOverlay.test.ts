@@ -16,6 +16,8 @@ import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../../he
 import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
+import { usePlanHierarchyStore } from '../../../src/presentation/stores/PlanHierarchyStore';
+import { NO_HIERARCHY } from '../../../src/presentation/read-models/planHierarchy';
 
 let harness: EditorHarness | null = null;
 
@@ -201,5 +203,34 @@ describe('the plan editor empty states', () => {
 		// Slice 17 replaced this region with the shared `ViewFailure` for the two states that have
 		// a reason; the loading line keeps `.rp-editor-canvas-message`.
 		expect(harness.wrapper.find('.rp-view-failure').exists()).toBe(true);
+	});
+
+	/**
+	 * D8 (V1 investigation, Q1): a fresh detail plan has no background, no zones and no
+	 * selection, so `noBackground`'s start state used to draw over the canvas regardless of
+	 * whether a parent-zone guide was there to look at — the one surface built to greet the
+	 * user on a detail plan opened directly under an opaque wizard panel that hid it. World
+	 * origin is unaffected (`DEFAULT_VIEWPORT`, unchanged); this is only the overlay's gate.
+	 */
+	it('yields the noBackground start state to a drawable parent-zone guide', async () => {
+		harness = await mountPlanEditor({ plan: FIXTURE_PLAN, zones: [] });
+		expect(overlay(harness).exists()).toBe(true);
+
+		usePlanHierarchyStore(harness.pinia).hierarchy = {
+			...NO_HIERARCHY,
+			parentZone: { name: 'House', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }] },
+		};
+		await settle();
+
+		expect(overlay(harness).exists()).toBe(false);
+	});
+
+	it('still shows the noBackground start state with no parent-zone guide to draw', async () => {
+		harness = await mountPlanEditor({ plan: FIXTURE_PLAN, zones: [] });
+
+		usePlanHierarchyStore(harness.pinia).hierarchy = { ...NO_HIERARCHY, parentZone: null };
+		await settle();
+
+		expect(overlay(harness).exists()).toBe(true);
 	});
 });

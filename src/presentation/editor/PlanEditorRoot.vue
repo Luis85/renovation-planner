@@ -97,8 +97,12 @@ const overlay = computed(() => {
 	const tool = runtime.activeToolId.value;
 	if (startDismissed.value || runtime.referenceActive.value || key === null || (tool !== null && tool !== 'select')) return null;
 	if (key === 'noZones' && plan.value?.background?.appearance) return null;
-	// Reference onboarding must not obscure selected geometry or its focus badges.
-	if (key === 'noBackground' && (projectStore.zones.size > 0 || unreadableZones.value > 0 || selection.selectedIds.length > 0)) return null;
+	// Reference onboarding must not obscure selected geometry, its focus badges, or a
+	// drawable parent-zone guide (ADR-0028, V1 investigation Q1): a fresh detail plan has no
+	// background, no zones and no selection, so without this clause the guide the user
+	// guide promises "at the top-left of the empty canvas" opened hidden under this panel
+	// until the user dismissed it or set a background.
+	if (key === 'noBackground' && (projectStore.zones.size > 0 || unreadableZones.value > 0 || selection.selectedIds.length > 0 || planHierarchy.hierarchy.parentZone !== null)) return null;
 	return resolveEmptyState(EMPTY_STATE_CONTENT.planEditor[key]);
 });
 

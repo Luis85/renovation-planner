@@ -80,6 +80,24 @@ const PLAN_CANVAS = '.rp-plan-canvas';
 const ASSET_LIBRARY_VIEW = '.renovation-asset-library';
 
 /**
+ * The `?detail` narrow shot's own third marker (detail-plan polish, 2026-09-11): the context
+ * bar's ancestry crumb (ADR-0028), which is the only on-screen proof the hierarchy read landed
+ * at 460px. The guide explainer the two wide detail shots wait on
+ * (`.rp-floor-inspector__guide`) lives in the Inspector, which the constrained layout hides
+ * until its rail button is pressed, so neither wide shot's own selector is reachable here.
+ *
+ * `EditorContextCrumb.vue` renders `data-rp-open-plan` only on its BUTTON branch, gated on
+ * `context.navigation` — real-plugin-only wiring the harness never supplies (`harnessDeps()`
+ * sets no `navigation` field), so every crumb in this harness is the plain `<span>` branch with
+ * no distinguishing attribute at all. What is left to key on is POSITION: with no ancestry the
+ * crumb trail is the project, then the plan name (carrying `aria-current="page"`); the one
+ * ancestor `?detail` seeds inserts a second crumb between them, with neither the project's
+ * identity nor the current plan's `aria-current`. `tests/harness/detailPlanKnob.test.ts` proves
+ * the same shape against a real mount.
+ */
+const DETAIL_ANCESTRY_CRUMB = '.rp-context-bar__crumbs > .rp-context-bar__crumb:nth-child(2):not([aria-current])';
+
+/**
  * The asset the four selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
  * seed, so §3.5's Shape section draws a footprint, a clearance and a spec sheet rather than
  * three "nothing yet" lines. Named once here because four shots share it and a fifth would
@@ -448,15 +466,19 @@ const SHOTS = [
 	// `?detail` and `?locked=` knobs exist for. The two wide detail shots wait on the guide
 	// explainer rather than the bare floor state: it draws only once the hierarchy read has
 	// landed, which is exactly the moment the guide (and the caption naming it) is on screen. The
-	// narrow one waits on the constrained rail like `plan-editor-narrow`, because the Inspector is
-	// not on screen at that width. The locked shots wait on a pressed lock toggle in the floor
-	// Inspector, which only renders once the knob has locked a zone.
+	// narrow one used to wait on ONLY the constrained rail and the canvas, identical to
+	// `plan-editor-narrow` — both attach whether or not `?detail` actually landed a hierarchy
+	// read, so a broken knob would still exit 0 with a picture of the resting editor under this
+	// shot's name. `DETAIL_ANCESTRY_CRUMB` (see its own comment) is the third selector that
+	// closes that gap: it exists only once the hierarchy read has landed. The locked shots wait
+	// on a pressed lock toggle in the floor Inspector, which only renders once the knob has
+	// locked a zone.
 	{ name: 'plan-editor-detail', query: '?view=plan-editor&detail&theme=light', selector: '.rp-floor-inspector__guide' },
 	{ name: 'plan-editor-detail-dark', query: '?view=plan-editor&detail', selector: '.rp-floor-inspector__guide' },
 	{
 		name: 'plan-editor-detail-narrow-de',
 		query: '?view=plan-editor&detail&theme=light&lang=de',
-		selector: [PLAN_CANVAS, '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail'],
+		selector: [PLAN_CANVAS, '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail', DETAIL_ANCESTRY_CRUMB],
 		width: 460,
 	},
 	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },

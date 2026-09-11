@@ -8,7 +8,7 @@ import type { ParentZoneOutlineDto } from '../../src/presentation/read-models/pl
  * capture shows both halves of ADR-0028's placement: translated to world origin, and big
  * enough that only Fit brings all of it into view.
  */
-export const HARNESS_PARENT_ZONE: ParentZoneOutlineDto = {
+const HARNESS_PARENT_ZONE: ParentZoneOutlineDto = {
 	name: 'Workshop',
 	points: [
 		{ x: 30_000, y: 12_000 }, { x: 42_000, y: 12_000 }, { x: 42_000, y: 19_000 },

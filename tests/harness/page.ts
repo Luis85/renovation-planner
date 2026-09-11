@@ -84,9 +84,12 @@ const wantsAssetLibrary = params.get('view') === 'asset-library';
  * `parseRoomKnob` lives beside the knob it feeds rather than here, because it is the one of
  * the six with something to get wrong: `?room=big` is a URL a person can type, and a knob
  * that quietly did nothing with it would photograph the resting editor under the room shot's
- * name and exit 0. It refuses loudly instead — see its own docblock. `?stale`, `?detail` and
- * `?locked` take no value or an opaque id list, so there is nothing for them to get wrong the
- * same way.
+ * name and exit 0. It refuses loudly instead — see its own docblock. `?stale` and `?detail`
+ * take no value at all, so there is nothing for them to get wrong the same way. `?locked` DOES
+ * take a value — a comma-separated id list — and a mistyped id is not refused: it silently
+ * locks nothing, since `lockedZoneDeps` answers every zone unlocked whose id it does not
+ * recognise. Only the fixed shots' own wait — a PRESSED lock toggle, which renders solely once
+ * the knob has actually locked a seeded id — catches that; nothing here parses the list.
  */
 const selectZoneId = params.get('select');
 const wantsAddMenu = params.has('add');

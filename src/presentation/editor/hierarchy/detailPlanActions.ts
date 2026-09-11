@@ -33,7 +33,7 @@ export function useDetailPlanActions() {
 		let created = null as string | null;
 		const result = await dialogs.openDialog({
 			kind: 'form',
-			title: tr('form.new-plan.title'),
+			title: tr('form.new-detail-plan.title', { name }),
 			component: NewPlanForm,
 			props: {
 				projectId: plan.projectId,

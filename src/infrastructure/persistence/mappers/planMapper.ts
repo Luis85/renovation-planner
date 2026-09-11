@@ -57,6 +57,13 @@ function fromDto(
 		// `planError` prefixes `plan.`, so this is the same `plan.frontmatter-invalid` a schema refusal carries.
 		return err(planError('frontmatter-invalid', 'parent-plan and parent-zone must be set together.'));
 	}
+	// A hand-edited note naming ITSELF as its own parent reads as parentless rather than
+	// refusing the whole note — `Plan.create`'s `plan.parent-is-self` guard stays for the
+	// CREATION path, where a self-link can only be a bug in the caller; here it is user data,
+	// and a two-plan cycle already opens fine (`ancestryOf` stops the walk). Retired on this
+	// plan's next save: `planToPersistence` never re-derives `parent-plan` from `dto.id`, so
+	// the write that follows a read persists `parent: null` and the stale keys are gone.
+	const selfParent = parentPlan !== undefined && parentPlan === dto.id;
 	const constructed = Plan.create({
 		spatialElements: dto['spatial-elements'],
 		renovation: dto.renovation,
@@ -72,7 +79,7 @@ function fromDto(
 				}
 			: null,
 		layers: dto.layers,
-		parent: parentPlan !== undefined && parentZone !== undefined ? { planId: parentPlan as Plan['id'], zoneId: parentZone as ZoneId } : null,
+		parent: parentPlan !== undefined && parentZone !== undefined && !selfParent ? { planId: parentPlan as Plan['id'], zoneId: parentZone as ZoneId } : null,
 	});
 	if (!constructed.ok) {
 		return constructed;

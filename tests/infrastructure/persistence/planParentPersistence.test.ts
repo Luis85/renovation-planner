@@ -23,6 +23,12 @@ describe('plan parent persistence (ADR-0028)', () => {
 		expect('parent' in toPlanDto(site)).toBe(false);
 	});
 
+	it('reads a hand-edited self-link as no parent, rather than refusing the whole note', () => {
+		const house = makePlan({ projectId: makeProject().id, name: 'House', parent: { planId: createPlanId(), zoneId: HOUSE_ZONE } });
+		const raw = { ...planToPersistence(house, 1), 'parent-plan': house.id };
+		expect(expectOk(planFromPersistence(raw, null)).parent).toBeNull();
+	});
+
 	it('refuses a note carrying only one half of the link', () => {
 		const house = makePlan({ projectId: makeProject().id, parent: { planId: createPlanId(), zoneId: HOUSE_ZONE } });
 		const raw = { ...planToPersistence(house, 1) };

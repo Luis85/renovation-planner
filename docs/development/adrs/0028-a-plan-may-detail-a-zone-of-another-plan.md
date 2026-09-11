@@ -48,6 +48,8 @@ trigger, met by a lighter structure than the Floor identity ADR-0017 anticipated
 - Deleting a zone leaves its detail plans; they lose the guide and say so.
 - A detail plan created in one leaf appears in another leaf of the same parent the next time that
   leaf opens or retries, not immediately.
+- A hand-edited self-link (`parent-plan` naming the note's own id) is ignored on read and retired
+  on that plan's next save, rather than refusing the whole note.
 
 ## Revisit when
 

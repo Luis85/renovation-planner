@@ -27,9 +27,9 @@ export function useDetailPlanActions() {
 	const context = inject(PLAN_EDITOR_CONTEXT), project = useProjectStore(), dialogs = useDialogStore(), store = usePlanHierarchyStore();
 	const { hierarchy } = storeToRefs(store);
 
-	async function create(ctx: PlanEditorContext, zoneId: string, name: string): Promise<void> {
-		const createPlan = ctx.commands.createPlan, open = ctx.navigation?.plan?.bind(ctx.navigation), plan = project.plan;
-		if (createPlan === undefined || open === undefined || plan === null || dialogs.current !== null) return;
+	async function create(ctx: PlanEditorContext, open: (id: string) => Promise<void>, zoneId: string, name: string): Promise<void> {
+		const createPlan = ctx.commands.createPlan, plan = project.plan;
+		if (createPlan === undefined || plan === null || dialogs.current !== null) return;
 		let created = null as string | null;
 		const result = await dialogs.openDialog({
 			kind: 'form',
@@ -57,7 +57,7 @@ export function useDetailPlanActions() {
 		const open = context.navigation?.plan?.bind(context.navigation);
 		if (context.commands.createPlan === undefined || open === undefined) return [];
 		return [
-			{ id: 'detail-plan-new', label: 'editor.input.detail-plan-new', group: 'create', icon: 'circle-plus', disabled: blocked, run: () => create(context, zoneId, name) },
+			{ id: 'detail-plan-new', label: 'editor.input.detail-plan-new', group: 'create', icon: 'circle-plus', disabled: blocked, run: () => create(context, open, zoneId, name) },
 			...hierarchy.value.detailPlans
 				.filter((detail) => detail.parentZoneId === zoneId)
 				.map((detail): CanvasMenuAction => ({ id: `detail-plan-open:${detail.id}`, label: 'editor.input.detail-plan-open', group: 'object', icon: 'file-text', params: { name: detail.name }, run: () => open(detail.id) })),

@@ -144,9 +144,11 @@ compensation covers failures after that point. The user moves the pointer and pa
   selection holds something copyable, every perspective — hidden rather than shown disabled,
   since Copy is not an edit and a greyed item could only offer an edit's own reason) and `paste`
   (group `create`, shown when the clipboard is non-empty, hidden in Review exactly as the other
-  edits are, disabled with the existing "another tool or edit is active" reason when writes are
-  blocked or a structure, element, rotation or group edit is already reading its baseline or has
-  a form open — any of those saves would otherwise refuse as stale once the edit resumes). Icons:
+  edits are, disabled with `editor.stale-write-refused` ("Editing is paused until the floor is
+  re-read.") when writes are blocked, or with `editor.input.unavailable` ("Not available while
+  another tool or edit is active.") when a structure, element, rotation or group edit is already
+  reading its baseline or has a form open — any of those saves would otherwise refuse as stale
+  once the edit resumes). Icons:
   `copy`, `clipboard-paste` — the harness draws only icon names it has a pinned fixture for under
   `tests/fixtures/editor-icons`, so both are added there. Review returns early after `fit` today;
   `copy` is pushed before that return.

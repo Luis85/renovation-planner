@@ -265,3 +265,36 @@ it('offers no paste while a rotation is reading its baseline, from the menu or t
 	expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(true);
 	await settleUntil(() => added(rig, before).length === 1, 'the paste once the rotation ended');
 });
+
+/**
+ * CI1 (fix round 1): the finding was that `ready` in `clipboardActions.ts` also gated on
+ * `runtime.groupActions.active`, redundantly — `rotationActions.active` (`rotationActions.ts`)
+ * already folds `runtime.groups?.active`, and the `groups` passed to `createRotationActions`
+ * IS the same `groupActions` object `EditorRuntime` exposes (`spatialEditing.ts`). This proves
+ * that fold alone still refuses Paste while a group operation reads its baseline: it must go
+ * red if the `rotationActions.active` operand is dropped from `ready`'s `editing` expression.
+ * The whole loop (room + all four walls) is moved together so no wall sits outside the moved
+ * group, which keeps `adjustedNeighbours` at zero and avoids the "connected walls" confirm
+ * dialog `groupOperations.ts`'s `commit` would otherwise open.
+ */
+it('offers no paste while a group move is reading its baseline, from the menu or the shortcut', async () => {
+	const rig = await setup(), before = new Set(rig.project.zones.keys());
+	rig.selection.select([rig.room.id]); key(rig.canvasEl, { key: 'c', ctrlKey: true });
+	rig.selection.select([rig.room.id, ...WALL_LOOP.walls.map(item => item.id)] as never);
+	const groups = expectDefined(rig.deps.commands.groups, 'group services');
+	const release = holdRead(groups);
+	const moving = rig.runtime.groupActions.moveBy({ dx: 100, dy: 100 });
+	expect(rig.runtime.groupActions.active.value).toBe(true);
+	pointAt(rig, { x: 20000, y: 20000 });
+	await keyboardMenu(rig);
+	const paste = rig.wrapper.get('[data-rp-context-action="paste"]');
+	expect(paste.attributes('aria-disabled')).toBe('true');
+	expect(paste.attributes('title')).toBe('Not available while another tool or edit is active.');
+	await paste.trigger('keydown', { key: 'Escape' });
+	expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(false);
+	await settle();
+	expect(rig.project.zones.size).toBe(before.size);
+	release(); await moving; vi.restoreAllMocks();
+	expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(true);
+	await settleUntil(() => added(rig, before).length === 1, 'the paste once the group move ended');
+});

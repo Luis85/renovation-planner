@@ -16,7 +16,7 @@ import { createZoneHistory } from '../add/createZoneHistory';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
 
-type ClipboardRuntime = Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask' | 'structureActions' | 'elementActions' | 'rotationActions' | 'groupActions'>;
+type ClipboardRuntime = Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask' | 'structureActions' | 'elementActions' | 'rotationActions'>;
 
 /** Copy and Paste for ONE leaf, over the clipboard every leaf shares (design spec §6). */
 function createClipboardActions(context: PlanEditorContext, runtime: ClipboardRuntime) {
@@ -28,12 +28,13 @@ function createClipboardActions(context: PlanEditorContext, runtime: ClipboardRu
 	/**
 	 * Everything a paste needs, or `null` whenever one would be refused — Review and a stale floor included — or would
 	 * strand an element, structure, rotation or group edit already reading its baseline, whose save would then refuse
-	 * as stale. `rotationActions.active` and `groupActions.active` fold in their OWN wall/group in-flight reads
-	 * already (see each one's declaration), so this reads no more than what `EditorRuntime` already exposes.
+	 * as stale. `rotationActions.active` alone covers rotation, wall rotation AND a group operation: its own computed
+	 * (`rotationActions.ts`) already folds `runtime.wall?.active` and `runtime.groups?.active` — the very `groupActions`
+	 * object `EditorRuntime` exposes — so a separate `groupActions.active` operand here would never change the result.
 	 */
 	const ready = computed(() => {
 		const clipboard = context.clipboard.value, { renovation, groups } = context.commands;
-		const editing = runtime.structureActions.active.value || runtime.elementActions.active.value || runtime.rotationActions.active.value || runtime.groupActions.active.value;
+		const editing = runtime.structureActions.active.value || runtime.elementActions.active.value || runtime.rotationActions.active.value;
 		return clipboard && renovation && groups && !runtime.writesBlocked.value && !editing && session.perspective !== 'review' ? { clipboard, renovation, groups } : null;
 	});
 	function copy(): boolean {
@@ -61,7 +62,7 @@ export type ClipboardActions = ReturnType<typeof createClipboardActions>;
 const KEY: InjectionKey<ClipboardActions> = Symbol('renovation-planner:editor-clipboard');
 
 /** Provided by `PlanEditorRoot` rather than added to `EditorRuntime`, whose file is at its line budget. */
-export function provideClipboardActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask' | 'structureActions' | 'elementActions' | 'rotationActions' | 'groupActions'>): ClipboardActions {
+export function provideClipboardActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask' | 'structureActions' | 'elementActions' | 'rotationActions'>): ClipboardActions {
 	const actions = createClipboardActions(context, runtime);
 	provide(KEY, actions);
 	return actions;

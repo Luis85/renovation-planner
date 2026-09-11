@@ -40,10 +40,10 @@ enabled, and one project with two floors — on the ground floor, a Room drawn w
 5. Right-click an empty spot on the first floor. **Expect:** Paste is listed with a paste icon;
    choosing it pastes centred where you right-clicked.
 6. Point at the Room pasted in step 2 and press Ctrl+V again.
-   **Expect:** a notice says the walls would cross existing walls; nothing is added.
+   **Expect:** a notice begins "Walls cross or overlap."; nothing is added.
 7. Click into the Inspector's name field and press Ctrl+V. **Expect:** Obsidian pastes text into
    the field; the canvas does not paste.
-8. Switch to Review. Right-click the canvas. **Expect:** Copy is listed, Paste is not.
+8. Switch to Review. Right-click the Room pasted in step 4. **Expect:** Copy is listed, Paste is not.
 9. Close and reopen the first floor. **Expect:** what steps 4 and 5 wrote is still there.
 
 ## Runs

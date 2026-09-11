@@ -6,7 +6,6 @@ import { prepareMaterial, type PlanningBaseline, type MaterialInput } from '../.
 import { validateDepthLinks } from '../../../application/commands/renovation/planningLinks';
 import { validateRenovationInput, type RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
-import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { tr } from '../../i18n/strings';
@@ -45,10 +44,7 @@ function input(): MaterialInput | RenovationInput | null {
 		draft.value.path = file.value.path; draft.value.subpath = file.value.subpath;
 	}
 	const next = planningInput(draft.value, props.baseline);
-	// `planningInput` always sets a real renovation (it edits Materials/Cost/Evidence, spread from
-	// the floor's own record), so the fallback here only keeps `validateDepthLinks`'s required
-	// `Renovation` parameter honest against `RenovationInput.renovation`'s wider type.
-	if (!validateRenovationInput(next.renovation, props.baseline.geometry.document).ok || !validateDepthLinks(next.renovation ?? EMPTY_RENOVATION, props.baseline).ok) return null;
+	if (!validateRenovationInput(next.renovation, props.baseline.geometry.document).ok || !validateDepthLinks(next.renovation, props.baseline).ok) return null;
 	return next;
 }
 async function submit(): Promise<void> {

@@ -32,6 +32,8 @@ export interface RenovationInput {
 	readonly renovation: Renovation | undefined;
 	readonly intended: PlanGeometryDocument['intended'];
 }
+/** An input built by editing the renovation register, so it always carries one; a spatial write passes the plan's own through instead. */
+export type RenovationEditInput = RenovationInput & { readonly renovation: Renovation };
 export interface RenovationServices {
 	read(id: PlanId): Promise<Result<RenovationBaseline, AppError>>;
 	command(baseline: RenovationBaseline, input: RenovationInput, ledger: WriteLedger): { execute(): Promise<DispatchResult>; undo(): Promise<DispatchResult> };

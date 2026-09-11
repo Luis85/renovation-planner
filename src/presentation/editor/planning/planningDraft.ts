@@ -8,7 +8,7 @@ import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementSource } from '../../../domain/requirement/RequirementSource';
 import type { MaterialInput, PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
-import type { RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
+import type { RenovationEditInput } from '../../../application/commands/renovation/RenovationCommand';
 import { planningSelectionContext } from './planningSelectionContext';
 
 export type PlanningKind = 'material' | 'procurement' | 'cost' | 'evidence';
@@ -70,7 +70,7 @@ function evidenceDescription(draft: PlanningDraft): string {
 	const segments = draft.path.split('/');
 	return draft.type === 'photo' && !draft.title.trim() ? segments[segments.length - 1] : draft.title;
 }
-export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline): RenovationInput {
+export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline): RenovationEditInput {
 	const renovation = baseline.plan.entity.renovation ?? EMPTY_RENOVATION, depth = renovation.depth ?? EMPTY_DEPTH;
 	const link = { id: draft.id, roomId: draft.roomId, targetId: draft.targetId, workId: draft.workId };
 	if (draft.kind === 'procurement') {

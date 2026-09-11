@@ -336,6 +336,7 @@ it('refuses a hand-built clipboard whose opening names a host wall it never capt
 	expect(save).not.toHaveBeenCalled();
 	expect(mintId).not.toHaveBeenCalled();
 	const after = await r.floor();
+	expect(after.zones.map(zone => zone.id)).toEqual(before.zones.map(zone => zone.id));
 	expect(after.objects).toEqual(before.objects);
 	expectSidecarUnchanged(after, before);
 });

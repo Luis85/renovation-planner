@@ -4,7 +4,6 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { parseFrontmatter } from '../../helpers/vault';
-import { withPlanRenovation } from '../../../src/domain/plan/Plan';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 
@@ -64,12 +63,8 @@ async function proposeWall(rig: Rig): Promise<void> {
 describe('spatial batch removal with optional persisted fields', () => {
  it('cancels, deletes and undoes valid existing elements whose optional renovation register is absent', async () => {
   const rig = await setup(); await addElements(rig);
-  const created = expectOk(await rig.renovation.read(rig.plan.id));
-  // A supported persisted format, not the current element creator's default: an
-  // external edit may remove the optional empty register while retaining geometry.
-  expect(created.plan.entity.renovation).toEqual({ subjects: [], work: [], decisions: [] });
-  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(created.plan.entity, undefined)), created.plan.version));
-  await rig.runtime.refreshProjection(); await settle();
+  // Adding an element passes the plan's absent register through rather than writing an empty
+  // one, so the plan reaches this removal in the same persisted shape an external edit leaves.
   const before = expectOk(await rig.renovation.read(rig.plan.id)), bytes = [...rig.stack.vault.entries];
   expect(before.plan.entity.renovation).toBeUndefined(); expect(planFrontmatter(rig)).not.toHaveProperty('renovation');
   expect(before.geometry.document.intended).toBeUndefined(); expect(rig.project.plan?.renovation).toBeUndefined();

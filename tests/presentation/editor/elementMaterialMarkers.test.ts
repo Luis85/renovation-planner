@@ -16,7 +16,7 @@ it.each(['object', 'path'] as const)('highlights the exact current or intended %
  const baseline = expectOk(await rig.renovation.read(rig.plan.id)), current = expectDefined(baseline.geometry.document.structure, 'structure');
  const intendedPoints = points.map(point => ({ x: point.x + 1200, y: point.y + 700 }));
  const intended = { ...current, elements: [{ id: element.id, kind, points: intendedPoints }] };
- expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: expectDefined(baseline.plan.entity.renovation, 'renovation'), intended }, rig.runtime.structureTask.ledger)));
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: baseline.plan.entity.renovation, intended }, rig.runtime.structureTask.ledger)));
  const planning = expectDefined(rig.deps.commands.planning, 'planning');
  const materials = [];
  for (const state of ['current', 'intended'] as const) {

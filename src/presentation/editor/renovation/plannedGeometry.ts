@@ -1,10 +1,10 @@
 import { createEntityId } from '../../../core/identity/generateId';
-import type { RenovationBaseline, RenovationInput } from '../../../application/commands/renovation/RenovationCommand';
+import type { RenovationBaseline, RenovationEditInput } from '../../../application/commands/renovation/RenovationCommand';
 import { err, ok } from '../../../core/result/Result';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
 import { editWall, spatialError } from '../../../domain/spatial/structureGeometry';
 import { formatMetres, parseCoordinateMetres } from '../shell/formatLength';
-import { EMPTY_RENOVATION, type RenovationSubject } from '../../../domain/renovation/Renovation';
+import type { RenovationSubject } from '../../../domain/renovation/Renovation';
 import type { SpatialElement } from '../../../domain/spatial/SpatialElement';
 import type { CoordinateEdits } from '../resize/outlineProposal';
 import { plannedElementGeometry } from '../elements/plannedElementGeometry';
@@ -58,7 +58,7 @@ function changeGeometry(current: Structure, before: Structure, draft: PlannedGeo
 		return { ...before, openings: [...before.openings.filter(item => item.id !== id), opening] };
 	}
 }
-export function applyPlannedGeometry(baseline: RenovationBaseline, input: RenovationInput, subject: RenovationSubject, draft: PlannedGeometryDraft) {
+export function applyPlannedGeometry(baseline: RenovationBaseline, input: RenovationEditInput, subject: RenovationSubject, draft: PlannedGeometryDraft) {
 	if (draft.kind === 'none') return ok(input);
 	const current = baseline.geometry.document.structure ?? EMPTY_STRUCTURE;
 	const before = input.intended ?? current;
@@ -81,8 +81,5 @@ export function applyPlannedGeometry(baseline: RenovationBaseline, input: Renova
 		values[field] = parsed.mm;
 	}
 	const intended = changeGeometry(current, before, { ...draft, id }, change, values);
-	// This edits a subject that already exists on the floor's own renovation, so `input.renovation`
-	// (built by `applyRenovationDraft`) is always real here; the fallback only keeps the type honest.
-	const renovation = input.renovation ?? EMPTY_RENOVATION;
-	return ok({ renovation: { ...renovation, subjects: renovation.subjects.map(item => item.id === subject.id ? { ...item, targetId: id } : item) }, intended });
+	return ok({ renovation: { ...input.renovation, subjects: input.renovation.subjects.map(item => item.id === subject.id ? { ...item, targetId: id } : item) }, intended });
 }

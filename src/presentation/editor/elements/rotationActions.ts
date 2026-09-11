@@ -39,6 +39,16 @@ function sourceVisible(shape: NamedRotationShape, layers: { readonly zone: boole
 	if (shape.kind === 'group') return shape.visible === true;
 	return shape.kind === 'room' || shape.kind === 'area' ? layers.zone : layers.architecture;
 }
+/**
+ * Canvas-only companion to `permitted` (Z4, ADR-0027, mirrors `editableVertices` in
+ * `InteractionLayer.vue`): a lock is canvas click-through, not edit protection, so a locked
+ * zone's canvas handle and hit test go dark while the Inspector's own rotate buttons — gated
+ * by `permitted`/`blocked` alone — stay reachable. A lock has no bearing on `wall`, `group` or
+ * a spatial element, so only a `room`/`area` shape is looked up.
+ */
+function lockAllowsCanvas(shape: NamedRotationShape, zones: ReturnType<typeof useProjectStore>['zones']): boolean {
+	return (shape.kind !== 'room' && shape.kind !== 'area') || zones.get(shape.id)?.locked !== true;
+}
 /** One transient rotation lifetime; persistence remains in the existing source-specific commands. */
 export function createRotationActions(context: PlanEditorContext, runtime: RotationRuntime) {
 	const project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), saves = useSaveStateStore(), session = useRenovationSession(), dialogs = useDialogStore();
@@ -78,7 +88,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 	});
 	const displayControls = computed(() => {
 		const shape = displayTarget.value;
-		if (!permitted(shape) || !shape || active.value || !sourceVisible(shape, workspace.layerVisibility)) return [];
+		if (!shape || !permitted(shape) || !lockAllowsCanvas(shape, project.zones) || active.value || !sourceVisible(shape, workspace.layerVisibility)) return [];
 		const control = rotationHandleGeometry(shape, worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value);
 		return control ? [control] : [];
 	});
@@ -136,7 +146,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 	}
 	function canRotateId(id?: string): boolean {
 		const shape = id !== undefined && target.value?.id !== id ? displayTarget.value : target.value;
-		return (id === undefined || shape?.id === id) && !active.value && permitted(shape);
+		return (id === undefined || shape?.id === id) && !active.value && shape !== null && permitted(shape) && lockAllowsCanvas(shape, project.zones);
 	}
 	return { setObstacles: (bounds: readonly BoundingBox[]) => { obstacles.value = bounds; }, obstacles: computed(() => obstacles.value), target, displayTarget, displayControls, canRotateId,
 		active, blocked, preview, previewShape, handleGeometry, visibleBounds, handle: computed(() => handleGeometry.value?.handle ?? null), available: computed(() => target.value !== null), rotate, move };

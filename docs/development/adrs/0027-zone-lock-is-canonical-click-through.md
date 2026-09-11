@@ -31,7 +31,9 @@ lives. The user asked instead for a lock that the CANVAS ignores while the sideb
   publishes `ZoneDetailsChanged` for peer leaves.
 - **Enforcing boundary:** `canvasCandidates`, the single candidate list `SelectTool` (click,
   hover, marquee) and `CanvasContextMenu` read. A selected locked zone draws no vertex handles,
-  because none could be hit.
+  because none could be hit. A selected locked zone draws no rotation handle on the canvas
+  either, and a canvas drag where it would sit starts nothing; the Inspector's own rotate
+  controls still rotate it, exactly like every other Inspector edit of a locked zone.
 
 ## Alternatives
 

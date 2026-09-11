@@ -18,18 +18,18 @@ const targets = computed(() => props.selection.records.flatMap(record => {
 	if (!owner || record.kind === 'area') return [];
 	return [{ roomId: owner, targetId: record.id, name: record.name, kind: targetKind(record) } satisfies BatchTarget];
 }));
+/** Walls and openings are named; every other kind — rooms and each element kind, present or future — is not a wall. */
 function targetKind(record: SpatialRecordDto): BatchTarget['kind'] {
-	if (record.kind === 'room') return 'other';
-	if (record.kind === 'object') return 'fixture';
-	if (record.kind === 'path' || record.kind === 'fence' || record.kind === 'measurement') return 'other';
+	if (record.kind === 'wall') return 'wall';
+	if (record.kind !== 'opening') return record.kind === 'object' ? 'fixture' : 'other';
 	const opening = project.structure.openings.find(item => item.id === record.id);
-	return opening?.kind === 'door' ? 'door' : opening?.kind === 'window' ? 'window' : opening ? 'other' : 'wall';
+	return opening?.kind === 'door' ? 'door' : opening?.kind === 'window' ? 'window' : 'other';
 }
 const compatible = computed(() => targets.value.length === props.selection.ids.length && !props.selection.unavailable);
 const changeCompatible = computed(() => compatible.value && props.selection.records.every(item => item.kind !== 'room' && item.kind !== 'area'));
 const kinds = ['remove', 'modify', 'work', 'evidence'] as const;
 const actions = computed(() => kinds.map(kind => ({ kind, disabled: runtime.renovation.blocked.value || !compatible.value || ((kind === 'remove' || kind === 'modify') && !changeCompatible.value) })));
-const generic = computed(() => props.selection.records.some(item => ['object', 'path', 'fence', 'measurement'].includes(item.kind)));
+const generic = computed(() => props.selection.records.some(item => item.kind !== 'wall' && item.kind !== 'opening'));
 const deleteBlocked = computed(() => runtime.writesBlocked.value || runtime.structureActions.active.value || runtime.elementActions.removeManyActive.value || !props.selection.records.every(item => item.kind !== 'room' && item.kind !== 'area') || props.selection.unavailable > 0);
 function deleteSelection(): Promise<void> { return generic.value ? runtime.elementActions.removeMany(props.selection.ids) : runtime.structureActions.remove(props.selection.ids); }
 </script>

@@ -59,6 +59,7 @@ export const structureDe: Record<keyof typeof structureEn, string> = {
 	'editor.structure.error.room-missing': 'Eine Raumgrenze verweist auf fehlende Wände oder einen fehlenden Raum. Verweis reparieren und Plan erneut öffnen.',
 	'editor.structure.error.duplicate-id': 'Die Struktur enthält wiederholte Kennungen. Plan vor dem Bearbeiten erneut öffnen.',
 	'editor.structure.error.unavailable': 'Wandbearbeitung ist in dieser Ansicht nicht verfügbar.',
+	'spatial.intersection': 'Wände kreuzen oder überlappen sich. Platzieren Sie sie so, dass Wände sich nur an ihren Enden treffen, und versuchen Sie es erneut.',
 	'spatial.read-failed': 'Die Raumgrenze konnte nicht gelesen werden.',
 	'spatial.boundary-missing': 'Die Wände dieser Raumgrenze existieren nicht mehr.',
 	'spatial.boundary-invalid': 'Die Raumgrenze kann nicht sicher wiederhergestellt werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.',

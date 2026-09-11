@@ -7,7 +7,8 @@ import { captureClipboard, type SpatialClipboard } from '../../../domain/spatial
 import { PasteCommand } from '../../../application/commands/spatial/PasteCommand';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorStore } from '../../stores/EditorStore';
-import { notifyFault, notifyOperationFailure } from '../../notices/notify';
+import { notifyFault } from '../../notices/notify';
+import { reportDispatchFailure } from '../report-failure';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { stageCentreWorld } from '../viewport/Viewport';
@@ -44,7 +45,7 @@ function createClipboardActions(context: PlanEditorContext, runtime: ClipboardRu
 			const result = await runtime.dispatcher.run(command);
 			// `select` focuses the first id whenever the old focus is not among the new ones, which pasted ids never are.
 			if (result.ok) selection.select(command.pastedIds.map(id => id as EntityId<string>));
-			else notifyOperationFailure(result.error);
+			else reportDispatchFailure(result.error);
 		} catch (cause) { notifyFault(cause, context.commands.logger, 'editor.clipboard.paste-failed'); }
 	}
 	return { canCopy: computed(() => copied.value !== null), canPaste: computed(() => ready.value !== null), pending: computed(() => context.clipboard.value !== null), copy, paste };

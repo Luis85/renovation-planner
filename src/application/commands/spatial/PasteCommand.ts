@@ -4,7 +4,8 @@ import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { placedRooms, placedStructure, type ClipboardIdPrefix, type PlacedStructure, type SpatialClipboard } from '../../../domain/spatial/clipboard';
-import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
+import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
+import { validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { ZoneType } from '../../../domain/zone/ZoneType';
 import type { WriteLedger } from '../../editor/WriteLedger';
@@ -23,17 +24,19 @@ export interface PasteDeps {
 }
 export interface PasteInput { readonly planId: PlanId; readonly clipboard: SpatialClipboard; readonly target: Point }
 
+/** The floor's own structure with the paste's appended. */
+function mergedStructure(baseline: RenovationBaseline, placed: PlacedStructure): Structure {
+	const current = baseline.geometry.document.structure ?? EMPTY_STRUCTURE, added = placed.structure;
+	return { walls: [...current.walls, ...added.walls], openings: [...current.openings, ...added.openings],
+		boundaries: [...current.boundaries, ...added.boundaries], elements: [...current.elements ?? [], ...added.elements] };
+}
+
 /** The floor's own structure and element names, with the paste's appended; renovation and planned geometry untouched. */
 function spatialInput(baseline: RenovationBaseline, placed: PlacedStructure): RenovationInput {
-	const current = baseline.geometry.document.structure ?? EMPTY_STRUCTURE, added = placed.structure;
 	return {
 		renovation: baseline.plan.entity.renovation ?? EMPTY_RENOVATION,
 		intended: baseline.geometry.document.intended,
-		spatial: {
-			structure: { walls: [...current.walls, ...added.walls], openings: [...current.openings, ...added.openings],
-				boundaries: [...current.boundaries, ...added.boundaries], elements: [...current.elements ?? [], ...added.elements] },
-			metadata: [...baseline.plan.entity.spatialElements ?? [], ...placed.names],
-		},
+		spatial: { structure: mergedStructure(baseline, placed), metadata: [...baseline.plan.entity.spatialElements ?? [], ...placed.names] },
 	};
 }
 
@@ -60,6 +63,8 @@ export class PasteCommand {
 	undo(): Promise<DispatchResult> { return this.walk(this.steps.toReversed(), false); }
 
 	private async first(): Promise<DispatchResult> {
+		const refused = await this.refusal();
+		if (refused) return err(refused);
 		const { planId, clipboard, target } = this.input, done: PasteStep[] = [], roomIds: ZoneId[] = [];
 		for (const room of placedRooms(clipboard, target)) {
 			const step = this.deps.createRoom({ planId, name: room.name, zoneType: room.zoneType as ZoneType, geometry: { points: room.points, bulges: room.bulges } });
@@ -77,6 +82,25 @@ export class PasteCommand {
 		this.steps = done; this.created = true;
 		this.ids = [...roomIds, ...placed.structure.walls.map(item => item.id), ...placed.structure.openings.map(item => item.id), ...placed.structure.elements.map(item => item.id)];
 		return ok('wrote');
+	}
+
+	/**
+	 * The structure refusal step 2's `RenovationCommand` would return — `validateStructure` over the
+	 * merged structure and the floor's room ids — asked BEFORE step 1 writes a single Zone note, so a
+	 * refused paste writes nothing. The rooms do not exist yet, so each stands in under its clipboard
+	 * key, prefixed: on the floor it was copied from, the bare key IS an existing zone id, and a
+	 * boundary naming it would be refused as a second boundary for that room. The ids this placement
+	 * mints are thrown away with it; step 2 places the paste again under its own.
+	 */
+	private async refusal(): Promise<AppError | null> {
+		const { planId, clipboard, target } = this.input;
+		if (!clipboard.structure.walls.length && !clipboard.structure.elements.length) return null;
+		const baseline = await this.deps.renovation.read(planId);
+		if (!baseline.ok) return baseline.error;
+		const standIns = clipboard.rooms.map(room => `paste:${room.key}`);
+		const placed = placedStructure(clipboard, target, standIns, prefix => this.deps.mintId(prefix));
+		const valid = validateStructure(mergedStructure(baseline.value, placed), [...baseline.value.geometry.document.objects.map(item => item.id), ...standIns]);
+		return valid.ok ? null : valid.error;
 	}
 
 	private run(step: PasteStep | null): Promise<DispatchResult> {

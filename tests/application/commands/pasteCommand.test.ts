@@ -109,12 +109,24 @@ it('undoes the whole paste in one step and redoes it under the same ids', async 
 	expect(redone.names).toEqual(pasted.names);
 });
 
-it('refuses a paste whose walls cross the floor\'s own, keeping none of the rooms it had written', async () => {
-	const r = await rig(), before = await r.floor();
+it('refuses a paste whose walls cross the floor\'s own before writing a single room, and announces nothing', async () => {
+	const r = await rig(), before = await r.floor(), save = vi.spyOn(r.stack.zones, 'save'), publish = vi.spyOn(r.stack.events, 'publish');
 	expect(expectErr(await r.paste({ x: 2000, y: 1500 }).execute()).code).toBe('spatial.intersection');
+	expect(save).not.toHaveBeenCalled();
+	expect(publish).not.toHaveBeenCalled();
 	const after = await r.floor();
 	expect(after.zones.map(zone => zone.id)).toEqual(before.zones.map(zone => zone.id));
 	expect(after.structure).toEqual(before.structure);
+});
+
+it('publishes what its composed commands publish, in step order on execute and reversed on undo', async () => {
+	const r = await rig(), command = r.paste(), publish = vi.spyOn(r.stack.events, 'publish');
+	const types = () => publish.mock.calls.map(([event]) => event.type);
+	expectOk(await command.execute());
+	expect(types()).toEqual(['ZoneCreated', 'PlanRenovationChanged', 'PlanStructureChanged']);
+	publish.mockClear();
+	expectOk(await command.undo());
+	expect(types()).toEqual(['PlanStructureChanged', 'PlanRenovationChanged', 'ZoneDeleted']);
 });
 
 it('undoes the structure and the rooms when the group write fails', async () => {
@@ -181,12 +193,15 @@ it('pastes onto a floor that has no structure yet', async () => {
 	expect((await r.floor()).structure.walls).toHaveLength(4);
 });
 
-it('undoes the rooms already written when reading the floor for a later step fails', async () => {
-	for (const failing of ['renovation', 'groups'] as const) {
-		const r = await rig(), before = await r.floor();
-		if (failing === 'renovation') vi.spyOn(r.deps.renovation, 'read').mockResolvedValueOnce(err(injectedPersistenceError()));
-		else vi.spyOn(r.deps.groups, 'read').mockResolvedValueOnce(err(injectedPersistenceError()));
+it('writes nothing when the floor cannot be read for the check, and undoes the rooms when a later step\'s read fails', async () => {
+	for (const failing of ['check', 'renovation', 'groups'] as const) {
+		const r = await rig(), before = await r.floor(), save = vi.spyOn(r.stack.zones, 'save');
+		const renovationRead = r.deps.renovation.read.bind(r.deps.renovation), failure = err(injectedPersistenceError());
+		if (failing === 'check') vi.spyOn(r.deps.renovation, 'read').mockResolvedValueOnce(failure);
+		else if (failing === 'renovation') vi.spyOn(r.deps.renovation, 'read').mockImplementationOnce(renovationRead).mockResolvedValueOnce(failure);
+		else vi.spyOn(r.deps.groups, 'read').mockResolvedValueOnce(failure);
 		expect(expectErr(await r.paste().execute()).code).toBe('test.injected-failure');
+		expect(save.mock.calls.length).toBe(failing === 'check' ? 0 : 1);
 		const after = await r.floor();
 		expect(after.zones.map(zone => zone.id)).toEqual(before.zones.map(zone => zone.id));
 		expect(after.structure).toEqual(before.structure);

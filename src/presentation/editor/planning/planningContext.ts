@@ -24,6 +24,7 @@ const KEY: InjectionKey<ReturnType<typeof providePlanningContext>> = Symbol('pla
 function seeded(draft: PlanningDraft, seed: { readonly assetId?: string; readonly rule?: RequirementSource['rule'] } | undefined): PlanningDraft {
 	if (seed?.assetId) draft.assetId = seed.assetId;
 	if (seed?.rule) draft.source = { ...draft.source, rule: seed.rule };
+	if (seed?.rule === 'placement-count') draft.waste = '0';
 	return draft;
 }
 export function providePlanningContext(context: PlanEditorContext, runtime: EditorRuntime) {

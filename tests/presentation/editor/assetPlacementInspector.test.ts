@@ -72,8 +72,8 @@ it('adds a placement-count material for the room pre-filled, counting the placem
 	await settleUntil(() => !rig.wrapper.find('[data-rp-form="planning"]').exists(), 'material save');
 	const saved = expectDefined(expectOk(await rig.stack.requirements.listByZone(rig.room.id)).find(item => item.entity.assetId === radiator.id), 'placement material').entity;
 	expect(saved.source?.rule).toBe('placement-count');
-	// The measurement, not the quantity: the Materials form's own 10% waste default still applies on top of the count.
 	expect(saved.calculatedFrom.zoneArea.value.toString()).toBe('1');
+	expect(saved.quantity.calculated.value.toString()).toBe('1');
 });
 
 it('rotates a placement about its anchor and keeps its asset', async () => {

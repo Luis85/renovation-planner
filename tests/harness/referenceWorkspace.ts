@@ -8,7 +8,10 @@ import { readAssetShapes } from '../../src/presentation/read-models/assetShapes'
 import { planningWorkspace } from './planningWorkspace';
 import { createRepositoryStack } from '../helpers/vault';
 import { makeAsset, makePlan, makeProject } from '../helpers/entities';
-import { expectOk } from '../helpers/domain';
+import { expectDefined, expectOk } from '../helpers/domain';
+import { shapeFromDimensions } from '../../src/domain/asset/AssetShape';
+import { placementPoints } from '../../src/domain/spatial/assetPlacement';
+import { withPlanSpatialElements } from '../../src/domain/plan/Plan';
 import { ObsidianPlanGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { referencePlanServices } from '../../src/application/commands/plan/ConfigurePlanReference';
 import { structureServices } from '../../src/application/commands/spatial/StructureCommand';
@@ -28,13 +31,27 @@ import { evidenceGalleryFixtures } from './evidenceGalleryFixtures';
 export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning = false) {
 	const stack = createRepositoryStack();
 	const plan = makePlan({ id: dto.id as PlanId, projectId: dto.projectId as ProjectId, name: dto.name, background: null });
+	const geometry = new ObsidianPlanGeometrySidecar(stack.store);
 	const ready = (async () => {
 		expectOk(await stack.projects.save(makeProject({ id: plan.projectId }), 'absent'));
 		expectOk(await stack.plans.save(plan, 'absent'));
         if (planning) for (const asset of [makeAsset({ name: 'Oak floor', unit: 'm2' }), makeAsset({ name: 'Skirting', unit: 'm' }), makeAsset({ name: 'Door handles', unit: 'piece' })]) expectOk(await stack.assets.save(asset, 'absent'));
+		if (planning && new URLSearchParams(location.search).has('assets')) {
+			const radiator = makeAsset({ name: 'Radiator', unit: 'piece' });
+			expectOk(await stack.assets.save(radiator, 'absent'));
+			expectOk(await new ObsidianAssetGeometrySidecar(stack.assetGeometry).write(radiator.id, { calibration: null, shape: expectOk(shapeFromDimensions(800, 600)) }));
+			const baseline = expectOk(await geometry.read(plan.id));
+			const elements = [
+				{ id: 'element-harness-radiator-a', kind: 'asset' as const, assetId: radiator.id, points: placementPoints({ x: 1500, y: 800 }, 0) },
+				{ id: 'element-harness-radiator-b', kind: 'asset' as const, assetId: radiator.id, points: placementPoints({ x: 3000, y: 2000 }, Math.PI / 2) },
+				{ id: 'element-harness-missing', kind: 'asset' as const, assetId: 'asset-harness-deleted', points: placementPoints({ x: 800, y: 2200 }, 0) },
+			];
+			expectOk(await geometry.write(plan.id, { ...baseline.document, structure: { walls: [], openings: [], boundaries: [], elements } }, baseline.version));
+			const loaded = expectDefined(expectOk(await stack.plans.getById(plan.id)), 'harness reference plan');
+			expectOk(await stack.plans.save(expectOk(withPlanSpatialElements(loaded.entity, elements.map((item, index) => ({ id: item.id, name: ['Radiator', 'Radiator', 'Old boiler'][index] })))), loaded.version));
+		}
 		stack.vault.entries.set('scan.png', 'PNG fixture'); stack.vault.entries.set('scan.pdf', 'PDF fixture');
 	})();
-	const geometry = new ObsidianPlanGeometrySidecar(stack.store);
 	const reviewNotes = new ObsidianReviewNotes(stack.deps.vault, stack.index);
 	const sources: Record<string, string> = { 'scan.png': new URLSearchParams(location.search).has('fidelity') ? new URL('../fixtures/editor-floor-reference.png', import.meta.url).href : new URL('../fixtures/editor-background-png-test.png', import.meta.url).href, 'scan.pdf': new URL('../fixtures/editor-background-pdf-test.pdf', import.meta.url).href };
 	if (new URLSearchParams(location.search).has('gallery-fixtures')) {

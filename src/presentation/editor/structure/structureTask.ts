@@ -19,7 +19,7 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import { tr } from '../../i18n/strings';
 import { notifyFault } from '../../notices/notify';
 import { StructureTool } from './StructureTool';
-import { addWallPoint, createStructureDraft, validateDraftStructure, mintStructure, numericWallPoint, type StructureToolId } from './structureDraft';
+import { addWallPoint, createStructureDraft, validateDraftStructure, mintStructure, numericWallPoint, pickHost, startFromWall, type StructureToolId } from './structureDraft';
 
 /**
  * `ledger` is the EDITOR's ledger, the one `buildRuntime` hands every other adapter — never a
@@ -28,10 +28,10 @@ import { addWallPoint, createStructureDraft, validateDraftStructure, mintStructu
  * the loop's undo with the Room's ORIGINAL version and the delete was refused (a Codex P2 on
  * pull request #86).
  */
-export function createStructureTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { readonly ledger: WriteLedger }) {
+export function createStructureTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'setTool' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { readonly ledger: WriteLedger }) {
 	const project = useProjectStore(), selection = useSelectionStore(), save = useSaveStateStore();
 	const draft = createStructureDraft(), ledger = runtime.ledger, baseline = shallowRef<PlanGeometrySnapshot | null>(null);
-	let alive = true, generation = 0;
+	let alive = true, generation = 0, started: Promise<void> = Promise.resolve();
 	const blocked = computed(() => draft.busy || draft.loading || draft.conflict || runtime.writesBlocked.value || save.state === 'saving');
 	function stop(): void { generation++; Object.assign(draft, createStructureDraft()); baseline.value = null; }
 	function matchesProjection(snapshot: PlanGeometrySnapshot): boolean {
@@ -77,7 +77,8 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 		const valid = validateDraftStructure(draft, project.structure, objectIds);
 		if (!valid.ok) return valid;
 		if (!draft.room) return ok({ structure: valid.value, room: null });
-		const inside = roomInsideWalls(valid.value.walls.slice(project.structure.walls.length));
+		// By draft id rather than by position: a wall started in the middle of a wall adds that wall's cut half too.
+		const inside = roomInsideWalls(valid.value.walls.filter(wall => wall.id.startsWith('wall-draft-')));
 		return inside.ok ? ok({ structure: valid.value, room: roomCommand(inside.value.points) }) : inside;
 	}
 	async function finish(): Promise<void> {
@@ -101,9 +102,24 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 		} catch (cause) { if (alive && ticket === generation) notifyFault(cause, context.commands.logger, 'editor.structure.write-failed'); }
 		finally { if (ticket === generation) draft.busy = false; }
 	}
+	/** Starts `kind` from outside its pointer — the canvas context menu — and runs `then` once its baseline is read, unless the tool changed meanwhile. */
+	async function startWith(kind: StructureToolId, then: () => void): Promise<void> {
+		runtime.setTool(kind);
+		if (runtime.activeToolId.value !== kind) return;
+		const ticket = generation;
+		await started;
+		if (ticket === generation) then();
+	}
+	/** An opening centred on `point` on that wall, saved at once as a click with its tool would. */
+	const placeAt = (kind: Exclude<StructureToolId, 'draw-wall'>, wallId: string, point: Point) => startWith(kind, () => {
+		pickHost(draft, point, project.structure.walls.filter(wall => wall.id === wallId), Infinity);
+		if (draft.snapped) void finish();
+	});
+	/** A wall chain starting on that wall at `point`, cutting it there when the chain is saved. */
+	const drawFrom = (wallId: string, point: Point, tolerance: number) => startWith('draw-wall', () => { startFromWall(draft, project.structure, wallId, point, tolerance); });
 	for (const kind of ['draw-wall', 'place-door', 'place-window', 'place-opening'] as const) runtime.toolManager.register(new StructureTool(kind, {
-		draft, structure: () => project.structure, start: id => { void start(id); }, stop, finish: () => { void finish(); }, blocked: () => blocked.value,
+		draft, structure: () => project.structure, start: id => { started = start(id); }, stop, finish: () => { void finish(); }, blocked: () => blocked.value,
 	}));
 	onBeforeUnmount(() => { alive = false; stop(); });
-	return { draft, blocked, ledger, finish, addNumeric, undoPoint, closeLoop, available: context.commands.structure !== undefined };
+	return { draft, blocked, ledger, finish, addNumeric, undoPoint, closeLoop, placeAt, drawFrom, available: context.commands.structure !== undefined };
 }

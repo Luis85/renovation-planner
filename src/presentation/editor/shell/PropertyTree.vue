@@ -25,8 +25,18 @@ import PropertyTreeRow from './PropertyTreeRow.vue';
 const { project, plan, plans } = storeToRefs(useProjectStore());
 const { hierarchy } = storeToRefs(usePlanHierarchyStore());
 const context = usePlanEditorContext();
-/** The listing may be empty on a rig that answers no siblings; the open plan is always a floor. */
-const floors = computed(() => (plans.value.length > 0 ? plans.value : plan.value ? [plan.value] : []));
+/**
+ * Floors are this plan's own siblings — same parent (or both root) — never every plan of the
+ * project: `plans` is `ProjectStore`'s full project listing, and a detail plan's ancestors
+ * already draw as ancestry rows above this list, so including them here repeated them and
+ * listed every OTHER branch's plans as if they were floors of this one (findings round 2,
+ * item 2). The listing may be empty on a rig that answers no siblings; the open plan is
+ * always a floor.
+ */
+const floors = computed(() => {
+	const siblings = plans.value.filter((candidate) => (candidate.parent?.planId ?? null) === (plan.value?.parent?.planId ?? null));
+	return siblings.length > 0 ? siblings : plan.value ? [plan.value] : [];
+});
 /**
  * A row's click handler, or `undefined` to draw it as text (the current floor, or a leaf with
  * no `navigation`) — plain script rather than a ternary inline in the template, because

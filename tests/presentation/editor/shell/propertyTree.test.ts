@@ -126,6 +126,86 @@ describe('PropertyTree', () => {
 		expect(tree.text()).toContain('Site');
 	});
 
+	/**
+	 * Findings round 2, item 2: `floors` was `ProjectStore.plans`, every plan of the project —
+	 * a detail plan's tree then repeated its ancestors (already drawn as ancestry rows) and
+	 * listed every other branch's plans as if they were floors of this one. Floors are now
+	 * filtered to this plan's own siblings (same parent).
+	 */
+	it('lists only this plan\'s own siblings as floors, not every plan of the project', async () => {
+		const HOUSE_PARENT = { planId: 'plan-house', zoneId: 'zone-house' };
+		const SITE_PARENT = { planId: 'plan-site', zoneId: 'zone-site' };
+		const site: PlanDto = { ...FIXTURE_PLAN, id: 'plan-site', name: 'Site' };
+		const house: PlanDto = { ...FIXTURE_PLAN, id: 'plan-house', name: 'House', parent: SITE_PARENT };
+		const attic: PlanDto = { ...FIXTURE_PLAN, id: 'plan-attic', name: 'Attic', parent: HOUSE_PARENT };
+		const ground: PlanDto = { ...FIXTURE_PLAN, id: 'plan-ground', name: 'Ground floor', parent: HOUSE_PARENT };
+		const harness = await mountPlanEditorCanvas({
+			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: () => Promise.resolve() },
+			queries: {
+				...fakeQueries(ground),
+				listPlans: () => Promise.resolve(ok([site, house, attic, ground])),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: site.id, name: site.name }, { id: house.id, name: house.name }], detailPlans: [], parentZone: null, parentZoneMissing: false })),
+			},
+		});
+		await settle();
+
+		const tree = harness.wrapper.get('.rp-property-tree');
+		// The floors list only: `.rp-property-tree__floor` also matches ancestry rows, since both
+		// share `PropertyTreeRow`'s markup, so scoping to the `<ul>` is what keeps this assertion
+		// from also counting the ancestry rows it is meant to prove ABSENT here.
+		const floors = tree.get('.rp-property-tree__floors').findAll('.rp-property-tree__floor');
+		expect(floors.map((f) => f.text())).toEqual(['Attic', 'Ground floor']);
+
+		const ancestryNames = tree.findAll('[data-rp-open-plan]').map((row) => row.text());
+		expect(ancestryNames).toEqual(['Site', 'House']);
+		expect(floors.map((f) => f.text())).not.toContain('Site');
+		expect(floors.map((f) => f.text())).not.toContain('House');
+	});
+
+	it('lists only the root plans as floors for a root plan', async () => {
+		const SITE_PARENT = { planId: 'plan-site', zoneId: 'zone-site' };
+		const site: PlanDto = { ...FIXTURE_PLAN, id: 'plan-site', name: 'Site' };
+		const otherRoot: PlanDto = { ...FIXTURE_PLAN, id: 'plan-garden', name: 'Garden' };
+		const house: PlanDto = { ...FIXTURE_PLAN, id: 'plan-house', name: 'House', parent: SITE_PARENT };
+		const harness = await mountPlanEditorCanvas({
+			queries: {
+				...fakeQueries(site),
+				listPlans: () => Promise.resolve(ok([site, otherRoot, house])),
+			},
+		});
+		await settle();
+
+		const floors = harness.wrapper.get('.rp-property-tree').findAll('.rp-property-tree__floor');
+		expect(floors.map((f) => f.text())).toEqual(['Site', 'Garden']);
+	});
+
+	/** Closes the deferred Task 4 minor: the tree draws project row, then ancestry, then floors. */
+	it('draws the project row, then ancestry rows, then the floors list, in that order', async () => {
+		const SITE_PARENT = { planId: 'plan-site', zoneId: 'zone-site' };
+		const site: PlanDto = { ...FIXTURE_PLAN, id: 'plan-site', name: 'Site' };
+		const ground: PlanDto = { ...FIXTURE_PLAN, id: 'plan-ground', name: 'Ground floor', parent: SITE_PARENT };
+		const harness = await mountPlanEditorCanvas({
+			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: () => Promise.resolve() },
+			queries: {
+				...fakeQueries(ground),
+				listPlans: () => Promise.resolve(ok([site, ground])),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: site.id, name: site.name }], detailPlans: [], parentZone: null, parentZoneMissing: false })),
+			},
+		});
+		await settle();
+
+		// Direct children of `.rp-property-tree` are drawn in template order: the project row,
+		// then one row per ancestor, then the floors list — reading `tree.children` pins that
+		// order without reaching for `compareDocumentPosition`.
+		const children = [...harness.wrapper.get('.rp-property-tree').element.children];
+		const projectIndex = children.findIndex((el) => el.className.includes('rp-property-tree__project'));
+		const ancestryIndex = children.findIndex((el) => el.hasAttribute('data-rp-open-plan'));
+		const floorsIndex = children.findIndex((el) => el.className.includes('rp-property-tree__floors'));
+		expect(projectIndex).toBeGreaterThanOrEqual(0);
+		expect(ancestryIndex).toBeGreaterThan(projectIndex);
+		expect(floorsIndex).toBeGreaterThan(ancestryIndex);
+	});
+
 	it('shows the missing-parent line when the hierarchy reports one, and nothing when it does not', async () => {
 		const missing = await mountPlanEditorCanvas({
 			queries: {

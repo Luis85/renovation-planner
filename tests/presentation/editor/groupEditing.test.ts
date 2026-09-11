@@ -44,11 +44,17 @@ it('moves a grouped Room, walls and later hosted opening from the immutable poin
 	expectOk(await rig.geometry.write(rig.plan.id, { ...before.document, structure: { ...rig.project.structure, openings: [opening] } }, before.version));
 	await rig.runtime.refreshProjection(); rig.runtime.selectAndFrame(room.id, false); await settle();
 	expect(rig.selection.selectedIds).toContain(opening.id);
-	const write = vi.spyOn(rig.geometry, 'write'), tool = rig.runtime.toolManager;
+	let release!: () => void; const pending = new Promise<void>(resolve => { release = resolve; }), originalWrite = rig.geometry.write.bind(rig.geometry);
+	const write = vi.spyOn(rig.geometry, 'write').mockImplementationOnce(async (...args) => { await pending; return originalWrite(...args); }), tool = rig.runtime.toolManager;
 	tool.pointerDown(pointerAt(1800, 1400)); tool.pointerMove(pointerAt(2100, 1550));
 	expect(rig.runtime.groupActions.preview.value?.objects[0].points[0]).toEqual({ x: 300, y: 150 });
 	tool.pointerMove(pointerAt(2200, 1600)); tool.pointerUp(pointerAt(2300, 1700));
-	await settleUntil(() => write.mock.calls.length === 1 && !rig.runtime.groupActions.active.value, 'group move');
+	// The drop stays where it landed while the write and its read-back are in flight, rather than
+	// snapping back to the saved geometry until the refreshed projection arrives.
+	await settleUntil(() => write.mock.calls.length === 1, 'group write');
+	expect(rig.runtime.groupActions.preview.value?.objects[0].points[0]).toEqual({ x: 500, y: 300 });
+	release(); await settleUntil(() => !rig.runtime.groupActions.active.value, 'group move');
+	expect(rig.runtime.groupActions.preview.value).toBeNull();
 	expect(rig.project.zones.get(room.id)?.points[0]).toEqual({ x: 500, y: 300 });
 	expect(rig.project.structure.walls[0].start).toEqual({ x: 500, y: 300 }); expect(rig.project.structure.openings).toEqual([opening]);
 	await rig.runtime.undo(); expect(rig.project.zones.get(room.id)?.points).toEqual(room.geometry.points); expect(rig.project.structure.openings).toEqual([opening]);

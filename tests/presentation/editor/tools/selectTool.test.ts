@@ -95,7 +95,7 @@ describe('SelectTool', () => {
 		expect(h.gestures).toHaveLength(0);
 	});
 
-	it('a body drag dispatches exactly ONE gesture regardless of pointermove count', () => {
+	it('a body drag dispatches exactly ONE gesture regardless of pointermove count', async () => {
 		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
 		const h = harness();
 		const tool = build(h, candidates);
@@ -117,6 +117,7 @@ describe('SelectTool', () => {
 		expect(gesture.zoneId).toBe('zone-a');
 		expect(gesture.forward.points[0]).toEqual({ x: 50, y: 0 });
 		expect(gesture.inverse.points[0]).toEqual({ x: 0, y: 0 });
+		await flush();
 		expect(h.context.renderState.previewPolygon).toBeNull();
 	});
 

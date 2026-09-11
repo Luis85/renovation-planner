@@ -72,7 +72,7 @@ describe('spatial element drafts and real selection projections', () => {
 		gesture.move(pointerAt(10, 20)); gesture.finish(r.context, pointerAt(10, 20)); expect(move).not.toHaveBeenCalled();
 		gesture.start(r.context, pointerAt(0, 0), hit); gesture.move(pointerAt(100, 200)); expect(preview).toHaveBeenLastCalledWith(hit.id, points.map(point => ({ x: point.x + 100, y: point.y + 200 })));
 		gesture.finish(r.context, { ...pointerAt(100, 200), button: 'secondary' }); expect(gesture.active).toBe(true); expect(move).not.toHaveBeenCalled();
-		gesture.finish(r.context, pointerAt(100, 200)); expect(gesture.active).toBe(false); expect(move).toHaveBeenCalledOnce(); expect(preview).toHaveBeenLastCalledWith(null);
+		gesture.finish(r.context, pointerAt(100, 200)); expect(gesture.active).toBe(false); expect(move).toHaveBeenCalledOnce(); expect(preview).toHaveBeenLastCalledWith(hit.id, points.map(point => ({ x: point.x + 100, y: point.y + 200 })));
 		gesture.start(r.context, pointerAt(0, 0), hit); gesture.finish(r.context, pointerAt(1, 1)); expect(move).toHaveBeenCalledOnce();
 		gesture.start(r.context, pointerAt(0, 0), hit); gesture.cancel(); expect(gesture.active).toBe(false);
 		gesture.start({ ...r.context, writesBlocked: () => true }, pointerAt(0, 0), hit); expect(gesture.active).toBe(false);

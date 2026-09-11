@@ -84,6 +84,8 @@ describe('reviewed wall rotation and hosted opening runtime', () => {
 		tool.pointerDown(pointerAt(handle.x, handle.y));
 		tool.pointerMove(pointerAt(pivot.x + dx - 50, pivot.y + dy + 50));
 		tool.pointerUp(released);
+		// Still rotated while the baseline is read and the form mounts, rather than flicking back first.
+		expect(rig.runtime.structureActions.preview.value?.walls[0].start.x).toBeCloseTo(2000, 8);
 		const form = await formReady(rig), preview = rig.runtime.structureActions.preview.value;
 		expect(preview?.walls[0].start.x).toBeCloseTo(2000, 8); expect(preview?.walls[0].start.y).toBeCloseTo(-2000, 8);
 		expect(preview?.walls[0].end.x).toBeCloseTo(2000, 8); expect(preview?.walls[0].end.y).toBeCloseTo(2000, 8);

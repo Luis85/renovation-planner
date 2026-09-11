@@ -56,7 +56,8 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	}
 	function unavailable(): boolean { return !alive || active.value || blocked.value || !!dialogs.current; }
 	async function edit(id: string, end?: Point, openingPoint?: Point): Promise<void> {
-		if (unavailable() || !context.commands.structure) return;
+		// A refused wall-end drop must not strand the preview its release left up.
+		if (unavailable() || !context.commands.structure) { if (end) preview.value = null; return; }
 		active.value = true;
 		const selected = selection.selectedIds.join();
 		try {

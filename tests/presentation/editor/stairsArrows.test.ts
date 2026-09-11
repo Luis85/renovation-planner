@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type Konva from 'konva';
-import { afterEach, beforeEach, expect, it } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk } from '../../helpers/domain';
@@ -94,7 +94,13 @@ it('draws an independent arrowhead, edits a selected endpoint and restores it th
 	const arrow = expectDefined(rig.stage.findOne<Konva.Arrow>('.direction-arrow'), 'native arrow');
 	expect(arrow.getClassName()).toBe('Arrow'); expect(arrow.points()).toEqual(saved.points.flatMap(point => [point.x, point.y]));
 	expect(rig.stage.find('.arrow-endpoint')).toHaveLength(3);
+	let release!: () => void; const pending = new Promise<void>(resolve => { release = resolve; }), run = rig.runtime.dispatcher.run.bind(rig.runtime.dispatcher);
+	vi.spyOn(rig.runtime.dispatcher, 'run').mockImplementationOnce(async command => { await pending; return run(command); });
 	tools.pointerDown(pointerAt(2500, 1500)); tools.pointerMove(pointerAt(3500, 1500)); tools.pointerUp(pointerAt(3500, 1500)); await settle();
+	// The dropped endpoint stays put while its write is in flight instead of flicking back to the saved one.
+	expect(rig.runtime.elementActions.preview.value?.points[2]).toEqual({ x: 3500, y: 1500 });
+	release(); await settleUntil(() => !rig.runtime.elementActions.active.value, 'arrow endpoint move');
+	expect(rig.runtime.elementActions.preview.value).toBeNull();
 	expect(rig.project.structure.elements?.[0].points).toEqual([saved.points[0], saved.points[1], { x: 3500, y: 1500 }]);
 	await rig.runtime.undo(); await settle(); expect(rig.project.structure.elements?.[0]).toEqual(saved);
 	const before = [...rig.stack.vault.entries];

@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { editorRotationScene } from '../../harness/editorRotationProbe';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { expectDefined, expectFound, expectOk, injectedPersistenceError } from '../../helpers/domain';
-import { settle, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
+import { settle, settleUntil, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
 import { stackFoundation } from '../../helpers/repositoryStack';
 import { ObsidianZoneRepository } from '../../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { ObsidianPlanRepository } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
@@ -105,12 +105,17 @@ it('uses the rendered handle under pan/zoom, previews final Shift bearing and ma
 	const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'handle');
 	const painted = expectDefined(expectDefined(rig.stage, 'stage').findOne<Konva.Group>('.object-rotation-handle'), 'painted handle');
 	const control = expectDefined(painted.findOne<Konva.Rect>('.rotation-control-target'), 'edge target'); expect(control.x() + control.width() / 2).toBe(handle.x); expect(control.y() + control.height() / 2).toBe(handle.y);
-	const tool = rig.runtime.toolManager, write = vi.spyOn(rig.geometry, 'write');
+	let unblock!: () => void; const held = new Promise<void>(resolve => { unblock = resolve; }), originalWrite = rig.geometry.write.bind(rig.geometry);
+	const tool = rig.runtime.toolManager, write = vi.spyOn(rig.geometry, 'write').mockImplementationOnce(async (...args) => { await held; return originalWrite(...args); });
 	tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerMove(pointerAt(2000, 800)); await settle();
 	const release = pointerAt(1900, 1500), snapped = { ...release, modifiers: { ...release.modifiers, shift: true } };
 	tool.pointerMove(snapped); await settle(); const preview = rig.runtime.rotationActions.preview.value?.points;
-	expect(rig.runtime.renderState.rotationDegrees).not.toBeNull(); tool.pointerUp(snapped); await settle();
+	expect(rig.runtime.renderState.rotationDegrees).not.toBeNull(); tool.pointerUp(snapped); await settleUntil(() => write.mock.calls.length === 1, 'pointer rotation write');
+	// The released angle stays drawn while the write is pending rather than flicking back to the saved shape.
+	expect(rig.runtime.rotationActions.preview.value?.points).toEqual(preview);
+	unblock(); await settleUntil(() => !rig.runtime.rotationActions.active.value, 'pointer rotation saved'); await settle();
 	expect(write).toHaveBeenCalledOnce(); expect(rig.project.structure.elements?.[0].points).toEqual(preview); expect(rig.runtime.renderState.rotationDegrees).toBeNull();
+	expect(rig.runtime.rotationActions.preview.value).toBeNull();
 	await rig.runtime.undo(); await settle(); expect(rig.project.structure.elements?.[0].points).toEqual(element.points);
 });
 it('abandons pointer release awaiting its baseline after tool changes', async () => {

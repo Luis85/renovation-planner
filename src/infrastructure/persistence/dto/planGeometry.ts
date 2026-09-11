@@ -71,7 +71,7 @@ const StructureSchemaV7 = StructureSchemaV5.extend({ walls: z.array(StructureSch
 const PlanGeometrySchemaV7 = PlanGeometrySchemaV6.extend({ schemaVersion: z.literal(7), objects: z.array(SpatialObjectGeometrySchemaV7), structure: StructureSchemaV7.optional(), intended: StructureSchemaV7.optional() });
 const StairOptionsSchema = z.object({ width: z.number().min(1).max(1e6), treads: z.number().int().min(1).max(200), direction: z.enum(['up', 'down']) });
 const StructureSchemaV8 = StructureSchemaV7.extend({ elements: z.array(z.object({
-	id: z.string().startsWith('element-'), kind: z.enum(['object', 'path', 'fence', 'measurement', 'stair', 'arrow']),
+	id: z.string().startsWith('element-'), kind: z.enum(['object', 'path', 'fence', 'measurement', 'stair', 'arrow', 'asset']),
 	points: z.array(SpatialPointSchema), stair: StairOptionsSchema.optional(),
 }).refine(element => element.kind === 'stair' ? element.stair !== undefined : element.stair === undefined)).optional() });
 export const PlanGeometrySchemaV8 = PlanGeometrySchemaV7.extend({ schemaVersion: z.literal(8), structure: StructureSchemaV8.optional(), intended: StructureSchemaV8.optional() });

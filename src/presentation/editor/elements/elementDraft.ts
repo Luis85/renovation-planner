@@ -9,13 +9,14 @@ import type { ToolId } from '../tools/editor-tool';
 import { DEFAULT_STAIR, type StairOptions } from '../../../domain/spatial/stairGeometry';
 
 export type ElementToolId = 'place-object' | 'draw-path' | 'draw-fence' | 'measure' | 'place-stair' | 'draw-arrow';
-export const ELEMENT_TOOLS: Readonly<Record<ElementToolId, SpatialElementKind>> = {
+/** No tool here produces `'asset'` yet — placement lands through its own flow (plan editor asset placement design §2). */
+export const ELEMENT_TOOLS: Readonly<Record<ElementToolId, Exclude<SpatialElementKind, 'asset'>>> = {
 	'place-object': 'object', 'draw-path': 'path', 'draw-fence': 'fence', measure: 'measurement',
 	'place-stair': 'stair', 'draw-arrow': 'arrow',
 };
 export function isElementTool(id: ToolId | null): id is ElementToolId { return id !== null && id in ELEMENT_TOOLS; }
 export interface ElementDraft {
-	kind: SpatialElementKind; name: string; points: Point[]; cursor: Point | null;
+	kind: Exclude<SpatialElementKind, 'asset'>; name: string; points: Point[]; cursor: Point | null;
 	text: { x: string; y: string };
 	rectangle: ObjectRectangleText;
 	stair: StairOptions;

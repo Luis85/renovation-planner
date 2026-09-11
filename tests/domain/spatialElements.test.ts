@@ -54,4 +54,22 @@ describe('generic spatial elements share floor geometry contracts', () => {
 		}
 		expect(sameGeometryDocument({ ...document, structure: EMPTY_STRUCTURE }, { ...document, structure: { ...EMPTY_STRUCTURE, elements: [] } })).toBe(true);
 	});
+	it('accepts an asset placement only as two distinct points carrying an asset id', () => {
+		const asset: SpatialElement = { id: 'element-radiator', kind: 'asset', assetId: 'asset-radiator', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }] };
+		expect(validSpatialElement(asset)).toBe(true);
+		for (const invalid of [
+			{ ...asset, points: [asset.points[0]] },
+			{ ...asset, points: [...asset.points, { x: 0, y: 5 }] },
+			{ ...asset, points: [asset.points[0], asset.points[0]] },
+			{ ...asset, assetId: undefined },
+			{ ...asset, assetId: '' },
+			{ ...line, assetId: 'asset-radiator' },
+			{ ...line, kind: 'object' as const, assetId: 'asset-radiator' },
+		]) expect(validSpatialElement(invalid)).toBe(false);
+	});
+	it('treats a changed asset id as a changed geometry document', () => {
+		const asset: SpatialElement = { id: 'element-radiator', kind: 'asset', assetId: 'asset-a', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }] };
+		const document = { objects: [], calibration: null, structure: { ...EMPTY_STRUCTURE, elements: [asset] } };
+		expect(sameGeometryDocument(document, { ...document, structure: { ...EMPTY_STRUCTURE, elements: [{ ...asset, assetId: 'asset-b' }] } })).toBe(false);
+	});
 });

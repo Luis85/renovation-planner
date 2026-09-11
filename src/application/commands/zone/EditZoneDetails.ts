@@ -38,6 +38,7 @@ export class EditZoneDetailsCommand {
 		if (conflict) return err(conflict);
 		const current = loaded.value.entity, renamed = current.withDetails(details.name, details.zoneType);
 		if (!renamed.ok) return renamed;
+		// Typed rather than inferred so fallow resolves `withLocked` through this explicit annotation (CLAUDE.md Gotchas). Do not inline.
 		const base: Zone = renamed.value;
 		const updated = details.locked === undefined ? base : base.withLocked(details.locked);
 		if (updated.name === current.name && updated.zoneType === current.zoneType && updated.locked === current.locked) return ok('no-write');

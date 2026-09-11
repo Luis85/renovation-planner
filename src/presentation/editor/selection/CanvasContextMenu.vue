@@ -122,7 +122,7 @@ onBeforeUnmount(() => { root?.removeEventListener('contextmenu', context); root?
 					:data-rp-context-action="action.id"
 					@click="run(action)"
 				>
-					<HostIcon :name="action.icon" />{{ tr(action.label) }}
+					<HostIcon :name="action.icon" />{{ tr(action.label, action.params) }}
 				</button>
 			</div>
 		</Teleport>

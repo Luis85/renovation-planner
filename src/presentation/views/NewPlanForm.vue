@@ -23,7 +23,7 @@ import type { FieldErrorMap } from '../errors/route-error';
 import { isErr, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { Loaded } from '../../application/ports/versioning';
-import type { Plan } from '../../domain/plan/Plan';
+import type { Plan, PlanParent } from '../../domain/plan/Plan';
 import type { CreatePlanInput } from '../../application/commands/plan/CreatePlan';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { Logger } from '../../application/ports/Logger';
@@ -54,6 +54,10 @@ const props = defineProps<{
 	 * busy signalling; a missing logger is a fault that reaches nobody.
 	 */
 	logger: Logger;
+	/** Prefills the name when a detail plan is created from a zone (ADR-0028). */
+	initialName?: string;
+	/** Makes the created plan a detail plan of this zone. */
+	parent?: PlanParent;
 }>();
 
 const emit = defineEmits<{ submit: [values: CreatePlanInput]; projectGone: [] }>();
@@ -101,7 +105,11 @@ const NEW_PLAN_ERRORS: FieldErrorMap<CreatePlanInput> = {
  * background is its own command (`set-plan-background`), and a plan with no background is a
  * state the editor already draws an empty state for.
  */
-const INITIAL: CreatePlanInput = { projectId: props.projectId as ProjectId, name: '' };
+const INITIAL: CreatePlanInput = {
+	projectId: props.projectId as ProjectId,
+	name: props.initialName ?? '',
+	...(props.parent ? { parent: props.parent } : {}),
+};
 
 /**
  * The refusal that belongs to neither of `useFormCommit`'s doors, caught at the seam where it

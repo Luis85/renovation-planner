@@ -10,4 +10,6 @@ export const inputEn = {
 	'editor.input.locked': 'Locked',
 	'editor.input.unavailable': 'Not available while another tool or edit is active.',
 	'editor.input.parent-zone-missing': 'The room or area this plan details no longer exists',
+	'editor.input.detail-plan-new': 'New detail plan',
+	'editor.input.detail-plan-open': 'Open {name}',
 } as const;

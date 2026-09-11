@@ -11,4 +11,6 @@ export const inputDe: Record<keyof typeof inputEn, string> = {
 	'editor.input.locked': 'Gesperrt',
 	'editor.input.unavailable': 'Nicht verfügbar, solange ein anderes Werkzeug oder eine Bearbeitung aktiv ist.',
 	'editor.input.parent-zone-missing': 'Der Raum oder die Fläche, die dieser Plan detailliert, existiert nicht mehr',
+	'editor.input.detail-plan-new': 'Neuer Detailplan',
+	'editor.input.detail-plan-open': '{name} öffnen',
 };

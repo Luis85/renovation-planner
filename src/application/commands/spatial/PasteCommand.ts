@@ -8,14 +8,13 @@ import { validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { ZoneType } from '../../../domain/zone/ZoneType';
 import type { WriteLedger } from '../../editor/WriteLedger';
-import { markUncompensated, type DispatchResult } from '../DispatchOutcome';
+import type { DispatchResult } from '../DispatchOutcome';
 import type { RenovationBaseline, RenovationInput, RenovationServices } from '../renovation/RenovationCommand';
 import type { CreateZoneInput } from '../zone/CreateZone';
+import { restoreSteps, walkSteps, type ComposedStep } from './composedSteps';
 import type { GroupGeometryServices } from './GroupGeometryCommand';
-
-export interface PasteStep { execute(): Promise<DispatchResult>; undo(): Promise<DispatchResult> }
 export interface PasteDeps {
-	createRoom(input: CreateZoneInput): PasteStep & { readonly createdZoneId: ZoneId | null };
+	createRoom(input: CreateZoneInput): ComposedStep & { readonly createdZoneId: ZoneId | null };
 	readonly renovation: RenovationServices;
 	readonly groups: GroupGeometryServices;
 	readonly ledger: WriteLedger;
@@ -52,23 +51,23 @@ function spatialInput(baseline: RenovationBaseline, placed: PlacedStructure): Re
 export class PasteCommand {
 	/** Set once the first `execute` has written everything; later ones are redos of `steps`. */
 	private created = false;
-	private steps: readonly PasteStep[] = [];
+	private steps: readonly ComposedStep[] = [];
 	private ids: readonly string[] = [];
 	constructor(private readonly deps: PasteDeps, private readonly input: PasteInput) {}
 
 	get pastedIds(): readonly string[] { return this.ids; }
 
-	execute(): Promise<DispatchResult> { return this.created ? this.walk(this.steps, true) : this.first(); }
-	undo(): Promise<DispatchResult> { return this.walk(this.steps.toReversed(), false); }
+	execute(): Promise<DispatchResult> { return this.created ? walkSteps(this.steps, true) : this.first(); }
+	undo(): Promise<DispatchResult> { return walkSteps(this.steps.toReversed(), false); }
 
 	private async first(): Promise<DispatchResult> {
 		const refused = await this.refusal();
 		if (refused) return err(refused);
-		const { planId, clipboard, target } = this.input, done: PasteStep[] = [], roomIds: ZoneId[] = [];
+		const { planId, clipboard, target } = this.input, done: ComposedStep[] = [], roomIds: ZoneId[] = [];
 		for (const room of placedRooms(clipboard, target)) {
 			const step = this.deps.createRoom({ planId, name: room.name, zoneType: room.zoneType as ZoneType, geometry: { points: room.points, bulges: room.bulges } });
 			const result = await step.execute();
-			if (!result.ok) return this.restore(done, false, result.error);
+			if (!result.ok) return restoreSteps(done, false, result.error);
 			// Safe: this is always the step's FIRST execute (a fresh `createRoom` per room, never a
 			// redo), and `result.ok` just confirmed it succeeded — `ReversibleCreateZoneCommand.execute`
 			// (reversible-create-zone-command.ts:128-137) sets `this.snapshot` before returning `ok`, so
@@ -82,7 +81,7 @@ export class PasteCommand {
 		for (const next of [() => this.structureStep(placed), () => this.groupStep(placed)]) {
 			const step = await next();
 			const result = step.ok ? await this.run(step.value) : step;
-			if (!result.ok) return this.restore(done, false, result.error);
+			if (!result.ok) return restoreSteps(done, false, result.error);
 			if (step.ok && step.value) done.push(step.value);
 		}
 		this.steps = done; this.created = true;
@@ -112,17 +111,17 @@ export class PasteCommand {
 		return valid.ok ? null : valid.error;
 	}
 
-	private run(step: PasteStep | null): Promise<DispatchResult> {
+	private run(step: ComposedStep | null): Promise<DispatchResult> {
 		return step ? step.execute() : Promise.resolve(ok('no-write'));
 	}
 
-	private async structureStep(placed: PlacedStructure): Promise<Result<PasteStep | null, AppError>> {
+	private async structureStep(placed: PlacedStructure): Promise<Result<ComposedStep | null, AppError>> {
 		if (!placed.structure.walls.length && !placed.structure.elements.length) return ok(null);
 		const baseline = await this.deps.renovation.read(this.input.planId);
 		return baseline.ok ? ok(this.deps.renovation.command(baseline.value, spatialInput(baseline.value, placed), this.deps.ledger)) : baseline;
 	}
 
-	private async groupStep(placed: PlacedStructure): Promise<Result<PasteStep | null, AppError>> {
+	private async groupStep(placed: PlacedStructure): Promise<Result<ComposedStep | null, AppError>> {
 		if (!placed.groups.length) return ok(null);
 		const baseline = await this.deps.groups.read(this.input.planId);
 		if (!baseline.ok) return baseline;
@@ -130,25 +129,4 @@ export class PasteCommand {
 		return ok(this.deps.groups.command({ planId: this.input.planId, baseline: baseline.value, document, ledger: this.deps.ledger }));
 	}
 
-	private async walk(steps: readonly PasteStep[], forward: boolean): Promise<DispatchResult> {
-		const moved: PasteStep[] = [];
-		for (const step of steps) {
-			const result = forward ? await step.execute() : await step.undo();
-			if (!result.ok) return this.restore(moved, !forward, result.error);
-			moved.push(step);
-		}
-		// An empty `steps` (an undo before the first execute ever ran) walked nothing.
-		return ok(moved.length ? 'wrote' : 'no-write');
-	}
-
-	private async restore(moved: readonly PasteStep[], forward: boolean, error: AppError): Promise<DispatchResult> {
-		for (const step of moved.toReversed()) {
-			const back = forward ? await step.execute() : await step.undo();
-			// Stopping here rather than continuing to compensate the rest is deliberate:
-			// `markUncompensated` sends the editor into reopen-the-floor recovery, so continuing
-			// would write against a floor state this command can no longer vouch for.
-			if (!back.ok) return err(markUncompensated(error));
-		}
-		return err(error);
-	}
 }

@@ -11,6 +11,7 @@ import { useCanvasGroupActions } from './canvasGroupActions';
 import { useRenovationSession } from '../renovation/renovationSession';
 import type { Point } from '../../../core/geometry/Point';
 import { useClipboardActions } from '../clipboard/clipboardActions';
+import { deleteItems, multiDeleteBlocked } from './deleteSelection';
 
 /** Menu order is the group order: create first, then view, mode, the object's own actions, and last what destroys it. */
 export type CanvasMenuGroup = 'create' | 'view' | 'mode' | 'object' | 'destructive';
@@ -51,6 +52,8 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		if (!ids.length) result.push({ id: 'add', label: 'editor.primary.add', group: 'create', icon: 'plus', disabled: blocked, run: add });
 		if (clipboard?.hasClipboard.value) result.push({ id: 'paste', label: 'editor.input.paste', group: 'create', icon: 'clipboard-paste', disabled: !clipboard.canPaste.value, run: () => clipboard.paste(opened()) });
 		if (ids.length === 1) result.push(...singleActions(id, blocked));
+		// Only where the composite removal has its services, as the batch panel already requires: an item that would do nothing is worse than none.
+		else if (ids.length && runtime.renovation.available) result.push({ id: 'delete', label: runtime.groupActions.saved.value ? 'editor.group.delete' : 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: multiDeleteBlocked(runtime), run: () => deleteItems(runtime, project.structure, ids) });
 		const rotation = runtime.rotationActions.target.value;
 		if (rotation) result.push({ id: 'rotate', label: 'editor.input.rotate', group: 'object', icon: 'rotate-cw', disabled: blocked || runtime.rotationActions.blocked.value, run: () => runtime.rotationActions.rotate(rotation.id) });
 		result.push(...groups.actions(ids).map(action => ({ ...action, group: 'object' as const })));

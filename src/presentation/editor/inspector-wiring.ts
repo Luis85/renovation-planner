@@ -6,7 +6,7 @@ import { ok, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { DispatchOutcome, DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { SessionWriteLedger } from '../../application/editor/WriteLedger';
-import { ReversibleDeleteZoneCommand } from '../../application/commands/zone/reversible-delete-zone-command';
+import { deleteZoneHistory } from './add/createZoneHistory';
 import { ReversibleAssignAssetCommand } from '../../application/commands/requirement/reversible-assign-asset-command';
 import {
 	ReversibleSetRequirementCostOverrideCommand,
@@ -106,26 +106,12 @@ export function createInspector(
 						execute: (input) => context.commands.moveObject.execute({ ...input, expected: input.expected ?? edit.expected }),
 					}, ledger, edit.zoneId, edit.forward, edit.inverse);
 				case 'delete':
-					return new ReversibleDeleteZoneCommand(
-						context.commands.deleteZone,
-						context.commands.zones,
-						ledger,
-						{
-							zoneId: edit.zoneId,
-							resolution: edit.resolution,
-							reassignTo: edit.reassignTo,
-							resolvedReferents: edit.resolvedReferents,
-						},
-						// Slice 10's undo half: the resolution may have deleted or repointed
-						// Requirements, and restoring the Zone alone would not be an inverse of that.
-						{
-							boundary: context.commands.structure?.roomHistory(),
-							requirements: context.commands.requirementEdits.requirements,
-							locks: context.commands.requirementEdits.locks,
-							logger: context.commands.logger,
-							events: context.commands.events,
-						},
-					);
+					return deleteZoneHistory(context, ledger, {
+						zoneId: edit.zoneId,
+						resolution: edit.resolution,
+						reassignTo: edit.reassignTo,
+						resolvedReferents: edit.resolvedReferents,
+					});
 				case 'assign': {
 					// One adapter PER EDIT — it remembers whether its own execute created the
 					// link, which is exactly the per-transaction state history requires. The

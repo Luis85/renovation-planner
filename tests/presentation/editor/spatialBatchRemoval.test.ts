@@ -9,7 +9,7 @@ import { defer } from '../../helpers/async';
 import * as notices from '../../../src/presentation/notices/notify';
 import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
 import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
-import { spatialRemovalInput } from '../../../src/presentation/editor/elements/spatialRemovalInput';
+import { spatialRemovalInput } from '../../../src/application/commands/spatial/spatialRemovalInput';
 import { removalSources } from '../../../src/presentation/editor/planning/removalSources';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
 
@@ -61,12 +61,12 @@ it('refuses a peer edit that arrives while the named deletion confirmation is op
  expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.document, structure: { ...structure, elements } }, baseline.version));
  const bytes = [...rig.stack.vault.entries]; rig.dialogs.resolve('confirm'); await remove; expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
-it('abandons a delayed read when selection changes and refuses missing or Room members', async () => {
+it('abandons a delayed read when selection changes and refuses missing members', async () => {
  const rig = await setup(), baseline = expectOk(await rig.renovation.read(rig.plan.id)), pending = defer<Awaited<ReturnType<typeof rig.renovation.read>>>();
  vi.spyOn(rig.renovation, 'read').mockReturnValueOnce(pending.promise);
  const removal = rig.runtime.elementActions.removeMany([...rig.selection.selectedIds]); rig.selection.select([rig.room.id]);
  pending.resolve(ok(baseline)); await removal; expect(rig.dialogs.current).toBeNull();
- await rig.runtime.elementActions.removeMany([rig.room.id, 'element-path']); await rig.runtime.elementActions.removeMany(['missing', 'element-path']);
+ await rig.runtime.elementActions.removeMany(['missing', 'element-path']);
  expect(rig.dialogs.current).toBeNull(); expect(rig.project.structure.elements).toHaveLength(2);
 });
 it('includes intended-only hosted openings in the same referential removal scope', async () => {

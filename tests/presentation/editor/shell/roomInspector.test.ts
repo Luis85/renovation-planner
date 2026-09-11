@@ -146,6 +146,22 @@ describe('the Room Inspector, through the real mounted editor', () => {
 	});
 
 	/**
+	 * Status left the canvas on 2026-09-10 (canvas fidelity spec), so the selected room's own
+	 * Inspector is where it is read — M00's first use case is the room's status at a glance.
+	 * `InProgress` rather than the fixture's `Planned`, so a row that printed the first status
+	 * word it found would not pass by accident.
+	 */
+	it('shows the selected zone status beside its type, floor and area', async () => {
+		const underway: ZoneDto = { ...FIXTURE_ZONES[0], status: 'InProgress' };
+		harness = await mountPlanEditorCanvas({ zones: [underway] });
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+		const fields = harness.wrapper.find('.rp-room-inspector dl');
+		expect(fields.findAll('dt').map((term) => term.text())).toContain(t('en', 'editor.inspector.status'));
+		expect(fields.findAll('dd').map((value) => value.text())).toContain(t('en', 'zone.status.in-progress'));
+	});
+
+	/**
 	 * `overview`'s zone-lookup half of `zone && plan`, covered by a mismatch no real session
 	 * can produce but a test can: `zoneInspector` resolves the selection (so `dto.kind` is
 	 * `'zone'`) while `findZonesByPlan` answers no zones at all, so `projectStore.zones` never

@@ -51,7 +51,7 @@ type Rectangle = { x: number; y: number; width: number; height: number };
 function assertClear(rig: Awaited<ReturnType<typeof gallery>>, dimensions: readonly Rectangle[]): void {
 	const pins = rig.stage.find<Konva.Group>('.evidence-pin').map(pin => expectDefined(pin.findOne<Konva.Shape>('.evidence-pin-target'), 'pin target').getClientRect());
 	expect(pins).toHaveLength(6);
-	const captions = rig.group.find<Konva.Text>('Text'); expect(captions).toHaveLength(3);
+	const captions = rig.group.find<Konva.Text>('Text'); expect(captions).toHaveLength(2);
 	for (const caption of captions) {
 		const box = caption.getClientRect();
 		expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(rig.stage.height());
@@ -59,7 +59,7 @@ function assertClear(rig: Awaited<ReturnType<typeof gallery>>, dimensions: reado
 	}
 }
 
-it.each([0.05, 0.09])('keeps three native captions clear of six fixed pins and measured dimensions at zoom %s, through pan and inline editing', async zoom => {
+it.each([0.05, 0.09])('keeps two native captions clear of six fixed pins and measured dimensions at zoom %s, through pan and inline editing', async zoom => {
 	const rig = await gallery(), editor = useEditorStore(rig.pinia);
 	editor.viewport = { zoom, pan: { x: -1000, y: -4000 } }; await flushLayout();
 	const line = expectDefined(rig.group.findOne<Konva.Line>('Line'), 'Room geometry'), points = line.points();

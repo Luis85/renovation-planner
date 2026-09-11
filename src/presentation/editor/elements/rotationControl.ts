@@ -8,6 +8,8 @@ import { ROTATION_CONTROL_WIDTH_PX, ROTATION_CONTROL_TOP_PX, ROTATION_CONTROL_BO
 export interface RotationControlGeometry {
 	readonly handle: Point;
 	readonly anchor: Point;
+	/** The endpoints of the edge the arrow sits beside; hover reach spans from it to the arrow. */
+	readonly edge: readonly [Point, Point];
 	readonly pivot: Point;
 	readonly bounds: BoundingBox;
 	readonly widthPx: number;
@@ -27,11 +29,26 @@ export function rotationControlBounds(handle: Point, widthPx: number, worldPerPi
 export function rotationControlContains(bounds: BoundingBox, point: Point): boolean {
 	return point.x >= bounds.min.x && point.x <= bounds.max.x && point.y >= bounds.min.y && point.y <= bounds.max.y;
 }
-/** Hover may cross the short gap from the edge to an arrow; this never expands its click target. */
+function cross(o: Point, a: Point, b: Point): number { return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x); }
+/** Monotone-chain convex hull, counter-clockwise, so a point is inside when it is left of every edge. */
+function convexHull(points: readonly Point[]): readonly Point[] {
+	const sorted = points.toSorted((a, b) => a.x - b.x || a.y - b.y);
+	const half = (list: readonly Point[]) => list.reduce<Point[]>((hull, point) => {
+		while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], point) <= 0) hull.pop();
+		hull.push(point); return hull;
+	}, []).slice(0, -1);
+	return [...half(sorted), ...half(sorted.toReversed())];
+}
+/**
+ * Hover reach from anywhere along the arrow's edge to the arrow: the convex hull of that edge, its
+ * anchor and the target rectangle, padded by the grab radius. Convex, so every straight path from
+ * the edge to the arrow stays inside it even where another item lies beneath. Never a click target.
+ */
 export function rotationControlApproachContains(control: RotationControlGeometry, point: Point, scale: number): boolean {
-	const margin = VERTEX_GRAB_RADIUS_PX * scale;
-	return rotationControlContains({ min: { x: Math.min(control.anchor.x, control.bounds.min.x) - margin, y: Math.min(control.anchor.y, control.bounds.min.y) - margin },
-		max: { x: Math.max(control.anchor.x, control.bounds.max.x) + margin, y: Math.max(control.anchor.y, control.bounds.max.y) + margin } }, point);
+	const m = VERTEX_GRAB_RADIUS_PX * scale, { min, max } = control.bounds;
+	const hull = convexHull([...control.edge, control.anchor, min, max, { x: min.x, y: max.y }, { x: max.x, y: min.y }]
+		.flatMap(({ x, y }) => [{ x: x - m, y: y - m }, { x: x + m, y: y - m }, { x: x + m, y: y + m }, { x: x - m, y: y + m }]));
+	return hull.every((a, index) => cross(a, hull[(index + 1) % hull.length], point) >= 0);
 }
 function overlaps(a: BoundingBox, b: BoundingBox, gap: number): boolean {
 	return a.min.x - gap <= b.max.x && a.max.x + gap >= b.min.x && a.min.y - gap <= b.max.y && a.max.y + gap >= b.min.y;
@@ -70,27 +87,22 @@ function edgesOf(shape: RotationControlShape) {
 		return { curve, index, length, sign };
 	}).filter(edge => Number.isFinite(edge.length) && edge.length > 0).toSorted((a, b) => b.length - a.length);
 }
-/** Bounded edge affordances share the exact unobstructed rectangles used by hit testing. */
-export function layoutRotationControls(shape: RotationControlShape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): readonly RotationControlGeometry[] {
+/** One edge affordance per item, on the first unobstructed rectangle hit testing also uses. */
+export function layoutRotationControl(shape: RotationControlShape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): RotationControlGeometry | null {
 	const hostWall = shape.wall !== undefined && shape.id !== shape.wall.id;
 	const widthPx = ROTATION_CONTROL_WIDTH_PX;
 	const margin = ROTATION_VIEW_MARGIN_PX * scale;
-	if (visible && (visible.max.x - visible.min.x < widthPx * scale + 2 * margin || visible.max.y - visible.min.y < (ROTATION_CONTROL_TOP_PX + ROTATION_CONTROL_BOTTOM_PX) * scale + 2 * margin)) return [];
+	if (visible && (visible.max.x - visible.min.x < widthPx * scale + 2 * margin || visible.max.y - visible.min.y < (ROTATION_CONTROL_TOP_PX + ROTATION_CONTROL_BOTTOM_PX) * scale + 2 * margin)) return null;
 	const offset = ROTATION_HANDLE_OFFSET_PX * scale, gap = ROTATION_HANDLE_CLEARANCE_PX * scale;
 	const vertices = shape.points.map(point => pointBox(point, VERTEX_GRAB_RADIUS_PX * scale));
 	const excluded = [...obstacles, ...vertices, pointBox(pivot, ROTATION_PIVOT_DEADZONE_PX * scale)];
-	const controls: RotationControlGeometry[] = [];
 	for (const edge of edgesOf(shape)) {
 		for (const [fraction, side, multiplier] of EDGE_POSITIONS) {
 			const anchor = arcPoint(edge.curve, fraction), tangent = arcTangent(edge.curve, fraction);
 			const handle = clampControl({ x: anchor.x + edge.sign * tangent.y * offset * side * multiplier, y: anchor.y - edge.sign * tangent.x * offset * side * multiplier }, widthPx, scale, visible), bounds = rotationControlBounds(handle, widthPx, scale);
 			if (distance(handle, anchor) > 2 * offset || excluded.some(box => overlaps(bounds, box, gap))) continue;
-			controls.push({ handle, anchor, bounds, pivot, widthPx, hostWall, edgeIndex: edge.index }); excluded.push(bounds); break;
+			return { handle, anchor, edge: [edge.curve.start, edge.curve.end], bounds, pivot, widthPx, hostWall, edgeIndex: edge.index };
 		}
-		if (controls.length === 4) break;
 	}
-	return controls;
-}
-export function layoutRotationControl(shape: RotationControlShape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): RotationControlGeometry | null {
-	return layoutRotationControls(shape, pivot, scale, visible, obstacles)[0] ?? null;
+	return null;
 }

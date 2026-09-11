@@ -18,6 +18,7 @@ import { mountPlanEditorCanvas, runtimeOf, settle, type EditorHarness } from '..
 import { activateTool, click, pointer, rig } from '../../helpers/planEditorRig';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
+import { WALL_LOOP } from '../../helpers/structure';
 import {
 	POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX,
 	POLYGON_CLOSE_TARGET_RADIUS_PX,
@@ -386,6 +387,45 @@ describe('the interaction layer hover outline', () => {
 		await settle();
 
 		expect(linesNamed(harness, 'hover-outline')).toHaveLength(0);
+
+		harness.unmount();
+	});
+
+	/**
+	 * Decision 1 of the canvas fidelity spec: a room's fill shows on selection OR hover. The
+	 * fill node is separate from the outline because Konva opacity is per node, and it is
+	 * drawn only for a CLOSED hover — an open polyline (a wall, a fence) has no interior.
+	 */
+	it('fills a hovered room faintly, and fills nothing for a hovered open shape', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+
+		runtime.renderState.hoveredObjectId = 'zone-terrace';
+		await settle();
+		const [fill] = linesNamed(harness, 'hover-fill');
+		expect(fill).toBeDefined();
+		expect(fill.closed()).toBe(true);
+		expect(fill.opacity()).toBeCloseTo(0.06);
+		expect(fill.stroke()).toBeFalsy();
+		// The fill paints under the outline, so the outline stays crisp over it.
+		const layer = fill.getLayer();
+		const lines = layer?.find<Konva.Line>('Line') ?? [];
+		expect(lines.indexOf(fill)).toBeLessThan(lines.indexOf(linesNamed(harness, 'hover-outline')[0]));
+
+		// A wall is an open candidate (`structureCandidates` gives it `kind: 'wall'`, and
+		// `hoverClosed` only answers true for `undefined`/`'object'`/`'stair'`) — it has no
+		// interior, so the outline draws with no fill beside it. That proves the fill's absence
+		// is the `hoverClosed` gate, not "nothing hovered".
+		useProjectStore().structure = WALL_LOOP;
+		runtime.renderState.hoveredObjectId = 'wall-a';
+		await settle();
+		expect(linesNamed(harness, 'hover-fill')).toHaveLength(0);
+		expect(linesNamed(harness, 'hover-outline')).toHaveLength(1);
+
+		runtime.renderState.hoveredObjectId = 'zone-terrace';
+		useSelectionStore().select(['zone-terrace' as never]);
+		await settle();
+		expect(linesNamed(harness, 'hover-fill')).toHaveLength(0);
 
 		harness.unmount();
 	});

@@ -254,6 +254,7 @@ export const editorEn = {
 	// a copy change to the other.
 	'editor.inspector.type': 'Type',
 	'editor.inspector.floor-context': 'Floor',
+	'editor.inspector.status': 'Status',
 	// ADR-0016's seven-member zone-type vocabulary, homeowner-worded. Keys are NOT
 	// sentence-case-linted (only VALUES are); `Construction area` and `Other` are.
 	'editor.zone-type.Room': 'Room',

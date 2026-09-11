@@ -46,13 +46,13 @@ describe('the zone layer paint order', () => {
 		const harness = await mountPlanEditorCanvas({ zones });
 		open = harness;
 		const before = captionOrder(harness.stage);
-		expect(before).toEqual(['Kitchen', '12 m²', 'Planned', 'Terrace', '3 m²', 'Complete']);
+		expect(before).toEqual(['Kitchen', '12 m²', 'Terrace', '3 m²']);
 
 		zones.reverse();
 		harness.changePlan();
 		await settle();
 
-		expect(captionOrder(harness.stage)).toEqual(['Terrace', '3 m²', 'Complete', 'Kitchen', '12 m²', 'Planned']);
+		expect(captionOrder(harness.stage)).toEqual(['Terrace', '3 m²', 'Kitchen', '12 m²']);
 	});
 
 	/**

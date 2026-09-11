@@ -8,9 +8,14 @@ guarded source commands and Inspector alternatives remain required.
 
 ## Bounded interaction plan
 
-- Hover changes no selection. Show up to four small curved-arrow icons on clear edge positions;
-  each keeps an unobstructed 44×44 CSS-pixel target. Native measurements and resize vertices
-  take precedence in placement. Prefer longer edges and positions away from midpoint labels.
+- Hover changes no selection. Show one small curved-arrow icon on the first clear edge position
+  (the user's 2026-09-10 choice; four was more than an item needs), keeping an unobstructed
+  44×44 CSS-pixel target. Native measurements and resize vertices take precedence in placement.
+  Prefer longer edges and positions away from midpoint labels.
+- The arrow stays reachable: hover keeps it while the pointer is inside the convex hull of its
+  edge and target (padded by the grab radius), so leaving the item anywhere along that edge and
+  crossing whatever lies beneath does not hand the arrow to that item. The click target is
+  unchanged.
 - Hovering an arrow reveals centre and click/drag guidance. No persistent Rotate label or
   oversized circular button remains. Press and drag retain one frozen control; other arrows
   disappear during the gesture.

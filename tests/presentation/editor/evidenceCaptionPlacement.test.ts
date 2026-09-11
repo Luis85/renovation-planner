@@ -28,7 +28,7 @@ async function withPins(distant = false) {
 
 function expectClearCaptions(group: Konva.Group, stage: Konva.Stage): void {
 	const captions = group.find<Konva.Text>('Text');
-	expect(captions).toHaveLength(3);
+	expect(captions).toHaveLength(2);
 	for (const caption of captions) {
 		const text = caption.getClientRect();
 		for (const pin of stage.find<Konva.Group>('.evidence-pin')) {

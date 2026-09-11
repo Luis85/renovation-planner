@@ -100,9 +100,9 @@ const hoverOutlineFlat = computed(() => {
 	});
 });
 const hoverClosed = computed(() => {
-	// The one reader is the hover outline's `:config`, inside `v-if="hoverOutlineFlat !== null"`,
-	// and `hoverOutlineFlat` answers null for a null `hoveredObjectId`: the id is set whenever the
-	// template evaluates this.
+	// Both readers — the outline's `:config`, inside `v-if="hoverOutlineFlat !== null"`, and the
+	// fill's `v-if="hoverOutlineFlat !== null && hoverClosed"` — gate on `hoverOutlineFlat !== null`
+	// first, which answers null for a null `hoveredObjectId`: the id is set whenever this evaluates.
 	const kind = candidates.value.get(runtime.renderState.hoveredObjectId as string)?.kind;
 	return kind === undefined || kind === 'object' || kind === 'stair';
 });
@@ -177,6 +177,17 @@ const editableVertices = computed(() => {
 			:to-screen="toScreen"
 			:sketch="runtime.renderState.polygonSketch"
 			:measurement="runtime.renderState.measurement"
+		/>
+		<VLine
+			v-if="hoverOutlineFlat !== null && hoverClosed"
+			:config="{
+				name: 'hover-fill',
+				points: hoverOutlineFlat,
+				closed: true,
+				fill: props.tokens.accent,
+				opacity: 0.06,
+				listening: false,
+			}"
 		/>
 		<VLine
 			v-if="hoverOutlineFlat !== null"

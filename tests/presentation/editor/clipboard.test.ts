@@ -139,6 +139,7 @@ it('notifies a refused paste and a faulted one without changing the floor', asyn
 	pointAt(rig, { x: 2000, y: 1500 });
 	key(rig.canvasEl, { key: 'v', ctrlKey: true });
 	await settleUntil(() => Notice.shown.length === shown + 1, 'the refusal notice'); await settle();
+	expect(Notice.shown.at(-1)).toBe('Walls cross or overlap. Place them so that walls meet only at their ends, then try again.');
 	expect(rig.project.zones.size).toBe(before.size);
 	expect(rig.project.structure.walls).toHaveLength(walls);
 	vi.spyOn(rig.runtime.dispatcher, 'run').mockRejectedValueOnce(new Error('vault gone'));
@@ -149,14 +150,16 @@ it('notifies a refused paste and a faulted one without changing the floor', asyn
 });
 
 it('offers no paste on a floor missing the structure or the group services', async () => {
-	for (const missing of ['renovation', 'groups'] as const) {
+	// `null` is the positive control: the same mount with both services claims the chord, so the two refusals are not vacuous.
+	for (const missing of ['renovation', 'groups', null] as const) {
 		const clipboard = createEditorClipboard(), source = await setup(clipboard);
 		source.selection.select([source.room.id]); key(source.canvasEl, { key: 'c', ctrlKey: true });
 		const workspace = referenceWorkspace(harnessDeps(), HARNESS_PLAN); await workspace.ready;
-		const commands = missing === 'renovation' ? { ...workspace.deps.commands, renovation: undefined } : { ...workspace.deps.commands, groups: undefined };
+		const commands = missing === null ? workspace.deps.commands : { ...workspace.deps.commands, [missing]: undefined };
 		const target = await mountPlanEditorCanvas({ plan: HARNESS_PLAN, queries: workspace.deps.queries, commands, vault: workspace.deps.vault, clipboard });
 		cleanups.push(target.unmount);
-		expect(key(target.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(false);
+		expect(key(target.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(missing === null);
+		await settle();
 	}
 });
 

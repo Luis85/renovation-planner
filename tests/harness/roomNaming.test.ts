@@ -6,9 +6,12 @@ import { mountPlanEditorHarness } from './planEditor';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver, resizeTo } from '../helpers/layout';
 import { settleUntil, sizedShellRoot } from '../helpers/editor';
-import { runOptions } from './axeOptions';
+import { HARNESS_SCAN_MS, runOptions } from './axeOptions';
 
-describe('Room naming harness', () => {
+// A mounted editor, several bounded settles and a full axe scan per case — the same shape
+// `HARNESS_SCAN_MS`'s docblock (`./axeOptions`) derives the budget for; every settle keeps
+// its own 4s named deadline, so this bounds only the SUM.
+describe('Room naming harness', { timeout: HARNESS_SCAN_MS }, () => {
 	it.each([1280, 460])('exposes an accessible real-command form at %i px', async width => {
 		installCanvas(); installResizeObserver();
 		const { leafEl, view } = mountPlanEditorHarness(document.body, { roomNaming: true, select: 'harness-kitchen' });

@@ -34,9 +34,20 @@ export async function settle(): Promise<void> {
  * How long `settleUntil` will wait before giving up.
  *
  * **A DEADLINE and not a round count, which is the whole fix**; the number below is chosen to
- * sit under vitest's 5000 ms default so a genuine regression still fails as this helper's own
- * named error rather than as an anonymous test timeout — the property the round bound was
- * really protecting.
+ * sit under vitest's 5000 ms default case budget so a genuine regression still fails as this
+ * helper's own named error rather than as an anonymous test timeout — the property the round
+ * bound was really protecting.
+ *
+ * **That holds only for a wait that starts within the case's first second** — this deadline is
+ * relative to when THIS wait began, not to when the case did, so a case whose own budget is the
+ * 5000 ms default runs out first for any wait starting after it. A real Plan Editor journey with
+ * several settles in sequence (mount, then N settles, then a full axe scan) starts later waits
+ * well past that first second — `tests/harness/structureJourney.test.ts` measured 12 of 14
+ * starting after 1 s even on a quiet machine — so a lost wait there reports as the case's own
+ * anonymous `Test timed out in 5000ms`, indistinguishable from starvation, not as this helper's
+ * named error. `tests/harness/axeOptions.ts`'s `HARNESS_SCAN_MS` is what restores the property
+ * for those files: raising the CASE budget on the describe block (not this deadline) gives every
+ * wait in the journey the same first-second guarantee a short case gets for free.
  */
 const SETTLE_BUDGET_MS = 4_000;
 

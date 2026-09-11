@@ -7,7 +7,7 @@ import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver, resizeTo } from '../helpers/layout';
 import { settleUntil, sizedShellRoot } from '../helpers/editor';
 import { expectDefined } from '../helpers/domain';
-import { runOptions } from './axeOptions';
+import { HARNESS_SCAN_MS, runOptions } from './axeOptions';
 
 const click = (root: HTMLElement, selector: string) => expectDefined(root.querySelector<HTMLButtonElement>(selector), selector).click();
 async function type(root: HTMLElement, name: string, value: string): Promise<void> {
@@ -31,7 +31,12 @@ async function walls(root: HTMLElement, room = false): Promise<void> {
 	await settleUntil(() => root.querySelector('.rp-structure-task') === null, 'finished wall chain');
 }
 
-describe('M04/M07 real editor structure journey', () => {
+// A mounted editor, 14 bounded settles and a full axe scan (first case, cold) — measured at
+// 8.9s under coverage + 22-way contention. `HARNESS_SCAN_MS`'s docblock (`./axeOptions`)
+// carries the derivation; every settle keeps its own 4s named deadline, so this bounds only
+// the SUM and a lost wait anywhere in the journey still fails by name rather than as an
+// anonymous case timeout.
+describe('M04/M07 real editor structure journey', { timeout: HARNESS_SCAN_MS }, () => {
 	it.each([1280, 460])('creates a loop and hosted opening, edits, cancels and undoes at %i px', async width => {
 		installCanvas(); installResizeObserver();
 		const { leafEl: root, view } = mountPlanEditorHarness(document.body, { reference: true });

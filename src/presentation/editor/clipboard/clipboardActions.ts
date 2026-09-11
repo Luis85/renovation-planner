@@ -55,7 +55,7 @@ export type ClipboardActions = ReturnType<typeof createClipboardActions>;
 const KEY: InjectionKey<ClipboardActions> = Symbol('renovation-planner:editor-clipboard');
 
 /** Provided by `PlanEditorRoot` rather than added to `EditorRuntime`, whose file is at its line budget. */
-export function provideClipboardActions(context: PlanEditorContext, runtime: ClipboardRuntime): ClipboardActions {
+export function provideClipboardActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask'>): ClipboardActions {
 	const actions = createClipboardActions(context, runtime);
 	provide(KEY, actions);
 	return actions;

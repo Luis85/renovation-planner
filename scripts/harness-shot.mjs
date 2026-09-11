@@ -447,7 +447,9 @@ const SHOTS = [
 	// Detail-plan polish (2026-09-11): a fresh detail plan and a locked zone, the two states the
 	// `?detail` and `?locked=` knobs exist for. The detail shots wait on the floor state until the
 	// guide explainer exists to wait on; the narrow one waits on the constrained rail like
-	// `plan-editor-narrow`, because the Inspector is not on screen at that width.
+	// `plan-editor-narrow`, because the Inspector is not on screen at that width. The locked shots
+	// wait on a pressed lock toggle in the floor Inspector, which only renders once the knob has
+	// locked a zone.
 	{ name: 'plan-editor-detail', query: '?view=plan-editor&detail&theme=light', selector: FLOOR_STATE },
 	{ name: 'plan-editor-detail-dark', query: '?view=plan-editor&detail', selector: FLOOR_STATE },
 	{
@@ -456,8 +458,8 @@ const SHOTS = [
 		selector: [PLAN_CANVAS, '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail'],
 		width: 460,
 	},
-	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: FLOOR_STATE },
-	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: FLOOR_STATE },
+	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
+	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
 	// Task 21's three: the ROOM state (a zone selected, so the Room Inspector is on screen —
 	// the `?select=` knob drives the real click `RoomSummaryList` renders, through
 	// `runtime.selectAndFrame`), the Add menu open (the `?add` knob, same shape), and the

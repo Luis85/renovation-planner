@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { flushPromises, mount } from '@vue/test-utils';
-import { nextTick, ref } from 'vue';
+import { nextTick, ref, type Ref } from 'vue';
 import RoomSummaryList from '../../../../src/presentation/editor/shell/RoomSummaryList.vue';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../../src/presentation/editor/runtime';
 import { PLAN_EDITOR_CONTEXT } from '../../../../src/presentation/editor/PlanEditorContext';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import type { SpatialRecordDto } from '../../../../src/presentation/read-models/spatialRecords';
 import { ok } from '../../../../src/core/result/Result';
+import * as notices from '../../../../src/presentation/notices/notify';
 
 /**
  * `RoomSummaryList` mounted STANDALONE, with a stub `EditorRuntime` rather than the real
@@ -41,14 +42,15 @@ type LogLine = (event: string, context?: Record<string, unknown>) => void;
  */
 function mountList(
 	selectAndFrame = vi.fn<(id: string) => void>(),
-	options: { writesBlocked?: boolean; getById?: () => Promise<ReturnType<typeof ok<{ entity: { name: string; zoneType: string; locked: boolean }; version: typeof KITCHEN_VERSION }>>> } = {},
+	options: { writesBlocked?: boolean | Ref<boolean>; getById?: () => Promise<ReturnType<typeof ok<{ entity: { name: string; zoneType: string; locked: boolean }; version: typeof KITCHEN_VERSION }>>> } = {},
 ) {
 	setActivePinia(createPinia());
 	const commitEdit = vi.fn<(edit: unknown) => Promise<boolean>>(() => Promise.resolve(true));
+	const writesBlocked = typeof options.writesBlocked === 'object' ? options.writesBlocked : ref(options.writesBlocked ?? false);
 	const runtime = {
 		selectAndFrame,
 		commitEdit,
-		writesBlocked: ref(options.writesBlocked ?? false),
+		writesBlocked,
 		pausedReasonId: 'stub-paused-reason',
 	} as unknown as EditorRuntime;
 	const context = {
@@ -61,10 +63,46 @@ function mountList(
 		props: { records: RECORDS, heading: 'Rooms' },
 		global: { provide: { [EDITOR_RUNTIME as symbol]: runtime, [PLAN_EDITOR_CONTEXT as symbol]: context } },
 	});
-	return { wrapper, selectAndFrame, commitEdit };
+	return { wrapper, selectAndFrame, commitEdit, writesBlocked };
 }
 
 describe('RoomSummaryList', () => {
+	afterEach(() => { vi.restoreAllMocks(); });
+
+	it('does not commit the lock edit when writes become blocked while the zone read is pending', async () => {
+		const zoneRead = ok({ entity: { name: 'Kitchen', zoneType: 'Room', locked: false }, version: KITCHEN_VERSION });
+		let resolveZone!: () => void;
+		const getById = vi.fn<() => Promise<typeof zoneRead>>(() => new Promise((resolve) => {
+			resolveZone = () => resolve(zoneRead);
+		}));
+		const { wrapper, commitEdit, writesBlocked } = mountList(vi.fn(), { getById });
+
+		const toggle = wrapper.get('[data-rp-lock="zone-kitchen"]');
+		void toggle.trigger('click');
+		writesBlocked.value = true;
+		resolveZone();
+		await flushPromises();
+
+		expect(commitEdit).not.toHaveBeenCalled();
+	});
+
+	it('does not notify a fault from a throwing zone read that resolves after the toggle unmounts', async () => {
+		const report = vi.spyOn(notices, 'notifyFault').mockImplementation(() => undefined);
+		let rejectZone!: (cause: unknown) => void;
+		const getById = vi.fn<() => Promise<never>>(() => new Promise((_resolve, reject) => {
+			rejectZone = reject;
+		}));
+		const { wrapper } = mountList(vi.fn(), { getById });
+
+		const toggle = wrapper.get('[data-rp-lock="zone-kitchen"]');
+		void toggle.trigger('click');
+		wrapper.unmount();
+		rejectZone(new Error('retired zone read'));
+		await flushPromises();
+
+		expect(report).not.toHaveBeenCalled();
+	});
+
 	it('marks no row pressed when nothing is selected', () => {
 		const { wrapper } = mountList();
 		const rows = wrapper.findAll('.rp-room-list__row');

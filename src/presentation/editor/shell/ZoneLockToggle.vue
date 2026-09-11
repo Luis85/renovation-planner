@@ -7,7 +7,7 @@
  * The `locked` prop only draws the state; the forward and inverse values come from the read, so a
  * stale list row cannot dispatch the wrong direction.
  */
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { GetZone } from '../../../application/queries/GetZone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import HostIcon from '../../components/HostIcon.vue';
@@ -20,6 +20,8 @@ const props = defineProps<{ zoneId: string; name: string; locked: boolean }>();
 const context = usePlanEditorContext();
 const runtime = useEditorRuntime();
 const busy = ref(false);
+let alive = true;
+onBeforeUnmount(() => { alive = false; });
 const label = computed(() => tr(props.locked ? 'editor.input.unlock' : 'editor.input.lock', { name: props.name }));
 
 /**
@@ -41,6 +43,7 @@ async function toggle(): Promise<void> {
 		const loaded = await new GetZone(context.commands.zones).execute({ zoneId });
 		if (!loaded.ok) { notifyOperationFailure(loaded.error); return; }
 		if (loaded.value === null) return;
+		if (runtime.writesBlocked.value) return;
 		const { entity, version } = loaded.value;
 		const details = { name: entity.name, zoneType: entity.zoneType };
 		await runtime.commitEdit({
@@ -49,9 +52,9 @@ async function toggle(): Promise<void> {
 			inverse: { ...details, locked: entity.locked },
 		});
 	} catch (cause) {
-		notifyFault(cause, context.commands.logger, 'editor.zone-lock.failed');
+		if (alive) notifyFault(cause, context.commands.logger, 'editor.zone-lock.failed');
 	} finally {
-		busy.value = false;
+		if (alive) busy.value = false;
 	}
 }
 </script>

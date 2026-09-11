@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
+import { assetPlacementRig } from '../../helpers/assetPlacement';
 import { mountPlanEditorCanvas, settle, settleUntil } from '../../helpers/editor';
 import { Notice } from '../../helpers/obsidian-mock';
 import { expectDefined, expectOk } from '../../helpers/domain';
@@ -65,6 +66,21 @@ it('copies with Ctrl+C and pastes under the pointer with Ctrl+V, as one undo ste
 	key(rig.canvasEl, { key: 'z', metaKey: true });
 	await settleUntil(() => rig.project.zones.size === before.size, 'the undone paste');
 	expect(rig.project.structure.walls).toHaveLength(walls);
+});
+
+/** M12 + M4: a pasted placement keeps its asset, and its anchor — not the anchor→facing midpoint — lands on the paste point. */
+it('pastes a copied placement with its asset, its anchor on the paste point', async () => {
+	const rig = await assetPlacementRig(); cleanups.push(rig.unmount);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+	rig.selection.select([id as never]); await settle();
+	expect(key(rig.canvasEl, { key: 'c', ctrlKey: true }).defaultPrevented).toBe(true);
+	pointAt(rig, { x: 20000, y: 20000 });
+	expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(true);
+	await settleUntil(() => (rig.project.structure.elements ?? []).length === 2, 'the pasted placement');
+	const pasted = expectDefined(rig.project.structure.elements?.find(item => item.id !== id), 'the pasted placement');
+	expect(pasted).toMatchObject({ kind: 'asset', assetId: radiator.id });
+	expect(pasted.points[0].x).toBeCloseTo(20000); expect(pasted.points[0].y).toBeCloseTo(20000);
 });
 
 it('pastes at the view centre when the pointer is off the canvas', async () => {

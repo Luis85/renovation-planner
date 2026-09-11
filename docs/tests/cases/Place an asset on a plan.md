@@ -36,9 +36,10 @@ designed with a footprint, one never opened in the designer.
    width × depth and Open in designer, Replace asset…, Add as material.
 7. Add as material, save. **Expected:** the material's quantity equals the copies inside the room.
 8. Delete one copy inside the room. **Expected:** the material recalculates one lower.
-9. Delete the designed asset in the asset library, return to the plan. **Expected:** every copy
-   draws as a dashed crossed square; the Inspector says the asset no longer exists; the material
-   still counts them.
+9. Delete the designed asset in the asset library. **Expected:** the delete dialog lists the
+   material from step 7 under Referenced by. Choose **Delete anyway**, which marks that material
+   stale, and return to the plan. **Expected:** every copy draws as a dashed crossed square; the
+   Inspector says the asset no longer exists; the material still counts them.
 10. Replace asset… on one placeholder with another designed asset. **Expected:** it redraws with
     that footprint; Ctrl+Z restores the placeholder.
 11. Hide the Assets layer row. **Expected:** placements disappear and cannot be clicked.

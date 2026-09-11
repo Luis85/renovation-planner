@@ -48,8 +48,8 @@ const AVAILABLE = { state: 'available', reasonKey: null, action: null } as const
 
 /**
  * The layers the user is offered, in the user's vocabulary (interaction spec §54, §55) and in
- * the M01 mockup's order: Reference plan, Rooms, Walls and openings, Planned changes, Notes and
- * photos. Sidebar polish, 2026-09-10 — until then rows were keyed by Konva layer id, which put
+ * the M01 mockup's order: Reference plan, Rooms, Walls and openings, Assets, Planned changes,
+ * Notes and photos. Sidebar polish, 2026-09-10 — until then rows were keyed by Konva layer id, which put
  * the scene's paint order in front of the user and had no way to say "Planned changes", a
  * visibility that cuts across three Konva layers.
  *

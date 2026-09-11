@@ -6,16 +6,18 @@ import { selectSpatial } from './selectSpatial';
 import { boundsOfZones } from '../viewport/zoneExtent';
 import { groupMembers, groupRoots } from '../../../domain/spatial/SpatialGroup';
 import type { EntityId } from '../../../core/identity/EntityId';
-import { useAssetShapeStore } from '../../stores/AssetShapeStore';
+import { assetShapesFor } from '../elements/assetShapeLoader';
 
 /**
  * Select a list identity, then frame its current spatial extent.
  *
- * Reads `useAssetShapeStore()` directly rather than taking a `shapeOf` parameter the way
- * `structureCandidates` itself does: its one caller, `runtime.ts`, is at its 400-line cap and
- * not edited, so a new required argument there is not an option. Safe because this function's
- * only call site already runs inside a Pinia-active setup (the other three stores above arrive
- * pre-resolved from that same call for testability, not because Pinia is unavailable here).
+ * It runs at CLICK time, from list-row handlers with no injection context, where
+ * `useAssetShapeStore()` would resolve Pinia's module-global active instance — which every
+ * view's mount reassigns — and so read, or create a store in, another leaf's Pinia. The asset
+ * shapes come instead from `assetShapesFor(projectStore)`: the lookup this leaf's
+ * `watchAssetShapes` registered at setup against the same project store handed in here.
+ * Not a `shapeOf` parameter, because its one caller, `runtime.ts`, is at its 400-line cap and not
+ * edited.
  */
 export function selectAndFrameOn(
 	projectStore: ReturnType<typeof useProjectStore>,
@@ -23,7 +25,7 @@ export function selectAndFrameOn(
 	editor: ReturnType<typeof useEditorStore>,
 	target: { readonly id: string; readonly toggle: boolean },
 ): void {
-	const { id, toggle } = target, shapeOf = useAssetShapeStore().shapeOf;
+	const { id, toggle } = target, shapeOf = assetShapesFor(projectStore);
 	const root = groupRoots([id], projectStore.structure)[0];
 	const group = projectStore.groups.find(item => item.id === id || item.memberIds.includes(root));
 	if (group) {

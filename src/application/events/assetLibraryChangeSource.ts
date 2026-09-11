@@ -16,7 +16,8 @@ import { changedEntry, changedSidecar, disposeAll, subscribeAll } from './subscr
  * ruling, made explicit rather than left for this increment to re-decide: the picker shares
  * that source and would pay for any widening of it, re-reading every asset note on a design or
  * geometry event it has no use for. This module answers a different, wider question — "what
- * must the LIBRARY re-read" — and the picker's source is untouched.
+ * must the LIBRARY re-read". That source later took `AssetDesignChanged` for the Plan Editor's
+ * placements rather than for the picker (ruling R19), and states that cost itself.
  *
  * **The FIVE output sets answer five different consumers, per §5.4/§5.5, and collapsing them
  * loses a real distinction** (this said "four" for one commit after `usage` was added beneath

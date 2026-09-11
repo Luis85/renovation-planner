@@ -2,10 +2,23 @@ import { computed, onScopeDispose, watch } from 'vue';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useAssetShapeStore } from '../../stores/AssetShapeStore';
+import { NO_SHAPES, type ShapeLookup } from './elementFootprint';
+
+const registered = new WeakMap<ReturnType<typeof useProjectStore>, ShapeLookup>();
+/**
+ * The shape lookup of the leaf whose project store this is, for a caller that runs with no
+ * injection context (a list row's click) and so cannot ask Pinia which leaf it belongs to.
+ * `NO_SHAPES` when no mounted leaf registered it.
+ */
+export function assetShapesFor(project: ReturnType<typeof useProjectStore>): ShapeLookup {
+	return registered.get(project) ?? NO_SHAPES;
+}
 
 /** Re-read shapes whenever the set of placed assets changes or the catalogue does; the latest read wins. */
 export function watchAssetShapes(context: PlanEditorContext): void {
 	const project = useProjectStore(), shapes = useAssetShapeStore();
+	registered.set(project, shapes.shapeOf);
+	onScopeDispose(() => { registered.delete(project); });
 	const ids = computed(() => [...new Set([project.structure, project.intended].flatMap(structure => structure?.elements ?? [])
 		.flatMap(element => element.kind === 'asset' && element.assetId ? [element.assetId] : []))].toSorted());
 	let ticket = 0;

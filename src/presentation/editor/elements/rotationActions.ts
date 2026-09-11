@@ -22,7 +22,7 @@ import ObjectRotationForm from './ObjectRotationForm.vue';
 import { rotationChanged, rotationDegreesBetween, rotationHandleGeometry, rotationPivot, rotationPoints, type NamedRotationShape, type RotationShape } from './objectRotation';
 import { projectedRotationTarget, readRotationBaseline, type RotationBaseline } from './rotationBaseline';
 import { useAssetShapeStore } from '../../stores/AssetShapeStore';
-import { elementFootprint } from './elementFootprint';
+import { elementFootprint, type ShapeLookup } from './elementFootprint';
 import type { createGroupActions } from '../groups/groupActions';
 
 export type RotationRuntime = Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState' | 'openPlanNote'> & {
@@ -52,10 +52,15 @@ function sourceVisible(shape: NamedRotationShape, layers: { readonly zone: boole
 function lockAllowsCanvas(shape: NamedRotationShape, zones: ReturnType<typeof useProjectStore>['zones']): boolean {
 	return (shape.kind !== 'room' && shape.kind !== 'area') || zones.get(shape.id)?.locked !== true;
 }
+/** An asset's handle stands off its derived footprint, the outline drawn and hit, never its stored anchor→facing pair. */
+function laidOut(shape: NamedRotationShape, project: ReturnType<typeof useProjectStore>, shapeOf: ShapeLookup): NamedRotationShape {
+	const element = shape.kind === 'asset' ? project.structure.elements?.find(item => item.id === shape.id) : undefined;
+	return element ? { ...shape, hitPoints: elementFootprint(element, shapeOf) } : shape;
+}
 /** One transient rotation lifetime; persistence remains in the existing source-specific commands. */
 export function createRotationActions(context: PlanEditorContext, runtime: RotationRuntime) {
 	const project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), saves = useSaveStateStore(), session = useRenovationSession(), dialogs = useDialogStore();
-	const workspace = useWorkspaceStore(), obstacles = shallowRef<readonly BoundingBox[]>([]);
+	const workspace = useWorkspaceStore(), obstacles = shallowRef<readonly BoundingBox[]>([]), shapes = useAssetShapeStore();
 	const working = ref(false), generation = ref(0), preview = ref<NamedRotationShape | null>(null);
 	let alive = true;
 	const target = computed(() => {
@@ -84,20 +89,14 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 	onBeforeUnmount(() => { alive = false; generation.value++; clear(); });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	const visibleBounds = computed(() => ({ min: screenToWorld(screenPoint(0, 0), editor.viewport, STAGE_PIXELS), max: screenToWorld(screenPoint(editor.stageSize.width, editor.stageSize.height), editor.viewport, STAGE_PIXELS) }));
-	const shapes = useAssetShapeStore();
-	/** An asset's handle stands off its derived footprint, the outline drawn and hit, never its stored anchor→facing pair. */
-	function controlFor(shape: NamedRotationShape) {
-		const element = shape.kind === 'asset' ? project.structure.elements?.find(item => item.id === shape.id) : undefined;
-		return rotationHandleGeometry(element ? { ...shape, hitPoints: elementFootprint(element, shapes.shapeOf) } : shape, worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value);
-	}
 	const handleGeometry = computed(() => {
 		const shape = target.value; if (!shape || !sourceVisible(shape, workspace.layerVisibility)) return null;
-		return controlFor(shape);
+		return rotationHandleGeometry(laidOut(shape, project, shapes.shapeOf), worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value);
 	});
 	const displayControls = computed(() => {
 		const shape = displayTarget.value;
 		if (!shape || !permitted(shape) || !lockAllowsCanvas(shape, project.zones) || active.value || !sourceVisible(shape, workspace.layerVisibility)) return [];
-		const control = controlFor(shape);
+		const control = rotationHandleGeometry(laidOut(shape, project, shapes.shapeOf), worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value);
 		return control ? [control] : [];
 	});
 	function previewShape(id: string | null, points?: readonly Point[]): void {

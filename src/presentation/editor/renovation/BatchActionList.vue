@@ -4,6 +4,7 @@ import { computed, ref } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
 import type { SpatialSelection } from '../selection/spatialSelection';
+import { deleteItems, multiDeleteBlocked } from '../selection/deleteSelection';
 import { tr } from '../../i18n/strings';
 import type { BatchTarget } from './renovationBatch';
 import type { SpatialRecordDto } from '../../read-models/spatialRecords';
@@ -29,9 +30,8 @@ const compatible = computed(() => targets.value.length === props.selection.ids.l
 const changeCompatible = computed(() => compatible.value && props.selection.records.every(item => item.kind !== 'room' && item.kind !== 'area'));
 const kinds = ['remove', 'modify', 'work', 'evidence'] as const;
 const actions = computed(() => kinds.map(kind => ({ kind, disabled: runtime.renovation.blocked.value || !compatible.value || ((kind === 'remove' || kind === 'modify') && !changeCompatible.value) })));
-const generic = computed(() => props.selection.records.some(item => item.kind !== 'wall' && item.kind !== 'opening'));
-const deleteBlocked = computed(() => runtime.writesBlocked.value || runtime.structureActions.active.value || runtime.elementActions.removeManyActive.value || !props.selection.records.every(item => item.kind !== 'room' && item.kind !== 'area') || props.selection.unavailable > 0);
-function deleteSelection(): Promise<void> { return generic.value ? runtime.elementActions.removeMany(props.selection.ids) : runtime.structureActions.remove(props.selection.ids); }
+const deleteBlocked = computed(() => multiDeleteBlocked(runtime) || props.selection.unavailable > 0);
+function deleteSelection(): Promise<void> { return deleteItems(runtime, project.structure, props.selection.ids); }
 </script>
 <template>
 	<section

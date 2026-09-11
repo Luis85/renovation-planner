@@ -13,9 +13,9 @@ The Phase 5 continuation adds [Draw connected walls and openings](../cases/Draw%
 Its traceability separates automated/FakeVault and browser evidence from still-unperformed live
 host/screenreader acceptance. It is a supplemental journey, outside the historical 344-step
 census below; that dated census is not a claim that the new journey was accepted in Obsidian.
-[[Copy and paste across floors]] is outside that census too: its steps are a list with no
-`Reachable by` verdicts yet, so neither the triage column's "every step" nor its step counts
-include it.
+[[Copy and paste across floors]] and [[Delete a selection or group]] are outside that census too:
+their steps are lists with no `Reachable by` verdicts yet, so neither the triage column's "every
+step" nor its step counts include them.
 
 The cases that can only be run **by a human, inside Obsidian**. Everything here exists
 because `npm run check` cannot see it.
@@ -684,3 +684,8 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   inside a leaf, the host's `copy` and `clipboard-paste` menu icons, and the paste written into
   real notes across two floors. Its steps carry no `Reachable by` verdicts yet (see the head of
   this file).
+- [[Delete a selection or group]] — Delete/Backspace and the canvas menu's Delete (**Delete
+  group** for a saved group) over a Room enclosed with its walls: one confirmation and one undo
+  step. What only a vault shows is Obsidian's own handling of both keys inside a leaf, the host's
+  `trash` menu icon, and the Room's note leaving the vault and returning on Undo. Its steps carry
+  no `Reachable by` verdicts yet (see the head of this file).

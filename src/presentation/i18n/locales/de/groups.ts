@@ -7,6 +7,7 @@ export const groupsDe = {
 	'editor.group.number': 'Gruppe {n}',
 	'editor.group.group': 'Ausgewählte Elemente gruppieren',
 	'editor.group.ungroup': 'Gruppierung aufheben',
+	'editor.group.delete': 'Gruppe löschen',
 	'editor.group.enclose': 'Mit Wänden umschließen und gruppieren',
 	'editor.group.saved': 'Gespeicherte Gruppe',
 	'editor.group.select-member': 'Fokussiertes Element auswählen',

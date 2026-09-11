@@ -1,6 +1,18 @@
-import type { ValidationError } from '../../../core/errors/AppError';
+import type { AppError, ValidationError } from '../../../core/errors/AppError';
 import { err } from '../../../core/result/Result';
+import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 import type { RefreshedHistory } from './with-state-refresh';
+
+/**
+ * A draft task's refused write, shared by the wall and element tools: the draft keeps the error,
+ * and a conflict — a write boundary or a superseded undo — marks it stale and re-reads the floor,
+ * so it is never retried against a baseline another write has replaced.
+ */
+export async function recordDraftFailure(draft: { error: AppError | null; conflict: boolean }, error: AppError, refresh: () => Promise<void>): Promise<void> {
+	draft.error = error;
+	draft.conflict = WRITE_BOUNDARY_CODES.some(code => error.code.endsWith(code)) || error.code === 'undo.superseded';
+	if (draft.conflict) await refresh();
+}
 
 /** The one code a stale gate refuses with; the locale key of the same name is its copy. */
 export const STALE_WRITE_REFUSED = 'editor.stale-write-refused';

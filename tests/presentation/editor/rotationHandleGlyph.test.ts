@@ -16,7 +16,7 @@ afterEach(() => { for (const wrapper of mounted.splice(0)) wrapper.unmount(); })
 
 it('keeps the native rotation icon screen-sized and moves feedback from its immutable handle and pivot', async () => {
 	installCanvas();
-	const geometry = { handle: { x: 100, y: 80 }, anchor: { x: 80, y: 90 }, pivot: { x: 50, y: 100 }, bounds: rotationControlBounds({ x: 100, y: 80 }, 44, 1), widthPx: 44, hostWall: false };
+	const geometry = { handle: { x: 100, y: 80 }, anchor: { x: 80, y: 90 }, edge: [{ x: 40, y: 90 }, { x: 120, y: 90 }], pivot: { x: 50, y: 100 }, bounds: rotationControlBounds({ x: 100, y: 80 }, 44, 1), widthPx: 44, hostWall: false };
 	const tokens = Object.fromEntries(Object.keys(THEME_TOKENS).map(key => [key, '#223344'])) as unknown as ThemeTokens;
 	const host = defineComponent({
 		components: { RotationHandleGlyph },

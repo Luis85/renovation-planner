@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { roomEdges } from '../../../src/presentation/editor/resize/roomEdgeMeasurements';
 import { roomDimensions } from '../../../src/presentation/editor/resize/roomDimensions';
 import { rotationHandleGeometry, rotationPivot, rotationPoints } from '../../../src/presentation/editor/elements/objectRotation';
-import { layoutRotationControls } from '../../../src/presentation/editor/elements/rotationControl';
+import { layoutRotationControl } from '../../../src/presentation/editor/elements/rotationControl';
 import { resolveSelectionTarget } from '../../../src/presentation/editor/selection/resolveSelectionTarget';
 import { curvedCandidateIntersection } from '../../../src/presentation/editor/selection/curvedCandidateIntersection';
 import { spatialOutlinePoints } from '../../../src/presentation/editor/selection/spatialOutlinePoints';
@@ -53,8 +53,8 @@ it('hits curved Room interiors and hosted opening arcs with the same analytic so
 
 it('places hover rotation anchors on actual curved edges, retaining generous hit rectangles', () => {
 	const shape = { ...room, kind: 'room' as const }, pivot = expectDefined(rotationPivot(shape), 'pivot');
-	const controls = layoutRotationControls(shape, pivot, 1);
-	const top = expectDefined(controls.find(control => control.edgeIndex === 0), 'curve control');
+	const top = expectDefined(layoutRotationControl(shape, pivot, 1), 'curve control');
+	expect(top.edgeIndex).toBe(0);
 	expect(top.anchor.y).toBeLessThan(0); expect(top.bounds.max.x - top.bounds.min.x).toBe(44);
 	const straight = spatialOutlinePoints({ points }, 0.1); expect(straight).toBe(points);
 });

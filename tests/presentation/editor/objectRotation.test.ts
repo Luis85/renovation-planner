@@ -45,7 +45,7 @@ describe('rigid Object rotation', () => {
 		const release = pointerAt(330, 300); const snapped = { ...release, modifiers: { ...release.modifiers, shift: true } };
 		gesture.move(context, snapped); const finalPreview = previewRotation.mock.calls.at(-1)?.[1];
 		gesture.finish(context, snapped); gesture.finish(context, snapped);
-		expect(commitRotation).toHaveBeenCalledExactlyOnceWith(element.id, finalPreview, element); expect(gesture.active).toBe(false); expect(previewRotation).toHaveBeenLastCalledWith(null);
+		expect(commitRotation).toHaveBeenCalledExactlyOnceWith(element.id, finalPreview, element); expect(gesture.active).toBe(false); expect(previewRotation).toHaveBeenLastCalledWith(element.id, finalPreview);
 		commitRotation.mockClear(); gesture.start(context, pointerAt(400, 200), element, control); gesture.move(context, pointerAt(350, 250)); gesture.finish(context, pointerAt(300, 300));
 		expect(commitRotation).toHaveBeenCalledExactlyOnceWith(element.id, rotationPoints(element, 90, pivot), element);
 	});

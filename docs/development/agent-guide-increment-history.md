@@ -5607,3 +5607,111 @@ Lesson: the Konva seven-layer stack was never the problem — it is a paint orde
 correct. What was wrong was the PANEL borrowing its vocabulary, which made "Planned changes",
 a visibility cutting across three layers, impossible to offer as a row. Keying a row by a
 predicate rather than by a scene id is what made the fifth row cost one `ref`.
+
+## The canvas fidelity pass, 2026-09-10
+
+Spec: `docs/superpowers/specs/2026-09-10-plan-editor-canvas-fidelity-design.md`.
+
+Why: a drawn wall loop in a vault, set beside M01's mockup, read as a diagram rather than a
+floor plan, and no gate had said so because **the harness fixture carried no walls** — no
+`plan-editor-*` capture had ever drawn a wall, a joint or an opening. `HARNESS_STRUCTURE`
+(`tests/harness/planEditor.ts`) walls the Kitchen now, with a door and a window, and the other
+rooms stay open, so one frame shows both kinds. Its ids had to become `wall-…` and
+`opening-…`: `validateStructure` refuses any other, the harness fake validates nothing, and the
+first version was a fixture no vault could hold — a fake kinder than the real thing, caught
+because `zoneOutlineEnclosure.test.ts` writes it through the real sidecar.
+
+**Walls.** The single stroke at `opacity: 0.65` doubled its alpha wherever two walls overlapped,
+so every corner carried a dark square that read as a joint symbol. `StructureLayer.vue` draws
+two opaque passes over ALL walls now — every `wall-edge` (`zoneStroke`, `--text-normal`, at
+`thickness + 2 / zoom`), then every `wall-body` (`wallFill`, `--background-secondary`, at
+`thickness`) — and the pass ORDER closes a joint's inner corner. It did not close the outer one:
+both passes are butt-capped, so each wall stopped at the shared centreline point and left a
+notch at every outer corner, **found only by reading the capture**. `wallPasses.ts` carries each
+end past a shared joint by the largest half thickness among the OTHER walls there (the edge
+`1 / zoom` further), and a free end by `1 / zoom` on the edge alone, its 1 px cap. The wall's own
+half is excluded on purpose: counting it poked a thick wall past a thin one's face. Refused:
+`lineCap: 'square'` (every free end `thickness / 2` too long, in a planner that prints
+dimensions), and a polygon union or mitred chaining (exact at any angle, and far more code). The
+ceiling is the template's `ponytail:` line: exact where two walls meet at a right angle,
+whatever their thicknesses; a non-right joint, or unequal walls through a T, leaves a small
+wedge or nub. `structureLayerPasses.test.ts` pins the order and the 2 px difference,
+`wallPasses.test.ts` the extensions, a 100 mm + 240 mm L included.
+
+**Rooms.** The status dash, the resting tint and the status caption left the canvas: a room draws
+as name and area, filled at 0.12 only while selected. The capture then showed the room outline
+painting OVER the walls — SDD §17 keeps the architecture layer below the zone layer — as a grey
+line down each wall body and across the door. The fix stays inside §17's order: `ZoneShape.vue`
+keeps the outline node mounted with `visible: false` only while every polygon edge coincides with
+a wall the room's boundary lists (`enclosedByBoundary`, over the `wallOnEdge` rule `encloseRoom`
+already used). "Has a boundary entry" was refused: enclosure is never resynchronised, walls and
+outlines diverge after ordinary edits, and a shown outline is then how the divergence becomes
+visible. Enclosure is asked of the structure being DRAWN — `useDrawnStructure`, shared by
+`StructureLayer` and `ZoneLayer` — so a group move or a wall drag never hides or shows the
+outline against walls other than the ones on screen.
+
+**Status moved to the Room Inspector.** The spec assumed the Inspector's room list already showed
+it; nothing in `src/` read `statusAppearance`'s `captionKey`, so taking status off the canvas
+showed it nowhere. `RoomInspector.vue` gained a Status row beside Type, Floor and Area — M00's
+first use case is the room's status at a glance — while the compact room list rows stay name and
+area. **Hover:** `InteractionLayer.vue` adds a
+`hover-fill` at 0.06 under the hover outline, for a closed shape only (`hoverClosed`).
+
+Parked: the selection and hover fill still tint the inner half of a walled room's walls (a clip
+to the wall's inner face would be the fix), and a wall-less outline renders as 2 px of 50% grey at
+integer camera positions (predates this pass). Capture gaps: the Garden is out of frame in all
+five `plan-editor-*` shots read for this pass, and the door sits under the Edit-shape popover in
+`plan-editor-selected`. Out of scope, as the spec said: the mockup's furniture and sanitary
+symbols, wall hatching, the navy label colour, and a second fixture mirroring M01's floor.
+
+## Walls outside the room, 2026-09-11
+
+Why: Enclose with walls put every wall's centre line on the room edge, so half of each wall
+stood inside the room and counted as its floor. The user asked for the inner face on the edge.
+
+**Geometry.** `core/geometry/offsetOutline.ts` moves each outline edge its own distance along the
+outward normal (sign from the signed area, curves included) and mitres the corners where the
+moved neighbours meet; a curve stays concentric and its bulge is re-derived from the new
+endpoints. When both neighbours carry a corner to one point — no distance, a collinear run, a
+tangent curve — that point is taken EXACTLY, which is what keeps a zero-distance edge's corners
+bit-identical and therefore reusable by `wallOnEdge`'s exact match. No meeting point, or a curve
+moved through its centre, is refused (`outline-offset-unsolvable` → `spatial.wall-offset`).
+
+**Enclosure** (`encloseRoom`) moves each edge half the default thickness, except an edge another
+Room shares exactly or one a wall is already centred on: those stay at zero, so neighbours share
+one centred wall and a room enclosed before this change does not grow a second ring. Corners snap
+to an existing wall end within tolerance before the exact reuse. A closed wall loop's Room is the
+loop moved inward by each wall's half thickness (`roomInsideWalls`, called from `structureTask`).
+
+**Outline hiding.** `enclosedByBoundary` stopped asking for exact endpoints: a boundary wall runs
+along an edge when three points of its centre line sit at 0 or half its own thickness outward of
+the edge's line or circle, and it passes the edge's midpoint. Endpoints could not be the rule any
+more — a shared wall extends past the room corner to meet an outside wall. This closes the canvas
+fidelity pass's parked item: the selection and hover fill no longer tint the walls, because the
+walls are no longer inside the outline.
+
+Refused, and each is a ceiling rather than an oversight: Rooms touching along edges of different
+lengths, and a collinear corner between a shared and an outside edge, are refused rather than
+given a jog wall; a near-semicircle moved outward past 180° fails wall validation; existing walls
+are not migrated. `HARNESS_STRUCTURE` walls the Kitchen outside it at 200 mm, so the captures
+photograph the new placement.
+
+## Mitred wall corners, 2026-09-11
+
+Why: two walls meeting at anything but a right angle drew as two butt-capped strokes carried past
+each other, the wedge the canvas fidelity pass left as its ceiling, and the user asked for a clean
+corner. That pass refused mitred chaining as more code; it turned out to be one function.
+
+**Runs.** `wallPasses(walls, zoom)` answers RUNS rather than one pass pair per wall: walls meeting
+end to end, exactly two at a joint and equally thick, are chained into one polyline (a reversed
+wall walks its reversed arc), so Konva's `lineJoin: 'miter'` draws the corner exactly at any angle,
+a curve's non-tangent joint included. A run that returns to its start is `closed`, with no repeated
+point — a zero-length closing segment would leave the join undefined — and a loop starts at its
+first listed wall. Every other run end keeps the old extension rule, so a T and an unequal L are
+exactly as before: exact at a right angle, a wedge or nub at any other. Canvas bevels a mitre
+sharper than about 11° (`miterLimit` 10).
+
+**Harness.** `HARNESS_STRUCTURE` walls the Garden with one free-standing group per case — a planter
+loop with right, acute and obtuse corners, a chevron with one reversed wall, a T, an unequal L and
+a straight–arc–straight chain — and `fixture.test.ts` pins that `wallPasses` draws them as those
+runs, since a case only a unit test names is one no capture photographs.

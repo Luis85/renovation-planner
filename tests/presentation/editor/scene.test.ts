@@ -211,32 +211,33 @@ describe('theme and accessibility of a zone', () => {
 	});
 
 	/**
-	 * §85: status must not be encoded by colour alone. Two non-colour channels, and both are
-	 * asserted because each fails differently — a dash pattern is invisible at a low zoom,
-	 * and a caption is unreadable on a printed grayscale plan at a high one.
+	 * Status does NOT draw on the canvas (decision of 2026-09-10, canvas fidelity spec): a
+	 * room is its name and its area over a thin solid outline, the way M01 draws one.
+	 * Status is read in the selected room's Inspector instead (`roomInspector.test.ts`). §85's
+	 * "not by colour alone" is met by there being no status channel on the canvas at all. Watched red
+	 * against the dashed, captioned version: two dash patterns and two status strings.
 	 */
-	it('distinguishes zone status without relying on colour', async () => {
+	it('draws a room as name and area over a solid outline, with no status on the canvas', async () => {
 		const harness = await mount();
 
-		const outlines = zoneLines(harness.stage).filter((line) => line.dash() !== undefined);
-		const captions = harness.stage.findOne<Konva.Layer>('.zone')?.find('Text') ?? [];
-		const texts = captions.map((node) => (node as Konva.Text).text());
+		const outlines = zoneLines(harness.stage).filter((line) => line.stroke() && !line.fill());
+		const texts = (harness.stage.findOne<Konva.Layer>('.zone')?.find('Text') ?? []).map((node) => (node as Konva.Text).text());
 
-		// 'Planned' is dashed and 'Complete' is solid: two statuses, two patterns.
-		expect(outlines[0].dash()).not.toEqual(outlines[1].dash());
-		expect(texts).toContain(t('en', 'zone.status.planned'));
-		expect(texts).toContain(t('en', 'zone.status.complete'));
+		expect(outlines).toHaveLength(2);
+		for (const outline of outlines) expect(outline.dash() ?? []).toEqual([]);
 		expect(texts).toContain('Kitchen');
+		expect(texts).not.toContain(t('en', 'zone.status.planned'));
+		expect(texts).not.toContain(t('en', 'zone.status.complete'));
 	});
 	it('emphasizes only selected room fill without rebuilding stored geometry', async () => {
 		const harness = await mount(), fills = zoneLines(harness.stage).filter(line => line.fill());
 		const points = fills.map(line => line.points());
-		expect(fills.map(line => line.opacity())).toEqual([0.025, 0.025]);
+		expect(fills.map(line => line.opacity())).toEqual([0, 0]);
 		useSelectionStore(harness.pinia).select(['zone-kitchen' as never]); await settle();
-		expect(fills.map(line => line.opacity())).toEqual([0.12, 0.025]);
+		expect(fills.map(line => line.opacity())).toEqual([0.12, 0]);
 		for (const [index, line] of fills.entries()) expect(line.points()).toBe(points[index]);
 		useSelectionStore(harness.pinia).clear(); await settle();
-		expect(fills.map(line => line.opacity())).toEqual([0.025, 0.025]);
+		expect(fills.map(line => line.opacity())).toEqual([0, 0]);
 	});
 });
 

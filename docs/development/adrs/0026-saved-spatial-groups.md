@@ -23,6 +23,12 @@ before the group write, derive the produced versions from the exact written geom
 and record both Zone and Plan receipts. Never use a post-write read as our write receipt.
 This keeps mixed individual/group history cooperative while retaining foreign-write guards.
 
+Amended 2026-09-11 at the user's direction: enclosure places each wall OUTSIDE the Room,
+its centre line half a thickness beyond the edge so the inner face is the outline (mitred
+corners, concentric curves). An edge another Room shares exactly, or one a wall is already
+centred on, keeps a centred wall both Rooms reuse. An outline whose moved edges cannot meet is
+refused (`spatial.wall-offset`), never repaired. Walls stay centre-line data; nothing migrates.
+
 Implementation and evidence are tracked in
 [the group implementation plan](../../user-experience/renovation-planner-editor-specs/implementation/persistent-groups.md).
 Foundation tests have passed; UI, curve compatibility and final release acceptance remain

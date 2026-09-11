@@ -10,6 +10,7 @@ import type { ZoneType } from '../../src/domain/zone/ZoneType';
 import type { ZoneStatus } from '../../src/domain/zone/ZoneStatus';
 import type { PlanId } from '../../src/domain/plan/PlanId';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
+import type { Structure } from '../../src/domain/spatial/Structure';
 import type { Loaded } from '../../src/application/ports/versioning';
 import type { ZoneRepository } from '../../src/application/ports/ZoneRepository';
 import { PlanEditorView, type PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
@@ -107,9 +108,9 @@ const HARNESS_PROJECT: ProjectSummaryDto = {
 
 /**
  * A small flat we can recognise at a glance — rooms of plausible domestic sizes in
- * millimetres, one of each status so the non-colour channels (dash pattern, caption) can
- * be compared side by side, and one zone with a non-rectangular outline so the polygon
- * path is not being judged on rectangles alone.
+ * millimetres, one of each status (off the canvas since the 2026-09-10 canvas fidelity pass;
+ * the Room Inspector's Status row shows it — see M01), and one zone
+ * with a non-rectangular outline so the polygon path is not being judged on rectangles alone.
  */
 export const HARNESS_ZONES: readonly ZoneDto[] = [
 	{
@@ -166,6 +167,54 @@ export const HARNESS_ZONES: readonly ZoneDto[] = [
 		],
 	},
 ];
+
+/**
+ * The Kitchen's four walls, a door in the south wall and a window in the north one. Present
+ * since 2026-09-10 because the fixture had NO walls before it, so no capture ever drew a
+ * joint or an opening — and the wall stroke's alpha had been doubling at every corner in a
+ * real vault while every gate stayed green. Terrace and Garden stay open on purpose: the
+ * same frame then photographs a room with walls and a room whose outline is its own. The Garden
+ * carries free-standing walls, no boundary, one group per corner case `wallPasses` draws.
+ *
+ * Wall order follows the zone's vertex order (north, east, south, west), so the loop reads
+ * the way `harness-kitchen`'s polygon does. The walls sit OUTSIDE the Kitchen, inner faces on its
+ * edges, the way Enclose with walls builds them (`encloseRoom`); 200 mm so their outer faces meet
+ * the Bathroom's and Terrace's edges rather than crossing into them. Opening offsets run from each
+ * wall's `start`. Ids start `wall-` and `opening-` because `validateStructure` refuses any other
+ * and this fake does not validate; `zoneOutlineEnclosure.test.ts` writes it through the real sidecar.
+ */
+export const HARNESS_STRUCTURE: Structure = {
+	walls: [
+		{ id: 'wall-harness-north', start: { x: -100, y: -100 }, end: { x: 4300, y: -100 }, thickness: 200, height: 2600 },
+		{ id: 'wall-harness-east', start: { x: 4300, y: -100 }, end: { x: 4300, y: 3100 }, thickness: 200, height: 2600 },
+		{ id: 'wall-harness-south', start: { x: 4300, y: 3100 }, end: { x: -100, y: 3100 }, thickness: 200, height: 2600 },
+		{ id: 'wall-harness-west', start: { x: -100, y: 3100 }, end: { x: -100, y: -100 }, thickness: 200, height: 2600 },
+		// Garden walls, one per joint `wallPasses` distinguishes. A planter loop: two right, one acute and one obtuse mitre.
+		{ id: 'wall-harness-planter-north', start: { x: 7600, y: 700 }, end: { x: 10_000, y: 700 }, thickness: 200, height: 900 },
+		{ id: 'wall-harness-planter-east', start: { x: 10_000, y: 700 }, end: { x: 9000, y: 2700 }, thickness: 200, height: 900 },
+		{ id: 'wall-harness-planter-south', start: { x: 9000, y: 2700 }, end: { x: 7600, y: 2700 }, thickness: 200, height: 900 },
+		{ id: 'wall-harness-planter-west', start: { x: 7600, y: 2700 }, end: { x: 7600, y: 700 }, thickness: 200, height: 900 },
+		// An open chevron, its second wall drawn the other way round: one sharp mitre, two free ends.
+		{ id: 'wall-harness-chevron-west', start: { x: 10_500, y: 2600 }, end: { x: 11_100, y: 700 }, thickness: 200, height: 900 },
+		{ id: 'wall-harness-chevron-east', start: { x: 11_700, y: 2600 }, end: { x: 11_100, y: 700 }, thickness: 200, height: 900 },
+		// A T: three walls at one joint are capped, not chained.
+		{ id: 'wall-harness-tee-west', start: { x: 7600, y: 3600 }, end: { x: 9000, y: 3600 }, thickness: 200, height: 900 },
+		{ id: 'wall-harness-tee-east', start: { x: 9000, y: 3600 }, end: { x: 10_400, y: 3600 }, thickness: 200, height: 900 },
+		{ id: 'wall-harness-tee-stem', start: { x: 9000, y: 3600 }, end: { x: 9000, y: 4800 }, thickness: 200, height: 900 },
+		// An L of unequal walls: capped, not chained.
+		{ id: 'wall-harness-step-thick', start: { x: 10_800, y: 3600 }, end: { x: 11_600, y: 3600 }, thickness: 200, height: 900 },
+		{ id: 'wall-harness-step-thin', start: { x: 11_600, y: 3600 }, end: { x: 11_600, y: 4800 }, thickness: 100, height: 900 },
+		// A curved wall chained between straight ones, mitred where the tangent turns.
+		{ id: 'wall-harness-curve-west', start: { x: 7600, y: 5600 }, end: { x: 9000, y: 5600 }, thickness: 200, height: 900 },
+		{ id: 'wall-harness-curve-arc', start: { x: 9000, y: 5600 }, end: { x: 10_400, y: 5600 }, thickness: 200, height: 900, bulge: 0.4 },
+		{ id: 'wall-harness-curve-east', start: { x: 10_400, y: 5600 }, end: { x: 11_000, y: 5000 }, thickness: 200, height: 900 },
+	],
+	openings: [
+		{ id: 'opening-harness-door', kind: 'door', hostId: 'wall-harness-south', offset: 1600, width: 900, height: 2100, sill: 0, swing: { hinge: 'start', side: 'left', angle: 90 } },
+		{ id: 'opening-harness-window', kind: 'window', hostId: 'wall-harness-north', offset: 1600, width: 1200, height: 1200, sill: 900 },
+	],
+	boundaries: [{ roomId: 'harness-kitchen', wallIds: ['wall-harness-north', 'wall-harness-east', 'wall-harness-south', 'wall-harness-west'] }],
+};
 
 /**
  * The one zone the `?stale` knob is allowed to delete — never the one a capture SELECTS, so
@@ -289,7 +338,7 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			getProject: (id) => Promise.resolve(ok(id === HARNESS_PROJECT.id ? structuredClone(HARNESS_PROJECT) : null)),
 			listPlans: () => Promise.resolve(ok([structuredClone(HARNESS_PLAN)])),
 			findZonesByPlan: () =>
-				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0 })),
+				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0, structure: structuredClone(HARNESS_STRUCTURE) })),
 			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`
 			// for why EMPTY rather than refused, and for what a refusal bundle costs a READ.
 			...emptyRequirementReads(),

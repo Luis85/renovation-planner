@@ -44,8 +44,8 @@ it('keeps hidden assembly members in precise operations, while layer visibility 
 	workspace.layerVisibility.zone = false; workspace.layerVisibility.architecture = false;
 	expect(rig.runtime.rotationActions.handle.value).toBeNull();
 	await rig.wrapper.get('[data-rp-group-transform="right"]').trigger('click'); await idle(rig);
-	expect(rig.project.structure.walls[0].start).toEqual({ x: 3500, y: -500 });
-	await rig.runtime.undo(); expect(rig.project.structure.walls[0].start).toEqual({ x: 0, y: 0 });
+	expect(rig.project.structure.walls[0].start).toEqual({ x: 3575, y: -575 });
+	await rig.runtime.undo(); expect(rig.project.structure.walls[0].start).toEqual({ x: -75, y: -75 });
 });
 it('retains the saved document after a baseline read error and after an unexpected repository exception', async () => {
 	const rig = await setup(), services = expectDefined(rig.deps.commands.groups, 'group services'), before = expectOk(await rig.geometry.read(rig.plan.id)).document;

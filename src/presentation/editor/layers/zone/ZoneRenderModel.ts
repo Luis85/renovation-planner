@@ -73,26 +73,22 @@ export function zoneFillToken(zoneType: string): ThemeTokenName {
 }
 
 /**
- * Status, rendered as something OTHER than colour — §85's "status not encoded only by
- * color", set now so slice 6 does not have to retrofit it once zones become interactive.
- *
- * Two non-colour channels, because each fails differently: the dash pattern survives a
- * grayscale print and a colour-blind reader, and the caption survives a zoom level at
- * which a dash pattern is indistinguishable. Dash lengths are in SCREEN pixels, not world
- * millimetres, because the stroke they belong to sets `strokeScaleEnabled: false`.
+ * Status, as the caption key the Room Inspector's Status row reads (`RoomInspector.vue`). It
+ * stopped drawing on the canvas on 2026-09-10 (canvas fidelity spec): M01 draws a room as name
+ * and area over a wall. §85's "status not encoded only by colour" survives that by having no
+ * status channel on the canvas to encode, and the Inspector says it in words.
  */
 export interface StatusAppearance {
-	readonly dash: readonly number[];
 	readonly captionKey: StringKey;
 }
 
 const STATUS_APPEARANCE: Readonly<Record<string, StatusAppearance>> = {
-	Planned: { dash: [6, 4], captionKey: 'zone.status.planned' },
-	InProgress: { dash: [12, 4, 2, 4], captionKey: 'zone.status.in-progress' },
-	Complete: { dash: [], captionKey: 'zone.status.complete' },
+	Planned: { captionKey: 'zone.status.planned' },
+	InProgress: { captionKey: 'zone.status.in-progress' },
+	Complete: { captionKey: 'zone.status.complete' },
 };
 
-const UNKNOWN_STATUS: StatusAppearance = { dash: [2, 2], captionKey: 'zone.status.unknown' };
+const UNKNOWN_STATUS: StatusAppearance = { captionKey: 'zone.status.unknown' };
 
 export function statusAppearance(status: string): StatusAppearance {
 	return STATUS_APPEARANCE[status] ?? UNKNOWN_STATUS;

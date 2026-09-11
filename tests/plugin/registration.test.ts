@@ -10,6 +10,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Platform, type Command, type ViewStateResult } from 'obsidian';
 import { installObsidianDom } from '../helpers/dom';
+// Mock-only surface, imported BY NAME: `opened`/`getItems`/`choose` are the fake's own
+// members, the same reason `openProjectDetail.test.ts` and `planEditorCommands.test.ts`
+// import it this way rather than through the `'obsidian'` specifier.
+import { FuzzySuggestModal } from '../helpers/obsidian-mock';
 
 import {
 	RENOVATION_PROJECT_ICON,
@@ -215,6 +219,27 @@ describe('both ways in', () => {
 
 		expect(workspace.getLeavesOfType(ASSET_LIBRARY_VIEW)).toHaveLength(1);
 	});
+
+	/**
+	 * `openAssetLibrary`'s own `reportFault` closure — mapping a real activation fault to
+	 * `view.asset-library.reveal-failed` — is a separate copy from the one
+	 * `renovationProjectOpenSeams.test.ts` already drives for `RenovationProjectDeps`'s door
+	 * (`ProjectList`/`ViewRoot`'s own way in); this command's copy had never been driven to a
+	 * real fault.
+	 */
+	it('reports a real activation fault opening the asset library from its own command', async () => {
+		vi.spyOn(workspace, 'getLeavesOfType').mockImplementationOnce(() => {
+			throw new Error('workspace exploded');
+		});
+		const command = plugin.commands.find((c) => c.id === 'open-asset-library');
+
+		command?.callback?.();
+		await settle();
+
+		const logged = lines.find((line) => line.event === 'view.asset-library.reveal-failed');
+		expect(logged?.level).toBe('error');
+		expect((logged?.context?.['cause'] as Error | undefined)?.message).toBe('workspace exploded');
+	});
 });
 
 describe('the composition root', () => {
@@ -400,6 +425,36 @@ describe('new-project', () => {
 		// three-way parse and the sentinel the back arrow already restores.
 		expect(view.getState()).toEqual({ projectId: '' });
 		expect(useDialogStore().current?.kind).toBe('form');
+	});
+});
+
+/**
+ * The other `rememberContinue` closure — `registerPlanEditorCommands`'s own copy, bound to the
+ * same real store `projectViewDeps`'s copy already proves against
+ * (`renovationProjectWiring.test.ts`'s "remembers, restores and forgets..." case) — had never
+ * itself been driven to a real write: `planEditorCommands.test.ts` drives the function against
+ * its OWN stub `rememberContinue`, never the closure this plugin binds at `onload`.
+ */
+describe('the plan picker’s Resume target', () => {
+	it('remembers the picked plan through the real continue-context store', async () => {
+		plugin.root.persistence?.index?.upsert({
+			id: 'plan-ground' as never,
+			type: 'renovation-plan',
+			path: 'Renovation/Plans/Ground.md',
+			projectId: 'project-kitchen' as never,
+		});
+		const command = plugin.commands.find((c) => c.id === 'open-plan-editor');
+
+		command?.checkCallback?.(false);
+		const picker = FuzzySuggestModal.opened.at(-1) as FuzzySuggestModal<{ id: string }> | undefined;
+		if (!picker) throw new Error('the command opened no picker');
+		picker.choose(picker.getItems()[0]);
+		await settle();
+
+		const deps = (
+			plugin as unknown as { projectViewDeps(leaf: unknown): { continueContext(): Promise<unknown> } }
+		).projectViewDeps(new FakeLeaf());
+		await expect(deps.continueContext()).resolves.toEqual({ projectId: 'project-kitchen', planId: 'plan-ground' });
 	});
 });
 

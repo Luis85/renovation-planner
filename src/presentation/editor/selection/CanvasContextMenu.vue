@@ -42,7 +42,14 @@ function contextTarget(event: MouseEvent | KeyboardEvent, x: number, y: number):
 	return resolveSelectionTarget({ candidates, selectedIds: selection.selectedIds, worldPoint: screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS), handleToleranceWorld: 0, cycle: event.altKey })?.id;
 }
 function selectContext(hit: string | undefined, keyboard: boolean, event: MouseEvent | KeyboardEvent): void {
-	if (hit && (event.altKey || !selection.selectedIds.some(id => id === hit))) selection.select((groups.expandSelection?.(hit, event.altKey) ?? [hit]).map(id => id as EntityId<string>));
+	// `groups.expandSelection` is optional only on the interface (`CanvasGroupActionsProvider`,
+	// for a bare consumer with nothing above it — `canvasGroupActions.test.ts`'s own case): this
+	// component mounts only inside a Plan Editor tree, and `runtime.ts`'s `buildRuntime` always
+	// calls `createSpatialEditing` -> `createGroupActions` -> `provideCanvasGroupActions` before
+	// any descendant can reach `useEditorRuntime()` at all (it throws with no provider), so the
+	// method is never actually absent here. A non-null assertion rather than `?? [hit]` for that
+	// reason: the fallback was an uncovered branch no test could reach honestly.
+	if (hit && (event.altKey || !selection.selectedIds.some(id => id === hit))) selection.select(groups.expandSelection!(hit, event.altKey).map(id => id as EntityId<string>));
 	else if (!keyboard && !hit) selection.clear();
 	if (hit) selection.focus(hit as EntityId<string>);
 	menuIds = [...selection.selectedIds];
@@ -77,7 +84,11 @@ function navigation(event: KeyboardEvent): void {
 	if (event.key === 'Tab') { event.preventDefault(); event.stopPropagation(); close(); return; }
 	if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
 	event.preventDefault(); event.stopPropagation();
-	const items = [...menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []];
+	// `menu.value` is typed nullable only because the ref starts that way; `navigation` is bound
+	// as `@keydown` on the very element the ref points at (below), so it cannot run before Vue
+	// has set the ref — a non-null assertion rather than `?? []`, which was an uncovered branch
+	// no test could reach honestly.
+	const items = [...menu.value!.querySelectorAll<HTMLElement>('[role="menuitem"]')];
 	const index = items.indexOf(document.activeElement as HTMLElement);
 	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
 	items[next]?.focus();

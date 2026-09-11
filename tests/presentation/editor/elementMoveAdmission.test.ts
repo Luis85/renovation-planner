@@ -17,7 +17,7 @@ it('declines unsupported move and vertex targets, then translates a Stair while 
 	const stair = { id: 'element-stair', kind: 'stair' as const, points, stair: { width: 950, treads: 9, direction: 'down' as const } };
 	move.start(context, event, stair); move.move(pointerAt(100, 200)); move.finish(context, pointerAt(150, 250));
 	expect(moveElement).toHaveBeenCalledWith(stair.id, [{ x: 150, y: 250 }, { x: 1150, y: 250 }], stair);
-	expect(stair.points).toEqual([{ x: 0, y: 0 }, { x: 1000, y: 0 }]); expect(previewElement).toHaveBeenLastCalledWith(null);
+	expect(stair.points).toEqual([{ x: 0, y: 0 }, { x: 1000, y: 0 }]); expect(previewElement).toHaveBeenLastCalledWith(stair.id, [{ x: 150, y: 250 }, { x: 1150, y: 250 }]);
 });
 
 it('anchors an Arrow first-endpoint constraint at its next point and rejects collapsing that endpoint onto its neighbour', () => {

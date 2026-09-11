@@ -177,6 +177,7 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 		task.closeLoop(); task.draft.room = true; task.draft.roomName = 'Study';
 		await task.finish(); await settleUntil(() => value.runtime.activeToolId.value === 'select', 'saved loop');
 		const roomId = expectDefined([...value.project.zones.keys()][0], 'the loop room');
+		expect(expectOk(await value.geometry.read(value.plan.id)).document.objects[0].points).toEqual([{ x: 75, y: 75 }, { x: 3925, y: 75 }, { x: 3925, y: 2925 }, { x: 75, y: 2925 }]);
 		value.selection.select([roomId as never]);
 		await value.runtime.nudgeSelection({ dx: 100, dy: 0 });
 		await value.runtime.dispatcher.undo();

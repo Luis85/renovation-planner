@@ -38,8 +38,10 @@ export class ElementMove {
 		const gesture = this.gesture;
 		if (!gesture || event.button !== 'primary') return;
 		const points = this.points(event), moved = Math.hypot(event.worldPoint.x - gesture.start.x, event.worldPoint.y - gesture.start.y) > CLICK_EPSILON_PX * context.viewport.worldPerScreenPixel();
-		this.cancel();
-		if (moved && !context.writesBlocked() && (gesture.vertexIndex === undefined || validSpatialElement({ ...gesture.element, points }))) this.deps.moveElement?.(gesture.element.id, points, gesture.element);
+		if (!moved || context.writesBlocked() || (gesture.vertexIndex !== undefined && !validSpatialElement({ ...gesture.element, points }))) { this.cancel(); return; }
+		// Left previewing at the drop; `moveElement` clears it once the write has been read back.
+		this.gesture = null; this.deps.previewElement?.(gesture.element.id, points);
+		this.deps.moveElement?.(gesture.element.id, points, gesture.element);
 	}
 	cancel(): void { this.gesture = null; this.deps.previewElement?.(null); }
 }

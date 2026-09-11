@@ -44,18 +44,22 @@ async function loop() {
 
 it('draws every wall edge before any wall body, all opaque', async () => {
 	const { edges, bodies, lines } = await loop();
-	expect(edges).toHaveLength(WALL_LOOP.walls.length);
-	expect(bodies).toHaveLength(WALL_LOOP.walls.length);
+	expect(edges.length).toBeGreaterThan(0);
+	expect(bodies).toHaveLength(edges.length);
 	const lastEdge = Math.max(...edges.map(node => lines.indexOf(node)));
 	const firstBody = Math.min(...bodies.map(node => lines.indexOf(node)));
 	expect(lastEdge).toBeLessThan(firstBody);
 	for (const node of [...edges, ...bodies]) expect(node.opacity()).toBe(1);
 });
 
-it('carries a corner wall body half its thickness past the corner, so the outer quadrant closes', async () => {
-	const { bodies } = await loop();
-	const [first] = WALL_LOOP.walls;
-	expect(bodies[0].points().slice(0, 2)).toEqual([first.start.x - first.thickness / 2, first.start.y]);
+it('draws a closed wall loop as one closed mitred run, so no corner is two overlapping walls', async () => {
+	const { edges, bodies } = await loop();
+	expect(edges).toHaveLength(1);
+	for (const node of [...edges, ...bodies]) {
+		expect(node.closed()).toBe(true);
+		expect(node.lineJoin()).toBe('miter');
+		expect(node.points()).toEqual(WALL_LOOP.walls.flatMap(wall => [wall.start.x, wall.start.y]));
+	}
 });
 
 it('gives the edge pass two screen pixels more than the body pass, at any zoom', async () => {
@@ -65,7 +69,7 @@ it('gives the edge pass two screen pixels more than the body pass, at any zoom',
 		editor.viewport = { ...editor.viewport, zoom }; await settle();
 		for (const [index, edge] of edges.entries()) {
 			expect(edge.strokeWidth() - bodies[index].strokeWidth()).toBeCloseTo(2 / zoom);
-			expect(bodies[index].strokeWidth()).toBe(WALL_LOOP.walls[index].thickness);
+			expect(bodies[index].strokeWidth()).toBe(WALL_LOOP.walls[0].thickness);
 			expect(edge.stroke()).not.toBe(bodies[index].stroke());
 		}
 	}

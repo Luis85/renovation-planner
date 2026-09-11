@@ -80,7 +80,10 @@ the group. **Select focused item** lets you edit one member; **Select saved grou
 the assembly without changing membership. Ungroup removes membership while keeping the items.
 
 For a Room, **Enclose with walls and group** creates missing boundary walls, reuses matching
-walls and saves the assembly in one undo step. It uses the normal wall defaults; individual
+walls and saves the assembly in one undo step. The walls stand outside the Room, their inner
+faces on its outline, so its area stays the floor you drew. An edge shared with another Room
+gets one wall centred on it, which both Rooms use. A Room made by closing a wall loop sits on
+the loop's inner faces the same way. It uses the normal wall defaults; individual
 wall properties remain editable. This is an explicit action: later independent outline edits
 do not rebuild the walls automatically. Deleting a member updates the group; Undo restores
 its membership along with the deleted item, subject to the normal conflict checks.

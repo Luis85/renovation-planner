@@ -103,7 +103,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.rotation.failed'); }
 		finally { working.value = false; clear(); }
 	}
-	async function move(id: string, points: readonly Point[], original: RotationShape): Promise<void> {
+	async function commitMove(id: string, points: readonly Point[], original: RotationShape): Promise<void> {
 		if (original.kind === 'group') { if (!blocked.value && !active.value) await runtime.groups?.moveRotation(points, original); return; }
 		if (original.generation !== undefined && original.generation !== generation.value) return;
 		if (!rotationChanged(original.points, points)) return;
@@ -113,6 +113,8 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 			const result = await runtime.dispatcher.run(baseline.command(points)); if (alive && !result.ok) notifyOperationFailure(result.error);
 		});
 	}
+	/** A pointer release leaves its preview up; it comes down here, however the move ended, unless another operation now owns it. */
+	async function move(id: string, points: readonly Point[], original: RotationShape): Promise<void> { try { await commitMove(id, points, original); } finally { if (!active.value) clear(); } }
 	async function rotate(id: string, degrees?: number): Promise<void> {
 		if (target.value?.id !== id) return;
 		if (target.value.kind === 'group') { if (!blocked.value && !active.value) await runtime.groups?.rotate(id, degrees); return; }

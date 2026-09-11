@@ -26,7 +26,7 @@ const task = runtime.structureTask;
 const structure = useDrawnStructure();
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
 const wallPoints = (wall: Wall): number[] => points(arcPolyline({ ...wall, bulge: wall.bulge ?? 0 }, 0.25 / props.zoom));
-const passes = computed(() => structure.value.walls.map(wall => wallPasses(wall, structure.value.walls, props.zoom)));
+const runs = computed(() => wallPasses(structure.value.walls, props.zoom));
 const selected = (id: string): boolean => selection.selectedIds.some(candidate => candidate === id);
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
 const noDraftPoints: readonly Point[] = [];
@@ -57,33 +57,32 @@ const elementDraft = computed(() => {
 			:zoom="zoom"
 		/>
 		<!--
-			A wall is drawn TWICE, and the two passes run over ALL walls rather than per wall:
+			Walls are drawn TWICE, and the two passes run over ALL runs rather than per run:
 			every `wall-edge` (`zoneStroke`, `thickness + 2 / zoom`), then every `wall-body`
 			(`wallFill`, `thickness`) over them, all opaque, so no joint doubles an alpha. What
 			is left of the edge pass is a 1 px dark line along each side, M01's double-line wall.
-			The pass ORDER closes a joint's inner corner: wall B's body covers wall A's edge.
-			Both passes are butt-capped, so `wallPasses` carries each past a SHARED endpoint
+			`wallPasses` chains walls meeting end to end (two at a joint, equally thick) into one
+			run, so the mitre join draws that corner exactly at any angle, a closed loop included.
+			Every other joint is where runs END: the pass ORDER closes its inner corner (run B's
+			body covers run A's edge), and `wallPasses` carries both butt-capped passes past it
 			(body by the largest half thickness among the walls it JOINS, edge `1 / zoom`
-			further), which closes the OUTER corner; a free end gets only the edge's extra
+			further), which closes the outer one; a free end gets only the edge's extra
 			`1 / zoom`, its 1 px dark cap.
 			Refused: `lineCap: 'square'` draws every free end `thickness / 2` too long.
-			Refused: chaining walls into mitred polylines is exact at any angle, but more code.
-			ponytail: exact where two walls meet at a right angle, whatever their thicknesses; a
-			non-right joint, or unequal walls through a T, leaves a small wedge or nub, most often
-			a straight run changing thickness at a shared endpoint, where the thicker body pokes
-			past the thinner wall's face and leaves a 1 px dark line across it. Chain the
-			walls if that shows. The selection dash and handles keep the unextended
-			centreline. `OpeningSymbols` cuts both passes at the edge pass's width.
+			ponytail: a T, or two unequal walls meeting, is still capped rather than mitred:
+			exact at a right angle, a small wedge or nub at any other. Canvas bevels a mitre
+			sharper than about 11° (`miterLimit` 10). The selection dash and handles keep the
+			unextended centreline. `OpeningSymbols` cuts both passes at the edge pass's width.
 		-->
 		<VLine
-			v-for="(wall, index) in structure.walls"
-			:key="'edge-' + wall.id"
-			:config="{ name: 'wall-edge', points: passes[index].edge, stroke: tokens.zoneStroke, strokeWidth: wall.thickness + 2 / zoom, lineCap: 'butt', lineJoin: 'miter' }"
+			v-for="run in runs"
+			:key="'edge-' + run.id"
+			:config="{ name: 'wall-edge', points: run.edge, closed: run.closed, stroke: tokens.zoneStroke, strokeWidth: run.thickness + 2 / zoom, lineCap: 'butt', lineJoin: 'miter' }"
 		/>
 		<VLine
-			v-for="(wall, index) in structure.walls"
-			:key="'body-' + wall.id"
-			:config="{ name: 'wall-body', points: passes[index].body, stroke: tokens.wallFill, strokeWidth: wall.thickness, lineCap: 'butt', lineJoin: 'miter' }"
+			v-for="run in runs"
+			:key="'body-' + run.id"
+			:config="{ name: 'wall-body', points: run.body, closed: run.closed, stroke: tokens.wallFill, strokeWidth: run.thickness, lineCap: 'butt', lineJoin: 'miter' }"
 		/>
 		<VGroup
 			v-for="wall in structure.walls"

@@ -5,7 +5,10 @@ import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 import type { PlanGeometrySnapshot } from '../../../application/ports/PlanGeometrySidecar';
 import { undoSuperseded, type WriteLedger } from '../../../application/editor/WriteLedger';
 import { sameGeometryDocument } from '../../../application/commands/spatial/sameGeometryDocument';
+import type { Point } from '../../../core/geometry/Point';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
+import { roomInsideWalls } from '../../../domain/spatial/encloseRoom';
+import { ok } from '../../../core/result/Result';
 import { createZoneHistory } from '../add/createZoneHistory';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { spatialError } from '../../../domain/spatial/structureGeometry';
@@ -66,8 +69,7 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 	}
 	function undoPoint(): void { if (!blocked.value) { draft.points.pop(); draft.room = false; draft.error = null; } }
 	function closeLoop(): void { if (!blocked.value && draft.points.length >= 3) addWallPoint(draft, draft.points[0], project.structure); }
-	function roomCommand() {
-		const points = draft.points.slice(0, -1);
+	function roomCommand(points: readonly Point[]) {
 		const command = createZoneHistory(context, ledger, { planId: context.planId as PlanId, name: draft.roomName, zoneType: 'Room', geometry: { points } });
 		return { execute: () => command.execute(), undo: () => command.undo(), get createdZoneId() { return command.createdZoneId; }, points };
 	}
@@ -76,6 +78,14 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 		draft.conflict = WRITE_BOUNDARY_CODES.some(code => error.code.endsWith(code)) || error.code === 'undo.superseded';
 		if (draft.conflict) await runtime.refreshProjection();
 	}
+	/** The validated draft and its optional Room. The loop is appended after the floor's existing walls; the Room sits on their inner faces. */
+	function prepareDraft(objectIds: readonly string[]) {
+		const valid = validateDraftStructure(draft, project.structure, objectIds);
+		if (!valid.ok) return valid;
+		if (!draft.room) return ok({ structure: valid.value, room: null });
+		const inside = roomInsideWalls(valid.value.walls.slice(project.structure.walls.length));
+		return inside.ok ? ok({ structure: valid.value, room: roomCommand(inside.value.points) }) : inside;
+	}
 	async function finish(): Promise<void> {
 		if (blocked.value || !baseline.value || !context.commands.structure) return;
 		// The SIDECAR's object ids, which is what `StructureCommand.write` validates against —
@@ -83,10 +93,10 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 		// note refused still has its polygon and its boundary in the sidecar, and validating
 		// against the readable notes reported `spatial.room-missing` for a boundary the
 		// repository accepts, blocking every unrelated wall (a Codex P2 on pull request #86).
-		const valid = validateDraftStructure(draft, project.structure, baseline.value.document.objects.map(object => object.id));
-		if (!valid.ok) { draft.error = valid.error; return; }
-		const structure = mintStructure(valid.value), ticket = generation;
-		const command = context.commands.structure.command({ planId: context.planId as PlanId, baseline: baseline.value, structure, ledger, ...(draft.room ? { room: roomCommand() } : {}) });
+		const prepared = prepareDraft(baseline.value.document.objects.map(object => object.id));
+		if (!prepared.ok) { draft.error = prepared.error; return; }
+		const structure = mintStructure(prepared.value.structure), ticket = generation, room = prepared.value.room;
+		const command = context.commands.structure.command({ planId: context.planId as PlanId, baseline: baseline.value, structure, ledger, ...(room ? { room } : {}) });
 		draft.busy = true;
 		try {
 			const result = await runtime.dispatcher.run(command);

@@ -74,6 +74,13 @@ const StructureSchemaV8 = StructureSchemaV7.extend({ elements: z.array(z.object(
 	id: z.string().startsWith('element-'), kind: z.enum(['object', 'path', 'fence', 'measurement', 'stair', 'arrow']),
 	points: z.array(SpatialPointSchema), stair: StairOptionsSchema.optional(),
 }).refine(element => element.kind === 'stair' ? element.stair !== undefined : element.stair === undefined)).optional() });
-export const PlanGeometrySchemaV8 = PlanGeometrySchemaV7.extend({ schemaVersion: z.literal(8), structure: StructureSchemaV8.optional(), intended: StructureSchemaV8.optional() });
-export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8]);
-export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV8>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 };
+const PlanGeometrySchemaV8 = PlanGeometrySchemaV7.extend({ schemaVersion: z.literal(8), structure: StructureSchemaV8.optional(), intended: StructureSchemaV8.optional() });
+const SpatialElementSchemaV9 = z.object({
+	id: z.string().startsWith('element-'), kind: z.enum(['object', 'path', 'fence', 'measurement', 'stair', 'arrow', 'asset']),
+	points: z.array(SpatialPointSchema), stair: StairOptionsSchema.optional(), assetId: z.string().min(1).optional(),
+}).refine(element => element.kind === 'stair' ? element.stair !== undefined : element.stair === undefined)
+	.refine(element => (element.kind === 'asset') === (element.assetId !== undefined), { message: 'An asset placement, and only an asset placement, names its asset.' });
+const StructureSchemaV9 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV9).optional() });
+export const PlanGeometrySchemaV9 = PlanGeometrySchemaV8.extend({ schemaVersion: z.literal(9), structure: StructureSchemaV9.optional(), intended: StructureSchemaV9.optional() });
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9]);
+export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV9>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };

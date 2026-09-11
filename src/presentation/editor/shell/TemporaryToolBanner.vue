@@ -61,6 +61,7 @@ const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKe
 	'move-opening': { nameKey: 'editor.opening-move.action', instructionKey: 'editor.opening-move.instruction' },
 	'edit-room-dimension': { nameKey: 'editor.dimension.task', instructionKey: 'editor.dimension.instruction' },
 	'place-object': { nameKey: 'editor.add.item.label', instructionKey: 'editor.element.banner.object', finish: true },
+	'place-asset': { nameKey: 'editor.add.asset.label', instructionKey: 'editor.asset.banner' },
 	'place-stair': { nameKey: 'editor.add.stair.label', instructionKey: 'editor.stair.banner', finish: true },
 	'draw-arrow': { nameKey: 'editor.add.arrow.label', instructionKey: 'editor.arrow.banner', finish: true },
 	'draw-path': { nameKey: 'editor.add.path.label', instructionKey: 'editor.element.banner.path', finish: true },

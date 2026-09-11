@@ -8,6 +8,7 @@ import { computed } from 'vue';
 import type { ThemeTokens } from '../theme/themeTokens';
 import type { NodeTransform } from '../viewport/Viewport';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import { EMPTY_RENOVATION, orderedWork } from '../../../domain/renovation/Renovation';
@@ -16,7 +17,7 @@ import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
 import { tr } from '../../i18n/strings';
 import ReviewRoomMarkers from './ReviewRoomMarkers.vue';
 const props = defineProps<{ pins: readonly EvidencePin[]; tokens: ThemeTokens; transform: NodeTransform; zoom: number; visible: boolean }>();
-const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession();
+const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession(), assetShapes = useAssetShapeStore();
 const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 const markers = computed(() => {
 	if (session.perspective === 'review' || !['existing', 'planned', 'work'].includes(session.mode)) return [];
@@ -37,9 +38,9 @@ const comparisons = computed(() => value.value.subjects.flatMap(item => {
 	if (!item.planned) return [];
 	const structure = item.planned.change === 'remove' ? project.structure : project.intended ?? project.structure;
 	const element = structure.elements?.find(candidate => candidate.id === item.targetId);
-	const candidate = structureCandidates(structure).find(shape => shape.id === item.targetId);
+	const candidate = structureCandidates(structure, assetShapes.shapeOf).find(shape => shape.id === item.targetId);
 	const points = candidate ? spatialOutlinePoints(candidate, 0.25 / props.zoom) : [];
-	return points.length ? [{ id: item.id, closed: element?.kind === 'object' || element?.kind === 'stair', points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
+	return points.length ? [{ id: item.id, closed: element?.kind === 'object' || element?.kind === 'stair' || element?.kind === 'asset', points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
 }));
 function focus(roomId: string, id: string): void {
 	runtime.renovation.focus(roomId, session.mode, id);

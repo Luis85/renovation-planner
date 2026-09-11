@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
+import { assetPlacementRig } from '../../helpers/assetPlacement';
 import { mountPlanEditorCanvas, settle, settleUntil } from '../../helpers/editor';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
@@ -78,6 +79,20 @@ it('runs a single item\'s own Delete from Backspace', async () => {
 	await confirmation(rig, 'the wall deletion confirmation');
 	rig.dialogs.resolve('cancel'); await settleUntil(() => !rig.runtime.structureActions.active.value, 'the cancelled wall deletion');
 	expect(rig.project.structure.walls).toHaveLength(WALLS.length);
+});
+
+/** M12: a selected placement goes the single-item way, from either key, and Undo brings it back with its asset. */
+it.each(['Delete', 'Backspace'])('removes a selected placement with %s as one confirmed step that Undo restores', async (pressed) => {
+	const rig = await assetPlacementRig(); cleanups.push(rig.unmount);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+	rig.selection.select([id as never]); await settle();
+	expect(key(rig.canvasEl, { key: pressed }).defaultPrevented).toBe(true);
+	await confirmation(rig, 'the placement deletion confirmation');
+	rig.dialogs.resolve('confirm');
+	await settleUntil(() => (rig.project.structure.elements ?? []).length === 0, 'the removed placement');
+	key(rig.canvasEl, { key: 'z', ctrlKey: true });
+	await settleUntil(() => rig.project.structure.elements?.some(item => item.id === id && item.assetId === radiator.id) === true, 'the restored placement');
 });
 
 it('leaves chords, repeats, composition, dialogs, a stale floor, Review and fields alone', async () => {

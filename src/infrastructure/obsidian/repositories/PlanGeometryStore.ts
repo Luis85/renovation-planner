@@ -7,7 +7,7 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV8 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV9 } from '../../persistence/dto/planGeometry';
 import { validateSpatialGroups } from '../../../domain/spatial/SpatialGroup';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
@@ -25,6 +25,7 @@ function canonicalJson(dto: PlanGeometryDTO): string {
 }
 
 function writtenSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended' | 'groups'>): PlanGeometryDTO['schemaVersion'] {
+	if ([dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.kind === 'asset'))) return 9;
 	if ([dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.kind === 'stair' || element.kind === 'arrow'))) return 8;
 	if (dto.objects.some(object => object.bulges !== undefined) || [dto.structure, dto.intended].some(structure => structure?.walls.some(wall => wall.bulge !== undefined))) return 7;
 	if (dto.groups?.length) return 6;
@@ -273,7 +274,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV8.safeParse(migrated);
+		const validated = PlanGeometrySchemaV9.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

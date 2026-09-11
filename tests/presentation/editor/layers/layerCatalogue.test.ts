@@ -11,20 +11,20 @@ function toggle(initial = true): LayerToggle & { readonly calls: number[] } {
 }
 
 function toggles(planned: LayerToggle | null = toggle()): LayerToggles {
-	return { reference: toggle(), rooms: toggle(), walls: toggle(), planned, notes: toggle() };
+	return { reference: toggle(), rooms: toggle(), walls: toggle(), assets: toggle(), planned, notes: toggle() };
 }
 
 /**
  * The layers this editor can honestly offer, in the user's vocabulary (interaction spec §54,
- * §55): five rows, none of them a Konva layer by name. Sidebar polish, 2026-09-10.
+ * §55): six rows, none of them a Konva layer by name. Sidebar polish, 2026-09-10.
  */
 describe('layerCatalogue', () => {
-	it('lists the five rows in the mockup order', () => {
-		expect(layerCatalogue(FIXTURE_PLAN, toggles()).map((e) => e.id)).toEqual(['reference', 'rooms', 'walls', 'planned', 'notes']);
+	it('lists the six rows in the mockup order', () => {
+		expect(layerCatalogue(FIXTURE_PLAN, toggles()).map((e) => e.id)).toEqual(['reference', 'rooms', 'walls', 'assets', 'planned', 'notes']);
 	});
 
 	it('omits the Planned changes row when the renovation session is not available', () => {
-		expect(layerCatalogue(FIXTURE_PLAN, toggles(null)).map((e) => e.id)).toEqual(['reference', 'rooms', 'walls', 'notes']);
+		expect(layerCatalogue(FIXTURE_PLAN, toggles(null)).map((e) => e.id)).toEqual(['reference', 'rooms', 'walls', 'assets', 'notes']);
 	});
 
 	it('binds each row to its own predicate and nothing else', () => {

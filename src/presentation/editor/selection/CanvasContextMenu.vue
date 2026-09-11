@@ -5,6 +5,7 @@ import type { EntityId } from '../../../core/identity/EntityId';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
+import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import { useEditorRuntime } from '../runtime';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { useSelectionStore } from './selection-store';
@@ -24,7 +25,7 @@ const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEdi
 /** Where the menu was opened, in world millimetres — where its Paste lands (design spec §4). */
 let openedAt: Point = { x: 0, y: 0 };
 const actions = useCanvasMenuActions(() => emit('openAdd'), () => openedAt);
-const workspace = useWorkspaceStore();
+const workspace = useWorkspaceStore(), assetShapes = useAssetShapeStore();
 /** The one object the menu acts on, named the way the rest of the editor names it; nothing for an empty or multiple selection. */
 const title = computed(() => { if (selection.selectedIds.length !== 1) return null; const id = selection.selectedIds[0]; return project.zones.get(id)?.name ?? structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements).find(item => item.id === id)?.name ?? null; });
 let menuIds: readonly string[] = [];
@@ -39,7 +40,7 @@ function contextTarget(event: MouseEvent | KeyboardEvent, x: number, y: number):
 	const rowId = target.closest<HTMLElement>('[data-rp-id]')?.dataset.rpId;
 	if (rowId && (project.zones.has(rowId) || structureCandidates(project.structure).some(item => item.id === rowId))) return rowId;
 	if (keyboard) return undefined;
-	const candidates = canvasCandidates(project.zones.values(), project.structure, workspace.layerVisibility);
+	const candidates = canvasCandidates(project.zones.values(), project.structure, workspace.layerVisibility, assetShapes.shapeOf);
 	return resolveSelectionTarget({ candidates, selectedIds: selection.selectedIds, worldPoint: screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS), handleToleranceWorld: 0, cycle: event.altKey })?.id;
 }
 function selectContext(hit: string | undefined, keyboard: boolean, event: MouseEvent | KeyboardEvent): void {

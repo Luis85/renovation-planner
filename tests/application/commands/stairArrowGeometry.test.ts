@@ -55,7 +55,7 @@ it('treats width, tread count and direction as geometry facts and refuses invali
 		expect((await rig.geometry.write(rig.plan.id, { ...document, structure: { ...document.structure, elements: [value] } }, rig.baseline.version)).ok).toBe(false);
 	}
 	expect([...rig.stack.vault.entries]).toEqual(before);
-	expect(expectDefined(PLAN_GEOMETRY_MIGRATIONS.at(-1), 'schema8 step').migrate({ schemaVersion: 7, revision: 3 })).toEqual({ schemaVersion: 8, revision: 3 });
+	expect(expectDefined(PLAN_GEOMETRY_MIGRATIONS.find(step => step.toVersion === 8), 'schema8 step').migrate({ schemaVersion: 7, revision: 3 })).toEqual({ schemaVersion: 8, revision: 3 });
 });
 
 it('refuses malformed persisted stair options without stripping or rewriting the sidecar', async () => {

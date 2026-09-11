@@ -24,6 +24,7 @@ function validRotationPoint(point: Point): boolean {
 export function rotationPivot(shape: RotationShape): Point | null {
 	if (shape.kind === 'stair' && (!shape.stair || !stairPlanGeometry(shape.points, shape.stair))) return null;
 	if (!shape.points.every(validRotationPoint)) return null;
+	if (shape.kind === 'asset') return shape.points.length === 2 ? shape.points[0] : null;
 	if (shape.kind === 'group') {
 		const bounds = boundingBoxOf(shape);
 		return bounds.ok ? { x: (bounds.value.min.x + bounds.value.max.x) / 2, y: (bounds.value.min.y + bounds.value.max.y) / 2 } : null;

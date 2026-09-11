@@ -4,6 +4,7 @@ import { curvesDe } from './curves';
 import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
+import { assetPlacementDe } from './assetPlacement';
 import { stairsArrowsDe } from './stairsArrows';
 import { inputDe } from './input';
 import { groupsDe } from './groups';
@@ -39,6 +40,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.dimension.task': 'Raummaß bearbeiten',
 	'editor.dimension.instruction': 'Länge in Metern eingeben. Anwenden oder Eingabe speichert; Escape bricht ab.',
 	...objectDe,
+	...assetPlacementDe,
 	...openingDe,
 	...openingMoveDe,
 	...referenceViewportDe,

@@ -18,19 +18,20 @@ export interface LayerToggle {
 
 /**
  * Where each row's visibility LIVES, handed in by the panel rather than reached for here, so
- * this stays a pure function of a plan and a bundle of closures. Three are Konva layers in
+ * this stays a pure function of a plan and a bundle of closures. Four are Konva layers in
  * `WorkspaceStore`, one is the renovation session's own flag and one is the store's notes gate.
  */
 export interface LayerToggles {
 	readonly reference: LayerToggle;
 	readonly rooms: LayerToggle;
 	readonly walls: LayerToggle;
+	readonly assets: LayerToggle;
 	/** `null` when the renovation session is not available: no row is offered. */
 	readonly planned: LayerToggle | null;
 	readonly notes: LayerToggle;
 }
 
-export type LayerEntryId = 'reference' | 'rooms' | 'walls' | 'planned' | 'notes';
+export type LayerEntryId = 'reference' | 'rooms' | 'walls' | 'assets' | 'planned' | 'notes';
 
 export interface LayerEntry {
 	readonly id: LayerEntryId;
@@ -47,8 +48,8 @@ const AVAILABLE = { state: 'available', reasonKey: null, action: null } as const
 
 /**
  * The layers the user is offered, in the user's vocabulary (interaction spec §54, §55) and in
- * the M01 mockup's order: Reference plan, Rooms, Walls and openings, Planned changes, Notes and
- * photos. Sidebar polish, 2026-09-10 — until then rows were keyed by Konva layer id, which put
+ * the M01 mockup's order: Reference plan, Rooms, Walls and openings, Assets, Planned changes,
+ * Notes and photos. Sidebar polish, 2026-09-10 — until then rows were keyed by Konva layer id, which put
  * the scene's paint order in front of the user and had no way to say "Planned changes", a
  * visibility that cuts across three Konva layers.
  *
@@ -77,6 +78,7 @@ export function layerCatalogue(plan: PlanDto | null, toggles: LayerToggles, writ
 		},
 		{ id: 'rooms', labelKey: 'editor.layer.rooms', ...AVAILABLE, ...toggles.rooms },
 		{ id: 'walls', labelKey: 'editor.structure.list', ...AVAILABLE, ...toggles.walls },
+		{ id: 'assets', labelKey: 'editor.layer.assets', ...AVAILABLE, ...toggles.assets },
 	];
 	if (toggles.planned !== null) entries.push({ id: 'planned', labelKey: 'editor.shell.planned-layer', ...AVAILABLE, ...toggles.planned });
 	entries.push({ id: 'notes', labelKey: 'editor.shell.notes-layer', ...AVAILABLE, ...toggles.notes });

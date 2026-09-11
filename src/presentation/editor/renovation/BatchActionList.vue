@@ -22,7 +22,7 @@ const targets = computed(() => props.selection.records.flatMap(record => {
 /** Walls and openings are named; every other kind — rooms and each element kind, present or future — is not a wall. */
 function targetKind(record: SpatialRecordDto): BatchTarget['kind'] {
 	if (record.kind === 'wall') return 'wall';
-	if (record.kind !== 'opening') return record.kind === 'object' ? 'fixture' : 'other';
+	if (record.kind !== 'opening') return ['object', 'asset'].includes(record.kind) ? 'fixture' : 'other';
 	const opening = project.structure.openings.find(item => item.id === record.id);
 	return opening?.kind === 'door' ? 'door' : opening?.kind === 'window' ? 'window' : 'other';
 }

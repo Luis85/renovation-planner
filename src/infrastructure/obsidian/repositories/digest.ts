@@ -6,7 +6,7 @@ import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../persisten
 import { PLAN_TYPE, PlanFrontmatterSchemaV9 } from '../../persistence/dto/planFrontmatter';
 import { SpatialObjectGeometrySchemaV7, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
-import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV3 } from '../../persistence/dto/requirementFrontmatter';
+import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV4 } from '../../persistence/dto/requirementFrontmatter';
 import { ZONE_TYPE, ZoneFrontmatterSchemaV2 } from '../../persistence/dto/zoneFrontmatter';
 
 /**
@@ -55,7 +55,7 @@ const SCHEMAS: readonly (readonly [string, { readonly shape: Readonly<Record<str
 	[PLAN_TYPE, PlanFrontmatterSchemaV9],
 	[ZONE_TYPE, ZoneFrontmatterSchemaV2],
 	[ASSET_TYPE, AssetFrontmatterSchemaV1],
-	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV3],
+	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV4],
 	[ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1],
 	['renovation-trade', TradeFrontmatterSchemaV1],
 	['renovation-supplier', SupplierFrontmatterSchemaV1],

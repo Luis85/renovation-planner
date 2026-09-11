@@ -1,9 +1,9 @@
 import { openingPoints, wallLength, type Structure } from '../../../domain/spatial/Structure';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
-import { spatialElementFootprint } from '../../../domain/spatial/stairGeometry';
-export function structureCandidates(structure: Structure): SpatialObjectCandidate[] {
+import { elementFootprint, NO_SHAPES, type ShapeLookup } from '../elements/elementFootprint';
+export function structureCandidates(structure: Structure, shapeOf: ShapeLookup = NO_SHAPES): SpatialObjectCandidate[] {
 	return [
-		...(structure.elements ?? []).map(element => ({ ...element, ...(element.kind === 'stair' ? { hitPoints: spatialElementFootprint(element) } : {}) })),
+		...(structure.elements ?? []).map(element => ({ ...element, ...(element.kind === 'stair' || element.kind === 'asset' ? { hitPoints: elementFootprint(element, shapeOf) } : {}) })),
 		...structure.walls.map(wall => ({ id: wall.id, kind: 'wall' as const, points: [wall.start, wall.end], bulges: [wall.bulge ?? 0, 0], width: wall.thickness })),
 		...structure.openings.map(opening => {
 			const host = structure.walls.find(wall => wall.id === opening.hostId);

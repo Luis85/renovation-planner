@@ -26,12 +26,20 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * `ZoneCreated`, `ZoneGeometryChanged`, `ZoneDeleted` — say nothing about the catalogue and
  * re-read every asset note in the vault once per zone gesture. Correct and wasteful; this
  * module is the narrowing.
+ *
+ * **`AssetDesignChanged` is on the list for the Plan Editor's placements, not the picker**
+ * (ruling R19). `watchAssetShapes` re-reads every placed asset's footprint through this door, and
+ * a designer commit it did not hear would leave an open plan drawing, hitting, clearing and
+ * dimensioning a stale outline. The cost is deliberate: every other consumer of this door
+ * re-reads once per designer commit too. It adds no requirement recalculation — a design edit
+ * cannot change a placement count.
  */
 const CATALOGUE_CHANGE_EVENTS = [
 	'ProjectIndexRebuilt',
 	'AssetCreated',
 	'AssetUpdated',
 	'AssetDeleted',
+	'AssetDesignChanged',
 ] as const;
 
 /**

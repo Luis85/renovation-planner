@@ -13,7 +13,7 @@ const square = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10
 describe('canvasCandidates', () => {
 	it('drops a locked zone, which is what makes click, hover, marquee and right-click pass through it', () => {
 		const zones = [{ id: 'zone-site', points: square, locked: true }, { id: 'zone-house', points: square }];
-		expect(canvasCandidates(zones, EMPTY_STRUCTURE, { zone: true, architecture: true }).map((item) => item.id)).toEqual(['zone-house']);
+		expect(canvasCandidates(zones, EMPTY_STRUCTURE, { zone: true, architecture: true, asset: true }).map((item) => item.id)).toEqual(['zone-house']);
 	});
 });
 

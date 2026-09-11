@@ -41,3 +41,15 @@ it('groupPoints tessellates a curved object, passes a straight object through, a
 	expect(points).toEqual(expect.arrayContaining([{ x: 0, y: 0 }, { x: 1, y: 1 }]));
 	expect(points).not.toEqual(expect.arrayContaining([{ x: 5, y: 5 }]));
 });
+
+/**
+ * M4: a placement stores `[anchor, facingPoint]`, and the facing point is 1000 mm away on a line
+ * nobody draws. The domain cannot read a shape, so the anchor is the honest pivot — the one a
+ * lone pasted placement lands on.
+ */
+it('groupPoints takes an asset placement by its anchor alone, never its facing point', () => {
+	const structure: Structure = { walls: [], openings: [], boundaries: [], elements: [
+		{ id: 'element-radiator', kind: 'asset', assetId: 'asset-radiator', points: [{ x: 1000, y: 1000 }, { x: 2000, y: 1000 }] },
+	] };
+	expect(groupPoints({ objects: [], structure }, ['element-radiator'])).toEqual([{ x: 1000, y: 1000 }]);
+});

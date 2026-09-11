@@ -120,6 +120,7 @@ export const planningDe = {
 	"planning.rule.wall-length": "Wandlänge",
 	"planning.rule.opening-area": "Öffnungsfläche",
 	"planning.rule.count": "Ein ausgewähltes Element",
+	"planning.rule.placement-count": "Platzierungen dieses Objekts im Raum",
 	"planning.rule.manual": "Manuelle Eingabe",
 	"renovation.materials": "Baustoffe",
 	"renovation.costs": "Kosten",

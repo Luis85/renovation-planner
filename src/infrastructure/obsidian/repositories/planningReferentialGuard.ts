@@ -29,7 +29,7 @@ export async function guardMaterialGeometry(deps: { vault: Vault; index: Project
 		if (!source || source.planId !== planId) continue;
 		const roomId = requirement.origin.zoneId;
 		if (!after.objects.some(item => item.id === roomId)) return err(depthError());
-		if (sourceMeasurement(source, roomId, sourceDocument(before), requirement.unit).ok && !sourceMeasurement(source, roomId, sourceDocument(after), requirement.unit).ok) return err(depthError());
+		if (sourceMeasurement(source, roomId, sourceDocument(before), requirement.unit, requirement.assetId).ok && !sourceMeasurement(source, roomId, sourceDocument(after), requirement.unit, requirement.assetId).ok) return err(depthError());
 	}
 	return ok(undefined);
 }

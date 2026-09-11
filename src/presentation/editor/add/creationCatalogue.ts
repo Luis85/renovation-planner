@@ -3,9 +3,9 @@ import { t } from '../../i18n/strings';
 import type { EditorRuntime } from '../runtime';
 import type { ToolId } from '../tools/editor-tool';
 
-export type CreationEntryId = 'room' | 'wall' | 'door' | 'window' | 'opening' | 'area' | 'path' | 'fence' | 'item' | 'measurement' | 'note' | 'stair' | 'arrow';
+export type CreationEntryId = 'room' | 'wall' | 'door' | 'window' | 'opening' | 'area' | 'path' | 'fence' | 'item' | 'asset' | 'measurement' | 'note' | 'stair' | 'arrow';
 export type CreationGroup = 'structure' | 'property' | 'planning';
-export type CreationRuntime = Pick<EditorRuntime, 'setTool'> & { readonly createNote?: () => void };
+export type CreationRuntime = Pick<EditorRuntime, 'setTool'> & { readonly createNote?: () => void; readonly chooseAsset?: () => void };
 export interface CreationEntry {
 	readonly id: CreationEntryId;
 	readonly group: CreationGroup;
@@ -19,7 +19,7 @@ export interface CreationEntry {
 type EntryFor<K extends CreationEntryId> = CreationEntry & { readonly id: K };
 const CREATION_ICONS: Readonly<Record<CreationEntryId, string>> = {
 	room: 'square-dashed', wall: 'brick-wall', door: 'door-open', window: 'panels-top-left', opening: 'rectangle-horizontal',
-	area: 'land-plot', path: 'route', fence: 'fence', item: 'armchair', measurement: 'ruler', note: 'sticky-note',
+	area: 'land-plot', path: 'route', fence: 'fence', item: 'armchair', asset: 'square-dashed-mouse-pointer', measurement: 'ruler', note: 'sticky-note',
 	stair: 'rp-stairs', arrow: 'arrow-up-right',
 };
 
@@ -40,6 +40,11 @@ const ENTRIES_BY_ID: { readonly [K in CreationEntryId]: EntryFor<K> } = {
 	path: toolEntry('path', 'property', 'draw-path'),
 	fence: toolEntry('fence', 'property', 'draw-fence'),
 	item: toolEntry('item', 'planning', 'place-object'),
+	asset: {
+		id: 'asset', group: 'planning', icon: CREATION_ICONS.asset, labelKey: 'editor.add.asset.label', descriptionKey: 'editor.add.asset.description', synonymKeys: [],
+		availability: { kind: 'available' },
+		activate: runtime => { if (!runtime.chooseAsset) throw new Error('Asset requires its placement capability'); runtime.chooseAsset(); },
+	},
 	measurement: toolEntry('measurement', 'planning', 'measure'),
 	arrow: toolEntry('arrow', 'planning', 'draw-arrow'),
 	note: {

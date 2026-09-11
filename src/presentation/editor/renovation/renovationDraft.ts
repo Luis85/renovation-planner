@@ -51,7 +51,7 @@ function targetFacts(baseline: RenovationBaseline, targetId: string) {
  return { opening, element, name };
 }
 function detailKind(opening: Opening | undefined, element: SpatialElement | undefined): RenovationSubject['kind'] {
-	if (element) return element.kind === 'object' ? 'fixture' : 'other';
+	if (element) return ['object', 'asset'].includes(element.kind) ? 'fixture' : 'other';
 	return opening?.kind === 'door' ? 'door' : opening?.kind === 'window' ? 'window' : opening ? 'other' : 'wall';
 }
 function upsert<T extends { id: string }>(items: readonly T[], item: T): readonly T[] {

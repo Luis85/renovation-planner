@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { createAssetCatalogueChangeSource } from '../../../src/application/events/assetCatalogueChangeSource';
 import { projectIndexEntryChanged, projectIndexRebuilt } from '../../../src/application/events/projectIndex.events';
-import { assetCreated, assetDeleted, assetUpdated } from '../../../src/domain/asset/Asset.events';
+import { assetCreated, assetDeleted, assetDesignChanged, assetUpdated } from '../../../src/domain/asset/Asset.events';
 import { zoneGeometryChanged } from '../../../src/domain/zone/Zone.events';
 import { planBackgroundChanged } from '../../../src/domain/plan/Plan.events';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
@@ -96,6 +96,15 @@ describe('createAssetCatalogueChangeSource', () => {
 		await bus.publish(
 			projectIndexEntryChanged({ entityId: 'a1' as EntityId<string>, entityType: 'renovation-asset' }),
 		);
+		expect(heard).toEqual(['heard']);
+	});
+
+	/** Ruling R19: an open plan re-reads a placed asset's footprint on a designer commit. */
+	it('delivers AssetDesignChanged, so an open plan re-reads a placed asset\'s footprint', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish(assetDesignChanged({ assetId: anAsset }));
+
 		expect(heard).toEqual(['heard']);
 	});
 

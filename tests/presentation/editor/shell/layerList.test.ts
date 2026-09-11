@@ -16,8 +16,8 @@ describe('LayerList, mounted inside the editor', () => {
 		const harness = await mountPlanEditorCanvas();
 
 		const boxes = harness.wrapper.findAll('.rp-layer-list input[type="checkbox"]');
-		// reference, rooms, walls, notes — the fixture editor has no renovation session, so no Planned row
-		expect(boxes).toHaveLength(4);
+		// reference, rooms, walls, assets, notes — the fixture editor has no renovation session, so no Planned row
+		expect(boxes).toHaveLength(5);
 
 		await harness.wrapper.get('[data-rp-layer="rooms"]').setValue(false);
 
@@ -25,8 +25,8 @@ describe('LayerList, mounted inside the editor', () => {
 	});
 
 	/**
-	 * Notes and photos is the fourth row in this rig (reference, rooms, walls, notes — no
-	 * renovation session, so no Planned row) and its own gate lives on `WorkspaceStore`
+	 * Notes and photos is the fifth row in this rig (reference, rooms, walls, assets, notes —
+	 * no renovation session, so no Planned row) and its own gate lives on `WorkspaceStore`
 	 * rather than on a Konva layer (`PlanCanvas` reads `notesVisible` to gate evidence pins).
 	 */
 	it('toggles WorkspaceStore.notesVisible from the Notes and photos row', async () => {

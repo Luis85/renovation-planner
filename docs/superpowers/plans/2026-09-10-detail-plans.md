@@ -1568,7 +1568,7 @@ Run `npm run test-build`, reload Obsidian in this repository's vault and enable 
 
 1. Open a project with a site plan that has a background image and a large site zone containing a
    House zone.
-2. Lock the site zone from **Elements**. Click inside the House zone on the canvas: House is
+2. Lock the site zone from **Rooms and areas**. Click inside the House zone on the canvas: House is
    selected, not the site. Right-click inside it: the menu is House's.
 3. Choose **New detail plan**. The name reads `House`. Create it: a new editor tab opens on
    `House`, the breadcrumb reads `Project › Site plan › House`, and a dashed `House` outline sits

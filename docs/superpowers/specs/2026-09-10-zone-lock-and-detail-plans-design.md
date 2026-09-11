@@ -55,7 +55,9 @@ the value is a boolean.
 - `zoneFrontmatter.ts` gains `ZoneFrontmatterSchemaV2 = V1.extend({ 'schema-version': 2,
   locked: z.boolean() })`, and the repository parses the union of V1 and V2.
 - `zone.migrations.ts` stays empty: a V1 note is simply an unlocked zone, read in memory, never
-  rewritten by a read.
+  rewritten by a read. (implementation, 2026-09-11: a discriminator-only 1→2 migration lifts a V1
+  note to the V2 shape in memory — no read rewrites it —
+  `src/infrastructure/persistence/migration/entities/zone/zone.migrations.ts`.)
 - The zone mapper writes **v2 only when `locked` is `true`** and v1 otherwise, following
   `planSchemaVersion`'s rule that a save only raises the version when it has something an older
   reader would drop. An older build therefore refuses a locked zone's note instead of silently
@@ -73,7 +75,9 @@ that command (implementation plan, 2026-09-10). History, versioning, no-write an
 
 ### 3.5 Read model
 
-`ZoneDto` and `SpatialRecordDto` gain `locked: boolean`. `toZoneDto` copies it.
+`ZoneDto` and `SpatialRecordDto` gain `locked: boolean`. `toZoneDto` copies it. (implementation,
+2026-09-11: `locked?: true`, present only while locked, on both DTOs —
+`src/presentation/read-models/PlanDto.ts`, `spatialRecords.ts`.)
 
 ### 3.6 Canvas
 
@@ -172,13 +176,17 @@ The command stays outside canvas history, as "New plan" in the project view is t
 
 - `listDetailPlans(planId)` → `{ id, name, parentZoneId }[]`, from `ListPlansByProject`
   filtered by `parent.planId === planId`. Unreadable plans are counted, not shown.
+  (implementation, 2026-09-11: unreadable plans are simply not shown — nothing counts them —
+  `src/presentation/read-models/planHierarchy.ts`.)
 - `getPlanAncestry(planId)` → `{ id, name }[]` from the root plan down to the parent, following
   `parent.planId` through `getPlan`. A visited-set guard stops at a cycle a hand-edited note could
   create; a missing ancestor ends the chain there.
 - `getParentZoneOutline(planId)` → `{ name, points, bulges } | null`, reading the parent plan's
   zones through `findZonesByPlan` and picking `parent.zoneId`.
 
-`unavailablePlanEditorQueries` refuses all three like the others.
+`unavailablePlanEditorQueries` refuses all three like the others. (implementation, 2026-09-11:
+it carries no `hierarchy` member at all; the store then draws no hierarchy —
+`planEditorQueries.ts`, `PlanHierarchyStore.ts`.)
 
 **Implementation refinement (2026-09-10):** the three answers are one optional member,
 `hierarchy(planId)`, returning `{ ancestry, detailPlans, parentZone, parentZoneMissing }`, because
@@ -192,19 +200,30 @@ plan (CLAUDE.md's "one action, every input").
 
 ### 4.6 Creating and opening from the canvas
 
-For a single selected zone, `useCanvasMenuActions` adds, after Delete:
+For a single selected zone, `useCanvasMenuActions` adds, after Delete (implementation, 2026-09-11:
+inserted after Delete, but the grouped menu then reorders every action by `GROUP_ORDER` — New
+lands in the `create` group, Open in the `object` group, alongside every other action of that
+kind — `detailPlanActions.ts`, `useCanvasMenuActions.ts`):
 
-- **New detail plan…** — opens a root-owned dialog (the existing `NewPlanForm` pattern in the
-  editor's `DialogHost`) prefilled with the zone's name. Create dispatches `CreatePlanCommand`
-  with `parent`, then `navigation.plan(newId)`. Disabled when `writesBlocked`, in review
-  perspective, or when `context.navigation` is absent.
-- **Open "{name}"** — one entry per existing detail plan of that zone, sorted by name, each
-  calling `navigation.plan(id)`.
+- **New detail plan…** (implementation, 2026-09-11: labelled "New detail plan", no ellipsis —
+  `editor.input.detail-plan-new`) — opens a root-owned dialog (the existing `NewPlanForm` pattern
+  in the editor's `DialogHost`) prefilled with the zone's name. Create dispatches
+  `CreatePlanCommand` with `parent`, then `navigation.plan(newId)`. Disabled when `writesBlocked`,
+  in review perspective, or when `context.navigation` is absent. (implementation, 2026-09-11:
+  shown disabled when writes are blocked; not offered at all in review perspective, or when this
+  composition has no `createPlan` command or no `navigation.plan` —
+  `detailPlanActions.ts`, `useCanvasMenuActions.ts`.)
+- **Open "{name}"** (implementation, 2026-09-11: labelled `Open {name}`, no quotes —
+  `editor.input.detail-plan-open`) — one entry per existing detail plan of that zone, sorted by
+  name, each calling `navigation.plan(id)`.
 
 The detail-plan list refreshes on hydrate and after this leaf's own Create. The plan-change
 source filters `PlanCreated` by the created plan's own id, so a detail plan created from a
 different leaf of the same parent appears on that leaf's next hydrate rather than immediately;
-widening the source is not worth a payload change for that case.
+widening the source is not worth a payload change for that case. (implementation, 2026-09-11:
+`src/application/events/planChangeSource.ts` does not subscribe to `PlanCreated` at all — it is
+absent from `PLAN_CHANGE_EVENTS` — so a detail plan created in another leaf of the same parent
+appears on this leaf's next hydrate, with no filtering-by-id involved.)
 
 ### 4.7 Going up
 

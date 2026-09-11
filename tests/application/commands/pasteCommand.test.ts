@@ -187,6 +187,16 @@ it('pastes onto a floor that already holds renovation, elements and groups, keep
 	expect(after.groups).toHaveLength(2);
 });
 
+it('pastes a room with its walls and boundary back onto the floor it was copied from', async () => {
+	const r = await rig(), floor = await r.floor();
+	const rooms = floor.zones.map(zone => ({ key: zone.id, name: zone.name, zoneType: zone.zoneType, points: zone.geometry.points }));
+	const clipboard = expectDefined(captureClipboard({ rooms, structure: floor.structure, names: floor.names, groups: floor.groups }, [r.roomId]), 'same-floor clipboard');
+	// The copied room's key IS a zone on this floor, which is what the refusal check's stand-in ids must not collide with.
+	expect(clipboard.structure.boundaries.map(boundary => boundary.roomId)).toEqual([r.roomId]);
+	expectOk(await new PasteCommand(r.deps, { planId: r.plan.id, clipboard, target: { x: 20000, y: 0 } }).execute());
+	expect((await r.floor()).structure.boundaries).toHaveLength(floor.structure.boundaries.length + 1);
+});
+
 it('pastes onto a floor that has no structure yet', async () => {
 	const r = wire(await structureStack());
 	expectOk(await r.paste().execute());

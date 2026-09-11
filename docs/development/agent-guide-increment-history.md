@@ -5695,3 +5695,23 @@ lengths, and a collinear corner between a shared and an outside edge, are refuse
 given a jog wall; a near-semicircle moved outward past 180° fails wall validation; existing walls
 are not migrated. `HARNESS_STRUCTURE` walls the Kitchen outside it at 200 mm, so the captures
 photograph the new placement.
+
+## Mitred wall corners, 2026-09-11
+
+Why: two walls meeting at anything but a right angle drew as two butt-capped strokes carried past
+each other, the wedge the canvas fidelity pass left as its ceiling, and the user asked for a clean
+corner. That pass refused mitred chaining as more code; it turned out to be one function.
+
+**Runs.** `wallPasses(walls, zoom)` answers RUNS rather than one pass pair per wall: walls meeting
+end to end, exactly two at a joint and equally thick, are chained into one polyline (a reversed
+wall walks its reversed arc), so Konva's `lineJoin: 'miter'` draws the corner exactly at any angle,
+a curve's non-tangent joint included. A run that returns to its start is `closed`, with no repeated
+point — a zero-length closing segment would leave the join undefined — and a loop starts at its
+first listed wall. Every other run end keeps the old extension rule, so a T and an unequal L are
+exactly as before: exact at a right angle, a wedge or nub at any other. Canvas bevels a mitre
+sharper than about 11° (`miterLimit` 10).
+
+**Harness.** `HARNESS_STRUCTURE` walls the Garden with one free-standing group per case — a planter
+loop with right, acute and obtuse corners, a chevron with one reversed wall, a T, an unequal L and
+a straight–arc–straight chain — and `fixture.test.ts` pins that `wallPasses` draws them as those
+runs, since a case only a unit test names is one no capture photographs.

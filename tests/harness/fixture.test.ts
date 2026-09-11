@@ -15,6 +15,7 @@ import {
 	type PlanEditorContext,
 } from '../../src/presentation/editor/PlanEditorContext';
 import { HARNESS_PLAN, HARNESS_STRUCTURE, HARNESS_ZONES, harnessDeps } from './planEditor';
+import { wallPasses } from '../../src/presentation/editor/structure/wallPasses';
 import { createInspectorStoreDefinition } from '../../src/presentation/editor/inspector/inspector-store';
 import { isErr, ok } from '../../src/core/result/Result';
 import type { ZoneId } from '../../src/domain/zone/ZoneId';
@@ -136,10 +137,22 @@ describe('the harness fixture', () => {
 		if (!read.ok) throw new Error('fixture zones refused');
 		const structure = read.value.structure;
 		expect(structure).toEqual(HARNESS_STRUCTURE);
-		expect(structure?.walls).toHaveLength(4);
+		const kitchenWalls = ['wall-harness-north', 'wall-harness-east', 'wall-harness-south', 'wall-harness-west'];
 		expect(structure?.openings.map(opening => opening.kind).toSorted()).toEqual(['door', 'window']);
-		expect(structure?.boundaries).toEqual([{ roomId: 'harness-kitchen', wallIds: structure?.walls.map(wall => wall.id) }]);
-		for (const wall of structure?.walls ?? []) expect(wall.thickness).toBe(200);
+		expect(structure?.boundaries).toEqual([{ roomId: 'harness-kitchen', wallIds: kitchenWalls }]);
+		for (const wall of structure?.walls.filter(candidate => kitchenWalls.includes(candidate.id)) ?? []) expect(wall.thickness).toBe(200);
+	});
+
+	/** A corner case only a test names is one no capture photographs, so the Garden walls draw each run `wallPasses` distinguishes. */
+	it('walls the Garden with one free-standing group per wall-corner case', () => {
+		expect(wallPasses(HARNESS_STRUCTURE.walls, 1).map(run => [run.id, run.closed])).toEqual([
+			['wall-harness-north', true],
+			['wall-harness-planter-north', true],
+			['wall-harness-chevron-west', false],
+			['wall-harness-tee-west', false], ['wall-harness-tee-east', false], ['wall-harness-tee-stem', false],
+			['wall-harness-step-thick', false], ['wall-harness-step-thin', false],
+			['wall-harness-curve-west', false],
+		]);
 	});
 });
 

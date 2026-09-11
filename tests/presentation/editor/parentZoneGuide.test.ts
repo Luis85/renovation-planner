@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
 import { ok } from '../../../src/core/result/Result';
 import { guideOutline } from '../../../src/presentation/editor/hierarchy/parentZoneGuide';
+import { DEFAULT_VIEWPORT } from '../../../src/presentation/editor/viewport/Viewport';
 import { NO_HIERARCHY } from '../../../src/presentation/read-models/planHierarchy';
 import { fakeQueries, layerNames, mountPlanEditorCanvas, settle } from '../../helpers/editor';
 import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
@@ -26,7 +27,15 @@ describe('the parent zone guide on a detail plan', () => {
 		expect(guide?.getLayer()?.name()).toBe('background');
 		expect(guide?.points().slice(0, 2)).toEqual([0, 0]);
 		expect(guide?.listening()).toBe(false);
+		expect(guide?.dash()?.length).toBeGreaterThan(0);
+		expect(guide?.strokeScaleEnabled()).toBe(false);
+		expect(guide?.closed()).toBe(true);
 		expect(layerNames(harness.stage)).toHaveLength(7);
+
+		const caption = harness.stage.findOne<Konva.Text>('.parent-zone-guide-caption');
+		expect(caption?.text()).toBe(HOUSE.name);
+		expect(caption?.scaleX()).toBe(1 / DEFAULT_VIEWPORT.zoom);
+		expect(caption?.scaleY()).toBe(1 / DEFAULT_VIEWPORT.zoom);
 	});
 
 	it('draws nothing for a plan without a parent zone', async () => {

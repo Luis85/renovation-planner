@@ -63,7 +63,7 @@ export const structureEn = {
 	// draft refusal, `structureActions` raises a notice, and the Room delete flow restores a
 	// boundary through `RoomBoundaryHistory`.
 	// Reached by any operation that places walls, a paste included, so it names no drawing step.
-	'spatial.intersection':'Walls cross or overlap. Place them so that walls meet only at their ends, then try again.',
+	'spatial.intersection': 'Walls cross or overlap. Place them so that walls meet only at their ends, then try again.',
 	'spatial.read-failed': 'The room boundary could not be read.',
 	'spatial.boundary-missing': 'The walls of this room boundary no longer exist.',
 	'spatial.boundary-invalid': 'The room boundary cannot be restored safely. Reopen the floor before editing.',

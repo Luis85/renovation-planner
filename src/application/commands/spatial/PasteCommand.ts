@@ -70,6 +70,13 @@ export class PasteCommand {
 			const step = this.deps.createRoom({ planId, name: room.name, zoneType: room.zoneType as ZoneType, geometry: { points: room.points, bulges: room.bulges } });
 			const result = await step.execute();
 			if (!result.ok) return this.restore(done, false, result.error);
+			// Safe: this is always the step's FIRST execute (a fresh `createRoom` per room, never a
+			// redo), and `result.ok` just confirmed it succeeded — `ReversibleCreateZoneCommand.execute`
+			// (reversible-create-zone-command.ts:128-137) sets `this.snapshot` before returning `ok`, so
+			// `createdZoneId` (line 168-170 there) is never null here. Narrowing `PasteDeps.createRoom`'s
+			// return type to drop `| null` would still be a lie: the interface must accept the real,
+			// shared `ReversibleCreateZoneCommand`, whose getter is honestly `ZoneId | null` for every
+			// OTHER caller of it.
 			done.push(step); roomIds.push(step.createdZoneId as ZoneId);
 		}
 		const placed = placedStructure(clipboard, target, roomIds, prefix => this.deps.mintId(prefix));
@@ -90,7 +97,9 @@ export class PasteCommand {
 	 * refused paste writes nothing. The rooms do not exist yet, so each stands in under its clipboard
 	 * key, prefixed: on the floor it was copied from, the bare key IS an existing zone id, and a
 	 * boundary naming it would be refused as a second boundary for that room. The ids this placement
-	 * mints are thrown away with it; step 2 places the paste again under its own.
+	 * mints are thrown away with it; step 2 places the paste again under its own — so this dry run
+	 * mints its own throwaway ids too, rather than burning real ones through `deps.mintId` for a
+	 * placement nothing ever writes.
 	 */
 	private async refusal(): Promise<AppError | null> {
 		const { planId, clipboard, target } = this.input;
@@ -98,7 +107,8 @@ export class PasteCommand {
 		const baseline = await this.deps.renovation.read(planId);
 		if (!baseline.ok) return baseline.error;
 		const standIns = clipboard.rooms.map(room => `paste:${room.key}`);
-		const placed = placedStructure(clipboard, target, standIns, prefix => this.deps.mintId(prefix));
+		let minted = 0;
+		const placed = placedStructure(clipboard, target, standIns, prefix => `${prefix}-paste-${minted++}`);
 		const valid = validateStructure(mergedStructure(baseline.value, placed), [...baseline.value.geometry.document.objects.map(item => item.id), ...standIns]);
 		return valid.ok ? null : valid.error;
 	}
@@ -128,12 +138,16 @@ export class PasteCommand {
 			if (!result.ok) return this.restore(moved, !forward, result.error);
 			moved.push(step);
 		}
-		return ok('wrote');
+		// An empty `steps` (an undo before the first execute ever ran) walked nothing.
+		return ok(moved.length ? 'wrote' : 'no-write');
 	}
 
 	private async restore(moved: readonly PasteStep[], forward: boolean, error: AppError): Promise<DispatchResult> {
 		for (const step of moved.toReversed()) {
 			const back = forward ? await step.execute() : await step.undo();
+			// Stopping here rather than continuing to compensate the rest is deliberate:
+			// `markUncompensated` sends the editor into reopen-the-floor recovery, so continuing
+			// would write against a floor state this command can no longer vouch for.
 			if (!back.ok) return err(markUncompensated(error));
 		}
 		return err(error);

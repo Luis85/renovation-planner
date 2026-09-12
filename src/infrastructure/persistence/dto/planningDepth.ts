@@ -6,7 +6,7 @@ import { QUANTITY_RULES } from '../../../domain/requirement/RequirementSource';
 
 const id = z.string().min(1), decimal = z.string().regex(/^(0|[1-9]\d*)(\.\d+)?$/);
 const money = z.object({ amount: decimal, currency: z.string().regex(/^[A-Z]{3}$/) }).transform(value => of(value.amount, value.currency));
-const context = { id, roomId: id, targetId: id, workId: z.string() };
+const context = { id, roomId: id.optional(), targetId: id, workId: z.string() };
 export const SharedLinksSchema = z.array(z.object({ roomId: id, targetId: id })).optional();
 export const RequirementSourceSchema = z.object({ planId: id, targetId: id, workId: z.string(), outcomeId: z.string(), state: z.enum(['current', 'intended']),
 	rule: z.enum(QUANTITY_RULES), manual: decimal, coverage: decimal, lot: z.string(), minimum: z.string() });

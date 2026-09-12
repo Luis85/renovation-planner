@@ -73,5 +73,12 @@ export const PlanFrontmatterSchemaV10 = PlanFrontmatterSchemaV9.extend({
 	'schema-version': z.literal(10),
 	north: z.number().int().min(0).max(359).optional().catch(undefined),
 });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8, PlanFrontmatterSchemaV9, PlanFrontmatterSchemaV10]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV10>;
+/**
+ * A renovation record with no room (ADR-0029) — and, from Task 9, a subject naming a catalogue
+ * material (ADR-0030). The shared `RenovationSchema` accepts both at every version, as it
+ * accepts v5's shared links: the version exists to make an older WRITER refuse the note, not
+ * to gate this reader.
+ */
+const PlanFrontmatterSchemaV11 = PlanFrontmatterSchemaV10.extend({ 'schema-version': z.literal(11) });
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8, PlanFrontmatterSchemaV9, PlanFrontmatterSchemaV10, PlanFrontmatterSchemaV11]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV11>;

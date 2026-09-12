@@ -2,7 +2,6 @@ import type { PlanEditorContext } from './PlanEditorContext';
 import type { EditorRuntime } from './runtime';
 import type { RoomEditRuntime } from './roomEditAction';
 import { createAreaDetailsAction } from './metadata/areaDetailsAction';
-import { createOutlineEditAction } from './resize/outlineEditAction';
 import { createRoomResizeAction } from './resize/roomResizeAction';
 import { createRoomNamingAction } from './naming/roomNamingAction';
 import { createReferenceAction } from './reference/referenceAction';
@@ -12,7 +11,7 @@ import { onBeforeUnmount } from 'vue';
 export function createEditorFormActions(context: PlanEditorContext,
 	runtime: RoomEditRuntime & Pick<EditorRuntime, 'renderState' | 'dispatcher' | 'toolManager' | 'setTool' | 'returnToSelect'>) {
 	onBeforeUnmount(() => runtime.toolManager.dispose());
-	return { roomDimension: createRoomDimensionAction(context, runtime), areaDetails: createAreaDetailsAction(context, runtime), outlineEdit: createOutlineEditAction(context, runtime),
+	return { roomDimension: createRoomDimensionAction(context, runtime), areaDetails: createAreaDetailsAction(context, runtime),
 		...createRoomResizeAction(context, runtime), ...createRoomNamingAction(context, runtime), ...createReferenceAction(context, runtime) };
 }
 export type EditorFormActions = ReturnType<typeof createEditorFormActions>;

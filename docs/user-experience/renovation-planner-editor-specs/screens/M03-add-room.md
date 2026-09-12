@@ -193,6 +193,8 @@ Select a Room or Area and activate **Edit corner coordinates** in its Inspector.
 
 This provides a non-canvas editing route for irregular outlines without replacing them with rectangles. `outlineProposal.test.ts` and `outlineEdit.e2e.test.ts` cover parsing, preview, reflow, cancellation and history; final integrated visual and host acceptance remain open.
 
+**Withdrawn (2026-09-12).** The Room/Area corner-coordinate form and all three of its doors — the Inspector action, the canvas `Edit shape` popover button and the context menu's `Edit` on a zone — are removed. Over a large area the coordinate list was harder to reason about than the shape itself; a zone's outline is edited by dragging its vertices on the canvas. `OutlinePointsForm` and `outlineProposal` remain for linear and object elements, and `outlineEdit.e2e.test.ts` is deleted with the feature.
+
 
 ## Room alignment continuation (2026-09-07)
 

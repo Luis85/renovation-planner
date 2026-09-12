@@ -42,7 +42,7 @@ The screen lives inside an Obsidian workspace leaf. A restrained host ribbon and
 | Click empty canvas | Clear selection and return to M01 |
 | Drag selected boundary/handle | Preview geometry change with snapping; commit on release |
 | Click a displayed dimension | Replace label with numeric entry; Enter commits; Esc cancels |
-| Click `Edit shape` | Enter a temporary geometry-edit substate |
+| ~~Click `Edit shape`~~ | Withdrawn 2026-09-12: drag the selected boundary handles instead (see M03's withdrawal note) |
 | Click `Add detail` | Open a contextual Add menu pre-linked to Kitchen |
 | Click `What's here` | Open M08 |
 | Click `What will change` | Open M09 |

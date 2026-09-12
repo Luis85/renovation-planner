@@ -112,5 +112,11 @@
 @import "./editor-reference-viewport.css";
 @import "./editor-shell-fidelity.css";
 @import "./editor-creation-fidelity.css";
+/*
+ * AFTER every partial that styles an editor button or overlay, so the task bar's own rules are
+ * the last word on it. Nothing else in the sheet names `.rp-task-banner`; its rules were spread
+ * over five partials until they were gathered here.
+ */
+@import "./editor-task-bar.css";
 @import "./editor-context-menu.css";
 @import "./editor-groups.css";

@@ -24,6 +24,7 @@ import { staleWriteRefusal } from '../tools/with-stale-gate';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { editWall, validSpatialPoint } from '../../../domain/spatial/structureGeometry';
 import { createWallRotationActions } from './wallRotationActions';
+import { createStructureBulkEdit, type StructureServices } from './structureBulkEdit';
 function removalIds(id: string | readonly string[]): readonly string[] { return typeof id === 'string' ? [id] : [...new Set(id)]; }
 function removalSummary(structure: Structure, selected: readonly string[], openings: number, rooms: number): string {
 	const names = selected.map(target => {
@@ -39,6 +40,7 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	const preview = ref<Structure | null>(null), active = ref(false);
 	const session = useRenovationSession(), save = useSaveStateStore(), blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
 	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked });
+	const bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable, prepareBaseline, reviewedWrite });
 	let alive = true;
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
 	function matchesProjection(document: PlanGeometryDocument): boolean {
@@ -55,6 +57,13 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		return { snapshot: null, recovery: runtime.refreshProjection() };
 	}
 	function unavailable(): boolean { return !alive || active.value || blocked.value || !!dialogs.current; }
+	/** The preview and write a structure dialog hands its form; both retire with the leaf. */
+	function reviewedWrite(services: StructureServices, snapshot: PlanGeometrySnapshot) {
+		return {
+			preview: (value: Structure | null) => { preview.value = alive ? value : null; },
+			dispatch: (next: Structure) => !alive ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger })),
+		};
+	}
 	async function edit(id: string, end?: Point, openingPoint?: Point): Promise<void> {
 		// A refused wall-end drop must not strand the preview its release left up.
 		if (unavailable() || !context.commands.structure) { if (end) preview.value = null; return; }
@@ -71,8 +80,7 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.structure.edit'), component: markRaw(StructureEditForm), busy, props: {
 				structure, id, end, openingPoint, busy, blocked,
 				roomNames: structure.boundaries.filter(boundary => boundary.wallIds.includes(id)).map(boundary => project.zones.get(boundary.roomId)?.name ?? boundary.roomId),
-				preview: (value: Structure | null) => { preview.value = value; },
-				dispatch: (next: Structure) => !alive ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger })),
+				...reviewedWrite(services, snapshot),
 			} });
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.structure.edit-failed'); }
 		finally { active.value = false; preview.value = null; }
@@ -125,5 +133,5 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		const wall = project.structure.walls.find(item => item.id === id);
 		preview.value = alive && wall && end ? editWall(project.structure, { ...wall, end }) : null;
 	}
-	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, ...rotation };
+	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, ...rotation, ...bulk };
 }

@@ -14,6 +14,7 @@ import { mountPlanEditorCanvas, runtimeOf, settle, settleUntil as until } from '
 import { activateTool, click, PLAN_DTO, rig } from '../../../helpers/planEditorRig';
 import { expectOk } from '../../../helpers/domain';
 import { structureEditor } from '../../../helpers/structureEditor';
+import { placeAt } from '../../../helpers/layout';
 
 describe('TemporaryToolBanner', () => {
 	it('is absent under Select and names the task under a creation tool', async () => {
@@ -114,6 +115,27 @@ describe('TemporaryToolBanner', () => {
 		expect(harness.wrapper.find(`#${finish.attributes('aria-describedby')}`).text()).toBe(
 			t('en', 'editor.task.add-room.instruction'),
 		);
+	});
+
+	/**
+	 * ONE placement for every task, not only the structure tools that used to carry a modifier:
+	 * the measured clearance above Select/Pan/Add is what docks the bar, so a non-structure task
+	 * has to be measured too — `structureLifecycle.test.ts` covers Wall. No task may bring its own
+	 * placement class back, and Finish and Cancel close the bar together in one actions group.
+	 */
+	it.each(['draw-room', 'draw-area', 'calibrate'] as const)('docks the %s bar at the measured clearance above Select/Pan/Add', async (tool) => {
+		const harness = await mountPlanEditorCanvas();
+		const primary = harness.wrapper.get('.rp-primary-actions').element as HTMLElement;
+		placeAt(harness.canvasEl, 0, 0, 800, 600);
+		placeAt(primary, 300, 520, 200, 48);
+		runtimeOf(harness).setTool(tool);
+		await settle();
+		const banner = harness.wrapper.get('.rp-task-banner');
+		expect((banner.element as HTMLElement).style.getPropertyValue('--rp-taskbar-clearance')).toBe('96px');
+		expect(banner.classes()).toEqual(['rp-task-banner']);
+		const actions = banner.get('.rp-task-banner__actions');
+		expect(actions.findAll('button').at(-1)?.classes()).toContain('rp-task-banner__cancel');
+		expect(actions.find('.rp-task-banner__finish').exists()).toBe(tool !== 'calibrate');
 	});
 
 	it('offers no Finish under the calibrate tool, which finishes by gesture', async () => {

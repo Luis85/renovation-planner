@@ -112,7 +112,7 @@
  * worked example: source order was tried, the comment claiming it won was false in both claims).
  *
  * Within ONE partial the list IS taken, because there is no order question and no second
- * paragraph to sever: `.rp-task-banner__cancel`/`__finish` in `editor-shell.css` and
+ * paragraph to sever: `.rp-task-banner__cancel`/`__finish` in `editor-task-bar.css` and
  * `.rp-overlay-panel__close`/`.rp-inspector-drawer__close` in `editor-layout.css`.
  */
 /* fallow-ignore-next-line code-duplication */

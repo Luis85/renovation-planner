@@ -54,9 +54,12 @@ it('moves a grouped Room, walls and later hosted opening from the immutable poin
 	expect(rig.selection.selectedIds).toContain(opening.id);
 	let release!: () => void; const pending = new Promise<void>(resolve => { release = resolve; }), originalWrite = rig.geometry.write.bind(rig.geometry);
 	const write = vi.spyOn(rig.geometry, 'write').mockImplementationOnce(async (...args) => { await pending; return originalWrite(...args); }), tool = rig.runtime.toolManager;
-	tool.pointerDown(pointerAt(1800, 1400)); tool.pointerMove(pointerAt(2100, 1550));
+	// Pressed at (500,2600) rather than the room's centre: the centre now sits inside the
+	// selected room's own caption grab box (ADR-0029), and only the DRAG DELTA below matters
+	// for the translated points this case asserts.
+	tool.pointerDown(pointerAt(500, 2600)); tool.pointerMove(pointerAt(800, 2750));
 	expect(rig.runtime.groupActions.preview.value?.objects[0].points[0]).toEqual({ x: 300, y: 150 });
-	tool.pointerMove(pointerAt(2200, 1600)); tool.pointerUp(pointerAt(2300, 1700));
+	tool.pointerMove(pointerAt(900, 2800)); tool.pointerUp(pointerAt(1000, 2900));
 	// The drop stays where it landed while the write and its read-back are in flight, rather than
 	// snapping back to the saved geometry until the refreshed projection arrives.
 	await settleUntil(() => write.mock.calls.length === 1, 'group write');

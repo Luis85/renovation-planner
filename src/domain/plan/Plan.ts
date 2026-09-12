@@ -25,7 +25,8 @@ export interface PlanDetails {
 
 /**
  * The label fields with `base` filling what `details` leaves out, validated. Owns the
- * defaulting too, because `create` sits one branch under its complexity cap.
+ * defaulting too, because `create` sat at its complexity cap until the spatial-element check
+ * below came out of it; every check taken out of `create` is a branch it gets back.
  */
 function resolveDetails(details: PlanDetails, base: Required<PlanDetails>): Result<Required<PlanDetails>, ValidationError> {
 	const kind = details.kind ?? base.kind, order = details.order ?? base.order;
@@ -35,7 +36,17 @@ function resolveDetails(details: PlanDetails, base: Required<PlanDetails>): Resu
 	if (!Number.isInteger(order) || order < 0) {
 		return err(planError('invalid-order', `A plan order must be a non-negative integer; got ${order}.`));
 	}
-	return ok({ kind, order });
+	// `-0` is an integer and not `< 0`, so it reaches here; `+ 0` normalises it to `0` (IEEE 754:
+	// -0 + +0 is +0) rather than letting a `-0` through to a note as the sign it would serialise with.
+	return ok({ kind, order: order + 0 });
+}
+
+/** Element labels need unique `element-` identities and non-empty names; absent is fine. */
+function validateSpatialElements(elements: readonly SpatialElementMetadata[] | undefined): Result<void, ValidationError> {
+	if (elements && (new Set(elements.map(item => item.id)).size !== elements.length || elements.some(item => !item.id.startsWith('element-') || !item.name.trim()))) {
+		return err(planError('invalid-spatial-elements', 'Spatial element labels need unique identities and non-empty names.'));
+	}
+	return ok(undefined);
 }
 
 /**
@@ -158,8 +169,9 @@ export class Plan {
 	}
 
 	static create(props: CreatePlanProps): Result<Plan, ValidationError> {
-		if (props.spatialElements && (new Set(props.spatialElements.map(item => item.id)).size !== props.spatialElements.length || props.spatialElements.some(item => !item.id.startsWith('element-') || !item.name.trim()))) {
-			return err(planError('invalid-spatial-elements', 'Spatial element labels need unique identities and non-empty names.'));
+		const elements = validateSpatialElements(props.spatialElements);
+		if (!elements.ok) {
+			return elements;
 		}
 		if (props.renovation) {
 			const valid = validateRenovation(props.renovation);

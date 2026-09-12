@@ -151,6 +151,13 @@ describe('Plan kind and order', () => {
 		expect(expectErr(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'X', order: Number.NaN })).code).toBe('plan.invalid-order');
 	});
 
+	/** `-0` is an integer and not below zero, so validation lets it through; it is normalised rather than written as `-0`. */
+	it('normalises a negative zero order to zero, at creation and on a details change', () => {
+		const plan = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'X', order: -0 }));
+		expect(Object.is(plan.order, 0)).toBe(true);
+		expect(Object.is(expectOk(plan.withDetails({ order: -0 })).order, 0)).toBe(true);
+	});
+
 	it('PlanKind helpers: vocabulary, guard, and one step down', () => {
 		expect(PLAN_KINDS).toEqual(['site', 'building', 'floor', 'room']);
 		expect(DEFAULT_PLAN_KIND).toBe('floor');

@@ -8,8 +8,8 @@
  * `navigation.plan` door. This is the "arrives with a third level" deferral of the 2026-09-10
  * sidebar polish, and the third level is here.
  *
- * Reordering and the row menu are `usePlanReorder` / `PropertyTreeMenu` (Task 8), mounted here
- * so this file's template stays one list.
+ * Drag-to-reorder and the row menu arrive with the reorder increment; each `li` already carries
+ * `data-rp-plan-id`/`data-rp-parent-id` for it to key on, so this template stays one list.
  */
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';

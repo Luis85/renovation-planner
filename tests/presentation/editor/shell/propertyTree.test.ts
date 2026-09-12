@@ -75,14 +75,21 @@ describe('PropertyTree', () => {
 		harness.unmount();
 	});
 
-	it('labels each row with its kind and draws the kind icon', async () => {
+	/**
+	 * Name and description sit on the FOCUSED element, the `li`: a description is never computed
+	 * from descendants, and a name computed from the subtree would read "House Ground floor Attic".
+	 */
+	it('names the treeitem by the plan name alone, describes it by its kind and draws the kind icon', async () => {
 		const harness = await mountPlanEditorCanvas({ queries: queries() });
 		await settle();
-		const row = harness.wrapper.get('[data-rp-plan-id="plan-house"] .rp-property-tree__row');
-		expect(row.attributes('aria-description')).toBe(t('en', 'editor.shell.kind.building'));
+		const item = harness.wrapper.get('[data-rp-plan-id="plan-house"]');
+		expect(item.attributes('aria-description')).toBe(t('en', 'editor.shell.kind.building'));
+		const label = document.getElementById(item.attributes('aria-labelledby') ?? '');
+		expect(label?.textContent).toBe('House');
+		expect(item.find('.rp-property-tree__row').attributes('aria-description')).toBeUndefined();
 		// `data-icon` is the canonical name the mock `setIcon` records; `data-icon-request` carries
 		// the `lucide-` prefix `HostIcon` adds, so it is the wrong attribute to match a bare kind icon on.
-		expect(row.find('.rp-host-icon[data-icon="building"]').exists()).toBe(true);
+		expect(item.get('.rp-property-tree__row').find('.rp-host-icon[data-icon="building"]').exists()).toBe(true);
 		harness.unmount();
 	});
 

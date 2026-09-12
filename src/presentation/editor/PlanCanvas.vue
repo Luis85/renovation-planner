@@ -96,6 +96,13 @@ watch([referencePoints, () => planHierarchy.hierarchy.parentZone, () => editor.s
  if (bounds !== null && project.zones.size === 0 && project.structure.walls.length === 0 && !project.structure.elements?.length && layerVisibility.value.background && runtime.activeToolId.value === 'select') editor.fitTo(bounds, editor.stageSize);
 }, { flush: 'post' });
 const framedBounds = usePlanFrame();
+// A plan opens framed on what has been drawn in it, not at world 0,0: once, the first time the
+// stage has an area. A remount (the shell dropping the canvas below its floor width) finds the
+// stage already measured and keeps the camera the user left.
+watch(() => editor.stageSize.width > 0 && editor.stageSize.height > 0, () => {
+	const bounds = framedBounds(true, false);
+	if (bounds !== null) editor.fitTo(bounds, editor.stageSize);
+}, { once: true });
 </script>
 
 <template>

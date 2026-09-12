@@ -14,7 +14,7 @@ const renovationSession = useRenovationSession();
  * routine (slice 8 re-runs the same one after a committed command), and the context it
  * needs arrives through the one injection the view provides.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
@@ -52,6 +52,7 @@ import { editorClipboardShortcut, editorHistoryShortcut } from './surface/histor
 import { provideClipboardActions } from './clipboard/clipboardActions';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { useEditorStore } from '../stores/EditorStore';
+import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import CanvasContextMenu from './selection/CanvasContextMenu.vue';
 
 const context = usePlanEditorContext();
@@ -69,7 +70,12 @@ provideNoteCreation(runtime, planning);
 const projectStore = useProjectStore();
 const planHierarchy = usePlanHierarchyStore();
 const selection = useSelectionStore();
-const dialogs = useDialogStore(), editor = useEditorStore();
+const dialogs = useDialogStore(), editor = useEditorStore(), workspace = useWorkspaceStore();
+// The View menu's grid and snap choices follow the user from plan to plan on this device.
+const savedView = context.viewPreferences?.read() ?? {};
+workspace.gridVisible = savedView.gridVisible ?? workspace.gridVisible;
+editor.snappingEnabled = savedView.snappingEnabled ?? editor.snappingEnabled;
+watch(() => ({ gridVisible: workspace.gridVisible, snappingEnabled: editor.snappingEnabled }), (view) => context.viewPreferences?.write(view));
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite } = storeToRefs(useSaveStateStore());

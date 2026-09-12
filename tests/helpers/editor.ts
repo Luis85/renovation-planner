@@ -62,6 +62,8 @@ export interface EditorHarnessOptions {
 	readonly vault?: BackgroundVault;
 	/** The clipboard this leaf shares; two mounts given one holder are two floors of one plugin. */
 	readonly clipboard?: EditorClipboard;
+	/** The device's View preferences; two mounts given one holder are two plans on one device. */
+	readonly viewPreferences?: PlanEditorContext['viewPreferences'];
 	/**
 	 * Skip the ordinary post-mount `resizeTo` this harness otherwise gives the shell root, so a
 	 * case can size the root a different way — `clientWidthFor` (`tests/helpers/layout.ts`) —
@@ -242,6 +244,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		commands: options.commands ?? defaultPlanEditorCommands(options.zones ?? FIXTURE_ZONES),
 		vault: options.vault ?? emptyBackgroundVault(),
 		clipboard: options.clipboard ?? createEditorClipboard(),
+		viewPreferences: options.viewPreferences,
 		onThemeChange: (listener) => {
 			themeListeners.add(listener);
 			return () => themeListeners.delete(listener);

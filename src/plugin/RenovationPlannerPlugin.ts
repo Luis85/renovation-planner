@@ -43,6 +43,7 @@ import type { LibraryPersistOutcome } from './settings/libraryMigration';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { ContinueContextStore } from '../infrastructure/obsidian/plugin-data/continueContextStore';
+import { editorViewPreferencesStore } from '../infrastructure/obsidian/plugin-data/editorViewPreferencesStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { runDetached } from './runDetached';
@@ -753,7 +754,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the Plan Editor's bundle, for the factory and the rebind. */
 	private planEditorViewDeps(): PlanEditorDeps {
-		return planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard);
+		return {
+			...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard),
+			viewPreferences: editorViewPreferencesStore(this.app, `${this.manifest.id}:editor-view`, this.root.logger),
+		};
 	}
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */

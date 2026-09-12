@@ -10,7 +10,9 @@ import type { LayoutMode } from '../editor/shell/layoutMode';
  * Layer visibility is a pure RENDERING concern and not an edit — hiding the annotation
  * layer changes nothing persisted, which is why it belongs in an ephemeral store rather
  * than going through a command. Layout mode and overlay state are the same. Nothing here
- * reaches a repository, and reopening a Plan Editor starts from the defaults.
+ * reaches a repository, and reopening a Plan Editor starts from the defaults — except
+ * `gridVisible`, which `PlanEditorRoot` seeds from and writes back to the device's
+ * `PlanEditorContext.viewPreferences`.
  *
  * **Which FULL-mode panels are open is deliberately not here** (2026-09-04, spec §5.6, R11).
  * Full-mode panels remain visible. The View menu owns grid visibility and automatic object

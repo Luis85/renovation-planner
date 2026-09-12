@@ -4,7 +4,7 @@ import { mountPlanEditorCanvas, settle } from '../../helpers/editor';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
-import { screenPoint } from '../../../src/presentation/editor/viewport/Viewport';
+import { DEFAULT_VIEWPORT, screenPoint } from '../../../src/presentation/editor/viewport/Viewport';
 import { FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { expectDefined } from '../../helpers/domain';
 
@@ -57,7 +57,35 @@ describe('native View controls', () => {
 		} finally { h.unmount(); }
 	});
 
-	it('draws a camera-aligned grid, keeps preferences per leaf, and restores View focus on plain Escape', async () => {
+	it('opens framed on the drawn items rather than at world 0,0', async () => {
+		const h = await mountPlanEditorCanvas();
+		try {
+			const editor = useEditorStore(h.pinia);
+			expect(editor.viewport).not.toEqual(DEFAULT_VIEWPORT);
+			const framed = editor.viewport;
+			await h.wrapper.get('[data-rp-view="floor"]').trigger('click');
+			expect(editor.viewport).toEqual(framed);
+		} finally { h.unmount(); }
+	});
+
+	it('shares grid and snap choices with every plan opened afterwards', async () => {
+		let stored: { gridVisible?: boolean; snappingEnabled?: boolean } = {};
+		const viewPreferences = { read: () => stored, write: (next: typeof stored) => { stored = next; } };
+		const h = await mountPlanEditorCanvas({ viewPreferences });
+		try {
+			await h.wrapper.get('[data-rp-view="grid"]').setValue(true);
+			await h.wrapper.get('[data-rp-view="snap"]').setValue(false);
+			expect(stored).toEqual({ gridVisible: true, snappingEnabled: false });
+		} finally { h.unmount(); }
+		const next = await mountPlanEditorCanvas({ viewPreferences });
+		try {
+			expect(useWorkspaceStore(next.pinia).gridVisible).toBe(true);
+			expect(useEditorStore(next.pinia).snappingEnabled).toBe(false);
+			expect((next.wrapper.get('[data-rp-view="snap"]').element as HTMLInputElement).checked).toBe(false);
+		} finally { next.unmount(); }
+	});
+
+	it('draws a camera-aligned grid, keeps preferences per leaf without a host store, and restores View focus on plain Escape', async () => {
 		const h = await mountPlanEditorCanvas();
 		try {
 			const editor = useEditorStore(h.pinia), workspace = useWorkspaceStore(h.pinia);

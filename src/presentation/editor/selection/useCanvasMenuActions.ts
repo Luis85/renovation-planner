@@ -58,7 +58,6 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		const structure = [...project.structure.walls, ...project.structure.openings].some(item => item.id === id);
 		const element = project.structure.elements?.some(item => item.id === id);
 		if (zone) {
-			result.push({ id: 'edit', label: 'editor.input.edit', group: 'edit', icon: 'pencil', disabled: blocked || runtime.outlineEdit.blocked.value, run: () => runtime.outlineEdit.editOutline(id as ZoneId) });
 			result.push({ id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked, run: () => zone.zoneType === 'Room' ? runtime.renameRoom(id as ZoneId) : runtime.areaDetails.editAreaDetails(id as ZoneId) });
 			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked, run: () => runtime.deleteZone(id as ZoneId, zone.name) });
 			result.push(...detailPlans(id, zone.name, blocked));

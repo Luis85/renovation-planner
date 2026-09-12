@@ -1,10 +1,3 @@
-.rp-task-banner--structure {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	width: min(24rem, calc(100% - var(--size-4-4)));
-}
-.rp-task-banner--structure .rp-task-banner__cancel { grid-row: 1; grid-column: 2; }
-.rp-task-banner--structure .rp-structure-task { grid-column: 1 / -1; }
 .rp-structure-task {
 	display: flex;
 	flex-direction: column;

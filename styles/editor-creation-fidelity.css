@@ -1,15 +1,4 @@
 /* Creation stays in the existing per-leaf task; the Inspector contains precise fields. */
-.renovation-plan-editor .rp-task-banner--structure {
-	--rp-taskbar-clearance: 88px;
-	top: auto;
-	bottom: var(--rp-taskbar-clearance, 88px);
-	width: fit-content;
-	max-width: calc(100% - 32px);
-	display: flex;
-	justify-content: center;
-	gap: 10px;
-}
-.renovation-plan-editor .rp-task-banner--structure > span { flex-basis: 100%; order: 2; text-align: center; }
 .renovation-plan-editor .rp-editor-inspector > .rp-structure-task {
 	max-height: none;
 	overflow: visible;
@@ -49,5 +38,4 @@
 	.renovation-plan-editor .rp-floor-start { top: 8%; padding: 8px; gap: 8px; }
 	.renovation-plan-editor .rp-floor-start__helper { margin: 0 0 8px; }
 	.renovation-plan-editor .rp-floor-start > button { min-height: 72px; padding: 12px; }
-	.renovation-plan-editor .rp-task-banner--structure { gap: 6px; }
 }

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { SpatialRecordDto } from '../../read-models/spatialRecords';
-import OutlineEditAction from '../resize/OutlineEditAction.vue';
 import AreaDetailsAction from '../metadata/AreaDetailsAction.vue';
 import RoomSizeAction from '../resize/RoomSizeAction.vue';
 import RenovationEntry from '../renovation/RenovationEntry.vue';
@@ -19,7 +18,6 @@ defineProps<{ zoneId: ZoneId; record?: SpatialRecordDto }>();
 			:points="record.points"
 		/>
 	</template>
-	<OutlineEditAction :zone-id="zoneId" />
 	<AreaDetailsAction
 		v-if="record?.kind === 'area'"
 		:zone-id="zoneId"

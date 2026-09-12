@@ -1,0 +1,142 @@
+/*
+ * THE CREATION TASK BAR (`TemporaryToolBanner.vue`) — ONE placement and ONE layout for every
+ * temporary task, whichever Add item started it. Until these rules were gathered here, Room,
+ * Area, Fence, Path, Item, Stairs, Arrow and Asset drew their bar over the canvas's TOP edge while
+ * Wall, Door, Window and Opening drew theirs at the BOTTOM through a `--structure` modifier, so
+ * the same kind of control moved across the canvas depending on what was being added.
+ *
+ * DOCKED ABOVE `.rp-primary-actions`, at a MEASURED distance rather than a guessed one:
+ * `useTaskbarClearance` writes `--rp-taskbar-clearance` inline from the canvas's bottom edge to
+ * the top of Select/Pan/Add plus a gap, and the declaration below is only the value that holds
+ * until that first measurement lands. A fixed offset is what let this bar cover Select/Add once
+ * already (`editor-creation-fidelity.md`), when host fonts made the group taller.
+ *
+ * CENTRED BY `margin-inline: auto` BETWEEN TWO INSETS, NOT BY `left: 50%` AND A TRANSFORM, and the
+ * difference is a whole layout rather than a spelling. An absolutely positioned box with
+ * `left: 50%` and a shrink-to-fit width may only be as wide as the space from that 50% to the
+ * right edge — the transform slides the box afterwards and buys back none of that width. At an
+ * Obsidian sidebar's 460px that capped the bar at half the pane and turned one sentence into
+ * eleven lines (`plan-editor-add-room-narrow`). With both insets named, `width: fit-content`
+ * shrinks to the content within the whole canvas less its gutters and the auto margins centre it.
+ *
+ * GROWS UPWARD: the bottom edge is anchored, so an expanding control (Area's corner editor) rises
+ * into the canvas, and `max-height` stops it at the top gutter with the bar scrolling inside.
+ */
+.rp-task-banner {
+	--rp-taskbar-clearance: 88px;
+	position: absolute;
+	right: var(--size-4-2);
+	bottom: var(--rp-taskbar-clearance, 88px);
+	left: var(--size-4-2);
+	width: fit-content;
+	max-width: 44rem;
+	max-height: calc(100% - var(--rp-taskbar-clearance, 88px) - var(--size-4-2));
+	overflow-y: auto;
+	margin-inline: auto;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2) var(--size-4-3);
+	padding: 10px 14px;
+	border-radius: var(--radius-m);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}
+
+.rp-task-banner span {
+	color: var(--text-muted);
+}
+
+/* Title and instruction read as one line where the width allows, and wrap as one block where not. */
+.rp-task-banner__text {
+	flex: 1 1 14rem;
+	min-width: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px var(--size-4-2);
+}
+
+/* The actions close the bar: pushed to its trailing edge, and onto a line of their own when wrapped. */
+.rp-task-banner__actions {
+	display: flex;
+	gap: var(--size-4-2);
+	margin-inline-start: auto;
+}
+
+/*
+ * Two-class compounds, (0,2,0): a bare `.rp-task-banner button` ties Obsidian's own
+ * `button:not(.clickable-icon)` at (0,1,1) and a tie is not a win, so the host's fill and shadow
+ * would draw instead — `tests/build/buttonSpecificity.test.ts` checks that for every button rule
+ * here. The shared geometry is one list because both members live in this partial; the colours
+ * are each button's own.
+ */
+.rp-task-banner .rp-task-banner__cancel,
+.rp-task-banner .rp-task-banner__finish {
+	min-height: 32px;
+	padding: var(--size-4-1) var(--size-4-3);
+	font-size: var(--font-ui-small);
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-task-banner .rp-task-banner__cancel {
+	color: var(--text-normal);
+	background-color: transparent;
+}
+
+.rp-task-banner .rp-task-banner__cancel:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/*
+ * FINISH IS THE PRIMARY CALL TO ACTION, FILLED WITH THE ACCENT — but not with Obsidian's own
+ * `.mod-cta` pairing. White `--text-on-accent` on `--interactive-accent` measures 4.26:1 in dark
+ * and 3.43:1 in light, under the 4.5:1 AA floor (the measurement is in `editor-shell.css`, beside
+ * the pressed Select button). The accent is mixed toward `--text-normal` and labelled in
+ * `--background-primary` instead, which moves BOTH ends away from each other in either scheme:
+ * lighter fill and dark label in dark, darker fill and light label in light. It is the same
+ * spelling the renovation Inspector's `.mod-cta` already ships (`editor-visual-records.css`).
+ */
+.rp-task-banner .rp-task-banner__finish {
+	color: var(--background-primary);
+	background-color: color-mix(in srgb, var(--interactive-accent) 70%, var(--text-normal));
+	border-color: transparent;
+	font-weight: var(--font-semibold);
+}
+
+.rp-task-banner .rp-task-banner__finish:hover {
+	background-color: color-mix(in srgb, var(--interactive-accent) 55%, var(--text-normal));
+}
+
+/*
+ * `aria-disabled` rather than `:disabled`, so the button stays focusable and announced — which
+ * means the DISABLED LOOK is written here, after `:hover` at equal specificity, or a Finish that
+ * cannot act would still wear the accent. Obsidian's `button[aria-disabled="true"]` supplies the
+ * dimming; its `cursor: not-allowed` loses to `cursor: pointer` above, so the cursor is restated.
+ * The same muted look `.rp-new-room__create` uses for the Inspector's own Create.
+ */
+.rp-task-banner .rp-task-banner__finish[aria-disabled='true'] {
+	color: var(--text-muted);
+	background-color: var(--background-modifier-border);
+	cursor: not-allowed;
+}
+
+/* Flattening a button takes its focus ring with it (`tests/build/buttonFocusRing.test.ts`). */
+.rp-task-banner .rp-task-banner__cancel:focus-visible,
+.rp-task-banner .rp-task-banner__finish:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+@container (max-width: 899px) {
+	.rp-task-banner {
+		gap: 6px var(--size-4-2);
+		padding: 8px 10px;
+	}
+}

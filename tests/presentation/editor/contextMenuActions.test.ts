@@ -51,10 +51,10 @@ it('opens real Add and Fit routes, keeps unavailable framing inert, and limits R
 	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit']);
 	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select([rig.room.id]); await menu(rig);
-	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit', 'copy']);
+	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['copy', 'fit']);
 	// Something on the clipboard still offers no Paste in Review.
 	await rig.wrapper.get('[data-rp-context-action="copy"]').trigger('click'); await menu(rig);
-	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['fit', 'copy']);
+	expect(rig.wrapper.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['copy', 'fit']);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 
@@ -132,18 +132,22 @@ it('offers Select while panning and Pan while selecting, in every branch, and sw
 	await rig.wrapper.get('[data-rp-context-action="pan"]').trigger('keydown', { key: 'Escape' });
 });
 
-it('puts Add first and Delete last, draws one known icon per item, and names the single object it acts on', async () => {
+/** Every item's id, with `|` where the menu draws a separator between two groups. */
+function groupedIds(menuEl: ReturnType<Awaited<ReturnType<typeof setup>>['wrapper']['get']>): string[] {
+	return menuEl.findAll('[data-rp-context-action], [role="separator"]').map(item => item.attributes('data-rp-context-action') ?? '|');
+}
+
+it('orders the menu by group with a separator between groups, draws one known icon per item, and names the single object it acts on', async () => {
 	const rig = await setup();
 	rig.selection.clear(); await menu(rig);
 	const empty = rig.wrapper.get('.rp-canvas-context-menu');
-	expect(empty.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['add', 'measure', 'fit', 'pan']);
-	expect(empty.find('[role="separator"]').exists()).toBe(false); expect(empty.find('.rp-canvas-context-menu-title').exists()).toBe(false);
+	expect(groupedIds(empty)).toEqual(['add', 'measure', '|', 'fit', 'pan']);
+	expect(empty.find('.rp-canvas-context-menu-title').exists()).toBe(false);
 	await empty.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select([rig.room.id]); await menu(rig);
 	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
 	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(rig.room.name);
-	const ids = menuEl.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'));
-	expect(ids.slice(0, 2)).toEqual(['measure', 'fit']); expect(ids.at(-1)).toBe('delete');
+	expect(groupedIds(menuEl)).toEqual(['edit', 'rename', 'rotate', '|', 'measure', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
 	for (const item of menuEl.findAll('[data-rp-context-action]')) { expect(item.find('.rp-host-icon[data-icon]').exists()).toBe(true); expect(item.find('[data-icon-missing]').exists()).toBe(false); }
 	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select(['wall-a' as never]); await menu(rig);

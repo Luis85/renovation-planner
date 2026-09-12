@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
+import { t } from '../../../src/presentation/i18n/strings';
 import { referenceWorkspace } from '../../harness/referenceWorkspace';
 import { HARNESS_PLAN, harnessDeps } from '../../harness/planEditor';
 import { fakeQueries, mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle, settleUntil } from '../../helpers/editor';
@@ -78,6 +79,7 @@ it('creates a detail plan named after the zone, opens it, and then lists it unde
 	await r.menu();
 	await r.harness.wrapper.get('[data-rp-context-action="detail-plan-new"]').trigger('click');
 	await settleUntil(() => r.dialogs.current !== null, 'new plan dialog');
+	expect(r.dialogs.current).toMatchObject({ kind: 'form', title: t('en', 'form.new-detail-plan.title', { name: 'House' }) });
 	const form = r.harness.wrapper.get('.rp-dialog-form');
 	expect((form.get('[data-field="name"]').element as HTMLInputElement).value).toBe('House');
 	await form.trigger('submit');
@@ -87,6 +89,8 @@ it('creates a detail plan named after the zone, opens it, and then lists it unde
 	expect(created).toMatchObject({ name: 'House', parent: { planId: HARNESS_PLAN.id, zoneId: house.id } });
 
 	await r.menu();
+	// The zone's linked plan is the menu's first item, with New detail plan beside it.
+	expect(r.harness.wrapper.findAll('[data-rp-context-action]').slice(0, 2).map(item => item.attributes('data-rp-context-action'))).toEqual([`detail-plan-open:${created.id}`, 'detail-plan-new']);
 	await r.harness.wrapper.get(`[data-rp-context-action="detail-plan-open:${created.id}"]`).trigger('click');
 	await settle();
 	expect(r.opened).toEqual([created.id, created.id]);

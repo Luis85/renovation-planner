@@ -1,5 +1,7 @@
 export const inputEn = {
 	'editor.input.pan': 'Pan',
+	'editor.input.switch-to-pan': 'Switch to pan mode',
+	'editor.input.switch-to-select': 'Switch to select mode',
 	'editor.input.context': 'Plan actions',
 	'editor.input.edit': 'Edit',
 	'editor.input.rename': 'Rename',
@@ -16,7 +18,10 @@ export const inputEn = {
 	'editor.input.unlock': 'Unlock {name}',
 	'editor.input.locked': 'Locked',
 	'editor.input.unavailable': 'Not available while another tool or edit is active.',
-	'editor.input.parent-zone-missing': 'The room or area this plan details no longer exists',
+	'editor.input.parent-zone-missing': 'The room or area this plan details no longer exists, so its outline is not shown.',
+	'editor.input.hierarchy-unreadable': 'Could not read which plans this one sits under.',
 	'editor.input.detail-plan-new': 'New detail plan',
 	'editor.input.detail-plan-open': 'Open {name}',
+	'editor.input.detail-plan-guide-caption': '{name} · outline from {plan}',
+	'editor.input.detail-plan-guide-explainer': 'The dashed outline is {name} from {plan}. It is a guide only and is not saved on this plan. Add a reference plan cropped at the same top-left corner and set its scale, and the two line up.',
 } as const;

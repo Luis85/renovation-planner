@@ -12,8 +12,9 @@ import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../PlanEditorContex
 import type { CanvasMenuAction } from '../selection/useCanvasMenuActions';
 
 /**
- * One zone's detail-plan menu entries (ADR-0028): New detail plan, then Open for each plan that
- * already details it. Nothing at all when this composition cannot create or open a plan.
+ * One zone's detail-plan menu entries (ADR-0028): Open for each plan that already details it, then
+ * New detail plan — the menu's first group, so a linked plan is its first item. Nothing at all
+ * when this composition cannot create or open a plan.
  *
  * `inject(PLAN_EDITOR_CONTEXT)` rather than `usePlanEditorContext()`: the rest of
  * `useCanvasMenuActions` is deliberately reachable with no `PlanEditorContext` provided at
@@ -33,7 +34,7 @@ export function useDetailPlanActions() {
 		let created = null as string | null;
 		const result = await dialogs.openDialog({
 			kind: 'form',
-			title: tr('form.new-plan.title'),
+			title: tr('form.new-detail-plan.title', { name }),
 			component: NewPlanForm,
 			props: {
 				projectId: plan.projectId,
@@ -57,10 +58,10 @@ export function useDetailPlanActions() {
 		const open = context.navigation?.plan?.bind(context.navigation);
 		if (context.commands.createPlan === undefined || open === undefined) return [];
 		return [
-			{ id: 'detail-plan-new', label: 'editor.input.detail-plan-new', group: 'create', icon: 'circle-plus', disabled: blocked, run: () => create(context, open, zoneId, name) },
 			...hierarchy.value.detailPlans
 				.filter((detail) => detail.parentZoneId === zoneId)
-				.map((detail): CanvasMenuAction => ({ id: `detail-plan-open:${detail.id}`, label: 'editor.input.detail-plan-open', group: 'object', icon: 'file-text', params: { name: detail.name }, run: () => open(detail.id) })),
+				.map((detail): CanvasMenuAction => ({ id: `detail-plan-open:${detail.id}`, label: 'editor.input.detail-plan-open', group: 'plans', icon: 'file-text', params: { name: detail.name }, run: () => open(detail.id) })),
+			{ id: 'detail-plan-new', label: 'editor.input.detail-plan-new', group: 'plans', icon: 'circle-plus', disabled: blocked, run: () => create(context, open, zoneId, name) },
 		];
 	};
 }

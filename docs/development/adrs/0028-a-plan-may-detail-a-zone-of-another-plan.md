@@ -50,6 +50,12 @@ trigger, met by a lighter structure than the Floor identity ADR-0017 anticipated
   leaf opens or retries, not immediately.
 - A hand-edited self-link (`parent-plan` naming the note's own id) is ignored on read and retired
   on that plan's next save, rather than refusing the whole note.
+- Editing or renaming the parent zone, or renaming the parent plan itself — the caption and
+  breadcrumb both name it — in its own plan does not refresh an open detail plan's guide or
+  caption until that detail plan reopens or retries, for the same reason as the line above: the
+  plan-change source filters by the plan being shown.
+- The guide is framed by a whole-plan fit whenever the Reference plan layer is visible, like the
+  reference it lines up with (amended 2026-09-11).
 
 ## Revisit when
 

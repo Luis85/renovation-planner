@@ -70,24 +70,33 @@ const wantsAssetDesigner = params.get('view') === 'asset-designer';
 const wantsAssetLibrary = params.get('view') === 'asset-library';
 
 /**
- * The Plan Editor's own four knobs: `?select=<zoneId>` selects and frames a seeded zone once
+ * The Plan Editor's own six knobs: `?select=<zoneId>` selects and frames a seeded zone once
  * the editor is ready and `?add` opens the Add menu once it is ready (both Task 21);
  * `?room=<widthMm>x<depthMm>` (Task 14) walks Add → Room → the two length fields, so a capture
  * can show the room task with a sized rectangle under it; `?stale` (Task 14) drives the trust
- * path's own stale-projection warning through a real zero-referent zone deletion. All four are
- * read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below rather than
- * read a second time there — one parse of the URL, like every other knob on this page.
+ * path's own stale-projection warning through a real zero-referent zone deletion; `?detail`
+ * (detail-plan polish, 2026-09-11) composes the plan as a fresh detail plan with no zones and a
+ * parent-zone guide; `?locked=<id,id>` answers the named seeded zones as locked (ADR-0027). All
+ * six are read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below
+ * rather than read a second time there — one parse of the URL, like every other knob on this
+ * page.
  *
  * `parseRoomKnob` lives beside the knob it feeds rather than here, because it is the one of
- * the four with something to get wrong: `?room=big` is a URL a person can type, and a knob
+ * the six with something to get wrong: `?room=big` is a URL a person can type, and a knob
  * that quietly did nothing with it would photograph the resting editor under the room shot's
- * name and exit 0. It refuses loudly instead — see its own docblock. `?stale` takes no value,
- * so there is nothing for it to get wrong the same way.
+ * name and exit 0. It refuses loudly instead — see its own docblock. `?stale` and `?detail`
+ * take no value at all, so there is nothing for them to get wrong the same way. `?locked` DOES
+ * take a value — a comma-separated id list — and a mistyped id is not refused: it silently
+ * locks nothing, since `lockedZoneDeps` answers every zone unlocked whose id it does not
+ * recognise. Only the fixed shots' own wait — a PRESSED lock toggle, which renders solely once
+ * the knob has actually locked a seeded id — catches that; nothing here parses the list.
  */
 const selectZoneId = params.get('select');
 const wantsAddMenu = params.has('add');
 const room = parseRoomKnob(params.get('room'));
 const wantsStale = params.has('stale');
+const wantsDetail = params.has('detail');
+const lockedZoneIds = params.get('locked') ?? undefined;
 
 let view: unknown = null;
 
@@ -214,6 +223,8 @@ if (wantsIndex) {
 				reference: params.has('reference'),
 				room,
 				stale: wantsStale,
+				detail: wantsDetail,
+				locked: lockedZoneIds,
 			}).view
 		: wantsAssetDesigner
 			? mountAssetDesignerHarness(document.body).view

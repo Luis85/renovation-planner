@@ -5,6 +5,8 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { structureEditor } from '../../helpers/structureEditor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
+import { pointerAt } from '../../helpers/tool-context';
+import { WALL_LOOP } from '../../helpers/structure';
 import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
@@ -83,4 +85,21 @@ it('keeps the closed wall draft visibly distinct, screen-sized and uncommitted u
 	rig.runtime.returnToSelect(); await settle();
 	expect(stage.find('.wall-draft-outline')).toHaveLength(0); expect(stage.find('.wall-draft-corner')).toHaveLength(0);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+it('names the wall a chain would join, and where, in the form status line', async () => {
+	const rig = await structureEditor(); cleanups.push(rig.unmount);
+	const baseline = expectOk(await rig.geometry.read(rig.plan.id));
+	expectOk(await rig.runtime.dispatcher.run(rig.services.command({ planId: rig.plan.id, baseline, structure: WALL_LOOP, ledger: rig.runtime.structureTask.ledger })));
+	await settle();
+	const task = rig.runtime.structureTask;
+	rig.runtime.setTool('draw-wall'); await settleUntil(() => !task.draft.loading, 'wall baseline');
+	const tools = rig.runtime.toolManager;
+	tools.pointerDown(pointerAt(2000, 1500)); await settle();
+	tools.pointerMove(pointerAt(2003, 4)); await settle();
+	expect(rig.wrapper.get('.rp-structure-task').text()).toContain(tr('editor.structure.joins-perpendicular', { n: '1', m: '2' }));
+	tools.pointerMove(pointerAt(1200, 4)); await settle();
+	expect(rig.wrapper.get('.rp-structure-task').text()).toContain(tr('editor.structure.joins', { n: '1', m: '1.2' }));
+	tools.pointerMove(pointerAt(1200, 800)); await settle();
+	expect(rig.wrapper.get('.rp-structure-task').text()).toContain(tr('editor.structure.unsnapped'));
 });

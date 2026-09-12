@@ -10,12 +10,12 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import OpeningSymbols from './OpeningSymbols.vue';
-import { type Wall } from '../../../domain/spatial/Structure';
+import { samePoint, wallTangent, type Wall } from '../../../domain/spatial/Structure';
 import { useDrawnStructure } from './drawnStructure';
 import ElementShapes from '../elements/ElementShapes.vue';
 import { isElementTool } from '../elements/elementDraft';
 import { withElementPreviews } from '../elements/elementPreviews';
-import WallDraftOverlay from './WallDraftOverlay.vue';
+import WallDraftOverlay, { type WallCut } from './WallDraftOverlay.vue';
 import { wallPasses } from './wallPasses';
 import { useEditorStore } from '../../stores/EditorStore';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
@@ -32,6 +32,20 @@ const selected = (id: string): boolean => selection.selectedIds.some(candidate =
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
 const noDraftPoints: readonly Point[] = [];
 const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall' ? task.draft.points : noDraftPoints);
+/**
+ * Every cut the chain would make — its start and end joins and the join under the cursor — one
+ * mark per distinct point. A start or pending join names a wall of the committed floor; an end
+ * join may name a half that exists only in the drawn (pre-cut) structure, so the committed walls
+ * are searched first (a cut wall keeps its id on the half that keeps its start, at the same offsets).
+ */
+const cuts = computed<readonly WallCut[]>(() => {
+	if (runtime.activeToolId.value !== 'draw-wall') return [];
+	const hosts = [...project.structure.walls, ...structure.value.walls];
+	const marks = [task.draft.joins.start, task.draft.joins.end, task.draft.pending].filter((mark): mark is NonNullable<typeof mark> => mark !== null);
+	return marks.flatMap(mark => hosts.filter(item => item.id === mark.wallId).slice(0, 1)
+		.map(wall => ({ point: mark.point, tangent: wallTangent(wall, mark.offset), thickness: wall.thickness })))
+		.filter((cut, index, all) => all.findIndex(other => samePoint(other.point, cut.point)) === index);
+});
 function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
 const elements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind !== 'asset'), elementNames.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value));
@@ -65,15 +79,18 @@ const elementDraft = computed(() => {
 			`wallPasses` chains walls meeting end to end (two at a joint, equally thick) into one
 			run, so the mitre join draws that corner exactly at any angle, a closed loop included.
 			Every other joint is where runs END: the pass ORDER closes its inner corner (run B's
-			body covers run A's edge), and `wallPasses` carries both butt-capped passes past it
-			(body by the largest half thickness among the walls it JOINS, edge `1 / zoom`
-			further), which closes the outer one; a free end gets only the edge's extra
-			`1 / zoom`, its 1 px dark cap.
+			body covers run A's edge), and `wallPasses` carries both butt-capped passes past it,
+			which closes the outer one: a T's stem until its far corner meets the host's far
+			face, at any angle, so it never pokes through; any other shared end by the largest
+			half thickness among the walls it JOINS (edge `1 / zoom` further); a free end gets
+			only the edge's extra `1 / zoom`, its 1 px dark cap.
 			Refused: `lineCap: 'square'` draws every free end `thickness / 2` too long.
-			ponytail: a T, or two unequal walls meeting, is still capped rather than mitred:
-			exact at a right angle, a small wedge or nub at any other. Canvas bevels a mitre
-			sharper than about 11° (`miterLimit` 10). The selection dash and handles keep the
-			unextended centreline. `OpeningSymbols` cuts both passes at the edge pass's width.
+			ponytail: two unequal walls meeting, or three with none straight through, are still
+			capped rather than mitred: exact at a right angle, a small wedge or nub at any other;
+			a stem thicker than its host at a shallow angle is pulled back behind the joint,
+			leaving a notch on its own side. Canvas bevels a mitre sharper than about 11°
+			(`miterLimit` 10). The selection dash and handles keep the unextended centreline.
+			`OpeningSymbols` cuts both passes at the edge pass's width.
 		-->
 		<VLine
 			v-for="run in runs"
@@ -115,6 +132,7 @@ const elementDraft = computed(() => {
 			:points="wallDraftPoints"
 			:viewport="draftViewport"
 			:cursor="runtime.activeToolId.value === 'draw-wall' ? task.draft.cursor : null"
+			:cuts="cuts"
 			:tokens="tokens"
 			:zoom="zoom"
 		/>

@@ -1,10 +1,13 @@
 /** @vitest-environment jsdom */
 import { afterEach, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 import type Konva from 'konva';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { structureEditor } from '../../helpers/structureEditor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
+import { pointerAt } from '../../helpers/tool-context';
+import { WALL_LOOP } from '../../helpers/structure';
 import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
@@ -83,4 +86,73 @@ it('keeps the closed wall draft visibly distinct, screen-sized and uncommitted u
 	rig.runtime.returnToSelect(); await settle();
 	expect(stage.find('.wall-draft-outline')).toHaveLength(0); expect(stage.find('.wall-draft-corner')).toHaveLength(0);
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+it('names the wall a chain would join, and where, in the form status line', async () => {
+	const rig = await structureEditor(); cleanups.push(rig.unmount);
+	const baseline = expectOk(await rig.geometry.read(rig.plan.id));
+	expectOk(await rig.runtime.dispatcher.run(rig.services.command({ planId: rig.plan.id, baseline, structure: WALL_LOOP, ledger: rig.runtime.structureTask.ledger })));
+	await settle();
+	const task = rig.runtime.structureTask;
+	rig.runtime.setTool('draw-wall'); await settleUntil(() => !task.draft.loading, 'wall baseline');
+	const tools = rig.runtime.toolManager;
+	tools.pointerDown(pointerAt(2000, 1500)); await settle();
+	tools.pointerMove(pointerAt(2003, 4)); await settle();
+	expect(rig.wrapper.get('.rp-structure-task').text()).toContain(tr('editor.structure.joins-perpendicular', { n: '1', m: '2' }));
+	tools.pointerMove(pointerAt(1200, 4)); await settle();
+	expect(rig.wrapper.get('.rp-structure-task').text()).toContain(tr('editor.structure.joins', { n: '1', m: '1.2' }));
+	tools.pointerMove(pointerAt(1200, 800)); await settle();
+	expect(rig.wrapper.get('.rp-structure-task').text()).toContain(tr('editor.structure.unsnapped'));
+});
+
+it('marks each cut a wall chain would make and previews the host already cut', async () => {
+	const rig = await structureEditor(); cleanups.push(rig.unmount);
+	const baseline = expectOk(await rig.geometry.read(rig.plan.id));
+	expectOk(await rig.runtime.dispatcher.run(rig.services.command({ planId: rig.plan.id, baseline, structure: WALL_LOOP, ledger: rig.runtime.structureTask.ledger })));
+	await settle();
+	const task = rig.runtime.structureTask, stage = expectDefined(rig.stage, 'stage');
+	rig.runtime.setTool('draw-wall'); await settleUntil(() => !task.draft.loading, 'wall baseline');
+	const tools = rig.runtime.toolManager;
+	expect(stage.find('.wall-draft-cut')).toHaveLength(0);
+	expect(stage.find('.wall-body')).toHaveLength(1); // WALL_LOOP is one closed run.
+	// Hovering a body: one pending mark, a pair of ticks across the wall (vertical on the horizontal wall-a), thickness + 16 px
+	// long, 8 px either side of the join and never through it: a new wall meeting its host square runs through the cut point, so a
+	// tick there lay along the new wall's own line and could not be told from it.
+	tools.pointerMove(pointerAt(1000, 3)); await settle();
+	const editor = useEditorStore(rig.pinia), zoom = editor.viewport.zoom;
+	const pending = stage.find<Konva.Line>('.wall-draft-cut');
+	expect(pending).toHaveLength(2);
+	for (const [tick, side] of [[pending[0], -1], [pending[1], 1]] as const) {
+		const [x1, y1, x2, y2] = tick.points();
+		expect(x1).toBeCloseTo(1000 + side * 8 / zoom); expect(x2).toBeCloseTo(1000 + side * 8 / zoom);
+		expect(Math.abs(y2 - y1)).toBeCloseTo(150 + 16 / zoom);
+	}
+	// Clicking there starts the chain: the start mark stays while the cursor leaves the wall.
+	tools.pointerDown(pointerAt(1000, 3)); tools.pointerMove(pointerAt(1000, 1500)); await settle();
+	expect(stage.find('.wall-draft-cut')).toHaveLength(2);
+	// Placing a free point then hovering wall-c: start mark + pending mark, and the preview's wall-a is two halves.
+	tools.pointerDown(pointerAt(1000, 1500)); tools.pointerMove(pointerAt(1000, 2996)); await settle();
+	expect(stage.find('.wall-draft-cut')).toHaveLength(4);
+	// Three walls now meet at (1000, 0) — the two halves and the draft — so `wallPasses` no longer chains the loop into one run: the host is drawn cut.
+	expect(stage.find('.wall-body').length).toBeGreaterThan(1);
+	rig.runtime.returnToSelect(); await settle();
+	expect(stage.find('.wall-draft-cut')).toHaveLength(0);
+});
+
+it('marks an end cut on a half the start cut made, a wall only the drawn floor holds', async () => {
+	const rig = await structureEditor(); cleanups.push(rig.unmount);
+	const baseline = expectOk(await rig.geometry.read(rig.plan.id));
+	expectOk(await rig.runtime.dispatcher.run(rig.services.command({ planId: rig.plan.id, baseline, structure: WALL_LOOP, ledger: rig.runtime.structureTask.ledger })));
+	await settle();
+	const task = rig.runtime.structureTask, stage = expectDefined(rig.stage, 'stage'), tools = rig.runtime.toolManager;
+	rig.runtime.setTool('draw-wall'); await settleUntil(() => !task.draft.loading, 'wall baseline');
+	// A U from wall-a at 1 m back onto wall-a at 2.5 m: the end lands on the half the start cut made, whose id no committed wall has.
+	for (const [x, y] of [[1000, 3], [1000, 1500], [2500, 1500], [2500, 3]]) tools.pointerDown(pointerAt(x, y));
+	const end = expectDefined(task.draft.joins.end, 'end join');
+	expect(WALL_LOOP.walls.some(wall => wall.id === end.wallId)).toBe(false);
+	await nextTick(); // The render queued by the click, ahead of the save that click also started.
+	const zoom = useEditorStore(rig.pinia).viewport.zoom, ticks = stage.find<Konva.Line>('.wall-draft-cut').map(line => line.points()[0]);
+	expect(ticks).toHaveLength(4);
+	for (const [index, x] of [1000 - 8 / zoom, 1000 + 8 / zoom, 2500 - 8 / zoom, 2500 + 8 / zoom].entries()) expect(ticks[index]).toBeCloseTo(x);
+	await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'chain saved');
 });

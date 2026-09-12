@@ -8,7 +8,9 @@ import { tr } from '../../i18n/strings';
 import { closedChain } from '../../../domain/spatial/structureGeometry';
 import { formatMetres } from '../shell/formatLength';
 import { spatialMessage } from './spatialMessage';
+import { useProjectStore } from '../../stores/ProjectStore';
 const task = useEditorRuntime().structureTask, draft = task.draft;
+const project = useProjectStore();
 const { formEl: root, focusFirstInvalidControl } = useInvalidFieldFocus(), errorId = useId();
 const wall = computed(() => draft.kind === 'draw-wall');
 const closed = computed(() => wall.value && closedChain(draft.points));
@@ -17,7 +19,12 @@ const describedBy = computed(() => draft.error ? errorId : undefined);
 const title = computed(() => tr(wall.value ? 'editor.creation.new-walls' : `editor.add.${draft.kind === 'place-window' ? 'window' : draft.kind === 'place-door' ? 'door' : 'opening'}.label`));
 const instructions = computed(() => tr(wall.value ? 'editor.structure.instructions' : 'editor.structure.host-instructions'));
 const pointAction = computed(() => tr(draft.points.length ? 'editor.structure.add-segment' : 'editor.structure.first-point'));
-const snapFeedback = computed(() => tr(draft.snapped ? 'editor.structure.snapped' : 'editor.structure.unsnapped'));
+const snapFeedback = computed(() => {
+	const join = draft.pending;
+	if (!join) return tr(draft.snapped ? 'editor.structure.snapped' : 'editor.structure.unsnapped');
+	const params = { n: String(project.structure.walls.findIndex(host => host.id === join.wallId) + 1), m: formatMetres(join.offset) };
+	return tr(join.perpendicular ? 'editor.structure.joins-perpendicular' : 'editor.structure.joins', params);
+});
 const notices = computed(() => {
 	const entries: { key: string; role: 'status' | 'alert'; text: string; id?: string }[] = [];
 	if (draft.loading) entries.push({ key: 'loading', role: 'status', text: tr('editor.loading') });

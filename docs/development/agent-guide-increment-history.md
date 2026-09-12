@@ -5734,6 +5734,14 @@ on the cut floor so the host renders as two halves while drawing.
 **What was refused.** An intermediate corner joining a wall (a per-point split list for a case not in
 hand), a chain crossing a wall mid-segment, and a fixed `harness-shot` of the mark: the base plan-editor
 harness has no structure services and the reference workspace seeds no walls, so the look was checked
-by drawing in `npm run harness` at `?view=plan-editor&reference` rather than by a headless capture.
+by drawing a room and a partition in `npm run harness` at `?view=plan-editor&reference`, captured once
+in both schemes by a one-off Playwright script rather than a fixed shot.
+
+**What that check found, and no gate could.** At a right-angle join the `wall-draft-cut` tick is not
+distinguishable as a cut mark: it runs across the host exactly along the draft segment, in the same
+accent colour as the dashed rubber band, so it reads as part of that line — a longer dash at the end
+join, and hidden under the vertex square at the start join. The status line is then the only visible
+join feedback. The Konva nodes confirm it: two `wall-draft-cut` lines, each 310 world units, horizontal
+at the partition's y across vertical hosts. Whether the tick reads at any other angle was not checked.
 
 **Spec:** `docs/superpowers/specs/2026-09-12-wall-tool-join-and-split-design.md`.

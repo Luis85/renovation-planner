@@ -183,4 +183,4 @@ Nothing cuts until the write succeeds. Cancelling the tool cuts nothing. One his
   `finish` called once, a refused end not finishing, `pending` cleared by an endpoint snap.
 - Form and overlay cases: the status line text per state; a `wall-draft-cut` line per cut.
 - `drawnStructure`: the preview's host is two walls while a start or end join is recorded.
-- The mark's look is checked by drawing in the browser harness at `?view=plan-editor&reference` (Task 9 of the plan); no fixed headless shot, since neither harness fixture seeds walls AND structure services together.
+- The mark's look is checked by drawing in the browser harness at `?view=plan-editor&reference` (Task 9 of the plan); no fixed headless shot, since neither harness fixture seeds walls AND structure services together. That check found the tick indistinguishable from the draft segment at a right angle — see the increment history's "Wall joins" section.

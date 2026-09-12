@@ -7,6 +7,7 @@ import { validateCalibration, type Calibration } from './Calibration';
 import { PLAN_BACKGROUND_KINDS, type PlanBackgroundRef } from './PlanBackgroundRef';
 import { planError } from './Plan.errors';
 import type { PlanId } from './PlanId';
+import { DEFAULT_PLAN_KIND, isPlanKind, type PlanKind } from './PlanKind';
 import type { SpatialElementMetadata } from '../spatial/SpatialElement';
 import type { ZoneId } from '../zone/ZoneId';
 
@@ -14,6 +15,27 @@ import type { ZoneId } from '../zone/ZoneId';
 export interface PlanParent {
 	readonly planId: PlanId;
 	readonly zoneId: ZoneId;
+}
+
+/** The two label fields `UpdatePlanDetailsCommand` writes (ADR-0029). */
+export interface PlanDetails {
+	readonly kind?: PlanKind;
+	readonly order?: number;
+}
+
+/**
+ * The label fields with `base` filling what `details` leaves out, validated. Owns the
+ * defaulting too, because `create` sits one branch under its complexity cap.
+ */
+function resolveDetails(details: PlanDetails, base: Required<PlanDetails>): Result<Required<PlanDetails>, ValidationError> {
+	const kind = details.kind ?? base.kind, order = details.order ?? base.order;
+	if (!isPlanKind(kind)) {
+		return err(planError('unknown-kind', `"${String(kind)}" is not a plan kind.`));
+	}
+	if (!Number.isInteger(order) || order < 0) {
+		return err(planError('invalid-order', `A plan order must be a non-negative integer; got ${order}.`));
+	}
+	return ok({ kind, order });
 }
 
 /**
@@ -60,6 +82,8 @@ export interface CreatePlanProps {
 	readonly background?: PlanBackgroundRef | null;
 	readonly layers?: readonly string[];
 	readonly parent?: PlanParent | null;
+	readonly kind?: PlanKind;
+	readonly order?: number;
 }
 
 interface PlanFields {
@@ -72,6 +96,8 @@ interface PlanFields {
 	readonly calibration: Calibration | null;
 	readonly layers: readonly string[];
 	readonly parent: PlanParent | null;
+	readonly kind: PlanKind;
+	readonly order: number;
 }
 
 /**
@@ -90,6 +116,8 @@ export class Plan {
 	readonly calibration: Calibration | null;
 	readonly layers: readonly string[];
 	readonly parent: PlanParent | null;
+	readonly kind: PlanKind;
+	readonly order: number;
 
 	private constructor(fields: PlanFields) {
 		this.spatialElements = fields.spatialElements;
@@ -101,6 +129,8 @@ export class Plan {
 		this.calibration = fields.calibration;
 		this.layers = fields.layers;
 		this.parent = fields.parent;
+		this.kind = fields.kind;
+		this.order = fields.order;
 	}
 
 	static create(props: CreatePlanProps): Result<Plan, ValidationError> {
@@ -113,6 +143,10 @@ export class Plan {
 		}
 		if (props.parent && props.parent.planId === props.id) {
 			return err(planError('parent-is-self', 'A plan cannot detail a zone of itself.'));
+		}
+		const details = resolveDetails(props, { kind: DEFAULT_PLAN_KIND, order: 0 });
+		if (!details.ok) {
+			return details;
 		}
 		const name = props.name.trim();
 		if (!name) {
@@ -138,6 +172,7 @@ export class Plan {
 				calibration: null,
 				layers: [...layers],
 				parent: props.parent ? { planId: props.parent.planId, zoneId: props.parent.zoneId } : null,
+				...details.value,
 			}),
 		);
 	}
@@ -184,6 +219,18 @@ export class Plan {
 		return ok(new Plan({ ...this.fields(), calibration }));
 	}
 
+	/**
+	 * The label fields, re-validated (ADR-0029). `parent` is untouched: reparenting is not a
+	 * thing this entity offers, and this is the only mutator that could have been mistaken for it.
+	 */
+	withDetails(details: PlanDetails): Result<Plan, ValidationError> {
+		const resolved = resolveDetails(details, this);
+		if (!resolved.ok) {
+			return resolved;
+		}
+		return ok(new Plan({ ...this.fields(), ...resolved.value }));
+	}
+
 	private fields(): PlanFields {
 		return {
 			spatialElements: this.spatialElements,
@@ -195,6 +242,8 @@ export class Plan {
 			calibration: this.calibration,
 			layers: this.layers,
 			parent: this.parent,
+			kind: this.kind,
+			order: this.order,
 		};
 	}
 }

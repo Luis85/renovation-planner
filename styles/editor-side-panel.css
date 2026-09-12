@@ -281,9 +281,16 @@
  * paints hover and selected fills on `.rp-room-list__row` alone, which is `flex: 1 1 auto` inside
  * `.rp-room-list__item` and stops short of the lock's own `flex: none` slot — the quiet-lock rule
  * above then leaves that slot visibly blank. Painted on the ITEM via `:has()` reading the row's
- * own state, scoped to `.rp-editor-layers`, so the row keeps `aria-pressed`, its own
- * `:focus-visible` ring and the lock's tab order and hover/focus reveal untouched, and the
- * Inspector's own room list (unrelated to this task) keeps its per-row-only fill.
+ * own state, scoped to `.rp-editor-layers`, so the row keeps `aria-pressed`, its own tab order and
+ * the lock's hover/focus reveal untouched, and the Inspector's own room list (unrelated to this
+ * task) keeps its per-row-only fill.
+ *
+ * EXACTLY ONE element may paint the fill in the sidebar, or the two overlap and the lock's own
+ * slot — never covered by the row's own `width: 100%`, only by the item's — reads a different,
+ * lighter tone than the rest of the row. So the row's OWN hover/selected background (and its
+ * selected accent, below) are neutralized here rather than left to sit under the item's identical
+ * fill: a higher-specificity, `.rp-editor-layers`-scoped override, not an edit to
+ * `editor-inspector.css`'s shared rules, which keeps the Inspector's own list on them unchanged.
  */
 .renovation-plan-editor .rp-editor-layers .rp-room-list__item:hover,
 .renovation-plan-editor .rp-editor-layers .rp-room-list__item:has(> .rp-room-list__row[aria-pressed='true']) {
@@ -296,4 +303,22 @@
 
 .renovation-plan-editor .rp-editor-layers .rp-room-list__item:has(> .rp-room-list__row[aria-pressed='true']) {
 	background-color: var(--background-modifier-active-hover);
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.renovation-plan-editor .rp-editor-layers .rp-room-list .rp-room-list__row:hover,
+.renovation-plan-editor .rp-editor-layers .rp-room-list .rp-room-list__row[aria-pressed='true'] {
+	background-color: transparent;
+	box-shadow: none;
+}
+
+/*
+ * Its own `:focus-visible` ring, matching the shared one's outline exactly: suppressing
+ * `box-shadow` above takes Obsidian's ring away, and the shared rule a few lines up cannot answer
+ * for a selector scoped this deep (an ancestor chain a coverage check reads literally, not by
+ * subset) — so this repeats the declaration rather than widening that rule's own reach.
+ */
+.renovation-plan-editor .rp-editor-layers .rp-room-list .rp-room-list__row:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
 }

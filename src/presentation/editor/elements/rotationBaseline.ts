@@ -1,11 +1,12 @@
 import type { Point } from '../../../core/geometry/Point';
+import type { Vector } from '../../../core/geometry/Vector';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { SessionWriteLedger } from '../../../application/editor/WriteLedger';
 import { GetZone } from '../../../application/queries/GetZone';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { useProjectStore } from '../../stores/ProjectStore';
-import { ReversibleMoveZoneCommand } from '../tools/reversible-move-zone-command';
+import { ReversibleMoveZoneCommand, type MoveCommand } from '../tools/reversible-move-zone-command';
 import type { UndoableCommand } from '../tools/undoable-command';
 import { err, ok } from '../../../core/result/Result';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
@@ -25,8 +26,10 @@ export function projectedRotationTarget(project: ReturnType<typeof useProjectSto
 export interface RotationBaseline {
 	readonly shape: NamedRotationShape;
 	command(points: readonly Point[]): UndoableCommand;
+	/** The same guarded write for a dragged caption: only its offset from the automatic anchor changes (ADR-0029). */
+	labelCommand(offset: Vector): UndoableCommand;
 }
-/** Source-specific reads/commands retain the existing guarded Zone and two-document element paths. */
+/** Source-specific reads/commands retain the existing guarded Zone and two-document element paths, for a turn and for a dragged caption alike. */
 async function readZoneBaseline(context: PlanEditorContext, shape: NamedRotationShape, ledger: SessionWriteLedger) {
 
 		const loaded = await new GetZone(context.commands.zones).execute({ zoneId: shape.id as ZoneId });
@@ -34,7 +37,10 @@ async function readZoneBaseline(context: PlanEditorContext, shape: NamedRotation
 		if (!loaded.value || loaded.value.entity.planId !== context.planId) return err(staleWriteRefusal());
 		const { entity, version } = loaded.value;
 		if (entity.name !== shape.name || JSON.stringify(entity.geometry.points) !== JSON.stringify(shape.points) || JSON.stringify(entity.geometry.bulges) !== JSON.stringify(shape.bulges)) return err(staleWriteRefusal());
-		return ok<RotationBaseline>({ shape: { ...shape, ...entity.geometry }, command: points => new ReversibleMoveZoneCommand({ execute: input => context.commands.moveObject.execute({ ...input, expected: input.expected ?? version }) }, ledger, entity.id, { ...entity.geometry, points }, entity.geometry) });
+		const move: MoveCommand = { execute: input => context.commands.moveObject.execute({ ...input, expected: input.expected ?? version }) };
+		return ok<RotationBaseline>({ shape: { ...shape, ...entity.geometry },
+			command: points => new ReversibleMoveZoneCommand(move, ledger, entity.id, { ...entity.geometry, points }, entity.geometry),
+			labelCommand: offset => new ReversibleMoveZoneCommand(move, ledger, entity.id, { ...entity.geometry, labelOffset: offset }, { ...entity.geometry, labelOffset: entity.labelOffset }) });
 	}
 async function readElementBaseline(context: PlanEditorContext, project: ReturnType<typeof useProjectStore>, shape: NamedRotationShape, ledger: SessionWriteLedger) {
 	const service = context.commands.renovation;
@@ -45,7 +51,9 @@ async function readElementBaseline(context: PlanEditorContext, project: ReturnTy
 	const current = projectedRotationTarget(project, shape.id, false);
 	if (!element || !name || JSON.stringify({ ...element, name }) !== JSON.stringify(current) || element.kind !== shape.kind || JSON.stringify(element.points) !== JSON.stringify(shape.points)) return err(staleWriteRefusal());
 	const baseline = result.value;
-	return ok<RotationBaseline>({ shape: { ...element, name }, command: points => service.command(baseline, elementInput(baseline, { ...element, name, points }), ledger) });
+	return ok<RotationBaseline>({ shape: { ...element, name },
+		command: points => service.command(baseline, elementInput(baseline, { ...element, name, points }), ledger),
+		labelCommand: offset => service.command(baseline, elementInput(baseline, { ...element, name, labelOffset: offset }), ledger) });
 }
 
 export function readRotationBaseline(context: PlanEditorContext, project: ReturnType<typeof useProjectStore>, shape: NamedRotationShape, ledger: SessionWriteLedger) {

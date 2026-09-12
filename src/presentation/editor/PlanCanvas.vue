@@ -15,7 +15,7 @@ import { useEvidencePins } from './planning/evidencePins';
 import { useExistingPhotos } from './planning/existingPhotos';
 import ExistingPhotoStrip from './planning/ExistingPhotoStrip.vue';
 import type { Point } from '../../core/geometry/Point';
-import { computed, shallowRef, watch } from 'vue';
+import { computed, shallowRef, watch, watchEffect } from 'vue';
 import type { DimensionObstacleLayout } from './resize/useDimensionObstacles';
 import { storeToRefs } from 'pinia';
 import { useEditorStore } from '../stores/EditorStore';
@@ -64,6 +64,8 @@ const allEvidencePins = useEvidencePins(() => runtime.planning.baseline.value?.p
 const evidencePins = computed(() => (workspace.notesVisible ? allEvidencePins.value : []));
 const existingPhotos = useExistingPhotos();
 const dimensionLayout = shallowRef<DimensionObstacleLayout>({ bounds: [], viewport: null });
+// A caption drag grabs a room caption where it is DRAWN, after pins and dimension labels clear it (ADR-0029).
+watchEffect(() => { runtime.labelActions.setCaptionContext(evidencePins.value, dimensionLayout.value); });
 const context = usePlanEditorContext();
 const { viewport } = storeToRefs(editor);
 const { layerVisibility } = storeToRefs(workspace);

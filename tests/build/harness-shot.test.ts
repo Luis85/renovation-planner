@@ -121,6 +121,28 @@ const namesIn = (name: string, field: string): string[] => shots.get(name)?.name
 /** A shot's query, as the harness reads it (`page.ts`: `new URLSearchParams(window.location.search)`). */
 const query = (name: string): URLSearchParams => new URLSearchParams(String(shot(name).query));
 
+/**
+ * A Plan Editor shot's query: `view=plan-editor` FIRST, then the knob the caller asks about. The
+ * view is asserted here rather than left to the knob, because a knob alone is satisfied by a
+ * query that dropped `view=` — which draws the project surface and exits 0 under a plan-editor
+ * name. Leading, as the text pins this replaced required, so the `?view=` spelling every capture
+ * URL shares stays the one a reader greps for.
+ */
+function planEditorQuery(name: string): URLSearchParams {
+	const raw = String(shot(name).query);
+	expect(raw.startsWith('?view=plan-editor&'), `${name} does not open on ?view=plan-editor`).toBe(true);
+	const parsed = new URLSearchParams(raw);
+	expect(parsed.get('view')).toBe('plan-editor');
+	return parsed;
+}
+
+/** Every `selector:` property anywhere in the script, evaluated — not only the ones inside `SHOTS`. */
+const selectorsAnywhere = (): Literal[] =>
+	descendants(script.file, ts.isPropertyAssignment)
+		.filter((property) => property.name.getText(script.file) === 'selector')
+		.map((property) => evaluate(property.initializer, constants))
+		.filter((value): value is Literal => value !== null);
+
 /** Every property named `name` with a string value, anywhere in the script — a shot entry written OUTSIDE `SHOTS` shows up here. */
 const namedEntries = (parsed: ParsedScript): number =>
 	descendants(parsed.file, ts.isPropertyAssignment).filter((property) => property.name.getText(parsed.file) === 'name' && ts.isStringLiteralLike(property.initializer)).length;
@@ -289,8 +311,9 @@ describe('the headless harness capture script', () => {
 		// than through a selector — and the capture reaches the predicate at all.
 		expect(callsOf(readiness.file, readiness, 'page.waitForFunction').map((call) => call.args)).toContainEqual(['hasDrawn', 'entry']);
 		expect(namesIdentifier(script.file, 'entryHasDrawn')).toBe(true);
-		// The bare stage class must not be used as a wait target on its own.
-		expect([...shots.values()].filter(({ fields }) => fields.selector === '.rp-harness-stage')).toEqual([]);
+		// The bare stage class must not be used as a wait target on its own — anywhere in the
+		// script, not only inside `SHOTS`: a second table would be as wrong as the first.
+		expect(selectorsAnywhere().filter((value) => value === '.rp-harness-stage' || (Array.isArray(value) && value.includes('.rp-harness-stage')))).toEqual([]);
 
 		const scanned = [
 			['harness-shot.mjs', script],
@@ -722,6 +745,8 @@ describe('the headless harness capture script', () => {
 		const asset = constants.get('LIBRARY_SELECTED_ASSET');
 
 		expect(typeof asset).toBe('string');
+		// Non-empty AND every character an id character: `every` over an empty string is true.
+		expect(String(asset).length, 'LIBRARY_SELECTED_ASSET is empty').toBeGreaterThan(0);
 		expect([...String(asset)].every((character) => isIdCharacter(character)), 'LIBRARY_SELECTED_ASSET is not an id').toBe(true);
 
 		// The four that open on a selection: the route AND the measured scheme — reported as the
@@ -830,9 +855,9 @@ describe('the headless harness capture script', () => {
 	 * losing `width: 460` off the third would silently photograph the same wide layout twice.
 	 */
 	it('takes the selected-zone and Add-menu shots through the knobs that reach them, and the narrow shot at a sidebar width', () => {
-		expect(query('plan-editor-selected').get('select')).toBe('harness-kitchen');
+		expect(planEditorQuery('plan-editor-selected').get('select')).toBe('harness-kitchen');
 		expect(shot('plan-editor-selected').selector).toBe('.rp-room-inspector');
-		expect(query('plan-editor-add-menu').has('add')).toBe(true);
+		expect(planEditorQuery('plan-editor-add-menu').has('add')).toBe(true);
 		expect(shot('plan-editor-add-menu').selector).toBe('.rp-add-menu');
 		expect(shot('plan-editor-narrow').width).toBe(460);
 		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' above
@@ -869,9 +894,9 @@ describe('the headless harness capture script', () => {
 	 * right is a capture read by eye, which nothing in this suite can do.
 	 */
 	it('takes the room task at both widths, through the ?room knob, waiting on what each width can show', () => {
-		expect(query('plan-editor-add-room').get('room')).toBe('4200x3800');
+		expect(planEditorQuery('plan-editor-add-room').get('room')).toBe('4200x3800');
 		expect(shot('plan-editor-add-room').selector).toBe('.rp-new-room__settled:not(:empty)');
-		expect(query('plan-editor-add-room-narrow').get('room')).toBe('4200x3800');
+		expect(planEditorQuery('plan-editor-add-room-narrow').get('room')).toBe('4200x3800');
 		expect(shot('plan-editor-add-room-narrow').selector).toBe('.rp-task-banner__finish[aria-disabled="false"]');
 		expect(shot('plan-editor-add-room-narrow').width).toBe(460);
 	});

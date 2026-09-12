@@ -357,8 +357,9 @@ describe('ProjectDetail', () => {
 			rulesFor(selector).flatMap((rule) => rule.declarations).find((declaration) => propertyOf(declaration) === property);
 
 		expect(rulesFor('.rp-project-detail__body')).toHaveLength(1);
-		// `flex: 1` is what the parser reads as grow 1, shrink 1, basis 0%.
-		expect(declared('.rp-project-detail__body', 'flex')?.value).toMatchObject({ grow: 1, shrink: 1 });
+		// `flex: 1` is what the parser reads as grow 1, shrink 1, basis 0% — all three pinned, since
+		// `flex: 1 1 auto` shares the first two and sizes the body from its content instead.
+		expect(declared('.rp-project-detail__body', 'flex')?.value).toEqual({ grow: 1, shrink: 1, basis: { type: 'length-percentage', value: { type: 'percentage', value: 0 } } });
 		expect(declared('.rp-project-detail__body', 'min-height')?.value).toEqual({ type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 0 } } });
 		expect(declared('.rp-project-detail__body', 'overflow-y')?.value).toBe('auto');
 		// The plan list's own rules — every block whose selector is exactly `.rp-plan-list`, never

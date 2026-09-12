@@ -51,9 +51,16 @@ describe('the obsidian module alias', () => {
  * proves for the harness. Reading a config is exactly what those two refuse to rely on;
  * this exists because one of the three surfaces has no other watcher at all.
  */
+// Widened to `unknown` on purpose: `flat(Infinity)` over the config's own plugin union type is
+// TS2589 (excessively deep instantiation), measured.
+const registeredPlugins = (config: { plugins?: unknown }): { name?: unknown; enforce?: unknown }[] =>
+	(Array.isArray(config.plugins) ? config.plugins.flat(Infinity) : []).filter(
+		(plugin): plugin is { name?: unknown; enforce?: unknown } => typeof plugin === 'object' && plugin !== null,
+	);
+
 const pluginNames = (config: { plugins?: unknown }): string[] =>
-	(Array.isArray(config.plugins) ? config.plugins.flat(Infinity) : [])
-		.map((plugin) => (typeof plugin === 'object' && plugin !== null && 'name' in plugin ? String(plugin.name) : ''))
+	registeredPlugins(config)
+		.map((plugin) => (typeof plugin.name === 'string' ? plugin.name : ''))
 		.filter((name) => name !== '');
 
 describe('the Vue plugin, in every config that transforms source', () => {
@@ -92,15 +99,19 @@ describe('the ESLint-booting project', () => {
  * REGISTERS it: `tests/build/no-ssr-sfc.test.ts` drives the plugin through a fixture config of
  * its own, so deleting `noSsrSfc()` from `vitest.config.ts` switched the rule off with every
  * test green — watched, with the line removed, before this case existed. Asked of the real
- * config object rather than of its text: the plugin is present by name, and it precedes the Vue
- * plugin in the flattened list, since a `pre` transform behind `vite:vue` would see compiled
- * output rather than the SFC.
+ * config object rather than of its text: the plugin is present by name, and the REGISTERED object
+ * carries `enforce: 'pre'`. That flag, not its position in the array, is what runs its transform
+ * ahead of `vite:vue`'s — Vite orders plugins by `enforce` first, so a copy placed after the Vue
+ * plugin still ran first (measured by the review that replaced an array-order pin here). A `pre`
+ * flag dropped from the plugin, or a registered object that lost it, would hand the hook compiled
+ * output instead of the SFC; `no-ssr-sfc.test.ts` pins the flag on a fresh `noSsrSfc()`, this
+ * pins it on the one the suite config actually registers.
  */
 describe('the SSR-SFC refusal, in the suite config', () => {
-	it('is registered ahead of the Vue plugin', () => {
-		const names = pluginNames(vitestConfig);
+	it('is registered with the pre flag that orders it ahead of the Vue plugin', () => {
+		const registered = registeredPlugins(vitestConfig).find((plugin) => plugin.name === 'rp:no-ssr-sfc');
 
-		expect(names).toContain('rp:no-ssr-sfc');
-		expect(names.indexOf('rp:no-ssr-sfc')).toBeLessThan(names.indexOf('vite:vue'));
+		expect(registered).toBeDefined();
+		expect(registered?.enforce).toBe('pre');
 	});
 });

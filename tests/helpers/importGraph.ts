@@ -2,8 +2,8 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import ts from 'typescript';
 import { parse as parseSfc } from '@vue/compiler-sfc';
-import { REPO } from './repo';
-import { toPosix } from './posix';
+import { REPO } from './repo.ts';
+import { toPosix } from './posix.ts';
 
 /**
  * One import-graph walk, shared by every instrument under `tests/` that asks "what does this

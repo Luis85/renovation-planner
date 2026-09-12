@@ -11,6 +11,11 @@
     // it TypeScript names each of those files as its own output and refuses (TS5055). An IDE
     // reads this file and not the npm script, so the flag alone left the error on screen.
     "noEmit": true,
+    // `vitest.config.ts` and the helper chain it reaches (`tests/helpers/importGraph.ts`,
+    // `repo.ts`, `posix.ts`) spell their relative imports WITH `.ts`: Vite's
+    // `configLoader: 'native'` compatibility check warns on every extensionless import a config
+    // makes transitively, four times per vitest start. Legal only under `noEmit`, which is set.
+    "allowImportingTsExtensions": true,
     // Incremental type-checking, which is a fact about the EDIT LOOP rather than about the
     // gate: 14.3s cold against 3.8s warm — measured on this tree, and 3.8s again after
     // touching a source file — so an agent re-checking between edits pays four seconds where

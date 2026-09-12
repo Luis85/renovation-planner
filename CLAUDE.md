@@ -922,13 +922,16 @@ The rules this suite is actually held to:
   and the whole-tree claim is NARROWER than that — measured, not asserted.** The census is a
   parse, not a grep: every file under `tests/`, `scripts/` and the root configs read with the
   TypeScript compiler API (an SFC's script blocks through `@vue/compiler-sfc`), counting regex
-  literals, `RegExp(...)` constructions and `.match`/`.matchAll`/`.search` calls, each hit
-  then classified by what its subject IS. On 2026-09-12 that found 438 hits in 127 files. Most
+  literals, `RegExp(...)` constructions and `.match`/`.matchAll`/`.search` calls (a call whose
+  argument is a regex literal counted once, as the literal), each hit then classified by what its
+  subject IS. On 2026-09-13 that found 414 hits in 127 files. Most
   read a RUNTIME value — a rendered text, a thrown message, a note's frontmatter the code under
-  test wrote, an id, a path, a URL knob, whitespace — and are not source-text gates. **Thirty-five
+  test wrote, an id, a path, a URL knob, whitespace — and are not source-text gates. **Thirty-six
   files still read source or config TEXT through one**, none touched by this branch, in three
-  groups: twenty stylesheet-or-SFC-text pins (`prototype-styles`, `libraryComponentStyles`,
-  `taskBarPlacement`, `focusReach`, `harness.test.ts`, `cssVars.test.ts` under
+  groups: twenty-one stylesheet-or-SFC-text pins (`prototype-styles`, `libraryComponentStyles`,
+  `styles.test.ts` — fourteen of whose twenty-six hits are the assembler's own messages and
+  twelve read the assembled sheet's `@container` preludes — `taskBarPlacement`, `focusReach`,
+  `harness.test.ts`, `cssVars.test.ts` under
   `tests/build/` and `tests/harness/`; `projectRowStyles`, `projectListNarrowStyles`,
   `projectFilterStyles`, `projectListStyles`, `continueRowStyles`, `projectListOverlap`,
   `assetPriceList`, `viewRootOpenLibrary`, `projectList` under `tests/presentation/views/`;

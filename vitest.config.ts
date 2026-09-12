@@ -5,7 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 import { noSsrSfc } from './scripts/vitest-no-ssr-sfc.mjs';
-import { namedFrom, repoTree } from './tests/helpers/importGraph';
+// Spelled WITH the extension, down the whole chain this config reaches (`importGraph.ts`,
+// `repo.ts`, `posix.ts`): Vite's `configLoader: 'native'` compatibility check warns, four times
+// per vitest start, on every extensionless import a config transitively makes. `tsconfig.json`'s
+// `allowImportingTsExtensions` is what lets a `.ts` import compile.
+import { namedFrom, repoTree } from './tests/helpers/importGraph.ts';
 
 /**
  * The test files that BOOT ESLint, derived rather than listed.
@@ -117,7 +121,8 @@ function eslintBootingTests(): readonly string[] {
 const ESLINT_TESTS = eslintBootingTests();
 
 export default defineConfig({
-	// `noSsrSfc` BEFORE `vue`: it refuses an SSR transform of any `.vue` — the shape a
+	// `noSsrSfc` runs BEFORE `vue` by its `enforce: 'pre'`, not by its place in this array: it
+	// refuses an SSR transform of any `.vue` — the shape a
 	// node-environment test produces by reaching an SFC through its imports, whose unrendered
 	// `v-if`/`v-model` arms the coverage merge then counts as uncovered. In THIS config only;
 	// the plugin's header says why, and `tests/build/no-ssr-sfc.test.ts` drives it through a

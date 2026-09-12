@@ -1,6 +1,6 @@
 import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { toPosix } from './posix';
+import { toPosix } from './posix.ts';
 
 /**
  * Where this repository is, resolved from `import.meta.url` rather than from the working

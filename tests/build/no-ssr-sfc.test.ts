@@ -51,8 +51,9 @@ describe('the SSR-SFC refusal', () => {
  * failure too. `CHILD_RUN_MS` is a measurement: the child run — a cold Vite transform of the
  * plugin, the Vue plugin and one SFC over two specs — took 2.4 s alone on this machine on
  * 2026-09-12 (`tests 2.42s` in vitest's own summary); the budget is far wider than that because
- * a whole nested vitest is exactly the shape `test-environments.test.ts` has measured at 128 s
- * under the full gate against 56 s alone, and a red about the machine is what it refuses.
+ * a whole nested vitest is exactly the shape `test-environments.test.ts` carries a 300 s budget
+ * for — 5.3 s alone today, and 128 s under the full gate against 56 s alone before its walk was
+ * cached per tree — and a red about the machine is what it refuses.
  */
 interface ChildReport {
 	testResults: { name: string; status: string; message: string }[];

@@ -126,11 +126,12 @@ function edgesOf(file: string, tree: SourceTree): readonly string[] {
 
 /**
  * Every file reachable from `entry` by relative import whose path starts with one of `within`,
- * mapped to the file that first imported it (`null` for the entry) so a caller can print the
- * chain. Iterative and `seen`-guarded before it reads, so a cycle terminates — a fixture case in
- * `regionsReachable.test.ts` rather than an assumption.
+ * mapped to the file that first imported it (`null` for the entry). Iterative and `seen`-guarded
+ * before it reads, so a cycle terminates — a fixture case in `regionsReachable.test.ts` rather
+ * than an assumption. Module-local: the one caller that printed the chain was the deleted SFC
+ * gate, and `npm run analyze` reports an export nothing consumes.
  */
-export function importersFrom(entry: string, tree: SourceTree, within: readonly string[]): Map<string, string | null> {
+function importersFrom(entry: string, tree: SourceTree, within: readonly string[]): Map<string, string | null> {
 	const importer = new Map<string, string | null>();
 	const queue: [string, string | null][] = [[entry, null]];
 	for (let next = queue.pop(); next !== undefined; next = queue.pop()) {

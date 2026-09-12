@@ -6,7 +6,10 @@
  * visible rows, Home/End jump, ←/→ go to the parent / the first child (every node is expanded,
  * so → on a leaf does nothing), Enter or Space opens the focused plan through the ONE
  * `navigation.plan` door. This is the "arrives with a third level" deferral of the 2026-09-10
- * sidebar polish, and the third level is here.
+ * sidebar polish, and the third level is here. The tabindex ROVES: exactly one treeitem is
+ * `tabindex="0"` — the row focus was last in (`focusin`, delegated to the `<ul>`), else the open
+ * plan while it is in the tree, else the first root — so Tab out and back returns to where the
+ * user was, and a tree that does not hold the open plan is still reachable by Tab.
  *
  * Reordering siblings has three inputs and ONE door: the row menu (right-click, Shift+F10 or the
  * ContextMenu key — `PropertyTreeMenu`, teleported into `.renovation-plan-editor` like the canvas
@@ -68,6 +71,18 @@ function rowOf(event: Event): Row | null {
 	return el ? { el, planId: el.dataset.rpPlanId as string, parentId: el.dataset.rpParentId ?? null } : null;
 }
 
+/** The row focus was last in, kept across a re-read that moves it and a Tab out of the tree. */
+const focusedId = ref<string | null>(null);
+const tabbableId = computed(() => {
+	const focused = focusedId.value;
+	if (focused !== null && findNode(tree.value, focused)) return focused;
+	return findNode(tree.value, context.planId) ? context.planId : tree.value[0]?.id;
+});
+function onFocusIn(event: FocusEvent): void {
+	const row = rowOf(event);
+	if (row) focusedId.value = row.planId;
+}
+
 const menuFor = ref<{ planId: string; x: number; y: number } | null>(null);
 /**
  * The open menu: its node, the editor pane it is teleported into and positioned against (the
@@ -92,7 +107,8 @@ const menu = computed(() => {
 watch(menu, (open) => { if (open === null) menuFor.value = null; });
 let opener: HTMLElement | null = null;
 function openMenu(row: Row, x: number, y: number): void { opener = row.el; menuFor.value = { planId: row.planId, x, y }; }
-function closeMenu(): void { menuFor.value = null; opener?.focus(); }
+/** `restoreFocus` is the menu's own verdict: the keys and an action return focus to the row, an outside pointer leaves it where it landed. */
+function closeMenu(restoreFocus: boolean): void { menuFor.value = null; if (restoreFocus) opener?.focus(); }
 function onContextMenu(event: MouseEvent): void {
 	const row = rowOf(event);
 	if (!row || !reorder.available.value) return;
@@ -202,6 +218,7 @@ function onKeydown(event: KeyboardEvent): void {
 			class="rp-property-tree__list"
 			:aria-label="tr('editor.shell.tree')"
 			@keydown="onKeydown"
+			@focusin="onFocusIn"
 			@contextmenu="onContextMenu"
 			@dragstart="onDragStart"
 			@dragover="onDragOver"
@@ -215,6 +232,7 @@ function onKeydown(event: KeyboardEvent): void {
 				:node="node"
 				:level="1"
 				:current-id="context.planId"
+				:tabbable-id="tabbableId"
 				:navigate="navigate"
 				:draggable="canReorder"
 				:drop-at="dropAt"

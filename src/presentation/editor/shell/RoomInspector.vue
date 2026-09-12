@@ -63,6 +63,7 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import { formatArea } from './formatArea';
+import { pauseAttrs } from './pauseAttrs';
 import { buildRoomOverview, type InspectorSection, type RoomOverviewDto } from '../../read-models/roomOverview';
 import { statusAppearance, type StatusAppearance } from '../layers/zone/ZoneRenderModel';
 import RequirementRow from './RequirementRow.vue';
@@ -133,19 +134,13 @@ function onDeleteZone(): void {
 }
 
 /**
- * Design spec §2.9's pause attributes for Delete (Assign has its own in `AssetAssignControl`):
- * the pair `aria-disabled="true"` plus `aria-describedby`
- * naming the shared reason while paused, and NEITHER attribute while live — never
- * `aria-disabled="false"`, which is why this answers `{}` rather than a false-valued map.
- * `v-bind="pausedAttrs"` renders byte-identically to the two ternaries it replaces; the
- * extraction is what took this template's cognitive complexity back under budget after this
- * task's own paused-state bindings pushed it over (`npm run analyze`, fallow's template check).
+ * Design spec §2.9's pause attributes for Delete (Assign has its own in `AssetAssignControl`),
+ * the shared `pauseAttrs` shape. `v-bind="pausedAttrs"` renders byte-identically to the two
+ * ternaries it replaced; the extraction is what took this template's cognitive complexity back
+ * under budget after this task's own paused-state bindings pushed it over (`npm run analyze`,
+ * fallow's template check).
  */
-const pausedAttrs = computed(() =>
-	runtime.writesBlocked.value
-		? ({ 'aria-disabled': 'true', 'aria-describedby': runtime.pausedReasonId } as Record<string, string>)
-		: ({} as Record<string, string>),
-);
+const pausedAttrs = computed(() => pauseAttrs(runtime));
 
 /** `RequirementRow`'s own `paused` prop, over the same computed rather than the raw ref's
  * `.value` repeated at the one call site — the same reasoning as `pausedAttrs` above. */

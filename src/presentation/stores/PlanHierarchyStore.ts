@@ -13,21 +13,45 @@ import { NO_HIERARCHY, type PlanHierarchyDto } from '../read-models/planHierarch
  * instance per caller — the tree, its row menu and the Floor inspector — and one leaf's reorder
  * writes must not overlap whichever instance started them: a held Alt+↑ auto-repeats before the
  * re-read lands, and a second sequence computed from the stale tree hits the version check.
+ *
+ * `settled` is the other half of that guarantee. Latest-wins means a `load` can be SUPERSEDED —
+ * another leaf's event starting a read after `write()`'s own re-read has — and then `write()`'s
+ * `await load` returns with the older tree still on screen; `writing` would clear, and the next
+ * accepted Alt+↑ would compute from a tree older than the write it follows. So `write()` holds
+ * the flag on `settled()` — no read in flight at all — rather than on its own request.
  */
 export const usePlanHierarchyStore = defineStore('plan-hierarchy', () => {
 	const hierarchy = ref<PlanHierarchyDto>(NO_HIERARCHY);
 	const failed = ref(false);
 	const writing = ref(false);
 	let latest = 0;
+	/** The newest read still in flight — what `settled` waits on, superseded or not. */
+	let inFlight: Promise<void> | null = null;
 
-	async function load(queries: PlanEditorQueryServices, planId: string): Promise<void> {
-		if (queries.hierarchy === undefined) return;
-		const request = ++latest;
-		const found = await queries.hierarchy(planId);
+	/** Lands `request`'s answer unless a newer request has been made since — latest wins. */
+	async function land(answer: ReturnType<NonNullable<PlanEditorQueryServices['hierarchy']>>, request: number): Promise<void> {
+		const found = await answer;
 		if (request !== latest) return;
 		failed.value = !found.ok;
 		if (found.ok) hierarchy.value = found.value;
 	}
 
-	return { hierarchy, failed, writing, load };
+	async function load(queries: PlanEditorQueryServices, planId: string): Promise<void> {
+		if (queries.hierarchy === undefined) return;
+		const request = ++latest;
+		const read = land(queries.hierarchy(planId), request);
+		inFlight = read;
+		try {
+			await read;
+		} finally {
+			if (inFlight === read) inFlight = null;
+		}
+	}
+
+	/** Resolves once no read is in flight, including one started after the caller's own. */
+	async function settled(): Promise<void> {
+		for (let pending = inFlight; pending !== null; pending = inFlight) await pending;
+	}
+
+	return { hierarchy, failed, writing, load, settled };
 });

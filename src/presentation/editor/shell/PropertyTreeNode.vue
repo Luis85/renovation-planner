@@ -5,8 +5,8 @@
  * aria-current="page">`, and with no navigation every row is text — a button that does nothing
  * is the live-control-that-does-nothing shape slice 14 refused.
  *
- * `tabindex` is the roving one `PropertyTree` manages: `0` on the open plan, `-1` elsewhere.
- * The `<li>` is the focus stop and carries the treeitem role, so IT is what a screen reader
+ * `tabindex` is the roving one `PropertyTree` manages: `0` on the one row it names `tabbableId`,
+ * `-1` elsewhere. The `<li>` is the focus stop and carries the treeitem role, so IT is what a screen reader
  * announces — its name is `aria-labelledby` the row's label span (the plan name alone, never the
  * nested group's names) and its description is the localised kind; either attribute on the
  * inner row would never be read, since a description is not computed from descendants. The
@@ -28,6 +28,8 @@ const props = defineProps<{
 	readonly node: Node;
 	readonly level: number;
 	readonly currentId: string;
+	/** The one row Tab reaches; `undefined` only for an empty tree, which draws no row to carry it. */
+	readonly tabbableId?: string;
 	readonly navigate?: (planId: string) => void;
 	readonly draggable?: boolean;
 	readonly dropAt?: DropTarget | null;
@@ -43,7 +45,7 @@ const labelId = useId();
 		:aria-expanded="props.node.children.length > 0 ? true : undefined"
 		:aria-labelledby="labelId"
 		:aria-description="tr(PLAN_KIND_LABELS[props.node.kind])"
-		:tabindex="props.node.id === props.currentId ? 0 : -1"
+		:tabindex="props.node.id === props.tabbableId ? 0 : -1"
 		:data-rp-plan-id="props.node.id"
 		:data-rp-parent-id="props.node.parentId ?? undefined"
 		:draggable="props.draggable || undefined"
@@ -77,6 +79,7 @@ const labelId = useId();
 				:node="child"
 				:level="props.level + 1"
 				:current-id="props.currentId"
+				:tabbable-id="props.tabbableId"
 				:navigate="props.navigate"
 				:draggable="props.draggable"
 				:drop-at="props.dropAt"

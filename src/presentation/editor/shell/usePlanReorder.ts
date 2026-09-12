@@ -70,7 +70,9 @@ export function usePlanReorder() {
 	 * compute the same writes from the stale tree and dispatch them concurrently — the second
 	 * sequence's `loadPlan` reading the pre-save version and failing the version check as a
 	 * spurious stale-write notice. A press that arrives mid-sequence is DROPPED, not errored;
-	 * the flag holds through the re-read so the next accepted press computes from the saved tree.
+	 * the flag holds through the re-read so the next accepted press computes from the saved tree —
+	 * and through any read that SUPERSEDED that re-read (`store.settled`), since latest-wins would
+	 * otherwise return this sequence's own `load` with the older tree still on screen.
 	 */
 	async function write(writes: readonly { planId: string; kind?: PlanKind; order?: number }[]): Promise<boolean> {
 		if (command === undefined || paused.value || store.writing) return false;
@@ -83,6 +85,7 @@ export function usePlanReorder() {
 				if (!result.ok) { reportDispatchFailure(result.error); landed = false; break; }
 			}
 			await store.load(context.queries, context.planId);
+			await store.settled();
 		} finally {
 			store.writing = false;
 		}

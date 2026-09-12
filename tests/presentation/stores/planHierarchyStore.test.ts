@@ -29,10 +29,35 @@ describe('PlanHierarchyStore', () => {
 		expect(store.hierarchy).toEqual(HOUSE);
 	});
 
-	it('does nothing when the composition supplies no hierarchy query', async () => {
+	it('does nothing when the composition supplies no hierarchy query, and settled resolves at once', async () => {
 		const store = usePlanHierarchyStore();
 		await store.load(fakeQueries(FIXTURE_PLAN), FIXTURE_PLAN.id);
+		await store.settled();
 		expect(store.hierarchy).toEqual(NO_HIERARCHY);
+	});
+
+	/**
+	 * `settled` is what `usePlanReorder.write()` holds `writing` on: the caller's own `load` can be
+	 * superseded by a read started after it, and resolving then would let the next move compute
+	 * from the older tree. It waits for the newer read too — however the older one lands.
+	 */
+	it('settled waits for a read that superseded the caller\'s own, not only for that one', async () => {
+		const store = usePlanHierarchyStore();
+		const first = defer<ReturnType<typeof ok<PlanHierarchyDto>>>(), second = defer<ReturnType<typeof ok<PlanHierarchyDto>>>();
+		const firstLoad = store.load({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => first.promise }, 'plan-house');
+		void store.load({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => second.promise }, 'plan-site');
+		let done = false;
+		const waiting = (async () => { await store.settled(); done = true; })();
+
+		first.resolve(ok(HOUSE));
+		await firstLoad;
+		expect(done).toBe(false);
+		expect(store.hierarchy).toEqual(NO_HIERARCHY);
+
+		second.resolve(ok(SITE));
+		await waiting;
+		expect(done).toBe(true);
+		expect(store.hierarchy).toEqual(SITE);
 	});
 
 	/**

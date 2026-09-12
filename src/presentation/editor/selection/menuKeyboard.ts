@@ -18,8 +18,10 @@ export function menuNavigation(event: KeyboardEvent, selector: string, close: ()
 	if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
 	event.preventDefault(); event.stopPropagation();
 	const items = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(selector)];
-	const index = items.indexOf(document.activeElement as HTMLElement);
-	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+	// With focus outside the items (index −1) ↓ goes to the first and ↑ to the LAST: ↑ counts from
+	// index 0, so the wrap lands on n−1 rather than the n−2 that −1 −1 + n gave.
+	const from = Math.max(items.indexOf(document.activeElement as HTMLElement), event.key === 'ArrowUp' ? 0 : -1);
+	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (from + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
 	items[next]?.focus();
 }
 

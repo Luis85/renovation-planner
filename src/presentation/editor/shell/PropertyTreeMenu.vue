@@ -8,8 +8,9 @@
  * the canvas, the selection store and the tool manager, none of which a tree row has.
  * Positioned inside `host` (`.renovation-plan-editor`, which `PropertyTree` teleports it into)
  * exactly as that menu is — the opening point, then clamped into the host once measured — and
- * closed by Escape, Tab, an outside pointer or a run action; `PropertyTree` returns focus to the
- * row that opened it.
+ * closed by Escape, Tab, an outside pointer or a run action. `close` carries whether `PropertyTree`
+ * should return focus to the row that opened it: yes for the keys and an action, NO for an outside
+ * pointer, whose target is where the user just put focus — the canvas menu's own `close(false)`.
  *
  * While writes are paused (`usePlanReorder().paused`) the menu still opens, every entry is
  * `aria-disabled` and titled with the stale-write reason — the canvas menu's own convention for a
@@ -38,7 +39,7 @@ const props = defineProps<{
 	readonly first: boolean;
 	readonly last: boolean;
 }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: [restoreFocus: boolean] }>();
 const reorder = usePlanReorder();
 /** Why every entry is greyed, or `undefined` while the menu is live: paused first, then a sequence still writing. */
 const reason = computed(() => reorder.paused.value ? tr('editor.stale-write-refused') : reorder.busy.value ? tr('save-state.saving') : undefined);
@@ -47,11 +48,11 @@ const position = ref({ left: `${props.x}px`, top: `${props.y}px` });
 
 function run(disabled: boolean, action: () => Promise<unknown>): void {
 	if (disabled || reason.value !== undefined) return;
-	emit('close');
+	emit('close', true);
 	void action();
 }
-function navigation(event: KeyboardEvent): void { menuNavigation(event, '[role="menuitem"], [role="menuitemradio"]', () => emit('close')); }
-function outside(event: PointerEvent): void { if (pointerOutside(menu.value, event)) emit('close'); }
+function navigation(event: KeyboardEvent): void { menuNavigation(event, '[role="menuitem"], [role="menuitemradio"]', () => emit('close', true)); }
+function outside(event: PointerEvent): void { if (pointerOutside(menu.value, event)) emit('close', false); }
 onMounted(() => {
 	document.addEventListener('pointerdown', outside, true);
 	// Bound before `onMounted` runs and already placed in `host` by the Teleport, so it measures

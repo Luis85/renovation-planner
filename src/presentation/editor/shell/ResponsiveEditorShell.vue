@@ -1,22 +1,28 @@
 <script setup lang="ts">
 /**
- * One mounted outlet per region. Columns become modeless overlays through CSS, without
- * replacing native controls or committing their pending text through an incidental blur.
+ * One mounted outlet per region. In the full layout each side panel resizes and collapses
+ * (EditorSidePanel, 2026-09-12); constrained columns become modeless overlays through CSS,
+ * without replacing native controls or committing pending text through an incidental blur.
  * The canvas alone unmounts below the supported width, releasing its pointer gesture.
  */
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { layoutModeFor, type LayoutMode } from './layoutMode';
-import InspectorDrawer from './InspectorDrawer.vue';
-import OverlayPanel from './OverlayPanel.vue';
+import EditorSidePanel from './EditorSidePanel.vue';
+import { usePlanEditorContext } from '../PlanEditorContext';
+import { PANEL_BOUNDS, effectivePanelWidths, maxPanelWidth, parsePanelLayout, type PanelSide } from './panelLayout';
 import PanelRail from './PanelRail.vue';
 import UnsupportedWidthNotice from './UnsupportedWidthNotice.vue';
 
 type Region = 'layers' | 'inspector';
 const RAIL_BUTTON: Record<Region, string> = { layers: 'layers', inspector: 'details' };
 const workspace = useWorkspaceStore();
-const { layoutMode, overlay } = storeToRefs(workspace);
+const context = usePlanEditorContext();
+const { layoutMode, overlay, panelLayout } = storeToRefs(workspace);
+const shellWidth = ref(0);
+// Restored once, before the first render, so a leaf never draws the defaults for a frame first.
+workspace.restorePanelLayout(parsePanelLayout(context.panelLayout.read()));
 const root = ref<HTMLElement | null>(null);
 let observer!: ResizeObserver;
 let measurement = 0;
@@ -42,7 +48,8 @@ function restoreFocus(active: Element, region: Region | null, next: LayoutMode, 
 
 function measure(): void {
 	const element = root.value as HTMLElement;
-	const next = layoutModeFor(element.clientWidth);
+	shellWidth.value = element.clientWidth;
+	const next = layoutModeFor(shellWidth.value);
 	if (next === layoutMode.value) return;
 	const active = element.ownerDocument.activeElement as Element;
 	const inside = element.querySelector('.rp-editor-body')?.contains(active);
@@ -52,6 +59,40 @@ function measure(): void {
 	// Reveal before Vue patches visibility, so the focused field is never hidden on shrink.
 	if (next === 'constrained' && region !== null) workspace.openOverlay(region);
 	if (inside) void nextTick(() => restoreFocus(active, region, next, version));
+}
+
+/** What each panel is drawn at — `panelLayout.ts` keeps the canvas floor without touching the stored widths. */
+const widths = computed(() => effectivePanelWidths(panelLayout.value, shellWidth.value));
+const bodyStyle = computed(() => ({
+	'--rp-layers-width': `${widths.value.layers}px`,
+	'--rp-inspector-width': `${widths.value.inspector}px`,
+}));
+
+/** Every binding a side panel takes, in one place so the template stays flat. */
+function panelProps(side: PanelSide): { side: PanelSide; full: boolean; floating: boolean; collapsed: boolean; width: number; min: number; max: number } {
+	return {
+		side,
+		full: layoutMode.value === 'full',
+		floating: layoutMode.value === 'constrained' && overlay.value === side,
+		collapsed: panelLayout.value[side].collapsed,
+		width: widths.value[side],
+		min: PANEL_BOUNDS[side].min,
+		max: maxPanelWidth(side, panelLayout.value, shellWidth.value),
+	};
+}
+
+function persist(): void {
+	context.panelLayout.write(panelLayout.value);
+}
+
+function togglePanel(side: PanelSide): void {
+	workspace.setPanel(side, { collapsed: !panelLayout.value[side].collapsed });
+	persist();
+}
+
+function resetPanel(side: PanelSide): void {
+	workspace.setPanel(side, { width: PANEL_BOUNDS[side].initial });
+	persist();
 }
 
 /** Explicit rail/task opening takes focus unless the region already owns the keyboard. */
@@ -90,30 +131,41 @@ onBeforeUnmount(() => observer.disconnect());
 	>
 		<slot name="context-bar" />
 		<slot name="warnings" />
-		<div class="rp-editor-body">
-			<OverlayPanel
+		<div
+			class="rp-editor-body"
+			:style="bodyStyle"
+		>
+			<EditorSidePanel
 				v-show="layoutMode === 'full' || (layoutMode === 'constrained' && overlay === 'layers')"
-				:floating="layoutMode === 'constrained' && overlay === 'layers'"
+				v-bind="panelProps('layers')"
 				data-rp-shell-region="layers"
 				@close="closeOverlay('layers')"
 				@keydown.esc="escapeOverlay($event, 'layers')"
+				@toggle="togglePanel('layers')"
+				@resize="workspace.setPanel('layers', { width: $event })"
+				@commit="persist"
+				@reset="resetPanel('layers')"
 			>
 				<slot name="panel" />
-			</OverlayPanel>
+			</EditorSidePanel>
 			<PanelRail v-if="layoutMode === 'constrained'" />
 			<slot
 				v-if="layoutMode !== 'unsupported'"
 				name="canvas"
 			/>
-			<InspectorDrawer
+			<EditorSidePanel
 				v-show="layoutMode === 'full' || (layoutMode === 'constrained' && overlay === 'inspector')"
-				:floating="layoutMode === 'constrained' && overlay === 'inspector'"
+				v-bind="panelProps('inspector')"
 				data-rp-shell-region="inspector"
 				@close="closeOverlay('inspector')"
 				@keydown.esc="escapeOverlay($event, 'inspector')"
+				@toggle="togglePanel('inspector')"
+				@resize="workspace.setPanel('inspector', { width: $event })"
+				@commit="persist"
+				@reset="resetPanel('inspector')"
 			>
 				<slot name="inspector" />
-			</InspectorDrawer>
+			</EditorSidePanel>
 			<UnsupportedWidthNotice v-if="layoutMode === 'unsupported'" />
 		</div>
 		<slot name="status" />

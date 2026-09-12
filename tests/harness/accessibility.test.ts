@@ -658,7 +658,7 @@ describe('axe against the mounted view', () => {
 	});
 
 	/**
-	 * Task 19's `constrained` layout with the Layers overlay open — `OverlayPanel`'s own
+	 * Task 19's `constrained` layout with the Layers overlay open — `EditorSidePanel`'s own
 	 * `tabindex="-1"` container, its labelled close button, and the real
 	 * `<PropertyLayerPanel>` it holds (the same component the `full` layout renders in a
 	 * column, so a defect here would be a defect there too, reached through a different door).
@@ -691,7 +691,7 @@ describe('axe against the mounted view', () => {
 
 	/**
 	 * Task 19's `constrained` layout with the Inspector drawer open, over a REAL selection —
-	 * `InspectorDrawer` wraps the same `<EntityInspector>` the `full` layout renders in its own
+	 * `EditorSidePanel` wraps the same `<EntityInspector>` the `full` layout renders in its own
 	 * column, so this is what Task 16's Room Inspector looks like drawn through the drawer's
 	 * door rather than through a persistent panel. Task 16's own review deferred "no
 	 * accessibility scan reaches the Room Inspector with a selection" to this task; this case

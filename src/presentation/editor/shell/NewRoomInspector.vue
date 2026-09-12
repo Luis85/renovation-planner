@@ -206,7 +206,7 @@ const areaText = computed<string>(() => (draft.areaMm2 === null ? NO_FIGURE : fo
  * for exactly this kind of hand-off (its own header records the first one), so focus goes
  * there and the next Tab continues from the Inspector rather than from the top of the pane.
  *
- * `root.value` is CAST rather than optional-chained, the guarantee `OverlayPanel` and
+ * `root.value` is CAST rather than optional-chained, the guarantee `EditorSidePanel` and
  * `AddMenu` already state: this names the component's own root element, bound for the whole
  * of a mounted lifetime, so a null branch here would be an arm nothing can drive. `closest`
  * genuinely can answer null — this body is mountable outside the frame — and that arm is the

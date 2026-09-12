@@ -3,7 +3,7 @@ import { recordNavigationContext, type NavigationRecords } from './recordNavigat
 import { usePlanningReadState } from '../planning/planningReadState';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
-import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
+import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
 import { sameRenovation } from '../../../domain/renovation/sameRenovation';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -46,11 +46,18 @@ function currentContext(roomId: string, targetId: EntityId<string> | undefined, 
 	const room = project.zones.has(targetId) ? targetId : null;
 	return { roomId: room ?? (targetId === session.targetId ? session.roomId : roomId), targetId };
 }
-/** Any present zone; or no room while the session target is a wall, opening or element (ADR-0029). */
+function structureNames(structure: Structure | undefined): readonly string[] {
+	return structure ? [...structure.walls, ...structure.openings, ...structure.elements ?? []].map(item => item.id) : [];
+}
+/**
+ * Any present zone; or no room while the session target is a wall, opening or element, in
+ * either the current structure or the intended one — a planned wall not yet built has no
+ * room to bound either (ADR-0029).
+ */
 function editableContext(roomId: string, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>): boolean {
 	if (roomId) return project.zones.has(roomId);
-	const target = session.targetId, structure = project.structure;
-	return [...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === target);
+	const target = session.targetId;
+	return structureNames(project.structure).includes(target) || structureNames(project.intended).includes(target);
 }
 
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {

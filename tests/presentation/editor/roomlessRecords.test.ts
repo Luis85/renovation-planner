@@ -35,3 +35,27 @@ it('focuses a room-less record with no room in the session and its wall selected
 	expect(rig.session.roomId).toBe(''); expect(rig.session.targetId).toBe('wall-a');
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);
 });
+
+it('gives a wall that bounds no room its details, New buttons and a No room choice', async () => {
+	const rig = await setup(); rig.selection.select(['wall-a' as never]); await settle();
+	const entry = rig.wrapper.get('.rp-structure-renovation-entry');
+	expect(entry.get<HTMLSelectElement>('select').element.value).toBe('');
+	expect(entry.get('option[value=""]').text()).toBe('No room');
+	expect(entry.text()).not.toContain('Choose a room');
+	rig.runtime.renovation.focus('', 'work'); await settle();
+	await rig.wrapper.get('[data-rp-action="new-record"]').trigger('click'); await settle();
+	await rig.wrapper.get('[data-rp-form="renovation"] input[name="title"]').setValue('Repoint the border wall');
+	const form = rig.wrapper.get('[data-rp-form="renovation"]');
+	await form.trigger('submit'); await form.trigger('submit'); await settle();
+	const saved = expectDefined(rig.project.plan?.renovation?.work[0], 'saved Work');
+	expect(saved).toMatchObject({ targetId: 'wall-a', title: 'Repoint the border wall' });
+	expect(saved.roomId).toBeUndefined();
+});
+
+it('gives an Area the same renovation details a Room gets', async () => {
+	const rig = await setup();
+	const garden = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden', geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
+	await rig.runtime.refreshProjection(); rig.selection.select([garden.id]); await settle();
+	expect(rig.session.roomId).toBe(garden.id);
+	expect(rig.wrapper.find('[data-rp-mode="existing"]').exists()).toBe(true);
+});

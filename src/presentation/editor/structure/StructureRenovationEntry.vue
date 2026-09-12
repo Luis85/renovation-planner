@@ -4,17 +4,16 @@ import { computed, watch } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from '../renovation/renovationSession';
+import { defaultRenovationContext } from '../renovation/defaultRenovationContext';
+import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 const project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession(), runtime = useEditorRuntime();
-const rooms = computed(() => [...project.zones.values()].filter(item => item.zoneType === 'Room'));
+const zones = computed(() => [...project.zones.values()].map(item => ({ id: item.id, name: item.name, zoneType: item.zoneType })));
 watch(() => selection.selectedIds[0], id => {
-	const remembered = session.targetId === id && rooms.value.some(room => room.id === session.roomId) ? session.roomId : '';
-	session.targetId = id ?? '';
-	const host = project.structure.openings.find(item => item.id === id)?.hostId ?? id;
-	session.roomId = project.plan?.renovation?.subjects.find(item => item.targetId === id)?.roomId
-		?? project.plan?.renovation?.work.find(item => item.targetId === id)?.roomId
-		?? project.structure.boundaries.find(item => item.wallIds.includes(host))?.roomId ?? remembered;
+	const target = id ?? '', remembered = session.targetId === target ? session.roomId : '';
+	session.targetId = target;
+	session.roomId = defaultRenovationContext({ zoneIds: new Set(project.zones.keys()), structure: project.structure, renovation: project.plan?.renovation ?? EMPTY_RENOVATION }, target, remembered);
 }, { immediate: true });
 </script>
 <template>
@@ -24,14 +23,11 @@ watch(() => selection.selectedIds[0], id => {
 	>
 		<RoomContextSelect
 			v-model="session.roomId"
-			:rooms="rooms"
+			:rooms="zones"
 			:disabled="runtime.renovation.blocked.value"
 		/>
-		<p v-if="!session.roomId">
-			{{ tr('renovation.target.choose') }}
-		</p>
 		<button
-			v-if="session.roomId && session.perspective === 'plan'"
+			v-if="session.perspective === 'plan'"
 			type="button"
 			@click="runtime.renovation.focus(session.roomId, 'overview')"
 		>

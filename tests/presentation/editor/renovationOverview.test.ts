@@ -120,6 +120,7 @@ it('uses the Room selected in Plan when entering renovation instead of the last 
 });
 it('keeps a wall selected while capturing its own finish and opening its existing record for change', async () => {
 	const rig = await setup(); rig.selection.select(['wall-a' as never]); await settle();
+	expect(rig.wrapper.get<HTMLSelectElement>('.rp-structure-renovation-entry select').element.value).toBe('');
 	await rig.wrapper.get('.rp-structure-renovation-entry select').setValue(rig.room.id);
 	await rig.wrapper.get('.rp-structure-renovation-entry button').trigger('click'); await settle();
 	expect(rig.session.targetId).toBe('wall-a'); expect(rig.selection.selectedIds).toEqual(['wall-a']);

@@ -58,7 +58,7 @@ describe('native View controls', () => {
 	});
 
 	it('opens framed on the drawn items rather than at world 0,0', async () => {
-		const h = await mountPlanEditorCanvas();
+		const h = await mountPlanEditorCanvas({ openingFit: true });
 		try {
 			const editor = useEditorStore(h.pinia);
 			expect(editor.viewport).not.toEqual(DEFAULT_VIEWPORT);

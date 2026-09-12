@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -44,27 +44,53 @@ describe('the SSR-SFC refusal', () => {
  * ONE child process, read back by every case — the shape `contractDiscriminates.test.ts` already
  * takes and states why. The JSON reporter writes to a file the parent parses with `JSON.parse`,
  * so the assertions are over vitest's own result objects rather than over its console text.
+ *
+ * Spawned in `beforeAll` rather than at module load, so a child that dies before writing its
+ * report fails with its exit code, signal and stderr in the message instead of an `ENOENT` or a
+ * `JSON.parse` error pointing nowhere, and so the temp directory is removed in `afterAll` on
+ * failure too. `CHILD_RUN_MS` is a measurement: the child run — a cold Vite transform of the
+ * plugin, the Vue plugin and one SFC over two specs — took 2.4 s alone on this machine on
+ * 2026-09-12 (`tests 2.42s` in vitest's own summary); the budget is far wider than that because
+ * a whole nested vitest is exactly the shape `test-environments.test.ts` has measured at 128 s
+ * under the full gate against 56 s alone, and a red about the machine is what it refuses.
  */
 interface ChildReport {
 	testResults: { name: string; status: string; message: string }[];
 }
 
-const out = mkdtempSync(join(tmpdir(), 'rp-no-ssr-sfc-'));
-const reportFile = join(out, 'report.json');
-const child = spawnSync(
-	process.execPath,
-	[
-		'node_modules/vitest/vitest.mjs',
-		'run',
-		'--config',
-		'tests/build/fixtures/sfcEnvironment/vitest.sfcEnvironment.config.ts',
-		'--reporter=json',
-		`--outputFile=${reportFile}`,
-	],
-	{ cwd: REPO, encoding: 'utf8', timeout: 120_000 },
-);
-const report: ChildReport = JSON.parse(readFileSync(reportFile, 'utf8'));
-rmSync(out, { recursive: true, force: true });
+const CHILD_RUN_MS = 45_000;
+let out: string;
+let child: ReturnType<typeof spawnSync>;
+let report: ChildReport;
+
+beforeAll(() => {
+	out = mkdtempSync(join(tmpdir(), 'rp-no-ssr-sfc-'));
+	const reportFile = join(out, 'report.json');
+	child = spawnSync(
+		process.execPath,
+		[
+			'node_modules/vitest/vitest.mjs',
+			'run',
+			'--config',
+			'tests/build/fixtures/sfcEnvironment/vitest.sfcEnvironment.config.ts',
+			'--reporter=json',
+			`--outputFile=${reportFile}`,
+		],
+		{ cwd: REPO, encoding: 'utf8', timeout: CHILD_RUN_MS },
+	);
+	try {
+		report = JSON.parse(readFileSync(reportFile, 'utf8')) as ChildReport;
+	} catch (cause) {
+		throw new Error(
+			`the child vitest left no readable report (exit ${String(child.status)}, signal ${String(child.signal)}, ${String(cause)}):
+${String(child.stderr)}`,
+		);
+	}
+}, CHILD_RUN_MS + 5_000);
+
+afterAll(() => {
+	rmSync(out, { recursive: true, force: true });
+});
 
 const resultFor = (fixture: string) => report.testResults.find((file) => file.name.endsWith(fixture));
 

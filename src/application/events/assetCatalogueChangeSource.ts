@@ -7,7 +7,7 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * turned into one subscription the Plan Editor's assign picker can take without naming an
  * event.
  *
- * It lives in `application/` for the reason its two siblings do, and that reason is the whole
+ * It lives in `application/` for the reason its siblings do, and that reason is the whole
  * point of the indirection: this layer is the one that may know both halves — the `EventBus`
  * port and the event names — so `presentation/` gets a callback and never learns either.
  *

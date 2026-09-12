@@ -6,7 +6,7 @@ import { disposeAll, subscribeAll } from './subscriptions';
 /**
  * "Some plan of THIS project changed, from anywhere" — the project-plans change source, design slice 21's.
  *
- * It lives in `application/` for the reason its two siblings do, and that reason is the whole
+ * It lives in `application/` for the reason its siblings do, and that reason is the whole
  * point of the indirection: this layer is the one that may know both halves — the `EventBus`
  * port and the event names — so `presentation/` gets a callback and never learns either.
  *

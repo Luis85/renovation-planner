@@ -126,13 +126,16 @@ describe('the reachability walk', () => {
 		expect(reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/']).size).toBe(1);
 	});
 
-	/** A specifier naming a package, or a file that is not there, is skipped rather than fatal. */
-	it('ignores a specifier that resolves to nothing', () => {
-		const tree = fixture({
-			'src/presentation/designer/View.ts': "import { createApp } from 'vue';\nimport x from './gone.vue';",
-		});
+	/** A specifier naming a package is skipped; a relative one naming a file that is not there is
+	 * FATAL, since a walk that dropped it would report the component behind a renamed file as
+	 * "not reachable" with nothing named — the shared walk's header carries the argument. Watched
+	 * red first: the old case here asserted the silent drop, and the loud walk failed it. */
+	it('ignores a package specifier and refuses a relative one that resolves to nothing', () => {
+		const packageOnly = fixture({ 'src/presentation/designer/View.ts': "import { createApp } from 'vue';" });
+		const gone = fixture({ 'src/presentation/designer/View.ts': "import x from './gone.vue';" });
 
-		expect(reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/']).size).toBe(1);
+		expect(reachableFrom('src/presentation/designer/View.ts', packageOnly, ['src/presentation/']).size).toBe(1);
+		expect(() => reachableFrom('src/presentation/designer/View.ts', gone, ['src/presentation/'])).toThrow("imports './gone.vue'");
 	});
 
 	/** The bound is real: a component outside `src/presentation/` is not walked into. */

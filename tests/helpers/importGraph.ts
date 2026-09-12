@@ -37,8 +37,11 @@ import { toPosix } from './posix';
  * **What it cannot see.** A specifier held in a variable, built by concatenation or a template
  * with a substitution, a package name, a path alias and a Vite glob are not edges. Relative
  * specifiers are resolved on the filesystem the way TypeScript would try them, with the empty
- * extension FIRST because `.vue` and `.mjs` imports are written with theirs, then `.ts`,
- * `.vue`, `.js`, `.mjs` and `index.ts`.
+ * extension FIRST because `.vue` and `.mjs` imports are written with theirs, then the
+ * extensions `EXTENSIONS` lists in that order. **A relative specifier that resolves to nothing
+ * THROWS**, naming the importer and what was tried: the walk used to drop it as a non-edge, and
+ * a silent non-edge is exactly the shape of an instrument that reaches nothing and looks clean —
+ * a component behind a renamed file would have read as "not reachable" with no file named.
  */
 export interface SourceTree {
 	read(path: string): string;
@@ -93,14 +96,16 @@ function specifiersIn(file: string, source: string): string[] {
 	return [descriptor.script, descriptor.scriptSetup].flatMap((block) => (block === null ? [] : specifiersInScript(block.content)));
 }
 
+const EXTENSIONS = ['', '.ts', '.vue', '.js', '.mjs', '.tsx', '.mts', '.cts', '.jsx', '.cjs', '/index.ts', '/index.js', '/index.mjs'] as const;
+
 function resolveSpecifier(from: string, specifier: string, tree: SourceTree): string | null {
 	if (!specifier.startsWith('.')) return null;
 	const base = toPosix(join(from, '..', specifier));
-	for (const extension of ['', '.ts', '.vue', '.js', '.mjs', '/index.ts']) {
+	for (const extension of EXTENSIONS) {
 		const candidate = `${base}${extension}`;
 		if (tree.isFile(candidate)) return candidate;
 	}
-	return null;
+	throw new Error(`importGraph: ${from} imports '${specifier}', which resolves to no file (tried ${base} with ${EXTENSIONS.map((extension) => extension || 'no extension').join(', ')})`);
 }
 
 /**

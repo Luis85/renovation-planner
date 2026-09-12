@@ -81,6 +81,20 @@ describe('an import edge', () => {
 		expect(reaches({ 'src/entry.ts': "import './x';", 'src/x.vue': '' }, 'src/x.vue')).toBe(true);
 		expect(reaches({ 'src/entry.ts': "import './x';", 'src/x/index.ts': '' }, 'src/x/index.ts')).toBe(true);
 	});
+
+	it('resolves the other script extensions and the other index spellings', () => {
+		for (const target of ['src/x.tsx', 'src/x.mts', 'src/x.cts', 'src/x.jsx', 'src/x.cjs', 'src/x/index.js', 'src/x/index.mjs']) {
+			expect(reaches({ 'src/entry.ts': "import './x';", [target]: '' }, target), target).toBe(true);
+		}
+	});
+
+	it('throws, naming the importer, for a relative specifier that resolves to nothing', () => {
+		expect(() => reaches({ 'src/entry.ts': "import './gone';" }, 'src/gone.ts')).toThrow("src/entry.ts imports './gone'");
+	});
+
+	it('is not a package specifier, which is neither resolved nor refused', () => {
+		expect(reaches({ 'src/entry.ts': "import { createApp } from 'vue';" }, 'vue')).toBe(false);
+	});
 });
 
 describe('an SFC', () => {

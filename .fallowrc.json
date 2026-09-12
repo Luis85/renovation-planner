@@ -208,7 +208,7 @@
 		// written at the code now: `AssetDesignerView.onOpen` (the two `ItemView` shells, which
 		// ADR-0015's *Revisit when* still owns) and, for the change sources, nothing — their
 		// trigger fired. This block used to argue at length that five change sources were too few
-		// to share a `subscribeToAll`; there are eight, so `application/events/subscriptions.ts`
+		// to share a `subscribeToAll`; the directory has outgrown that, so `application/events/subscriptions.ts`
 		// took the spread, the disposer walk and the two payload readers off all of them, and the
 		// paragraph went with the key rather than growing, exactly as it said it should.
 		"ignoredClones": ["dup:7fd5d625:2"]

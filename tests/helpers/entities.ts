@@ -133,7 +133,8 @@ export function makeRequirement(
  * The Asset library's two read-model fixtures, here rather than in
  * `assetLibraryRootHarness.ts` because that harness MOUNTS `AssetLibraryRoot.vue` and a
  * node-environment test wanting only a DTO must not reach an SFC through it —
- * `tests/build/node-tests-import-no-sfc.test.ts` says why. The harness re-exports both.
+ * `scripts/vitest-no-ssr-sfc.mjs` refuses the SSR transform that reach produces, and
+ * `tests/build/no-ssr-sfc.test.ts` says why. The harness re-exports both.
  */
 export function anEntry(overrides: Partial<CatalogueEntryDto> = {}): CatalogueEntryDto {
 	return {

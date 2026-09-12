@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import ts from 'typescript';
 import { repoRelative } from '../helpers/repo';
+import { declaredEnvironment } from '../helpers/environmentDirective';
 import { reachableFrom, repoTree } from '../helpers/importGraph';
 
 /**
@@ -25,46 +25,6 @@ import { reachableFrom, repoTree } from '../helpers/importGraph';
  * everything it never thought about.
  */
 const PROTECTED_DIRECTORIES = ['tests/core/', 'tests/domain/', 'tests/application/'] as const;
-
-/**
- * The directive vitest reads, read out of the file's COMMENTS with the TypeScript parser rather
- * than pattern-matched: every comment range in the file, in document order, and the word after
- * `@vitest-environment` / `@jest-environment` in the first one that carries it.
- *
- * Measured against vitest's own behaviour rather than assumed equal to it. Vitest
- * (`detectCodeBlock`, not exported) takes the first match anywhere in the file's TEXT — a
- * directive spelled inside a string literal would count there and not here. No test file on
- * this tree spells one outside a comment (`grep -rn "@vitest-environment" tests` is the check,
- * every hit a comment), and `referenceWorkflow.e2e.test.ts` carries its directive twelve lines
- * down, after its imports, which both readings honour. A file whose FIRST comment mention is
- * prose about the directive rather than the directive itself would disagree the same way in
- * both readers, since vitest's first match is that prose too.
- */
-function declaredEnvironment(source: string): string | undefined {
-	const file = ts.createSourceFile('spec.ts', source, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
-	const ranges = new Map<number, ts.CommentRange>();
-	const visit = (node: ts.Node): void => {
-		for (const range of [...(ts.getLeadingCommentRanges(source, node.pos) ?? []), ...(ts.getTrailingCommentRanges(source, node.end) ?? [])]) {
-			ranges.set(range.pos, range);
-		}
-		ts.forEachChild(node, visit);
-	};
-	visit(file);
-	for (const range of [...ranges.values()].toSorted((a, b) => a.pos - b.pos)) {
-		// Whitespace-split by hand: `split(/\s+/)` is a pattern, and this file is under the rule
-		// that no gate reads source text through one.
-		const words = source
-			.slice(range.pos, range.end)
-			.split('\n')
-			.flatMap((line) => line.split('\t'))
-			.flatMap((line) => line.split(' '))
-			.map((word) => word.trim())
-			.filter((word) => word !== '');
-		const at = words.findIndex((word) => word === '@vitest-environment' || word === '@jest-environment');
-		if (at !== -1 && words[at + 1] !== undefined) return words[at + 1];
-	}
-	return undefined;
-}
 
 /**
  * Whether a COLLECTED file reaches `tests/contracts/` through the import graph — the shared walk
@@ -157,8 +117,10 @@ describe('the inner layers execute in node', () => {
 		// sibling's stale-figure mistake waiting to happen here too.
 		expect(examinedByDirectory.length).toBeGreaterThan(0);
 		expect(examinedByContract.length).toBeGreaterThan(0);
-		// This case globs the whole suite through a nested `createVitest`: measured 128 s under
-		// the full gate on a contended machine (56 s alone) on 2026-09-05, so 120 s was a red
-		// about the machine rather than about the tree.
+		// This case globs the whole suite through a nested `createVitest` and walks every
+		// collected file's import graph: measured 5.3 s alone on 2026-09-12 (it was 56 s alone
+		// and 128 s under the full gate on a contended machine before the walk was cached per
+		// tree). The budget stays wide because a whole-suite glob scales with the tree and the
+		// machine, and a red about the machine is what it refuses.
 	}, 300_000);
 });

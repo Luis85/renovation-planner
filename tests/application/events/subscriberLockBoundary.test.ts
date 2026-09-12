@@ -27,8 +27,8 @@ import path from 'node:path';
  * It is also blind to a registration spelled anything but `.subscribe(` or `subscribeAll(` —
  * a bare `subscribe(...)` reached off a destructured binding, or a wrapper under another name.
  * `subscribeAll` is named here because it EXISTS: `application/events/subscriptions.ts` took the
- * `...LIST.map((type) => events.subscribe(type, handler))` spread off all eight change sources,
- * and with only `.subscribe(` in the scan seven of them stopped being discovered — measured, as
+ * `...LIST.map((type) => events.subscribe(type, handler))` spread off every change source,
+ * and with only `.subscribe(` in the scan all but one of them stopped being discovered — measured, as
  * the failure of the case below, which is the discovery half's control doing its job. **A
  * wrapper is not a blind spot once it is written; it is a second spelling this scan owes.**
  *

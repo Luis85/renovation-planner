@@ -125,4 +125,34 @@ describe('PropertyTree reordering, the sequence flag', () => {
 		expect(notify).toHaveBeenCalledOnce();
 		expect((select.element as HTMLSelectElement).value).toBe(FIXTURE_PLAN.kind);
 	});
+
+	/**
+	 * The move's OWN re-read can throw as well — a vault fault under `queries.hierarchy` — and that
+	 * one is `write()`'s to report, since it started it: through `notifyFault`, the door
+	 * `PlanEditorRoot.loadHierarchy` takes for the reads it starts. Watched red first: without the
+	 * catch `notifyFault` is called 0 times and vitest's run fails on an unhandled `Error: boom`
+	 * from the `void reorder.moveUp(…)` a key press dispatches — the shape a `void` call leaves,
+	 * which the case cannot see and the run can.
+	 */
+	it('reports a re-read of its own that throws, once, clears writing and resets the Kind select', async () => {
+		const { queries, commands } = rig();
+		const fault = vi.spyOn(notices, 'notifyFault').mockImplementation(() => undefined);
+		onTestFinished(() => fault.mockRestore());
+		const harness = await open({ queries, commands });
+		await settle();
+		const store = usePlanHierarchyStore(harness.pinia);
+		queries.hierarchy.mockImplementationOnce(() => Promise.reject(new Error('boom')));
+		await item(harness, 'plan-attic').trigger('keydown', { key: 'ArrowUp', altKey: true });
+		await settle();
+		expect(fault).toHaveBeenCalledOnce();
+		expect(store.writing).toBe(false);
+
+		queries.hierarchy.mockImplementationOnce(() => Promise.reject(new Error('boom')));
+		const select = harness.wrapper.get('select[data-rp-field="plan-kind"]');
+		await select.setValue('building');
+		await settle();
+		expect(fault).toHaveBeenCalledTimes(2);
+		expect(store.writing).toBe(false);
+		expect((select.element as HTMLSelectElement).value).toBe(FIXTURE_PLAN.kind);
+	});
 });

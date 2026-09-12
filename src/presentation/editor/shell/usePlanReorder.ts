@@ -7,6 +7,7 @@ import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import { reportDispatchFailure } from '../report-failure';
+import { notifyFault } from '../../notices/notify';
 import type { PropertyTreeNode } from '../../read-models/planHierarchy';
 // The move arithmetic lives apart from this composable, and its docblock says what that costs
 // when it does not: `tests/presentation/editor/shell/usePlanReorder.test.ts` is a node test.
@@ -84,7 +85,16 @@ export function usePlanReorder() {
 				const result = await command.execute({ ...entry, planId: entry.planId as PlanId });
 				if (!result.ok) { reportDispatchFailure(result.error); landed = false; break; }
 			}
-			await store.load(context.queries, context.planId);
+			// The re-read is THIS sequence's own, so a read that throws is reported here — through the
+			// door `PlanEditorRoot`'s `loadHierarchy` takes for the reads it starts — rather than left
+			// to the `void reorder.moveUp(…)` a key press dispatches, which has no awaiter: that was an
+			// unhandled rejection, `writing` never cleared, and the Kind select skipped its reset.
+			try {
+				await store.load(context.queries, context.planId);
+			} catch (cause) {
+				notifyFault(cause, context.commands.logger, 'editor.hierarchy.failed');
+				landed = false;
+			}
 			await store.settled();
 		} finally {
 			store.writing = false;

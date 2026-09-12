@@ -13,6 +13,7 @@ import type { ProjectSummaryDto } from '../../../src/presentation/read-models/Pl
 import { t } from '../../../src/presentation/i18n/strings';
 import { ok } from '../../../src/core/result/Result';
 import { recorder } from '../../helpers/logger';
+import { classesNamed, propertyOf, show, stylesheetRules } from '../../helpers/selectors';
 
 // See `projectDetailStore.test.ts` for why this is stated and why it is `false`.
 const PROJECT: ProjectSummaryDto = {
@@ -322,18 +323,20 @@ describe('ProjectDetail', () => {
 		);
 
 		expect(emitted.size).toBeGreaterThan(4);
-		// A trailing boundary, not `toContain`: every class here is a PREFIX of a longer one, so
-		// a plain substring test would credit `.rp-x` to a sheet declaring only `.rp-x__row`.
-		for (const name of emitted) expect(css).toMatch(new RegExp(`\\.${name}(?![\\w-])`));
+		// Asked of the parsed sheet's selectors: a class is a node there, so `.rp-x` is not
+		// credited to a sheet declaring only `.rp-x__row`. Reported as the names the sheet lacks.
+		const declared = classesNamed(css);
+
+		expect([...emitted].filter((name) => !declared.has(name))).toEqual([]);
 	});
 
 	/**
 	 * **The BODY owns the scroll, and it is the ONLY region that does.**
 	 *
-	 * Held by a TEXT assertion over the partial rather than by the class merely existing, which
-	 * is all the harvest case above can say: jsdom resolves no CSS, so a rule one word off draws
-	 * wrong with every other case green — this repository has already shipped that defect once
-	 * (`rp-save-state-error` against an emitted `rp-save-state-save-error`).
+	 * Held by an assertion over the PARSED partial's declarations rather than by the class merely
+	 * existing, which is all the harvest case above can say: jsdom resolves no CSS, so a rule one
+	 * word off draws wrong with every other case green — this repository has already shipped that
+	 * defect once (`rp-save-state-error` against an emitted `rp-save-state-save-error`).
 	 *
 	 * What it pins was found by CAPTURING the page and looking at it, which is the only
 	 * instrument here that can see a position. `.rp-plan-list` used to carry this block because
@@ -348,15 +351,19 @@ describe('ProjectDetail', () => {
 	 * present while doing nothing.
 	 */
 	it('gives the scroll to the body and to nothing else', () => {
-		const css = readFileSync('styles/project-detail.css', 'utf8');
-		const body = css.slice(css.indexOf('.rp-project-detail__body {'));
-		const planList = css.slice(css.indexOf('.rp-plan-list {'));
+		const rules = stylesheetRules(readFileSync('styles/project-detail.css', 'utf8'));
+		const rulesFor = (selector: string) => rules.filter((rule) => rule.selectors.map(show).includes(selector));
+		const declared = (selector: string, property: string) =>
+			rulesFor(selector).flatMap((rule) => rule.declarations).find((declaration) => propertyOf(declaration) === property);
 
-		expect(body).toMatch(/flex: 1;/);
-		expect(body).toMatch(/min-height: 0;/);
-		expect(body).toMatch(/overflow-y: auto;/);
-		// The plan list's own rule ends at its closing brace; slicing to it is what stops this
-		// reading a later block's declarations as if they were this one's.
-		expect(planList.slice(0, planList.indexOf('}'))).not.toMatch(/overflow-y|flex: 1/);
+		expect(rulesFor('.rp-project-detail__body')).toHaveLength(1);
+		// `flex: 1` is what the parser reads as grow 1, shrink 1, basis 0%.
+		expect(declared('.rp-project-detail__body', 'flex')?.value).toMatchObject({ grow: 1, shrink: 1 });
+		expect(declared('.rp-project-detail__body', 'min-height')?.value).toEqual({ type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 0 } } });
+		expect(declared('.rp-project-detail__body', 'overflow-y')?.value).toBe('auto');
+		// The plan list's own rules — every block whose selector is exactly `.rp-plan-list`, never
+		// a descendant rule's declarations read as if they were this one's.
+		expect(rulesFor('.rp-plan-list')).not.toHaveLength(0);
+		expect(rulesFor('.rp-plan-list').flatMap((rule) => rule.declarations.map(propertyOf)).filter((property) => property === 'overflow-y' || property === 'flex')).toEqual([]);
 	});
 });

@@ -18,6 +18,7 @@ import { EDITOR_RUNTIME, type EditorRuntime } from '../../../src/presentation/ed
 import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
+import { propertyOf, show, stylesheetRules } from '../../helpers/selectors';
 import { createEditorClipboard } from '../../../src/presentation/editor/clipboard/editorClipboard';
 import { memoryDeviceStorage } from '../../helpers/deviceStorage';
 import { activateNotices } from '../../../src/presentation/notices/notify';
@@ -219,13 +220,18 @@ describe('what the view tells Obsidian about itself', () => {
 	 * check here can see — jsdom applies no stylesheet and the harness draws one view.
 	 */
 	it('is the view type styles/chrome.css keys its rules on, and one of them hides the view header', () => {
-		const chrome = readFileSync('styles/chrome.css', 'utf8');
-		const selector = `.workspace-leaf-content[data-type="${PLAN_EDITOR_VIEW}"]`;
+		const rules = stylesheetRules(readFileSync('styles/chrome.css', 'utf8'));
+		const rulesFor = (selector: string) => rules.filter((rule) => rule.selectors.map(show).includes(selector));
+		const leaf = `.workspace-leaf-content[data-type="${PLAN_EDITOR_VIEW}"]`;
 
-		expect(chrome).toContain(`${selector} .view-content`);
+		expect(rulesFor(`${leaf} .view-content`)).not.toHaveLength(0);
 		// The pane title bar is hidden for this view since 2026-09-10 (sidebar polish): the
-		// context bar carries the plan name and the tab strip still names the leaf.
-		expect(chrome).toMatch(new RegExp(`${selector.replace(/[.[\]"]/g, '\\$&')} \\.view-header\\s*\\{\\s*display:\\s*none;`));
+		// context bar carries the plan name and the tab strip still names the leaf. Asked of the
+		// parsed rule's own declarations rather than of the text around its selector.
+		const header = rulesFor(`${leaf} .view-header`);
+
+		expect(header).toHaveLength(1);
+		expect(header[0].declarations.find((declaration) => propertyOf(declaration) === 'display')?.value).toEqual({ type: 'keyword', value: 'none' });
 	});
 });
 

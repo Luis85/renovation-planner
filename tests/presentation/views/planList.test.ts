@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import PlanList from '../../../src/presentation/views/PlanList.vue';
 import type { PlanSummaryDto } from '../../../src/presentation/read-models/PlanDto';
+import { classesNamed } from '../../helpers/selectors';
 
 describe('PlanList', () => {
 	it('draws one row per plan', () => {
@@ -132,8 +133,10 @@ describe('PlanList', () => {
 		);
 
 		expect(emitted.size).toBeGreaterThan(4);
-		// A trailing boundary, not `toContain`: every class here is a PREFIX of a longer one, so
-		// a plain substring test would credit `.rp-x` to a sheet declaring only `.rp-x__row`.
-		for (const name of emitted) expect(css).toMatch(new RegExp(`\\.${name}(?![\\w-])`));
+		// Asked of the parsed sheet's selectors: a class is a node there, so `.rp-x` is not
+		// credited to a sheet declaring only `.rp-x__row`. Reported as the names the sheet lacks.
+		const declared = classesNamed(css);
+
+		expect([...emitted].filter((name) => !declared.has(name))).toEqual([]);
 	});
 });

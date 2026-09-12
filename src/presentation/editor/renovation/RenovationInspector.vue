@@ -36,6 +36,8 @@ const standaloneZone = computed(() => !room.value ? selectedZone.value : undefin
  * The frame's group controls arrive through the `actions` slot. A wall, opening or element body
  * takes them above its own Delete, so Delete stays the foot of the Inspector region (side panels
  * spec §3); every other state draws them as this component's last node, where they trailed before.
+ * `review` is excluded because `ReviewInspector` replaces both bodies there, so the trailing mount is
+ * then the only one; `EntityInspector`, this component's one caller, passes no slot in Review anyway.
  */
 const bodyTakesActions = computed(() => session.perspective !== 'review' && selection.selectedIds.length > 0 && (generic.value === true || element.value));
 const root = ref<HTMLElement | null>(null);

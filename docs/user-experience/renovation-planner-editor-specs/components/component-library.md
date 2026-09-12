@@ -107,8 +107,6 @@ The shell owns layout only. It must not own project hydration, geometry commands
 
 **Responsibility:** Constrained-width access to Property/Layers. Only one overlay panel opens at a time.
 
-**Used by:** M16.
-
 **Amended 2026-09-12 (side panels design):** `EditorSidePanel` replaced `OverlayPanel` and
 `InspectorDrawer`. In the full layout it adds a header with a collapse button, a window-splitter
 resize handle (`PanelResizer`) and a collapsed strip (`PanelCollapsedStrip`); widths and collapsed
@@ -256,7 +254,7 @@ Three primary rows:
 - What will change — Planned
 - What needs doing — Work
 
-**Amended 2026-09-12 (side panels design):** while every row is unavailable, the Inspector draws one `ComingLaterLine` naming them instead of a row each. A section that gains a query returns as a real row.
+**Amended 2026-09-12 (side panels design):** the component is deleted. The Room Inspector draws one `ComingLaterLine` naming the sections it cannot show yet instead of a row each. A section that gains a query would need a real row component again.
 
 ### `SemanticStateSwitch`
 
@@ -266,7 +264,7 @@ Compact switch used inside a drilled-down entity state. It retains the selected 
 
 Rows for Materials, Costs, Documents, Photos, and Notes with counts and navigation.
 
-**Amended 2026-09-12 (side panels design):** while every row is unavailable, the Inspector draws one `ComingLaterLine` naming them instead of a row each. A section that gains a query returns as a real row.
+**Amended 2026-09-12 (side panels design):** the component is deleted. The Room Inspector draws one `ComingLaterLine` naming the sections it cannot show yet instead of a row each. A section that gains a query would need a real row component again.
 
 ### Inspector content components
 

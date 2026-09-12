@@ -16,7 +16,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createProjectPlansChangeSource } from '../../../src/application/events/projectPlansChangeSource';
 import { createEventBus } from '../../../src/core/events/EventBus';
-import { planCreated } from '../../../src/domain/plan/Plan.events';
+import { planCreated, planDetailsChanged } from '../../../src/domain/plan/Plan.events';
 import { projectIndexEntryChanged } from '../../../src/application/events/projectIndex.events';
 import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
@@ -52,6 +52,22 @@ describe('createProjectPlansChangeSource', () => {
 		await events.publish(planCreated({ planId: A_PLAN, projectId: THEIRS }));
 
 		expect(listener).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * A plan's kind or order (ADR-0029) is a fact about its siblings' tree: the Plan Editor
+	 * subscribes here for exactly that, since its own plan-filtered door never hears a sibling.
+	 * Filtered on the project like `PlanCreated`, so another project's reorder costs nothing.
+	 */
+	it('delivers a PlanDetailsChanged for its own project and not for another', async () => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createProjectPlansChangeSource(events)(OURS, listener);
+
+		await events.publish(planDetailsChanged({ planId: A_PLAN, projectId: OURS }));
+		await events.publish(planDetailsChanged({ planId: A_PLAN, projectId: THEIRS }));
+
+		expect(listener).toHaveBeenCalledTimes(1);
 	});
 
 	/**

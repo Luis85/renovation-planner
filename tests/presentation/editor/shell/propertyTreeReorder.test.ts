@@ -280,12 +280,20 @@ describe('PropertyTree reordering', () => {
 		harness.unmount();
 	});
 
-	/** Another leaf's write lands between two gestures: the menu closes with its row, and a drop whose target is gone moves nothing. */
-	it('closes the menu and voids a pending drop when a re-read takes the row away', async () => {
+	/**
+	 * Another leaf's write lands between two gestures: a re-read that keeps the row leaves the menu
+	 * open, one that takes the row CLOSES it — not merely hides it, which the same id coming back
+	 * on a later read proves, since a hidden menu would reopen at its old point and take focus — and
+	 * a drop whose target is gone moves nothing.
+	 */
+	it('closes the menu for good and voids a pending drop when a re-read takes the row away', async () => {
 		const { execute, queries, commands } = rig();
 		const harness = await mountPlanEditorCanvas({ queries, commands });
 		await settle();
 		await item(harness, 'plan-ground').trigger('contextmenu', { clientX: 20, clientY: 20 });
+		expect(menuOpen(harness)).toBe(true);
+		usePlanHierarchyStore(harness.pinia).hierarchy = hierarchy(new Map([['plan-garden', 0], ['plan-house', 1]]));
+		await settle();
 		expect(menuOpen(harness)).toBe(true);
 		await item(harness, 'plan-attic').trigger('dragstart', { dataTransfer });
 		await item(harness, 'plan-first').trigger('dragover', { dataTransfer, clientY: 0 });
@@ -296,6 +304,43 @@ describe('PropertyTree reordering', () => {
 		await harness.wrapper.get('[role="tree"]').trigger('drop', { dataTransfer });
 		await settle();
 		expect(execute).not.toHaveBeenCalled();
+		usePlanHierarchyStore(harness.pinia).hierarchy = hierarchy();
+		await settle();
+		expect(menuOpen(harness)).toBe(false);
+		expect(document.activeElement).not.toBe(item(harness, 'plan-ground').element);
+		harness.unmount();
+	});
+
+	/**
+	 * A "Mark as …" chosen from a menu opened DURING an Alt+↑ move used to close the menu and do
+	 * nothing: `write()` drops an input that arrives mid-sequence. The entries grey with the
+	 * save-state's reason until the re-read lands, the click drops nothing silently, and the menu
+	 * stays open and live once the sequence is through.
+	 */
+	it('greys the menu with the saving reason while a sequence is writing, and drops nothing silently', async () => {
+		const { execute, queries, commands } = rig();
+		const release = deferred(execute);
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		await item(harness, 'plan-attic').trigger('keydown', { key: 'ArrowUp', altKey: true });
+		await item(harness, 'plan-ground').trigger('keydown', { key: 'F10', shiftKey: true });
+		const entries = harness.wrapper.findAll('.rp-property-tree__menu [data-rp-tree-action]');
+		expect(entries.length).toBeGreaterThan(2);
+		for (const entry of entries) {
+			expect(entry.attributes('aria-disabled')).toBe('true');
+			expect(entry.attributes('title')).toBe(t('en', 'save-state.saving'));
+		}
+		await harness.wrapper.get('[data-rp-tree-action="kind:building"]').trigger('click');
+		expect(menuOpen(harness)).toBe(true);
+		release();
+		await settle();
+		expect(execute.mock.calls.map(([input]) => input)).toEqual([{ planId: 'plan-attic', order: 1 }, { planId: 'plan-first', order: 2 }]);
+		const building = harness.wrapper.get('[data-rp-tree-action="kind:building"]');
+		expect(building.attributes('aria-disabled')).toBeUndefined();
+		expect(building.attributes('title')).toBeUndefined();
+		await building.trigger('click');
+		await settle();
+		expect(execute).toHaveBeenLastCalledWith({ planId: 'plan-ground', kind: 'building' });
 		harness.unmount();
 	});
 

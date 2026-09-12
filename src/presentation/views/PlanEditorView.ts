@@ -84,6 +84,13 @@ export interface PlanEditorDeps {
 	 */
 	readonly onPlanChanged: (planId: string, listener: () => void) => () => void;
 	/**
+	 * Subscribe to the domain events that mean "some plan of this project changed", filtered
+	 * to one project id — the same source the Renovation project view takes. Passed straight
+	 * through rather than partially applied like the door above, because the view holds no
+	 * project id: the root binds one once the plan has hydrated.
+	 */
+	readonly onProjectPlansChanged: (projectId: string, listener: () => void) => () => void;
+	/**
 	 * Subscribe to the domain events that mean "the vault's asset catalogue changed".
 	 *
 	 * Takes NO id, which is the whole difference from the door above: an Asset has belonged
@@ -283,6 +290,8 @@ export class PlanEditorView extends ItemView {
 			viewPreferences: this.deps.viewPreferences,
 			onThemeChange: this.deps.onThemeChange,
 			onPlanChanged: (listener) => this.deps.onPlanChanged(planId, listener),
+			// Passed straight through: the id it takes is a PROJECT's, which the root learns from the plan.
+			onProjectPlansChanged: this.deps.onProjectPlansChanged,
 			// Passed straight through rather than partially applied: there is no id to bind.
 			onCatalogueChanged: this.deps.onCatalogueChanged,
 			// Passed straight through for the same reason, and for the three below the reason is

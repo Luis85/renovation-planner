@@ -55,6 +55,8 @@ export function usePlanReorder() {
 	const command = context.commands.updatePlanDetails;
 	const available = computed(() => command !== undefined && session.perspective !== 'review');
 	const paused = computed(() => runtime.writesBlocked.value);
+	/** A sequence is still writing — `write()` below drops the next input, and the row menu says so instead of dropping it silently. */
+	const busy = computed(() => store.writing);
 
 	/**
 	 * Resolves to whether EVERY write landed — `false` when refused up front (no command, paused,
@@ -115,6 +117,7 @@ export function usePlanReorder() {
 	return {
 		available,
 		paused,
+		busy,
 		siblingsOf,
 		moveUp: (id: string) => moveBy(id, -1),
 		moveDown: (id: string) => moveBy(id, 1),

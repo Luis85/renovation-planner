@@ -26,7 +26,7 @@
  * is out of scope — and per-instance state makes that a no-op by construction rather than a
  * check somebody has to remember.
  */
-import { computed, ref, shallowRef } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import HostIcon from '../../components/HostIcon.vue';
 import { tr } from '../../i18n/strings';
@@ -84,6 +84,12 @@ const menu = computed(() => {
 	const rect = host.getBoundingClientRect();
 	return { node, host, x: Math.max(8, open.x - rect.left), y: Math.max(8, open.y - rect.top), first: index <= 0, last: index >= siblings.length - 1 };
 });
+/**
+ * CLOSED rather than hidden when there is nothing to draw: with `menuFor` left naming a plan a
+ * re-read dropped, the same id coming back on a later read reopened the menu at its old point
+ * and its `onMounted` took focus. The opener is not refocused — it went with the row.
+ */
+watch(menu, (open) => { if (open === null) menuFor.value = null; });
 let opener: HTMLElement | null = null;
 function openMenu(row: Row, x: number, y: number): void { opener = row.el; menuFor.value = { planId: row.planId, x, y }; }
 function closeMenu(): void { menuFor.value = null; opener?.focus(); }

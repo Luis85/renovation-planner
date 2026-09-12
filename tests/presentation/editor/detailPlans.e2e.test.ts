@@ -5,6 +5,7 @@ import { t } from '../../../src/presentation/i18n/strings';
 import { referenceWorkspace } from '../../harness/referenceWorkspace';
 import { HARNESS_PLAN, harnessDeps } from '../../harness/planEditor';
 import { fakeQueries, mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle, settleUntil } from '../../helpers/editor';
+import { FIXTURE_PLAN } from '../../helpers/planFixtures';
 import { expectFound, expectOk } from '../../helpers/domain';
 import { err, ok } from '../../../src/core/result/Result';
 import { CreatePlanCommand } from '../../../src/application/commands/plan/CreatePlan';
@@ -71,6 +72,37 @@ it('loads the hierarchy at mount, on a plan-change event, and on retry', async (
 	expect(calls).toBe(3);
 
 	harness.wrapper.unmount();
+});
+
+/**
+ * The plan door above is filtered on THIS plan, so a sibling reordered or re-kinded from another
+ * leaf never reached it and the tree kept the old order. The root binds the project-plans door
+ * to the project the hydrated plan names — the fake delivers only to that id, as the real source
+ * filters — and re-reads the hierarchy ALONE: the projection is this plan's own. Released with
+ * the component, since Obsidian reuses a view and a listener outliving its app stacks.
+ */
+it('re-reads the hierarchy when a sibling plan of this project changes, not another project\'s, and releases the subscription on unmount', async () => {
+	let hierarchyReads = 0, planReads = 0;
+	const hierarchy: NonNullable<PlanEditorQueryServices['hierarchy']> = () => { hierarchyReads += 1; return Promise.resolve(ok(NO_HIERARCHY)); };
+	// `FIXTURE_PLAN`, whose project `fakeQueries` answers — the harness plan's it answers `null` for, and a leaf with no project binds nothing.
+	const base = fakeQueries(FIXTURE_PLAN);
+	const getPlan: PlanEditorQueryServices['getPlan'] = (id) => { planReads += 1; return base.getPlan(id); };
+	const harness = await mountPlanEditor({ queries: { ...base, getPlan, hierarchy } });
+	await flushPromises();
+	expect(hierarchyReads).toBe(1);
+	expect(harness.projectPlansListeners()).toBe(1);
+
+	harness.changeProjectPlans('project-elsewhere');
+	await flushPromises();
+	expect(hierarchyReads).toBe(1);
+
+	harness.changeProjectPlans(FIXTURE_PLAN.projectId);
+	await flushPromises();
+	expect(hierarchyReads).toBe(2);
+	expect(planReads).toBe(1);
+
+	harness.unmount();
+	expect(harness.projectPlansListeners()).toBe(0);
 });
 
 it('creates a detail plan named after the zone, opens it, and then lists it under that zone', async () => {

@@ -101,6 +101,14 @@ export interface EditorHarness {
 	/** Fire the injected plan-change subscription, as a committed command would. */
 	readonly changePlan: () => void;
 	/**
+	 * Fire the injected project-plans subscriptions bound to `projectId`, as a sibling's
+	 * `PlanDetailsChanged` from another leaf would. Takes the id because the real source
+	 * filters on it, so a root that bound the wrong project hears nothing here either.
+	 */
+	readonly changeProjectPlans: (projectId: string) => void;
+	/** How many project-plans listeners are still registered — the unmount leak check. */
+	readonly projectPlansListeners: () => number;
+	/**
 	 * Fire the injected catalogue-change subscription, as an asset command or an index
 	 * rebuild would. Separate from `changePlan` because the two doors carry different
 	 * events — a test that could only fire one could not tell them apart.
@@ -233,6 +241,8 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	let focusedLeaf = 0;
 	let openedNote = 0;
 	const planListeners = new Set<() => void>();
+	/** Keyed by the project id each subscription bound, because the real source FILTERS on it. */
+	const projectPlansListeners = new Map<() => void, string>();
 	const catalogueListeners = new Set<() => void>();
 	const priceListeners = new Set<() => void>();
 	const figureListeners = new Set<(requirementId: string) => void>();
@@ -260,6 +270,12 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		onPlanChanged: (listener) => {
 			planListeners.add(listener);
 			return () => planListeners.delete(listener);
+		},
+		// Its own map, and one that REMEMBERS the id: a fake that delivered regardless of project
+		// would pass a root that subscribed with the wrong one.
+		onProjectPlansChanged: (projectId, listener) => {
+			projectPlansListeners.set(listener, projectId);
+			return () => projectPlansListeners.delete(listener);
 		},
 		// Its OWN set, not an alias of the plan door's: the whole point of the third source is
 		// that the two fire on different events, so a fixture that folded them together could
@@ -354,6 +370,11 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		changePlan: () => {
 			for (const listener of planListeners) listener();
 		},
+		// Delivered only to subscriptions bound to `projectId`, as the real source filters.
+		changeProjectPlans: (projectId: string) => {
+			for (const [listener, bound] of projectPlansListeners) if (bound === projectId) listener();
+		},
+		projectPlansListeners: () => projectPlansListeners.size,
 		changeCatalogue: () => {
 			for (const listener of catalogueListeners) listener();
 		},

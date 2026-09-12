@@ -114,17 +114,21 @@ describe('PropertyTree', () => {
 		expect(plan).toHaveBeenCalledWith('plan-site');
 		await items[1].trigger('keydown', { key: ' ' });
 		expect(plan).toHaveBeenCalledWith('plan-house');
-		// ↑ from the second row focuses the first; ← on a root and → on a leaf have nowhere to go.
-		await items[1].trigger('keydown', { key: 'ArrowUp' });
+		// ↑ from a row that is NOT first focuses the one above it — asserted from the third row, so
+		// a build whose ArrowUp did nothing would fail rather than pass on the focus Home already put on the first.
+		(items[2].element as HTMLElement).focus();
+		await items[2].trigger('keydown', { key: 'ArrowUp' });
+		expect(document.activeElement).toBe(items[1].element);
+		// ← on a root and → on a leaf have nowhere to go.
 		await items[0].trigger('keydown', { key: 'ArrowLeft' });
 		await items[3].trigger('keydown', { key: 'ArrowRight' });
-		expect(document.activeElement).toBe(items[0].element);
+		expect(document.activeElement).toBe(items[1].element);
 		// Enter on the open plan opens nothing, a modified arrow is the host's, an unhandled key is left alone.
 		await items[2].trigger('keydown', { key: 'Enter' });
 		await items[2].trigger('keydown', { key: 'ArrowDown', ctrlKey: true });
 		await items[2].trigger('keydown', { key: 'a' });
 		expect(plan).toHaveBeenCalledTimes(2);
-		expect(document.activeElement).toBe(items[0].element);
+		expect(document.activeElement).toBe(items[1].element);
 		harness.unmount();
 	});
 

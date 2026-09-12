@@ -119,6 +119,13 @@ const kindExecute = () => vi.fn<() => Promise<ReturnType<typeof ok<{ plan: { ent
 	Promise.resolve(ok({ plan: { entity: { ...FIXTURE_PLAN, kind: 'room' as const }, version: { revision: 1 } } })));
 const withKindCommand = (execute = kindExecute()) =>
 	mountPlanEditorCanvas({ plan: { ...FIXTURE_PLAN, kind: 'room' }, commands: { ...unavailablePlanEditorCommands(), updatePlanDetails: { execute } } as never });
+/** A refused write, gated so the case can move the store under it — the shape `propertyTreeReorder.test.ts`'s `deferred` gives a move. */
+function refusedLater() {
+	let release!: () => void;
+	const execute = vi.fn<() => Promise<{ ok: false; error: { category: string; code: string; message: string } }>>(() =>
+		new Promise((resolve) => { release = () => resolve({ ok: false, error: { category: 'Validation', code: 'plan.not-found', message: 'x' } }); }));
+	return { execute, release: () => release() };
+}
 
 describe('the Kind select', () => {
 	it('offers a Kind select bound to the plan and writes through updatePlanDetails', async () => {
@@ -176,6 +183,44 @@ describe('the Kind select', () => {
 		expect(execute).toHaveBeenCalledOnce();
 		expect(notify).toHaveBeenCalledOnce();
 		expect((select.element as HTMLSelectElement).value).toBe('room');
+		notify.mockRestore();
+	});
+
+	/**
+	 * The reset reads the kind the store holds AFTER the write, not the one captured before it: a
+	 * re-hydrate during the write (another leaf's concurrent write to this plan — also the likeliest
+	 * cause of the refusal) has already patched the select to the new kind, and the captured one
+	 * would overwrite it with a stale one.
+	 */
+	it('a refused write puts the select back to the kind the store holds now, not the one it held before the write', async () => {
+		const { execute, release } = refusedLater();
+		const notify = vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(() => undefined);
+		harness = await withKindCommand(execute as never);
+		await settle();
+		const select = harness.wrapper.get('select[data-rp-field="plan-kind"]');
+		await select.setValue('floor');
+		useProjectStore(harness.pinia).plan = { ...FIXTURE_PLAN, kind: 'building' };
+		await settle();
+		release();
+		await settle();
+		expect(execute).toHaveBeenCalledOnce();
+		expect(notify).toHaveBeenCalledOnce();
+		expect((select.element as HTMLSelectElement).value).toBe('building');
+		notify.mockRestore();
+	});
+
+	it('a plan gone during a refused write has no select left to put back', async () => {
+		const { execute, release } = refusedLater();
+		const notify = vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(() => undefined);
+		harness = await withKindCommand(execute as never);
+		await settle();
+		await harness.wrapper.get('select[data-rp-field="plan-kind"]').setValue('floor');
+		useProjectStore(harness.pinia).plan = null;
+		await settle();
+		release();
+		await settle();
+		expect(notify).toHaveBeenCalledOnce();
+		expect(harness.wrapper.find('select[data-rp-field="plan-kind"]').exists()).toBe(false);
 		notify.mockRestore();
 	});
 });

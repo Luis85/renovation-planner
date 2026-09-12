@@ -93,6 +93,15 @@ export interface PlanEditorContext {
 	 */
 	onPlanChanged(listener: () => void): () => void;
 	/**
+	 * "Some plan of THIS project changed — re-read the hierarchy." The project view's own
+	 * source (`projectPlansChangeSource`), filtered on a project id the ROOT binds rather than
+	 * the view: a leaf holds a plan id, and which project that plan belongs to is known only
+	 * once the plan has hydrated. The door above cannot stand in for it — it is filtered on
+	 * THIS plan, so a sibling reordered or re-kinded from another leaf never reaches it, and the
+	 * Property tree kept drawing the old order until something else re-read.
+	 */
+	onProjectPlansChanged(projectId: string, listener: () => void): () => void;
+	/**
 	 * "The vault's asset catalogue changed — re-read it." Unfiltered, because an Asset
 	 * belongs to no project since design slice 19 and to no plan ever: there is no id to
 	 * filter on and every leaf wants the same answer.

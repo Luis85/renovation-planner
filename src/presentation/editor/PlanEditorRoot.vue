@@ -378,6 +378,15 @@ onMounted(() => {
 // SAME routine — a second "refresh" path would be a second answer to what the canvas is
 // showing, and `hydrate`'s docblock carries why the hierarchy is part of it again.
 onBeforeUnmount(context.onPlanChanged(hydrate));
+// A SIBLING's kind or order moving in another leaf is a hierarchy fact the plan door never
+// carries — it is filtered on THIS plan — so the tree kept the old order until something else
+// re-read. The project-plans door is filtered on the project, which this leaf learns only once
+// the plan has hydrated; the subscription follows that id and is released with the watcher.
+// The hierarchy alone is re-read: the projection is this plan's own, and a sibling cannot move
+// it. No debounce beyond the store's latest-wins read, which is what the plan door gets too.
+watch(() => projectStore.project?.id, (projectId, _previous, onCleanup) => {
+	if (projectId !== undefined) onCleanup(context.onProjectPlansChanged(projectId, loadHierarchy));
+}, { immediate: true });
 const visibleOverlay = computed(() => renovationSession.perspective === 'plan' ? overlay.value : null);
 const showFloorStart = computed(() => visibleOverlay.value !== null && emptyStateKey.value === 'noBackground');
 const showAddMenu = computed(() => renovationSession.perspective !== 'review' && addMenuOpen.value);

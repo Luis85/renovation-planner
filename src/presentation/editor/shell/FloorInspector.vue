@@ -16,7 +16,6 @@
 import ReferenceAction from '../reference/ReferenceAction.vue';
 import { tr } from '../../i18n/strings';
 import { type Aggregate } from '../../read-models/spatialRecords';
-import type { PlanDto } from '../../read-models/PlanDto';
 import { formatArea } from './formatArea';
 import { useFloorSummary } from './useFloorSummary';
 import FloorSpatialLists from './FloorSpatialLists.vue';
@@ -29,13 +28,10 @@ import { guideSource } from '../hierarchy/parentZoneGuide';
 import { renovationSummary } from '../renovation/renovationSummary';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import HostIcon from '../../components/HostIcon.vue';
-import { computed, useId } from 'vue';
-import { PLAN_KINDS, type PlanKind } from '../../../domain/plan/PlanKind';
-import { PLAN_KIND_LABELS } from '../editorIcons';
-import { useEditorRuntime } from '../runtime';
-import { usePlanReorder } from './usePlanReorder';
+import { computed } from 'vue';
+// The Kind select is its own SFC (ADR-0029) — this template had crossed the complexity budget with it inline.
+import PlanKindSelect from './PlanKindSelect.vue';
 const context = usePlanEditorContext();
-const runtime = useEditorRuntime();
 
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
@@ -85,34 +81,6 @@ function textFor<T>(aggregate: Aggregate<T>, format: (value: T) => string): stri
 
 const count = (value: number): string => String(value);
 
-/**
- * The plan's Kind (ADR-0029), written through `usePlanReorder().setKind` — the ONE
- * `updatePlanDetails` door the Property tree's row menu also takes, so this select adds no
- * second command path. `reorder.available` hides it without the command and in review
- * perspective; `reorder.paused` is `runtime.writesBlocked` under the tree's own name, and while
- * it holds the select carries §2.9's pair (`RoomInspector`'s `pausedAttrs` shape: both
- * attributes while paused, NEITHER while live). `setKind` answers whether the write landed, and
- * when it did not — refused while paused, or rejected by the command and reported there — the
- * DOM value is put back to the saved kind, which `:value` alone cannot do: the store's `kind`
- * never changed, so Vue has nothing to re-patch, and a select left reading `floor` over a plan
- * still saved as `room` is a control lying about a write that did not happen. Never reset on
- * success: `ProjectStore` re-hydrates on `PlanDetailsChanged` asynchronously, and snapping back
- * to the old kind in that window would flicker. `useId()` rather than a fixed id because two
- * Plan editor leaves share one document. The plan comes in from the template, where the
- * select's own `v-if` has already narrowed it — the handler has no null case to guard.
- */
-const reorder = usePlanReorder();
-const kindId = useId();
-const kindPausedAttrs = computed(() =>
-	reorder.paused.value
-		? ({ 'aria-disabled': 'true', 'aria-describedby': runtime.pausedReasonId } as Record<string, string>)
-		: ({} as Record<string, string>),
-);
-async function onKindChange(event: Event, plan: PlanDto): Promise<void> {
-	const select = event.target as HTMLSelectElement;
-	const landed = await reorder.setKind(plan.id, select.value as PlanKind);
-	if (!landed) select.value = plan.kind;
-}
 </script>
 
 <template>
@@ -130,27 +98,7 @@ async function onKindChange(event: Event, plan: PlanDto): Promise<void> {
 		<div class="rp-inspector-primary">
 			<ReferenceAction />
 		</div>
-		<div
-			v-if="reorder.available.value && project.plan"
-			class="rp-editor-requirement-assign"
-		>
-			<label :for="kindId">{{ tr('form.new-plan.kind') }}</label>
-			<select
-				:id="kindId"
-				data-rp-field="plan-kind"
-				:value="project.plan.kind"
-				v-bind="kindPausedAttrs"
-				@change="onKindChange($event, project.plan)"
-			>
-				<option
-					v-for="kind in PLAN_KINDS"
-					:key="kind"
-					:value="kind"
-				>
-					{{ tr(PLAN_KIND_LABELS[kind]) }}
-				</option>
-			</select>
-		</div>
+		<PlanKindSelect />
 		<section
 			v-if="starting"
 			class="rp-floor-setup"

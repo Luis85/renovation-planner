@@ -13,10 +13,13 @@
  *
  * While writes are paused (`usePlanReorder().paused`) the menu still opens, every entry is
  * `aria-disabled` and titled with the stale-write reason — the canvas menu's own convention for a
- * greyed item — and a click does nothing. Every action goes through `usePlanReorder`, never the
- * command directly.
+ * greyed item — and a click does nothing. The same shape while a sequence is still WRITING
+ * (`busy`, one per leaf): `write()` drops an input that arrives mid-sequence, and a "Mark as …"
+ * chosen from a menu opened during an Alt+↑ move used to close the menu and do nothing, with no
+ * reason shown — so the entries grey with the save-state's "Saving" until the re-read lands, and
+ * the menu stays open. Every action goes through `usePlanReorder`, never the command directly.
  */
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import HostIcon from '../../components/HostIcon.vue';
 import { tr } from '../../i18n/strings';
 import { PLAN_KINDS, type PlanKind } from '../../../domain/plan/PlanKind';
@@ -37,12 +40,13 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ close: [] }>();
 const reorder = usePlanReorder();
-const paused = reorder.paused;
+/** Why every entry is greyed, or `undefined` while the menu is live: paused first, then a sequence still writing. */
+const reason = computed(() => reorder.paused.value ? tr('editor.stale-write-refused') : reorder.busy.value ? tr('save-state.saving') : undefined);
 const menu = ref<HTMLElement | null>(null);
 const position = ref({ left: `${props.x}px`, top: `${props.y}px` });
 
 function run(disabled: boolean, action: () => Promise<unknown>): void {
-	if (disabled || paused.value) return;
+	if (disabled || reason.value !== undefined) return;
 	emit('close');
 	void action();
 }
@@ -74,8 +78,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
 			role="menuitem"
 			tabindex="-1"
 			data-rp-tree-action="move-up"
-			:aria-disabled="props.first || paused || undefined"
-			:title="paused ? tr('editor.stale-write-refused') : undefined"
+			:aria-disabled="props.first || reason !== undefined || undefined"
+			:title="reason"
 			@click="run(props.first, () => reorder.moveUp(props.planId))"
 		>
 			<HostIcon name="chevron-up" />{{ tr('editor.shell.move-up') }}
@@ -85,8 +89,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
 			role="menuitem"
 			tabindex="-1"
 			data-rp-tree-action="move-down"
-			:aria-disabled="props.last || paused || undefined"
-			:title="paused ? tr('editor.stale-write-refused') : undefined"
+			:aria-disabled="props.last || reason !== undefined || undefined"
+			:title="reason"
 			@click="run(props.last, () => reorder.moveDown(props.planId))"
 		>
 			<HostIcon name="chevron-down" />{{ tr('editor.shell.move-down') }}
@@ -98,8 +102,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
 			role="menuitemradio"
 			tabindex="-1"
 			:aria-checked="option === props.kind"
-			:aria-disabled="paused || undefined"
-			:title="paused ? tr('editor.stale-write-refused') : undefined"
+			:aria-disabled="reason !== undefined || undefined"
+			:title="reason"
 			:data-rp-tree-action="`kind:${option}`"
 			@click="run(false, () => reorder.setKind(props.planId, option))"
 		>

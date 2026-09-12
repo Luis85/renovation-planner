@@ -33,6 +33,7 @@ installEditorEnvironment();
 
 let themeListeners = 0;
 let planListeners = 0;
+let projectPlansListeners = 0;
 let catalogueListeners = 0;
 let priceListeners = 0;
 let figureListeners = 0;
@@ -74,6 +75,12 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 			planListeners += 1;
 			return () => {
 				planListeners -= 1;
+			};
+		},
+		onProjectPlansChanged: () => {
+			projectPlansListeners += 1;
+			return () => {
+				projectPlansListeners -= 1;
 			};
 		},
 		onCatalogueChanged: () => {
@@ -176,6 +183,7 @@ async function opened(planId = FIXTURE_PLAN.id): Promise<PlanEditorView> {
 beforeEach(() => {
 	themeListeners = 0;
 	planListeners = 0;
+	projectPlansListeners = 0;
 	catalogueListeners = 0;
 	priceListeners = 0;
 	figureListeners = 0;
@@ -311,6 +319,10 @@ describe('mount and unmount', () => {
 		// PAIR is what stops a build that merges the two doors back together from passing —
 		// one that subscribed both to `onPlanChanged` would read 2 and 0 again.
 		expect(planListeners).toBe(1);
+		// ONE on the project-plans door, taken by the root's watcher once the plan hydrated and
+		// named the project — it follows the project id rather than the mount, so it is counted
+		// here for the same leak the others are.
+		expect(projectPlansListeners).toBe(1);
 		// TWO on the catalogue door now: the assign picker's reload above, and
 		// `watchAssetShapes` (`assetShapeLoader.ts`), which re-reads placement shapes when the
 		// library changes — its own door rather than more traffic through the picker's, for the
@@ -333,6 +345,7 @@ describe('mount and unmount', () => {
 		expect(Konva.stages).toHaveLength(0);
 		expect(themeListeners).toBe(0);
 		expect(planListeners).toBe(0);
+		expect(projectPlansListeners).toBe(0);
 		expect(catalogueListeners).toBe(0);
 		expect(priceListeners).toBe(0);
 		expect(figureListeners).toBe(0);

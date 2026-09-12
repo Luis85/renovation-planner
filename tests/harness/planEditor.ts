@@ -419,8 +419,9 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			window.addEventListener('rp-harness-theme', listener);
 			return () => window.removeEventListener('rp-harness-theme', listener);
 		},
-		// Nothing writes on this page, so nothing ever changes a plan under it.
+		// Nothing writes on this page, so nothing ever changes a plan under it — nor a sibling.
 		onPlanChanged: () => () => undefined,
+		onProjectPlansChanged: () => () => undefined,
 		// The harness holds a fixed fixture and publishes no domain events, so all four change
 		// doors are honestly inert here rather than merely unimplemented. **Measured rather than
 		// assumed for the two price doors**: this page holds no `EventBus`, every WRITE in

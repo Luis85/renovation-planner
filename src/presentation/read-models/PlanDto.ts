@@ -43,6 +43,8 @@ export interface PlanDto {
 	readonly layers: readonly string[];
 	/** Present only for a detail plan (ADR-0028). */
 	readonly parent?: { readonly planId: string; readonly zoneId: string };
+	/** Whole degrees clockwise from the plan's up; present only once one is set. */
+	readonly north?: number;
 }
 
 export interface ZoneDto {
@@ -138,6 +140,7 @@ export function toPlanDto(plan: Plan): PlanDto {
 		calibration: plan.calibration,
 		layers: plan.layers,
 		...(plan.parent ? { parent: { planId: plan.parent.planId, zoneId: plan.parent.zoneId } } : {}),
+		...(plan.north !== undefined ? { north: plan.north } : {}),
 	};
 }
 

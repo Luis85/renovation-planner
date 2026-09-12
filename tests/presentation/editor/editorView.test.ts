@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mountPlanEditorCanvas, settle } from '../../helpers/editor';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
@@ -9,6 +9,7 @@ import { FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { expectDefined } from '../../helpers/domain';
 
 const kitchen = expectDefined(FIXTURE_ZONES[0], 'fixture Kitchen');
+const press = (target: Element) => target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
 
 describe('native View controls', () => {
 	it('shares floor/selection framing with canvas keys while preserving selection and reference extents', async () => {
@@ -77,6 +78,25 @@ describe('native View controls', () => {
 			expect(h.wrapper.find('.rp-canvas-grid').exists()).toBe(false);
 			expect(editor.referencePoints).toEqual([]); expect(editor.snappingEnabled).toBe(true);
 		} finally { h.unmount(); }
+	});
+
+	it('closes the View menu on a press outside it, keeps it open for a press inside, and stops listening once unmounted', async () => {
+		const h = await mountPlanEditorCanvas();
+		try {
+			const details = h.wrapper.get('.rp-view-menu').element as HTMLDetailsElement;
+			press(h.canvasEl);
+			expect(details.open).toBe(false);
+			details.open = true;
+			press(h.wrapper.get('[data-rp-view="grid"]').element);
+			expect(details.open).toBe(true);
+			press(h.canvasEl);
+			expect(details.open).toBe(false);
+		} finally {
+			const removed = vi.spyOn(document, 'removeEventListener');
+			h.unmount();
+			expect(removed).toHaveBeenCalledWith('pointerdown', expect.any(Function), { capture: true });
+			removed.mockRestore();
+		}
 	});
 
 	it('keeps an empty floor camera unchanged and disables fit actions until content exists', async () => {

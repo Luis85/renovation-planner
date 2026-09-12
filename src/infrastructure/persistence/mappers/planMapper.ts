@@ -9,6 +9,7 @@ import { PlanFrontmatterSchema, PLAN_TYPE, type PlanFrontmatterDTO } from '../dt
 import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
 function planSchemaVersion(plan: Plan): number {
+	if (plan.north !== undefined) return 10;
 	if (plan.parent) return 9;
 	const { work, depth = EMPTY_DEPTH } = plan.renovation ?? EMPTY_RENOVATION;
 	if (depth.evidence.some(item => item.date !== undefined)) return 8;
@@ -44,6 +45,7 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 		layers: [...plan.layers],
 		...(background?.appearance ? { 'reference-appearance': background.appearance } : {}),
 		...(plan.parent ? { 'parent-plan': plan.parent.planId, 'parent-zone': plan.parent.zoneId } : {}),
+		...(plan.north !== undefined ? { north: plan.north } : {}),
 	};
 }
 
@@ -79,6 +81,7 @@ function fromDto(
 				}
 			: null,
 		layers: dto.layers,
+		north: dto.north,
 		parent: parentPlan !== undefined && parentZone !== undefined && !selfParent ? { planId: parentPlan as Plan['id'], zoneId: parentZone as ZoneId } : null,
 	});
 	if (!constructed.ok) {

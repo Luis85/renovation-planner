@@ -21,6 +21,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	const layoutMode = ref<LayoutMode>('full');
 	const overlay = ref<'none' | 'layers' | 'inspector'>('none');
 	const gridVisible = ref(false);
+	/** The View menu's north arrow; the bearing it shows is the plan's own and IS saved. */
+	const northVisible = ref(false);
 
 	/**
 	 * Whether evidence pins — notes and photos — are drawn. The Layers panel's "Notes and
@@ -83,6 +85,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	 */
 	function reset(): void {
 		gridVisible.value = false;
+		northVisible.value = false;
 		layerVisibility.value = defaultLayerVisibility();
 		layoutMode.value = 'full';
 		overlay.value = 'none';
@@ -91,6 +94,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
 	return {
 		gridVisible,
+		northVisible,
 		layerVisibility,
 		toggleLayer,
 		notesVisible,

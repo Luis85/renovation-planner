@@ -72,6 +72,8 @@ export const CENSUS_TABLE: readonly CensusRow[] = [
 	{ module: 'DeleteSelectionCommand', direction: 'undo', mustPublish: 'The composed commands\' own events in reverse step order: PlanRenovationChanged, ZoneCreated per room; deleteSelectionCommand.test.ts' },
 	{ module: 'ConfigurePlanReference', direction: 'execute', mustPublish: 'PlanBackgroundChanged, PlanCalibrated and ZoneGeometryChanged per object after the composite write; tested in configurePlanReference.test.ts' },
 	{ module: 'ConfigurePlanReference', direction: 'undo', mustPublish: 'The same events after restoring both snapshots; tested in configurePlanReference.test.ts' },
+	{ module: 'SetPlanNorth', direction: 'execute', mustPublish: 'PlanNorthChanged after the conditional write, including redo; nothing on no-op/refusal; tested in setPlanNorth.test.ts' },
+	{ module: 'SetPlanNorth', direction: 'undo', mustPublish: 'PlanNorthChanged after the conditional restore; nothing on unused/refused undo; tested in setPlanNorth.test.ts' },
 	{ module: 'reversible-rename-zone-command', direction: 'execute', mustPublish: 'ZoneRenamed on a write (first and redo); nothing on normalized no-op' },
 	{ module: 'reversible-rename-zone-command', direction: 'undo', mustPublish: 'ZoneRenamed on a write' },
 	{

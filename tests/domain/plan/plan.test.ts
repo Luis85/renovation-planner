@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Calibration } from '../../../src/domain/plan/Calibration';
-import { Plan } from '../../../src/domain/plan/Plan';
+import { Plan, withPlanNorth } from '../../../src/domain/plan/Plan';
 import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { expectErr, expectOk } from '../../helpers/domain';
@@ -17,6 +17,17 @@ describe('Plan parent', () => {
 		expect(expectOk(plan.withCalibration(null)).parent).toEqual(parent);
 		expect(expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'Site' })).parent).toBeNull();
 		expect(expectErr(Plan.create({ id, projectId: projectId(), name: 'Loop', parent: { ...parent, planId: id } })).code).toBe('plan.parent-is-self');
+	});
+});
+
+describe('Plan north', () => {
+	it('keeps a whole-degree bearing through every with-method, and refuses anything else', () => {
+		const plan = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'House', north: 90 }));
+		expect(expectOk(plan.withBackground(null)).north).toBe(90);
+		expect(expectOk(plan.withCalibration(null)).north).toBe(90);
+		expect(expectOk(withPlanNorth(plan, 0)).north).toBe(0);
+		expect(expectOk(withPlanNorth(plan, undefined)).north).toBeUndefined();
+		for (const north of [-15, 360, 12.5]) expect(expectErr(withPlanNorth(plan, north)).code).toBe('plan.invalid-north');
 	});
 });
 

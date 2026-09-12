@@ -6,6 +6,8 @@ import { structureServices } from '../application/commands/spatial/StructureComm
 import { groupGeometryServices } from '../application/commands/spatial/GroupGeometryCommand';
 import { guardedGroups } from './guardedGroups';
 import { referencePlanServices } from '../application/commands/plan/ConfigurePlanReference';
+import { planNorthServices } from '../application/commands/plan/SetPlanNorth';
+import { guardedPlanNorth } from './guardedPlanNorth';
 import type { Vault, Workspace } from 'obsidian';
 import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
@@ -77,6 +79,7 @@ export function planEditorDeps(
 					createZone: persistence.createZone,
 					createPlan: persistence.createPlan,
 					referencePlan: guardedReferencePlan(referencePlanServices(persistence.plans, persistence.geometry, root.eventBus, persistence.files), root.logger),
+					planNorth: guardedPlanNorth(planNorthServices(persistence.plans, root.eventBus), root.logger),
 					moveObject: persistence.moveZone,
 					deleteZone: persistence.deleteZone,
 					zones: persistence.zones,

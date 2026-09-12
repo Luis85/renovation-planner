@@ -164,7 +164,7 @@ export const renovationEn = {
 	"renovation.material.none": "None",
 	"renovation.material.unknown": "Unknown material",
 	"renovation.material.no-quantity": "Quantity isn't calculated for materials priced per {unit}.",
-	"renovation.material.missing": "That material is no longer in the asset library. Choose another.",
-	"renovation.material.wrong-target": "A wall material belongs on a wall, and a product on a door or window.",
+	"renovation.material-missing": "That material is no longer in the asset library. Choose another.",
+	"renovation.material-target": "A wall material belongs on a wall, and a product on a door or window.",
 	"renovation.construction-referenced":"A cost or order still uses this material's quantity. Remove it before changing the material.",
 };

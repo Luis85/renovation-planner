@@ -140,19 +140,27 @@ onBeforeUnmount(() => { root?.removeEventListener('contextmenu', context); root?
 				>
 					{{ title }}
 				</div>
-				<button
-					v-for="action in actions"
+				<template
+					v-for="(action, index) in actions"
 					:key="action.id"
-					type="button"
-					role="menuitem"
-					tabindex="-1"
-					:aria-disabled="action.disabled || undefined"
-					:title="action.disabled && action.reason ? tr(action.reason) : undefined"
-					:data-rp-context-action="action.id"
-					@click="run(action)"
 				>
-					<HostIcon :name="action.icon" />{{ tr(action.label, action.params) }}
-				</button>
+					<div
+						v-if="index > 0 && action.group !== actions[index - 1].group"
+						class="rp-canvas-context-menu-separator"
+						role="separator"
+					/>
+					<button
+						type="button"
+						role="menuitem"
+						tabindex="-1"
+						:aria-disabled="action.disabled || undefined"
+						:title="action.disabled && action.reason ? tr(action.reason) : undefined"
+						:data-rp-context-action="action.id"
+						@click="run(action)"
+					>
+						<HostIcon :name="action.icon" />{{ tr(action.label, action.params) }}
+					</button>
+				</template>
 			</div>
 		</Teleport>
 	</div>

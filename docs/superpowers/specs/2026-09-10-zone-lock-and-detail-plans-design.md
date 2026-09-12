@@ -201,9 +201,9 @@ plan (CLAUDE.md's "one action, every input").
 ### 4.6 Creating and opening from the canvas
 
 For a single selected zone, `useCanvasMenuActions` adds, after Delete (implementation, 2026-09-11:
-inserted after Delete, but the grouped menu then reorders every action by `GROUP_ORDER` — New
-lands in the `create` group, Open in the `object` group, alongside every other action of that
-kind — `detailPlanActions.ts`, `useCanvasMenuActions.ts`):
+inserted after Delete, but the grouped menu then reorders every action by `GROUP_ORDER`;
+2026-09-12: both sit in the menu's first group, `plans`, every Open ahead of New, so a zone's
+linked plan is the first item — `detailPlanActions.ts`, `useCanvasMenuActions.ts`):
 
 - **New detail plan…** (implementation, 2026-09-11: labelled "New detail plan", no ellipsis —
   `editor.input.detail-plan-new`) — opens a root-owned dialog (the existing `NewPlanForm` pattern

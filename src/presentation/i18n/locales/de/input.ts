@@ -1,6 +1,8 @@
 import type { inputEn } from '../en/input';
 export const inputDe: Record<keyof typeof inputEn, string> = {
 	'editor.input.pan': 'Verschieben',
+	'editor.input.switch-to-pan': 'Zum Verschiebemodus wechseln',
+	'editor.input.switch-to-select': 'Zum Auswahlmodus wechseln',
 	'editor.input.context': 'Planaktionen',
 	'editor.input.edit': 'Bearbeiten',
 	'editor.input.rename': 'Umbenennen',

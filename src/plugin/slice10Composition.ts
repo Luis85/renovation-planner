@@ -20,7 +20,7 @@ import type { Logger } from '../application/ports/Logger';
 import type { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { CreateAssetCommand } from '../application/commands/asset/CreateAsset';
 import { UpdateAssetCommand } from '../application/commands/asset/UpdateAsset';
-import { DeleteAssetCommand } from '../application/commands/asset/DeleteAsset';
+import { DeleteAssetCommand, type DeleteAssetDeps } from '../application/commands/asset/DeleteAsset';
 import { AssignAssetCommand } from '../application/commands/requirement/AssignAsset';
 import type { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
 import type { AssetPriceOverrideRepository } from '../application/ports/AssetPriceOverrideRepository';
@@ -91,6 +91,8 @@ export interface Slice10Wiring {
 	readonly markers: SequenceMarkerStore;
 	/** The precedence's input half: a project may price a shared asset in its own currency. */
 	readonly overrides: AssetPriceOverrideRepository;
+	/** ADR-0031: plans naming this asset as a wall or opening material. Wired by the root, which is the only layer that may read a plan note. */
+	readonly materialUsers?: DeleteAssetDeps['materialUsers'];
 }
 
 /**
@@ -173,6 +175,7 @@ export function composeSlice10(
 			markers,
 			overrides,
 			notify: sequenceNotices,
+			materialUsers: wiring.materialUsers,
 		}),
 		assignAsset: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides }),
 		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),

@@ -55,6 +55,11 @@ export interface DeleteAssetDeps {
 		/** A stray price note was left behind; the asset itself is gone. */
 		priceCleanupFailed(assetId: string): void;
 	};
+	/**
+	 * Plans whose Existing/Planned facts name this asset (ADR-0031). A subject material is
+	 * not a Requirement, so the resolution options do not cover it: it refuses.
+	 */
+	readonly materialUsers?: (assetId: AssetId) => Promise<Result<readonly string[], RepositoryError>>;
 }
 
 /**
@@ -68,7 +73,7 @@ export interface DeleteAssetDeps {
 export class DeleteAssetCommand
 	implements Command<DeleteAssetInput, Result<ResolvedSequence, DeleteAssetErrors>>
 {
-	private readonly ops: Pick<DeleteAssetDeps, 'assets' | 'requirements' | 'recalculate' | 'events' | 'locks' | 'logger' | 'markers' | 'overrides' | 'notify'>;
+	private readonly ops: Pick<DeleteAssetDeps, 'assets' | 'requirements' | 'recalculate' | 'events' | 'locks' | 'logger' | 'markers' | 'overrides' | 'notify' | 'materialUsers'>;
 
 	constructor(deps: DeleteAssetDeps) {
 		this.ops = deps;
@@ -79,6 +84,10 @@ export class DeleteAssetCommand
 	): Promise<Result<ResolvedSequence, DeleteAssetErrors>> {
 		const loaded = await loadAsset(this.ops.assets, input.assetId);
 		if (isErr(loaded)) return loaded;
+
+		const users = await this.ops.materialUsers?.(input.assetId);
+		if (users && !users.ok) return users;
+		if (users?.value.length) return err(referenceError('asset.material-in-use', `Asset ${input.assetId} is a wall or opening material on ${users.value.join(', ')}.`));
 
 		const resolved = await runDeleteResolution(
 			{

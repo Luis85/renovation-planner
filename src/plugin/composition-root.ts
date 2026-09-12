@@ -71,6 +71,7 @@ import type { Trade } from '../domain/trade/Trade';
 import type { Supplier } from '../domain/supplier/Supplier';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
 import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
+import { planMaterialUsers } from '../infrastructure/obsidian/repositories/planningReferentialGuard';
 import { createMigrationRunner, type MigrationRunner } from '../infrastructure/persistence/migration/MigrationRunner';
 import { MIGRATION_SET } from '../infrastructure/persistence/migration/migrationSet';
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
@@ -341,9 +342,9 @@ function composeSlice10Wiring(
 	// The two SESSION collaborators this wiring needs, as one parameter: `max-params` is five,
 	// and these are the same KIND of thing — which is what makes the grouping a statement
 	// rather than a workaround, exactly as `SessionCollaborators` argues above.
-	session: { markers: SequenceMarkerStore; locks: ReferenceLocks },
+	session: { markers: SequenceMarkerStore; locks: ReferenceLocks; materialUsers?: Slice10Wiring['materialUsers'] },
 ): { wiring: Slice10Wiring; slice10: ReturnType<typeof composeSlice10> } {
-	const { markers, locks } = session;
+	const { markers, locks, materialUsers } = session;
 	const { projects, zones, assets, requirements, overrides } = repositories;
 	const recalculate = new RecalculateRequirementCommand({
 		geometry: new ObsidianPlanGeometrySidecar(repositories.geometryStore),
@@ -367,6 +368,7 @@ function composeSlice10Wiring(
 		logger,
 		markers,
 		overrides,
+		materialUsers,
 	};
 	return { wiring, slice10: composeSlice10(wiring) };
 }
@@ -506,7 +508,11 @@ export function createCompositionRoot(
 		settings.defaultCurrency,
 	);
 	const { geometryStore, projects, plans, zones, assets, requirements, overrides } = repositories;
-	const { wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, { markers, locks });
+	const { wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, {
+		markers,
+		locks,
+		materialUsers: assetId => planMaterialUsers({ vault: vault.vault, index }, assetId),
+	});
 
 	const files = createVaultFileProbe(vault.vault);
 	const guarded = composeGuarded(repositories, slice10, wiring, files, {

@@ -3,9 +3,8 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from './renovationSession';
-import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { tr } from '../../i18n/strings';
-import { defaultRenovationContext } from './defaultRenovationContext';
+import { contextSource, defaultRenovationContext } from './defaultRenovationContext';
 import RenovationDetails from './RenovationDetails.vue';
 import ReviewInspector from './ReviewInspector.vue';
 import FloorInspector from '../shell/FloorInspector.vue';
@@ -14,11 +13,10 @@ import ElementInspector from '../elements/ElementInspector.vue';
 import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 
 const project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
-const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 watch(() => selection.selectedIds, ids => {
 	const target = ids[0] ?? '', remembered = session.targetId === target ? session.roomId : '';
 	session.targetId = target;
-	session.roomId = defaultRenovationContext({ zoneIds: new Set(project.zones.keys()), structure: project.structure, renovation: value.value }, target, remembered);
+	session.roomId = defaultRenovationContext(contextSource(project), target, remembered);
 }, { immediate: true });
 const room = computed(() => project.zones.get(session.roomId));
 const selectedZone = computed(() => project.zones.get(selection.selectedIds[0]));

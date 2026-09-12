@@ -4,8 +4,7 @@ import { computed, watch } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from '../renovation/renovationSession';
-import { defaultRenovationContext } from '../renovation/defaultRenovationContext';
-import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
+import { contextSource, defaultRenovationContext } from '../renovation/defaultRenovationContext';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 const project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession(), runtime = useEditorRuntime();
@@ -13,7 +12,7 @@ const zones = computed(() => [...project.zones.values()].map(item => ({ id: item
 watch(() => selection.selectedIds[0], id => {
 	const target = id ?? '', remembered = session.targetId === target ? session.roomId : '';
 	session.targetId = target;
-	session.roomId = defaultRenovationContext({ zoneIds: new Set(project.zones.keys()), structure: project.structure, renovation: project.plan?.renovation ?? EMPTY_RENOVATION }, target, remembered);
+	session.roomId = defaultRenovationContext(contextSource(project), target, remembered);
 }, { immediate: true });
 </script>
 <template>

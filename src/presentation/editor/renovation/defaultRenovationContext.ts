@@ -1,10 +1,18 @@
-import type { Renovation } from '../../../domain/renovation/Renovation';
+import { EMPTY_RENOVATION, type Renovation } from '../../../domain/renovation/Renovation';
 import type { Structure } from '../../../domain/spatial/Structure';
+import type { useProjectStore } from '../../stores/ProjectStore';
 
 export interface ContextSource {
 	readonly zoneIds: ReadonlySet<string>;
 	readonly structure: Structure;
 	readonly renovation: Renovation;
+}
+
+/** The identical `ContextSource` literal `RenovationInspector`, `StructureRenovationEntry` and
+ * `SpatialInspectorActions` each build from `ProjectStore` — shared once a third call site
+ * needed it. */
+export function contextSource(project: ReturnType<typeof useProjectStore>): ContextSource {
+	return { zoneIds: new Set(project.zones.keys()), structure: project.structure, renovation: project.plan?.renovation ?? EMPTY_RENOVATION };
 }
 
 /**

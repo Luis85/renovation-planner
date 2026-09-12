@@ -8,18 +8,26 @@ import RenovationEntry from '../renovation/RenovationEntry.vue';
 import RoomNameAction from '../naming/RoomNameAction.vue';
 import CurveAction from '../curves/CurveAction.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
+import { useProjectStore } from '../../stores/ProjectStore';
+import { contextSource, defaultRenovationContext } from '../renovation/defaultRenovationContext';
 const props = defineProps<{ zoneId: ZoneId; record?: SpatialRecordDto }>();
 const session = useRenovationSession();
+const project = useProjectStore();
 /**
  * An Area selected directly is its own renovation context, the same as a Room's — but unlike
  * `StructureRenovationEntry`'s unconditional watcher for a wall, opening or element, a Room
  * selected here does NOT eagerly overwrite the session: Plan perspective deliberately keeps the
  * last-inspected target stale until `RenovationEntry`'s own navigation re-enters Renovate
  * (`renovationOverview.test.ts`, "uses the Room selected in Plan..."). Rooms never had that eager
- * sync before this file gave Areas the same panel, so only Areas gain it here.
+ * sync before this file gave Areas the same panel, so only Areas gain it here. The context itself
+ * goes through `defaultRenovationContext` (spec §4.1's one rule) rather than assuming a directly
+ * selected Area's id always equals its own room context.
  */
 watch(() => props.record?.kind === 'area' ? props.zoneId : null, id => {
-	if (id) { session.targetId = id; session.roomId = id; }
+	if (!id) return;
+	const remembered = session.targetId === id ? session.roomId : '';
+	session.targetId = id;
+	session.roomId = defaultRenovationContext(contextSource(project), id, remembered);
 }, { immediate: true });
 </script>
 <template>

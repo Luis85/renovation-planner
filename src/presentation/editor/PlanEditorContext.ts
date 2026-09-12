@@ -16,6 +16,12 @@ export interface EditorNavigation {
 	asset?(assetId: string): Promise<void>;
 }
 
+export interface EditorViewPreferences {
+	read(): { readonly gridVisible?: boolean; readonly snappingEnabled?: boolean };
+	/** Only the choice that changed; the store merges it into what is stored now. */
+	write(changed: { readonly gridVisible?: boolean; readonly snappingEnabled?: boolean }): void;
+}
+
 /**
  * Everything the Plan Editor's Vue tree needs from outside itself, provided ONCE by
  * `PlanEditorView` on the app instance it created.
@@ -49,6 +55,11 @@ export interface PlanEditorContext {
 	readonly vault: BackgroundVault;
 	/** The clipboard every leaf shares — see `editorClipboard.ts`. */
 	readonly clipboard: EditorClipboard;
+	/**
+	 * The View menu's grid and object-snap choices, shared by every Plan Editor on this device.
+	 * Read once at mount and written on every change; absent where there is no host to keep them.
+	 */
+	readonly viewPreferences?: EditorViewPreferences;
 	/**
 	 * Obsidian's `css-change`, as a subscription that hands back its own unsubscribe.
 	 *

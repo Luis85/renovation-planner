@@ -126,4 +126,26 @@ describe('full-layout side panels', () => {
 		await settle();
 		expect(harness.wrapper.get('.rp-overlay-panel .rp-layer-list').isVisible()).toBe(true);
 	});
+
+	/**
+	 * Widening hides the body of a panel collapsed in the full layout, and with it the control the
+	 * open overlay had focused; the region `restoreFocus` used to target is inside that hidden body
+	 * and contains the focus, so nothing moved it and a browser dropped it to `<body>`. The strip
+	 * stands in for the region, the same way a collapse hands focus to it.
+	 */
+	it.each([['layers', 'layers'], ['inspector', 'details']])('widening to full with the %s overlay focused hands focus to that collapsed panel\'s strip', async (side, rail) => {
+		const { harness } = await mounted();
+		await harness.wrapper.get(`.rp-side-panel__toggle[data-rp-panel-toggle="${side}"]`).trigger('click');
+		await settle();
+		resizeTo(harness.rootEl, 460, 800);
+		await settle();
+		await harness.wrapper.get(`button[data-rp-rail="${rail}"]`).trigger('click');
+		await settle();
+		(harness.wrapper.get(`[data-rp-region="${side}"]`).get('input:not(:disabled), button').element as HTMLElement).focus();
+
+		resizeTo(harness.rootEl, 1280, 800);
+		await settle();
+
+		expect(document.activeElement).toBe(harness.wrapper.get(`[data-rp-strip="${side}"] [data-rp-panel-toggle="${side}"]`).element);
+	});
 });

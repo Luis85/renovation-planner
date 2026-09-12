@@ -35,14 +35,25 @@ function focusedRegion(active: Element): Region | null {
 	return rail === 'details' ? 'inspector' : null;
 }
 
+/**
+ * Where focus goes when a layout change hides what had it. A panel collapsed in the full layout
+ * hides its whole region — the focused control with it — so its strip stands in for the region,
+ * the same way a collapse hands focus to the strip.
+ */
+function focusTarget(region: Region | null, next: LayoutMode): string {
+	if (next === 'unsupported') return '.rp-unsupported-width__action';
+	if (region === null) return '.rp-plan-canvas';
+	return next === 'full' && panelLayout.value[region].collapsed
+		? `[data-rp-strip="${region}"] [data-rp-panel-toggle]`
+		: `[data-rp-region="${region}"]`;
+}
+
 /** A surviving input keeps focus. Only disappearing chrome needs a replacement target. */
 function restoreFocus(active: Element, region: Region | null, next: LayoutMode, version: number): void {
 	if (!root.value || measurement !== version) return;
 	const current = root.value.ownerDocument.activeElement;
 	if (current !== active && current !== root.value.ownerDocument.body) return;
-	const selector = next === 'unsupported' ? '.rp-unsupported-width__action' : region === null
-		? '.rp-plan-canvas' : `[data-rp-region="${region}"]`;
-	const target = root.value.querySelector<HTMLElement>(selector);
+	const target = root.value.querySelector<HTMLElement>(focusTarget(region, next));
 	if (target && !target.contains(active)) target.focus();
 }
 

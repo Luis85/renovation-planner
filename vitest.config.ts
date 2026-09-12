@@ -1,8 +1,11 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 import { noSsrSfc } from './scripts/vitest-no-ssr-sfc.mjs';
+import { namedFrom, repoTree } from './tests/helpers/importGraph';
 
 /**
  * The test files that BOOT ESLint, derived rather than listed.
@@ -24,44 +27,91 @@ import { noSsrSfc } from './scripts/vitest-no-ssr-sfc.mjs';
  * budgets — measured, not predicted. Hence a scan over all of `tests/` and a pattern naming both
  * mechanisms.
  *
- * **The asymmetry decides how the pattern is drawn.** Over-matching costs a cheap file a few
- * seconds in the serial group; under-matching costs an intermittent `beforeAll` timeout that
- * wastes a whole gate and reads as somebody else's CPU — the hazard this repository has
- * documented for slices and re-run serially rather than closed. So the pattern is deliberately
- * a little wider than an import graph would be. It is NOT the widest available: a bare
- * case-insensitive `eslint` matches 25 files, most of them ordinary fast tests that merely
- * mention it in a comment, and serialising those is a real cost bought for nothing.
+ * **Both mechanisms are read off the IMPORT GRAPH, not off the text.** A test file belongs when
+ * the files it reaches by relative import (`tests/helpers/importGraph.ts`, the walk
+ * `test-environments.test.ts` and `regionsReachable.test.ts` share, reading edges from the
+ * TypeScript and SFC parsers) include one that imports the `eslint` package — that is
+ * `tests/helpers/eslint.ts`, however it is spelled from (`../helpers/eslint`, `./eslint`), and
+ * any test constructing an `ESLint` of its own — or when one of them names the hook's file,
+ * `lint-edited.mjs`, in a string literal, which is how `lint-edited.test.ts` spawns it. A comment
+ * mentioning either is not a boot: the text pattern this replaced matched `helpers/eslint` in
+ * prose, and a bare case-insensitive `eslint` would have matched 25 files, most of them fast
+ * tests that merely mention it. The asymmetry still decides the edge cases — over-including costs
+ * a cheap file a few seconds in the serial group, under-including costs an intermittent
+ * `beforeAll` timeout that wastes a whole gate and reads as somebody else's CPU — and the graph
+ * closes the blind spot the pattern had: a file reaching either mechanism through an intermediate
+ * module of its own is found, not missed.
  *
  * **It THROWS when it finds nothing**, which is what makes deriving safe at all: an instrument
  * that reaches nothing looks exactly like a clean tree. A moved helper or a renamed directory
  * would leave this empty, every file would fall into the parallel projects, and the timeouts
  * would come back with nothing to say why. Failing at config load names the cause instead.
  *
- * Text matching rather than a real module graph, so its blind spot is a file that reaches either
- * mechanism through an intermediate module of its own. There is none today; the failure mode of
- * missing one is the pre-existing flake rather than a wrong result.
+ * **What it costs at config load is measured, and it is why there is a cache.** The walk reads
+ * and parses every file under `tests/` a test file reaches — 971 files on 2026-09-12 — at
+ * 2.4–3.0 s per config load on this machine (read 0.75 s, parse 1.05 s, resolution the rest;
+ * every figure a dated snapshot of one tree), and vitest loads this config FOUR times per start
+ * (once for the root, once per `extends: true` project), so uncached that is ~10 s on every
+ * `check:fast` and on every nested `createVitest` the suite itself spawns. So the derived set is
+ * kept under `node_modules/.cache/` beside the TypeScript build info, keyed by a hash over the
+ * path, mtime and size of every file under `tests/` plus this file's own: any edit there — a
+ * test, a helper, this rule — recomputes, and an unchanged tree answers from the hash walk alone.
+ * Warm figure in the paragraph beside the call below. The cache holds the answer, never the
+ * question: an empty derivation is thrown, not written.
  */
-function eslintBootingTests(): readonly string[] {
+const CACHE = fileURLToPath(new URL('./node_modules/.cache/renovation-planner/eslint-booting-tests.json', import.meta.url));
+
+/** Every file under `tests/`, repository-relative, and a fingerprint over all of them plus this config. */
+function testTree(): { files: string[]; fingerprint: string } {
 	const root = fileURLToPath(new URL('./tests/', import.meta.url));
-	const boots = /helpers\/eslint|from '\.\/eslint'|lint-edited\.mjs|new ESLint\(/;
-	const found: string[] = [];
+	const files: string[] = [];
+	const hash = createHash('sha1');
 	const walk = (dir: string, prefix: string): void => {
 		for (const entry of readdirSync(dir, { withFileTypes: true })) {
-			if (entry.isDirectory()) walk(`${dir}${entry.name}/`, `${prefix}${entry.name}/`);
-			else if (entry.name.endsWith('.test.ts') && boots.test(readFileSync(dir + entry.name, 'utf8'))) {
-				found.push(`tests/${prefix}${entry.name}`);
+			if (entry.isDirectory()) {
+				walk(`${dir}${entry.name}/`, `${prefix}${entry.name}/`);
+				continue;
 			}
+			const file = `tests/${prefix}${entry.name}`;
+			const stat = statSync(dir + entry.name);
+			hash.update(`${file}:${String(stat.mtimeMs)}:${String(stat.size)}\n`);
+			files.push(file);
 		}
 	};
 	walk(root, '');
+	const self = statSync(fileURLToPath(import.meta.url));
+	hash.update(`vitest.config.ts:${String(self.mtimeMs)}:${String(self.size)}\n`);
+	return { files, fingerprint: hash.digest('hex') };
+}
+
+const bootsEslint = (file: string): boolean => {
+	const named = namedFrom(file, repoTree, ['tests/']);
+	return named.specifiers.has('eslint') || named.strings.has('lint-edited.mjs');
+};
+
+function eslintBootingTests(): readonly string[] {
+	const { files, fingerprint } = testTree();
+	try {
+		const cached = JSON.parse(readFileSync(CACHE, 'utf8')) as { fingerprint: string; files: string[] };
+		if (cached.fingerprint === fingerprint && cached.files.length > 0) return cached.files;
+	} catch {
+		// No cache, or one this runtime cannot read: derive and write.
+	}
+	const found = files.filter((file) => file.endsWith('.test.ts') && bootsEslint(file));
 	if (found.length === 0) {
 		throw new Error(
 			'vitest.config.ts: no test file boots ESLint — the boot-serialising split has stopped finding its subject',
 		);
 	}
+	mkdirSync(dirname(CACHE), { recursive: true });
+	writeFileSync(CACHE, JSON.stringify({ fingerprint, files: found }));
 	return found;
 }
 
+// Measured 2026-09-12 with a timer around this call, four config loads per vitest start: a cold
+// derivation 2.4–3.3 s (the first load after any edit under `tests/`), every warm load 35–48 ms —
+// the fingerprint walk over 971 files and one JSON read. Derived on the same tree as the text
+// pattern it replaced, the two sets were identical: fourteen files.
 const ESLINT_TESTS = eslintBootingTests();
 
 export default defineConfig({

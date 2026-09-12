@@ -70,30 +70,38 @@ function erased(node: ts.ImportDeclaration | ts.ExportDeclaration): boolean {
 	return clause !== undefined && ts.isNamedExports(clause) && allTypeOnly(clause.elements);
 }
 
-/** Every literal specifier one script names as a VALUE edge. */
-function specifiersInScript(content: string): string[] {
-	const found: string[] = [];
+/** What one script NAMES: every literal specifier it names as a VALUE edge, and every string literal in it. */
+interface Named {
+	readonly specifiers: readonly string[];
+	readonly strings: readonly string[];
+}
+
+function namedInScript(content: string): Named {
+	const specifiers: string[] = [];
+	const strings: string[] = [];
 	const visit = (node: ts.Node): void => {
 		if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
 			const specifier = erased(node) ? null : literalSpecifier(node.moduleSpecifier);
-			if (specifier !== null) found.push(specifier);
+			if (specifier !== null) specifiers.push(specifier);
 		} else if (ts.isCallExpression(node)) {
 			const callee = node.expression;
 			const isImport = callee.kind === ts.SyntaxKind.ImportKeyword;
 			const isRequire = ts.isIdentifier(callee) && callee.text === 'require';
 			const specifier = isImport || isRequire ? literalSpecifier(node.arguments[0]) : null;
-			if (specifier !== null) found.push(specifier);
+			if (specifier !== null) specifiers.push(specifier);
 		}
+		if (ts.isStringLiteralLike(node)) strings.push(node.text);
 		ts.forEachChild(node, visit);
 	};
 	visit(ts.createSourceFile('module.ts', content, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS));
-	return found;
+	return { specifiers, strings };
 }
 
-function specifiersIn(file: string, source: string): string[] {
-	if (!file.endsWith('.vue')) return specifiersInScript(source);
+function namedIn(file: string, source: string): Named {
+	if (!file.endsWith('.vue')) return namedInScript(source);
 	const { descriptor } = parseSfc(source, { filename: file });
-	return [descriptor.script, descriptor.scriptSetup].flatMap((block) => (block === null ? [] : specifiersInScript(block.content)));
+	const blocks = [descriptor.script, descriptor.scriptSetup].map((block) => (block === null ? { specifiers: [], strings: [] } : namedInScript(block.content)));
+	return { specifiers: blocks.flatMap((block) => block.specifiers), strings: blocks.flatMap((block) => block.strings) };
 }
 
 const EXTENSIONS = ['', '.ts', '.vue', '.js', '.mjs', '.tsx', '.mts', '.cts', '.jsx', '.cjs', '/index.ts', '/index.js', '/index.mjs'] as const;
@@ -108,26 +116,33 @@ function resolveSpecifier(from: string, specifier: string, tree: SourceTree): st
 	throw new Error(`importGraph: ${from} imports '${specifier}', which resolves to no file (tried ${base} with ${EXTENSIONS.map((extension) => extension || 'no extension').join(', ')})`);
 }
 
-/**
- * Resolved edges per file, per tree. `test-environments.test.ts` walks from every collected spec
- * and those walks share most of one graph: uncached, hundreds of entries re-read and re-parse the
- * same few hundred files each. Keyed by the tree object so a fixture never sees another
- * fixture's edges.
- */
-const EDGES = new WeakMap<SourceTree, Map<string, readonly string[]>>();
-
-function edgesOf(file: string, tree: SourceTree): readonly string[] {
-	let cache = EDGES.get(tree);
-	if (cache === undefined) EDGES.set(tree, (cache = new Map()));
-	let edges = cache.get(file);
-	if (edges === undefined) {
-		edges = specifiersIn(file, tree.read(file))
-			.map((specifier) => resolveSpecifier(file, specifier, tree))
-			.filter((target): target is string => target !== null);
-		cache.set(file, edges);
-	}
-	return edges;
+/** One file, read once: what it names and where its relative specifiers resolve to. */
+interface Parsed extends Named {
+	readonly edges: readonly string[];
 }
+
+/**
+ * Parsed files per tree. `test-environments.test.ts` and `vitest.config.ts` walk from every test
+ * file and those walks share most of one graph: uncached, hundreds of entries re-read and
+ * re-parse the same few hundred files each. Keyed by the tree object so a fixture never sees
+ * another fixture's edges.
+ */
+const PARSED = new WeakMap<SourceTree, Map<string, Parsed>>();
+
+function parsedOf(file: string, tree: SourceTree): Parsed {
+	let cache = PARSED.get(tree);
+	if (cache === undefined) PARSED.set(tree, (cache = new Map()));
+	let parsed = cache.get(file);
+	if (parsed === undefined) {
+		const named = namedIn(file, tree.read(file));
+		const edges = named.specifiers.map((specifier) => resolveSpecifier(file, specifier, tree)).filter((target): target is string => target !== null);
+		parsed = { ...named, edges };
+		cache.set(file, parsed);
+	}
+	return parsed;
+}
+
+const edgesOf = (file: string, tree: SourceTree): readonly string[] => parsedOf(file, tree).edges;
 
 /**
  * Every file reachable from `entry` by relative import whose path starts with one of `within`,
@@ -152,6 +167,25 @@ function importersFrom(entry: string, tree: SourceTree, within: readonly string[
 
 export function reachableFrom(entry: string, tree: SourceTree, within: readonly string[]): Set<string> {
 	return new Set(importersFrom(entry, tree, within).keys());
+}
+
+/**
+ * What the files reachable from `entry` NAME, resolved or not: every module specifier (a
+ * package's bare name included, which `reachableFrom` never resolves) and every string literal.
+ * `vitest.config.ts` derives the ESLint-booting test files from it — a file whose graph reaches
+ * a module importing the `eslint` package, or one that names the edit-loop hook's file in a
+ * literal because it SPAWNS it — and a comment spelling either is neither a specifier nor a
+ * string, which is the whole difference from the text pattern that derivation replaced.
+ */
+export function namedFrom(entry: string, tree: SourceTree, within: readonly string[]): { specifiers: Set<string>; strings: Set<string> } {
+	const specifiers = new Set<string>();
+	const strings = new Set<string>();
+	for (const file of reachableFrom(entry, tree, within)) {
+		const parsed = parsedOf(file, tree);
+		for (const specifier of parsed.specifiers) specifiers.add(specifier);
+		for (const text of parsed.strings) strings.add(text);
+	}
+	return { specifiers, strings };
 }
 
 /** An in-memory tree, so an instrument is driven against fixtures before it is pointed at `src/`. */

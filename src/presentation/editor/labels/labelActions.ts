@@ -12,9 +12,9 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { notifyFault, notifyOperationFailure } from '../../notices/notify';
-import { captionBottom, captionPins, roomCaptionAnchor, type NumberedPin } from '../layers/zone/captionPlacement';
+import { captionBottom, captionPins, detailPlanCaptions, roomCaptionAnchor, type NumberedPin } from '../layers/zone/captionPlacement';
 import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
-import { labelAnchor } from '../layers/zone/ZoneRenderModel';
+import { labelAnchor, toZoneRenderModel } from '../layers/zone/ZoneRenderModel';
 import type { DimensionObstacleLayout } from '../resize/useDimensionObstacles';
 import { projectedRotationTarget, readRotationBaseline } from '../elements/rotationBaseline';
 import { elementCaptionLayout, roomCaptionBounds, textLabelBounds, type LabelHit } from './labelLayout';
@@ -27,8 +27,8 @@ import { elementCaptionLayout, roomCaptionBounds, textLabelBounds, type LabelHit
 export function createLabelActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState'> & { readonly ledger: SessionWriteLedger }) {
 	const project = useProjectStore(), editor = useEditorStore(), workspace = useWorkspaceStore(), shapes = useAssetShapeStore(), plans = usePlanHierarchyStore();
 	const selection = useSelectionStore(), saves = useSaveStateStore(), session = useRenovationSession(), dialogs = useDialogStore();
-	// A zone some plan details draws a third caption line (ADR-0028), so its caption block is taller.
-	const detailed = computed(() => new Set(plans.hierarchy.detailPlans.map(detail => detail.parentZoneId)));
+	// A zone some plan details draws a third caption line (ADR-0028), so its caption is taller and maybe wider.
+	const detailCaptions = computed(() => detailPlanCaptions(plans.hierarchy.detailPlans));
 	const pins = shallowRef<readonly NumberedPin[]>([]), dimensions = shallowRef<DimensionObstacleLayout>({ bounds: [], viewport: null });
 	const working = ref(false);
 	let alive = true;
@@ -39,10 +39,10 @@ export function createLabelActions(context: PlanEditorContext, runtime: Pick<Edi
 	function hitFor(id: string, zoom: number): LabelHit | null {
 		const zone = project.zones.get(id);
 		if (zone) {
-			const bottom = captionBottom(detailed.value.has(id));
-			const drawn = roomCaptionAnchor(zone, zoom, captionPins(pins.value, session.visible, workspace.layerVisibility.annotation), dimensions.value.bounds, { viewport: dimensions.value.viewport, bottom });
+			const detail = detailCaptions.value.get(id) ?? null, model = toZoneRenderModel(zone);
+			const drawn = roomCaptionAnchor(zone, zoom, captionPins(pins.value, session.visible, workspace.layerVisibility.annotation), dimensions.value.bounds, { viewport: dimensions.value.viewport, bottom: captionBottom(detail !== null) });
 			const automatic = labelAnchor(zone.points, zone.bulges);
-			return { id, bounds: roomCaptionBounds(drawn, zoom, bottom), offset: { dx: drawn.x - automatic.x, dy: drawn.y - automatic.y } };
+			return { id, bounds: roomCaptionBounds(drawn, zoom, { label: model.label, areaMm2: model.areaMm2, detail }), offset: { dx: drawn.x - automatic.x, dy: drawn.y - automatic.y } };
 		}
 		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
 		if (!element || name === undefined) return null;

@@ -39,19 +39,17 @@ describe('the Plan Canvas pointer routing', () => {
 		click(canvas, 300, 300); // select zone-a — inside its (198,198)-(488,388) footprint
 		await settle();
 
-		// The drag itself starts at (220,370), clear of the now-selected room's own caption grab
-		// box (ADR-0029) and of every vertex handle — (300,300) sits inside that caption's box.
-		pointer(canvas, 'pointerdown', 220, 370);
-		pointer(canvas, 'pointermove', 320, 370);
-		chord(canvas, 320, 370, 2, 3); // the right button pressed mid-drag…
-		chord(canvas, 320, 370, 2, 1); // …and released, the primary still down
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 400, 300);
+		chord(canvas, 400, 300, 2, 3); // the right button pressed mid-drag…
+		chord(canvas, 400, 300, 2, 1); // …and released, the primary still down
 		await settle();
 
 		const midDrag = expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded[0];
 		expect(midDrag.entity.geometry.points).toEqual(before.entity.geometry.points);
 
 		// The gesture is still live: the genuine primary release commits it.
-		pointer(canvas, 'pointerup', 320, 370);
+		pointer(canvas, 'pointerup', 400, 300);
 		await until(
 			async () =>
 				(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded)[0].entity.geometry
@@ -77,9 +75,8 @@ describe('the Plan Canvas pointer routing', () => {
 		click(canvas, 300, 300);
 		await settle();
 
-		// Clear of the now-selected room's own caption grab box (ADR-0029), as above.
-		pointer(canvas, 'pointerdown', 220, 370);
-		pointer(canvas, 'pointermove', 320, 370);
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 400, 300);
 		// **The id is named, and has to be.** This event carried none until the cancel door
 		// learned to ask whose pointer was taken — `PointerEvent`'s default is `0`, while the
 		// press above is the rig's default `1`, so the stream said "some OTHER pointer was

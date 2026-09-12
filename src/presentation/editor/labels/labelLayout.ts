@@ -3,7 +3,8 @@ import type { Point } from '../../../core/geometry/Point';
 import type { Vector } from '../../../core/geometry/Vector';
 import { elementLength, type NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 import { formatMetres } from '../shell/formatLength';
-import { CAPTION_BOUNDS_PX } from '../layers/zone/captionPlacement';
+import { formatArea } from '../shell/formatArea';
+import { ROOM_CAPTION_TEXT } from '../layers/zone/captionPlacement';
 import { elementFootprint, type ShapeLookup } from '../elements/elementFootprint';
 
 /**
@@ -44,12 +45,13 @@ let context: CanvasRenderingContext2D | null | undefined;
  * choice) — a global only Obsidian and a jsdom test that called `installObsidianDom()` provide,
  * so `typeof createEl === 'undefined'` is also this module's node-test detection.
  */
-export function measureLabelWidth(text: string, fontPx: number): number {
-	context ??= typeof createEl === 'undefined' ? null : createEl('canvas').getContext('2d');
+export function measureLabelWidth(text: string, fontPx: number, bold = false): number {
+	// A missing context is cached too, so a context-less environment makes one canvas, not one per call.
+	if (context === undefined) context = typeof createEl === 'undefined' ? null : createEl('canvas').getContext('2d');
 	// ponytail: an estimate only where no 2D context exists (a node test, or a jsdom one with no
 	// Obsidian DOM installed); Obsidian itself always has one.
 	if (!context) return text.length * fontPx * 0.6;
-	context.font = `${fontPx}px Arial`;
+	context.font = `${bold ? 'bold ' : ''}${fontPx}px Arial`;
 	return context.measureText(text).width;
 }
 
@@ -58,12 +60,18 @@ export function textLabelBounds(layout: { readonly x: number; readonly y: number
 	return { min: { x: layout.x, y: layout.y }, max: { x: layout.x + measure(layout.text, ELEMENT_LABEL_FONT_PX) / zoom, y: layout.y + ELEMENT_LABEL_FONT_PX / zoom } };
 }
 
-/** A room caption's world box around the drawn anchor; `bottom` is `captionBottom(…)`, lower while a detail-plans line shows. */
-export function roomCaptionBounds(anchor: Point, zoom: number, bottom: number): BoundingBox {
-	return {
-		min: { x: anchor.x - CAPTION_BOUNDS_PX.halfWidth / zoom, y: anchor.y + CAPTION_BOUNDS_PX.top / zoom },
-		max: { x: anchor.x + CAPTION_BOUNDS_PX.halfWidth / zoom, y: anchor.y + bottom / zoom },
-	};
+/**
+ * A room caption's world box around its drawn anchor: as wide as its widest drawn line (the name
+ * measured bold, as `ZoneShape` draws it), capped at the text box it is drawn in, and from the name's
+ * top to the last drawn line's bottom — the detail-plans line while one shows. The TEXT, not the
+ * pin-clearance block (`CAPTION_BOUNDS_PX`), so a selected room is still dragged from around it.
+ */
+export function roomCaptionBounds(anchor: Point, zoom: number, caption: { readonly label: string; readonly areaMm2: number; readonly detail: string | null }, measure: (text: string, fontPx: number, bold?: boolean) => number = measureLabelWidth): BoundingBox {
+	const { width, name, area, detail } = ROOM_CAPTION_TEXT;
+	const lines = [measure(caption.label, name.fontSize, true), measure(formatArea(caption.areaMm2), area.fontSize), ...(caption.detail === null ? [] : [measure(caption.detail, detail.fontSize)])];
+	const half = Math.min(width, Math.max(...lines)) / 2 / zoom;
+	const bottom = caption.detail === null ? area.fontSize - area.offsetY : detail.height - detail.offsetY;
+	return { min: { x: anchor.x - half, y: anchor.y - name.offsetY / zoom }, max: { x: anchor.x + half, y: anchor.y + bottom / zoom } };
 }
 
 /** A drawn caption a press can grab: its world box, and the offset it is drawn at NOW (an undragged room caption's pin displacement included). */

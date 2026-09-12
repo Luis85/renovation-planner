@@ -36,7 +36,7 @@ import { computed } from 'vue';
 import type { ThemeTokens } from '../../theme/themeTokens';
 import { zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
 import { formatArea } from '../../shell/formatArea';
-import { captionBottom, roomCaptionAnchor, type NumberedPin } from './captionPlacement';
+import { captionBottom, ROOM_CAPTION_TEXT, roomCaptionAnchor, type NumberedPin } from './captionPlacement';
 import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
 import { polygonPolyline } from '../../../../core/geometry/curvePolyline';
 
@@ -87,8 +87,9 @@ const fill = computed(() => props.tokens[zoneFillToken(props.model.zoneType)]);
  * `n / zoom` × further out: at the default zoom of 0.1 that is ten times too far, and
  * every zone's name landed off the top of the pane. Invisible to jsdom, which draws
  * nothing; found in `npm run harness-shot`.
+ *
+ * Every line's size and offset is `ROOM_CAPTION_TEXT`'s, which a caption drag bounds too (ADR-0029).
  */
-const CAPTION_PX = 14;
 const captionScale = computed(() => 1 / props.zoom);
 // A caption's position is two NUMBERS rather than one Point: an unchanged position then propagates
 // nothing, so vue-konva does not diff seven unchanged configs for every Room.
@@ -96,7 +97,7 @@ const captionAnchor = computed(() => roomCaptionAnchor(props.model, props.zoom, 
 	{ viewport: props.captionViewport, bottom: captionBottom(props.detailCaption !== null) }));
 const captionX = computed(() => captionAnchor.value.x);
 const captionY = computed(() => captionAnchor.value.y);
-const captionLayout = computed(() => ({ x: captionX.value, y: captionY.value, width: 180, offsetX: 90, align: 'center',
+const captionLayout = computed(() => ({ x: captionX.value, y: captionY.value, width: ROOM_CAPTION_TEXT.width, offsetX: ROOM_CAPTION_TEXT.width / 2, align: 'center',
 	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
 	// `perfectDrawEnabled: false`: a locked zone's translucent group would otherwise send this
 	// fill-and-stroke text through the stage's buffer canvas, which throws while the stage is 0×0.
@@ -115,13 +116,13 @@ const fillConfig = computed(() => ({ points: flatPoints.value, closed: true, fil
 // Hidden rather than unmounted, for the same child-list reason as the fill.
 const outlineConfig = computed(() => ({ points: flatPoints.value, closed: true, stroke: props.tokens.zoneStroke,
 	strokeWidth: 1, strokeScaleEnabled: false, visible: !props.enclosed, listening: false, perfectDrawEnabled: false }));
-const nameConfig = computed(() => ({ ...captionLayout.value, offsetY: CAPTION_PX * 1.6,
-	text: props.model.label, fontSize: CAPTION_PX + 2, fontStyle: 'bold', height: CAPTION_PX + 5, fill: props.tokens.zoneLabel }));
-const areaConfig = computed(() => ({ ...captionLayout.value, offsetY: 0,
-	text: formatArea(props.model.areaMm2), fontSize: CAPTION_PX, fill: props.tokens.zoneLabel }));
+const nameConfig = computed(() => ({ ...captionLayout.value, ...ROOM_CAPTION_TEXT.name,
+	text: props.model.label, fontStyle: 'bold', fill: props.tokens.zoneLabel }));
+const areaConfig = computed(() => ({ ...captionLayout.value, ...ROOM_CAPTION_TEXT.area,
+	text: formatArea(props.model.areaMm2), fill: props.tokens.zoneLabel }));
 // Hidden rather than unmounted when nothing details this zone, for the same child-list reason as the fill.
-const detailConfig = computed(() => ({ ...captionLayout.value, name: 'zone-detail-plans', offsetY: -CAPTION_PX * 1.3,
-	text: props.detailCaption ?? '', visible: props.detailCaption !== null, fontSize: CAPTION_PX - 2, height: CAPTION_PX, fill: props.tokens.zoneCaption }));
+const detailConfig = computed(() => ({ ...captionLayout.value, name: 'zone-detail-plans', ...ROOM_CAPTION_TEXT.detail,
+	text: props.detailCaption ?? '', visible: props.detailCaption !== null, fill: props.tokens.zoneCaption }));
 </script>
 
 <template>

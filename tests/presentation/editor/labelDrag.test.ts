@@ -18,7 +18,8 @@ import { elementInput } from '../../../src/presentation/editor/elements/elementI
 import { projectedGroupGeometry } from '../../../src/presentation/editor/groups/groupSnapshot';
 import { usePlanHierarchyStore } from '../../../src/presentation/stores/PlanHierarchyStore';
 import { NO_HIERARCHY } from '../../../src/presentation/read-models/planHierarchy';
-import { CAPTION_BOUNDS_PX, DETAIL_CAPTION_BOTTOM } from '../../../src/presentation/editor/layers/zone/captionPlacement';
+import { measureLabelWidth } from '../../../src/presentation/editor/labels/labelLayout';
+import { formatArea } from '../../../src/presentation/editor/shell/formatArea';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 import type { BoundingBox } from '../../../src/core/geometry/BoundingBox';
@@ -55,14 +56,17 @@ it('drags a selected room caption, saves only its offset, and undo restores the 
 	expect(expectDefined(expectOk(await rig.stack.zones.getById(zone.id)), 'undone zone').entity.labelOffset).toBeNull();
 });
 
-it('draws a taller grab box for a room whose plan has a detail plan (ADR-0028)', async () => {
-	const { rig, zone } = await roomRig();
+it('grabs a room caption by its drawn text, one line lower while its plan has a detail plan (ADR-0028)', async () => {
+	const { rig, zone } = await roomRig(), zoom = useEditorStore(rig.pinia).viewport.zoom;
 	const plain = expectDefined(rig.runtime.labelActions.hits.value.find(item => item.id === zone.id), 'undetailed hit');
+	// The bold 16 px name or the 14 px area line, whichever is drawn wider — not the pin-clearance block.
+	const drawn = Math.max(measureLabelWidth(zone.name, 16, true), measureLabelWidth(formatArea(12e6), 14));
+	expect(plain.bounds.max.x - plain.bounds.min.x).toBeCloseTo(Math.min(180, drawn) / zoom, 5);
 	usePlanHierarchyStore(rig.pinia).hierarchy = { ...NO_HIERARCHY, detailPlans: [{ id: 'detail-1', name: 'Upper floor', parentZoneId: zone.id }] };
 	await settle();
 	const detailed = expectDefined(rig.runtime.labelActions.hits.value.find(item => item.id === zone.id), 'detailed hit');
-	const zoom = useEditorStore(rig.pinia).viewport.zoom;
-	expect(detailed.bounds.max.y - plain.bounds.max.y).toBeCloseTo((DETAIL_CAPTION_BOTTOM - CAPTION_BOUNDS_PX.bottom) / zoom, 5);
+	// The detail line ends 32.2 screen px below the anchor; the area line it follows, 14.
+	expect(detailed.bounds.max.y - plain.bounds.max.y).toBeCloseTo(18.2 / zoom, 5);
 });
 
 it('grabs no caption in the select-multiple mode, and an unselected room still moves from its caption', async () => {

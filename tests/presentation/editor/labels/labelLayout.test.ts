@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { assetLabelLayout, elementCaptionLayout, elementLabelLayout, measureLabelWidth, roomCaptionBounds, textLabelBounds } from '../../../../src/presentation/editor/labels/labelLayout';
 import { captionBottom, captionOffsetY, captionPins, DETAIL_CAPTION_BOTTOM, roomCaptionAnchor } from '../../../../src/presentation/editor/layers/zone/captionPlacement';
 import { elementFootprint } from '../../../../src/presentation/editor/elements/elementFootprint';
@@ -34,6 +34,21 @@ describe('element and asset name tags', () => {
 		expect(textLabelBounds({ x: 100, y: 200, text: 'Sofa' }, 0.5, () => 30)).toEqual({ min: { x: 100, y: 200 }, max: { x: 160, y: 224 } });
 		expect(measureLabelWidth('Sofa', 10)).toBeCloseTo(24);
 	});
+
+	it('measures a bold line in a bold font, and makes one canvas even where it has no 2D context', async () => {
+		const fonts: string[] = [];
+		const drawing = { set font(value: string) { fonts.push(value); }, measureText: (text: string) => ({ width: text.length }) };
+		for (const context of [drawing, null]) {
+			const createEl = vi.fn<() => { getContext: () => typeof context }>(() => ({ getContext: () => context }));
+			vi.stubGlobal('createEl', createEl); vi.resetModules();
+			try {
+				const fresh = await import('../../../../src/presentation/editor/labels/labelLayout');
+				fresh.measureLabelWidth('Kitchen', 16, true); fresh.measureLabelWidth('Kitchen', 14);
+				expect(createEl).toHaveBeenCalledTimes(1);
+			} finally { vi.unstubAllGlobals(); }
+		}
+		expect(fonts).toEqual(['bold 16px Arial', '14px Arial']);
+	});
 });
 
 describe('room captions', () => {
@@ -45,8 +60,19 @@ describe('room captions', () => {
 		// A third caption line (a zone's detail plans, ADR-0028) clears obstacles with a taller block.
 		expect(roomCaptionAnchor({ points: square }, 1, pins, [], { viewport: null, bottom: captionBottom(true) }).y).toBe(500 + captionOffsetY({ x: 500, y: 500 }, pins, 1, [], { bottom: DETAIL_CAPTION_BOTTOM }));
 		expect(roomCaptionAnchor({ points: square, labelOffset: { dx: 50, dy: -70 } }, 1, pins, [], { viewport: null, bottom: captionBottom(true) })).toEqual({ x: 550, y: 430 });
-		expect(roomCaptionBounds({ x: 500, y: 500 }, 2, captionBottom(false))).toEqual({ min: { x: 454.5, y: 488 }, max: { x: 545.5, y: 516 } });
-		expect(roomCaptionBounds({ x: 500, y: 500 }, 2, captionBottom(true)).max.y).toBe(500 + DETAIL_CAPTION_BOTTOM / 2);
+	});
+
+	it('are grabbed by their widest drawn line, capped at the 180 px text box, from the name top to the last line', () => {
+		const measure = vi.fn<(text: string, fontPx: number, bold?: boolean) => number>(text => text === 'Kitchen' ? 100 : text.startsWith('▸') ? 400 : 60);
+		const box = (detail: string | null) => {
+			const { min, max } = roomCaptionBounds({ x: 500, y: 500 }, 2, { label: 'Kitchen', areaMm2: 12e6, detail }, measure);
+			return [min.x, min.y, max.x, max.y].map(value => Number(value.toFixed(6)));
+		};
+		// The bold 16 px name (22.4 px above the anchor) over the 14 px area line (ending 14 px below it).
+		expect(box(null)).toEqual([475, 488.8, 525, 507]);
+		expect(measure).toHaveBeenCalledWith('Kitchen', 16, true);
+		// A 12 px detail-plans line ends 32.2 px below the anchor, and no line is drawn wider than 180 px.
+		expect(box('▸ Upper floor')).toEqual([455, 488.8, 545, 516.1]);
 	});
 
 	it('clear pins only while the session and the annotation layer both show them', () => {

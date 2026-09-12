@@ -447,10 +447,7 @@ describe('what the cursor says the pointer will do', () => {
 
 		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-grab']);
 
-		// (300,300) sits inside the selected room's own caption grab box (ADR-0029) now that
-		// captions are wired for real; (220,370) is still the same body, clear of both the
-		// caption and every vertex handle.
-		pointer(canvas, 'pointermove', 220, 370); // the body of the same room
+		pointer(canvas, 'pointermove', 300, 300); // the body of the same room
 		await settle();
 
 		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-target']);

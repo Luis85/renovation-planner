@@ -7,6 +7,7 @@ import { err, ok } from '../../../src/core/result/Result';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { useRenovationSession } from '../../../src/presentation/editor/renovation/renovationSession';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
+import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 
 const mounted: { unmount(): void }[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -96,9 +97,41 @@ it('groups only walls with a useful default name, expands saved identity, and su
 it('repeating explicit enclosure reuses the saved group and walls without a new write', async () => {
 	const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id)).document, write = vi.spyOn(rig.geometry, 'write');
 	rig.selection.select([rig.room.id]); await settle();
+	// A room's group controls sit inside its body, directly above Delete at the Inspector's foot (side panels spec §3).
+	const region = rig.wrapper.get('[data-rp-region="inspector"]'), regionButtons = region.findAll('button');
+	expect(region.find('.rp-room-inspector [data-rp-group-controls] + .rp-inspector-danger').exists()).toBe(true);
+	expect(regionButtons[regionButtons.length - 1].classes()).toContain('rp-editor-inspector-delete');
 	await rig.wrapper.get('[data-rp-group-action="enclose"]').trigger('click'); await idle(rig);
 	expect(write).not.toHaveBeenCalled(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
 	expect(rig.selection.selectedIds).toHaveLength(5);
+});
+/** Where a body's Delete and the group controls sit: side panels spec §3 wants the controls directly above Delete and Delete as the REGION's last button. */
+function regionFoot(rig: Awaited<ReturnType<typeof setup>>, body: string) {
+	const region = rig.wrapper.get('[data-rp-region="inspector"]'), regionButtons = region.findAll('button'), bodyButtons = region.findAll(`${body} button`);
+	return { body: region.find(`${body} .rp-inspector-danger`).exists(), groups: region.find('[data-rp-group-controls]').exists(),
+		stacked: region.find(`${body} [data-rp-group-controls] + .rp-inspector-danger`).exists(),
+		bodyLast: bodyButtons[bodyButtons.length - 1]?.attributes('data-rp-action'), last: regionButtons[regionButtons.length - 1]?.attributes('data-rp-action') };
+}
+const atFoot = (last: string) => ({ body: true, groups: true, stacked: true, bodyLast: last, last });
+const enclosingWall = (rig: Awaited<ReturnType<typeof setup>>) => expectDefined(rig.project.structure.walls.find(item => rig.project.groups[0].memberIds.includes(item.id)), 'enclosing wall');
+it('draws a grouped wall\'s group controls above its Delete, at the foot of the Inspector region', async () => {
+	const rig = await setup(); rig.selection.select([enclosingWall(rig).id as never]); await settle();
+	expect(regionFoot(rig, '.rp-structure-inspector')).toEqual(atFoot('delete-structure'));
+});
+it('keeps Delete at the region foot in Renovate, for a grouped wall and a grouped object', async () => {
+	const rig = await setup(); rig.changePlan(); await settle();
+	const services = expectDefined(rig.deps.commands.renovation, 'renovation services'), baseline = expectOk(await services.read(rig.plan.id));
+	const object = { id: 'element-in-group', kind: 'object' as const, name: 'Desk', points: [{ x: 500, y: 500 }, { x: 1500, y: 500 }, { x: 1500, y: 1200 }, { x: 500, y: 1200 }] };
+	expectOk(await rig.runtime.dispatcher.run(services.command(baseline, elementInput(baseline, object), rig.runtime.structureTask.ledger)));
+	rig.selection.select([rig.room.id, object.id as never]); await settle();
+	await expectDefined(rig.runtime.groupActions.actions(rig.selection.selectedIds).find(item => item.id === 'group'), 'group').run(); await settle();
+	useRenovationSession(rig.pinia).perspective = 'renovate';
+	rig.selection.select([enclosingWall(rig).id as never]); await settle();
+	// The group controls sit above the wall's Delete; what still follows the wall body is its host room's
+	// renovation details, which RenovationInspector draws after the body and this fix does not move.
+	expect(regionFoot(rig, '.rp-structure-inspector')).toEqual({ ...atFoot('delete-structure'), last: 'continue-renovation' });
+	rig.selection.select([object.id as never]); await settle();
+	expect(regionFoot(rig, '.rp-element-inspector')).toEqual(atFoot('delete-element'));
 });
 it('keeps precise group text during read-only recovery and routes Open source without replaying a command', async () => {
 	const rig = await setup(); await rig.wrapper.get('[data-rp-group-transform="rotate"]').trigger('click');

@@ -26,6 +26,12 @@ it('shows dimensions, opens the designer and hides the outline editor', async ()
 	const inspector = await selectPlaced(rig, id, 1);
 	expect(inspector.text()).toContain(tr('editor.asset.dimensions', { width: formatMetres(800), depth: formatMetres(600) }));
 	expect(inspector.find('[data-rp-action="edit-element"]').exists()).toBe(false);
+	expect(inspector.findAll('.rp-inspector-subline').length).toBeGreaterThan(0);
+	expect(inspector.element.lastElementChild?.matches('.rp-inspector-danger')).toBe(true);
+	expect(inspector.get('.rp-inspector-danger [data-rp-action="delete-element"]').find('.rp-host-icon').exists()).toBe(true);
+	// Delete is the foot of the whole Inspector region, not only of this body (side panels spec §3).
+	const regionButtons = expectDefined(inspector.element.closest('[data-rp-region="inspector"]'), 'inspector region').querySelectorAll('button');
+	expect(regionButtons[regionButtons.length - 1]?.getAttribute('data-rp-action')).toBe('delete-element');
 	await inspector.get('[data-rp-action="open-asset-designer"]').trigger('click');
 	expect(asset).toHaveBeenCalledWith(radiator.id);
 });

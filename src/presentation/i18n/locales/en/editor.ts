@@ -227,6 +227,8 @@ export const editorEn = {
 	'editor.inspector.requirement.missing-asset': 'Asset missing from the catalog.',
 	'editor.inspector.assign.label': 'Assign asset',
 	'editor.inspector.assign.button': 'Assign',
+	'editor.inspector.assign.placeholder': 'Choose an asset',
+	'editor.inspector.assign.none': 'No assets in the library yet',
 	'editor.inspector.quantity-override.label': 'Override quantity for',
 	'editor.inspector.cost-override.label': 'Override cost for',
 	'editor.inspector.override.reset': 'Reset to calculated',
@@ -260,16 +262,21 @@ export const editorEn = {
 	'editor.zone-type.Roof': 'Roof',
 	'editor.zone-type.ConstructionArea': 'Construction area',
 	'editor.zone-type.Custom': 'Other',
-	// `HomeownerQuestionNav`'s three rows, in canonical order (component library §8).
+	// `comingLater.ts`'s labels for the three homeowner questions, in canonical order
+	// (component library §8).
 	'editor.inspector.question.existing': 'What’s here',
 	'editor.inspector.question.planned': 'What will change',
 	'editor.inspector.question.work': 'What needs doing',
-	// `LinkedContentList`'s four rows — Materials is design slice 10's Requirements panel
-	// already and is not one of these (`INSPECTOR_SECTIONS`'s own docblock states why).
+	// `comingLater.ts`'s labels for the four linked sections — Materials is design slice 10's
+	// Requirements panel already and is not one of these (`INSPECTOR_SECTIONS`'s own docblock
+	// states why).
 	'editor.inspector.linked.costs': 'Costs',
 	'editor.inspector.linked.documents': 'Documents',
 	'editor.inspector.linked.photos': 'Photos',
 	'editor.inspector.linked.notes': 'Notes',
+	// The one line those seven labels are joined into (2026-09-12 side panels spec §3,
+	// `comingLater.ts`). The labels keep their own capitals, so the list reads as names.
+	'editor.inspector.coming-later': 'Coming later: {sections}',
 	// §89's "beside what it replaced" at the INPUT level: the shared library's unit price, this
 	// project's own, and the price the row's figures were actually derived from. `price-in-force`
 	// is the §85 non-colour channel — a WORD beside the figure, so a screen reader reads it and a

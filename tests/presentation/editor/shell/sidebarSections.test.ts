@@ -24,6 +24,14 @@ describe('sidebar sections', () => {
 		expect(sections.every((s) => s.find('summary').exists())).toBe(true);
 	});
 
+	it('keeps the multiple selection control and its hint together in the rooms section footer', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const footer = harness.wrapper.get('.rp-property-rooms > .rp-property-rooms__footer');
+		expect(footer.find('input[data-rp-action="multiple-selection"]').exists()).toBe(true);
+		expect(footer.find('p').exists()).toBe(true);
+		harness.unmount();
+	});
+
 	let rig: Awaited<ReturnType<typeof renovationEditor>> | undefined;
 	afterEach(() => { rig?.unmount(); rig = undefined; });
 

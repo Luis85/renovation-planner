@@ -32,6 +32,14 @@ const generic = computed(() => project.structure.elements?.some(item => item.id 
 const headingVisible = computed(() => session.mode === 'overview' || !room.value);
 function heading(): string { return selectedZone.value?.name || room.value?.name || tr('renovation.select-room'); }
 const standaloneZone = computed(() => !room.value ? selectedZone.value : undefined);
+/**
+ * The frame's group controls arrive through the `actions` slot. A wall, opening or element body
+ * takes them above its own Delete, so Delete stays the foot of the Inspector region (side panels
+ * spec §3); every other state draws them as this component's last node, where they trailed before.
+ * `review` is excluded because `ReviewInspector` replaces both bodies there, so the trailing mount is
+ * then the only one; `EntityInspector`, this component's one caller, passes no slot in Review anyway.
+ */
+const bodyTakesActions = computed(() => session.perspective !== 'review' && selection.selectedIds.length > 0 && (generic.value === true || element.value));
 const root = ref<HTMLElement | null>(null);
 watch(() => [session.focusedId, session.mode], async () => {
 	if (!session.focusedId) return;
@@ -53,8 +61,16 @@ watch(() => [session.focusedId, session.mode], async () => {
 		ref="root"
 		class="rp-renovation-inspector"
 	>
-		<ElementInspector v-if="generic" />
-		<StructureInspector v-else-if="element" />
+		<ElementInspector v-if="generic">
+			<template #actions>
+				<slot name="actions" />
+			</template>
+		</ElementInspector>
+		<StructureInspector v-else-if="element">
+			<template #actions>
+				<slot name="actions" />
+			</template>
+		</StructureInspector>
 		<h3 v-else-if="headingVisible">
 			{{ heading() }}
 		</h3>
@@ -70,4 +86,8 @@ watch(() => [session.focusedId, session.mode], async () => {
 			:room="room"
 		/>
 	</div>
+	<slot
+		v-if="!bodyTakesActions"
+		name="actions"
+	/>
 </template>

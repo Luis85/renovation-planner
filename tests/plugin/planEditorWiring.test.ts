@@ -8,8 +8,9 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createCompositionRoot, type VaultStack } from '../../src/plugin/composition-root';
-import { planEditorDeps } from '../../src/plugin/planEditorDeps';
+import { planEditorDeps, planEditorDeviceSlots } from '../../src/plugin/planEditorDeps';
 import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
+import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 import { planBackgroundChanged } from '../../src/domain/plan/Plan.events';
@@ -34,6 +35,18 @@ const vaultStack = (): VaultStack =>
 		fileManager: {},
 		metadataCache: { getFileCache: () => null },
 	}) as unknown as VaultStack;
+
+/** A key is persisted data like a command id: renaming one strands what every device remembered. */
+describe('the Plan Editor device slots', () => {
+	it('keys the side panels\' layout and the View menu choices under the plugin id', () => {
+		const keys: string[] = [];
+		const adapter = { loadLocalStorage: (key: string): unknown => { keys.push(key); return null; }, saveLocalStorage: (key: string): void => { keys.push(key); } };
+		const slots = planEditorDeviceSlots(adapter, 'plugin-id', recorder);
+		slots.panelLayout.write({});
+		slots.viewPreferences.write({ gridVisible: true });
+		expect(keys).toEqual(['plugin-id:panel-layout', 'plugin-id:editor-view', 'plugin-id:editor-view']);
+	});
+});
 
 describe('the event bus the root composes', () => {
 	/**
@@ -75,7 +88,7 @@ describe('the plan editor dependencies', () => {
 	it('hands over the mapped query services when persistence is composed', () => {
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
 
-		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard());
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard(), memoryDeviceStorage());
 
 		expect(deps.queries).toBe(root.persistence?.planEditorQueries);
 		expect(deps.vault).toBeDefined();
@@ -91,7 +104,7 @@ describe('the plan editor dependencies', () => {
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
 		const workspace = new FakeWorkspace();
 		const stack = vaultStack();
-		const deps = planEditorDeps(root, workspace as never, stack.vault, createEditorClipboard());
+		const deps = planEditorDeps(root, workspace as never, stack.vault, createEditorClipboard(), memoryDeviceStorage());
 
 		expect(await deps.openNote('no-such-id')).toBe('missing');
 	});
@@ -106,7 +119,7 @@ describe('the plan editor dependencies', () => {
 		activateNotices();
 		const before = Notice.shown.length;
 		const root = createCompositionRoot(null, recorder, vaultStack());
-		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard());
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard(), memoryDeviceStorage());
 
 		expect(await deps.openNote('any')).toBe('failed');
 		expect(Notice.shown.length).toBe(before + 1);
@@ -142,7 +155,7 @@ describe('the plan editor dependencies', () => {
 		};
 		const before = Notice.shown.length;
 
-		const deps = planEditorDeps(root, workspace as never, stack.vault as never, createEditorClipboard());
+		const deps = planEditorDeps(root, workspace as never, stack.vault as never, createEditorClipboard(), memoryDeviceStorage());
 
 		await expect(deps.openNote('plan-1')).resolves.toBe('failed');
 		expect(Notice.shown.length).toBe(before + 1);
@@ -161,7 +174,7 @@ describe('the plan editor dependencies', () => {
 	it('hands over refusing query services when settings were never recovered', async () => {
 		const root = createCompositionRoot(null, recorder, vaultStack());
 
-		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard());
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard(), memoryDeviceStorage());
 		const result = await deps.queries.getPlan('plan-1');
 
 		expect(result.ok).toBe(false);
@@ -169,7 +182,7 @@ describe('the plan editor dependencies', () => {
 
 	it('wires the plan-change subscription to the root own bus', async () => {
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
-		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard());
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard(), memoryDeviceStorage());
 		const listener = vi.fn<() => void>();
 
 		const unsubscribe = deps.onPlanChanged('plan-1', listener);
@@ -188,7 +201,7 @@ describe('the plan editor dependencies', () => {
 		const registered: string[] = [];
 		const workspace = { on: (name: string) => registered.push(name), offref: () => undefined };
 
-		planEditorDeps(root, workspace as never, vaultStack().vault, createEditorClipboard()).onThemeChange(() => undefined);
+		planEditorDeps(root, workspace as never, vaultStack().vault, createEditorClipboard(), memoryDeviceStorage()).onThemeChange(() => undefined);
 
 		expect(registered).toEqual(['css-change']);
 	});
@@ -209,10 +222,18 @@ describe('the plan editor dependencies', () => {
 		const registered: string[] = [];
 		const vault = { on: (name: string) => registered.push(name), offref: () => undefined };
 
-		planEditorDeps(root, { on: () => undefined, offref: () => undefined } as never, vault as never, createEditorClipboard())
+		planEditorDeps(root, { on: () => undefined, offref: () => undefined } as never, vault as never, createEditorClipboard(), memoryDeviceStorage())
 			.onVaultFileChanged(() => undefined);
 
 		expect(registered.toSorted()).toEqual(['create', 'delete', 'modify', 'rename']);
+	});
+
+	it('hands the view the per-device panel layout slot it was given', () => {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const storage = memoryDeviceStorage();
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard(), storage);
+
+		expect(deps.panelLayout).toBe(storage);
 	});
 });
 

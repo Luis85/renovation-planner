@@ -234,6 +234,21 @@ describe('WorkspaceStore, the editor chrome', () => {
 		expect(workspace.overlay).toBe('none');
 	});
 
+	/** One reveal for every task that puts its form in the Inspector, whichever layout the leaf is in. */
+	it('reveals the Inspector by expanding it in full and as the overlay in constrained', () => {
+		const workspace = useWorkspaceStore();
+		workspace.setPanel('inspector', { collapsed: true });
+		workspace.revealInspector();
+		expect(workspace.panelLayout.inspector.collapsed).toBe(false);
+		expect(workspace.overlay).toBe('none');
+
+		workspace.setPanel('inspector', { collapsed: true });
+		workspace.setLayoutMode('constrained');
+		workspace.revealInspector();
+		expect(workspace.overlay).toBe('inspector');
+		expect(workspace.panelLayout.inspector.collapsed).toBe(true);
+	});
+
 	it('resets layout mode and overlay with everything else', () => {
 		const workspace = useWorkspaceStore();
 		workspace.setLayoutMode('constrained');

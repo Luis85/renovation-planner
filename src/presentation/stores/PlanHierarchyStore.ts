@@ -48,9 +48,15 @@ export const usePlanHierarchyStore = defineStore('plan-hierarchy', () => {
 		}
 	}
 
-	/** Resolves once no read is in flight, including one started after the caller's own. */
+	/**
+	 * Resolves once no read is in flight, including one started after the caller's own — and
+	 * resolves, never rejects: a read that throws belongs to whoever started it (`PlanEditorRoot`'s
+	 * `loadHierarchy` catches and reports its own), and re-throwing it here handed the same fault a
+	 * second time to `usePlanReorder.write()`'s caller, which is a `void reorder.moveUp(…)` on a
+	 * key press — an unhandled rejection — and skipped `PlanKindSelect`'s reset on the way.
+	 */
 	async function settled(): Promise<void> {
-		for (let pending = inFlight; pending !== null; pending = inFlight) await pending;
+		for (let pending = inFlight; pending !== null; pending = inFlight) await pending.catch(() => undefined);
 	}
 
 	return { hierarchy, failed, writing, load, settled };

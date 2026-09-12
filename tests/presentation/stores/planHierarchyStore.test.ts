@@ -61,6 +61,29 @@ describe('PlanHierarchyStore', () => {
 	});
 
 	/**
+	 * A newer read that REJECTS — the query threw rather than answering a failed Result — is its
+	 * starter's fault to report; `settled` resolves through it rather than handing the rejection to
+	 * a writer that never started that read. Watched failing first: without the swallow this case
+	 * dies on `await store.settled()` with the read's own error.
+	 */
+	it('settled resolves through a superseding read that rejects, leaving the fault to whoever started it', async () => {
+		const store = usePlanHierarchyStore();
+		const own = defer<ReturnType<typeof ok<PlanHierarchyDto>>>();
+		let rejectNewer!: (cause: Error) => void;
+		const newer = new Promise<ReturnType<typeof ok<PlanHierarchyDto>>>((_resolve, reject) => { rejectNewer = reject; });
+		const ownLoad = store.load({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => own.promise }, 'plan-house');
+		const newerLoad = store.load({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => newer }, 'plan-site');
+		const waiting = store.settled();
+
+		own.resolve(ok(HOUSE));
+		await ownLoad;
+		rejectNewer(new Error('boom'));
+		await expect(newerLoad).rejects.toThrow('boom');
+		await expect(waiting).resolves.toBeUndefined();
+		expect(store.hierarchy).toEqual(NO_HIERARCHY);
+	});
+
+	/**
 	 * A failed read keeps the last answer on screen AND says it failed: a detail plan whose
 	 * hierarchy could not be read must not pass for a parentless plan (PBI guarantee).
 	 */

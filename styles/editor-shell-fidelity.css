@@ -9,7 +9,8 @@
 .renovation-plan-editor .rp-property-tree__group { list-style: none; margin: 0; padding: 0; }
 /* The nesting IS the indent: 16px per level, the guide line on the group's own edge. */
 .renovation-plan-editor .rp-property-tree__group { padding-inline-start: 16px; border-inline-start: 1px solid var(--background-modifier-border); }
-.renovation-plan-editor [role="treeitem"] { outline: none; }
+/* `position: relative` anchors the `after` drop line below. */
+.renovation-plan-editor [role="treeitem"] { outline: none; position: relative; }
 /* The row's ring, drawn on the row for two focus owners. Keyboard focus lands on the `li` (the row button is
    `tabindex="-1"`), so the first rule rings the row when its `li` is focus-visible; the second is the button's
    own — focused directly by a click or the reorder's focus restore. Both draw the SAME ring, so which one
@@ -21,8 +22,9 @@
    one list credit nothing, and the scan reports all three flattening sites. */
 .renovation-plan-editor :where([role="treeitem"]:focus-visible) > .rp-property-tree__row { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
 button.rp-property-tree__row:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
-/* The current plan: main's accent bar on the row's leading edge. The `[data-rp-drop]` rules below
-   replace it with the drop indicator's own inset while a drag is over this row. */
+/* The current plan: main's accent bar on the row's leading edge. The `[data-rp-drop="before"]` rule below
+   replaces it with the drop indicator's own inset while a drag is over this row; `after` is drawn on the `li`
+   instead, so a drop after the open plan shows the bar and the line together. */
 .renovation-plan-editor .rp-property-tree__row[aria-current="page"] {
 	background: var(--background-modifier-active-hover); border-color: transparent;
 	box-shadow: inset 2px 0 0 var(--interactive-accent); font-weight: var(--font-semibold);
@@ -38,11 +40,16 @@ button.rp-property-tree__row:focus-visible { outline: 2px solid var(--interactiv
 .renovation-plan-editor .rp-property-tree__menu [role="menuitemradio"][aria-checked="true"]::before { border-color: var(--interactive-accent); background: var(--interactive-accent); }
 .renovation-plan-editor .rp-property-tree__menu [role="menuitemradio"][aria-checked="true"] { font-weight: var(--font-semibold); }
 /* Drag to reorder: a grab cursor on a draggable row, and the drop indicator WHERE the dragged plan would land:
-   `before` on the row's top edge, `after` on the bottom edge of the `li` — which spans the row's nested group,
-   so on a parent the line sits under the whole subtree the drop lands after, not between it and its first child. */
+   `before` on the row's top edge, `after` along the bottom edge of the `li` — which spans the row's nested group,
+   so on a parent the line sits under the whole subtree the drop lands after, not between it and its first child.
+   `after` is a positioned pseudo-element rather than an inset shadow on the `li`: the shadow painted UNDER the
+   child row's background, and a theme whose hover or active background is opaque would have hidden the line. */
 .renovation-plan-editor [role="treeitem"][draggable="true"] > .rp-property-tree__row { cursor: grab; }
 .renovation-plan-editor [role="treeitem"][data-rp-drop="before"] > .rp-property-tree__row { box-shadow: inset 0 2px 0 var(--interactive-accent); }
-.renovation-plan-editor [role="treeitem"][data-rp-drop="after"] { box-shadow: inset 0 -2px 0 var(--interactive-accent); }
+.renovation-plan-editor [role="treeitem"][data-rp-drop="after"]::after {
+	content: ''; position: absolute; inset-inline: 0; bottom: 0; height: 2px;
+	background: var(--interactive-accent); pointer-events: none;
+}
 .renovation-plan-editor .rp-property-rooms .rp-editor-panel-subtitle,
 .renovation-plan-editor .rp-property-elements .rp-structure-list > h3 { display: none; }
 .renovation-plan-editor .rp-property-layers .rp-layer-list { margin-top: 4px; }

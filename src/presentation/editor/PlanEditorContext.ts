@@ -16,6 +16,12 @@ export interface EditorNavigation {
 	asset?(assetId: string): Promise<void>;
 }
 
+export interface EditorViewPreferences {
+	read(): { readonly gridVisible?: boolean; readonly snappingEnabled?: boolean };
+	/** Only the choice that changed; the store merges it into what is stored now. */
+	write(changed: { readonly gridVisible?: boolean; readonly snappingEnabled?: boolean }): void;
+}
+
 /**
  * A per-device JSON slot (2026-09-12 side panels spec §1): `read` answers whatever was stored, or
  * `null` for nothing, and `write` never throws. Declared here, where it is consumed, because the
@@ -62,6 +68,11 @@ export interface PlanEditorContext {
 	readonly clipboard: EditorClipboard;
 	/** Where the side panels' widths and collapsed state live — per device, shared by every leaf. */
 	readonly panelLayout: DeviceStorage;
+	/**
+	 * The View menu's grid and object-snap choices, shared by every Plan Editor on this device.
+	 * Read once at mount and written on every change; absent where there is no host to keep them.
+	 */
+	readonly viewPreferences?: EditorViewPreferences;
 	/**
 	 * Obsidian's `css-change`, as a subscription that hands back its own unsubscribe.
 	 *

@@ -205,7 +205,9 @@ cast at either end would be a second answer to what a setting is.
 npm run check   # build + lint + coverage-thresholded tests + fallow
 ```
 
-All four must pass before committing; CI runs the same `npm run check`, verbatim, across
+All four must pass before a pull request MERGES, and **the pipeline is where they are run**:
+push, open the pull request, and treat a red CI leg as the report to act on — a local full
+gate before opening the PR is not required. CI runs `npm run check`, verbatim, across
 four legs — the same one command every one of them has to survive. Three are **Ubuntu**,
 one per `engines.node` range this package declares (`^22.22.2 || ^24.15.0 || >=26.0.0`):
 a declared range nobody actually executes on is the same defect `engines.node` itself
@@ -230,7 +232,7 @@ door exists beside `check` for that reason, and it does not replace it:
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no
   coverage and no `eslint .`. Arguments after `--` reach the vitest call, so
   `npm run check:fast -- tests/application` is **12.3s** against the gate's 200. That is
-  the inner loop: run it between edits, and `npm run check` once before the commit. It is
+  the inner loop: run it between edits, and let CI run `npm run check` on the PR. It is
   NOT a smaller definition of done — it omits `eslint .`, which is where the layer bans,
   the write boundary and both text bans live, and it omits the coverage floors entirely.
 
@@ -239,8 +241,9 @@ rather than a mutex.** What contention produces is a WRONG red rather than a slo
 destroyed `coverage/.tmp/coverage-N.json`, and `tests/build/` ESLint boots over their
 `beforeAll` budget, both named as hazards elsewhere in this file. So agents working in
 parallel run `check:fast` — which touches no `coverage/` and boots ESLint for one file at
-most — and the full `npm run check` runs ONCE, before a commit, by whoever is committing.
-One gate at a time falls out of that rule; nothing has to enforce it.
+most — and the full `npm run check` runs in CI, on the pull request, rather than on the
+machine where agents are working. No local gate to contend with falls out of that rule;
+nothing has to enforce it.
 
 Two things make the gate itself cheaper, and both are measured rather than argued.
 `tsconfig.json` is `incremental` with its build info under `node_modules/.cache/` — 14.3s

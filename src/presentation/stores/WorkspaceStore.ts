@@ -11,12 +11,14 @@ import { clampPanelWidth, defaultPanelLayout, type PanelLayout, type PanelSide, 
  * Layer visibility is a pure RENDERING concern and not an edit — hiding the annotation
  * layer changes nothing persisted, which is why it belongs in an ephemeral store rather
  * than going through a command. Layout mode and overlay state are the same. Nothing here
- * reaches a repository, and reopening a Plan Editor starts from the defaults.
+ * reaches a repository, and reopening a Plan Editor starts from the defaults — except two
+ * things that outlive the leaf, each in its own per-device slot: `gridVisible`, which
+ * `PlanEditorRoot` seeds from and writes back to `PlanEditorContext.viewPreferences`, and the
+ * side panels' layout below.
  *
  * **The full-mode side panels' widths and collapsed state ARE here** (2026-09-12 side panels
- * spec), and they are the one thing in this store that outlives the leaf: `ResponsiveEditorShell`
- * restores them from per-device storage on mount and writes them back on every committed change.
- * The store itself still reaches no repository. The View menu owns grid visibility and automatic
+ * spec): `ResponsiveEditorShell` restores them from `PlanEditorContext.panelLayout` on mount and
+ * writes them back on every committed change. The store itself still reaches no repository. The View menu owns grid visibility and automatic
  * object snapping; neither changes the floor or a saved record. Each leaf has its own Pinia scope.
  */
 export const useWorkspaceStore = defineStore('workspace', () => {
@@ -24,6 +26,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	const layoutMode = ref<LayoutMode>('full');
 	const overlay = ref<'none' | 'layers' | 'inspector'>('none');
 	const gridVisible = ref(false);
+	/** The View menu's north arrow; the bearing it shows is the plan's own and IS saved. */
+	const northVisible = ref(false);
 
 	/**
 	 * Whether evidence pins — notes and photos — are drawn. The Layers panel's "Notes and
@@ -98,6 +102,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	 */
 	function reset(): void {
 		gridVisible.value = false;
+		northVisible.value = false;
 		layerVisibility.value = defaultLayerVisibility();
 		layoutMode.value = 'full';
 		overlay.value = 'none';
@@ -107,6 +112,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
 	return {
 		gridVisible,
+		northVisible,
 		layerVisibility,
 		toggleLayer,
 		notesVisible,

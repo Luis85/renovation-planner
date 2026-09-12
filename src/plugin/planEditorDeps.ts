@@ -6,6 +6,8 @@ import { structureServices } from '../application/commands/spatial/StructureComm
 import { groupGeometryServices } from '../application/commands/spatial/GroupGeometryCommand';
 import { guardedGroups } from './guardedGroups';
 import { referencePlanServices } from '../application/commands/plan/ConfigurePlanReference';
+import { planNorthServices } from '../application/commands/plan/SetPlanNorth';
+import { guardedPlanNorth } from './guardedPlanNorth';
 import type { Vault, Workspace } from 'obsidian';
 import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
@@ -25,6 +27,27 @@ import type { CompositionRoot } from './composition-root';
 import { editorWorkspaceNavigation } from './editorWorkspaceNavigation';
 import type { EditorClipboard } from '../presentation/editor/clipboard/editorClipboard';
 import type { DeviceStorage } from '../presentation/editor/PlanEditorContext';
+import type { Logger } from '../application/ports/Logger';
+import type { LocalStorageAdapter } from '../infrastructure/obsidian/plugin-data/continueContextStore';
+import { DeviceLocalStore } from '../infrastructure/obsidian/plugin-data/deviceLocalStore';
+import { editorViewPreferencesStore } from '../infrastructure/obsidian/plugin-data/editorViewPreferencesStore';
+
+/**
+ * The Plan Editor's two per-device slots, each at its OWN key and in its own shape: the side
+ * panels' layout and the View menu's grid and object-snap choices. Two stores rather than one on
+ * purpose — neither reads or writes the other's key.
+ *
+ * Here rather than in `RenovationPlannerPlugin.ts` for the reason this file's header gives: the
+ * second merge of main brought one slot from each branch into a plugin both had left at exactly
+ * its 400-line cap. Neither store holds state past its adapter and key, so building them per call
+ * answers identically to sharing them, and a rebind loses nothing.
+ */
+export function planEditorDeviceSlots(adapter: LocalStorageAdapter, pluginId: string, logger: Logger) {
+	return {
+		panelLayout: new DeviceLocalStore(adapter, `${pluginId}:panel-layout`, logger),
+		viewPreferences: editorViewPreferencesStore(adapter, `${pluginId}:editor-view`, logger),
+	};
+}
 
 /**
  * Moved out of `composition-root.ts` at the merge with the Renovation Planner Home branch, for
@@ -80,6 +103,7 @@ export function planEditorDeps(
 					createZone: persistence.createZone,
 					createPlan: persistence.createPlan,
 					referencePlan: guardedReferencePlan(referencePlanServices(persistence.plans, persistence.geometry, root.eventBus, persistence.files), root.logger),
+					planNorth: guardedPlanNorth(planNorthServices(persistence.plans, root.eventBus), root.logger),
 					moveObject: persistence.moveZone,
 					deleteZone: persistence.deleteZone,
 					zones: persistence.zones,

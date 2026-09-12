@@ -6,6 +6,8 @@ import { PLAN_EDITOR_CONTEXT, type PlanEditorContext, type DeviceStorage } from 
 import { createEditorClipboard, type EditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../src/presentation/editor/runtime';
+import { useEditorStore } from '../../src/presentation/stores/EditorStore';
+import { DEFAULT_VIEWPORT } from '../../src/presentation/editor/viewport/Viewport';
 import {
 	unavailablePlanEditorCommands,
 	type PlanEditorCommandServices,
@@ -65,6 +67,10 @@ export interface EditorHarnessOptions {
 	readonly clipboard?: EditorClipboard;
 	/** Where this leaf's side panel layout persists; defaults to a fresh in-memory slot. */
 	readonly panelLayout?: DeviceStorage;
+	/** The device's View preferences; two mounts given one holder are two plans on one device. */
+	readonly viewPreferences?: PlanEditorContext['viewPreferences'];
+	/** Keep the camera the plan opened framed on, rather than the default one every other case drives. */
+	readonly openingFit?: boolean;
 	/**
 	 * Skip the ordinary post-mount `resizeTo` this harness otherwise gives the shell root, so a
 	 * case can size the root a different way — `clientWidthFor` (`tests/helpers/layout.ts`) —
@@ -246,6 +252,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		vault: options.vault ?? emptyBackgroundVault(),
 		clipboard: options.clipboard ?? createEditorClipboard(),
 		panelLayout: options.panelLayout ?? memoryDeviceStorage(),
+		viewPreferences: options.viewPreferences,
 		onThemeChange: (listener) => {
 			themeListeners.add(listener);
 			return () => themeListeners.delete(listener);
@@ -325,6 +332,13 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		placeAt(canvasEl, 0, 0, 800, 600);
 		resizeTo(canvasEl, 800, 600);
 		await settle();
+		// That resize is the stage's first area, which is when a plan frames its items. Most cases
+		// drive screen coordinates they worked out against the default camera, so the harness
+		// puts it back unless the case is about that opening frame.
+		if (options.openingFit !== true) {
+			useEditorStore(pinia).viewport = DEFAULT_VIEWPORT;
+			await settle();
+		}
 	}
 
 	return {

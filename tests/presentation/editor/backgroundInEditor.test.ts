@@ -77,7 +77,7 @@ describe('a plan with a background', () => {
 		const appearance = { crop: { x: 20, y: 30, width: 200, height: 100 }, rotation: 90, opacity: 0.4, visible: true, locked: true };
 		harness = await mountPlanEditor({
 			plan: { ...planWith({ path: PNG, kind: 'image', appearance }), calibration: { pointA: { x: 0, y: 0 }, pointB: { x: 200, y: 0 }, knownDistance: 200, pixelsPerWorldUnit: 0.5 } },
-			vault: vaultWith([PNG]), zones: [],
+			vault: vaultWith([PNG]), zones: [], openingFit: true,
 		});
 		await settle();
 		const image = backgroundImage(harness);

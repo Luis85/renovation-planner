@@ -25,9 +25,12 @@ import { useSpatialRecords } from './useSpatialRecords';
 const props = defineProps<{ plan: PlanDto | null }>();
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
-const { stale } = storeToRefs(useProjectStore());
+const project = useProjectStore();
+const { stale } = storeToRefs(project);
 const { hierarchy } = storeToRefs(usePlanHierarchyStore());
 const records = useSpatialRecords();
+/** The mode governs rooms, walls, openings and elements alike, so its control counts them all. */
+const selectable = computed(() => records.value.length + project.structure.walls.length + project.structure.openings.length + (project.structure.elements?.length ?? 0));
 // Per-leaf on the runtime so selection mode survives panel reflow.
 const toggleSelection = runtime.multiSelectionMode;
 const workspace = useWorkspaceStore();
@@ -105,10 +108,10 @@ const entries = computed(() => {
 				v-if="records.length > 0"
 				:records="records"
 				:heading="tr('editor.selection.records')"
-				:toggle-selection="toggleSelection"
 			/>
+			<!-- Stays while ON: the mode also governs canvas clicks, so it must never be left unreachable. -->
 			<div
-				v-if="records.length > 1"
+				v-if="selectable > 1 || toggleSelection"
 				class="rp-property-rooms__footer"
 			>
 				<label>
@@ -119,7 +122,9 @@ const entries = computed(() => {
 					>
 					{{ tr('editor.selection.toggle-mode') }}
 				</label>
-				<p>{{ tr('editor.selection.hint') }}</p>
+				<p v-if="selectable > 1">
+					{{ tr('editor.selection.hint') }}
+				</p>
 			</div>
 		</PanelSection>
 		<PanelSection

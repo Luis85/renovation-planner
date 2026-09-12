@@ -14,13 +14,13 @@ describe('reference appearance schema upgrade', () => {
 		const plan = makePlan({ projectId: makeProject().id, background: { path: 'old.pdf', kind: 'pdf' } }), raw = planToPersistence(plan, 3);
 		const before = structuredClone(raw), migrations = createMigrationRunner(MIGRATION_SET);
 		const latest = migrations.migrateToLatest('plan', raw, 1);
-		expect(raw).toEqual(before); expect(latest).toEqual({ ...raw, 'schema-version': 9 });
-		expect(migrations.migrateToLatest('plan', latest, 9)).toEqual(latest);
+		expect(raw).toEqual(before); expect(latest).toEqual({ ...raw, 'schema-version': 10 });
+		expect(migrations.migrateToLatest('plan', latest, 10)).toEqual(latest);
 		const check = PlanFrontmatterSchema.safeParse(latest);
 		expect(check.success).toBe(true);
 		expect(expectOk(planFromPersistence(latest, null)).background).toEqual({ path: 'old.pdf', kind: 'pdf', page: 1 });
 		expect(expectOk(planFromPersistence(raw, null)).background?.appearance).toBeUndefined();
-		expect(migrations.lastApplied).toBe('plan: 8 -> 9');
+		expect(migrations.lastApplied).toBe('plan: 9 -> 10');
 	});
 	it('writes v2 for prepared references and prevents a legacy reader from dropping transforms', () => {
 		const appearance = { crop: { x: 0, y: 0, width: 300, height: 200 }, rotation: -90, opacity: 0, visible: false, locked: false };
@@ -33,7 +33,7 @@ describe('reference appearance schema upgrade', () => {
 	it('refuses malformed appearance and future versions instead of defaulting silently', () => {
 		const raw = planToPersistence(makePlan({ projectId: makeProject().id, background: { path: 'old.png', kind: 'image' } }), 1);
 		expect(planFromPersistence({ ...raw, 'schema-version': 2, 'reference-appearance': { crop: 'bad' } }, null)).toMatchObject({ ok: false });
-		expect(() => createMigrationRunner(MIGRATION_SET).migrateToLatest('plan', raw, 10)).toThrow(/newer than this build supports/);
+		expect(() => createMigrationRunner(MIGRATION_SET).migrateToLatest('plan', raw, 11)).toThrow(/newer than this build supports/);
 		const migration = expectDefined(PLAN_MIGRATIONS[0], 'migration');
 		expect(migration.migrate(null)).toBeNull(); expect(migration.migrate('invalid')).toBe('invalid');
 	});

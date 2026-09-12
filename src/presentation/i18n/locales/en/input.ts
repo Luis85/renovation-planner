@@ -1,5 +1,7 @@
 export const inputEn = {
 	'editor.input.pan': 'Pan',
+	'editor.input.switch-to-pan': 'Switch to pan mode',
+	'editor.input.switch-to-select': 'Switch to select mode',
 	'editor.input.context': 'Plan actions',
 	'editor.input.edit': 'Edit',
 	'editor.input.rename': 'Rename',

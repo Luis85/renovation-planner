@@ -89,6 +89,8 @@ it('creates a detail plan named after the zone, opens it, and then lists it unde
 	expect(created).toMatchObject({ name: 'House', parent: { planId: HARNESS_PLAN.id, zoneId: house.id } });
 
 	await r.menu();
+	// The zone's linked plan is the menu's first item, with New detail plan beside it.
+	expect(r.harness.wrapper.findAll('[data-rp-context-action]').slice(0, 2).map(item => item.attributes('data-rp-context-action'))).toEqual([`detail-plan-open:${created.id}`, 'detail-plan-new']);
 	await r.harness.wrapper.get(`[data-rp-context-action="detail-plan-open:${created.id}"]`).trigger('click');
 	await settle();
 	expect(r.opened).toEqual([created.id, created.id]);

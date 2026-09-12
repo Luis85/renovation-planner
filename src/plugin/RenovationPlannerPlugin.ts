@@ -29,7 +29,7 @@ import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import { activateNotices, disposeNotices, noticeOnlySinks, notifyFault } from '../presentation/notices/notify';
 import { surfaceError } from '../presentation/errors/surfaceError';
 import { assetDesignerDeps } from './assetDesignerDeps';
-import { planEditorDeps } from './planEditorDeps';
+import { planEditorDeps, planEditorDeviceSlots } from './planEditorDeps';
 import { assetLibraryDeps } from './assetLibraryDeps';
 import {
 	createCompositionRoot,
@@ -43,7 +43,6 @@ import type { LibraryPersistOutcome } from './settings/libraryMigration';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { ContinueContextStore } from '../infrastructure/obsidian/plugin-data/continueContextStore';
-import { DeviceLocalStore } from '../infrastructure/obsidian/plugin-data/deviceLocalStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { runDetached } from './runDetached';
@@ -755,15 +754,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 	/**
 	 * ONE spelling of the Plan Editor's bundle, for the factory and the rebind.
 	 *
-	 * The panel-layout slot is constructed here rather than memoised beside `continueStore`
-	 * below: unlike that store, `DeviceLocalStore` holds no state of its own past the adapter
-	 * and key it was built with — every `read`/`write` goes straight through to `this.app` — so
-	 * a fresh instance per call answers identically to a shared one, and there is nothing a
-	 * rebind could lose.
+	 * The two per-device slots are built per call rather than memoised beside `continueStore`
+	 * below: unlike that store, neither holds state of its own past the adapter and key it was
+	 * built with — every `read`/`write` goes straight through to `this.app` — so a fresh instance
+	 * per call answers identically to a shared one, and there is nothing a rebind could lose.
 	 */
 	private planEditorViewDeps(): PlanEditorDeps {
-		const panelLayout = new DeviceLocalStore(this.app, `${this.manifest.id}:panel-layout`, this.root.logger);
-		return planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard, panelLayout);
+		const { panelLayout, viewPreferences } = planEditorDeviceSlots(this.app, this.manifest.id, this.root.logger);
+		return { ...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard, panelLayout), viewPreferences };
 	}
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */

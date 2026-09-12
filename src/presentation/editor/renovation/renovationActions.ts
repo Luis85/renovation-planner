@@ -46,6 +46,12 @@ function currentContext(roomId: string, targetId: EntityId<string> | undefined, 
 	const room = project.zones.has(targetId) ? targetId : null;
 	return { roomId: room ?? (targetId === session.targetId ? session.roomId : roomId), targetId };
 }
+/** Any present zone; or no room while the session target is a wall, opening or element (ADR-0029). */
+function editableContext(roomId: string, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>): boolean {
+	if (roomId) return project.zones.has(roomId);
+	const target = session.targetId, structure = project.structure;
+	return [...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === target);
+}
 
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {
 	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore(), planning = usePlanningReadState(), workspace = useWorkspaceStore();
@@ -101,14 +107,8 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		return alive && context.commands.renovation ? runtime.dispatcher.run(context.commands.renovation.command(read, input, runtime.structureTask.ledger))
 			: Promise.resolve(err(undoSuperseded(context.planId as PlanId)));
 	}
-	/** Any present zone; or no room while the session target is a wall, opening or element (ADR-0029). */
-	function editableContext(roomId: string): boolean {
-		if (roomId) return project.zones.has(roomId);
-		const target = session.targetId, structure = project.structure;
-		return [...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === target);
-	}
 	async function edit(kind: RenovationEditKind, roomId: string, id = ''): Promise<void> {
-		if (blocked.value || dialogs.current || !editableContext(roomId)) return;
+		if (blocked.value || dialogs.current || !editableContext(roomId, project, session)) return;
 		loading.value = true;
 		const selected = selection.selectedIds.join('|');
 		try {

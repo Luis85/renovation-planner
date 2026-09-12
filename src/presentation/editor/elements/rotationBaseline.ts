@@ -30,13 +30,15 @@ export interface RotationBaseline {
 	labelCommand(offset: Vector): UndoableCommand;
 }
 /** Source-specific reads/commands retain the existing guarded Zone and two-document element paths, for a turn and for a dragged caption alike. */
-async function readZoneBaseline(context: PlanEditorContext, shape: NamedRotationShape, ledger: SessionWriteLedger) {
+async function readZoneBaseline(context: PlanEditorContext, project: ReturnType<typeof useProjectStore>, shape: NamedRotationShape, ledger: SessionWriteLedger) {
 
 		const loaded = await new GetZone(context.commands.zones).execute({ zoneId: shape.id as ZoneId });
 		if (!loaded.ok) return loaded;
 		if (!loaded.value || loaded.value.entity.planId !== context.planId) return err(staleWriteRefusal());
 		const { entity, version } = loaded.value;
-		if (entity.name !== shape.name || JSON.stringify(entity.geometry.points) !== JSON.stringify(shape.points) || JSON.stringify(entity.geometry.bulges) !== JSON.stringify(shape.bulges)) return err(staleWriteRefusal());
+		if (entity.name !== shape.name || JSON.stringify(entity.geometry.points) !== JSON.stringify(shape.points) || JSON.stringify(entity.geometry.bulges) !== JSON.stringify(shape.bulges)
+			// A peer's caption drop this leaf has not projected yet is as stale as a peer's move (ADR-0029).
+			|| JSON.stringify(entity.labelOffset) !== JSON.stringify(project.zones.get(shape.id)?.labelOffset ?? null)) return err(staleWriteRefusal());
 		const move: MoveCommand = { execute: input => context.commands.moveObject.execute({ ...input, expected: input.expected ?? version }) };
 		return ok<RotationBaseline>({ shape: { ...shape, ...entity.geometry },
 			command: points => new ReversibleMoveZoneCommand(move, ledger, entity.id, { ...entity.geometry, points }, entity.geometry),
@@ -57,5 +59,5 @@ async function readElementBaseline(context: PlanEditorContext, project: ReturnTy
 }
 
 export function readRotationBaseline(context: PlanEditorContext, project: ReturnType<typeof useProjectStore>, shape: NamedRotationShape, ledger: SessionWriteLedger) {
-	return shape.kind === 'room' || shape.kind === 'area' ? readZoneBaseline(context, shape, ledger) : readElementBaseline(context, project, shape, ledger);
+	return shape.kind === 'room' || shape.kind === 'area' ? readZoneBaseline(context, project, shape, ledger) : readElementBaseline(context, project, shape, ledger);
 }

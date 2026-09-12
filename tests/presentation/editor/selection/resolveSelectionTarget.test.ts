@@ -157,4 +157,12 @@ describe('resolveSelectionTarget caption grabs', () => {
 		expect(resolveSelectionTarget({ ...hit, labels: corner, selectedIds: ['room'], worldPoint: { x: 0, y: 0 } })).toEqual({ kind: 'handle', id: 'room', vertexIndex: 0 });
 		expect(resolveSelectionTarget({ ...hit, labels: corner, selectedIds: ['room'], worldPoint: { x: 90, y: 90 } })).toEqual({ kind: 'label', id: 'room' });
 	});
+
+	it('gives two overlapping selected captions to the later entry, which is the more recently selected item', () => {
+		const other = square('other', 200, 200, 1000);
+		const overlapping = [labels[0], { id: 'other', bounds: { min: { x: 450, y: 480 }, max: { x: 650, y: 560 } }, offset: { dx: 0, dy: 0 } }];
+		const both = { ...hit, candidates: [room, other], labels: overlapping, selectedIds: ['room', 'other'] };
+		expect(resolveSelectionTarget(both)).toEqual({ kind: 'label', id: 'other' });
+		expect(resolveSelectionTarget({ ...both, labels: overlapping.toReversed() })).toEqual({ kind: 'label', id: 'room' });
+	});
 });

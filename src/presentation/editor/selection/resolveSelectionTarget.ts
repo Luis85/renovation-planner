@@ -54,8 +54,9 @@ function labelAt(input: {
 	readonly labelToleranceWorld?: number;
 }): SelectionTarget {
 	const labels = input.labels ?? [], pad = input.labelToleranceWorld ?? 0, { x, y } = input.worldPoint;
-	// Later captions are painted last, so overlapping captions follow the visible stacking. A caption
-	// whose item is not a candidate (locked, or on a hidden layer) is not drawn to be grabbed.
+	// `labels` arrive in selection order, so where selected captions overlap the most recently selected
+	// item's caption wins. A caption whose item is not a candidate (locked, or on a hidden layer) is not
+	// drawn to be grabbed.
 	for (let index = labels.length - 1; index >= 0; index -= 1) {
 		const { id, bounds } = labels[index];
 		if (!input.selectedIds.includes(id) || !input.candidates.some(candidate => candidate.id === id)) continue;

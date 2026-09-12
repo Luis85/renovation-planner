@@ -10,7 +10,7 @@ export interface NumberedPin extends Point { readonly number: number }
 export function evidencePinWidth(number: number): number { return Math.max(44, 30 + String(number).length * 9); }
 
 /** A room caption's name-and-area block, in screen px around its anchor: what obstacles clear. A caption drag grabs the drawn text instead (`ROOM_CAPTION_TEXT`). */
-export const CAPTION_BOUNDS_PX = { halfWidth: 91, top: -24, bottom: 32 } as const;
+const CAPTION_BOUNDS_PX = { halfWidth: 91, top: -24, bottom: 32 } as const;
 const CAPTION = CAPTION_BOUNDS_PX, PIN_HALF_HEIGHT = 15, GAP = 6, TEXT_PX = 14;
 
 /**

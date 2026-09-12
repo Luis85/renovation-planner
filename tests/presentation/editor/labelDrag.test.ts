@@ -21,6 +21,7 @@ import { NO_HIERARCHY } from '../../../src/presentation/read-models/planHierarch
 import { measureLabelWidth } from '../../../src/presentation/editor/labels/labelLayout';
 import { formatArea } from '../../../src/presentation/editor/shell/formatArea';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useRenovationSession } from '../../../src/presentation/editor/renovation/renovationSession';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 import type { BoundingBox } from '../../../src/core/geometry/BoundingBox';
 
@@ -80,6 +81,31 @@ it('grabs no caption in the select-multiple mode, and an unselected room still m
 	await settleUntil(() => rig.project.zones.get(zone.id)?.points[0].x !== 0, 'room body drag');
 	expect(rig.project.zones.get(zone.id)?.labelOffset).toBeUndefined();
 	expect(rig.runtime.renderState.labelPreview).toBeNull();
+});
+
+it('offers no caption outside the plan perspective or the Select tool (ADR-0029 interaction rules)', async () => {
+	const { rig } = await roomRig(), session = useRenovationSession(rig.pinia);
+	expect(rig.runtime.labelActions.hits.value).not.toEqual([]);
+	session.perspective = 'renovate'; await settle();
+	expect(rig.runtime.labelActions.hits.value).toEqual([]);
+	session.perspective = 'plan'; await settle();
+	expect(rig.runtime.labelActions.hits.value).not.toEqual([]);
+	rig.runtime.setTool('draw-path'); await settle();
+	expect(rig.runtime.labelActions.hits.value).toEqual([]);
+});
+
+it('refuses a caption drop on a room whose saved caption moved underneath it, and writes nothing', async () => {
+	const { rig, zone } = await roomRig();
+	const saved = expectDefined(expectOk(await rig.stack.zones.getById(zone.id)), 'saved room');
+	// Another leaf's drop, not yet projected here: the name, points and bulges all still match.
+	expectOk(await rig.stack.zones.save(saved.entity.withLabelOffset({ dx: 700, dy: 0 }), saved.version));
+	const before = [...rig.stack.vault.entries];
+	await rig.runtime.labelActions.move(zone.id, { dx: 1, dy: 1 }); await settle();
+	expect([...rig.stack.vault.entries]).toEqual(before);
+	expect(expectDefined(expectOk(await rig.stack.zones.getById(zone.id)), 'room after the drop').entity.labelOffset).toEqual({ dx: 700, dy: 0 });
+	// The refusal refreshed the projection, so the same drop over the saved offset now goes through.
+	await rig.runtime.labelActions.move(zone.id, { dx: 1, dy: 1 }); await settle();
+	expect(expectDefined(expectOk(await rig.stack.zones.getById(zone.id)), 'room after a second drop').entity.labelOffset).toEqual({ dx: 1, dy: 1 });
 });
 
 /** A room whose caption was moved and saved, projected; the renovation and planning baselines must still match it. */

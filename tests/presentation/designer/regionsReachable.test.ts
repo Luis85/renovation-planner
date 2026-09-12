@@ -38,7 +38,7 @@
  * first. An instrument that reaches nothing looks exactly like a clean tree, so it is proven to
  * REPORT an unreachable component before it is pointed at `src/`.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO } from '../../helpers/repo';
@@ -163,12 +163,25 @@ function componentsUnder(dir: string): string[] {
 
 describe('every asset designer component', () => {
 	/**
+	 * ONE walk, in a hook with its own budget, shared by both cases — not one per case under
+	 * vitest's default 5 s. The walk parses every file it reaches under `src/presentation/` and
+	 * took 512 ms cold on this machine on 2026-09-13; the Windows CI leg runs several times slower
+	 * under contention (a sibling parse of 1.49 s overran 5 s there), so a case's budget covers
+	 * its assertions and the read that feeds them is paid here.
+	 */
+	const WALK_MS = 60_000;
+	let reached!: ReadonlySet<string>;
+	beforeAll(() => {
+		reached = reachableFrom(ENTRY, nodeTree, ['src/presentation/']);
+	}, WALK_MS);
+
+	/**
 	 * The instrument must reach something, or a clean report means nothing. Both halves: there is
 	 * a designer component to find at all, and the walk found more than the file it started at.
 	 */
 	it('has components to check, and a walk that reaches past its entry', () => {
 		expect(componentsUnder(DESIGNER).length).toBeGreaterThan(0);
-		expect(reachableFrom(ENTRY, nodeTree, ['src/presentation/']).size).toBeGreaterThan(1);
+		expect(reached.size).toBeGreaterThan(1);
 	});
 
 	/**
@@ -176,8 +189,6 @@ describe('every asset designer component', () => {
 	 * names the component somebody forgot to mount instead of saying a number went up.
 	 */
 	it('is reachable from the view that mounts the designer', () => {
-		const reached = reachableFrom(ENTRY, nodeTree, ['src/presentation/']);
-
 		expect(componentsUnder(DESIGNER).filter((file) => !reached.has(file))).toEqual([]);
 	});
 });

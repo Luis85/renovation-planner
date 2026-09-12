@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { callsOf, namesIdentifier, parseScript, parseSource, type ParsedScript } from '../../helpers/parsedSource';
@@ -79,7 +79,10 @@ const sources = (dir: string): string[] =>
 		return entry.name.endsWith('.ts') ? [full] : [];
 	});
 
-/** A module, parsed once per case that asks. */
+/** Every `.ts` under `src/`, listed once. */
+const SRC = sources('src');
+
+/** A module, parsed once and shared by every case; `beforeAll` below fills it before the first asks. */
 const parsed = new Map<string, ParsedScript>();
 const scriptOf = (file: string): ParsedScript => {
 	let script = parsed.get(file);
@@ -87,10 +90,25 @@ const scriptOf = (file: string): ParsedScript => {
 	return script;
 };
 
+/**
+ * The whole tree is parsed HERE, under its own budget, and not inside the first case that
+ * happens to ask. The TypeScript parse of every source (705 files on 2026-09-13) took 1.49 s on
+ * this machine, cold, when it ran inside `finds the subscriber modules at all` — and on the
+ * Windows CI leg, which runs the suite several times slower under contention (that run took
+ * 1086 s end to end), the same case overran vitest's default 5 s and reddened the gate while the
+ * three Ubuntu legs were green. The text scan this parse replaced was cheap enough to hide in a
+ * case; a parse is not, so it gets the shape every other slow one-time read here has: a hook
+ * with a measured budget, and cases whose 5 s cover only their own assertions.
+ */
+const PARSE_MS = 60_000;
+beforeAll(() => {
+	for (const file of SRC) scriptOf(file);
+}, PARSE_MS);
+
 const REGISTRATION_CALLS = ['subscribe', 'subscribeAll'] as const;
 
 const registrars = (): string[] =>
-	sources('src').filter((file) => REGISTRATION_CALLS.some((callee) => callsOf(scriptOf(file).file, scriptOf(file), callee).length > 0));
+	SRC.filter((file) => REGISTRATION_CALLS.some((callee) => callsOf(scriptOf(file).file, scriptOf(file), callee).length > 0));
 
 /**
  * The judgement half's three arms, spelled ONCE so the rule below and the controls below that
@@ -135,7 +153,7 @@ const LOCK_SPECIMENS: Record<keyof typeof LOCK_ARMS, readonly string[]> = {
  * stood here, and a floor cannot tell four registrars silently dropping out of the scan from a
  * tree that has four fewer; this cannot be satisfied by any subset.
  */
-const changeSources = (): string[] => sources('src').filter((file) => file.endsWith('ChangeSource.ts'));
+const changeSources = (): string[] => SRC.filter((file) => file.endsWith('ChangeSource.ts'));
 
 const namesALock = (file: string): boolean => Object.values(LOCK_ARMS).some((arm) => arm(scriptOf(file)));
 
@@ -171,9 +189,9 @@ describe('subscriber modules and the reference locks', () => {
 		// Both controls above read LOCK_ARMS directly, so they survive namesALock itself
 		// being broken — an `every` for a `some`, an `&& false`, an inverted return. This
 		// brackets the predicate the rule below actually calls.
-		const matched = sources('src').filter((file) => namesALock(file));
+		const matched = SRC.filter((file) => namesALock(file));
 		expect(matched).toEqual(expect.arrayContaining(Object.values(ANCHORS)));
-		expect(matched.length).toBeLessThan(sources('src').length);
+		expect(matched.length).toBeLessThan(SRC.length);
 	});
 
 	it('no module registering a subscriber names a reference lock', () => {

@@ -9,6 +9,7 @@ const runtime = useEditorRuntime();
 <template>
 	<button
 		type="button"
+		class="rp-inspector-action"
 		data-rp-action="area-details"
 		:aria-disabled="runtime.areaDetails.areaDetailsBlocked.value"
 		@click="runInspectorAction($event, 'area-details', () => runtime.areaDetails.editAreaDetails(zoneId))"

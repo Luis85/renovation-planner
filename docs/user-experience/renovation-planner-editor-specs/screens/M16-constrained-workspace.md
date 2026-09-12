@@ -52,6 +52,9 @@ This screen defines graceful behavior when the editor shares the Obsidian worksp
 - Panel open/closed state independent from selection
 - Preserved viewport and selected entity
 - Layout breakpoint state
+- Full-layout side panel widths and collapsed state, per device (amended 2026-09-12 — the side
+  panels design). They do not apply in the constrained layout: a panel collapsed at full width
+  still opens as an overlay from the rail, and the rail shares the collapsed strip's surface.
 
 ## Accessibility and themes
 

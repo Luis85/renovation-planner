@@ -2,6 +2,7 @@ import type { Vault, Workspace } from 'obsidian';
 import { createCompositionRoot, renovationProjectDeps } from '../../src/plugin/composition-root';
 import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
+import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
 import { navigateToProject } from '../../src/infrastructure/obsidian/workspace/navigateToProject';
@@ -68,7 +69,7 @@ export function downstreamWorkspace(reference: ReturnType<typeof referenceWorksp
 		host.appendChild(view.containerEl);
 		return view;
 	});
-	const native = planEditorDeps(root, workspace as unknown as Workspace, vault, createEditorClipboard());
+	const native = planEditorDeps(root, workspace as unknown as Workspace, vault, createEditorClipboard(), memoryDeviceStorage());
 	const deps = { ...native, vault: reference.deps.vault, onThemeChange: reference.deps.onThemeChange };
 	const leaf = workspace.getLeaf();
 	leaf.state = { type: PLAN_EDITOR_VIEW, state: { planId: reference.plan.id } };

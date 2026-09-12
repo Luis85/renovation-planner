@@ -61,7 +61,11 @@ const AVAILABLE = { state: 'available', reasonKey: null, action: null } as const
  *
  * A detail plan's guide (ADR-0028) draws on this layer, so with a guide and no background the
  * row is a live toggle that says what it shows rather than a disabled row claiming there is
- * nothing to see.
+ * nothing to see. Set scale's own reason follows `hasGuide` too, for the same reason it follows
+ * `writesBlocked`: a second reason mechanism that disagreed with the row's would draw two
+ * contradicting sentences under one row (`LayerRow`'s collapse only draws one when the two keys
+ * agree) — "shows the parent zone's outline" beside "no reference plan has been added", which
+ * PR #143's own merge review found and this fix closes.
  */
 export function layerCatalogue(plan: PlanDto | null, toggles: LayerToggles, writesBlocked = false, hasGuide = false): readonly LayerEntry[] {
 	if (plan === null) return [];
@@ -76,7 +80,9 @@ export function layerCatalogue(plan: PlanDto | null, toggles: LayerToggles, writ
 				labelKey: 'editor.layer.reference-plan.set-scale',
 				toolId: 'calibrate',
 				enabled: hasReference && !writesBlocked,
-				reasonKey: hasReference && writesBlocked ? 'editor.paused.reason' : 'editor.layer.reference-plan.none',
+				reasonKey: hasReference && writesBlocked ? 'editor.paused.reason'
+					: hasGuide ? 'editor.layer.reference-plan.guide-only'
+					: 'editor.layer.reference-plan.none',
 			},
 			...toggles.reference,
 		},

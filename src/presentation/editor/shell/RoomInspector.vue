@@ -17,20 +17,17 @@ import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
  * homeowner-facing TYPE (ADR-0016's seven-member vocabulary, `editor.zone-type.*`) and which
  * FLOOR it is on, beside the same area figure formatted the one way `formatArea` does, and its
  * STATUS through `statusAppearance`'s caption — the one place status is read since it left the
- * canvas (canvas fidelity spec, 2026-09-10). Two
- * navigation lists follow it — `HomeownerQuestionNav` (What's here / What will change / What
- * needs doing) and `LinkedContentList` (Costs, Documents, Photos, Notes) — both driven by
- * `overview.unavailableSections`, `INSPECTOR_SECTIONS`' own closed list of what this build has
- * no query for yet. Every row in both is rendered as text with `editor.inspector.unavailable`
- * rather than as a control that would do nothing; a Feature that supplies one of these removes
- * its section from that list and gives the row a real control.
+ * canvas (canvas fidelity spec, 2026-09-10). One Coming later line follows it (`ComingLaterLine`,
+ * 2026-09-12 side panels spec), naming `overview.unavailableSections` — `INSPECTOR_SECTIONS`'
+ * closed list of what this build has no query for yet — as text rather than as a control that
+ * would do nothing.
  *
  * **`overview` is `null` rather than assumed** while the selected zone cannot yet be found in
  * `ProjectStore`'s own map, or while no plan has hydrated at all — the same "nothing to
  * summarise yet" moment `FloorInspector`'s own `summary` computed already renders nothing
- * for, met a second time here. The type/floor/area `<dl>` and both lists are skipped for
- * exactly that moment; the name (still read off `dto`, never off `overview`) and the Delete
- * button do not depend on it and stay.
+ * for, met a second time here. The type/floor/area `<dl>` and the Coming later line are
+ * skipped for exactly that moment; the name (still read off `dto`, never off `overview`) and
+ * the Delete button do not depend on it and stay.
  *
  * **The room's own name is an `<h3>`, not an `<h2>`.** The frame (`EntityInspector.vue`)
  * already owns the region's one permanent `<h2>` ("Inspector"), and this body is a SECTION
@@ -40,8 +37,8 @@ import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
  * as an `<h4>`.
  *
  * The selection's DTO (SDD §59) carries the zone's name and area, plus slice 8's delete
- * affordance and design slice 10's Requirements panel. Assigning an asset dispatches through
- * `runtime.commitEdit`, the Inspector store's ONE commit path (§59); the two override
+ * affordance and design slice 10's Requirements panel. Assigning an asset (`AssetAssignControl`)
+ * dispatches through `runtime.commitEdit`, the Inspector store's ONE commit path (§59); the two override
  * controls dispatch through `runtime.commitField` instead — `commitEdit`'s fault-guarded
  * sibling over the same `inspector.commit` (design slice 16) — because a resolved refusal
  * there is the ROW's to show under its own input rather than this panel's to notify.
@@ -52,8 +49,12 @@ import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
  *
  * Selection → DTO runs through `InspectorStore.hydrateFrom`, watched off the selection
  * store — the pipeline slice 6 declared, not a second one beside it.
+ *
+ * The frame's group controls arrive through the `actions` slot, drawn directly above Delete so
+ * Delete stays at the foot of the whole Inspector region (side panels spec §3) rather than only
+ * of this body — the same slot name `MultiSelectionInspector` takes them through.
  */
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { zoneTypeLabel } from './zoneTypeLabel';
@@ -62,12 +63,13 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import { formatArea } from './formatArea';
-import { buildRoomOverview, type RoomOverviewDto } from '../../read-models/roomOverview';
+import { buildRoomOverview, type InspectorSection, type RoomOverviewDto } from '../../read-models/roomOverview';
 import { statusAppearance, type StatusAppearance } from '../layers/zone/ZoneRenderModel';
 import RequirementRow from './RequirementRow.vue';
-import HomeownerQuestionNav from './HomeownerQuestionNav.vue';
-import LinkedContentList from './LinkedContentList.vue';
+import ComingLaterLine from './ComingLaterLine.vue';
 import ZoneLockRow from './ZoneLockRow.vue';
+import AssetAssignControl from './AssetAssignControl.vue';
+import HostIcon from '../../components/HostIcon.vue';
 
 const runtime = useEditorRuntime();
 const projectStore = useProjectStore();
@@ -89,10 +91,6 @@ watch(selectedIds, (ids) => void runtime.hydrateInspector(ids), { immediate: tru
 
 const dto = runtime.inspectorDto;
 const requirements = runtime.inspectorRequirements;
-
-/** The assign-asset picker's options; hydrated by the runtime alongside the rows. */
-const assetOptions = runtime.assetOptions;
-const pickedAssetId = ref('');
 
 /**
  * Zone type → its homeowner-facing label key, modelled on `ZoneRenderModel`'s
@@ -120,22 +118,6 @@ const overview = computed<(RoomOverviewDto & { readonly status: StatusAppearance
 });
 
 /**
- * Both guards return early: an empty picker selection is inert rather than a command
- * refused for an id that is the empty string, and `writesBlocked` (design spec §2.9) is a
- * second reason this door must not open — the `aria-disabled` on the button beside it
- * promises exactly this.
- */
-function assignSelected(zoneId: string): void {
-	if (pickedAssetId.value === '' || runtime.writesBlocked.value) return;
-	void runtime.commitEdit({
-		kind: 'assign',
-		zoneId: zoneId as never,
-		assetId: pickedAssetId.value as never,
-	});
-	pickedAssetId.value = '';
-}
-
-/**
  * The Delete flow's own guard, kept at this control the same way every other write control
  * in this task guards its handler: a paused floor must not open the reference-resolution
  * dialog `runtime.deleteZone` can raise.
@@ -151,9 +133,9 @@ function onDeleteZone(): void {
 }
 
 /**
- * Design spec §2.9's pause attributes, extracted rather than repeated per control: Assign
- * and Delete both need the identical pair (`aria-disabled="true"` plus `aria-describedby`
- * naming the shared reason) while paused, and NEITHER attribute while live — never
+ * Design spec §2.9's pause attributes for Delete (Assign has its own in `AssetAssignControl`):
+ * the pair `aria-disabled="true"` plus `aria-describedby`
+ * naming the shared reason while paused, and NEITHER attribute while live — never
  * `aria-disabled="false"`, which is why this answers `{}` rather than a false-valued map.
  * `v-bind="pausedAttrs"` renders byte-identically to the two ternaries it replaces; the
  * extraction is what took this template's cognitive complexity back under budget after this
@@ -168,7 +150,23 @@ const pausedAttrs = computed(() =>
 /** `RequirementRow`'s own `paused` prop, over the same computed rather than the raw ref's
  * `.value` repeated at the one call site — the same reasoning as `pausedAttrs` above. */
 const paused = computed(() => runtime.writesBlocked.value);
-const unavailableNavigation = computed(() => overview.value && !runtime.renovation.available ? overview.value : null);
+
+/**
+ * What the Coming later line names: the three homeowner questions while there is no renovation
+ * session, and the four linked sections unless connected planning supplies them — the same two
+ * conditions Task 16's two navigation lists were mounted under. Read only once
+ * `overview` exists, so a standalone mount with no `renovation` on its runtime never reaches it.
+ */
+const comingLater = computed<readonly InspectorSection[]>(() => {
+	const current = overview.value;
+	if (current === null) return [];
+	const renovation = runtime.renovation.available;
+	const wanted: readonly InspectorSection[] = [
+		...(renovation ? [] : (['existing', 'planned', 'work'] as const)),
+		...(renovation && planning ? [] : (['costs', 'documents', 'photos', 'notes'] as const)),
+	];
+	return wanted.filter((section) => current.unavailableSections.includes(section));
+});
 
 /**
  * The lock row's own version of `pausedAttrs` above: `overview` can be briefly `null` while it
@@ -205,17 +203,21 @@ const zoneLocked = computed(() => overview.value?.record.locked === true);
 			<dd>{{ tr(overview.status.captionKey) }}</dd>
 		</dl>
 
-		<ZoneLockRow
-			:zone-id="dto.id"
-			:name="dto.name"
-			:locked="zoneLocked"
-		/>
+		<div class="rp-inspector-toolbar">
+			<ObjectRotationControls :id="dto.id" />
+			<ZoneLockRow
+				:zone-id="dto.id"
+				:name="dto.name"
+				:locked="zoneLocked"
+			/>
+		</div>
 
-		<ObjectRotationControls :id="dto.id" />
-		<SpatialInspectorActions
-			:zone-id="dto.id"
-			:record="overview?.record"
-		/>
+		<div class="rp-inspector-actions">
+			<SpatialInspectorActions
+				:zone-id="dto.id"
+				:record="overview?.record"
+			/>
+		</div>
 
 		<section
 			class="rp-editor-inspector-requirements"
@@ -241,47 +243,22 @@ const zoneLocked = computed(() => overview.value?.record.locked === true);
 					:paused-reason-id="runtime.pausedReasonId"
 				/>
 			</ul>
-
-			<div class="rp-editor-requirement-assign">
-				<label for="rp-assign-asset">{{ tr('editor.inspector.assign.label') }}</label>
-				<select
-					id="rp-assign-asset"
-					v-model="pickedAssetId"
-				>
-					<option
-						v-for="option in assetOptions"
-						:key="option.id"
-						:value="option.id"
-					>
-						{{ option.name }}
-					</option>
-				</select>
-				<button
-					type="button"
-					v-bind="pausedAttrs"
-					@click="assignSelected(dto.id)"
-				>
-					{{ tr('editor.inspector.assign.button') }}
-				</button>
-			</div>
+			<AssetAssignControl :zone-id="dto.id" />
 		</section>
 
-		<HomeownerQuestionNav
-			v-if="unavailableNavigation !== null"
-			:unavailable="unavailableNavigation.unavailableSections"
-		/>
-		<LinkedContentList
-			v-if="overview !== null && (!runtime.renovation.available || !planning)"
-			:unavailable="overview.unavailableSections"
-		/>
+		<ComingLaterLine :sections="comingLater" />
 
-		<button
-			type="button"
-			class="rp-editor-inspector-delete"
-			v-bind="pausedAttrs"
-			@click="onDeleteZone"
-		>
-			{{ tr('editor.inspector.delete-zone') }}
-		</button>
+		<slot name="actions" />
+
+		<div class="rp-inspector-danger">
+			<button
+				type="button"
+				class="rp-editor-inspector-delete"
+				v-bind="pausedAttrs"
+				@click="onDeleteZone"
+			>
+				<HostIcon name="trash" />{{ tr('editor.inspector.delete-zone') }}
+			</button>
+		</div>
 	</div>
 </template>

@@ -33,6 +33,7 @@
 }
 
 .renovation-plan-editor .rp-element-inspector > p { margin: 0; }
+/* `AssetPlacementDetails` is multi-root, so its action row is a direct child here; without this it takes dialogs.css's flex-end. */
 .renovation-plan-editor .rp-element-inspector > .rp-dialog-actions { justify-content: flex-start; }
 .renovation-plan-editor .rp-element-inspector button { height: auto; min-height: 32px; white-space: normal; }
 
@@ -82,28 +83,39 @@
 }
 
 .renovation-plan-editor .rp-object-rotation-actions {
-	display: grid;
-	grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
 	gap: var(--size-4-1);
 	max-width: 100%;
 	margin-block: var(--size-4-2);
 }
+
 .renovation-plan-editor .rp-object-rotation-actions button {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: var(--size-4-1);
 	min-width: 0;
-	min-height: 36px;
+	min-height: 32px;
 	height: auto;
 	font-size: var(--font-ui-small);
 	white-space: normal;
 }
+
 .renovation-plan-editor .rp-object-rotation-actions .rp-host-icon { flex-shrink: 0; }
-.renovation-plan-editor .rp-object-rotation-actions--host { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.renovation-plan-editor .rp-object-rotation-actions--host > button:first-child { grid-column: 1 / -1; }
+.renovation-plan-editor .rp-object-rotation-actions [data-rp-action='rotate-object'] { flex: 1 1 auto; }
+.renovation-plan-editor .rp-object-rotation-actions--host [data-rp-action='rotate-object'] { flex-basis: 100%; }
+
+.renovation-plan-editor .rp-object-rotation-actions [data-rp-action='rotate-object-left'],
+.renovation-plan-editor .rp-object-rotation-actions [data-rp-action='rotate-object-right'] {
+	flex: 0 0 32px;
+	width: 32px;
+	padding: 0;
+}
+
 .renovation-plan-editor .rp-object-rotation-hint {
-	grid-column: 1 / -1;
+	flex-basis: 100%;
 	margin: 0;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);

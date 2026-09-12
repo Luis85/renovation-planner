@@ -34,21 +34,21 @@ function rotate(event: Event, degrees?: number): Promise<void> { return runInspe
 			type="button"
 			data-rp-action="rotate-object-left"
 			:aria-label="tr('editor.rotation.counterclockwise')"
+			:title="tr('editor.rotation.left-quarter')"
 			:aria-disabled="blocked"
 			@click="rotate($event, -90)"
 		>
 			<HostIcon name="rotate-ccw" />
-			{{ tr('editor.rotation.left-quarter') }}
 		</button>
 		<button
 			type="button"
 			data-rp-action="rotate-object-right"
 			:aria-label="tr('editor.rotation.clockwise')"
+			:title="tr('editor.rotation.right-quarter')"
 			:aria-disabled="blocked"
 			@click="rotate($event, 90)"
 		>
 			<HostIcon name="rotate-cw" />
-			{{ tr('editor.rotation.right-quarter') }}
 		</button>
 		<p
 			v-if="hostWall"

@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { mount } from '@vue/test-utils';
 import type Konva from 'konva';
 import { t } from '../../../../src/presentation/i18n/strings';
+import { ok } from '../../../../src/core/result/Result';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
@@ -178,6 +179,59 @@ describe('the Room Inspector, through the real mounted editor', () => {
 		const unlockedRoom = harness.wrapper.find('.rp-room-inspector');
 		expect(unlockedRoom.find('.rp-editor-inspector-locked').exists()).toBe(false);
 		expect(unlockedRoom.get('[data-rp-lock="zone-terrace"]').attributes('aria-pressed')).toBe('false');
+	});
+
+	/**
+	 * The default mount's catalogue is `fakeQueries`' empty `listAssets`. Both controls take
+	 * `aria-disabled` rather than the native `disabled` (side panels spec §3), so the reason
+	 * stays reachable by Tab — and both name it through `aria-describedby`.
+	 */
+	it('explains an empty asset library beside an aria-disabled picker rather than offering an empty one', async () => {
+		harness = await mountPlanEditorCanvas();
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+		const assign = harness.wrapper.get('.rp-editor-requirement-assign');
+		const reason = t('en', 'editor.inspector.assign.none');
+		const select = assign.get('#rp-assign-asset');
+		expect(select.attributes('aria-disabled')).toBe('true');
+		expect((select.element as HTMLSelectElement).disabled).toBe(false);
+		expect(assign.get(`[id="${select.attributes('aria-describedby') ?? ''}"]`).text()).toBe(reason);
+		expect(assign.get('option').text()).toBe(t('en', 'editor.inspector.assign.placeholder'));
+		const button = assign.get('button');
+		expect(button.attributes('aria-disabled')).toBe('true');
+		expect(assign.get(`[id="${button.attributes('aria-describedby') ?? ''}"]`).text()).toBe(reason);
+	});
+
+	/** The catalogue arrives through the runtime's own read (`listAssets`), never a cast-writable ref. */
+	it('offers a placeholder and the catalogue, with the picker and Assign live, once there are assets', async () => {
+		harness = await mountPlanEditorCanvas({
+			queries: {
+				...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+				listAssets: () => Promise.resolve(ok([{ id: 'asset-tiles', name: 'Floor tiles' }])),
+			},
+		});
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+		const assign = harness.wrapper.get('.rp-editor-requirement-assign');
+		const select = assign.get('#rp-assign-asset');
+		expect(assign.findAll('option').map((option) => option.attributes('value'))).toEqual(['', 'asset-tiles']);
+		expect(select.attributes('aria-disabled')).toBeUndefined();
+		expect(select.attributes('aria-describedby')).toBeUndefined();
+		expect(assign.get('button').attributes('aria-disabled')).toBeUndefined();
+		expect(assign.find('.rp-editor-inspector-empty').exists()).toBe(false);
+	});
+
+	it('draws the rotation and lock controls as one toolbar, the actions as rows, and Delete last with its icon', async () => {
+		harness = await mountPlanEditorCanvas();
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+		const room = harness.wrapper.get('.rp-room-inspector');
+		expect(room.get('.rp-inspector-toolbar').find('[data-rp-lock="zone-kitchen"]').exists()).toBe(true);
+		expect(room.get('.rp-inspector-actions').find('[data-rp-action="edit-outline"]').exists()).toBe(true);
+		const danger = room.get('.rp-inspector-danger');
+		expect(room.element.lastElementChild).toBe(danger.element);
+		expect(danger.get('.rp-editor-inspector-delete').find('.rp-host-icon').exists()).toBe(true);
+		expect(danger.get('.rp-editor-inspector-delete').text()).toBe(t('en', 'editor.inspector.delete-zone'));
 	});
 });
 

@@ -112,6 +112,7 @@
 @import "./editor-reference-viewport.css";
 @import "./editor-shell-fidelity.css";
 @import "./editor-side-panel.css";
+@import "./editor-inspector-skeleton.css";
 @import "./editor-creation-fidelity.css";
 @import "./editor-context-menu.css";
 @import "./editor-groups.css";

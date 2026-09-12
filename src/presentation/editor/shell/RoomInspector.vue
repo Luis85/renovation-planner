@@ -37,8 +37,8 @@ import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
  * as an `<h4>`.
  *
  * The selection's DTO (SDD §59) carries the zone's name and area, plus slice 8's delete
- * affordance and design slice 10's Requirements panel. Assigning an asset dispatches through
- * `runtime.commitEdit`, the Inspector store's ONE commit path (§59); the two override
+ * affordance and design slice 10's Requirements panel. Assigning an asset (`AssetAssignControl`)
+ * dispatches through `runtime.commitEdit`, the Inspector store's ONE commit path (§59); the two override
  * controls dispatch through `runtime.commitField` instead — `commitEdit`'s fault-guarded
  * sibling over the same `inspector.commit` (design slice 16) — because a resolved refusal
  * there is the ROW's to show under its own input rather than this panel's to notify.
@@ -50,7 +50,7 @@ import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
  * Selection → DTO runs through `InspectorStore.hydrateFrom`, watched off the selection
  * store — the pipeline slice 6 declared, not a second one beside it.
  */
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { zoneTypeLabel } from './zoneTypeLabel';
@@ -64,6 +64,8 @@ import { statusAppearance, type StatusAppearance } from '../layers/zone/ZoneRend
 import RequirementRow from './RequirementRow.vue';
 import ComingLaterLine from './ComingLaterLine.vue';
 import ZoneLockRow from './ZoneLockRow.vue';
+import AssetAssignControl from './AssetAssignControl.vue';
+import HostIcon from '../../components/HostIcon.vue';
 
 const runtime = useEditorRuntime();
 const projectStore = useProjectStore();
@@ -85,10 +87,6 @@ watch(selectedIds, (ids) => void runtime.hydrateInspector(ids), { immediate: tru
 
 const dto = runtime.inspectorDto;
 const requirements = runtime.inspectorRequirements;
-
-/** The assign-asset picker's options; hydrated by the runtime alongside the rows. */
-const assetOptions = runtime.assetOptions;
-const pickedAssetId = ref('');
 
 /**
  * Zone type → its homeowner-facing label key, modelled on `ZoneRenderModel`'s
@@ -116,22 +114,6 @@ const overview = computed<(RoomOverviewDto & { readonly status: StatusAppearance
 });
 
 /**
- * Both guards return early: an empty picker selection is inert rather than a command
- * refused for an id that is the empty string, and `writesBlocked` (design spec §2.9) is a
- * second reason this door must not open — the `aria-disabled` on the button beside it
- * promises exactly this.
- */
-function assignSelected(zoneId: string): void {
-	if (pickedAssetId.value === '' || runtime.writesBlocked.value) return;
-	void runtime.commitEdit({
-		kind: 'assign',
-		zoneId: zoneId as never,
-		assetId: pickedAssetId.value as never,
-	});
-	pickedAssetId.value = '';
-}
-
-/**
  * The Delete flow's own guard, kept at this control the same way every other write control
  * in this task guards its handler: a paused floor must not open the reference-resolution
  * dialog `runtime.deleteZone` can raise.
@@ -147,9 +129,9 @@ function onDeleteZone(): void {
 }
 
 /**
- * Design spec §2.9's pause attributes, extracted rather than repeated per control: Assign
- * and Delete both need the identical pair (`aria-disabled="true"` plus `aria-describedby`
- * naming the shared reason) while paused, and NEITHER attribute while live — never
+ * Design spec §2.9's pause attributes for Delete (Assign has its own in `AssetAssignControl`):
+ * the pair `aria-disabled="true"` plus `aria-describedby`
+ * naming the shared reason while paused, and NEITHER attribute while live — never
  * `aria-disabled="false"`, which is why this answers `{}` rather than a false-valued map.
  * `v-bind="pausedAttrs"` renders byte-identically to the two ternaries it replaces; the
  * extraction is what took this template's cognitive complexity back under budget after this
@@ -217,17 +199,21 @@ const zoneLocked = computed(() => overview.value?.record.locked === true);
 			<dd>{{ tr(overview.status.captionKey) }}</dd>
 		</dl>
 
-		<ZoneLockRow
-			:zone-id="dto.id"
-			:name="dto.name"
-			:locked="zoneLocked"
-		/>
+		<div class="rp-inspector-toolbar">
+			<ObjectRotationControls :id="dto.id" />
+			<ZoneLockRow
+				:zone-id="dto.id"
+				:name="dto.name"
+				:locked="zoneLocked"
+			/>
+		</div>
 
-		<ObjectRotationControls :id="dto.id" />
-		<SpatialInspectorActions
-			:zone-id="dto.id"
-			:record="overview?.record"
-		/>
+		<div class="rp-inspector-actions">
+			<SpatialInspectorActions
+				:zone-id="dto.id"
+				:record="overview?.record"
+			/>
+		</div>
 
 		<section
 			class="rp-editor-inspector-requirements"
@@ -253,40 +239,20 @@ const zoneLocked = computed(() => overview.value?.record.locked === true);
 					:paused-reason-id="runtime.pausedReasonId"
 				/>
 			</ul>
-
-			<div class="rp-editor-requirement-assign">
-				<label for="rp-assign-asset">{{ tr('editor.inspector.assign.label') }}</label>
-				<select
-					id="rp-assign-asset"
-					v-model="pickedAssetId"
-				>
-					<option
-						v-for="option in assetOptions"
-						:key="option.id"
-						:value="option.id"
-					>
-						{{ option.name }}
-					</option>
-				</select>
-				<button
-					type="button"
-					v-bind="pausedAttrs"
-					@click="assignSelected(dto.id)"
-				>
-					{{ tr('editor.inspector.assign.button') }}
-				</button>
-			</div>
+			<AssetAssignControl :zone-id="dto.id" />
 		</section>
 
 		<ComingLaterLine :sections="comingLater" />
 
-		<button
-			type="button"
-			class="rp-editor-inspector-delete"
-			v-bind="pausedAttrs"
-			@click="onDeleteZone"
-		>
-			{{ tr('editor.inspector.delete-zone') }}
-		</button>
+		<div class="rp-inspector-danger">
+			<button
+				type="button"
+				class="rp-editor-inspector-delete"
+				v-bind="pausedAttrs"
+				@click="onDeleteZone"
+			>
+				<HostIcon name="trash" />{{ tr('editor.inspector.delete-zone') }}
+			</button>
+		</div>
 	</div>
 </template>

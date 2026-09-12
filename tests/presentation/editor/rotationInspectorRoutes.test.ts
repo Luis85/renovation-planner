@@ -33,6 +33,12 @@ it('opens the canonical rotation form from every eligible Inspector and explains
 		const controls = rig.wrapper.findAll('[data-rp-region="inspector"] .rp-object-rotation-actions');
 		expect(controls).toHaveLength(1);
 		expect(controls[0].findAll('button')).toHaveLength(3);
+		for (const quarter of ['rotate-object-left', 'rotate-object-right']) {
+			const button = controls[0].get(`[data-rp-action="${quarter}"]`);
+			expect(button.text()).toBe('');
+			expect(button.attributes('aria-label')).toBeTruthy();
+			expect(button.attributes('title')).toBeTruthy();
+		}
 		expect(rig.wrapper.findAll('.rp-direct-actions .rp-object-rotation-actions')).toHaveLength(0);
 		expect(controls[0].get('[data-rp-action="rotate-object"]').text()).toContain(id === 'opening-rotation' ? 'Rotate host wall' : 'Rotate by');
 		expect(controls[0].find('.rp-object-rotation-hint').exists()).toBe(id === 'opening-rotation');

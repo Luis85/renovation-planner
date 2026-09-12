@@ -233,6 +233,8 @@ export const editorEn = {
 	'editor.inspector.requirement.missing-asset': 'Asset missing from the catalog.',
 	'editor.inspector.assign.label': 'Assign asset',
 	'editor.inspector.assign.button': 'Assign',
+	'editor.inspector.assign.placeholder': 'Choose an asset',
+	'editor.inspector.assign.none': 'No assets in the library yet',
 	'editor.inspector.quantity-override.label': 'Override quantity for',
 	'editor.inspector.cost-override.label': 'Override cost for',
 	'editor.inspector.override.reset': 'Reset to calculated',

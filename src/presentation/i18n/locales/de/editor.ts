@@ -217,6 +217,8 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.inspector.requirement.missing-asset': 'Objekt fehlt im Katalog.',
 	'editor.inspector.assign.label': 'Objekt zuweisen',
 	'editor.inspector.assign.button': 'Zuweisen',
+	'editor.inspector.assign.placeholder': 'Objekt auswählen',
+	'editor.inspector.assign.none': 'Noch keine Objekte in der Bibliothek',
 	'editor.inspector.quantity-override.label': 'Mengen-Übersteuerung für',
 	'editor.inspector.cost-override.label': 'Kosten-Übersteuerung für',
 	'editor.inspector.override.reset': 'Auf berechneten Wert zurücksetzen',

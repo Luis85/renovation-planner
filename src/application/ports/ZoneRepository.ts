@@ -6,6 +6,7 @@ import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { Expected, EntityVersion, Loaded, RelatedWriteReceipt } from './versioning';
 import type { RepositoryError } from './repositoryErrors';
 import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
+import type { Vector } from '../../core/geometry/Vector';
 import type { GeometryError } from '../../core/errors/AppError';
 
 /** Opaque versions for a sidecar-only geometry write, derived before the write from one note snapshot. */
@@ -37,7 +38,7 @@ export interface ZoneListing {
 }
 
 export interface ZoneRepository {
-	prepareGeometryVersions?(id: ZoneId, geometry: CurvedPolygon): Promise<Result<ZoneGeometryVersions | null, RepositoryError>>;
+	prepareGeometryVersions?(id: ZoneId, geometry: CurvedPolygon & { readonly labelOffset?: Vector }): Promise<Result<ZoneGeometryVersions | null, RepositoryError>>;
 	getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, RepositoryError>>;
 	save(
 		zone: Zone,

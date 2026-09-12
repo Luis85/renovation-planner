@@ -8,7 +8,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createCompositionRoot, type VaultStack } from '../../src/plugin/composition-root';
-import { planEditorDeps } from '../../src/plugin/planEditorDeps';
+import { planEditorDeps, planEditorDeviceSlots } from '../../src/plugin/planEditorDeps';
 import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
@@ -35,6 +35,18 @@ const vaultStack = (): VaultStack =>
 		fileManager: {},
 		metadataCache: { getFileCache: () => null },
 	}) as unknown as VaultStack;
+
+/** A key is persisted data like a command id: renaming one strands what every device remembered. */
+describe('the Plan Editor device slots', () => {
+	it('keys the side panels\' layout and the View menu choices under the plugin id', () => {
+		const keys: string[] = [];
+		const adapter = { loadLocalStorage: (key: string): unknown => { keys.push(key); return null; }, saveLocalStorage: (key: string): void => { keys.push(key); } };
+		const slots = planEditorDeviceSlots(adapter, 'plugin-id', recorder);
+		slots.panelLayout.write({});
+		slots.viewPreferences.write({ gridVisible: true });
+		expect(keys).toEqual(['plugin-id:panel-layout', 'plugin-id:editor-view', 'plugin-id:editor-view']);
+	});
+});
 
 describe('the event bus the root composes', () => {
 	/**

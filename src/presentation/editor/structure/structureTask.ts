@@ -19,7 +19,8 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import { tr } from '../../i18n/strings';
 import { notifyFault } from '../../notices/notify';
 import { StructureTool } from './StructureTool';
-import { addWallPoint, createStructureDraft, validateDraftStructure, mintStructure, numericWallPoint, pickHost, startFromWall, type StructureToolId } from './structureDraft';
+import { resolveWallJoin } from '../../../domain/spatial/wallJoin';
+import { addWallPoint, createStructureDraft, endOnWall, validateDraftStructure, mintStructure, numericWallPoint, pickHost, startFromWall, type StructureToolId } from './structureDraft';
 
 /**
  * `ledger` is the EDITOR's ledger, the one `buildRuntime` hands every other adapter — never a
@@ -58,15 +59,25 @@ export function createStructureTask(context: PlanEditorContext, runtime: Pick<Ed
 		} catch (cause) { if (alive && ticket === generation) notifyFault(cause, context.commands.logger, 'editor.structure.read-failed'); }
 		finally { if (ticket === generation) draft.loading = false; }
 	}
+	/** A typed point that lies on a wall body — within one millimetre, since typed geometry is whole-millimetre — joins it exactly as a click there. */
 	function addNumeric(): boolean {
 		if (blocked.value) return false;
 		const point = numericWallPoint(draft);
 		if (!point) { draft.error = spatialError('numeric'); return false; }
-		const added = addWallPoint(draft, point, project.structure);
-		if (added) draft.text.length = '';
-		return added;
+		const structure = project.structure, join = resolveWallJoin({ walls: structure.walls, point, tolerance: 1 });
+		const added = !join ? addWallPoint(draft, point, structure)
+			: !draft.points.length ? startFromWall(draft, structure, join.wallId, join.point, 1)
+			: endOnWall(draft, structure, join);
+		if (!added) return false;
+		draft.text.length = '';
+		if (draft.joins.end) void finish();
+		return true;
 	}
-	function undoPoint(): void { if (!blocked.value) { draft.points.pop(); draft.room = false; draft.error = null; } }
+	function undoPoint(): void {
+		if (blocked.value) return;
+		draft.points.pop(); draft.room = false; draft.error = null; draft.joins.end = null;
+		if (!draft.points.length) draft.joins.start = null;
+	}
 	function closeLoop(): void { if (!blocked.value && draft.points.length >= 3) addWallPoint(draft, draft.points[0], project.structure); }
 	function roomCommand(points: readonly Point[]) {
 		const command = createZoneHistory(context, ledger, { planId: context.planId as PlanId, name: draft.roomName, zoneType: 'Room', geometry: { points } });

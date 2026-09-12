@@ -6,7 +6,7 @@ import type {
 	ValidationError,
 } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
-import type { Polygon } from '../../../core/geometry/Polygon';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { Vector } from '../../../core/geometry/Vector';
 import type { Command } from '../../../application/commands/Command';
 import type { DispatchOutcome, DispatchResult } from '../../../application/commands/DispatchOutcome';
@@ -82,8 +82,8 @@ export class ReversibleMoveZoneCommand implements UndoableCommand {
 		private readonly moveCommand: MoveCommand,
 		private readonly ledger: WriteLedger,
 		private readonly zoneId: ZoneId,
-		private readonly forward: Polygon & { readonly labelOffset?: Vector | null },
-		private readonly inverse: Polygon & { readonly labelOffset?: Vector | null },
+		private readonly forward: CurvedPolygon & { readonly labelOffset?: Vector | null },
+		private readonly inverse: CurvedPolygon & { readonly labelOffset?: Vector | null },
 	) {}
 
 	execute(): Promise<DispatchResult> {
@@ -101,7 +101,7 @@ export class ReversibleMoveZoneCommand implements UndoableCommand {
 		return this.dispatch(this.inverse);
 	}
 
-	private async dispatch(state: Polygon & { readonly labelOffset?: Vector | null }): Promise<Result<DispatchOutcome, MoveError>> {
+	private async dispatch(state: CurvedPolygon & { readonly labelOffset?: Vector | null }): Promise<Result<DispatchOutcome, MoveError>> {
 		const expected = this.hasWritten ? this.ledger.lastWritten(this.zoneId) : undefined;
 		// A caption drag hands identical geometry both ways and only its offset differs; a plain move carries none.
 		const { labelOffset, ...geometry } = state;

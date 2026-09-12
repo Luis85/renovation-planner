@@ -1,10 +1,18 @@
 import { useOpeningMoveAction } from '../structure/useOpeningMoveAction';
-import { computed } from 'vue';
+import { computed, inject } from 'vue';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
+import { insertPathPoint, insertRingPoint } from '../../../core/geometry/insertPoint';
+import { splitWall } from '../../../domain/spatial/splitWall';
+import { projectOntoWall, wallLength } from '../../../domain/spatial/Structure';
+import type { ZoneDto } from '../../read-models/PlanDto';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../PlanEditorContext';
+import { moveGesture } from '../tools/registerEditorTools';
+import { mapDispatchFaults, reportDispatchFailure } from '../report-failure';
 import type { StringKey } from '../../i18n/locales/en';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorStore } from '../../stores/EditorStore';
-import { useEditorRuntime } from '../runtime';
+import { DISPATCH_FAULT_EVENT, useEditorRuntime } from '../runtime';
 import { useSelectionStore } from './selection-store';
 import { usePlanFrame } from '../viewport/usePlanFrame';
 import { useCanvasGroupActions } from './canvasGroupActions';
@@ -40,12 +48,42 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		const nothingToFit = frame(ids.length === 0) === null;
 		return { id: 'fit', label: ids.length ? 'editor.view.fit-selection' : 'editor.view.fit-floor', group: 'view', icon: 'maximize', disabled: nothingToFit, ...(nothingToFit && ids.length === 0 ? { reason: 'editor.view.fit-nothing' as const } : {}), run: () => fit(ids.length === 0) };
 	}
+	/** The pixel reach a wall end snaps within, the one `StructureTool` gives a pointer, in world millimetres. */
+	const reach = (): number => Math.min(100, 8 * worldPerScreenPixel(editor.viewport, STAGE_PIXELS));
+	/**
+	 * `inject` rather than `usePlanEditorContext()`, and read only when a zone's point is added: every real menu mounts
+	 * inside `PlanEditorRoot`, while `canvasContextMenuStandalone.test.ts` mounts one outside it that never opens.
+	 */
+	const context = inject(PLAN_EDITOR_CONTEXT);
+	/** The drag's own reversible command, so undo removes the point exactly as it restores a dragged corner. */
+	async function reshapeZone(zone: ZoneDto, next: CurvedPolygon): Promise<void> {
+		const editorContext = context as PlanEditorContext, dispatcher = mapDispatchFaults(runtime.dispatcher, editorContext.commands.logger, DISPATCH_FAULT_EVENT);
+		const result = await dispatcher.run(moveGesture(editorContext, runtime.structureTask.ledger)(zone.id as ZoneId, next, { points: zone.points, bulges: zone.bulges }));
+		if (!result.ok) reportDispatchFailure(result.error);
+	}
+	/** A point where the menu opened, on the nearest edge of a zone, wall, path or fence, for its handle to drag; none where it would land on a point already there. */
+	function addPointActions(id: string, blocked: boolean): CanvasMenuAction[] {
+		const at = opened(), tolerance = reach(), zone = project.zones.get(id), wall = project.structure.walls.find(item => item.id === id);
+		const element = project.structure.elements?.find(item => item.id === id && (item.kind === 'path' || item.kind === 'fence'));
+		const base = { id: 'add-point', label: 'editor.input.add-point', group: 'edit', icon: 'plus' } as const;
+		if (zone) {
+			const next = insertRingPoint(zone, at, tolerance);
+			return next ? [{ ...base, disabled: blocked, run: () => reshapeZone(zone, next) }] : [];
+		}
+		if (wall) {
+			const offset = Math.round(projectOntoWall(wall, at).offset);
+			if (Math.min(offset, wallLength(wall) - offset) <= tolerance) return [];
+			const refused = !splitWall(project.structure, id, offset, 'wall-probe').ok;
+			return [{ ...base, disabled: blocked || refused || runtime.structureActions.active.value, reason: refused ? 'editor.structure.error.opening-split' : undefined, run: () => runtime.structureActions.addPoint(id, offset) }];
+		}
+		const points = element ? insertPathPoint(element.points, at, tolerance) : null;
+		return element && points ? [{ ...base, disabled: blocked || runtime.elementActions.active.value, run: () => runtime.elementActions.move(id, points, element) }] : [];
+	}
 	/** A wall's create actions, at the point the menu opened on it: a new wall joined there, or an opening centred there. */
 	function wallActions(id: string, blocked: boolean): CanvasMenuAction[] {
 		if (!project.structure.walls.some(wall => wall.id === id)) return [];
 		const task = runtime.structureTask, at = opened(), disabled = blocked || !task.available;
-		// The pixel reach a wall end snaps within, the one `StructureTool` gives a pointer.
-		const tolerance = Math.min(100, 8 * worldPerScreenPixel(editor.viewport, STAGE_PIXELS)), refused = wallStartRefused(project.structure, id, at, tolerance);
+		const tolerance = reach(), refused = wallStartRefused(project.structure, id, at, tolerance);
 		return [
 			{ id: 'new-wall', label: 'editor.input.new-wall-here', group: 'create', icon: 'brick-wall', disabled: disabled || refused, reason: refused ? 'editor.structure.error.opening-split' : undefined, run: () => task.drawFrom(id, at, tolerance) },
 			{ id: 'add-door', label: 'editor.input.add-door', group: 'create', icon: 'door-open', disabled, run: () => task.placeAt('place-door', id, at) },
@@ -58,7 +96,10 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		const structure = [...project.structure.walls, ...project.structure.openings].some(item => item.id === id);
 		const element = project.structure.elements?.some(item => item.id === id);
 		if (zone) {
-			result.push({ id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked, run: () => zone.zoneType === 'Room' ? runtime.renameRoom(id as ZoneId) : runtime.areaDetails.editAreaDetails(id as ZoneId) });
+			// An Area's form edits its type as well as its name, so it is named for the form it opens.
+			result.push(zone.zoneType === 'Room'
+				? { id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked, run: () => runtime.renameRoom(id as ZoneId) }
+				: { id: 'rename', label: 'editor.area.details', group: 'edit', icon: 'pencil', disabled: blocked, run: () => runtime.areaDetails.editAreaDetails(id as ZoneId) });
 			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked, run: () => runtime.deleteZone(id as ZoneId, zone.name) });
 			result.push(...detailPlans(id, zone.name, blocked));
 		} else if (structure || element) {
@@ -69,6 +110,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 			if (element) result.push({ id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
 			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked || actions.active.value, run: () => actions.remove(id) });
 		}
+		result.push(...addPointActions(id, blocked));
 		return result;
 	}
 	return computed<readonly CanvasMenuAction[]>(() => {

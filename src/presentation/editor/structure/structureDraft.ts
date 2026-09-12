@@ -8,15 +8,17 @@ import { closedChain, spatialError, validateStructure, validSpatialPoint } from 
 import type { AppError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import { splitWall } from '../../../domain/spatial/splitWall';
+import type { WallJoin } from '../../../domain/spatial/wallJoin';
 import { formatMetres, parseCoordinateMetres, parseMetres } from '../shell/formatLength';
 
 export type StructureToolId = 'draw-wall' | 'place-door' | 'place-window' | 'place-opening';
 export const isStructureTool = (id: string | null): id is StructureToolId => id === 'draw-wall' || id === 'place-door' || id === 'place-window' || id === 'place-opening';
-/** The wall a draft started in the middle of, cut at `point` when the walls are saved. */
+/** A wall the chain starts or ends in the middle of, cut at `point` when the walls are saved. */
 interface WallSplit { readonly wallId: string; readonly offset: number; readonly id: string; readonly point: Point }
 export function createStructureDraft() {
 	const swing: OpeningSwingDraft = { hinge: 'start', side: 'left', angle: '90' };
-	return reactive({ kind: 'draw-wall', points: [] as Point[], cursor: null as Point | null, snapped: false, split: null as WallSplit | null,
+	return reactive({ kind: 'draw-wall', points: [] as Point[], cursor: null as Point | null, snapped: false,
+		joins: { start: null as WallSplit | null, end: null as WallSplit | null }, pending: null as WallJoin | null,
 		swing,
 		busy: false, loading: false, conflict: false, error: null as AppError | null, room: false, roomName: '',
 		text: { x: '0', y: '0', length: '', angle: '0', height: '2.4', thickness: '0.15', hostId: '', offset: '0', width: '0.9', openingHeight: '2.1', sill: '0' },
@@ -39,10 +41,11 @@ export function openingFromDraft(draft: StructureDraft): Opening | null {
 	return { id: 'opening-draft', kind: draft.kind === 'place-door' ? 'door' : draft.kind === 'place-window' ? 'window' : 'opening', ...(swing ? { swing } : {}), hostId: draft.text.hostId, width: width.mm, height: height.mm, offset: offset.mm, sill: sill.mm };
 }
 
+/** The draft's walls on the floor it is drawn on — with its cuts applied, so a preview and a save see one picture. A refused cut previews on the uncut floor; validation reports it. */
 export function draftStructure(draft: StructureDraft, existing: Structure = EMPTY_STRUCTURE): Structure | null {
 	if (draft.kind === 'draw-wall') {
-		const walls = wallsFromDraft(draft);
-		return walls && walls.length > 0 ? { ...existing, walls: [...existing.walls, ...walls] } : null;
+		const walls = wallsFromDraft(draft), base = drawnOn(draft, draft.points, existing), floor = base.ok ? base.value : existing;
+		return walls && walls.length > 0 ? { ...floor, walls: [...floor.walls, ...walls] } : null;
 	}
 	const opening = openingFromDraft(draft);
 	return opening ? { ...existing, openings: [...existing.openings, opening] } : null;
@@ -53,18 +56,28 @@ export function validateDraftStructure(draft: StructureDraft, existing: Structur
 	if (draft.kind === 'draw-wall' && draft.text.length !== '') return err(spatialError('pending'));
 	const base = drawnOn(draft, draft.points, existing);
 	if (!base.ok) return base;
-	const proposed = draftStructure(draft, base.value);
+	const proposed = draftStructure(draft, existing);
 	if (!proposed) return err(spatialError('wall-dimensions'));
 	if (draft.room && (!closedChain(draft.points) || !draft.roomName.trim())) return err(spatialError('boundary'));
 	return validateStructure(proposed, roomIds);
 }
 
-/** The floor a chain of `points` is drawn on: `existing`, with the draft's split applied while the chain still starts at its cut. */
+/**
+ * The floor a chain of `points` is drawn on: `existing` with the start cut applied while the chain
+ * still starts at it, THEN the end cut while the chain still ends at it. Sequential, because the end
+ * join is resolved against the floor with the start cut already made (`endOnWall`), so two cuts on
+ * one wall name whichever half each falls on.
+ */
 function drawnOn(draft: StructureDraft, points: readonly Point[], existing: Structure): Result<Structure, ValidationError> {
-	const split = draft.split;
-	if (!split || !points.length || !samePoint(points[0], split.point)) return ok(existing);
-	const cut = splitWall(existing, split.wallId, split.offset, split.id);
-	return cut.ok ? ok(cut.value.structure) : cut;
+	let floor = existing;
+	const { start, end } = draft.joins;
+	for (const [split, anchor] of [[start, points[0]], [end, points.length > 1 ? points[points.length - 1] : undefined]] as const) {
+		if (!split || !anchor || !samePoint(anchor, split.point)) continue;
+		const cut = splitWall(floor, split.wallId, split.offset, split.id);
+		if (!cut.ok) return cut;
+		floor = cut.value.structure;
+	}
+	return ok(floor);
 }
 
 /** Where a wall drawn from `point` on `wallId` starts: an end within `tolerance`, else a whole-millimetre cut. */
@@ -83,8 +96,33 @@ export const wallStartRefused = (existing: Structure, wallId: string, point: Poi
 export function startFromWall(draft: StructureDraft, existing: Structure, wallId: string, point: Point, tolerance: number): boolean {
 	const start = wallStart(existing, wallId, point, tolerance);
 	if (!start.ok) { draft.error = start.error; return false; }
-	draft.split = start.value.split;
-	return addWallPoint(draft, start.value.point, existing);
+	const previous = draft.joins.start;
+	draft.joins.start = start.value.split;
+	if (addWallPoint(draft, start.value.point, existing)) return true;
+	draft.joins.start = previous;
+	return false;
+}
+
+/**
+ * Ends the chain on a wall body at `join`, cutting the host there when the chain is saved. `join`
+ * was resolved against the UNCUT floor (what the canvas shows), so it is re-found on the floor
+ * with the draft's recorded cuts applied: the wall under `join.point` there is the half it falls on. A point
+ * that turns out to be a wall end is a plain point and records no cut.
+ */
+export function endOnWall(draft: StructureDraft, existing: Structure, join: WallJoin): boolean {
+	const base = drawnOn(draft, draft.points, existing);
+	if (!base.ok) { draft.error = base.error; return false; }
+	const hits = base.value.walls.map(wall => ({ wall, ...projectOntoWall(wall, join.point) })).filter(hit => hit.distance <= 1);
+	const host = hits.reduce<(typeof hits)[number] | undefined>((best, hit) => !best || hit.distance < best.distance ? hit : best, undefined);
+	if (!host) { draft.error = spatialError('host-missing'); return false; }
+	const offset = Math.round(host.offset), id = createEntityId('wall');
+	const cut = splitWall(base.value, host.wall.id, offset, id);
+	if (!cut.ok) { draft.error = cut.error; return false; }
+	const previous = draft.joins.end;
+	draft.joins.end = cut.value.structure === base.value ? null : { wallId: host.wall.id, offset, id, point: cut.value.point };
+	if (addWallPoint(draft, cut.value.point, existing)) return true;
+	draft.joins.end = previous;
+	return false;
 }
 
 export function addWallPoint(draft: StructureDraft, point: Point, existing: Structure): boolean {
@@ -95,7 +133,7 @@ export function addWallPoint(draft: StructureDraft, point: Point, existing: Stru
 	if (!base.ok) { draft.error = base.error; return false; }
 	const checked = walls ? validateStructure({ ...base.value, walls: [...base.value.walls, ...walls] }, existing.boundaries.map(b => b.roomId)) : null;
 	if (!checked?.ok) { draft.error = checked ? checked.error : spatialError('wall-dimensions'); return false; }
-	draft.points = points; draft.error = null; draft.cursor = null;
+	draft.points = points; draft.error = null; draft.cursor = null; draft.pending = null;
 	return true;
 }
 
@@ -116,7 +154,8 @@ export function mintStructure(structure: Structure): Structure {
 		openings: structure.openings.map(opening => opening.id === 'opening-draft' ? { ...opening, id: createEntityId('opening') } : opening) };
 }
 
-export function snapWallPoint(point: Point, points: readonly Point[], walls: readonly Wall[], tolerance: number): { point: Point; snapped: boolean } {
+/** Endpoint snap first (a candidate POINT), then the previous point's axes; `axis` marks the second so a caller can let a wall-body join take precedence over it. */
+export function snapWallPoint(point: Point, points: readonly Point[], walls: readonly Wall[], tolerance: number): { point: Point; snapped: boolean; axis?: true } {
 	const candidates = [...points, ...walls.flatMap(wall => [wall.start, wall.end])];
 	const close = candidates.map(candidate => ({ point: candidate, distance: Math.hypot(candidate.x - point.x, candidate.y - point.y) })).filter(candidate => candidate.distance <= tolerance).reduce<{ point: Point; distance: number } | undefined>((best, hit) => !best || hit.distance < best.distance ? hit : best, undefined);
 	if (close) return { point: close.point, snapped: true };
@@ -124,7 +163,8 @@ export function snapWallPoint(point: Point, points: readonly Point[], walls: rea
 	if (!last) return { point, snapped: false };
 	const x = Math.abs(last.x - point.x) <= tolerance ? last.x : point.x;
 	const y = Math.abs(last.y - point.y) <= tolerance ? last.y : point.y;
-	return { point: { x, y }, snapped: x !== point.x || y !== point.y };
+	const snapped = x !== point.x || y !== point.y;
+	return snapped ? { point: { x, y }, snapped, axis: true } : { point, snapped };
 }
 
 export function pickHost(draft: StructureDraft, point: Point, walls: readonly Wall[], tolerance: number): void {

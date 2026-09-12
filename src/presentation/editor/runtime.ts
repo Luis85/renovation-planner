@@ -77,7 +77,7 @@ import { createNudgeSelectionAction } from './nudge';
  * spelled at the two call sites, because a log line saying which DOOR faulted is only useful
  * while the two doors agree on what to call themselves.
  */
-const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
+export const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
 	readonly curveTask: SpatialEditing['curveTask'];

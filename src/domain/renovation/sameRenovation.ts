@@ -4,8 +4,8 @@ import { linksContent } from './SharedLinks';
 
 function content(value: Renovation): unknown {
 	return [depthContent(value.depth ?? EMPTY_DEPTH), value.subjects.map(s => [s.id, s.roomId, s.targetId, s.kind,
-		s.existing ? [s.existing.description, s.existing.condition] : null,
-		s.planned ? [s.planned.change, s.planned.description] : null]),
+		s.existing ? [s.existing.description, s.existing.condition, s.existing.assetId] : null,
+		s.planned ? [s.planned.change, s.planned.description, s.planned.assetId] : null]),
 	value.work.map(w => [w.id, w.roomId, w.targetId, linksContent(w), w.title, w.description, w.order, w.progress, w.responsibility, w.tradeId, w.schedule?.start, w.schedule?.end, w.outcomes, w.dependencies]),
 	value.decisions.map(d => [d.id, d.roomId, d.subjectId, d.question, d.resolution, d.resolved])];
 }

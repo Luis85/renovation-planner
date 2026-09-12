@@ -7,8 +7,8 @@ export const RenovationSchema = z.object({
 	depth: PlanningDepthSchema.optional(),
 	subjects: z.array(z.object({
 		id, roomId: id.optional(), targetId: id, kind: z.enum(DETAIL_KINDS),
-		existing: z.object({ description: z.string(), condition: z.enum(CONDITIONS) }).nullable(),
-		planned: z.object({ change: z.enum(CHANGES), description: z.string() }).nullable(),
+		existing: z.object({ description: z.string(), condition: z.enum(CONDITIONS), assetId: id.optional() }).nullable(),
+		planned: z.object({ change: z.enum(CHANGES), description: z.string(), assetId: id.optional() }).nullable(),
 	})),
 	work: z.array(z.object({
 		id, roomId: id.optional(), targetId: id, links: SharedLinksSchema, title: z.string(), description: z.string(),

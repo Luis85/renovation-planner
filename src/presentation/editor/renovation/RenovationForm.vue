@@ -20,8 +20,9 @@ import ExistingFields from './ExistingFields.vue';
 import WorkFields from './WorkFields.vue';
 import DecisionFields from './DecisionFields.vue';
 import PlannedFields from './PlannedFields.vue';
+import type { MaterialChoice } from './materialChoices';
 
-const props = defineProps<{ draft: RenovationDraft; baseline: RenovationBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; dispatch: (input: RenovationInput) => Promise<DispatchResult> }>();
+const props = defineProps<{ draft: RenovationDraft; baseline: RenovationBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; dispatch: (input: RenovationInput) => Promise<DispatchResult>; catalogue?: readonly MaterialChoice[] }>();
 const emit = defineEmits<{ submit: [] }>();
 const draft = ref<EditableRenovationDraft>(structuredClone(toRaw(props.draft)) as EditableRenovationDraft);
 const geometry = ref(plannedGeometryDraft(props.baseline, props.draft.subject));
@@ -44,7 +45,7 @@ function proposal() {
 	const editing = draft.value;
 	const planned = editing.subject.planned;
 	if (planned?.change === 'remove') editing.subject = { ...editing.subject, planned: { change: 'remove', description: '' } };
-	if (planned?.change === 'unchanged') editing.subject = { ...editing.subject, planned: { change: 'unchanged', description: editing.subject.existing?.description ?? '' } };
+	if (planned?.change === 'unchanged') editing.subject = { ...editing.subject, planned: { change: 'unchanged', description: editing.subject.existing?.description ?? '', ...(editing.subject.existing?.assetId ? { assetId: editing.subject.existing.assetId } : {}) } };
 	const input = applyRenovationDraft(props.baseline, editing);
 	return editing.kind === 'planned' ? applyPlannedGeometry(props.baseline, input, editing.subject, geometry.value) : { ok: true as const, value: input };
 }
@@ -111,6 +112,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 				:value="value"
 				:targets="targets"
 				:frozen="frozen"
+				:catalogue="catalogue ?? []"
 			/>
 			<PlannedFields
 				v-if="draft.kind === 'planned'"
@@ -118,6 +120,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 				:geometry="geometry"
 				:structure="structure"
 				:frozen="frozen"
+				:catalogue="catalogue ?? []"
 			/>
 		</template>
 		<WorkFields

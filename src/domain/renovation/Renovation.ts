@@ -12,10 +12,12 @@ export const WORK_PROGRESS = ['pending', 'in-progress', 'complete'] as const;
 export interface ExistingFacts {
 	readonly description: string;
 	readonly condition: typeof CONDITIONS[number];
+	readonly assetId?: string;
 }
 export interface PlannedFacts {
 	readonly change: typeof CHANGES[number];
 	readonly description: string;
+	readonly assetId?: string;
 }
 /** One identifiable subject, two independent semantic states (ADR-0021). */
 export interface RenovationSubject {
@@ -61,8 +63,18 @@ export function renovationError(code: string): ValidationError {
 	return { category: 'Validation', code: `renovation.${code}`, message: `Invalid renovation record: ${code}.` };
 }
 
+/** A catalogue material names what a wall is built of, or which product a door or window is (ADR-0031). */
+const MATERIAL_KINDS: readonly RenovationSubject['kind'][] = ['wall', 'door', 'window'];
+function validMaterials(subject: RenovationSubject): boolean {
+	const { existing, planned } = subject, named = [existing?.assetId, planned?.assetId].filter((id): id is string => id !== undefined);
+	if (named.some(id => !id.trim()) || (named.length > 0 && !MATERIAL_KINDS.includes(subject.kind))) return false;
+	if (planned?.change === 'remove') return planned.assetId === undefined;
+	return planned?.change !== 'unchanged' || planned.assetId === existing?.assetId;
+}
+
 function validSubject(subject: RenovationSubject): boolean {
 	const { existing, planned } = subject;
+	if (!validMaterials(subject)) return false;
 	if (!existing && !planned) return false;
 	if (existing && (!existing.description.trim() || !CONDITIONS.includes(existing.condition))) return false;
 	if (!DETAIL_KINDS.includes(subject.kind)) return false;

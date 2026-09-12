@@ -155,4 +155,11 @@ export const renovationDe = {
 	"renovation.write-failed": "Der Renovierungseintrag konnte nicht gespeichert werden. Ihre Eingabe bleibt erhalten; versuchen Sie es erneut.",
 	"renovation.recovery-required": "Dieser Schritt kann nicht mehr angewendet werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.",
 	"renovation.compensation-failed": "Der Renovierungseintrag konnte nicht gespeichert und das Geschoss nicht wiederhergestellt werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.",
+	"renovation.material": "Material",
+	"renovation.product": "Produkt",
+	"renovation.material.none": "Keines",
+	"renovation.material.unknown": "Unbekanntes Material",
+	"renovation.material.no-quantity": "Für Materialien mit der Einheit {unit} wird keine Menge berechnet.",
+	"renovation.material.missing": "Dieses Material ist nicht mehr in der Asset-Bibliothek. Ein anderes wählen.",
+	"renovation.material.wrong-target": "Ein Wandmaterial gehört an eine Wand, ein Produkt an eine Tür oder ein Fenster.",
 };

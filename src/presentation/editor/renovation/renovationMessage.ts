@@ -6,6 +6,8 @@ export function renovationMessage(error: AppError): string {
 	if (error.code === 'renovation.trade-missing') return tr('trade.missing');
 	if (error.code.startsWith('spatial.')) return spatialMessage(error);
 	if (error.code === 'renovation.cycle') return tr('renovation.error.cycle');
+	if (error.code === 'renovation.material-missing') return tr('renovation.material.missing');
+	if (error.code === 'renovation.material-target') return tr('renovation.material.wrong-target');
 	if (error.code === 'undo.superseded' || WRITE_BOUNDARY_CODES.some(code => error.code.endsWith(code))) return tr('renovation.error.conflict');
 	return tr(error.category === 'Persistence' ? 'renovation.error.persistence' : 'renovation.error');
 }

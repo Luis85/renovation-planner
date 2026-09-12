@@ -3,10 +3,9 @@ import { createTrade } from '../domain/trade/Trade';
 import { guardedNamedCatalogue } from './namedCatalogueServices';
 import type { PlanId } from '../domain/plan/PlanId';
 import type { Vault, Workspace } from 'obsidian';
-import { err } from '../core/result/Result';
 import { EMPTY_RENOVATION } from '../domain/renovation/Renovation';
 import { planningServices, readPlanning, type PlanningDeps } from '../application/commands/renovation/PlanningServices';
-import { validateDepthLinks } from '../application/commands/renovation/planningLinks';
+import { renovationLinkCheck } from '../application/commands/renovation/renovationLinkCheck';
 import { renovationServices } from '../application/commands/renovation/RenovationCommand';
 import { guardCommand } from '../application/errors/guardAgainstThrowing';
 import { ObsidianEvidenceFiles } from '../infrastructure/obsidian/repositories/ObsidianEvidenceFiles';
@@ -30,13 +29,15 @@ export function planningEditorServices(root: CompositionRoot, vault: Vault, work
 			const undo = guardCommand({ execute: () => command.undo() }, 'material.undo.failed', root.logger, VAULT_EXCEPTION_MAPPER);
 			return { execute: () => execute.execute(undefined), undo: () => undo.execute(undefined) };
 		} },
+		// Two fresh planning reads per write: the trade check needs its own (`validateTradeAssignments`
+		// compares against the vault's current work, not the proposed one), and `renovationLinkCheck`
+		// keeps its own read so the plugin and the test harness call the identical shared function.
 		renovation: guardedRenovation(renovationServices(persistence.plans, persistence.geometry, root.eventBus, async (plan, document) => {
 			const fresh = await readPlanning(deps, plan.id);
 			if (!fresh.ok) return fresh;
 			const trades = await validateTradeAssignments(plan.renovation ?? EMPTY_RENOVATION, fresh.value.plan.entity.renovation ?? EMPTY_RENOVATION, persistence.trades);
 			if (!trades.ok) return trades;
-			const links = validateDepthLinks(plan.renovation ?? EMPTY_RENOVATION, { ...fresh.value, geometry: { ...fresh.value.geometry, document } });
-			return links.ok ? links : err(links.error);
+			return renovationLinkCheck(deps)(plan, document);
 		}), root.logger),
 		evidenceFiles: new ObsidianEvidenceFiles({ vault, workspace, cache: persistence.vaultDeps.metadataCache, index: persistence.index }),
 		shoppingNote: reviewNoteAction(vault, workspace, persistence.index, root.logger, 'shopping'),

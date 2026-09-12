@@ -86,4 +86,6 @@ export const structureEn = {
 	'spatial.recovery-required': 'This step can no longer be applied. Reopen the floor before editing.',
 	'spatial.compensation-failed':
 		'The walls could not be saved and the floor could not be restored. Reopen the floor before editing.',
+	'editor.structure.set-material': 'Set material…',
+	'editor.structure.planned-material': 'Planned material',
 } as const;

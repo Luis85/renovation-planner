@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { restoreInoperativeChoice } from '../forms/inoperativeControl';
+import { computed } from 'vue';
 import { tr } from '../../i18n/strings';
 import { CONDITIONS, type Renovation } from '../../../domain/renovation/Renovation';
 import type { EditableRenovationDraft } from './renovationDraft';
+import { applyMaterial, materialChoices, type MaterialChoice } from './materialChoices';
 const draft = defineModel<EditableRenovationDraft>('draft', { required: true });
-defineProps<{ value: Renovation; targets: readonly { id: string; label: string }[]; frozen: boolean }>();
+const props = defineProps<{ value: Renovation; targets: readonly { id: string; label: string }[]; frozen: boolean; catalogue: readonly MaterialChoice[] }>();
+const choices = computed(() => materialChoices(props.catalogue, draft.value.subject.kind));
+const material = computed({
+	get: () => draft.value.subject.existing?.assetId ?? '',
+	set: (id: string) => { if (draft.value.subject.existing) applyMaterial(draft.value.subject.existing, id, props.catalogue); },
+});
 </script>
 <template>
 	<label v-if="!value.subjects.some(item => item.id === draft.subject.id)">{{ tr('renovation.target') }}
@@ -37,6 +44,21 @@ defineProps<{ value: Renovation; targets: readonly { id: string; label: string }
 					:key="condition"
 					:value="condition"
 				>{{ tr(`renovation.condition.${condition}`) }}</option>
+			</select>
+		</label>
+		<label v-if="['wall', 'door', 'window'].includes(draft.subject.kind)">{{ tr(draft.subject.kind === 'wall' ? 'renovation.material' : 'renovation.product') }}
+			<select
+				v-model="material"
+				name="material"
+				:aria-disabled="frozen"
+				@change.capture="restoreInoperativeChoice($event, material)"
+			>
+				<option value="">{{ tr('renovation.material.none') }}</option>
+				<option
+					v-for="item in choices"
+					:key="item.id"
+					:value="item.id"
+				>{{ item.name }}</option>
 			</select>
 		</label>
 	</template>

@@ -36,4 +36,11 @@ describe('plan note schema 11 keeps records without a room from older writers', 
 		const old = new MigrationRunner(); old.registerAll('plan', PLAN_MIGRATIONS.filter(step => step.toVersion <= 10));
 		expect(() => old.migrateToLatest('plan', dto, 11)).toThrow('newer than this build supports');
 	});
+	it('writes a subject material at schema 11 even when the subject has a room', () => {
+		const roomId = createZoneId();
+		const plan = makePlan({ projectId: makeProject().id, renovation: { subjects: [{ id: 'detail', roomId, targetId: 'wall-a', kind: 'wall', existing: { description: 'Brick', condition: 'good', assetId: 'asset-brick' }, planned: null }], work: [], decisions: [] } });
+		const dto = planToPersistence(plan, 3);
+		expect(dto['schema-version']).toBe(11);
+		expect(expectOk(planFromPersistence(dto, null)).renovation?.subjects[0].existing?.assetId).toBe('asset-brick');
+	});
 });

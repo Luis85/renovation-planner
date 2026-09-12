@@ -159,4 +159,11 @@ export const renovationEn = {
 	"renovation.write-failed": "The renovation record could not be saved. Your entry is retained; try again.",
 	"renovation.recovery-required": "This step can no longer be applied. Reopen the floor before editing.",
 	"renovation.compensation-failed": "The renovation record could not be saved and the floor could not be restored. Reopen the floor before editing.",
+	"renovation.material": "Material",
+	"renovation.product": "Product",
+	"renovation.material.none": "None",
+	"renovation.material.unknown": "Unknown material",
+	"renovation.material.no-quantity": "Quantity isn't calculated for materials priced per {unit}.",
+	"renovation.material.missing": "That material is no longer in the asset library. Choose another.",
+	"renovation.material.wrong-target": "A wall material belongs on a wall, and a product on a door or window.",
 };

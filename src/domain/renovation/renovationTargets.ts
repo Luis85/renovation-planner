@@ -2,7 +2,7 @@ import { depthRecords, EMPTY_DEPTH } from './PlanningDepth';
 import { err, ok, type Result } from '../../core/result/Result';
 import type { ValidationError } from '../../core/errors/AppError';
 import { EMPTY_STRUCTURE, type Structure } from '../spatial/Structure';
-import { renovationError, type Renovation } from './Renovation';
+import { renovationError, type Renovation, type RenovationSubject } from './Renovation';
 import { spatialContexts, type PrimaryContext, type SharedSpatialContext } from './SharedLinks';
 
 export interface RenovationSpatialContext {
@@ -22,6 +22,12 @@ function missingContext(item: SharedSpatialContext, rooms: ReadonlySet<string>, 
 	return !validPrimaryRoom(item, rooms) || !present(item.targetId) || (item.links ?? []).some(link => !rooms.has(link.roomId) || !present(link.targetId));
 }
 
+function materialTargetFits(subject: RenovationSubject, structures: readonly Structure[]): boolean {
+	if (subject.existing?.assetId === undefined && subject.planned?.assetId === undefined) return true;
+	const ids = structures.flatMap(item => subject.kind === 'wall' ? item.walls.map(wall => wall.id) : item.openings.map(opening => opening.id));
+	return ids.includes(subject.targetId);
+}
+
 export function validateRenovationTargets(value: Renovation, context: RenovationSpatialContext): Result<void, ValidationError> {
 	const linked = value.subjects.filter(item => item.targetId !== item.roomId).map(item => item.targetId);
 	if (new Set(linked).size !== linked.length) return err(renovationError('target-owner'));
@@ -30,6 +36,7 @@ export function validateRenovationTargets(value: Renovation, context: Renovation
 	const intended = spatialIds(context.intended ?? context.structure, context.roomIds);
 	for (const subject of value.subjects) {
 		if (!validPrimaryRoom(subject, rooms)) return err(renovationError('room-missing'));
+		if (!materialTargetFits(subject, [context.structure ?? EMPTY_STRUCTURE, context.intended ?? context.structure ?? EMPTY_STRUCTURE])) return err(renovationError('material-target'));
 		if (subject.existing && !current.has(subject.targetId)) return err(renovationError('source-missing'));
 		if (subject.planned && subject.planned.change !== 'remove' && !intended.has(subject.targetId)) return err(renovationError('target-missing'));
 	}

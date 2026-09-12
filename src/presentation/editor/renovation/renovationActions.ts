@@ -26,6 +26,7 @@ import { renovationTargetDraft, type RenovationEditKind } from './renovationDraf
 import RenovationForm from './RenovationForm.vue';
 import RenovationBatchForm from './RenovationBatchForm.vue';
 import type { BatchKind, BatchTarget } from './renovationBatch';
+import type { MaterialChoice } from './materialChoices';
 
 function navigationTarget(records: NavigationRecords, roomId: string, id: string, current: Parameters<typeof recordNavigationContext>[3], mode: RenovationMode) {
  const destination = id ? recordNavigationContext(records, id, roomId, current, mode) : null;
@@ -58,6 +59,10 @@ function editableContext(roomId: string, project: ReturnType<typeof useProjectSt
 	if (roomId) return project.zones.has(roomId);
 	const target = session.targetId;
 	return structureNames(project.structure).includes(target) || structureNames(project.intended).includes(target);
+}
+/** The catalogue the Material/Product select offers, from the current planning read. */
+function catalogueChoices(planning: ReturnType<typeof usePlanningReadState>): MaterialChoice[] {
+	return planning.baseline?.catalogue.map(({ asset }) => ({ id: asset.id, name: asset.name, category: asset.category, unit: asset.unit })) ?? [];
 }
 
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {
@@ -124,7 +129,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			const draft = renovationTargetDraft(kind, roomId, id, read, session.targetId);
 			const busy = ref(false);
 			await dialogs.openDialog({ kind: 'form', title: tr(`renovation.edit.${kind}`), component: markRaw(RenovationForm), busy,
-				props: { draft, baseline: read, busy, paused: runtime.writesBlocked, retry, openSource: runtime.openPlanNote,
+				props: { draft, baseline: read, busy, paused: runtime.writesBlocked, retry, openSource: runtime.openPlanNote, catalogue: catalogueChoices(planning),
 					dispatch: (input: RenovationInput) => dispatch(read, input),
 				},
 			});

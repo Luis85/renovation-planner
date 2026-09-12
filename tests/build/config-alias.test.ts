@@ -66,3 +66,21 @@ describe('the Vue plugin, in every config that transforms source', () => {
 		expect(pluginNames(harnessConfig).join(' ')).toContain('vue');
 	});
 });
+
+/**
+ * The SSR-SFC refusal (`scripts/vitest-no-ssr-sfc.mjs`) is a gate only while the suite config
+ * REGISTERS it: `tests/build/no-ssr-sfc.test.ts` drives the plugin through a fixture config of
+ * its own, so deleting `noSsrSfc()` from `vitest.config.ts` switched the rule off with every
+ * test green — watched, with the line removed, before this case existed. Asked of the real
+ * config object rather than of its text: the plugin is present by name, and it precedes the Vue
+ * plugin in the flattened list, since a `pre` transform behind `vite:vue` would see compiled
+ * output rather than the SFC.
+ */
+describe('the SSR-SFC refusal, in the suite config', () => {
+	it('is registered ahead of the Vue plugin', () => {
+		const names = pluginNames(vitestConfig);
+
+		expect(names).toContain('rp:no-ssr-sfc');
+		expect(names.indexOf('rp:no-ssr-sfc')).toBeLessThan(names.indexOf('vite:vue'));
+	});
+});

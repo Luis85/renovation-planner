@@ -53,7 +53,7 @@ it('shows a complete three-digit evidence number inside its pin surface without 
 	const label = expectDefined(rig.pin.findOne<Konva.Text>('Text'), 'pin number');
 	expect(label.text()).toBe('100'); expectInside(label, target);
 	const bounds = target.getClientRect();
-	for (const caption of expectDefined(rig.stage.findOne<Konva.Layer>('.zone'), 'Room layer').find<Konva.Text>('Text')) {
+	for (const caption of expectDefined(rig.stage.findOne<Konva.Layer>('.zone'), 'Room layer').find<Konva.Text>('Text').filter(text => text.isVisible())) {
 		const text = caption.getClientRect();
 		expect(text.x + text.width <= bounds.x || bounds.x + bounds.width <= text.x || text.y + text.height <= bounds.y || bounds.y + bounds.height <= text.y).toBe(true);
 	}

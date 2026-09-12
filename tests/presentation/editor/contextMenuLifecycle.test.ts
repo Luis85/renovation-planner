@@ -19,7 +19,7 @@ async function open(rig: Awaited<ReturnType<typeof setup>>, target: Element = ri
 it('changes pointer context from a selected Room to empty canvas and back without changing geometry', async () => {
 	const rig = await setup(), editor = useEditorStore(rig.pinia), bytes = [...rig.stack.vault.entries];
 	editor.fitTo({ min: { x: -1000, y: -1000 }, max: { x: 5000, y: 4000 } }, editor.stageSize);
-	for (const [point, ids, action] of [[{ x: -500, y: -500 }, [], 'add'], [{ x: 1000, y: 1000 }, [rig.room.id], 'edit']] as const) {
+	for (const [point, ids, action] of [[{ x: -500, y: -500 }, [], 'add'], [{ x: 1000, y: 1000 }, [rig.room.id], 'rename']] as const) {
 		const at = worldToScreen(point, editor.viewport, STAGE_PIXELS), box = rig.canvasEl.getBoundingClientRect();
 		rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + at.x, clientY: box.top + at.y })); await settle();
 		expect(rig.selection.selectedIds).toEqual(ids); expect(rig.wrapper.find(`[data-rp-context-action="${action}"]`).exists()).toBe(true);
@@ -132,7 +132,7 @@ it('targets the unlocked zone beneath a locked one, and offers no zone target ov
 	rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + lockedOnly.x, clientY: box.top + lockedOnly.y }));
 	await settle();
 	expect(rig.selection.selectedIds).toEqual([]);
-	expect(rig.wrapper.find('[data-rp-context-action="edit"]').exists()).toBe(false);
+	expect(rig.wrapper.find('[data-rp-context-action="rename"]').exists()).toBe(false);
 });
 
 it('restores the canvas when a keyboard opener disappears and removes listeners on leaf disposal', async () => {

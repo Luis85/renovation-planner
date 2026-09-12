@@ -43,8 +43,8 @@ does not add history.
 While saving, Select, Add and Cancel retain the pending edit. Switching tools deliberately
 abandons an unsaved entry; changing perspective first asks about the draft.
 
-The nearby **Edit shape** action opens the Room’s outline coordinates. **Add detail**
-opens the contextual Existing, Planned, Work, Materials, Costs or Evidence form. A selected
+A Room’s shape is edited by dragging its corner points on the plan. The nearby **Add detail**
+action opens the contextual Existing, Planned, Work, Materials, Costs or Evidence form. A selected
 wall offers **Edit length** and, when it has a Room context, **Mark change**. Length changes
 still require Preview and Apply; Mark change uses the separate Planned record.
 
@@ -71,9 +71,10 @@ comes from; with nothing selected and until a reference plan is added, the Inspe
 the outline is. **Fit floor** frames the guide while the Reference plan layer is visible, and
 that layer's eye hides it. Crop the new plan's reference image at the same corner and calibrate
 it, and the drawing lines up with the guide. A zone can have several detail plans, for example
-one per floor, and its right-click menu lists **Open** for each. On a detail plan, the breadcrumb
-and the Property tree list every plan above it, and each name opens that plan. If the zone is
-later deleted, the outline disappears and the Property tree says so.
+one per floor, and its right-click menu lists **Open** for each. On the canvas, a zone with
+detail plans shows a third line under its area: the plan's name, or how many there are. On a
+detail plan, the breadcrumb and the Property tree list every plan above it, and each name opens
+that plan. If the zone is later deleted, the outline disappears and the Property tree says so.
 
 ## Group and enclose a room
 
@@ -127,8 +128,8 @@ create an invalid wall intersection or leave an opening outside its host is refu
 outlines remain independent of walls.
 
 Rotation preserves identity, names and links; separate Planned geometry stays independent.
-The rectangular Room size form remains limited to axis-aligned rectangles: use Edit shape
-for rotated outlines. Reference plans rotate through their existing configuration workflow.
+The rectangular Room size form remains limited to axis-aligned rectangles: drag the corner
+points of rotated outlines on the plan. Reference plans rotate through their existing configuration workflow.
 Saved groups and multiple selections rotate as an assembly. If another edit changes the
 saved baseline, the stale turn is refused. Read-back retry after a successful save only refreshes
 the view.

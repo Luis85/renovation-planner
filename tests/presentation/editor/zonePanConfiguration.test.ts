@@ -27,13 +27,13 @@ it('does not resubmit unchanged zone configurations when the world viewport move
 	const viewport = shape.props('captionViewport');
 	expect(viewport).not.toBeNull();
 	const nodes = ['Group', 'Line', 'Text'].flatMap(name => shape.findAllComponents({ name }));
-	expect(nodes).toHaveLength(5);
+	expect(nodes).toHaveLength(6);
 	const configs = nodes.map(node => node.props('config'));
 	const group = expectDefined(rig.stage.findOne<Konva.Group>(`.${shape.props('model').id}`), 'Room group');
 	const children = [...group.getChildren()];
-	expect(children).toHaveLength(4);
+	expect(children).toHaveLength(5);
 	const captions = group.find<Konva.Text>('Text').map(node => node.text());
-	expect(captions).toHaveLength(2);
+	expect(captions).toHaveLength(3);
 	const editor = useEditorStore(rig.pinia), before = editor.viewport;
 	editor.viewport = { ...before, pan: { x: before.pan.x + 100, y: before.pan.y + 80 } };
 	await flushDimensionFrames();

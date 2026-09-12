@@ -77,12 +77,13 @@ it('fits nothing when the plan empties out between the menu opening and the clic
 	expect(fit).not.toHaveBeenCalled();
 });
 
-it('routes Area shape and metadata actions to their existing forms and persists metadata through real history', async () => {
+it('routes Area metadata to its existing form and persists it through real history', async () => {
 	const rig = await setup();
 	const area = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden', geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
-	await rig.runtime.refreshProjection(); rig.selection.select([area.id]);
-	await action(rig, 'edit'); expect(rig.wrapper.find('[data-rp-form="outline-points"]').exists()).toBe(true);
-	rig.dialogs.resolve('cancel'); await settle();
+	await rig.runtime.refreshProjection(); rig.selection.select([area.id]); await settle();
+	// An Area has no detail route and its shape is edited on the canvas, so nothing floats beside it.
+	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(false);
+	await menu(rig); expect(rig.wrapper.find('[data-rp-context-action="edit"]').exists()).toBe(false);
 	await action(rig, 'rename'); const form = rig.wrapper.get('[data-rp-form="area-details"]');
 	await form.get('input[name="name"]').setValue('Patio'); await form.get('select[name="zoneType"]').setValue('Terrace');
 	await form.trigger('submit'); await settleUntil(() => rig.dialogs.current === null, 'Area metadata saved');
@@ -147,7 +148,7 @@ it('orders the menu by group with a separator between groups, draws one known ic
 	rig.selection.select([rig.room.id]); await menu(rig);
 	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
 	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(rig.room.name);
-	expect(groupedIds(menuEl)).toEqual(['edit', 'rename', 'rotate', '|', 'measure', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
+	expect(groupedIds(menuEl)).toEqual(['rename', 'rotate', '|', 'measure', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
 	for (const item of menuEl.findAll('[data-rp-context-action]')) { expect(item.find('.rp-host-icon[data-icon]').exists()).toBe(true); expect(item.find('[data-icon-missing]').exists()).toBe(false); }
 	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select(['wall-a' as never]); await menu(rig);

@@ -1,6 +1,7 @@
 import type { RepositoryError } from './repositoryErrors';
 import type { Result } from '../../core/result/Result';
 import type { Point } from '../../core/geometry/Point';
+import type { Vector } from '../../core/geometry/Vector';
 import type { Calibration } from '../../domain/plan/Calibration';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { EntityVersion } from './versioning';
@@ -16,6 +17,8 @@ export interface SpatialObjectGeometry {
 	readonly bulges?: readonly number[];
 	readonly id: string;
 	readonly points: readonly Point[];
+	/** A dragged caption's offset from its automatic anchor, world mm (ADR-0029); absent while automatic. */
+	readonly labelOffset?: Vector;
 }
 
 /** The whole editable content of one plan's sidecar, calibration included. */

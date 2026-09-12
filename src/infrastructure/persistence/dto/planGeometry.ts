@@ -64,9 +64,10 @@ const PlanGeometrySchemaV6 = PlanGeometrySchemaV5.extend({ schemaVersion: z.lite
 	id: z.string().startsWith('group-'), name: z.string().trim().min(1).max(100), memberIds: z.array(z.string().min(1)).min(1),
 })).optional() });
 const BulgeSchema = z.number().min(-1).max(1);
-export const SpatialObjectGeometrySchemaV7 = SpatialObjectGeometrySchemaV1.extend({ bulges: z.array(BulgeSchema).optional() })
-	.refine(value => value.bulges === undefined || value.bulges.length === value.points.length, { message: 'A closed boundary needs one bulge per edge.' });
-export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV7>;
+const SpatialObjectShapeV7 = SpatialObjectGeometrySchemaV1.extend({ bulges: z.array(BulgeSchema).optional() });
+const oneBulgePerEdge = (value: { readonly points: readonly unknown[]; readonly bulges?: readonly number[] }) => value.bulges === undefined || value.bulges.length === value.points.length;
+const BULGE_MESSAGE = { message: 'A closed boundary needs one bulge per edge.' };
+const SpatialObjectGeometrySchemaV7 = SpatialObjectShapeV7.refine(oneBulgePerEdge, BULGE_MESSAGE);
 const StructureSchemaV7 = StructureSchemaV5.extend({ walls: z.array(StructureSchema.shape.walls.element.extend({ bulge: BulgeSchema.optional() })) });
 const PlanGeometrySchemaV7 = PlanGeometrySchemaV6.extend({ schemaVersion: z.literal(7), objects: z.array(SpatialObjectGeometrySchemaV7), structure: StructureSchemaV7.optional(), intended: StructureSchemaV7.optional() });
 const StairOptionsSchema = z.object({ width: z.number().min(1).max(1e6), treads: z.number().int().min(1).max(200), direction: z.enum(['up', 'down']) });
@@ -75,12 +76,22 @@ const StructureSchemaV8 = StructureSchemaV7.extend({ elements: z.array(z.object(
 	points: z.array(SpatialPointSchema), stair: StairOptionsSchema.optional(),
 }).refine(element => element.kind === 'stair' ? element.stair !== undefined : element.stair === undefined)).optional() });
 const PlanGeometrySchemaV8 = PlanGeometrySchemaV7.extend({ schemaVersion: z.literal(8), structure: StructureSchemaV8.optional(), intended: StructureSchemaV8.optional() });
-const SpatialElementSchemaV9 = z.object({
+const SpatialElementShapeV9 = z.object({
 	id: z.string().startsWith('element-'), kind: z.enum(['object', 'path', 'fence', 'measurement', 'stair', 'arrow', 'asset']),
 	points: z.array(SpatialPointSchema), stair: StairOptionsSchema.optional(), assetId: z.string().min(1).optional(),
-}).refine(element => element.kind === 'stair' ? element.stair !== undefined : element.stair === undefined)
-	.refine(element => (element.kind === 'asset') === (element.assetId !== undefined), { message: 'An asset placement, and only an asset placement, names its asset.' });
+});
+const stairRule = (element: z.infer<typeof SpatialElementShapeV9>) => element.kind === 'stair' ? element.stair !== undefined : element.stair === undefined;
+const assetRule = (element: z.infer<typeof SpatialElementShapeV9>) => (element.kind === 'asset') === (element.assetId !== undefined);
+const ASSET_MESSAGE = { message: 'An asset placement, and only an asset placement, names its asset.' };
+const SpatialElementSchemaV9 = SpatialElementShapeV9.refine(stairRule).refine(assetRule, ASSET_MESSAGE);
 const StructureSchemaV9 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV9).optional() });
-export const PlanGeometrySchemaV9 = PlanGeometrySchemaV8.extend({ schemaVersion: z.literal(9), structure: StructureSchemaV9.optional(), intended: StructureSchemaV9.optional() });
-export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9]);
-export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV9>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 };
+const PlanGeometrySchemaV9 = PlanGeometrySchemaV8.extend({ schemaVersion: z.literal(9), structure: StructureSchemaV9.optional(), intended: StructureSchemaV9.optional() });
+/** Schema 10: a dragged canvas caption, as a world-millimetre offset from its automatic anchor (ADR-0029). */
+const LabelOffsetSchema = z.object({ dx: z.number(), dy: z.number() });
+export const SpatialObjectGeometrySchemaV10 = SpatialObjectShapeV7.extend({ labelOffset: LabelOffsetSchema.optional() }).refine(oneBulgePerEdge, BULGE_MESSAGE);
+export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV10>;
+const SpatialElementSchemaV10 = SpatialElementShapeV9.extend({ labelOffset: LabelOffsetSchema.optional() }).refine(stairRule).refine(assetRule, ASSET_MESSAGE);
+const StructureSchemaV10 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV10).optional() });
+export const PlanGeometrySchemaV10 = PlanGeometrySchemaV9.extend({ schemaVersion: z.literal(10), objects: z.array(SpatialObjectGeometrySchemaV10), structure: StructureSchemaV10.optional(), intended: StructureSchemaV10.optional() });
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9, PlanGeometrySchemaV10]);
+export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV10>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 };

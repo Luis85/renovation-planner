@@ -140,3 +140,9 @@ parentless plan. Evidence: `tests/presentation/editor/parentZoneGuide.test.ts`,
 `tests/presentation/editor/detailPlans.e2e.test.ts`, and
 `tests/presentation/editor/shell/editorContextBar.test.ts`. The manual walkthrough is still
 unrun.
+
+**2026-09-12** — The editor's Property tree now nests detail plans under their parents
+([ADR-0029](../development/adrs/0029-a-plan-carries-a-kind-and-a-sibling-order.md)). The
+out-of-scope line about the PROJECT view's plan list still holds; only the editor's tree changed.
+`NewPlanForm` opened from a zone now defaults the new plan's kind to one step below its parent's
+(site → building → floor → room; a room's child is a room), persisted as schema v11 `kind`.

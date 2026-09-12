@@ -85,6 +85,17 @@
  * are the defaults, for a render before the first measurement. Width changes are not animated, so
  * the Konva stage resizes once rather than per frame.
  */
+
+/* Declared here, not only read as a `var()` fallback below: `tests/harness/cssVars.test.ts`
+   counts a var() with a fallback as a read that still needs a declaration (the fallback is a
+   branch, not permission for the name to be missing), same as `--rp-taskbar-clearance` in
+   `editor-creation-fidelity.css`. The inline style `ResponsiveEditorShell` binds on this same
+   element overrides it once a measurement lands; these are the pre-measurement defaults. */
+.renovation-plan-editor .rp-editor-body {
+	--rp-layers-width: 256px;
+	--rp-inspector-width: 352px;
+}
+
 .renovation-plan-editor .rp-side-panel {
 	display: flex;
 	position: relative;

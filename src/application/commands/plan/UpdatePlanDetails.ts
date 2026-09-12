@@ -38,7 +38,9 @@ export class UpdatePlanDetailsCommand implements Command<UpdatePlanDetailsInput,
 	async execute(input: UpdatePlanDetailsInput): Promise<Result<{ plan: Loaded<Plan> }, UpdatePlanDetailsError>> {
 		const found = await loadPlan(this.plans, input.planId);
 		if (isErr(found)) return found;
-		const updated = found.value.entity.withDetails({ kind: input.kind, order: input.order });
+		// Annotated: fallow resolves a class member through the local's type, not the access (CLAUDE.md, Gotchas).
+		const plan: Plan = found.value.entity;
+		const updated = plan.withDetails({ kind: input.kind, order: input.order });
 		if (isErr(updated)) return updated;
 		const saved = await savePlan(this.plans, this.events, updated.value, found.value.version, planDetailsChanged);
 		if (isErr(saved)) return saved;

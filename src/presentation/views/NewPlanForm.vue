@@ -17,6 +17,7 @@
 import { ref, type Ref } from 'vue';
 import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
+import { useFieldInput } from '../composables/use-field-input';
 import { useInvalidFieldFocus } from '../composables/use-invalid-field-focus';
 import { useFormCommit } from '../composables/use-form-commit';
 import type { FieldErrorMap } from '../errors/route-error';
@@ -154,21 +155,8 @@ const form = useFormCommit<NewPlanValues, { plan: Loaded<Plan> }>({
 const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
 
 
-/**
- * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight past
- * it and make the sole-write-path rule this composable exists for unenforceable.
- */
-function onNameInput(event: Event): void {
-	const control = event.target as HTMLInputElement;
-	if (refuseWhileSubmitting(control, form.values.value.name)) return;
-	form.setField('name', control.value);
-}
-
-function onKindChange(event: Event): void {
-	const control = event.target as HTMLSelectElement;
-	if (refuseWhileSubmitting(control, form.values.value.kind)) return;
-	form.setField('kind', control.value as PlanKind);
-}
+/** Name and kind are both strings on the wire; `useFieldInput`'s docblock carries the `:value` + `@input` rule. */
+const onFieldInput = useFieldInput(form, refuseWhileSubmitting);
 
 // The focus move a rejected submit owes, and the `<form>` ref it queries. One statement of
 // both for all three creation forms — `useInvalidFieldFocus`'s docblock carries the WCAG
@@ -236,7 +224,7 @@ async function onSubmit(): Promise<void> {
 					data-field="name"
 					:value="form.values.value.name"
 					:readonly="form.submitting.value"
-					@input="onNameInput"
+					@input="onFieldInput('name', $event)"
 				>
 			</label>
 		</FieldError>
@@ -246,7 +234,7 @@ async function onSubmit(): Promise<void> {
 				data-field="kind"
 				:value="form.values.value.kind"
 				:aria-disabled="form.submitting.value"
-				@change="onKindChange"
+				@change="onFieldInput('kind', $event)"
 			>
 				<option
 					v-for="kind in PLAN_KINDS"

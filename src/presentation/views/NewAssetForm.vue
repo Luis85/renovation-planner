@@ -46,6 +46,7 @@
 import { computed, ref, useId, type Ref } from 'vue';
 import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
+import { useFieldInput } from '../composables/use-field-input';
 import { useInvalidFieldFocus } from '../composables/use-invalid-field-focus';
 import { useFormCommit } from '../composables/use-form-commit';
 import type { FieldErrorMap } from '../errors/route-error';
@@ -357,20 +358,11 @@ function showExisting(assetId: AssetId): void {
 }
 
 /**
- * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight past
- * it and make the sole-write-path rule this composable exists for unenforceable.
- *
- * ONE handler over a key rather than seven near-identical ones. The siblings spell a function
- * per field because their fields have different TYPES — a `Date | null`, a `ProjectStatus` —
- * and each needs its own conversion; every field here is a string on the wire, including the
- * two selects, whose values are members of their own unions and are narrowed by the cast that
- * the control's own option list makes true.
+ * ONE handler over a key for all seven fields — every one is a string on the wire, including
+ * the two selects — and `useFieldInput`'s docblock carries the `:value` + `@input` rule and why
+ * a field needing a conversion is not this shape.
  */
-function onFieldInput<K extends keyof NewAssetValues>(key: K, event: Event): void {
-	const control = event.target as HTMLInputElement | HTMLSelectElement;
-	if (refuseWhileSubmitting(control, form.values.value[key])) return;
-	form.setField(key, control.value as NewAssetValues[K]);
-}
+const onFieldInput = useFieldInput(form, refuseWhileSubmitting);
 
 function categoryLabel(category: NewAssetValues['category']): string {
 	return tr(ASSET_CATEGORY_LABELS[category]);

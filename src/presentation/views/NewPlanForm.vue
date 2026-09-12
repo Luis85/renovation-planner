@@ -24,6 +24,8 @@ import { isErr, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { Loaded } from '../../application/ports/versioning';
 import type { Plan, PlanParent } from '../../domain/plan/Plan';
+import { childKindOf, DEFAULT_PLAN_KIND, PLAN_KINDS, type PlanKind } from '../../domain/plan/PlanKind';
+import { PLAN_KIND_LABELS } from '../editor/editorIcons';
 import type { CreatePlanInput } from '../../application/commands/plan/CreatePlan';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { Logger } from '../../application/ports/Logger';
@@ -58,6 +60,8 @@ const props = defineProps<{
 	initialName?: string;
 	/** Makes the created plan a detail plan of this zone. */
 	parent?: PlanParent;
+	/** The parent plan's kind, so a detail plan starts one step below it (ADR-0029). */
+	parentKind?: PlanKind;
 }>();
 
 const emit = defineEmits<{ submit: [values: CreatePlanInput]; projectGone: [] }>();
@@ -108,6 +112,7 @@ const NEW_PLAN_ERRORS: FieldErrorMap<CreatePlanInput> = {
 const INITIAL: CreatePlanInput = {
 	projectId: props.projectId as ProjectId,
 	name: props.initialName ?? '',
+	kind: props.parentKind ? childKindOf(props.parentKind) : DEFAULT_PLAN_KIND,
 	...(props.parent ? { parent: props.parent } : {}),
 };
 
@@ -151,6 +156,14 @@ function onNameInput(event: Event): void {
 	const control = event.target as HTMLInputElement;
 	if (refuseWhileSubmitting(control, form.values.value.name)) return;
 	form.setField('name', control.value);
+}
+
+function onKindChange(event: Event): void {
+	const control = event.target as HTMLSelectElement;
+	// `?? DEFAULT_PLAN_KIND` mirrors what `INITIAL` always supplies — `kind` is optional on
+	// `CreatePlanInput` — so the restore puts back what the template drew, not a second answer.
+	if (refuseWhileSubmitting(control, form.values.value.kind ?? DEFAULT_PLAN_KIND)) return;
+	form.setField('kind', control.value as PlanKind);
 }
 
 // The focus move a rejected submit owes, and the `<form>` ref it queries. One statement of
@@ -223,6 +236,23 @@ async function onSubmit(): Promise<void> {
 				>
 			</label>
 		</FieldError>
+		<label class="rp-dialog-field">
+			{{ tr('form.new-plan.kind') }}
+			<select
+				data-field="kind"
+				:value="form.values.value.kind"
+				:aria-disabled="form.submitting.value"
+				@change="onKindChange"
+			>
+				<option
+					v-for="kind in PLAN_KINDS"
+					:key="kind"
+					:value="kind"
+				>
+					{{ tr(PLAN_KIND_LABELS[kind]) }}
+				</option>
+			</select>
+		</label>
 		<FormSubmitRow :submitting="form.submitting.value" />
 	</form>
 </template>

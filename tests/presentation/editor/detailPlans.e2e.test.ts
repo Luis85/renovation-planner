@@ -79,14 +79,16 @@ it('creates a detail plan named after the zone, opens it, and then lists it unde
 	await r.menu();
 	await r.harness.wrapper.get('[data-rp-context-action="detail-plan-new"]').trigger('click');
 	await settleUntil(() => r.dialogs.current !== null, 'new plan dialog');
-	expect(r.dialogs.current).toMatchObject({ kind: 'form', title: t('en', 'form.new-detail-plan.title', { name: 'House' }) });
+	// `parentKind` is the opened plan's own kind, so the form's Kind select starts one step below it
+	// (ADR-0029) — a room under this floor — and that default is what the command persists.
+	expect(r.dialogs.current).toMatchObject({ kind: 'form', title: t('en', 'form.new-detail-plan.title', { name: 'House' }), props: { parentKind: HARNESS_PLAN.kind } });
 	const form = r.harness.wrapper.get('.rp-dialog-form');
 	expect((form.get('[data-field="name"]').element as HTMLInputElement).value).toBe('House');
 	await form.trigger('submit');
 	await settleUntil(() => r.opened.length === 1, 'detail plan opened');
 
 	const created = expectFound(await r.stack.plans.getById(r.opened[0] as never)).entity;
-	expect(created).toMatchObject({ name: 'House', parent: { planId: HARNESS_PLAN.id, zoneId: house.id } });
+	expect(created).toMatchObject({ name: 'House', kind: 'room', parent: { planId: HARNESS_PLAN.id, zoneId: house.id } });
 
 	await r.menu();
 	// The zone's linked plan is the menu's first item, with New detail plan beside it.

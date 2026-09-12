@@ -78,3 +78,172 @@
 		transition: none;
 	}
 }
+
+/*
+ * The frame. `--rp-layers-width` and `--rp-inspector-width` are the EFFECTIVE widths
+ * `ResponsiveEditorShell` binds on `.rp-editor-body` (canvas floor already applied); the fallbacks
+ * are the defaults, for a render before the first measurement. Width changes are not animated, so
+ * the Konva stage resizes once rather than per frame.
+ */
+.renovation-plan-editor .rp-side-panel {
+	display: flex;
+	position: relative;
+	flex: 0 0 auto;
+	flex-direction: column;
+	min-height: 0;
+	background-color: var(--background-primary);
+}
+
+.renovation-plan-editor .rp-side-panel--layers {
+	width: var(--rp-layers-width, 256px);
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.renovation-plan-editor .rp-side-panel--inspector {
+	width: var(--rp-inspector-width, 352px);
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.renovation-plan-editor .rp-side-panel > .rp-side-panel__body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/* In M16's overlay and drawer the body adds no box: the overlay stays the scroll container. */
+.rp-overlay-panel > .rp-side-panel__body,
+.rp-inspector-drawer > .rp-side-panel__body {
+	display: contents;
+}
+
+/* The panel content in both layouts; only the full layout's frame makes it scroll on its own. */
+.renovation-plan-editor .rp-editor-layers,
+.renovation-plan-editor .rp-editor-inspector {
+	padding: 0 var(--size-4-3) var(--size-4-3);
+	overflow-wrap: anywhere;
+	background-color: var(--background-primary);
+}
+
+.renovation-plan-editor .rp-side-panel .rp-editor-layers,
+.renovation-plan-editor .rp-side-panel .rp-editor-inspector {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	scrollbar-gutter: stable;
+}
+
+.renovation-plan-editor .rp-editor-inspector {
+	padding-top: var(--size-4-3);
+}
+
+.renovation-plan-editor .rp-side-panel__header {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	min-height: 40px;
+	padding: 0 var(--size-4-2) 0 var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.renovation-plan-editor .rp-side-panel__title {
+	min-width: 0;
+	overflow: hidden;
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+ * Two-class compounds for the (0,1,1) Obsidian's `button:not(.clickable-icon)` scores, and their own
+ * rings, which `buttonSpecificity.test.ts` and `buttonFocusRing.test.ts` check for every button.
+ * 28px squares clear WCAG 2.2's 24px target minimum.
+ */
+.renovation-plan-editor .rp-side-panel .rp-side-panel__toggle,
+.renovation-plan-editor .rp-side-panel .rp-side-panel__strip-button {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	color: var(--text-muted);
+	background-color: transparent;
+	box-shadow: none;
+	border: none;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.renovation-plan-editor .rp-side-panel .rp-side-panel__toggle:hover,
+.renovation-plan-editor .rp-side-panel .rp-side-panel__strip-button:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-side-panel .rp-side-panel__toggle:focus-visible,
+.renovation-plan-editor .rp-side-panel .rp-side-panel__strip-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Collapsed: the 40px strip `panelLayout.ts` reserves as `STRIP_PX`. */
+.renovation-plan-editor .rp-side-panel__strip {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--size-4-1);
+	padding: var(--size-4-2) 0;
+}
+
+.renovation-plan-editor .rp-side-panel__strip > .rp-side-panel__strip-button:first-child {
+	margin-bottom: var(--size-4-2);
+}
+
+/*
+ * The resize handle: a 6px hit area straddling the border, invisible at rest beyond the border
+ * itself. Hover, drag and keyboard focus draw a 2px accent line, which is also its focus indicator
+ * (`--interactive-accent`'s contrast is recorded in `editor-shell.css`).
+ */
+.renovation-plan-editor .rp-side-panel__resizer {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	z-index: 2;
+	width: 6px;
+	cursor: col-resize;
+	touch-action: none;
+}
+
+.renovation-plan-editor .rp-side-panel--layers > .rp-side-panel__resizer {
+	right: -3px;
+}
+
+.renovation-plan-editor .rp-side-panel--inspector > .rp-side-panel__resizer {
+	left: -3px;
+}
+
+.renovation-plan-editor .rp-side-panel__resizer::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 2px;
+	width: 2px;
+	background-color: transparent;
+}
+
+.renovation-plan-editor .rp-side-panel__resizer:hover::after,
+.renovation-plan-editor .rp-side-panel__resizer:active::after,
+.renovation-plan-editor .rp-side-panel__resizer:focus-visible::after {
+	background-color: var(--interactive-accent);
+}
+
+.renovation-plan-editor .rp-side-panel__resizer:focus-visible {
+	outline: none;
+}

@@ -29,7 +29,7 @@
 	flex-direction: column;
 	gap: var(--size-4-1);
 	padding: var(--size-4-2) var(--size-4-1);
-	background-color: var(--background-secondary);
+	background-color: var(--background-primary);
 	border-right: 1px solid var(--background-modifier-border);
 }
 
@@ -67,14 +67,10 @@
  * `editor.css` is what they resolve against. The Layers outlet precedes the canvas so its
  * column keeps the reading order; an explicit stacking level puts the floating panel above it.
  *
- * `min(17rem, 80%)` is the persistent Inspector's own 17rem, bounded so that the canvas behind
+ * `min(17rem, 80%)` is the Inspector's old persistent width, bounded so that the canvas behind
  * stays visible at the narrow end of `constrained` — the panel is a look at something, and one
  * covering the whole pane would be a screen rather than an overlay.
  */
-.rp-persistent-panel {
-	display: contents;
-}
-
 .rp-overlay-panel,
 .rp-inspector-drawer {
 	display: flex;

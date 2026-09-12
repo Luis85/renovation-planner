@@ -100,25 +100,6 @@
 	background-color: color-mix(in oklch, var(--background-modifier-error) 18%, transparent);
 }
 
-/*
- * Wider than the layers panel since design slice 10, and the two therefore do not share a
- * width. The Requirements panel puts two labelled text inputs and four buttons per row in
- * here; at the layers panel's 12rem those wrap to one control per line and a
- * three-requirement zone is taller than the pane. The number is a judgement rather than a
- * measurement — jsdom lays nothing out, and the harness draws this panel EMPTY (its fixture
- * selects no zone), so no gate here has seen a populated row. `npm run test-build` is where
- * it gets looked at.
- */
-.rp-editor-inspector {
-	flex: 0 0 auto;
-	width: 17rem;
-	min-height: 0;
-	overflow-y: auto;
-	padding: var(--size-4-2);
-	background-color: var(--background-secondary);
-	border-left: 1px solid var(--background-modifier-border);
-}
-
 .rp-floor-inspector {
 	display: flex;
 	flex-direction: column;

@@ -46,22 +46,6 @@
 	outline-offset: 1px;
 }
 
-.renovation-plan-editor .rp-persistent-panel > .rp-editor-layers {
-	width: clamp(12rem, 17cqw, 16rem);
-}
-
-.renovation-plan-editor .rp-persistent-panel > .rp-editor-inspector {
-	width: clamp(19rem, 25cqw, 23rem);
-}
-
-.renovation-plan-editor .rp-editor-layers,
-.renovation-plan-editor .rp-editor-inspector {
-	padding: 16px;
-	background: var(--background-primary);
-	scrollbar-gutter: stable;
-	overflow-wrap: anywhere;
-}
-
 .renovation-plan-editor .rp-editor-panel-title {
 	margin-bottom: 16px;
 	font-size: var(--font-ui-smaller);

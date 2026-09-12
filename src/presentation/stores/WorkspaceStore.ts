@@ -87,6 +87,17 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	}
 
 	/**
+	 * The ONE reveal for a task whose form or target lives in the Inspector: the overlay in
+	 * `constrained`, the panel itself otherwise, where a collapsed Inspector hides the form in a
+	 * `display: none` body. The expand is the task's rather than the user's, so nothing here writes
+	 * storage — `ResponsiveEditorShell` persists only the user's own commits.
+	 */
+	function revealInspector(): void {
+		if (layoutMode.value === 'constrained') overlay.value = 'inspector';
+		else setPanel('inspector', { collapsed: false });
+	}
+
+	/**
 	 * Every layer visible and the layout back at its default — the state a Plan Editor opens in.
 	 *
 	 * Nothing here is persisted either, so "reset" means the same thing it means in
@@ -122,6 +133,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		setLayoutMode,
 		openOverlay,
 		closeOverlay,
+		revealInspector,
 		panelLayout,
 		setPanel,
 		restorePanelLayout,

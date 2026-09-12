@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mountPlanEditor, settle, type EditorHarness } from '../../../helpers/editor';
 import { memoryDeviceStorage } from '../../../helpers/deviceStorage';
 import { resizeTo } from '../../../helpers/layout';
-import { pointer } from '../../../helpers/planEditorRig';
+import { canvasOf, dragRoom, pointer } from '../../../helpers/planEditorRig';
 import { useWorkspaceStore } from '../../../../src/presentation/stores/WorkspaceStore';
 
 let open: EditorHarness | null = null;
@@ -171,6 +171,31 @@ describe('full-layout side panels', () => {
 		resizeTo(harness.rootEl, 0, 800);
 		await settle();
 		expect((harness.wrapper.get('.rp-editor-body').element as HTMLElement).style.getPropertyValue('--rp-layers-width')).toBe('');
+	});
+
+	/**
+	 * A task whose form lives in the Inspector revealed it only in `constrained`, so with the Inspector
+	 * collapsed Add → Room's naming step drew into a hidden body and its focus hand-off went nowhere.
+	 * The expand is the task's, not the user's, so it is not written to storage.
+	 */
+	it('expands a collapsed Inspector for Add → Room\'s naming step and focuses the field, without storing the expand', async () => {
+		const { harness, storage } = await mounted();
+		await harness.wrapper.get('.rp-side-panel__toggle[data-rp-panel-toggle="inspector"]').trigger('click');
+		await settle();
+		await harness.wrapper.get('button[data-rp-action="add"]').trigger('click');
+		await settle();
+		await harness.wrapper.get('[data-rp-entry="room"]').trigger('click');
+		await settle();
+		dragRoom(canvasOf(harness));
+		await settle();
+		await harness.wrapper.get('[data-rp-draft-dimension="width"]').trigger('click');
+		await settle();
+
+		const field = harness.wrapper.get('.rp-new-room input[name="width"]');
+		expect(field.isVisible()).toBe(true);
+		expect(document.activeElement).toBe(field.element);
+		expect(storage.writes).toHaveLength(1);
+		expect(lastWrite(storage)).toMatchObject({ inspector: { collapsed: true } });
 	});
 
 	it('leaves the constrained overlay usable for a panel collapsed in the full layout', async () => {

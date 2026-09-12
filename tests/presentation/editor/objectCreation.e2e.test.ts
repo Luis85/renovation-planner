@@ -124,6 +124,13 @@ it.each(['item', 'path', 'fence', 'measurement'] as const)('opens %s details fro
 	await rig.wrapper.get('.rp-task-banner__cancel').trigger('click'); await settle();
 	expect(rig.runtime.activeToolId.value).toBe('select'); expect(rig.project.structure.elements ?? []).toHaveLength(0);
 });
+it('expands a collapsed Inspector for item details from Add in a full leaf and focuses the name', async () => {
+	const rig = await structureEditor(true); mounted.push(rig);
+	await rig.wrapper.get('.rp-side-panel__toggle[data-rp-panel-toggle="inspector"]').trigger('click'); await settle();
+	await rig.wrapper.get('[data-rp-action="add"]').trigger('click'); await rig.wrapper.get('[data-rp-entry="item"]').trigger('click');
+	await settleUntil(() => !rig.runtime.elementTask.draft.loading, 'element from Add');
+	const name = rig.wrapper.get('input[name="element-name"]'); expect(name.isVisible()).toBe(true); expect(document.activeElement).toBe(name.element);
+});
 it('explains partial outline coordinates, keeps native editing keys local, and finishes through the shared banner', async () => {
 	const rig = await setup();
 	const x = rig.wrapper.get<HTMLInputElement>('input[name="element-x"]');

@@ -17,7 +17,7 @@ const markers = computed(() => rows.value.filter(room => room.markerNumber !== n
 }));
 function select(roomId: string): void {
 	runtime.selectAndFrame(roomId);
-	if (workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
+	workspace.revealInspector();
 }
 </script>
 

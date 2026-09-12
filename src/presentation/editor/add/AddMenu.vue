@@ -225,7 +225,7 @@ function activate(entry: CreationEntry): void {
 	activateCreationEntry(entry.id, creation);
 	if (isElementEntry(entry) && !['stair', 'arrow'].includes(entry.id)) {
 		const root = (menuRoot.value as HTMLElement).closest('.renovation-plan-editor');
-		if (workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
+		workspace.revealInspector();
 		void nextTick(() => root?.querySelector<HTMLInputElement>('[name="element-name"]')?.focus());
 	}
 	if (['area', 'wall', 'door', 'window', 'opening', 'stair', 'arrow'].includes(entry.id)) {

@@ -23,15 +23,6 @@ function rotate(event: Event, degrees?: number): Promise<void> { return runInspe
 	>
 		<button
 			type="button"
-			data-rp-action="rotate-object"
-			:aria-disabled="blocked"
-			@click="rotate($event)"
-		>
-			<HostIcon name="rotate-cw" />
-			{{ label }}
-		</button>
-		<button
-			type="button"
 			data-rp-action="rotate-object-left"
 			:aria-label="tr('editor.rotation.counterclockwise')"
 			:title="tr('editor.rotation.left-quarter')"
@@ -49,6 +40,16 @@ function rotate(event: Event, degrees?: number): Promise<void> { return runInspe
 			@click="rotate($event, 90)"
 		>
 			<HostIcon name="rotate-cw" />
+		</button>
+		<!-- After the quarter turns in the DOM, not by CSS `order`, so focus order matches (side panels spec §3). -->
+		<button
+			type="button"
+			data-rp-action="rotate-object"
+			:aria-disabled="blocked"
+			@click="rotate($event)"
+		>
+			<HostIcon name="rotate-cw" />
+			{{ label }}
 		</button>
 		<p
 			v-if="hostWall"

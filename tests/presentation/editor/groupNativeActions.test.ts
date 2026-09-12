@@ -96,6 +96,10 @@ it('groups only walls with a useful default name, expands saved identity, and su
 it('repeating explicit enclosure reuses the saved group and walls without a new write', async () => {
 	const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id)).document, write = vi.spyOn(rig.geometry, 'write');
 	rig.selection.select([rig.room.id]); await settle();
+	// A room's group controls sit inside its body, directly above Delete at the Inspector's foot (side panels spec §3).
+	const region = rig.wrapper.get('[data-rp-region="inspector"]'), regionButtons = region.findAll('button');
+	expect(region.find('.rp-room-inspector [data-rp-group-controls] + .rp-inspector-danger').exists()).toBe(true);
+	expect(regionButtons[regionButtons.length - 1].classes()).toContain('rp-editor-inspector-delete');
 	await rig.wrapper.get('[data-rp-group-action="enclose"]').trigger('click'); await idle(rig);
 	expect(write).not.toHaveBeenCalled(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
 	expect(rig.selection.selectedIds).toHaveLength(5);

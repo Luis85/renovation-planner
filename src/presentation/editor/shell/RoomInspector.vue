@@ -49,6 +49,10 @@ import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
  *
  * Selection → DTO runs through `InspectorStore.hydrateFrom`, watched off the selection
  * store — the pipeline slice 6 declared, not a second one beside it.
+ *
+ * The frame's group controls arrive through the `actions` slot, drawn directly above Delete so
+ * Delete stays at the foot of the whole Inspector region (side panels spec §3) rather than only
+ * of this body — the same slot name `MultiSelectionInspector` takes them through.
  */
 import { computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -243,6 +247,8 @@ const zoneLocked = computed(() => overview.value?.record.locked === true);
 		</section>
 
 		<ComingLaterLine :sections="comingLater" />
+
+		<slot name="actions" />
 
 		<div class="rp-inspector-danger">
 			<button

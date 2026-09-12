@@ -69,6 +69,22 @@ const renovationSession = useRenovationSession();
 const assetShapes = useAssetShapeStore();
 const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements, assetShapes.shapeOf)]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
+
+/**
+ * Which single-selection body the chain below draws once the review, task-tool and multiple
+ * arms have passed — named ONCE, rather than re-derived beside the chain, so the room arm can take
+ * `GroupControls` inside its body (above Delete, side panels spec §3) and the trailing mount can
+ * skip exactly that arm without the two drifting apart.
+ */
+const body = computed(() => {
+	if (renovationSession.perspective === 'renovate') return 'renovate';
+	const id = selectedIds.value[0];
+	if (id === undefined) return 'floor';
+	if (project.structure.walls.some(wall => wall.id === id) || project.structure.openings.some(opening => opening.id === id)) return 'structure';
+	if (project.structure.elements?.some(element => element.id === id)) return 'element';
+	return 'room';
+});
+const groupsShown = computed(() => activeToolId.value === 'select' && renovationSession.perspective !== 'review');
 </script>
 
 <template>
@@ -95,11 +111,15 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 				<GroupControls />
 			</template>
 		</MultiSelectionInspector>
-		<RenovationInspector v-else-if="renovationSession.perspective === 'renovate'" />
-		<FloorInspector v-else-if="selectedIds.length === 0" />
-		<StructureInspector v-else-if="project.structure.walls.some(wall => wall.id === selectedIds[0]) || project.structure.openings.some(opening => opening.id === selectedIds[0])" />
-		<ElementInspector v-else-if="project.structure.elements?.some(element => element.id === selectedIds[0])" />
-		<RoomInspector v-else />
-		<GroupControls v-if="selection.kind !== 'multiple' && activeToolId === 'select' && renovationSession.perspective !== 'review'" />
+		<RenovationInspector v-else-if="body === 'renovate'" />
+		<FloorInspector v-else-if="body === 'floor'" />
+		<StructureInspector v-else-if="body === 'structure'" />
+		<ElementInspector v-else-if="body === 'element'" />
+		<RoomInspector v-else>
+			<template #actions>
+				<GroupControls v-if="groupsShown" />
+			</template>
+		</RoomInspector>
+		<GroupControls v-if="selection.kind !== 'multiple' && groupsShown && body !== 'room'" />
 	</aside>
 </template>

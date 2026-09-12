@@ -226,10 +226,18 @@ describe('the Room Inspector, through the real mounted editor', () => {
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
 		const room = harness.wrapper.get('.rp-room-inspector');
-		expect(room.get('.rp-inspector-toolbar').find('[data-rp-lock="zone-kitchen"]').exists()).toBe(true);
+		// Spec §3's order: the two quarter turns, Rotate by…, then the lock — in the DOM, so focus
+		// order and visual order agree.
+		const toolbar = room.get('.rp-inspector-toolbar').findAll('button');
+		expect(toolbar.map((button) => button.attributes('data-rp-action') ?? button.attributes('data-rp-lock')))
+			.toEqual(['rotate-object-left', 'rotate-object-right', 'rotate-object', 'zone-kitchen']);
 		expect(room.get('.rp-inspector-actions').find('[data-rp-action="edit-outline"]').exists()).toBe(true);
 		const danger = room.get('.rp-inspector-danger');
 		expect(room.element.lastElementChild).toBe(danger.element);
+		// At the foot of the REGION, not only of the room body: nothing the frame mounts follows it.
+		const region = harness.wrapper.get('[data-rp-region="inspector"]');
+		const regionButtons = region.findAll('button');
+		expect(regionButtons[regionButtons.length - 1].element).toBe(danger.get('button').element);
 		expect(danger.get('.rp-editor-inspector-delete').find('.rp-host-icon').exists()).toBe(true);
 		expect(danger.get('.rp-editor-inspector-delete').text()).toBe(t('en', 'editor.inspector.delete-zone'));
 	});

@@ -106,3 +106,17 @@ describe('MoveSpatialObjectCommand', () => {
 		expect(events.published).toHaveLength(0);
 	});
 });
+
+describe('MoveSpatialObjectCommand caption offset', () => {
+	it('sets, keeps and clears the caption offset around the geometry it saves', async () => {
+		const { zones, command } = wired();
+		const zone = await seed(zones);
+		const dragged = expectOk(await command.execute({ zoneId: zone.id, geometry: zone.geometry, labelOffset: { dx: 90, dy: 15 } }));
+		expect(dragged.zone.entity.labelOffset).toEqual({ dx: 90, dy: 15 });
+		expect(dragged.zone.entity.geometry).toEqual(zone.geometry);
+		const moved = expectOk(await command.execute({ zoneId: zone.id, geometry: squareAt(40, 40) }));
+		expect(moved.zone.entity.labelOffset).toEqual({ dx: 90, dy: 15 });
+		const cleared = expectOk(await command.execute({ zoneId: zone.id, geometry: squareAt(40, 40), labelOffset: null }));
+		expect(cleared.zone.entity.labelOffset).toBeNull();
+	});
+});

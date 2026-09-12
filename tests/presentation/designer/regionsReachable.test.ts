@@ -16,8 +16,11 @@
  * forgetting rather than closing it, since the only thing that would fill them is
  * `AssetDesignerView`, another Task B3 file.
  *
- * **What the instrument sees, and what it does not.** It reads import SPECIFIERS as text — `from
- * '…'`, a bare `import '…'` and a dynamic `import('…')` — and resolves the relative ones, so:
+ * **What the instrument sees, and what it does not.** The walk is `tests/helpers/importGraph.ts`
+ * — shared since `tests/build/node-tests-import-no-sfc.test.ts` needed the same one — and it
+ * reads import SPECIFIERS as text: `from '…'`, a bare `import '…'` and a dynamic `import('…')`,
+ * skipping a type-only import (its header says why and what was measured), and resolves the
+ * relative ones, so:
  *
  * - a component reached through a path alias, a glob or a runtime string is invisible to it;
  * - an import that exists but is never RENDERED counts as reached. That half is closed by LINT
@@ -35,69 +38,10 @@
  * REPORT an unreachable component before it is pointed at `src/`.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO } from '../../helpers/repo';
-import { toPosix } from '../../helpers/posix';
-
-/** A filesystem the walk can ask about, so a fixture can stand in for `src/`. */
-interface SourceTree {
-	read(path: string): string;
-	isFile(path: string): boolean;
-}
-
-/**
- * Every specifier an ES module names, whether it imports bindings, imports for side effects, or
- * awaits a dynamic import. One expression rather than three, because a second pattern is a
- * second thing to keep in step with the first.
- */
-function specifiersIn(source: string): string[] {
-	return [...source.matchAll(/(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g)].map((match) => match[1] ?? '');
-}
-
-/**
- * Resolve one specifier against the file that named it, POSIX-style and relative to the
- * repository root.
- *
- * The extension candidates are tried in the order TypeScript itself would, and the empty one
- * comes FIRST because `.vue` imports are written with their extension. A specifier that is not
- * relative resolves to nothing: a package, or an alias this walk deliberately does not follow.
- */
-function resolveSpecifier(from: string, specifier: string, tree: SourceTree): string | null {
-	if (!specifier.startsWith('.')) return null;
-	const base = toPosix(join(from, '..', specifier));
-	for (const extension of ['', '.ts', '.vue', '/index.ts']) {
-		const candidate = `${base}${extension}`;
-		if (tree.isFile(candidate)) return candidate;
-	}
-	return null;
-}
-
-/**
- * Every file reachable from `entry` by relative import, bounded to `within`.
- *
- * Iterative rather than recursive, and `seen`-guarded before it reads, so a cycle terminates —
- * which is a fixture case below rather than an assumption, because a designer tree really can
- * hold one (a shell region that imports a shared type from the root it draws in).
- */
-function reachableFrom(entry: string, tree: SourceTree, within: string): Set<string> {
-	const seen = new Set<string>();
-	const queue = [entry];
-	for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
-		if (seen.has(next)) continue;
-		seen.add(next);
-		for (const specifier of specifiersIn(tree.read(next))) {
-			const target = resolveSpecifier(next, specifier, tree);
-			if (target !== null && target.startsWith(within)) queue.push(target);
-		}
-	}
-	return seen;
-}
-
-const fixture = (files: Record<string, string>): SourceTree => ({
-	read: (path) => files[path] ?? '',
-	isFile: (path) => path in files,
-});
+import { fixtureTree as fixture, reachableFrom, repoTree as nodeTree } from '../../helpers/importGraph';
 
 describe('the reachability walk', () => {
 	it('reaches a component the entry imports', () => {
@@ -106,7 +50,7 @@ describe('the reachability walk', () => {
 			'src/presentation/designer/Root.vue': '',
 		});
 
-		expect([...reachableFrom('src/presentation/designer/View.ts', tree, 'src/presentation/')]).toContain(
+		expect([...reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/'])]).toContain(
 			'src/presentation/designer/Root.vue',
 		);
 	});
@@ -123,7 +67,7 @@ describe('the reachability walk', () => {
 			'src/presentation/designer/Canvas.vue': '',
 		});
 
-		expect([...reachableFrom('src/presentation/designer/View.ts', tree, 'src/presentation/')]).not.toContain(
+		expect([...reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/'])]).not.toContain(
 			'src/presentation/designer/Canvas.vue',
 		);
 	});
@@ -135,7 +79,7 @@ describe('the reachability walk', () => {
 			'src/presentation/designer/inspector/Inspector.vue': '',
 		});
 
-		expect([...reachableFrom('src/presentation/designer/View.ts', tree, 'src/presentation/')]).toContain(
+		expect([...reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/'])]).toContain(
 			'src/presentation/designer/inspector/Inspector.vue',
 		);
 	});
@@ -147,7 +91,7 @@ describe('the reachability walk', () => {
 			'src/presentation/designer/Canvas.vue': '',
 		});
 
-		expect([...reachableFrom('src/presentation/designer/View.ts', tree, 'src/presentation/')]).toContain(
+		expect([...reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/'])]).toContain(
 			'src/presentation/designer/Canvas.vue',
 		);
 	});
@@ -158,7 +102,7 @@ describe('the reachability walk', () => {
 			'src/presentation/designer/Root.vue': "import { x } from './View';",
 		});
 
-		expect(reachableFrom('src/presentation/designer/View.ts', tree, 'src/presentation/').size).toBe(2);
+		expect(reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/']).size).toBe(2);
 	});
 
 	/** A specifier naming a package, or a file that is not there, is skipped rather than fatal. */
@@ -167,7 +111,7 @@ describe('the reachability walk', () => {
 			'src/presentation/designer/View.ts': "import { createApp } from 'vue';\nimport x from './gone.vue';",
 		});
 
-		expect(reachableFrom('src/presentation/designer/View.ts', tree, 'src/presentation/').size).toBe(1);
+		expect(reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/']).size).toBe(1);
 	});
 
 	/** The bound is real: a component outside `src/presentation/` is not walked into. */
@@ -178,23 +122,12 @@ describe('the reachability walk', () => {
 			'src/presentation/designer/Sneaky.vue': '',
 		});
 
-		expect(reachableFrom('src/presentation/designer/View.ts', tree, 'src/presentation/').size).toBe(1);
+		expect(reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/']).size).toBe(1);
 	});
 });
 
 const DESIGNER = 'src/presentation/designer';
 const ENTRY = `${DESIGNER}/AssetDesignerView.ts`;
-
-const nodeTree: SourceTree = {
-	read: (path) => readFileSync(join(REPO, path), 'utf8'),
-	isFile: (path) => {
-		try {
-			return statSync(join(REPO, path)).isFile();
-		} catch {
-			return false;
-		}
-	},
-};
 
 function componentsUnder(dir: string): string[] {
 	return readdirSync(join(REPO, dir)).flatMap((name) => {
@@ -211,7 +144,7 @@ describe('every asset designer component', () => {
 	 */
 	it('has components to check, and a walk that reaches past its entry', () => {
 		expect(componentsUnder(DESIGNER).length).toBeGreaterThan(0);
-		expect(reachableFrom(ENTRY, nodeTree, 'src/presentation/').size).toBeGreaterThan(1);
+		expect(reachableFrom(ENTRY, nodeTree, ['src/presentation/']).size).toBeGreaterThan(1);
 	});
 
 	/**
@@ -219,7 +152,7 @@ describe('every asset designer component', () => {
 	 * names the component somebody forgot to mount instead of saying a number went up.
 	 */
 	it('is reachable from the view that mounts the designer', () => {
-		const reached = reachableFrom(ENTRY, nodeTree, 'src/presentation/');
+		const reached = reachableFrom(ENTRY, nodeTree, ['src/presentation/']);
 
 		expect(componentsUnder(DESIGNER).filter((file) => !reached.has(file))).toEqual([]);
 	});

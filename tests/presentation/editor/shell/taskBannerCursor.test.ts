@@ -6,7 +6,7 @@
  * Finish is `aria-disabled` rather than `:disabled` (design spec §5.2) so it stays focusable
  * and announced, which leaves the DISABLED LOOK to whatever rule wins the cascade.
  * `tests/harness/obsidian.css` declares `button[aria-disabled="true"] { cursor: not-allowed;
- * opacity: 0.7 }` at **(0,1,1)**, and `styles/editor-shell.css` styles the control as the
+ * opacity: 0.7 }` at **(0,1,1)**, and `styles/editor-task-bar.css` styles the control as the
  * two-class compound `.rp-task-banner .rp-task-banner__finish` at **(0,2,0)** — which
  * outranks it. So the blocked button dimmed correctly (nothing here declares `opacity`) and
  * kept `cursor: pointer`, contradicting its own state, while the comment above that rule
@@ -23,12 +23,12 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const obsidianCss = readFileSync('tests/harness/obsidian.css', 'utf8');
-const shellCss = readFileSync('styles/editor-shell.css', 'utf8');
+const taskBarCss = readFileSync('styles/editor-task-bar.css', 'utf8');
 
 beforeEach(() => {
 	document.head.innerHTML = '';
 	document.body.innerHTML = '';
-	for (const css of [obsidianCss, shellCss]) {
+	for (const css of [obsidianCss, taskBarCss]) {
 		const style = document.createElement('style');
 		style.textContent = css;
 		document.head.appendChild(style);

@@ -15,7 +15,7 @@ async function add(page, kind) {
 		if (await page.locator(`[data-rp-entry="${kind}"]`).evaluate(el => el === document.activeElement)) break;
 		await page.keyboard.press('ArrowDown');
 	}
-	await page.keyboard.press('Enter'); await page.locator('.rp-task-banner--structure').waitFor();
+	await page.keyboard.press('Enter'); await page.locator('.rp-task-banner').waitFor();
 	if (detailsWasClosed) assert.equal(await details.getAttribute('aria-expanded'), 'false', 'structure creation leaves Details closed until requested');
 	// This journey chooses numeric entry. Drawing itself does not open the constrained drawer.
 	await panel(page, 'details'); await page.locator('.rp-structure-task').waitFor();

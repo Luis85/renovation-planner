@@ -53,30 +53,46 @@ interface Wired {
  * three early returns and they are three different points in a partially written vault, not
  * one arm reached three ways.
  */
-function wired(refusing: { projects?: ProjectRepository; plans?: PlanRepository; zones?: ZoneRepository } = {}): Wired {
+function wired(refusing: { projects?: Partial<ProjectRepository>; plans?: Partial<PlanRepository>; zones?: Partial<ZoneRepository> } = {}): Wired {
 	const stack = createRepositoryStack();
 	const events = new RecordingEventBus();
-	const projects = refusing.projects ?? stack.projects;
-	const plans = refusing.plans ?? stack.plans;
+	const projects = over(stack.projects, refusing.projects);
+	const plans = over(stack.plans, refusing.plans);
+	const zones = over(stack.zones, refusing.zones);
 	const services = {
 		createProject: new CreateProjectCommand(projects, events, currencyOf('EUR')),
 		// `stack.plans` for the READ side even when the write side is refusing: the plan a
 		// zone create resolves its project through has to be findable, or the zone would fail
 		// on the reference rather than on the save under test.
-		createPlan: new CreatePlanCommand(plans, projects, refusing.zones ?? stack.zones, events),
-		createZone: new CreateZoneCommand(refusing.zones ?? stack.zones, stack.plans, events),
+		createPlan: new CreatePlanCommand(plans, projects, zones, events),
+		createZone: new CreateZoneCommand(zones, stack.plans, events),
 	} as unknown as PersistenceServices;
 	return { stack, services };
 }
 
 /**
  * A repository whose every save fails, and nothing else behind it — the reads fall through
- * to the real stack, so what a test injects is exactly one failure and not a broken vault.
+ * to the real stack (`over`), so what a test injects is exactly one failure and not a broken
+ * vault. That fall-through is what `CreatePlanCommand` reaches since it lists a project's
+ * plans to pick the next order BEFORE it saves: a bare `{ save }` was a fake thinner than
+ * the real thing, and it failed on a member no test had named.
  */
-function refusingSave<T>(): T {
+function refusingSave<T>(): Partial<T> {
 	return {
 		save: () => Promise.resolve({ ok: false, error: injectedPersistenceError() } as const),
-	} as unknown as T;
+	} as unknown as Partial<T>;
+}
+
+/** `real` with `override`'s members on top; every other member is `real`'s own, bound to it. */
+function over<T extends object>(real: T, override: Partial<T> | undefined): T {
+	if (!override) return real;
+	return new Proxy(real, {
+		get(target, key) {
+			if (key in override) return override[key as keyof T];
+			const member: unknown = Reflect.get(target, key);
+			return typeof member === 'function' ? member.bind(target) : member;
+		},
+	});
 }
 
 interface Hosted {

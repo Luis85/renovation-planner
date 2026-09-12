@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
 import { REPO } from '../helpers/repo';
 
 /**
@@ -17,6 +18,42 @@ import { REPO } from '../helpers/repo';
 
 const PACKAGE_JSON = path.join(REPO, 'package.json');
 const SCRIPT = path.join(REPO, 'scripts', 'harness-shot.mjs');
+
+/**
+ * The script's `SHOTS` table, by shot name, read out of its PARSED source rather than
+ * pattern-matched: every object literal in the array initializer of the `SHOTS` declaration,
+ * with its string and number properties. `SHOTS` is not exported and the script captures at
+ * module scope, so importing it is not an option; the parser is the next authority, and the one a
+ * comment or a re-ordered property cannot fool. A property whose value is not a literal is left
+ * out, so an assertion about it fails on absence rather than on a stale spelling.
+ */
+const literalOf = (node: ts.Expression): string | number | null =>
+	ts.isStringLiteralLike(node) ? node.text : ts.isNumericLiteral(node) ? Number(node.text) : null;
+
+function shotTable(): Map<string, Record<string, string | number>> {
+	const file = ts.createSourceFile(SCRIPT, readFileSync(SCRIPT, 'utf8'), ts.ScriptTarget.Latest, false, ts.ScriptKind.JS);
+	const table = new Map<string, Record<string, string | number>>();
+	const visit = (node: ts.Node): void => {
+		const isShots = ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'SHOTS';
+		if (isShots && node.initializer !== undefined && ts.isArrayLiteralExpression(node.initializer)) {
+			for (const element of node.initializer.elements) {
+				if (!ts.isObjectLiteralExpression(element)) continue;
+				const shot: Record<string, string | number> = {};
+				for (const property of element.properties) {
+					if (!ts.isPropertyAssignment(property) || !ts.isIdentifier(property.name)) continue;
+					const value = literalOf(property.initializer);
+					if (value !== null) shot[property.name.text] = value;
+				}
+				const { name, ...rest } = shot;
+				if (typeof name === 'string') table.set(name, rest);
+			}
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(file);
+	expect(table.size, 'the SHOTS table parsed to nothing').toBeGreaterThan(0);
+	return table;
+}
 // The wait, the post-screenshot re-check and the failure-card reader, split out of SCRIPT so a
 // test can call them (`captureReadiness.test.ts`) — see that file's header.
 const READINESS = path.join(REPO, 'scripts', 'captureReadiness.mjs');
@@ -826,16 +863,13 @@ describe('the headless harness capture script', () => {
 	 * Layers button there, and only the knob's own press puts it on screen.
 	 */
 	it('takes the property-tree shots through the ?tree knob, waiting on a third level the knob alone produces', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
+		const shots = shotTable();
+		const tree = '[role="tree"] [aria-level="3"]';
 
-		expect(source).toMatch(/name: 'plan-editor-tree-dark'[^}]*query: '\?view=plan-editor&tree'[^}]*selector: '\[role="tree"\] \[aria-level="3"\]'/);
-		expect(source).toMatch(/name: 'plan-editor-tree-light'[^}]*query: '\?view=plan-editor&tree&theme=light'[^}]*selector: '\[role="tree"\] \[aria-level="3"\]'/);
-		expect(source).toMatch(
-			/name: 'plan-editor-tree-narrow'[^}]*query: '\?view=plan-editor&tree'[^}]*selector: '\.rp-overlay-panel \[role="tree"\] \[aria-level="3"\]'[^}]*width: 460/,
-		);
-		expect(source).toMatch(
-			/name: 'plan-editor-tree-narrow-light'[^}]*query: '\?view=plan-editor&tree&theme=light'[^}]*selector: '\.rp-overlay-panel \[role="tree"\] \[aria-level="3"\]'[^}]*width: 460/,
-		);
+		expect(shots.get('plan-editor-tree-dark')).toEqual({ query: '?view=plan-editor&tree', selector: tree });
+		expect(shots.get('plan-editor-tree-light')).toEqual({ query: '?view=plan-editor&tree&theme=light', selector: tree });
+		expect(shots.get('plan-editor-tree-narrow')).toEqual({ query: '?view=plan-editor&tree', selector: `.rp-overlay-panel ${tree}`, width: 460 });
+		expect(shots.get('plan-editor-tree-narrow-light')).toEqual({ query: '?view=plan-editor&tree&theme=light', selector: `.rp-overlay-panel ${tree}`, width: 460 });
 	});
 
 	/**

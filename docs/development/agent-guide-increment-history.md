@@ -5761,3 +5761,88 @@ flush (collinear, each carried over the other). `wallPasses.test.ts` pins an obl
 shallow stem; an oblique partition captured in both schemes shows both hosts' outer faces straight.
 
 **Spec:** `docs/superpowers/specs/2026-09-12-wall-tool-join-and-split-design.md`.
+
+**Property tree polish (2026-09-12, ADR-0029)**
+
+Spec: `docs/superpowers/specs/2026-09-12-property-tree-polish-design.md`; plan:
+`docs/superpowers/plans/2026-09-12-property-tree-polish.md`, whose header block overrides the
+spec where the two differ. One PR, four merges of `main` along the way.
+
+**What landed.** `Plan.kind` (`site | building | floor | room`, default `floor`) and `Plan.order`
+(`src/domain/plan/PlanKind.ts`, `Plan.ts`), persisted as optional frontmatter keys under
+**schema v11** — not the v10 the spec and plan named: `main` shipped v10 for the north bearing
+while this branch was open, a schema version is data a vault note carries, so this branch
+renumbered rather than `main`. `UpdatePlanDetailsCommand`
+(`src/application/commands/plan/UpdatePlanDetails.ts`) is the one write for either field after
+creation. `readPlanHierarchy` answers the whole project as a tree (`propertyTreeOf`,
+`src/presentation/read-models/planHierarchy.ts`, siblings by `order` then name, a missing parent
+drawing at the root), and `PropertyTree.vue` draws it as a recursive `role="tree"` with roving
+arrow-key focus — the sidebar polish entry above deferred that until a third level, and this is
+the third level. The `li[role="treeitem"]` carries `aria-labelledby` to its own label span and
+`aria-description` with the kind. Reorder goes through ONE door, `usePlanReorder`
+(`src/presentation/editor/shell/`), from the row menu, Alt+↑/↓ and HTML5 drag alike; the same
+composable's `setKind` serves the menu's "Mark as …" entries and the Floor inspector's Kind
+select, and the New plan form chooses a kind (a detail plan defaulting one step below its
+parent). The context bar's crumbs draw the kind icon. The indent is the nesting itself:
+`.rp-property-tree__group` at `padding-inline-start: 16px` per level. `PropertyTreeMenu.vue`
+and `CanvasContextMenu.vue` share `src/presentation/editor/selection/menuKeyboard.ts` for
+keyboard and outside-click closing, extracted because the two copies had already diverged.
+Harness: a `?tree` knob and four fixed shots — `plan-editor-tree-dark`, `-light`, `-narrow`
+and `-narrow-light` (460 px, the Layers overlay open) — plus the axe case
+`tests/harness/accessibilityPropertyTree.test.ts`, which navigates before it scans, because a
+tree mounted without navigation never puts a button inside a treeitem in front of axe.
+
+**The plan's four deviations from the spec, all smaller than what the spec said.** No
+`expectedVersion` on `UpdatePlanDetails` (it loads and saves on the version it read, as
+`SetPlanBackground` does, so `PropertyTreeNode` carries no `version`); no `ReorderPlansCommand`
+(`usePlanReorder` dispatches one `UpdatePlanDetails` per changed sibling, in sequence, stopping
+at the first refusal); the tree's menu is its own small component borrowing the canvas menu's
+class and `role="menu"` markup rather than the component; and the frontmatter schema types
+`kind` and `order` loosely so that `Plan.create` is the ONE place that refuses.
+
+**The rulings that changed the plan, taken while reading the code.** The plan's `plannedWrites`
+skipped a sibling whose POSITION was unchanged, assuming stored order equalled index — and every
+vault older than this build holds `order: 0` on every plan, so "move Attic down" in
+[Attic, First, Ground] would have written First=0, Attic=1 and left Ground at 0: the tree
+redraws wrong on the first reorder in every existing vault. `PropertyTreeNode` gained `order`
+and the skip compares against the STORED value, so a first reorder may write the whole sibling
+list. Paused writes follow the spec rather than the plan: the menu still opens, every entry
+`aria-disabled` with the same `editor.stale-write-refused` reason the canvas menu's zone actions
+carry, and drag and Alt+arrows do nothing; the Kind select is `v-if` available and `:disabled`
+paused. The tree re-reads the hierarchy after a write sequence whether it finished or stopped
+at a refusal — a half-applied move is visible only if the tree re-reads. Drag state is per
+tree instance, not module-level as the spec said: a drop from another leaf's tree would be a
+cross-tree move, which is reparenting and out of scope, and per-instance state makes it a no-op
+by construction. And the Kind select dispatches through `usePlanReorder().setKind` rather than
+the inspector's selection→DTO→command pipeline, because the open plan is not a canvas selection
+and a second door for one write is what "one action, every input" forbids. `all.at(-1)` was
+refused before it was written — `lib` is ES2021 + ES2023.Array and `at` is ES2022.
+
+**Failure shapes worth keeping.** A fake hierarchy that never answered a REORDERED tree hid that
+Alt+↑ and "Move up" dropped keyboard focus when the re-read moved the row in the DOM — every
+test drove a fake whose order never changed; the first restore then stole focus the user had
+moved elsewhere during the write (`row.dataset.rpPlanId === id` was always true), so it
+restores only when focus has fallen to `body` or `null`, with a deferred-write theft case
+pinning it. The kind label was first placed as `aria-description` on the inner row, and focus
+lands on the `li[role="treeitem"]`, so the level was never announced, while the `li`'s
+computed name absorbed the child group's text — both fixed by moving the description to the
+treeitem and naming it by `aria-labelledby`. A failed (non-paused) `setKind` left the Floor
+inspector's select showing the REFUSED kind: `write()` re-read only the hierarchy store, never
+`ProjectStore.plan`, so `:value` had nothing to re-patch; `setKind` resolves a boolean now and
+the select resets when the write does not land. And **implementers running only their own test
+directories missed cross-directory fallout three times**: `tests/plugin` went red under Tasks 2
+and 4 (a sample-project snapshot, a refusing-save fake lacking `listByProject`) and was found
+at the next task; `tests/build/buttonFocusRing.test.ts` went red under the tree's own CSS (a
+row button with `box-shadow: none` and no `:focus-visible` ring, plus the two `[data-rp-drop]`
+inset shadows) and was found only by the whole-suite run after the third merge; and that same
+merge brought `main`'s new detail-plan literals without `kind`, caught by `vue-tsc`. Whole-suite
+`check:fast` after every merge is the instrument; a task's own paths are not.
+
+**Deferred, named in the ledger rather than fixed:** `Plan.create` sits at the complexity cap;
+`tabindex="0"` never moves off the open plan, so the roving is not truly roving; no in-flight
+guard in `write()` against Alt auto-repeat; the drop indicator lingers after the pointer leaves
+the tree; a user's hand-added `order` property on a plan note is overwritten on save.
+
+**`docs/tests/cases/Reorder plans in the Property tree.md` is written and NOT run**: real
+Electron drag and drop and the keyboard context-menu event are checkable in no gate here, and
+its Runs table says so.

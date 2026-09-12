@@ -22,7 +22,7 @@ import HostIcon from '../../components/HostIcon.vue';
 import PanelResizer from './PanelResizer.vue';
 import PanelCollapsedStrip from './PanelCollapsedStrip.vue';
 import { PANEL_COPY } from './panelSections';
-import type { PanelSide } from './panelLayout';
+import type { PanelRange, PanelSide } from './panelLayout';
 
 defineProps<{
 	side: PanelSide;
@@ -31,9 +31,7 @@ defineProps<{
 	/** The shell is constrained and this panel is its open overlay — never true alongside `full`. */
 	floating: boolean;
 	collapsed: boolean;
-	width: number;
-	min: number;
-	max: number;
+	range: PanelRange;
 }>();
 const emit = defineEmits<{ close: []; toggle: []; resize: [width: number]; commit: []; reset: [] }>();
 
@@ -114,9 +112,7 @@ async function expand(section: string | null): Promise<void> {
 			v-if="full"
 			v-show="!collapsed"
 			:side="side"
-			:width="width"
-			:min="min"
-			:max="max"
+			:range="range"
 			:controls="bodyId"
 			@resize="emit('resize', $event)"
 			@commit="emit('commit')"

@@ -79,9 +79,31 @@ export function effectivePanelWidths(layout: PanelLayout, shellWidth: number): R
 	return { layers: width(layout.layers), inspector: width(layout.inspector) };
 }
 
-/** The widest `side` may be dragged to in this shell, with the other panel as it stands. */
-export function maxPanelWidth(side: PanelSide, layout: PanelLayout, shellWidth: number): number {
+/**
+ * A resize handle's range in ONE frame of reference. A key press or a drag moves the STORED width
+ * between `min` and `max`; the separator announces what each of those three draws at in this shell.
+ * A wider stored width never draws narrower (`effectivePanelWidths` scales in proportion), so a
+ * grow gesture never lowers the width on screen and the announced values stay in order even while
+ * the canvas floor shrinks the panels.
+ *
+ * `max` is where the canvas reaches its floor beside the other panel as it stands, but never below
+ * the stored width: a leaf too narrow for that width already draws it shrunk, and a grow there must
+ * not rewrite it smaller.
+ */
+export interface PanelRange {
+	readonly width: number;
+	readonly min: number;
+	readonly max: number;
+	readonly valueNow: number;
+	readonly valueMin: number;
+	readonly valueMax: number;
+}
+
+export function panelRange(side: PanelSide, layout: PanelLayout, shellWidth: number): PanelRange {
+	const state = layout[side];
 	const other = side === 'layers' ? layout.inspector : layout.layers;
-	const { min, max } = PANEL_BOUNDS[side];
-	return Math.max(min, Math.min(max, Math.floor(shellWidth - CANVAS_FLOOR_PX - demand(other))));
+	const { min } = PANEL_BOUNDS[side];
+	const max = Math.max(state.width, Math.min(PANEL_BOUNDS[side].max, Math.floor(shellWidth - CANVAS_FLOOR_PX - demand(other))));
+	const drawn = (width: number): number => effectivePanelWidths({ ...layout, [side]: { ...state, width } }, shellWidth)[side];
+	return { width: state.width, min, max, valueNow: drawn(state.width), valueMin: drawn(min), valueMax: drawn(max) };
 }

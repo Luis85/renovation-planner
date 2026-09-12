@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mountPlanEditor, settle, type EditorHarness } from '../../../helpers/editor';
 import { memoryDeviceStorage } from '../../../helpers/deviceStorage';
 import { resizeTo } from '../../../helpers/layout';
+import { pointer } from '../../../helpers/planEditorRig';
 import { useWorkspaceStore } from '../../../../src/presentation/stores/WorkspaceStore';
 
 let open: EditorHarness | null = null;
@@ -112,6 +113,64 @@ describe('full-layout side panels', () => {
 		expect(harness.wrapper.get('[data-rp-resizer="inspector"]').attributes('aria-valuenow')).toBe('335');
 		expect(useWorkspaceStore(harness.pinia).panelLayout.layers.width).toBe(256);
 		expect(storage.writes).toHaveLength(0);
+	});
+
+	/**
+	 * The handle announced the shrunk width against a maximum computed from the other panel's
+	 * STORED width, so at 900px its value sat above its own maximum and ArrowRight clamped it down.
+	 */
+	it.each([
+		['the defaults at 900px', null, 900],
+		['stored widths 400/520 at 1100px', { layers: { width: 400, collapsed: false }, inspector: { width: 520, collapsed: false } }, 1100],
+	])('keeps each handle\'s value inside its range, and a grow key never lowers it, with %s', async (_what, stored, shell) => {
+		const { harness } = await mounted(memoryDeviceStorage(stored));
+		resizeTo(harness.rootEl, shell, 800);
+		await settle();
+
+		for (const [side, grow, shrink] of [['layers', 'ArrowRight', 'ArrowLeft'], ['inspector', 'ArrowLeft', 'ArrowRight']] as const) {
+			const handle = harness.wrapper.get(`[data-rp-resizer="${side}"]`);
+			const value = (name: string): number => Number(handle.attributes(name));
+			expect(value('aria-valuemin')).toBeLessThanOrEqual(value('aria-valuenow'));
+			expect(value('aria-valuenow')).toBeLessThanOrEqual(value('aria-valuemax'));
+			const before = value('aria-valuenow');
+
+			await handle.trigger('keydown', { key: grow });
+			await settle();
+			expect(value('aria-valuenow')).toBeGreaterThanOrEqual(before);
+
+			await handle.trigger('keydown', { key: shrink });
+			await settle();
+			expect(value('aria-valuenow')).toBeLessThanOrEqual(before);
+		}
+	});
+
+	it('writes storage once for a drag, on release, and a drag back returns to where it started', async () => {
+		const { harness, storage } = await mounted();
+		resizeTo(harness.rootEl, 900, 800);
+		await settle();
+		const handle = harness.wrapper.get('[data-rp-resizer="layers"]').element as HTMLElement;
+
+		pointer(handle, 'pointerdown', 500, 10);
+		pointer(handle, 'pointermove', 470, 10);
+		await settle();
+		expect(useWorkspaceStore(harness.pinia).panelLayout.layers.width).toBe(226);
+		pointer(handle, 'pointermove', 490, 10);
+		pointer(handle, 'pointermove', 530, 10);
+		await settle();
+		expect(storage.writes).toHaveLength(0);
+
+		pointer(handle, 'pointerup', 530, 10);
+		await settle();
+		expect(storage.writes).toHaveLength(1);
+		expect(lastWrite(storage)).toMatchObject({ layers: { width: 256 } });
+		expect(handle.getAttribute('aria-valuenow')).toBe('244');
+	});
+
+	it('binds no panel width on the body until the shell has a width to measure', async () => {
+		const { harness } = await mounted();
+		resizeTo(harness.rootEl, 0, 800);
+		await settle();
+		expect((harness.wrapper.get('.rp-editor-body').element as HTMLElement).style.getPropertyValue('--rp-layers-width')).toBe('');
 	});
 
 	it('leaves the constrained overlay usable for a panel collapsed in the full layout', async () => {

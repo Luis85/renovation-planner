@@ -10,7 +10,7 @@ import {
 	clampPanelWidth,
 	defaultPanelLayout,
 	effectivePanelWidths,
-	maxPanelWidth,
+	panelRange,
 	parsePanelLayout,
 } from '../../../../src/presentation/editor/shell/panelLayout';
 
@@ -83,16 +83,39 @@ describe('effective widths', () => {
 	});
 });
 
-describe('the widest a panel may be dragged', () => {
+describe('a resize handle\'s range', () => {
 	it('is the side maximum when the shell is wide', () => {
-		expect(maxPanelWidth('layers', defaultPanelLayout(), 1600)).toBe(400);
+		expect(panelRange('layers', defaultPanelLayout(), 1600).max).toBe(400);
 	});
 
 	it('leaves the canvas floor beside the other panel as it stands', () => {
-		expect(maxPanelWidth('inspector', defaultPanelLayout(), 1000)).toBe(1000 - CANVAS_FLOOR_PX - 256);
+		expect(panelRange('inspector', defaultPanelLayout(), 1000).max).toBe(1000 - CANVAS_FLOOR_PX - 256);
 	});
 
-	it('never answers less than the side minimum', () => {
-		expect(maxPanelWidth('layers', defaultPanelLayout(), 400)).toBe(200);
+	it('never puts the maximum below the stored width, so a grow cannot lower it', () => {
+		expect(panelRange('layers', defaultPanelLayout(), 400).max).toBe(256);
+	});
+
+	/** The review's example: a 900px leaf at the defaults drew the Layers handle at 244 against a maximum of 228. */
+	it('moves in stored widths and announces what they draw, in one order, at 900px', () => {
+		expect(panelRange('layers', defaultPanelLayout(), 900)).toEqual({ width: 256, min: 200, max: 256, valueNow: 244, valueMin: 200, valueMax: 244 });
+		expect(panelRange('inspector', defaultPanelLayout(), 900)).toEqual({ width: 352, min: 280, max: 352, valueNow: 335, valueMin: 280, valueMax: 335 });
+	});
+
+	it('keeps the same order with stored widths 400/520 in an 1100px leaf', () => {
+		const layout = { layers: { width: 400, collapsed: false }, inspector: { width: 520, collapsed: false } };
+		expect(panelRange('layers', layout, 1100)).toEqual({ width: 400, min: 200, max: 400, valueNow: 339, valueMin: 200, valueMax: 339 });
+		expect(panelRange('inspector', layout, 1100)).toEqual({ width: 520, min: 280, max: 520, valueNow: 440, valueMin: 280, valueMax: 440 });
+	});
+
+	it('never draws a wider stored width narrower, which is what makes a grow gesture a grow', () => {
+		for (const shell of [900, 1000, 1100]) {
+			let previous = 0;
+			for (let width = 200; width <= 400; width++) {
+				const drawn = effectivePanelWidths({ ...defaultPanelLayout(), layers: { width, collapsed: false } }, shell).layers;
+				expect(drawn).toBeGreaterThanOrEqual(previous);
+				previous = drawn;
+			}
+		}
 	});
 });

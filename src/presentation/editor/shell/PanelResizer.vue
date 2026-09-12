@@ -2,15 +2,19 @@
 /**
  * A full-layout side panel's inner edge (2026-09-12 side panels spec §1): the WAI-ARIA window
  * splitter pattern. It owns the gesture and the keys and nothing else — the width lives in
- * `WorkspaceStore`, the shell clamps it against the canvas floor through `max`, and a `commit` is
- * the one moment anything is persisted. A drag reports every move and commits once on release, so
+ * `WorkspaceStore`, the shell hands over its `PanelRange` (`panelLayout.ts`), and a `commit` is the
+ * one moment anything is persisted. A drag reports every move and commits once on release, so
  * storage is never written per pointer move.
+ *
+ * Keys and drags move the STORED width inside `range.min`/`range.max`; the ARIA values are the
+ * range's drawn ones. Keeping those two apart is what lets a panel the canvas floor has shrunk
+ * announce the width it is drawn at without a grow gesture starting from that smaller figure.
  */
 import { tr } from '../../i18n/strings';
 import { PANEL_COPY } from './panelSections';
-import type { PanelSide } from './panelLayout';
+import type { PanelRange, PanelSide } from './panelLayout';
 
-const props = defineProps<{ side: PanelSide; width: number; min: number; max: number; controls: string }>();
+const props = defineProps<{ side: PanelSide; range: PanelRange; controls: string }>();
 const emit = defineEmits<{ resize: [width: number]; commit: []; reset: []; collapse: [] }>();
 
 const STEP = 16;
@@ -22,20 +26,24 @@ function signed(delta: number): number {
 	return props.side === 'layers' ? delta : -delta;
 }
 
-function clamp(width: number): number {
-	return Math.min(props.max, Math.max(props.min, width));
+function clamp(width: number, max = props.range.max): number {
+	return Math.min(max, Math.max(props.range.min, width));
 }
 
 function onPointerDown(event: PointerEvent): void {
 	if (event.button !== 0) return;
 	event.preventDefault();
 	(event.currentTarget as Element).setPointerCapture?.(event.pointerId);
-	drag = { pointerId: event.pointerId, startX: event.clientX, startWidth: props.width };
+	drag = { pointerId: event.pointerId, startX: event.clientX, startWidth: props.range.width };
 }
 
+/**
+ * `range.max` follows the stored width while a shrunk panel is dragged narrower, so the ceiling
+ * also admits the width the drag started from: dragging back returns to it.
+ */
 function onPointerMove(event: PointerEvent): void {
 	if (drag?.pointerId !== event.pointerId) return;
-	emit('resize', clamp(drag.startWidth + signed(event.clientX - drag.startX)));
+	emit('resize', clamp(drag.startWidth + signed(event.clientX - drag.startX), Math.max(props.range.max, drag.startWidth)));
 }
 
 function onPointerEnd(event: PointerEvent): void {
@@ -46,10 +54,10 @@ function onPointerEnd(event: PointerEvent): void {
 
 function keyWidth(event: KeyboardEvent): number | null {
 	const step = event.shiftKey ? BIG_STEP : STEP;
-	if (event.key === 'ArrowRight') return props.width + signed(step);
-	if (event.key === 'ArrowLeft') return props.width - signed(step);
-	if (event.key === 'Home') return props.min;
-	if (event.key === 'End') return props.max;
+	if (event.key === 'ArrowRight') return props.range.width + signed(step);
+	if (event.key === 'ArrowLeft') return props.range.width - signed(step);
+	if (event.key === 'Home') return props.range.min;
+	if (event.key === 'End') return props.range.max;
 	return null;
 }
 
@@ -75,9 +83,9 @@ function onKeydown(event: KeyboardEvent): void {
 		aria-orientation="vertical"
 		:aria-controls="controls"
 		:aria-label="tr(PANEL_COPY[side].resize)"
-		:aria-valuenow="width"
-		:aria-valuemin="min"
-		:aria-valuemax="max"
+		:aria-valuenow="range.valueNow"
+		:aria-valuemin="range.valueMin"
+		:aria-valuemax="range.valueMax"
 		:data-rp-resizer="side"
 		@pointerdown="onPointerDown"
 		@pointermove="onPointerMove"

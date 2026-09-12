@@ -11,7 +11,7 @@ import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { layoutModeFor, type LayoutMode } from './layoutMode';
 import EditorSidePanel from './EditorSidePanel.vue';
 import { usePlanEditorContext } from '../PlanEditorContext';
-import { PANEL_BOUNDS, effectivePanelWidths, maxPanelWidth, parsePanelLayout, type PanelSide } from './panelLayout';
+import { PANEL_BOUNDS, effectivePanelWidths, panelRange, parsePanelLayout, type PanelRange, type PanelSide } from './panelLayout';
 import PanelRail from './PanelRail.vue';
 import UnsupportedWidthNotice from './UnsupportedWidthNotice.vue';
 
@@ -21,7 +21,8 @@ const workspace = useWorkspaceStore();
 const context = usePlanEditorContext();
 const { layoutMode, overlay, panelLayout } = storeToRefs(workspace);
 const shellWidth = ref(0);
-// Restored once, before the first render, so a leaf never draws the defaults for a frame first.
+// Restored once, before the first render, so a stored collapse is never drawn expanded for a frame
+// first. Widths wait for the first measurement instead — see `bodyStyle`.
 workspace.restorePanelLayout(parsePanelLayout(context.panelLayout.read()));
 const root = ref<HTMLElement | null>(null);
 let observer!: ResizeObserver;
@@ -72,23 +73,26 @@ function measure(): void {
 	if (inside) void nextTick(() => restoreFocus(active, region, next, version));
 }
 
-/** What each panel is drawn at — `panelLayout.ts` keeps the canvas floor without touching the stored widths. */
-const widths = computed(() => effectivePanelWidths(panelLayout.value, shellWidth.value));
-const bodyStyle = computed(() => ({
-	'--rp-layers-width': `${widths.value.layers}px`,
-	'--rp-inspector-width': `${widths.value.inspector}px`,
-}));
+/**
+ * What each panel is drawn at — `panelLayout.ts` keeps the canvas floor without touching the stored
+ * widths. Nothing is bound while `shellWidth` is 0 — before `onMounted` measures, or a pane with no
+ * width, which is `unsupported` and draws no side panel — so the stylesheet's own declarations of
+ * both properties stand until there is a width to share out.
+ */
+const bodyStyle = computed(() => {
+	if (shellWidth.value === 0) return {};
+	const widths = effectivePanelWidths(panelLayout.value, shellWidth.value);
+	return { '--rp-layers-width': `${widths.layers}px`, '--rp-inspector-width': `${widths.inspector}px` };
+});
 
 /** Every binding a side panel takes, in one place so the template stays flat. */
-function panelProps(side: PanelSide): { side: PanelSide; full: boolean; floating: boolean; collapsed: boolean; width: number; min: number; max: number } {
+function panelProps(side: PanelSide): { side: PanelSide; full: boolean; floating: boolean; collapsed: boolean; range: PanelRange } {
 	return {
 		side,
 		full: layoutMode.value === 'full',
 		floating: layoutMode.value === 'constrained' && overlay.value === side,
 		collapsed: panelLayout.value[side].collapsed,
-		width: widths.value[side],
-		min: PANEL_BOUNDS[side].min,
-		max: maxPanelWidth(side, panelLayout.value, shellWidth.value),
+		range: panelRange(side, panelLayout.value, shellWidth.value),
 	};
 }
 

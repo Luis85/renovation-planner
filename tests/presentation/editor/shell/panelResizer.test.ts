@@ -7,13 +7,15 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import PanelResizer from '../../../../src/presentation/editor/shell/PanelResizer.vue';
 import { pointer } from '../../../helpers/planEditorRig';
-import type { PanelSide } from '../../../../src/presentation/editor/shell/panelLayout';
+import type { PanelRange, PanelSide } from '../../../../src/presentation/editor/shell/panelLayout';
 
 let wrapper: VueWrapper | null = null;
 afterEach(() => { wrapper?.unmount(); wrapper = null; });
 
-function resizer(side: PanelSide, width = 256): VueWrapper {
-	wrapper = mount(PanelResizer, { props: { side, width, min: 200, max: 400, controls: 'panel-body' } });
+function resizer(side: PanelSide, width = 256, range: Partial<PanelRange> = {}): VueWrapper {
+	wrapper = mount(PanelResizer, {
+		props: { side, range: { width, min: 200, max: 400, valueNow: width, valueMin: 200, valueMax: 400, ...range }, controls: 'panel-body' },
+	});
 	return wrapper;
 }
 
@@ -47,6 +49,16 @@ describe('PanelResizer', () => {
 		await resizer(side).get('[role="separator"]').trigger('keydown', { key, shiftKey });
 		expect(emitted('resize')).toEqual([[expected]]);
 		expect(emitted('commit')).toHaveLength(1);
+	});
+
+	/** A panel the canvas floor shrank: stored 256, capped at 256, drawn at 244. */
+	it('announces the drawn values while keys move the stored width', async () => {
+		const el = resizer('layers', 256, { max: 256, valueNow: 244, valueMin: 200, valueMax: 244 }).get('[role="separator"]');
+		expect(el.attributes()).toMatchObject({ 'aria-valuenow': '244', 'aria-valuemin': '200', 'aria-valuemax': '244' });
+		await el.trigger('keydown', { key: 'ArrowRight' });
+		await el.trigger('keydown', { key: 'ArrowLeft' });
+		await el.trigger('keydown', { key: 'End' });
+		expect(emitted('resize')).toEqual([[256], [240], [256]]);
 	});
 
 	it('asks to collapse on Enter and ignores other keys', async () => {

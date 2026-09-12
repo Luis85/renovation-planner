@@ -136,8 +136,9 @@ A `LabelMove` class beside `ElementMove`, owned by `SelectTool`:
 ### 5.1 Drawing
 
 - `ZoneShape`: the caption anchor is `roomCaptionAnchor` — `labelAnchor + offset` once dragged —
-  with `renderState.labelPreview` overriding the offset for its id. When an offset is set, `captionOffsetY`'s pin displacement is
-  skipped: a placement the renovator chose wins. Name and area move together.
+  with `renderState.labelPreview` overriding the offset for its id. When an offset is set,
+  `captionOffsetY`'s pin displacement is skipped: a placement the renovator chose wins. Name and
+  area move together.
 - `ElementShapes` and `assetShapeConfig`: today's position plus the offset (or preview).
 - A room caption's block is taller while a detail-plans line shows (`captionBottom`, ADR-0028).
 

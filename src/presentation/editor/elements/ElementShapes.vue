@@ -9,6 +9,8 @@ import { screenPoint } from '../viewport/Viewport';
 import type { Point } from '../../../core/geometry/Point';
 import StairShape from './StairShape.vue';
 import DirectionArrowShape from './DirectionArrowShape.vue';
+import { hasPointHandles } from './ElementMove';
+import { VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
 const props = defineProps<{ elements: readonly NamedSpatialElement[]; selectedIds: readonly string[]; tokens: ThemeTokens; zoom: number; editable?: boolean }>();
 /**
  * A measurement is drawn as the set-scale tape (`GestureSketch.vue`): a 2 px spine with end bars
@@ -23,7 +25,8 @@ function rulerConfig(points: readonly Point[], stroke: string, zoom: number) {
 const shapes = computed(() => props.elements.map(element => {
 	const selected = props.selectedIds.includes(element.id), closed = element.kind === 'object', ruler = element.kind === 'measurement' && element.points.length === 2;
 	const point = element.points[0], zoom = props.zoom, tokens = props.tokens, stroke = selected ? tokens.accent : tokens.zoneStroke;
-	return { id: element.id, name: 'element-' + element.kind, element, selected, marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
+	const handles = props.editable === true && selected && props.selectedIds.length === 1 && element.kind !== 'arrow' && hasPointHandles(element.kind);
+	return { id: element.id, name: 'element-' + element.kind, element, selected, handles, marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
 		line: { points: element.points.flatMap(vertex => [vertex.x, vertex.y]), closed, stroke, strokeWidth: (selected && !ruler ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: closed ? tokens.canvasBackground : undefined },
 		label: point ? { x: point.x, y: point.y - 18 / zoom, text: element.kind === 'measurement' ? element.name + ' · ' + formatMetres(elementLength(element)) + ' m' : element.name, fontSize: 12 / zoom, fill: tokens.zoneLabel, listening: false } : null };
 }));
@@ -55,6 +58,13 @@ const shapes = computed(() => props.elements.map(element => {
 				v-else
 				:config="shape.line"
 			/>
+			<template v-if="shape.handles">
+				<VCircle
+					v-for="(vertex, index) in shape.element.points"
+					:key="index"
+					:config="{ name: 'element-vertex', x: vertex.x, y: vertex.y, radius: VERTEX_HANDLE_RADIUS_PX / zoom, fill: tokens.canvasBackground, stroke: tokens.accent, strokeWidth: 2 / zoom }"
+				/>
+			</template>
 			<VShape
 				v-if="shape.marks"
 				:config="shape.marks"

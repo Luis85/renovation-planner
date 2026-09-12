@@ -4,6 +4,7 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { resizeTo } from '../../helpers/layout';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk } from '../../helpers/domain';
+import { pointerAt } from '../../helpers/tool-context';
 async function start(r: Awaited<ReturnType<typeof renovationEditor>>, kind: 'path' | 'fence' | 'measurement' | 'arrow') {
 	await r.wrapper.get('[data-rp-action="add"]').trigger('click'); await r.wrapper.get(`[data-rp-entry="${kind}"]`).trigger('click'); await settle();
 	await settleUntil(() => !r.runtime.elementTask.draft.loading, 'element baseline');
@@ -32,6 +33,25 @@ describe('linear element production paths', () => {
 			expect(r.project.structure.elements ?? []).toHaveLength(0); await r.runtime.undo(); await settle();
 			expect(r.project.structure.elements?.[0]).toEqual(saved); expect(r.project.plan?.spatialElements?.[0].name).toBe('Garden route');
 			const read = expectOk(await r.geometry.read(r.plan.id)); expect(read.document.structure?.elements?.[0]).not.toHaveProperty('name');
+		} finally { r.unmount(); }
+	});
+	it.each(['path', 'fence'] as const)('drags a selected %s point, refuses a collapsed segment and restores it through Undo', async kind => {
+		const r = await renovationEditor(true); r.changePlan(); await settle();
+		try {
+			const tools = r.runtime.toolManager;
+			await start(r, kind); await r.wrapper.get('input[name="element-name"]').setValue('Garden route');
+			for (const at of [{ x: 500, y: 500 }, { x: 2500, y: 500 }, { x: 2500, y: 1500 }]) { tools.pointerDown(pointerAt(at.x, at.y)); tools.pointerUp(pointerAt(at.x, at.y)); }
+			await r.wrapper.get('[data-rp-action="finish-element"]').trigger('click'); await settleUntil(() => r.runtime.activeToolId.value === 'select', 'element save');
+			const saved = expectDefined(r.project.structure.elements?.[0], 'saved element');
+			expect(saved.points).toHaveLength(3); expect(r.stage.find('.element-vertex')).toHaveLength(3);
+			tools.pointerDown(pointerAt(2500, 500)); tools.pointerMove(pointerAt(3000, 800)); tools.pointerUp(pointerAt(3000, 800));
+			await settleUntil(() => !r.runtime.elementActions.active.value && r.project.structure.elements?.[0].points[1].x === 3000, 'point move');
+			expect(r.project.structure.elements?.[0].points).toEqual([saved.points[0], { x: 3000, y: 800 }, saved.points[2]]);
+			await r.runtime.undo(); await settle(); expect(r.project.structure.elements?.[0]).toEqual(saved);
+			const before = [...r.stack.vault.entries];
+			tools.pointerDown(pointerAt(2500, 1500)); tools.pointerMove(pointerAt(2500, 500)); tools.pointerUp(pointerAt(2500, 500)); await settle();
+			expect(r.project.structure.elements?.[0]).toEqual(saved); expect([...r.stack.vault.entries]).toEqual(before);
+			await r.runtime.renovation.perspective('review'); await settle(); expect(r.stage.find('.element-vertex')).toHaveLength(0);
 		} finally { r.unmount(); }
 	});
 	it('blocks every finish route while numeric text is pending, preserves it through reflow, and cancels without writing', async () => {

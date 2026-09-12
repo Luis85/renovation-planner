@@ -1085,14 +1085,42 @@ describe('axe against the mounted view', () => {
  * this exact shape and import the same constant. What a full-body scan of the index costs, and
  * why the per-prototype loop does not pay it, is `scanStage`'s docblock.
  */
+/**
+ * **The three whole-body scans carry their own budget, and the number is a measurement rather
+ * than a cushion** — the same shape as `lint-edited.test.ts`'s SFC cases, for the same reason:
+ * the cost tracks the SIZE of the tree, not of the fixture. Each of these scans the index's
+ * whole entry list (`scanStage`'s docblock: 239 rows when it was written, one per component
+ * and per mock), and that list grows with every file `src/prototypes/` or the component tree
+ * gains, so the scan crosses a budget by growth alone. Not narrowed on purpose: the picker,
+ * the failure card and one open entry are the three states that draw different markup, and
+ * the list is graded once per state so `aria-current` and the row links stay graded.
+ *
+ * Measured on CI's Windows leg, where it timed out under the block's shared 30s: main
+ * (`a6e22242`) ran the three at 20205 / 20575 / 20598 ms, and this branch at 31439 (timed out
+ * at 30000) / 23903 / 24874 ms — against 6.8–7.0 s quiet on a four-core box, a swing under
+ * load of more than 2.5×. The index mount itself is 30–400 ms and a warm-up `beforeAll`
+ * moved nothing; the cost is axe over the list. 90s is roughly 3× the worst loaded figure,
+ * high enough that ordinary growth and a busier runner do not turn a green suite red, low
+ * enough that a scan which genuinely hangs still fails instead of blocking the gate.
+ *
+ * Re-measure, do not raise blindly, if it fails again: what this budget is really watching
+ * is whether a whole-body scan of the index is still cheap enough to sit in the suite at all,
+ * and the answer at some row count is to grade the list ONCE rather than per state.
+ */
+const INDEX_SCAN_MS = 90_000;
+
 describe('axe against the harness index', { timeout: HARNESS_SCAN_MS }, () => {
 	it.each([
 		['the picker', 'index'],
 		['the failure card', 'entry=prototype:Nope'],
 		['an open entry with the list beside it', `entry=${encodeURIComponent(prototypeEntries()[0]?.id ?? '')}`],
-	])('reports no semantic violations on %s', async (_state, query) => {
-		expect((await scan(query)).violations).toEqual([]);
-	});
+	])(
+		'reports no semantic violations on %s',
+		async (_state, query) => {
+			expect((await scan(query)).violations).toEqual([]);
+		},
+		INDEX_SCAN_MS,
+	);
 
 	/**
 	 * Every prototype, and the entry has to have OPENED before the scan means anything: an

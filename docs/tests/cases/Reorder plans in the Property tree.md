@@ -26,10 +26,10 @@ Run `npm run test-build`, reload Obsidian in this repository's vault and enable 
    has no `order` key. Reload Obsidian: the order holds.
 5. Drag **Attic** over **First floor** — the drop line appears — then, without dropping, out of
    the Property section altogether: the line clears. Drag **Attic** onto **Site**: no indicator
-   appears and nothing changes. Known and accepted, in a vault where **House** has a sibling
-   detail plan under Site: dragging that sibling onto the lower half of **House** draws the
-   `after` indicator directly under House — ABOVE its first floor — while the drop lands after
-   the whole subtree.
+   appears and nothing changes. In a vault where **House** has a sibling detail plan under Site:
+   dragging that sibling onto the lower half of **House** draws the `after` line under the whole
+   House subtree — below its last floor, where the drop lands — not between House and its first
+   floor.
 6. Right-click **First floor** › **Move down**. It swaps with Attic. Focus a row, press Alt+↑: it
    moves up and keyboard focus stays on the moved row. Shift+F10 on a row opens the same menu;
    Escape closes it and focus returns to the row.

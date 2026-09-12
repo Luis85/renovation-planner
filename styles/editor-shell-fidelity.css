@@ -11,12 +11,14 @@
 .renovation-plan-editor .rp-property-tree__group { padding-inline-start: 16px; border-inline-start: 1px solid var(--background-modifier-border); }
 .renovation-plan-editor [role="treeitem"] { outline: none; }
 /* The row's ring, drawn on the row for two focus owners. Keyboard focus lands on the `li` (the row button is
-   `tabindex="-1"`), so the first rule rings the row when its `li` is focus-visible; the `:where()` keeps the
-   `li` condition at zero specificity so the button's own ring below outranks it. The second is the button's
-   own — it is focused directly by a click or the reorder's focus restore — and `buttonFocusRing.test.ts`
-   requires it since the row flattens `box-shadow`: that scan credits a ring only when it is unscoped or
-   shares the flattening rule's exact ancestor chain, and the `[data-rp-drop]` rules below flatten the same
-   button under a second chain, so one `.renovation-plan-editor`-scoped ring cannot answer both. */
+   `tabindex="-1"`), so the first rule rings the row when its `li` is focus-visible; the second is the button's
+   own — focused directly by a click or the reorder's focus restore. Both draw the SAME ring, so which one
+   outranks the other matters to nothing on screen; the `:where()` and the second rule are both for
+   `buttonFocusRing.test.ts`. The row flattens `box-shadow`, and that scan credits a ring only when it is
+   unscoped or shares the flattening rule's exact ancestor chain — the first rule's chain does not, and the
+   `[data-rp-drop="before"]` rule below flattens the same button under a second chain, so the unscoped button
+   ring is what answers both. TWO blocks rather than one selector list, measured: the same declarations under
+   one list credit nothing, and the scan reports all three flattening sites. */
 .renovation-plan-editor :where([role="treeitem"]:focus-visible) > .rp-property-tree__row { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
 button.rp-property-tree__row:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
 /* The current plan: main's accent bar on the row's leading edge. The `[data-rp-drop]` rules below
@@ -35,10 +37,12 @@ button.rp-property-tree__row:focus-visible { outline: 2px solid var(--interactiv
 }
 .renovation-plan-editor .rp-property-tree__menu [role="menuitemradio"][aria-checked="true"]::before { border-color: var(--interactive-accent); background: var(--interactive-accent); }
 .renovation-plan-editor .rp-property-tree__menu [role="menuitemradio"][aria-checked="true"] { font-weight: var(--font-semibold); }
-/* Drag to reorder: a grab cursor on a draggable row, and the drop indicator on the row the dragged plan would land beside. */
+/* Drag to reorder: a grab cursor on a draggable row, and the drop indicator WHERE the dragged plan would land:
+   `before` on the row's top edge, `after` on the bottom edge of the `li` — which spans the row's nested group,
+   so on a parent the line sits under the whole subtree the drop lands after, not between it and its first child. */
 .renovation-plan-editor [role="treeitem"][draggable="true"] > .rp-property-tree__row { cursor: grab; }
 .renovation-plan-editor [role="treeitem"][data-rp-drop="before"] > .rp-property-tree__row { box-shadow: inset 0 2px 0 var(--interactive-accent); }
-.renovation-plan-editor [role="treeitem"][data-rp-drop="after"] > .rp-property-tree__row { box-shadow: inset 0 -2px 0 var(--interactive-accent); }
+.renovation-plan-editor [role="treeitem"][data-rp-drop="after"] { box-shadow: inset 0 -2px 0 var(--interactive-accent); }
 .renovation-plan-editor .rp-property-rooms .rp-editor-panel-subtitle,
 .renovation-plan-editor .rp-property-elements .rp-structure-list > h3 { display: none; }
 .renovation-plan-editor .rp-property-layers .rp-layer-list { margin-top: 4px; }

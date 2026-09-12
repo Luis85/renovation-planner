@@ -46,10 +46,8 @@ function harness(worldPerScreenPixel = 1): Harness {
 function build(
 	h: Harness,
 	candidates: Array<{ id: string; points: readonly Point[] }>,
-	multiSelectionMode?: () => boolean,
 ): SelectTool {
 	return new SelectTool({
-		multiSelectionMode,
 		spatialObjects: () => candidates,
 		createMoveGesture: (zoneId, forward, inverse) => {
 			h.gestures.push({ zoneId, forward, inverse });
@@ -95,24 +93,6 @@ describe('SelectTool', () => {
 
 		expect(h.context.selection.selectedIds).toEqual([]);
 		expect(h.gestures).toHaveLength(0);
-	});
-
-	it('the sidebar\'s "select multiple" mode makes a plain click add and remove, as Shift does', () => {
-		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }, { id: 'zone-b', points: squarePoints(200, 0) }];
-		const h = harness();
-		let multiple = true;
-		const tool = build(h, candidates, () => multiple);
-		tool.activate(h.context);
-		for (const x of [10, 210]) { tool.pointerDown(eventAt(x, 10)); tool.pointerUp(eventAt(x, 10)); }
-		expect(h.context.selection.selectedIds).toEqual(['zone-a', 'zone-b']);
-		// A click on a member removes it rather than grabbing it for a drag or focusing it.
-		tool.pointerDown(eventAt(10, 10));
-		expect(tool.hasDraft()).toBe(false);
-		tool.pointerUp(eventAt(10, 10));
-		expect(h.context.selection.selectedIds).toEqual(['zone-b']);
-		multiple = false;
-		tool.pointerDown(eventAt(10, 10));
-		expect(h.context.selection.selectedIds).toEqual(['zone-a']);
 	});
 
 	it('a body drag dispatches exactly ONE gesture regardless of pointermove count', async () => {

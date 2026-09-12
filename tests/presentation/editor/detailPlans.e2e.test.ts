@@ -9,6 +9,7 @@ import { FIXTURE_PLAN } from '../../helpers/planFixtures';
 import { expectFound, expectOk } from '../../helpers/domain';
 import { err, ok } from '../../../src/core/result/Result';
 import { CreatePlanCommand } from '../../../src/application/commands/plan/CreatePlan';
+import { UpdatePlanDetailsCommand } from '../../../src/application/commands/plan/UpdatePlanDetails';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
@@ -32,6 +33,8 @@ async function rig() {
 		vault: workspace.deps.vault,
 		queries: { ...workspace.deps.queries, hierarchy },
 		commands: { ...workspace.deps.commands, createPlan: new CreatePlanCommand(stack.plans, stack.projects, stack.zones, stack.events) },
+		// The workspace's REAL project-plans door, over the bus its repositories publish on.
+		onProjectPlansChanged: workspace.deps.onProjectPlansChanged,
 		navigation: { project: () => Promise.resolve(), library: () => undefined, plan: (id) => { opened.push(id); return Promise.resolve(); } },
 	});
 	unmounts.push(() => harness.unmount());
@@ -103,6 +106,22 @@ it('re-reads the hierarchy when a sibling plan of this project changes, not anot
 
 	harness.unmount();
 	expect(harness.projectPlansListeners()).toBe(0);
+});
+
+/**
+ * `referenceWorkspace` binds the real `createProjectPlansChangeSource` over the bus its
+ * repositories publish on — `harnessDeps`'s inert door is honest only for the page that writes
+ * nothing — so a sibling written through those repositories, as another leaf would write it,
+ * re-reads this leaf's tree: created, it appears; re-kinded, its icon follows.
+ */
+it('re-reads the hierarchy when a sibling plan is created or re-kinded through the workspace\'s own repositories', async () => {
+	const r = await rig();
+	const rows = () => r.harness.wrapper.findAll('[role="treeitem"]').map((row) => row.attributes('data-rp-plan-id'));
+	expect(rows()).toEqual([HARNESS_PLAN.id]);
+	const attic = expectOk(await new CreatePlanCommand(r.stack.plans, r.stack.projects, r.stack.zones, r.stack.events).execute({ projectId: HARNESS_PLAN.projectId as never, name: 'Attic', kind: 'floor' })).plan.entity;
+	await settleUntil(() => rows().includes(attic.id), 'the created sibling\'s row');
+	expectOk(await new UpdatePlanDetailsCommand(r.stack.plans, r.stack.events).execute({ planId: attic.id, kind: 'building' }));
+	await settleUntil(() => r.harness.wrapper.find(`[data-rp-plan-id="${attic.id}"] .rp-host-icon[data-icon="building"]`).exists(), 'the re-kinded sibling\'s icon');
 });
 
 it('creates a detail plan named after the zone, opens it, and then lists it under that zone', async () => {

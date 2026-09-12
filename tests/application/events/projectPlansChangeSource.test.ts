@@ -9,9 +9,10 @@
  * The third case pins a STATED COST rather than a wanted behaviour:
  * `ProjectIndexEntryChangedPayload` carries `entityId` and `entityType` and no owning
  * project, so that arm cannot be filtered by project and fires for a change to any plan note
- * in the vault. Affordable because the view is a singleton and the query is project-scoped.
- * Pinned so that narrowing it later — when that payload gains the owning project id — is a
- * deliberate change rather than a silent one.
+ * in the vault. Paid by every subscriber — the singleton project view AND every open Plan
+ * Editor leaf, each of which binds this source to its project (`PlanEditorRoot`) and re-reads
+ * one project-scoped hierarchy per delivery. Pinned so that narrowing it later — when that
+ * payload gains the owning project id — is a deliberate change rather than a silent one.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createProjectPlansChangeSource } from '../../../src/application/events/projectPlansChangeSource';

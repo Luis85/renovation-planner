@@ -419,7 +419,9 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			window.addEventListener('rp-harness-theme', listener);
 			return () => window.removeEventListener('rp-harness-theme', listener);
 		},
-		// Nothing writes on this page, so nothing ever changes a plan under it — nor a sibling.
+		// Nothing writes on the BARE page, so nothing ever changes a plan under it — nor a sibling.
+		// True of this bundle alone: `referenceWorkspace` writes, and swaps BOTH plan doors for the
+		// real sources over its own bus.
 		onPlanChanged: () => () => undefined,
 		onProjectPlansChanged: () => () => undefined,
 		// The harness holds a fixed fixture and publishes no domain events, so all four change

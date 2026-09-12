@@ -69,6 +69,12 @@ export interface EditorHarnessOptions {
 	readonly panelLayout?: DeviceStorage;
 	/** The device's View preferences; two mounts given one holder are two plans on one device. */
 	readonly viewPreferences?: PlanEditorContext['viewPreferences'];
+	/**
+	 * A REAL project-plans door — `referenceWorkspace`'s, over the bus its repositories publish on —
+	 * in place of the recording fake, so a case can prove a sibling written through those
+	 * repositories re-reads the tree. `changeProjectPlans`/`projectPlansListeners` see nothing then.
+	 */
+	readonly onProjectPlansChanged?: PlanEditorContext['onProjectPlansChanged'];
 	/** Keep the camera the plan opened framed on, rather than the default one every other case drives. */
 	readonly openingFit?: boolean;
 	/**
@@ -273,10 +279,10 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		},
 		// Its own map, and one that REMEMBERS the id: a fake that delivered regardless of project
 		// would pass a root that subscribed with the wrong one.
-		onProjectPlansChanged: (projectId, listener) => {
+		onProjectPlansChanged: options.onProjectPlansChanged ?? ((projectId, listener) => {
 			projectPlansListeners.set(listener, projectId);
 			return () => projectPlansListeners.delete(listener);
-		},
+		}),
 		// Its OWN set, not an alias of the plan door's: the whole point of the third source is
 		// that the two fire on different events, so a fixture that folded them together could
 		// not tell a build that had merged them back from one that had not.

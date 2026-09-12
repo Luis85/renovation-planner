@@ -8,9 +8,13 @@ import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { PlanFrontmatterSchema, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
 import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
+/** The lowest version that still makes an older writer refuse the note rather than strip a fact it carries. */
 function planSchemaVersion(plan: Plan): number {
 	if (plan.north !== undefined) return 10;
-	if (plan.parent) return 9;
+	return plan.parent ? 9 : renovationSchemaVersion(plan);
+}
+
+function renovationSchemaVersion(plan: Plan): number {
 	const { work, depth = EMPTY_DEPTH } = plan.renovation ?? EMPTY_RENOVATION;
 	if (depth.evidence.some(item => item.date !== undefined)) return 8;
 	if (work.some(item => item.responsibility === 'trade' || item.schedule !== undefined)) return 7;

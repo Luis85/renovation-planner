@@ -41,7 +41,7 @@ it('routes Ctrl Z/Y from editor buttons through real history and leaves text/mod
 it('opens empty-canvas and keyboard context actions, invokes Pan, and dismisses back to the canvas', async () => {
 	const value = await rig();
 	value.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 200, clientY: 200 })); await settle();
-	expect(value.wrapper.get('.rp-canvas-context-menu').text()).toContain('Pan');
+	expect(value.wrapper.get('.rp-canvas-context-menu').text()).toContain('Switch to pan mode');
 	await value.wrapper.get('[data-rp-context-action="pan"]').trigger('click'); expect(value.runtime.activeToolId.value).toBe('pan');
 	key(value.canvasEl, { key: 'ContextMenu' }); await settle();
 	const item = value.wrapper.get('[data-rp-context-action="add"]').element as HTMLElement;

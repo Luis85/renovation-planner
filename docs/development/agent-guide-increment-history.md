@@ -5762,9 +5762,9 @@ shallow stem; an oblique partition captured in both schemes shows both hosts' ou
 
 **Spec:** `docs/superpowers/specs/2026-09-12-wall-tool-join-and-split-design.md`.
 
-**Property tree polish (2026-09-12, ADR-0029)**
+## Property tree polish, 2026-09-12
 
-Spec: `docs/superpowers/specs/2026-09-12-property-tree-polish-design.md`; plan:
+ADR-0029. Spec: `docs/superpowers/specs/2026-09-12-property-tree-polish-design.md`; plan:
 `docs/superpowers/plans/2026-09-12-property-tree-polish.md`, whose header block overrides the
 spec where the two differ. One PR, four merges of `main` along the way.
 
@@ -5808,8 +5808,10 @@ redraws wrong on the first reorder in every existing vault. `PropertyTreeNode` g
 and the skip compares against the STORED value, so a first reorder may write the whole sibling
 list. Paused writes follow the spec rather than the plan: the menu still opens, every entry
 `aria-disabled` with the same `editor.stale-write-refused` reason the canvas menu's zone actions
-carry, and drag and Alt+arrows do nothing; the Kind select is `v-if` available and `:disabled`
-paused. The tree re-reads the hierarchy after a write sequence whether it finished or stopped
+carry, and drag and Alt+arrows do nothing; the Kind select is `v-if` available and, while
+paused, `aria-disabled` with `aria-describedby` pointing at the shared reason — never
+`:disabled`, which would drop it from the focus order. The tree re-reads the hierarchy after a
+write sequence whether it finished or stopped
 at a refusal — a half-applied move is visible only if the tree re-reads. Drag state is per
 tree instance, not module-level as the spec said: a drop from another leaf's tree would be a
 cross-tree move, which is reparenting and out of scope, and per-instance state makes it a no-op
@@ -5837,6 +5839,28 @@ row button with `box-shadow: none` and no `:focus-visible` ring, plus the two `[
 inset shadows) and was found only by the whole-suite run after the third merge; and that same
 merge brought `main`'s new detail-plan literals without `kind`, caught by `vue-tsc`. Whole-suite
 `check:fast` after every merge is the instrument; a task's own paths are not.
+
+**The final review's two behavioural findings, and the coverage read behind the rest.** A held
+Alt+↑ auto-repeats before the re-read lands, and every repeat computed the same writes from the
+stale tree and dispatched them concurrently — the second sequence's `loadPlan` reading the
+pre-save version and failing the version check as a spurious stale-write notice. `write()` is
+ONE sequence at a time per leaf now, with the flag on `PlanHierarchyStore` (`writing`) rather
+than in the composable, because the tree, its row menu and the Floor inspector each own a
+`usePlanReorder()` instance and a menu click followed by an Alt press crosses two of them; a
+press that arrives mid-sequence is dropped, not errored. And `PlanEditorRoot`'s plan-change
+handler had stopped re-reading the hierarchy on the argument that no plan event could change
+it — `PlanDetailsChanged` from another leaf's menu did exactly that, so the Floor inspector
+showed the new kind while the tree kept the old icon; the handler runs `hydrate` again, both
+reads, since the plan-change door hands its listener no event type. The coverage read then
+found some forty branch arms nothing reached, and each was either driven by a behaviour a case
+now pins (the `'after'` drop edge, a drop onto the row's own place, a row that a re-read dropped
+mid-drag or under an open menu, the outside-pointer close, Space and ArrowUp, Enter on the open
+plan, review perspective claiming nothing) or deleted where a type already held the invariant:
+one `rowOf` reads a treeitem's id off a selector that asks for it, the crumb's icon is required,
+the New plan form's values type carries `kind` always, and the Kind select's handler takes the
+plan the template has already narrowed. `?? 'body'`, `?? 0`, `rect &&` and the bare-Alt return
+went the same way. What stayed as a type-only cast is written beside each: a real `dragstart`
+always carries a transfer, and a template ref is bound before `onMounted` runs.
 
 **Deferred, named in the ledger rather than fixed:** `Plan.create` sits at the complexity cap;
 `tabindex="0"` never moves off the open plan, so the roving is not truly roving; no in-flight

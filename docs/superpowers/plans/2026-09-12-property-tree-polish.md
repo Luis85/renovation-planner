@@ -1,5 +1,7 @@
 # Property Tree Polish Implementation Plan
 
+> Superseded on schema: kind/order shipped as frontmatter schema v11 (main took v10 for `north`); see ADR-0029.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** The Plan editor's sidebar Property tree draws every plan of the project nested by its parent link, with a persisted kind per plan driving its icon, siblings reorderable by drag, menu and keyboard, and an indent that costs 16px per level.

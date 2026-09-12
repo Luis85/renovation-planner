@@ -1,5 +1,7 @@
 # Property tree polish — design
 
+> Superseded on schema: kind/order shipped as frontmatter schema v11 (main took v10 for `north`); see ADR-0029.
+
 Date: 2026-09-12 · One PR off `main` at `5dfb0725`.
 
 ## Why this exists

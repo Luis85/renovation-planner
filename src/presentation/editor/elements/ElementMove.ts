@@ -8,7 +8,7 @@ import { CLICK_EPSILON_PX } from '../handleMetrics';
 import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 
 /** Open polylines whose individual points drag; every other element moves only as a body. */
-export const hasPointHandles = (kind: string | undefined): boolean => kind === 'arrow' || kind === 'path' || kind === 'fence';
+export const hasPointHandles = (kind: string | undefined): boolean => kind === 'arrow' || kind === 'path' || kind === 'fence' || kind === 'measurement';
 export interface ElementMoveDeps {
 	previewElement?: (id: string | null, points?: readonly Point[]) => void;
 	moveElement?: (id: string, points: readonly Point[], original: SpatialElement) => void;

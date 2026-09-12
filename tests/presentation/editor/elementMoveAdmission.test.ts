@@ -11,7 +11,7 @@ it('declines unsupported move and vertex targets, then translates a Stair while 
 	move.start(context, event, { id: 'room', points });
 	move.start(context, event, { id: 'wall', kind: 'wall', points });
 	move.start(context, event, { id: 'opening', kind: 'opening', points });
-	move.start(context, event, { id: 'measurement', kind: 'measurement', points }, 0);
+	move.start(context, event, { id: 'object', kind: 'object', points: [...points, { x: 0, y: 1000 }] }, 0);
 	move.start(context, event, { id: 'path', kind: 'path', points }, 2);
 	move.start(context, event, { id: 'arrow', kind: 'arrow', points }, 2);
 	expect(move.active).toBe(false); expect(moveElement).not.toHaveBeenCalled(); expect(previewElement).not.toHaveBeenCalled();

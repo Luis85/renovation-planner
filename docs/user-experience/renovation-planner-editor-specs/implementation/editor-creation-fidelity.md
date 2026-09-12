@@ -41,6 +41,16 @@ panels, scene ordering, and real wall creation, history and numeric form routing
 repository verification, screenshots of this source and native acceptance remain pending
 the integrated release pass. Passing these targeted checks is not visual acceptance.
 
+## One task bar for every Add item (2026-09-12)
+
+The compact taskbar above Select/Add was a structure-only modifier: Wall, Door, Window and
+Opening docked there while Room, Area, Path, Fence, Item, Stairs, Arrow and Asset drew the same
+bar over the canvas's top edge. Every task now uses the bottom placement and one layout —
+title and instruction, tool controls, then Finish and Cancel — with Finish filled as the primary
+action in an accent mix measured at 5.64:1 (dark) and 5.33:1 (light) against its label in the harness. `styles/editor-task-bar.css`
+holds every rule for the bar, and `tests/build/taskBarPlacement.test.ts` refuses a second partial
+naming it or a `top` placement. The Inspector's precise creation forms are unchanged.
+
 ## Follow-up from integrated smoke at `736ca7c1`
 
 The fresh `light-closed-loop.png` showed the New walls Inspector and annotated draft, but

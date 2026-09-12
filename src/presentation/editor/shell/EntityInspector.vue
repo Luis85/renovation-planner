@@ -60,6 +60,7 @@ import StructureTaskForm from '../structure/StructureTaskForm.vue';
 import CurveTaskForm from '../curves/CurveTaskForm.vue';
 import { isStructureTool } from '../structure/structureDraft';
 import GroupControls from '../groups/GroupControls.vue';
+import StructureBulkEditAction from '../structure/StructureBulkEditAction.vue';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
 const { activeToolId } = storeToRefs(useEditorStore());
@@ -110,6 +111,7 @@ const groupsShown = computed(() => activeToolId.value === 'select' && renovation
 		>
 			<template #actions>
 				<GroupControls />
+				<StructureBulkEditAction :ids="selection.ids" />
 			</template>
 		</MultiSelectionInspector>
 		<RenovationInspector v-else-if="body === 'renovate'">

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
 import { structureEditor } from '../../helpers/structureEditor';
+import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { resizeTo } from '../../helpers/layout';
@@ -82,6 +83,27 @@ it('keeps paused fields and pending outline coordinates from being overwritten b
 	await rig.wrapper.get('input[name="object-width"]').setValue('3');
 	await rig.wrapper.get('[data-rp-action="apply-object-rectangle"]').trigger('click');
 	expect(rig.task.draft.rectangle.width).toBe(''); expect(rig.task.draft.text.x).toBe('2'); expect(rig.task.draft.points).toHaveLength(0);
+});
+it('drags a selected item corner, refuses an outline enclosing no surface and restores it through Undo', async () => {
+	const r = await renovationEditor(true); r.changePlan(); await settle();
+	try {
+		const tools = r.runtime.toolManager, triangle = [{ x: 0, y: 0 }, { x: 2000, y: 0 }, { x: 2000, y: 2000 }];
+		await r.wrapper.get('[data-rp-action="add"]').trigger('click'); await r.wrapper.get('[data-rp-entry="item"]').trigger('click');
+		await settleUntil(() => !r.runtime.elementTask.draft.loading, 'item baseline');
+		await r.wrapper.get('input[name="element-name"]').setValue('Cabinet'); expect(r.runtime.elementTask.setPoints(triangle)).toBe(true);
+		await r.wrapper.get('[data-rp-action="finish-element"]').trigger('click'); await settleUntil(() => r.runtime.activeToolId.value === 'select', 'item save');
+		const saved = expectDefined(r.project.structure.elements?.[0], 'saved item');
+		expect(saved.points).toEqual(triangle); expect(r.stage.find('.element-vertex')).toHaveLength(3);
+		tools.pointerDown(pointerAt(2000, 0)); tools.pointerMove(pointerAt(3000, -1000)); tools.pointerUp(pointerAt(3000, -1000));
+		await settleUntil(() => !r.runtime.elementActions.active.value && r.project.structure.elements?.[0].points[1].x === 3000, 'corner move');
+		expect(r.project.structure.elements?.[0].points).toEqual(triangle.with(1, { x: 3000, y: -1000 }));
+		await r.runtime.undo(); await settle(); expect(r.project.structure.elements?.[0]).toEqual(saved);
+		const before = [...r.stack.vault.entries];
+		// Collinear with the other two corners: a valid element, but no surface (`areaOutline`).
+		tools.pointerDown(pointerAt(2000, 2000)); tools.pointerMove(pointerAt(1000, 0)); tools.pointerUp(pointerAt(1000, 0)); await settle();
+		expect(r.project.structure.elements?.[0]).toEqual(saved); expect([...r.stack.vault.entries]).toEqual(before);
+		await r.runtime.renovation.perspective('review'); await settle(); expect(r.stage.find('.element-vertex')).toHaveLength(0);
+	} finally { r.unmount(); }
 });
 it('retains a third measurement coordinate without extending its two-point geometry', async () => {
 	const rig = await structureEditor(true); mounted.push(rig); rig.runtime.setTool('measure');

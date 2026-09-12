@@ -3,6 +3,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { rotationControlContains } from '../elements/rotationControl';
+import { hasPointHandles } from '../elements/ElementMove';
 import { arcProjection } from '../../../core/geometry/circularArc';
 
 export type SelectionTarget =
@@ -38,7 +39,7 @@ function handleAt(input: {
 	if (input.selectedIds.length !== 1) return null;
 	const id = input.selectedIds[0];
 	const selected = input.candidates.find((candidate) => candidate.id === id);
-	if (selected === undefined || (selected.kind !== undefined && selected.kind !== 'wall' && selected.kind !== 'arrow')) return null;
+	if (selected === undefined || (selected.kind !== undefined && selected.kind !== 'wall' && !hasPointHandles(selected.kind))) return null;
 	const vertexIndex = selected.points.findIndex((point) => distance(point, input.worldPoint) <= input.handleToleranceWorld);
 	return vertexIndex < 0 ? null : { kind: 'handle', id, vertexIndex };
 }

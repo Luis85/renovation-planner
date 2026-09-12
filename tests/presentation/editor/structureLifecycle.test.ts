@@ -30,7 +30,7 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 		const primary = value.wrapper.get('.rp-primary-actions').element as HTMLElement;
 		placeAt(value.canvasEl, 0, 0, 800, 600); placeAt(primary, 300, 520, 200, 48);
 		await start(value);
-		const banner = value.wrapper.get('.rp-task-banner--structure').element as HTMLElement;
+		const banner = value.wrapper.get('.rp-task-banner').element as HTMLElement;
 		expect(banner.style.getPropertyValue('--rp-taskbar-clearance')).toBe('96px');
 		placeAt(primary, 280, 480, 240, 88); resizeTo(primary, 240, 88); await settle();
 		expect(banner.style.getPropertyValue('--rp-taskbar-clearance')).toBe('136px');
@@ -46,7 +46,7 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 		await settleUntil(() => !value.runtime.structureTask.draft.loading, 'wall baseline');
 		expect(value.runtime.activeToolId.value).toBe('draw-wall');
 		expect(workspace.overlay).toBe('none');
-		expect(value.wrapper.get('.rp-task-banner--structure').isVisible()).toBe(true);
+		expect(value.wrapper.get('.rp-task-banner').isVisible()).toBe(true);
 		expect(value.wrapper.get('.rp-structure-task').isVisible()).toBe(false);
 		expect(document.activeElement).toBe(value.canvasEl);
 		value.runtime.toolManager.pointerDown(pointerAt(0, 0));
@@ -216,5 +216,33 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 		const before = expectOk(await value.geometry.read(value.plan.id));
 		value.runtime.toolManager.pointerMove(pointerAt(500, 500));
 		expect(expectOk(await value.geometry.read(value.plan.id))).toEqual(before);
+	});
+	it('joins a typed point that lands on a wall body, at one millimetre, and finishes on a typed end', async () => {
+		const value = await rig(); await seeded(value);
+		const task = await start(value);
+		// (2, 0) in metres lies on wall-a's body: a numeric START join.
+		task.draft.text.x = '2'; task.draft.text.y = '0';
+		expect(task.addNumeric()).toBe(true);
+		expect(task.draft.joins.start).toMatchObject({ wallId: 'wall-a', offset: 2000 });
+		// 3 m at 90° lands on wall-c (y = 3000): a numeric END join, saved at once.
+		task.draft.text.length = '3'; task.draft.text.angle = '90';
+		expect(task.addNumeric()).toBe(true);
+		await settleUntil(() => value.runtime.activeToolId.value === 'select', 'the chain saved and the tool returned to Select');
+		const saved = expectOk(await value.geometry.read(value.plan.id)).document.structure;
+		expect(saved?.walls).toHaveLength(7);
+		expect(saved?.walls.filter(wall => wall.start.x === 2000 || wall.end.x === 2000).map(wall => [wall.start, wall.end])).toEqual(expect.arrayContaining([[{ x: 0, y: 0 }, { x: 2000, y: 0 }], [{ x: 2000, y: 0 }, { x: 4000, y: 0 }], [{ x: 2000, y: 0 }, { x: 2000, y: 3000 }]]));
+	});
+	it('drops the end join with Undo point and the start join with the first point', async () => {
+		const value = await rig(); await seeded(value);
+		const task = await start(value);
+		task.draft.text.x = '1'; task.draft.text.y = '0'; expect(task.addNumeric()).toBe(true);
+		// 3 m at 90° from (1000, 0) lands on wall-c: an end join, whose save is refused here so the draft survives for the undo.
+		vi.spyOn(value.runtime.dispatcher, 'run').mockResolvedValueOnce(err(fault));
+		task.draft.text.length = '3'; task.draft.text.angle = '90'; expect(task.addNumeric()).toBe(true);
+		await settleUntil(() => task.draft.error?.code === fault.code, 'the refused save left the draft');
+		expect(task.draft.busy).toBe(false); expect(task.draft.points).toHaveLength(2);
+		expect(task.draft.joins.start).not.toBeNull(); expect(task.draft.joins.end).not.toBeNull();
+		task.undoPoint(); expect(task.draft.points).toHaveLength(1); expect(task.draft.joins.end).toBeNull(); expect(task.draft.joins.start).not.toBeNull();
+		task.undoPoint(); expect(task.draft.points).toHaveLength(0); expect(task.draft.joins.start).toBeNull();
 	});
 });

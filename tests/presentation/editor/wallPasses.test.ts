@@ -2,9 +2,10 @@
  * Walls meeting end to end, two at a joint and equally thick, are chained into ONE run whose
  * stroke Konva mitres, so the corner is exact at any angle — the separately capped walls this
  * replaced overlapped into wedges wherever a joint was not a right angle. Every other run end is
- * butt-capped: past a shared endpoint (a T, or a change of thickness) both passes are extended
- * by the joined walls' half thickness, and past a FREE end only the edge pass, by 1 / zoom, which
- * is what draws that end's 1 px dark cap, since a wider butt stroke is not a longer one.
+ * butt-capped: a T's stem is carried until its far corner meets the host's far face, at any angle;
+ * past any other shared endpoint (a change of thickness) both passes are extended by the joined
+ * walls' half thickness; and past a FREE end only the edge pass, by 1 / zoom, which is what draws
+ * that end's 1 px dark cap, since a wider butt stroke is not a longer one.
  */
 import { describe, expect, it } from 'vitest';
 import { wallPasses } from '../../../src/presentation/editor/structure/wallPasses';
@@ -17,6 +18,11 @@ const north = wall('wall-n', { x: 0, y: 0 }, { x: 4000, y: 0 });
 const east = wall('wall-e', { x: 4000, y: 0 }, { x: 4000, y: 3000 });
 const south = wall('wall-s', { x: 4000, y: 3000 }, { x: 0, y: 3000 });
 const west = wall('wall-w', { x: 0, y: 3000 }, { x: 0, y: 0 });
+/** How far across a host along y = 0 a run's butt-capped START reaches on the host's far (negative y) side, for a stroke `width` wide. */
+function farCorner(points: readonly number[], width: number): number {
+	const [x0, y0, x1, y1] = points, length = Math.hypot(x1 - x0, y1 - y0);
+	return y0 - Math.abs((x1 - x0) / length) * width / 2;
+}
 
 describe('wallPasses', () => {
 	it('chains an L of equal walls into one open run, capping only its free ends', () => {
@@ -66,6 +72,22 @@ describe('wallPasses', () => {
 		expect(runs[0].body.slice(2)).toEqual([4120, 0]);
 		expect(runs[1].body.slice(0, 2)).toEqual([3880, 0]);
 		expect(runs[2].body.slice(0, 2)).toEqual([4000, -120]);
+	});
+
+	it('stops a T\'s stem where its far corner meets the host\'s far face, at any angle, so it never pokes through', () => {
+		// The host runs along y = 0 (far face y = -120), split at x = 4000; the stem leaves the joint 71.6° off it.
+		const onward = wall('wall-o', { x: 4000, y: 0 }, { x: 8000, y: 0 }), stem = wall('wall-stem', { x: 4000, y: 0 }, { x: 5000, y: 3000 });
+		const [, , passes] = wallPasses([north, onward, stem], 0.1);
+		expect(farCorner(passes.body, 240)).toBeCloseTo(-120);
+		// The edge pass is 2 / zoom wider, so its corner meets the far side of the host's own 1 px dark line.
+		expect(farCorner(passes.edge, 240 + 2 / 0.1)).toBeCloseTo(-130);
+	});
+
+	it('pulls a stem too thick for its host at a shallow angle back behind the joint rather than through the far face', () => {
+		const onward = wall('wall-o', { x: 4000, y: 0 }, { x: 8000, y: 0 }), stem = { ...wall('wall-stem', { x: 4000, y: 0 }, { x: 7000, y: 1000 }), thickness: 600 };
+		const [, , passes] = wallPasses([north, onward, stem], 0.1);
+		expect(farCorner(passes.body, 600)).toBeCloseTo(-120);
+		expect(passes.body[1]).toBeGreaterThan(0);
 	});
 
 	it('extends a curved wall along its end tangent and keeps its interior vertices', () => {

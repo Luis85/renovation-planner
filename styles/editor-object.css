@@ -55,7 +55,8 @@
 }
 
 .renovation-plan-editor .rp-stair-fields,
-.rp-dialog .rp-stair-fields {
+.rp-dialog .rp-stair-fields,
+.rp-dialog .rp-dimension-fields {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: var(--size-4-2);
@@ -66,7 +67,8 @@
 }
 
 .renovation-plan-editor .rp-stair-fields legend,
-.rp-dialog .rp-stair-fields legend {
+.rp-dialog .rp-stair-fields legend,
+.rp-dialog .rp-dimension-fields legend {
 	margin-block-end: var(--size-4-2);
 	padding: 0;
 }
@@ -74,7 +76,8 @@
 .renovation-plan-editor .rp-stair-fields input,
 .renovation-plan-editor .rp-stair-fields select,
 .rp-dialog .rp-stair-fields input,
-.rp-dialog .rp-stair-fields select {
+.rp-dialog .rp-stair-fields select,
+.rp-dialog .rp-dimension-fields input {
 	width: 100%;
 	min-width: 0;
 }

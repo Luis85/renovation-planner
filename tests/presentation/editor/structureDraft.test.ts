@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createStructureDraft, addWallPoint, draftStructure, mintStructure, numericWallPoint, openingFromDraft, snapWallPoint, wallsFromDraft, pickHost, validateDraftStructure, isStructureTool, startFromWall, wallStartRefused } from '../../../src/presentation/editor/structure/structureDraft';
+import { createStructureDraft, addWallPoint, draftStructure, mintStructure, numericWallPoint, openingFromDraft, snapWallPoint, wallsFromDraft, pickHost, validateDraftStructure, isStructureTool, startFromWall, wallStartRefused, endOnWall } from '../../../src/presentation/editor/structure/structureDraft';
 import { StructureTool } from '../../../src/presentation/editor/structure/StructureTool';
 import { expectDefined, expectErr, expectOk } from '../../helpers/domain';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
 import { WALL_LOOP } from '../../helpers/structure';
 import { toolContext, pointerAt } from '../../helpers/tool-context';
+
+/** The loop with a door laid across wall-a at 2000, so a cut recorded there is refused when the floor is read again. */
+const LATE_DOOR = { ...WALL_LOOP, openings: [{ id: 'opening-late', kind: 'door' as const, hostId: 'wall-a', offset: 1600, width: 900, height: 2100, sill: 0 }] };
 
 describe('wall task geometry and lifecycle', () => {
 	it('keeps existing Room relationships and committed opening IDs while extending separate walls', () => {
@@ -61,8 +64,8 @@ describe('wall task geometry and lifecycle', () => {
 	});
 	it('snaps to the closest endpoint first, then axes, with exact numeric input unaffected', () => {
 		expect(snapWallPoint({ x: 4001, y: 1 }, [], WALL_LOOP.walls, 8)).toEqual({ point: { x: 4000, y: 0 }, snapped: true });
-		expect(snapWallPoint({ x: 5, y: 500 }, [{ x: 0, y: 0 }], [], 8)).toEqual({ point: { x: 0, y: 500 }, snapped: true });
-		expect(snapWallPoint({ x: 500, y: 5 }, [{ x: 0, y: 0 }], [], 8)).toEqual({ point: { x: 500, y: 0 }, snapped: true });
+		expect(snapWallPoint({ x: 5, y: 500 }, [{ x: 0, y: 0 }], [], 8)).toEqual({ point: { x: 0, y: 500 }, snapped: true, axis: true });
+		expect(snapWallPoint({ x: 500, y: 5 }, [{ x: 0, y: 0 }], [], 8)).toEqual({ point: { x: 500, y: 0 }, snapped: true, axis: true });
 		expect(snapWallPoint({ x: 500, y: 500 }, [{ x: 0, y: 0 }], [], 8).snapped).toBe(false);
 		expect(snapWallPoint({ x: 500, y: 500 }, [], [], 8).snapped).toBe(false);
 	});
@@ -118,13 +121,80 @@ describe('wall task geometry and lifecycle', () => {
 		const existing = { ...WALL_LOOP, openings: [{ id: 'opening-door', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2100, sill: 0 }] };
 		const atEnd = createStructureDraft();
 		expect(startFromWall(atEnd, existing, 'wall-a', { x: 3995, y: 0 }, 8)).toBe(true);
-		expect(atEnd.points).toEqual([{ x: 4000, y: 0 }]); expect(atEnd.split).toBeNull();
+		expect(atEnd.points).toEqual([{ x: 4000, y: 0 }]); expect(atEnd.joins.start).toBeNull();
 		const inside = createStructureDraft();
 		expect(startFromWall(inside, existing, 'wall-a', { x: 900, y: 0 }, 8)).toBe(false);
 		expect(inside.error?.code).toBe('spatial.opening-split'); expect(inside.points).toEqual([]);
 		expect(wallStartRefused(existing, 'wall-a', { x: 900, y: 0 }, 8)).toBe(true); expect(wallStartRefused(existing, 'wall-a', { x: 2000, y: 0 }, 8)).toBe(false);
 		const missing = createStructureDraft();
 		expect(startFromWall(missing, existing, 'wall-gone', { x: 0, y: 0 }, 8)).toBe(false); expect(missing.error?.code).toBe('spatial.host-missing');
+	});
+	it('leaves the start join as it was when a good cut\'s point is refused', () => {
+		const draft = createStructureDraft(); draft.text.thickness = 'x';
+		expect(startFromWall(draft, WALL_LOOP, 'wall-a', { x: 2000, y: 0 }, 8)).toBe(false);
+		expect(draft.error?.code).toBe('spatial.wall-dimensions'); expect(draft.joins.start).toBeNull(); expect(draft.points).toEqual([]);
+	});
+	it('refuses the next point when the floor no longer accepts the recorded start cut', () => {
+		const draft = createStructureDraft();
+		expect(startFromWall(draft, WALL_LOOP, 'wall-a', { x: 2000, y: 0 }, 8)).toBe(true);
+		expect(addWallPoint(draft, { x: 2000, y: 1500 }, LATE_DOOR)).toBe(false);
+		expect(draft.error?.code).toBe('spatial.opening-split'); expect(draft.points).toHaveLength(1);
+	});
+	it('ends a chain on a wall body by cutting it there, and drops the cut with the point', () => {
+		const draft = createStructureDraft();
+		expect(addWallPoint(draft, { x: 2000, y: 1500 }, WALL_LOOP)).toBe(true);
+		expect(endOnWall(draft, WALL_LOOP, { wallId: 'wall-a', offset: 2000, point: { x: 2000, y: 0 }, perpendicular: true })).toBe(true);
+		expect(draft.points).toEqual([{ x: 2000, y: 1500 }, { x: 2000, y: 0 }]);
+		expect(draft.joins.end).toMatchObject({ wallId: 'wall-a', offset: 2000, point: { x: 2000, y: 0 } });
+		const walls = expectOk(validateDraftStructure(draft, WALL_LOOP, [])).walls;
+		expect(walls.map(wall => wall.id)).toEqual(['wall-a', draft.joins.end?.id, 'wall-b', 'wall-c', 'wall-d', 'wall-draft-0']);
+		expect(walls[0].end).toEqual({ x: 2000, y: 0 });
+		// The preview builds on the cut floor too, so the host renders as two halves while drawing.
+		expect(expectDefined(draftStructure(draft, WALL_LOOP), 'preview').walls).toHaveLength(6);
+		// A cut the floor now refuses previews on the uncut floor rather than not at all; validation is what reports it.
+		expect(expectDefined(draftStructure(draft, LATE_DOOR), 'refused preview').walls).toHaveLength(5);
+		expect(expectErr(validateDraftStructure(draft, LATE_DOOR, [])).code).toBe('spatial.opening-split');
+		// Popping the last point leaves the recorded join, and the cut no longer applies.
+		draft.points.pop();
+		expect(addWallPoint(draft, { x: 2500, y: 1500 }, WALL_LOOP)).toBe(true);
+		expect(expectOk(validateDraftStructure(draft, WALL_LOOP, [])).walls).toHaveLength(5);
+	});
+	it('ends a chain on the wall it started from, naming the half the end falls on', () => {
+		const draft = createStructureDraft();
+		expect(startFromWall(draft, WALL_LOOP, 'wall-a', { x: 1000, y: 0 }, 8)).toBe(true);
+		expect(addWallPoint(draft, { x: 1000, y: 1500 }, WALL_LOOP)).toBe(true);
+		expect(addWallPoint(draft, { x: 3000, y: 1500 }, WALL_LOOP)).toBe(true);
+		// Resolved against the UNCUT floor, as the tool resolves a pending join: wall-a at 3000.
+		expect(endOnWall(draft, WALL_LOOP, { wallId: 'wall-a', offset: 3000, point: { x: 3000, y: 0 }, perpendicular: true })).toBe(true);
+		const start = expectDefined(draft.joins.start, 'start join'), end = expectDefined(draft.joins.end, 'end join');
+		expect(end.wallId).toBe(start.id); expect(end.offset).toBe(2000);
+		const walls = expectOk(validateDraftStructure(draft, WALL_LOOP, [])).walls;
+		expect(walls.map(wall => [wall.id, wall.start.x, wall.end.x]).slice(0, 3)).toEqual([['wall-a', 0, 1000], [start.id, 1000, 3000], [end.id, 3000, 4000]]);
+	});
+	it('refuses an end inside an opening and records nothing', () => {
+		const existing = { ...WALL_LOOP, openings: [{ id: 'opening-door', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2100, sill: 0 }] };
+		const draft = createStructureDraft();
+		expect(addWallPoint(draft, { x: 900, y: 1500 }, existing)).toBe(true);
+		expect(endOnWall(draft, existing, { wallId: 'wall-a', offset: 900, point: { x: 900, y: 0 }, perpendicular: true })).toBe(false);
+		expect(draft.error?.code).toBe('spatial.opening-split'); expect(draft.joins.end).toBeNull(); expect(draft.points).toHaveLength(1);
+		expect(endOnWall(draft, existing, { wallId: 'wall-gone', offset: 900, point: { x: 900, y: -5000 }, perpendicular: false })).toBe(false);
+		expect(draft.error?.code).toBe('spatial.host-missing');
+		// A good cut whose point the draft then refuses (busy here) leaves the end join as it was.
+		draft.busy = true;
+		expect(endOnWall(draft, existing, { wallId: 'wall-a', offset: 2000, point: { x: 2000, y: 0 }, perpendicular: true })).toBe(false);
+		expect(draft.joins.end).toBeNull(); expect(draft.points).toHaveLength(1);
+		// A recorded start cut the floor now refuses refuses the end before any host is looked for.
+		const started = createStructureDraft();
+		expect(startFromWall(started, WALL_LOOP, 'wall-a', { x: 2000, y: 0 }, 8)).toBe(true);
+		expect(endOnWall(started, LATE_DOOR, { wallId: 'wall-c', offset: 2000, point: { x: 2000, y: 3000 }, perpendicular: true })).toBe(false);
+		expect(started.error?.code).toBe('spatial.opening-split'); expect(started.joins.end).toBeNull(); expect(started.points).toHaveLength(1);
+	});
+	it('treats an end join that lands exactly on a wall end as a plain point', () => {
+		const draft = createStructureDraft();
+		// From (3000, 1500) rather than (4000, 1500): a wall up to the corner along wall-b's line would be collinear overlap, refused as today.
+		expect(addWallPoint(draft, { x: 3000, y: 1500 }, WALL_LOOP)).toBe(true);
+		expect(endOnWall(draft, WALL_LOOP, { wallId: 'wall-a', offset: 4000, point: { x: 4000, y: 0 }, perpendicular: false })).toBe(true);
+		expect(draft.joins.end).toBeNull(); expect(draft.points[1]).toEqual({ x: 4000, y: 0 });
 	});
 
 	it('refuses a placement draft whose swing cannot be parsed before it builds any structure', () => {

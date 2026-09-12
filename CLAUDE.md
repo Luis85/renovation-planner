@@ -899,16 +899,38 @@ The rules this suite is actually held to:
   both walkers importing it, because a naming convention two files agree about by hand is one
   rename away from silently reaching nothing. Three things came out of it, recorded in the
   increment history.
-- **A test that runs in NODE may not reach a `.vue` file through its imports**, and
-  `tests/build/node-tests-import-no-sfc.test.ts` is the check: vitest compiles an SFC a node
-  test reaches in SSR shape without rendering it, and the coverage merge counts those
-  SSR-only arms as uncovered branches in files nobody touched — 84 of them in one instance,
-  red CI, every test green. The gate walks every `*.test.ts` whose environment directive is
-  absent or `node` through its RELATIVE imports, static and dynamic, type-only ones skipped
-  (esbuild erases them before the SFC is requested — measured), and names the chain. It
-  reads directives only, so it pins `vitest.config.ts` to one `environment` key; an alias or
-  a computed specifier is invisible to it. The fix is the one `entities.ts`'s `anEntry`
-  took: move what the node test needs into a module with no SFC below it.
+- **A test that runs in NODE may not reach a `.vue` file through its imports**, and the check
+  is at the forbidden thing rather than in a scan of the tree: `scripts/vitest-no-ssr-sfc.mjs`
+  is a Vite plugin `vitest.config.ts` registers ahead of `@vitejs/plugin-vue`, and it throws
+  from its `transform` hook — naming the file — whenever a `.vue` module arrives with
+  `options.ssr` set. That is the pipeline's own discriminator, measured: a node-environment
+  spec transforms an SFC with `ssr=true` under the `ssr` environment, a jsdom spec with
+  `ssr=false` under `client`. What it refuses is what reddened CI once with every test green:
+  vitest compiles an SFC a node test reaches in SSR shape without rendering it, and the
+  coverage merge counts those SSR-only arms as uncovered branches in files nobody touched —
+  84 of them in one instance. `tests/build/no-ssr-sfc.test.ts` drives the hook directly and
+  then the real pipeline, through a child vitest over two fixture specs that import one
+  `Probe.vue` — the node one must fail with the plugin's text and the jsdom one must pass.
+  Nothing reads a test file, a directive or the config; whatever vitest decides the
+  environment is, the plugin sees the transform it produces. **What it cannot see**: a `.vue`
+  that never reaches Vite's transform — mocked away with `vi.mock`, or compiled by a second
+  Vite instance a test starts from `vite.config.ts`, which does not carry the plugin — and
+  neither shape adds an SSR-compiled SFC to the coverage map. The fix when it fires is the one
+  `entities.ts`'s `anEntry` took: move what the node test needs into a module with no SFC
+  below it, or give a test that mounts something `// @vitest-environment jsdom`.
+- **No gate reads source text through a regular expression.** The import walk two instruments
+  share (`tests/helpers/importGraph.ts` — `regionsReachable.test.ts` and
+  `test-environments.test.ts`) reads edges out of `ts.createSourceFile` and, for an SFC's
+  script blocks, `@vue/compiler-sfc`'s `parse`; the environment directive
+  `test-environments.test.ts` compares against vitest's resolution is read out of the file's
+  comment ranges by the same parser. The regex versions each of those replaced were holed by
+  comment prose, an un-semicoloned `export type`, a backtick `import()` and a template comment
+  spelling an import, and `tests/helpers/importGraph.test.ts` carries every one of those as a
+  fixture watched red against the regex first. Two mechanism facts those files state and this
+  guide repeats because they are easy to misremember: Vite 8 transforms TypeScript with Oxc,
+  not esbuild, and a type-only import is not an edge only because `tsconfig.json` sets
+  `isolatedModules` and NOT `verbatimModuleSyntax` — under the latter an `import {}` residue
+  survives as a side-effect import.
 - `tests/**` has a larger line budget than `src/**`, not none. The one suite without a cap
   is the one that grows into the place tests hide.
 

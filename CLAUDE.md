@@ -899,6 +899,16 @@ The rules this suite is actually held to:
   both walkers importing it, because a naming convention two files agree about by hand is one
   rename away from silently reaching nothing. Three things came out of it, recorded in the
   increment history.
+- **A test that runs in NODE may not reach a `.vue` file through its imports**, and
+  `tests/build/node-tests-import-no-sfc.test.ts` is the check: vitest compiles an SFC a node
+  test reaches in SSR shape without rendering it, and the coverage merge counts those
+  SSR-only arms as uncovered branches in files nobody touched — 84 of them in one instance,
+  red CI, every test green. The gate walks every `*.test.ts` whose environment directive is
+  absent or `node` through its RELATIVE imports, static and dynamic, type-only ones skipped
+  (esbuild erases them before the SFC is requested — measured), and names the chain. It
+  reads directives only, so it pins `vitest.config.ts` to one `environment` key; an alias or
+  a computed specifier is invisible to it. The fix is the one `entities.ts`'s `anEntry`
+  took: move what the node test needs into a module with no SFC below it.
 - `tests/**` has a larger line budget than `src/**`, not none. The one suite without a cap
   is the one that grows into the place tests hide.
 

@@ -30,7 +30,8 @@ export function groupPoints(geometry: GroupGeometry, ids: readonly string[]): Po
 	return [...geometry.objects.filter(item => members.has(item.id)).flatMap(item => item.bulges?.some(value => value !== 0)
 		? item.points.flatMap((start, index) => arcExtrema({ start, end: item.points[(index + 1) % item.points.length], bulge: item.bulges?.[index] ?? 0 })) : item.points),
 		...geometry.structure.walls.filter(item => members.has(item.id)).flatMap(item => arcExtrema({ start: item.start, end: item.end, bulge: item.bulge ?? 0 })),
-		...geometry.structure.elements?.filter(item => members.has(item.id)).flatMap(item => spatialElementFootprint(item)) ?? []];
+		// A placement's stored facing point is on no drawn outline, and its footprint needs a shape the domain cannot read: the anchor is its honest pivot.
+		...geometry.structure.elements?.filter(item => members.has(item.id)).flatMap(item => item.kind === 'asset' ? [item.points[0]] : spatialElementFootprint(item)) ?? []];
 }
 /** A frozen bounding-box centre is predictable for a heterogeneous selection. */
 export function groupPivot(points: readonly Point[]): Point | null {

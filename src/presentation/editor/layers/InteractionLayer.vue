@@ -31,6 +31,7 @@ import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import type { ThemeTokens } from '../theme/themeTokens';
@@ -51,12 +52,13 @@ const props = defineProps<{ tokens: ThemeTokens }>();
 
 const editorStore = useEditorStore();
 const projectStore = useProjectStore();
+const assetShapes = useAssetShapeStore();
 const { zones } = storeToRefs(projectStore);
 const runtime = useEditorRuntime();
 const candidates = computed(() => {
 	const preview = runtime.curveTask.preview.value ?? runtime.groupActions?.preview.value, objects = new Map(preview?.objects.map(object => [object.id, object]));
 	return new Map<string, SpatialObjectCandidate>([...[...zones.value].map(([id, zone]) => [id, { ...zone, ...objects.get(id) }] as const),
-		...structureCandidates(preview?.structure ?? projectStore.structure).map(item => [item.id, item] as const)]);
+		...structureCandidates(preview?.structure ?? projectStore.structure, assetShapes.shapeOf).map(item => [item.id, item] as const)]);
 });
 const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 
@@ -104,7 +106,7 @@ const hoverClosed = computed(() => {
 	// fill's `v-if="hoverOutlineFlat !== null && hoverClosed"` — gate on `hoverOutlineFlat !== null`
 	// first, which answers null for a null `hoveredObjectId`: the id is set whenever this evaluates.
 	const kind = candidates.value.get(runtime.renderState.hoveredObjectId as string)?.kind;
-	return kind === undefined || kind === 'object' || kind === 'stair';
+	return kind === undefined || kind === 'object' || kind === 'stair' || kind === 'asset';
 });
 
 /**
@@ -130,7 +132,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 	const zone = candidates.value.get(id);
 	return zone === undefined ? [] : [{
 		id,
-		closed: zone.kind === undefined || zone.kind === 'object' || zone.kind === 'stair',
+		closed: zone.kind === undefined || zone.kind === 'object' || zone.kind === 'stair' || zone.kind === 'asset',
 		number: selectedIds.value.indexOf(id) + 1,
 		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
 		strokeWidth: focusedId.value === id ? 3 : 2,

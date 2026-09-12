@@ -62,7 +62,7 @@ async function press(target: Element): Promise<void> {
 }
 
 describe('the Add menu', () => {
-	it.each(['item', 'path', 'fence', 'measurement', 'stair', 'arrow'])('explains a missing save capability for %s and keeps activation paused', async id => {
+	it.each(['item', 'asset', 'path', 'fence', 'measurement', 'stair', 'arrow'])('explains a missing save capability for %s and keeps activation paused', async id => {
 		const harness = await mountPlanEditorCanvas(); await openAdd(harness); await settle();
 		const entry = harness.wrapper.get(`[data-rp-entry="${id}"]`);
 		expect(entry.attributes('aria-disabled')).toBe('true');
@@ -515,7 +515,7 @@ function stubRuntime(setTool: (id: ToolId | null) => void): EditorRuntime {
 	return {
 		setTool,
 		structureTask: { available: false },
-		elementTask: { available: false },
+		elementTask: { available: false, assets: { available: false } },
 		writesBlocked: computed(() => false),
 		pausedReasonId: 'stub-paused-reason',
 	} as unknown as EditorRuntime;

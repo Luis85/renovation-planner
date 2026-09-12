@@ -12,6 +12,8 @@ export interface EditorNavigation {
 	library(): void;
 	/** Open (or reveal) another plan's editor leaf — the Property tree's sibling floors. */
 	plan?(planId: string): Promise<void>;
+	/** Open (or reveal) an asset's designer leaf — a placement's Inspector. */
+	asset?(assetId: string): Promise<void>;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createStructureDraft, addWallPoint, draftStructure, mintStructure, numericWallPoint, openingFromDraft, snapWallPoint, wallsFromDraft, pickHost, validateDraftStructure, isStructureTool } from '../../../src/presentation/editor/structure/structureDraft';
+import { createStructureDraft, addWallPoint, draftStructure, mintStructure, numericWallPoint, openingFromDraft, snapWallPoint, wallsFromDraft, pickHost, validateDraftStructure, isStructureTool, startFromWall, wallStartRefused } from '../../../src/presentation/editor/structure/structureDraft';
 import { StructureTool } from '../../../src/presentation/editor/structure/StructureTool';
-import { expectDefined, expectErr } from '../../helpers/domain';
+import { expectDefined, expectErr, expectOk } from '../../helpers/domain';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
 import { WALL_LOOP } from '../../helpers/structure';
 import { toolContext, pointerAt } from '../../helpers/tool-context';
@@ -100,6 +100,31 @@ describe('wall task geometry and lifecycle', () => {
 		tool.activate(toolContext().context); tool.pointerDown(pointerAt(1000, 0)); expect(draft.text.hostId).toBe('wall-a');
 		for (const id of ['draw-wall', 'place-door', 'place-window', 'place-opening']) expect(isStructureTool(id)).toBe(true);
 		for (const id of [null, 'select', 'draw-room']) expect(isStructureTool(id)).toBe(false);
+	});
+
+	it('starts a wall in the middle of a wall by cutting it, and only while the draft still starts at the cut', () => {
+		const door = { id: 'opening-door', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2100, sill: 0 };
+		const existing = { ...WALL_LOOP, openings: [door] }, draft = createStructureDraft();
+		expect(startFromWall(draft, existing, 'wall-a', { x: 2000.4, y: 40 }, 8)).toBe(true);
+		expect(draft.points).toEqual([{ x: 2000, y: 0 }]);
+		expect(addWallPoint(draft, { x: 2000, y: 1500 }, existing)).toBe(true);
+		const walls = expectOk(validateDraftStructure(draft, existing, [])).walls;
+		expect(walls.map(wall => wall.id)).toEqual(['wall-a', expect.stringMatching(/^wall-[0-9A-Z]{26}$/), 'wall-b', 'wall-c', 'wall-d', 'wall-draft-0']);
+		expect(walls[0].end).toEqual({ x: 2000, y: 0 }); expect(existing.walls[0].end).toEqual({ x: 4000, y: 0 });
+		draft.points = []; expect(addWallPoint(draft, { x: 1000, y: 500 }, existing)).toBe(true); expect(addWallPoint(draft, { x: 1000, y: 2000 }, existing)).toBe(true);
+		expect(expectOk(validateDraftStructure(draft, existing, [])).walls).toHaveLength(5);
+	});
+	it('starts at a wall end within tolerance and refuses a start inside an opening or on a missing wall', () => {
+		const existing = { ...WALL_LOOP, openings: [{ id: 'opening-door', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2100, sill: 0 }] };
+		const atEnd = createStructureDraft();
+		expect(startFromWall(atEnd, existing, 'wall-a', { x: 3995, y: 0 }, 8)).toBe(true);
+		expect(atEnd.points).toEqual([{ x: 4000, y: 0 }]); expect(atEnd.split).toBeNull();
+		const inside = createStructureDraft();
+		expect(startFromWall(inside, existing, 'wall-a', { x: 900, y: 0 }, 8)).toBe(false);
+		expect(inside.error?.code).toBe('spatial.opening-split'); expect(inside.points).toEqual([]);
+		expect(wallStartRefused(existing, 'wall-a', { x: 900, y: 0 }, 8)).toBe(true); expect(wallStartRefused(existing, 'wall-a', { x: 2000, y: 0 }, 8)).toBe(false);
+		const missing = createStructureDraft();
+		expect(startFromWall(missing, existing, 'wall-gone', { x: 0, y: 0 }, 8)).toBe(false); expect(missing.error?.code).toBe('spatial.host-missing');
 	});
 
 	it('refuses a placement draft whose swing cannot be parsed before it builds any structure', () => {

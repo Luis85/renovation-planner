@@ -35,4 +35,12 @@ describe('conditional element persistence versions protect older writers', () =>
 		const old = new MigrationRunner(); old.registerAll('requirement', REQUIREMENT_MIGRATIONS.filter(step => step.toVersion <= 2));
 		expect(() => old.migrateToLatest('requirement', dto, 3)).toThrow('newer than this build supports');
 	});
+	it('writes a placement-count source at schema 4 and refuses it to a schema-3 reader as newer', () => {
+		const requirement = makeRequirement({ projectId: makeProject().id, assetId: makeAsset().id, origin: { kind: 'zone', zoneId: createZoneId() },
+			source: { planId: 'plan', targetId: 'room', workId: '', outcomeId: '', state: 'current', rule: 'placement-count', manual: '0', coverage: '1', lot: '', minimum: '' } });
+		const dto = requirementToPersistence(requirement, 2);
+		expect(dto['schema-version']).toBe(4); expect(expectOk(requirementFromPersistence(dto)).source?.rule).toBe('placement-count');
+		const old = new MigrationRunner(); old.registerAll('requirement', REQUIREMENT_MIGRATIONS.filter(step => step.toVersion <= 3));
+		expect(() => old.migrateToLatest('requirement', dto, 4)).toThrow('newer than this build supports');
+	});
 });

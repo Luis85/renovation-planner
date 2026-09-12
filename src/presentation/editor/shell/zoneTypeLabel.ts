@@ -7,6 +7,7 @@ const LABELS: Readonly<Record<string, StringKey>> = {
 	measurement: 'editor.add.measurement.label',
 	stair: 'editor.add.stair.label',
 	arrow: 'editor.add.arrow.label',
+	asset: 'editor.add.asset.label',
 	Wall: 'editor.add.wall.label',
 	Opening: 'editor.add.opening.label',
 	Room: 'editor.zone-type.Room',

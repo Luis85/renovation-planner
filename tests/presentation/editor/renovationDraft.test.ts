@@ -81,6 +81,10 @@ describe('renovation draft semantics and spatial proposals', () => {
 		const read = { ...baseline, geometry: { ...baseline.geometry, document: { ...baseline.geometry.document, structure } } };
 		expect(read.plan.entity.spatialElements?.some(item => item.id === element.id)).toBeFalsy();
 		expect(renovationTargetDraft('planned', rig.roomId, '', read, element.id).subject).toMatchObject({ targetId: element.id, kind: 'other', existing: { description: element.id } });
+		// M8: a placement is a fixture, the way an object is — `BatchActionList.vue`'s `targetKind` encodes the same rule.
+		const placement = { id: 'element-radiator', kind: 'asset' as const, assetId: 'asset-radiator', points: [{ x: 1000, y: 1000 }, { x: 2000, y: 1000 }] };
+		const placed = { ...read, geometry: { ...read.geometry, document: { ...read.geometry.document, structure: { ...structure, elements: [placement] } } } };
+		expect(renovationTargetDraft('planned', rig.roomId, '', placed, placement.id).subject).toMatchObject({ targetId: placement.id, kind: 'fixture' });
 	});
 });
 

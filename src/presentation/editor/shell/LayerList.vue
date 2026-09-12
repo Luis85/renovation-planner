@@ -9,7 +9,7 @@ const emit = defineEmits<{ activateTool: [toolId: 'calibrate'] }>();
 /**
  * A TOTAL record over `LayerEntry['id']`, every id called unconditionally — never derived
  * from `entries` at call time, because `entries` starts as an empty array before the plan
- * has hydrated and grows to four or five once it has (five only with a renovation session,
+ * has hydrated and grows to five or six once it has (six only with a renovation session,
  * for the Planned changes row; Review narrows that back down to two — Planned changes and
  * Notes and photos): a length-dependent `useId()` call would answer a different count on the
  * render that adds the rows it needs one for. Three ids per entry
@@ -27,6 +27,7 @@ const ids: Record<LayerEntryId, { readonly checkbox: string; readonly reason: st
 	reference: { checkbox: useId(), reason: useId(), actionReason: useId() },
 	rooms: { checkbox: useId(), reason: useId(), actionReason: useId() },
 	walls: { checkbox: useId(), reason: useId(), actionReason: useId() },
+	assets: { checkbox: useId(), reason: useId(), actionReason: useId() },
 	planned: { checkbox: useId(), reason: useId(), actionReason: useId() },
 	notes: { checkbox: useId(), reason: useId(), actionReason: useId() },
 };

@@ -4,6 +4,7 @@ import { computed, inject, markRaw, onBeforeUnmount, provide, ref, type Injectio
 import { sameRenovation } from '../../../domain/renovation/sameRenovation';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
+import type { RequirementSource } from '../../../domain/requirement/RequirementSource';
 import { sameGeometryDocument } from '../../../application/commands/spatial/sameGeometryDocument';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { undoSuperseded } from '../../../application/editor/WriteLedger';
@@ -16,9 +17,16 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { notifyOperationFailure } from '../../notices/notify';
 import { tr } from '../../i18n/strings';
 import PlanningForm from './PlanningForm.vue';
-import { planningDraft, type PlanningKind } from './planningDraft';
+import { planningDraft, type PlanningDraft, type PlanningKind } from './planningDraft';
 
 const KEY: InjectionKey<ReturnType<typeof providePlanningContext>> = Symbol('planning-depth');
+/** A caller's pre-fill over a fresh draft — the placement Inspector's Add as material. Apart from `edit` for its complexity budget. */
+function seeded(draft: PlanningDraft, seed: { readonly assetId?: string; readonly rule?: RequirementSource['rule'] } | undefined): PlanningDraft {
+	if (seed?.assetId) draft.assetId = seed.assetId;
+	if (seed?.rule) draft.source = { ...draft.source, rule: seed.rule };
+	if (seed?.rule === 'placement-count') draft.waste = '0';
+	return draft;
+}
 export function providePlanningContext(context: PlanEditorContext, runtime: EditorRuntime) {
 	const { baseline, loading, failed, findings, evidenceRevision, slow } = runtime.planning;
 	const project = useProjectStore(), dialogs = useDialogStore(), session = useRenovationSession();
@@ -31,12 +39,12 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 			{ calibration: project.plan?.calibration ?? null, groups: project.groups, structure: project.structure, intended: project.intended, objects: [...project.zones.values()].map(item => ({ id: item.id, points: item.points, bulges: item.bulges })) },
 			{ ...read.geometry.document, structure: read.geometry.document.structure ?? EMPTY_STRUCTURE });
 	}
-	async function edit(kind: PlanningKind, id = ''): Promise<void> {
+	async function edit(kind: PlanningKind, id = '', seed?: { readonly assetId?: string; readonly rule?: RequirementSource['rule'] }): Promise<void> {
 		const services = context.commands.planning;
 		if (blocked.value || dialogs.current || !baseline.value || !services) return;
 		const shown = baseline.value;
 		if (!matches(shown)) { notifyOperationFailure(undoSuperseded(context.planId as PlanId)); await refresh(); return; }
-		const draft = planningDraft(kind, shown, session.roomId, id, { focusedId: session.focusedId, targetId: session.targetId || session.roomId });
+		const draft = seeded(planningDraft(kind, shown, session.roomId, id, { focusedId: session.focusedId, targetId: session.targetId || session.roomId }), seed);
         if (kind === 'evidence' && !id) draft.type = session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document';
 		const busy = ref(false);
 		await dialogs.openDialog({ kind: 'form', title: tr(kind === 'evidence' && draft.type === 'photo' && !id ? 'planning.add.photo' : `planning.edit.${kind}`), component: markRaw(PlanningForm), busy,

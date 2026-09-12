@@ -11,6 +11,7 @@ import { formatArea } from '../shell/formatArea';
 import { formatMetres } from '../shell/formatLength';
 import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 import ObjectRotationControls from './ObjectRotationControls.vue';
+import AssetPlacementDetails from './AssetPlacementDetails.vue';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 const session = useRenovationSession();
@@ -18,6 +19,12 @@ const project = useProjectStore(), selection = useSelectionStore(), runtime = us
 const element = computed(() => project.structure.elements?.find(item => item.id === selection.selectedIds[0]));
 const name = computed(() => project.plan?.spatialElements?.find(item => item.id === element.value?.id)?.name ?? element.value?.id ?? '');
 const measuredArea = computed(() => element.value ? area({ points: element.value.points }) : null);
+/** The stair line, in script rather than the template: fallow scores template cognitive complexity, and this ternary sat nested two conditionals deep. */
+const stairSummary = computed(() => {
+	const stair = element.value?.stair;
+	if (element.value?.kind !== 'stair' || !stair) return null;
+	return tr('editor.stair.summary', { width: formatMetres(stair.width), run: formatMetres(elementLength(element.value)), treads: String(stair.treads), direction: tr(stair.direction === 'up' ? 'editor.stair.up' : 'editor.stair.down') });
+});
 async function edit(event: Event): Promise<void> {
 	if (!element.value) return;
 	const opener = event.currentTarget as HTMLElement, root = opener.closest<HTMLElement>('.renovation-plan-editor');
@@ -35,9 +42,13 @@ async function edit(event: Event): Promise<void> {
 		<p v-if="element.kind === 'object' && measuredArea?.ok">
 			{{ formatArea(measuredArea.value) }}
 		</p>
-		<p v-else-if="element.kind === 'stair' && element.stair">
-			{{ tr('editor.stair.summary', { width: formatMetres(element.stair.width), run: formatMetres(elementLength(element)), treads: String(element.stair.treads), direction: tr(element.stair.direction === 'up' ? 'editor.stair.up' : 'editor.stair.down') }) }}
+		<p v-else-if="stairSummary">
+			{{ stairSummary }}
 		</p>
+		<AssetPlacementDetails
+			v-else-if="element.kind === 'asset'"
+			:element="element"
+		/>
 		<p v-else>
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
@@ -56,6 +67,7 @@ async function edit(event: Event): Promise<void> {
 		</button>
 		<div class="rp-dialog-actions">
 			<button
+				v-if="element.kind !== 'asset'"
 				type="button"
 				data-rp-action="edit-element"
 				:aria-disabled="runtime.elementActions.blocked.value"

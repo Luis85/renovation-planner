@@ -36,6 +36,7 @@ import EmptyLayer from './layers/EmptyLayer.vue';
 import InteractionLayer from './layers/InteractionLayer.vue';
 import ZoneLayer from './layers/zone/ZoneLayer.vue';
 import StructureLayer from './structure/StructureLayer.vue';
+import AssetLayer from './elements/AssetLayer.vue';
 import RenovationLayer from './renovation/RenovationLayer.vue';
 import { usePlanFrame } from './viewport/usePlanFrame';
 import { usePlanHierarchyStore } from '../stores/PlanHierarchyStore';
@@ -151,9 +152,10 @@ const framedBounds = usePlanFrame();
 					:transform="transform"
 					:visible="layerVisibility.construction"
 				/>
-				<EmptyLayer
-					layer-id="asset"
+				<AssetLayer
 					:transform="transform"
+					:tokens="props.tokens"
+					:zoom="viewport.zoom"
 					:visible="layerVisibility.asset"
 				/>
 				<RenovationLayer

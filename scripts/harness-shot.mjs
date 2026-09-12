@@ -483,6 +483,10 @@ const SHOTS = [
 	},
 	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
 	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
+	// Asset placement: two placed radiators and one placeholder, drawn from real repositories.
+	{ name: 'plan-editor-assets', query: '?view=plan-editor&reference&planning&assets&theme=light', selector: FLOOR_STATE },
+	{ name: 'plan-editor-assets-dark', query: '?view=plan-editor&reference&planning&assets', selector: FLOOR_STATE },
+	{ name: 'plan-editor-assets-narrow', query: '?view=plan-editor&reference&planning&assets&theme=light', selector: PLAN_CANVAS, width: 460 },
 	// Task 21's three: the ROOM state (a zone selected, so the Room Inspector is on screen —
 	// the `?select=` knob drives the real click `RoomSummaryList` renders, through
 	// `runtime.selectAndFrame`), the Add menu open (the `?add` knob, same shape), and the

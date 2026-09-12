@@ -20,7 +20,7 @@ export function validateMaterialLinks(requirement: Requirement, baseline: Planni
 	if (source.planId !== baseline.plan.entity.id || !baseline.geometry.document.objects.some(room => room.id === requirement.origin.zoneId)) return err(depthError());
 	if (source.workId && !renovation.work.some(item => item.id === source.workId && hasRoomContext(item, requirement.origin.zoneId))) return err(depthError());
 	if (source.outcomeId && !renovation.subjects.some(item => item.id === source.outcomeId && item.planned && item.roomId === requirement.origin.zoneId)) return err(depthError());
-	if (!sourceMeasurement(source, requirement.origin.zoneId, baseline.geometry.document, requirement.unit).ok) return err(depthError());
+	if (!sourceMeasurement(source, requirement.origin.zoneId, baseline.geometry.document, requirement.unit, requirement.assetId).ok) return err(depthError());
 	return ok(undefined);
 }
 export function validateDepthLinks(renovation: Renovation, baseline: PlanningBaseline) {

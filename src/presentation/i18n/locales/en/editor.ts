@@ -4,6 +4,7 @@ import { curvesEn } from './curves';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
+import { assetPlacementEn } from './assetPlacement';
 import { stairsArrowsEn } from './stairsArrows';
 import { inputEn } from './input';
 import { groupsEn } from './groups';
@@ -51,6 +52,7 @@ export const editorEn = {
 	'editor.dimension.task': 'Edit room dimension',
 	'editor.dimension.instruction': 'Enter a length in metres. Apply saves the change. Escape cancels.',
 	...objectEn,
+	...assetPlacementEn,
 	...openingEn,
 	...openingMoveEn,
 	...referenceViewportEn,

@@ -120,6 +120,7 @@ export const planningEn = {
 	"planning.rule.wall-length": "Wall length",
 	"planning.rule.opening-area": "Opening area",
 	"planning.rule.count": "One selected item",
+	"planning.rule.placement-count": "Placements of this asset in the room",
 	"planning.rule.manual": "Manual input",
 	"renovation.materials": "Materials",
 	"renovation.costs": "Costs",

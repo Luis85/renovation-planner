@@ -1,17 +1,39 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
+import { assetPlacementRig } from '../../helpers/assetPlacement';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectFound, expectOk } from '../../helpers/domain';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useAssetShapeStore } from '../../../src/presentation/stores/AssetShapeStore';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
+import { worldToScreen, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
 async function setup() { const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle(); return rig; }
 async function menu(rig: Awaited<ReturnType<typeof setup>>) { rig.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle(); }
 async function action(rig: Awaited<ReturnType<typeof setup>>, id: string) { await menu(rig); await rig.wrapper.get(`[data-rp-context-action="${id}"]`).trigger('click'); await settle(); }
+
+it('right-clicks a placed asset by its real footprint, not the 500 mm placeholder square', async () => {
+	const rig = await assetPlacementRig();
+	try {
+		const radiator = await rig.saveAsset('Radiator');
+		const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+		const shapes = useAssetShapeStore(rig.pinia);
+		await settleUntil(() => shapes.answerFor(radiator.id)?.kind === 'placeable', 'asset shape loaded');
+		rig.selection.clear();
+		// 350 mm along the long (800 mm) axis from the anchor: inside the real 800×600
+		// footprint (600..1400 × 700..1300) but outside the 500 mm placeholder square
+		// (750..1250 × 750..1250) — a point the placeholder would miss and the real
+		// footprint would hit.
+		const editor = useEditorStore(rig.pinia), at = worldToScreen({ x: 1350, y: 1000 }, editor.viewport, STAGE_PIXELS), box = rig.canvasEl.getBoundingClientRect();
+		rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + at.x, clientY: box.top + at.y }));
+		await settle();
+		expect(rig.selection.selectedIds).toEqual([id]);
+	} finally { rig.unmount(); }
+});
 
 it('opens real Add and Fit routes, keeps unavailable framing inert, and limits Review to viewing', async () => {
 	const rig = await setup(), editor = useEditorStore(rig.pinia), fit = vi.spyOn(editor, 'fitTo'), bytes = [...rig.stack.vault.entries];
@@ -114,14 +136,14 @@ it('puts Add first and Delete last, draws one known icon per item, and names the
 	const rig = await setup();
 	rig.selection.clear(); await menu(rig);
 	const empty = rig.wrapper.get('.rp-canvas-context-menu');
-	expect(empty.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['add', 'fit', 'pan']);
+	expect(empty.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'))).toEqual(['add', 'measure', 'fit', 'pan']);
 	expect(empty.find('[role="separator"]').exists()).toBe(false); expect(empty.find('.rp-canvas-context-menu-title').exists()).toBe(false);
 	await empty.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select([rig.room.id]); await menu(rig);
 	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
 	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(rig.room.name);
 	const ids = menuEl.findAll('[data-rp-context-action]').map(item => item.attributes('data-rp-context-action'));
-	expect(ids[0]).toBe('fit'); expect(ids.at(-1)).toBe('delete');
+	expect(ids.slice(0, 2)).toEqual(['measure', 'fit']); expect(ids.at(-1)).toBe('delete');
 	for (const item of menuEl.findAll('[data-rp-context-action]')) { expect(item.find('.rp-host-icon[data-icon]').exists()).toBe(true); expect(item.find('[data-icon-missing]').exists()).toBe(false); }
 	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select(['wall-a' as never]); await menu(rig);

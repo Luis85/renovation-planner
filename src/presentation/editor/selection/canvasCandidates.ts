@@ -2,6 +2,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { Structure } from '../../../domain/spatial/Structure';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import { structureCandidates } from '../structure/structureCandidates';
+import { NO_SHAPES, type ShapeLookup } from '../elements/elementFootprint';
 
 /**
  * Visibility limits pointer admission, not persistent identity or the owning group's members.
@@ -9,7 +10,7 @@ import { structureCandidates } from '../structure/structureCandidates';
  * hover, its marquee and `CanvasContextMenu` all read, so one filter makes every canvas route
  * pass through it while the sidebar still reaches it.
  */
-export function canvasCandidates(zones: Iterable<{ readonly id: string; readonly points: readonly Point[]; readonly bulges?: readonly number[]; readonly locked?: boolean }>, structure: Structure, visible: { readonly zone: boolean; readonly architecture: boolean }): SpatialObjectCandidate[] {
+export function canvasCandidates(zones: Iterable<{ readonly id: string; readonly points: readonly Point[]; readonly bulges?: readonly number[]; readonly locked?: boolean }>, structure: Structure, visible: { readonly zone: boolean; readonly architecture: boolean; readonly asset: boolean }, shapeOf: ShapeLookup = NO_SHAPES): SpatialObjectCandidate[] {
 	const rooms = visible.zone ? [...zones].filter(zone => zone.locked !== true).map(zone => ({ id: zone.id, points: zone.points, bulges: zone.bulges })) : [];
-	return visible.architecture ? [...rooms, ...structureCandidates(structure)] : rooms;
+	return [...rooms, ...structureCandidates(structure, shapeOf).filter(item => item.kind === 'asset' ? visible.asset : visible.architecture)];
 }

@@ -13,7 +13,7 @@ it('locks a zone from the sidebar, takes it off the canvas hit list, and undoes 
 	mounted.push(rig);
 	rig.selection.clear();
 	await settle();
-	const hittable = () => canvasCandidates(rig.project.zones.values(), rig.project.structure, { zone: true, architecture: true }).map((item) => item.id);
+	const hittable = () => canvasCandidates(rig.project.zones.values(), rig.project.structure, { zone: true, architecture: true, asset: true }).map((item) => item.id);
 	expect(hittable()).toContain(rig.room.id);
 
 	await rig.wrapper.get(`[data-rp-lock="${rig.room.id}"]`).trigger('click');

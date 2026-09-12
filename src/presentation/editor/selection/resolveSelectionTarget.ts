@@ -11,7 +11,7 @@ export type SelectionTarget =
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
 
-const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'object' || candidate.kind === 'stair' ? 4 : candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
+const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'object' || candidate.kind === 'stair' || candidate.kind === 'asset' ? 4 : candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
 
 function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	return candidate.points.slice(1).some((b, index) => {

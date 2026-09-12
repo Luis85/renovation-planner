@@ -43,6 +43,7 @@ const PRECISE_TOOLS: readonly ToolId[] = [
 	'draw-fence',
 	'measure',
 	'place-object',
+	'place-asset',
 	'place-door',
 	'place-window',
 	'place-opening',

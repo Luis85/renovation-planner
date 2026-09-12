@@ -4,7 +4,7 @@ import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
 import type { RefreshedHistory } from './with-state-refresh';
 
 /**
- * A draft task's refused write, shared by the wall and element tools: the draft keeps the error,
+ * A draft task's refused write, the one way every draft task records it: the draft keeps the error,
  * and a conflict — a write boundary or a superseded undo — marks it stale and re-reads the floor,
  * so it is never retried against a baseline another write has replaced.
  */

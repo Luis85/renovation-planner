@@ -23,7 +23,15 @@
 /* The nesting IS the indent: 16px per level, the guide line on the group's own edge. */
 .renovation-plan-editor .rp-property-tree__group { padding-inline-start: 16px; border-inline-start: 1px solid var(--background-modifier-border); }
 .renovation-plan-editor [role="treeitem"] { outline: none; }
-.renovation-plan-editor [role="treeitem"]:focus-visible > .rp-property-tree__row { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+/* The row's ring, drawn on the row for two focus owners. Keyboard focus lands on the `li` (the row button is
+   `tabindex="-1"`), so the first rule rings the row when its `li` is focus-visible; the `:where()` keeps the
+   `li` condition at zero specificity so the button's own ring below outranks it. The second is the button's
+   own — it is focused directly by a click or the reorder's focus restore — and `buttonFocusRing.test.ts`
+   requires it since the row flattens `box-shadow`: that scan credits a ring only when it is unscoped or
+   shares the flattening rule's exact ancestor chain, and the `[data-rp-drop]` rules below flatten the same
+   button under a second chain, so one `.renovation-plan-editor`-scoped ring cannot answer both. */
+.renovation-plan-editor :where([role="treeitem"]:focus-visible) > .rp-property-tree__row { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+button.rp-property-tree__row:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
 .renovation-plan-editor .rp-property-tree__row[aria-current="page"] {
 	background: var(--background-modifier-active-hover); border-color: var(--background-modifier-border);
 	font-weight: var(--font-semibold);

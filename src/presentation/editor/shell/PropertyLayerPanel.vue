@@ -105,17 +105,20 @@ const entries = computed(() => {
 				:heading="tr('editor.selection.records')"
 				:toggle-selection="toggleSelection"
 			/>
-			<label v-if="records.length > 1">
-				<input
-					v-model="toggleSelection"
-					type="checkbox"
-					data-rp-action="multiple-selection"
-				>
-				{{ tr('editor.selection.toggle-mode') }}
-			</label>
-			<p v-if="records.length > 1">
-				{{ tr('editor.selection.hint') }}
-			</p>
+			<div
+				v-if="records.length > 1"
+				class="rp-property-rooms__footer"
+			>
+				<label>
+					<input
+						v-model="toggleSelection"
+						type="checkbox"
+						data-rp-action="multiple-selection"
+					>
+					{{ tr('editor.selection.toggle-mode') }}
+				</label>
+				<p>{{ tr('editor.selection.hint') }}</p>
+			</div>
 		</PanelSection>
 		<PanelSection
 			section="elements"

@@ -247,3 +247,30 @@
 .renovation-plan-editor .rp-side-panel__resizer:focus-visible {
 	outline: none;
 }
+
+/*
+ * List rows' selected state, one channel beyond the fill and `aria-pressed`: a 2px leading accent
+ * rule, the same on rooms, walls and the property tree's current floor.
+ */
+.renovation-plan-editor .rp-room-list .rp-room-list__row[aria-pressed='true'] {
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.renovation-plan-editor .rp-room-list .rp-room-list__row[aria-pressed='true']:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * In the sidebar an UNLOCKED room's lock shows only on hover or keyboard focus, so a list of rooms
+ * is not a column of open padlocks. A locked room's always shows. `opacity` rather than
+ * `visibility`, so the button stays in the tab order and `:focus-within` can reveal it.
+ */
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item > .rp-editor-inspector-lock[aria-pressed='false'] {
+	opacity: 0;
+}
+
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:hover > .rp-editor-inspector-lock,
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:focus-within > .rp-editor-inspector-lock {
+	opacity: 1;
+}

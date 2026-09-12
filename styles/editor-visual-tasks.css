@@ -110,7 +110,6 @@
 .renovation-plan-editor .rp-field-error__message { color: var(--text-normal); }
 .renovation-plan-editor .rp-field-error__glyph { color: var(--text-error); }
 .renovation-plan-editor .rp-structure-renovation-entry select { width: 100%; min-width: 0; max-width: 100%; min-height: 32px; }
-.renovation-plan-editor .rp-layer-list__row label { flex-basis: 8rem; }
 
 @container (min-width: 900px) {
 	.renovation-plan-editor .rp-dialog:has(.rp-reference-setup) { width: min(56rem, 100%); }

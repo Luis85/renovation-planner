@@ -1,7 +1,8 @@
 import { ok } from '../../src/core/result/Result';
 import { EMPTY_STRUCTURE } from '../../src/domain/spatial/Structure';
 import type { PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
-import type { ParentZoneOutlineDto } from '../../src/presentation/read-models/planHierarchy';
+import { NO_HIERARCHY, type ParentZoneOutlineDto } from '../../src/presentation/read-models/planHierarchy';
+import type { PlanId } from '../../src/domain/plan/PlanId';
 
 /**
  * An L-shaped parent zone far from origin and larger than the default camera shows, so a
@@ -28,7 +29,25 @@ export function detailPlanDeps(base: PlanEditorDeps): PlanEditorDeps {
 	};
 }
 
-/** `?locked=<id,id>`: the seeded zones answered as locked (ADR-0027), so their faded captions can be looked at. */
+/**
+ * `?detailed=<id,id>`: one detail plan per listed seeded zone id, so a zone's detail-plan caption
+ * can be looked at; an id listed twice gets two. Like `?locked`, a mistyped id marks nothing.
+ */
+export function detailedZoneDeps(base: PlanEditorDeps, ids: readonly string[]): PlanEditorDeps {
+	const detailPlans = ids.map((parentZoneId, index) => ({ id: `harness-detail-${index}` as PlanId, name: `Detail plan ${index + 1}`, parentZoneId }));
+	return {
+		...base,
+		queries: {
+			...base.queries,
+			hierarchy: async (planId) => {
+				const found = base.queries.hierarchy === undefined ? ok(NO_HIERARCHY) : await base.queries.hierarchy(planId);
+				return found.ok ? ok({ ...found.value, detailPlans }) : found;
+			},
+		},
+	};
+}
+
+/** `?locked=<id,id>`:the seeded zones answered as locked (ADR-0027), so their faded captions can be looked at. */
 export function lockedZoneDeps(base: PlanEditorDeps, ids: readonly string[]): PlanEditorDeps {
 	return {
 		...base,

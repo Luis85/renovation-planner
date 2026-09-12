@@ -25,7 +25,7 @@ afterEach(() => {
 
 /** The zone layer's captions in scene order — `find` is a depth-first walk of `getChildren()`. */
 function captionOrder(stage: Konva.Stage): string[] {
-	return (stage.findOne<Konva.Layer>('.zone')?.find<Konva.Text>('Text') ?? []).map((node) => node.text());
+	return (stage.findOne<Konva.Layer>('.zone')?.find<Konva.Text>('Text') ?? []).filter((node) => node.isVisible()).map((node) => node.text());
 }
 
 describe('the zone layer paint order', () => {

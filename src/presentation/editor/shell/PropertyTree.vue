@@ -11,9 +11,17 @@
  * Reordering siblings has three inputs and ONE door: the row menu (right-click, Shift+F10 or the
  * ContextMenu key — `PropertyTreeMenu`, teleported into `.renovation-plan-editor` like the canvas
  * menu), native drag and drop between rows of the SAME parent, and Alt+↑/↓ on the focused row.
- * All three call `usePlanReorder`, which owns availability, the paused gate and the writes.
- * Every handler is delegated to the `<ul>` and keys on the `li`'s `data-rp-plan-id`/
- * `data-rp-parent-id`, so the template stays one list.
+ * All three call `usePlanReorder`, which owns availability, the paused gate, the writes and the
+ * focus restore after one. Every handler is delegated to the `<ul>` and keys on the `li`'s
+ * `data-rp-plan-id`/`data-rp-parent-id`, so the template stays one list.
+ *
+ * Touch devices have no HTML5 drag and drop, so the row menu is the mobile path: long-press
+ * raises `contextmenu` there, and the same menu is what Shift+F10 reaches from a keyboard.
+ *
+ * The drag state is per `PropertyTree` INSTANCE, deliberately not module-level: a drop from
+ * another leaf's tree would be a cross-tree, possibly cross-project move — a re-parenting, which
+ * is out of scope — and per-instance state makes that a no-op by construction rather than a
+ * check somebody has to remember.
  */
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';

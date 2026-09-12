@@ -1,4 +1,4 @@
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import { storeToRefs } from 'pinia';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { PlanKind } from '../../../domain/plan/PlanKind';
@@ -84,8 +84,21 @@ export function usePlanReorder() {
 		const node = findNode(hierarchy.value.tree, id);
 		return node ? siblingsIn(hierarchy.value.tree, node.parentId) : [];
 	}
-	function moveTo(id: string, index: number): Promise<void> {
-		return write(plannedWrites(siblingsOf(id), id, index));
+	/**
+	 * A move re-reads the hierarchy, and Vue's keyed diff then MOVES the `li` in the DOM
+	 * (`insertBefore`), which drops focus from a focused row to `body`. So the row that held focus
+	 * before the writes is remembered, and once the tree has settled the MOVED row is focused again
+	 * — when focus had been on it, or was lost to `body` from any row. Scoped to that row's own
+	 * tree, since two leaves draw the same ids; with focus outside every tree, nothing is stolen.
+	 */
+	async function moveTo(id: string, index: number): Promise<void> {
+		const row = document.activeElement?.closest<HTMLElement>('[role="treeitem"]') ?? null;
+		await write(plannedWrites(siblingsOf(id), id, index));
+		await nextTick();
+		const active = document.activeElement;
+		if (row && (row.dataset.rpPlanId === id || active === null || active === document.body)) {
+			row.closest('[role="tree"]')?.querySelector<HTMLElement>(`[data-rp-plan-id="${id}"]`)?.focus();
+		}
 	}
 	function moveBy(id: string, delta: number): Promise<void> {
 		const index = siblingsOf(id).findIndex((node) => node.id === id);

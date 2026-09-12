@@ -17,6 +17,7 @@ import { useCanvasMenuActions, type CanvasMenuAction } from './useCanvasMenuActi
 import { canvasCandidates } from './canvasCandidates';
 import { structureRecords } from '../structure/structureRecords';
 import { plainPress } from '../surface/keyboard';
+import { menuNavigation, pointerOutside } from './menuKeyboard';
 import HostIcon from '../../components/HostIcon.vue';
 import type { Point } from '../../../core/geometry/Point';
 const emit = defineEmits<{ openAdd: [] }>();
@@ -90,23 +91,10 @@ function deleteKey(event: KeyboardEvent): void {
 	if (!action) return;
 	event.preventDefault(); event.stopPropagation(); close(open.value); void action.run();
 }
-function outside(event: PointerEvent): void { if (open.value && !menu.value?.contains(event.target as Node)) close(false); }
+function outside(event: PointerEvent): void { if (open.value && pointerOutside(menu.value, event)) close(false); }
 function leave(event: FocusEvent): void { if (open.value && (!event.relatedTarget || !root?.contains(event.relatedTarget as Node))) close(false); }
-function navigation(event: KeyboardEvent): void {
-	if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return; }
-	if (event.key === 'Tab') { event.preventDefault(); event.stopPropagation(); close(); return; }
-	if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-	event.preventDefault(); event.stopPropagation();
-	// The element the LISTENER is bound to, not the `menu` ref: `navigation` runs only as the
-	// native `@keydown` handler attached to the menu's own element (below), and the DOM sets
-	// `currentTarget` to that element for every dispatch — a browser guarantee rather than a
-	// ref-timing assumption, so no nullable read (`menu.value?... ?? []`, an uncovered branch no
-	// test could reach honestly) is needed at all.
-	const items = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]')];
-	const index = items.indexOf(document.activeElement as HTMLElement);
-	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-	items[next]?.focus();
-}
+/** The shared `role="menu"` keyboard contract (`menuKeyboard.ts`); Escape and Tab both restore focus to the opener here. */
+function navigation(event: KeyboardEvent): void { menuNavigation(event, '[role="menuitem"]', () => close()); }
 function run(action: CanvasMenuAction): void { if (action.disabled) return; close(); void action.run(); }
 watch(() => selection.selectedIds, ids => { if (open.value && (ids.length !== menuIds.length || ids.some((id, index) => id !== menuIds[index]))) close(false); });
 watch(() => dialogs.current, dialog => { if (dialog && open.value) close(false); });

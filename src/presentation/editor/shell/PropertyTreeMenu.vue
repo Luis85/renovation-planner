@@ -1,9 +1,11 @@
 <script setup lang="ts">
 /**
  * The Property tree row's context menu (ADR-0029): Move up, Move down, then one "Mark as …"
- * entry per kind with the current one checked. Same `rp-canvas-context-menu` chrome and
- * `role="menu"` keyboard contract as `CanvasContextMenu`, deliberately NOT that component: it is
- * bound to the canvas, the selection store and the tool manager, none of which a tree row has.
+ * entry per kind with the current one checked — drawn as a radio dot by the stylesheet, keyed on
+ * `aria-checked` (`editor-shell-fidelity.css`), so sighted users see it too. Same
+ * `rp-canvas-context-menu` chrome and `role="menu"` keyboard contract as `CanvasContextMenu`
+ * (shared through `selection/menuKeyboard.ts`), deliberately NOT that component: it is bound to
+ * the canvas, the selection store and the tool manager, none of which a tree row has.
  * Positioned inside `.renovation-plan-editor` exactly as that menu is — the opening point, then
  * clamped into the host once measured — and closed by Escape, Tab, an outside pointer or a run
  * action; `PropertyTree` returns focus to the row that opened it.
@@ -18,6 +20,7 @@ import HostIcon from '../../components/HostIcon.vue';
 import { tr } from '../../i18n/strings';
 import { PLAN_KINDS, type PlanKind } from '../../../domain/plan/PlanKind';
 import { PLAN_KIND_ICONS, PLAN_KIND_LABELS } from '../editorIcons';
+import { menuNavigation, pointerOutside } from '../selection/menuKeyboard';
 import { usePlanReorder } from './usePlanReorder';
 
 const props = defineProps<{
@@ -40,16 +43,8 @@ function run(disabled: boolean, action: () => Promise<void>): void {
 	emit('close');
 	void action();
 }
-function navigation(event: KeyboardEvent): void {
-	if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); event.stopPropagation(); emit('close'); return; }
-	if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-	event.preventDefault(); event.stopPropagation();
-	const items = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')];
-	const index = items.indexOf(document.activeElement as HTMLElement);
-	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-	items[next]?.focus();
-}
-function outside(event: PointerEvent): void { if (!menu.value?.contains(event.target as Node)) emit('close'); }
+function navigation(event: KeyboardEvent): void { menuNavigation(event, '[role="menuitem"], [role="menuitemradio"]', () => emit('close')); }
+function outside(event: PointerEvent): void { if (pointerOutside(menu.value, event)) emit('close'); }
 onMounted(async () => {
 	document.addEventListener('pointerdown', outside, true);
 	await nextTick();

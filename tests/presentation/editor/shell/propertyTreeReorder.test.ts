@@ -6,8 +6,13 @@
  * still opens with every entry greyed and titled with the stale-write reason.
  *
  * `order` on every fixture is its position among its siblings, 0..n-1, as `propertyTreeOf`
- * sorts them — so the writes asserted are exactly the siblings whose position changed.
+ * sorts them — so the writes asserted are exactly the siblings whose position changed. The fake
+ * `hierarchy` answers the tree AS WRITTEN (siblings re-sorted by the orders `execute` recorded),
+ * because the focus cases below exist for what the re-read does to the DOM: Vue's keyed diff
+ * moves the `li`, and a moved focused element drops focus to `body` — invisible against a fake
+ * that answered the original tree on every read.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { ok } from '../../../../src/core/result/Result';
 import { t } from '../../../../src/presentation/i18n/strings';
@@ -22,12 +27,19 @@ const TREE: PropertyTreeNode[] = [
 	{ ...leaf('plan-house', 'House', null, 0), children: [leaf('plan-ground', 'Ground floor', 'plan-house', 0), leaf('plan-first', 'First floor', 'plan-house', 1), leaf('plan-attic', 'Attic', 'plan-house', 2)] },
 	leaf('plan-garden', 'Garden', null, 1),
 ];
-const hierarchy = (): PlanHierarchyDto => ({ ancestry: [], detailPlans: [], parentZone: null, parentZoneMissing: false, tree: TREE });
+/** The tree with every sibling list re-sorted by the orders written so far. */
+const sorted = (nodes: readonly PropertyTreeNode[], orders: Map<string, number>): PropertyTreeNode[] =>
+	nodes.map((node) => ({ ...node, order: orders.get(node.id) ?? node.order, children: sorted(node.children, orders) })).toSorted((a, b) => a.order - b.order);
+const hierarchy = (orders = new Map<string, number>()): PlanHierarchyDto => ({ ancestry: [], detailPlans: [], parentZone: null, parentZoneMissing: false, tree: sorted(TREE, orders) });
 type UpdateInput = { planId: string; order?: number; kind?: string };
 type UpdateResult = ReturnType<typeof ok<{ plan: { entity: typeof FIXTURE_PLAN; version: { revision: number } } }>> | { ok: false; error: { category: string; code: string; message: string } };
 function rig() {
-	const execute = vi.fn<(input: UpdateInput) => Promise<UpdateResult>>((input) => Promise.resolve(ok({ plan: { entity: { ...FIXTURE_PLAN, ...input } as typeof FIXTURE_PLAN, version: { revision: 1 } } })));
-	const queries = { ...fakeQueries(FIXTURE_PLAN), hierarchy: vi.fn<() => Promise<ReturnType<typeof ok<PlanHierarchyDto>>>>(() => Promise.resolve(ok(hierarchy()))) };
+	const orders = new Map<string, number>();
+	const execute = vi.fn<(input: UpdateInput) => Promise<UpdateResult>>((input) => {
+		if (input.order !== undefined) orders.set(input.planId, input.order);
+		return Promise.resolve(ok({ plan: { entity: { ...FIXTURE_PLAN, ...input } as typeof FIXTURE_PLAN, version: { revision: 1 } } }));
+	});
+	const queries = { ...fakeQueries(FIXTURE_PLAN), hierarchy: vi.fn<() => Promise<ReturnType<typeof ok<PlanHierarchyDto>>>>(() => Promise.resolve(ok(hierarchy(orders)))) };
 	const commands = { ...unavailablePlanEditorCommands(), updatePlanDetails: { execute } };
 	return { execute, queries, commands: commands as never };
 }
@@ -48,13 +60,17 @@ describe('PropertyTree reordering', () => {
 		harness.unmount();
 	});
 
-	it('Alt+ArrowUp moves the focused row up and the menu marks the first and last rows', async () => {
+	it('Alt+ArrowUp moves the focused row up, keeps focus on it, and the menu marks the first and last rows', async () => {
 		const { execute, queries, commands } = rig();
 		const harness = await mountPlanEditorCanvas({ queries, commands });
 		await settle();
+		(item(harness, 'plan-attic').element as HTMLElement).focus();
 		await item(harness, 'plan-attic').trigger('keydown', { key: 'ArrowUp', altKey: true });
 		await settle();
 		expect(execute.mock.calls.map(([input]) => input)).toEqual([{ planId: 'plan-attic', order: 1 }, { planId: 'plan-first', order: 2 }]);
+		const rows = harness.wrapper.findAll('[role="treeitem"]').map((row) => row.attributes('data-rp-plan-id'));
+		expect(rows).toEqual(['plan-house', 'plan-ground', 'plan-attic', 'plan-first', 'plan-garden']);
+		expect(document.activeElement).toBe(item(harness, 'plan-attic').element);
 		await item(harness, 'plan-ground').trigger('keydown', { key: 'F10', shiftKey: true });
 		expect(harness.wrapper.get('[data-rp-tree-action="move-up"]').attributes('aria-disabled')).toBe('true');
 		expect(harness.wrapper.get('[data-rp-tree-action="move-down"]').attributes('aria-disabled')).toBeUndefined();
@@ -65,12 +81,33 @@ describe('PropertyTree reordering', () => {
 		harness.unmount();
 	});
 
-	it('Mark as building writes the kind alone', async () => {
+	it('Move up from the menu reorders and leaves focus on the moved row', async () => {
+		const { execute, queries, commands } = rig();
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		(item(harness, 'plan-first').element as HTMLElement).focus();
+		await item(harness, 'plan-first').trigger('keydown', { key: 'ContextMenu' });
+		await harness.wrapper.get('[data-rp-tree-action="move-up"]').trigger('click');
+		await settle();
+		expect(execute.mock.calls.map(([input]) => input)).toEqual([{ planId: 'plan-first', order: 0 }, { planId: 'plan-ground', order: 1 }]);
+		expect(harness.wrapper.findAll('[role="treeitem"]').map((row) => row.attributes('data-rp-plan-id'))).toEqual(['plan-house', 'plan-first', 'plan-ground', 'plan-attic', 'plan-garden']);
+		expect(document.activeElement).toBe(item(harness, 'plan-first').element);
+		harness.unmount();
+	});
+
+	/**
+	 * The checked kind has to be VISIBLE, not only announced: jsdom draws nothing, so the pin is on
+	 * the stylesheet rule keyed on the attribute the component sets — the same seam
+	 * `tests/build/prototype-styles.test.ts` reads through.
+	 */
+	it('Mark as building writes the kind alone, and the current kind is checked and drawn so', async () => {
 		const { execute, queries, commands } = rig();
 		const harness = await mountPlanEditorCanvas({ queries, commands });
 		await settle();
 		await item(harness, 'plan-house').trigger('contextmenu', { clientX: 20, clientY: 20 });
-		expect(harness.wrapper.get('[data-rp-tree-action="kind:floor"]').attributes('aria-checked')).toBe('true');
+		const radios = harness.wrapper.findAll('[role="menuitemradio"]');
+		expect(radios.map((radio) => radio.attributes('aria-checked'))).toEqual(['false', 'false', 'true', 'false']);
+		expect(readFileSync('styles/editor-shell-fidelity.css', 'utf8')).toMatch(/\.rp-property-tree__menu \[role="menuitemradio"\]\[aria-checked="true"\]::before \{[^}]*var\(--interactive-accent\)/);
 		await harness.wrapper.get('[data-rp-tree-action="kind:building"]').trigger('click');
 		await settle();
 		expect(execute).toHaveBeenCalledWith({ planId: 'plan-house', kind: 'building' });

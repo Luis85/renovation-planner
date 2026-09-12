@@ -18,6 +18,7 @@
 4. `Zone.withLabelOffset` takes `Vector | null`: undo of a first drag must restore the automatic caption. No UI clears an offset.
 5. No new fixed `harness-shot` capture: the harness Plan Editor floor has no renovation services, so a drag cannot save there. The jsdom rendering test and the manual case cover it.
 6. Main moved during execution (#148 draws a zone's detail plans as a THIRD caption line; `captionOffsetY`'s fifth parameter became `{ viewport, bottom }`). The branch merges `origin/main` after Task 1; Tasks 4 and 6 use `captionBottom(detailed)` so a room caption's drawn position and grab box both honour the taller block.
+7. Main's #150 gave paths, fences, measurements and objects draggable point handles. A caption now ranks BELOW vertex handles and multi-selection badges (spec §4.2 said above): an element's name tag sits just above its first point, where its handle is grabbed.
 
 ## Global Constraints
 
@@ -987,9 +988,10 @@ describe('resolveSelectionTarget caption grabs', () => {
 		expect(resolveSelectionTarget({ ...hit, selectedIds: ['room'], cycle: true })).toEqual({ kind: 'body', id: 'room' });
 	});
 
-	it('ranks a caption above a vertex handle it covers', () => {
-		const corner = [{ id: 'room', bounds: { min: { x: -20, y: -20 }, max: { x: 20, y: 20 } }, offset: { dx: 0, dy: 0 } }];
-		expect(resolveSelectionTarget({ ...hit, labels: corner, selectedIds: ['room'], worldPoint: { x: 0, y: 0 } })).toEqual({ kind: 'label', id: 'room' });
+	it('leaves a vertex handle to the handle even where a caption covers it', () => {
+		const corner = [{ id: 'room', bounds: { min: { x: -20, y: -20 }, max: { x: 100, y: 100 } }, offset: { dx: 0, dy: 0 } }];
+		expect(resolveSelectionTarget({ ...hit, labels: corner, selectedIds: ['room'], worldPoint: { x: 0, y: 0 } })).toEqual({ kind: 'handle', id: 'room', vertexIndex: 0 });
+		expect(resolveSelectionTarget({ ...hit, labels: corner, selectedIds: ['room'], worldPoint: { x: 90, y: 90 } })).toEqual({ kind: 'label', id: 'room' });
 	});
 });
 ```
@@ -1205,14 +1207,15 @@ function labelAt(input: {
 	readonly labelToleranceWorld?: number;
 ```
 
-- inside `if (!input.cycle) {`, after the rotation-handle line, add:
+- inside `if (!input.cycle) {`, after the `if (decoration !== null) return decoration;` line, add:
 
 ```ts
 		const label = labelAt(input);
 		if (label !== null) return label;
 ```
 
-- the docblock's priority sentence becomes: "Priority: a selected item's caption, then a single selection's vertex handle or a multi-selection badge, then the topmost containing body, then nothing."
+  Handles and badges rank ABOVE captions: since `origin/main`'s #150 a selected path, fence, measurement or object has draggable point handles, and its name tag sits just above its first point, so a caption checked first would take a press aimed at that handle.
+- the docblock's priority sentence becomes: "Priority: a single selection's vertex handle or a multi-selection badge, then a selected item's caption, then the topmost containing body, then nothing."
 
 - [ ] **Step 5: Route it in `SelectTool`, the render state and the cursor**
 
@@ -1663,6 +1666,7 @@ Not yet run. Record the build hash, date and outcome of each row here when it is
 In `docs/superpowers/specs/2026-09-12-draggable-labels-design.md`:
 - §3.2: every `label: { dx, dy }` becomes `labelOffset: { dx, dy }`, with the sentence "The key is the domain's own name because elements pass through the sidecar port unmapped."
 - §4.1 and §4.2: replace `SpatialObjectCandidate` gains an optional `labelBounds` … `canvasCandidates` computes it with: "`SelectTool` gains a `labelHits` dependency (the `rotationControls` precedent), answered by `labelActions` from the same placement functions the renderers call."
+- §4.2: "answers `'label'` after the rotation handle and before vertex handles, badges and bodies" becomes "answers `'label'` after the rotation handle, vertex handles and badges, and before bodies — an element's name tag sits just above its first point, where its handle is grabbed". §3.3 and §5.1 gain: "a room caption's block is taller while a detail-plans line shows (`captionBottom`, ADR-0028)".
 - §5.2: add a bullet "**Every rewrite of the geometry carries it**: a calibration rescales offsets; the group-move projection and its zone versions carry them; the zone version digest observes them."
 - §6: replace the harness-shot sentence with "Outside the gates: the manual case `docs/tests/cases/Drag a caption.md`. No fixed harness capture: the harness Plan Editor floor has no renovation services, so a drag cannot save there."
 

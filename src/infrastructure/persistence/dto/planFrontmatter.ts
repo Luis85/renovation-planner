@@ -65,5 +65,16 @@ export const PlanFrontmatterSchemaV9 = PlanFrontmatterSchemaV8.extend({
 	'parent-plan': z.string().min(1).optional(),
 	'parent-zone': z.string().min(1).optional(),
 });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8, PlanFrontmatterSchemaV9]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV9>;
+/**
+ * A plan's kind label and sibling order (ADR-0029). Both optional: every older note lifts to 10 in
+ * memory and reads as `floor` / `0`. `kind` is any string here and `order` any number, because
+ * `Plan.create` is the ONE place that refuses a value outside the vocabulary (`plan.unknown-kind`,
+ * `plan.invalid-order`) — a second vocabulary in this schema would be a second answer.
+ */
+export const PlanFrontmatterSchemaV10 = PlanFrontmatterSchemaV9.extend({
+	'schema-version': z.literal(10),
+	kind: z.string().optional(),
+	order: z.number().optional(),
+});
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8, PlanFrontmatterSchemaV9, PlanFrontmatterSchemaV10]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV10>;

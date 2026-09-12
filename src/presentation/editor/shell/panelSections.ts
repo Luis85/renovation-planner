@@ -18,7 +18,7 @@ export const PANEL_SECTIONS: Readonly<Record<PanelSide, readonly PanelSectionEnt
 	layers: [
 		{ key: 'context', icon: 'house', labelKey: 'editor.shell.property' },
 		{ key: 'layers', icon: 'layers', labelKey: 'editor.rail.layers' },
-		{ key: 'rooms', icon: 'grid-2x2', labelKey: 'editor.selection.records' },
+		{ key: 'rooms', icon: 'grid-2x-2', labelKey: 'editor.selection.records' },
 		{ key: 'elements', icon: 'brick-wall', labelKey: 'editor.structure.list' },
 	],
 	inspector: [{ key: 'details', icon: 'panels-top-left', labelKey: 'editor.rail.details' }],

@@ -6,7 +6,7 @@ import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
 
 export interface ContextLink {
 	readonly id: string;
-	readonly roomId: string;
+	readonly roomId?: string;
 	readonly targetId: string;
 	readonly workId: string;
 }
@@ -48,7 +48,7 @@ export interface Evidence extends ContextLink {
 	readonly path: string;
 	readonly subpath: string;
 	readonly recordId: string;
-	/** Fraction of Room bounding box. Calibration and Room resize retain this relative location. */
+	/** Fraction of Room bounding box; always null for a record with no room (ADR-0029). */
 	readonly pin: { readonly x: number; readonly y: number } | null;
 }
 export interface PlanningDepth {

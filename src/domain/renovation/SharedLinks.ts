@@ -1,15 +1,21 @@
-/** Additional spatial contexts of one Work/Evidence record; primary ownership stays unchanged. */
+/** A secondary Room context of one Work/Evidence record. A secondary link always names a zone (ADR-0021). */
 export interface SpatialLink { readonly roomId: string; readonly targetId: string }
-export interface SharedSpatialContext extends SpatialLink { readonly links?: readonly SpatialLink[] }
-export type RoomContext = Pick<SharedSpatialContext, 'roomId' | 'links'>;
+/** A record's primary context: a Room or Area when it has one, and always its stable spatial target (ADR-0029). */
+export interface PrimaryContext { readonly roomId?: string; readonly targetId: string }
+export interface SharedSpatialContext extends PrimaryContext { readonly links?: readonly SpatialLink[] }
+export type RoomContext = Pick<SharedSpatialContext, 'roomId' | 'targetId' | 'links'>;
 
-/** A shared record can serve every explicitly linked Room while retaining one owner. */
-export function hasRoomContext(item: RoomContext | undefined, roomId: string | undefined): boolean {
-	return !!item && !!roomId && (item.roomId === roomId || item.links?.some(link => link.roomId === roomId) === true);
+/** A record's context: its Room, or — when it has none — its own spatial target (ADR-0029). */
+export function contextOf(item: PrimaryContext): string {
+	return item.roomId ?? item.targetId;
 }
-
+/** Every context a record serves. The primary link's `roomId` is `contextOf(item)`, so a room-less record's is its own target. */
 export function spatialContexts(item: SharedSpatialContext): readonly SpatialLink[] {
-	return [{ roomId: item.roomId, targetId: item.targetId }, ...item.links ?? []];
+	return [{ roomId: contextOf(item), targetId: item.targetId }, ...item.links ?? []];
+}
+/** Whether `item` serves the context `context`: its primary context, or a Room it is explicitly linked to. */
+export function hasRoomContext(item: RoomContext | undefined, context: string | undefined): boolean {
+	return !!item && !!context && spatialContexts(item).some(link => link.roomId === context);
 }
 export function validSharedLinks(item: SharedSpatialContext): boolean {
 	const links = spatialContexts(item);

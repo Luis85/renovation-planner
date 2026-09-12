@@ -14,7 +14,7 @@ export function sameRenovation(a: Renovation | undefined, b: Renovation | undefi
 	return JSON.stringify(content(a ?? EMPTY_RENOVATION)) === JSON.stringify(content(b ?? EMPTY_RENOVATION));
 }
 
-const context = (item: { id: string; roomId: string; targetId: string; workId: string }) => [item.id, item.roomId, item.targetId, item.workId];
+const context = (item: { id: string; roomId?: string; targetId: string; workId: string }) => [item.id, item.roomId, item.targetId, item.workId];
 function depthContent(depth: PlanningDepth): unknown {
  return [depth.procurement.map(item => [...context(item), item.requirementId, item.unit, item.purchased, item.reserved]),
  depth.costs.map(item => [...context(item), item.title, item.category, item.requirementId, item.planned ? [item.planned.amount, item.planned.currency] : null, item.cancelled,

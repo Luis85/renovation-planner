@@ -7,11 +7,18 @@ import { formatMetres } from '../shell/formatLength';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 export interface WallCut { readonly point: Point; readonly tangent: Point; readonly thickness: number }
 const props = defineProps<{ points: readonly Point[]; cursor: Point | null; tokens: ThemeTokens; zoom: number; viewport: BoundingBox; cuts: readonly WallCut[] }>();
-/** A tick across the host at the cut, a little longer than the wall is thick, in world units. `tangent` is `wallTangent`'s, a unit vector. */
-function cutPoints(cut: WallCut): number[] {
+/**
+ * Two ticks across the host, 8 px either side of each cut, a little longer than the wall is thick, in world units. Never one
+ * through the cut point: a new wall passes through it, and at a right angle a tick there lay along the new wall's own line and
+ * could not be told from it. `tangent` is `wallTangent`'s, a unit vector.
+ */
+const cutTicks = computed(() => props.cuts.flatMap(cut => {
 	const half = (cut.thickness + 16 / props.zoom) / 2, nx = -cut.tangent.y * half, ny = cut.tangent.x * half;
-	return [cut.point.x - nx, cut.point.y - ny, cut.point.x + nx, cut.point.y + ny];
-}
+	return [-8 / props.zoom, 8 / props.zoom].map(along => {
+		const x = cut.point.x + cut.tangent.x * along, y = cut.point.y + cut.tangent.y * along;
+		return [x - nx, y - ny, x + nx, y + ny];
+	});
+}));
 const corners = computed(() => closedChain(props.points) ? props.points.slice(0, -1) : props.points);
 const segments = computed(() => {
  const points = [...props.points];
@@ -50,9 +57,9 @@ function measurementCaption(x: number, y: number) {
 			:config="{ name: 'wall-draft-outline', points: points.flatMap(point => [point.x, point.y]), stroke: tokens.accent, strokeWidth: 2 / zoom, listening: false }"
 		/>
 		<VLine
-			v-for="(cut, index) in cuts"
+			v-for="(tick, index) in cutTicks"
 			:key="`cut-${index}`"
-			:config="{ name: 'wall-draft-cut', points: cutPoints(cut), stroke: tokens.accent, strokeWidth: 2 / zoom, listening: false }"
+			:config="{ name: 'wall-draft-cut', points: tick, stroke: tokens.accent, strokeWidth: 2 / zoom, listening: false }"
 		/>
 		<VGroup
 			v-for="(point, index) in corners"

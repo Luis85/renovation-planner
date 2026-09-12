@@ -115,20 +115,24 @@ it('marks each cut a wall chain would make and previews the host already cut', a
 	const tools = rig.runtime.toolManager;
 	expect(stage.find('.wall-draft-cut')).toHaveLength(0);
 	expect(stage.find('.wall-body')).toHaveLength(1); // WALL_LOOP is one closed run.
-	// Hovering a body: one pending mark, across the wall (vertical on the horizontal wall-a), thickness + 16 px long.
+	// Hovering a body: one pending mark, a pair of ticks across the wall (vertical on the horizontal wall-a), thickness + 16 px
+	// long, 8 px either side of the join and never through it: a new wall meeting its host square runs through the cut point, so a
+	// tick there lay along the new wall's own line and could not be told from it.
 	tools.pointerMove(pointerAt(1000, 3)); await settle();
 	const editor = useEditorStore(rig.pinia), zoom = editor.viewport.zoom;
 	const pending = stage.find<Konva.Line>('.wall-draft-cut');
-	expect(pending).toHaveLength(1);
-	const [x1, y1, x2, y2] = pending[0].points();
-	expect(x1).toBeCloseTo(1000); expect(x2).toBeCloseTo(1000);
-	expect(Math.abs(y2 - y1)).toBeCloseTo(150 + 16 / zoom);
+	expect(pending).toHaveLength(2);
+	for (const [tick, side] of [[pending[0], -1], [pending[1], 1]] as const) {
+		const [x1, y1, x2, y2] = tick.points();
+		expect(x1).toBeCloseTo(1000 + side * 8 / zoom); expect(x2).toBeCloseTo(1000 + side * 8 / zoom);
+		expect(Math.abs(y2 - y1)).toBeCloseTo(150 + 16 / zoom);
+	}
 	// Clicking there starts the chain: the start mark stays while the cursor leaves the wall.
 	tools.pointerDown(pointerAt(1000, 3)); tools.pointerMove(pointerAt(1000, 1500)); await settle();
-	expect(stage.find('.wall-draft-cut')).toHaveLength(1);
+	expect(stage.find('.wall-draft-cut')).toHaveLength(2);
 	// Placing a free point then hovering wall-c: start mark + pending mark, and the preview's wall-a is two halves.
 	tools.pointerDown(pointerAt(1000, 1500)); tools.pointerMove(pointerAt(1000, 2996)); await settle();
-	expect(stage.find('.wall-draft-cut')).toHaveLength(2);
+	expect(stage.find('.wall-draft-cut')).toHaveLength(4);
 	// Three walls now meet at (1000, 0) — the two halves and the draft — so `wallPasses` no longer chains the loop into one run: the host is drawn cut.
 	expect(stage.find('.wall-body').length).toBeGreaterThan(1);
 	rig.runtime.returnToSelect(); await settle();
@@ -147,6 +151,8 @@ it('marks an end cut on a half the start cut made, a wall only the drawn floor h
 	const end = expectDefined(task.draft.joins.end, 'end join');
 	expect(WALL_LOOP.walls.some(wall => wall.id === end.wallId)).toBe(false);
 	await nextTick(); // The render queued by the click, ahead of the save that click also started.
-	expect(stage.find<Konva.Line>('.wall-draft-cut').map(line => line.points()[0])).toEqual([1000, 2500]);
+	const zoom = useEditorStore(rig.pinia).viewport.zoom, ticks = stage.find<Konva.Line>('.wall-draft-cut').map(line => line.points()[0]);
+	expect(ticks).toHaveLength(4);
+	for (const [index, x] of [1000 - 8 / zoom, 1000 + 8 / zoom, 2500 - 8 / zoom, 2500 + 8 / zoom].entries()) expect(ticks[index]).toBeCloseTo(x);
 	await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'chain saved');
 });

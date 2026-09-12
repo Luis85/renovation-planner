@@ -23,7 +23,17 @@ export function detailPlanDeps(base: PlanEditorDeps): PlanEditorDeps {
 		queries: {
 			...base.queries,
 			findZonesByPlan: () => Promise.resolve(ok({ zones: [], unreadable: 0, structure: EMPTY_STRUCTURE })),
-			hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'harness-site', name: 'Site plan', kind: 'floor' }], detailPlans: [], tree: [], parentZone: HARNESS_PARENT_ZONE, parentZoneMissing: false })),
+			// `tree` is what the Property tree draws since ADR-0029's `role="tree"`; a real read answers
+			// the same two plans the ancestry names, so the harness answers them too.
+			hierarchy: (planId) => Promise.resolve(ok({
+				ancestry: [{ id: 'harness-site', name: 'Site plan', kind: 'floor' }],
+				detailPlans: [],
+				tree: [{ id: 'harness-site', name: 'Site plan', kind: 'floor', order: 0, parentId: null, children: [
+					{ id: planId, name: 'Ground floor', kind: 'floor', order: 0, parentId: 'harness-site', children: [] },
+				] }],
+				parentZone: HARNESS_PARENT_ZONE,
+				parentZoneMissing: false,
+			})),
 		},
 	};
 }

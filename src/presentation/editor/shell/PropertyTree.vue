@@ -1,51 +1,66 @@
 <script setup lang="ts">
 /**
- * M01's Property tree, sidebar polish 2026-09-10: the project, then every plan of it as a
- * sibling floor. The domain has no Building between the two, so the tree is two levels for
- * an ordinary plan; a detail plan (ADR-0028) inserts its ancestry rows between them — one row
- * per plan from the project's own floor down to this plan's immediate parent.
+ * The Property tree (ADR-0029): the project row, then every plan of the project as one
+ * `role="tree"` nested by parent link — `hierarchy.tree`, built once per hydrate from the same
+ * `listPlans` read the ancestry uses. Full tree semantics with a roving tabindex: ↑/↓ walk the
+ * visible rows, Home/End jump, ←/→ go to the parent / the first child (every node is expanded,
+ * so → on a leaf does nothing), Enter or Space opens the focused plan through the ONE
+ * `navigation.plan` door. This is the "arrives with a third level" deferral of the 2026-09-10
+ * sidebar polish, and the third level is here.
  *
- * Rows are buttons only when the leaf carries a `navigation` — the harness index mounts
- * this panel with none, and a button that does nothing is the live-control-that-does-nothing
- * shape slice 14 refused. `aria-current="page"` marks the plan this leaf shows.
- *
- * Deferred, and said here rather than promised: full `role="tree"` with arrow-key roving
- * (component library §4 `PropertyTree`). A nested list of buttons is Tab-reachable today;
- * the roving tabindex arrives when a third level does.
+ * Reordering and the row menu are `usePlanReorder` / `PropertyTreeMenu` (Task 8), mounted here
+ * so this file's template stays one list.
  */
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import HostIcon from '../../components/HostIcon.vue';
 import { tr } from '../../i18n/strings';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
-import PropertyTreeRow from './PropertyTreeRow.vue';
+import PropertyTreeNode from './PropertyTreeNode.vue';
 
-const { project, plan, plans } = storeToRefs(useProjectStore());
+const { project, plan } = storeToRefs(useProjectStore());
 const { hierarchy, failed } = storeToRefs(usePlanHierarchyStore());
 const context = usePlanEditorContext();
-/**
- * Floors are this plan's own siblings — same parent (or both root) — never every plan of the
- * project: `plans` is `ProjectStore`'s full project listing, and a detail plan's ancestors
- * already draw as ancestry rows above this list, so including them here repeated them and
- * listed every OTHER branch's plans as if they were floors of this one (findings round 2,
- * item 2). The listing may be empty on a rig that answers no siblings; the open plan is
- * always a floor.
- */
-const floors = computed(() => {
-	const siblings = plans.value.filter((candidate) => (candidate.parent?.planId ?? null) === (plan.value?.parent?.planId ?? null));
-	return siblings.length > 0 ? siblings : plan.value ? [plan.value] : [];
+const treeEl = ref<HTMLElement | null>(null);
+const navigate = computed(() => {
+	const openPlan = context.navigation?.plan;
+	return openPlan ? (planId: string) => { void openPlan(planId); } : undefined;
 });
 /**
- * A row's click handler, or `undefined` to draw it as text (the current floor, or a leaf with
- * no `navigation`) — plain script rather than a ternary inline in the template, because
- * vue-tsc does not narrow the navigation function into the arrow function a template
- * expression creates (`TS2722`) the way it narrows one written in `<script setup>`.
+ * A leaf whose query bundle answers no `hierarchy` (the harness index, the older editor rigs)
+ * draws the open plan alone rather than an empty tree.
  */
-function rowOpener(planId: string, disabled = false): (() => void) | undefined {
-	const openPlan = context.navigation?.plan;
-	return openPlan && !disabled ? () => openPlan(planId) : undefined;
+const tree = computed(() =>
+	hierarchy.value.tree.length > 0
+		? hierarchy.value.tree
+		: plan.value
+			? [{ id: plan.value.id, name: plan.value.name, kind: plan.value.kind, order: plan.value.order, parentId: null, children: [] }]
+			: [],
+);
+
+function items(): HTMLElement[] {
+	return [...(treeEl.value?.querySelectorAll<HTMLElement>('[role="treeitem"]') ?? [])];
+}
+function onKeydown(event: KeyboardEvent): void {
+	const item = (event.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]');
+	if (!item || event.altKey || event.ctrlKey || event.metaKey) return;
+	const all = items(), index = all.indexOf(item);
+	const moves: Record<string, () => HTMLElement | undefined> = {
+		ArrowDown: () => all[index + 1],
+		ArrowUp: () => all[index - 1],
+		Home: () => all[0],
+		End: () => all[all.length - 1],
+		ArrowRight: () => item.querySelector<HTMLElement>('[role="treeitem"]') ?? undefined,
+		ArrowLeft: () => item.parentElement?.closest<HTMLElement>('[role="treeitem"]') ?? undefined,
+	};
+	const move = moves[event.key];
+	if (move) { event.preventDefault(); move()?.focus(); return; }
+	if ((event.key === 'Enter' || event.key === ' ') && navigate.value) {
+		const id = item.dataset.rpPlanId;
+		if (id && id !== context.planId) { event.preventDefault(); navigate.value(id); }
+	}
 }
 </script>
 
@@ -65,24 +80,21 @@ function rowOpener(planId: string, disabled = false): (() => void) | undefined {
 		>
 			<HostIcon name="house" />{{ project.name }}
 		</p>
-		<PropertyTreeRow
-			v-for="ancestor in hierarchy.ancestry"
-			:key="ancestor.id"
-			:name="ancestor.name"
-			:open-plan-id="ancestor.id"
-			:on-open="rowOpener(ancestor.id)"
-		/>
-		<ul class="rp-property-tree__floors">
-			<li
-				v-for="floor in floors"
-				:key="floor.id"
-			>
-				<PropertyTreeRow
-					:name="floor.name || tr('editor.floor')"
-					:current="floor.id === plan?.id"
-					:on-open="rowOpener(floor.id, floor.id === plan?.id)"
-				/>
-			</li>
+		<ul
+			ref="treeEl"
+			role="tree"
+			class="rp-property-tree__list"
+			:aria-label="tr('editor.shell.tree')"
+			@keydown="onKeydown"
+		>
+			<PropertyTreeNode
+				v-for="node in tree"
+				:key="node.id"
+				:node="node"
+				:level="1"
+				:current-id="context.planId"
+				:navigate="navigate"
+			/>
 		</ul>
 		<p
 			v-if="failed"

@@ -1,229 +1,122 @@
 // @vitest-environment jsdom
 /**
- * The Property tree (M01, sidebar polish 2026-09-10): the project row, then every plan of
- * the project as a sibling floor, the current one marked `aria-current`. Navigation goes
- * through the ONE `navigation.plan` door; without one the rows are text.
+ * The Property tree (ADR-0029): the project row, then EVERY plan of the project nested by parent
+ * link as a `role="tree"`, the open plan marked `aria-current`, rows opening through the ONE
+ * `navigation.plan` door and drawn as text without it. Keyboard: roving tabindex, arrows.
+ *
+ * `mountPlanEditorCanvas` attaches to `document.body` (Konva measures its container), so
+ * `focus()` moves `document.activeElement` — and every case unmounts what it mounted to keep
+ * the body clean for the next.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { err, ok } from '../../../../src/core/result/Result';
-import { t, tr } from '../../../../src/presentation/i18n/strings';
-import type { PlanDto } from '../../../../src/presentation/read-models/PlanDto';
+import { t } from '../../../../src/presentation/i18n/strings';
+import type { PlanHierarchyDto, PropertyTreeNode } from '../../../../src/presentation/read-models/planHierarchy';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_PROJECT } from '../../../helpers/planFixtures';
 import { mountPlanEditorCanvas, settle } from '../../../helpers/editor';
 
-const FIRST: PlanDto = { ...FIXTURE_PLAN, id: 'plan-first', name: 'First floor' };
-const queries = () => ({ ...fakeQueries(FIXTURE_PLAN), listPlans: () => Promise.resolve(ok([FIXTURE_PLAN, FIRST])) });
+/** `order` is the position among the siblings listed, 0..n-1, as `propertyTreeOf` would sort them. */
+const leaf = (id: string, name: string, parentId: string | null, order: number, kind: PropertyTreeNode['kind'] = 'floor'): PropertyTreeNode =>
+	({ id, name, kind, order, parentId, children: [] });
+/** Site › House › { Ground floor (open), Attic } plus a second root, Garden. */
+const TREE: PropertyTreeNode[] = [
+	{ ...leaf('plan-site', 'Site', null, 0, 'site'), children: [
+		{ ...leaf('plan-house', 'House', 'plan-site', 0, 'building'), children: [leaf('plan-ground', 'Ground floor', 'plan-house', 0), leaf('plan-attic', 'Attic', 'plan-house', 1)] },
+	] },
+	leaf('plan-garden', 'Garden', null, 1, 'site'),
+];
+const hierarchy = (tree: PropertyTreeNode[] = TREE, parentZoneMissing = false): PlanHierarchyDto => ({ ancestry: [], detailPlans: [], parentZone: null, parentZoneMissing, tree });
+const queries = (tree = TREE) => ({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(ok(hierarchy(tree))) });
+const navigation = (plan = vi.fn<(planId: string) => Promise<void>>(() => Promise.resolve())) => ({ project: () => Promise.resolve(), library: () => undefined, plan });
 
 describe('PropertyTree', () => {
-	it('lists the project, then each plan as a floor with the open one current', async () => {
+	it('draws the project row, then every plan nested under its parent with its level', async () => {
 		const harness = await mountPlanEditorCanvas({ queries: queries() });
+		await settle();
 		const tree = harness.wrapper.get('.rp-property-tree');
-
-		expect(tree.get('.rp-property-tree__project').text()).toContain('Willow House');
-		const floors = tree.findAll('.rp-property-tree__floor');
-		expect(floors.map((f) => f.text())).toEqual(['Ground floor', 'First floor']);
-		expect(floors[0].attributes('aria-current')).toBe('page');
-		expect(floors[1].attributes('aria-current')).toBeUndefined();
+		expect(tree.get('.rp-property-tree__project').text()).toContain(FIXTURE_PROJECT.name);
+		const items = tree.findAll('[role="treeitem"]');
+		expect(items.map((item) => item.attributes('data-rp-plan-id'))).toEqual(['plan-site', 'plan-house', 'plan-ground', 'plan-attic', 'plan-garden']);
+		expect(items.map((item) => item.attributes('aria-level'))).toEqual(['1', '2', '3', '3', '1']);
+		expect(tree.get('[role="tree"]').attributes('aria-label')).toBe(t('en', 'editor.shell.tree'));
+		harness.unmount();
 	});
 
-	it('opens a sibling floor through navigation.plan', async () => {
+	it('marks the open plan current and draws it as text, the rest as buttons when navigable', async () => {
+		const harness = await mountPlanEditorCanvas({ queries: queries(), navigation: navigation() });
+		await settle();
+		const tree = harness.wrapper.get('.rp-property-tree');
+		expect(tree.get('[data-rp-plan-id="plan-ground"] .rp-property-tree__row').attributes('aria-current')).toBe('page');
+		expect(tree.get('[data-rp-plan-id="plan-ground"] .rp-property-tree__row').element.tagName).toBe('SPAN');
+		expect(tree.findAll('button.rp-property-tree__row')).toHaveLength(4);
+		harness.unmount();
+	});
+
+	it('opens another plan through navigation.plan, and draws rows as text without one', async () => {
 		const plan = vi.fn<(planId: string) => Promise<void>>(() => Promise.resolve());
-		const harness = await mountPlanEditorCanvas({
-			queries: queries(),
-			navigation: { project: () => Promise.resolve(), library: () => {}, plan },
-		});
-
-		await harness.wrapper.findAll('.rp-property-tree__floor')[1].trigger('click');
-
-		expect(plan).toHaveBeenCalledWith('plan-first');
-	});
-
-	it('draws the floors as text when the leaf has no navigation', async () => {
-		const harness = await mountPlanEditorCanvas({ queries: queries() });
-
-		expect(harness.wrapper.findAll('button.rp-property-tree__floor')).toHaveLength(0);
-		expect(harness.wrapper.findAll('.rp-property-tree__floor')).toHaveLength(2);
+		const withNav = await mountPlanEditorCanvas({ queries: queries(), navigation: navigation(plan) });
+		await settle();
+		await withNav.wrapper.get('[data-rp-open-plan="plan-attic"]').trigger('click');
+		expect(plan).toHaveBeenCalledWith('plan-attic');
+		withNav.unmount();
+		const without = await mountPlanEditorCanvas({ queries: queries() });
+		await settle();
+		expect(without.wrapper.findAll('button.rp-property-tree__row')).toHaveLength(0);
+		expect(without.wrapper.findAll('[role="treeitem"]')).toHaveLength(5);
+		without.unmount();
 	});
 
 	it('opens the project through navigation.project', async () => {
 		const project = vi.fn<(projectId: string) => Promise<void>>(() => Promise.resolve());
-		const harness = await mountPlanEditorCanvas({
-			queries: queries(),
-			navigation: { project, library: () => {}, plan: () => Promise.resolve() },
-		});
-
+		const harness = await mountPlanEditorCanvas({ queries: queries(), navigation: { ...navigation(), project } });
+		await settle();
 		await harness.wrapper.get('.rp-property-tree__project').trigger('click');
-
 		expect(project).toHaveBeenCalledWith(FIXTURE_PROJECT.id);
+		harness.unmount();
 	});
 
-	it('falls back to the floor label for an unnamed plan', async () => {
-		const unnamed: PlanDto = { ...FIXTURE_PLAN, id: 'plan-unnamed', name: '' };
-		const harness = await mountPlanEditorCanvas({
-			queries: { ...fakeQueries(FIXTURE_PLAN), listPlans: () => Promise.resolve(ok([FIXTURE_PLAN, unnamed])) },
-		});
-
-		const floors = harness.wrapper.get('.rp-property-tree').findAll('.rp-property-tree__floor');
-		expect(floors[1].text()).toContain(tr('editor.floor'));
-	});
-
-	/**
-	 * Since the PropertyTreeRow refactor, an unnamed sibling floor drawn as a BUTTON (navigation
-	 * present, not the current plan) renders the same fallback label — findings round 1, item 3:
-	 * the button branch had no assertion of its own, so the behaviour was accidental rather than
-	 * deliberate.
-	 */
-	it('falls back to the floor label for an unnamed plan drawn as a button', async () => {
-		const unnamed: PlanDto = { ...FIXTURE_PLAN, id: 'plan-unnamed', name: '' };
-		const harness = await mountPlanEditorCanvas({
-			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: () => Promise.resolve() },
-			queries: { ...fakeQueries(FIXTURE_PLAN), listPlans: () => Promise.resolve(ok([FIXTURE_PLAN, unnamed])) },
-		});
-
-		// FIXTURE_PLAN is the current floor and stays text (disabled); only the unnamed sibling
-		// is a button, so it is the sole element here rather than index 1 as in the text case above.
-		const floors = harness.wrapper.get('.rp-property-tree').findAll('button.rp-property-tree__floor');
-		expect(floors).toHaveLength(1);
-		expect(floors[0].text()).toContain(tr('editor.floor'));
-	});
-
-	/**
-	 * Findings round 1, item 2: the only prior ancestry assertion
-	 * (`editorContextBar.test.ts`) checks `.rp-context-bar`, which `PropertyTree`'s own ancestry
-	 * rows never draw into — this file had none.
-	 */
-	it('puts the plan ancestry between the project row and the floors, each row opening its plan', async () => {
-		const opened: string[] = [];
-		const harness = await mountPlanEditorCanvas({
-			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: (id) => { opened.push(id); return Promise.resolve(); } },
-			queries: {
-				...fakeQueries(FIXTURE_PLAN),
-				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site', kind: 'floor' }, { id: 'plan-house', name: 'House', kind: 'floor' }], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: false })),
-			},
-		});
+	it('labels each row with its kind and draws the kind icon', async () => {
+		const harness = await mountPlanEditorCanvas({ queries: queries() });
 		await settle();
-
-		const tree = harness.wrapper.get('.rp-property-tree');
-		const rows = tree.findAll('[data-rp-open-plan]');
-		expect(rows.map((row) => row.text())).toEqual(['Site', 'House']);
-		expect(rows.every((row) => row.element.tagName === 'BUTTON')).toBe(true);
-
-		await tree.get('[data-rp-open-plan="plan-site"]').trigger('click');
-		expect(opened).toEqual(['plan-site']);
+		const row = harness.wrapper.get('[data-rp-plan-id="plan-house"] .rp-property-tree__row');
+		expect(row.attributes('aria-description')).toBe(t('en', 'editor.shell.kind.building'));
+		// `data-icon` is the canonical name the mock `setIcon` records; `data-icon-request` carries
+		// the `lucide-` prefix `HostIcon` adds, so it is the wrong attribute to match a bare kind icon on.
+		expect(row.find('.rp-host-icon[data-icon="building"]').exists()).toBe(true);
+		harness.unmount();
 	});
 
-	it('draws the ancestry rows as text when the leaf has no navigation', async () => {
-		const harness = await mountPlanEditorCanvas({
-			queries: {
-				...fakeQueries(FIXTURE_PLAN),
-				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site', kind: 'floor' }], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: false })),
-			},
-		});
+	it('roves focus with the arrow keys and opens with Enter', async () => {
+		const plan = vi.fn<(planId: string) => Promise<void>>(() => Promise.resolve());
+		const harness = await mountPlanEditorCanvas({ queries: queries(), navigation: navigation(plan) });
 		await settle();
-
-		const tree = harness.wrapper.get('.rp-property-tree');
-		expect(tree.find('[data-rp-open-plan]').exists()).toBe(false);
-		expect(tree.text()).toContain('Site');
+		const items = harness.wrapper.findAll('[role="treeitem"]');
+		expect(items.map((item) => item.attributes('tabindex'))).toEqual(['-1', '-1', '0', '-1', '-1']);
+		(items[2].element as HTMLElement).focus();
+		await items[2].trigger('keydown', { key: 'ArrowDown' });
+		expect(document.activeElement).toBe(items[3].element);
+		await items[3].trigger('keydown', { key: 'ArrowLeft' });
+		expect(document.activeElement).toBe(items[1].element);
+		await items[1].trigger('keydown', { key: 'ArrowRight' });
+		expect(document.activeElement).toBe(items[2].element);
+		await items[2].trigger('keydown', { key: 'End' });
+		expect(document.activeElement).toBe(items[4].element);
+		await items[4].trigger('keydown', { key: 'Home' });
+		expect(document.activeElement).toBe(items[0].element);
+		await items[0].trigger('keydown', { key: 'Enter' });
+		expect(plan).toHaveBeenCalledWith('plan-site');
+		harness.unmount();
 	});
 
-	/**
-	 * Findings round 2, item 2: `floors` was `ProjectStore.plans`, every plan of the project —
-	 * a detail plan's tree then repeated its ancestors (already drawn as ancestry rows) and
-	 * listed every other branch's plans as if they were floors of this one. Floors are now
-	 * filtered to this plan's own siblings (same parent).
-	 */
-	it('lists only this plan\'s own siblings as floors, not every plan of the project', async () => {
-		const HOUSE_PARENT = { planId: 'plan-house', zoneId: 'zone-house' };
-		const SITE_PARENT = { planId: 'plan-site', zoneId: 'zone-site' };
-		const site: PlanDto = { ...FIXTURE_PLAN, id: 'plan-site', name: 'Site' };
-		const house: PlanDto = { ...FIXTURE_PLAN, id: 'plan-house', name: 'House', parent: SITE_PARENT };
-		const attic: PlanDto = { ...FIXTURE_PLAN, id: 'plan-attic', name: 'Attic', parent: HOUSE_PARENT };
-		const ground: PlanDto = { ...FIXTURE_PLAN, id: 'plan-ground', name: 'Ground floor', parent: HOUSE_PARENT };
-		const harness = await mountPlanEditorCanvas({
-			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: () => Promise.resolve() },
-			queries: {
-				...fakeQueries(ground),
-				listPlans: () => Promise.resolve(ok([site, house, attic, ground])),
-				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: site.id, name: site.name, kind: 'floor' }, { id: house.id, name: house.name, kind: 'floor' }], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: false })),
-			},
-		});
-		await settle();
-
-		const tree = harness.wrapper.get('.rp-property-tree');
-		// The floors list only: `.rp-property-tree__floor` also matches ancestry rows, since both
-		// share `PropertyTreeRow`'s markup, so scoping to the `<ul>` is what keeps this assertion
-		// from also counting the ancestry rows it is meant to prove ABSENT here.
-		const floors = tree.get('.rp-property-tree__floors').findAll('.rp-property-tree__floor');
-		expect(floors.map((f) => f.text())).toEqual(['Attic', 'Ground floor']);
-
-		const ancestryNames = tree.findAll('[data-rp-open-plan]').map((row) => row.text());
-		expect(ancestryNames).toEqual(['Site', 'House']);
-		expect(floors.map((f) => f.text())).not.toContain('Site');
-		expect(floors.map((f) => f.text())).not.toContain('House');
-	});
-
-	it('lists only the root plans as floors for a root plan', async () => {
-		const SITE_PARENT = { planId: 'plan-site', zoneId: 'zone-site' };
-		const site: PlanDto = { ...FIXTURE_PLAN, id: 'plan-site', name: 'Site' };
-		const otherRoot: PlanDto = { ...FIXTURE_PLAN, id: 'plan-garden', name: 'Garden' };
-		const house: PlanDto = { ...FIXTURE_PLAN, id: 'plan-house', name: 'House', parent: SITE_PARENT };
-		const harness = await mountPlanEditorCanvas({
-			queries: {
-				...fakeQueries(site),
-				listPlans: () => Promise.resolve(ok([site, otherRoot, house])),
-			},
-		});
-		await settle();
-
-		const floors = harness.wrapper.get('.rp-property-tree').findAll('.rp-property-tree__floor');
-		expect(floors.map((f) => f.text())).toEqual(['Site', 'Garden']);
-	});
-
-	/** Closes the deferred Task 4 minor: the tree draws project row, then ancestry, then floors. */
-	it('draws the project row, then ancestry rows, then the floors list, in that order', async () => {
-		const SITE_PARENT = { planId: 'plan-site', zoneId: 'zone-site' };
-		const site: PlanDto = { ...FIXTURE_PLAN, id: 'plan-site', name: 'Site' };
-		const ground: PlanDto = { ...FIXTURE_PLAN, id: 'plan-ground', name: 'Ground floor', parent: SITE_PARENT };
-		const harness = await mountPlanEditorCanvas({
-			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: () => Promise.resolve() },
-			queries: {
-				...fakeQueries(ground),
-				listPlans: () => Promise.resolve(ok([site, ground])),
-				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: site.id, name: site.name, kind: 'floor' }], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: false })),
-			},
-		});
-		await settle();
-
-		// Direct children of `.rp-property-tree` are drawn in template order: the project row,
-		// then one row per ancestor, then the floors list — reading `tree.children` pins that
-		// order without reaching for `compareDocumentPosition`.
-		const children = [...harness.wrapper.get('.rp-property-tree').element.children];
-		const projectIndex = children.findIndex((el) => el.className.includes('rp-property-tree__project'));
-		const ancestryIndex = children.findIndex((el) => el.hasAttribute('data-rp-open-plan'));
-		const floorsIndex = children.findIndex((el) => el.className.includes('rp-property-tree__floors'));
-		expect(projectIndex).toBeGreaterThanOrEqual(0);
-		expect(ancestryIndex).toBeGreaterThan(projectIndex);
-		expect(floorsIndex).toBeGreaterThan(ancestryIndex);
-	});
-
-	it('shows the missing-parent line when the hierarchy reports one, and nothing when it does not', async () => {
-		const missing = await mountPlanEditorCanvas({
-			queries: {
-				...fakeQueries(FIXTURE_PLAN),
-				hierarchy: () => Promise.resolve(ok({ ancestry: [], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: true })),
-			},
-		});
+	it('shows the missing-parent line only when the hierarchy reports one', async () => {
+		const missing = await mountPlanEditorCanvas({ queries: { ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(ok(hierarchy(TREE, true))) } });
 		await settle();
 		expect(missing.wrapper.get('.rp-property-tree').text()).toContain(t('en', 'editor.input.parent-zone-missing'));
-
-		const present = await mountPlanEditorCanvas({
-			queries: {
-				...fakeQueries(FIXTURE_PLAN),
-				hierarchy: () => Promise.resolve(ok({ ancestry: [], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: false })),
-			},
-		});
+		missing.unmount();
+		const present = await mountPlanEditorCanvas({ queries: queries() });
 		await settle();
 		expect(present.wrapper.get('.rp-property-tree').text()).not.toContain(t('en', 'editor.input.parent-zone-missing'));
+		present.unmount();
 	});
 
 	it('says the hierarchy could not be read rather than drawing a parentless plan', async () => {
@@ -232,5 +125,22 @@ describe('PropertyTree', () => {
 		});
 		await settle();
 		expect(harness.wrapper.get('.rp-property-tree').text()).toContain(t('en', 'editor.input.hierarchy-unreadable'));
+		harness.unmount();
+	});
+
+	it('draws the open plan alone when the leaf answers no hierarchy', async () => {
+		const harness = await mountPlanEditorCanvas({ queries: fakeQueries(FIXTURE_PLAN) });
+		await settle();
+		const items = harness.wrapper.findAll('[role="treeitem"]');
+		expect(items.map((item) => item.attributes('data-rp-plan-id'))).toEqual([FIXTURE_PLAN.id]);
+		expect(items[0].get('.rp-property-tree__row').attributes('aria-current')).toBe('page');
+		harness.unmount();
+	});
+
+	it('falls back to the floor label for an unnamed plan', async () => {
+		const harness = await mountPlanEditorCanvas({ queries: queries([leaf('plan-ground', '', null, 0)]) });
+		await settle();
+		expect(harness.wrapper.get('[data-rp-plan-id="plan-ground"]').text()).toContain(t('en', 'editor.floor'));
+		harness.unmount();
 	});
 });

@@ -8,28 +8,12 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import { reportDispatchFailure } from '../report-failure';
 import type { PropertyTreeNode } from '../../read-models/planHierarchy';
+// The move arithmetic lives apart from this composable, and its docblock says what that costs
+// when it does not: `tests/presentation/editor/shell/usePlanReorder.test.ts` is a node test.
+import { plannedWrites } from './planOrderWrites';
 
-export interface PlanOrderWrite { readonly planId: string; readonly order: number }
 /** Where a dragged row would land: beside `planId`, on the edge the pointer is nearer. */
 export interface DropTarget { readonly planId: string; readonly edge: 'before' | 'after' }
-
-/**
- * The writes a move needs: the siblings renumbered 0..n-1 with `id` at `index` (clamped), one
- * write per sibling whose STORED `order` differs from its new index. Compared against the stored
- * value and not the previous position, because every vault older than this build holds `order:
- * 0` on every plan — a move that skipped "unchanged positions" would leave those zeros in place
- * and the next read would sort them by name again. Pure, so the arithmetic is tested without a
- * store; an unknown id writes nothing.
- */
-export function plannedWrites(siblings: readonly PropertyTreeNode[], id: string, index: number): PlanOrderWrite[] {
-	const from = siblings.findIndex((node) => node.id === id);
-	if (from < 0) return [];
-	const to = Math.max(0, Math.min(index, siblings.length - 1));
-	const moved = [...siblings];
-	const [node] = moved.splice(from, 1);
-	moved.splice(to, 0, node);
-	return moved.flatMap((item, order) => (item.order === order ? [] : [{ planId: item.id, order }]));
-}
 
 function siblingsIn(tree: readonly PropertyTreeNode[], parentId: string | null): readonly PropertyTreeNode[] {
 	if (parentId === null) return tree;

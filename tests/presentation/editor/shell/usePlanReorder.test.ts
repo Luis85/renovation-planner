@@ -4,9 +4,12 @@
  * sibling whose POSITION changed. Every existing vault holds `order: 0` on every plan (sorted
  * by name), so a move that skipped "unchanged positions" would leave stale zeros that re-sort
  * wrongly on the next read; the two ALL_ZERO cases pin that.
+ *
+ * A NODE test, importing the pure module and never the composable: `planOrderWrites.ts`'s
+ * docblock carries what importing `usePlanReorder` from here cost the coverage gate.
  */
 import { describe, expect, it } from 'vitest';
-import { plannedWrites } from '../../../../src/presentation/editor/shell/usePlanReorder';
+import { plannedWrites } from '../../../../src/presentation/editor/shell/planOrderWrites';
 import type { PropertyTreeNode } from '../../../../src/presentation/read-models/planHierarchy';
 
 const node = (id: string, order: number): PropertyTreeNode => ({ id, name: id, kind: 'floor', order, parentId: null, children: [] });

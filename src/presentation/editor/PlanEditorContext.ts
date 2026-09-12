@@ -18,7 +18,8 @@ export interface EditorNavigation {
 
 export interface EditorViewPreferences {
 	read(): { readonly gridVisible?: boolean; readonly snappingEnabled?: boolean };
-	write(preferences: { readonly gridVisible: boolean; readonly snappingEnabled: boolean }): void;
+	/** Only the choice that changed; the store merges it into what is stored now. */
+	write(changed: { readonly gridVisible?: boolean; readonly snappingEnabled?: boolean }): void;
 }
 
 /**

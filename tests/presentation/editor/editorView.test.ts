@@ -5,8 +5,16 @@ import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { DEFAULT_VIEWPORT, screenPoint } from '../../../src/presentation/editor/viewport/Viewport';
-import { FIXTURE_ZONES } from '../../helpers/planFixtures';
-import { expectDefined } from '../../helpers/domain';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
+import { expectDefined, expectOk } from '../../helpers/domain';
+import { defer } from '../../helpers/async';
+import { ok } from '../../../src/core/result/Result';
+import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
+import { placementPoints } from '../../../src/domain/spatial/assetPlacement';
+import { shapeFromDimensions } from '../../../src/domain/asset/AssetShape';
+import type { AssetShapeAnswer } from '../../../src/presentation/read-models/assetShapes';
+import { recorder as logger } from '../../helpers/logger';
+import { editorViewPreferencesStore } from '../../../src/infrastructure/obsidian/plugin-data/editorViewPreferencesStore';
 
 const kitchen = expectDefined(FIXTURE_ZONES[0], 'fixture Kitchen');
 
@@ -68,15 +76,31 @@ describe('native View controls', () => {
 		} finally { h.unmount(); }
 	});
 
-	it('shares grid and snap choices with every plan opened afterwards', async () => {
-		let stored: { gridVisible?: boolean; snappingEnabled?: boolean } = {};
-		const viewPreferences = { read: () => stored, write: (next: typeof stored) => { stored = next; } };
-		const h = await mountPlanEditorCanvas({ viewPreferences });
+	it('waits for placed asset shapes before the opening fit, so it frames a real footprint rather than a placeholder', async () => {
+		const shapes = defer<ReadonlyMap<string, AssetShapeAnswer>>();
+		const structure = { ...EMPTY_STRUCTURE, elements: [{ id: 'placed-bench', kind: 'asset' as const, assetId: 'bench', points: placementPoints({ x: 0, y: 0 }, 0) }] };
+		const h = await mountPlanEditorCanvas({ openingFit: true, queries: { ...fakeQueries(FIXTURE_PLAN, []), findZonesByPlan: () => Promise.resolve(ok({ zones: [], unreadable: 0, structure })), assetShapes: () => shapes.promise } });
 		try {
-			await h.wrapper.get('[data-rp-view="grid"]').setValue(true);
-			await h.wrapper.get('[data-rp-view="snap"]').setValue(false);
-			expect(stored).toEqual({ gridVisible: true, snappingEnabled: false });
+			const editor = useEditorStore(h.pinia);
+			expect(editor.viewport).toEqual(DEFAULT_VIEWPORT);
+			shapes.resolve(new Map([['bench', { kind: 'placeable', name: 'Bench', shape: expectOk(shapeFromDimensions(12000, 600)), dimensions: { width: 12000, depth: 600 } }]]));
+			await settle();
+			const opened = editor.viewport;
+			expect(opened).not.toEqual(DEFAULT_VIEWPORT);
+			await h.wrapper.get('[data-rp-view="floor"]').trigger('click');
+			expect(editor.viewport).toEqual(opened);
 		} finally { h.unmount(); }
+	});
+
+	it('shares grid and snap choices with later plans, and one open leaf never restores another leaf’s older choice', async () => {
+		let stored: unknown = null;
+		const viewPreferences = editorViewPreferencesStore({ loadLocalStorage: () => stored, saveLocalStorage: (_key, data) => { stored = data; } }, 'editor-view', logger);
+		const a = await mountPlanEditorCanvas({ viewPreferences }), b = await mountPlanEditorCanvas({ viewPreferences });
+		try {
+			await a.wrapper.get('[data-rp-view="grid"]').setValue(true);
+			await b.wrapper.get('[data-rp-view="snap"]').setValue(false);
+			expect(stored).toEqual({ gridVisible: true, snappingEnabled: false });
+		} finally { a.unmount(); b.unmount(); }
 		const next = await mountPlanEditorCanvas({ viewPreferences });
 		try {
 			expect(useWorkspaceStore(next.pinia).gridVisible).toBe(true);

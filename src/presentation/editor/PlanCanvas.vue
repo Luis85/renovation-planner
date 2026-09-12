@@ -39,6 +39,7 @@ import StructureLayer from './structure/StructureLayer.vue';
 import AssetLayer from './elements/AssetLayer.vue';
 import RenovationLayer from './renovation/RenovationLayer.vue';
 import { usePlanFrame } from './viewport/usePlanFrame';
+import { useAssetShapeStore } from '../stores/AssetShapeStore';
 import { usePlanHierarchyStore } from '../stores/PlanHierarchyStore';
 import { guideFramePoints } from './hierarchy/parentZoneGuide';
 import CanvasGrid from './layers/CanvasGrid.vue';
@@ -97,9 +98,13 @@ watch([referencePoints, () => planHierarchy.hierarchy.parentZone, () => editor.s
 }, { flush: 'post' });
 const framedBounds = usePlanFrame();
 // A plan opens framed on what has been drawn in it, not at world 0,0: once, the first time the
-// stage has an area. A remount (the shell dropping the canvas below its floor width) finds the
-// stage already measured and keeps the camera the user left.
-watch(() => editor.stageSize.width > 0 && editor.stageSize.height > 0, () => {
+// stage has an area AND every placed asset's shape has been answered — before that, an asset
+// frames as its placeholder, which a larger real footprint then overflows. A remount (the shell
+// dropping the canvas below its floor width) finds both already true and keeps the user's camera.
+const assetShapes = useAssetShapeStore();
+const shapesAnswered = (): boolean => !context.queries.assetShapes
+	|| (project.structure.elements ?? []).every(element => element.kind !== 'asset' || !element.assetId || assetShapes.answerFor(element.assetId) !== null);
+watch(() => editor.stageSize.width > 0 && editor.stageSize.height > 0 && shapesAnswered(), () => {
 	const bounds = framedBounds(true, false);
 	if (bounds !== null) editor.fitTo(bounds, editor.stageSize);
 }, { once: true });

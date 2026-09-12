@@ -27,6 +27,12 @@ describe('editorViewPreferencesStore', () => {
 		(_what, stored) => expect(editorViewPreferencesStore(memory(stored), KEY, logger).read()).toEqual({}),
 	);
 
+	it('merges a write into what is stored now, so a stale writer keeps the other choice', () => {
+		const store = editorViewPreferencesStore(memory({ gridVisible: true, snappingEnabled: true }), KEY, logger);
+		store.write({ snappingEnabled: false });
+		expect(store.read()).toEqual({ gridVisible: true, snappingEnabled: false });
+	});
+
 	it('keeps a valid field beside an invalid one', () => {
 		expect(editorViewPreferencesStore(memory({ gridVisible: 1, snappingEnabled: false }), KEY, logger).read()).toEqual({ snappingEnabled: false });
 	});

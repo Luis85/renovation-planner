@@ -75,7 +75,9 @@ const dialogs = useDialogStore(), editor = useEditorStore(), workspace = useWork
 const savedView = context.viewPreferences?.read() ?? {};
 workspace.gridVisible = savedView.gridVisible ?? workspace.gridVisible;
 editor.snappingEnabled = savedView.snappingEnabled ?? editor.snappingEnabled;
-watch(() => ({ gridVisible: workspace.gridVisible, snappingEnabled: editor.snappingEnabled }), (view) => context.viewPreferences?.write(view));
+// One field per write: this leaf's snapshot of the OTHER choice may be older than another leaf's.
+watch(() => workspace.gridVisible, (gridVisible) => context.viewPreferences?.write({ gridVisible }));
+watch(() => editor.snappingEnabled, (snappingEnabled) => context.viewPreferences?.write({ snappingEnabled }));
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite } = storeToRefs(useSaveStateStore());

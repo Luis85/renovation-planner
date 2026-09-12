@@ -25,6 +25,7 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import { editWall, validSpatialPoint } from '../../../domain/spatial/structureGeometry';
 import { createWallRotationActions } from './wallRotationActions';
 import { createStructureBulkEdit, type StructureServices } from './structureBulkEdit';
+import { createWallPointAction } from './wallPointAction';
 function removalIds(id: string | readonly string[]): readonly string[] { return typeof id === 'string' ? [id] : [...new Set(id)]; }
 function removalSummary(structure: Structure, selected: readonly string[], openings: number, rooms: number): string {
 	const names = selected.map(target => {
@@ -41,6 +42,7 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	const session = useRenovationSession(), save = useSaveStateStore(), blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
 	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked });
 	const bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable, prepareBaseline, reviewedWrite });
+	const wallPoint = createWallPointAction(context, { active, unavailable, prepareBaseline, reviewedWrite });
 	let alive = true;
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
 	function matchesProjection(document: PlanGeometryDocument): boolean {
@@ -133,5 +135,5 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		const wall = project.structure.walls.find(item => item.id === id);
 		preview.value = alive && wall && end ? editWall(project.structure, { ...wall, end }) : null;
 	}
-	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, ...rotation, ...bulk };
+	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, ...rotation, ...bulk, ...wallPoint };
 }

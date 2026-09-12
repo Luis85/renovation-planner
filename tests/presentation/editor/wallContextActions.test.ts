@@ -30,7 +30,7 @@ it('adds a window and a door where a wall was right-clicked, each one undoable',
 	const rig = await setup();
 	await rightClick(rig, { x: 1000, y: 0 });
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);
-	expect(menuIds(rig).slice(0, 7)).toEqual(['edit', 'rotate', 'new-wall', 'add-door', 'add-window', 'add-opening', 'measure']);
+	expect(menuIds(rig).slice(0, 8)).toEqual(['edit', 'add-point', 'rotate', 'new-wall', 'add-door', 'add-window', 'add-opening', 'measure']);
 	await item(rig, 'add-window').trigger('click');
 	await settleUntil(() => rig.project.structure.openings.length === 1 && rig.runtime.activeToolId.value === 'select', 'window placed');
 	const pane = rig.project.structure.openings[0];

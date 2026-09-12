@@ -5715,3 +5715,58 @@ sharper than about 11° (`miterLimit` 10).
 loop with right, acute and obtuse corners, a chevron with one reversed wall, a T, an unequal L and
 a straight–arc–straight chain — and `fixture.test.ts` pins that `wallPasses` draws them as those
 runs, since a case only a unit test names is one no capture photographs.
+
+## Resizable and collapsible side panels, 2026-09-12
+
+Why: both Plan editor side panels had fixed widths, could not be put away, and had drifted from
+M00 — three stylesheet partials each overrode the last one's panel rules. The user asked for
+resizable, collapsible panels and a redesign of both.
+
+**Mechanics.** `panelLayout.ts` is pure: bounds (200–400 and 280–520 px), a parse that defaults any
+field it does not trust, and `effectivePanelWidths`, which shrinks expanded panels in proportion so
+the canvas keeps 320px without rewriting the stored widths. `WorkspaceStore.panelLayout` holds the
+per-leaf copy; `ResponsiveEditorShell` restores it from a per-device `DeviceStorage`
+(`DeviceLocalStore` over `App.loadLocalStorage`) before its first render and writes it on a
+committed change only — a key press, a drag's release, a toggle — never per pointer move.
+`EditorSidePanel` replaced `OverlayPanel`/`InspectorDrawer` and keeps M16's constrained classes
+byte-for-byte, because `responsiveShell`, `persistentRegions` and `useDimensionObstacles` name them.
+
+**Content.** One section header (`PanelSection`, host-icon chevron), one list-row selected state
+(an inset accent rule beside the fill and `aria-pressed`), sidebar padlocks shown only when locked or
+on hover/focus, and one Inspector skeleton: facts card, toolbar, action rows, feature sections, a
+Coming later line replacing seven "Not available yet" rows, and Delete at the foot with only its
+icon red.
+
+**Deviations from the spec, each for a test that pins the old shape rather than taste:** no identity
+subline for a room (its `dl` carries type, area and status, and `roomInspector.test.ts` reads status
+there); Inspector feature sections are not collapsible (a disclosure around Requirements bought
+nothing its heading does not); multiple selection keeps Clear at its foot
+(`multiSelectionInspector.test.ts` requires it to be the last button); the Room Inspector has no
+"Edit outline coordinates" row — PR #149 removed the edit-shape/edit-outline feature mid-plan, and
+the side panels spec (§3, around line 170) and plan (around line 2281) still name that row, which
+this entry records rather than rewriting either dated document; the wall/opening "More actions" and
+the sidebar's Reference options are bespoke `<details>` with the section chevron rather than
+`PanelSection` (a `PanelSection` carries `data-rp-section`, which the collapsed strip targets);
+Assign asset's select is `aria-disabled` + `aria-describedby`, not natively disabled (spec §3 wins
+over the plan's code here); in the Renovate perspective a wall with a host room still draws
+`RenovationInspector`'s room renovation block after its body, so Delete is last in the body but not
+the region (`RenovationInspector` inherits without restructuring); the rooms strip icon is
+`grid-2x-2`, not the pre-flight ruling's `grid-2x2` — Obsidian 1.13.7's actual key
+(`tests/fixtures/editor-icons/README.md`), fixed in a4556447; and the harness knob takes
+`?panels=collapsed|layers|inspector`, following the code's `PanelSide`, where the spec's §4 prose
+says `left`/`right`.
+
+**Merges, folded fixes and pre-existing observations.** Three merges of `origin/main` landed
+mid-plan at the user's request (merge commits 7a49b80c, 9bb2aed9, 70cadc62; PRs #141–#149); the
+second moved both per-device store constructions into `planEditorDeviceSlots`
+(`src/plugin/planEditorDeps.ts`) to keep `RenovationPlannerPlugin.ts` under its line cap, leaving
+two sibling device slots — `:panel-layout` for side panels, `:editor-view` from PR #145 — separate
+by design for now, a dedup candidate. The detail plan's Reference plan row showed two contradictory
+reason lines (PR #143's Set scale reason did not follow `hasGuide`), folded in and fixed here at the
+user's request in 75dc2db9. Left as pre-existing M16 behaviour rather than something this pass
+caused: at 460px the layers overlay covers the rail (the Details rail button is unreachable until
+Close panel), and the German rail label breaks "Grundstück" mid-word (`overflow-wrap: anywhere` at
+72px, unchanged since before this pass).
+
+**Not run:** `docs/tests/cases/Resize and collapse side panels.md` — whether Obsidian's own pane
+resizing and a restart behave as the jsdom rig says is outside every gate here.

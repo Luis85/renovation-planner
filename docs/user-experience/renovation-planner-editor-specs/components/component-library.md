@@ -103,11 +103,17 @@ The shell owns layout only. It must not own project hydration, geometry commands
 
 **Rule:** always pairs color with stroke pattern and plus/minus/numbered symbols.
 
-### `PanelRail` and `OverlayPanel`
+### `PanelRail` and `EditorSidePanel`
 
 **Responsibility:** Constrained-width access to Property/Layers. Only one overlay panel opens at a time.
 
 **Used by:** M16.
+
+**Amended 2026-09-12 (side panels design):** `EditorSidePanel` replaced `OverlayPanel` and
+`InspectorDrawer`. In the full layout it adds a header with a collapse button, a window-splitter
+resize handle (`PanelResizer`) and a collapsed strip (`PanelCollapsedStrip`); widths and collapsed
+state persist per device. In M16's constrained layout it is the overlay or drawer this entry
+always described. **Used by:** M00, M16.
 
 ## 5. Canvas components
 
@@ -234,6 +240,8 @@ Contains `AddMenuSearch`, `AddMenuGroup`, and `AddMenuItem`. It consumes a decla
 
 Constrained-width presentation of the same Inspector content. It must reuse content components rather than fork them.
 
+**Amended 2026-09-12:** implemented as `EditorSidePanel`'s constrained presentation; see §4.
+
 ### `TransformationSummary`
 
 **Responsibility:** Compact Existing → Work → Planned glanceable narrative.
@@ -248,6 +256,8 @@ Three primary rows:
 - What will change — Planned
 - What needs doing — Work
 
+**Amended 2026-09-12 (side panels design):** while every row is unavailable, the Inspector draws one `ComingLaterLine` naming them instead of a row each. A section that gains a query returns as a real row.
+
 ### `SemanticStateSwitch`
 
 Compact switch used inside a drilled-down entity state. It retains the selected entity and viewport.
@@ -255,6 +265,8 @@ Compact switch used inside a drilled-down entity state. It retains the selected 
 ### `LinkedContentList`
 
 Rows for Materials, Costs, Documents, Photos, and Notes with counts and navigation.
+
+**Amended 2026-09-12 (side panels design):** while every row is unavailable, the Inspector draws one `ComingLaterLine` naming them instead of a row each. A section that gains a query returns as a real row.
 
 ### Inspector content components
 

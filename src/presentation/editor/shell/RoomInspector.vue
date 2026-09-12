@@ -17,20 +17,17 @@ import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
  * homeowner-facing TYPE (ADR-0016's seven-member vocabulary, `editor.zone-type.*`) and which
  * FLOOR it is on, beside the same area figure formatted the one way `formatArea` does, and its
  * STATUS through `statusAppearance`'s caption — the one place status is read since it left the
- * canvas (canvas fidelity spec, 2026-09-10). Two
- * navigation lists follow it — `HomeownerQuestionNav` (What's here / What will change / What
- * needs doing) and `LinkedContentList` (Costs, Documents, Photos, Notes) — both driven by
- * `overview.unavailableSections`, `INSPECTOR_SECTIONS`' own closed list of what this build has
- * no query for yet. Every row in both is rendered as text with `editor.inspector.unavailable`
- * rather than as a control that would do nothing; a Feature that supplies one of these removes
- * its section from that list and gives the row a real control.
+ * canvas (canvas fidelity spec, 2026-09-10). One Coming later line follows it (`ComingLaterLine`,
+ * 2026-09-12 side panels spec), naming `overview.unavailableSections` — `INSPECTOR_SECTIONS`'
+ * closed list of what this build has no query for yet — as text rather than as a control that
+ * would do nothing.
  *
  * **`overview` is `null` rather than assumed** while the selected zone cannot yet be found in
  * `ProjectStore`'s own map, or while no plan has hydrated at all — the same "nothing to
  * summarise yet" moment `FloorInspector`'s own `summary` computed already renders nothing
- * for, met a second time here. The type/floor/area `<dl>` and both lists are skipped for
- * exactly that moment; the name (still read off `dto`, never off `overview`) and the Delete
- * button do not depend on it and stay.
+ * for, met a second time here. The type/floor/area `<dl>` and the Coming later line are
+ * skipped for exactly that moment; the name (still read off `dto`, never off `overview`) and
+ * the Delete button do not depend on it and stay.
  *
  * **The room's own name is an `<h3>`, not an `<h2>`.** The frame (`EntityInspector.vue`)
  * already owns the region's one permanent `<h2>` ("Inspector"), and this body is a SECTION
@@ -62,11 +59,10 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import { formatArea } from './formatArea';
-import { buildRoomOverview, type RoomOverviewDto } from '../../read-models/roomOverview';
+import { buildRoomOverview, type InspectorSection, type RoomOverviewDto } from '../../read-models/roomOverview';
 import { statusAppearance, type StatusAppearance } from '../layers/zone/ZoneRenderModel';
 import RequirementRow from './RequirementRow.vue';
-import HomeownerQuestionNav from './HomeownerQuestionNav.vue';
-import LinkedContentList from './LinkedContentList.vue';
+import ComingLaterLine from './ComingLaterLine.vue';
 import ZoneLockRow from './ZoneLockRow.vue';
 
 const runtime = useEditorRuntime();
@@ -168,7 +164,23 @@ const pausedAttrs = computed(() =>
 /** `RequirementRow`'s own `paused` prop, over the same computed rather than the raw ref's
  * `.value` repeated at the one call site — the same reasoning as `pausedAttrs` above. */
 const paused = computed(() => runtime.writesBlocked.value);
-const unavailableNavigation = computed(() => overview.value && !runtime.renovation.available ? overview.value : null);
+
+/**
+ * What the Coming later line names: the three homeowner questions while there is no renovation
+ * session, and the four linked sections unless connected planning supplies them — the same two
+ * conditions Task 16's two navigation lists were mounted under. Read only once
+ * `overview` exists, so a standalone mount with no `renovation` on its runtime never reaches it.
+ */
+const comingLater = computed<readonly InspectorSection[]>(() => {
+	const current = overview.value;
+	if (current === null) return [];
+	const renovation = runtime.renovation.available;
+	const wanted: readonly InspectorSection[] = [
+		...(renovation ? [] : (['existing', 'planned', 'work'] as const)),
+		...(renovation && planning ? [] : (['costs', 'documents', 'photos', 'notes'] as const)),
+	];
+	return wanted.filter((section) => current.unavailableSections.includes(section));
+});
 
 /**
  * The lock row's own version of `pausedAttrs` above: `overview` can be briefly `null` while it
@@ -266,14 +278,7 @@ const zoneLocked = computed(() => overview.value?.record.locked === true);
 			</div>
 		</section>
 
-		<HomeownerQuestionNav
-			v-if="unavailableNavigation !== null"
-			:unavailable="unavailableNavigation.unavailableSections"
-		/>
-		<LinkedContentList
-			v-if="overview !== null && (!runtime.renovation.available || !planning)"
-			:unavailable="overview.unavailableSections"
-		/>
+		<ComingLaterLine :sections="comingLater" />
 
 		<button
 			type="button"

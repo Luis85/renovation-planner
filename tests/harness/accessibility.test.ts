@@ -725,9 +725,9 @@ describe('axe against the mounted view', () => {
 
 	/**
 	 * Task 16's Room Inspector, in the `full` layout's own persistent column — the other half
-	 * of the gap that task's review deferred to this one. `.rp-question-nav` is the three
-	 * homeowner questions, each marked unavailable with NO control (`roomInspector.test.ts`'s
-	 * own "with no button and no count" case), so the absence assertion is not merely the usual
+	 * of the gap that task's review deferred to this one. `.rp-coming-later` names the
+	 * sections this build cannot show yet, with NO control (`roomInspector.test.ts`'s own
+	 * "with no control and no count" case), so the absence assertion is not merely the usual
 	 * presence check: a `<button>` appearing here would be the live-control-that-does-nothing
 	 * slice 14's amendment refuses, wired to nothing this build can act on yet.
 	 */
@@ -738,8 +738,8 @@ describe('axe against the mounted view', () => {
 			useSelectionStore().select(['zone-kitchen' as never]);
 			await settle();
 
-			expect(mounted.wrapper.find('.rp-question-nav').exists()).toBe(true);
-			expect(mounted.wrapper.find('.rp-question-nav button').exists()).toBe(false);
+			expect(mounted.wrapper.find('.rp-coming-later').exists()).toBe(true);
+			expect(mounted.wrapper.find('.rp-coming-later button').exists()).toBe(false);
 
 			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
 

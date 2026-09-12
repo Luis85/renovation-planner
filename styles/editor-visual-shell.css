@@ -152,15 +152,6 @@
 	outline-offset: -2px;
 }
 
-.renovation-plan-editor .rp-question-nav { margin-block: 16px; }
-.renovation-plan-editor .rp-question-nav__row {
-	padding: 12px 0;
-	border-bottom: 1px solid var(--background-modifier-border);
-	gap: 12px;
-}
-
-.renovation-plan-editor .rp-linked-content__row { min-height: 32px; align-items: center; gap: 12px; }
-
 @container (max-width: 899px) {
 	.renovation-plan-editor .rp-context-bar { flex-wrap: wrap; gap: 8px; padding: 8px; }
 	.renovation-plan-editor .rp-context-bar__crumbs { flex-basis: 100%; }

@@ -51,7 +51,7 @@ it('distinguishes blocked Work sources that share the same dependency explanatio
 
 it.each([false, true])('shows unavailable linked sections only without connected planning (%s)', async planning => {
 	const rig = await setup(planning); await rig.runtime.renovation.perspective('plan'); await settle();
-	expect(rig.wrapper.find('.rp-linked-content').exists()).toBe(!planning);
+	expect(rig.wrapper.find('.rp-coming-later').exists()).toBe(!planning);
 	expect(rig.wrapper.find('[data-rp-mode="costs"]').exists()).toBe(planning);
 });
 it('keeps semantic navigation available without exposing an empty planning disclosure', async () => {

@@ -5,8 +5,9 @@
  *
  * **ITS POSITION IN `index.css` IS NOT LOAD-BEARING**, unlike those two siblings: every
  * selector in this file is `.rp-editor-inspector*`, `.rp-floor-inspector*`, `.rp-room-list*`,
- * `.rp-room-inspector`, `.rp-question-nav*` or `.rp-linked-content*` (the last three Task
- * 16's), and no other partial declares a rule at equal specificity for any of them — there is
+ * `.rp-room-inspector` or `.rp-coming-later` (2026-09-12 side panels spec — it replaced Task
+ * 16's two navigation-list selectors), and no other partial declares a
+ * rule at equal specificity for any of them — there is
  * no equal-specificity pair here for source order to decide between. It is imported directly
  * after `editor-shell.css` because that is where the OTHER Plan Editor shell partials already
  * sit (`editor-status.css`, `editor-requirements.css`, `editor-cursors.css`), and grouping
@@ -233,36 +234,13 @@
 	font-size: var(--font-ui-small);
 }
 
-/*
- * The Room Inspector's two navigation lists (Task 16): `HomeownerQuestionNav` and
- * `LinkedContentList` share one shape, since every row in both is UNAVAILABLE in this
- * increment — text plus a reason, never a live control. The `--unavailable` state carries a
- * WORD ("Not available yet") beside the italic, the same "never colour alone" pairing
- * `.rp-floor-inspector__stat--unavailable` already uses for the identical reason (SDD §85).
- */
-.rp-question-nav,
-.rp-linked-content {
-	margin: 0 0 var(--size-4-3);
-	padding: 0;
-	list-style: none;
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-1);
-	font-size: var(--font-ui-small);
-}
-
-.rp-question-nav__row,
-.rp-linked-content__row {
-	display: flex;
-	justify-content: space-between;
-	gap: var(--size-4-2);
-}
-
-.rp-question-nav__state,
-.rp-linked-content__state {
+/* The Coming later line (2026-09-12 side panels spec §3): muted text, never a control. */
+.rp-coming-later {
+	margin: var(--size-4-3) 0 0;
+	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
-	font-style: italic;
 }
+
 .rp-multi-selection {
 	min-width: 0;
 	overflow-wrap: anywhere;

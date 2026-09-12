@@ -74,8 +74,8 @@ export const PlanFrontmatterSchemaV10 = PlanFrontmatterSchemaV9.extend({
 	north: z.number().int().min(0).max(359).optional().catch(undefined),
 });
 /**
- * A renovation record with no room (ADR-0029) — and, from Task 9, a subject naming a catalogue
- * material (ADR-0030). The shared `RenovationSchema` accepts both at every version, as it
+ * A renovation record with no room (ADR-0030) — and, from Task 9, a subject naming a catalogue
+ * material (ADR-0031). The shared `RenovationSchema` accepts both at every version, as it
  * accepts v5's shared links: the version exists to make an older WRITER refuse the note, not
  * to gate this reader.
  */

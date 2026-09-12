@@ -1,4 +1,4 @@
-/** How an asset draws when it is a wall's material (ADR-0030) — a closed list drawn in theme colours, never a colour. */
+/** How an asset draws when it is a wall's material (ADR-0031) — a closed list drawn in theme colours, never a colour. */
 export type PlanPattern = 'brick' | 'stone' | 'concrete' | 'timber' | 'insulation' | 'drywall' | 'glass';
 
 export const PLAN_PATTERNS: readonly PlanPattern[] = ['brick', 'stone', 'concrete', 'timber', 'insulation', 'drywall', 'glass'];

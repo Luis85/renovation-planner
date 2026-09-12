@@ -20,7 +20,7 @@ export interface RequirementSource {
 	readonly coverage: string;
 	readonly lot: string;
 	readonly minimum: string;
-	/** Marks the one entry a subject's planned material produces (ADR-0030); absent on every other requirement. */
+	/** Marks the one entry a subject's planned material produces (ADR-0031); absent on every other requirement. */
 	readonly construction?: true;
 }
 export interface QuantityGeometry {

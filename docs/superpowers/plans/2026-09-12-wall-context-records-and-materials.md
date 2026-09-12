@@ -75,7 +75,7 @@ const photo: Evidence = { id: 'photo-wall', targetId: 'wall-a', workId: work.id,
 const value: Renovation = { subjects: [subject], work: [work], decisions: [{ id: 'decision-wall', subjectId: subject.id, question: 'Lime or cement?', resolution: '', resolved: false }], depth: { ...EMPTY_DEPTH, costs: [cost], evidence: [photo] } };
 const withDepth = (patch: Partial<Evidence> | Partial<CostRecord>, kind: 'evidence' | 'costs'): Renovation => ({ ...value, depth: { ...EMPTY_DEPTH, costs: kind === 'costs' ? [{ ...cost, ...patch } as CostRecord] : [cost], evidence: kind === 'evidence' ? [{ ...photo, ...patch } as Evidence] : [photo] } });
 
-describe('renovation records without a room (ADR-0029)', () => {
+describe('renovation records without a room (ADR-0030)', () => {
 	it('names a context by its room, or by its own target when it has none', () => {
 		expect(contextOf({ roomId: room, targetId: 'wall-a' })).toBe(room);
 		expect(contextOf({ targetId: 'wall-a' })).toBe('wall-a');
@@ -121,12 +121,12 @@ Expected: FAIL — `contextOf is not a function`, and the room-less fixtures ref
 ```ts
 /** A secondary Room context of one Work/Evidence record. A secondary link always names a zone (ADR-0021). */
 export interface SpatialLink { readonly roomId: string; readonly targetId: string }
-/** A record's primary context: a Room or Area when it has one, and always its stable spatial target (ADR-0029). */
+/** A record's primary context: a Room or Area when it has one, and always its stable spatial target (ADR-0030). */
 export interface PrimaryContext { readonly roomId?: string; readonly targetId: string }
 export interface SharedSpatialContext extends PrimaryContext { readonly links?: readonly SpatialLink[] }
 export type RoomContext = Pick<SharedSpatialContext, 'roomId' | 'targetId' | 'links'>;
 
-/** A record's context: its Room, or — when it has none — its own spatial target (ADR-0029). */
+/** A record's context: its Room, or — when it has none — its own spatial target (ADR-0030). */
 export function contextOf(item: PrimaryContext): string {
 	return item.roomId ?? item.targetId;
 }
@@ -180,7 +180,7 @@ function validDecision(item: RenovationDecision, subjects: ReadonlyMap<string, R
 
 - [ ] **Step 5: `PlanningDepth.ts` and `validatePlanningDepth.ts`**
 
-In `PlanningDepth.ts`, `ContextLink.roomId: string` → `readonly roomId?: string;`, and the `pin` comment becomes `/** Fraction of Room bounding box; always null for a record with no room (ADR-0029). */`.
+In `PlanningDepth.ts`, `ContextLink.roomId: string` → `readonly roomId?: string;`, and the `pin` comment becomes `/** Fraction of Room bounding box; always null for a record with no room (ADR-0030). */`.
 
 In `validatePlanningDepth.ts` import `contextOf` and replace lines 13 and 20–21:
 
@@ -210,7 +210,7 @@ import type { PrimaryContext, SharedSpatialContext } from './SharedLinks';
 ```
 
 ```ts
-/** A room it names must be present; a record with none must target a wall, opening or element, never a zone (ADR-0029). */
+/** A room it names must be present; a record with none must target a wall, opening or element, never a zone (ADR-0030). */
 function validPrimaryRoom(item: PrimaryContext, rooms: ReadonlySet<string>): boolean {
 	return item.roomId === undefined ? !rooms.has(item.targetId) : rooms.has(item.roomId);
 }
@@ -327,8 +327,8 @@ In `planFrontmatter.ts`, after V10:
 
 ```ts
 /**
- * A renovation record with no room (ADR-0029) — and, from Task 9, a subject naming a catalogue
- * material (ADR-0030). The shared `RenovationSchema` accepts both at every version, as it
+ * A renovation record with no room (ADR-0030) — and, from Task 9, a subject naming a catalogue
+ * material (ADR-0031). The shared `RenovationSchema` accepts both at every version, as it
  * accepts v5's shared links: the version exists to make an older WRITER refuse the note, not
  * to gate this reader.
  */
@@ -349,7 +349,7 @@ function planSchemaVersion(plan: Plan): number {
 	return plan.parent ? 9 : renovationSchemaVersion(plan);
 }
 
-/** A record an older build would refuse as corrupt, so it must refuse the whole note as newer instead (ADR-0029). */
+/** A record an older build would refuse as corrupt, so it must refuse the whole note as newer instead (ADR-0030). */
 function writesPlanV11(renovation: Plan['renovation']): boolean {
 	if (!renovation) return false;
 	return [...renovation.subjects, ...renovation.work, ...renovation.decisions, ...depthRecords(renovation.depth ?? EMPTY_DEPTH)].some(item => item.roomId === undefined);
@@ -491,7 +491,7 @@ Expected: FAIL — the floor count is `0` (costs are gathered per zone only), th
 export function costRows(baseline: PlanningBaseline, contextId: string, prepared = materialRows(baseline)) {
 	return contextCosts(baseline, contextId, prepared);
 }
-/** Every cost context on the floor: each zone, and each target a room-less cost is kept on (ADR-0029). */
+/** Every cost context on the floor: each zone, and each target a room-less cost is kept on (ADR-0030). */
 export function costContexts(baseline: PlanningBaseline): readonly string[] {
 	const roomless = (baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH).costs.filter(item => item.roomId === undefined).map(item => item.targetId);
 	return [...new Set([...baseline.geometry.document.objects.map(item => item.id), ...roomless])];
@@ -587,7 +587,7 @@ In `focus`, the lines after `const target = navigationTarget(…)` become:
 `edit`'s guard becomes `if (blocked.value || dialogs.current || !editableContext(roomId)) return;`, with inside `createRenovationActions`:
 
 ```ts
-	/** Any present zone; or no room while the session target is a wall, opening or element (ADR-0029). */
+	/** Any present zone; or no room while the session target is a wall, opening or element (ADR-0030). */
 	function editableContext(roomId: string): boolean {
 		if (roomId) return project.zones.has(roomId);
 		const target = session.targetId, structure = project.structure;
@@ -1345,7 +1345,7 @@ git commit -m "editor: group creations under an Add submenu in the canvas contex
 **Interfaces:**
 - Produces:
   - `QUANTITY_RULES` includes `'wall-volume'` (after `'wall-length'`); measures `wallLength × height × thickness` mm³ in unit `m3`
-  - `RequirementSource.construction?: true` — marks THE construction entry of a subject (ADR-0030)
+  - `RequirementSource.construction?: true` — marks THE construction entry of a subject (ADR-0031)
   - `RequirementFrontmatterSchemaV5`; `requirementSchemaVersion(requirement: Requirement): 1 | 2 | 3 | 4 | 5` (takes the whole requirement, so Task 7 can read its origin)
 
 - [ ] **Step 1: Failing tests**
@@ -1391,7 +1391,7 @@ Expected: FAIL — `wall-volume` is not a rule; schema version `2`.
 export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'wall-volume', 'opening-area', 'element-length', 'object-area', 'count', 'placement-count', 'manual'] as const;
 ```
 
-Add to the interface `/** Marks the one entry a subject's planned material produces (ADR-0030); absent on every other requirement. */ readonly construction?: true;`. In `validRequirementSource` append `&& (source.construction === undefined || source.construction === true)`. In `wallMeasurement`, after the `wall-length` line:
+Add to the interface `/** Marks the one entry a subject's planned material produces (ADR-0031); absent on every other requirement. */ readonly construction?: true;`. In `validRequirementSource` append `&& (source.construction === undefined || source.construction === true)`. In `wallMeasurement`, after the `wall-length` line:
 
 ```ts
  if (source.rule === 'wall-volume') return { raw: length * wall.height * wall.thickness, unit: 'm3' };
@@ -1475,7 +1475,7 @@ import { createZoneId } from '../../../src/domain/zone/ZoneId';
 const planId = 'plan-border' as PlanId;
 const source: RequirementSource = { planId, targetId: 'wall-a', workId: '', outcomeId: '', state: 'intended', rule: 'wall-net', manual: '0', coverage: '1', lot: '', minimum: '' };
 
-describe('a requirement whose origin is a plan (ADR-0030)', () => {
+describe('a requirement whose origin is a plan (ADR-0031)', () => {
 	it('names its context by its source target and has no room', () => {
 		const requirement = makeRequirement({ projectId: makeProject().id, assetId: makeAsset().id, origin: { kind: 'plan', planId }, source });
 		expect(originRoomId(requirement.origin)).toBeUndefined();
@@ -1538,7 +1538,7 @@ import type { RequirementSource } from './RequirementSource';
 
 /**
  * Where a Requirement's figures come FROM — a reference, never a copy of geometry (SDD §3.6).
- * `plan` is a contextual material on a wall, opening or element with no room (ADR-0030): its
+ * `plan` is a contextual material on a wall, opening or element with no room (ADR-0031): its
  * source names the target, so the origin only has to name the plan.
  */
 export type RequirementOrigin =
@@ -1548,7 +1548,7 @@ export type RequirementOrigin =
 export function originRoomId(origin: RequirementOrigin): ZoneId | undefined {
 	return origin.kind === 'zone' ? origin.zoneId : undefined;
 }
-/** A requirement's context in `spatialContexts`' terms: its Room, or its source target when it has none (ADR-0029). */
+/** A requirement's context in `spatialContexts`' terms: its Room, or its source target when it has none (ADR-0030). */
 export function requirementContext(requirement: { readonly origin: RequirementOrigin; readonly source?: RequirementSource }): SpatialLink {
 	const room = originRoomId(requirement.origin), targetId = requirement.source?.targetId ?? room ?? '';
 	return { roomId: room ?? targetId, targetId };
@@ -1801,7 +1801,7 @@ Expected: FAIL — module not found; `plan-pattern` undefined.
 `PlanPattern.ts`:
 
 ```ts
-/** How an asset draws when it is a wall's material (ADR-0030) — a closed list drawn in theme colours, never a colour. */
+/** How an asset draws when it is a wall's material (ADR-0031) — a closed list drawn in theme colours, never a colour. */
 export type PlanPattern = 'brick' | 'stone' | 'concrete' | 'timber' | 'insulation' | 'drywall' | 'glass';
 
 export const PLAN_PATTERNS: readonly PlanPattern[] = ['brick', 'stone', 'concrete', 'timber', 'insulation', 'drywall', 'glass'];
@@ -1827,7 +1827,7 @@ pass `planPattern` into `new Asset`, and in `withChanges`: `planPattern: 'planPa
 `assetFrontmatter.ts`, after `height`:
 
 ```ts
-	/** Additive, like `height`: an absent or unknown value reads as a plain wall, and no schema bump is owed (ADR-0030 names the older-writer trade). */
+	/** Additive, like `height`: an absent or unknown value reads as a plain wall, and no schema bump is owed (ADR-0031 names the older-writer trade). */
 	'plan-pattern': z.custom<PlanPattern>(isPlanPattern).nullable().catch(null),
 ```
 
@@ -1919,7 +1919,7 @@ const wall: RenovationSubject = { id: 'detail-wall', targetId: 'wall-a', kind: '
 const valid = (subject: RenovationSubject) => validateRenovation({ ...EMPTY_RENOVATION, subjects: [subject] }).ok;
 const structure = { ...WALL_LOOP, openings: [{ id: 'door', kind: 'door' as const, hostId: 'wall-a', offset: 100, width: 900, height: 2000, sill: 0 }] };
 
-describe('a wall or opening material (ADR-0030)', () => {
+describe('a wall or opening material (ADR-0031)', () => {
 	it('is allowed on wall, door and window subjects only, and never empty', () => {
 		expect(valid(wall)).toBe(true);
 		expect(valid({ ...wall, kind: 'floor' })).toBe(false);
@@ -1982,7 +1982,7 @@ Expected: FAIL — modules not found; `floor` with an asset accepted.
 `Renovation.ts`: `readonly assetId?: string;` on `ExistingFacts` and `PlannedFacts`; add
 
 ```ts
-/** A catalogue material names what a wall is built of, or which product a door or window is (ADR-0030). */
+/** A catalogue material names what a wall is built of, or which product a door or window is (ADR-0031). */
 const MATERIAL_KINDS: readonly RenovationSubject['kind'][] = ['wall', 'door', 'window'];
 function validMaterials(subject: RenovationSubject): boolean {
 	const { existing, planned } = subject, named = [existing?.assetId, planned?.assetId].filter((id): id is string => id !== undefined);
@@ -2002,7 +2002,7 @@ import type { QUANTITY_RULES } from './RequirementSource';
 
 export type ConstructionTarget = 'wall' | 'opening';
 
-/** How a construction material is measured from its target, by the asset's own unit (ADR-0030); null where no rule measures that unit. */
+/** How a construction material is measured from its target, by the asset's own unit (ADR-0031); null where no rule measures that unit. */
 export function constructionRule(target: ConstructionTarget, unit: MeasurementUnit): typeof QUANTITY_RULES[number] | null {
 	if (target === 'wall') return unit === 'm2' ? 'wall-net' : unit === 'm' ? 'wall-length' : unit === 'm3' ? 'wall-volume' : null;
 	return unit === 'piece' ? 'count' : unit === 'm2' ? 'opening-area' : null;
@@ -2278,7 +2278,7 @@ async function write(rig: Rig, renovation: Renovation) {
 }
 const entries = async (rig: Rig) => expectOk(await rig.stack.requirements.listByPlanOrigin(rig.plan.id)).filter(item => item.entity.source?.construction);
 
-describe('the construction entry (ADR-0030)', () => {
+describe('the construction entry (ADR-0031)', () => {
 	it('exists only for a new wall or a planned material that differs from the existing one', () => {
 		expect(constructionAsset(wall({ change: 'modify', description: 'Rendered', assetId: 'render' }))).toBe('render');
 		expect(constructionAsset(wall({ change: 'add', description: 'New', assetId: 'render' }, null))).toBe('render');
@@ -2400,7 +2400,7 @@ import type { RenovationBaseline, RenovationInput, RenovationServices } from './
 type Step = { execute(): Promise<DispatchResult>; undo(): Promise<DispatchResult> };
 
 /**
- * A renovation write and the construction entries it implies, as ONE history entry (ADR-0030, M1).
+ * A renovation write and the construction entries it implies, as ONE history entry (ADR-0031, M1).
  * Each step is built from a fresh read, because every step's own write moves a version the next
  * step's compare-and-swap checks; a later failure undoes the earlier steps in reverse.
  */
@@ -2704,7 +2704,7 @@ export function patternTile(pattern: PlanPattern, ink: string, ground: string, d
 }
 ```
 
-`themeTokens.ts`, after `wallFill`: `/** The hatch of a wall's material pattern (ADR-0030) — ink, drawn over wallFill. */ wallPattern: '--text-muted',`.
+`themeTokens.ts`, after `wallFill`: `/** The hatch of a wall's material pattern (ADR-0031) — ink, drawn over wallFill. */ wallPattern: '--text-muted',`.
 
 - [ ] **Step 6: The pass in `StructureLayer.vue`**
 
@@ -2735,7 +2735,7 @@ Template, right after the `wall-body` `VLine`:
 		/>
 ```
 
-Add to the template comment block above the passes: "A third, per-WALL pass fills a patterned wall's body with its material's hatch (ADR-0030). Per wall rather than per run, so the mitre wedge where two differently patterned walls meet stays plain — the spec's named gap."
+Add to the template comment block above the passes: "A third, per-WALL pass fills a patterned wall's body with its material's hatch (ADR-0031). Per wall rather than per run, so the mitre wedge where two differently patterned walls meet stays plain — the spec's named gap."
 
 If Konva's pattern path throws for a missing `DOMMatrix` under jsdom, look in `tests/helpers/canvas.ts`'s `installCanvas` for where `@napi-rs/canvas` globals are installed and install its `DOMMatrix` there (that module exports one); do not stub it.
 
@@ -2784,7 +2784,7 @@ Expected: FAIL — the asset is deleted.
 
 - [ ] **Step 3: Implement**
 
-`DeleteAsset.ts`: add the dep (docblock: "Plans whose Existing/Planned facts name this asset (ADR-0030). A subject material is not a Requirement, so the resolution options do not cover it: it refuses."), include `'materialUsers'` in `ops`' `Pick`, and right after `loadAsset`:
+`DeleteAsset.ts`: add the dep (docblock: "Plans whose Existing/Planned facts name this asset (ADR-0031). A subject material is not a Requirement, so the resolution options do not cover it: it refuses."), include `'materialUsers'` in `ops`' `Pick`, and right after `loadAsset`:
 
 ```ts
 		const users = await this.ops.materialUsers?.(input.assetId);
@@ -2828,21 +2828,21 @@ git commit -m "assets: refuse deleting an asset a wall or opening is made of"
 ### Task 13: ADRs, requirement docs, manual case, visual check
 
 **Files:**
-- Create: `docs/development/adrs/0029-a-renovation-record-may-have-no-room.md`, `docs/development/adrs/0030-construction-materials-and-plan-patterns.md`, `docs/tests/cases/Record work, a photo and a material on a property-border wall.md`
+- Create: `docs/development/adrs/0030-a-renovation-record-may-have-no-room.md`, `docs/development/adrs/0031-construction-materials-and-plan-patterns.md`, `docs/tests/cases/Record work, a photo and a material on a property-border wall.md`
 - Modify: `docs/development/adrs/0020-connected-walls-and-hosted-openings.md` (line 17), `docs/development/adrs/0021-existing-planned-work-and-record-links.md` (lines 19 and 116), `docs/development/adrs/0022-material-quantities-cost-facts-and-vault-evidence.md` (after line 16), `docs/requirements/Edit a selected wall precisely.md` (line 48)
 
-- [ ] **Step 1: ADR-0029**
+- [ ] **Step 1: ADR-0030**
 
 ```markdown
 ---
-adr: 29
+adr: 30
 title: A renovation record may have no room
 status: Accepted
 date: 2026-09-12
 area: domain
 ---
 
-# ADR-0029: A renovation record may have no room
+# ADR-0030: A renovation record may have no room
 
 ## Context
 
@@ -2870,18 +2870,18 @@ renovation details at all.
 - **Store the target id in `roomId`.** A field named for rooms holding wall ids.
 ```
 
-- [ ] **Step 2: ADR-0030**
+- [ ] **Step 2: ADR-0031**
 
 ```markdown
 ---
-adr: 30
+adr: 31
 title: Construction materials, plan-origin requirements and plan patterns
 status: Accepted
 date: 2026-09-12
 area: domain
 ---
 
-# ADR-0030: Construction materials, plan-origin requirements and plan patterns
+# ADR-0031: Construction materials, plan-origin requirements and plan patterns
 
 ## Decision
 
@@ -2916,10 +2916,10 @@ ADR-0020's deferral of "wall construction text"; ADR-0022's room-only requiremen
 
 - [ ] **Step 3: Pointers back**
 
-- ADR-0021 line 19, after "one Room context,": append ` (optional since [ADR-0029](0029-a-renovation-record-may-have-no-room.md))`; line 116, after "refer to a present Room context": append ` (a secondary link still does; a primary context may be none — ADR-0029)`.
-- ADR-0020 line 17: after "wall construction text" append ` (a catalogue material since [ADR-0030](0030-construction-materials-and-plan-patterns.md))`.
-- ADR-0022 after line 16 add: `A Requirement may also originate from a plan when its wall has no room ([ADR-0030](0030-construction-materials-and-plan-patterns.md)).`
-- `Edit a selected wall precisely.md` line 48 becomes `- Changing Wall finish or renovation state here. (A wall's construction material is set from its Inspector since ADR-0030.)`
+- ADR-0021 line 19, after "one Room context,": append ` (optional since [ADR-0030](0030-a-renovation-record-may-have-no-room.md))`; line 116, after "refer to a present Room context": append ` (a secondary link still does; a primary context may be none — ADR-0030)`.
+- ADR-0020 line 17: after "wall construction text" append ` (a catalogue material since [ADR-0031](0031-construction-materials-and-plan-patterns.md))`.
+- ADR-0022 after line 16 add: `A Requirement may also originate from a plan when its wall has no room ([ADR-0031](0031-construction-materials-and-plan-patterns.md)).`
+- `Edit a selected wall precisely.md` line 48 becomes `- Changing Wall finish or renovation state here. (A wall's construction material is set from its Inspector since ADR-0031.)`
 
 - [ ] **Step 4: Manual test case**
 

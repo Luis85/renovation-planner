@@ -29,7 +29,7 @@ export function validateDepthLinks(renovation: Renovation, baseline: PlanningBas
 	const depth = renovation.depth ?? EMPTY_DEPTH;
 	const subjects = new Map(renovation.subjects.map(item => [item.id, item]));
 	const records = new Map<string, RoomContext>([...renovation.subjects, ...renovation.work, ...depth.costs].map(item => [item.id, item]));
-	// A decision has no targetId of its own; it inherits its context from its subject (ADR-0029).
+	// A decision has no targetId of its own; it inherits its context from its subject (ADR-0030).
 	for (const item of renovation.decisions) records.set(item.id, { roomId: item.roomId, targetId: subjects.get(item.subjectId)?.targetId ?? '' });
 	for (const material of baseline.materials) {
 		records.set(material.entity.id, requirementContext(material.entity));

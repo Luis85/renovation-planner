@@ -1,11 +1,11 @@
 /** A secondary Room context of one Work/Evidence record. A secondary link always names a zone (ADR-0021). */
 export interface SpatialLink { readonly roomId: string; readonly targetId: string }
-/** A record's primary context: a Room or Area when it has one, and always its stable spatial target (ADR-0029). */
+/** A record's primary context: a Room or Area when it has one, and always its stable spatial target (ADR-0030). */
 export interface PrimaryContext { readonly roomId?: string; readonly targetId: string }
 export interface SharedSpatialContext extends PrimaryContext { readonly links?: readonly SpatialLink[] }
 export type RoomContext = Pick<SharedSpatialContext, 'roomId' | 'targetId' | 'links'>;
 
-/** A record's context: its Room, or — when it has none — its own spatial target (ADR-0029). */
+/** A record's context: its Room, or — when it has none — its own spatial target (ADR-0030). */
 export function contextOf(item: PrimaryContext): string {
 	return item.roomId ?? item.targetId;
 }

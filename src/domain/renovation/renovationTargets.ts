@@ -14,7 +14,7 @@ function spatialIds(structure: Structure = EMPTY_STRUCTURE, rooms: readonly stri
 	return new Set([...rooms, ...structure.walls.map(item => item.id), ...structure.openings.map(item => item.id), ...(structure.elements ?? []).map(item => item.id)]);
 }
 
-/** A room it names must be present; a record with none must target a wall, opening or element, never a zone (ADR-0029). */
+/** A room it names must be present; a record with none must target a wall, opening or element, never a zone (ADR-0030). */
 function validPrimaryRoom(item: PrimaryContext, rooms: ReadonlySet<string>): boolean {
 	return item.roomId === undefined ? !rooms.has(item.targetId) : rooms.has(item.roomId);
 }

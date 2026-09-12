@@ -67,7 +67,7 @@ export async function readPlanning(deps: PlanningDeps, id: PlanId): Promise<Resu
 	}
 	return ok({ ...baseline.value, materials, catalogue, currency: project.value.entity.currency });
 }
-/** A room-bound material takes the zone it names; a room-less one takes the plan it is on (ADR-0030). */
+/** A room-bound material takes the zone it names; a room-less one takes the plan it is on (ADR-0031). */
 function materialOrigin(input: MaterialInput, baseline: PlanningBaseline): RequirementOrigin {
 	return input.roomId ? { kind: 'zone', zoneId: input.roomId as ZoneId } : { kind: 'plan', planId: baseline.plan.entity.id };
 }

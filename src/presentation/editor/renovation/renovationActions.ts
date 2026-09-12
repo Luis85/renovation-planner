@@ -52,7 +52,7 @@ function structureNames(structure: Structure | undefined): readonly string[] {
 /**
  * Any present zone; or no room while the session target is a wall, opening or element, in
  * either the current structure or the intended one — a planned wall not yet built has no
- * room to bound either (ADR-0029).
+ * room to bound either (ADR-0030).
  */
 function editableContext(roomId: string, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>): boolean {
 	if (roomId) return project.zones.has(roomId);

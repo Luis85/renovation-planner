@@ -15,7 +15,7 @@ const photo: Evidence = { id: 'photo-wall', targetId: 'wall-a', workId: work.id,
 const value: Renovation = { subjects: [subject], work: [work], decisions: [{ id: 'decision-wall', subjectId: subject.id, question: 'Lime or cement?', resolution: '', resolved: false }], depth: { ...EMPTY_DEPTH, costs: [cost], evidence: [photo] } };
 const withDepth = (patch: Partial<Evidence> | Partial<CostRecord>, kind: 'evidence' | 'costs'): Renovation => ({ ...value, depth: { ...EMPTY_DEPTH, costs: kind === 'costs' ? [{ ...cost, ...patch } as CostRecord] : [cost], evidence: kind === 'evidence' ? [{ ...photo, ...patch } as Evidence] : [photo] } });
 
-describe('renovation records without a room (ADR-0029)', () => {
+describe('renovation records without a room (ADR-0030)', () => {
 	it('names a context by its room, or by its own target when it has none', () => {
 		expect(contextOf({ roomId: room, targetId: 'wall-a' })).toBe(room);
 		expect(contextOf({ targetId: 'wall-a' })).toBe('wall-a');

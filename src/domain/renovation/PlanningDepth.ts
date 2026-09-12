@@ -48,7 +48,7 @@ export interface Evidence extends ContextLink {
 	readonly path: string;
 	readonly subpath: string;
 	readonly recordId: string;
-	/** Fraction of Room bounding box; always null for a record with no room (ADR-0029). */
+	/** Fraction of Room bounding box; always null for a record with no room (ADR-0030). */
 	readonly pin: { readonly x: number; readonly y: number } | null;
 }
 export interface PlanningDepth {

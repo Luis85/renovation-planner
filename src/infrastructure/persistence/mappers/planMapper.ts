@@ -15,7 +15,7 @@ function planSchemaVersion(plan: Plan): number {
 	return plan.parent ? 9 : renovationSchemaVersion(plan);
 }
 
-/** A record an older build would refuse as corrupt, so it must refuse the whole note as newer instead (ADR-0029). */
+/** A record an older build would refuse as corrupt, so it must refuse the whole note as newer instead (ADR-0030). */
 function writesPlanV11(renovation: Plan['renovation']): boolean {
 	if (!renovation) return false;
 	return [...renovation.subjects, ...renovation.work, ...renovation.decisions, ...depthRecords(renovation.depth ?? EMPTY_DEPTH)].some(item => item.roomId === undefined);

@@ -9,7 +9,7 @@ import { createZoneId } from '../../../src/domain/zone/ZoneId';
 const planId = 'plan-border' as PlanId;
 const source: RequirementSource = { planId, targetId: 'wall-a', workId: '', outcomeId: '', state: 'intended', rule: 'wall-net', manual: '0', coverage: '1', lot: '', minimum: '' };
 
-describe('a requirement whose origin is a plan (ADR-0030)', () => {
+describe('a requirement whose origin is a plan (ADR-0031)', () => {
 	it('names its context by its source target and has no room', () => {
 		const requirement = makeRequirement({ projectId: makeProject().id, assetId: makeAsset().id, origin: { kind: 'plan', planId }, source });
 		expect(originRoomId(requirement.origin)).toBeUndefined();

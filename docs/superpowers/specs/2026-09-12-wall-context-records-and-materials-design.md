@@ -252,7 +252,7 @@ note rather than stripping the material.
   (`src/domain/asset/PlanPattern.ts`, the same union/array/guard shape as `AssetCategory`).
 - Frontmatter key `plan-pattern`, `.nullable().catch(null)`, **no asset schema bump** — the additive
   precedent `height` and `background` set in `assetFrontmatter.ts`. The trade is the same one they
-  accepted: an older build that saves the asset drops the key. It is named in ADR-0030.
+  accepted: an older build that saves the asset drops the key. It is named in ADR-0031.
 - Edited in the Asset library inspector (`src/presentation/library/AssetInspectorFields.vue`,
   `definitionDraft.ts`) as a **Plan pattern** select with a **None** option.
 - Material pickers filter by category: walls list `material` and `building-element`; doors and
@@ -366,7 +366,7 @@ in this increment. Construction entries are Requirements and keep the existing r
 
 ### 6.9 ADR
 
-**ADR-0030 — Construction materials, plan-origin requirements and plan patterns.** It records the
+**ADR-0031 — Construction materials, plan-origin requirements and plan patterns.** It records the
 subject `assetId`, the construction entry and its lifecycle, M1's composite save, the `plan` origin,
 `wall-volume`, the pattern list and its no-bump trade. It amends ADR-0020's deferral of "wall
 construction text", ADR-0022's room-only requirement origin, and *Edit a selected wall precisely*'s

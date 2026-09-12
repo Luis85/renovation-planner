@@ -50,7 +50,7 @@ export const AssetFrontmatterSchemaV1 = z.object({
 	 * `Asset.create` can see that `-10` is not a height.
 	 */
 	height: z.number().nullable().catch(null),
-	/** Additive, like `height`: an absent or unknown value reads as a plain wall, and no schema bump is owed (ADR-0030 names the older-writer trade). */
+	/** Additive, like `height`: an absent or unknown value reads as a plain wall, and no schema bump is owed (ADR-0031 names the older-writer trade). */
 	'plan-pattern': z.custom<PlanPattern>(isPlanPattern).nullable().catch(null),
 	/**
 	 * The designer's spec sheet reference (Task B7) — three flat keys rather than one string,

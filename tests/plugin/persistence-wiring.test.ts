@@ -60,6 +60,7 @@ describe('persistence composition', () => {
 		// command family that silently cannot create one of the three entity kinds.
 		expect(typeof plugin.root.persistence?.createProject.execute).toBe('function');
 		expect(typeof plugin.root.persistence?.createPlan.execute).toBe('function');
+		expect(typeof plugin.root.persistence?.updatePlanDetails.execute).toBe('function');
 		expect(typeof plugin.root.persistence?.createZone.execute).toBe('function');
 
 		// Nothing scanned yet: the index is empty until layout-ready.

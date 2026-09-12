@@ -42,6 +42,7 @@ import type { AssetRepository } from '../../application/ports/AssetRepository';
 import type { Zone } from '../../domain/zone/Zone';
 import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { CreatePlanError, CreatePlanInput } from '../../application/commands/plan/CreatePlan';
+import type { UpdatePlanDetailsError, UpdatePlanDetailsInput } from '../../application/commands/plan/UpdatePlanDetails';
 import type { Plan } from '../../domain/plan/Plan';
 
 /**
@@ -85,6 +86,11 @@ export interface PlanEditorCommandServices {
 	 * and the editor test doubles omit it, and the context menu offers no detail-plan action then.
 	 */
 	readonly createPlan?: Command<CreatePlanInput, Result<{ plan: Loaded<Plan> }, CreatePlanError>>;
+	/**
+	 * A plan's kind and sibling order (ADR-0029). OPTIONAL like `createPlan`: without it the
+	 * Property tree offers no menu and no drag, and the Floor inspector's Kind select is absent.
+	 */
+	readonly updatePlanDetails?: Command<UpdatePlanDetailsInput, Result<{ plan: Loaded<Plan> }, UpdatePlanDetailsError>>;
 	readonly moveObject: Command<
 		MoveSpatialObjectInput,
 		Result<MoveSpatialObjectResult, ReferenceError | GeometryError | RepositoryError>

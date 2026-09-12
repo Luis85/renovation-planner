@@ -96,6 +96,33 @@ describe('PropertyTree reordering', () => {
 	});
 
 	/**
+	 * The restore is for focus the DOM move dropped, never for focus the user moved: a move is N
+	 * sequential writes plus a re-read, and a click elsewhere in that window is the user's.
+	 * `execute` is gated on a deferred promise so the case can move focus mid-write.
+	 */
+	it('does not pull focus back to the tree when the user moved it elsewhere during the writes', async () => {
+		const { execute, queries, commands } = rig();
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => { release = resolve; });
+		const answer = execute.getMockImplementation() as (input: UpdateInput) => Promise<UpdateResult>;
+		execute.mockImplementation(async (input) => { await gate; return answer(input); });
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		(item(harness, 'plan-attic').element as HTMLElement).focus();
+		await item(harness, 'plan-attic').trigger('keydown', { key: 'ArrowUp', altKey: true });
+		const elsewhere = document.createElement('button');
+		document.body.appendChild(elsewhere);
+		elsewhere.focus();
+		release();
+		await settle();
+		expect(execute).toHaveBeenCalledTimes(2);
+		expect(item(harness, 'plan-attic').attributes('aria-level')).toBe('2');
+		expect(document.activeElement).toBe(elsewhere);
+		elsewhere.remove();
+		harness.unmount();
+	});
+
+	/**
 	 * The checked kind has to be VISIBLE, not only announced: jsdom draws nothing, so the pin is on
 	 * the stylesheet rule keyed on the attribute the component sets — the same seam
 	 * `tests/build/prototype-styles.test.ts` reads through.

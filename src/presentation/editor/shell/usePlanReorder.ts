@@ -87,16 +87,18 @@ export function usePlanReorder() {
 	/**
 	 * A move re-reads the hierarchy, and Vue's keyed diff then MOVES the `li` in the DOM
 	 * (`insertBefore`), which drops focus from a focused row to `body`. So the row that held focus
-	 * before the writes is remembered, and once the tree has settled the MOVED row is focused again
-	 * — when focus had been on it, or was lost to `body` from any row. Scoped to that row's own
-	 * tree, since two leaves draw the same ids; with focus outside every tree, nothing is stolen.
+	 * before the writes is remembered, and once the tree has settled the MOVED row is focused —
+	 * only when focus is now on `body`/`null`, which is what the drop leaves behind. A move
+	 * is N sequential writes plus a re-read, and focus the user put anywhere else in that window
+	 * is theirs: it is never pulled back. Scoped to the remembered row's own tree, since two
+	 * leaves draw the same ids; with focus outside every tree at the start, nothing happens.
 	 */
 	async function moveTo(id: string, index: number): Promise<void> {
 		const row = document.activeElement?.closest<HTMLElement>('[role="treeitem"]') ?? null;
 		await write(plannedWrites(siblingsOf(id), id, index));
 		await nextTick();
 		const active = document.activeElement;
-		if (row && (row.dataset.rpPlanId === id || active === null || active === document.body)) {
+		if (row && (active === null || active === document.body)) {
 			row.closest('[role="tree"]')?.querySelector<HTMLElement>(`[data-rp-plan-id="${id}"]`)?.focus();
 		}
 	}

@@ -3,6 +3,7 @@ import { refuseInoperativeEvent, restoreInoperativeChoice } from '../forms/inope
 import type { PlanningDraft } from './planningDraft';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import { createEntityId } from '../../../core/identity/generateId';
+import { requirementContext } from '../../../domain/requirement/RequirementOrigin';
 import { tr } from '../../i18n/strings';
 const draft = defineModel<PlanningDraft>('draft', { required: true });
 defineProps<{ baseline: PlanningBaseline; paused: boolean }>();
@@ -31,7 +32,7 @@ function changeStage(index: number, event: Event): void {
 		name="requirement"
 		@change.capture="restoreInoperativeChoice($event, draft.requirementId)"
 	><option value="">{{ tr('planning.unassigned') }}</option><option
-		v-for="item in baseline.materials.filter(item => item.entity.origin.zoneId === draft.roomId)"
+		v-for="item in baseline.materials.filter(item => requirementContext(item.entity).roomId === (draft.roomId || draft.targetId))"
 		:key="item.entity.id"
 		:value="item.entity.id"
 	>{{ baseline.catalogue.find(asset => asset.asset.id === item.entity.assetId)?.asset.name || item.entity.id }}</option></select></label>

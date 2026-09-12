@@ -6,6 +6,7 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { tr } from '../../i18n/strings';
 import { renovationCostSummary } from './renovationCostSummary';
 import { inRenovationScope } from './renovationSummary';
+import { requirementContext } from '../../../domain/requirement/RequirementOrigin';
 import HostIcon from '../../components/HostIcon.vue';
 import { EDITOR_MODE_ICONS } from '../editorIcons';
 import type { RenovationMode } from './renovationSession';
@@ -18,7 +19,7 @@ const unavailable = computed(() => incomplete.value || !costs.value?.totals);
 const links = computed(() => {
 	const baseline = planning.baseline.value, roomId = props.roomId ?? '';
 	if (!baseline || (!roomId && !props.targetId)) return [];
-	const materials = baseline.materials.filter(({ entity }) => inRenovationScope({ roomId: entity.origin.zoneId, targetId: entity.source?.targetId ?? entity.origin.zoneId }, roomId, props.targetId));
+	const materials = baseline.materials.filter(({ entity }) => inRenovationScope(requirementContext(entity), roomId, props.targetId));
 	const evidence = baseline.plan.entity.renovation?.depth?.evidence.filter(item => inRenovationScope(item, roomId, props.targetId)) ?? [];
 	return [
 		...props.evidenceOnly ? [] : [{ mode: 'materials', count: materials.length }, { mode: 'costs', count: costs.value?.count ?? 0 }] as const,

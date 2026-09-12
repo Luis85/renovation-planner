@@ -51,4 +51,13 @@ describe('conditional element persistence versions protect older writers', () =>
 		const old = new MigrationRunner(); old.registerAll('requirement', REQUIREMENT_MIGRATIONS.filter(step => step.toVersion <= 4));
 		expect(() => old.migrateToLatest('requirement', dto, 5)).toThrow('newer than this build supports');
 	});
+	it('writes a plan origin at schema 5 and reads it back', () => {
+		const requirement = makeRequirement({ projectId: makeProject().id, assetId: makeAsset().id, origin: { kind: 'plan', planId: 'plan' as never },
+			source: { planId: 'plan', targetId: 'wall-a', workId: '', outcomeId: '', state: 'intended', rule: 'wall-net', manual: '0', coverage: '1', lot: '', minimum: '' } });
+		const dto = requirementToPersistence(requirement, 1);
+		expect(dto).toMatchObject({ 'schema-version': 5, 'origin-kind': 'plan', 'origin-plan': 'plan' });
+		expect(dto).not.toHaveProperty('origin-zone');
+		expect(expectOk(requirementFromPersistence(dto)).origin).toEqual({ kind: 'plan', planId: 'plan' });
+		expect(requirementFromPersistence({ ...dto, 'origin-plan': undefined }).ok).toBe(false);
+	});
 });

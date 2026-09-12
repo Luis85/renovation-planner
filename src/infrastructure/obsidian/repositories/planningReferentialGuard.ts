@@ -6,6 +6,7 @@ import { err, ok } from '../../../core/result/Result';
 import { depthError } from '../../../domain/renovation/validatePlanningDepth';
 import { requirementFromPersistence } from '../../persistence/mappers/requirementMapper';
 import { sourceMeasurement } from '../../../domain/requirement/RequirementSource';
+import { originRoomId } from '../../../domain/requirement/RequirementOrigin';
 import { RenovationSchema } from '../../persistence/dto/renovation';
 import { materialReferents } from '../../../application/commands/renovation/planningLinks';
 
@@ -27,8 +28,8 @@ export async function guardMaterialGeometry(deps: { vault: Vault; index: Project
 		if (!parsed.ok) return err(depthError());
 		const requirement = parsed.value, source = requirement.source;
 		if (!source || source.planId !== planId) continue;
-		const roomId = requirement.origin.zoneId;
-		if (!after.objects.some(item => item.id === roomId)) return err(depthError());
+		const roomId = originRoomId(requirement.origin);
+		if (roomId !== undefined && !after.objects.some(item => item.id === roomId)) return err(depthError());
 		if (sourceMeasurement(source, roomId, sourceDocument(before), requirement.unit, requirement.assetId).ok && !sourceMeasurement(source, roomId, sourceDocument(after), requirement.unit, requirement.assetId).ok) return err(depthError());
 	}
 	return ok(undefined);

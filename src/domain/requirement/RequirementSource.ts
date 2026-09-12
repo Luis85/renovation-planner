@@ -43,7 +43,8 @@ export function validRequirementSource(source: RequirementSource): boolean {
 		&& (!source.minimum || (!!source.lot && validDecimal(source.minimum, true)))
 		&& (source.construction === undefined || source.construction === true);
 }
-function roomMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry): Measurement | null {
+function roomMeasurement(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry): Measurement | null {
+ if (!roomId) return null;
  const room = geometry.objects.find(item => item.id === roomId);
  if (!room || source.targetId !== roomId) return null;
  if (source.rule === 'count') return { raw: 1, unit: 'piece' };
@@ -75,7 +76,7 @@ function elementMeasurement(source: RequirementSource, element: SpatialElement |
 function sourceStructure(source: RequirementSource, geometry: QuantityGeometry): Structure {
 	return (source.state === 'intended' ? geometry.intended ?? geometry.structure : geometry.structure) ?? EMPTY_STRUCTURE;
 }
-function measurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry): Measurement | null {
+function measurement(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry): Measurement | null {
  const structure = sourceStructure(source, geometry);
  const opening = structure.openings.find(item => item.id === source.targetId);
  if (opening && source.rule === 'opening-area') return { raw: opening.width * opening.height, unit: 'm2' };
@@ -83,7 +84,8 @@ function measurement(source: RequirementSource, roomId: string, geometry: Quanti
  return elementMeasurement(source, structure.elements?.find(item => item.id === source.targetId)) ?? wallMeasurement(source, structure) ?? roomMeasurement(source, roomId, geometry);
 }
 /** How many placements of `assetId` probe inside the room, in the source's state; zero is an answer, a missing room is not. */
-function placementCount(source: RequirementSource, roomId: string, geometry: QuantityGeometry, assetId: string | undefined): number | null {
+function placementCount(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry, assetId: string | undefined): number | null {
+	if (!roomId) return null;
 	const room = geometry.objects.find(item => item.id === roomId);
 	if (!room || source.targetId !== roomId || !assetId) return null;
 	const structure = sourceStructure(source, geometry);
@@ -94,12 +96,12 @@ function placementCount(source: RequirementSource, roomId: string, geometry: Qua
 	}).length;
 }
 /** The `'placement-count'` rule's whole `sourceMeasurement` result, kept out of that function's own complexity budget. */
-function placementCountMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry, unit: MeasurementUnit, assetId: string | undefined) {
+function placementCountMeasurement(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry, unit: MeasurementUnit, assetId: string | undefined) {
 	const counted = placementCount(source, roomId, geometry, assetId);
 	return counted !== null && unit === 'piece' ? ok(new Decimal(counted)) : err(sourceError());
 }
 /** Raw world measurement for the existing quantity engine; no synthetic room outline. */
-export function sourceMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry, unit: MeasurementUnit, assetId?: string) {
+export function sourceMeasurement(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry, unit: MeasurementUnit, assetId?: string) {
 	if (!validRequirementSource(source)) return err(sourceError());
 	if (source.rule === 'placement-count') return placementCountMeasurement(source, roomId, geometry, unit, assetId);
 	if (source.rule === 'manual') {

@@ -10,6 +10,7 @@ import type { RequirementSource } from '../../../domain/requirement/RequirementS
 import type { MaterialInput, PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import type { RenovationEditInput } from '../../../application/commands/renovation/RenovationCommand';
 import { planningSelectionContext } from './planningSelectionContext';
+import { originRoomId, requirementContext } from '../../../domain/requirement/RequirementOrigin';
 
 export type PlanningKind = 'material' | 'procurement' | 'cost' | 'evidence';
 export interface PlanningDraft {
@@ -20,10 +21,10 @@ export interface PlanningDraft {
 	date?: string; cancelled: boolean; path: string; subpath: string; type: Evidence['type']; phase: Evidence['phase']; pin: boolean; pinX: string; pinY: string;
 }
 function materialDraft(baseline: PlanningBaseline, roomId: string, id: string, focusedId: string, targetId: string) {
- const material = baseline.materials.find(item => item.entity.id === id && inRenovationScope({ roomId: item.entity.origin.zoneId, targetId: item.entity.source?.targetId ?? item.entity.origin.zoneId }, roomId, targetId))?.entity;
+ const material = baseline.materials.find(item => item.entity.id === id && inRenovationScope(requirementContext(item.entity), roomId, targetId))?.entity;
  const context = planningSelectionContext(baseline, roomId, focusedId, targetId);
  const source: RequirementSource = material?.source ?? { planId: baseline.plan.entity.id, targetId: context.targetId, workId: context.workId, outcomeId: context.outcomeId, state: 'current', rule: 'room-area', manual: '0', coverage: '1', lot: '', minimum: '' };
- return { source, ...materialValues(material), ...(material ? { roomId: material.origin.zoneId } : {}) };
+ return { source, ...materialValues(material), ...(material ? { roomId: originRoomId(material.origin) ?? '' } : {}) };
 }
 function materialValues(material: Requirement | undefined) {
  return { assetId: material?.assetId ?? '', requirementId: material?.id ?? '', waste: material?.wasteFactor.mul(100).toString() ?? '10', override: material?.quantity.override?.value.toString() ?? '' };
@@ -60,7 +61,7 @@ function recordDraft(cost: CostRecord | undefined, evidence: Evidence | undefine
 /** Inputs accept a decimal comma or point, with no thousands separators. */
 function decimalInput(value: string): string { return value.trim().replace(',', '.'); }
 export function materialInput(draft: PlanningDraft): MaterialInput {
-	return { id: draft.id, roomId: draft.roomId, assetId: draft.assetId, waste: new Decimal(decimalInput(draft.waste)).div(100).toString(), override: decimalInput(draft.override),
+	return { id: draft.id, ...(draft.roomId ? { roomId: draft.roomId } : {}), assetId: draft.assetId, waste: new Decimal(decimalInput(draft.waste)).div(100).toString(), override: decimalInput(draft.override),
 		source: { ...draft.source, manual: decimalInput(draft.source.manual), coverage: decimalInput(draft.source.coverage), lot: decimalInput(draft.source.lot), minimum: decimalInput(draft.source.minimum), targetId: draft.targetId, workId: draft.workId } };
 }
 function replace<T extends { id: string }>(values: readonly T[], record: T): T[] { return [...values.filter(item => item.id !== record.id), record]; }

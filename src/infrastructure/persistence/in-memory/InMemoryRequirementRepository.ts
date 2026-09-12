@@ -1,6 +1,7 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import type { AssetId } from '../../../domain/asset/AssetId';
+import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { Requirement } from '../../../domain/requirement/Requirement';
@@ -53,6 +54,12 @@ export class InMemoryRequirementRepository implements RequirementRepository {
 					.values()
 					.filter((r) => r.entity.origin.kind === 'zone' && r.entity.origin.zoneId === zoneId),
 			),
+		);
+	}
+
+	listByPlanOrigin(planId: PlanId): Promise<Result<Loaded<Requirement>[], PersistenceError>> {
+		return Promise.resolve(
+			ok(this.store.values().filter((r) => r.entity.origin.kind === 'plan' && r.entity.origin.planId === planId)),
 		);
 	}
 

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
 import { renovationEditor } from '../../helpers/renovationEditor';
-import { settle } from '../../helpers/editor';
+import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk } from '../../helpers/domain';
+import { makeAsset } from '../../helpers/entities';
 import { EMPTY_DEPTH } from '../../../src/domain/renovation/PlanningDepth';
 import type { Renovation } from '../../../src/domain/renovation/Renovation';
 import { of } from '../../../src/core/money/Money';
@@ -58,4 +59,19 @@ it('gives an Area the same renovation details a Room gets', async () => {
 	await rig.runtime.refreshProjection(); rig.selection.select([garden.id]); await settle();
 	expect(rig.session.roomId).toBe(garden.id);
 	expect(rig.wrapper.find('[data-rp-mode="existing"]').exists()).toBe(true);
+});
+
+it('adds a material to a wall that bounds no room as a plan-origin requirement', async () => {
+	const rig = await setup();
+	const asset = expectOk(await rig.stack.assets.save(makeAsset({ name: 'Render', unit: 'm2' }), 'absent')).entity;
+	rig.selection.select(['wall-a' as never]); await settle();
+	rig.runtime.renovation.focus('', 'materials'); await rig.runtime.refreshProjection(); await settle();
+	await settleUntil(() => rig.runtime.planning.baseline.value?.catalogue.some(item => item.asset.id === asset.id) === true, 'catalogue read');
+	await rig.wrapper.get('[data-rp-new-material]').trigger('click'); await settle();
+	const form = rig.wrapper.get('[data-rp-form="planning"]');
+	await form.get('select[name="asset"]').setValue(asset.id); await form.get('select[name="rule"]').setValue('wall-net');
+	await form.trigger('submit');
+	await settleUntil(async () => expectOk(await rig.stack.requirements.listByPlanOrigin(rig.plan.id)).length === 1, 'material saved');
+	const saved = expectOk(await rig.stack.requirements.listByPlanOrigin(rig.plan.id))[0].entity;
+	expect(saved.origin).toEqual({ kind: 'plan', planId: rig.plan.id }); expect(saved.source?.targetId).toBe('wall-a');
 });

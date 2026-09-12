@@ -127,6 +127,9 @@ async function onKindChange(event: Event, plan: PlanDto): Promise<void> {
 		>
 			{{ tr('editor.input.detail-plan-guide-explainer', guide) }}
 		</p>
+		<div class="rp-inspector-primary">
+			<ReferenceAction />
+		</div>
 		<div
 			v-if="reorder.available.value && project.plan"
 			class="rp-editor-requirement-assign"
@@ -148,7 +151,6 @@ async function onKindChange(event: Event, plan: PlanDto): Promise<void> {
 				</option>
 			</select>
 		</div>
-		<ReferenceAction />
 		<section
 			v-if="starting"
 			class="rp-floor-setup"

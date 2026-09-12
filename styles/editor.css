@@ -75,22 +75,6 @@
 }
 
 /*
- * A real width, not `--size-4-18`. Obsidian's `--size-4-N` scale is N × 4px, so that token
- * is 72 pixels — which clipped every layer label to "Backg", "Archit", "Constr" in the
- * first browser capture, while every jsdom test passed. jsdom lays nothing out and cannot
- * see it; `npm run harness-shot` is what did.
- */
-.rp-editor-layers {
-	flex: 0 0 auto;
-	width: 12rem;
-	min-height: 0;
-	overflow-y: auto;
-	padding: var(--size-4-2);
-	background-color: var(--background-secondary);
-	border-right: 1px solid var(--background-modifier-border);
-}
-
-/*
  * Shared by the frame's own `<h2>` ("Inspector") and the Room Inspector's `<h3>` room name
  * (Task 16 review round 1: the room name is a SECTION heading, one level under the frame's,
  * not a second `<h2>`) — every property below is set explicitly, so the rule reads the same

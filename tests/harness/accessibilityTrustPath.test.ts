@@ -104,7 +104,7 @@ describe('axe against the plan editor trust path', () => {
 	 * rather than the `full` layout's persistent column — the same door
 	 * `accessibility.test.ts`'s own "constrained Inspector drawer open and a room selected" case
 	 * uses, with `ProjectStore.stale` driven true afterward. Neither that case nor the two paused
-	 * cases above scan this combination: a paused control drawn INSIDE `InspectorDrawer`'s own
+	 * cases above scan this combination: a paused control drawn INSIDE `EditorSidePanel`'s own
 	 * `tabindex="-1"` container and close button, which is markup the `full`-layout paused case
 	 * never mounts.
 	 *

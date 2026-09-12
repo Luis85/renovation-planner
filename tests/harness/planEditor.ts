@@ -34,7 +34,9 @@ import { FakeLeaf } from '../helpers/workspace';
 // as JavaScript. `../helpers/settle` has no import beyond `Promise`/`Date`/`setTimeout`.
 import { settleUntil } from '../helpers/settle';
 import { selectMultipleOnceReady } from './multiSelectionKnob';
+import { collapsePanelsOnceReady } from './panelsKnob';
 import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
+import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps, treePlanDeps } from './detailPlanKnob';
 
 /**
@@ -409,6 +411,7 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			readBinary: () => Promise.resolve(new ArrayBuffer(0)),
 		} as unknown as BackgroundVault,
 		clipboard: createEditorClipboard(),
+		panelLayout: memoryDeviceStorage(),
 		// The page's own scheme toggle changes the body class, and the plugin's variables
 		// resolve from it — so a "theme change" here is exactly what Obsidian's `css-change`
 		// means, and the toggle drives it through this.
@@ -443,12 +446,13 @@ export interface MountedPlanEditor {
 }
 
 /**
- * The eight harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
- * `?add`, `?room=<w>x<d>`, `?stale`, `?detail`, `?locked=<id,id>`, `?detailed=<id,id>` and
- * `?tree` — for a headless capture that needs the Room Inspector, the Add menu, the room task
- * already under way, the trust path's own stale-projection warning, a fresh detail plan, a locked
- * zone, a zone with detail plans, or a three-level Property tree, with nothing to click. All
- * eight are optional and independent; nothing here refuses combining them, and `?room`
+ * The nine harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
+ * `?add`, `?room=<w>x<d>`, `?stale`, `?detail`, `?locked=<id,id>`, `?detailed=<id,id>`,
+ * `?tree` and `?panels=` — for a headless capture that needs the Room Inspector, the Add menu,
+ * the room task already under way, the trust path's own stale-projection warning, a fresh detail
+ * plan, a locked zone, a zone with detail plans, a three-level Property tree, or collapsed side
+ * panels, with nothing to click. All
+ * nine are optional and independent; nothing here refuses combining them, and `?room`
  * needs no combining with `?add`: it opens the Add menu itself on its way through, so pairing
  * the two is redundant rather than contradictory. `?stale` is the one that is not independent of
  * `?select` in EFFECT, even though both are legal on their own: see `mountPlanEditorHarness` for
@@ -492,6 +496,8 @@ export interface PlanEditorHarnessOptions {
 	 * the tree is opened too, since a hidden tree is nothing a capture can look at.
 	 */
 	readonly tree?: boolean;
+	/** `collapsed`, `layers` or `inspector`: collapses those full-layout side panels once drawn. */
+	readonly panels?: string;
 }
 
 /**
@@ -787,6 +793,7 @@ export function mountPlanEditorHarness(
 		knobs.push(guardKnob(selectZoneOnceReady(leafEl, options.select)));
 	}
 	if (options.add === true) knobs.push(guardKnob(openAddMenuOnceReady(leafEl)));
+	if (options.panels !== undefined) knobs.push(guardKnob(collapsePanelsOnceReady(leafEl, options.panels)));
 	if (options.area === true) knobs.push(guardKnob(enterAreaTaskOnceReady(leafEl)));
 	if (options.numericArea === true) knobs.push(guardKnob(enterNumericArea(leafEl)));
 	if (options.room !== undefined) knobs.push(guardKnob(enterRoomTaskOnceReady(leafEl, options.room)));

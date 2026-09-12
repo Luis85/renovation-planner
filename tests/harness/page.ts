@@ -70,7 +70,7 @@ const wantsAssetDesigner = params.get('view') === 'asset-designer';
 const wantsAssetLibrary = params.get('view') === 'asset-library';
 
 /**
- * The Plan Editor's own eight knobs:`?select=<zoneId>` selects and frames a seeded zone once
+ * The Plan Editor's own nine knobs:`?select=<zoneId>` selects and frames a seeded zone once
  * the editor is ready and `?add` opens the Add menu once it is ready (both Task 21);
  * `?room=<widthMm>x<depthMm>` (Task 14) walks Add → Room → the two length fields, so a capture
  * can show the room task with a sized rectangle under it; `?stale` (Task 14) drives the trust
@@ -78,10 +78,14 @@ const wantsAssetLibrary = params.get('view') === 'asset-library';
  * (detail-plan polish, 2026-09-11) composes the plan as a fresh detail plan with no zones and a
  * parent-zone guide; `?locked=<id,id>` answers the named seeded zones as locked (ADR-0027);
  * `?detailed=<id,id>` gives each named seeded zone a detail plan (ADR-0028); `?tree` answers a
- * four-plan property so the Property tree draws three levels (ADR-0029). All
- * eight are read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below
+ * four-plan property so the Property tree draws three levels (ADR-0029); `?panels=` (the
+ * 2026-09-12 side panels) collapses the full layout's side panels through their own header
+ * buttons once drawn — `collapsed` for both, or `layers`/`inspector` for one. All
+ * nine are read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below
  * rather than read a second time there — one parse of the URL, like every other knob on this
- * page.
+ * page. `?panels` is the one read directly in the literal below rather than through its own
+ * named const: `collapsePanelsOnceReady` takes the raw string, so there is no local transform
+ * for a const to hold.
  *
  * `parseRoomKnob` lives beside the knob it feeds rather than here, because it is the one of
  * the six with something to get wrong: `?room=big` is a URL a person can type, and a knob
@@ -220,6 +224,7 @@ if (wantsIndex) {
 		? mountPlanEditorHarness(document.body, {
 				select: selectZoneId ?? undefined,
 				add: wantsAddMenu,
+				panels: params.get('panels') ?? undefined,
 				area: params.has('area') && params.get('area') !== 'numeric',
 				numericArea: params.get('area') === 'numeric',
 				roomResize: params.get('resize') === 'room',

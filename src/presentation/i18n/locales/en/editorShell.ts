@@ -22,4 +22,12 @@ export const editorShellEn = {
 	'editor.shell.move-down': 'Move down',
 	'editor.shell.kind-menu': 'Mark as {kind}',
 	'editor.shell.row-menu': 'Options for {name}',
+	// The full layout's side panels (2026-09-12 side panels spec §1). The panel names follow
+	// `editor.property-panel` and `editor.rail.details`, so a screen reader hears one name per panel.
+	'editor.panel.collapse-layers': 'Collapse property and layers',
+	'editor.panel.expand-layers': 'Expand property and layers',
+	'editor.panel.resize-layers': 'Resize property and layers',
+	'editor.panel.collapse-inspector': 'Collapse details',
+	'editor.panel.expand-inspector': 'Expand details',
+	'editor.panel.resize-inspector': 'Resize details',
 } as const;

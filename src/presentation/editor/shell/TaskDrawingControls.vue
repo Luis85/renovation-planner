@@ -12,7 +12,7 @@ const isFreeRoom = computed(() => runtime.activeToolId.value === 'draw-polygon')
 const isOutline = computed(() => isArea.value || isFreeRoom.value);
 async function curvePrecision(event: Event): Promise<void> {
 	const root = (event.currentTarget as HTMLElement).closest('.renovation-plan-editor');
-	workspace.openOverlay('inspector'); await nextTick();
+	workspace.revealInspector(); await nextTick();
 	root?.querySelector<HTMLElement>('[data-rp-form="edit-curves"] select')?.focus();
 }
 function freeRoomName(event: Event): void {

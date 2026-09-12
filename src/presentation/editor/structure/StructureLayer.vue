@@ -10,12 +10,12 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import OpeningSymbols from './OpeningSymbols.vue';
-import { type Wall } from '../../../domain/spatial/Structure';
+import { samePoint, wallTangent, type Wall } from '../../../domain/spatial/Structure';
 import { useDrawnStructure } from './drawnStructure';
 import ElementShapes from '../elements/ElementShapes.vue';
 import { isElementTool } from '../elements/elementDraft';
 import { withElementPreviews } from '../elements/elementPreviews';
-import WallDraftOverlay from './WallDraftOverlay.vue';
+import WallDraftOverlay, { type WallCut } from './WallDraftOverlay.vue';
 import { wallPasses } from './wallPasses';
 import { useEditorStore } from '../../stores/EditorStore';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
@@ -32,6 +32,20 @@ const selected = (id: string): boolean => selection.selectedIds.some(candidate =
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
 const noDraftPoints: readonly Point[] = [];
 const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall' ? task.draft.points : noDraftPoints);
+/**
+ * Every cut the chain would make — its start and end joins and the join under the cursor — one
+ * mark per distinct point. A start or pending join names a wall of the committed floor; an end
+ * join may name a half that exists only in the drawn (pre-cut) structure, so the committed walls
+ * are searched first (a cut wall keeps its id on the half that keeps its start, at the same offsets).
+ */
+const cuts = computed<readonly WallCut[]>(() => {
+	if (runtime.activeToolId.value !== 'draw-wall') return [];
+	const hosts = [...project.structure.walls, ...structure.value.walls];
+	const marks = [task.draft.joins.start, task.draft.joins.end, task.draft.pending].filter((mark): mark is NonNullable<typeof mark> => mark !== null);
+	return marks.flatMap(mark => hosts.filter(item => item.id === mark.wallId).slice(0, 1)
+		.map(wall => ({ point: mark.point, tangent: wallTangent(wall, mark.offset), thickness: wall.thickness })))
+		.filter((cut, index, all) => all.findIndex(other => samePoint(other.point, cut.point)) === index);
+});
 function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
 const elements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind !== 'asset'), elementNames.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value));
@@ -115,6 +129,7 @@ const elementDraft = computed(() => {
 			:points="wallDraftPoints"
 			:viewport="draftViewport"
 			:cursor="runtime.activeToolId.value === 'draw-wall' ? task.draft.cursor : null"
+			:cuts="cuts"
 			:tokens="tokens"
 			:zoom="zoom"
 		/>

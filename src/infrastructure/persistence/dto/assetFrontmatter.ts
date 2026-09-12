@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { kebabEnum } from './kebab';
 import { ASSET_CATEGORIES } from '../../../domain/asset/AssetCategory';
 import { UNIT_KIND, type MeasurementUnit } from '../../../core/units/MeasurementUnit';
+import { isPlanPattern, type PlanPattern } from '../../../domain/asset/PlanPattern';
 
 export const ASSET_TYPE = 'renovation-asset';
 
@@ -49,6 +50,8 @@ export const AssetFrontmatterSchemaV1 = z.object({
 	 * `Asset.create` can see that `-10` is not a height.
 	 */
 	height: z.number().nullable().catch(null),
+	/** Additive, like `height`: an absent or unknown value reads as a plain wall, and no schema bump is owed (ADR-0030 names the older-writer trade). */
+	'plan-pattern': z.custom<PlanPattern>(isPlanPattern).nullable().catch(null),
 	/**
 	 * The designer's spec sheet reference (Task B7) — three flat keys rather than one string,
 	 * for `planFrontmatter.ts`'s reason: a bare path would silently lose which PDF page the

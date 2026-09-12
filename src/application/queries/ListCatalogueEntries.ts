@@ -2,6 +2,7 @@ import { isErr, ok, type Result } from '../../core/result/Result';
 import type { RepositoryError } from '../ports/repositoryErrors';
 import type { Asset, AssetBackgroundRef } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
+import type { PlanPattern } from '../../domain/asset/PlanPattern';
 import type { Currency } from '../../core/money/Money';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
 import type { AssetRepository } from '../ports/AssetRepository';
@@ -34,6 +35,7 @@ export interface CatalogueEntryDto {
 	height: number | null;
 	notes: string | null;
 	background: AssetBackgroundRef | null;
+	planPattern: PlanPattern | null;
 }
 
 /**
@@ -79,6 +81,7 @@ function toCatalogueEntryDto(entity: Asset, version: EntityVersion): CatalogueEn
 		height: entity.height,
 		notes: entity.notes,
 		background: entity.background,
+		planPattern: entity.planPattern,
 	};
 }
 

@@ -1,5 +1,6 @@
 import type { AssetCategory } from '../../domain/asset/AssetCategory';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
+import type { PlanPattern } from '../../domain/asset/PlanPattern';
 import type { StringKey } from '../i18n/locales/en';
 
 /**
@@ -50,6 +51,12 @@ export const MEASUREMENT_UNIT_LABELS: Record<MeasurementUnit, StringKey> = {
  * `/ Square metres` (the form label, which does not fit a 5ch column). Same `Record` shape
  * and the same compile-time completeness argument as the two tables above.
  */
+export const PLAN_PATTERN_LABELS: Record<PlanPattern, StringKey> = {
+	brick: 'view.asset-library.pattern.brick', stone: 'view.asset-library.pattern.stone', concrete: 'view.asset-library.pattern.concrete',
+	timber: 'view.asset-library.pattern.timber', insulation: 'view.asset-library.pattern.insulation', drywall: 'view.asset-library.pattern.drywall',
+	glass: 'view.asset-library.pattern.glass',
+};
+
 export const MEASUREMENT_UNIT_SYMBOLS: Record<MeasurementUnit, StringKey> = {
 	piece: 'form.new-asset.unit-symbol.piece',
 	m: 'form.new-asset.unit-symbol.m',

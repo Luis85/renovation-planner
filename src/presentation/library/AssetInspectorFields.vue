@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueEntries';
-import { ASSET_CATEGORY_LABELS, MEASUREMENT_UNIT_LABELS } from '../views/assetLabels';
+import { ASSET_CATEGORY_LABELS, MEASUREMENT_UNIT_LABELS, PLAN_PATTERN_LABELS } from '../views/assetLabels';
 import type { AssetCategory } from '../../domain/asset/AssetCategory';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
 import { ASSET_CATEGORIES } from '../../domain/asset/AssetCategory';
 import { UNIT_KIND } from '../../core/units/MeasurementUnit';
+import { PLAN_PATTERNS, isPlanPattern } from '../../domain/asset/PlanPattern';
 import FieldError from '../components/FieldError.vue';
 import { tr } from '../i18n/strings';
 import { DEFINITION_LABELS, type DefinitionDraft } from './definitionDraft';
@@ -13,7 +14,7 @@ import { useDefinitionDraft } from './useDefinitionDraft';
 
 const props = defineProps<{ entry: CatalogueEntryDto }>();
 const form = useDefinitionDraft(() => props.entry);
-const selectFields = new Set<keyof DefinitionDraft>(['category', 'unit']);
+const selectFields = new Set<keyof DefinitionDraft>(['category', 'unit', 'planPattern']);
 const fields = Object.keys(DEFINITION_LABELS) as (keyof DefinitionDraft)[];
 /**
  * The declared vocabulary, plus the baseline's OWN value when it is outside it (D04: an
@@ -23,18 +24,19 @@ const fields = Object.keys(DEFINITION_LABELS) as (keyof DefinitionDraft)[];
  * for a word this build does not declare; the parser side of that PBI is separate.
  */
 function declaredOptions(key: keyof DefinitionDraft): readonly string[] {
-	return key === 'category' ? ASSET_CATEGORIES : Object.keys(UNIT_KIND);
+	return key === 'category' ? ASSET_CATEGORIES : key === 'planPattern' ? ['', ...PLAN_PATTERNS] : Object.keys(UNIT_KIND);
 }
 function isDeclared(key: keyof DefinitionDraft, option: string): boolean {
 	return declaredOptions(key).includes(option);
 }
 function options(key: keyof DefinitionDraft): readonly string[] {
 	const declared = declaredOptions(key);
-	const own = props.entry[key === 'category' ? 'category' : 'unit'];
+	const own = key === 'planPattern' ? props.entry.planPattern ?? '' : props.entry[key === 'category' ? 'category' : 'unit'];
 	return isDeclared(key, own) ? declared : [own, ...declared];
 }
 function optionLabel(key: keyof DefinitionDraft, option: string): string {
 	if (!isDeclared(key, option)) return option;
+	if (key === 'planPattern') return tr(isPlanPattern(option) ? PLAN_PATTERN_LABELS[option] : 'view.asset-library.pattern.none');
 	return key === 'category' ? tr(ASSET_CATEGORY_LABELS[option as AssetCategory]) : tr(MEASUREMENT_UNIT_LABELS[option as MeasurementUnit]);
 }
 function fieldLabel(key: keyof DefinitionDraft): string {

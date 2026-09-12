@@ -6,6 +6,7 @@ import { UNIT_KIND, type MeasurementUnit } from '../../core/units/MeasurementUni
 import { isAssetCategory, type AssetCategory } from './AssetCategory';
 import type { AssetId } from './AssetId';
 import { assetError } from './Asset.errors';
+import { isPlanPattern, type PlanPattern } from './PlanPattern';
 
 /**
  * The file formats a designer's spec sheet may be (Task B7) — the same two the Plan Editor's
@@ -80,6 +81,7 @@ export interface CreateAssetProps extends AssetIdentity {
 	readonly height?: number | null;
 	/** The designer's spec sheet (Task B7), or `null` for an asset with none picked yet. */
 	readonly background?: AssetBackgroundRef | null;
+	readonly planPattern?: PlanPattern | null;
 }
 
 interface AssetFields extends AssetIdentity {
@@ -89,6 +91,7 @@ interface AssetFields extends AssetIdentity {
 	readonly notes: string | null;
 	readonly height: number | null;
 	readonly background: AssetBackgroundRef | null;
+	readonly planPattern: PlanPattern | null;
 }
 
 /**
@@ -156,6 +159,30 @@ function checkHeight(value: number | null): Result<number | null, ValidationErro
 }
 
 /**
+ * The ONE answer to "is this a usable plan pattern", mirroring `checkHeight`/`checkBackground`
+ * above — both for the same reason (`create` and `withChanges` agree on what is valid) and to
+ * keep `create`'s own complexity budget: a branch pulled out here does not count against it.
+ */
+function checkPlanPattern(value: PlanPattern | null): Result<PlanPattern | null, ValidationError> {
+	if (value === null) return ok(value);
+	if (!isPlanPattern(value)) {
+		return err(assetError('unknown-plan-pattern', `"${String(value)}" is not a plan pattern.`));
+	}
+	return ok(value);
+}
+
+/**
+ * `withChanges`' own complexity budget, the same reason `checkPlanPattern` exists: a field
+ * resolved here does not count against the caller's `no-restricted-syntax` complexity limit.
+ */
+function resolvedPlanPattern(
+	changes: Partial<Pick<CreateAssetProps, 'planPattern'>>,
+	current: PlanPattern | null,
+): PlanPattern | null {
+	return 'planPattern' in changes ? (changes.planPattern ?? null) : current;
+}
+
+/**
  * A reusable catalog item (PRD §8 "Asset", Epic 6) — the INPUT of the quantity/cost
  * pipeline, never itself derived data: nothing about an Asset's own fields is calculated
  * from geometry. Immutable, like every entity here; edits go through `withChanges`, which
@@ -197,6 +224,8 @@ export class Asset {
 	 * subscribes to.
 	 */
 	readonly height: number | null;
+	/** How this asset draws as a wall material; `null` draws plain. Not an input to any quantity or cost. */
+	readonly planPattern: PlanPattern | null;
 
 	private constructor(fields: AssetFields) {
 		this.id = fields.id;
@@ -210,6 +239,7 @@ export class Asset {
 		this.notes = fields.notes;
 		this.background = fields.background;
 		this.height = fields.height;
+		this.planPattern = fields.planPattern;
 	}
 
 	static create(props: CreateAssetProps): Result<Asset, ValidationError> {
@@ -235,6 +265,8 @@ export class Asset {
 		if (!heightCheck.ok) return heightCheck;
 		const backgroundCheck = checkBackground(props.background ?? null);
 		if (!backgroundCheck.ok) return backgroundCheck;
+		const planPatternCheck = checkPlanPattern(props.planPattern ?? null);
+		if (!planPatternCheck.ok) return planPatternCheck;
 		const wasteCheck = checkWasteFraction(
 			props.wasteFactorDefault ?? new Decimal(0),
 			'waste-factor-default',
@@ -255,6 +287,7 @@ export class Asset {
 				notes: props.notes ?? null,
 				height: heightCheck.value,
 				background: backgroundCheck.value,
+				planPattern: planPatternCheck.value,
 			}),
 		);
 	}
@@ -278,6 +311,7 @@ export class Asset {
 			notes: 'notes' in changes ? (changes.notes ?? null) : this.notes,
 			height: 'height' in changes ? (changes.height ?? null) : this.height,
 			background: 'background' in changes ? (changes.background ?? null) : this.background,
+			planPattern: resolvedPlanPattern(changes, this.planPattern),
 		});
 	}
 

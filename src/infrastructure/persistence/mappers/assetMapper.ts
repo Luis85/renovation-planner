@@ -29,6 +29,7 @@ export function assetToPersistence(asset: Asset, revision: number): Record<strin
 		'waste-factor-default': asset.wasteFactorDefault.toString(),
 		notes: asset.notes,
 		height: asset.height,
+		'plan-pattern': asset.planPattern,
 		'background-path': background?.path ?? null,
 		'background-kind': background?.kind ?? null,
 		'background-page': background?.page ?? null,
@@ -59,6 +60,7 @@ export function assetFromPersistence(rawFrontmatter: unknown): Result<Asset, Val
 		// `.nullable().catch(null)` has already answered for every absent and unparseable
 		// value, so a second coalesce would be a branch nothing can drive.
 		height: dto.height,
+		planPattern: dto['plan-pattern'],
 		// `background-path` and `background-kind` are nullable independently, so a hand-edited
 		// note carrying one without the other is possible; treated as "no background" rather
 		// than a partial one, since `AssetBackgroundRef` has no representation for a kind with

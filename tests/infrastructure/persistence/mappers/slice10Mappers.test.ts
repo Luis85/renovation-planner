@@ -113,4 +113,13 @@ describe('asset height persistence', () => {
 		dto['height'] = -10;
 		expect(expectErr(assetFromPersistence(dto)).code).toBe('asset.negative-height');
 	});
+
+	it('writes a plan pattern, reads a garbage one as none, and stays at schema 1', () => {
+		const dto = assetToPersistence(makeAsset({ planPattern: 'stone' }), 1);
+		expect(dto['plan-pattern']).toBe('stone'); expect(dto['schema-version']).toBe(1);
+		expect(expectOk(assetFromPersistence({ ...dto })).planPattern).toBe('stone');
+		expect(expectOk(assetFromPersistence({ ...dto, 'plan-pattern': 'marble' })).planPattern).toBeNull();
+		const { 'plan-pattern': _omitted, ...older } = dto;
+		expect(expectOk(assetFromPersistence(older)).planPattern).toBeNull();
+	});
 });

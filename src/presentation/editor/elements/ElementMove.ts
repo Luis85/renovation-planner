@@ -1,5 +1,5 @@
 import type { SpatialElement } from '../../../domain/spatial/SpatialElement';
-import { validSpatialElement } from '../../../domain/spatial/SpatialElement';
+import { acceptsElementPoints } from './elementDraft';
 import type { Point } from '../../../core/geometry/Point';
 import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent } from '../tools/editor-tool';
@@ -7,8 +7,8 @@ import type { SpatialObjectCandidate } from '../tools/select-tool';
 import { CLICK_EPSILON_PX } from '../handleMetrics';
 import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 
-/** Open polylines whose individual points drag; every other element moves only as a body. */
-export const hasPointHandles = (kind: string | undefined): boolean => kind === 'arrow' || kind === 'path' || kind === 'fence' || kind === 'measurement';
+/** Elements whose individual points drag; a stair and an asset move only as a body. */
+export const hasPointHandles = (kind: string | undefined): boolean => kind === 'arrow' || kind === 'path' || kind === 'fence' || kind === 'measurement' || kind === 'object';
 export interface ElementMoveDeps {
 	previewElement?: (id: string | null, points?: readonly Point[]) => void;
 	moveElement?: (id: string, points: readonly Point[], original: SpatialElement) => void;
@@ -40,7 +40,7 @@ export class ElementMove {
 		const gesture = this.gesture;
 		if (!gesture || event.button !== 'primary') return;
 		const points = this.points(event), moved = Math.hypot(event.worldPoint.x - gesture.start.x, event.worldPoint.y - gesture.start.y) > CLICK_EPSILON_PX * context.viewport.worldPerScreenPixel();
-		if (!moved || context.writesBlocked() || (gesture.vertexIndex !== undefined && !validSpatialElement({ ...gesture.element, points }))) { this.cancel(); return; }
+		if (!moved || context.writesBlocked() || (gesture.vertexIndex !== undefined && !acceptsElementPoints(gesture.element, points))) { this.cancel(); return; }
 		// Left previewing at the drop; `moveElement` clears it once the write has been read back.
 		this.gesture = null; this.deps.previewElement?.(gesture.element.id, points);
 		this.deps.moveElement?.(gesture.element.id, points, gesture.element);

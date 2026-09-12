@@ -2,7 +2,7 @@ import { emptyObjectRectangle, type ObjectRectangleText } from './objectRectangl
 import { reactive } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
-import type { SpatialElementKind, NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
+import type { SpatialElement, SpatialElementKind, NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 import { validSpatialElement } from '../../../domain/spatial/SpatialElement';
 import { areaOutline } from '../add/areaOutline';
 import type { ToolId } from '../tools/editor-tool';
@@ -30,8 +30,11 @@ export function discardElementGeometry(draft: ElementDraft): void {
 	const { kind, name, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
 	Object.assign(draft, createElementDraft(), { kind, name, loading, busy, conflict, error });
 }
+/** Every proposal of an element's points passes here: a valid element, and an object outline that does not cross itself. */
+export function acceptsElementPoints(element: SpatialElement, points: readonly Point[]): boolean {
+	return validSpatialElement({ ...element, points }) && (element.kind !== 'object' || areaOutline(points).ok);
+}
 export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSpatialElement | null {
 	const element = { id, kind: draft.kind, name: draft.name.trim(), points: draft.points.map(point => ({ ...point })), ...(draft.kind === 'stair' ? { stair: { ...draft.stair } } : {}) };
-	if (!element.name || !validSpatialElement(element)) return null;
-	return draft.kind === 'object' && !areaOutline(element.points).ok ? null : element;
+	return element.name && acceptsElementPoints(element, element.points) ? element : null;
 }

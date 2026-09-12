@@ -13,4 +13,13 @@ export const editorShellEn = {
 	'editor.shell.details': '{name} details',
 	'editor.shell.perspectives': 'Editor perspective',
 	'editor.shell.add-close': 'Esc to close',
+	'editor.shell.tree': 'Property tree',
+	'editor.shell.kind.site': 'Site',
+	'editor.shell.kind.building': 'Building',
+	'editor.shell.kind.floor': 'Floor',
+	'editor.shell.kind.room': 'Room',
+	'editor.shell.move-up': 'Move up',
+	'editor.shell.move-down': 'Move down',
+	'editor.shell.kind-menu': 'Mark as {kind}',
+	'editor.shell.row-menu': 'Options for {name}',
 } as const;

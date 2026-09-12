@@ -14,4 +14,13 @@ export const editorShellDe: Record<keyof typeof editorShellEn, string> = {
 	'editor.shell.details': 'Details zu {name}',
 	'editor.shell.perspectives': 'Editorperspektive',
 	'editor.shell.add-close': 'Esc zum Schließen',
+	'editor.shell.tree': 'Grundstücksbaum',
+	'editor.shell.kind.site': 'Grundstück',
+	'editor.shell.kind.building': 'Gebäude',
+	'editor.shell.kind.floor': 'Etage',
+	'editor.shell.kind.room': 'Raum',
+	'editor.shell.move-up': 'Nach oben',
+	'editor.shell.move-down': 'Nach unten',
+	'editor.shell.kind-menu': 'Als {kind} markieren',
+	'editor.shell.row-menu': 'Optionen für {name}',
 };

@@ -34,3 +34,6 @@ pinned names; whether the installed host catalogue answers them is not verified 
 `copy.svg` and `clipboard-paste.svg` (the canvas context menu's Copy and Paste) were taken from the
 same pinned revision; whether the installed host catalogue answers `clipboard-paste` is not
 verified here.
+
+`building.svg` (the Property tree's `building` plan kind) was taken from the same pinned
+revision; whether the installed host catalogue answers `building` is not verified here.

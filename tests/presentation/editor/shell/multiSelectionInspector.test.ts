@@ -140,6 +140,19 @@ describe('Editor selection across the list, canvas and Inspector', () => {
 		await settle();
 		expect(useSelectionStore().selectedIds).toEqual(['zone-kitchen', 'zone-terrace']);
 	});
+	it('keeps the "select multiple" control reachable while it is on, even once one room remains', async () => {
+		harness = await mountPlanEditorCanvas();
+		await harness.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]').setValue(true);
+		const project = useProjectStore();
+		project.zones = new Map([...project.zones].slice(0, 1));
+		await settle();
+		const mode = harness.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]');
+		expect((mode.element as HTMLInputElement).checked).toBe(true);
+		await mode.setValue(false);
+		expect(runtimeOf(harness).multiSelectionMode.value).toBe(false);
+		await settle();
+		expect(harness.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]').exists()).toBe(false);
+	});
 	it('closes Add before clearing a multi-selection', async () => {
 		harness = await mountPlanEditorCanvas();
 		useSelectionStore().select(['zone-kitchen', 'zone-terrace'] as never[]);

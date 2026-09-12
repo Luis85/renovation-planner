@@ -104,7 +104,8 @@ const entries = computed(() => {
 				:records="records"
 				:heading="tr('editor.selection.records')"
 			/>
-			<label v-if="records.length > 1">
+			<!-- Stays while ON: the mode also governs canvas clicks, so it must never be left unreachable. -->
+			<label v-if="records.length > 1 || toggleSelection">
 				<input
 					v-model="toggleSelection"
 					type="checkbox"

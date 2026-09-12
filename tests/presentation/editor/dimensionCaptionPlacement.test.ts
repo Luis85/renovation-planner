@@ -51,7 +51,7 @@ type Rectangle = { x: number; y: number; width: number; height: number };
 function assertClear(rig: Awaited<ReturnType<typeof gallery>>, dimensions: readonly Rectangle[]): void {
 	const pins = rig.stage.find<Konva.Group>('.evidence-pin').map(pin => expectDefined(pin.findOne<Konva.Shape>('.evidence-pin-target'), 'pin target').getClientRect());
 	expect(pins).toHaveLength(6);
-	const captions = rig.group.find<Konva.Text>('Text'); expect(captions).toHaveLength(2);
+	const captions = rig.group.find<Konva.Text>('Text').filter(text => text.isVisible()); expect(captions).toHaveLength(2);
 	for (const caption of captions) {
 		const box = caption.getClientRect();
 		expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(rig.stage.height());

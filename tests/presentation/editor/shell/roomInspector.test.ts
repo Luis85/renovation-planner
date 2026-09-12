@@ -214,7 +214,6 @@ function mountStandalone(dto: InspectorDto) {
 	const runtime = {
 		inspectorDto: ref(dto),
 		rotationActions: { target: computed(() => null), available: computed(() => false), blocked: computed(() => true), active: computed(() => false), rotate: () => Promise.resolve() } satisfies Pick<EditorRuntime['rotationActions'], 'target' | 'available' | 'blocked' | 'active' | 'rotate'>,
-		outlineEdit: { blocked: ref(false), editOutline: () => Promise.resolve() },
 		inspectorRequirements: ref([]),
 		assetOptions: ref([]),
 		hydrateInspector: () => Promise.resolve(),

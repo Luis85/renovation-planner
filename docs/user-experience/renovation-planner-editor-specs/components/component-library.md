@@ -204,6 +204,8 @@ Contains `AddMenuSearch`, `AddMenuGroup`, and `AddMenuItem`. It consumes a decla
 
 **Responsibility:** Short task instruction and Esc/Enter hints during a temporary creation task.
 
+**Placement (2026-09-12):** one bar for every Add item and every other temporary task, docked at the bottom of the canvas directly above `FloatingPrimaryActions` at a measured clearance — never at a per-tool position. Title and instruction lead, tool-specific controls follow, and the actions close it: Finish as the accent-filled primary call to action, then Cancel. `styles/editor-task-bar.css` is its only stylesheet.
+
 ### `CreationToolBar`
 
 **Responsibility:** Current creation type, Undo point where applicable, Finish, Cancel, and repeated-creation option where applicable.

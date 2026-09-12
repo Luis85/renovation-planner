@@ -217,6 +217,11 @@ linked plan is the first item — `detailPlanActions.ts`, `useCanvasMenuActions.
   `editor.input.detail-plan-open`) — one entry per existing detail plan of that zone, sorted by
   name, each calling `navigation.plan(id)`.
 
+(2026-09-12: a zone with detail plans also says so on the canvas, as a third caption line under
+its area — `▸ {name}` for one plan, `▸ {count} detail plans` for several. Not a hit target; it
+reads the same `PlanHierarchyStore` list as the menu, so it refreshes when the menu does —
+`ZoneLayer.vue`, `ZoneShape.vue`, `captionPlacement.ts`'s `DETAIL_CAPTION_BOTTOM`.)
+
 The detail-plan list refreshes on hydrate and after this leaf's own Create. The plan-change
 source filters `PlanCreated` by the created plan's own id, so a detail plan created from a
 different leaf of the same parent appears the next time that editor opens or retries rather than

@@ -21,19 +21,18 @@ async function applyDetail(value: Awaited<ReturnType<typeof setup>>): Promise<vo
 	await value.wrapper.get('[data-rp-form="renovation"]').trigger('submit'); await settle();
 }
 describe('selected spatial canvas actions', () => {
-	it('routes current openings and generic paths to their existing editors and hides unavailable geometry', async () => {
+	it('leaves an opening and a path with nothing floating beside them, their edits being in the context menu, and hides a wall label with its layer', async () => {
 		const value = await setup(); await value.runtime.renovation.perspective('plan');
 		const baseline = expectOk(await value.services.read(value.plan.id));
 		const structure = { ...value.project.structure, openings: [{ id: 'opening-direct', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2100, sill: 0 }] };
 		expectOk(await value.runtime.dispatcher.run(value.services.command({ planId: value.plan.id, baseline, structure, ledger: value.runtime.structureTask.ledger })));
-		value.selection.select(['opening-direct' as never]); await settle();
-		await value.wrapper.get('[data-rp-canvas-edit]').trigger('click'); await settle();
-		expect(value.wrapper.find('input[name="offset"]').exists()).toBe(true); value.dialogs.resolve('cancel'); await settle();
+		value.selection.select(['opening-direct' as never]); await settle(); expect(value.wrapper.find('.rp-direct-actions').exists()).toBe(false);
 		const read = expectOk(await value.renovation.read(value.plan.id));
 		const element = { id: 'element-direct-path', kind: 'path' as const, name: 'Garden path', points: [{ x: 500, y: 500 }, { x: 2500, y: 500 }] };
 		expectOk(await value.runtime.dispatcher.run(value.renovation.command(read, elementInput(read, element), value.runtime.structureTask.ledger)));
-		value.selection.select([element.id as never]); await settle(); await value.wrapper.get('[data-rp-canvas-edit]').trigger('click'); await settle();
-		expect(value.wrapper.find('[data-rp-form="outline-points"]').exists()).toBe(true); value.dialogs.resolve('cancel'); await settle();
+		value.selection.select([element.id as never]); await settle(); expect(value.wrapper.find('.rp-direct-actions').exists()).toBe(false);
+		value.selection.select(['wall-a' as never]); await settle(); expect(value.wrapper.find('[data-rp-wall-length]').exists()).toBe(true);
+		expect(value.wrapper.find('.rp-direct-actions__buttons').exists()).toBe(false);
 		useWorkspaceStore(value.pinia).toggleLayer('architecture'); await settle(); expect(value.wrapper.find('.rp-direct-actions').exists()).toBe(false);
 		value.selection.select(['missing-source' as never]); await settle(); expect(value.wrapper.find('.rp-direct-actions').exists()).toBe(false);
 	});
@@ -48,13 +47,12 @@ describe('selected spatial canvas actions', () => {
 		value.project.stale = true; await settle();
 		await existing.trigger('click'); expect(value.dialogs.current).toBeNull();
 		expect(value.wrapper.get('[data-rp-canvas-detail]').attributes('aria-disabled')).toBe('true');
-		value.selection.select(['wall-a' as never]); await settle(); await value.wrapper.get('[data-rp-canvas-edit]').trigger('click');
-		expect(value.dialogs.current).toBeNull(); expect(value.wrapper.get('[data-rp-canvas-edit]').attributes('aria-disabled')).toBe('true');
+		value.selection.select(['wall-a' as never]); await settle(); await value.wrapper.get('[data-rp-wall-length]').trigger('click');
+		expect(value.dialogs.current).toBeNull(); expect(value.wrapper.get('[data-rp-wall-length]').attributes('aria-disabled')).toBe('true');
 	});
 	it('offers a Room only Add detail, whose eight routes open without changing selection', async () => {
 		const value = await setup(), bytes = [...value.stack.vault.entries];
 		expect(value.wrapper.find('[data-rp-canvas-change]').exists()).toBe(false);
-		expect(value.wrapper.find('[data-rp-canvas-edit]').exists()).toBe(false);
 		for (const mode of ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes']) {
 			await detail(value, mode);
 			expect(value.dialogs.current?.kind).toBe('form'); expect(value.selection.selectedIds).toEqual([value.room.id]);

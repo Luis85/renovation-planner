@@ -29,8 +29,6 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...stairsArrowsDe,
 	...inputDe,
 	...creationDe,
-	'editor.direct.edit-shape': 'Form bearbeiten',
-	'editor.direct.edit-length': 'Länge bearbeiten',
 	'editor.direct.mark-change': 'Änderung markieren',
 	'editor.direct.add-detail': 'Detail hinzufügen',
 	'editor.direct.length-value': 'Wandlänge bearbeiten, {value} m',

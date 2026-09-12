@@ -182,5 +182,5 @@ Nothing cuts until the write succeeds. Cancelling the tool cuts nothing. One his
 - `tests/presentation/editor/structure/StructureTool.test.ts`: start by click, end by click with
   `finish` called once, a refused end not finishing, `pending` cleared by an endpoint snap.
 - Form and overlay cases: the status line text per state; a `wall-draft-cut` line per cut.
-- `drawnStructure`: the preview's host is two walls while an end join is pending.
+- `drawnStructure`: the preview's host is two walls while a start or end join is recorded.
 - The mark's look is checked by drawing in the browser harness at `?view=plan-editor&reference` (Task 9 of the plan); no fixed headless shot, since neither harness fixture seeds walls AND structure services together.

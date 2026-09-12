@@ -14,7 +14,7 @@ import { formatMetres, parseCoordinateMetres, parseMetres } from '../shell/forma
 export type StructureToolId = 'draw-wall' | 'place-door' | 'place-window' | 'place-opening';
 export const isStructureTool = (id: string | null): id is StructureToolId => id === 'draw-wall' || id === 'place-door' || id === 'place-window' || id === 'place-opening';
 /** A wall the chain starts or ends in the middle of, cut at `point` when the walls are saved. */
-export interface WallSplit { readonly wallId: string; readonly offset: number; readonly id: string; readonly point: Point }
+interface WallSplit { readonly wallId: string; readonly offset: number; readonly id: string; readonly point: Point }
 export function createStructureDraft() {
 	const swing: OpeningSwingDraft = { hinge: 'start', side: 'left', angle: '90' };
 	return reactive({ kind: 'draw-wall', points: [] as Point[], cursor: null as Point | null, snapped: false,
@@ -96,14 +96,17 @@ export const wallStartRefused = (existing: Structure, wallId: string, point: Poi
 export function startFromWall(draft: StructureDraft, existing: Structure, wallId: string, point: Point, tolerance: number): boolean {
 	const start = wallStart(existing, wallId, point, tolerance);
 	if (!start.ok) { draft.error = start.error; return false; }
+	const previous = draft.joins.start;
 	draft.joins.start = start.value.split;
-	return addWallPoint(draft, start.value.point, existing);
+	if (addWallPoint(draft, start.value.point, existing)) return true;
+	draft.joins.start = previous;
+	return false;
 }
 
 /**
  * Ends the chain on a wall body at `join`, cutting the host there when the chain is saved. `join`
  * was resolved against the UNCUT floor (what the canvas shows), so it is re-found on the floor
- * with the start cut applied: the wall under `join.point` there is the half it falls on. A point
+ * with the draft's recorded cuts applied: the wall under `join.point` there is the half it falls on. A point
  * that turns out to be a wall end is a plain point and records no cut.
  */
 export function endOnWall(draft: StructureDraft, existing: Structure, join: WallJoin): boolean {

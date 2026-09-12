@@ -129,6 +129,17 @@ describe('wall task geometry and lifecycle', () => {
 		const missing = createStructureDraft();
 		expect(startFromWall(missing, existing, 'wall-gone', { x: 0, y: 0 }, 8)).toBe(false); expect(missing.error?.code).toBe('spatial.host-missing');
 	});
+	it('leaves the start join as it was when a good cut\'s point is refused', () => {
+		const draft = createStructureDraft(); draft.text.thickness = 'x';
+		expect(startFromWall(draft, WALL_LOOP, 'wall-a', { x: 2000, y: 0 }, 8)).toBe(false);
+		expect(draft.error?.code).toBe('spatial.wall-dimensions'); expect(draft.joins.start).toBeNull(); expect(draft.points).toEqual([]);
+	});
+	it('refuses the next point when the floor no longer accepts the recorded start cut', () => {
+		const draft = createStructureDraft();
+		expect(startFromWall(draft, WALL_LOOP, 'wall-a', { x: 2000, y: 0 }, 8)).toBe(true);
+		expect(addWallPoint(draft, { x: 2000, y: 1500 }, LATE_DOOR)).toBe(false);
+		expect(draft.error?.code).toBe('spatial.opening-split'); expect(draft.points).toHaveLength(1);
+	});
 	it('ends a chain on a wall body by cutting it there, and drops the cut with the point', () => {
 		const draft = createStructureDraft();
 		expect(addWallPoint(draft, { x: 2000, y: 1500 }, WALL_LOOP)).toBe(true);

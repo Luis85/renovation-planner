@@ -68,7 +68,7 @@ describe('guideFramePoints', () => {
 	});
 });
 
-const FROM_SITE = { ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan' }], parentZone: HOUSE };
+const FROM_SITE = { ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan', kind: 'floor' as const }], parentZone: HOUSE };
 
 describe('guideSource', () => {
 	it('names the parent zone and the plan it sits on, and nothing without both', () => {

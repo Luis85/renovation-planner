@@ -27,7 +27,7 @@ afterEach(() => {
 
 const HOUSE = { name: 'House', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }] };
 /** A detail plan's fixture: a parent zone with an ancestry one plan deep, so `guideSource` has both name and plan. */
-const detail = (parentZone: typeof HOUSE | null) => ({ zones: [], queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok({ ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan' }], parentZone })) } });
+const detail = (parentZone: typeof HOUSE | null) => ({ zones: [], queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok({ ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan', kind: 'floor' as const }], parentZone })) } });
 
 describe('the floor state', () => {
 	it('with nothing selected shows the floor summary: counts available, unbuilt aggregates unavailable, never zero', async () => {

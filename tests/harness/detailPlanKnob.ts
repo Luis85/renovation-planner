@@ -23,7 +23,7 @@ export function detailPlanDeps(base: PlanEditorDeps): PlanEditorDeps {
 		queries: {
 			...base.queries,
 			findZonesByPlan: () => Promise.resolve(ok({ zones: [], unreadable: 0, structure: EMPTY_STRUCTURE })),
-			hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'harness-site', name: 'Site plan' }], detailPlans: [], parentZone: HARNESS_PARENT_ZONE, parentZoneMissing: false })),
+			hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'harness-site', name: 'Site plan', kind: 'floor' }], detailPlans: [], tree: [], parentZone: HARNESS_PARENT_ZONE, parentZoneMissing: false })),
 		},
 	};
 }

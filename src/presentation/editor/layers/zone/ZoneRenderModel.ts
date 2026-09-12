@@ -1,4 +1,5 @@
 import type { Point } from '../../../../core/geometry/Point';
+import type { Vector } from '../../../../core/geometry/Vector';
 import type { ZoneDto } from '../../../read-models/PlanDto';
 import type { StringKey } from '../../../i18n/locales/en';
 import type { ThemeTokenName } from '../../theme/themeTokens';
@@ -31,6 +32,8 @@ export interface ZoneRenderModel {
 	readonly bulges?: readonly number[];
 	/** Drawn dimmed while locked; see `ZoneShape`. */
 	readonly locked?: true;
+	/** A dragged caption's offset from its automatic anchor (ADR-0029). */
+	readonly labelOffset?: Vector;
 }
 
 export function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel {
@@ -47,6 +50,7 @@ export function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel {
 		points: zone.points,
 		bulges: zone.bulges,
 		...(zone.locked ? { locked: true as const } : {}),
+		...(zone.labelOffset ? { labelOffset: zone.labelOffset } : {}),
 	};
 }
 

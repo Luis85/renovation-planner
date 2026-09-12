@@ -89,6 +89,8 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 			objects: previous.objects.map((object) => ({
 				...object,
 				points: scaleShape({ points: object.points }, scaleCorrection, origin).points,
+				// A caption follows its room: the offset is world millimetres, so it rescales with the points.
+				...(object.labelOffset ? { labelOffset: { dx: object.labelOffset.dx * scaleCorrection, dy: object.labelOffset.dy * scaleCorrection } } : {}),
 			})),
 		};
 		// The ratio passing finite does not mean the PRODUCT did: a legal-looking input

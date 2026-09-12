@@ -28,3 +28,11 @@ describe('the lock reaches every read model, and only while locked', () => {
 		expect('locked' in toSpatialRecordDto(toZoneDto(zone))).toBe(false);
 	});
 });
+
+describe('a moved caption reaches the zone read model', () => {
+	it('is absent until moved, then carried by toZoneDto', () => {
+		const zone = makeZone({ projectId: createProjectId(), planId: createPlanId() });
+		expect('labelOffset' in toZoneDto(zone)).toBe(false);
+		expect(toZoneDto(zone.withLabelOffset({ dx: 1, dy: 2 })).labelOffset).toEqual({ dx: 1, dy: 2 });
+	});
+});

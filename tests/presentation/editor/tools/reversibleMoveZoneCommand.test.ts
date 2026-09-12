@@ -174,3 +174,27 @@ describe('ReversibleMoveZoneCommand', () => {
 		expect(ledger.lastWritten(zone.id)).toBeNull();
 	});
 });
+
+describe('ReversibleMoveZoneCommand caption drag', () => {
+	it('moves only the caption, and undo puts the automatic caption back with the geometry untouched', async () => {
+		const { zones, ledger, history, move } = wired();
+		const zone = await seed(zones);
+		const drag = new ReversibleMoveZoneCommand(move, ledger, zone.id, { ...zone.geometry, labelOffset: { dx: 300, dy: -50 } }, { ...zone.geometry, labelOffset: zone.labelOffset });
+		expectOk(await history.run(drag));
+		const after = expectOk(await zones.getById(zone.id))?.entity;
+		expect(after?.labelOffset).toEqual({ dx: 300, dy: -50 });
+		expect(after?.geometry).toEqual(zone.geometry);
+		expectOk(await history.undo());
+		const undone = expectOk(await zones.getById(zone.id))?.entity;
+		expect(undone?.labelOffset).toBeNull();
+		expect(undone?.geometry).toEqual(zone.geometry);
+	});
+
+	it('leaves a saved caption offset alone when a plain move carries none', async () => {
+		const { zones, ledger, history, move } = wired();
+		const labelled = makeZone({ projectId: 'project-seed' as ProjectId, planId: 'plan-seed' as PlanId, geometry: squareAt(0, 0), labelOffset: { dx: 1, dy: 2 } });
+		await zones.save(labelled, 'absent');
+		expectOk(await history.run(new ReversibleMoveZoneCommand(move, ledger, labelled.id, squareAt(10, 10), squareAt(0, 0))));
+		expect(expectOk(await zones.getById(labelled.id))?.entity.labelOffset).toEqual({ dx: 1, dy: 2 });
+	});
+});

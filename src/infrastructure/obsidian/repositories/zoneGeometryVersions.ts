@@ -2,6 +2,7 @@ import type { ZoneGeometryVersions } from '../../../application/ports/ZoneReposi
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
+import type { Vector } from '../../../core/geometry/Vector';
 import { err, ok, type Result } from '../../../core/result/Result';
 import { zoneFromPersistence, zoneToGeometryEntry } from '../../persistence/mappers/zoneMapper';
 import type { NoteVaultDeps } from './NoteVaultDeps';
@@ -9,11 +10,11 @@ import { openNoteById, persistenceError } from './noteIo';
 import { zoneVersion } from './zoneVersion';
 
 /** No post-write read can accidentally adopt a peer's version as this editor's receipt. */
-export function prepareZoneGeometryVersions(deps: NoteVaultDeps, id: ZoneId, geometry: CurvedPolygon): Result<ZoneGeometryVersions | null, RepositoryError> {
+export function prepareZoneGeometryVersions(deps: NoteVaultDeps, id: ZoneId, geometry: CurvedPolygon & { readonly labelOffset?: Vector }): Result<ZoneGeometryVersions | null, RepositoryError> {
 	const opened = openNoteById(deps, 'zone', id);
 	if (opened.status === 'missing') return ok(null);
 	if (opened.status === 'error') return err(opened.error);
-	const entry = { id, type: 'polygon' as const, points: geometry.points.map(point => [point.x, point.y] as [number, number]), ...(geometry.bulges ? { bulges: [...geometry.bulges] } : {}) };
+	const entry = { id, type: 'polygon' as const, points: geometry.points.map(point => [point.x, point.y] as [number, number]), ...(geometry.bulges ? { bulges: [...geometry.bulges] } : {}), ...(geometry.labelOffset ? { labelOffset: { ...geometry.labelOffset } } : {}) };
 	const entity = zoneFromPersistence(opened.migrated, entry);
 	if (!entity.ok) return err(persistenceError('zone.entity-invalid', entity.error.message));
 	const raw = structuredClone(opened.raw);

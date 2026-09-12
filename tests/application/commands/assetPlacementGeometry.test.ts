@@ -28,5 +28,5 @@ it('writes the lowest schema that holds the content once the last asset is gone'
 	const baseline = expectOk(await rig.geometry.read(rig.plan.id));
 	expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.document, structure: { ...WALL_LOOP, elements: [cabinet] } }, baseline.version));
 	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(4);
-	expect(PLAN_GEOMETRY_MIGRATIONS.at(-1)?.migrate({ schemaVersion: 8, revision: 2 })).toEqual({ schemaVersion: 9, revision: 2 });
+	expect(PLAN_GEOMETRY_MIGRATIONS.find(step => step.toVersion === 9)?.migrate({ schemaVersion: 8, revision: 2 })).toEqual({ schemaVersion: 9, revision: 2 });
 });

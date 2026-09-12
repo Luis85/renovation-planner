@@ -13,7 +13,8 @@ import type { Vector } from '../../../core/geometry/Vector';
 import { selectSpatial } from '../selection/selectSpatial';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
-import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX } from '../handleMetrics';
+import { LabelMove, type LabelMoveDeps } from '../labels/LabelMove';
+import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX, LABEL_GRAB_PADDING_PX } from '../handleMetrics';
 import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
@@ -41,7 +42,7 @@ export interface SpatialObjectCandidate {
  * like every adapter in this slice, one instance carries one transaction's forward/inverse
  * pair.
  */
-export interface SelectToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions {
+export interface SelectToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly spatialObjects: () => readonly SpatialObjectCandidate[];
@@ -123,7 +124,8 @@ export class SelectTool implements EditorTool {
 
 	private readonly elementMove: ElementMove;
 	private readonly elementRotation: ElementRotation;
-	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); this.elementRotation = new ElementRotation(deps); }
+	private readonly labelMove: LabelMove;
+	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); this.elementRotation = new ElementRotation(deps); this.labelMove = new LabelMove(deps); }
 
 	activate(context: EditorContext): void {
 		this.context = context;
@@ -165,6 +167,7 @@ export class SelectTool implements EditorTool {
 			return;
 		}
 		if (target.kind === 'rotation') { this.startRotation(context, event, target.id, rotationControl); return; }
+		if (target.kind === 'label') { this.labelMove.start(context, event, target.id); return; }
 		// `resolveSelectionTarget` was handed this same `candidates` array, and every non-rotation
 		// id it answers comes out of it: `handleAt` and `badgeAt` find the id there first, and
 		// `bodyAt` iterates it. A rotation target has already returned above.
@@ -245,6 +248,7 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		if (context === null) return;
 		if (this.deps.selectionMove?.active) { this.deps.selectionMove.move(event); return; }
+		if (this.labelMove.move(event)) return;
 		if (this.marquee.active) { this.marquee.move(context, event); return; }
 		if (this.elementRotation.active) { this.elementRotation.move(context, event); return; }
 		if (this.elementMove.active) { this.elementMove.move(event); return; }
@@ -293,6 +297,7 @@ export class SelectTool implements EditorTool {
 	}
 	pointerUp(event: EditorPointerEvent): void {
 		if (this.finishSelectionGesture(event)) return;
+		if (this.labelMove.finish(event)) return;
 		if (this.elementRotation.active && this.context) { this.elementRotation.finish(this.context, event); return; }
 		if (this.elementMove.active && this.context) { this.elementMove.finish(this.context, event); return; }
 		if (this.finishWallGesture(event)) return;
@@ -347,7 +352,7 @@ export class SelectTool implements EditorTool {
 
 	private discardGesture(): EditorContext | null {
 		this.deps.selectionMove?.cancel();
-		this.elementMove.cancel(); this.elementRotation.cancel();
+		this.elementMove.cancel(); this.elementRotation.cancel(); this.labelMove.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
@@ -376,7 +381,7 @@ export class SelectTool implements EditorTool {
 
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
-		return this.deps.selectionMove?.active === true || this.marquee.active || this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active;
+		return this.deps.selectionMove?.active === true || this.marquee.active || this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active || this.labelMove.active;
 	}
 
 	/**
@@ -427,6 +432,8 @@ export class SelectTool implements EditorTool {
 			handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
 			cycle: event.modifiers.alt,
 			badgeToleranceWorld: SELECTION_BADGE_RADIUS_PX * context.viewport.worldPerScreenPixel(),
+			labels: this.deps.labelHits?.(),
+			labelToleranceWorld: LABEL_GRAB_PADDING_PX * context.viewport.worldPerScreenPixel(),
 		});
 		return { candidates, target, rotationControl: rotation.control };
 	}

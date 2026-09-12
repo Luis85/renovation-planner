@@ -152,3 +152,21 @@ describe('Zone lock', () => {
 		expect(expectOk(Zone.create({ ...base(), locked: true })).locked).toBe(true);
 	});
 });
+
+describe('Zone caption offset', () => {
+	it('starts automatic, and withLabelOffset changes the offset and nothing else', () => {
+		const zone = expectOk(Zone.create(base()));
+		expect(zone.labelOffset).toBeNull();
+		const moved = zone.withLabelOffset({ dx: 120, dy: -40 });
+		expect(moved.labelOffset).toEqual({ dx: 120, dy: -40 });
+		expect({ ...moved, labelOffset: null }).toEqual({ ...zone });
+		expect(moved.withLabelOffset(null).labelOffset).toBeNull();
+	});
+
+	it('keeps the offset through a geometry, name and lock change', () => {
+		const moved = expectOk(Zone.create({ ...base(), labelOffset: { dx: 5, dy: 6 } }));
+		expect(expectOk(moved.withGeometry(squareAt(50, 50))).labelOffset).toEqual({ dx: 5, dy: 6 });
+		expect(expectOk(moved.withName('Kitchen')).labelOffset).toEqual({ dx: 5, dy: 6 });
+		expect(moved.withLocked(true).labelOffset).toEqual({ dx: 5, dy: 6 });
+	});
+});

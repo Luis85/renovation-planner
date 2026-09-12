@@ -2,6 +2,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 import { placedOutline, placementHeading } from '../../../domain/spatial/assetPlacement';
 import type { ThemeTokens } from '../theme/themeTokens';
+import { assetLabelLayout, ELEMENT_LABEL_FONT_PX } from '../labels/labelLayout';
 import { elementFootprint, type ShapeLookup } from './elementFootprint';
 
 const flat = (points: readonly Point[]): number[] => points.flatMap(point => [point.x, point.y]);
@@ -18,6 +19,6 @@ export function assetShapeConfig(element: NamedSpatialElement, shapeOf: ShapeLoo
 		cross: shape ? null : [flat([footprint[0], footprint[2]]), flat([footprint[1], footprint[3]])],
 		tick: { name: 'asset-facing', points: flat([anchor, { x: anchor.x + 16 / zoom * Math.cos(heading), y: anchor.y + 16 / zoom * Math.sin(heading) }]), stroke: selected ? tokens.accent : tokens.zoneStroke, strokeWidth: 2 / zoom },
 		clearance: clearance ? { name: 'asset-clearance', points: flat(clearance), closed: true, stroke: tokens.zoneCaption, strokeWidth: 1 / zoom, dash: [6 / zoom, 4 / zoom] } : null,
-		label: { x: anchor.x, y: Math.min(...footprint.map(point => point.y)) - 18 / zoom, text: element.name, fontSize: 12 / zoom, fill: tokens.zoneLabel, listening: false },
+		label: { ...assetLabelLayout(element, footprint, zoom), fontSize: ELEMENT_LABEL_FONT_PX / zoom, fill: tokens.zoneLabel, listening: false },
 	};
 }

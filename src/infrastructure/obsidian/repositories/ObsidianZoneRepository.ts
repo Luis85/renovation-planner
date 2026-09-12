@@ -20,7 +20,7 @@ import {
 	zoneToPersistence,
 } from '../../persistence/mappers/zoneMapper';
 import { ZoneFrontmatterSchema } from '../../persistence/dto/zoneFrontmatter';
-import { SpatialObjectGeometrySchemaV7 } from '../../persistence/dto/planGeometry';
+import { SpatialObjectGeometrySchemaV10 } from '../../persistence/dto/planGeometry';
 import { parsePersisted } from '../../persistence/mappers/parse';
 import {
 	ensureFolder,
@@ -37,6 +37,7 @@ import {
 import { zoneVersion } from './zoneVersion';
 import { prepareZoneGeometryVersions } from './zoneGeometryVersions';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
+import type { Vector } from '../../../core/geometry/Vector';
 import { checkExpectedVersion, revisionConflict } from '../../../application/ports/versioning';
 import { freshNotePath, projectFolderOf, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
@@ -137,7 +138,7 @@ export class ObsidianZoneRepository implements ZoneRepository {
 	getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, RepositoryError>> {
 		return this.loadOne(id, (planId) => this.geometry.read(planId));
 	}
-	prepareGeometryVersions(id: ZoneId, geometry: CurvedPolygon) {
+	prepareGeometryVersions(id: ZoneId, geometry: CurvedPolygon & { readonly labelOffset?: Vector }) {
 		return Promise.resolve(prepareZoneGeometryVersions(this.deps, id, geometry));
 	}
 
@@ -260,7 +261,7 @@ export class ObsidianZoneRepository implements ZoneRepository {
 		const dto: Record<string, unknown> = { ...zoneToPersistence(zone, nextRevision) };
 		const geometryEntry = zoneToGeometryEntry(zone);
 		const frontmatterOk = ZoneFrontmatterSchema.safeParse(dto).success;
-		const geometryOk = SpatialObjectGeometrySchemaV7.safeParse(geometryEntry).success;
+		const geometryOk = SpatialObjectGeometrySchemaV10.safeParse(geometryEntry).success;
 		if (!frontmatterOk || !geometryOk) {
 			return err(validationFailure('The zone failed pre-write validation.'));
 		}

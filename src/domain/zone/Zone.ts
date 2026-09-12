@@ -1,6 +1,7 @@
 import type { GeometryError, ValidationError } from '../../core/errors/AppError';
 import { createCurvedPolygon, type CurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import { area as polygonArea, perimeter as polygonPerimeter } from '../../core/geometry/operations';
+import type { Vector } from '../../core/geometry/Vector';
 import { err, ok, type Result } from '../../core/result/Result';
 import { isZoneStatus, type ZoneStatus } from './ZoneStatus';
 import { isZoneType, type ZoneType } from './ZoneType';
@@ -22,6 +23,8 @@ export interface CreateZoneProps {
 	readonly domainNoteLink?: string | null;
 	/** Canvas click-through (ADR-0027). Absent means unlocked. */
 	readonly locked?: boolean;
+	/** Where its canvas caption was dragged, from the automatic anchor, world mm (ADR-0029). Absent or null is automatic. */
+	readonly labelOffset?: Vector | null;
 }
 
 interface ZoneFields {
@@ -34,6 +37,7 @@ interface ZoneFields {
 	readonly geometry: CurvedPolygon;
 	readonly domainNoteLink: string | null;
 	readonly locked: boolean;
+	readonly labelOffset: Vector | null;
 }
 
 /**
@@ -52,6 +56,7 @@ export class Zone {
 	readonly geometry: CurvedPolygon;
 	readonly domainNoteLink: string | null;
 	readonly locked: boolean;
+	readonly labelOffset: Vector | null;
 
 	private constructor(fields: ZoneFields) {
 		this.id = fields.id;
@@ -63,6 +68,7 @@ export class Zone {
 		this.geometry = fields.geometry;
 		this.domainNoteLink = fields.domainNoteLink;
 		this.locked = fields.locked;
+		this.labelOffset = fields.labelOffset;
 	}
 
 	static create(props: CreateZoneProps): Result<Zone, ValidationError | GeometryError> {
@@ -88,6 +94,7 @@ export class Zone {
 					geometry: geometry.value,
 					domainNoteLink: props.domainNoteLink ?? null,
 					locked: props.locked ?? false,
+					labelOffset: props.labelOffset ?? null,
 				}),
 			);
 		}
@@ -121,6 +128,11 @@ export class Zone {
 		return new Zone({ ...this.fields(), locked });
 	}
 
+	/** Move the canvas caption, or `null` to put it back at its automatic anchor; nothing about an offset can be invalid. */
+	withLabelOffset(offset: Vector | null): Zone {
+		return new Zone({ ...this.fields(), labelOffset: offset });
+	}
+
 	private fields(): ZoneFields {
 		return {
 			id: this.id,
@@ -132,6 +144,7 @@ export class Zone {
 			geometry: this.geometry,
 			domainNoteLink: this.domainNoteLink,
 			locked: this.locked,
+			labelOffset: this.labelOffset,
 		};
 	}
 

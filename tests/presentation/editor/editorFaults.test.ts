@@ -179,18 +179,19 @@ describe('an unexpected fault during a TOOL gesture', () => {
 		zonesRepo.throwNext = true;
 		// A body drag of the selected zone: down, move, up on the same button, which is the
 		// grammar a real device sends. 50 screen pixels is past `CLICK_EPSILON_PX`, so this is
-		// a move rather than a click.
-		pointer(canvas, 'pointerdown', 300, 300);
-		pointer(canvas, 'pointermove', 350, 300);
-		pointer(canvas, 'pointerup', 350, 300);
+		// a move rather than a click. Started at (220,370) rather than (300,300): the latter now
+		// sits inside the selected room's own caption grab box (ADR-0029).
+		pointer(canvas, 'pointerdown', 220, 370);
+		pointer(canvas, 'pointermove', 270, 370);
+		pointer(canvas, 'pointerup', 270, 370);
 		await settle();
 
 		// Told. Silence is the whole regression.
 		expect(Notice.shown.length).toBe(before + 1);
 		// And the leaf is still live: the same drag, unarmed, commits.
-		pointer(canvas, 'pointerdown', 350, 300);
-		pointer(canvas, 'pointermove', 400, 300);
-		pointer(canvas, 'pointerup', 400, 300);
+		pointer(canvas, 'pointerdown', 270, 370);
+		pointer(canvas, 'pointermove', 320, 370);
+		pointer(canvas, 'pointerup', 320, 370);
 		await settleUntil(
 			async () =>
 				expectOk(await zonesRepo.listByPlan(PLAN_DTO.id as PlanId))

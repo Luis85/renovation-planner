@@ -111,3 +111,15 @@ describe('mappers: refusals and merges', () => {
 		expect(zoneToGeometryEntry(zone).points[0]).toEqual([2, 3]);
 	});
 });
+
+describe('zone caption offset mapping', () => {
+	it('writes labelOffset only while the caption is moved, and reads it back', () => {
+		const zone = makeZoneEntity({ projectId: createProjectId(), planId: createPlanId() });
+		expect('labelOffset' in zoneToGeometryEntry(zone)).toBe(false);
+		expect(expectOkOf(zoneFromPersistence(zoneToPersistence(zone, 1), zoneToGeometryEntry(zone))).labelOffset).toBeNull();
+		const moved = zone.withLabelOffset({ dx: 30, dy: -10 });
+		const entry = zoneToGeometryEntry(moved);
+		expect(entry.labelOffset).toEqual({ dx: 30, dy: -10 });
+		expect(expectOkOf(zoneFromPersistence(zoneToPersistence(moved, 1), entry)).labelOffset).toEqual({ dx: 30, dy: -10 });
+	});
+});

@@ -5,10 +5,12 @@ import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { rotationControlContains } from '../elements/rotationControl';
 import { hasPointHandles } from '../elements/ElementMove';
 import { arcProjection } from '../../../core/geometry/circularArc';
+import type { LabelHit } from '../labels/labelLayout';
 
 export type SelectionTarget =
 	| { readonly kind: 'handle'; readonly id: string; readonly vertexIndex: number }
 	| { readonly kind: 'rotation'; readonly id: string }
+	| { readonly kind: 'label'; readonly id: string }
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
 
@@ -44,6 +46,25 @@ function handleAt(input: {
 	return vertexIndex < 0 ? null : { kind: 'handle', id, vertexIndex };
 }
 
+function labelAt(input: {
+	readonly candidates: readonly SpatialObjectCandidate[];
+	readonly selectedIds: readonly string[];
+	readonly worldPoint: Point;
+	readonly labels?: readonly LabelHit[];
+	readonly labelToleranceWorld?: number;
+}): SelectionTarget {
+	const labels = input.labels ?? [], pad = input.labelToleranceWorld ?? 0, { x, y } = input.worldPoint;
+	// `labels` arrive in selection order, so where selected captions overlap the most recently selected
+	// item's caption wins. A caption whose item is not a candidate (locked, or on a hidden layer) is not
+	// drawn to be grabbed.
+	for (let index = labels.length - 1; index >= 0; index -= 1) {
+		const { id, bounds } = labels[index];
+		if (!input.selectedIds.includes(id) || !input.candidates.some(candidate => candidate.id === id)) continue;
+		if (x >= bounds.min.x - pad && x <= bounds.max.x + pad && y >= bounds.min.y - pad && y <= bounds.max.y + pad) return { kind: 'label', id };
+	}
+	return null;
+}
+
 function badgeAt(input: {
 	readonly candidates: readonly SpatialObjectCandidate[];
 	readonly selectedIds: readonly string[];
@@ -64,7 +85,8 @@ function badgeAt(input: {
 /**
  * The ONE answer to "what would a click here select" (design spec §6.1). Hover asks it to
  * predict, the click asks it to act, so the two cannot disagree. Priority: a single selection's
- * vertex handle or a multi-selection badge, then the topmost containing body, then nothing.
+ * vertex handle or a multi-selection badge, then a selected item's caption, then the topmost
+ * containing body, then nothing.
  * Bodies rank Object → Opening → Wall → other elements → Room/Area. Candidates arrive
  * bottom-first; stable sorting preserves paint order within a kind, scanned top-first.
  * Alt bypasses handles and cycles bodies from the current selection, wrapping.
@@ -78,12 +100,17 @@ export function resolveSelectionTarget(input: {
 	/** Alt selects the next overlapping body, bypassing handles. */
 	readonly cycle?: boolean;
 	readonly badgeToleranceWorld?: number;
+	/** Selected items' drawn captions (ADR-0029); a press on one drags the caption, not the item. */
+	readonly labels?: readonly LabelHit[];
+	readonly labelToleranceWorld?: number;
 }): SelectionTarget {
 	if (!input.cycle) {
 		// The facade supplies only a visible, permitted hover handle; pressing it owns selection.
 		if (input.rotationHandle && rotationControlContains(input.rotationHandle.bounds, input.worldPoint)) return { kind: 'rotation', id: input.rotationHandle.id };
 		const decoration = input.selectedIds.length > 1 ? badgeAt(input) : handleAt(input);
 		if (decoration !== null) return decoration;
+		const label = labelAt(input);
+		if (label !== null) return label;
 	}
 	return bodyAt(input);
 }

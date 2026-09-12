@@ -7,7 +7,7 @@ import {
 	ZONE_TYPE,
 } from '../dto/zoneFrontmatter';
 import {
-	SpatialObjectGeometrySchemaV7,
+	SpatialObjectGeometrySchemaV10,
 	type SpatialObjectGeometryDTO,
 } from '../dto/planGeometry';
 import { toKebab } from '../dto/kebab';
@@ -42,6 +42,7 @@ export function zoneToGeometryEntry(zone: Zone): SpatialObjectGeometryDTO {
 		type: 'polygon',
 		points: zone.geometry.points.map((point) => [point.x, point.y]),
 		...(zone.geometry.bulges ? { bulges: [...zone.geometry.bulges] } : {}),
+		...(zone.labelOffset ? { labelOffset: { ...zone.labelOffset } } : {}),
 	};
 }
 
@@ -57,7 +58,7 @@ export function zoneFromPersistence(
 	);
 	if (!frontmatter.ok) return frontmatter;
 	const geometry = parsePersisted(
-		SpatialObjectGeometrySchemaV7,
+		SpatialObjectGeometrySchemaV10,
 		rawGeometry,
 		'zone.geometry-invalid',
 		'Zone geometry entry',
@@ -74,6 +75,7 @@ export function zoneFromPersistence(
 		zoneType: dto['zone-type'],
 		status: dto.status,
 		locked: 'locked' in dto && dto.locked === true,
+		labelOffset: entry.labelOffset ?? null,
 		geometry: { points: entry.points.map(([x, y]) => ({ x, y })), ...(entry.bulges ? { bulges: entry.bulges } : {}) } satisfies CurvedPolygon,
 	});
 }

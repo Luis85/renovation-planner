@@ -59,6 +59,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 				objects: dto.objects.map((object) => ({
 					id: object.id,
 					...(object.bulges ? { bulges: [...object.bulges] } : {}),
+					...(object.labelOffset ? { labelOffset: { ...object.labelOffset } } : {}),
 					points: object.points.map(([x, y]) => ({ x, y })),
 				})),
 			},
@@ -85,6 +86,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 				objects: document.objects.map((object): PlanGeometryDTO['objects'][number] => ({
 					id: object.id,
 					...(object.bulges ? { bulges: [...object.bulges] } : {}),
+					...(object.labelOffset ? { labelOffset: { ...object.labelOffset } } : {}),
 					type: 'polygon',
 					points: toTuples(object.points),
 				})),

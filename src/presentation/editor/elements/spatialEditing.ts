@@ -9,6 +9,8 @@ import { createGroupActions } from '../groups/groupActions';
 import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { watchAssetShapes } from './assetShapeLoader';
 import { createAssetPlacementTask } from './assetPlacementTask';
+import { createLabelActions } from '../labels/labelActions';
+import type { LabelMoveDeps } from '../labels/LabelMove';
 
 /** Compose the existing per-leaf element/rotation actions and their shared pointer bindings. */
 export function createSpatialEditing(context: PlanEditorContext, runtime: Parameters<typeof createElementTask>[1] & Parameters<typeof createElementActions>[1] & Omit<RotationRuntime, 'elementActions'> & CurveTaskRuntime & Parameters<typeof createAssetPlacementTask>[1]) {
@@ -17,8 +19,9 @@ export function createSpatialEditing(context: PlanEditorContext, runtime: Parame
 	const elementActions = createElementActions(context, runtime);
 	const groupActions = createGroupActions(context, { ...runtime, spatialBusy: () => elementActions.active.value || runtime.wall?.active.value === true });
 	const rotationActions = createRotationActions(context, { ...runtime, elementActions, groups: groupActions, groupRotationTarget: groupActions.groupRotationTarget });
+	const labelActions = createLabelActions(context, runtime);
 	const curveTask = createCurveTask(context, runtime);
-	const toolBindings: ElementMoveDeps & RotationGestureDeps & SelectionInteractions = {
+	const toolBindings: ElementMoveDeps & RotationGestureDeps & SelectionInteractions & LabelMoveDeps = {
 		expandSelection: groupActions.expandSelection, selectionMove: groupActions.selectionMove,
 		canRotateShape: rotationActions.canRotateId,
 		rotationTarget: () => rotationActions.target.value,
@@ -29,7 +32,9 @@ export function createSpatialEditing(context: PlanEditorContext, runtime: Parame
 		commitRotation: (id, points, original) => { void rotationActions.move(id, points, original); },
 		previewElement: elementActions.previewElement,
 		moveElement: (id, points, original) => { void elementActions.move(id, points, original); },
+		labelHits: () => labelActions.hits.value,
+		moveLabel: (id, offset) => { void labelActions.move(id, offset); },
 	};
-	return { elementTask, elementActions, groupActions, rotationActions, curveTask, toolBindings };
+	return { elementTask, elementActions, groupActions, rotationActions, labelActions, curveTask, toolBindings };
 }
 export type SpatialEditing = ReturnType<typeof createSpatialEditing>;

@@ -1,4 +1,5 @@
 import type { Point } from '../../core/geometry/Point';
+import type { Vector } from '../../core/geometry/Vector';
 import { stairPlanGeometry, type StairOptions } from './stairGeometry';
 
 /** Generic floor facts; richer asset specializations are independent of these identities. */
@@ -11,6 +12,8 @@ export interface SpatialElement {
 	readonly stair?: StairOptions;
 	/** Only an `'asset'` placement carries one, and it always does; its outline is derived from that asset. */
 	readonly assetId?: string;
+	/** A dragged name tag's offset from its automatic position, world mm (ADR-0029); absent while automatic. */
+	readonly labelOffset?: Vector;
 }
 export interface SpatialElementMetadata { readonly id: string; readonly name: string }
 export type NamedSpatialElement = SpatialElement & SpatialElementMetadata;

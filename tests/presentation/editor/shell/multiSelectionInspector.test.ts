@@ -153,6 +153,18 @@ describe('Editor selection across the list, canvas and Inspector', () => {
 		await settle();
 		expect(harness.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]').exists()).toBe(false);
 	});
+	it('offers the "select multiple" control once walls, not only rooms, make a set', async () => {
+		harness = await mountPlanEditorCanvas();
+		const project = useProjectStore();
+		project.zones = new Map([...project.zones].slice(0, 1));
+		project.structure = { ...project.structure, walls: [], openings: [], elements: [] };
+		await settle();
+		const offered = () => harness?.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]').exists();
+		expect(offered()).toBe(false);
+		project.structure = { ...project.structure, walls: [{ id: 'wall-a', start: { x: 0, y: 0 }, end: { x: 1000, y: 0 }, height: 2400, thickness: 150 }] };
+		await settle();
+		expect(offered()).toBe(true);
+	});
 	it('closes Add before clearing a multi-selection', async () => {
 		harness = await mountPlanEditorCanvas();
 		useSelectionStore().select(['zone-kitchen', 'zone-terrace'] as never[]);

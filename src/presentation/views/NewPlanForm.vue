@@ -105,11 +105,17 @@ const NEW_PLAN_ERRORS: FieldErrorMap<CreatePlanInput> = {
 };
 
 /**
+ * What this form holds: `CreatePlanInput` with `kind` ALWAYS present — `INITIAL` supplies one
+ * and the select only ever writes one — so a restore of the rendered kind needs no fallback.
+ */
+type NewPlanValues = CreatePlanInput & { readonly kind: PlanKind };
+
+/**
  * `background` and `layers` stay unset. Both are optional on `CreatePlanInput`; slice 5's
  * background is its own command (`set-plan-background`), and a plan with no background is a
  * state the editor already draws an empty state for.
  */
-const INITIAL: CreatePlanInput = {
+const INITIAL: NewPlanValues = {
 	projectId: props.projectId as ProjectId,
 	name: props.initialName ?? '',
 	kind: props.parentKind ? childKindOf(props.parentKind) : DEFAULT_PLAN_KIND,
@@ -134,7 +140,7 @@ async function dispatchWatchingForAGoneProject(
 	return result;
 }
 
-const form = useFormCommit<CreatePlanInput, { plan: Loaded<Plan> }>({
+const form = useFormCommit<NewPlanValues, { plan: Loaded<Plan> }>({
 	initial: INITIAL,
 	dispatch: dispatchWatchingForAGoneProject,
 	errorMap: NEW_PLAN_ERRORS,
@@ -160,9 +166,7 @@ function onNameInput(event: Event): void {
 
 function onKindChange(event: Event): void {
 	const control = event.target as HTMLSelectElement;
-	// `?? DEFAULT_PLAN_KIND` mirrors what `INITIAL` always supplies — `kind` is optional on
-	// `CreatePlanInput` — so the restore puts back what the template drew, not a second answer.
-	if (refuseWhileSubmitting(control, form.values.value.kind ?? DEFAULT_PLAN_KIND)) return;
+	if (refuseWhileSubmitting(control, form.values.value.kind)) return;
 	form.setField('kind', control.value as PlanKind);
 }
 

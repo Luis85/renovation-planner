@@ -355,6 +355,10 @@ describe('NewPlanForm', () => {
 		// as a value the form does not hold.
 		await wrapper.get('[data-field="name"]').setValue('First floor');
 		expect((wrapper.get('[data-field="name"]').element as HTMLInputElement).value).toBe('Ground floor');
+		// The Kind select is refused the same way, and put back to the kind the form holds.
+		expect(wrapper.get('select[data-field="kind"]').attributes('aria-disabled')).toBe('true');
+		await wrapper.get('select[data-field="kind"]').setValue('room');
+		expect((wrapper.get('select[data-field="kind"]').element as HTMLSelectElement).value).toBe('floor');
 
 		release();
 		await flushPromises();

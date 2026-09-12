@@ -128,8 +128,11 @@ describe('Plan kind and order', () => {
 		const site = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'Site', kind: 'site', order: 3 }));
 		expect(expectOk(site.withBackground(null))).toMatchObject({ kind: 'site', order: 3 });
 		expect(expectOk(site.withCalibration(null))).toMatchObject({ kind: 'site', order: 3 });
-		expect(expectOk(withPlanNorth(site, 90))).toMatchObject({ kind: 'site', order: 3, north: 90 });
+		const oriented = expectOk(withPlanNorth(site, 90));
+		expect(oriented).toMatchObject({ kind: 'site', order: 3, north: 90 });
 		expect(expectOk(site.withDetails({ order: 4 })).north).toBeUndefined();
+		// And a north already set survives a details change — the half the line above cannot see.
+		expect(expectOk(oriented.withDetails({ order: 4 }))).toMatchObject({ kind: 'site', order: 4, north: 90 });
 	});
 
 	it('withDetails re-validates and leaves the parent alone', () => {

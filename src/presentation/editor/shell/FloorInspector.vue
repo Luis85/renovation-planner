@@ -16,6 +16,7 @@
 import ReferenceAction from '../reference/ReferenceAction.vue';
 import { tr } from '../../i18n/strings';
 import { type Aggregate } from '../../read-models/spatialRecords';
+import type { PlanDto } from '../../read-models/PlanDto';
 import { formatArea } from './formatArea';
 import { useFloorSummary } from './useFloorSummary';
 import FloorSpatialLists from './FloorSpatialLists.vue';
@@ -55,11 +56,12 @@ const { hierarchy } = storeToRefs(usePlanHierarchyStore());
 /** A detail plan's outline explained where nothing covers it (ADR-0028), while there is still a reference plan to line it up with. */
 const guide = computed(() => (project.plan?.background === null ? guideSource(hierarchy.value) : null));
 const starting = computed(() => project.emptyStateKey === 'noBackground' && project.zones.size === 0 && project.unreadableZones === 0);
+// `new Map(undefined)` is the empty map, so the `null` summary (which the template never reads this under) needs no fallback of its own.
 const roomAnnotations = computed(() => new Map(summary.value?.rooms.map(room => [room.id,
 	project.stale || project.unreadableZones > 0
 		? tr('editor.selection.unknown')
 		: tr('renovation.summary.change-count', { count: String(renovationSummary(project.plan?.renovation ?? EMPTY_RENOVATION, room.id).changes) }),
-]) ?? []));
+] as const)));
 
 /** The modifier class an `Aggregate` renders under, or `''` for the plain `available` case. */
 function classFor(aggregate: Aggregate<unknown>): string {
@@ -96,7 +98,8 @@ const count = (value: number): string => String(value);
  * still saved as `room` is a control lying about a write that did not happen. Never reset on
  * success: `ProjectStore` re-hydrates on `PlanDetailsChanged` asynchronously, and snapping back
  * to the old kind in that window would flicker. `useId()` rather than a fixed id because two
- * Plan editor leaves share one document.
+ * Plan editor leaves share one document. The plan comes in from the template, where the
+ * select's own `v-if` has already narrowed it — the handler has no null case to guard.
  */
 const reorder = usePlanReorder();
 const kindId = useId();
@@ -105,12 +108,10 @@ const kindPausedAttrs = computed(() =>
 		? ({ 'aria-disabled': 'true', 'aria-describedby': runtime.pausedReasonId } as Record<string, string>)
 		: ({} as Record<string, string>),
 );
-async function onKindChange(event: Event): Promise<void> {
-	const plan = project.plan;
-	if (!plan) return;
+async function onKindChange(event: Event, plan: PlanDto): Promise<void> {
 	const select = event.target as HTMLSelectElement;
 	const landed = await reorder.setKind(plan.id, select.value as PlanKind);
-	if (!landed) select.value = project.plan?.kind ?? plan.kind;
+	if (!landed) select.value = plan.kind;
 }
 </script>
 
@@ -136,7 +137,7 @@ async function onKindChange(event: Event): Promise<void> {
 				data-rp-field="plan-kind"
 				:value="project.plan.kind"
 				v-bind="kindPausedAttrs"
-				@change="onKindChange"
+				@change="onKindChange($event, project.plan)"
 			>
 				<option
 					v-for="kind in PLAN_KINDS"

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
@@ -59,7 +59,9 @@ import { namedFrom, repoTree } from './tests/helpers/importGraph';
  * Warm figure in the paragraph beside the call below. The cache holds the answer, never the
  * question: an empty derivation is thrown, not written.
  */
-const CACHE = fileURLToPath(new URL('./node_modules/.cache/renovation-planner/eslint-booting-tests.json', import.meta.url));
+// Joined rather than spelled as one `new URL('./node_modules/…')` literal: fallow reads a `new URL`
+// specifier as a module reference and reported the `.cache` directory as an unlisted dependency.
+const CACHE = join(fileURLToPath(new URL('.', import.meta.url)), 'node_modules', '.cache', 'renovation-planner', 'eslint-booting-tests.json');
 
 /** Every file under `tests/`, repository-relative, and a fingerprint over all of them plus this config. */
 function testTree(): { files: string[]; fingerprint: string } {

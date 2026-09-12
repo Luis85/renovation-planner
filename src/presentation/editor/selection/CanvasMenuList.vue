@@ -1,0 +1,140 @@
+<script setup lang="ts">
+import { nextTick, ref, watch } from 'vue';
+import { tr } from '../../i18n/strings';
+import HostIcon from '../../components/HostIcon.vue';
+import { isSubmenu, type CanvasMenuAction, type CanvasMenuItem, type CanvasMenuSubmenu } from './useCanvasMenuActions';
+import { submenuPlacement } from './submenuPlacement';
+
+defineOptions({ name: 'CanvasMenuList' });
+const props = defineProps<{ items: readonly CanvasMenuItem[]; label: string; title?: string | null; host: HTMLElement | null; nested?: boolean; position?: { left: string; top: string } }>();
+const emit = defineEmits<{ run: [action: CanvasMenuAction]; close: [restore: boolean]; back: [] }>();
+const menu = ref<HTMLElement | null>(null), open = ref<string | null>(null), placement = ref({ left: '0px', top: '0px' });
+const LEVEL = ':scope > [role="menuitem"], :scope > [role="none"] > [role="menuitem"]';
+defineExpose({ menu });
+watch(() => props.items, () => { open.value = null; });
+function levelItems(): HTMLElement[] { return [...menu.value?.querySelectorAll<HTMLElement>(LEVEL) ?? []]; }
+async function expand(item: CanvasMenuSubmenu, opener: HTMLElement, focusFirst: boolean): Promise<void> {
+	if (item.disabled) return;
+	open.value = item.id;
+	await nextTick();
+	const child = opener.parentElement?.querySelector<HTMLElement>(':scope > [role="menu"]');
+	if (child && props.host) {
+		const at = submenuPlacement(opener.getBoundingClientRect(), { width: child.offsetWidth, height: child.offsetHeight }, props.host.getBoundingClientRect());
+		placement.value = { left: `${at.left}px`, top: `${at.top}px` };
+	}
+	if (focusFirst) child?.querySelector<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])')?.focus();
+}
+function collapse(): void {
+	const id = open.value; open.value = null;
+	if (id) menu.value?.querySelector<HTMLElement>(`[data-rp-context-action="${id}"]`)?.focus();
+}
+function activate(item: CanvasMenuItem, event: Event, focusFirst: boolean): void {
+	if (isSubmenu(item)) { if (open.value === item.id && !focusFirst) open.value = null; else void expand(item, event.currentTarget as HTMLElement, focusFirst); return; }
+	if (!item.disabled) emit('run', item);
+}
+function hover(item: CanvasMenuItem, event: Event): void {
+	if (isSubmenu(item)) void expand(item, event.currentTarget as HTMLElement, false); else open.value = null;
+}
+function move(event: KeyboardEvent): void {
+	const items = levelItems(), index = items.indexOf(document.activeElement as HTMLElement);
+	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+	items[next]?.focus();
+}
+function navigate(event: KeyboardEvent): boolean {
+	if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) { move(event); return true; }
+	return false;
+}
+/** Escape on an open submenu's own anchor closes just that submenu first — the same "innermost popup first" step Escape takes from inside it — and only a second press (nothing left open) closes the whole menu. */
+function escape(item: CanvasMenuItem | undefined): void {
+	if (props.nested) { emit('back'); return; }
+	if (item && isSubmenu(item) && open.value === item.id) { open.value = null; return; }
+	emit('close', true);
+}
+function keydown(event: KeyboardEvent, item?: CanvasMenuItem): void {
+	const handled = ['Escape', 'Tab', 'ArrowDown', 'ArrowUp', 'Home', 'End', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].includes(event.key);
+	if (!handled) return;
+	event.preventDefault(); event.stopPropagation();
+	if (event.key === 'Tab') emit('close', true);
+	else if (event.key === 'Escape') escape(item);
+	else if (event.key === 'ArrowLeft') { if (props.nested) emit('back'); }
+	else if (navigate(event)) return;
+	else if (item && (event.key !== 'ArrowRight' || isSubmenu(item))) activate(item, event, true);
+}
+</script>
+<template>
+	<div
+		ref="menu"
+		class="rp-canvas-context-menu"
+		:class="{ 'rp-canvas-context-menu--nested': nested }"
+		role="menu"
+		:aria-label="label"
+		:style="nested ? placement : position"
+		@keydown="keydown($event)"
+	>
+		<div
+			v-if="title"
+			class="rp-canvas-context-menu-title"
+			role="presentation"
+		>
+			{{ title }}
+		</div>
+		<template
+			v-for="(item, index) in items"
+			:key="item.id"
+		>
+			<div
+				v-if="index > 0 && item.group !== items[index - 1].group"
+				class="rp-canvas-context-menu-separator"
+				role="separator"
+			/>
+			<div
+				v-if="isSubmenu(item)"
+				class="rp-canvas-context-submenu-anchor"
+				role="none"
+			>
+				<button
+					type="button"
+					role="menuitem"
+					tabindex="-1"
+					aria-haspopup="menu"
+					:aria-expanded="open === item.id"
+					:aria-disabled="item.disabled || undefined"
+					:title="item.disabled && item.reason ? tr(item.reason) : undefined"
+					:data-rp-context-action="item.id"
+					@click="activate(item, $event, false)"
+					@pointerenter="hover(item, $event)"
+					@keydown="keydown($event, item)"
+				>
+					<HostIcon :name="item.icon" />{{ tr(item.label) }}<HostIcon
+						class="rp-canvas-context-menu-chevron"
+						name="chevron-right"
+					/>
+				</button>
+				<CanvasMenuList
+					v-if="open === item.id"
+					:items="item.children"
+					:label="tr(item.label)"
+					:host="host"
+					nested
+					@run="emit('run', $event)"
+					@close="emit('close', $event)"
+					@back="collapse"
+				/>
+			</div>
+			<button
+				v-else
+				type="button"
+				role="menuitem"
+				tabindex="-1"
+				:aria-disabled="item.disabled || undefined"
+				:title="item.disabled && item.reason ? tr(item.reason) : undefined"
+				:data-rp-context-action="item.id"
+				@click="activate(item, $event, false)"
+				@pointerenter="hover(item, $event)"
+				@keydown="keydown($event, item)"
+			>
+				<HostIcon :name="item.icon" />{{ tr(item.label, item.params) }}
+			</button>
+		</template>
+	</div>
+</template>

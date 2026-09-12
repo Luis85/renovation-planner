@@ -45,3 +45,8 @@
 .renovation-plan-editor .rp-canvas-context-menu button[aria-disabled='true'] { color: var(--text-faint); cursor: default; }
 .renovation-plan-editor .rp-canvas-context-menu button[aria-disabled='true'] .rp-host-icon { color: var(--text-faint); }
 .renovation-plan-editor { position: relative; }
+/* The Add submenu (spec §5.4): the anchor is layout-neutral, the nested menu is fixed so the parent's scroll box cannot clip it. */
+.renovation-plan-editor .rp-canvas-context-submenu-anchor { display: contents; }
+.renovation-plan-editor .rp-canvas-context-menu--nested { position: fixed; z-index: 41; max-height: none; }
+.renovation-plan-editor .rp-canvas-context-menu button .rp-canvas-context-menu-chevron { margin-inline-start: auto; }
+.renovation-plan-editor .rp-canvas-context-menu button[aria-expanded='true'] { background: var(--background-modifier-hover); }

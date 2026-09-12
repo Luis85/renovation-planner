@@ -62,3 +62,6 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 }
 
 export function usePlanningContext(): ReturnType<typeof providePlanningContext> { const value = inject(KEY); if (!value) throw new Error('Planning context is missing.'); return value; }
+
+/** For a surface that also mounts outside the editor (`canvasContextMenuStandalone.test.ts`): no provider is an answer, not a fault. */
+export function usePlanningContextIfProvided(): ReturnType<typeof providePlanningContext> | null { return inject(KEY, null); }

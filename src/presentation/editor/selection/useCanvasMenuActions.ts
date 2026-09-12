@@ -15,25 +15,37 @@ import { useDetailPlanActions } from '../hierarchy/detailPlanActions';
 import { deleteItems, multiDeleteBlocked } from './deleteSelection';
 import { wallStartRefused } from '../structure/structureDraft';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../viewport/Viewport';
+import { structureCandidates } from '../structure/structureCandidates';
+import { useRecordMenuActions } from './recordMenuActions';
 
 /**
  * Menu order is the group order, and `CanvasContextMenu` draws a separator between groups: the plans a
  * zone links to first, then the object's own edits, what can be created at that point, the clipboard,
  * selection and grouping, the view, and last what destroys the object.
  */
-export type CanvasMenuGroup = 'plans' | 'edit' | 'create' | 'clipboard' | 'arrange' | 'view' | 'destructive';
+export type CanvasMenuGroup = 'plans' | 'edit' | 'create' | 'records' | 'clipboard' | 'arrange' | 'view' | 'destructive';
 export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly params?: Readonly<Record<string, string>>; readonly disabled?: boolean; readonly reason?: StringKey; run(): void | Promise<void> }
-const GROUP_ORDER: readonly CanvasMenuGroup[] = ['plans', 'edit', 'create', 'clipboard', 'arrange', 'view', 'destructive'];
+export interface CanvasMenuSubmenu { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly children: readonly CanvasMenuAction[]; readonly disabled?: boolean; readonly reason?: StringKey }
+export type CanvasMenuItem = CanvasMenuAction | CanvasMenuSubmenu;
+export function isSubmenu(item: CanvasMenuItem): item is CanvasMenuSubmenu { return 'children' in item; }
+const GROUP_ORDER: readonly CanvasMenuGroup[] = ['plans', 'edit', 'create', 'records', 'clipboard', 'arrange', 'view', 'destructive'];
 export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
 	const moveOpening = useOpeningMoveAction(), clipboard = useClipboardActions();
 	const frame = usePlanFrame(), groups = useCanvasGroupActions(), session = useRenovationSession();
-	const detailPlans = useDetailPlanActions();
+	const detailPlans = useDetailPlanActions(), records = useRecordMenuActions();
 	function fit(all: boolean): void { const bounds = frame(all); if (bounds) editor.fitTo(bounds, editor.stageSize); }
 	/** Why a greyed item is greyed: a stale floor first, since that one blocks everything, else whatever tool or edit is in flight. */
 	function reason(disabled: boolean): StringKey | undefined { return !disabled ? undefined : runtime.writesBlocked.value ? 'editor.stale-write-refused' : 'editor.input.unavailable'; }
-	function ordered(result: readonly CanvasMenuAction[]): CanvasMenuAction[] {
+	function orderActions(result: readonly CanvasMenuAction[]): CanvasMenuAction[] {
 		return GROUP_ORDER.flatMap(group => result.filter(action => action.group === group)).map(action => ({ ...action, reason: action.reason ?? reason(action.disabled === true) }));
+	}
+	function ordered(result: readonly CanvasMenuItem[]): CanvasMenuItem[] {
+		return GROUP_ORDER.flatMap(group => result.filter(item => item.group === group)).map(item => {
+			if (!isSubmenu(item)) return orderActions([item])[0];
+			const children = orderActions(item.children), disabled = children.every(child => child.disabled);
+			return { ...item, children, disabled, reason: disabled ? children[0]?.reason : undefined };
+		});
 	}
 	/** Fit floor or Fit selection; a greyed Fit floor says there is nothing to frame rather than blaming another tool. */
 	function fitAction(ids: readonly string[]): CanvasMenuAction {
@@ -47,11 +59,17 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		// The pixel reach a wall end snaps within, the one `StructureTool` gives a pointer.
 		const tolerance = Math.min(100, 8 * worldPerScreenPixel(editor.viewport, STAGE_PIXELS)), refused = wallStartRefused(project.structure, id, at, tolerance);
 		return [
-			{ id: 'new-wall', label: 'editor.input.new-wall-here', group: 'create', icon: 'brick-wall', disabled: disabled || refused, reason: refused ? 'editor.structure.error.opening-split' : undefined, run: () => task.drawFrom(id, at, tolerance) },
-			{ id: 'add-door', label: 'editor.input.add-door', group: 'create', icon: 'door-open', disabled, run: () => task.placeAt('place-door', id, at) },
-			{ id: 'add-window', label: 'editor.input.add-window', group: 'create', icon: 'panels-top-left', disabled, run: () => task.placeAt('place-window', id, at) },
-			{ id: 'add-opening', label: 'editor.input.add-opening', group: 'create', icon: 'rectangle-horizontal', disabled, run: () => task.placeAt('place-opening', id, at) },
+			{ id: 'add-door', label: 'editor.input.add.door', group: 'create', icon: 'door-open', disabled, run: () => task.placeAt('place-door', id, at) },
+			{ id: 'add-window', label: 'editor.input.add.window', group: 'create', icon: 'panels-top-left', disabled, run: () => task.placeAt('place-window', id, at) },
+			{ id: 'add-opening', label: 'editor.input.add.opening', group: 'create', icon: 'rectangle-horizontal', disabled, run: () => task.placeAt('place-opening', id, at) },
+			{ id: 'new-wall', label: 'editor.input.add.wall-here', group: 'create', icon: 'brick-wall', disabled: disabled || refused, reason: refused ? 'editor.structure.error.opening-split' : undefined, run: () => task.drawFrom(id, at, tolerance) },
 		];
+	}
+	/** The Add submenu for a single selection outside Review: a wall's geometry creations plus every target's record creations, joined and grouped. Nothing for several items, and nothing where neither applies. */
+	function addSubmenu(id: string, blocked: boolean): CanvasMenuSubmenu[] {
+		if (!project.zones.has(id) && !structureCandidates(project.structure).some(item => item.id === id)) return [];
+		const children = [...wallActions(id, blocked), ...records(id, blocked)];
+		return children.length ? [{ id: 'add-menu', label: 'editor.input.add', group: 'create', icon: 'plus', children }] : [];
 	}
 	function singleActions(id: string, blocked: boolean): CanvasMenuAction[] {
 		const result: CanvasMenuAction[] = [], zone = project.zones.get(id);
@@ -63,7 +81,6 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 			result.push(...detailPlans(id, zone.name, blocked));
 		} else if (structure || element) {
 			const actions = structure ? runtime.structureActions : runtime.elementActions;
-			result.push(...wallActions(id, blocked));
 			result.push({ id: 'edit', label: 'editor.input.edit', group: 'edit', icon: 'pencil', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
 			if (project.structure.openings.some(item => item.id === id)) result.push({ id: 'move-opening', label: 'editor.opening-move.action', group: 'edit', icon: 'move-horizontal', disabled: !runtime.openingMove.available.value, run: () => moveOpening(id) });
 			if (element) result.push({ id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
@@ -71,17 +88,17 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		}
 		return result;
 	}
-	return computed<readonly CanvasMenuAction[]>(() => {
+	return computed<readonly CanvasMenuItem[]>(() => {
 		const ids = selection.selectedIds, id = ids[0];
 		const blocked = runtime.writesBlocked.value, review = session.perspective === 'review', panning = runtime.activeToolId.value === 'pan';
-		const result: CanvasMenuAction[] = [fitAction(ids)];
+		const result: CanvasMenuItem[] = [fitAction(ids)];
 		// Hidden rather than greyed when nothing selected is copyable: every disabled reason here names an edit, and Copy is not one.
 		if (clipboard?.canCopy.value) result.push({ id: 'copy', label: 'editor.input.copy', group: 'clipboard', icon: 'copy', run: () => { clipboard.copy(); } });
 		if (review) return ordered(result);
 		result.push(panning ? { id: 'select', label: 'editor.input.switch-to-select', group: 'view', icon: 'mouse-pointer-2', run: () => runtime.setTool('select') } : { id: 'pan', label: 'editor.input.switch-to-pan', group: 'view', icon: 'hand', run: () => runtime.setTool('pan') });
 		if (!ids.length) result.push({ id: 'add', label: 'editor.primary.add', group: 'create', icon: 'plus', disabled: blocked, run: add });
 		if (clipboard?.hasClipboard.value) result.push({ id: 'paste', label: 'editor.input.paste', group: 'clipboard', icon: 'clipboard-paste', disabled: !clipboard.canPaste.value, run: () => clipboard.paste(opened()) });
-		if (ids.length === 1) result.push(...singleActions(id, blocked));
+		if (ids.length === 1) result.push(...singleActions(id, blocked), ...addSubmenu(id, blocked));
 		// Only where the composite removal has its services, as the batch panel already requires: an item that would do nothing is worse than none.
 		else if (ids.length && runtime.renovation.available) result.push({ id: 'delete', label: runtime.groupActions.saved.value ? 'editor.group.delete' : 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: multiDeleteBlocked(runtime), run: () => deleteItems(runtime, project.structure, ids) });
 		result.push({ id: 'measure', label: 'editor.input.measure-here', group: 'create', icon: 'ruler', disabled: blocked || !runtime.elementTask.available, run: () => runtime.elementTask.measureFrom(opened()) });

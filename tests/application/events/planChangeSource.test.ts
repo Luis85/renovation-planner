@@ -8,7 +8,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPlanChangeSource } from '../../../src/application/events/planChangeSource';
 import { createEventBus } from '../../../src/core/events/EventBus';
-import { planBackgroundChanged, planCalibrated } from '../../../src/domain/plan/Plan.events';
+import { planBackgroundChanged, planCalibrated, planNorthChanged } from '../../../src/domain/plan/Plan.events';
 import { zoneCreated, zoneDeleted, zoneGeometryChanged, zoneRenamed, zoneDetailsChanged } from '../../../src/domain/zone/Zone.events';
 import { geometrySidecarChanged } from '../../../src/application/events/projectIndex.events';
 import type { EntityId } from '../../../src/core/identity/EntityId';
@@ -33,12 +33,15 @@ describe('subscribing to one plan changes', () => {
 	 * an event there rather than giving the editor a second refresh path. Both entries are
 	 * driven, so removing one is a failure rather than a silent narrowing.
 	 */
-	it('fires when that plan is calibrated', async () => {
+	it.each([
+		['is calibrated', planCalibrated],
+		['has its north set', planNorthChanged],
+	])('fires when that plan %s', async (_name, makeEvent) => {
 		const events = createEventBus();
 		const listener = vi.fn<() => void>();
 		createPlanChangeSource(events)('plan-ground', listener);
 
-		await events.publish(planCalibrated(GROUND));
+		await events.publish(makeEvent(GROUND));
 
 		expect(listener).toHaveBeenCalledTimes(1);
 	});

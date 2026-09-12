@@ -4,6 +4,7 @@ import type { PlanningServices } from '../../application/commands/renovation/Pla
 import type { EvidenceFiles } from '../../application/ports/EvidenceFiles';
 import { referencePlanServices, type ReferencePlanServices } from '../../application/commands/plan/ConfigurePlanReference';
 import type { StructureServices } from '../../application/commands/spatial/StructureCommand';
+import type { PlanNorthServices } from '../../application/commands/plan/SetPlanNorth';
 import type { GroupGeometryServices } from '../../application/commands/spatial/GroupGeometryCommand';
 import { err, type Result } from '../../core/result/Result';
 import { createEventBus, type EventBus } from '../../core/events/EventBus';
@@ -76,6 +77,8 @@ export interface PlanEditorCommandServices {
 	readonly renovation?: RenovationServices;
 	readonly structure?: StructureServices;
 	readonly referencePlan: ReferencePlanServices;
+	/** The north arrow's write. OPTIONAL like `structure`: without it the arrow draws and does not turn. */
+	readonly planNorth?: PlanNorthServices;
 	readonly createZone: Command<
 		CreateZoneInput,
 		Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>

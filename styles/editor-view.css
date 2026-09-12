@@ -32,6 +32,26 @@
 	background-image: linear-gradient(to right, var(--background-modifier-border) 1px, transparent 1px), linear-gradient(to bottom, var(--background-modifier-border) 1px, transparent 1px);
 	opacity: 0.5;
 }
+.rp-north-arrow {
+	position: absolute;
+	top: var(--size-4-3);
+	right: var(--size-4-3);
+	width: 72px;
+	height: 72px;
+	pointer-events: auto;
+	touch-action: none;
+	cursor: grab;
+	color: var(--text-normal);
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+}
+.rp-north-arrow[aria-disabled='true'] { cursor: default; }
+.rp-north-arrow:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; border-radius: 50%; }
+.rp-north-arrow__dial { fill: var(--background-primary); fill-opacity: 0.85; }
+.rp-north-arrow__needle { stroke-width: 3; stroke-linejoin: round; }
+.rp-north-arrow__pivot, .rp-north-arrow text { fill: currentColor; stroke: none; }
+.rp-north-arrow text { font-size: 14px; font-weight: 700; text-anchor: middle; }
 
 @container (max-width: 899px) {
 	.renovation-plan-editor .rp-context-bar { position: relative; }

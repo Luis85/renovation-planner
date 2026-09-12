@@ -77,6 +77,7 @@ describe('ListCatalogueEntries', () => {
 				height: 12,
 				notes: 'Fragile edges',
 				background: null,
+				planPattern: null,
 			},
 		]);
 		expect(listing.unreadable).toEqual([]);

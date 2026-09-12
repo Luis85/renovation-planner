@@ -84,19 +84,24 @@ schema file's own header says so).
 
 ### 4.1 Placement functions
 
-Rooms are placed by `roomCaptionAnchor` and their block height by `captionBottom`
-(`layers/zone/captionPlacement.ts`), and grabbed by `roomCaptionBounds`; a room caption's block is
-taller while a detail-plans line shows (`captionBottom`, ADR-0028). Elements and assets are placed
-by `elementCaptionLayout` and grabbed by `textLabelBounds` (`labels/labelLayout.ts`), text width
-from `measureLabelWidth`. `ZoneShape`, `ElementShapes`, `assetShapeConfig` and `labelActions` all
-call the same functions, so what is drawn and what can be grabbed cannot disagree — the same
-relationship `handleMetrics.ts` keeps for vertex handles.
+**Rooms.** `ZoneShape` draws the caption at `roomCaptionAnchor(…, { viewport, bottom:
+captionBottom(detailed) })` (`layers/zone/captionPlacement.ts`); a room caption's block is taller
+while a detail-plans line shows (`captionBottom`, ADR-0028). `labelActions` grabs it at the same
+anchor, boxed by `roomCaptionBounds` (`labels/labelLayout.ts`) with the same `captionBottom`.
+
+**Elements and assets.** `ElementShapes` draws with `elementLabelLayout` and `assetShapeConfig`
+with `assetLabelLayout` (`labels/labelLayout.ts`); `labelActions` grabs through
+`elementCaptionLayout`, which picks between those two by kind, boxed by `textLabelBounds` (text
+width from `measureLabelWidth`).
+
+So the drawn position and the grab box come from the same layout functions, and cannot disagree —
+the same relationship `handleMetrics.ts` keeps for vertex handles.
 
 ### 4.2 Hit-testing
 
 - `SelectionTarget` gains `{ kind: 'label'; id }`.
 - `SelectTool` gains a `labelHits` dependency (the `rotationControls` precedent), answered by
-  `labelActions` from the same placement functions the renderers call.
+  `labelActions` from the layout functions §4.1 names.
 - `resolveSelectionTarget` answers `'label'` after the rotation handle, vertex handles and
   badges, and before bodies — an element's name tag sits just above its first point, where its
   handle is grabbed — for any SELECTED candidate whose label bounds, padded by a few screen
@@ -183,7 +188,7 @@ Every test is watched failing before its code exists.
 | Gesture | sub-threshold release dispatches nothing; cancel clears the preview; no gesture while writes are blocked. |
 | Commands | `ReversibleMoveZoneCommand` label undo restores the offset with geometry unchanged; element label drag round-trips through `elementInput`. |
 | Drawing | `ZoneShape` draws at anchor + offset and skips pin displacement; element and asset labels shift by the offset. |
-| Consistency | `labelActions`'s hit bounds equal what `ZoneShape`, `ElementShapes` and `assetShapeConfig` draw at (`roomCaptionBounds`/`textLabelBounds`). |
+| Consistency | `labelActions`'s grab box (`roomCaptionBounds`/`textLabelBounds`) sits exactly at what the renderers draw (`roomCaptionAnchor`, `elementLabelLayout`, `assetLabelLayout`). |
 
 Outside the gates: the manual case `docs/tests/cases/Drag a caption.md`. No fixed harness
 capture: the harness Plan Editor floor has no renovation services, so a drag cannot save there.

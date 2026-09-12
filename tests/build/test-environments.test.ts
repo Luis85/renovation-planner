@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync, statSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 import { repoRelative } from '../helpers/repo';
+import { reachableFrom, repoTree } from '../helpers/importGraph';
 
 /**
  * The inner layers execute in bare node — asked as the EFFECTIVE environment, not as a
@@ -25,134 +26,64 @@ import { repoRelative } from '../helpers/repo';
  */
 const PROTECTED_DIRECTORIES = ['tests/core/', 'tests/domain/', 'tests/application/'] as const;
 
-/** The regex Vitest itself matches with, read out of the installed package, not assumed. */
-const ENVIRONMENT_DIRECTIVE = /@(?:vitest|jest)-environment\s+([\w-]+)\b/u;
-
 /**
- * Relative import specifiers — STATIC and DYNAMIC both, because both are graph edges.
+ * The directive vitest reads, read out of the file's COMMENTS with the TypeScript parser rather
+ * than pattern-matched: every comment range in the file, in document order, and the word after
+ * `@vitest-environment` / `@jest-environment` in the first one that carries it.
  *
- * A first draft matched `(?:from|import)\s+['"]` only, which requires whitespace after the
- * keyword and so cannot see `await import('../x')` or `const m = import('../x')`. That is not
- * a hypothetical form in this repository: `tests/plugin/persistence-wiring.test.ts:35` reaches
- * the composition root exactly that way. A collected test reaching a contract through a helper
- * that imports it dynamically would have been classified as not-protected, free to select
- * jsdom with this guard green — the transitive hole closed one round earlier, reopened by the
- * matcher underneath it.
- *
- * Every delimiter (`'`, `"`, `` ` ``) is matched now, not just the first two — this repository
- * already found this exact gap once, in a sibling scanner over a different suffix
- * (`tests/harness/harness.test.ts`'s `sheetImport`, over `.css` rather than `.contract`): a
- * BACKTICK-quoted dynamic import — `` import(`../contracts/x`) `` — is valid, statically
- * analysable syntax that a pattern naming only `'"` does not see. Confirmed here rather than
- * assumed: with backtick unmatched, a planted relay importing
- * `` await import(`../../contracts/zone-repository.contract`) `` classified as NOT reaching
- * `tests/contracts/` and the guard passed green over a file that genuinely ran the wrong
- * environment.
- *
- * **Widened once, and the first widening was itself holed a round later — a single delimiter
- * CLASS shared between all three quote characters, at both the opening and interior positions,
- * lets one match run PAST its own closing delimiter and into a second statement.** A file with
- * two backtick-quoted imports of the same kind —
- * `` import(`../contracts/a`); import(`../contracts/b`); `` — greedily matched from the first
- * opening backtick to the LAST backtick in the remaining source, producing one garbage capture
- * spanning both statements; `resolveSpecifier` then fails on the garbage string and BOTH edges
- * are dropped from the walk, silently. Confirmed for both patterns, not assumed from one: a
- * planted file with two backtick-quoted STATIC imports reproduces the identical shape.
- * `tests/harness/harness.test.ts`'s `sheetImport` shares the same construction (one delimiter
- * class, shared interior exclusion) and has the identical hole at the regex level — checked
- * rather than inherited silently — but it is harmless THERE because that scanner calls
- * `.test()` for a per-file yes/no answer rather than extracting and individually resolving
- * each match the way this function's callers do; a garbage match spanning two real imports
- * still answers "yes, this file imports a stylesheet" correctly. This function cannot make
- * that trade: `reachesContracts` needs every individual specifier resolved, so a merged match
- * loses real edges rather than merely losing precision.
- *
- * The fix is not a wider or narrower shared class but THREE separate alternatives, one per
- * delimiter, each excluding only its OWN delimiter from its interior — `'(\.[^']+)'`,
- * `"(\.[^"]+)"`, `` `(\.[^`]+)` `` — so a match can never run past the specific character
- * that opened it. This is also what makes the POSIX-legal case survive
- * correctly: a literal backtick inside a single- or double-quoted specifier
- * (`import './weird\`.ts'`) is legal on every filesystem and is still not excluded from the
- * single- or double-quoted alternative's own interior, so it goes on matching exactly as
- * before — it is the BACKTICK alternative's interior that now excludes backtick, and only
- * that one. Three capture groups rather than one, since a shared exclusion class cannot
- * express "not my own delimiter, whichever it was" without one; `match[1] ?? match[2] ??
- * match[3]` reads whichever alternative fired.
- *
- * What it still cannot see, written down rather than implied, because a matcher over source
- * text is partial by construction: a COMPUTED specifier (`import(someVariable)`), a
- * `require()`, and a re-export chain that leaves the relative tree and comes back. The first
- * is the one that would matter, and nothing in `tests/` writes one today — measured. If that
- * changes, the fix is not a longer regex but Vitest's own resolved module graph, which is the
- * only authority that cannot be partial.
+ * Measured against vitest's own behaviour rather than assumed equal to it. Vitest
+ * (`detectCodeBlock`, not exported) takes the first match anywhere in the file's TEXT — a
+ * directive spelled inside a string literal would count there and not here. No test file on
+ * this tree spells one outside a comment (`grep -rn "@vitest-environment" tests` is the check,
+ * every hit a comment), and `referenceWorkflow.e2e.test.ts` carries its directive twelve lines
+ * down, after its imports, which both readings honour. A file whose FIRST comment mention is
+ * prose about the directive rather than the directive itself would disagree the same way in
+ * both readers, since vitest's first match is that prose too.
  */
-const importsOf = (file: string): string[] => {
-	const source = readFileSync(file, 'utf8');
-	const statik = [...source.matchAll(/(?:from|import)\s+(?:'(\.[^']+)'|"(\.[^"]+)"|`(\.[^`]+)`)/gu)];
-	const dynamic = [...source.matchAll(/import\s*\(\s*(?:'(\.[^']+)'|"(\.[^"]+)"|`(\.[^`]+)`)/gu)];
-	return [...statik, ...dynamic].map((match) => match[1] ?? match[2] ?? match[3] ?? '');
-};
-
-/**
- * Every extension Vitest itself can resolve, in its own order — not just `.ts`.
- *
- * A draft tried the literal path, `.ts` and `/index.ts` alone, so an extensionless import of a
- * `.js` or `.mjs` relay resolved to nothing and its own import of `tests/contracts/` was never
- * visited: the collected caller came back unprotected and free to select jsdom with the guard
- * green. The transitive walk has now been holed twice in three rounds by the RESOLVER beneath
- * it rather than by the walk — first by missing dynamic `import()`, now by missing extensions.
- *
- * Widened rather than made authoritative, and the trade is stated so the next reader inherits
- * it: Vitest's own resolved module graph is the only thing that cannot be partial, and
- * `importsOf`'s header already names it as the remedy when this list stops being enough. What
- * this still cannot resolve is a path alias from `vitest.config.ts` — measured, `tests/` uses
- * none today.
- */
-const RESOLVABLE = ['', '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'] as const;
-
-const resolveSpecifier = (from: string, specifier: string): string | null => {
-	const base = resolve(dirname(from), specifier);
-	const candidates = [
-		...RESOLVABLE.map((extension) => `${base}${extension}`),
-		...RESOLVABLE.filter((extension) => extension !== '').map((extension) => `${base}/index${extension}`),
-	];
-	for (const candidate of candidates) {
-		try {
-			if (statSync(candidate).isFile()) return candidate;
-		} catch {
-			continue;
+function declaredEnvironment(source: string): string | undefined {
+	const file = ts.createSourceFile('spec.ts', source, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+	const ranges = new Map<number, ts.CommentRange>();
+	const visit = (node: ts.Node): void => {
+		for (const range of [...(ts.getLeadingCommentRanges(source, node.pos) ?? []), ...(ts.getTrailingCommentRanges(source, node.end) ?? [])]) {
+			ranges.set(range.pos, range);
 		}
+		ts.forEachChild(node, visit);
+	};
+	visit(file);
+	for (const range of [...ranges.values()].toSorted((a, b) => a.pos - b.pos)) {
+		// Whitespace-split by hand: `split(/\s+/)` is a pattern, and this file is under the rule
+		// that no gate reads source text through one.
+		const words = source
+			.slice(range.pos, range.end)
+			.split('\n')
+			.flatMap((line) => line.split('\t'))
+			.flatMap((line) => line.split(' '))
+			.map((word) => word.trim())
+			.filter((word) => word !== '');
+		const at = words.findIndex((word) => word === '@vitest-environment' || word === '@jest-environment');
+		if (at !== -1 && words[at + 1] !== undefined) return words[at + 1];
 	}
-	return null;
-};
+	return undefined;
+}
 
 /**
- * Whether a COLLECTED file reaches `tests/contracts/` through the import graph.
+ * Whether a COLLECTED file reaches `tests/contracts/` through the import graph — the shared walk
+ * in `tests/helpers/importGraph.ts`, which reads edges out of the TypeScript and SFC parsers.
  *
  * Transitive rather than one hop, and the distinction is not academic: Vitest selects an
  * environment for the collected file, so a test reaching a contract through a helper has no
  * direct import from `tests/contracts/` and a one-hop predicate never classifies the file
- * whose environment actually decides. Today all six callers import directly — measured — so
- * a one-hop test happens to hold, which is exactly the kind of accident that stops holding
+ * whose environment actually decides. Today the callers import directly — measured — so a
+ * one-hop test happens to hold, which is exactly the kind of accident that stops holding
  * without telling anyone.
+ *
+ * This file carried a walker of its own before the shared one existed, and it was holed three
+ * times in three rounds — a dynamic `import()` without whitespace, an extensionless `.js`
+ * relay, a backtick-quoted specifier — each a regex over source text finding a spelling the
+ * last regex did not. The shared walk's header says what the parsers see and what nothing can.
  */
-const reachesContracts = (entry: string, edges: Map<string, readonly string[]>): boolean => {
-	const seen = new Set<string>();
-	const queue = [entry];
-	while (queue.length > 0) {
-		const file = queue.pop();
-		if (file === undefined || seen.has(file)) continue;
-		seen.add(file);
-		if (repoRelative(file).startsWith('tests/contracts/')) return true;
-		let targets = edges.get(file);
-		if (targets === undefined) {
-			targets = importsOf(file).map(specifier => resolveSpecifier(file, specifier)).filter((target): target is string => target !== null);
-			edges.set(file, targets);
-		}
-		for (const target of targets) if (!seen.has(target)) queue.push(target);
-	}
-	return false;
-};
+const reachesContracts = (entry: string): boolean =>
+	[...reachableFrom(repoRelative(entry), repoTree, ['src/', 'tests/'])].some((file) => file.startsWith('tests/contracts/'));
 
 /**
  * What this seam still cannot see: a CLI flag on the OUTER invocation that actually runs
@@ -174,8 +105,8 @@ const reachesContracts = (entry: string, edges: Map<string, readonly string[]>):
  * Not fixed here, and the brief's own scoping already says why: this file protects the
  * suite it collects, not the command line that invoked it, and it "does not attempt to
  * protect its own config file" — a CLI flag on the outer invocation is one layer further
- * out than that. Named as a residual rather than left implicit, the way this file already
- * names the computed-specifier, `require()` and re-export-chain gaps above.
+ * out than that. Named as a residual rather than left implicit, the way the shared walk's
+ * header names the computed-specifier gap.
  */
 describe('the inner layers execute in node', () => {
 	it('resolves the effective environment of every collected file to node where it is protected', async () => {
@@ -194,10 +125,6 @@ describe('the inner layers execute in node', () => {
 		// throughout, applied to its own gate.
 		const examinedByDirectory: string[] = [];
 		const examinedByContract: string[] = [];
-		// Cache file edges only within this collection. The expanded editor graph made
-		// repeated readFileSync/statSync walks exceed the existing 120s budget on Windows.
-		// Every entry still gets its own traversal and both protection assertions below.
-		const edges = new Map<string, readonly string[]>();
 		for (const spec of specs) {
 			const path = repoRelative(spec.moduleId);
 			const protectedByDirectory = PROTECTED_DIRECTORIES.some((dir) => path.startsWith(dir));
@@ -209,13 +136,13 @@ describe('the inner layers execute in node', () => {
 			// the DOM.
 			if (protectedByDirectory) {
 				examinedByDirectory.push(path);
-			} else if (reachesContracts(spec.moduleId, edges)) {
+			} else if (reachesContracts(spec.moduleId)) {
 				examinedByContract.push(path);
 			} else {
 				continue;
 			}
 
-			const declared = ENVIRONMENT_DIRECTIVE.exec(readFileSync(spec.moduleId, 'utf8'))?.[1];
+			const declared = declaredEnvironment(readFileSync(spec.moduleId, 'utf8'));
 			const effective = declared ?? spec.project.config.environment;
 			if (effective !== 'node') offenders.push(`${path}: ${effective}`);
 		}

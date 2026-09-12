@@ -17,10 +17,11 @@
  * `AssetDesignerView`, another Task B3 file.
  *
  * **What the instrument sees, and what it does not.** The walk is `tests/helpers/importGraph.ts`
- * — shared since `tests/build/node-tests-import-no-sfc.test.ts` needed the same one — and it
- * reads import SPECIFIERS as text: `from '…'`, a bare `import '…'` and a dynamic `import('…')`,
- * skipping a type-only import (its header says why and what was measured), and resolves the
- * relative ones, so:
+ * — shared with `tests/build/test-environments.test.ts` — and it reads import SPECIFIERS out of
+ * the real parsers (TypeScript's for a script, `@vue/compiler-sfc`'s for an SFC's script
+ * blocks): `from '…'`, a bare `import '…'`, an `export … from`, a dynamic `import()` and a
+ * `require()`, skipping a type-only import (its header says why and what was measured), and
+ * resolves the relative ones, so:
  *
  * - a component reached through a path alias, a glob or a runtime string is invisible to it;
  * - an import that exists but is never RENDERED counts as reached. That half is closed by LINT
@@ -42,6 +43,9 @@ import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO } from '../../helpers/repo';
 import { fixtureTree as fixture, reachableFrom, repoTree as nodeTree } from '../../helpers/importGraph';
+
+/** A fixture SFC whose script is `script`: the walk parses an SFC's blocks, not its raw text. */
+const sfc = (script: string): string => `<script setup lang="ts">\n${script}\n</script>\n<template><p /></template>`;
 
 describe('the reachability walk', () => {
 	it('reaches a component the entry imports', () => {
@@ -75,7 +79,7 @@ describe('the reachability walk', () => {
 	it('reaches a component nested two imports deep, through a subdirectory', () => {
 		const tree = fixture({
 			'src/presentation/designer/View.ts': "import Root from './Root.vue';",
-			'src/presentation/designer/Root.vue': "import Inspector from './inspector/Inspector.vue';",
+			'src/presentation/designer/Root.vue': sfc("import Inspector from './inspector/Inspector.vue';"),
 			'src/presentation/designer/inspector/Inspector.vue': '',
 		});
 
@@ -99,10 +103,27 @@ describe('the reachability walk', () => {
 	it('terminates on a cycle', () => {
 		const tree = fixture({
 			'src/presentation/designer/View.ts': "import Root from './Root.vue';",
-			'src/presentation/designer/Root.vue': "import { x } from './View';",
+			'src/presentation/designer/Root.vue': sfc("import { x } from './View';"),
 		});
 
 		expect(reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/']).size).toBe(2);
+	});
+
+	/**
+	 * A component only TYPE-imported is not reached: Oxc erases the import before the module is
+	 * requested (`importGraph.ts`'s header carries the measurement), so a view naming a component
+	 * as a prop type has not mounted it. Pointed at `src/`, this rule moves the real reach set
+	 * from 142 files to 132 — measured by running the walk with `erased` answering `false`, on
+	 * the tree this case was written against; the figure is a snapshot, the rule is not.
+	 */
+	it('does not reach a component the entry only type-imports', () => {
+		const tree = fixture({
+			'src/presentation/designer/View.ts': "import type Root from './Root.vue';\nimport { type Props } from './Canvas.vue';",
+			'src/presentation/designer/Root.vue': '',
+			'src/presentation/designer/Canvas.vue': '',
+		});
+
+		expect(reachableFrom('src/presentation/designer/View.ts', tree, ['src/presentation/']).size).toBe(1);
 	});
 
 	/** A specifier naming a package, or a file that is not there, is skipped rather than fatal. */

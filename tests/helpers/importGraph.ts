@@ -1,64 +1,102 @@
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import ts from 'typescript';
+import { parse as parseSfc } from '@vue/compiler-sfc';
 import { REPO } from './repo';
 import { toPosix } from './posix';
 
 /**
- * One import-graph walk over specifier TEXT, shared by the two instruments that ask "what does
- * this file reach by relative import": `tests/presentation/designer/regionsReachable.test.ts`
- * (every designer component is reachable from its view) and
- * `tests/build/node-tests-import-no-sfc.test.ts` (no node-environment test reaches an SFC). It
- * lived in the first of those until the second needed it; a second walker would have been a
- * second answer to what an import edge is.
+ * One import-graph walk, shared by every instrument under `tests/` that asks "what does this
+ * file reach by relative import". Counted by grepping `tests/` for `createSourceFile`,
+ * `matchAll` and `import(` extractors in the same edit as this sentence: the two callers are
+ * `tests/presentation/designer/regionsReachable.test.ts` (every designer component is reachable
+ * from its view) and `tests/build/test-environments.test.ts` (a test reaching a repository
+ * contract runs in node). `tests/harness/harness.test.ts` has a walk of its own over
+ * STYLESHEET specifiers and glob patterns, which is a different question and stays there.
  *
- * **What it sees, and what it does not.** It reads `from '…'`, a bare `import '…'` and a dynamic
- * `import('…')`, and resolves the RELATIVE ones — a package, a path alias, a glob or a runtime
- * string is invisible to it. A TYPE-ONLY import is not an edge: `import type X from`,
- * `import { type A, type B } from` and `export type { X } from` are erased by esbuild before the
- * module is ever requested, which was measured rather than assumed — a node test carrying
- * `import type X from '…/DeleteReferenceDialog.vue'` runs with no `vite:load` of that SFC, and
- * the same import spelled as a value loads and transforms it. A value-syntax import whose
- * binding is used only as a type is elided the same way at runtime and would count here, and
- * that over-count is closed by LINT rather than by this walk: oxlint's
- * `typescript/consistent-type-imports` refuses the spelling, so a file on this tree cannot
- * carry one.
+ * **Edges come from the real parsers, never from a pattern over the text.** The script is read
+ * with `ts.createSourceFile` and an SFC's `<script>`/`<script setup>` blocks are handed over by
+ * `@vue/compiler-sfc`'s `parse` — a template comment or a docblock that happens to spell
+ * `import x from '…'` is not an edge, and a real import after comment prose, after an
+ * un-semicoloned `export type`, or written as `` import(`…`) `` is one. `importGraph.test.ts`
+ * carries each of those as a fixture, watched red against the regex this replaced.
  *
- * Extension candidates are tried in the order TypeScript itself would, with the empty one
- * FIRST because `.vue` imports are written with their extension. `.js`/`.mjs` relays are not
- * resolved — nothing under `src/` or `tests/helpers/` is one, and a `scripts/*.mjs` a build test
- * imports cannot reach an SFC.
+ * **What is an edge.** An `import … from`, a bare `import '…'`, an `export … from`, a dynamic
+ * `import()` and a `require()` whose argument is a string literal or a substitution-free
+ * template. A TYPE-ONLY import is not one — `import type X from`, `import { type A } from`
+ * with every binding typed, and `export type { X } from` — because Oxc (Vite 8 transforms
+ * TypeScript with it, not with esbuild) erases those before the module is ever requested:
+ * measured with a plugin logging every `.vue` load under vitest, and none of the three loaded
+ * the SFC where the value spelling did. That erasure holds because `tsconfig.json` sets
+ * `isolatedModules` and NOT `verbatimModuleSyntax`; under the latter an `import {}` residue
+ * would survive as a side-effect import and the rule here would be wrong. The same measurement
+ * showed a VALUE-syntax import whose binding is used only as a type is dropped too, and counts
+ * here as an edge it is not at runtime — that over-count is closed by LINT rather than by this
+ * walk, since oxlint's `typescript/consistent-type-imports` refuses the spelling.
+ *
+ * **What it cannot see.** A specifier held in a variable, built by concatenation or a template
+ * with a substitution, a package name, a path alias and a Vite glob are not edges. Relative
+ * specifiers are resolved on the filesystem the way TypeScript would try them, with the empty
+ * extension FIRST because `.vue` and `.mjs` imports are written with theirs, then `.ts`,
+ * `.vue`, `.js`, `.mjs` and `index.ts`.
  */
 export interface SourceTree {
 	read(path: string): string;
 	isFile(path: string): boolean;
 }
 
-/** A clause between `import`/`export` and `from` that names only types, so esbuild erases it. */
-function typeOnly(clause: string): boolean {
-	const trimmed = clause.trim();
-	if (/^type\b/.test(trimmed)) return true;
-	const braced = /^\{([^}]*)\}$/.exec(trimmed);
-	if (braced === null) return false;
-	const names = (braced[1] ?? '').split(',').map((name) => name.trim()).filter((name) => name !== '');
-	return names.length > 0 && names.every((name) => /^type\b/.test(name));
+/** A literal specifier, or `null` for one whose value exists only at runtime. */
+function literalSpecifier(argument: ts.Expression | undefined): string | null {
+	return argument !== undefined && ts.isStringLiteralLike(argument) ? argument.text : null;
 }
 
-const STATEMENT =
-	/\b(?:import|export)\b([^'"`;]*?)\bfrom\s*['"]([^'"]+)['"]|\bimport\s*\(\s*['"]([^'"]+)['"]|\bimport\s*['"]([^'"]+)['"]/g;
+const allTypeOnly = (elements: readonly (ts.ImportSpecifier | ts.ExportSpecifier)[]): boolean =>
+	elements.length > 0 && elements.every((element) => element.isTypeOnly);
 
-/** Every specifier a module names as a VALUE edge — bindings, side effects or a dynamic import. */
-function specifiersIn(source: string): string[] {
-	return [...source.matchAll(STATEMENT)].flatMap((match) => {
-		const [, clause, fromSpecifier, dynamicSpecifier, bareSpecifier] = match;
-		if (fromSpecifier !== undefined) return typeOnly(clause ?? '') ? [] : [fromSpecifier];
-		return [dynamicSpecifier ?? bareSpecifier ?? ''];
-	});
+/** An `import`/`export` clause that Oxc erases whole: the statement is type-only, or every named binding is. */
+function erased(node: ts.ImportDeclaration | ts.ExportDeclaration): boolean {
+	if (ts.isImportDeclaration(node)) {
+		const clause = node.importClause;
+		if (clause === undefined) return false;
+		if (clause.phaseModifier === ts.SyntaxKind.TypeKeyword) return true;
+		const bindings = clause.namedBindings;
+		return clause.name === undefined && bindings !== undefined && ts.isNamedImports(bindings) && allTypeOnly(bindings.elements);
+	}
+	if (node.isTypeOnly) return true;
+	const clause = node.exportClause;
+	return clause !== undefined && ts.isNamedExports(clause) && allTypeOnly(clause.elements);
+}
+
+/** Every literal specifier one script names as a VALUE edge. */
+function specifiersInScript(content: string): string[] {
+	const found: string[] = [];
+	const visit = (node: ts.Node): void => {
+		if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+			const specifier = erased(node) ? null : literalSpecifier(node.moduleSpecifier);
+			if (specifier !== null) found.push(specifier);
+		} else if (ts.isCallExpression(node)) {
+			const callee = node.expression;
+			const isImport = callee.kind === ts.SyntaxKind.ImportKeyword;
+			const isRequire = ts.isIdentifier(callee) && callee.text === 'require';
+			const specifier = isImport || isRequire ? literalSpecifier(node.arguments[0]) : null;
+			if (specifier !== null) found.push(specifier);
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(ts.createSourceFile('module.ts', content, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS));
+	return found;
+}
+
+function specifiersIn(file: string, source: string): string[] {
+	if (!file.endsWith('.vue')) return specifiersInScript(source);
+	const { descriptor } = parseSfc(source, { filename: file });
+	return [descriptor.script, descriptor.scriptSetup].flatMap((block) => (block === null ? [] : specifiersInScript(block.content)));
 }
 
 function resolveSpecifier(from: string, specifier: string, tree: SourceTree): string | null {
 	if (!specifier.startsWith('.')) return null;
 	const base = toPosix(join(from, '..', specifier));
-	for (const extension of ['', '.ts', '.vue', '/index.ts']) {
+	for (const extension of ['', '.ts', '.vue', '.js', '.mjs', '/index.ts']) {
 		const candidate = `${base}${extension}`;
 		if (tree.isFile(candidate)) return candidate;
 	}
@@ -66,10 +104,10 @@ function resolveSpecifier(from: string, specifier: string, tree: SourceTree): st
 }
 
 /**
- * Resolved edges per file, per tree. The SFC gate walks from every node test in the suite and
- * most of those walks share most of their graph: uncached, 464 entries re-read and re-resolved
- * the same few hundred files each — 28.7s measured; cached, under a second. Keyed by the tree
- * object so a fixture never sees another fixture's edges.
+ * Resolved edges per file, per tree. `test-environments.test.ts` walks from every collected spec
+ * and those walks share most of one graph: uncached, hundreds of entries re-read and re-parse the
+ * same few hundred files each. Keyed by the tree object so a fixture never sees another
+ * fixture's edges.
  */
 const EDGES = new WeakMap<SourceTree, Map<string, readonly string[]>>();
 
@@ -78,7 +116,7 @@ function edgesOf(file: string, tree: SourceTree): readonly string[] {
 	if (cache === undefined) EDGES.set(tree, (cache = new Map()));
 	let edges = cache.get(file);
 	if (edges === undefined) {
-		edges = specifiersIn(tree.read(file))
+		edges = specifiersIn(file, tree.read(file))
 			.map((specifier) => resolveSpecifier(file, specifier, tree))
 			.filter((target): target is string => target !== null);
 		cache.set(file, edges);
@@ -108,13 +146,6 @@ export function importersFrom(entry: string, tree: SourceTree, within: readonly 
 
 export function reachableFrom(entry: string, tree: SourceTree, within: readonly string[]): Set<string> {
 	return new Set(importersFrom(entry, tree, within).keys());
-}
-
-/** The chain of files from the walk's entry down to `file`, entry first. */
-export function chainTo(file: string, importer: ReadonlyMap<string, string | null>): string[] {
-	const chain: string[] = [];
-	for (let at: string | null | undefined = file; at !== null && at !== undefined; at = importer.get(at)) chain.unshift(at);
-	return chain;
 }
 
 /** An in-memory tree, so an instrument is driven against fixtures before it is pointed at `src/`. */

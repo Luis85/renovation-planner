@@ -73,20 +73,33 @@ export function usePlanReorder() {
 	const paused = computed(() => runtime.writesBlocked.value);
 
 	/**
-	 * Resolves to whether EVERY write landed — `false` when refused up front (no command, paused)
-	 * or when one was rejected, which is reported here and nowhere else. A caller whose control
-	 * shows the value it asked for (the Floor inspector's Kind select) needs that answer to put
-	 * the control back: the re-read below refreshes the hierarchy, never `ProjectStore.plan`.
+	 * Resolves to whether EVERY write landed — `false` when refused up front (no command, paused,
+	 * or a sequence still in flight) or when one was rejected, which is reported here and nowhere
+	 * else. A caller whose control shows the value it asked for (the Floor inspector's Kind
+	 * select) needs that answer to put the control back: the re-read below refreshes the
+	 * hierarchy, never `ProjectStore.plan`.
+	 *
+	 * ONE sequence at a time per leaf (`store.writing`, shared by every instance of this
+	 * composable): a held Alt+↑ auto-repeats before the re-read lands, and each repeat would
+	 * compute the same writes from the stale tree and dispatch them concurrently — the second
+	 * sequence's `loadPlan` reading the pre-save version and failing the version check as a
+	 * spurious stale-write notice. A press that arrives mid-sequence is DROPPED, not errored;
+	 * the flag holds through the re-read so the next accepted press computes from the saved tree.
 	 */
 	async function write(writes: readonly { planId: string; kind?: PlanKind; order?: number }[]): Promise<boolean> {
-		if (command === undefined || paused.value) return false;
+		if (command === undefined || paused.value || store.writing) return false;
 		if (writes.length === 0) return true;
 		let landed = true;
-		for (const entry of writes) {
-			const result = await command.execute({ ...entry, planId: entry.planId as PlanId });
-			if (!result.ok) { reportDispatchFailure(result.error); landed = false; break; }
+		store.writing = true;
+		try {
+			for (const entry of writes) {
+				const result = await command.execute({ ...entry, planId: entry.planId as PlanId });
+				if (!result.ok) { reportDispatchFailure(result.error); landed = false; break; }
+			}
+			await store.load(context.queries, context.planId);
+		} finally {
+			store.writing = false;
 		}
-		await store.load(context.queries, context.planId);
 		return landed;
 	}
 	function siblingsOf(id: string): readonly PropertyTreeNode[] {

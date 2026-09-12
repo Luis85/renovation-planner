@@ -6,16 +6,17 @@
  * `rp-canvas-context-menu` chrome and `role="menu"` keyboard contract as `CanvasContextMenu`
  * (shared through `selection/menuKeyboard.ts`), deliberately NOT that component: it is bound to
  * the canvas, the selection store and the tool manager, none of which a tree row has.
- * Positioned inside `.renovation-plan-editor` exactly as that menu is — the opening point, then
- * clamped into the host once measured — and closed by Escape, Tab, an outside pointer or a run
- * action; `PropertyTree` returns focus to the row that opened it.
+ * Positioned inside `host` (`.renovation-plan-editor`, which `PropertyTree` teleports it into)
+ * exactly as that menu is — the opening point, then clamped into the host once measured — and
+ * closed by Escape, Tab, an outside pointer or a run action; `PropertyTree` returns focus to the
+ * row that opened it.
  *
  * While writes are paused (`usePlanReorder().paused`) the menu still opens, every entry is
  * `aria-disabled` and titled with the stale-write reason — the canvas menu's own convention for a
  * greyed item — and a click does nothing. Every action goes through `usePlanReorder`, never the
  * command directly.
  */
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import HostIcon from '../../components/HostIcon.vue';
 import { tr } from '../../i18n/strings';
 import { PLAN_KINDS, type PlanKind } from '../../../domain/plan/PlanKind';
@@ -27,6 +28,8 @@ const props = defineProps<{
 	readonly planId: string;
 	readonly name: string;
 	readonly kind: PlanKind;
+	/** The pane this menu is teleported into: what the clamp below measures against. */
+	readonly host: HTMLElement;
 	readonly x: number;
 	readonly y: number;
 	readonly first: boolean;
@@ -45,13 +48,13 @@ function run(disabled: boolean, action: () => Promise<unknown>): void {
 }
 function navigation(event: KeyboardEvent): void { menuNavigation(event, '[role="menuitem"], [role="menuitemradio"]', () => emit('close')); }
 function outside(event: PointerEvent): void { if (pointerOutside(menu.value, event)) emit('close'); }
-onMounted(async () => {
+onMounted(() => {
 	document.addEventListener('pointerdown', outside, true);
-	await nextTick();
-	const el = menu.value, host = el?.parentElement;
-	if (!el || !host) return;
+	// Bound before `onMounted` runs and already placed in `host` by the Teleport, so it measures
+	// here — a type-only cast, as `CanvasContextMenu` does for its group actions, since `!` is refused.
+	const el = menu.value as HTMLElement;
 	// The same clamp `CanvasContextMenu` applies once it can measure itself: inside the host, 8px in.
-	position.value = { left: `${Math.max(8, Math.min(props.x, host.clientWidth - el.offsetWidth - 8))}px`, top: `${Math.max(8, Math.min(props.y, host.clientHeight - el.offsetHeight - 8))}px` };
+	position.value = { left: `${Math.max(8, Math.min(props.x, props.host.clientWidth - el.offsetWidth - 8))}px`, top: `${Math.max(8, Math.min(props.y, props.host.clientHeight - el.offsetHeight - 8))}px` };
 	el.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
 });
 onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true));

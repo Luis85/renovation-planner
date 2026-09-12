@@ -12,18 +12,21 @@
  * ContextMenu key — `PropertyTreeMenu`, teleported into `.renovation-plan-editor` like the canvas
  * menu), native drag and drop between rows of the SAME parent, and Alt+↑/↓ on the focused row.
  * All three call `usePlanReorder`, which owns availability, the paused gate, the writes and the
- * focus restore after one. Every handler is delegated to the `<ul>` and keys on the `li`'s
- * `data-rp-plan-id`/`data-rp-parent-id`, so the template stays one list.
+ * focus restore after one. Every handler is delegated to the `<ul>` and resolves the `li` it
+ * landed in through `rowOf`, so the template stays one list. While a reorder is unavailable (no
+ * command, review perspective) no input is CLAIMED: a right-click or Shift+F10 is left to the
+ * host, rather than swallowed with nothing opened.
  *
- * Touch devices have no HTML5 drag and drop, so the row menu is the mobile path: long-press
- * raises `contextmenu` there, and the same menu is what Shift+F10 reaches from a keyboard.
+ * HTML5 drag and drop needs a pointer; the row menu and Alt+↑/↓ are the paths that do not. The
+ * Plan editor is desktop-only (`Platform.isMobile`, `src/plugin/planEditorCommands.ts`), so no
+ * touch path is promised here.
  *
  * The drag state is per `PropertyTree` INSTANCE, deliberately not module-level: a drop from
  * another leaf's tree would be a cross-tree, possibly cross-project move — a re-parenting, which
  * is out of scope — and per-instance state makes that a no-op by construction rather than a
  * check somebody has to remember.
  */
-import { computed, ref } from 'vue';
+import { computed, ref, shallowRef } from 'vue';
 import { storeToRefs } from 'pinia';
 import HostIcon from '../../components/HostIcon.vue';
 import { tr } from '../../i18n/strings';
@@ -38,7 +41,6 @@ const { project, plan } = storeToRefs(useProjectStore());
 const { hierarchy, failed } = storeToRefs(usePlanHierarchyStore());
 const context = usePlanEditorContext();
 const reorder = usePlanReorder();
-const treeEl = ref<HTMLElement | null>(null);
 const rootEl = ref<HTMLElement | null>(null);
 /** A row is draggable only with both gates open; the menu opens on `available` alone and greys itself. */
 const canReorder = computed(() => reorder.available.value && !reorder.paused.value);
@@ -58,99 +60,115 @@ const tree = computed(() =>
 			: [],
 );
 
-const menuFor = ref<{ planId: string; x: number; y: number } | null>(null);
-const menuNode = computed(() => (menuFor.value ? findNode(tree.value, menuFor.value.planId) : undefined));
-const menuPosition = computed(() => {
-	if (!menuFor.value || !menuNode.value) return null;
-	const siblings = reorder.siblingsOf(menuNode.value.id), index = siblings.findIndex((node) => node.id === menuNode.value?.id);
-	return { ...menuFor.value, first: index <= 0, last: index >= siblings.length - 1 };
-});
-let opener: HTMLElement | null = null;
-function openMenu(item: HTMLElement, x: number, y: number): void {
-	const id = item.dataset.rpPlanId;
-	if (!id || !reorder.available.value) return;
-	const host = rootEl.value?.closest<HTMLElement>('.renovation-plan-editor')?.getBoundingClientRect();
-	opener = item;
-	menuFor.value = { planId: id, x: Math.max(8, x - (host?.left ?? 0)), y: Math.max(8, y - (host?.top ?? 0)) };
-}
-function closeMenu(): void { menuFor.value = null; opener?.focus(); }
-function itemOf(event: Event): HTMLElement | null { return (event.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]'); }
-function onContextMenu(event: MouseEvent): void {
-	const item = itemOf(event);
-	if (!item) return;
-	event.preventDefault(); event.stopPropagation();
-	openMenu(item, event.clientX, event.clientY);
+/** The `li` a delegated event landed in, with the two facts `PropertyTreeNode` declares on it. */
+interface Row { readonly el: HTMLElement; readonly planId: string; readonly parentId: string | null }
+function rowOf(event: Event): Row | null {
+	const el = (event.target as HTMLElement).closest<HTMLElement>('[role="treeitem"][data-rp-plan-id]');
+	// The selector asked for the attribute, so the id is never absent — a type-only cast, since `!` is refused here.
+	return el ? { el, planId: el.dataset.rpPlanId as string, parentId: el.dataset.rpParentId ?? null } : null;
 }
 
-/** The row being dragged, and its parent — a drop is legal only on a row with the SAME parent. */
-const dragging = ref<{ planId: string; parentId: string | null } | null>(null);
+const menuFor = ref<{ planId: string; x: number; y: number } | null>(null);
+/**
+ * The open menu: its node, the editor pane it is teleported into and positioned against (the
+ * canvas menu's own host), and whether the row is first or last among its siblings. `null` while
+ * closed — and once a re-read has dropped the row, so the menu closes with it rather than
+ * offering moves for a plan that is gone.
+ */
+const menu = computed(() => {
+	const open = menuFor.value;
+	if (!open) return null;
+	const node = findNode(tree.value, open.planId), host = rootEl.value?.closest<HTMLElement>('.renovation-plan-editor');
+	if (!node || !host) return null;
+	const siblings = reorder.siblingsOf(node.id), index = siblings.findIndex((sibling) => sibling.id === node.id);
+	const rect = host.getBoundingClientRect();
+	return { node, host, x: Math.max(8, open.x - rect.left), y: Math.max(8, open.y - rect.top), first: index <= 0, last: index >= siblings.length - 1 };
+});
+let opener: HTMLElement | null = null;
+function openMenu(row: Row, x: number, y: number): void { opener = row.el; menuFor.value = { planId: row.planId, x, y }; }
+function closeMenu(): void { menuFor.value = null; opener?.focus(); }
+function onContextMenu(event: MouseEvent): void {
+	const row = rowOf(event);
+	if (!row || !reorder.available.value) return;
+	event.preventDefault(); event.stopPropagation();
+	openMenu(row, event.clientX, event.clientY);
+}
+
+/** The row being dragged — a drop is legal only on a row with the SAME parent. */
+const dragging = shallowRef<Row | null>(null);
 const dropAt = ref<DropTarget | null>(null);
+/** `draggable` is bound to `canReorder`, so the browser raises this on a row only while a reorder is offered. */
 function onDragStart(event: DragEvent): void {
-	const item = itemOf(event);
-	if (!item || !canReorder.value) { event.preventDefault(); return; }
-	dragging.value = { planId: item.dataset.rpPlanId ?? '', parentId: item.dataset.rpParentId ?? null };
-	event.dataTransfer?.setData('text/plain', '');
-	if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+	dragging.value = rowOf(event);
+	// A real `dragstart` always carries a transfer (type-only cast); `move` keeps the cursor honest about what a drop does.
+	(event.dataTransfer as DataTransfer).effectAllowed = 'move';
 }
 function onDragOver(event: DragEvent): void {
-	const item = itemOf(event), source = dragging.value;
-	if (!item || !source || (item.dataset.rpParentId ?? null) !== source.parentId || item.dataset.rpPlanId === source.planId) { dropAt.value = null; return; }
+	const row = rowOf(event), source = dragging.value;
+	if (!row || !source || row.parentId !== source.parentId || row.planId === source.planId) { dropAt.value = null; return; }
 	event.preventDefault();
-	const rect = item.querySelector<HTMLElement>('.rp-property-tree__row')?.getBoundingClientRect();
-	dropAt.value = { planId: item.dataset.rpPlanId ?? '', edge: rect && event.clientY > rect.top + rect.height / 2 ? 'after' : 'before' };
+	// The row itself is the `li`'s first child (`PropertyTreeNode`); the `li` spans the nested group below it.
+	const rect = row.el.children[0].getBoundingClientRect();
+	dropAt.value = { planId: row.planId, edge: event.clientY > rect.top + rect.height / 2 ? 'after' : 'before' };
+}
+/**
+ * Leaving the tree clears the indicator. Chromium reports no `relatedTarget` on `dragleave`, so
+ * moving between two rows clears it for one event and the next `dragover` draws it again.
+ */
+function onDragLeave(event: DragEvent): void {
+	if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)) dropAt.value = null;
 }
 function onDrop(event: DragEvent): void {
 	const target = dropAt.value, source = dragging.value;
-	dragging.value = null; dropAt.value = null;
+	onDragEnd();
 	if (!target || !source) return;
 	event.preventDefault();
 	const siblings = reorder.siblingsOf(source.planId);
 	const from = siblings.findIndex((node) => node.id === source.planId), over = siblings.findIndex((node) => node.id === target.planId);
-	if (from < 0 || over < 0) return;
+	// A re-read between the last `dragover` and the drop can have taken the target row; a source
+	// gone the same way writes nothing on its own (`plannedWrites` skips an unknown id).
+	if (over < 0) return;
 	const index = (target.edge === 'after' ? over + 1 : over) - (from < over ? 1 : 0);
 	void reorder.moveTo(source.planId, index);
 }
 function onDragEnd(): void { dragging.value = null; dropAt.value = null; }
 
-function items(): HTMLElement[] {
-	return [...(treeEl.value?.querySelectorAll<HTMLElement>('[role="treeitem"]') ?? [])];
+function items(event: KeyboardEvent): HTMLElement[] {
+	return [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="treeitem"]')];
 }
-/** The reorder keys — Alt+↑/↓ move the row, ContextMenu or Shift+F10 open its menu. True when the key was one of them. */
-function reorderKey(event: KeyboardEvent, item: HTMLElement): boolean {
-	if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
-		// The paused gate is `usePlanReorder`'s own `write()`, so it is not repeated here.
-		if (!reorder.available.value) return true;
-		event.preventDefault();
-		const id = item.dataset.rpPlanId ?? '';
-		void (event.key === 'ArrowUp' ? reorder.moveUp(id) : reorder.moveDown(id));
-		return true;
-	}
-	if (event.altKey) return true;
-	if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return false;
+/**
+ * The reorder keys — Alt+↑/↓ move the row, ContextMenu or Shift+F10 open its menu. True when the
+ * key was claimed. The paused gate is `usePlanReorder`'s own `write()`, so it is not repeated
+ * here; while UNAVAILABLE nothing is claimed at all, so Alt+↑ roves like a bare ↑ and Shift+F10
+ * reaches the host as it would from any other shell control.
+ */
+function reorderKey(event: KeyboardEvent, row: Row): boolean {
+	const move = event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown');
+	if (!move && event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return false;
+	if (!reorder.available.value) return false;
+	event.preventDefault();
+	if (move) { void (event.key === 'ArrowUp' ? reorder.moveUp(row.planId) : reorder.moveDown(row.planId)); return true; }
 	// Stopped here, or the canvas menu's own root listener would open on the same press.
-	event.preventDefault(); event.stopPropagation();
-	const rect = item.getBoundingClientRect();
-	openMenu(item, rect.left + 24, rect.top + rect.height / 2);
+	event.stopPropagation();
+	const rect = row.el.getBoundingClientRect();
+	openMenu(row, rect.left + 24, rect.top + rect.height / 2);
 	return true;
 }
 function onKeydown(event: KeyboardEvent): void {
-	const item = itemOf(event);
-	if (!item || event.ctrlKey || event.metaKey || reorderKey(event, item)) return;
-	const all = items(), index = all.indexOf(item);
-	const moves: Record<string, () => HTMLElement | undefined> = {
+	const row = rowOf(event);
+	if (!row || event.ctrlKey || event.metaKey || reorderKey(event, row)) return;
+	const all = items(event), index = all.indexOf(row.el);
+	const moves: Record<string, () => HTMLElement | null | undefined> = {
 		ArrowDown: () => all[index + 1],
 		ArrowUp: () => all[index - 1],
 		Home: () => all[0],
 		End: () => all[all.length - 1],
-		ArrowRight: () => item.querySelector<HTMLElement>('[role="treeitem"]') ?? undefined,
-		ArrowLeft: () => item.parentElement?.closest<HTMLElement>('[role="treeitem"]') ?? undefined,
+		ArrowRight: () => row.el.querySelector<HTMLElement>('[role="treeitem"]'),
+		ArrowLeft: () => row.el.parentElement?.closest<HTMLElement>('[role="treeitem"]'),
 	};
 	const move = moves[event.key];
 	if (move) { event.preventDefault(); move()?.focus(); return; }
-	if ((event.key === 'Enter' || event.key === ' ') && navigate.value) {
-		const id = item.dataset.rpPlanId;
-		if (id && id !== context.planId) { event.preventDefault(); navigate.value(id); }
-	}
+	if ((event.key === 'Enter' || event.key === ' ') && navigate.value && row.planId !== context.planId) { event.preventDefault(); navigate.value(row.planId); }
 }
 </script>
 
@@ -174,7 +192,6 @@ function onKeydown(event: KeyboardEvent): void {
 			<HostIcon name="house" />{{ project.name }}
 		</p>
 		<ul
-			ref="treeEl"
 			role="tree"
 			class="rp-property-tree__list"
 			:aria-label="tr('editor.shell.tree')"
@@ -182,6 +199,7 @@ function onKeydown(event: KeyboardEvent): void {
 			@contextmenu="onContextMenu"
 			@dragstart="onDragStart"
 			@dragover="onDragOver"
+			@dragleave="onDragLeave"
 			@drop="onDrop"
 			@dragend="onDragEnd"
 		>
@@ -197,17 +215,18 @@ function onKeydown(event: KeyboardEvent): void {
 			/>
 		</ul>
 		<Teleport
-			v-if="menuPosition && menuNode"
-			:to="rootEl?.closest('.renovation-plan-editor') ?? 'body'"
+			v-if="menu"
+			:to="menu.host"
 		>
 			<PropertyTreeMenu
-				:plan-id="menuNode.id"
-				:name="menuNode.name || tr('editor.floor')"
-				:kind="menuNode.kind"
-				:x="menuPosition.x"
-				:y="menuPosition.y"
-				:first="menuPosition.first"
-				:last="menuPosition.last"
+				:plan-id="menu.node.id"
+				:name="menu.node.name || tr('editor.floor')"
+				:kind="menu.node.kind"
+				:host="menu.host"
+				:x="menu.x"
+				:y="menu.y"
+				:first="menu.first"
+				:last="menu.last"
 				@close="closeMenu"
 			/>
 		</Teleport>

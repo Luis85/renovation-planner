@@ -93,7 +93,7 @@ describe('PropertyTree', () => {
 		harness.unmount();
 	});
 
-	it('roves focus with the arrow keys and opens with Enter', async () => {
+	it('roves focus with the arrow keys and opens with Enter or Space', async () => {
 		const plan = vi.fn<(planId: string) => Promise<void>>(() => Promise.resolve());
 		const harness = await mountPlanEditorCanvas({ queries: queries(), navigation: navigation(plan) });
 		await settle();
@@ -112,6 +112,19 @@ describe('PropertyTree', () => {
 		expect(document.activeElement).toBe(items[0].element);
 		await items[0].trigger('keydown', { key: 'Enter' });
 		expect(plan).toHaveBeenCalledWith('plan-site');
+		await items[1].trigger('keydown', { key: ' ' });
+		expect(plan).toHaveBeenCalledWith('plan-house');
+		// ↑ from the second row focuses the first; ← on a root and → on a leaf have nowhere to go.
+		await items[1].trigger('keydown', { key: 'ArrowUp' });
+		await items[0].trigger('keydown', { key: 'ArrowLeft' });
+		await items[3].trigger('keydown', { key: 'ArrowRight' });
+		expect(document.activeElement).toBe(items[0].element);
+		// Enter on the open plan opens nothing, a modified arrow is the host's, an unhandled key is left alone.
+		await items[2].trigger('keydown', { key: 'Enter' });
+		await items[2].trigger('keydown', { key: 'ArrowDown', ctrlKey: true });
+		await items[2].trigger('keydown', { key: 'a' });
+		expect(plan).toHaveBeenCalledTimes(2);
+		expect(document.activeElement).toBe(items[0].element);
 		harness.unmount();
 	});
 
@@ -144,10 +157,14 @@ describe('PropertyTree', () => {
 		harness.unmount();
 	});
 
-	it('falls back to the floor label for an unnamed plan', async () => {
+	it('falls back to the floor label for an unnamed plan, as text and as a button', async () => {
 		const harness = await mountPlanEditorCanvas({ queries: queries([leaf('plan-ground', '', null, 0)]) });
 		await settle();
 		expect(harness.wrapper.get('[data-rp-plan-id="plan-ground"]').text()).toContain(t('en', 'editor.floor'));
 		harness.unmount();
+		const navigable = await mountPlanEditorCanvas({ queries: queries([leaf('plan-ground', '', null, 0), leaf('plan-attic', '', null, 1)]), navigation: navigation() });
+		await settle();
+		expect(navigable.wrapper.get('button[data-rp-open-plan="plan-attic"]').text()).toBe(t('en', 'editor.floor'));
+		navigable.unmount();
 	});
 });

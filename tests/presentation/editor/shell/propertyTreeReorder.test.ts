@@ -18,8 +18,10 @@ import { ok } from '../../../../src/core/result/Result';
 import { t } from '../../../../src/presentation/i18n/strings';
 import type { PlanHierarchyDto, PropertyTreeNode } from '../../../../src/presentation/read-models/planHierarchy';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
+import { usePlanHierarchyStore } from '../../../../src/presentation/stores/PlanHierarchyStore';
+import * as notices from '../../../../src/presentation/notices/notify';
 import { fakeQueries, FIXTURE_PLAN } from '../../../helpers/planFixtures';
-import { mountPlanEditorCanvas, settle } from '../../../helpers/editor';
+import { mountPlanEditorCanvas, runtimeOf, settle } from '../../../helpers/editor';
 import { unavailablePlanEditorCommands } from '../../../../src/presentation/editor/planEditorCommands';
 
 const leaf = (id: string, name: string, parentId: string | null, order: number): PropertyTreeNode => ({ id, name, kind: 'floor', order, parentId, children: [] });
@@ -30,20 +32,29 @@ const TREE: PropertyTreeNode[] = [
 /** The tree with every sibling list re-sorted by the orders written so far. */
 const sorted = (nodes: readonly PropertyTreeNode[], orders: Map<string, number>): PropertyTreeNode[] =>
 	nodes.map((node) => ({ ...node, order: orders.get(node.id) ?? node.order, children: sorted(node.children, orders) })).toSorted((a, b) => a.order - b.order);
-const hierarchy = (orders = new Map<string, number>()): PlanHierarchyDto => ({ ancestry: [], detailPlans: [], parentZone: null, parentZoneMissing: false, tree: sorted(TREE, orders) });
+const hierarchy = (orders = new Map<string, number>(), tree = TREE): PlanHierarchyDto => ({ ancestry: [], detailPlans: [], parentZone: null, parentZoneMissing: false, tree: sorted(tree, orders) });
 type UpdateInput = { planId: string; order?: number; kind?: string };
 type UpdateResult = ReturnType<typeof ok<{ plan: { entity: typeof FIXTURE_PLAN; version: { revision: number } } }>> | { ok: false; error: { category: string; code: string; message: string } };
-function rig() {
+function rig(tree = TREE) {
 	const orders = new Map<string, number>();
 	const execute = vi.fn<(input: UpdateInput) => Promise<UpdateResult>>((input) => {
 		if (input.order !== undefined) orders.set(input.planId, input.order);
 		return Promise.resolve(ok({ plan: { entity: { ...FIXTURE_PLAN, ...input } as typeof FIXTURE_PLAN, version: { revision: 1 } } }));
 	});
-	const queries = { ...fakeQueries(FIXTURE_PLAN), hierarchy: vi.fn<() => Promise<ReturnType<typeof ok<PlanHierarchyDto>>>>(() => Promise.resolve(ok(hierarchy(orders)))) };
+	const queries = { ...fakeQueries(FIXTURE_PLAN), hierarchy: vi.fn<() => Promise<ReturnType<typeof ok<PlanHierarchyDto>>>>(() => Promise.resolve(ok(hierarchy(orders, tree)))) };
 	const commands = { ...unavailablePlanEditorCommands(), updatePlanDetails: { execute } };
 	return { execute, queries, commands: commands as never };
 }
+/** Gates every `execute` on one promise, so a case can act mid-write; resolves to the release. */
+function deferred(execute: ReturnType<typeof rig>['execute']): () => void {
+	let release!: () => void;
+	const gate = new Promise<void>((resolve) => { release = resolve; });
+	const answer = execute.getMockImplementation() as (input: UpdateInput) => Promise<UpdateResult>;
+	execute.mockImplementation(async (input) => { await gate; return answer(input); });
+	return release;
+}
 const item = (harness: Awaited<ReturnType<typeof mountPlanEditorCanvas>>, id: string) => harness.wrapper.get(`[data-rp-plan-id="${id}"]`);
+const menuOpen = (harness: Awaited<ReturnType<typeof mountPlanEditorCanvas>>) => harness.wrapper.find('.rp-property-tree__menu').exists();
 const dataTransfer = { setData: () => undefined, effectAllowed: '' };
 
 describe('PropertyTree reordering', () => {
@@ -102,10 +113,7 @@ describe('PropertyTree reordering', () => {
 	 */
 	it('does not pull focus back to the tree when the user moved it elsewhere during the writes', async () => {
 		const { execute, queries, commands } = rig();
-		let release!: () => void;
-		const gate = new Promise<void>((resolve) => { release = resolve; });
-		const answer = execute.getMockImplementation() as (input: UpdateInput) => Promise<UpdateResult>;
-		execute.mockImplementation(async (input) => { await gate; return answer(input); });
+		const release = deferred(execute);
 		const harness = await mountPlanEditorCanvas({ queries, commands });
 		await settle();
 		(item(harness, 'plan-attic').element as HTMLElement).focus();
@@ -195,17 +203,157 @@ describe('PropertyTree reordering', () => {
 		harness.unmount();
 	});
 
-	it('stops at the first refused write and still re-reads the hierarchy', async () => {
+	it('stops at the first refused write, reports it once, and still re-reads the hierarchy', async () => {
 		const { queries, commands } = rig();
 		const execute = vi.fn<(input: UpdateInput) => Promise<UpdateResult>>()
-			.mockResolvedValueOnce({ ok: false, error: { category: 'Persistence', code: 'vault.write-failed', message: 'x' } })
+			.mockResolvedValueOnce({ ok: false, error: { category: 'Validation', code: 'plan.not-found', message: 'x' } })
 			.mockResolvedValue(ok({ plan: { entity: FIXTURE_PLAN, version: { revision: 1 } } }));
+		const notify = vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(() => undefined);
 		const harness = await mountPlanEditorCanvas({ queries, commands: { ...(commands as object), updatePlanDetails: { execute } } as never });
 		await settle();
 		await item(harness, 'plan-ground').trigger('keydown', { key: 'ArrowDown', altKey: true });
 		await settle();
 		expect(execute).toHaveBeenCalledTimes(1);
+		expect(notify).toHaveBeenCalledOnce();
 		expect(queries.hierarchy).toHaveBeenCalledTimes(2);
+		notify.mockRestore();
+		harness.unmount();
+	});
+
+	/**
+	 * A held Alt+↑ auto-repeats before the re-read lands. The repeat is DROPPED: a second sequence
+	 * computed from the stale tree would dispatch the same writes concurrently and trip the version
+	 * check. One sequence, one re-read.
+	 */
+	it('drops a repeat Alt+ArrowUp while the first sequence is still writing', async () => {
+		const { execute, queries, commands } = rig();
+		const release = deferred(execute);
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		await item(harness, 'plan-attic').trigger('keydown', { key: 'ArrowUp', altKey: true });
+		await item(harness, 'plan-attic').trigger('keydown', { key: 'ArrowUp', altKey: true });
+		release();
+		await settle();
+		expect(execute.mock.calls.map(([input]) => input)).toEqual([{ planId: 'plan-attic', order: 1 }, { planId: 'plan-first', order: 2 }]);
+		expect(queries.hierarchy).toHaveBeenCalledTimes(2);
+		harness.unmount();
+	});
+
+	/** jsdom's rects are all zero, so `clientY: 1` is below every row's midpoint — the `after` edge — and `0` is not. */
+	it('drops a row after another on the lower half of its row, and the indicator follows the drag out of the tree', async () => {
+		const { execute, queries, commands } = rig();
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		const tree = harness.wrapper.get('[role="tree"]');
+		await item(harness, 'plan-ground').trigger('dragstart', { dataTransfer });
+		await item(harness, 'plan-attic').trigger('dragover', { dataTransfer, clientY: 1 });
+		expect(item(harness, 'plan-attic').attributes('data-rp-drop')).toBe('after');
+		await tree.trigger('dragleave', { relatedTarget: item(harness, 'plan-first').element });
+		expect(item(harness, 'plan-attic').attributes('data-rp-drop')).toBe('after');
+		await tree.trigger('dragleave', { relatedTarget: document.body });
+		expect(item(harness, 'plan-attic').attributes('data-rp-drop')).toBeUndefined();
+		// Over the list's own padding, beside every row, there is nothing to land on either.
+		await item(harness, 'plan-attic').trigger('dragover', { dataTransfer, clientY: 1 });
+		await tree.trigger('dragover', { dataTransfer, clientY: 1 });
+		expect(item(harness, 'plan-attic').attributes('data-rp-drop')).toBeUndefined();
+		await item(harness, 'plan-attic').trigger('dragover', { dataTransfer, clientY: 1 });
+		await tree.trigger('dragend');
+		expect(item(harness, 'plan-attic').attributes('data-rp-drop')).toBeUndefined();
+		await item(harness, 'plan-ground').trigger('dragstart', { dataTransfer });
+		await item(harness, 'plan-attic').trigger('dragover', { dataTransfer, clientY: 1 });
+		await item(harness, 'plan-attic').trigger('drop', { dataTransfer });
+		await settle();
+		expect(execute.mock.calls.map(([input]) => input)).toEqual([{ planId: 'plan-first', order: 0 }, { planId: 'plan-attic', order: 1 }, { planId: 'plan-ground', order: 2 }]);
+		harness.unmount();
+	});
+
+	it('writes nothing and re-reads nothing for a drop onto the row\'s own place', async () => {
+		const { execute, queries, commands } = rig();
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		await item(harness, 'plan-first').trigger('dragstart', { dataTransfer });
+		await item(harness, 'plan-ground').trigger('dragover', { dataTransfer, clientY: 1 });
+		await item(harness, 'plan-ground').trigger('drop', { dataTransfer });
+		await settle();
+		expect(execute).not.toHaveBeenCalled();
+		expect(queries.hierarchy).toHaveBeenCalledTimes(1);
+		harness.unmount();
+	});
+
+	/** Another leaf's write lands between two gestures: the menu closes with its row, and a drop whose target is gone moves nothing. */
+	it('closes the menu and voids a pending drop when a re-read takes the row away', async () => {
+		const { execute, queries, commands } = rig();
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		await item(harness, 'plan-ground').trigger('contextmenu', { clientX: 20, clientY: 20 });
+		expect(menuOpen(harness)).toBe(true);
+		await item(harness, 'plan-attic').trigger('dragstart', { dataTransfer });
+		await item(harness, 'plan-first').trigger('dragover', { dataTransfer, clientY: 0 });
+		expect(item(harness, 'plan-first').attributes('data-rp-drop')).toBe('before');
+		usePlanHierarchyStore(harness.pinia).hierarchy = hierarchy(new Map(), [{ ...TREE[0], children: [TREE[0].children[2]] }, TREE[1]]);
+		await settle();
+		expect(menuOpen(harness)).toBe(false);
+		await harness.wrapper.get('[role="tree"]').trigger('drop', { dataTransfer });
+		await settle();
+		expect(execute).not.toHaveBeenCalled();
+		harness.unmount();
+	});
+
+	it('claims nothing in review perspective: the native menu, Shift+F10 and Alt moves are left alone', async () => {
+		const { execute, queries, commands } = rig();
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		await runtimeOf(harness).renovation.perspective('review');
+		await settle();
+		const row = item(harness, 'plan-ground');
+		const contextmenu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 20, clientY: 20 });
+		row.element.dispatchEvent(contextmenu);
+		await settle();
+		expect(contextmenu.defaultPrevented).toBe(false);
+		expect(menuOpen(harness)).toBe(false);
+		await row.trigger('keydown', { key: 'F10', shiftKey: true });
+		expect(menuOpen(harness)).toBe(false);
+		expect(row.attributes('draggable')).toBeUndefined();
+		await row.trigger('keydown', { key: 'ArrowDown', altKey: true });
+		await settle();
+		expect(execute).not.toHaveBeenCalled();
+		harness.unmount();
+	});
+
+	it('closes on a pointer outside the menu and returns focus to the row, not on one inside it', async () => {
+		const { queries, commands } = rig();
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		await item(harness, 'plan-ground').trigger('contextmenu', { clientX: 20, clientY: 20 });
+		harness.wrapper.get('[data-rp-tree-action="move-up"]').element.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+		await settle();
+		expect(menuOpen(harness)).toBe(true);
+		document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+		await settle();
+		expect(menuOpen(harness)).toBe(false);
+		expect(document.activeElement).toBe(item(harness, 'plan-ground').element);
+		harness.unmount();
+	});
+
+	/** A parent under the SECOND root: the sibling lookup walks the first root's subtree, finds nothing, and moves on. */
+	it('flags first and last among the siblings of a second root, and names an unnamed row\'s menu the floor', async () => {
+		const { queries, commands } = rig([TREE[0], { ...TREE[1], children: [leaf('plan-shed', 'Shed', 'plan-garden', 0), leaf('plan-pond', '', 'plan-garden', 1)] }]);
+		const harness = await mountPlanEditorCanvas({ queries, commands });
+		await settle();
+		await item(harness, 'plan-pond').trigger('contextmenu', { clientX: 20, clientY: 20 });
+		expect(harness.wrapper.get('.rp-property-tree__menu').attributes('aria-label')).toBe(t('en', 'editor.shell.row-menu', { name: t('en', 'editor.floor') }));
+		expect(harness.wrapper.get('[data-rp-tree-action="move-up"]').attributes('aria-disabled')).toBeUndefined();
+		expect(harness.wrapper.get('[data-rp-tree-action="move-down"]').attributes('aria-disabled')).toBe('true');
+		harness.unmount();
+	});
+
+	it('offers no move for the open plan drawn alone, when the leaf answers no hierarchy', async () => {
+		const { execute, commands } = rig();
+		const harness = await mountPlanEditorCanvas({ queries: fakeQueries(FIXTURE_PLAN), commands });
+		await settle();
+		await item(harness, FIXTURE_PLAN.id).trigger('keydown', { key: 'ArrowUp', altKey: true });
+		await settle();
+		expect(execute).not.toHaveBeenCalled();
 		harness.unmount();
 	});
 });

@@ -42,12 +42,14 @@ async function rig() {
 const HYDRATION_FAULT: RepositoryError = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' };
 
 /**
- * D1: `planHierarchy.load` used to run inside `hydrate()`, which `PlanEditorRoot` also
- * re-runs on every `onPlanChanged` event of THIS plan — a zone gesture, a background change,
- * a delete — none of which can change what the parent-zone guide or the detail-plan list
- * show. It now loads at mount and on the editor's retry path only.
+ * `planHierarchy.load` runs inside `hydrate()`, which `PlanEditorRoot` re-runs on every
+ * `onPlanChanged` event of THIS plan. For a while it ran at mount and retry ONLY (D1), on the
+ * argument that no zone gesture, background change or delete can change the hierarchy — and
+ * then `PlanDetailsChanged` (ADR-0029) could: a kind or order written from another leaf's tree
+ * menu IS a hierarchy fact, and the plan-change door hands its listener no event type to tell
+ * the two apart. The harness's `changePlan` is that door.
  */
-it('loads the hierarchy once at mount, again on retry, but not on a plan-change event', async () => {
+it('loads the hierarchy at mount, on a plan-change event, and on retry', async () => {
 	let calls = 0;
 	const hierarchy: NonNullable<PlanEditorQueryServices['hierarchy']> = () => {
 		calls += 1;
@@ -62,11 +64,11 @@ it('loads the hierarchy once at mount, again on retry, but not on a plan-change 
 
 	harness.changePlan();
 	await flushPromises();
-	expect(calls).toBe(1);
+	expect(calls).toBe(2);
 
 	await harness.wrapper.get('.rp-view-failure__action').trigger('click');
 	await flushPromises();
-	expect(calls).toBe(2);
+	expect(calls).toBe(3);
 
 	harness.wrapper.unmount();
 });

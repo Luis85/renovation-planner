@@ -31,6 +31,8 @@ const workspace = useWorkspaceStore(), assetShapes = useAssetShapeStore();
 const title = computed(() => { if (selection.selectedIds.length !== 1) return null; const id = selection.selectedIds[0]; return project.zones.get(id)?.name ?? structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements).find(item => item.id === id)?.name ?? null; });
 let menuIds: readonly string[] = [];
 let root: HTMLElement | null = null, canvas: HTMLElement | null = null, opener: HTMLElement | null = null;
+/** Same value as `root`, kept in a ref so `:host` reaches `CanvasMenuList` reactively (a nested submenu's `expand()` reads `props.host`, which a plain variable read at template-compile time cannot update once assigned in `onMounted`). Every script-side read still uses `root` directly. */
+const rootRef = shallowRef<HTMLElement | null>(null);
 function editing(target: EventTarget | null): boolean { return target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !== null; }
 function close(restore = true): void { open.value = false; if (restore) (opener?.isConnected ? opener : canvas)?.focus(); }
 function unavailable(event: MouseEvent | KeyboardEvent): boolean {
@@ -97,7 +99,7 @@ function run(action: CanvasMenuAction): void { if (action.disabled) return; clos
 watch(() => selection.selectedIds, ids => { if (open.value && (ids.length !== menuIds.length || ids.some((id, index) => id !== menuIds[index]))) close(false); });
 watch(() => dialogs.current, dialog => { if (dialog && open.value) close(false); });
 onMounted(() => {
-	root = anchor.value?.closest<HTMLElement>('.renovation-plan-editor') ?? null; canvas = anchor.value?.closest<HTMLElement>('.rp-plan-canvas') ?? null;
+	root = anchor.value?.closest<HTMLElement>('.renovation-plan-editor') ?? null; canvas = anchor.value?.closest<HTMLElement>('.rp-plan-canvas') ?? null; rootRef.value = root;
 	root?.addEventListener('contextmenu', context); root?.addEventListener('keydown', key); root?.addEventListener('pointerdown', outside, true); root?.addEventListener('focusout', leave);
 });
 onBeforeUnmount(() => { root?.removeEventListener('contextmenu', context); root?.removeEventListener('keydown', key); root?.removeEventListener('pointerdown', outside, true); root?.removeEventListener('focusout', leave); });
@@ -116,7 +118,7 @@ onBeforeUnmount(() => { root?.removeEventListener('contextmenu', context); root?
 				:items="actions"
 				:label="tr('editor.input.context')"
 				:title="title"
-				:host="root"
+				:host="rootRef"
 				:position="position"
 				@run="run"
 				@close="close"

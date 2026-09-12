@@ -8,7 +8,9 @@ import { submenuPlacement } from './submenuPlacement';
 defineOptions({ name: 'CanvasMenuList' });
 const props = defineProps<{ items: readonly CanvasMenuItem[]; label: string; title?: string | null; host: HTMLElement | null; nested?: boolean; position?: { left: string; top: string } }>();
 const emit = defineEmits<{ run: [action: CanvasMenuAction]; close: [restore: boolean]; back: [] }>();
-const menu = ref<HTMLElement | null>(null), open = ref<string | null>(null), placement = ref({ left: '0px', top: '0px' });
+const menu = ref<HTMLElement | null>(null), open = ref<string | null>(null);
+/** Where THIS list's own open child submenu sits — computed here, in the parent, because only the parent knows the opening button's rect; handed down as the child's `position` prop rather than kept for this list's own style, which always uses the incoming `position` prop instead (design spec §5.4). */
+const childPosition = ref({ left: '0px', top: '0px' });
 const LEVEL = ':scope > [role="menuitem"], :scope > [role="none"] > [role="menuitem"]';
 defineExpose({ menu });
 watch(() => props.items, () => { open.value = null; });
@@ -20,7 +22,7 @@ async function expand(item: CanvasMenuSubmenu, opener: HTMLElement, focusFirst: 
 	const child = opener.parentElement?.querySelector<HTMLElement>(':scope > [role="menu"]');
 	if (child && props.host) {
 		const at = submenuPlacement(opener.getBoundingClientRect(), { width: child.offsetWidth, height: child.offsetHeight }, props.host.getBoundingClientRect());
-		placement.value = { left: `${at.left}px`, top: `${at.top}px` };
+		childPosition.value = { left: `${at.left}px`, top: `${at.top}px` };
 	}
 	if (focusFirst) child?.querySelector<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])')?.focus();
 }
@@ -68,7 +70,7 @@ function keydown(event: KeyboardEvent, item?: CanvasMenuItem): void {
 		:class="{ 'rp-canvas-context-menu--nested': nested }"
 		role="menu"
 		:aria-label="label"
-		:style="nested ? placement : position"
+		:style="position"
 		@keydown="keydown($event)"
 	>
 		<div
@@ -115,6 +117,7 @@ function keydown(event: KeyboardEvent, item?: CanvasMenuItem): void {
 					:items="item.children"
 					:label="tr(item.label)"
 					:host="host"
+					:position="childPosition"
 					nested
 					@run="emit('run', $event)"
 					@close="emit('close', $event)"

@@ -5,6 +5,8 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { runOptions } from '../../harness/axeOptions';
+import { placeAt } from '../../helpers/layout';
+import { submenuPlacement } from '../../../src/presentation/editor/selection/submenuPlacement';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -14,6 +16,22 @@ async function menuFor(rig: Rig, id: string) { rig.selection.select([id as never
 const ids = (rig: Rig, selector: string) => rig.wrapper.findAll(`${selector} [data-rp-context-action], ${selector} [role="separator"]`).map(item => item.attributes('data-rp-context-action') ?? '|');
 const parent = (rig: Rig) => rig.wrapper.get<HTMLElement>('[data-rp-context-action="add-menu"]');
 async function key(target: ReturnType<Rig['wrapper']['get']>, name: string) { await target.trigger('keydown', { key: name }); await settle(); }
+/**
+ * jsdom reports every element's `offsetWidth`/`offsetHeight` as 0, and `submenuPlacement` needs
+ * the nested menu's own size to place it. Stubbed narrowly, by class, so nothing else measured
+ * during the same test is affected.
+ */
+function isNestedMenu(element: HTMLElement): boolean { return element.classList.contains('rp-canvas-context-menu--nested'); }
+function stubNestedMenuSize(width: number, height: number): () => void {
+	const widthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth') as PropertyDescriptor;
+	const heightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight') as PropertyDescriptor;
+	Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get(this: HTMLElement) { return isNestedMenu(this) ? width : 0; } });
+	Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get(this: HTMLElement) { return isNestedMenu(this) ? height : 0; } });
+	return () => {
+		Object.defineProperty(HTMLElement.prototype, 'offsetWidth', widthDescriptor);
+		Object.defineProperty(HTMLElement.prototype, 'offsetHeight', heightDescriptor);
+	};
+}
 
 it('puts a wall\'s geometry and record creations in one Add submenu, separated', async () => {
 	const rig = await setup(); await menuFor(rig, 'wall-a');
@@ -23,6 +41,19 @@ it('puts a wall\'s geometry and record creations in one Add submenu, separated',
 	await parent(rig).trigger('click'); await settle();
 	expect(parent(rig).attributes('aria-expanded')).toBe('true');
 	expect(ids(rig, '.rp-canvas-context-menu--nested')).toEqual(['add-door', 'add-window', 'add-opening', 'new-wall', '|', 'add-work', 'add-note', 'add-photo']);
+});
+
+it('places the Add submenu beside its parent button, inside the editor root, rather than at the corner', async () => {
+	const rig = await setup(); await menuFor(rig, 'wall-a');
+	const root = rig.wrapper.element as HTMLElement, button = parent(rig).element as HTMLElement;
+	placeAt(root, 40, 20, 1200, 640); placeAt(button, 900, 150, 160, 32);
+	const restoreSize = stubNestedMenuSize(160, 220);
+	try { await parent(rig).trigger('click'); await settle(); } finally { restoreSize(); }
+	const nested = rig.wrapper.get<HTMLElement>('.rp-canvas-context-menu--nested').element;
+	const expected = submenuPlacement(button.getBoundingClientRect(), { width: 160, height: 220 }, root.getBoundingClientRect());
+	expect(nested.style.left).toBe(`${expected.left}px`);
+	expect(nested.style.top).toBe(`${expected.top}px`);
+	expect(nested.style.left).not.toBe('0px');
 });
 
 it('offers only record creations for a room, an area and an opening, and no submenu for several items or in Review', async () => {

@@ -54,4 +54,13 @@ describe('splitWall', () => {
 		expect(onSecond.x).toBeCloseTo(onCurveLater.x, 6); expect(onSecond.y).toBeCloseTo(onCurveLater.y, 6);
 		expect(validateStructure(split, []).ok).toBe(true);
 	});
+
+	it('takes a second cut on the same wall, named against the half the second cut falls on', () => {
+		const plain = { ...structure, openings: [], boundaries: [] };
+		const first = expectOk(splitWall(plain, 'wall-a', 1000, 'wall-second-half'));
+		// The second cut lies past the first, so it names the second half at an offset measured from ITS start.
+		const second = expectOk(splitWall(first.structure, 'wall-second-half', 2000, 'wall-third'));
+		expect(second.point).toEqual({ x: 3000, y: 0 });
+		expect(second.structure.walls.map(item => [item.id, item.start.x, item.end.x])).toEqual([['wall-a', 0, 1000], ['wall-second-half', 1000, 3000], ['wall-third', 3000, 4000], ['wall-b', 4000, 4000]]);
+	});
 });

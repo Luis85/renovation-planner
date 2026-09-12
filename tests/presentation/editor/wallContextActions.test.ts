@@ -69,7 +69,7 @@ it('greys New wall where the click lands inside an opening, and says why', async
 	await rightClick(rig, { x: 1000, y: 0 }, true);
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);
 	expect(item(rig, 'new-wall').attributes('aria-disabled')).toBe('true');
-	expect(item(rig, 'new-wall').attributes('title')).toBe('A new wall cannot start inside a door, window or opening. Choose a point beside it.');
+	expect(item(rig, 'new-wall').attributes('title')).toBe('A new wall cannot start or end inside a door, window or opening. Choose a point beside it.');
 });
 
 it('measures from a right-clicked point and draws the measurement as a ruler', async () => {

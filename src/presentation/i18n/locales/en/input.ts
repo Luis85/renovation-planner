@@ -5,6 +5,7 @@ export const inputEn = {
 	'editor.input.context': 'Plan actions',
 	'editor.input.edit': 'Edit',
 	'editor.input.rename': 'Rename',
+	'editor.input.add-point': 'Add point',
 	'editor.input.rotate': 'Rotate',
 	'editor.input.copy': 'Copy',
 	'editor.input.paste': 'Paste',

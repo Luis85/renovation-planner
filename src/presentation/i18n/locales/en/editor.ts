@@ -41,8 +41,6 @@ export const editorEn = {
 	...stairsArrowsEn,
 	...inputEn,
 	...creationEn,
-	'editor.direct.edit-shape': 'Edit shape',
-	'editor.direct.edit-length': 'Edit length',
 	'editor.direct.mark-change': 'Mark change',
 	'editor.direct.add-detail': 'Add detail',
 	'editor.direct.length-value': 'Edit wall length, {value} m',

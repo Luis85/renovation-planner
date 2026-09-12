@@ -2,7 +2,7 @@ import { computed } from 'vue';
 import { roomSnapCandidates } from '../snapping/roomSnapCandidates';
 import type { SessionWriteLedger, WriteLedger } from '../../../application/editor/WriteLedger';
 import { createZoneHistory } from '../add/createZoneHistory';
-import type { Polygon } from '../../../core/geometry/Polygon';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { useProjectStore } from '../../stores/ProjectStore';
@@ -39,7 +39,7 @@ import type { ElementMoveDeps } from '../elements/ElementMove';
 export function moveGesture(
 	context: PlanEditorContext,
 	ledger: WriteLedger,
-): (zoneId: ZoneId, forward: Polygon, inverse: Polygon) => UndoableCommand {
+): (zoneId: ZoneId, forward: CurvedPolygon, inverse: CurvedPolygon) => UndoableCommand {
 	return (zoneId, forward, inverse) =>
 		new ReversibleMoveZoneCommand(context.commands.moveObject, ledger, zoneId, forward, inverse);
 }

@@ -930,7 +930,8 @@ The rules this suite is actually held to:
   files still read source or config TEXT through one**, none touched by this branch, in three
   groups: twenty-one stylesheet-or-SFC-text pins (`prototype-styles`, `libraryComponentStyles`,
   `styles.test.ts` — fourteen of whose twenty-six hits are the assembler's own messages and
-  twelve read the assembled sheet's `@container` preludes — `taskBarPlacement`, `focusReach`,
+  twelve read the assembled sheet's text — eight its `@container` preludes, two its
+  `container`/`container-name` declarations, two to strip comments — `taskBarPlacement`, `focusReach`,
   `harness.test.ts`, `cssVars.test.ts` under
   `tests/build/` and `tests/harness/`; `projectRowStyles`, `projectListNarrowStyles`,
   `projectFilterStyles`, `projectListStyles`, `continueRowStyles`, `projectListOverlap`,

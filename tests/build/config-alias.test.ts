@@ -102,10 +102,14 @@ describe('the ESLint-booting project', () => {
  * config object rather than of its text: the plugin is present by name, and the REGISTERED object
  * carries `enforce: 'pre'`. That flag, not its position in the array, is what runs its transform
  * ahead of `vite:vue`'s — Vite orders plugins by `enforce` first, so a copy placed after the Vue
- * plugin still ran first (measured by the review that replaced an array-order pin here). A `pre`
- * flag dropped from the plugin, or a registered object that lost it, would hand the hook compiled
- * output instead of the SFC; `no-ssr-sfc.test.ts` pins the flag on a fresh `noSsrSfc()`, this
- * pins it on the one the suite config actually registers.
+ * plugin still ran first (measured by the review that replaced an array-order pin here). Dropping
+ * the flag alone does not lose that ordering: this config already lists `noSsrSfc()` before
+ * `vue()`, and Vite groups unenforced plugins by array order within the same bucket, so the
+ * transform would still run first. Only losing the flag AND moving the plugin after `vue()` in
+ * the array would hand the hook compiled output instead of the SFC — this assertion pins the
+ * flag as a deliberately stricter guarantee than the array position alone provides;
+ * `no-ssr-sfc.test.ts` pins the flag on a fresh `noSsrSfc()`, this pins it on the one the suite
+ * config actually registers.
  */
 describe('the SSR-SFC refusal, in the suite config', () => {
 	it('is registered with the pre flag that orders it ahead of the Vue plugin', () => {

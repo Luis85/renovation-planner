@@ -77,6 +77,20 @@ const srcFiles = (subtree) => SRC_EXTENSIONS.map((ext) => `**/src/${subtree}/**/
 const VUE_FILES = ['**/src/**/*.vue', '**/tests/harness/**/*.vue'];
 
 /**
+ * `tsconfig.json` sets `allowImportingTsExtensions` repo-wide — needed only so
+ * `vitest.config.ts` can import a `.ts` helper under Vite's native config loader — and the
+ * option has no directory scope, so nothing stops shipped code from writing
+ * `import x from './y.ts'` too. Measured: tsc, oxlint, ESLint's other rules and the Vite
+ * build all accept that spelling. A gitignore-style glob (`patterns`), not a `regex` option —
+ * `no-restricted-imports` has no such option, and a regex gate is what this repository's own
+ * rule against regex-matched source gates refuses.
+ */
+const TS_EXTENSION_BAN = {
+	group: ['*.ts', '**/*.ts'],
+	message: "Import without the '.ts' suffix. allowImportingTsExtensions exists only for vitest.config.ts's native config loader, not for src/.",
+};
+
+/**
  * `groups` are sibling LAYERS this one may not reach; `packages` are npm packages it may
  * not name at all. Both in one rule because both are the same statement — what this layer
  * is not allowed to know about — and because two `no-restricted-imports` entries for one
@@ -104,6 +118,7 @@ const forbidden = (layer, { groups = [], packages = [] }, reason) => ({
 						],
 						message: reason,
 					},
+					TS_EXTENSION_BAN,
 				],
 			},
 		],
@@ -843,6 +858,7 @@ export default defineConfig([
 							message:
 								'src/prototypes/ is design scaffolding: nothing outside it may import from it, including a subtree with no forbidden(...) call of its own yet.',
 						},
+						TS_EXTENSION_BAN,
 					],
 				},
 			],
@@ -902,6 +918,7 @@ export default defineConfig([
 							message:
 								'src/main.ts is the build entry, so an import of src/prototypes/ here puts design scaffolding in every user’s plugin.',
 						},
+						TS_EXTENSION_BAN,
 					],
 				},
 			],

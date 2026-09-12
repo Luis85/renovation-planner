@@ -562,7 +562,7 @@ export const en = {
 	// not a Requirement and so is outside `DeleteAssetCommand`'s resolution options — it
 	// refuses outright rather than offering `remove-references`/`reassign` for a reference
 	// those cannot touch.
-	'asset.material-in-use': 'A wall or opening on a plan is made of this asset. Change that material before deleting it.',
+	'asset.material-in-use': 'A wall or opening on a plan is made of this asset: {names}. Change that material before deleting it.',
 	'asset.negative-waste-factor-default': 'A waste factor cannot be negative.',
 	'asset.waste-factor-default-above-one': 'A waste factor is a fraction between 0 and 1.',
 	'asset.invalid-height': 'Enter a height as a number of millimetres.',

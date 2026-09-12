@@ -8,7 +8,7 @@ import { assetDeleted } from '../../../domain/asset/Asset.events';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
-import { referenceError } from '../../errors';
+import { namedReferenceError, referenceError } from '../../errors';
 import type { Command } from '../Command';
 import type { Logger } from '../../ports/Logger';
 import type { AssetRepository } from '../../ports/AssetRepository';
@@ -87,7 +87,7 @@ export class DeleteAssetCommand
 
 		const users = await this.ops.materialUsers?.(input.assetId);
 		if (users && !users.ok) return users;
-		if (users?.value.length) return err(referenceError('asset.material-in-use', `Asset ${input.assetId} is a wall or opening material on ${users.value.join(', ')}.`));
+		if (users?.value.length) return err(namedReferenceError('asset.material-in-use', `Asset ${input.assetId} is a wall or opening material on ${users.value.join(', ')}.`, users.value));
 
 		const resolved = await runDeleteResolution(
 			{

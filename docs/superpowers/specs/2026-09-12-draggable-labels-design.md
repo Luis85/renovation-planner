@@ -49,16 +49,17 @@ All three are `listening: false` and have no stored position.
 
 `src/infrastructure/persistence/dto/planGeometry.ts`:
 
-- `SpatialObjectGeometrySchemaV10 = SpatialObjectGeometrySchemaV7` + `label: { dx, dy }` optional,
-  both `z.number().finite()`.
-- `SpatialElementSchemaV10 = SpatialElementSchemaV9` + the same optional `label`, used by both
-  `structure.elements` and `intended.elements` (one structure schema, as today).
+- `SpatialObjectGeometrySchemaV10 = SpatialObjectGeometrySchemaV7` + `labelOffset: { dx, dy }`
+  optional, both `z.number().finite()`.
+- `SpatialElementSchemaV10 = SpatialElementSchemaV9` + the same optional `labelOffset`, used by
+  both `structure.elements` and `intended.elements` (one structure schema, as today). The key is
+  the domain's own name because elements pass through the sidecar port unmapped.
 - `PlanGeometrySchemaV10`, added to the union; `PlanGeometryDTO`'s version union gains `10`;
   `PlanGeometryStore` validates against v10.
 - `PLAN_GEOMETRY_MIGRATIONS` gains 9 → 10, a version bump only, like every step before it.
 - `PlanGeometryStore.writtenSchema` declares the LOWEST version a document's content needs, so a
   plan nobody has dragged a label on stays readable by an older build. It gains a first arm:
-  `10` when any `objects` entry or any `structure`/`intended` element carries `label`. A test
+  `10` when any `objects` entry or any `structure`/`intended` element carries `labelOffset`. A test
   pins both directions — a labelled document writes 10, an unlabelled one keeps its current
   answer.
 
@@ -67,14 +68,15 @@ schema file's own header says so).
 
 ### 3.3 Mapping
 
-- `zoneToGeometryEntry` writes `label` when `zone.labelOffset` is set; `zoneFromPersistence`
+- `zoneToGeometryEntry` writes `labelOffset` when `zone.labelOffset` is set; `zoneFromPersistence`
   reads it back; the `ObsidianZoneRepository.save` pre-validation parses against the v10 entry
   schema.
-- `ObsidianPlanGeometrySidecar` passes `label` through `toStructure` (it already spreads each
-  element) and through the `objects` mapping in both directions, where it must be added
+- `ObsidianPlanGeometrySidecar` passes `labelOffset` through `toStructure` (it already spreads
+  each element) and through the `objects` mapping in both directions, where it must be added
   explicitly.
 - `ZoneDto` gains `labelOffset?: Vector`; elements already reach `ProjectStore.structure` in
   their domain shape.
+- A room caption's block is taller while a detail-plans line shows (`captionBottom`, ADR-0028).
 
 ## 4. Grabbing and dragging
 
@@ -83,17 +85,19 @@ schema file's own header says so).
 `labelPlacement(item, zoom)` in `src/presentation/editor/layers/` answers `{ anchor, bounds }`
 in world millimetres: the automatic anchor for the item's kind, plus its offset, plus the text's
 bounding box. Text width comes from canvas `measureText` at the font the renderer uses. The
-three renderers AND `canvasCandidates` call it, so what is drawn and what can be grabbed cannot
+three renderers AND `labelActions` call it, so what is drawn and what can be grabbed cannot
 disagree — the same relationship `handleMetrics.ts` keeps for vertex handles.
 
 ### 4.2 Hit-testing
 
 - `SelectionTarget` gains `{ kind: 'label'; id }`.
-- `SpatialObjectCandidate` gains `labelBounds?: BoundingBox`, filled by `canvasCandidates`.
-- `resolveSelectionTarget` answers `'label'` after the rotation handle and before vertex
-  handles, badges and bodies, for any SELECTED candidate whose `labelBounds`, padded by a few
-  screen pixels converted through the camera, contains the point. With several items selected,
-  each selected item's label is grabbable.
+- `SelectTool` gains a `labelHits` dependency (the `rotationControls` precedent), answered by
+  `labelActions` from the same placement functions the renderers call.
+- `resolveSelectionTarget` answers `'label'` after the rotation handle, vertex handles and
+  badges, and before bodies — an element's name tag sits just above its first point, where its
+  handle is grabbed — for any SELECTED candidate whose label bounds, padded by a few screen
+  pixels converted through the camera, contain the point. With several items selected, each
+  selected item's label is grabbable.
 - It answers no label when `cycle` (Alt) is set, and `SelectTool` passes an empty selection when
   Shift or select-multiple mode is on (as it already does for handles), so neither can grab a
   label.
@@ -121,6 +125,7 @@ A `LabelMove` class beside `ElementMove`, owned by `SelectTool`:
   overriding the offset for its id. When an offset is set, `captionOffsetY`'s pin displacement is
   skipped: a placement the renovator chose wins. Name and area move together.
 - `ElementShapes` and `assetShapeConfig`: today's position plus the offset (or preview).
+- A room caption's block is taller while a detail-plans line shows (`captionBottom`, ADR-0028).
 
 ### 5.2 Saving
 
@@ -134,6 +139,8 @@ Label drags reuse the two source-specific write paths rotation already uses
   `zoneGeometryChanged` refresh are unchanged.
 - **Elements/assets.** `service.command(baseline, elementInput(baseline, { ...element, labelOffset }), ledger)`,
   the two-document command moves and rotations already use.
+- **Every rewrite of the geometry carries it**: a calibration rescales offsets; the group-move
+  projection and its zone versions carry them; the zone version digest observes them.
 
 `MoveSpatialObjectInput` and `ReversibleMoveZoneCommand` are shared contracts: every caller's
 test directory runs, not only the new paths (nudge, select-tool body/vertex drags, rotation).
@@ -161,17 +168,17 @@ Every test is watched failing before its code exists.
 
 | Area | Case |
 | --- | --- |
-| Schema | v10 accepts `label` on objects and elements; rejects a non-finite component; 9 → 10 migrates; `writtenSchema` answers 10 only when a label is present. |
+| Schema | v10 accepts `labelOffset` on objects and elements; rejects a non-finite component; 9 → 10 migrates; `writtenSchema` answers 10 only when a `labelOffset` is present. |
 | Mapping | `zoneMapper` round-trips `labelOffset`; an element's offset survives the sidecar port. |
 | Domain | `withLabelOffset` sets it; `withGeometry` keeps it. |
-| Hit-testing | `'label'` only for selected candidates; outranks handles and bodies; none under Alt, Shift or select-multiple mode. |
+| Hit-testing | `'label'` only for selected candidates; outranks bodies but not vertex handles or badges; none under Alt, Shift or select-multiple mode. |
 | Gesture | sub-threshold release dispatches nothing; cancel clears the preview; no gesture while writes are blocked. |
 | Commands | `ReversibleMoveZoneCommand` label undo restores the offset with geometry unchanged; element label drag round-trips through `elementInput`. |
 | Drawing | `ZoneShape` draws at anchor + offset and skips pin displacement; element and asset labels shift by the offset. |
-| Consistency | `canvasCandidates` bounds equal `labelPlacement`'s. |
+| Consistency | `labelActions` bounds equal `labelPlacement`'s. |
 
-Outside the gates: an `npm run harness-shot` capture of a moved label in both schemes, and a
-manual case `docs/tests/cases/Drag a label.md`, which stays unrun until walked in a vault.
+Outside the gates: the manual case `docs/tests/cases/Drag a caption.md`. No fixed harness
+capture: the harness Plan Editor floor has no renovation services, so a drag cannot save there.
 
 ## 7. Out of scope
 

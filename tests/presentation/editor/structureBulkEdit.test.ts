@@ -26,7 +26,8 @@ async function setup() {
 	await rig.runtime.renovation.perspective('plan');
 	const before = expectOk(await rig.geometry.read(rig.plan.id)), structure = expectDefined(before.document.structure, 'structure');
 	const walls = structure.walls.map(wall => wall.id === 'wall-b' ? { ...wall, thickness: 200 } : wall);
-	expectOk(await rig.geometry.write(rig.plan.id, { ...before.document, structure: { ...structure, walls, openings: OPENINGS } }, before.version));
+	const boundaries = [{ roomId: rig.room.id, wallIds: walls.map(wall => wall.id) }];
+	expectOk(await rig.geometry.write(rig.plan.id, { ...before.document, structure: { ...structure, walls, openings: OPENINGS, boundaries } }, before.version));
 	await rig.runtime.refreshProjection();
 	const ids = [rig.room.id, ...STRUCTURE_IDS];
 	rig.selection.select(ids as never[]); await settle();
@@ -90,6 +91,7 @@ describe('editing the dimensions of several walls, windows and doors at once', (
 		const submit = form.get('button[type="submit"]');
 		await field('wall-height').setValue(''); await field('window-width').setValue(' ');
 		expect(submit.attributes('aria-disabled')).toBe('true');
+		await field('wall-height').trigger('keydown', { key: 'Enter', repeat: true });
 		await form.trigger('submit'); await settle();
 		expect(form.find('[role="alert"]').exists()).toBe(false); expect(rig.runtime.structureActions.preview.value).toBeNull();
 		await field('window-sill').setValue('abc'); await form.trigger('submit'); await settle();
@@ -139,5 +141,15 @@ describe('editing the dimensions of several walls, windows and doors at once', (
 		expect(expectErr(await dispatch(proposal)).code).toBe('editor.stale-write-refused');
 		preview(proposal); expect(rig.runtime.structureActions.preview.value).toBeNull();
 		expect(run).not.toHaveBeenCalled(); expect([...rig.stack.vault.entries]).toEqual(bytes);
+	});
+
+	it('reports nothing for a read that fails after the leaf has closed', async () => {
+		const { rig, ids } = await setup();
+		let fail!: (cause: Error) => void;
+		vi.spyOn(rig.services, 'read').mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject; }));
+		const fault = vi.spyOn(notices, 'notifyFault').mockImplementation(() => undefined);
+		const pending = rig.runtime.structureActions.editMany(ids); await settle();
+		mounted.splice(mounted.indexOf(rig), 1); rig.unmount(); fail(new Error('offline')); await pending;
+		expect(fault).not.toHaveBeenCalled(); expect(rig.dialogs.current).toBeNull();
 	});
 });

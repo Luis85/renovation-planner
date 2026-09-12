@@ -33,8 +33,10 @@ const proposal = computed(() => {
 	return editDimensions(props.structure, props.ids, changes);
 });
 const { formEl, errorId, numericId, error, invalid, reviewed, conflict, paused, unavailable, describedBy, edited, submit } = useStructureReview(props, proposal, () => emit('submit'));
+function differs<T>(before: readonly T[], after: readonly T[]): T[] {
+	return after.filter((item, index) => JSON.stringify(item) !== JSON.stringify(before[index]));
+}
 function impact(next: Structure): string {
-	const differs = <T,>(before: readonly T[], after: readonly T[]) => after.filter((item, index) => JSON.stringify(item) !== JSON.stringify(before[index]));
 	const openings: readonly Opening[] = differs(props.structure.openings, next.openings);
 	return tr('editor.structure.bulk.impact', { walls: String(differs(props.structure.walls, next.walls).length),
 		windows: String(openings.filter(item => item.kind === 'window').length), doors: String(openings.filter(item => item.kind === 'door').length) });

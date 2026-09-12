@@ -154,14 +154,13 @@ describe('Room scalar lifecycle and recovery', () => {
 		expect(value.runtime.canUndo.value).toBe(false);
 		expect(expectFound(await value.zonesRepo.getById('zone-a' as never)).entity.geometry.points).toEqual(points);
 	});
-	it('keeps irregular Room geometry intact and uses the existing outline route', async () => {
+	it('keeps irregular Room geometry intact and offers no coordinate form beside its canvas vertices', async () => {
 		const value = await dimensionRig(), before = expectFound(await value.zonesRepo.getById('zone-a' as never));
 		const triangle = makeZone({ ...before.entity, geometry: { points: ZONE_A_DTO.points.slice(0, 3) } });
 		expectOk(await value.zonesRepo.save(triangle, before.version)); await value.runtime.refreshProjection(); await settle();
 		expect(value.wrapper.find('[data-rp-dimension]').exists()).toBe(false);
 		await value.runtime.roomDimension.open('zone-a' as never, 'width');
 		expect(value.runtime.activeToolId.value).toBe('select'); expect(value.runtime.canUndo.value).toBe(false);
-		await value.wrapper.get('[data-rp-canvas-edit]').trigger('click'); await settle();
-		expect(value.wrapper.find('[data-rp-form="outline-points"]').exists()).toBe(true);
+		expect(value.wrapper.find('[data-rp-canvas-edit]').exists()).toBe(false);
 	});
 });

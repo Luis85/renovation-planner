@@ -46,15 +46,15 @@ describe('selected spatial canvas actions', () => {
 			await existing.trigger('keydown', { key: 'Escape', ...modifiers }); expect(value.wrapper.find('[data-rp-canvas-detail-mode]').exists()).toBe(true);
 		}
 		value.project.stale = true; await settle();
-		await existing.trigger('click'); await value.wrapper.get('[data-rp-canvas-edit]').trigger('click');
+		await existing.trigger('click'); expect(value.dialogs.current).toBeNull();
+		expect(value.wrapper.get('[data-rp-canvas-detail]').attributes('aria-disabled')).toBe('true');
+		value.selection.select(['wall-a' as never]); await settle(); await value.wrapper.get('[data-rp-canvas-edit]').trigger('click');
 		expect(value.dialogs.current).toBeNull(); expect(value.wrapper.get('[data-rp-canvas-edit]').attributes('aria-disabled')).toBe('true');
 	});
-	it('opens the canonical Room outline form and all eight detail routes without changing selection', async () => {
+	it('offers a Room only Add detail, whose eight routes open without changing selection', async () => {
 		const value = await setup(), bytes = [...value.stack.vault.entries];
 		expect(value.wrapper.find('[data-rp-canvas-change]').exists()).toBe(false);
-		await value.wrapper.get('[data-rp-canvas-edit]').trigger('click'); await settle();
-		expect(value.wrapper.find('[data-rp-form="outline-points"]').exists()).toBe(true);
-		value.dialogs.resolve('cancel'); await settle();
+		expect(value.wrapper.find('[data-rp-canvas-edit]').exists()).toBe(false);
 		for (const mode of ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes']) {
 			await detail(value, mode);
 			expect(value.dialogs.current?.kind).toBe('form'); expect(value.selection.selectedIds).toEqual([value.room.id]);

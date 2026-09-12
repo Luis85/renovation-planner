@@ -47,6 +47,8 @@ and each other with no remedy.
   is updated.
 - A caption cannot be moved by keyboard, and there is no action returning it to its automatic place;
   undo is the way back from an accidental drag.
+- While a room is selected, a press on its caption text drags the caption rather than the room. To
+  move the room, press elsewhere in it, or deselect it first.
 
 ## Revisit when
 

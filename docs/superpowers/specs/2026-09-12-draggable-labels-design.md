@@ -85,9 +85,14 @@ schema file's own header says so).
 ### 4.1 Placement functions
 
 **Rooms.** `ZoneShape` draws the caption at `roomCaptionAnchor(…, { viewport, bottom:
-captionBottom(detailed) })` (`layers/zone/captionPlacement.ts`); a room caption's block is taller
-while a detail-plans line shows (`captionBottom`, ADR-0028). `labelActions` grabs it at the same
-anchor, boxed by `roomCaptionBounds` (`labels/labelLayout.ts`) with the same `captionBottom`.
+captionBottom(detailed) })` (`layers/zone/captionPlacement.ts`), each line sized and offset by
+`ROOM_CAPTION_TEXT`; the block that anchor clears pins and dimension labels with is taller while a
+detail-plans line shows (`captionBottom`, ADR-0028). `labelActions` grabs it at the same anchor, by
+its drawn text's box: `roomCaptionBounds` (`labels/labelLayout.ts`) is as wide as the widest drawn
+line — the bold name, the area, and the detail-plans line from `detailPlanCaptions` while one shows —
+capped at the 180 px text box, and runs from the name's top to the last line's bottom. The
+pin-clearance block (`CAPTION_BOUNDS_PX`) is only what obstacles clear, so a selected room is still
+dragged from anywhere else inside it.
 
 **Elements and assets.** `ElementShapes` draws with `elementLabelLayout` and `assetShapeConfig`
 with `assetLabelLayout` (`labels/labelLayout.ts`); `labelActions` grabs through
@@ -130,8 +135,8 @@ A `LabelMove` class beside `ElementMove`, owned by `SelectTool`:
 
 ### 5.1 Drawing
 
-- `ZoneShape`: the caption anchor is `labelAnchor + offset`, with `renderState.labelPreview`
-  overriding the offset for its id. When an offset is set, `captionOffsetY`'s pin displacement is
+- `ZoneShape`: the caption anchor is `roomCaptionAnchor` — `labelAnchor + offset` once dragged —
+  with `renderState.labelPreview` overriding the offset for its id. When an offset is set, `captionOffsetY`'s pin displacement is
   skipped: a placement the renovator chose wins. Name and area move together.
 - `ElementShapes` and `assetShapeConfig`: today's position plus the offset (or preview).
 - A room caption's block is taller while a detail-plans line shows (`captionBottom`, ADR-0028).

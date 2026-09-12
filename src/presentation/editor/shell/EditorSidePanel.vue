@@ -70,7 +70,7 @@ async function expand(section: string | null): Promise<void> {
 		ref="root"
 		:class="floating
 			? OVERLAY_CLASS[side]
-			: ['rp-persistent-panel', 'rp-side-panel', `rp-side-panel--${side}`, { 'rp-side-panel--collapsed': full && collapsed }]"
+			: ['rp-side-panel', `rp-side-panel--${side}`, { 'rp-side-panel--collapsed': full && collapsed }]"
 		:tabindex="floating ? -1 : undefined"
 	>
 		<button

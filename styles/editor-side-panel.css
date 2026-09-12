@@ -1,8 +1,10 @@
 /*
  * The Plan editor's side panels (2026-09-12 side panels spec §2): the section header here, and
  * from Task 7 the frame, header, resize handle and collapsed strip. Imported after
- * `editor-shell-fidelity.css` and `editor-visual-shell.css` so a tie on specificity resolves here,
- * but every rule below is written to win on specificity anyway.
+ * `editor-layout.css`, `editor-visual-shell.css` and `editor-shell-fidelity.css`, so a tie on
+ * specificity with any of them resolves here by source order. Ties exist: the two panel content
+ * rules below are `(0,2,0)`, the same as `editor-layout.css`'s overlay rule on those classes, whose
+ * own header records that they share no property with it.
  *
  * The chevron is a host icon (`PanelSection.vue`) rotated a quarter turn while closed. It replaced
  * a CSS-border triangle that read heavier than the heading beside it.
@@ -170,7 +172,7 @@
 }
 
 /*
- * Two-class compounds for the (0,1,1) Obsidian's `button:not(.clickable-icon)` scores, and their own
+ * Three-class compounds, (0,3,0), over the (0,1,1) Obsidian's `button:not(.clickable-icon)` scores, and their own
  * rings, which `buttonSpecificity.test.ts` and `buttonFocusRing.test.ts` check for every button.
  * 28px squares clear WCAG 2.2's 24px target minimum.
  */

@@ -1,9 +1,4 @@
 /* M07/M11 spacing retains native action order, measurements and focus targets. */
-.renovation-plan-editor .rp-structure-inspector > .rp-editor-inspector-fields {
-	gap: 4px 12px;
-	margin: 8px 0;
-}
-
 .renovation-plan-editor .rp-structure-inspector > .rp-inspector-more > .rp-structure-renovation-entry {
 	gap: 6px;
 	margin-block: 8px;
@@ -26,10 +21,6 @@
 }
 
 .renovation-plan-editor .rp-multi-selection > p { margin-block: 0; }
-.renovation-plan-editor .rp-multi-selection > .rp-editor-inspector-fields {
-	gap: 5px 12px;
-	margin: 0;
-}
 
 .renovation-plan-editor .rp-multi-selection > .rp-batch-actions { gap: 8px; margin-block: 0; }
 .renovation-plan-editor .rp-multi-selection > .rp-batch-actions > h3 { margin: 0; font-size: var(--font-ui-medium); }

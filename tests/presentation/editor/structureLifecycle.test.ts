@@ -30,7 +30,7 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 		const primary = value.wrapper.get('.rp-primary-actions').element as HTMLElement;
 		placeAt(value.canvasEl, 0, 0, 800, 600); placeAt(primary, 300, 520, 200, 48);
 		await start(value);
-		const banner = value.wrapper.get('.rp-task-banner--structure').element as HTMLElement;
+		const banner = value.wrapper.get('.rp-task-banner').element as HTMLElement;
 		expect(banner.style.getPropertyValue('--rp-taskbar-clearance')).toBe('96px');
 		placeAt(primary, 280, 480, 240, 88); resizeTo(primary, 240, 88); await settle();
 		expect(banner.style.getPropertyValue('--rp-taskbar-clearance')).toBe('136px');
@@ -46,7 +46,7 @@ describe('spatial task failure, busy and leaf lifetime', () => {
 		await settleUntil(() => !value.runtime.structureTask.draft.loading, 'wall baseline');
 		expect(value.runtime.activeToolId.value).toBe('draw-wall');
 		expect(workspace.overlay).toBe('none');
-		expect(value.wrapper.get('.rp-task-banner--structure').isVisible()).toBe(true);
+		expect(value.wrapper.get('.rp-task-banner').isVisible()).toBe(true);
 		expect(value.wrapper.get('.rp-structure-task').isVisible()).toBe(false);
 		expect(document.activeElement).toBe(value.canvasEl);
 		value.runtime.toolManager.pointerDown(pointerAt(0, 0));

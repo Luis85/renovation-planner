@@ -4,7 +4,12 @@
  * `routeEscape` (R7, 2026-09-04): Cancel LEAVES the task in one gesture — clears any draft
  * and returns to Select, never touching the selection — where Escape (Task 9) instead steps
  * back one interaction at a time through `routeEscape`. Mounted in `PlanEditorRoot`'s canvas
- * overlay slot, over the top edge.
+ * overlay slot.
+ *
+ * **The ONE task bar for every Add item, in one place**: docked at the canvas's bottom edge above
+ * Select/Pan/Add, at the distance `useTaskbarClearance` measures, for every task in `TASKS` —
+ * never at a position chosen per tool. Its Finish is the bar's primary action and wears the
+ * accent; `styles/editor-task-bar.css` carries the placement and the contrast argument.
  *
  * `TASKS` covers `draw-polygon`, `draw-room`, `draw-area` and `calibrate`: Select, camera mode (`null`)
  * and every designer tool id share no entry, and the `v-if` below is "the active tool has
@@ -157,41 +162,44 @@ watch(task, (next) => {
 		v-if="task !== null"
 		ref="root"
 		class="rp-task-banner"
-		:class="{ 'rp-task-banner--structure': isStructure }"
 		:style="{ '--rp-taskbar-clearance': `${taskbarClearance}px` }"
 		role="region"
 		:aria-label="tr('editor.task.banner')"
 	>
-		<strong role="status">{{ tr(task.nameKey) }}</strong>
-		<span
-			v-if="showSnapHint"
-			role="status"
-		>{{ tr('editor.room.snapped') }}</span>
-		<span
-			:id="instructionId"
-		>{{ tr(task.instructionKey) }}</span>
-		<span
-			v-if="runtime.activeToolId.value === 'move-opening'"
-			role="status"
-		>{{ runtime.openingMove.loading.value ? tr('editor.opening-move.loading') : runtime.openingMove.saving.value ? tr('editor.opening-move.saving') : runtime.openingMove.message.value }}</span>
+		<div class="rp-task-banner__text">
+			<strong role="status">{{ tr(task.nameKey) }}</strong>
+			<span
+				v-if="showSnapHint"
+				role="status"
+			>{{ tr('editor.room.snapped') }}</span>
+			<span
+				:id="instructionId"
+			>{{ tr(task.instructionKey) }}</span>
+			<span
+				v-if="runtime.activeToolId.value === 'move-opening'"
+				role="status"
+			>{{ runtime.openingMove.loading.value ? tr('editor.opening-move.loading') : runtime.openingMove.saving.value ? tr('editor.opening-move.saving') : runtime.openingMove.message.value }}</span>
+		</div>
 		<TaskDrawingControls />
-		<button
-			v-if="task.finish || isStructure"
-			type="button"
-			class="rp-task-banner__finish"
-			:aria-disabled="finishBlocked"
-			:aria-describedby="finishDescription"
-			@click="onFinish"
-		>
-			{{ finishLabel }}
-		</button>
-		<button
-			type="button"
-			class="rp-task-banner__cancel"
-			:aria-disabled="cancelBlocked"
-			@click="cancel"
-		>
-			{{ tr('editor.task.cancel') }}
-		</button>
+		<div class="rp-task-banner__actions">
+			<button
+				v-if="task.finish || isStructure"
+				type="button"
+				class="rp-task-banner__finish"
+				:aria-disabled="finishBlocked"
+				:aria-describedby="finishDescription"
+				@click="onFinish"
+			>
+				{{ finishLabel }}
+			</button>
+			<button
+				type="button"
+				class="rp-task-banner__cancel"
+				:aria-disabled="cancelBlocked"
+				@click="cancel"
+			>
+				{{ tr('editor.task.cancel') }}
+			</button>
+		</div>
 	</div>
 </template>

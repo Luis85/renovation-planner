@@ -31,7 +31,6 @@
 .renovation-plan-editor .rp-add-menu__item[aria-disabled="true"] .rp-add-menu__item-label,
 .renovation-plan-editor .rp-add-menu__item[aria-disabled="true"] .rp-add-menu__item-description,
 .renovation-plan-editor .rp-add-menu__reason { color: var(--text-muted); }
-.renovation-plan-editor .rp-task-banner { padding: 10px 14px; background: var(--background-primary); }
 .renovation-plan-editor .rp-new-room { display: grid; gap: 14px; }
 .renovation-plan-editor .rp-new-room__field { gap: 6px; }
 .renovation-plan-editor .rp-new-room__suggestions { gap: 6px; }

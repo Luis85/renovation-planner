@@ -663,6 +663,10 @@ describe('the headless harness capture script', () => {
 			'plan-editor-selected',
 			'plan-editor-stale',
 			'plan-editor-stale-narrow',
+			'plan-editor-tree-dark',
+			'plan-editor-tree-light',
+			'plan-editor-tree-narrow',
+			'plan-editor-tree-narrow-light',
 			'plan-editor-unsupported',
 			'project-detail',
 			'project-detail-narrow',
@@ -806,6 +810,26 @@ describe('the headless harness capture script', () => {
 		expect(source).toMatch(/name: 'plan-editor-locked-dark'[^}]*query: '\?view=plan-editor&locked=harness-terrace,harness-garden'/);
 		expect(source).toMatch(
 			/name: 'plan-editor-locked-dark'[^}]*selector: '\.rp-floor-inspector \.rp-editor-inspector-lock\[aria-pressed="true"\]'/,
+		);
+	});
+
+	/**
+	 * Property-tree polish (2026-09-12): the four shots the `?tree` knob exists for, pinned the
+	 * same way. The selector is a LEVEL-3 treeitem, which only the knob's four-plan hierarchy
+	 * produces (the resting harness answers no hierarchy and draws the open plan alone), and the
+	 * two 460px shots want it inside `.rp-overlay-panel` — the tree is hidden behind the rail's
+	 * Layers button there, and only the knob's own press puts it on screen.
+	 */
+	it('takes the property-tree shots through the ?tree knob, waiting on a third level the knob alone produces', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-tree-dark'[^}]*query: '\?view=plan-editor&tree'[^}]*selector: '\[role="tree"\] \[aria-level="3"\]'/);
+		expect(source).toMatch(/name: 'plan-editor-tree-light'[^}]*query: '\?view=plan-editor&tree&theme=light'[^}]*selector: '\[role="tree"\] \[aria-level="3"\]'/);
+		expect(source).toMatch(
+			/name: 'plan-editor-tree-narrow'[^}]*query: '\?view=plan-editor&tree'[^}]*selector: '\.rp-overlay-panel \[role="tree"\] \[aria-level="3"\]'[^}]*width: 460/,
+		);
+		expect(source).toMatch(
+			/name: 'plan-editor-tree-narrow-light'[^}]*query: '\?view=plan-editor&tree&theme=light'[^}]*selector: '\.rp-overlay-panel \[role="tree"\] \[aria-level="3"\]'[^}]*width: 460/,
 		);
 	});
 

@@ -40,6 +40,33 @@ export function detailPlanDeps(base: PlanEditorDeps): PlanEditorDeps {
 }
 
 /**
+ * `?tree`: a four-plan property — Site › House › { Ground floor (open), Attic } — so the Property
+ * tree draws THREE levels, which no other knob reaches (`?detail` answers two). `order` is each
+ * node's position among its siblings, 0..n-1, as `propertyTreeOf` sorts them. No parent zone: the
+ * open plan is a floor of the house, not a detail of a zone, so no guide is drawn.
+ */
+export function treePlanDeps(base: PlanEditorDeps): PlanEditorDeps {
+	return {
+		...base,
+		queries: {
+			...base.queries,
+			hierarchy: (planId) => Promise.resolve(ok({
+				ancestry: [{ id: 'harness-site', name: 'Site', kind: 'site' }, { id: 'harness-house', name: 'House', kind: 'building' }],
+				detailPlans: [],
+				tree: [{ id: 'harness-site', name: 'Site', kind: 'site', order: 0, parentId: null, children: [
+					{ id: 'harness-house', name: 'House', kind: 'building', order: 0, parentId: 'harness-site', children: [
+						{ id: planId, name: 'Ground floor', kind: 'floor', order: 0, parentId: 'harness-house', children: [] },
+						{ id: 'harness-attic', name: 'Attic', kind: 'floor', order: 1, parentId: 'harness-house', children: [] },
+					] },
+				] }],
+				parentZone: null,
+				parentZoneMissing: false,
+			})),
+		},
+	};
+}
+
+/**
  * `?detailed=<id,id>`: one detail plan per listed seeded zone id, so a zone's detail-plan caption
  * can be looked at; an id listed twice gets two. Like `?locked`, a mistyped id marks nothing.
  */

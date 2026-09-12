@@ -70,15 +70,16 @@ const wantsAssetDesigner = params.get('view') === 'asset-designer';
 const wantsAssetLibrary = params.get('view') === 'asset-library';
 
 /**
- * The Plan Editor's own seven knobs:`?select=<zoneId>` selects and frames a seeded zone once
+ * The Plan Editor's own eight knobs:`?select=<zoneId>` selects and frames a seeded zone once
  * the editor is ready and `?add` opens the Add menu once it is ready (both Task 21);
  * `?room=<widthMm>x<depthMm>` (Task 14) walks Add → Room → the two length fields, so a capture
  * can show the room task with a sized rectangle under it; `?stale` (Task 14) drives the trust
  * path's own stale-projection warning through a real zero-referent zone deletion; `?detail`
  * (detail-plan polish, 2026-09-11) composes the plan as a fresh detail plan with no zones and a
  * parent-zone guide; `?locked=<id,id>` answers the named seeded zones as locked (ADR-0027);
- * `?detailed=<id,id>` gives each named seeded zone a detail plan (ADR-0028). All
- * seven are read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below
+ * `?detailed=<id,id>` gives each named seeded zone a detail plan (ADR-0028); `?tree` answers a
+ * four-plan property so the Property tree draws three levels (ADR-0029). All
+ * eight are read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below
  * rather than read a second time there — one parse of the URL, like every other knob on this
  * page.
  *
@@ -99,6 +100,7 @@ const wantsStale = params.has('stale');
 const wantsDetail = params.has('detail');
 const lockedZoneIds = params.get('locked') ?? undefined;
 const detailedZoneIds = params.get('detailed') ?? undefined;
+const wantsTree = params.has('tree');
 
 let view: unknown = null;
 
@@ -228,6 +230,7 @@ if (wantsIndex) {
 				detail: wantsDetail,
 				locked: lockedZoneIds,
 				detailed: detailedZoneIds,
+				tree: wantsTree,
 			}).view
 		: wantsAssetDesigner
 			? mountAssetDesignerHarness(document.body).view

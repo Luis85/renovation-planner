@@ -483,6 +483,17 @@ const SHOTS = [
 	},
 	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
 	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
+	// Property-tree polish (2026-09-12): the `?tree` knob's four-plan property, so the tree's
+	// THIRD level — the one no other knob reaches — can be looked at in both schemes and at a
+	// sidebar's width. Every shot waits on a level-3 treeitem, which exists only once the knob's
+	// hierarchy read has landed. The two narrow ones wait on it INSIDE the Layers overlay: at
+	// 460px the tree sits behind the rail's Layers button (`v-show`, so the row is attached while
+	// hidden), and the knob presses that button itself — a wait on the bare row would certify
+	// the read landed and photograph a canvas with no tree on it.
+	{ name: 'plan-editor-tree-dark', query: '?view=plan-editor&tree', selector: '[role="tree"] [aria-level="3"]' },
+	{ name: 'plan-editor-tree-light', query: '?view=plan-editor&tree&theme=light', selector: '[role="tree"] [aria-level="3"]' },
+	{ name: 'plan-editor-tree-narrow', query: '?view=plan-editor&tree', selector: '.rp-overlay-panel [role="tree"] [aria-level="3"]', width: 460 },
+	{ name: 'plan-editor-tree-narrow-light', query: '?view=plan-editor&tree&theme=light', selector: '.rp-overlay-panel [role="tree"] [aria-level="3"]', width: 460 },
 	// Asset placement: two placed radiators and one placeholder, drawn from real repositories.
 	{ name: 'plan-editor-assets', query: '?view=plan-editor&reference&planning&assets&theme=light', selector: FLOOR_STATE },
 	{ name: 'plan-editor-assets-dark', query: '?view=plan-editor&reference&planning&assets', selector: FLOOR_STATE },

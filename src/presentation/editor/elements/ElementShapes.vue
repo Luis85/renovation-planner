@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
-import { elementLength } from '../../../domain/spatial/SpatialElement';
 import type { ThemeTokens } from '../theme/themeTokens';
-import { formatMetres } from '../shell/formatLength';
+import { ELEMENT_LABEL_FONT_PX, elementLabelLayout } from '../labels/labelLayout';
 import { paintRulerMarks, rulerMarks } from '../layers/rulerGeometry';
 import { screenPoint } from '../viewport/Viewport';
 import type { Point } from '../../../core/geometry/Point';
@@ -29,11 +28,11 @@ function pointHandles(element: NamedSpatialElement, single: boolean, zoom: numbe
 }
 const shapes = computed(() => props.elements.map(element => {
 	const selected = props.selectedIds.includes(element.id), closed = element.kind === 'object', ruler = element.kind === 'measurement' && element.points.length === 2;
-	const point = element.points[0], zoom = props.zoom, tokens = props.tokens, stroke = selected ? tokens.accent : tokens.zoneStroke;
+	const zoom = props.zoom, tokens = props.tokens, stroke = selected ? tokens.accent : tokens.zoneStroke, label = elementLabelLayout(element, zoom);
 	const single = props.editable === true && selected && props.selectedIds.length === 1;
 	return { id: element.id, name: 'element-' + element.kind, element, selected, single, handles: pointHandles(element, single, zoom, tokens), marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
 		line: { points: element.points.flatMap(vertex => [vertex.x, vertex.y]), closed, stroke, strokeWidth: (selected && !ruler ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: closed ? tokens.canvasBackground : undefined },
-		label: point ? { x: point.x, y: point.y - 18 / zoom, text: element.kind === 'measurement' ? element.name + ' · ' + formatMetres(elementLength(element)) + ' m' : element.name, fontSize: 12 / zoom, fill: tokens.zoneLabel, listening: false } : null };
+		label: { ...label, fontSize: ELEMENT_LABEL_FONT_PX / zoom, fill: tokens.zoneLabel, listening: false } };
 }));
 </script>
 <template>

@@ -29,6 +29,7 @@ import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import type { Point } from '../../../core/geometry/Point';
 import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
+import type { LabelMoveDeps } from '../labels/LabelMove';
 
 /**
  * One reversible command per drag OR per keyboard nudge — `SelectTool`'s pointer gesture and
@@ -53,7 +54,7 @@ export function moveGesture(
  * so the one cast that turns Obsidian's opaque per-leaf string into a branded id stays a
  * single site — see `subject` below, which is built from the same value.
  */
-export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions {
+export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps {
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly canFinishArea: () => boolean;
@@ -87,6 +88,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, rotationDisplayTarget: deps.rotationDisplayTarget, rotationControls: deps.rotationControls, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
 			previewElement: deps.previewElement,
 			moveElement: deps.moveElement,
+			labelHits: deps.labelHits, moveLabel: deps.moveLabel,
 			previewWall: deps.previewWall,
 			editWall: deps.editWall,
 			spatialObjects: () => canvasCandidates(projectStore.zones.values(), projectStore.structure, workspace.layerVisibility, assetShapes.shapeOf),

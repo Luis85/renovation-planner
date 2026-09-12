@@ -4,6 +4,7 @@ import type {
 	ReferenceError,
 } from '../../../core/errors/AppError';
 import { preservePointCurves, type CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
+import type { Vector } from '../../../core/geometry/Vector';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { zoneGeometryChanged } from '../../../domain/zone/Zone.events';
@@ -23,6 +24,8 @@ export interface MoveSpatialObjectInput {
 	 * with the version its own load returned. Slice 6's undo/redo supplies it.
 	 */
 	readonly expected?: EntityVersion;
+	/** A dragged caption's new offset from its automatic anchor (ADR-0029): absent keeps the saved one, `null` restores automatic. */
+	readonly labelOffset?: Vector | null;
 }
 
 /**
@@ -84,7 +87,8 @@ export class MoveSpatialObjectCommand
 		if (isErr(updated)) {
 			return updated;
 		}
-		const saved = await this.zones.save(updated.value, input.expected ?? loaded.value.version);
+		const next = input.labelOffset === undefined ? updated.value : updated.value.withLabelOffset(input.labelOffset);
+		const saved = await this.zones.save(next, input.expected ?? loaded.value.version);
 		if (isErr(saved)) {
 			return saved;
 		}

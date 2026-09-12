@@ -98,6 +98,9 @@ export const CLICK_EPSILON_PX = 4;
 /** Constant screen size shared by M11 badge drawing and hit testing. */
 export const SELECTION_BADGE_RADIUS_PX = 12;
 
+/** Invisible screen-pixel margin around a selected item's caption, so a small name tag stays grabbable at any zoom (ADR-0029). */
+export const LABEL_GRAB_PADDING_PX = 4;
+
 /** Small edge arrows retain generous invisible rectangular pointer targets. */
 export const ROTATION_HANDLE_RADIUS_PX = 8;
 export const ROTATION_CONTROL_WIDTH_PX = 44;

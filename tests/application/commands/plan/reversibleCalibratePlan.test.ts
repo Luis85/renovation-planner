@@ -369,3 +369,11 @@ describe('a foreign write sandwiched between two calibration gestures', () => {
 		expect(expectOk(await w.sidecar.read(w.planId)).document.objects[0]?.points[0]?.x).toBeCloseTo(999);
 	});
 });
+
+describe('ReversibleCalibratePlanCommand caption offsets', () => {
+	it('rescales a moved caption with the room it labels', async () => {
+		const w = await wired([{ ...zoneEntry('zone-1' as never, 10), labelOffset: { dx: 25, dy: -10 } }]);
+		expectOk(await w.command.execute({ planId: w.planId, pointA: PICKED_A, pointB: PICKED_B, knownDistance: KNOWN_MM }));
+		expect(expectOk(await w.sidecar.read(w.planId)).document.objects[0].labelOffset).toEqual({ dx: 100, dy: -40 });
+	});
+});

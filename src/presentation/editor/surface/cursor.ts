@@ -61,7 +61,7 @@ export interface CursorInputs {
 	readonly panPhase: PanPhase;
 	readonly activeToolId: ToolId | null;
 	readonly hoveredObjectId: string | null;
-	readonly hoveredTargetKind: 'body' | 'handle' | 'rotation' | null;
+	readonly hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | null;
 	readonly rotationActive?: boolean;
 }
 
@@ -84,13 +84,14 @@ export interface CursorInputs {
  * hits are DIFFERENT promises and get different cursors (spec §6.2): a body would be
  * selected, so `pointer`; a vertex handle of an already-selected room would be dragged, so
  * `grab` — the same keyword the camera's own armed pan uses, because it is the one the user
- * has already learnt for "this is about to move under your hand".
+ * has already learnt for "this is about to move under your hand". A selected item's caption
+ * promises a drag of the caption, so it takes `grab` too (ADR-0029).
  */
 export function cursorClassFor(inputs: CursorInputs): string | null {
 	if (inputs.panPhase !== 'idle') return `rp-plan-canvas-${inputs.panPhase}`;
 	if (inputs.activeToolId === 'select' && inputs.rotationActive) return 'rp-plan-canvas-grabbing';
 	if (inputs.activeToolId === 'select' && inputs.hoveredObjectId !== null) {
-		return inputs.hoveredTargetKind === 'handle' || inputs.hoveredTargetKind === 'rotation' ? 'rp-plan-canvas-grab' : 'rp-plan-canvas-target';
+		return inputs.hoveredTargetKind === 'handle' || inputs.hoveredTargetKind === 'rotation' || inputs.hoveredTargetKind === 'label' ? 'rp-plan-canvas-grab' : 'rp-plan-canvas-target';
 	}
 	const tool = inputs.activeToolId;
 	return tool !== null && PRECISE_TOOLS.includes(tool) ? 'rp-plan-canvas-precise' : null;

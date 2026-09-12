@@ -14,7 +14,7 @@ const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visib
 const project = useProjectStore(), shapes = useAssetShapeStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const structure = useDrawnStructure();
 const names = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
-const placements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind === 'asset'), names.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value));
+const placements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind === 'asset'), names.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value, runtime.renderState.labelPreview));
 const preview = computed(() => {
 	const draft = runtime.elementTask.assets.draft;
 	return runtime.activeToolId.value === 'place-asset' && draft.preview && draft.shape

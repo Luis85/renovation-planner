@@ -4,7 +4,7 @@ import type { ObservationToken } from '../../../application/ports/versioning';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../persistence/dto/assetFrontmatter';
 import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../persistence/dto/assetPriceFrontmatter';
 import { PLAN_TYPE, PlanFrontmatterSchemaV10 } from '../../persistence/dto/planFrontmatter';
-import { SpatialObjectGeometrySchemaV7, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
+import { SpatialObjectGeometrySchemaV10, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
 import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV4 } from '../../persistence/dto/requirementFrontmatter';
 import { ZONE_TYPE, ZoneFrontmatterSchemaV2 } from '../../persistence/dto/zoneFrontmatter';
@@ -123,10 +123,9 @@ export function observeSidecar(rawText: string): ObservationToken {
 /**
  * The keys a sidecar entry declares, in schema order — handed to `JSON.stringify` as its
  * allowlist so the order a writer or a parser happens to produce is not part of the token.
- * ponytail: an allowlist filters NESTED object keys too, so an entry field that is itself an
- * object would need its keys added here; today the one nested value is an array of numbers.
+ * `JSON.stringify`'s key list filters NESTED objects too, so the offset's own keys are listed or it digests as `{}`.
  */
-const ENTRY_KEYS = Object.keys(SpatialObjectGeometrySchemaV7.shape);
+const ENTRY_KEYS = [...Object.keys(SpatialObjectGeometrySchemaV10.shape), 'dx', 'dy'];
 
 /**
  * The token for a ZONE, which spans two files (SDD §42): its note's owned keys AND its own

@@ -75,7 +75,10 @@
 	// them — `tests/build/contractDiscriminates.test.ts` spawns the child and reads its exit
 	// code — so fallow's import graph reaches neither and reports both dead. Named rather than
 	// globbed `tests/build/fixtures/**`, for the reason `dynamicallyLoaded`'s own comment gives:
-	// a glob absorbs the next fixture and tells nobody.
+	// a glob absorbs the next fixture and tells nobody. `tests/build/fixtures/sfcEnvironment/` is
+	// the same kind again: `tests/build/no-ssr-sfc.test.ts` spawns a child vitest over its own
+	// config there, and the two fixture specs and the `Probe.vue` they import are reached by
+	// nothing but that child's `include`.
 	"entry": [
 		"src/main.ts",
 		"tests/harness/page.ts",
@@ -121,7 +124,11 @@
 		"src/prototypes/**/*.vue",
 		"tests/fixtures/promotion/ZoneSummary.promoted.vue",
 		"tests/build/fixtures/brokenFake.fixture.ts",
-		"tests/build/fixtures/vitest.brokenFake.config.ts"
+		"tests/build/fixtures/vitest.brokenFake.config.ts",
+		"tests/build/fixtures/sfcEnvironment/Probe.vue",
+		"tests/build/fixtures/sfcEnvironment/nodeImportsSfc.fixture.ts",
+		"tests/build/fixtures/sfcEnvironment/jsdomImportsSfc.fixture.ts",
+		"tests/build/fixtures/sfcEnvironment/vitest.sfcEnvironment.config.ts"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
 	// `docs/user-experience/archive/concepts/*.css` are the concept mocks' sheets: the static HTML

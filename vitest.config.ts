@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
+import { noSsrSfc } from './scripts/vitest-no-ssr-sfc.mjs';
 
 /**
  * The test files that BOOT ESLint, derived rather than listed.
@@ -64,7 +65,12 @@ function eslintBootingTests(): readonly string[] {
 const ESLINT_TESTS = eslintBootingTests();
 
 export default defineConfig({
-	plugins: [vue()],
+	// `noSsrSfc` BEFORE `vue`: it refuses an SSR transform of any `.vue` — the shape a
+	// node-environment test produces by reaching an SFC through its imports, whose unrendered
+	// `v-if`/`v-model` arms the coverage merge then counts as uncovered. In THIS config only;
+	// the plugin's header says why, and `tests/build/no-ssr-sfc.test.ts` drives it through a
+	// child vitest over two fixture specs.
+	plugins: [noSsrSfc(), vue()],
 	resolve: {
 		alias: {
 			// The real 'obsidian' package is types-only; tests run against a small mock.

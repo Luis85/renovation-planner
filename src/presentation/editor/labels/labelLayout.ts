@@ -65,3 +65,6 @@ export function roomCaptionBounds(anchor: Point, zoom: number, bottom: number): 
 		max: { x: anchor.x + CAPTION_BOUNDS_PX.halfWidth / zoom, y: anchor.y + bottom / zoom },
 	};
 }
+
+/** A drawn caption a press can grab: its world box, and the offset it is drawn at NOW (an undragged room caption's pin displacement included). */
+export interface LabelHit { readonly id: string; readonly bounds: BoundingBox; readonly offset: Vector }

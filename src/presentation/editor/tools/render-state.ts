@@ -90,7 +90,7 @@ export class RenderState {
 	 * every site, which is stated here because nothing in any gate can enforce it: an id with a
 	 * stale kind beside it renders the wrong cursor over the right target.
 	 */
-	hoveredTargetKind: 'body' | 'handle' | 'rotation' | null = null;
+	hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | null = null;
 	previewPolygon: readonly Point[] | null = null;
 	marquee: BoundingBox | null = null;
 	snapGuides: LineSegment[] = [];

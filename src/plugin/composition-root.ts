@@ -85,20 +85,20 @@ import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/di
 import {
 	VAULT_EXCEPTION_MAPPER,
 	guardAssetDesign,
-	guardSlice10,
+	guardCatalogueRequirements,
 	guardedEditorServices,
 	type GuardedAssetDesignServices,
 	type GuardedEditorServices,
-	type GuardedSlice10Services,
+	type GuardedCatalogueRequirementServices,
 	type QueryServices,
-	type UnguardedSlice10Services,
+	type UnguardedCatalogueRequirementServices,
 } from './guardedServices';
 import { guardAssetPriceServices, type GuardedAssetPriceServices } from './guardedAssetPrice';
 import { guardAssetLibrary, type GuardedAssetLibraryServices } from './guardedAssetLibrary';
 import { SetAssetPriceOverrideCommand } from '../application/commands/asset-price/SetAssetPriceOverride';
 import { ClearAssetPriceOverrideCommand } from '../application/commands/asset-price/ClearAssetPriceOverride';
 import { ListProjectAssetPrices } from '../application/queries/ListProjectAssetPrices';
-import { composeSlice10, sequenceNotices, type Slice10Wiring } from './slice10Composition';
+import { composeCatalogueRequirements, sequenceNotices, type CatalogueRequirementWiring } from './catalogueRequirementComposition';
 import { composeRepositories, type VaultStack } from './repositoryComposition';
 import type { RenovationPlannerSettings } from './settings/settings';
 
@@ -177,7 +177,7 @@ export interface CompositionRoot {
  */
 export interface PersistenceServices
 	extends GuardedEditorServices,
-		GuardedSlice10Services,
+		GuardedCatalogueRequirementServices,
 		GuardedAssetPriceServices,
 		GuardedAssetDesignServices,
 		GuardedAssetLibraryServices {
@@ -323,10 +323,11 @@ export interface SessionCollaborators {
 }
 
 /**
- * Design slice 10's lock set, the `RecalculateRequirementCommand` both the write side and
- * the cascade handlers dispatch through, and the `Slice10Wiring` bundle `composeSlice10` and
- * `composeGuarded` both take — pulled out of `createCompositionRoot`'s own body when the
- * currency-override increment's wiring pushed that function over its 100-line cap.
+ * The requirement lock set, the `RecalculateRequirementCommand` both the write side and
+ * the cascade handlers dispatch through, and the `CatalogueRequirementWiring` bundle
+ * `composeCatalogueRequirements` and `composeGuarded` both take — pulled out of
+ * `createCompositionRoot`'s own body when the currency-override increment's wiring pushed
+ * that function over its 100-line cap.
  *
  * **An extraction, not a second collapsed literal.** `runtime.ts` already recorded the wrong
  * remedy for this shape: a budget bought back by reformatting is a budget already spent, and
@@ -334,7 +335,7 @@ export interface SessionCollaborators {
  * same file, one slice later; the fix is the seam `composeRepositories`/`composeGuarded`
  * already model, not a third one.
  */
-function composeSlice10Wiring(
+function composeCatalogueRequirementWiring(
 	repositories: ReturnType<typeof composeRepositories>,
 	index: ProjectIndex,
 	events: EventBus,
@@ -342,8 +343,8 @@ function composeSlice10Wiring(
 	// The two SESSION collaborators this wiring needs, as one parameter: `max-params` is five,
 	// and these are the same KIND of thing — which is what makes the grouping a statement
 	// rather than a workaround, exactly as `SessionCollaborators` argues above.
-	session: { markers: SequenceMarkerStore; locks: ReferenceLocks; materialUsers?: Slice10Wiring['materialUsers'] },
-): { wiring: Slice10Wiring; slice10: ReturnType<typeof composeSlice10> } {
+	session: { markers: SequenceMarkerStore; locks: ReferenceLocks; materialUsers?: CatalogueRequirementWiring['materialUsers'] },
+): { wiring: CatalogueRequirementWiring; catalogueRequirements: ReturnType<typeof composeCatalogueRequirements> } {
 	const { markers, locks, materialUsers } = session;
 	const { projects, zones, assets, requirements, overrides } = repositories;
 	const recalculate = new RecalculateRequirementCommand({
@@ -355,7 +356,7 @@ function composeSlice10Wiring(
 		projects,
 		overrides,
 	});
-	const wiring: Slice10Wiring = {
+	const wiring: CatalogueRequirementWiring = {
 		plans: repositories.plans, geometry: new ObsidianPlanGeometrySidecar(repositories.geometryStore),
 		zones,
 		assets,
@@ -370,7 +371,7 @@ function composeSlice10Wiring(
 		overrides,
 		materialUsers,
 	};
-	return { wiring, slice10: composeSlice10(wiring) };
+	return { wiring, catalogueRequirements: composeCatalogueRequirements(wiring) };
 }
 
 /**
@@ -381,8 +382,8 @@ function composeSlice10Wiring(
  */
 function composeGuarded(
 	repositories: ReturnType<typeof composeRepositories>,
-	slice10: UnguardedSlice10Services,
-	wiring: Slice10Wiring,
+	catalogueRequirements: UnguardedCatalogueRequirementServices,
+	wiring: CatalogueRequirementWiring,
 	files: VaultFileProbe,
 	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
 ) {
@@ -423,7 +424,7 @@ function composeGuarded(
 	);
 	return {
 		...editor,
-		...guardSlice10(slice10, recalculate, logger, map),
+		...guardCatalogueRequirements(catalogueRequirements, recalculate, logger, map),
 		...assetPrice,
 		...assetLibrary,
 		// The SAME `locks` the delete resolution takes — `wiring.locks`, one instance per root. A
@@ -508,14 +509,14 @@ export function createCompositionRoot(
 		settings.defaultCurrency,
 	);
 	const { geometryStore, projects, plans, zones, assets, requirements, overrides } = repositories;
-	const { wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, {
+	const { wiring, catalogueRequirements } = composeCatalogueRequirementWiring(repositories, index, eventBus, logger, {
 		markers,
 		locks,
 		materialUsers: assetId => planMaterialUsers({ vault: vault.vault, index }, assetId),
 	});
 
 	const files = createVaultFileProbe(vault.vault);
-	const guarded = composeGuarded(repositories, slice10, wiring, files, {
+	const guarded = composeGuarded(repositories, catalogueRequirements, wiring, files, {
 		versions: environment,
 		migrations,
 		ledger,
@@ -554,7 +555,7 @@ export function createCompositionRoot(
 				listPlansByProject: guarded.listPlansByProject,
 				getAssetDesign: guarded.assetDesign.get,
 			}),
-			subscriptions: slice10.subscriptions,
+			subscriptions: catalogueRequirements.subscriptions,
 			markers,
 			changeAdapter: new VaultChangeAdapter({
 				vault: vault.vault,

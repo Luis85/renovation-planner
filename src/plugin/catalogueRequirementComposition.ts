@@ -2,13 +2,14 @@ import { registerOnPlanningChanged } from '../application/event-handlers/require
 import type { PlanRepository } from '../application/ports/PlanRepository';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
 /**
- * Design slice 10's composition, lifted out of `composition-root.ts` when that file reached
- * its 400-line cap — an EXTRACTION rather than a second collapsed literal, which is the
- * remedy this repository writes down for a budget that has already been spent. The seam is
- * a coherent one and not merely a convenient one: everything here is slice 10's write side,
- * read side and cascade handlers, plus the two notice objects those handlers report
- * through. `composition-root.ts` remains the ONE place dependencies are composed (SDD §10);
- * this is one of its blocks, called from it and from nothing else.
+ * The asset catalogue and material requirement composition — commands, queries and cascade
+ * handlers — lifted out of `composition-root.ts` when that file reached its 400-line cap —
+ * an EXTRACTION rather than a second collapsed literal, which is the remedy this repository
+ * writes down for a budget that has already been spent. The seam is a coherent one and not
+ * merely a convenient one: everything here is the catalogue and requirement write side, read
+ * side and cascade handlers, plus the two notice objects those handlers report through.
+ * `composition-root.ts` remains the ONE place dependencies are composed (SDD §10); this is
+ * one of its blocks, called from it and from nothing else.
  *
  * `sequenceNotices` is exported because `composeGuarded` builds the OTHER delete command
  * that raises it, back in the root — the reason its own docblock gives for it being at
@@ -43,7 +44,7 @@ import type { ZoneRepository } from '../application/ports/ZoneRepository';
 import { projectLocationOf } from '../infrastructure/obsidian/repositories/paths';
 import { notifyWarning } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
-import type { UnguardedSlice10Services } from './guardedServices';
+import type { UnguardedCatalogueRequirementServices } from './guardedServices';
 
 /**
  * The one notice both delete commands raise, at module scope because the two are built in
@@ -70,7 +71,7 @@ export const sequenceNotices = {
 	},
 };
 
-export interface Slice10Wiring {
+export interface CatalogueRequirementWiring {
 	readonly plans?: PlanRepository;
 	readonly geometry?: PlanGeometrySidecar;
 	readonly zones: ZoneRepository;
@@ -96,18 +97,18 @@ export interface Slice10Wiring {
 }
 
 /**
- * Design slice 10's write side, read side, and cascade handlers, composed as ONE block —
- * the same seam discipline as every other service here, kept out of
+ * The catalogue and requirement write side, read side and cascade handlers, composed as ONE
+ * block — the same seam discipline as every other service here, kept out of
  * `createCompositionRoot`'s own body only by the size budget every function shares.
  *
- * Nothing this returns is guarded: it is the raw composition, and `guardSlice10` wraps the
- * copy that LEAVES the root. `recalculate` reaches `DeleteAssetCommand` and both cascade
- * handlers unguarded on purpose — those uses are INSIDE the application layer, which is
- * not the boundary the guard defends.
+ * Nothing this returns is guarded: it is the raw composition, and `guardCatalogueRequirements`
+ * wraps the copy that LEAVES the root. `recalculate` reaches `DeleteAssetCommand` and both
+ * cascade handlers unguarded on purpose — those uses are INSIDE the application layer, which
+ * is not the boundary the guard defends.
  */
-export function composeSlice10(
-	wiring: Slice10Wiring,
-): UnguardedSlice10Services & { subscriptions: { dispose(): void }[] } {
+export function composeCatalogueRequirements(
+	wiring: CatalogueRequirementWiring,
+): UnguardedCatalogueRequirementServices & { subscriptions: { dispose(): void }[] } {
 	const { zones, assets, requirements, projects, index, recalculate, events, locks, logger, markers, overrides } = wiring;
 
 	/**

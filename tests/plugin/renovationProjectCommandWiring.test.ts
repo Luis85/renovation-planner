@@ -1,7 +1,7 @@
 /**
  * What tells a composition that wires the project view's write side from one that does not.
  *
- * Slice 10's `slice10CascadeWiring.test.ts` is the pattern: a collaborator that is built,
+ * Slice 10's `catalogueRequirementCascadeWiring.test.ts` is the pattern: a collaborator that is built,
  * tested and passed by nothing is a collaborator that reaches nobody.
  */
 import { describe, expect, it } from 'vitest';

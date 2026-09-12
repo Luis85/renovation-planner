@@ -75,7 +75,7 @@ export interface GuardedAssetLibraryServices {
  * door it crossed.
  *
  * It takes PORTS and builds the queries itself — `guardAssetDesign`'s shape rather than
- * `guardSlice10`'s — because nothing above this function needs the unguarded ones: no library
+ * `guardCatalogueRequirements`'s — because nothing above this function needs the unguarded ones: no library
  * read is dispatched from inside the application layer, so a second, raw copy at the root
  * would be a copy with no caller. Every port here is one the root already holds; nothing new
  * is constructed beneath them, and `index` is the same instance every repository shares, so

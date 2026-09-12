@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // jsdom: the plugin shell touches the DOM through the module mock, exactly as
-// tests/plugin/slice10CascadeWiring.test.ts does.
+// tests/plugin/catalogueRequirementCascadeWiring.test.ts does.
 import { beforeEach, describe, expect, it } from 'vitest';
 // Mock-only surface, imported BY NAME. `Notice` carries members
 // the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
@@ -31,7 +31,7 @@ installObsidianDom();
  * notice door rather than a no-op that swallows it and logs into the void.
  *
  * Nothing else can tell a composition that wires the real notice door from one that binds a
- * no-op and logs into the void — the same gap `slice10CascadeWiring.test.ts` closes for
+ * no-op and logs into the void — the same gap `catalogueRequirementCascadeWiring.test.ts` closes for
  * `CascadeDeps`.
  */
 async function seededStack() {

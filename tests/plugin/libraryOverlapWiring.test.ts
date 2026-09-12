@@ -4,7 +4,7 @@
  * That the composed root builds `IndexLibraryOverlaps` from the ROOT'S OWN index and the
  * CONFIGURED library folder (§83, design slice 19).
  *
- * The same shape as `slice10CascadeWiring.test.ts` and `sequenceNoticeWiring.test.ts`, and it
+ * The same shape as `catalogueRequirementCascadeWiring.test.ts` and `sequenceNoticeWiring.test.ts`, and it
  * exists for the same reason those do: a composition that passes the wrong collaborator
  * compiles, passes every other test here, and says nothing. Measured before this file was
  * written — replacing `libraryFolder` with `'Zzz/Unrelated'` at `composition-root.ts`'s

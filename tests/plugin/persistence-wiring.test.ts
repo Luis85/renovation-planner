@@ -278,7 +278,7 @@ describe('persistence composition', () => {
 	 * `VaultChangeAdapter.deps.events` is REQUIRED, so a root that passes none fails to
 	 * compile — but a root that passes a FRESH `createEventBus()` compiles, passes every other
 	 * test in this repository, and announces into an object no view has ever subscribed to.
-	 * That is the same shape `slice10CascadeWiring` and `sequenceNoticeWiring` exist for, with
+	 * That is the same shape `catalogueRequirementCascadeWiring` and `sequenceNoticeWiring` exist for, with
 	 * the compiler covering only the half that is a missing argument.
 	 *
 	 * Driven end to end rather than by reading the field: a foreign project note through the

@@ -44,7 +44,7 @@ export function detailPlanDeps(base: PlanEditorDeps): PlanEditorDeps {
  * can be looked at; an id listed twice gets two. Like `?locked`, a mistyped id marks nothing.
  */
 export function detailedZoneDeps(base: PlanEditorDeps, ids: readonly string[]): PlanEditorDeps {
-	const detailPlans = ids.map((parentZoneId, index) => ({ id: `harness-detail-${index}` as PlanId, name: `Detail plan ${index + 1}`, parentZoneId }));
+	const detailPlans = ids.map((parentZoneId, index) => ({ id: `harness-detail-${index}` as PlanId, name: `Detail plan ${index + 1}`, kind: 'floor' as const, parentZoneId }));
 	return {
 		...base,
 		queries: {

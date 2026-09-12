@@ -16,7 +16,7 @@ import { createElementDraft, ELEMENT_TOOLS, type ElementDraft, type ElementToolI
 /** A draft captures one baseline; read-only recovery cannot replace a captured baseline. */
 export function createElementBaseline(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'refreshProjection'>, draft: ElementDraft) {
 	const project = useProjectStore(), baseline = shallowRef<RenovationBaseline | null>(null);
-	let alive = true, generation = 0, retrying = false;
+	let alive = true, generation = 0, retrying = false, reading: Promise<void> = Promise.resolve();
 	function stop(): void { generation++; retrying = false; Object.assign(draft, createElementDraft()); baseline.value = null; }
 	function matches(read: RenovationBaseline): boolean {
 		return sameElementMetadata(project.plan?.spatialElements, read.plan.entity.spatialElements) && sameGeometryDocument(
@@ -37,7 +37,7 @@ export function createElementBaseline(context: PlanEditorContext, runtime: Pick<
 	function start(id: ElementToolId): void {
 		stop(); draft.kind = ELEMENT_TOOLS[id];
 		draft.name = tr(`editor.add.${draft.kind === 'object' ? 'item' : draft.kind}.label`);
-		void readBaseline(generation);
+		reading = readBaseline(generation);
 	}
 	async function retry(): Promise<void> {
 		if (!alive || draft.loading || draft.busy || retrying) return;
@@ -51,5 +51,5 @@ export function createElementBaseline(context: PlanEditorContext, runtime: Pick<
 	}
 	const needsRead = computed(() => baseline.value === null && !draft.loading && !draft.conflict);
 	onBeforeUnmount(() => { alive = false; stop(); });
-	return { baseline, needsRead, start, stop, retry, ticket: () => generation, current: (ticket: number) => alive && ticket === generation };
+	return { baseline, needsRead, start, stop, retry, ready: () => reading, ticket: () => generation, current: (ticket: number) => alive && ticket === generation };
 }

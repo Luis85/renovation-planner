@@ -51,6 +51,12 @@
 	gap: var(--size-4-2);
 }
 
+.rp-floor-inspector__guide {
+	margin: 0 0 var(--size-4-3);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
 /*
  * The three renderings Task 7's `Aggregate` union asks for. `--partial` and `--unavailable`
  * each carry a WORD as well as a style — SDD §85's "never colour alone" applies to a figure

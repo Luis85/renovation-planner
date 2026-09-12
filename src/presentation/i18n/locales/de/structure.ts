@@ -58,6 +58,7 @@ export const structureDe: Record<keyof typeof structureEn, string> = {
 	'editor.structure.error.host-missing': 'Eine vorhandene Wand für diese Öffnung wählen.',
 	'editor.structure.error.opening-containment': 'Die Öffnung muss innerhalb der Wandlänge und Höhe liegen. Position oder Maße ändern.',
 	'editor.structure.error.opening-overlap': 'Öffnungen derselben Wand dürfen nicht überlappen. Position oder Breite ändern.',
+	'editor.structure.error.opening-split': 'Eine neue Wand kann nicht in einer Tür, einem Fenster oder einer Öffnung beginnen. Einen Punkt daneben wählen.',
 	'editor.structure.error.boundary': 'Eine einfache Grenze schließen und einen Raumnamen eingeben.',
 	'editor.structure.error.room-missing': 'Eine Raumgrenze verweist auf fehlende Wände oder einen fehlenden Raum. Verweis reparieren und Plan erneut öffnen.',
 	'editor.structure.error.duplicate-id': 'Die Struktur enthält wiederholte Kennungen. Plan vor dem Bearbeiten erneut öffnen.',

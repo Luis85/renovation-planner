@@ -650,7 +650,12 @@ describe('the headless harness capture script', () => {
 			'plan-editor-assets-dark',
 			'plan-editor-assets-narrow',
 			'plan-editor-dark',
+			'plan-editor-detail',
+			'plan-editor-detail-dark',
+			'plan-editor-detail-narrow-de',
 			'plan-editor-light',
+			'plan-editor-locked',
+			'plan-editor-locked-dark',
 			'plan-editor-multiple',
 			'plan-editor-multiple-dark',
 			'plan-editor-multiple-narrow',
@@ -771,6 +776,37 @@ describe('the headless harness capture script', () => {
 		expect(source).toMatch(/name: 'plan-editor-light'[^}]*selector: FLOOR_STATE/);
 		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
 		expect(source).toContain("const FLOOR_STATE = '.rp-floor-inspector'");
+	});
+
+	/**
+	 * Detail-plan polish (2026-09-11): the five shots the `?detail` and `?locked=` knobs exist
+	 * for, pinned the same way Task 21's and Task 14's own shots below are — a selector that
+	 * cannot tell "mounted" from "the knob actually landed" would let a broken knob exit 0 with
+	 * a picture of the resting editor under one of these five names. Each assertion checks BOTH
+	 * halves: the query carries the knob (`&detail` or `&locked=`), and the selector is one that
+	 * exists only once that knob's own state has landed — the guide explainer for the two wide
+	 * detail shots, `DETAIL_ANCESTRY_CRUMB` for the narrow one (the Inspector carrying the guide
+	 * explainer is hidden at 460px — see that constant's own comment), and a PRESSED lock toggle
+	 * for the two locked shots (present, unpressed, on every row regardless of the knob —
+	 * ADR-0027 — so only the pressed state proves the knob actually locked one).
+	 */
+	it('takes the detail-plan and locked-zone shots through their own knobs, waiting on what only a landed knob produces', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-detail'[^}]*query: '\?view=plan-editor&detail&theme=light'/);
+		expect(source).toMatch(/name: 'plan-editor-detail'[^}]*selector: '\.rp-floor-inspector__guide'/);
+		expect(source).toMatch(/name: 'plan-editor-detail-dark'[^}]*query: '\?view=plan-editor&detail'/);
+		expect(source).toMatch(/name: 'plan-editor-detail-dark'[^}]*selector: '\.rp-floor-inspector__guide'/);
+		expect(source).toMatch(/name: 'plan-editor-detail-narrow-de'[^}]*query: '\?view=plan-editor&detail&theme=light&lang=de'/);
+		expect(source).toMatch(
+			/name: 'plan-editor-detail-narrow-de'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail', DETAIL_ANCESTRY_CRUMB\]/,
+		);
+		expect(source).toMatch(/name: 'plan-editor-locked'[^}]*query: '\?view=plan-editor&locked=harness-terrace,harness-garden&theme=light'/);
+		expect(source).toMatch(/name: 'plan-editor-locked'[^}]*selector: '\.rp-floor-inspector \.rp-editor-inspector-lock\[aria-pressed="true"\]'/);
+		expect(source).toMatch(/name: 'plan-editor-locked-dark'[^}]*query: '\?view=plan-editor&locked=harness-terrace,harness-garden'/);
+		expect(source).toMatch(
+			/name: 'plan-editor-locked-dark'[^}]*selector: '\.rp-floor-inspector \.rp-editor-inspector-lock\[aria-pressed="true"\]'/,
+		);
 	});
 
 	/**

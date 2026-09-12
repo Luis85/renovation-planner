@@ -139,6 +139,17 @@ describe('the in-memory project index', () => {
 		expect(index.entries()).toEqual([]);
 	});
 
+	// A lock or a rename re-saves a zone; its row and draw order must not jump to the end.
+	it('keeps a re-saved entry in its place on every axis', () => {
+		const index = new InMemoryProjectIndex();
+		const hall: ProjectIndexEntry = { ...zoneEntry, id: 'zone-d' as never, path: 'Renovation/Zones/Hall.md' };
+		index.rebuild([zoneEntry, hall], []);
+		index.upsert({ ...zoneEntry, path: 'Renovation/Zones/Bathroom.md' });
+		expect(index.getSpatialObjectIdsByPlan('plan-b' as never)).toEqual(['zone-c', 'zone-d']);
+		expect(index.getIdsByProject('project-a' as never)).toEqual(['zone-c', 'zone-d']);
+		expect(index.getIdsByType('renovation-zone')).toEqual(['zone-c', 'zone-d']);
+	});
+
 	it('indexes a note of ours that sits outside the configured folder', () => {
 		const stack = createRepositoryStack('Renovation');
 		stack.vault.entries.set(

@@ -132,6 +132,21 @@ import type { AssetPriceRowDto } from '../../src/application/queries/ListProject
  */
 const scanBody = () => axe.run(document.body, runOptions);
 
+/**
+ * The body minus the index's own entry list, for the cases whose subject is what an entry DRAWS.
+ *
+ * That list is a link per component and per mock — 239 rows, measured — and it is identical in
+ * every case bar one `aria-current`. axe over it cost 4.5-5s per case in jsdom (the stage and
+ * any teleports together: 47-93ms), and 17-26s per case under coverage on CI, where
+ * `prototype:WorkPackageFilters` timed out at 30.39s. Fourteen cases were grading the same list
+ * fourteen times. The rows in the `it.each` below still scan the whole body, list included —
+ * picker, failure card, and one open entry so `aria-current` stays graded.
+ *
+ * The exclusion fails SLOW rather than blind: a selector that stops matching excludes nothing,
+ * so the list is scanned again and these cases get slower, never less thorough.
+ */
+const scanStage = () => axe.run({ include: document.body, exclude: '.rp-harness-index > nav' }, runOptions);
+
 const scan = async (query: string) => {
 	const wrapper = await openIndex(query);
 	try {
@@ -1064,16 +1079,17 @@ describe('axe against the mounted view', () => {
  * set has to come from the tree.
  */
 /**
- * Every case in this block is a cold Vite transform, then a bounded settle, then a full axe
- * run — worst measured 930ms quiet, timed out on `verify (windows-latest, 22)` under
- * contention. `HARNESS_SCAN_MS`'s own docblock (`./axeOptions`) carries the full derivation;
- * this is now a shared budget, not a local one — `structureJourney.test.ts` and three other
- * mounted-editor journey files share this exact shape and import the same constant.
+ * Every case in this block is a cold Vite transform, then a bounded settle, then an axe run.
+ * `HARNESS_SCAN_MS`'s own docblock (`./axeOptions`) carries the budget's derivation; it is a
+ * shared budget — `structureJourney.test.ts` and three other mounted-editor journey files share
+ * this exact shape and import the same constant. What a full-body scan of the index costs, and
+ * why the per-prototype loop does not pay it, is `scanStage`'s docblock.
  */
 describe('axe against the harness index', { timeout: HARNESS_SCAN_MS }, () => {
 	it.each([
 		['the picker', 'index'],
 		['the failure card', 'entry=prototype:Nope'],
+		['an open entry with the list beside it', `entry=${encodeURIComponent(prototypeEntries()[0]?.id ?? '')}`],
 	])('reports no semantic violations on %s', async (_state, query) => {
 		expect((await scan(query)).violations).toEqual([]);
 	});
@@ -1095,7 +1111,7 @@ describe('axe against the harness index', { timeout: HARNESS_SCAN_MS }, () => {
 			expect(wrapper.find('.rp-harness-failure').exists(), `${id} did not open`).toBe(false);
 			expect(wrapper.find('.rp-harness-stage').attributes('data-entry')).toBe(id);
 
-			const results = await scanBody();
+			const results = await scanStage();
 
 			expect(results.violations).toEqual([]);
 		} finally {

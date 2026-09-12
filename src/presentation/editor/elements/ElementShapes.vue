@@ -4,14 +4,27 @@ import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement
 import { elementLength } from '../../../domain/spatial/SpatialElement';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { formatMetres } from '../shell/formatLength';
+import { paintRulerMarks, rulerMarks } from '../layers/rulerGeometry';
+import { screenPoint } from '../viewport/Viewport';
+import type { Point } from '../../../core/geometry/Point';
 import StairShape from './StairShape.vue';
 import DirectionArrowShape from './DirectionArrowShape.vue';
 const props = defineProps<{ elements: readonly NamedSpatialElement[]; selectedIds: readonly string[]; tokens: ThemeTokens; zoom: number; editable?: boolean }>();
+/**
+ * A measurement is drawn as the set-scale tape (`GestureSketch.vue`): a 2 px spine with end bars
+ * and ticks. The marks are pixel sizes, so they are laid out in layer-local pixels (world × zoom)
+ * on a shape scaled back by 1 / zoom — the layer's own zoom cancels it, and a bar stays 14 px
+ * at any zoom exactly as the tape's does.
+ */
+function rulerConfig(points: readonly Point[], stroke: string, zoom: number) {
+	const pixel = (point: Point) => screenPoint(point.x * zoom, point.y * zoom);
+	return { name: 'element-measurement-marks', marks: rulerMarks(pixel(points[0]), pixel(points[1])), sceneFunc: paintRulerMarks, stroke, scaleX: 1 / zoom, scaleY: 1 / zoom, perfectDrawEnabled: false, listening: false };
+}
 const shapes = computed(() => props.elements.map(element => {
-	const selected = props.selectedIds.includes(element.id), closed = element.kind === 'object';
-	const point = element.points[0], zoom = props.zoom, tokens = props.tokens;
-	return { id: element.id, name: 'element-' + element.kind, element, selected,
-		line: { points: element.points.flatMap(vertex => [vertex.x, vertex.y]), closed, stroke: selected ? tokens.accent : tokens.zoneStroke, strokeWidth: (selected ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: closed ? tokens.canvasBackground : undefined },
+	const selected = props.selectedIds.includes(element.id), closed = element.kind === 'object', ruler = element.kind === 'measurement' && element.points.length === 2;
+	const point = element.points[0], zoom = props.zoom, tokens = props.tokens, stroke = selected ? tokens.accent : tokens.zoneStroke;
+	return { id: element.id, name: 'element-' + element.kind, element, selected, marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
+		line: { points: element.points.flatMap(vertex => [vertex.x, vertex.y]), closed, stroke, strokeWidth: (selected && !ruler ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: closed ? tokens.canvasBackground : undefined },
 		label: point ? { x: point.x, y: point.y - 18 / zoom, text: element.kind === 'measurement' ? element.name + ' · ' + formatMetres(elementLength(element)) + ' m' : element.name, fontSize: 12 / zoom, fill: tokens.zoneLabel, listening: false } : null };
 }));
 </script>
@@ -41,6 +54,10 @@ const shapes = computed(() => props.elements.map(element => {
 			<VLine
 				v-else
 				:config="shape.line"
+			/>
+			<VShape
+				v-if="shape.marks"
+				:config="shape.marks"
 			/>
 			<VText
 				v-if="shape.label"

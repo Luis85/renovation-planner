@@ -73,6 +73,7 @@ async function switchPerspective(event: KeyboardEvent, current: Perspective): Pr
 			<span
 				v-if="plan?.name"
 				class="rp-context-bar__crumb"
+				aria-current="page"
 			>{{ plan.name }}</span>
 		</div>
 		<slot name="perspective" />

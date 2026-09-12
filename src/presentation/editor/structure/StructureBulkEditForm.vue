@@ -6,7 +6,7 @@ import type { DispatchResult } from '../../../application/commands/DispatchOutco
 import { DIMENSION_FIELDS, dimensionTargets, editDimensions, sharedDimension, type DimensionChanges, type DimensionField, type DimensionKind } from '../../../domain/spatial/structureDimensions';
 import { tr } from '../../i18n/strings';
 import { formatMetres, parseCoordinateMetres, parseMetres } from '../shell/formatLength';
-import { spatialMessage } from './spatialMessage';
+import StructureReviewNotices from './StructureReviewNotices.vue';
 import { useStructureReview } from './useStructureReview';
 const props = defineProps<{ structure: Structure; ids: readonly string[]; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; dispatch: (structure: Structure) => Promise<DispatchResult>; preview: (structure: Structure | null) => void }>();
 const emit = defineEmits<{ submit: [] }>();
@@ -50,26 +50,13 @@ function impact(next: Structure): string {
 		@keydown="keydown"
 	>
 		<p>{{ tr('editor.structure.bulk.hint') }}</p>
-		<p
-			v-if="error"
-			:id="errorId"
-			role="alert"
-		>
-			{{ spatialMessage(error) }}
-		</p>
-		<p
-			v-if="invalid"
-			:id="numericId"
-			role="alert"
-		>
-			{{ tr('editor.structure.error.numeric') }}
-		</p>
-		<p
-			v-if="conflict"
-			role="status"
-		>
-			{{ tr('editor.structure.conflict') }}
-		</p>
+		<StructureReviewNotices
+			:error="error"
+			:invalid="invalid"
+			:conflict="conflict"
+			:error-id="errorId"
+			:numeric-id="numericId"
+		/>
 		<fieldset
 			v-for="item in sections"
 			:key="item.kind"

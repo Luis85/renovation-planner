@@ -11,7 +11,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import { tr } from '../../i18n/strings';
 import { formatMetres, parseCoordinateMetres, parseMetres } from '../shell/formatLength';
-import { spatialMessage } from './spatialMessage';
+import StructureReviewNotices from './StructureReviewNotices.vue';
 import { useStructureReview } from './useStructureReview';
 const props = defineProps<{ structure: Structure; id: string; end?: Point; openingPoint?: Point; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; roomNames: readonly string[]; dispatch: (structure: Structure) => Promise<DispatchResult>; preview: (structure: Structure | null) => void }>();
 const emit = defineEmits<{ submit: [] }>();
@@ -61,26 +61,13 @@ function changeSwing(value: OpeningSwingDraft): void {
 		<p v-if="roomNames.length">
 			{{ tr('editor.structure.room-impact', { rooms: roomNames.join(', ') }) }}
 		</p>
-		<p
-			v-if="error"
-			:id="errorId"
-			role="alert"
-		>
-			{{ spatialMessage(error) }}
-		</p>
-		<p
-			v-if="invalid"
-			:id="numericId"
-			role="alert"
-		>
-			{{ tr('editor.structure.error.numeric') }}
-		</p>
-		<p
-			v-if="conflict"
-			role="status"
-		>
-			{{ tr('editor.structure.conflict') }}
-		</p>
+		<StructureReviewNotices
+			:error="error"
+			:invalid="invalid"
+			:conflict="conflict"
+			:error-id="errorId"
+			:numeric-id="numericId"
+		/>
 		<label
 			v-for="field in fields"
 			:key="field"

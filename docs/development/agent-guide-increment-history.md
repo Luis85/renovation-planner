@@ -5944,9 +5944,33 @@ reported `Plan.withDetails` dead (resolved through an annotated local now, the G
 the creation forms' per-field handlers as a clone, which `useFieldInput` states once for the
 three forms.
 
-**Deferred, named in the ledger rather than fixed:** `Plan.create` sits at the complexity cap;
-`tabindex="0"` never moves off the open plan, so the roving is not truly roving; a user's
-hand-added `order` property on a plan note is overwritten on save.
+**The residual-minors round after that one — nineteen findings, one item left alone by design.**
+Behavioural: `write()` holds `writing` on `PlanHierarchyStore.settled()` — no read in flight at
+all — rather than on its own re-read, because latest-wins let another leaf's read SUPERSEDE that
+re-read and clear the flag with the older tree still on screen, so the next accepted Alt+↑
+computed from a tree older than the write it followed. The tree's tabindex ROVES now (`focusedId`
+on a delegated `focusin`, else the open plan while it is in the tree, else the first root — exactly
+one `tabindex="0"`, so a tree that does not hold the open plan is still reachable by Tab).
+`menuNavigation`'s ↑ with focus outside the items lands on the LAST entry rather than n−2, in both
+menus. The row menu's outside-pointer close no longer refocuses the opener row: `close` carries the
+verdict, as the canvas menu's `close(false)` already did. The Floor inspector's Kind select greys
+with the save-state's "Saving" while a sequence writes — the busy state the menu had and the select
+lacked, snapping back with no reason shown. The `after` drop line is drawn on the `li`, under the
+whole subtree the drop lands after, and the manual case's "known and accepted" note went with it.
+`Plan.create` gave its spatial-element check to a helper and its complexity cap with it; `order:
+-0` is normalised to `0` (`Number.isInteger(-0)` is true and `-0 < 0` is false). Structural:
+`pauseAttrs` is the one statement of §2.9's pair for `RoomInspector` and `PlanKindSelect`;
+`projectedElement` is the one read `rotationBaseline` and `labelActions` share — main's own
+eight-line clone from #157, under fallow's floor; `referenceWorkspace` binds the real
+`createProjectPlansChangeSource` over its own bus, with `harnessDeps`'s inert door narrowed to the
+bare page it is true of, and `detailPlans.e2e` proves a sibling created and re-kinded through that
+stack re-reads the tree. Pinned rather than changed: the busy menu's release on a REFUSED
+sequence, the checked-dot base rule (`content: ''`), and the two tree test files unmount in
+`afterEach` so a failed assertion leaves no stage on the body.
+
+**Deferred, named in the ledger rather than fixed:** a user's hand-added `kind`/`order` property
+on a plan note is plugin-owned and overwritten on save — `digest.ts`'s own rule that a schema key
+is owned the day it is added (ADR-0029), so by design rather than open.
 
 **`docs/tests/cases/Reorder plans in the Property tree.md` is written and NOT run**: real
 Electron drag and drop and the keyboard context-menu event are checkable in no gate here, and

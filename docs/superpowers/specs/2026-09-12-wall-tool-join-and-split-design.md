@@ -138,10 +138,10 @@ thickness: number }[]`. Each draws a `VLine` named `wall-draft-cut` across the h
 `joins.end` and `pending` (deduplicated by point) with `wallTangent(wall, offset)` and the host's
 thickness, and passes it only while `draw-wall` is active.
 
-**Preview** (`drawnStructure.ts`): `draftStructure(draft, existing)` for `draw-wall` builds on
-the floor with the draft's cuts applied (exported `draftFloor(draft, existing)` wrapping
-`drawnOn`; a refused cut falls back to `existing`), so the host renders as two halves meeting the
-new wall while drawing. Openings and boundaries follow the cut exactly as they will at save.
+**Preview**: `draftStructure(draft, existing)` for `draw-wall` builds on the floor with the
+draft's cuts applied (through `drawnOn`; a refused cut falls back to `existing`), so
+`drawnStructure.ts` needs no change and the host renders as two halves meeting the new wall while
+drawing. Openings and boundaries follow the cut exactly as they will at save.
 
 ## 7. Errors and refusals
 

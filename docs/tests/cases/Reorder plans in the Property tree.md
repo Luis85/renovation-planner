@@ -9,7 +9,9 @@ Run `npm run test-build`, reload Obsidian in this repository's vault and enable 
 1. Open a project with a site plan, a house detail plan under it, and three floors under the
    house named `Attic`, `First floor` and `Ground floor` (see *Build detail plans from site to
    floor* — and in its New plan form choose **Kind = Site** for `Site` and **Kind = Building**
-   for `House`, since that case leaves every plan a floor), in a vault whose plans have never
+   for `House`: left to the form's defaults, `Site` is a floor and every detail plan takes the
+   kind one step below its parent, so `House` and its floors all come out as rooms; under a
+   building the floors then default to Floor on their own), in a vault whose plans have never
    been reordered. Open the ground floor.
 2. The sidebar's **Property** section shows the project, then Site › House › the three floors in
    name order (Attic, First floor, Ground floor), each level indented one step, the open floor
@@ -22,11 +24,12 @@ Run `npm run test-build`, reload Obsidian in this repository's vault and enable 
    sibling whose stored order differs from its new index, not only the moved one:
    `Attic.md` now carries `order: 1`, `Ground floor.md` `order: 2`, and `First floor.md` still
    has no `order` key. Reload Obsidian: the order holds.
-5. Drag **Attic** onto **Site**. No indicator appears and nothing changes. Drag it out of the
-   Property section altogether: the indicator clears. Known and accepted: the `after` indicator
-   on a row that has children (a second root dragged onto the lower half of **Site**) draws
-   directly under that row — ABOVE its first child — while the drop lands after the whole
-   subtree.
+5. Drag **Attic** over **First floor** — the drop line appears — then, without dropping, out of
+   the Property section altogether: the line clears. Drag **Attic** onto **Site**: no indicator
+   appears and nothing changes. Known and accepted, in a vault where **House** has a sibling
+   detail plan under Site: dragging that sibling onto the lower half of **House** draws the
+   `after` indicator directly under House — ABOVE its first floor — while the drop lands after
+   the whole subtree.
 6. Right-click **First floor** › **Move down**. It swaps with Attic. Focus a row, press Alt+↑: it
    moves up and keyboard focus stays on the moved row. Shift+F10 on a row opens the same menu;
    Escape closes it and focus returns to the row.

@@ -5917,10 +5917,36 @@ plan the template has already narrowed. `?? 'body'`, `?? 0`, `rect &&` and the b
 went the same way. What stayed as a type-only cast is written beside each: a real `dragstart`
 always carries a transfer, and a template ref is bound before `onMounted` runs.
 
+**The seven findings parked at that review, fixed in one round before the merge.** Four were
+behavioural. A "Mark as …" chosen from a menu opened DURING an Alt+↑ move closed the menu and
+did nothing — `write()`'s one-sequence guard dropped it with no reason shown — so the menu
+greys its entries with the save-state's "Saving" while `usePlanReorder().busy` holds, the same
+shape as paused, and the click drops nothing silently. `PropertyTree.menuFor` stayed set when a
+re-read dropped the row, so the Teleported menu was HIDDEN rather than closed and the same id
+coming back on a later read reopened it at its old point with `onMounted` taking focus; a
+`watch` on the `menu` computed clears `menuFor` when it goes `null`, without refocusing an
+opener that went with the row. The Floor inspector's refused-write reset read the kind captured
+BEFORE the await, so a re-hydrate during the write — another leaf's concurrent write, also the
+likeliest cause of the refusal — was overwritten with a stale one; it reads `ProjectStore.plan`
+after the await now, and that select is its own SFC (`PlanKindSelect.vue`) because fallow
+measured `FloorInspector`'s template at cognitive 19 with it inline. And `PlanEditorRoot`'s plan
+door is filtered on THIS plan, so a sibling reordered or re-kinded from another leaf never
+re-read this leaf's tree: `PlanDetailsChanged` is on `projectPlansChangeSource`'s list now, the
+Plan editor binds that source (`onProjectPlansChanged`, a new context door passed straight
+through the view) to the project id the hydrated plan names, through a `watch` whose cleanup
+is the disposer, and re-reads the hierarchy alone. The fake in `tests/helpers/editor.ts`
+delivers only to the id a subscription bound, because a fake that delivered regardless would
+pass a root bound to the wrong project. The other three were an ArrowUp assertion that ran on a
+row Home had already focused, a manual case whose step-1 aside, step-5 order and second-root
+note each described a vault the case does not build, and the Deferred list below, which still
+named two items the paragraph above it had already recorded as fixed. Fallow's same run
+reported `Plan.withDetails` dead (resolved through an annotated local now, the Gotchas rule) and
+the creation forms' per-field handlers as a clone, which `useFieldInput` states once for the
+three forms.
+
 **Deferred, named in the ledger rather than fixed:** `Plan.create` sits at the complexity cap;
-`tabindex="0"` never moves off the open plan, so the roving is not truly roving; no in-flight
-guard in `write()` against Alt auto-repeat; the drop indicator lingers after the pointer leaves
-the tree; a user's hand-added `order` property on a plan note is overwritten on save.
+`tabindex="0"` never moves off the open plan, so the roving is not truly roving; a user's
+hand-added `order` property on a plan note is overwritten on save.
 
 **`docs/tests/cases/Reorder plans in the Property tree.md` is written and NOT run**: real
 Electron drag and drop and the keyboard context-menu event are checkable in no gate here, and

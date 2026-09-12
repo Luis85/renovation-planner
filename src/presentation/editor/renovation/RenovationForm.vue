@@ -35,7 +35,8 @@ const frozen = computed(() => props.busy.value || conflict.value);
 const submitBlocked = computed(() => frozen.value || props.paused.value);
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
-const targets = computed(() => [{ id: draft.value.subject.roomId, label: tr('renovation.room-target') },
+const targets = computed(() => [
+	...(draft.value.subject.roomId ? [{ id: draft.value.subject.roomId, label: tr('renovation.room-target') }] : []),
 	...(current.elements ?? []).map(item => ({ id: item.id, label: props.baseline.plan.entity.spatialElements?.find(metadata => metadata.id === item.id)?.name ?? item.id })),
 	...current.walls.map((item, index) => ({ id: item.id, label: `${tr('renovation.geometry.wall')} ${index + 1}` })),
 	...current.openings.map((item, index) => ({ id: item.id, label: `${tr('renovation.geometry.opening')} ${index + 1}` }))]);

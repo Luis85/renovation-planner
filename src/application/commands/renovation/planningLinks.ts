@@ -7,7 +7,7 @@ import type { Requirement } from '../../../domain/requirement/Requirement';
 import { sourceMeasurement } from '../../../domain/requirement/RequirementSource';
 import { EMPTY_RENOVATION, type Renovation } from '../../../domain/renovation/Renovation';
 import type { PlanningBaseline } from './PlanningServices';
-import { hasRoomContext, type RoomContext } from '../../../domain/renovation/SharedLinks';
+import { contextOf, hasRoomContext, type RoomContext } from '../../../domain/renovation/SharedLinks';
 
 export function materialReferents(depth: PlanningDepth | undefined, id: string): readonly string[] {
 	return [...depth?.costs.filter(item => item.requirementId === id).map(item => item.title) ?? [],
@@ -25,14 +25,17 @@ export function validateMaterialLinks(requirement: Requirement, baseline: Planni
 }
 export function validateDepthLinks(renovation: Renovation, baseline: PlanningBaseline) {
 	const depth = renovation.depth ?? EMPTY_DEPTH;
-	const records = new Map<string, RoomContext>([...renovation.subjects, ...renovation.work, ...renovation.decisions, ...depth.costs].map(item => [item.id, item]));
+	const subjects = new Map(renovation.subjects.map(item => [item.id, item]));
+	const records = new Map<string, RoomContext>([...renovation.subjects, ...renovation.work, ...depth.costs].map(item => [item.id, item]));
+	// A decision has no targetId of its own; it inherits its context from its subject (ADR-0029).
+	for (const item of renovation.decisions) records.set(item.id, { roomId: item.roomId, targetId: subjects.get(item.subjectId)?.targetId ?? item.roomId ?? '' });
 	for (const material of baseline.materials) {
-		records.set(material.entity.id, { roomId: material.entity.origin.zoneId });
+		records.set(material.entity.id, { roomId: material.entity.origin.zoneId, targetId: material.entity.source?.targetId ?? material.entity.origin.zoneId });
 		const check = validateMaterialLinks(material.entity, baseline, renovation);
 		if (!check.ok) return check;
 	}
 	const rooms = new Set(baseline.geometry.document.objects.map(item => item.id));
-	if (depthRecords(depth).some(item => !rooms.has(item.roomId))) return err(depthError());
+	if (depthRecords(depth).some(item => item.roomId !== undefined && !rooms.has(item.roomId))) return err(depthError());
 	if (!validProcurementLinks(depth, baseline)) return err(depthError());
 	for (const item of depth.costs) {
 		const requirement = baseline.materials.find(material => material.entity.id === item.requirementId)?.entity;
@@ -40,7 +43,7 @@ export function validateDepthLinks(renovation: Renovation, baseline: PlanningBas
 		const result = reconcileCosts(item, requirement ? effectiveValue(requirement.estimatedCost) : null, baseline.currency);
 		if (!result.ok) return result;
 	}
-	if (depth.evidence.some(item => item.recordId && !hasRoomContext(records.get(item.recordId), item.roomId))) return err(depthError());
+	if (depth.evidence.some(item => item.recordId && !hasRoomContext(records.get(item.recordId), contextOf(item)))) return err(depthError());
 	return ok(undefined);
 }
 

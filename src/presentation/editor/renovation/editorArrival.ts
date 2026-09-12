@@ -35,13 +35,13 @@ export function useEditorArrival(context: PlanEditorContext, runtime: EditorRunt
  }
  function reveal(origin: ProjectOrigin): boolean {
   const record = recordFor(origin);
-  const roomId = origin.roomId ?? record?.roomId;
-  if (!roomId || project.zones.get(roomId)?.zoneType !== 'Room' || ((origin.costId || origin.workId) && !record)) {
+  const roomId = origin.roomId ?? record?.roomId, target = roomId ?? record?.targetId;
+  if (!target || (roomId !== undefined && !project.zones.has(roomId)) || ((origin.costId || origin.workId) && !record)) {
    notifyWarning(tr('schedule.return-missing')); return false;
   }
   runtime.returnToSelect();
-  selection.select([roomId as EntityId<string>]);
-  runtime.renovation.focus(roomId, origin.costId ? 'costs' : origin.workId ? 'work' : 'overview', record?.id ?? '');
+  selection.select([target as EntityId<string>]);
+  runtime.renovation.focus(roomId ?? '', origin.costId ? 'costs' : origin.workId ? 'work' : 'overview', record?.id ?? '');
   return true;
  }
  watch([() => project.status, runtime.writesBlocked, () => dialogs.current, () => save.state], async () => {

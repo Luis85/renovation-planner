@@ -51,6 +51,7 @@ export const renovationDe = {
 	"renovation.summary.unavailable": "Kostenübersicht nicht verfügbar. Kosten öffnen, um Angaben zu prüfen oder erneut zu laden.",
 	"renovation.target.room": "Raumzuordnung",
 	"renovation.target.choose": "Einen Raum wählen, um Renovierungsdetails mit diesem Element zu verknüpfen.",
+	"renovation.target.none": "Kein Raum",
 	"renovation.plan": "Plan",
 	"renovation.renovate": "Renovieren",
 	"renovation.review": "Prüfen",

@@ -2,6 +2,7 @@ import { effectiveValue } from '../../../core/derived/DerivedValue';
 import { add, sameMoney, zero, type Money } from '../../../core/money/Money';
 import { prepareMaterial, type PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import { EMPTY_DEPTH, outstanding, type CostRecord } from '../../../domain/renovation/PlanningDepth';
+import { contextOf } from '../../../domain/renovation/SharedLinks';
 import { reconcileCosts } from '../../../domain/cost/reconcileCosts';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { EvidenceFiles } from '../../../application/ports/EvidenceFiles';
@@ -23,14 +24,20 @@ export function materialRows(baseline: PlanningBaseline) {
 			price: entity.calculatedFrom.unitCost, priceChanged: !!selected && !sameMoney(selected.price, entity.calculatedFrom.unitCost) };
 	});
 }
-export function costRows(baseline: PlanningBaseline, roomId: string, prepared = materialRows(baseline)) {
-	return roomCosts(baseline, roomId, prepared);
+export function costRows(baseline: PlanningBaseline, contextId: string, prepared = materialRows(baseline)) {
+	return contextCosts(baseline, contextId, prepared);
 }
-function roomCosts(baseline: PlanningBaseline, roomId: string, allMaterials: ReturnType<typeof materialRows>) {
-	const materials = allMaterials.filter(item => item.entity.origin.zoneId === roomId);
-	const saved = (baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH).costs.filter(item => item.roomId === roomId);
+/** Every cost context on the floor: each zone, and each target a room-less cost is kept on (ADR-0029). */
+export function costContexts(baseline: PlanningBaseline): readonly string[] {
+	const roomless = (baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH).costs.filter(item => item.roomId === undefined).map(item => item.targetId);
+	return [...new Set([...baseline.geometry.document.objects.map(item => item.id), ...roomless])];
+}
+function contextCosts(baseline: PlanningBaseline, contextId: string, allMaterials: ReturnType<typeof materialRows>) {
+	const materials = allMaterials.filter(item => item.entity.origin.zoneId === contextId);
+	const saved = (baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH).costs.filter(item => contextOf(item) === contextId);
+	const room = baseline.geometry.document.objects.some(item => item.id === contextId) ? { roomId: contextId } : {};
 	const derived: CostRecord[] = materials.filter(item => !saved.some(cost => cost.requirementId === item.entity.id && !cost.cancelled)).map(item => ({
-		id: `estimate:${item.entity.id}`, roomId, targetId: item.source.targetId, workId: item.source.workId, title: item.name, category: 'material', requirementId: item.entity.id,
+		id: `estimate:${item.entity.id}`, ...room, targetId: item.source.targetId, workId: item.source.workId, title: item.name, category: 'material', requirementId: item.entity.id,
 		planned: null, facts: [], cancelled: false }));
 	return [...saved, ...derived].map(record => {
 		const material = materials.find(item => item.entity.id === record.requirementId);
@@ -47,14 +54,14 @@ export function aggregateCosts(rows: ReturnType<typeof costRows>, currency: stri
 }
 export type PlanningFinding = { kind: 'stale' | 'reconciliation' | 'missing-file'; roomId: string; id: string; description: string; mode: 'materials' | 'costs' | 'documents' | 'photos' | 'notes' };
 function financialFindings(baseline: PlanningBaseline, materials: ReturnType<typeof materialRows>): PlanningFinding[] {
- return baseline.geometry.document.objects.flatMap(room => roomCosts(baseline, room.id, materials)
+ return costContexts(baseline).flatMap(contextId => contextCosts(baseline, contextId, materials)
   .filter(row => !row.totals.ok || row.totals.value.remaining.amount.startsWith('-'))
-  .map(row => ({ kind: 'reconciliation' as const, roomId: room.id, id: row.record.id, description: row.record.title, mode: 'costs' as const })));
+  .map(row => ({ kind: 'reconciliation' as const, roomId: row.record.roomId ?? '', id: row.record.id, description: row.record.title, mode: 'costs' as const })));
 }
 export function evidenceFindings(baseline: PlanningBaseline, files?: EvidenceFiles): PlanningFinding[] {
  return (baseline.plan.entity.renovation?.depth?.evidence ?? [])
   .filter(item => files && !files.resolve(item.path + item.subpath, baseline.plan.entity.id).ok)
-  .map(item => ({ kind: 'missing-file', roomId: item.roomId, id: item.id, description: item.description, mode: item.type === 'photo' ? 'photos' : item.type === 'note' ? 'notes' : 'documents' }));
+  .map(item => ({ kind: 'missing-file', roomId: item.roomId ?? '', id: item.id, description: item.description, mode: item.type === 'photo' ? 'photos' : item.type === 'note' ? 'notes' : 'documents' }));
 }
 export function planningFindings(baseline: PlanningBaseline, files?: EvidenceFiles): PlanningFinding[] {
  const materials = materialRows(baseline);

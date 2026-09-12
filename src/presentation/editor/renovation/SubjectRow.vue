@@ -24,7 +24,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 		<button
 			type="button"
 			class="rp-record-title"
-			@click="actions.focus(item.roomId, session.mode, item.id)"
+			@click="actions.focus(item.roomId ?? '', session.mode, item.id)"
 		>
 			<span class="rp-subject-kind">{{ tr(`renovation.kind.${item.kind}`) }}{{ ' ' }}</span>
 			<span class="rp-subject-description">{{ session.mode === 'existing' ? item.existing?.description : item.planned?.description || item.existing?.description }}</span>
@@ -59,7 +59,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 					class="rp-record-secondary-action"
 					:disabled="actions.blocked.value"
 					data-rp-action="edit-record"
-					@click="actions.edit(session.mode === 'existing' ? 'existing' : 'planned', item.roomId, item.id)"
+					@click="actions.edit(session.mode === 'existing' ? 'existing' : 'planned', item.roomId ?? '', item.id)"
 				>
 					{{ tr('renovation.edit') }}
 				</button>
@@ -68,7 +68,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 					type="button"
 					class="rp-record-secondary-action"
 					data-rp-action="plan-record"
-					@click="actions.edit('planned', item.roomId, item.id)"
+					@click="actions.edit('planned', item.roomId ?? '', item.id)"
 				>
 					{{ tr('renovation.edit.planned') }}
 				</button>
@@ -76,7 +76,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 					<button
 						type="button"
 						class="rp-record-secondary-action"
-						@click="actions.focus(item.roomId, 'work', item.id)"
+						@click="actions.focus(item.roomId ?? '', 'work', item.id)"
 					>
 						{{ tr('renovation.required-work') }}
 					</button>
@@ -84,7 +84,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 						type="button"
 						class="rp-record-secondary-action"
 						data-rp-action="work-record"
-						@click="actions.edit('work', item.roomId, item.id)"
+						@click="actions.edit('work', item.roomId ?? '', item.id)"
 					>
 						{{ tr('renovation.new-work') }}
 					</button>
@@ -92,7 +92,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 						v-if="item.existing"
 						type="button"
 						class="rp-record-secondary-action"
-						@click="actions.focus(item.roomId, 'existing', item.id)"
+						@click="actions.focus(item.roomId ?? '', 'existing', item.id)"
 					>
 						{{ tr('renovation.source') }}
 					</button>
@@ -100,7 +100,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 						type="button"
 						class="rp-record-secondary-action"
 						data-rp-action="decision-record"
-						@click="actions.edit('decision', item.roomId, item.id)"
+						@click="actions.edit('decision', item.roomId ?? '', item.id)"
 					>
 						{{ tr('renovation.decision') }}
 					</button>
@@ -118,7 +118,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 				v-if="context.commands.planning"
 				type="button"
 				class="rp-record-secondary-action"
-				@click="actions.focus(item.roomId, 'materials', item.id)"
+				@click="actions.focus(item.roomId ?? '', 'materials', item.id)"
 			>
 				{{ tr('renovation.materials') }}
 			</button>

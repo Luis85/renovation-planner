@@ -16,8 +16,8 @@ const costs = computed(() => planning.baseline.value ? renovationCostSummary(pla
 const incomplete = computed(() => planning.loading.value || planning.failed.value || project.stale || project.unreadableZones > 0);
 const unavailable = computed(() => incomplete.value || !costs.value?.totals);
 const links = computed(() => {
-	const baseline = planning.baseline.value, roomId = props.roomId;
-	if (!baseline || !roomId) return [];
+	const baseline = planning.baseline.value, roomId = props.roomId ?? '';
+	if (!baseline || (!roomId && !props.targetId)) return [];
 	const materials = baseline.materials.filter(({ entity }) => inRenovationScope({ roomId: entity.origin.zoneId, targetId: entity.source?.targetId ?? entity.origin.zoneId }, roomId, props.targetId));
 	const evidence = baseline.plan.entity.renovation?.depth?.evidence.filter(item => inRenovationScope(item, roomId, props.targetId)) ?? [];
 	return [

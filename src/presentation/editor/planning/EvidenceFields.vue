@@ -28,7 +28,7 @@ async function create(file?: File): Promise<void> {
 	working.value = true; error.value = null;
 	try {
 		const result = file ? await props.files.importFile(props.baseline.plan.entity.id, file.name, await file.arrayBuffer())
-			: await props.files.createNote(props.baseline.plan.entity.id, draft.value.id, `# ${draft.value.title || tr('planning.note')}\n\n${tr('planning.context-note', { room: draft.value.roomId })}\n`);
+			: await props.files.createNote(props.baseline.plan.entity.id, draft.value.id, `# ${draft.value.title || tr('planning.note')}\n\n${tr('planning.context-note', { room: draft.value.roomId || draft.value.targetId })}\n`);
 		if (!alive) return;
 		if (result.ok) { draft.value.path = result.value; if (!file) draft.value.type = 'note'; } else error.value = 'file';
 	} catch { if (alive) error.value = 'file'; }

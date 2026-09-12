@@ -53,8 +53,8 @@ export function planningDraft(kind: PlanningKind, baseline: PlanningBaseline, ro
  recordId: context.recordId, title: '', ...material, requirementId: material.requirementId || (kind === 'cost' ? context.requirementId : ''), ...procurementDraft(procurement), ...costDraft(cost), ...evidenceDraft(evidence), ...recordDraft(cost, evidence) };
 }
 function recordDraft(cost: CostRecord | undefined, evidence: Evidence | undefined): Partial<PlanningDraft> {
- if (cost) return { id: cost.id, roomId: cost.roomId, targetId: cost.targetId, workId: cost.workId, title: cost.title, requirementId: cost.requirementId };
- if (evidence) return { id: evidence.id, roomId: evidence.roomId, targetId: evidence.targetId, workId: evidence.workId, title: evidence.description, recordId: evidence.recordId };
+ if (cost) return { id: cost.id, roomId: cost.roomId ?? '', targetId: cost.targetId, workId: cost.workId, title: cost.title, requirementId: cost.requirementId };
+ if (evidence) return { id: evidence.id, roomId: evidence.roomId ?? '', targetId: evidence.targetId, workId: evidence.workId, title: evidence.description, recordId: evidence.recordId };
  return {};
 }
 /** Inputs accept a decimal comma or point, with no thousands separators. */
@@ -72,7 +72,7 @@ function evidenceDescription(draft: PlanningDraft): string {
 }
 export function planningInput(draft: PlanningDraft, baseline: PlanningBaseline): RenovationEditInput {
 	const renovation = baseline.plan.entity.renovation ?? EMPTY_RENOVATION, depth = renovation.depth ?? EMPTY_DEPTH;
-	const link = { id: draft.id, roomId: draft.roomId, targetId: draft.targetId, workId: draft.workId };
+	const link = { id: draft.id, ...(draft.roomId ? { roomId: draft.roomId } : {}), targetId: draft.targetId, workId: draft.workId };
 	if (draft.kind === 'procurement') {
 		const material = baseline.materials.find(item => item.entity.id === draft.requirementId)?.entity;
 		const record: Procurement = { ...link, requirementId: draft.requirementId, purchased: decimalInput(draft.purchased), reserved: decimalInput(draft.reserved), unit: material?.unit ?? 'piece' };

@@ -51,6 +51,7 @@ export const renovationEn = {
 	"renovation.summary.unavailable": "Cost summary unavailable. Open costs to review or retry.",
 	"renovation.target.room": "Room context",
 	"renovation.target.choose": "Choose a room to connect renovation details to this element.",
+	"renovation.target.none": "No room",
 	"renovation.plan": "Plan",
 	"renovation.renovate": "Renovate",
 	"renovation.review": "Review",

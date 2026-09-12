@@ -25,7 +25,7 @@ const iconStroke = { strokeWidth: 2, lineCap: 'round', lineJoin: 'round', listen
 	<VGroup
 		v-for="item in pins"
 		:key="item.id"
-		:config="{ name: 'evidence-pin', x: item.x, y: item.y, onClick: () => runtime.renovation.focus(item.roomId, session.mode, item.id), onTap: () => runtime.renovation.focus(item.roomId, session.mode, item.id) }"
+		:config="{ name: 'evidence-pin', x: item.x, y: item.y, onClick: () => runtime.renovation.focus(item.roomId ?? '', session.mode, item.id), onTap: () => runtime.renovation.focus(item.roomId ?? '', session.mode, item.id) }"
 	>
 		<VRect :config="{ name: 'evidence-pin-target', x: -evidencePinWidth(item.number) / (2 * zoom), y: -14 / zoom, width: evidencePinWidth(item.number) / zoom, height: 28 / zoom, cornerRadius: 6 / zoom, fill: tokens.canvasBackground, stroke: session.focusedId === item.id ? tokens.accent : tokens.zoneStroke, strokeWidth: 2 / zoom }" />
 		<VGroup :config="{ name: 'evidence-icon-' + item.type, x: (-evidencePinWidth(item.number) / 2 + 6) / zoom, y: -8 / zoom, scaleX: 2 / (3 * zoom), scaleY: 2 / (3 * zoom), listening: false }">

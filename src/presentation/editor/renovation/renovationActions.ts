@@ -29,7 +29,7 @@ import type { BatchKind, BatchTarget } from './renovationBatch';
 
 function navigationTarget(records: NavigationRecords, roomId: string, id: string, current: Parameters<typeof recordNavigationContext>[3], mode: RenovationMode) {
  const destination = id ? recordNavigationContext(records, id, roomId, current, mode) : null;
- return destination ?? (current?.roomId === roomId ? current : { roomId, targetId: roomId });
+ return destination ?? (current?.roomId === roomId ? current : { roomId, targetId: roomId || (current?.targetId ?? '') });
 }
 
 function revealRecord(id: string, workspace: ReturnType<typeof useWorkspaceStore>): void {
@@ -43,7 +43,7 @@ function revealEvidence(id: string, session: ReturnType<typeof useRenovationSess
 }
 function currentContext(roomId: string, targetId: EntityId<string> | undefined, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>) {
 	if (!targetId) return null;
-	const room = project.zones.get(targetId)?.zoneType === 'Room' ? targetId : null;
+	const room = project.zones.has(targetId) ? targetId : null;
 	return { roomId: room ?? (targetId === session.targetId ? session.roomId : roomId), targetId };
 }
 
@@ -77,10 +77,11 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		}
 		runtime.returnToSelect();
 		const target = navigationTarget({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline?.materials ?? [] }, roomId, id, currentContext(roomId, selection.selectedIds[0], project, session), mode);
-  Object.assign(session, target, { mode, focusedId: id, perspective: 'renovate' });
+  // A link's roomId is a CONTEXT (spatialContexts); the session holds a zone or nothing.
+  Object.assign(session, { roomId: project.zones.has(target.roomId) ? target.roomId : '', targetId: target.targetId }, { mode, focusedId: id, perspective: 'renovate' });
   revealEvidence(id, session, planning);
   revealRecord(id, workspace);
-  if (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== target.targetId) selection.select([target.targetId as EntityId<string>]);
+  if (target.targetId && (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== target.targetId)) selection.select([target.targetId as EntityId<string>]);
 	}
 	function matches(read: RenovationBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation)
@@ -100,8 +101,14 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		return alive && context.commands.renovation ? runtime.dispatcher.run(context.commands.renovation.command(read, input, runtime.structureTask.ledger))
 			: Promise.resolve(err(undoSuperseded(context.planId as PlanId)));
 	}
+	/** Any present zone; or no room while the session target is a wall, opening or element (ADR-0029). */
+	function editableContext(roomId: string): boolean {
+		if (roomId) return project.zones.has(roomId);
+		const target = session.targetId, structure = project.structure;
+		return [...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === target);
+	}
 	async function edit(kind: RenovationEditKind, roomId: string, id = ''): Promise<void> {
-		if (blocked.value || dialogs.current || project.zones.get(roomId)?.zoneType !== 'Room') return;
+		if (blocked.value || dialogs.current || !editableContext(roomId)) return;
 		loading.value = true;
 		const selected = selection.selectedIds.join('|');
 		try {

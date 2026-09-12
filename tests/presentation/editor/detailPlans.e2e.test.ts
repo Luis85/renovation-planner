@@ -5,9 +5,11 @@ import { t } from '../../../src/presentation/i18n/strings';
 import { referenceWorkspace } from '../../harness/referenceWorkspace';
 import { HARNESS_PLAN, harnessDeps } from '../../harness/planEditor';
 import { fakeQueries, mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle, settleUntil } from '../../helpers/editor';
+import { FIXTURE_PLAN } from '../../helpers/planFixtures';
 import { expectFound, expectOk } from '../../helpers/domain';
 import { err, ok } from '../../../src/core/result/Result';
 import { CreatePlanCommand } from '../../../src/application/commands/plan/CreatePlan';
+import { UpdatePlanDetailsCommand } from '../../../src/application/commands/plan/UpdatePlanDetails';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
@@ -31,6 +33,8 @@ async function rig() {
 		vault: workspace.deps.vault,
 		queries: { ...workspace.deps.queries, hierarchy },
 		commands: { ...workspace.deps.commands, createPlan: new CreatePlanCommand(stack.plans, stack.projects, stack.zones, stack.events) },
+		// The workspace's REAL project-plans door, over the bus its repositories publish on.
+		onProjectPlansChanged: workspace.deps.onProjectPlansChanged,
 		navigation: { project: () => Promise.resolve(), library: () => undefined, plan: (id) => { opened.push(id); return Promise.resolve(); } },
 	});
 	unmounts.push(() => harness.unmount());
@@ -42,12 +46,14 @@ async function rig() {
 const HYDRATION_FAULT: RepositoryError = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' };
 
 /**
- * D1: `planHierarchy.load` used to run inside `hydrate()`, which `PlanEditorRoot` also
- * re-runs on every `onPlanChanged` event of THIS plan — a zone gesture, a background change,
- * a delete — none of which can change what the parent-zone guide or the detail-plan list
- * show. It now loads at mount and on the editor's retry path only.
+ * `planHierarchy.load` runs inside `hydrate()`, which `PlanEditorRoot` re-runs on every
+ * `onPlanChanged` event of THIS plan. For a while it ran at mount and retry ONLY (D1), on the
+ * argument that no zone gesture, background change or delete can change the hierarchy — and
+ * then `PlanDetailsChanged` (ADR-0029) could: a kind or order written from another leaf's tree
+ * menu IS a hierarchy fact, and the plan-change door hands its listener no event type to tell
+ * the two apart. The harness's `changePlan` is that door.
  */
-it('loads the hierarchy once at mount, again on retry, but not on a plan-change event', async () => {
+it('loads the hierarchy at mount, on a plan-change event, and on retry', async () => {
 	let calls = 0;
 	const hierarchy: NonNullable<PlanEditorQueryServices['hierarchy']> = () => {
 		calls += 1;
@@ -62,13 +68,60 @@ it('loads the hierarchy once at mount, again on retry, but not on a plan-change 
 
 	harness.changePlan();
 	await flushPromises();
-	expect(calls).toBe(1);
+	expect(calls).toBe(2);
 
 	await harness.wrapper.get('.rp-view-failure__action').trigger('click');
 	await flushPromises();
-	expect(calls).toBe(2);
+	expect(calls).toBe(3);
 
 	harness.wrapper.unmount();
+});
+
+/**
+ * The plan door above is filtered on THIS plan, so a sibling reordered or re-kinded from another
+ * leaf never reached it and the tree kept the old order. The root binds the project-plans door
+ * to the project the hydrated plan names — the fake delivers only to that id, as the real source
+ * filters — and re-reads the hierarchy ALONE: the projection is this plan's own. Released with
+ * the component, since Obsidian reuses a view and a listener outliving its app stacks.
+ */
+it('re-reads the hierarchy when a sibling plan of this project changes, not another project\'s, and releases the subscription on unmount', async () => {
+	let hierarchyReads = 0, planReads = 0;
+	const hierarchy: NonNullable<PlanEditorQueryServices['hierarchy']> = () => { hierarchyReads += 1; return Promise.resolve(ok(NO_HIERARCHY)); };
+	// `FIXTURE_PLAN`, whose project `fakeQueries` answers — the harness plan's it answers `null` for, and a leaf with no project binds nothing.
+	const base = fakeQueries(FIXTURE_PLAN);
+	const getPlan: PlanEditorQueryServices['getPlan'] = (id) => { planReads += 1; return base.getPlan(id); };
+	const harness = await mountPlanEditor({ queries: { ...base, getPlan, hierarchy } });
+	await flushPromises();
+	expect(hierarchyReads).toBe(1);
+	expect(harness.projectPlansListeners()).toBe(1);
+
+	harness.changeProjectPlans('project-elsewhere');
+	await flushPromises();
+	expect(hierarchyReads).toBe(1);
+
+	harness.changeProjectPlans(FIXTURE_PLAN.projectId);
+	await flushPromises();
+	expect(hierarchyReads).toBe(2);
+	expect(planReads).toBe(1);
+
+	harness.unmount();
+	expect(harness.projectPlansListeners()).toBe(0);
+});
+
+/**
+ * `referenceWorkspace` binds the real `createProjectPlansChangeSource` over the bus its
+ * repositories publish on — `harnessDeps`'s inert door is honest only for the page that writes
+ * nothing — so a sibling written through those repositories, as another leaf would write it,
+ * re-reads this leaf's tree: created, it appears; re-kinded, its icon follows.
+ */
+it('re-reads the hierarchy when a sibling plan is created or re-kinded through the workspace\'s own repositories', async () => {
+	const r = await rig();
+	const rows = () => r.harness.wrapper.findAll('[role="treeitem"]').map((row) => row.attributes('data-rp-plan-id'));
+	expect(rows()).toEqual([HARNESS_PLAN.id]);
+	const attic = expectOk(await new CreatePlanCommand(r.stack.plans, r.stack.projects, r.stack.zones, r.stack.events).execute({ projectId: HARNESS_PLAN.projectId as never, name: 'Attic', kind: 'floor' })).plan.entity;
+	await settleUntil(() => rows().includes(attic.id), 'the created sibling\'s row');
+	expectOk(await new UpdatePlanDetailsCommand(r.stack.plans, r.stack.events).execute({ planId: attic.id, kind: 'building' }));
+	await settleUntil(() => r.harness.wrapper.find(`[data-rp-plan-id="${attic.id}"] .rp-host-icon[data-icon="building"]`).exists(), 'the re-kinded sibling\'s icon');
 });
 
 it('creates a detail plan named after the zone, opens it, and then lists it under that zone', async () => {
@@ -79,14 +132,16 @@ it('creates a detail plan named after the zone, opens it, and then lists it unde
 	await r.menu();
 	await r.harness.wrapper.get('[data-rp-context-action="detail-plan-new"]').trigger('click');
 	await settleUntil(() => r.dialogs.current !== null, 'new plan dialog');
-	expect(r.dialogs.current).toMatchObject({ kind: 'form', title: t('en', 'form.new-detail-plan.title', { name: 'House' }) });
+	// `parentKind` is the opened plan's own kind, so the form's Kind select starts one step below it
+	// (ADR-0029) — a room under this floor — and that default is what the command persists.
+	expect(r.dialogs.current).toMatchObject({ kind: 'form', title: t('en', 'form.new-detail-plan.title', { name: 'House' }), props: { parentKind: HARNESS_PLAN.kind } });
 	const form = r.harness.wrapper.get('.rp-dialog-form');
 	expect((form.get('[data-field="name"]').element as HTMLInputElement).value).toBe('House');
 	await form.trigger('submit');
 	await settleUntil(() => r.opened.length === 1, 'detail plan opened');
 
 	const created = expectFound(await r.stack.plans.getById(r.opened[0] as never)).entity;
-	expect(created).toMatchObject({ name: 'House', parent: { planId: HARNESS_PLAN.id, zoneId: house.id } });
+	expect(created).toMatchObject({ name: 'House', kind: 'room', parent: { planId: HARNESS_PLAN.id, zoneId: house.id } });
 
 	await r.menu();
 	// The zone's linked plan is the menu's first item, with New detail plan beside it.

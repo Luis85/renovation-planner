@@ -69,9 +69,27 @@ describe('NewPlanForm', () => {
 		await flushPromises();
 
 		expect(dispatch).toHaveBeenCalledTimes(1);
-		expect(dispatch.mock.calls[0][0]).toEqual({ projectId: PROJECT_ID, name: 'Ground floor' });
+		expect(dispatch.mock.calls[0][0]).toEqual({ projectId: PROJECT_ID, name: 'Ground floor', kind: 'floor' });
 		expect(wrapper.emitted('submit')).toHaveLength(1);
 		expect(wrapper.emitted('projectGone')).toBeUndefined();
+	});
+
+	/**
+	 * ADR-0029: a root plan starts as a floor; a detail plan opened from a zone starts one step
+	 * below its parent's kind, and whatever the user picks instead is what the command receives.
+	 */
+	it('offers a Kind select defaulting to floor, or one step below the parent kind, and sends it', async () => {
+		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok(created())));
+		const root = mount(NewPlanForm, { props: { projectId: PROJECT_ID, dispatch, logger: recorder } });
+		expect((root.get('select[data-field="kind"]').element as HTMLSelectElement).value).toBe('floor');
+		const detail = mount(NewPlanForm, { props: { projectId: PROJECT_ID, dispatch, logger: recorder, parentKind: 'site', parent: { planId: 'plan-site' as never, zoneId: 'zone-house' as never } } });
+		const select = detail.get('select[data-field="kind"]');
+		expect((select.element as HTMLSelectElement).value).toBe('building');
+		await select.setValue('room');
+		await detail.get('input[data-field="name"]').setValue('Kitchen');
+		await detail.get('form').trigger('submit');
+		await flushPromises();
+		expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ name: 'Kitchen', kind: 'room' }));
 	});
 
 	/**
@@ -337,10 +355,14 @@ describe('NewPlanForm', () => {
 		// as a value the form does not hold.
 		await wrapper.get('[data-field="name"]').setValue('First floor');
 		expect((wrapper.get('[data-field="name"]').element as HTMLInputElement).value).toBe('Ground floor');
+		// The Kind select is refused the same way, and put back to the kind the form holds.
+		expect(wrapper.get('select[data-field="kind"]').attributes('aria-disabled')).toBe('true');
+		await wrapper.get('select[data-field="kind"]').setValue('room');
+		expect((wrapper.get('select[data-field="kind"]').element as HTMLSelectElement).value).toBe('floor');
 
 		release();
 		await flushPromises();
 
-		expect(dispatch.mock.calls[0][0]).toEqual({ projectId: PROJECT_ID, name: 'Ground floor' });
+		expect(dispatch.mock.calls[0][0]).toEqual({ projectId: PROJECT_ID, name: 'Ground floor', kind: 'floor' });
 	});
 });

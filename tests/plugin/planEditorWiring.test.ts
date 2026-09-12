@@ -13,7 +13,7 @@ import { createEditorClipboard } from '../../src/presentation/editor/clipboard/e
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
-import { planBackgroundChanged } from '../../src/domain/plan/Plan.events';
+import { planBackgroundChanged, planDetailsChanged } from '../../src/domain/plan/Plan.events';
 import { t } from '../../src/presentation/i18n/strings';
 import { activateNotices } from '../../src/presentation/notices/notify';
 import { installObsidianDom } from '../helpers/dom';
@@ -191,6 +191,20 @@ describe('the plan editor dependencies', () => {
 		await root.eventBus.publish(
 			planBackgroundChanged({ planId: 'plan-1' as never, projectId: 'project-1' as never }),
 		);
+		unsubscribe();
+
+		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
+	/** The project-plans door on the same bus: a SIBLING's details event reaches a leaf bound to the project, and another project's does not. */
+	it('wires the project-plans subscription to the root own bus, filtered on the project', async () => {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard(), memoryDeviceStorage());
+		const listener = vi.fn<() => void>();
+
+		const unsubscribe = deps.onProjectPlansChanged('project-1', listener);
+		await root.eventBus.publish(planDetailsChanged({ planId: 'plan-sibling' as never, projectId: 'project-1' as never }));
+		await root.eventBus.publish(planDetailsChanged({ planId: 'plan-sibling' as never, projectId: 'project-2' as never }));
 		unsubscribe();
 
 		expect(listener).toHaveBeenCalledTimes(1);

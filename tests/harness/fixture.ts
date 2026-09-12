@@ -212,6 +212,8 @@ export function harnessEditorContext(): PlanEditorContext {
 		panelLayout: deps.panelLayout,
 		onThemeChange: deps.onThemeChange,
 		onPlanChanged: (listener) => deps.onPlanChanged(HARNESS_PLAN.id, listener),
+		// Straight through, as the real view passes it: the project id is the root's to bind.
+		onProjectPlansChanged: deps.onProjectPlansChanged,
 		// No id to bind, so it passes straight through — the same shape the real view uses.
 		onCatalogueChanged: deps.onCatalogueChanged,
 		// Straight through as well, and inert for the reason `harnessDeps` states where they are

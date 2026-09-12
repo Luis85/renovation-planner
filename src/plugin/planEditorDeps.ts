@@ -11,6 +11,7 @@ import { guardedPlanNorth } from './guardedPlanNorth';
 import type { Vault, Workspace } from 'obsidian';
 import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
+import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
 import { createProjectPricesChangeSource } from '../application/events/projectPricesChangeSource';
 import { createRequirementFiguresChangeSource } from '../application/events/requirementFiguresChangeSource';
@@ -102,6 +103,7 @@ export function planEditorDeps(
 										structure: guardedStructure(structureServices(persistence.geometry, root.eventBus), root.logger),
 					createZone: persistence.createZone,
 					createPlan: persistence.createPlan,
+					updatePlanDetails: persistence.updatePlanDetails,
 					referencePlan: guardedReferencePlan(referencePlanServices(persistence.plans, persistence.geometry, root.eventBus, persistence.files), root.logger),
 					planNorth: guardedPlanNorth(planNorthServices(persistence.plans, root.eventBus), root.logger),
 					moveObject: persistence.moveZone,
@@ -153,6 +155,7 @@ export function planEditorDeps(
 		vault,
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
+		onProjectPlansChanged: createProjectPlansChangeSource(root.eventBus),
 		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
 		onProjectPricesChanged: createProjectPricesChangeSource(root.eventBus),
 		onRequirementFiguresChanged: createRequirementFiguresChangeSource(root.eventBus),

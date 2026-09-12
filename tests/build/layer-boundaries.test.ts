@@ -589,6 +589,50 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
 		});
 
+		/**
+		 * `TS_EXTENSION_BAN` — one more entry in this block's own `no-restricted-imports`
+		 * `patterns` array (via `forbidden()`, or spelled out directly in the two standalone
+		 * `src/` blocks), not a rule of its own. Suffixing `block.allowed` with `.ts` isolates
+		 * the assertion to that one entry: this block's config reports nothing else for that
+		 * specifier, so a diagnostic here can only be the extension ban firing. Paired with one
+		 * of the block's own forbidden imports on the next line and disambiguated by LINE, the
+		 * same way every case above does — proving the two `patterns` entries coexist rather
+		 * than the later one silently replacing the layer/package ban beside it.
+		 */
+		it('bans a .ts-suffixed import beside its layer ban, on separate lines', async () => {
+			const body = [`import '${block.allowed}.ts';`, plantedLine(block.forbidden[0])].join('\n');
+			const source =
+				extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
+			const found = await lintDetailed(source, pathFor(block, extension));
+			const reported = found
+				.filter((d) => d.ruleId === 'no-restricted-imports')
+				.map((d) => d.line - lineOffset(extension))
+				.toSorted((a, b) => a - b);
+
+			expect(reported).toEqual([1, 2]);
+			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
+			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
+		});
+
+		/**
+		 * The negative half. `TS_EXTENSION_BAN`'s group is `['*.ts', '**\/*.ts']`, which does
+		 * not match a `.vue`-suffixed specifier — the case above already proves the
+		 * EXTENSIONLESS spelling of the same specifier is silent (that is what `block.allowed`
+		 * alone is, including for the blocks where it is a bare PACKAGE specifier such as
+		 * `obsidian` or `vue` rather than a relative path), so this case adds the one spelling
+		 * nothing else here plants: the same specifier with `.vue` instead of `.ts`.
+		 */
+		it('does not extend the .ts ban to a .vue-suffixed import', async () => {
+			const body = `import '${block.allowed}.vue';`;
+			const source =
+				extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
+			const found = await lintDetailed(source, pathFor(block, extension));
+
+			expect(found.map((d) => d.ruleId)).not.toContain('no-restricted-imports');
+			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
+			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
+		});
+
 		// A member probe binds identifiers nothing uses, so `no-unused-vars` reports beside
 		// `no-restricted-imports` on that line. Both assertions above filter by rule id
 		// rather than counting diagnostics, so the extra one is invisible to them by

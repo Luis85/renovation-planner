@@ -1,7 +1,7 @@
 /**
  * The Asset library's own subscription: "keeping a loaded mark honest" (design spec §5.4).
  *
- * A FOURTH source beside the plan, project-list and catalogue ones — §11 item 7's own ruling —
+ * The library source, beside the plan, project-list and catalogue ones — §11 item 7's own ruling —
  * because widening `createAssetCatalogueChangeSource` would make the assign picker re-read
  * every asset note on a design or geometry event it has no use for, a cost on a surface this
  * increment does not own.

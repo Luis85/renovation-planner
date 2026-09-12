@@ -27,7 +27,7 @@ import type { ProjectSummaryDto } from '../../../src/presentation/read-models/Pl
 installObsidianDom();
 
 const project: ProjectSummaryDto = { id: 'p1', name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null };
-const plan = { id: 'plan1', name: 'Ground floor' };
+const plan = { id: 'plan1', name: 'Ground floor', kind: 'floor' as const };
 const failure = err({ category: 'Persistence' as const, code: 'repository.read-failed', message: 'read failed' });
 const session = (): ProjectSession => ({ query: '', completedOpen: false, focusedProjectId: null, scrollTop: 0, guidanceHidden: false });
 

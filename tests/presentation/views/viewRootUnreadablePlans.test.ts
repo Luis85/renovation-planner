@@ -74,8 +74,8 @@ function mountDetail(listing: () => Listing): { wrapper: VueWrapper; replan: () 
 }
 
 const PLANS: readonly PlanSummaryDto[] = [
-	{ id: 'plan-1', name: 'Ground floor' },
-	{ id: 'plan-2', name: 'First floor' },
+	{ id: 'plan-1', name: 'Ground floor', kind: 'floor' },
+	{ id: 'plan-2', name: 'First floor', kind: 'floor' },
 ];
 
 describe('the project detail state reports plans it could not read', () => {

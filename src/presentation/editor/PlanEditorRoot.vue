@@ -289,11 +289,15 @@ function loadHierarchy(): void {
 }
 
 /**
- * Both reads together — mount and the two retry doors (`onFailureAction`, the stale
- * warning's `retry`). A plan-change event runs `refreshProjection` alone: nothing a
- * hierarchy read returns (ancestry, detail plans, the parent-zone outline) can change from
- * THIS plan's own zone/background/delete events, so re-running it there was a read with no
- * event that could invalidate it.
+ * Both reads together — mount, the two retry doors (`onFailureAction`, the stale warning's
+ * `retry`) and every plan-change event. The hierarchy half ran at mount and retry ONLY for a
+ * while, on the argument that nothing a hierarchy read returns could change from this plan's
+ * own zone/background/delete events; `PlanDetailsChanged` (ADR-0029) falsified that — this
+ * plan's kind or order changed from another leaf's tree menu or a synced note is exactly a
+ * hierarchy fact, and with the projection alone re-read the Floor inspector showed the new
+ * kind while the tree kept the old icon. The plan-change door hands the listener no event
+ * type, so it re-reads both; the cost is one `listPlans` per zone event, the same redundant
+ * read the projection already pays (`planChangeSource.ts`).
  */
 function hydrate(): void {
 	refreshProjection();
@@ -370,11 +374,19 @@ onMounted(() => {
 	hydrate();
 });
 
-// Mount and a plan-change event both re-read the projection, through the SAME routine — a
-// second "refresh" path would be a second answer to what the canvas is showing. The
-// hierarchy read is NOT part of that routine here (see `hydrate`'s own docblock): it loads
-// at mount and on retry, never on a per-event refresh.
-onBeforeUnmount(context.onPlanChanged(refreshProjection));
+// Mount and a plan-change event both re-read the projection AND the hierarchy, through the
+// SAME routine — a second "refresh" path would be a second answer to what the canvas is
+// showing, and `hydrate`'s docblock carries why the hierarchy is part of it again.
+onBeforeUnmount(context.onPlanChanged(hydrate));
+// A SIBLING's kind or order moving in another leaf is a hierarchy fact the plan door never
+// carries — it is filtered on THIS plan — so the tree kept the old order until something else
+// re-read. The project-plans door is filtered on the project, which this leaf learns only once
+// the plan has hydrated; the subscription follows that id and is released with the watcher.
+// The hierarchy alone is re-read: the projection is this plan's own, and a sibling cannot move
+// it. No debounce beyond the store's latest-wins read, which is what the plan door gets too.
+watch(() => projectStore.project?.id, (projectId, _previous, onCleanup) => {
+	if (projectId !== undefined) onCleanup(context.onProjectPlansChanged(projectId, loadHierarchy));
+}, { immediate: true });
 const visibleOverlay = computed(() => renovationSession.perspective === 'plan' ? overlay.value : null);
 const showFloorStart = computed(() => visibleOverlay.value !== null && emptyStateKey.value === 'noBackground');
 const showAddMenu = computed(() => renovationSession.perspective !== 'review' && addMenuOpen.value);

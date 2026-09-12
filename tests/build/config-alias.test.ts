@@ -33,7 +33,7 @@ describe('the obsidian module alias', () => {
 	it('points at a mock that exists', () => {
 		const target = aliasOf(vitestConfig);
 
-		expect(target).toMatch(/obsidian-mock\.ts$/);
+		expect(target.endsWith('obsidian-mock.ts')).toBe(true);
 		expect(existsSync(target)).toBe(true);
 	});
 });
@@ -51,9 +51,16 @@ describe('the obsidian module alias', () => {
  * proves for the harness. Reading a config is exactly what those two refuse to rely on;
  * this exists because one of the three surfaces has no other watcher at all.
  */
+// Widened to `unknown` on purpose: `flat(Infinity)` over the config's own plugin union type is
+// TS2589 (excessively deep instantiation), measured.
+const registeredPlugins = (config: { plugins?: unknown }): { name?: unknown; enforce?: unknown }[] =>
+	(Array.isArray(config.plugins) ? config.plugins.flat(Infinity) : []).filter(
+		(plugin): plugin is { name?: unknown; enforce?: unknown } => typeof plugin === 'object' && plugin !== null,
+	);
+
 const pluginNames = (config: { plugins?: unknown }): string[] =>
-	(Array.isArray(config.plugins) ? config.plugins.flat(Infinity) : [])
-		.map((plugin) => (typeof plugin === 'object' && plugin !== null && 'name' in plugin ? String(plugin.name) : ''))
+	registeredPlugins(config)
+		.map((plugin) => (typeof plugin.name === 'string' ? plugin.name : ''))
 		.filter((name) => name !== '');
 
 describe('the Vue plugin, in every config that transforms source', () => {
@@ -64,5 +71,51 @@ describe('the Vue plugin, in every config that transforms source', () => {
 	// The one with no gate in `npm run check`, which is the whole reason this file says so.
 	it('is named by the harness config', () => {
 		expect(pluginNames(harnessConfig).join(' ')).toContain('vue');
+	});
+});
+
+/**
+ * The `build-lint` project's `include` is DERIVED from the import graph (`eslintBootingTests` in
+ * `vitest.config.ts`), and the two files the first, text-matched version of that derivation
+ * missed are the pin: `tests/helpers/eslint.test.ts` reaches the shared instance as a sibling
+ * (`./eslint`) from outside `tests/build/`, and `tests/build/lint-edited.test.ts` imports nothing
+ * and SPAWNS the hook. A derivation that dropped either would put an ESLint boot back into the
+ * parallel projects, where its `beforeAll` times out under load — the flake this split exists to
+ * close. Read off the real config object, so what is pinned is what vitest runs.
+ */
+describe('the ESLint-booting project', () => {
+	it('is derived to include the two files a text pattern once missed, and only test files', () => {
+		const projects = (vitestConfig as { test?: { projects?: { test?: { name?: string; include?: string[] } }[] } }).test?.projects ?? [];
+		const included = projects.find((project) => project.test?.name === 'build-lint')?.test?.include ?? [];
+
+		expect(included).toContain('tests/helpers/eslint.test.ts');
+		expect(included).toContain('tests/build/lint-edited.test.ts');
+		expect(included.filter((file) => !file.endsWith('.test.ts'))).toEqual([]);
+	});
+});
+
+/**
+ * The SSR-SFC refusal (`scripts/vitest-no-ssr-sfc.mjs`) is a gate only while the suite config
+ * REGISTERS it: `tests/build/no-ssr-sfc.test.ts` drives the plugin through a fixture config of
+ * its own, so deleting `noSsrSfc()` from `vitest.config.ts` switched the rule off with every
+ * test green — watched, with the line removed, before this case existed. Asked of the real
+ * config object rather than of its text: the plugin is present by name, and the REGISTERED object
+ * carries `enforce: 'pre'`. That flag, not its position in the array, is what runs its transform
+ * ahead of `vite:vue`'s — Vite orders plugins by `enforce` first, so a copy placed after the Vue
+ * plugin still ran first (measured by the review that replaced an array-order pin here). Dropping
+ * the flag alone does not lose that ordering: this config already lists `noSsrSfc()` before
+ * `vue()`, and Vite groups unenforced plugins by array order within the same bucket, so the
+ * transform would still run first. Only losing the flag AND moving the plugin after `vue()` in
+ * the array would hand the hook compiled output instead of the SFC — this assertion pins the
+ * flag as a deliberately stricter guarantee than the array position alone provides;
+ * `no-ssr-sfc.test.ts` pins the flag on a fresh `noSsrSfc()`, this pins it on the one the suite
+ * config actually registers.
+ */
+describe('the SSR-SFC refusal, in the suite config', () => {
+	it('is registered with the pre flag that orders it ahead of the Vue plugin', () => {
+		const registered = registeredPlugins(vitestConfig).find((plugin) => plugin.name === 'rp:no-ssr-sfc');
+
+		expect(registered).toBeDefined();
+		expect(registered?.enforce).toBe('pre');
 	});
 });

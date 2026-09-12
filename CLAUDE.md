@@ -899,6 +899,77 @@ The rules this suite is actually held to:
   both walkers importing it, because a naming convention two files agree about by hand is one
   rename away from silently reaching nothing. Three things came out of it, recorded in the
   increment history.
+- **A test that runs in NODE may not reach a `.vue` file through its imports**, and the check
+  is at the forbidden thing rather than in a scan of the tree: `scripts/vitest-no-ssr-sfc.mjs`
+  is a Vite plugin `vitest.config.ts` registers ahead of `@vitejs/plugin-vue`, and it throws
+  from its `transform` hook — naming the file — whenever a `.vue` module arrives with
+  `options.ssr` set. That is the pipeline's own discriminator, measured: a node-environment
+  spec transforms an SFC with `ssr=true` under the `ssr` environment, a jsdom spec with
+  `ssr=false` under `client`. What it refuses is what reddened CI once with every test green:
+  vitest compiles an SFC a node test reaches in SSR shape without rendering it, and the
+  coverage merge counts those SSR-only arms as uncovered branches in files nobody touched —
+  84 of them in one instance. `tests/build/no-ssr-sfc.test.ts` drives the hook directly and
+  then the real pipeline, through a child vitest over two fixture specs that import one
+  `Probe.vue` — the node one must fail with the plugin's text and the jsdom one must pass.
+  Nothing reads a test file, a directive or the config; whatever vitest decides the
+  environment is, the plugin sees the transform it produces. **What it cannot see**: a `.vue`
+  that never reaches Vite's transform — mocked away with `vi.mock`, or compiled by a second
+  Vite instance a test starts from `vite.config.ts`, which does not carry the plugin — and
+  neither shape adds an SSR-compiled SFC to the coverage map. The fix when it fires is the one
+  `entities.ts`'s `anEntry` took: move what the node test needs into a module with no SFC
+  below it, or give a test that mounts something `// @vitest-environment jsdom`.
+- **No gate in a file this branch touched reads source text through a regular expression,
+  and the whole-tree claim is NARROWER than that — measured, not asserted.** The census is a
+  parse, not a grep: every file under `tests/`, `scripts/` and the root configs read with the
+  TypeScript compiler API (an SFC's script blocks through `@vue/compiler-sfc`), counting regex
+  literals, `RegExp(...)` constructions and `.match`/`.matchAll`/`.search` calls (a call whose
+  argument is a regex literal counted once, as the literal), each hit then classified by what its
+  subject IS. On 2026-09-13 that found 414 hits in 127 files. Most
+  read a RUNTIME value — a rendered text, a thrown message, a note's frontmatter the code under
+  test wrote, an id, a path, a URL knob, whitespace — and are not source-text gates. **Thirty-six
+  files still read source or config TEXT through one**, none touched by this branch, in three
+  groups: twenty-one stylesheet-or-SFC-text pins (`prototype-styles`, `libraryComponentStyles`,
+  `styles.test.ts` — fourteen of whose twenty-six hits are the assembler's own messages and
+  twelve read the assembled sheet's text — eight its `@container` preludes, two its
+  `container`/`container-name` declarations, two to strip comments — `taskBarPlacement`, `focusReach`,
+  `harness.test.ts`, `cssVars.test.ts` under
+  `tests/build/` and `tests/harness/`; `projectRowStyles`, `projectListNarrowStyles`,
+  `projectFilterStyles`, `projectListStyles`, `continueRowStyles`, `projectListOverlap`,
+  `assetPriceList`, `viewRootOpenLibrary`, `projectList` under `tests/presentation/views/`;
+  `assetMark` and `narrowComposition.ts` under `tests/presentation/library/`;
+  `tests/helpers/buttonRules.ts`; `prototype-promotion` and `entryBoundary`), ten TypeScript
+  source scans (`saveStateWiring`, `toolManager`, `eventVocabularyCensus`, `toUserMessage`,
+  `spatialMessage`, `declarations`, `reversibleWritePathDiscovery`, `creationCatalogue`,
+  `editorContext`, `appIdPrefix`) and five config-or-document reads (`manifest.test.ts` over
+  the workflow YAML, `lint-edited.test.ts` over the hook command in `.claude/settings.json`,
+  `changelog.test.ts` and `scripts/changelog.mjs` over `CHANGELOG.md`'s headings, and
+  `scripts/styles-assemble.mjs` over `styles/index.css`'s `@import` lines). Each is the next
+  conversion, and the instruments already exist: `tests/helpers/parsedSource.ts` (a script's or
+  SFC's calls with their arguments, top-level constants evaluated, identifiers, string literals,
+  imports, a named function's body), `tests/helpers/importGraph.ts` (edges, and what the reached
+  files name), `tests/helpers/selectors.ts`'s `stylesheetRules` and `classesNamed` (CSS through
+  lightningcss), and `tests/helpers/environmentDirective.ts`.
+
+  What this branch converted, each watched red first: `harness-shot.test.ts`'s ~55 pins over
+  `scripts/harness-shot.mjs` (the `SHOTS` table evaluated through the script's own constants,
+  queries read with `URLSearchParams`); the three views' stylesheet pins; the subscriber-lock
+  boundary's three arms; `vitest.config.ts`'s ESLint-booting set, now derived from the import
+  graph and cached under `node_modules/.cache/` by a fingerprint over `tests/` (its own comment
+  carries the cold and warm figures); and the environment directive, which is no longer read out
+  of comment ranges: `environmentDirective.ts` mirrors vitest's `detectCodeBlock` exactly —
+  whole text, first hit, `indexOf` and char-code checks for `\s+`, `[\w-]+` and the trailing
+  `\b` — because the comments-only reader disagreed with vitest on seven of fifteen fixtures.
+  The import walk two instruments share (`importGraph.ts` — `regionsReachable.test.ts` and
+  `test-environments.test.ts`) reads edges out of `ts.createSourceFile` and, for an SFC's
+  script blocks, `@vue/compiler-sfc`'s `parse`, and THROWS on a relative specifier it cannot
+  resolve rather than dropping it. The regex versions each of those replaced were holed by
+  comment prose, an un-semicoloned `export type`, a backtick `import()` and a template comment
+  spelling an import, and `tests/helpers/importGraph.test.ts` carries every one of those as a
+  fixture watched red against the regex first. Two mechanism facts those files state and this
+  guide repeats because they are easy to misremember: Vite 8 transforms TypeScript with Oxc,
+  not esbuild, and a type-only import is not an edge only because `tsconfig.json` sets
+  `isolatedModules` and NOT `verbatimModuleSyntax` — under the latter an `import {}` residue
+  survives as a side-effect import.
 - `tests/**` has a larger line budget than `src/**`, not none. The one suite without a cap
   is the one that grows into the place tests hide.
 

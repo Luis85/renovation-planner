@@ -14,11 +14,17 @@ import { elementInput } from './elementInput';
 import { tr } from '../../i18n/strings';
 import type { NamedRotationShape } from './objectRotation';
 
+/** The projected element `id` names with its plan-side label, or `null` when either half is missing — the read a turn and a caption drag share. */
+export function projectedElement(project: ReturnType<typeof useProjectStore>, id: string) {
+	const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
+	return element && name ? { ...element, name } : null;
+}
+
 export function projectedRotationTarget(project: ReturnType<typeof useProjectStore>, id: string, walls: boolean): NamedRotationShape | null {
 	const zone = project.zones.get(id);
 	if (zone) return { id, name: zone.name, kind: zone.zoneType === 'Room' ? 'room' : 'area', points: zone.points, bulges: zone.bulges };
-	const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
-	if (element && name) return { ...element, name };
+	const element = projectedElement(project, id);
+	if (element) return element;
 	if (!walls) return null;
 	const opening = project.structure.openings.find(item => item.id === id), wall = project.structure.walls.find(item => item.id === (opening?.hostId ?? id));
 	return wall ? { id, kind: 'wall', name: tr('editor.structure.wall-number', { n: String(project.structure.walls.indexOf(wall) + 1) }), points: [wall.start, wall.end], wall } : null;

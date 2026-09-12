@@ -9,11 +9,26 @@ import type { FindZonesByPlanInput } from '../../application/queries/FindZonesBy
 import type { ListPlansByProjectInput, PlanListResult } from '../../application/queries/ListPlansByProject';
 import type { Plan } from '../../domain/plan/Plan';
 import type { PlanId } from '../../domain/plan/PlanId';
+import type { PlanKind } from '../../domain/plan/PlanKind';
 import type { PlanSummaryDto } from './PlanDto';
 
 /** A plan that details one zone of the plan being shown (ADR-0028). */
 export interface DetailPlanDto extends PlanSummaryDto {
 	readonly parentZoneId: string;
+}
+
+/**
+ * One plan in the project's Property tree; `children` sorted by `order`, then name. `order` is
+ * the STORED value the reorder compares each sibling against — in every existing vault it is 0
+ * on every plan, so a node's position among its siblings is not the stored value.
+ */
+export interface PropertyTreeNode {
+	readonly id: string;
+	readonly name: string;
+	readonly kind: PlanKind;
+	readonly order: number;
+	readonly parentId: string | null;
+	readonly children: readonly PropertyTreeNode[];
 }
 
 /** The parent zone, as the detail plan draws it for a guide. World millimetres of the PARENT plan. */
@@ -28,12 +43,14 @@ export interface PlanHierarchyDto {
 	readonly ancestry: readonly PlanSummaryDto[];
 	/** Plans detailing a zone of THIS plan, sorted by name. */
 	readonly detailPlans: readonly DetailPlanDto[];
+	/** Every plan of the project, nested by parent link, root first. */
+	readonly tree: readonly PropertyTreeNode[];
 	readonly parentZone: ParentZoneOutlineDto | null;
 	/** This plan names a parent zone that no longer resolves. */
 	readonly parentZoneMissing: boolean;
 }
 
-export const NO_HIERARCHY: PlanHierarchyDto = { ancestry: [], detailPlans: [], parentZone: null, parentZoneMissing: false };
+export const NO_HIERARCHY: PlanHierarchyDto = { ancestry: [], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: false };
 
 export interface HierarchyQueries {
 	readonly getPlan: Query<GetPlanInput, Result<Loaded<Plan> | null, RepositoryError>>;
@@ -54,16 +71,48 @@ export function ancestryOf(plan: Plan, plans: readonly Plan[]): PlanSummaryDto[]
 		const parent = byId.get(parentId);
 		if (parent === undefined) break;
 		seen.add(parentId);
-		chain.unshift({ id: parent.id, name: parent.name });
+		chain.unshift({ id: parent.id, name: parent.name, kind: parent.kind });
 		parentId = parent.parent === null ? undefined : String(parent.parent.planId);
 	}
 	return chain;
 }
 
+const bySiblingOrder = (plans: readonly Plan[]): Plan[] =>
+	plans.toSorted((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+
+const treeNode = (plan: Plan, parentId: string | null, children: PropertyTreeNode[]): PropertyTreeNode =>
+	({ id: plan.id, name: plan.name, kind: plan.kind, order: plan.order, parentId, children });
+
+/**
+ * The whole project nested by parent link, root first. A plan whose parent is not listed
+ * (deleted, unreadable) draws at the root rather than vanishing — the requirement's "the chain
+ * simply stops one level early", applied to the tree. A cycle (hand-edited notes only) has no
+ * member with a path to the root, so the walk from the root never reaches one; every plan it
+ * did not reach is listed flat at the root afterwards, childless, so nothing disappears.
+ */
+export function propertyTreeOf(plans: readonly Plan[]): PropertyTreeNode[] {
+	const ids = new Set(plans.map((plan) => String(plan.id)));
+	const childrenOf = new Map<string | null, Plan[]>();
+	for (const plan of plans) {
+		const parentId = plan.parent !== null && ids.has(String(plan.parent.planId)) ? String(plan.parent.planId) : null;
+		childrenOf.set(parentId, [...(childrenOf.get(parentId) ?? []), plan]);
+	}
+	const placed = new Set<string>();
+	function build(parentId: string | null): PropertyTreeNode[] {
+		return bySiblingOrder(childrenOf.get(parentId) ?? []).map((plan) => {
+			placed.add(String(plan.id));
+			return treeNode(plan, parentId, build(String(plan.id)));
+		});
+	}
+	const roots = build(null);
+	const stranded = bySiblingOrder(plans.filter((plan) => !placed.has(String(plan.id))));
+	return [...roots, ...stranded.map((plan) => treeNode(plan, null, []))];
+}
+
 function detailPlansOf(plan: Plan, plans: readonly Plan[]): DetailPlanDto[] {
 	const detailPlans = plans.flatMap((item) =>
 		item.parent !== null && item.parent.planId === plan.id
-			? [{ id: item.id, name: item.name, parentZoneId: item.parent.zoneId }]
+			? [{ id: item.id, name: item.name, kind: item.kind, parentZoneId: item.parent.zoneId }]
 			: [],
 	);
 	detailPlans.sort((a, b) => a.name.localeCompare(b.name));
@@ -114,8 +163,9 @@ export async function readPlanHierarchy(queries: HierarchyQueries, planId: strin
 	const listed = await queries.listPlans.execute({ projectId: plan.projectId });
 	if (isErr(listed)) return listed;
 	const detailPlans = detailPlansOf(plan, listed.value.plans);
-	if (plan.parent === null) return ok({ ...NO_HIERARCHY, detailPlans });
+	const tree = propertyTreeOf(listed.value.plans);
+	if (plan.parent === null) return ok({ ...NO_HIERARCHY, detailPlans, tree });
 	const parentHierarchy = await parentHierarchyOf(queries, plan.parent, plan, listed.value.plans);
 	if (isErr(parentHierarchy)) return parentHierarchy;
-	return ok({ ...parentHierarchy.value, detailPlans });
+	return ok({ ...parentHierarchy.value, detailPlans, tree });
 }

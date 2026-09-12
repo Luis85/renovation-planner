@@ -56,6 +56,8 @@ describe('mapping an entity to a read model', () => {
 			id: plan.id,
 			projectId,
 			name: 'First floor',
+			kind: 'floor',
+			order: 0,
 			background: { path: 'Plans/first.pdf', kind: 'pdf', page: 3 },
 			calibration: null,
 			layers: ['walls'],
@@ -120,10 +122,10 @@ describe('mapping an entity to a read model', () => {
 		});
 	});
 
-	it('maps a Plan to the two fields a row renders and no more', () => {
-		const plan = makePlan({ projectId: createProjectId(), name: 'Ground floor' });
+	it('maps a Plan to the three fields a row renders and no more', () => {
+		const plan = makePlan({ projectId: createProjectId(), name: 'Ground floor', kind: 'site' });
 
-		expect(toPlanSummaryDto(plan)).toEqual({ id: plan.id, name: 'Ground floor' });
+		expect(toPlanSummaryDto(plan)).toEqual({ id: plan.id, name: 'Ground floor', kind: 'site' });
 	});
 
 	/**

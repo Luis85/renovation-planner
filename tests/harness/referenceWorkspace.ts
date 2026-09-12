@@ -1,6 +1,7 @@
 import { groupGeometryServices } from '../../src/application/commands/spatial/GroupGeometryCommand';
 import { renovationServices } from '../../src/application/commands/renovation/RenovationCommand';
 import { createPlanChangeSource } from '../../src/application/events/planChangeSource';
+import { createProjectPlansChangeSource } from '../../src/application/events/projectPlansChangeSource';
 import { createVaultFileChangeSource } from '../../src/infrastructure/obsidian/vault/vaultFileChanges';
 import { GetAssetDesignQuery } from '../../src/application/queries/GetAssetDesign';
 import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
@@ -72,6 +73,10 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 	const deps: PlanEditorDeps = {
 		...base,
         onPlanChanged: createPlanChangeSource(stack.events),
+        // Both plan doors over the SAME bus the writes below publish on: this workspace writes, so a
+        // sibling created or re-kinded here has to re-read the tree, where `harnessDeps`'s inert door
+        // is honest only for the bare page that writes nothing.
+        onProjectPlansChanged: createProjectPlansChangeSource(stack.events),
         onVaultFileChanged: createVaultFileChangeSource(stack.deps.vault),
 		queries: { ...base.queries,
 			getPlan: async () => { await ready; const result = await stack.plans.getById(plan.id); return result.ok ? ok(result.value ? toPlanDto(result.value.entity) : null) : result; },

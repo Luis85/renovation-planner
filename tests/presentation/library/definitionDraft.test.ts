@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { definitionChanges, definitionDraft, validateDefinition } from '../../../src/presentation/library/definitionDraft';
-import { anEntry } from '../../helpers/assetLibraryRootHarness';
+import { anEntry } from '../../helpers/entities';
 
 /**
  * `useDefinitionDraft.test.ts` does not exist — the composable's own tests

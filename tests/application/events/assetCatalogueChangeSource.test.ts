@@ -1,7 +1,7 @@
 /**
  * The asset picker's own subscription: "the vault's catalogue may have changed."
  *
- * A THIRD source beside `createPlanChangeSource` and `createProjectListChangeSource`, for the
+ * The catalogue source, beside `createPlanChangeSource` and `createProjectListChangeSource`, for the
  * reason the second one gives for existing at all: an Asset belongs to no project since design
  * slice 19 and to no plan ever, so there is no id to bind and the unfiltered category is the
  * whole of what this caller wants.
@@ -63,7 +63,7 @@ describe('createAssetCatalogueChangeSource', () => {
 	});
 
 	/**
-	 * The whole point of the third source. These two reach `onPlanChanged` and say nothing
+	 * The whole point of the catalogue source. These two reach `onPlanChanged` and say nothing
 	 * about the catalogue; under the old borrowing each one re-read every asset note in the
 	 * vault.
 	 */

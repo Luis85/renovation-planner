@@ -10,7 +10,7 @@ import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import HostIcon from '../../components/HostIcon.vue';
-import { EDITOR_PERSPECTIVE_ICONS } from '../editorIcons';
+import { EDITOR_PERSPECTIVE_ICONS, PLAN_KIND_ICONS } from '../editorIcons';
 import EditorViewMenu from './EditorViewMenu.vue';
 import EditorContextCrumb from './EditorContextCrumb.vue';
 
@@ -67,6 +67,7 @@ async function switchPerspective(event: KeyboardEvent, current: Perspective): Pr
 				v-for="ancestor in hierarchy.ancestry"
 				:key="ancestor.id"
 				:name="ancestor.name"
+				:icon="PLAN_KIND_ICONS[ancestor.kind]"
 				:open-plan-id="ancestor.id"
 				:on-open="crumbOpener(ancestor.id)"
 			/>

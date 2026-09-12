@@ -55,7 +55,9 @@ import type { PluginCommandHost } from './commandHost';
  * `SAMPLE_ZONES`. No asset and no requirement, which is worth stating because a reader
  * reasoning from "the loop the plugin exists for" would expect them: slice 10 closed
  * `Zone Geometry -> Area -> Requirement -> Cost`, and this command seeds the geometry end of
- * it and stops there.
+ * it and stops there. The seeded plan takes the default kind, `floor`, and order `0` — the
+ * first plan of a fresh project (ADR-0029) — stated so the scaffold's docblock does not lie by
+ * omission.
  *
  * It goes through the REAL commands, never the vault: writing notes here would prove
  * nothing about the persistence layer and would breach `WRITE_BOUNDARY` besides. So a

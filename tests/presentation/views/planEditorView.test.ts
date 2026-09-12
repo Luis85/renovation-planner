@@ -18,6 +18,7 @@ import { EDITOR_RUNTIME, type EditorRuntime } from '../../../src/presentation/ed
 import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
+import { propertyOf, show, stylesheetRules } from '../../helpers/selectors';
 import { createEditorClipboard } from '../../../src/presentation/editor/clipboard/editorClipboard';
 import { memoryDeviceStorage } from '../../helpers/deviceStorage';
 import { activateNotices } from '../../../src/presentation/notices/notify';
@@ -33,6 +34,7 @@ installEditorEnvironment();
 
 let themeListeners = 0;
 let planListeners = 0;
+let projectPlansListeners = 0;
 let catalogueListeners = 0;
 let priceListeners = 0;
 let figureListeners = 0;
@@ -74,6 +76,12 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 			planListeners += 1;
 			return () => {
 				planListeners -= 1;
+			};
+		},
+		onProjectPlansChanged: () => {
+			projectPlansListeners += 1;
+			return () => {
+				projectPlansListeners -= 1;
 			};
 		},
 		onCatalogueChanged: () => {
@@ -176,6 +184,7 @@ async function opened(planId = FIXTURE_PLAN.id): Promise<PlanEditorView> {
 beforeEach(() => {
 	themeListeners = 0;
 	planListeners = 0;
+	projectPlansListeners = 0;
 	catalogueListeners = 0;
 	priceListeners = 0;
 	figureListeners = 0;
@@ -211,13 +220,18 @@ describe('what the view tells Obsidian about itself', () => {
 	 * check here can see — jsdom applies no stylesheet and the harness draws one view.
 	 */
 	it('is the view type styles/chrome.css keys its rules on, and one of them hides the view header', () => {
-		const chrome = readFileSync('styles/chrome.css', 'utf8');
-		const selector = `.workspace-leaf-content[data-type="${PLAN_EDITOR_VIEW}"]`;
+		const rules = stylesheetRules(readFileSync('styles/chrome.css', 'utf8'));
+		const rulesFor = (selector: string) => rules.filter((rule) => rule.selectors.map(show).includes(selector));
+		const leaf = `.workspace-leaf-content[data-type="${PLAN_EDITOR_VIEW}"]`;
 
-		expect(chrome).toContain(`${selector} .view-content`);
+		expect(rulesFor(`${leaf} .view-content`)).not.toHaveLength(0);
 		// The pane title bar is hidden for this view since 2026-09-10 (sidebar polish): the
-		// context bar carries the plan name and the tab strip still names the leaf.
-		expect(chrome).toMatch(new RegExp(`${selector.replace(/[.[\]"]/g, '\\$&')} \\.view-header\\s*\\{\\s*display:\\s*none;`));
+		// context bar carries the plan name and the tab strip still names the leaf. Asked of the
+		// parsed rule's own declarations rather than of the text around its selector.
+		const header = rulesFor(`${leaf} .view-header`);
+
+		expect(header).toHaveLength(1);
+		expect(header[0].declarations.find((declaration) => propertyOf(declaration) === 'display')?.value).toEqual({ type: 'keyword', value: 'none' });
 	});
 });
 
@@ -311,6 +325,10 @@ describe('mount and unmount', () => {
 		// PAIR is what stops a build that merges the two doors back together from passing —
 		// one that subscribed both to `onPlanChanged` would read 2 and 0 again.
 		expect(planListeners).toBe(1);
+		// ONE on the project-plans door, taken by the root's watcher once the plan hydrated and
+		// named the project — it follows the project id rather than the mount, so it is counted
+		// here for the same leak the others are.
+		expect(projectPlansListeners).toBe(1);
 		// TWO on the catalogue door now: the assign picker's reload above, and
 		// `watchAssetShapes` (`assetShapeLoader.ts`), which re-reads placement shapes when the
 		// library changes — its own door rather than more traffic through the picker's, for the
@@ -333,6 +351,7 @@ describe('mount and unmount', () => {
 		expect(Konva.stages).toHaveLength(0);
 		expect(themeListeners).toBe(0);
 		expect(planListeners).toBe(0);
+		expect(projectPlansListeners).toBe(0);
 		expect(catalogueListeners).toBe(0);
 		expect(priceListeners).toBe(0);
 		expect(figureListeners).toBe(0);

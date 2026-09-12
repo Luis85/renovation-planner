@@ -8,7 +8,7 @@
 import { beforeEach, expect, it } from 'vitest';
 import { mountPlanEditorHarness } from './planEditor';
 import { installCanvas } from '../helpers/canvas';
-import { installResizeObserver } from '../helpers/layout';
+import { installResizeObserver, resizeTo } from '../helpers/layout';
 import { settleUntil, sizedShellRoot } from '../helpers/editor';
 
 beforeEach(() => {
@@ -39,6 +39,29 @@ it('?detail draws an empty plan with the parent-zone guide and its ancestry', as
 	const crumb = leafEl.querySelector('.rp-context-bar__crumbs > .rp-context-bar__crumb:nth-child(2):not([aria-current])');
 	expect(crumb).not.toBeNull();
 	expect(crumb?.textContent).toBe('Site plan');
+	await view.onClose();
+});
+
+it('?tree draws Site › House › { Ground floor (open), Attic } as three levels', async () => {
+	installCanvas();
+	installResizeObserver();
+	const { leafEl, view } = mountPlanEditorHarness(document.body, { tree: true });
+	sizedShellRoot(leafEl);
+	await settleUntil(() => leafEl.querySelector('[role="tree"] [aria-level="3"]') !== null, 'the ?tree third level');
+	const items = [...leafEl.querySelectorAll('[role="treeitem"]')];
+	expect(items.map((item) => item.getAttribute('data-rp-plan-id'))).toEqual(['harness-site', 'harness-house', 'harness-plan', 'harness-attic']);
+	expect(items.map((item) => item.getAttribute('aria-level'))).toEqual(['1', '2', '3', '3']);
+	expect(leafEl.querySelector('[data-rp-plan-id="harness-plan"] .rp-property-tree__row')?.getAttribute('aria-current')).toBe('page');
+	await view.onClose();
+});
+
+it('?tree opens the Layers overlay in the constrained layout, where the tree is otherwise hidden', async () => {
+	installCanvas();
+	installResizeObserver();
+	const { leafEl, view } = mountPlanEditorHarness(document.body, { tree: true });
+	resizeTo(sizedShellRoot(leafEl, { skipResize: true }), 460, 800);
+	await settleUntil(() => leafEl.querySelector('.rp-overlay-panel [role="tree"] [aria-level="3"]') !== null, 'the ?tree Layers overlay');
+	expect(leafEl.querySelector('.rp-editor-shell')?.getAttribute('data-layout')).toBe('constrained');
 	await view.onClose();
 });
 

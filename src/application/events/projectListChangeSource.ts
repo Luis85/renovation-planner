@@ -12,7 +12,7 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * either. A view subscribing by string is a view that quietly misses the next name added
  * here.
  *
- * **Why this is a SECOND source rather than a filter on the first.** `createPlanChangeSource`
+ * **Why this is a source of its own rather than a filter on the plan source.** `createPlanChangeSource`
  * answers "tell me when THIS plan changed" and every caller of it has a plan id to bind. This
  * view has none: it draws the whole vault's projects, so it wants the unfiltered category and
  * nothing else. Reusing that function would have meant passing it a plan id it has no use

@@ -1,7 +1,7 @@
 /**
- * "The set of plans in THIS project changed" — design slice 21's third change source.
+ * "The set of plans in THIS project changed" — the project-plans change source, design slice 21's.
  *
- * A third source rather than a filter on either of the two that exist, because it asks a
+ * The project-plans source, its own rather than a filter on the plan or project-list one, because it asks a
  * third question: `planChangeSource` is "this PLAN changed" and every caller binds a plan id;
  * `projectListChangeSource` is "the set of PROJECTS changed" and is unfiltered. This one is
  * filtered on the OWNING PROJECT, which `PlanCreated`'s payload carries.
@@ -9,14 +9,15 @@
  * The third case pins a STATED COST rather than a wanted behaviour:
  * `ProjectIndexEntryChangedPayload` carries `entityId` and `entityType` and no owning
  * project, so that arm cannot be filtered by project and fires for a change to any plan note
- * in the vault. Affordable because the view is a singleton and the query is project-scoped.
- * Pinned so that narrowing it later — when that payload gains the owning project id — is a
- * deliberate change rather than a silent one.
+ * in the vault. Paid by every subscriber — the singleton project view AND every open Plan
+ * Editor leaf, each of which binds this source to its project (`PlanEditorRoot`) and re-reads
+ * one project-scoped hierarchy per delivery. Pinned so that narrowing it later — when that
+ * payload gains the owning project id — is a deliberate change rather than a silent one.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createProjectPlansChangeSource } from '../../../src/application/events/projectPlansChangeSource';
 import { createEventBus } from '../../../src/core/events/EventBus';
-import { planCreated } from '../../../src/domain/plan/Plan.events';
+import { planCreated, planDetailsChanged } from '../../../src/domain/plan/Plan.events';
 import { projectIndexEntryChanged } from '../../../src/application/events/projectIndex.events';
 import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
@@ -52,6 +53,22 @@ describe('createProjectPlansChangeSource', () => {
 		await events.publish(planCreated({ planId: A_PLAN, projectId: THEIRS }));
 
 		expect(listener).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * A plan's kind or order (ADR-0029) is a fact about its siblings' tree: the Plan Editor
+	 * subscribes here for exactly that, since its own plan-filtered door never hears a sibling.
+	 * Filtered on the project like `PlanCreated`, so another project's reorder costs nothing.
+	 */
+	it('delivers a PlanDetailsChanged for its own project and not for another', async () => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createProjectPlansChangeSource(events)(OURS, listener);
+
+		await events.publish(planDetailsChanged({ planId: A_PLAN, projectId: OURS }));
+		await events.publish(planDetailsChanged({ planId: A_PLAN, projectId: THEIRS }));
+
+		expect(listener).toHaveBeenCalledTimes(1);
 	});
 
 	/**

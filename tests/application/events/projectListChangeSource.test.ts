@@ -1,7 +1,7 @@
 /**
  * The project surface's own subscription: "the set of projects may have changed."
  *
- * A SECOND source beside `createPlanChangeSource` rather than a filter on it, because this
+ * The project-list source, beside `createPlanChangeSource` rather than a filter on it, because this
  * view has no plan id to bind and wants the unfiltered category. The reason it exists at all
  * is the ordering fact `projectIndex.events.ts` records — leaves are restored BEFORE
  * `onLayoutReady` and the index scan runs from it — which for this surface means a restored

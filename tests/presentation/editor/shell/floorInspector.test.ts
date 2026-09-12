@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { ok } from '../../../../src/core/result/Result';
 import { NO_HIERARCHY } from '../../../../src/presentation/read-models/planHierarchy';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
-import { mountPlanEditorCanvas, settle, type CanvasHarness } from '../../../helpers/editor';
+import { unavailablePlanEditorCommands } from '../../../../src/presentation/editor/planEditorCommands';
+import * as notices from '../../../../src/presentation/notices/notify';
+import { mountPlanEditorCanvas, runtimeOf, settle, type CanvasHarness } from '../../../helpers/editor';
 import { fakeQueries, FIXTURE_PLAN } from '../../../helpers/planFixtures';
 
 /**
@@ -27,7 +29,7 @@ afterEach(() => {
 
 const HOUSE = { name: 'House', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }] };
 /** A detail plan's fixture: a parent zone with an ancestry one plan deep, so `guideSource` has both name and plan. */
-const detail = (parentZone: typeof HOUSE | null) => ({ zones: [], queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok({ ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan' }], parentZone })) } });
+const detail = (parentZone: typeof HOUSE | null) => ({ zones: [], queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok({ ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan', kind: 'floor' as const }], parentZone })) } });
 
 describe('the floor state', () => {
 	it('with nothing selected shows the floor summary: counts available, unbuilt aggregates unavailable, never zero', async () => {
@@ -102,6 +104,124 @@ describe('a detail plan in the floor state', () => {
 		harness = await mountPlanEditorCanvas(detail(null));
 		await settle();
 		expect(harness.wrapper.find('.rp-floor-inspector__guide').exists()).toBe(false);
+	});
+});
+
+/**
+ * The Kind select (Property tree polish, Task 10): bound to `PlanDto.kind`, written through
+ * `usePlanReorder().setKind` — the one `updatePlanDetails` door the tree's row menu also uses —
+ * and absent without that command or in review perspective. While writes are paused it stays
+ * focusable, carries §2.9's `aria-disabled` plus the shared reason, and a change dispatches
+ * nothing: the harness's `execute` spy is what proves the refusal, since a disabled-looking
+ * select still fires `change` in jsdom.
+ */
+const kindExecute = () => vi.fn<() => Promise<ReturnType<typeof ok<{ plan: { entity: typeof FIXTURE_PLAN; version: { revision: number } } }>>>>(() =>
+	Promise.resolve(ok({ plan: { entity: { ...FIXTURE_PLAN, kind: 'room' as const }, version: { revision: 1 } } })));
+const withKindCommand = (execute = kindExecute()) =>
+	mountPlanEditorCanvas({ plan: { ...FIXTURE_PLAN, kind: 'room' }, commands: { ...unavailablePlanEditorCommands(), updatePlanDetails: { execute } } as never });
+/** A refused write, gated so the case can move the store under it — the shape `propertyTreeReorder.test.ts`'s `deferred` gives a move. */
+function refusedLater() {
+	let release!: () => void;
+	const execute = vi.fn<() => Promise<{ ok: false; error: { category: string; code: string; message: string } }>>(() =>
+		new Promise((resolve) => { release = () => resolve({ ok: false, error: { category: 'Validation', code: 'plan.not-found', message: 'x' } }); }));
+	return { execute, release: () => release() };
+}
+
+describe('the Kind select', () => {
+	it('offers a Kind select bound to the plan and writes through updatePlanDetails', async () => {
+		const execute = kindExecute();
+		harness = await withKindCommand(execute);
+		await settle();
+		const select = harness.wrapper.get('select[data-rp-field="plan-kind"]');
+		expect((select.element as HTMLSelectElement).value).toBe('room');
+		expect(harness.wrapper.get(`label[for="${select.attributes('id')}"]`).text()).toBe(t('en', 'form.new-plan.kind'));
+		await select.setValue('floor');
+		await settle();
+		expect(execute).toHaveBeenCalledWith({ planId: FIXTURE_PLAN.id, kind: 'floor' });
+	});
+
+	it('draws no Kind select without the command', async () => {
+		harness = await mountPlanEditorCanvas({});
+		await settle();
+		expect(harness.wrapper.find('select[data-rp-field="plan-kind"]').exists()).toBe(false);
+	});
+
+	it('hides the Kind select in review perspective', async () => {
+		harness = await withKindCommand();
+		await settle();
+		await runtimeOf(harness).renovation.perspective('review');
+		await settle();
+		expect(harness.wrapper.find('select[data-rp-field="plan-kind"]').exists()).toBe(false);
+	});
+
+	it('while writes are paused the select is aria-disabled with the reason, and a change dispatches nothing', async () => {
+		const execute = kindExecute();
+		harness = await withKindCommand(execute);
+		await settle();
+		useProjectStore(harness.pinia).stale = true;
+		await settle();
+		const select = harness.wrapper.get('select[data-rp-field="plan-kind"]');
+		expect(select.attributes('aria-disabled')).toBe('true');
+		expect(select.attributes('disabled')).toBeUndefined();
+		expect(select.attributes('aria-describedby')?.split(' ')).toContain(runtimeOf(harness).pausedReasonId);
+		await select.setValue('floor');
+		await settle();
+		expect(execute).not.toHaveBeenCalled();
+		// The DOM value is put back too: the store's `kind` never moved, so `:value` alone re-patches nothing.
+		expect((select.element as HTMLSelectElement).value).toBe('room');
+	});
+
+	it('a refused write is reported and the select goes back to the saved kind', async () => {
+		const execute = vi.fn<() => Promise<{ ok: false; error: { category: string; code: string; message: string } }>>(() =>
+			Promise.resolve({ ok: false, error: { category: 'Validation', code: 'plan.not-found', message: 'x' } }));
+		const notify = vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(() => undefined);
+		harness = await withKindCommand(execute as never);
+		await settle();
+		const select = harness.wrapper.get('select[data-rp-field="plan-kind"]');
+		await select.setValue('floor');
+		await settle();
+		expect(execute).toHaveBeenCalledOnce();
+		expect(notify).toHaveBeenCalledOnce();
+		expect((select.element as HTMLSelectElement).value).toBe('room');
+		notify.mockRestore();
+	});
+
+	/**
+	 * The reset reads the kind the store holds AFTER the write, not the one captured before it: a
+	 * re-hydrate during the write (another leaf's concurrent write to this plan — also the likeliest
+	 * cause of the refusal) has already patched the select to the new kind, and the captured one
+	 * would overwrite it with a stale one.
+	 */
+	it('a refused write puts the select back to the kind the store holds now, not the one it held before the write', async () => {
+		const { execute, release } = refusedLater();
+		const notify = vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(() => undefined);
+		harness = await withKindCommand(execute as never);
+		await settle();
+		const select = harness.wrapper.get('select[data-rp-field="plan-kind"]');
+		await select.setValue('floor');
+		useProjectStore(harness.pinia).plan = { ...FIXTURE_PLAN, kind: 'building' };
+		await settle();
+		release();
+		await settle();
+		expect(execute).toHaveBeenCalledOnce();
+		expect(notify).toHaveBeenCalledOnce();
+		expect((select.element as HTMLSelectElement).value).toBe('building');
+		notify.mockRestore();
+	});
+
+	it('a plan gone during a refused write has no select left to put back', async () => {
+		const { execute, release } = refusedLater();
+		const notify = vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(() => undefined);
+		harness = await withKindCommand(execute as never);
+		await settle();
+		await harness.wrapper.get('select[data-rp-field="plan-kind"]').setValue('floor');
+		useProjectStore(harness.pinia).plan = null;
+		await settle();
+		release();
+		await settle();
+		expect(notify).toHaveBeenCalledOnce();
+		expect(harness.wrapper.find('select[data-rp-field="plan-kind"]').exists()).toBe(false);
+		notify.mockRestore();
 	});
 });
 

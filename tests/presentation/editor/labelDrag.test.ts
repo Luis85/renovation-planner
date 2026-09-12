@@ -63,7 +63,7 @@ it('grabs a room caption by its drawn text, one line lower while its plan has a 
 	// The bold 16 px name or the 14 px area line, whichever is drawn wider — not the pin-clearance block.
 	const drawn = Math.max(measureLabelWidth(zone.name, 16, true), measureLabelWidth(formatArea(12e6), 14));
 	expect(plain.bounds.max.x - plain.bounds.min.x).toBeCloseTo(Math.min(180, drawn) / zoom, 5);
-	usePlanHierarchyStore(rig.pinia).hierarchy = { ...NO_HIERARCHY, detailPlans: [{ id: 'detail-1', name: 'Upper floor', parentZoneId: zone.id }] };
+	usePlanHierarchyStore(rig.pinia).hierarchy = { ...NO_HIERARCHY, detailPlans: [{ id: 'detail-1', name: 'Upper floor', kind: 'floor', parentZoneId: zone.id }] };
 	await settle();
 	const detailed = expectDefined(rig.runtime.labelActions.hits.value.find(item => item.id === zone.id), 'detailed hit');
 	// The detail line ends 32.2 screen px below the anchor; the area line it follows, 14.

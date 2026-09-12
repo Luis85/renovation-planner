@@ -57,10 +57,12 @@ describe('persistence composition', () => {
 		expect(typeof plugin.root.persistence?.queries.findZonesByPlan.execute).toBe('function');
 		expect(typeof plugin.root.persistence?.queries.diagnostics.execute).toBe('function');
 		// The three creates, composed here since the sample-project seed became their first
-		// caller. Named individually rather than asserted as a count: a missing one is a
-		// command family that silently cannot create one of the three entity kinds.
+		// caller, and the plan-details update beside them (ADR-0029). Named individually rather
+		// than asserted as a count: a missing one is a command family that silently cannot
+		// create one of the three entity kinds, or cannot reorder a plan.
 		expect(typeof plugin.root.persistence?.createProject.execute).toBe('function');
 		expect(typeof plugin.root.persistence?.createPlan.execute).toBe('function');
+		expect(typeof plugin.root.persistence?.updatePlanDetails.execute).toBe('function');
 		expect(typeof plugin.root.persistence?.createZone.execute).toBe('function');
 
 		// Nothing scanned yet: the index is empty until layout-ready.
@@ -87,7 +89,7 @@ describe('persistence composition', () => {
 		// to `MIGRATION_SET` and running this file is what proves it now.
 		expect(snapshot?.schemaVersions).toEqual({
 			project: 1,
-			plan: 10,
+			plan: 11,
 			trade: 1,
 			supplier: 1,
 			quote: 1,

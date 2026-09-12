@@ -4,13 +4,13 @@ import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
 import { disposeAll, subscribeAll } from './subscriptions';
 
 /**
- * "Some plan of THIS project changed, from anywhere" — design slice 21's third change source.
+ * "Some plan of THIS project changed, from anywhere" — the project-plans change source, design slice 21's.
  *
- * It lives in `application/` for the reason its two siblings do, and that reason is the whole
+ * It lives in `application/` for the reason its siblings do, and that reason is the whole
  * point of the indirection: this layer is the one that may know both halves — the `EventBus`
  * port and the event names — so `presentation/` gets a callback and never learns either.
  *
- * **Why a THIRD source rather than a filter on one of the two.** `createPlanChangeSource`
+ * **Why a source of its own rather than a filter on the plan or project-list one.** `createPlanChangeSource`
  * answers "tell me when THIS plan changed" and every caller binds a plan id; this view has
  * none, it has a PROJECT. `createProjectListChangeSource` answers "the set of projects
  * changed" and is unfiltered; delivering that here would re-read one project's plans for
@@ -18,9 +18,11 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * wider than the second.
  *
  * The LIST is the extension point — a name added here, never a second refresh path in the
- * view.
+ * view. `PlanDetailsChanged` (ADR-0029) is on it because a plan's kind or order is a fact about
+ * its SIBLINGS' tree as much as its own: the Plan Editor draws the whole project's hierarchy,
+ * and its plan-filtered door (`planChangeSource`) never hears a sibling move.
  */
-const PROJECT_PLAN_EVENTS = ['PlanCreated'] as const;
+const PROJECT_PLAN_EVENTS = ['PlanCreated', 'PlanDetailsChanged'] as const;
 
 /**
  * Events that name ONE index entry, and are this project's business when that entry is a
@@ -31,9 +33,12 @@ const PROJECT_PLAN_EVENTS = ['PlanCreated'] as const;
  * **This arm cannot be filtered by project, and that is a stated cost rather than an
  * oversight.** `ProjectIndexEntryChangedPayload` carries `entityId` and `entityType` and no
  * owning project — measured — so it fires for a change to any plan note in the vault and this
- * one leaf re-reads one project's plans. Affordable exactly because the view is a singleton
- * and the query is project-scoped, which is what makes it different from the "once per synced
- * zone note" the project list's own filter exists to avoid.
+ * every subscriber re-reads one project's plans. Affordable because the query is
+ * project-scoped and the subscribers are few — the singleton project view, and since the
+ * Property tree polish every open Plan Editor leaf, each re-reading its own project's
+ * hierarchy — which is what makes it different from the "once per synced zone note" the
+ * project list's own filter exists to avoid. It is also the ONE arm that carries a sibling's
+ * `kind` hand-edited in its note, which raises no domain event.
  * *Trigger to narrow it: that payload gaining the owning project id.*
  */
 const PLAN_ENTRY_EVENTS = ['ProjectIndexEntryChanged'] as const;

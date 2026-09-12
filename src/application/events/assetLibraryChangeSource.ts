@@ -12,7 +12,7 @@ import { changedEntry, changedSidecar, disposeAll, subscribeAll } from './subscr
  * per-asset mark and a per-asset design read — each invalidated by a different, overlapping
  * slice of this vocabulary.
  *
- * **A fourth source, not a widening of `createAssetCatalogueChangeSource`** — §11 item 7's own
+ * **The library source, not a widening of `createAssetCatalogueChangeSource`** — §11 item 7's own
  * ruling, made explicit rather than left for this increment to re-decide: the picker shares
  * that source and would pay for any widening of it, re-reading every asset note on a design or
  * geometry event it has no use for. This module answers a different, wider question — "what

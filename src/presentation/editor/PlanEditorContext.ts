@@ -93,12 +93,21 @@ export interface PlanEditorContext {
 	 */
 	onPlanChanged(listener: () => void): () => void;
 	/**
+	 * "Some plan of THIS project changed — re-read the hierarchy." The project view's own
+	 * source (`projectPlansChangeSource`), filtered on a project id the ROOT binds rather than
+	 * the view: a leaf holds a plan id, and which project that plan belongs to is known only
+	 * once the plan has hydrated. The door above cannot stand in for it — it is filtered on
+	 * THIS plan, so a sibling reordered or re-kinded from another leaf never reaches it, and the
+	 * Property tree kept drawing the old order until something else re-read.
+	 */
+	onProjectPlansChanged(projectId: string, listener: () => void): () => void;
+	/**
 	 * "The vault's asset catalogue changed — re-read it." Unfiltered, because an Asset
 	 * belongs to no project since design slice 19 and to no plan ever: there is no id to
 	 * filter on and every leaf wants the same answer.
 	 *
-	 * A THIRD door rather than more traffic through the second. The assign picker used to
-	 * read its options on `onPlanChanged`, which is right for exactly one of the six event
+	 * Its own door rather than more traffic through `onPlanChanged`. The assign picker used to
+	 * read its options on that door, which is right for exactly one of the six event
 	 * types that door carries — `ProjectIndexRebuilt`, without which a leaf restored before
 	 * `onLayoutReady` offers an empty picker for its whole life — and wasteful for the other
 	 * five, which re-read every asset note in the vault once per zone gesture.
@@ -110,7 +119,7 @@ export interface PlanEditorContext {
 	 * it to a project is an async read a subscription cannot wait on before deciding to skip
 	 * work.
 	 *
-	 * A FOURTH door rather than more traffic through the third: the catalogue door answers
+	 * Its own door rather than more traffic through the catalogue one: the catalogue door answers
 	 * "the shared library moved" and this one answers "this project's own price moved" — and,
 	 * since `projectPricesChangeSource.ts`'s `REQUIREMENT_LIST_EVENTS` folded in
 	 * `RequirementCreated`/`RequirementDeleted`/`RequirementRestored` (T6, A2), "this zone's set
@@ -127,7 +136,7 @@ export interface PlanEditorContext {
 	 * Inspector renders one zone's requirements and can therefore skip an event about a
 	 * requirement it is not drawing.
 	 *
-	 * A FIFTH door, and the two above cannot stand in for it: the unit-cost block has three
+	 * Its own door, and the two above cannot stand in for it: the unit-cost block has three
 	 * inputs, and the catalogue and price events fire BEFORE the figure they move.
 	 * `EventBus.publish` delivers to every handler without ordering them, so re-reading on
 	 * either of those races the recalculation cascade rather than following it — the block

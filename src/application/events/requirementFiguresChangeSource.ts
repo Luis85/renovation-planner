@@ -7,7 +7,7 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * event vocabulary, turned into one subscription the Plan Editor's Inspector can take
  * without naming an event.
  *
- * It lives in `application/` for the reason its three siblings do, and that reason is the
+ * It lives in `application/` for the reason its siblings do, and that reason is the
  * whole point of the indirection: this layer is the one that may know both halves — the
  * `EventBus` port and the event names — so `presentation/` gets a callback and never
  * learns either.

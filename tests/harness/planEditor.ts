@@ -37,7 +37,7 @@ import { selectMultipleOnceReady } from './multiSelectionKnob';
 import { collapsePanelsOnceReady } from './panelsKnob';
 import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
-import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps } from './detailPlanKnob';
+import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps, treePlanDeps } from './detailPlanKnob';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -70,6 +70,8 @@ export const HARNESS_PLAN: PlanDto = {
 	id: 'harness-plan',
 	projectId: 'harness-project',
 	name: 'Ground floor',
+	kind: 'floor',
+	order: 0,
 	background: null,
 	// Uncalibrated, which is the honest value rather than the convenient one: this plan has no
 	// background to have been calibrated AGAINST, so the zones below are already in the world
@@ -417,8 +419,11 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			window.addEventListener('rp-harness-theme', listener);
 			return () => window.removeEventListener('rp-harness-theme', listener);
 		},
-		// Nothing writes on this page, so nothing ever changes a plan under it.
+		// Nothing writes on the BARE page, so nothing ever changes a plan under it — nor a sibling.
+		// True of this bundle alone: `referenceWorkspace` writes, and swaps BOTH plan doors for the
+		// real sources over its own bus.
 		onPlanChanged: () => () => undefined,
+		onProjectPlansChanged: () => () => undefined,
 		// The harness holds a fixed fixture and publishes no domain events, so all four change
 		// doors are honestly inert here rather than merely unimplemented. **Measured rather than
 		// assumed for the two price doors**: this page holds no `EventBus`, every WRITE in
@@ -444,11 +449,13 @@ export interface MountedPlanEditor {
 }
 
 /**
- * The seven harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
- * `?add`, `?room=<w>x<d>`, `?stale`, `?detail`, `?locked=<id,id>` and `?detailed=<id,id>` — for a
- * headless capture that needs the Room Inspector, the Add menu, the room task already under way,
- * the trust path's own stale-projection warning, a fresh detail plan, a locked zone, or a zone
- * with detail plans, with nothing to click. All seven are optional and independent; nothing here refuses combining them, and `?room`
+ * The nine harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
+ * `?add`, `?room=<w>x<d>`, `?stale`, `?detail`, `?locked=<id,id>`, `?detailed=<id,id>`,
+ * `?tree` and `?panels=` — for a headless capture that needs the Room Inspector, the Add menu,
+ * the room task already under way, the trust path's own stale-projection warning, a fresh detail
+ * plan, a locked zone, a zone with detail plans, a three-level Property tree, or collapsed side
+ * panels, with nothing to click. All
+ * nine are optional and independent; nothing here refuses combining them, and `?room`
  * needs no combining with `?add`: it opens the Add menu itself on its way through, so pairing
  * the two is redundant rather than contradictory. `?stale` is the one that is not independent of
  * `?select` in EFFECT, even though both are legal on their own: see `mountPlanEditorHarness` for
@@ -486,6 +493,12 @@ export interface PlanEditorHarnessOptions {
 	readonly locked?: string;
 	/** Comma-separated seeded zone ids, each given one detail plan (`detailPlanKnob.ts`). */
 	readonly detailed?: string;
+	/**
+	 * A four-plan property (Site › House › { Ground floor, Attic }) so the Property tree draws
+	 * three levels (`detailPlanKnob.ts`); in the constrained layout the Layers overlay holding
+	 * the tree is opened too, since a hidden tree is nothing a capture can look at.
+	 */
+	readonly tree?: boolean;
 	/** `collapsed`, `layers` or `inspector`: collapses those full-layout side panels once drawn. */
 	readonly panels?: string;
 }
@@ -581,6 +594,21 @@ async function openAddMenuOnceReady(root: HTMLElement): Promise<void> {
 		"the ?add knob's Add button to render",
 	);
 	root.querySelector<HTMLButtonElement>('button[data-rp-action="add"]')?.click();
+}
+
+/**
+ * Drives the `?tree` knob's one gesture: in the `constrained` layout the Property tree sits in
+ * the Layers overlay, which `ResponsiveEditorShell` hides until the rail's Layers button is
+ * pressed — the same shape `selectZoneOnceReady` meets on the Details side. The wait is for the
+ * rail, which exists only in that layout; in `full` it never renders and the tree is already on
+ * screen, so the wait yields to the tree's own third level instead and nothing is pressed.
+ */
+async function openLayersOnceReady(root: HTMLElement): Promise<void> {
+	await settleUntil(
+		() => root.querySelector('[role="tree"] [aria-level="3"], [data-rp-rail="layers"]') !== null,
+		"the ?tree knob's three-level tree, or the rail that holds it, to render",
+	);
+	root.querySelector<HTMLButtonElement>('[data-rp-rail="layers"]')?.click();
 }
 
 /**
@@ -734,7 +762,8 @@ export function mountPlanEditorHarness(
 	const deps = downstream?.deps ?? (workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base);
 	const detailed = options.detail === true ? detailPlanDeps(deps) : deps;
 	const locked = options.locked === undefined ? detailed : lockedZoneDeps(detailed, options.locked.split(','));
-	const composed = options.detailed === undefined ? locked : detailedZoneDeps(locked, options.detailed.split(','));
+	const detailedZones = options.detailed === undefined ? locked : detailedZoneDeps(locked, options.detailed.split(','));
+	const composed = options.tree === true ? treePlanDeps(detailedZones) : detailedZones;
 	const view = new PlanEditorView((downstream?.leaf ?? new FakeLeaf()) as never, composed);
 	downstream?.attach(view);
 	leafEl.appendChild(view.containerEl);
@@ -771,6 +800,7 @@ export function mountPlanEditorHarness(
 	if (options.area === true) knobs.push(guardKnob(enterAreaTaskOnceReady(leafEl)));
 	if (options.numericArea === true) knobs.push(guardKnob(enterNumericArea(leafEl)));
 	if (options.room !== undefined) knobs.push(guardKnob(enterRoomTaskOnceReady(leafEl, options.room)));
+	if (options.tree === true) knobs.push(guardKnob(openLayersOnceReady(leafEl)));
 
 	// Every caller's teardown is `await view.onClose()` (`grep -rn "view.onClose()" tests/harness`
 	// today prints 8 files), so wrapping it here surfaces a late knob failure as THAT case's own

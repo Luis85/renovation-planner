@@ -7,7 +7,7 @@ import { changedEntry, changedSidecar, disposeAll, subscribeAll } from './subscr
  * subscription the asset designer can take without naming an event. Its design, and also its
  * existence: see the first list below for why those are one question and not two.
  *
- * It lives in `application/` for the reason its three siblings do, and that reason is the
+ * It lives in `application/` for the reason its siblings do, and that reason is the
  * whole point of the indirection: this layer is the one that may know both halves — the
  * `EventBus` port and the event names — so `presentation/` gets a callback and never learns
  * either, which is what stops a view from subscribing to an event type by string and quietly

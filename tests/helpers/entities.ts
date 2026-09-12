@@ -20,6 +20,8 @@ import {
 } from '../../src/domain/requirement/RequirementId';
 import { currencyOf, of as moneyOf } from '../../src/core/money/Money';
 import type { Quantity } from '../../src/core/units/MeasurementUnit';
+import type { ObservationToken } from '../../src/application/ports/versioning';
+import type { CatalogueEntryDto, UnreadableEntry } from '../../src/application/queries/ListCatalogueEntries';
 
 /**
  * Entity fixtures for the command and contract tests. Each call mints fresh IDs, so
@@ -125,4 +127,40 @@ export function makeRequirement(
 			...rest,
 		}),
 	);
+}
+
+/**
+ * The Asset library's two read-model fixtures, here rather than in
+ * `assetLibraryRootHarness.ts` because that harness MOUNTS `AssetLibraryRoot.vue` and a
+ * node-environment test wanting only a DTO must not reach an SFC through it —
+ * `scripts/vitest-no-ssr-sfc.mjs` refuses the SSR transform that reach produces, and
+ * `tests/build/no-ssr-sfc.test.ts` says why. The harness re-exports both.
+ */
+export function anEntry(overrides: Partial<CatalogueEntryDto> = {}): CatalogueEntryDto {
+	return {
+		version: { revision: 1, observed: 'fixture' as ObservationToken },
+		assetId: createAssetId(),
+		name: 'Oak plank floor',
+		category: 'material',
+		unit: 'm2',
+		unitCostAmount: '34.95',
+		currency: currencyOf('EUR'),
+		wasteFactorDefault: '0.08',
+		supplier: 'Holzhandel Nord',
+		sku: 'EIC-1200-190',
+		height: null,
+		notes: null,
+		background: null,
+		...overrides,
+	};
+}
+
+export function aNoIdNote(overrides: Partial<UnreadableEntry> = {}): UnreadableEntry {
+	return {
+		assetId: null,
+		path: 'Renovation/Library/mystery.md',
+		reason: 'no-id',
+		code: null,
+		...overrides,
+	};
 }

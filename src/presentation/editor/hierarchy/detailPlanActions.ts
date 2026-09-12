@@ -40,6 +40,7 @@ export function useDetailPlanActions() {
 				projectId: plan.projectId,
 				initialName: name,
 				parent: { planId: plan.id as PlanId, zoneId: zoneId as ZoneId },
+				parentKind: plan.kind,
 				logger: ctx.commands.logger,
 				dispatch: async (input: CreatePlanInput) => {
 					const saved = await createPlan.execute(input);

@@ -1,7 +1,7 @@
 /**
  * The asset designer's own subscription: "the design of THIS asset may have changed."
  *
- * A FOURTH source beside the plan, project-list and catalogue ones, and it takes an id like
+ * The design source, beside the plan, project-list and catalogue ones, and it takes an id like
  * `createPlanChangeSource` does rather than being unfiltered like the catalogue's: every
  * design command in this increment publishes `AssetDesignChanged`, so an unfiltered listener
  * would re-read one asset's design because a different asset was edited.

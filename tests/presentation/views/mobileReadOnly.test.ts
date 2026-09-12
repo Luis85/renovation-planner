@@ -31,7 +31,7 @@ import type { ObservationToken } from '../../../src/application/ports/versioning
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
 const project: ProjectSummaryDto = { id: 'p1', name: 'Kitchen refit', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 1, lastWorked: null };
-const plan = { id: 'plan1', name: 'Ground floor' };
+const plan = { id: 'plan1', name: 'Ground floor', kind: 'floor' as const };
 
 function session(): ProjectSession {
 	return { query: '', completedOpen: false, focusedProjectId: null, scrollTop: 0, guidanceHidden: false };

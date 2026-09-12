@@ -3,8 +3,8 @@
 **Date:** 2026-09-12
 **Baseline:** `main` at `210be3f4`.
 **Status:** proposed design, approved section by section in brainstorming on 2026-09-12. The
-implementation plan derived from it is `docs/superpowers/plans/2026-09-12-draggable-labels.md`
-(to be written). Where this document and the SDD disagree, the SDD is the authority.
+implementation plan derived from it is `docs/superpowers/plans/2026-09-12-draggable-labels.md`.
+Where this document and the SDD disagree, the SDD is the authority.
 
 ## 1. What this delivers
 
@@ -38,9 +38,11 @@ All three are `listening: false` and have no stored position.
 ### 3.1 Domain
 
 - `Zone` gains `labelOffset: Vector | null` (absent/`null` = automatic) and
-  `withLabelOffset(offset: Vector): Zone`. `withGeometry`, `withDetails`, `withName` and
-  `withLocked` carry it through `fields()` unchanged, which is what makes a moved, nudged or
-  rotated zone keep its label placement with no extra code.
+  `withLabelOffset(offset: Vector | null): Zone` — `null` restores the automatic position, which
+  is what lets undo of a first drag put a caption back where it started; no UI action clears an
+  offset directly. `withGeometry`, `withDetails`, `withName` and `withLocked` carry it through
+  `fields()` unchanged, which is what makes a moved, nudged or rotated zone keep its label
+  placement with no extra code.
 - `SpatialElement` gains `labelOffset?: Vector`. It covers asset placements, which are elements
   of kind `'asset'`.
 - Nothing validates the offset's magnitude beyond finiteness: a label may be dragged anywhere.
@@ -50,7 +52,8 @@ All three are `listening: false` and have no stored position.
 `src/infrastructure/persistence/dto/planGeometry.ts`:
 
 - `SpatialObjectGeometrySchemaV10 = SpatialObjectGeometrySchemaV7` + `labelOffset: { dx, dy }`
-  optional, both `z.number().finite()`.
+  optional, both `z.number()` — zod 4's `z.number()` already refuses a non-finite value, so no
+  `.finite()` is needed.
 - `SpatialElementSchemaV10 = SpatialElementSchemaV9` + the same optional `labelOffset`, used by
   both `structure.elements` and `intended.elements` (one structure schema, as today). The key is
   the domain's own name because elements pass through the sidecar port unmapped.
@@ -76,17 +79,18 @@ schema file's own header says so).
   explicitly.
 - `ZoneDto` gains `labelOffset?: Vector`; elements already reach `ProjectStore.structure` in
   their domain shape.
-- A room caption's block is taller while a detail-plans line shows (`captionBottom`, ADR-0028).
 
 ## 4. Grabbing and dragging
 
-### 4.1 One placement function
+### 4.1 Placement functions
 
-`labelPlacement(item, zoom)` in `src/presentation/editor/layers/` answers `{ anchor, bounds }`
-in world millimetres: the automatic anchor for the item's kind, plus its offset, plus the text's
-bounding box. Text width comes from canvas `measureText` at the font the renderer uses. The
-three renderers AND `labelActions` call it, so what is drawn and what can be grabbed cannot
-disagree — the same relationship `handleMetrics.ts` keeps for vertex handles.
+Rooms are placed by `roomCaptionAnchor` and their block height by `captionBottom`
+(`layers/zone/captionPlacement.ts`), and grabbed by `roomCaptionBounds`; a room caption's block is
+taller while a detail-plans line shows (`captionBottom`, ADR-0028). Elements and assets are placed
+by `elementCaptionLayout` and grabbed by `textLabelBounds` (`labels/labelLayout.ts`), text width
+from `measureLabelWidth`. `ZoneShape`, `ElementShapes`, `assetShapeConfig` and `labelActions` all
+call the same functions, so what is drawn and what can be grabbed cannot disagree — the same
+relationship `handleMetrics.ts` keeps for vertex handles.
 
 ### 4.2 Hit-testing
 
@@ -129,13 +133,16 @@ A `LabelMove` class beside `ElementMove`, owned by `SelectTool`:
 
 ### 5.2 Saving
 
-Label drags reuse the two source-specific write paths rotation already uses
-(`rotationBaseline.ts`), through a `labelBaseline.ts` beside it:
+Label drags reuse the two source-specific write paths rotation already uses, through
+`RotationBaseline`'s `labelCommand(offset)` (`rotationBaseline.ts`), used by
+`labels/labelActions.ts`:
 
-- **Rooms/areas.** `MoveSpatialObjectInput` gains `labelOffset?: Vector` (absent = keep the
-  zone's current offset). `MoveSpatialObjectCommand` applies it with `withLabelOffset` after the
-  geometry. `ReversibleMoveZoneCommand` gains optional forward/inverse offsets; a label drag hands
-  it identical forward and inverse geometry. The ledger, the conditional write and the
+- **Rooms/areas.** `MoveSpatialObjectInput` gains `labelOffset?: Vector | null` (absent keeps the
+  zone's current offset, `null` restores the automatic position). `MoveSpatialObjectCommand`
+  applies it with `withLabelOffset` after the geometry. `ReversibleMoveZoneCommand`'s forward and
+  inverse states each carry an optional `labelOffset: Vector | null` alongside the geometry,
+  rather than a separate offset parameter; a label drag hands it identical forward and inverse
+  geometry, differing only in `labelOffset`. The ledger, the conditional write and the
   `zoneGeometryChanged` refresh are unchanged.
 - **Elements/assets.** `service.command(baseline, elementInput(baseline, { ...element, labelOffset }), ledger)`,
   the two-document command moves and rotations already use.
@@ -160,7 +167,8 @@ supersedes it by the existing ledger rule.
 
 ADR-0029, "A label position is sidecar geometry, stored as an offset", records §2's storage rows
 and the rejected alternatives: an absolute position (would be left behind by every move, nudge
-and rotate command) and session-only state (lost on reload).
+and rotate command), session-only state (lost on reload), and frontmatter on the zone note
+(elements have no note, and a caption position is geometry).
 
 ## 6. Testing
 
@@ -175,7 +183,7 @@ Every test is watched failing before its code exists.
 | Gesture | sub-threshold release dispatches nothing; cancel clears the preview; no gesture while writes are blocked. |
 | Commands | `ReversibleMoveZoneCommand` label undo restores the offset with geometry unchanged; element label drag round-trips through `elementInput`. |
 | Drawing | `ZoneShape` draws at anchor + offset and skips pin displacement; element and asset labels shift by the offset. |
-| Consistency | `labelActions` bounds equal `labelPlacement`'s. |
+| Consistency | `labelActions`'s hit bounds equal what `ZoneShape`, `ElementShapes` and `assetShapeConfig` draw at (`roomCaptionBounds`/`textLabelBounds`). |
 
 Outside the gates: the manual case `docs/tests/cases/Drag a caption.md`. No fixed harness
 capture: the harness Plan Editor floor has no renovation services, so a drag cannot save there.

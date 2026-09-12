@@ -918,12 +918,47 @@ The rules this suite is actually held to:
   neither shape adds an SSR-compiled SFC to the coverage map. The fix when it fires is the one
   `entities.ts`'s `anEntry` took: move what the node test needs into a module with no SFC
   below it, or give a test that mounts something `// @vitest-environment jsdom`.
-- **No gate reads source text through a regular expression.** The import walk two instruments
-  share (`tests/helpers/importGraph.ts` — `regionsReachable.test.ts` and
+- **No gate in a file this branch touched reads source text through a regular expression,
+  and the whole-tree claim is NARROWER than that — measured, not asserted.** The census is a
+  parse, not a grep: every file under `tests/`, `scripts/` and the root configs read with the
+  TypeScript compiler API (an SFC's script blocks through `@vue/compiler-sfc`), counting regex
+  literals, `RegExp(...)` constructions and `.match`/`.matchAll`/`.search` calls, each hit
+  then classified by what its subject IS. On 2026-09-12 that found 438 hits in 127 files. Most
+  read a RUNTIME value — a rendered text, a thrown message, a note's frontmatter the code under
+  test wrote, an id, a path, a URL knob, whitespace — and are not source-text gates. **Thirty-five
+  files still read source or config TEXT through one**, none touched by this branch, in three
+  groups: twenty stylesheet-or-SFC-text pins (`prototype-styles`, `libraryComponentStyles`,
+  `taskBarPlacement`, `focusReach`, `harness.test.ts`, `cssVars.test.ts` under
+  `tests/build/` and `tests/harness/`; `projectRowStyles`, `projectListNarrowStyles`,
+  `projectFilterStyles`, `projectListStyles`, `continueRowStyles`, `projectListOverlap`,
+  `assetPriceList`, `viewRootOpenLibrary`, `projectList` under `tests/presentation/views/`;
+  `assetMark` and `narrowComposition.ts` under `tests/presentation/library/`;
+  `tests/helpers/buttonRules.ts`; `prototype-promotion` and `entryBoundary`), ten TypeScript
+  source scans (`saveStateWiring`, `toolManager`, `eventVocabularyCensus`, `toUserMessage`,
+  `spatialMessage`, `declarations`, `reversibleWritePathDiscovery`, `creationCatalogue`,
+  `editorContext`, `appIdPrefix`) and five config-or-document reads (`manifest.test.ts` over
+  the workflow YAML, `lint-edited.test.ts` over the hook command in `.claude/settings.json`,
+  `changelog.test.ts` and `scripts/changelog.mjs` over `CHANGELOG.md`'s headings, and
+  `scripts/styles-assemble.mjs` over `styles/index.css`'s `@import` lines). Each is the next
+  conversion, and the instruments already exist: `tests/helpers/parsedSource.ts` (a script's or
+  SFC's calls with their arguments, top-level constants evaluated, identifiers, string literals,
+  imports, a named function's body), `tests/helpers/importGraph.ts` (edges, and what the reached
+  files name), `tests/helpers/selectors.ts`'s `stylesheetRules` and `classesNamed` (CSS through
+  lightningcss), and `tests/helpers/environmentDirective.ts`.
+
+  What this branch converted, each watched red first: `harness-shot.test.ts`'s ~55 pins over
+  `scripts/harness-shot.mjs` (the `SHOTS` table evaluated through the script's own constants,
+  queries read with `URLSearchParams`); the three views' stylesheet pins; the subscriber-lock
+  boundary's three arms; `vitest.config.ts`'s ESLint-booting set, now derived from the import
+  graph and cached under `node_modules/.cache/` by a fingerprint over `tests/` (its own comment
+  carries the cold and warm figures); and the environment directive, which is no longer read out
+  of comment ranges: `environmentDirective.ts` mirrors vitest's `detectCodeBlock` exactly —
+  whole text, first hit, `indexOf` and char-code checks for `\s+`, `[\w-]+` and the trailing
+  `\b` — because the comments-only reader disagreed with vitest on seven of fifteen fixtures.
+  The import walk two instruments share (`importGraph.ts` — `regionsReachable.test.ts` and
   `test-environments.test.ts`) reads edges out of `ts.createSourceFile` and, for an SFC's
-  script blocks, `@vue/compiler-sfc`'s `parse`; the environment directive
-  `test-environments.test.ts` compares against vitest's resolution is read out of the file's
-  comment ranges by the same parser. The regex versions each of those replaced were holed by
+  script blocks, `@vue/compiler-sfc`'s `parse`, and THROWS on a relative specifier it cannot
+  resolve rather than dropping it. The regex versions each of those replaced were holed by
   comment prose, an un-semicoloned `export type`, a backtick `import()` and a template comment
   spelling an import, and `tests/helpers/importGraph.test.ts` carries every one of those as a
   fixture watched red against the regex first. Two mechanism facts those files state and this

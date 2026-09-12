@@ -5,13 +5,21 @@
  *
  * A partial of its own rather than more of `editor-shell.css`, for one reason: that file is
  * already at 316 of the 400 lines `scripts/styles-assemble.mjs` allows, and this is about 90.
- * Its POSITION in `index.css` is NOT load-bearing — it is imported after `editor-shell.css`
- * only to keep the Plan Editor's shell partials adjacent for a reader. Nothing here ties an
- * equal-specificity rule declared anywhere else: the two selectors that reach a rule in another
- * partial (`.rp-overlay-panel .rp-editor-layers` over `editor.css`'s `.rp-editor-layers`, and
- * `.rp-inspector-drawer .rp-editor-inspector` over `editor-inspector.css`'s) each carry two
- * classes against that rule's one, so they win on SPECIFICITY and would win from anywhere in
- * the list.
+ * Its POSITION in `index.css` is NOT load-bearing, but not because this file's own rule below
+ * wins outright any more — Task 7 deleted `editor.css`'s and `editor-inspector.css`'s former
+ * `(0,1,0)` width rules on these two classes, so there is nothing left at that specificity to
+ * beat. `.rp-overlay-panel .rp-editor-layers, .rp-inspector-drawer .rp-editor-inspector` below
+ * is `(0,2,0)`, exactly tied with the only other rules naming those classes directly:
+ * `editor-side-panel.css`'s `.renovation-plan-editor .rp-editor-layers, .renovation-plan-editor
+ * .rp-editor-inspector` (padding, overflow-wrap, background-color) and its own
+ * `.renovation-plan-editor .rp-editor-inspector` (padding-top). The tie is inert rather than
+ * resolved by import order: none of the three properties this file's rule sets (`width`,
+ * `overflow-y`, `border-right`/`border-left`) is one either of those touches, so there is no
+ * shared property for source order to decide between. `editor-side-panel.css`'s remaining rule
+ * on these classes — `.rp-side-panel .rp-editor-layers`/`.rp-editor-inspector`'s
+ * `overflow-y: auto`, which WOULD collide with this file's `overflow-y: visible` — never reaches
+ * the same element: an overlay or drawer root carries no `.rp-side-panel` ancestor (the DOM
+ * contract keeps the two mutually exclusive), so that selector cannot match inside it.
  *
  * Every button rule here names its parent class as well as its own — `(0,2,0)` against
  * Obsidian's `button:not(.clickable-icon)` at `(0,1,1)`, which `tests/build/buttonSpecificity.

@@ -483,7 +483,7 @@ describe('axe against the mounted view', () => {
 	 */
 	it('reports no semantic violations on a project with plans', async () => {
 		installObsidianDom();
-		const view = makeView(detailDeps({ projectId: 'project-1', plans: [{ id: 'plan-1', name: 'Ground floor' }] }));
+		const view = makeView(detailDeps({ projectId: 'project-1', plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }] }));
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();
 		await view.setState({ projectId: 'project-1' }, {} as ViewStateResult);

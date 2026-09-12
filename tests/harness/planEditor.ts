@@ -67,6 +67,8 @@ export const HARNESS_PLAN: PlanDto = {
 	id: 'harness-plan',
 	projectId: 'harness-project',
 	name: 'Ground floor',
+	kind: 'floor',
+	order: 0,
 	background: null,
 	// Uncalibrated, which is the honest value rather than the convenient one: this plan has no
 	// background to have been calibrated AGAINST, so the zones below are already in the world

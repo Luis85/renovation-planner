@@ -33,7 +33,7 @@ const PROJECT: ProjectSummaryDto = {
 	lastWorked: '2026-08-14T00:00:00.000Z',
 };
 
-const PLAN: PlanSummaryDto = { id: 'plan-1', name: 'Ground floor' };
+const PLAN: PlanSummaryDto = { id: 'plan-1', name: 'Ground floor', kind: 'floor' };
 
 interface Overrides {
 	projects?: readonly ProjectSummaryDto[];

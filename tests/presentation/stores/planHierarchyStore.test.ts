@@ -11,8 +11,8 @@ import { NO_HIERARCHY, type PlanHierarchyDto } from '../../../src/presentation/r
 import { fakeQueries, FIXTURE_PLAN } from '../../helpers/planFixtures';
 import { defer } from '../../helpers/async';
 
-const HOUSE: PlanHierarchyDto = { ancestry: [{ id: 'plan-site', name: 'Site' }], detailPlans: [], parentZone: null, parentZoneMissing: false };
-const SITE: PlanHierarchyDto = { ancestry: [], detailPlans: [], parentZone: null, parentZoneMissing: false };
+const HOUSE: PlanHierarchyDto = { ancestry: [{ id: 'plan-site', name: 'Site', kind: 'floor' }], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: false };
+const SITE: PlanHierarchyDto = { ancestry: [], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: false };
 const READ_FAILED = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'boom' } as const;
 
 describe('PlanHierarchyStore', () => {

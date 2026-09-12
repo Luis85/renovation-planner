@@ -3,6 +3,7 @@ import type { Point } from '../../core/geometry/Point';
 import type { PlanBackgroundRef } from '../../domain/plan/PlanBackgroundRef';
 import type { Calibration } from '../../domain/plan/Calibration';
 import type { Plan } from '../../domain/plan/Plan';
+import type { PlanKind } from '../../domain/plan/PlanKind';
 import type { Project } from '../../domain/project/Project';
 import type { Zone } from '../../domain/zone/Zone';
 
@@ -26,6 +27,8 @@ export interface PlanDto {
 	readonly id: string;
 	readonly projectId: string;
 	readonly name: string;
+	readonly kind: PlanKind;
+	readonly order: number;
 	readonly background: PlanBackgroundRef | null;
 	/**
 	 * How the plan's world units are established (SDD §25), `null` while it is
@@ -125,6 +128,7 @@ export interface ProjectSummaryDto {
 export interface PlanSummaryDto {
 	readonly id: string;
 	readonly name: string;
+	readonly kind: PlanKind;
 }
 
 export function toPlanDto(plan: Plan): PlanDto {
@@ -134,6 +138,8 @@ export function toPlanDto(plan: Plan): PlanDto {
 		id: plan.id,
 		projectId: plan.projectId,
 		name: plan.name,
+		kind: plan.kind,
+		order: plan.order,
 		background: plan.background,
 		calibration: plan.calibration,
 		layers: plan.layers,
@@ -207,6 +213,6 @@ export function toProjectSummaryDto(
 }
 
 export function toPlanSummaryDto(plan: Plan): PlanSummaryDto {
-	return { id: plan.id, name: plan.name };
+	return { id: plan.id, name: plan.name, kind: plan.kind };
 }
 import type { Renovation } from '../../domain/renovation/Renovation';

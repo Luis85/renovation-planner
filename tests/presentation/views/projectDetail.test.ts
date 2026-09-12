@@ -147,7 +147,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('carries a plan row’s id up from PlanList', async () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
 		await wrapper.get('.rp-plan-list__row').trigger('click');
@@ -181,8 +181,8 @@ describe('ProjectDetail', () => {
 	 * exactly that: the readable plans it points at do not exist.
 	 */
 	it.each([
-		{ what: 'every plan note refused', rows: [] as { id: string; name: string }[], key: 'view.project.all-plans-unreadable' as const },
-		{ what: 'some refused', rows: [{ id: 'plan-1', name: 'Ground floor' }], key: 'view.project.some-plans-unreadable' as const },
+		{ what: 'every plan note refused', rows: [] as { id: string; name: string; kind: 'floor' }[], key: 'view.project.all-plans-unreadable' as const },
+		{ what: 'some refused', rows: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], key: 'view.project.some-plans-unreadable' as const },
 	])('says which unreadable-plan case it is when $what', ({ rows, key }) => {
 		const wrapper = mount(ProjectDetail, {
 			props: { project: PROJECT, plans: rows, unreadablePlans: 2, emptyState: null, ...PRICE_PROPS },
@@ -217,7 +217,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('draws the partial-read warning above the guidance region', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 1, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 1, emptyState: null, ...PRICE_PROPS },
 		});
 
 		const notice = wrapper.get('.rp-view-notice').element;
@@ -232,7 +232,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('draws the recovery warning with an icon beside its text', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, missingPlan: true, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, missingPlan: true, emptyState: null, ...PRICE_PROPS },
 		});
 
 		expect(wrapper.get('.rp-recovery__warning').text()).toContain(t('en', 'view.project.resume-missing-plan'));
@@ -256,7 +256,7 @@ describe('ProjectDetail', () => {
 	])('moves focus to $what', ({ missingPlan, selector }) => {
 		const wrapper = mount(ProjectDetail, {
 			attachTo: document.body,
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, missingPlan, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, missingPlan, emptyState: null, ...PRICE_PROPS },
 		});
 		expect(document.activeElement).toBe(document.body);
 
@@ -291,7 +291,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('puts the schedule and quote doors below the plan list', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
 		const plans = wrapper.get('.rp-plan-list__section').element;
@@ -311,7 +311,7 @@ describe('ProjectDetail', () => {
 		// reads one of an element's two homes reports a missing rule for every class in the other.
 		const css = [readFileSync('styles/project-detail.css', 'utf8'), readFileSync('styles/project-entry.css', 'utf8')].join('\n');
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
 		const emitted = new Set(

@@ -59,6 +59,8 @@ export const PLAN_DTO: PlanDto = {
 	id: 'plan-e2e',
 	projectId: PROJECT_ID,
 	name: 'Ground floor',
+	kind: 'floor',
+	order: 0,
 	background: null,
 	// Uncalibrated, like `planFixtures.ts`'s — absent until `tests/**` was type-checked, on a
 	// literal annotated `PlanDto` with the field required.

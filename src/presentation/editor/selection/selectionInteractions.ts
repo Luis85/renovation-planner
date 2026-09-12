@@ -2,6 +2,8 @@ import type { EditorPointerEvent } from '../tools/editor-tool';
 
 /** Optional group behavior; the owning facade retains command, version and geometry authority. */
 export interface SelectionInteractions {
+	/** The sidebar's "select multiple" checkbox: while on, a canvas click chooses as Shift-click does. */
+	readonly multiSelectionMode?: () => boolean;
 	readonly expandSelection?: (id: string, deep: boolean) => readonly string[];
 	readonly selectionMove?: {
 		readonly active: boolean;

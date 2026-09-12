@@ -726,7 +726,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const switchTool = createToolSwitch(toolManager, activeToolId);
 	const setTool = (id: ToolId | null): void => { if (session.perspective !== 'review' || id === 'select') switchTool(id); };
 	const returnToSelect = (): void => setTool('select');
-	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool);
+	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool), multiSelectionMode = ref(false);
 
 	const { createRoom, canCreateRoom, roomDraftIncomplete, roomDraft, defaultRoomName } = createRoomCreationAction({
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
@@ -735,7 +735,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	const { structureTask, structureActions, openingMove } = createStructureEditing(context, { toolManager, activeToolId, setTool, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const { elementTask, elementActions, groupActions, rotationActions, curveTask, toolBindings } = createSpatialEditing(context, { toolManager, setTool, returnToSelect, activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, structureTask, wall: structureActions, openPlanNote: () => context.openPlanNote() });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
-		...toolBindings,
+		...toolBindings, multiSelectionMode: () => multiSelectionMode.value,
 		previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
@@ -756,7 +756,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 		},
 	);
 
-	const selectAndFrame = (id: string, toggle = false): void => selectAndFrameOn(projectStore, selection, editor, { id, toggle });
+	const selectAndFrame = (id: string, toggle = false): void => selectAndFrameOn(projectStore, selection, editor, { id, toggle: toggle || multiSelectionMode.value });
 	registerSelectionRetirement(projectStore, selection, renderState);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
@@ -818,7 +818,7 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 		assetOptions: assetOptionsRef,
 		hydrateInspector: (ids) => inspector.hydrateFrom(ids),
 		deleteZone: (id, name) => projectStore.structure.elements?.some(item => item.id === id) ? elementActions.remove(id) : deleteZone(id, name), commitEdit, commitField, selectAndFrame,
-		multiSelectionMode: ref(false),
+		multiSelectionMode,
 		createRoom, canCreateRoom, roomDraftIncomplete, roomDraft,
 		...areaTask,
 		planning, refreshProjection, writesBlocked, pausedReasonId,

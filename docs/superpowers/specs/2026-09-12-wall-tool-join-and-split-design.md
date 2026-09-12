@@ -5,7 +5,7 @@
 (pull request #142) lets a chain START on a wall and cuts the host at save. This increment lets a
 chain END on a wall the same way, and lets the tool's own click start one.
 **Baseline:** `main` at `5dfb0725`.
-**Status:** designed; brainstormed in chat, decisions recorded in §8.
+**Status:** implemented by `docs/superpowers/plans/2026-09-12-wall-tool-join-and-split.md`
 
 ## 1. What this increment delivers
 
@@ -183,4 +183,4 @@ Nothing cuts until the write succeeds. Cancelling the tool cuts nothing. One his
   `finish` called once, a refused end not finishing, `pending` cleared by an endpoint snap.
 - Form and overlay cases: the status line text per state; a `wall-draft-cut` line per cut.
 - `drawnStructure`: the preview's host is two walls while an end join is pending.
-- One `harness-shot` of the overlay mid-join, both schemes, for a look at the mark.
+- The mark's look is checked by drawing in the browser harness at `?view=plan-editor&reference` (Task 9 of the plan); no fixed headless shot, since neither harness fixture seeds walls AND structure services together.

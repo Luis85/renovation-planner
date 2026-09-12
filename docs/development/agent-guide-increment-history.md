@@ -5715,3 +5715,25 @@ sharper than about 11° (`miterLimit` 10).
 loop with right, acute and obtuse corners, a chevron with one reversed wall, a T, an unequal L and
 a straight–arc–straight chain — and `fixture.test.ts` pins that `wallPasses` draws them as those
 runs, since a case only a unit test names is one no capture photographs.
+
+## Wall joins: start and end on a wall body, 2026-09-12
+
+**What landed.** A wall chain can END on an existing wall's body, and the wall tool's own first click
+can START one there; both cut the host at the join when the chain is saved, through the same
+`splitWall` the context menu's "New wall from here" already deferred to. `src/domain/spatial/wallJoin.ts`
+answers where a cursor lands on a body — endpoint first (answered as null, so the draft's endpoint
+snap wins and nothing is cut), then the foot of the perpendicular from the previous point, then the
+nearest body point; with Shift the constrained ray is intersected with the wall so the 15° step stays
+exact. The draft holds `joins.start` and `joins.end`, applied in that order by `drawnOn`, and the end
+join is resolved against the floor with the start cut already made, which is what makes two cuts on
+one wall name the right half without a special case. A click landing on a body with points already
+placed auto-finishes. Numeric entry joins at 1 mm. The form names the join ("Joins wall 3 at 1.2 m,
+at a right angle") and the overlay draws a `wall-draft-cut` tick across each host; the preview builds
+on the cut floor so the host renders as two halves while drawing.
+
+**What was refused.** An intermediate corner joining a wall (a per-point split list for a case not in
+hand), a chain crossing a wall mid-segment, and a fixed `harness-shot` of the mark: the base plan-editor
+harness has no structure services and the reference workspace seeds no walls, so the look was checked
+by drawing in `npm run harness` at `?view=plan-editor&reference` rather than by a headless capture.
+
+**Spec:** `docs/superpowers/specs/2026-09-12-wall-tool-join-and-split-design.md`.

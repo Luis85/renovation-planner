@@ -73,10 +73,12 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 
 /**
  * Which single-selection body the chain below draws once the review, task-tool and multiple
- * arms have passed — named ONCE, rather than re-derived beside the chain, so the room, structure,
- * element and renovate arms can take `GroupControls` through their `actions` slot (above Delete,
- * side panels spec §3; `RenovationInspector` routes it to its own wall or element body) and the
- * trailing mount is left with the floor alone, which has no Delete.
+ * arms have passed — named ONCE, rather than re-derived beside the chain. The floor has no
+ * Delete, so it draws `GroupControls` after itself; the other four take it through their
+ * `actions` slot (above Delete, side panels spec §3; `RenovationInspector` routes it to its own
+ * wall or element body) from ONE `<component :is>` fill rather than a fill per arm. A fill per
+ * arm plus a trailing three-clause floor mount read cognitive 22 against fallow's 15; this shape
+ * reads 13 (`npx fallow health --complexity-breakdown`).
  */
 const body = computed(() => {
 	if (renovationSession.perspective === 'renovate') return 'renovate';
@@ -86,6 +88,7 @@ const body = computed(() => {
 	if (project.structure.elements?.some(element => element.id === id)) return 'element';
 	return 'room';
 });
+const SLOTTED_BODIES = { renovate: RenovationInspector, structure: StructureInspector, element: ElementInspector, room: RoomInspector };
 const groupsShown = computed(() => activeToolId.value === 'select' && renovationSession.perspective !== 'review');
 </script>
 
@@ -114,27 +117,17 @@ const groupsShown = computed(() => activeToolId.value === 'select' && renovation
 				<StructureBulkEditAction :ids="selection.ids" />
 			</template>
 		</MultiSelectionInspector>
-		<RenovationInspector v-else-if="body === 'renovate'">
+		<template v-else-if="body === 'floor'">
+			<FloorInspector />
+			<GroupControls v-if="groupsShown" />
+		</template>
+		<component
+			:is="SLOTTED_BODIES[body]"
+			v-else
+		>
 			<template #actions>
 				<GroupControls v-if="groupsShown" />
 			</template>
-		</RenovationInspector>
-		<FloorInspector v-else-if="body === 'floor'" />
-		<StructureInspector v-else-if="body === 'structure'">
-			<template #actions>
-				<GroupControls v-if="groupsShown" />
-			</template>
-		</StructureInspector>
-		<ElementInspector v-else-if="body === 'element'">
-			<template #actions>
-				<GroupControls v-if="groupsShown" />
-			</template>
-		</ElementInspector>
-		<RoomInspector v-else>
-			<template #actions>
-				<GroupControls v-if="groupsShown" />
-			</template>
-		</RoomInspector>
-		<GroupControls v-if="selection.kind !== 'multiple' && groupsShown && body === 'floor'" />
+		</component>
 	</aside>
 </template>

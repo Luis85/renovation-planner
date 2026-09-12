@@ -7,6 +7,7 @@ import { EMPTY_RENOVATION } from '../domain/renovation/Renovation';
 import { planningServices, readPlanning, type PlanningDeps } from '../application/commands/renovation/PlanningServices';
 import { renovationLinkCheckAgainst } from '../application/commands/renovation/renovationLinkCheck';
 import { renovationServices } from '../application/commands/renovation/RenovationCommand';
+import { constructionAwareRenovation } from '../application/commands/renovation/ConstructionMaterialCommand';
 import { guardCommand } from '../application/errors/guardAgainstThrowing';
 import { ObsidianEvidenceFiles } from '../infrastructure/obsidian/repositories/ObsidianEvidenceFiles';
 import type { PlanEditorCommandServices } from '../presentation/editor/planEditorCommands';
@@ -33,14 +34,14 @@ export function planningEditorServices(root: CompositionRoot, vault: Vault, work
 		// (`validateTradeAssignments`, which diffs against the previous renovation) and
 		// `renovationLinkCheckAgainst` (materials + depth links) — run against the SAME read, so
 		// they cannot see different vault states.
-		renovation: guardedRenovation(renovationServices(persistence.plans, persistence.geometry, root.eventBus, async (plan, document) => {
+		renovation: guardedRenovation(constructionAwareRenovation(renovationServices(persistence.plans, persistence.geometry, root.eventBus, async (plan, document) => {
 			const fresh = await readPlanning(deps, plan.id);
 			if (!fresh.ok) return fresh;
 			const proposed = plan.renovation ?? EMPTY_RENOVATION;
 			const trades = await validateTradeAssignments(proposed, fresh.value.plan.entity.renovation ?? EMPTY_RENOVATION, persistence.trades);
 			if (!trades.ok) return trades;
 			return renovationLinkCheckAgainst(proposed, fresh.value, document);
-		}), root.logger),
+		}), deps), root.logger),
 		evidenceFiles: new ObsidianEvidenceFiles({ vault, workspace, cache: persistence.vaultDeps.metadataCache, index: persistence.index }),
 		shoppingNote: reviewNoteAction(vault, workspace, persistence.index, root.logger, 'shopping'),
 	};

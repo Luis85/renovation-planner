@@ -11,19 +11,26 @@
  * nested group's names) and its description is the localised kind; either attribute on the
  * inner row would never be read, since a description is not computed from descendants. The
  * inner button is `tabindex="-1"`; Enter/Space on the `li` is handled by the tree.
- * `data-rp-plan-id`/`data-rp-parent-id` are what the reorder increment's drag and menu key on.
+ *
+ * `data-rp-plan-id`/`data-rp-parent-id` are what `PropertyTree`'s drag and row menu key on — the
+ * handlers are delegated there, so this `li` only DECLARES: `draggable` while a reorder is
+ * offered, and `data-rp-drop` (`before`/`after`) on the one row the dragged plan would land
+ * beside, which the stylesheet draws as the drop indicator. Both are forwarded to the children.
  */
 import { useId } from 'vue';
 import HostIcon from '../../components/HostIcon.vue';
 import { tr } from '../../i18n/strings';
 import { PLAN_KIND_ICONS, PLAN_KIND_LABELS } from '../editorIcons';
 import type { PropertyTreeNode as Node } from '../../read-models/planHierarchy';
+import type { DropTarget } from './usePlanReorder';
 
 const props = defineProps<{
 	readonly node: Node;
 	readonly level: number;
 	readonly currentId: string;
 	readonly navigate?: (planId: string) => void;
+	readonly draggable?: boolean;
+	readonly dropAt?: DropTarget | null;
 }>();
 /** Unique across leaves: every view sets `app.config.idPrefix` (`nextAppIdPrefix`). */
 const labelId = useId();
@@ -39,6 +46,8 @@ const labelId = useId();
 		:tabindex="props.node.id === props.currentId ? 0 : -1"
 		:data-rp-plan-id="props.node.id"
 		:data-rp-parent-id="props.node.parentId ?? undefined"
+		:draggable="props.draggable || undefined"
+		:data-rp-drop="props.dropAt?.planId === props.node.id ? props.dropAt.edge : undefined"
 	>
 		<button
 			v-if="props.navigate && props.node.id !== props.currentId"
@@ -69,6 +78,8 @@ const labelId = useId();
 				:level="props.level + 1"
 				:current-id="props.currentId"
 				:navigate="props.navigate"
+				:draggable="props.draggable"
+				:drop-at="props.dropAt"
 			/>
 		</ul>
 	</li>

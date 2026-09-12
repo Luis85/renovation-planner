@@ -31,6 +31,10 @@
 .renovation-plan-editor button.rp-property-tree__project:hover,
 .renovation-plan-editor button.rp-property-tree__row:hover { background: var(--background-modifier-hover); }
 .renovation-plan-editor button.rp-property-tree__project:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+/* Drag to reorder: a grab cursor on a draggable row, and the drop indicator on the row the dragged plan would land beside. */
+.renovation-plan-editor [role="treeitem"][draggable="true"] > .rp-property-tree__row { cursor: grab; }
+.renovation-plan-editor [role="treeitem"][data-rp-drop="before"] > .rp-property-tree__row { box-shadow: inset 0 2px 0 var(--interactive-accent); }
+.renovation-plan-editor [role="treeitem"][data-rp-drop="after"] > .rp-property-tree__row { box-shadow: inset 0 -2px 0 var(--interactive-accent); }
 .renovation-plan-editor .rp-property-rooms .rp-editor-panel-subtitle,
 .renovation-plan-editor .rp-property-elements .rp-structure-list > h3 { display: none; }
 .renovation-plan-editor .rp-property-layers .rp-layer-list { margin-top: 4px; }

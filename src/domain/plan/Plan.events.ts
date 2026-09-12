@@ -29,6 +29,15 @@ export function planBackgroundChanged(payload: PlanEventPayload): PlanBackground
 	return { type: 'PlanBackgroundChanged', payload };
 }
 
+/** A Plan's kind or sibling order changed (ADR-0029) — what `UpdatePlanDetailsCommand` publishes. */
+export interface PlanDetailsChanged extends DomainEvent<'PlanDetailsChanged'> {
+	readonly payload: PlanEventPayload;
+}
+
+export function planDetailsChanged(payload: PlanEventPayload): PlanDetailsChanged {
+	return { type: 'PlanDetailsChanged', payload };
+}
+
 export function planCreated(payload: PlanEventPayload): PlanCreated {
 	return { type: 'PlanCreated', payload };
 }

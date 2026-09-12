@@ -187,4 +187,36 @@ describe('CreatePlanCommand', () => {
 		expect(expectOk(await s.plans.listByProject(s.project.id)).loaded.map((loaded) => loaded.entity.name)).toEqual(['Site']);
 		expect(s.events.published).toHaveLength(0);
 	});
+
+	it('assigns a new plan the order after its siblings, and takes an explicit kind and order', async () => {
+		const { projects, plans, zones, events, seed } = wired();
+		const project = await seed();
+		const command = new CreatePlanCommand(plans, projects, zones, events);
+		const first = expectOk(await command.execute({ projectId: project.id, name: 'Site', kind: 'site' }));
+		expect(first.plan.entity).toMatchObject({ kind: 'site', order: 0 });
+		const second = expectOk(await command.execute({ projectId: project.id, name: 'Garden' }));
+		expect(second.plan.entity).toMatchObject({ kind: 'floor', order: 1 });
+		const zone = makeZone({ projectId: project.id, planId: first.plan.entity.id });
+		await zones.save(zone, 'absent');
+		const child = expectOk(await command.execute({ projectId: project.id, name: 'House', parent: { planId: first.plan.entity.id, zoneId: zone.id }, kind: 'building' }));
+		// Siblings are counted under the PARENT, so the first child is 0 even with two roots.
+		expect(child.plan.entity).toMatchObject({ kind: 'building', order: 0 });
+		const explicit = expectOk(await command.execute({ projectId: project.id, name: 'Shed', order: 9 }));
+		expect(explicit.plan.entity.order).toBe(9);
+	});
+
+	it('surfaces a failed sibling listing instead of guessing an order', async () => {
+		const { projects, zones, events, seed } = wired();
+		const project = await seed();
+		class FailingList extends InMemoryPlanRepository {
+			override listByProject() {
+				return Promise.resolve(injectedReadFailure());
+			}
+		}
+		const error = expectErr(
+			await new CreatePlanCommand(new FailingList(), projects, zones, events).execute({ projectId: project.id, name: 'Site' }),
+		);
+		expect(error.code).toBe('test.injected-failure');
+		expect(events.published).toHaveLength(0);
+	});
 });

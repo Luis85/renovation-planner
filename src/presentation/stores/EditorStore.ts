@@ -65,7 +65,8 @@ type DragState = {
 /**
  * Editor-scoped EPHEMERAL state (SDD §15). Nothing here is persisted and nothing here is
  * canonical: a Plan Editor closed and reopened resets all of it, which is why the SDD
- * gives no requirement to remember a per-plan camera across sessions.
+ * gives no requirement to remember a per-plan camera across sessions. The one exception is
+ * `snappingEnabled`, which `PlanEditorRoot` seeds from the device's View preferences.
  *
  * This store defines the shape and drives only the viewport half; the rest is inert until
  * a concrete tool starts writing into it. Slice 6 added the framework a tool plugs into

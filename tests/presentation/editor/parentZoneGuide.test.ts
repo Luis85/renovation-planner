@@ -100,7 +100,7 @@ describe('explaining the guide on the canvas', () => {
 
 describe('framing a detail plan on its guide', () => {
 	it('fits an empty detail plan to its guide on first open, and Fit floor frames it while the reference layer is visible', async () => {
-		const harness = await mountPlanEditorCanvas(withGuide());
+		const harness = await mountPlanEditorCanvas({ ...withGuide(), openingFit: true });
 		await settle();
 		const editor = useEditorStore(harness.pinia);
 		const rect = expectDefined(harness.stage.findOne<Konva.Line>('.parent-zone-guide'), 'the guide').getClientRect();

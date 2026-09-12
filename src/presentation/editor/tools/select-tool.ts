@@ -146,10 +146,10 @@ export class SelectTool implements EditorTool {
 		this.context = null;
 	}
 
-	pointerDown(event: EditorPointerEvent): void {
-		const context = this.context;
+	pointerDown(input: EditorPointerEvent): void {
+		const context = this.context, event = this.withMode(input);
 		if (context === null || event.button !== 'primary') return;
-		context.renderState.rotationHoverSuppressed = event.modifiers.alt;
+		context.renderState.rotationHoverSuppressed = this.rotationSuppressed(event);
 
 		const { candidates, target, rotationControl } = this.targetAt(context, event);
 		// A press is exactly when the predicted hover stops meaning anything, on every path
@@ -203,6 +203,22 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = null;
 	}
 
+	/**
+	 * The "select multiple" mode reads as a held Shift, so a click and the hover predicting it
+	 * both choose rather than edit. Only the press and the hover: a move mid-gesture keeps the
+	 * physical Shift, which is the rotation snap there, not a selection modifier.
+	 */
+	private withMode(event: EditorPointerEvent): EditorPointerEvent {
+		return this.deps.multiSelectionMode?.() === true ? { ...event, modifiers: { ...event.modifiers, shift: true } } : event;
+	}
+	/**
+	 * Alt bypasses the rotation control, and so does the "select multiple" mode: a physical Shift
+	 * still rotates, but a touch user building a set has no Alt, and a tap inside the control's hit
+	 * zone would otherwise rotate or open the precise form instead of choosing.
+	 */
+	private rotationSuppressed(event: EditorPointerEvent): boolean {
+		return event.modifiers.alt || this.deps.multiSelectionMode?.() === true;
+	}
 	private focusSelectedMember(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
 		if (event.modifiers.shift || event.modifiers.alt || context.selection.selectedIds.length < 2 || !context.selection.isSelected(id as EntityId<string>)) return false;
 		if (!context.writesBlocked()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
@@ -251,8 +267,8 @@ export class SelectTool implements EditorTool {
 	}
 	private updateHover(context: EditorContext, event: EditorPointerEvent): void {
 		// Ordinary hover predicts the same body/handle as a click; affordance approach stays separate.
-		context.renderState.rotationHoverSuppressed = event.modifiers.alt;
-		const { target } = this.targetAt(context, event);
+		context.renderState.rotationHoverSuppressed = this.rotationSuppressed(event);
+		const { target } = this.targetAt(context, this.withMode(event));
 		context.renderState.rotationHoverId = target?.kind === 'rotation' ? target.id : this.approachingRotation(context, event) ?? target?.id ?? null;
 		context.renderState.hoveredObjectId = target === null ? null : target.id;
 		context.renderState.hoveredTargetKind = target === null ? null : target.kind;
@@ -372,7 +388,7 @@ export class SelectTool implements EditorTool {
 	 * gesture cost this method already exists to avoid.
 	 */
 	private approachingRotation(context: EditorContext, event: EditorPointerEvent): string | null {
-		if (event.modifiers.alt || !this.deps.rotationControls) return null;
+		if (this.rotationSuppressed(event) || !this.deps.rotationControls) return null;
 		const target = this.deps.rotationDisplayTarget?.();
 		return target && this.deps.rotationControls().some(control => rotationControlApproachContains(control, event.worldPoint, context.viewport.worldPerScreenPixel())) ? target.id : null;
 	}
@@ -394,8 +410,8 @@ export class SelectTool implements EditorTool {
 	private rotationAt(context: EditorContext, event: EditorPointerEvent) {
 		const selected = this.deps.rotationDisplayTarget ? this.deps.rotationDisplayTarget() : this.deps.rotationTarget?.();
 		const control = this.deps.rotationControls ? this.deps.rotationControls().find(candidate => rotationControlContains(candidate.bounds, event.worldPoint)) : this.deps.rotationControl?.();
-		const decoration = control && selected && this.deps.canRotateShape?.(selected.id) !== false && !context.writesBlocked() ? { id: selected.id, bounds: control.bounds } : undefined;
-		return { decoration, control, hit: decoration !== undefined && !event.modifiers.alt && rotationControlContains(decoration.bounds, event.worldPoint) };
+		const decoration = control && selected && this.deps.canRotateShape?.(selected.id) !== false && !context.writesBlocked() && !this.rotationSuppressed(event) ? { id: selected.id, bounds: control.bounds } : undefined;
+		return { decoration, control, hit: decoration !== undefined && rotationControlContains(decoration.bounds, event.worldPoint) };
 	}
 	private targetAt(
 		context: EditorContext,

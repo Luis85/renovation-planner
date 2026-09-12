@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { tr } from '../../i18n/strings';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
@@ -28,6 +28,13 @@ function toggleSnap(event: Event): void {
 	if (!blocked()) editor.snappingEnabled = input.checked;
 	input.checked = editor.snappingEnabled;
 }
+/** A press anywhere else closes the menu, in CAPTURE so the canvas's own `.stop` cannot hide it (as `AddMenu` does). */
+function outside(event: Event): void {
+	const menu = disclosure.value as HTMLDetailsElement;
+	if (menu.open && !menu.contains(event.target as Node)) menu.open = false;
+}
+onMounted(() => document.addEventListener('pointerdown', outside, { capture: true }));
+onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, { capture: true }));
 function escape(event: KeyboardEvent): void {
 	if (event.key !== 'Escape') return;
 	event.stopPropagation();
@@ -88,6 +95,11 @@ function escape(event: KeyboardEvent): void {
 				type="checkbox"
 				data-rp-view="grid"
 			>{{ tr('editor.view.grid') }}</label>
+			<label><input
+				v-model="workspace.northVisible"
+				type="checkbox"
+				data-rp-view="north"
+			>{{ tr('editor.view.north') }}</label>
 			<label><input
 				:checked="editor.snappingEnabled"
 				type="checkbox"

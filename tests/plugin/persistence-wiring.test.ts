@@ -87,7 +87,7 @@ describe('persistence composition', () => {
 		// to `MIGRATION_SET` and running this file is what proves it now.
 		expect(snapshot?.schemaVersions).toEqual({
 			project: 1,
-			plan: 10,
+			plan: 11,
 			trade: 1,
 			supplier: 1,
 			quote: 1,

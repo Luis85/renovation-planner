@@ -73,6 +73,25 @@ function validateBackground(background: PlanBackgroundRef | null): Result<void, 
 	return ok(undefined);
 }
 
+/** A bearing is whole degrees clockwise from the plan's up; absent means nobody has set one. */
+function validNorth(north: number | undefined): boolean {
+	return north === undefined || (Number.isInteger(north) && north >= 0 && north < 360);
+}
+
+/**
+ * The bearing and the parent link, checked together for one reason only: `create` sat AT its
+ * complexity cap before north arrived, and each check taken out of it is a branch it gets back.
+ */
+function validateNorthAndParent(props: CreatePlanProps): Result<void, ValidationError> {
+	if (!validNorth(props.north)) {
+		return err(planError('invalid-north', 'North must be a whole number of degrees from 0 to 359.'));
+	}
+	if (props.parent && props.parent.planId === props.id) {
+		return err(planError('parent-is-self', 'A plan cannot detail a zone of itself.'));
+	}
+	return ok(undefined);
+}
+
 export interface CreatePlanProps {
 	readonly spatialElements?: readonly SpatialElementMetadata[];
 	readonly renovation?: Renovation;
@@ -84,9 +103,12 @@ export interface CreatePlanProps {
 	readonly parent?: PlanParent | null;
 	readonly kind?: PlanKind;
 	readonly order?: number;
+	/** Whole degrees clockwise from the plan's up, 0–359; absent while nobody has set one. */
+	readonly north?: number;
 }
 
 interface PlanFields {
+	readonly north?: number;
 	readonly spatialElements?: readonly SpatialElementMetadata[];
 	readonly renovation?: Renovation;
 	readonly id: PlanId;
@@ -118,8 +140,10 @@ export class Plan {
 	readonly parent: PlanParent | null;
 	readonly kind: PlanKind;
 	readonly order: number;
+	readonly north?: number;
 
 	private constructor(fields: PlanFields) {
+		this.north = fields.north;
 		this.spatialElements = fields.spatialElements;
 		this.renovation = fields.renovation;
 		this.id = fields.id;
@@ -141,8 +165,9 @@ export class Plan {
 			const valid = validateRenovation(props.renovation);
 			if (!valid.ok) return valid;
 		}
-		if (props.parent && props.parent.planId === props.id) {
-			return err(planError('parent-is-self', 'A plan cannot detail a zone of itself.'));
+		const linked = validateNorthAndParent(props);
+		if (!linked.ok) {
+			return linked;
 		}
 		const details = resolveDetails(props, { kind: DEFAULT_PLAN_KIND, order: 0 });
 		if (!details.ok) {
@@ -163,6 +188,7 @@ export class Plan {
 		}
 		return ok(
 			new Plan({
+				north: props.north,
 				spatialElements: props.spatialElements?.map(item => ({ ...item, name: item.name.trim() })),
 				renovation: props.renovation,
 				id: props.id,
@@ -233,6 +259,7 @@ export class Plan {
 
 	private fields(): PlanFields {
 		return {
+			north: this.north,
 			spatialElements: this.spatialElements,
 			renovation: this.renovation,
 			id: this.id,
@@ -250,6 +277,10 @@ export class Plan {
 
 export function withPlanRenovation(plan: Plan, renovation: Renovation | undefined): Result<Plan, ValidationError> {
 	return Plan.create({ ...plan, renovation });
+}
+
+export function withPlanNorth(plan: Plan, north: number | undefined): Result<Plan, ValidationError> {
+	return Plan.create({ ...plan, north });
 }
 
 export function withPlanSpatialElements(plan: Plan, spatialElements: readonly SpatialElementMetadata[] | undefined): Result<Plan, ValidationError> {

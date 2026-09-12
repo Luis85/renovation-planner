@@ -25,6 +25,15 @@ export interface PlanBackgroundChanged extends DomainEvent<'PlanBackgroundChange
 	readonly payload: PlanEventPayload;
 }
 
+/** A Plan's north bearing changed — what `SetPlanNorth` publishes, on a write and on its undo. */
+export interface PlanNorthChanged extends DomainEvent<'PlanNorthChanged'> {
+	readonly payload: PlanEventPayload;
+}
+
+export function planNorthChanged(payload: PlanEventPayload): PlanNorthChanged {
+	return { type: 'PlanNorthChanged', payload };
+}
+
 export function planBackgroundChanged(payload: PlanEventPayload): PlanBackgroundChanged {
 	return { type: 'PlanBackgroundChanged', payload };
 }

@@ -20,7 +20,6 @@ import ZoneLockToggle from './ZoneLockToggle.vue';
 defineProps<{
 	readonly records: readonly SpatialRecordDto[];
 	readonly heading: string;
-	readonly toggleSelection?: boolean;
 	readonly annotations?: ReadonlyMap<string, string>;
 }>();
 
@@ -54,7 +53,7 @@ function isSelected(id: string): boolean {
 				:class="{ 'rp-room-list__row--annotated': annotations?.has(record.id) }"
 				:data-rp-id="record.id"
 				:aria-pressed="isSelected(record.id)"
-				@click="runtime.selectAndFrame(record.id, toggleSelection === true || $event.shiftKey)"
+				@click="runtime.selectAndFrame(record.id, $event.shiftKey)"
 			>
 				<span>{{ record.name }}</span>
 				<span class="rp-room-list__area">{{ formatArea(record.areaMm2) }}</span>

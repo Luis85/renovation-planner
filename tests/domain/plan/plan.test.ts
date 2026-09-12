@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Calibration } from '../../../src/domain/plan/Calibration';
-import { Plan } from '../../../src/domain/plan/Plan';
+import { Plan, withPlanNorth } from '../../../src/domain/plan/Plan';
 import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { childKindOf, DEFAULT_PLAN_KIND, isPlanKind, PLAN_KINDS } from '../../../src/domain/plan/PlanKind';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
@@ -18,6 +18,17 @@ describe('Plan parent', () => {
 		expect(expectOk(plan.withCalibration(null)).parent).toEqual(parent);
 		expect(expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'Site' })).parent).toBeNull();
 		expect(expectErr(Plan.create({ id, projectId: projectId(), name: 'Loop', parent: { ...parent, planId: id } })).code).toBe('plan.parent-is-self');
+	});
+});
+
+describe('Plan north', () => {
+	it('keeps a whole-degree bearing through every with-method, and refuses anything else', () => {
+		const plan = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'House', north: 90 }));
+		expect(expectOk(plan.withBackground(null)).north).toBe(90);
+		expect(expectOk(plan.withCalibration(null)).north).toBe(90);
+		expect(expectOk(withPlanNorth(plan, 0)).north).toBe(0);
+		expect(expectOk(withPlanNorth(plan, undefined)).north).toBeUndefined();
+		for (const north of [-15, 360, 12.5]) expect(expectErr(withPlanNorth(plan, north)).code).toBe('plan.invalid-north');
 	});
 });
 
@@ -117,6 +128,8 @@ describe('Plan kind and order', () => {
 		const site = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'Site', kind: 'site', order: 3 }));
 		expect(expectOk(site.withBackground(null))).toMatchObject({ kind: 'site', order: 3 });
 		expect(expectOk(site.withCalibration(null))).toMatchObject({ kind: 'site', order: 3 });
+		expect(expectOk(withPlanNorth(site, 90))).toMatchObject({ kind: 'site', order: 3, north: 90 });
+		expect(expectOk(site.withDetails({ order: 4 })).north).toBeUndefined();
 	});
 
 	it('withDetails re-validates and leaves the parent alone', () => {

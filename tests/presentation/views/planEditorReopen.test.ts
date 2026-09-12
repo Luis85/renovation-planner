@@ -33,6 +33,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ok } from '../../../src/core/result/Result';
 import { PlanEditorView, type PlanEditorDeps } from '../../../src/presentation/views/PlanEditorView';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../src/presentation/editor/runtime';
+import type { Pinia } from 'pinia';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { DEFAULT_VIEWPORT } from '../../../src/presentation/editor/viewport/Viewport';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
@@ -152,6 +155,11 @@ async function openOn(planId: string, viewDeps: PlanEditorDeps): Promise<PlanEdi
 	if (canvas !== null) {
 		placeAt(canvas, 0, 0, 800, 600);
 		resizeTo(canvas, 800, 600);
+		await settle();
+		// Back to the default camera after the opening fit, as `mountPlanEditor` does: the drags
+		// below are screen coordinates worked out against it.
+		const app = (view as unknown as { vueApp: { config: { globalProperties: { $pinia: Pinia } } } }).vueApp;
+		useEditorStore(app.config.globalProperties.$pinia).viewport = DEFAULT_VIEWPORT;
 		await settle();
 	}
 	return view;

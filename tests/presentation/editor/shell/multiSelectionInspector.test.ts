@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
+import { STAGE_PIXELS, worldToScreen } from '../../../../src/presentation/editor/viewport/Viewport';
 import { mountPlanEditorCanvas, runtimeOf, settle, type CanvasHarness } from '../../../helpers/editor';
 import { resizeTo } from '../../../helpers/layout';
 import { click } from '../../../helpers/planEditorRig';
@@ -127,6 +128,42 @@ describe('Editor selection across the list, canvas and Inspector', () => {
 		await harness.wrapper.find('.rp-overlay-panel [data-rp-id="zone-terrace"]').trigger('click');
 		await settle();
 		expect(useSelectionStore().selectedIds).toEqual(['zone-kitchen', 'zone-terrace']);
+	});
+	it('applies the list\'s "select multiple" mode to plain clicks on the plan too', async () => {
+		harness = await mountPlanEditorCanvas();
+		await harness.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]').setValue(true);
+		// Inside the kitchen rectangle, then inside the terrace triangle, in world millimetres.
+		for (const world of [{ x: 2000, y: 1500 }, { x: 7000, y: 500 }]) {
+			const at = worldToScreen(world, useEditorStore().viewport, STAGE_PIXELS);
+			click(harness.canvasEl, at.x, at.y);
+		}
+		await settle();
+		expect(useSelectionStore().selectedIds).toEqual(['zone-kitchen', 'zone-terrace']);
+	});
+	it('keeps the "select multiple" control reachable while it is on, even once one room remains', async () => {
+		harness = await mountPlanEditorCanvas();
+		await harness.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]').setValue(true);
+		const project = useProjectStore();
+		project.zones = new Map([...project.zones].slice(0, 1));
+		await settle();
+		const mode = harness.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]');
+		expect((mode.element as HTMLInputElement).checked).toBe(true);
+		await mode.setValue(false);
+		expect(runtimeOf(harness).multiSelectionMode.value).toBe(false);
+		await settle();
+		expect(harness.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]').exists()).toBe(false);
+	});
+	it('offers the "select multiple" control once walls, not only rooms, make a set', async () => {
+		harness = await mountPlanEditorCanvas();
+		const project = useProjectStore();
+		project.zones = new Map([...project.zones].slice(0, 1));
+		project.structure = { ...project.structure, walls: [], openings: [], elements: [] };
+		await settle();
+		const offered = () => harness?.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]').exists();
+		expect(offered()).toBe(false);
+		project.structure = { ...project.structure, walls: [{ id: 'wall-a', start: { x: 0, y: 0 }, end: { x: 1000, y: 0 }, height: 2400, thickness: 150 }] };
+		await settle();
+		expect(offered()).toBe(true);
 	});
 	it('closes Add before clearing a multi-selection', async () => {
 		harness = await mountPlanEditorCanvas();

@@ -29,6 +29,7 @@ const PLAN_CHANGE_EVENTS = [
 	'PlanBackgroundChanged',
 	'PlanCalibrated',
 	'PlanDetailsChanged',
+	'PlanNorthChanged',
 	'ZoneCreated',
 	'ZoneGeometryChanged',
 	'ZoneRenamed',

@@ -9,9 +9,14 @@ import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { PlanFrontmatterSchema, PLAN_TYPE, type PlanFrontmatterDTO } from '../dto/planFrontmatter';
 import type { PlanGeometryDTO } from '../dto/planGeometry';
 import { parsePersisted } from './parse';
+/** The lowest version that still makes an older writer refuse the note rather than strip a fact it carries. */
 function planSchemaVersion(plan: Plan): number {
-	if (plan.kind !== DEFAULT_PLAN_KIND || plan.order !== 0) return 10;
-	if (plan.parent) return 9;
+	if (plan.kind !== DEFAULT_PLAN_KIND || plan.order !== 0) return 11;
+	if (plan.north !== undefined) return 10;
+	return plan.parent ? 9 : renovationSchemaVersion(plan);
+}
+
+function renovationSchemaVersion(plan: Plan): number {
 	const { work, depth = EMPTY_DEPTH } = plan.renovation ?? EMPTY_RENOVATION;
 	if (depth.evidence.some(item => item.date !== undefined)) return 8;
 	if (work.some(item => item.responsibility === 'trade' || item.schedule !== undefined)) return 7;
@@ -46,6 +51,17 @@ export function planToPersistence(plan: Plan, revision: number): Record<string, 
 		layers: [...plan.layers],
 		...(background?.appearance ? { 'reference-appearance': background.appearance } : {}),
 		...(plan.parent ? { 'parent-plan': plan.parent.planId, 'parent-zone': plan.parent.zoneId } : {}),
+		...labelKeys(plan),
+	};
+}
+
+/**
+ * The v10/v11 keys, written only when they carry a non-default fact so an untouched note stays
+ * byte-identical; a helper because `planToPersistence` was one branch over its complexity cap.
+ */
+function labelKeys(plan: Plan): Record<string, unknown> {
+	return {
+		...(plan.north !== undefined ? { north: plan.north } : {}),
 		...(plan.kind !== DEFAULT_PLAN_KIND ? { kind: plan.kind } : {}),
 		...(plan.order !== 0 ? { order: plan.order } : {}),
 	};
@@ -83,6 +99,7 @@ function fromDto(
 				}
 			: null,
 		layers: dto.layers,
+		north: dto.north,
 		parent: parentPlan !== undefined && parentZone !== undefined && !selfParent ? { planId: parentPlan as Plan['id'], zoneId: parentZone as ZoneId } : null,
 		// The cast is the trust boundary: `Plan.create` refuses a string outside `PLAN_KINDS`.
 		...(dto.kind !== undefined ? { kind: dto.kind as PlanKind } : {}),

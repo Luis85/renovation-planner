@@ -34,11 +34,12 @@ export function validateRenovationTargets(value: Renovation, context: Renovation
 	const rooms = new Set(context.roomIds);
 	const current = spatialIds(context.structure, context.roomIds);
 	const intended = spatialIds(context.intended ?? context.structure, context.roomIds);
+	const materialStructures = [context.structure ?? EMPTY_STRUCTURE, context.intended ?? context.structure ?? EMPTY_STRUCTURE];
 	for (const subject of value.subjects) {
 		if (!validPrimaryRoom(subject, rooms)) return err(renovationError('room-missing'));
-		if (!materialTargetFits(subject, [context.structure ?? EMPTY_STRUCTURE, context.intended ?? context.structure ?? EMPTY_STRUCTURE])) return err(renovationError('material-target'));
 		if (subject.existing && !current.has(subject.targetId)) return err(renovationError('source-missing'));
 		if (subject.planned && subject.planned.change !== 'remove' && !intended.has(subject.targetId)) return err(renovationError('target-missing'));
+		if (!materialTargetFits(subject, materialStructures)) return err(renovationError('material-target'));
 	}
 	const present = (id: string) => current.has(id) || intended.has(id);
 	if ([...depthRecords(value.depth ?? EMPTY_DEPTH), ...value.work].some(item => missingContext(item, rooms, present))) return err(renovationError('target-missing'));

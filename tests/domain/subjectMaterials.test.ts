@@ -26,6 +26,11 @@ describe('a wall or opening material (ADR-0031)', () => {
 		expect(targets({ ...wall, targetId: 'door' })).toMatchObject({ ok: false, error: { code: 'renovation.material-target' } });
 		expect(targets({ ...wall, id: 'detail-door', kind: 'door', targetId: 'door' }).ok).toBe(true);
 	});
+	it('reports the missing target, not the wrong-target message, for a material whose wall no longer exists', () => {
+		const targets = (subject: RenovationSubject) => validateRenovationTargets({ ...EMPTY_RENOVATION, subjects: [subject] }, { roomIds: [], structure });
+		const plannedOnly: RenovationSubject = { id: 'detail-wall-gone', targetId: 'wall-ghost', kind: 'wall', existing: null, planned: { change: 'add', description: 'New wall', assetId: 'asset-brick' } };
+		expect(targets(plannedOnly)).toMatchObject({ ok: false, error: { code: 'renovation.target-missing' } });
+	});
 	it.each([['wall', 'm2', 'wall-net'], ['wall', 'm', 'wall-length'], ['wall', 'm3', 'wall-volume'], ['wall', 'piece', null], ['opening', 'piece', 'count'], ['opening', 'm2', 'opening-area'], ['opening', 'm', null]] as const)('measures a %s material priced per %s with %s', (target, unit, rule) => {
 		expect(constructionRule(target, unit)).toBe(rule);
 	});

@@ -23,6 +23,7 @@ const catalogue = computed(() => runtime.planning.baseline.value?.catalogue);
 const materialName = (assetId: string | undefined) => assetId === undefined ? undefined : catalogue.value?.find(item => item.asset.id === assetId)?.asset.name ?? tr('renovation.material.unknown');
 const materials = computed(() => catalogue.value ? { existing: materialName(subject.value?.existing?.assetId), planned: subject.value?.planned?.assetId !== subject.value?.existing?.assetId ? materialName(subject.value?.planned?.assetId) : undefined } : null);
 async function setMaterial(): Promise<void> {
+	if (runtime.renovation.blocked.value) return;
 	const planned = session.perspective === 'renovate' && session.mode === 'planned';
 	runtime.renovation.focus(session.roomId, planned ? 'planned' : 'existing');
 	await runtime.renovation.edit(planned ? 'planned' : 'existing', session.roomId, subject.value?.id ?? '');

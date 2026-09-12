@@ -46,6 +46,13 @@ function proposal() {
 	const planned = editing.subject.planned;
 	if (planned?.change === 'remove') editing.subject = { ...editing.subject, planned: { change: 'remove', description: '' } };
 	if (planned?.change === 'unchanged') editing.subject = { ...editing.subject, planned: { change: 'unchanged', description: editing.subject.existing?.description ?? '', ...(editing.subject.existing?.assetId ? { assetId: editing.subject.existing.assetId } : {}) } };
+	// A material is only valid on a wall, door or window (ADR-0031): a kind change away from
+	// those drops it here rather than leaving a stale assetId for `validMaterials` to refuse.
+	if (!['wall', 'door', 'window'].includes(editing.subject.kind)) {
+		editing.subject = { ...editing.subject,
+			existing: editing.subject.existing && { ...editing.subject.existing, assetId: undefined },
+			planned: editing.subject.planned && { ...editing.subject.planned, assetId: undefined } };
+	}
 	const input = applyRenovationDraft(props.baseline, editing);
 	return editing.kind === 'planned' ? applyPlannedGeometry(props.baseline, input, editing.subject, geometry.value) : { ok: true as const, value: input };
 }

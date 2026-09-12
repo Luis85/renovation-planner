@@ -4,7 +4,7 @@ import type { Plan } from '../../../domain/plan/Plan';
 import { EMPTY_RENOVATION, type Renovation, type RenovationSubject } from '../../../domain/renovation/Renovation';
 import type { PlanGeometryDocument } from '../../ports/PlanGeometrySidecar';
 import { referenceError } from '../../errors';
-import { readPlanning, type PlanningDeps } from './materialPlanning';
+import { readPlanning, type PlanningBaseline, type PlanningDeps } from './materialPlanning';
 import { validateDepthLinks } from './planningLinks';
 
 const materialIds = (subject: RenovationSubject): string[] => [subject.existing?.assetId, subject.planned?.assetId].filter((id): id is string => !!id);
@@ -15,15 +15,21 @@ export function introducedUnknownMaterials(proposed: Renovation, current: Renova
 	return [...new Set(proposed.subjects.flatMap(materialIds))].filter(id => !known.has(id) && !before.has(id));
 }
 
+/** The material and depth-link check against an already-fetched planning read, so a caller that
+ * already holds a fresh read (e.g. beside the trade check, which needs one too) can share it
+ * instead of reading the plan again. */
+export function renovationLinkCheckAgainst(proposed: Renovation, fresh: PlanningBaseline, document: PlanGeometryDocument): Result<void, AppError> {
+	const unknown = introducedUnknownMaterials(proposed, fresh.plan.entity.renovation ?? EMPTY_RENOVATION, new Set(fresh.catalogue.map(item => item.asset.id as string)));
+	if (unknown.length) return err(referenceError('renovation.material-missing', `No catalogue asset ${unknown.join(', ')}.`));
+	const links = validateDepthLinks(proposed, { ...fresh, geometry: { ...fresh.geometry, document } });
+	return links.ok ? ok(undefined) : links;
+}
+
 /** The renovation write's link check, against a fresh planning read of the same plan. */
 export function renovationLinkCheck(deps: PlanningDeps) {
 	return async (plan: Plan, document: PlanGeometryDocument): Promise<Result<void, AppError>> => {
 		const fresh = await readPlanning(deps, plan.id);
 		if (!fresh.ok) return fresh;
-		const proposed = plan.renovation ?? EMPTY_RENOVATION;
-		const unknown = introducedUnknownMaterials(proposed, fresh.value.plan.entity.renovation ?? EMPTY_RENOVATION, new Set(fresh.value.catalogue.map(item => item.asset.id as string)));
-		if (unknown.length) return err(referenceError('renovation.material-missing', `No catalogue asset ${unknown.join(', ')}.`));
-		const links = validateDepthLinks(proposed, { ...fresh.value, geometry: { ...fresh.value.geometry, document } });
-		return links.ok ? ok(undefined) : links;
+		return renovationLinkCheckAgainst(plan.renovation ?? EMPTY_RENOVATION, fresh.value, document);
 	};
 }

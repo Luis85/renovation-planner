@@ -92,3 +92,26 @@ it('sets a wall material from the Inspector and shows its name', async () => {
 	await settleUntil(() => rig.project.plan?.renovation?.subjects[0]?.existing?.assetId === brick.id, 'material saved');
 	expect(rig.wrapper.get('.rp-structure-inspector').text()).toContain('Clinker brick');
 });
+
+it('clears a subject\'s material when its kind stops being wall, door or window', async () => {
+	const rig = await setup();
+	const brick = expectOk(await rig.stack.assets.save(makeAsset({ name: 'Clinker brick', unit: 'm2', category: 'material' }), 'absent')).entity;
+	await rig.runtime.refreshProjection();
+	await settleUntil(() => rig.runtime.planning.baseline.value?.catalogue.some(item => item.asset.id === brick.id) === true, 'catalogue read');
+	rig.selection.select(['wall-a' as never]); await settle();
+	await rig.wrapper.get('[data-rp-action="set-material"]').trigger('click'); await settle();
+	const setup1 = rig.wrapper.get('[data-rp-form="renovation"]');
+	await setup1.get('select[name="material"]').setValue(brick.id);
+	await setup1.trigger('submit'); await setup1.trigger('submit');
+	await settleUntil(() => rig.project.plan?.renovation?.subjects[0]?.existing?.assetId === brick.id, 'material saved');
+
+	await rig.wrapper.get('[data-rp-action="set-material"]').trigger('click'); await settle();
+	const form = rig.wrapper.get('[data-rp-form="renovation"]');
+	await form.findAll('select')[0].setValue('other');
+	await form.trigger('submit'); await form.trigger('submit');
+	await settleUntil(() => rig.project.plan?.renovation?.subjects[0]?.kind === 'other', 'kind changed');
+	const subject = expectDefined(rig.project.plan?.renovation?.subjects[0], 'subject');
+	expect(subject.existing?.assetId).toBeUndefined();
+	expect(subject.planned?.assetId).toBeUndefined();
+	expect(rig.wrapper.find('[data-rp-form="renovation"] [role="alert"]').exists()).toBe(false);
+});

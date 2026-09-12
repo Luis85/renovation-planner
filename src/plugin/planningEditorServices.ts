@@ -5,7 +5,7 @@ import type { PlanId } from '../domain/plan/PlanId';
 import type { Vault, Workspace } from 'obsidian';
 import { EMPTY_RENOVATION } from '../domain/renovation/Renovation';
 import { planningServices, readPlanning, type PlanningDeps } from '../application/commands/renovation/PlanningServices';
-import { renovationLinkCheck } from '../application/commands/renovation/renovationLinkCheck';
+import { renovationLinkCheckAgainst } from '../application/commands/renovation/renovationLinkCheck';
 import { renovationServices } from '../application/commands/renovation/RenovationCommand';
 import { guardCommand } from '../application/errors/guardAgainstThrowing';
 import { ObsidianEvidenceFiles } from '../infrastructure/obsidian/repositories/ObsidianEvidenceFiles';
@@ -29,15 +29,17 @@ export function planningEditorServices(root: CompositionRoot, vault: Vault, work
 			const undo = guardCommand({ execute: () => command.undo() }, 'material.undo.failed', root.logger, VAULT_EXCEPTION_MAPPER);
 			return { execute: () => execute.execute(undefined), undo: () => undo.execute(undefined) };
 		} },
-		// Two fresh planning reads per write: the trade check needs its own (`validateTradeAssignments`
-		// compares against the vault's current work, not the proposed one), and `renovationLinkCheck`
-		// keeps its own read so the plugin and the test harness call the identical shared function.
+		// One fresh planning read per write, shared by both checks that need one: the trade check
+		// (`validateTradeAssignments`, which diffs against the previous renovation) and
+		// `renovationLinkCheckAgainst` (materials + depth links) — run against the SAME read, so
+		// they cannot see different vault states.
 		renovation: guardedRenovation(renovationServices(persistence.plans, persistence.geometry, root.eventBus, async (plan, document) => {
 			const fresh = await readPlanning(deps, plan.id);
 			if (!fresh.ok) return fresh;
-			const trades = await validateTradeAssignments(plan.renovation ?? EMPTY_RENOVATION, fresh.value.plan.entity.renovation ?? EMPTY_RENOVATION, persistence.trades);
+			const proposed = plan.renovation ?? EMPTY_RENOVATION;
+			const trades = await validateTradeAssignments(proposed, fresh.value.plan.entity.renovation ?? EMPTY_RENOVATION, persistence.trades);
 			if (!trades.ok) return trades;
-			return renovationLinkCheck(deps)(plan, document);
+			return renovationLinkCheckAgainst(proposed, fresh.value, document);
 		}), root.logger),
 		evidenceFiles: new ObsidianEvidenceFiles({ vault, workspace, cache: persistence.vaultDeps.metadataCache, index: persistence.index }),
 		shoppingNote: reviewNoteAction(vault, workspace, persistence.index, root.logger, 'shopping'),

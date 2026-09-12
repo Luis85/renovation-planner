@@ -23,7 +23,7 @@ describe('linear element production paths', () => {
 			const saved = expectDefined(r.project.structure.elements?.[0], 'saved element');
 			expect(saved).toMatchObject({ kind, points: [{ x: -1250, y: 2000 }, { x: 3750, y: 2000 }] });
 			expect(r.selection.selectedIds).toEqual([saved.id]); expect(r.wrapper.get('.rp-element-inspector').text()).toContain('Garden route');
-			await r.wrapper.get('[data-rp-action="edit-element"]').trigger('click'); await settle();
+			await r.wrapper.get('.rp-element-inspector .rp-inspector-actions > .rp-inspector-action[data-rp-action="edit-element"]').trigger('click'); await settle();
 			await r.wrapper.get('[data-rp-form="outline-points"] input[name="name"]').setValue('Side route');
 			await r.wrapper.get('[data-rp-form="outline-points"] input[name="1.x"]').setValue('4,75');
 			await r.wrapper.get('[data-rp-form="outline-points"]').trigger('submit'); await settle();

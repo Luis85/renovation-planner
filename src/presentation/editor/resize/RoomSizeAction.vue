@@ -17,6 +17,7 @@ const project = useProjectStore();
 	<button
 		v-if="roomDimensions(points, project.zones.get(zoneId)?.bulges) !== null"
 		type="button"
+		class="rp-inspector-action"
 		data-rp-action="resize-room"
 		:aria-disabled="runtime.resizeRoomBlocked.value"
 		@click="runInspectorAction($event, 'resize-room', () => runtime.resizeRoom(zoneId))"

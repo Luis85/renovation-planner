@@ -111,6 +111,8 @@
 @import "./project-work.css";
 @import "./editor-reference-viewport.css";
 @import "./editor-shell-fidelity.css";
+@import "./editor-side-panel.css";
+@import "./editor-inspector-skeleton.css";
 @import "./editor-creation-fidelity.css";
 /*
  * AFTER every partial that styles an editor button or overlay, so the task bar's own rules are

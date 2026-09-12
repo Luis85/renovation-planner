@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { defaultLayerVisibility, type KonvaLayerId } from '../editor/scene/KonvaLayers';
 import type { LayoutMode } from '../editor/shell/layoutMode';
+import { clampPanelWidth, defaultPanelLayout, type PanelLayout, type PanelSide, type PanelState } from '../editor/shell/panelLayout';
 
 /**
  * Editor CHROME state (SDD §14): the per-Konva-layer visibility toggles the Layers panel
@@ -10,13 +11,15 @@ import type { LayoutMode } from '../editor/shell/layoutMode';
  * Layer visibility is a pure RENDERING concern and not an edit — hiding the annotation
  * layer changes nothing persisted, which is why it belongs in an ephemeral store rather
  * than going through a command. Layout mode and overlay state are the same. Nothing here
- * reaches a repository, and reopening a Plan Editor starts from the defaults — except
- * `gridVisible`, which `PlanEditorRoot` seeds from and writes back to the device's
- * `PlanEditorContext.viewPreferences`.
+ * reaches a repository, and reopening a Plan Editor starts from the defaults — except two
+ * things that outlive the leaf, each in its own per-device slot: `gridVisible`, which
+ * `PlanEditorRoot` seeds from and writes back to `PlanEditorContext.viewPreferences`, and the
+ * side panels' layout below.
  *
- * **Which FULL-mode panels are open is deliberately not here** (2026-09-04, spec §5.6, R11).
- * Full-mode panels remain visible. The View menu owns grid visibility and automatic object
- * snapping; neither changes the floor or a saved record. Each leaf has its own Pinia scope.
+ * **The full-mode side panels' widths and collapsed state ARE here** (2026-09-12 side panels
+ * spec): `ResponsiveEditorShell` restores them from `PlanEditorContext.panelLayout` on mount and
+ * writes them back on every committed change. The store itself still reaches no repository. The View menu owns grid visibility and automatic
+ * object snapping; neither changes the floor or a saved record. Each leaf has its own Pinia scope.
  */
 export const useWorkspaceStore = defineStore('workspace', () => {
 	const layerVisibility = ref<Record<KonvaLayerId, boolean>>(defaultLayerVisibility());
@@ -36,6 +39,18 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
 	function toggleNotes(): void {
 		notesVisible.value = !notesVisible.value;
+	}
+
+	/** Both side panels in the full layout — see `panelLayout.ts`. Replaced, never mutated. */
+	const panelLayout = ref<PanelLayout>(defaultPanelLayout());
+
+	function setPanel(side: PanelSide, patch: Partial<PanelState>): void {
+		const next = { ...panelLayout.value[side], ...patch };
+		panelLayout.value = { ...panelLayout.value, [side]: { width: clampPanelWidth(side, next.width), collapsed: next.collapsed } };
+	}
+
+	function restorePanelLayout(layout: PanelLayout): void {
+		panelLayout.value = layout;
 	}
 
 	/**
@@ -72,6 +87,17 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	}
 
 	/**
+	 * The ONE reveal for a task whose form or target lives in the Inspector: the overlay in
+	 * `constrained`, the panel itself otherwise, where a collapsed Inspector hides the form in a
+	 * `display: none` body. The expand is the task's rather than the user's, so nothing here writes
+	 * storage — `ResponsiveEditorShell` persists only the user's own commits.
+	 */
+	function revealInspector(): void {
+		if (layoutMode.value === 'constrained') overlay.value = 'inspector';
+		else setPanel('inspector', { collapsed: false });
+	}
+
+	/**
 	 * Every layer visible and the layout back at its default — the state a Plan Editor opens in.
 	 *
 	 * Nothing here is persisted either, so "reset" means the same thing it means in
@@ -92,6 +118,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		layoutMode.value = 'full';
 		overlay.value = 'none';
 		notesVisible.value = true;
+		panelLayout.value = defaultPanelLayout();
 	}
 
 	return {
@@ -106,6 +133,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		setLayoutMode,
 		openOverlay,
 		closeOverlay,
+		revealInspector,
+		panelLayout,
+		setPanel,
+		restorePanelLayout,
 		reset,
 	};
 });

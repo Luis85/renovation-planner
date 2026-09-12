@@ -91,7 +91,9 @@ const count = (value: number): string => String(value);
 		>
 			{{ tr('editor.input.detail-plan-guide-explainer', guide) }}
 		</p>
-		<ReferenceAction />
+		<div class="rp-inspector-primary">
+			<ReferenceAction />
+		</div>
 		<section
 			v-if="starting"
 			class="rp-floor-setup"

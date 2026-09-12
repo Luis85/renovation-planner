@@ -9,6 +9,7 @@ import StructureRenovationEntry from './StructureRenovationEntry.vue';
 import { useOpeningMoveAction } from './useOpeningMoveAction';
 import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 import CurveAction from '../curves/CurveAction.vue';
+import HostIcon from '../../components/HostIcon.vue';
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const moveOpening = useOpeningMoveAction();
 const id = computed(() => String(selection.selectedIds[0]));
@@ -37,39 +38,55 @@ async function act(event: Event, remove: boolean): Promise<void> {
 			:opening="opening"
 			:rooms="rooms"
 		/>
-		<button
-			type="button"
-			:aria-disabled="paused"
-			data-rp-action="edit-structure"
-			@click="act($event, false)"
-		>
-			{{ tr('editor.structure.edit') }}
-		</button>
-		<button
-			v-if="opening"
-			type="button"
-			:aria-disabled="!runtime.openingMove.available.value"
-			data-rp-action="move-opening"
-			@click="moveOpening(id, $event.currentTarget as HTMLElement)"
-		>
-			{{ tr('editor.opening-move.action') }}
-		</button>
-		<details>
-			<summary>{{ tr('editor.structure.more') }}</summary>
+		<div class="rp-inspector-actions">
+			<button
+				type="button"
+				class="rp-inspector-action"
+				:aria-disabled="paused"
+				data-rp-action="edit-structure"
+				@click="act($event, false)"
+			>
+				{{ tr('editor.structure.edit') }}
+			</button>
+			<button
+				v-if="opening"
+				type="button"
+				class="rp-inspector-action"
+				:aria-disabled="!runtime.openingMove.available.value"
+				data-rp-action="move-opening"
+				@click="moveOpening(id, $event.currentTarget as HTMLElement)"
+			>
+				{{ tr('editor.opening-move.action') }}
+			</button>
+		</div>
+		<details class="rp-inspector-more">
+			<summary>
+				<span>{{ tr('editor.structure.more') }}</span>
+				<HostIcon
+					name="chevron-down"
+					class="rp-sidebar-section__chevron"
+				/>
+			</summary>
 			<ObjectRotationControls :id="id" />
-			<CurveAction
+			<div
 				v-if="wall"
-				:id="id"
-			/>
+				class="rp-inspector-actions"
+			>
+				<CurveAction :id="id" />
+			</div>
 			<StructureRenovationEntry />
+		</details>
+		<!-- The frame's group controls, above Delete so Delete stays the foot of the whole region (side panels spec §3). -->
+		<slot name="actions" />
+		<div class="rp-inspector-danger">
 			<button
 				type="button"
 				:aria-disabled="paused"
 				data-rp-action="delete-structure"
 				@click="act($event, true)"
 			>
-				{{ tr('editor.structure.delete') }}
+				<HostIcon name="trash" />{{ tr('editor.structure.delete') }}
 			</button>
-		</details>
+		</div>
 	</section>
 </template>

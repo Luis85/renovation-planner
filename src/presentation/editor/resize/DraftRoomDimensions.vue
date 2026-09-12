@@ -23,7 +23,7 @@ function guide(axis: 'width' | 'depth', bounds: RoomRect) {
 }
 async function focusDimension(axis: 'width' | 'depth', event: Event): Promise<void> {
 	const root = (event.currentTarget as HTMLElement).closest('.renovation-plan-editor');
-	if (workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
+	workspace.revealInspector();
 	await nextTick();
 	const input = root?.querySelector<HTMLInputElement>(`.rp-new-room input[name="${axis}"]`);
 	input?.focus(); input?.select();

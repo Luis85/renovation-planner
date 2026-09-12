@@ -1,0 +1,337 @@
+/*
+ * The Plan editor's side panels (2026-09-12 side panels spec §2): the section header here, and
+ * from Task 7 the frame, header, resize handle and collapsed strip. Imported after
+ * `editor-layout.css`, `editor-visual-shell.css` and `editor-shell-fidelity.css`, so a tie on
+ * specificity with any of them resolves here by source order. Ties exist: the two panel content
+ * rules below are `(0,2,0)`, the same as `editor-layout.css`'s overlay rule on those classes, whose
+ * own header records that they share no property with it.
+ *
+ * The chevron is a host icon (`PanelSection.vue`) rotated a quarter turn while closed. It replaced
+ * a CSS-border triangle that read heavier than the heading beside it.
+ */
+
+.renovation-plan-editor .rp-sidebar-section {
+	padding-block: var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.renovation-plan-editor .rp-sidebar-section:last-child {
+	border-bottom: 0;
+}
+
+.renovation-plan-editor .rp-sidebar-section > summary,
+.renovation-plan-editor .rp-reference-options > summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-height: 32px;
+	margin: 0;
+	padding: 0 var(--size-4-1);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	border-radius: var(--radius-s);
+	list-style: none;
+	cursor: pointer;
+}
+
+.renovation-plan-editor .rp-reference-options {
+	margin-top: var(--size-4-2);
+}
+
+.renovation-plan-editor .rp-reference-options > summary {
+	font-weight: var(--font-normal);
+	color: var(--text-muted);
+}
+
+.renovation-plan-editor .rp-sidebar-section > summary::-webkit-details-marker,
+.renovation-plan-editor .rp-reference-options > summary::-webkit-details-marker {
+	display: none;
+}
+
+.renovation-plan-editor .rp-sidebar-section > summary:hover,
+.renovation-plan-editor .rp-reference-options > summary:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-sidebar-section > summary:focus-visible,
+.renovation-plan-editor .rp-reference-options > summary:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.renovation-plan-editor .rp-sidebar-section__chevron {
+	flex: 0 0 16px;
+	width: 16px;
+	height: 16px;
+	margin-inline-start: auto;
+	color: var(--text-muted);
+	transform: rotate(-90deg);
+	transition: transform 120ms ease;
+}
+
+.renovation-plan-editor .rp-sidebar-section[open] > summary > .rp-sidebar-section__chevron,
+.renovation-plan-editor .rp-reference-options[open] > summary > .rp-sidebar-section__chevron {
+	transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.renovation-plan-editor .rp-sidebar-section__chevron {
+		transition: none;
+	}
+}
+
+/*
+ * The frame. `--rp-layers-width` and `--rp-inspector-width` are the EFFECTIVE widths
+ * `ResponsiveEditorShell` binds on `.rp-editor-body` (canvas floor already applied); the fallbacks
+ * are the defaults, for a render before the first measurement. Width changes are not animated, so
+ * the Konva stage resizes once rather than per frame.
+ */
+
+/* Declared here, not only read as a `var()` fallback below: `tests/harness/cssVars.test.ts`
+   counts a var() with a fallback as a read that still needs a declaration (the fallback is a
+   branch, not permission for the name to be missing), same as `--rp-taskbar-clearance` in
+   `editor-creation-fidelity.css`. The inline style `ResponsiveEditorShell` binds on this same
+   element overrides it once a measurement lands; these are the pre-measurement defaults. */
+.renovation-plan-editor .rp-editor-body {
+	--rp-layers-width: 256px;
+	--rp-inspector-width: 352px;
+}
+
+.renovation-plan-editor .rp-side-panel {
+	display: flex;
+	position: relative;
+	flex: 0 0 auto;
+	flex-direction: column;
+	min-height: 0;
+	background-color: var(--background-primary);
+}
+
+.renovation-plan-editor .rp-side-panel--layers {
+	width: var(--rp-layers-width, 256px);
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.renovation-plan-editor .rp-side-panel--inspector {
+	width: var(--rp-inspector-width, 352px);
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.renovation-plan-editor .rp-side-panel > .rp-side-panel__body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+
+/* In M16's overlay and drawer the body adds no box: the overlay stays the scroll container. */
+.rp-overlay-panel > .rp-side-panel__body,
+.rp-inspector-drawer > .rp-side-panel__body {
+	display: contents;
+}
+
+/* The panel content in both layouts; only the full layout's frame makes it scroll on its own. */
+.renovation-plan-editor .rp-editor-layers,
+.renovation-plan-editor .rp-editor-inspector {
+	padding: 0 var(--size-4-3) var(--size-4-3);
+	overflow-wrap: anywhere;
+	background-color: var(--background-primary);
+}
+
+.renovation-plan-editor .rp-side-panel .rp-editor-layers,
+.renovation-plan-editor .rp-side-panel .rp-editor-inspector {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	scrollbar-gutter: stable;
+}
+
+.renovation-plan-editor .rp-editor-inspector {
+	padding-top: var(--size-4-3);
+}
+
+.renovation-plan-editor .rp-side-panel__header {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	min-height: 40px;
+	padding: 0 var(--size-4-2) 0 var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.renovation-plan-editor .rp-side-panel__title {
+	min-width: 0;
+	overflow: hidden;
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+ * Three-class compounds, (0,3,0), over the (0,1,1) Obsidian's `button:not(.clickable-icon)` scores, and their own
+ * rings, which `buttonSpecificity.test.ts` and `buttonFocusRing.test.ts` check for every button.
+ * 28px squares clear WCAG 2.2's 24px target minimum.
+ */
+.renovation-plan-editor .rp-side-panel .rp-side-panel__toggle,
+.renovation-plan-editor .rp-side-panel .rp-side-panel__strip-button {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	color: var(--text-muted);
+	background-color: transparent;
+	box-shadow: none;
+	border: none;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.renovation-plan-editor .rp-side-panel .rp-side-panel__toggle:hover,
+.renovation-plan-editor .rp-side-panel .rp-side-panel__strip-button:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-side-panel .rp-side-panel__toggle:focus-visible,
+.renovation-plan-editor .rp-side-panel .rp-side-panel__strip-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Collapsed: the 40px strip `panelLayout.ts` reserves as `STRIP_PX`. */
+.renovation-plan-editor .rp-side-panel__strip {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--size-4-1);
+	padding: var(--size-4-2) 0;
+}
+
+.renovation-plan-editor .rp-side-panel__strip > .rp-side-panel__strip-button:first-child {
+	margin-bottom: var(--size-4-2);
+}
+
+/*
+ * The resize handle: a 6px hit area straddling the border, invisible at rest beyond the border
+ * itself. Hover, drag and keyboard focus draw a 2px accent line, which is also its focus indicator
+ * (`--interactive-accent`'s contrast is recorded in `editor-shell.css`).
+ */
+.renovation-plan-editor .rp-side-panel__resizer {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	z-index: 2;
+	width: 6px;
+	cursor: col-resize;
+	touch-action: none;
+}
+
+.renovation-plan-editor .rp-side-panel--layers > .rp-side-panel__resizer {
+	right: -3px;
+}
+
+.renovation-plan-editor .rp-side-panel--inspector > .rp-side-panel__resizer {
+	left: -3px;
+}
+
+.renovation-plan-editor .rp-side-panel__resizer::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 2px;
+	width: 2px;
+	background-color: transparent;
+}
+
+.renovation-plan-editor .rp-side-panel__resizer:hover::after,
+.renovation-plan-editor .rp-side-panel__resizer:active::after,
+.renovation-plan-editor .rp-side-panel__resizer:focus-visible::after {
+	background-color: var(--interactive-accent);
+}
+
+.renovation-plan-editor .rp-side-panel__resizer:focus-visible {
+	outline: none;
+}
+
+/*
+ * List rows' selected state, one channel beyond the fill and `aria-pressed`: a 2px leading accent
+ * rule, the same on rooms, walls and the property tree's current floor.
+ */
+.renovation-plan-editor .rp-room-list .rp-room-list__row[aria-pressed='true'] {
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.renovation-plan-editor .rp-room-list .rp-room-list__row[aria-pressed='true']:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * In the sidebar an UNLOCKED room's lock shows only on hover or keyboard focus, so a list of rooms
+ * is not a column of open padlocks. A locked room's always shows. `opacity` rather than
+ * `visibility`, so the button stays in the tab order and `:focus-within` can reveal it.
+ */
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item > .rp-editor-inspector-lock[aria-pressed='false'] {
+	opacity: 0;
+}
+
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:hover > .rp-editor-inspector-lock,
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:focus-within > .rp-editor-inspector-lock {
+	opacity: 1;
+}
+
+/*
+ * The sidebar's row fill spans the whole item, lock slot included (design spec §2's list row:
+ * fill/accent is a property of the whole row, trailing action included). `editor-inspector.css`
+ * paints hover and selected fills on `.rp-room-list__row` alone, which is `flex: 1 1 auto` inside
+ * `.rp-room-list__item` and stops short of the lock's own `flex: none` slot — the quiet-lock rule
+ * above then leaves that slot visibly blank. Painted on the ITEM via `:has()` reading the row's
+ * own state, scoped to `.rp-editor-layers`, so the row keeps `aria-pressed`, its own tab order and
+ * the lock's hover/focus reveal untouched, and the Inspector's own room list (unrelated to this
+ * task) keeps its per-row-only fill.
+ *
+ * EXACTLY ONE element may paint the fill in the sidebar, or the two overlap and the lock's own
+ * slot — never covered by the row's own `width: 100%`, only by the item's — reads a different,
+ * lighter tone than the rest of the row. So the row's OWN hover/selected background (and its
+ * selected accent, below) are neutralized here rather than left to sit under the item's identical
+ * fill: a higher-specificity, `.rp-editor-layers`-scoped override, not an edit to
+ * `editor-inspector.css`'s shared rules, which keeps the Inspector's own list on them unchanged.
+ */
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:hover,
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:has(> .rp-room-list__row[aria-pressed='true']) {
+	border-radius: var(--radius-s);
+}
+
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:has(> .rp-room-list__row[aria-pressed='true']) {
+	background-color: var(--background-modifier-active-hover);
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.renovation-plan-editor .rp-editor-layers .rp-room-list .rp-room-list__row:hover,
+.renovation-plan-editor .rp-editor-layers .rp-room-list .rp-room-list__row[aria-pressed='true'] {
+	background-color: transparent;
+	box-shadow: none;
+}
+
+/*
+ * Its own `:focus-visible` ring, matching the shared one's outline exactly: suppressing
+ * `box-shadow` above takes Obsidian's ring away, and the shared rule a few lines up cannot answer
+ * for a selector scoped this deep (an ancestor chain a coverage check reads literally, not by
+ * subset) — so this repeats the declaration rather than widening that rule's own reach.
+ */
+.renovation-plan-editor .rp-editor-layers .rp-room-list .rp-room-list__row:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}

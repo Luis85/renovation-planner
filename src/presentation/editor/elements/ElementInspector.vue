@@ -14,6 +14,7 @@ import ObjectRotationControls from './ObjectRotationControls.vue';
 import AssetPlacementDetails from './AssetPlacementDetails.vue';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
+import HostIcon from '../../components/HostIcon.vue';
 const session = useRenovationSession();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const element = computed(() => project.structure.elements?.find(item => item.id === selection.selectedIds[0]));
@@ -38,18 +39,30 @@ async function edit(event: Event): Promise<void> {
 		class="rp-element-inspector"
 		:data-rp-id="element.id"
 	>
-		<h3>{{ name }}</h3><p>{{ tr(zoneTypeLabel(element.kind)) }}</p>
-		<p v-if="element.kind === 'object' && measuredArea?.ok">
+		<h3>{{ name }}</h3>
+		<p class="rp-inspector-subline">
+			{{ tr(zoneTypeLabel(element.kind)) }}
+		</p>
+		<p
+			v-if="element.kind === 'object' && measuredArea?.ok"
+			class="rp-inspector-subline"
+		>
 			{{ formatArea(measuredArea.value) }}
 		</p>
-		<p v-else-if="stairSummary">
+		<p
+			v-else-if="stairSummary"
+			class="rp-inspector-subline"
+		>
 			{{ stairSummary }}
 		</p>
 		<AssetPlacementDetails
 			v-else-if="element.kind === 'asset'"
 			:element="element"
 		/>
-		<p v-else>
+		<p
+			v-else
+			class="rp-inspector-subline"
+		>
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
 		<StructureRenovationEntry />
@@ -57,31 +70,37 @@ async function edit(event: Event): Promise<void> {
 			v-if="session.perspective === 'plan'"
 			:id="element.id"
 		/>
-		<button
-			v-if="session.perspective === 'renovate'"
-			type="button"
-			data-rp-action="element-plan-geometry"
-			@click="runInspectorAction($event, 'edit-element', () => runtime.renovation.perspective('plan'))"
-		>
-			{{ tr('editor.element.plan-geometry') }}
-		</button>
-		<div class="rp-dialog-actions">
+		<div class="rp-inspector-actions">
+			<button
+				v-if="session.perspective === 'renovate'"
+				type="button"
+				class="rp-inspector-action"
+				data-rp-action="element-plan-geometry"
+				@click="runInspectorAction($event, 'edit-element', () => runtime.renovation.perspective('plan'))"
+			>
+				{{ tr('editor.element.plan-geometry') }}
+			</button>
 			<button
 				v-if="element.kind !== 'asset'"
 				type="button"
+				class="rp-inspector-action"
 				data-rp-action="edit-element"
 				:aria-disabled="runtime.elementActions.blocked.value"
 				@click="edit"
 			>
 				{{ tr('editor.element.edit-action') }}
 			</button>
+		</div>
+		<!-- The frame's group controls, above Delete so Delete stays the foot of the whole region (side panels spec §3). -->
+		<slot name="actions" />
+		<div class="rp-inspector-danger">
 			<button
 				type="button"
 				data-rp-action="delete-element"
 				:aria-disabled="runtime.elementActions.blocked.value"
 				@click="runtime.elementActions.remove(element.id)"
 			>
-				{{ tr('editor.element.delete-action') }}
+				<HostIcon name="trash" />{{ tr('editor.element.delete-action') }}
 			</button>
 		</div>
 	</section>

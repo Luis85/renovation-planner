@@ -6,6 +6,7 @@ export const inputDe: Record<keyof typeof inputEn, string> = {
 	'editor.input.context': 'Planaktionen',
 	'editor.input.edit': 'Bearbeiten',
 	'editor.input.rename': 'Umbenennen',
+	'editor.input.add-point': 'Punkt hinzufügen',
 	'editor.input.rotate': 'Drehen',
 	'editor.input.copy': 'Kopieren',
 	'editor.input.paste': 'Einfügen',

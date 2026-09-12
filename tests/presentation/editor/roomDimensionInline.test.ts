@@ -146,7 +146,6 @@ describe('native selected Room dimension editing', () => {
 		expect(runtime.canUndo.value).toBe(false);
 		useRenovationSession(r.harness.pinia).perspective = 'review'; await settle();
 		expect(r.harness.wrapper.find('[data-rp-dimension]').exists()).toBe(false);
-		expect(r.harness.wrapper.find('[data-rp-canvas-edit]').exists()).toBe(false);
 		await runtime.roomDimension.open('zone-a' as never, 'width');
 		expect(runtime.activeToolId.value).toBe('select'); r.harness.unmount();
 	});

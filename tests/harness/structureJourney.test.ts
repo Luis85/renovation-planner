@@ -46,6 +46,14 @@ describe('M04/M07 real editor structure journey', { timeout: HARNESS_SCAN_MS }, 
 		if (width === 460) { click(root, '[data-rp-rail="details"]'); await nextTick(); }
 		await settleUntil(() => root.querySelector('.rp-structure-inspector') !== null, 'wall inspector');
 		expect(root.querySelector('.rp-structure-inspector')?.textContent).toContain('Room 1');
+		const wallInspector = expectDefined(root.querySelector<HTMLElement>('.rp-structure-inspector'), 'wall inspector');
+		expect(wallInspector.querySelector('.rp-inspector-actions > .rp-inspector-action[data-rp-action="edit-structure"]')).not.toBeNull();
+		expect(wallInspector.querySelector('details.rp-inspector-more > summary .rp-sidebar-section__chevron')).not.toBeNull();
+		expect(wallInspector.lastElementChild?.matches('.rp-inspector-danger')).toBe(true);
+		expect(wallInspector.querySelector('.rp-inspector-danger [data-rp-action="delete-structure"] .rp-host-icon')).not.toBeNull();
+		// Delete is the foot of the whole Inspector region, not only of this body (side panels spec §3).
+		const regionButtons = expectDefined(wallInspector.closest('[data-rp-region="inspector"]'), 'inspector region').querySelectorAll('button');
+		expect(regionButtons[regionButtons.length - 1]?.getAttribute('data-rp-action')).toBe('delete-structure');
 		expect((await axe.run(root, runOptions)).violations).toEqual([]);
 		if (width === 460) root.querySelector('.rp-structure-inspector')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 		await nextTick(); await add(root, 'door');
@@ -53,14 +61,15 @@ describe('M04/M07 real editor structure journey', { timeout: HARNESS_SCAN_MS }, 
 		click(root, '.rp-structure-task > button:last-child');
 		await settleUntil(() => root.querySelector('.rp-structure-task') === null, 'saved door');
 		if (width === 460) { click(root, '[data-rp-rail="details"]'); await nextTick(); }
-		click(root, '.rp-structure-inspector > button');
+		expect(root.querySelector('.rp-structure-inspector .rp-inspector-actions > .rp-inspector-action[data-rp-action="move-opening"]')).not.toBeNull();
+		click(root, '.rp-structure-inspector [data-rp-action="edit-structure"]');
 		await settleUntil(() => root.querySelector('.rp-dialog form') !== null, 'opening form');
 		await type(root, 'width', '1.1'); click(root, '.rp-dialog form button[type="submit"]'); await nextTick();
 		expect(root.querySelector('.rp-dialog form [role="status"]')?.textContent).toContain('opening remains on its host wall');
 		click(root, '.rp-dialog [data-rp-action="cancel"]'); await nextTick();
 		expect(root.querySelector('.rp-structure-inspector')?.textContent).toContain('0.9');
-		await settleUntil(() => root.querySelector('.rp-structure-inspector > button')?.getAttribute('aria-disabled') === 'false', 'edit action ready');
-		click(root, '.rp-structure-inspector > button'); await nextTick();
+		await settleUntil(() => root.querySelector('.rp-structure-inspector [data-rp-action="edit-structure"]')?.getAttribute('aria-disabled') === 'false', 'edit action ready');
+		click(root, '.rp-structure-inspector [data-rp-action="edit-structure"]'); await nextTick();
 		await settleUntil(() => root.querySelector('.rp-dialog form') !== null, 'opening form again');
 		await type(root, 'width', '1.1'); click(root, '.rp-dialog form button[type="submit"]'); await nextTick(); click(root, '.rp-dialog form button[type="submit"]');
 		await settleUntil(() => root.querySelector('.rp-dialog') === null, 'applied opening');

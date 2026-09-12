@@ -182,8 +182,8 @@
  * shipped exactly this defect once with no check to catch it: `.rp-dialog-button-danger` at a
  * bare (0,1,0) lost to Obsidian's own `button:not(.clickable-icon)` at (0,1,1) and rendered
  * plain white (design slice 15). Qualified with `.rp-al-inspector` for the identical reason
- * every other rule on this rail is, and shaped like `.rp-editor-inspector-delete`
- * (`styles/editor.css`) rather than a solid fill: Obsidian's error red has no on-fill
+ * every other rule on this rail is, and shaped like the Plan Editor's Delete once was (a bordered
+ * button, before the 2026-09-12 side panels pass) rather than a solid fill: Obsidian's error red has no on-fill
  * foreground that clears 4.5:1 at this size (`--text-on-accent` measures 3.45:1 on
  * `--background-modifier-error`), so a border plus the label's own colour is what stays legible
  * in both schemes. `border` is the full shorthand and not `border-color` alone — Obsidian's own
@@ -198,7 +198,7 @@
 }
 
 /*
- * A TINT rather than a solid fill, for the reason `.rp-editor-inspector-delete:hover` already
+ * A TINT rather than a solid fill, for the reason `.rp-inspector-danger > button:hover` already
  * states: `--background-modifier-error` is `--color-red` at full strength, and keeping the
  * composite close to the panel it sits on is what leaves the label's contrast on hover where it
  * is at rest.
@@ -210,7 +210,7 @@
 /*
  * ITS OWN RING, EXPLICITLY, even though `.rp-al-action:focus-visible` above already matches
  * every element wearing this modifier — the button carries both classes at once. Written out
- * anyway, per `.rp-editor-inspector-delete:focus-visible`'s identical shape and for the reason
+ * anyway, per `.rp-inspector-danger > button:focus-visible`'s explicit ring and for the reason
  * `tests/build/buttonFocusRing.test.ts`'s own `covers` check states: it proves a ring for a
  * flattening rule by comparing the two selectors' SUBJECT TEXT, never by knowing that
  * `rp-al-action` and `rp-al-action--delete` land on one element, so `.rp-al-action:focus-visible`

@@ -32,7 +32,6 @@ describe('Room scalar lifecycle and recovery', () => {
 	it('follows Room layer visibility while retaining an already active native draft', async () => {
 		const value = await dimensionRig(), workspace = useWorkspaceStore(value.harness.pinia);
 		workspace.toggleLayer('zone'); await settle(); expect(value.wrapper.find('[data-rp-dimension]').exists()).toBe(false);
-		expect(value.wrapper.find('[data-rp-canvas-edit]').exists()).toBe(false);
 		workspace.toggleLayer('zone'); void value.runtime.roomDimension.open('zone-a' as never, 'width'); await settle();
 		await value.wrapper.get(`${formSelector} input`).setValue('4,2'); workspace.toggleLayer('zone'); await settle();
 		expect(value.wrapper.get(`${formSelector} input`).element).toHaveProperty('value', '4,2');
@@ -161,6 +160,5 @@ describe('Room scalar lifecycle and recovery', () => {
 		expect(value.wrapper.find('[data-rp-dimension]').exists()).toBe(false);
 		await value.runtime.roomDimension.open('zone-a' as never, 'width');
 		expect(value.runtime.activeToolId.value).toBe('select'); expect(value.runtime.canUndo.value).toBe(false);
-		expect(value.wrapper.find('[data-rp-canvas-edit]').exists()).toBe(false);
 	});
 });

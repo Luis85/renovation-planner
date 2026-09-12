@@ -42,7 +42,8 @@ describe('the assign picker options', () => {
 			if (!select.exists()) throw new Error('no assign picker');
 			return [...(select.element as HTMLSelectElement).options].map((option) => option.value);
 		};
-		expect(optionValues()).toEqual([]);
+		// The placeholder option (2026-09-12 side panels spec) is always first.
+		expect(optionValues()).toEqual(['']);
 
 		// The index catches up — a catalogue that was unreadable at mount is readable now.
 		await r.assetsRepo.save(

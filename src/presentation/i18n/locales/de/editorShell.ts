@@ -14,4 +14,10 @@ export const editorShellDe: Record<keyof typeof editorShellEn, string> = {
 	'editor.shell.details': 'Details zu {name}',
 	'editor.shell.perspectives': 'Editorperspektive',
 	'editor.shell.add-close': 'Esc zum Schließen',
+	'editor.panel.collapse-layers': 'Grundstück und Ebenen einklappen',
+	'editor.panel.expand-layers': 'Grundstück und Ebenen ausklappen',
+	'editor.panel.resize-layers': 'Breite von Grundstück und Ebenen ändern',
+	'editor.panel.collapse-inspector': 'Details einklappen',
+	'editor.panel.expand-inspector': 'Details ausklappen',
+	'editor.panel.resize-inspector': 'Breite der Details ändern',
 };

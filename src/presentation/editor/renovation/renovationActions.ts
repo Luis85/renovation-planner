@@ -33,7 +33,7 @@ function navigationTarget(records: NavigationRecords, roomId: string, id: string
 }
 
 function revealRecord(id: string, workspace: ReturnType<typeof useWorkspaceStore>): void {
- if (id && workspace.layoutMode === 'constrained') workspace.openOverlay('inspector');
+ if (id) workspace.revealInspector();
 }
 /** Keep the visible evidence set stable unless an explicit destination is outside it. */
 function revealEvidence(id: string, session: ReturnType<typeof useRenovationSession>, planning: ReturnType<typeof usePlanningReadState>): void {

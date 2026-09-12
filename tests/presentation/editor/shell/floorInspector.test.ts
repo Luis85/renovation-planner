@@ -39,6 +39,13 @@ describe('the floor state', () => {
 		expect(floor.find('[data-rp-stat="estimated-cost"]').text()).not.toMatch(/\d/);
 	});
 
+	it('draws the reference action as the floor\'s one primary action, directly under its name', async () => {
+		harness = await mountPlanEditorCanvas();
+		const primary = harness.wrapper.get('.rp-floor-inspector > .rp-inspector-primary');
+		expect(primary.find('[data-rp-action="reference"]').exists()).toBe(true);
+		expect(primary.element.previousElementSibling?.tagName).toBe('H3');
+	});
+
 	it('marks counts partial when zones were unreadable', async () => {
 		harness = await mountPlanEditorCanvas({ unreadableZones: 2 });
 

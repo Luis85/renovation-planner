@@ -80,13 +80,14 @@ describe('write controls while the floor is stale', () => {
 		const harness = await stalePane(true);
 
 		// The override fields (`quantity`/`cost`) exist only with a requirement row, which
-		// this fixture has none of, so this loop actually reaches only the first two
-		// selectors — `.rp-editor-inspector-delete` and `.rp-editor-requirement-assign
-		// button`, both unconditional — and the rig-based case further down (seeding a real
-		// requirement) is what covers the override fields' own paused state.
+		// this fixture has none of, so this loop actually reaches only the first three
+		// selectors — Delete, the assign picker and its button, all unconditional — and the
+		// rig-based case further down (seeding a real requirement) is what covers the override
+		// fields' own paused state. The picker's paused reason wins over its empty-catalogue one.
 		let found = 0;
 		for (const sel of [
 			'.rp-editor-inspector-delete',
+			'#rp-assign-asset',
 			'.rp-editor-requirement-assign button',
 			'input[data-field="quantity"]',
 			'input[data-field="cost"]',

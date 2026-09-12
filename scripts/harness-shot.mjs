@@ -487,6 +487,14 @@ const SHOTS = [
 	{ name: 'plan-editor-assets', query: '?view=plan-editor&reference&planning&assets&theme=light', selector: FLOOR_STATE },
 	{ name: 'plan-editor-assets-dark', query: '?view=plan-editor&reference&planning&assets', selector: FLOOR_STATE },
 	{ name: 'plan-editor-assets-narrow', query: '?view=plan-editor&reference&planning&assets&theme=light', selector: PLAN_CANVAS, width: 460 },
+	// The 2026-09-12 side panels: both collapsed to strips, in both schemes, driven through the real
+	// header buttons (`?panels`); the full layout at its 900px edge, where the canvas floor shrinks
+	// both panels; a selected room in dark; and the German constrained rail.
+	{ name: 'plan-editor-panels-collapsed', query: '?view=plan-editor&panels=collapsed&theme=light', selector: ['[data-rp-strip="layers"]', '[data-rp-strip="inspector"]'] },
+	{ name: 'plan-editor-panels-collapsed-dark', query: '?view=plan-editor&panels=collapsed', selector: ['[data-rp-strip="layers"]', '[data-rp-strip="inspector"]'] },
+	{ name: 'plan-editor-canvas-floor', query: '?view=plan-editor&theme=light', selector: FLOOR_STATE, width: 900 },
+	{ name: 'plan-editor-selected-dark', query: '?view=plan-editor&select=harness-kitchen', selector: '.rp-room-inspector' },
+	{ name: 'plan-editor-narrow-de', query: '?view=plan-editor&lang=de', selector: [PLAN_CANVAS, '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail'], width: 460 },
 	// Task 21's three: the ROOM state (a zone selected, so the Room Inspector is on screen —
 	// the `?select=` knob drives the real click `RoomSummaryList` renders, through
 	// `runtime.selectAndFrame`), the Add menu open (the `?add` knob, same shape), and the

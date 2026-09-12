@@ -29,8 +29,6 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...stairsArrowsDe,
 	...inputDe,
 	...creationDe,
-	'editor.direct.edit-shape': 'Form bearbeiten',
-	'editor.direct.edit-length': 'Länge bearbeiten',
 	'editor.direct.mark-change': 'Änderung markieren',
 	'editor.direct.add-detail': 'Detail hinzufügen',
 	'editor.direct.length-value': 'Wandlänge bearbeiten, {value} m',
@@ -213,6 +211,8 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.inspector.requirement.missing-asset': 'Objekt fehlt im Katalog.',
 	'editor.inspector.assign.label': 'Objekt zuweisen',
 	'editor.inspector.assign.button': 'Zuweisen',
+	'editor.inspector.assign.placeholder': 'Objekt auswählen',
+	'editor.inspector.assign.none': 'Noch keine Objekte in der Bibliothek',
 	'editor.inspector.quantity-override.label': 'Mengen-Übersteuerung für',
 	'editor.inspector.cost-override.label': 'Kosten-Übersteuerung für',
 	'editor.inspector.override.reset': 'Auf berechneten Wert zurücksetzen',
@@ -243,6 +243,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.inspector.linked.documents': 'Dokumente',
 	'editor.inspector.linked.photos': 'Fotos',
 	'editor.inspector.linked.notes': 'Notizen',
+	'editor.inspector.coming-later': 'Später verfügbar: {sections}',
 	// „Bibliothekspreis" für den geteilten Katalogpreis, „Projektpreis" für den eigenen Preis
 	// dieses Projekts. Kein „Material" und kein „Asset": ein Asset heißt in dieser Oberfläche
 	// `Objekt` (siehe `editor.inspector.requirement.asset`). Kamen mit dem Preis-Override-Increment

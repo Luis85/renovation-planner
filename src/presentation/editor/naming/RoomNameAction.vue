@@ -11,6 +11,7 @@ const runtime = useEditorRuntime();
 <template>
 	<button
 		type="button"
+		class="rp-inspector-action"
 		data-rp-action="rename-room"
 		:aria-disabled="runtime.renameRoomBlocked.value"
 		@click="runInspectorAction($event, 'rename-room', () => runtime.renameRoom(zoneId))"

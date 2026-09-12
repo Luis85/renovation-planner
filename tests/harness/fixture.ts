@@ -209,6 +209,7 @@ export function harnessEditorContext(): PlanEditorContext {
 		commands: deps.commands,
 		vault: deps.vault,
 		clipboard: deps.clipboard,
+		panelLayout: deps.panelLayout,
 		onThemeChange: deps.onThemeChange,
 		onPlanChanged: (listener) => deps.onPlanChanged(HARNESS_PLAN.id, listener),
 		// No id to bind, so it passes straight through — the same shape the real view uses.

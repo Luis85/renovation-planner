@@ -43,10 +43,15 @@ does not add history.
 While saving, Select, Add and Cancel retain the pending edit. Switching tools deliberately
 abandons an unsaved entry; changing perspective first asks about the draft.
 
-A Room’s shape is edited by dragging its corner points on the plan. The nearby **Add detail**
+A Room’s shape is edited by dragging its corner points on the plan. To add a corner, right-click
+a Room, Area, wall, path or fence and choose **Add point**: it lands on the nearest edge where you
+clicked, ready to drag, and one Undo removes it. A wall is cut there into two, so the new junction
+drags like any wall end; a cut through an opening is refused. The nearby **Add detail**
 action opens the contextual Existing, Planned, Work, Materials, Costs or Evidence form. A selected
-wall offers **Edit length** and, when it has a Room context, **Mark change**. Length changes
-still require Preview and Apply; Mark change uses the separate Planned record.
+wall shows its length label and, when it has a Room context, **Mark change**. Activate the label,
+or right-click the wall and choose **Edit**, to change its length; that still requires Preview
+and Apply. Mark change uses the separate Planned record. Openings, paths and objects are edited
+from their right-click menu, and an Area's name and type from its **Edit area details** item.
 
 Use the floor list to select an element with the keyboard. Select several compatible
 elements to create shared Work or Evidence, apply a planned change, or inspect their totals.

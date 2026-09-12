@@ -31,7 +31,7 @@ it('adds a window and a door where a wall was right-clicked, each one undoable',
 	const rig = await setup();
 	await rightClick(rig, { x: 1000, y: 0 });
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);
-	expect(menuIds(rig).slice(0, 4)).toEqual(['edit', 'rotate', 'add-menu', 'measure']);
+	expect(menuIds(rig).slice(0, 5)).toEqual(['edit', 'add-point', 'rotate', 'add-menu', 'measure']);
 	await add(rig, 'add-window');
 	await settleUntil(() => rig.project.structure.openings.length === 1 && rig.runtime.activeToolId.value === 'select', 'window placed');
 	const pane = rig.project.structure.openings[0];
@@ -71,7 +71,7 @@ it('greys New wall where the click lands inside an opening, and says why', async
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);
 	await item(rig, 'add-menu').trigger('click'); await settle();
 	expect(item(rig, 'new-wall').attributes('aria-disabled')).toBe('true');
-	expect(item(rig, 'new-wall').attributes('title')).toBe('A new wall cannot start inside a door, window or opening. Choose a point beside it.');
+	expect(item(rig, 'new-wall').attributes('title')).toBe('A new wall cannot start or end inside a door, window or opening. Choose a point beside it.');
 });
 
 it('measures from a right-clicked point and draws the measurement as a ruler', async () => {

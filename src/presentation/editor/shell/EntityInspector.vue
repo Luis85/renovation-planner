@@ -70,6 +70,26 @@ const renovationSession = useRenovationSession();
 const assetShapes = useAssetShapeStore();
 const records = computed(() => [...rooms.value, ...structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements, assetShapes.shapeOf)]);
 const selection = computed(() => spatialSelection(selectedIds.value, records.value));
+
+/**
+ * Which single-selection body the chain below draws once the review, task-tool and multiple
+ * arms have passed — named ONCE, rather than re-derived beside the chain. The floor has no
+ * Delete, so it draws `GroupControls` after itself; the other four take it through their
+ * `actions` slot (above Delete, side panels spec §3; `RenovationInspector` routes it to its own
+ * wall or element body) from ONE `<component :is>` fill rather than a fill per arm. A fill per
+ * arm plus a trailing three-clause floor mount read cognitive 22 against fallow's 15; this shape
+ * reads 13 (`npx fallow health --complexity-breakdown`).
+ */
+const body = computed(() => {
+	if (renovationSession.perspective === 'renovate') return 'renovate';
+	const id = selectedIds.value[0];
+	if (id === undefined) return 'floor';
+	if (project.structure.walls.some(wall => wall.id === id) || project.structure.openings.some(opening => opening.id === id)) return 'structure';
+	if (project.structure.elements?.some(element => element.id === id)) return 'element';
+	return 'room';
+});
+const SLOTTED_BODIES = { renovate: RenovationInspector, structure: StructureInspector, element: ElementInspector, room: RoomInspector };
+const groupsShown = computed(() => activeToolId.value === 'select' && renovationSession.perspective !== 'review');
 </script>
 
 <template>
@@ -97,11 +117,17 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 				<StructureBulkEditAction :ids="selection.ids" />
 			</template>
 		</MultiSelectionInspector>
-		<RenovationInspector v-else-if="renovationSession.perspective === 'renovate'" />
-		<FloorInspector v-else-if="selectedIds.length === 0" />
-		<StructureInspector v-else-if="project.structure.walls.some(wall => wall.id === selectedIds[0]) || project.structure.openings.some(opening => opening.id === selectedIds[0])" />
-		<ElementInspector v-else-if="project.structure.elements?.some(element => element.id === selectedIds[0])" />
-		<RoomInspector v-else />
-		<GroupControls v-if="selection.kind !== 'multiple' && activeToolId === 'select' && renovationSession.perspective !== 'review'" />
+		<template v-else-if="body === 'floor'">
+			<FloorInspector />
+			<GroupControls v-if="groupsShown" />
+		</template>
+		<component
+			:is="SLOTTED_BODIES[body]"
+			v-else
+		>
+			<template #actions>
+				<GroupControls v-if="groupsShown" />
+			</template>
+		</component>
 	</aside>
 </template>

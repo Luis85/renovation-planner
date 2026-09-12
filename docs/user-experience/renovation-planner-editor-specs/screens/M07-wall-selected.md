@@ -40,7 +40,7 @@ This screen applies the same selection-first model to a wall. The wall remains s
 |---|---|
 | Select wall | Highlight wall and endpoints; open Wall Inspector |
 | Click displayed length | Enter exact length; preview affected geometry before commit |
-| `Edit length` | Focus numeric length editor |
+| ~~`Edit length`~~ | Withdrawn 2026-09-12: the context menu's `Edit` and the displayed length open the same form |
 | `Mark change` | Choose Unchanged, Remove, Modify, or Add where semantically valid |
 | Select homeowner question | Drill into Existing, Planned, or Work for this wall |
 | Select linked-content row | Open related collection while preserving wall selection |

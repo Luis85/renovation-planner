@@ -23,6 +23,17 @@ export interface EditorViewPreferences {
 }
 
 /**
+ * A per-device JSON slot (2026-09-12 side panels spec §1): `read` answers whatever was stored, or
+ * `null` for nothing, and `write` never throws. Declared here, where it is consumed, because the
+ * producer is in `infrastructure/` and presentation may not import it; the plugin hands in a
+ * `DeviceLocalStore`, which satisfies this structurally.
+ */
+export interface DeviceStorage {
+	read(): unknown;
+	write(value: unknown): void;
+}
+
+/**
  * Everything the Plan Editor's Vue tree needs from outside itself, provided ONCE by
  * `PlanEditorView` on the app instance it created.
  *
@@ -55,6 +66,8 @@ export interface PlanEditorContext {
 	readonly vault: BackgroundVault;
 	/** The clipboard every leaf shares — see `editorClipboard.ts`. */
 	readonly clipboard: EditorClipboard;
+	/** Where the side panels' widths and collapsed state live — per device, shared by every leaf. */
+	readonly panelLayout: DeviceStorage;
 	/**
 	 * The View menu's grid and object-snap choices, shared by every Plan Editor on this device.
 	 * Read once at mount and written on every change; absent where there is no host to keep them.

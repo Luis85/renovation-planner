@@ -43,6 +43,12 @@ describe('Inspector action focus after root-owned dialogs', () => {
 		const { root, region, opener } = setup(), rail = button(root, 'data-rp-rail'); region.style.display = 'none';
 		restoreInspectorActionFocus(opener, root, 'rename-room'); expect(document.activeElement).toBe(rail);
 	});
+	it('counts a collapsed side panel body as hidden and hands focus to that panel\'s strip', () => {
+		const { root, region, opener } = setup(), body = document.createElement('div'), strip = document.createElement('div');
+		body.className = 'rp-side-panel__body'; body.style.display = 'none'; body.append(opener); strip.dataset.rpStrip = 'inspector'; region.append(body, strip);
+		const expand = button(strip, 'data-rp-panel-toggle');
+		restoreInspectorActionFocus(opener, root, 'rename-room'); expect(document.activeElement).toBe(expand);
+	});
 	it('uses the width notice when reflow hides the supported shell', () => {
 		const { root, region, opener } = setup(), notice = button(root, 'data-notice'); notice.className = 'rp-unsupported-width__action'; region.style.display = 'none';
 		restoreInspectorActionFocus(opener, root, 'rename-room'); expect(document.activeElement).toBe(notice);

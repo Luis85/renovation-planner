@@ -90,8 +90,6 @@
 
 .renovation-plan-editor .rp-multi-selection > p:first-child { font-size: 18px; font-weight: var(--font-semibold); }
 .renovation-plan-editor .rp-multi-selection > p { margin-block: 12px; }
-.renovation-plan-editor .rp-structure-inspector details { margin-top: 20px; }
-.renovation-plan-editor .rp-structure-inspector summary { margin-bottom: 12px; }
 
 .renovation-plan-editor .rp-warning-strip { background: var(--background-primary); }
 .renovation-plan-editor .rp-warning-strip__item {
@@ -109,7 +107,6 @@
 .renovation-plan-editor .rp-field-error__message { color: var(--text-normal); }
 .renovation-plan-editor .rp-field-error__glyph { color: var(--text-error); }
 .renovation-plan-editor .rp-structure-renovation-entry select { width: 100%; min-width: 0; max-width: 100%; min-height: 32px; }
-.renovation-plan-editor .rp-layer-list__row label { flex-basis: 8rem; }
 
 @container (min-width: 900px) {
 	.renovation-plan-editor .rp-dialog:has(.rp-reference-setup) { width: min(56rem, 100%); }

@@ -5,6 +5,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { mount } from '@vue/test-utils';
 import type Konva from 'konva';
 import { t } from '../../../../src/presentation/i18n/strings';
+import { ok } from '../../../../src/core/result/Result';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
@@ -14,8 +15,8 @@ import type { InspectorDto } from '../../../../src/presentation/editor/inspector
 import type { ZoneDto } from '../../../../src/presentation/read-models/PlanDto';
 import { STAGE_PIXELS, worldToScreen } from '../../../../src/presentation/editor/viewport/Viewport';
 import RoomInspector from '../../../../src/presentation/editor/shell/RoomInspector.vue';
-import HomeownerQuestionNav from '../../../../src/presentation/editor/shell/HomeownerQuestionNav.vue';
-import LinkedContentList from '../../../../src/presentation/editor/shell/LinkedContentList.vue';
+import { comingLaterSentence } from '../../../../src/presentation/editor/shell/comingLater';
+import { INSPECTOR_SECTIONS } from '../../../../src/presentation/read-models/roomOverview';
 import { recorder } from '../../../helpers/logger';
 import { mountPlanEditorCanvas, settle, type CanvasHarness } from '../../../helpers/editor';
 import { click } from '../../../helpers/planEditorRig';
@@ -91,35 +92,14 @@ describe('the Room Inspector, through the real mounted editor', () => {
 		expect(room.text()).toContain('Ground floor');
 	});
 
-	it('renders the three homeowner questions in order, each unavailable, with no button and no count', async () => {
+	it('names every section this build cannot show yet in one Coming later line, with no control and no count', async () => {
 		harness = await mountPlanEditorCanvas();
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
-		const nav = harness.wrapper.find('.rp-question-nav');
-		expect(nav.findAll('li').map((li) => li.find('.rp-question-nav__label').text())).toEqual([
-			t('en', 'editor.inspector.question.existing'),
-			t('en', 'editor.inspector.question.planned'),
-			t('en', 'editor.inspector.question.work'),
-		]);
-		expect(nav.findAll('button')).toHaveLength(0);
-		expect(nav.findAll('a')).toHaveLength(0);
-		expect(nav.text()).not.toMatch(/\d/);
-	});
-
-	it('lists costs, documents, photos and notes as unavailable rows without controls', async () => {
-		harness = await mountPlanEditorCanvas();
-		useSelectionStore().select(['zone-kitchen' as never]);
-		await settle();
-		const list = harness.wrapper.find('.rp-linked-content');
-		expect(list.findAll('li').map((li) => li.find('.rp-linked-content__label').text())).toEqual([
-			t('en', 'editor.inspector.linked.costs'),
-			t('en', 'editor.inspector.linked.documents'),
-			t('en', 'editor.inspector.linked.photos'),
-			t('en', 'editor.inspector.linked.notes'),
-		]);
-		expect(list.findAll('button')).toHaveLength(0);
-		expect(list.findAll('a')).toHaveLength(0);
-		expect(list.text()).not.toMatch(/\d/);
+		const line = harness.wrapper.get('.rp-room-inspector .rp-coming-later');
+		expect(line.text()).toBe(comingLaterSentence('en', INSPECTOR_SECTIONS));
+		expect(line.findAll('button, a')).toHaveLength(0);
+		expect(line.text()).not.toMatch(/\d/);
 	});
 
 	it('keeps the Requirements panel and the Delete button', async () => {
@@ -168,15 +148,14 @@ describe('the Room Inspector, through the real mounted editor', () => {
 	 * gains the entry `overview` looks up. The name and the Delete control still come from
 	 * `dto` alone, so they survive; the derived fields do not.
 	 */
-	it('omits the type/floor/area fields and both lists when the selected zone is missing from the store', async () => {
+	it('omits the type/floor/area fields and the Coming later line when the selected zone is missing from the store', async () => {
 		harness = await mountPlanEditorCanvas({ queries: fakeQueries(FIXTURE_PLAN, []) });
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
 		const room = harness.wrapper.find('.rp-room-inspector');
 		expect(room.find('h3').text()).toBe('Kitchen');
 		expect(room.find('dl').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-question-nav').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-linked-content').exists()).toBe(false);
+		expect(harness.wrapper.find('.rp-coming-later').exists()).toBe(false);
 		expect(room.find('.rp-editor-inspector-delete').exists()).toBe(true);
 	});
 
@@ -200,6 +179,67 @@ describe('the Room Inspector, through the real mounted editor', () => {
 		const unlockedRoom = harness.wrapper.find('.rp-room-inspector');
 		expect(unlockedRoom.find('.rp-editor-inspector-locked').exists()).toBe(false);
 		expect(unlockedRoom.get('[data-rp-lock="zone-terrace"]').attributes('aria-pressed')).toBe('false');
+	});
+
+	/**
+	 * The default mount's catalogue is `fakeQueries`' empty `listAssets`. Both controls take
+	 * `aria-disabled` rather than the native `disabled` (side panels spec §3), so the reason
+	 * stays reachable by Tab — and both name it through `aria-describedby`.
+	 */
+	it('explains an empty asset library beside an aria-disabled picker rather than offering an empty one', async () => {
+		harness = await mountPlanEditorCanvas();
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+		const assign = harness.wrapper.get('.rp-editor-requirement-assign');
+		const reason = t('en', 'editor.inspector.assign.none');
+		const select = assign.get('#rp-assign-asset');
+		expect(select.attributes('aria-disabled')).toBe('true');
+		expect((select.element as HTMLSelectElement).disabled).toBe(false);
+		expect(assign.get(`[id="${select.attributes('aria-describedby') ?? ''}"]`).text()).toBe(reason);
+		expect(assign.get('option').text()).toBe(t('en', 'editor.inspector.assign.placeholder'));
+		const button = assign.get('button');
+		expect(button.attributes('aria-disabled')).toBe('true');
+		expect(assign.get(`[id="${button.attributes('aria-describedby') ?? ''}"]`).text()).toBe(reason);
+	});
+
+	/** The catalogue arrives through the runtime's own read (`listAssets`), never a cast-writable ref. */
+	it('offers a placeholder and the catalogue, with the picker and Assign live, once there are assets', async () => {
+		harness = await mountPlanEditorCanvas({
+			queries: {
+				...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+				listAssets: () => Promise.resolve(ok([{ id: 'asset-tiles', name: 'Floor tiles' }])),
+			},
+		});
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+		const assign = harness.wrapper.get('.rp-editor-requirement-assign');
+		const select = assign.get('#rp-assign-asset');
+		expect(assign.findAll('option').map((option) => option.attributes('value'))).toEqual(['', 'asset-tiles']);
+		expect(select.attributes('aria-disabled')).toBeUndefined();
+		expect(select.attributes('aria-describedby')).toBeUndefined();
+		expect(assign.get('button').attributes('aria-disabled')).toBeUndefined();
+		expect(assign.find('.rp-editor-inspector-empty').exists()).toBe(false);
+	});
+
+	it('draws the rotation and lock controls as one toolbar, the actions as rows, and Delete last with its icon', async () => {
+		harness = await mountPlanEditorCanvas();
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+		const room = harness.wrapper.get('.rp-room-inspector');
+		// Spec §3's order: the two quarter turns, Rotate by…, then the lock — in the DOM, so focus
+		// order and visual order agree.
+		const toolbar = room.get('.rp-inspector-toolbar').findAll('button');
+		expect(toolbar.map((button) => button.attributes('data-rp-action') ?? button.attributes('data-rp-lock')))
+			.toEqual(['rotate-object-left', 'rotate-object-right', 'rotate-object', 'zone-kitchen']);
+		expect(room.get('.rp-inspector-actions').find('.rp-inspector-action[data-rp-action="rename-room"]').exists()).toBe(true);
+		const danger = room.get('.rp-inspector-danger');
+		expect(room.element.lastElementChild).toBe(danger.element);
+		// At the foot of the REGION, not only of the room body: nothing the frame mounts follows it.
+		const region = harness.wrapper.get('[data-rp-region="inspector"]');
+		const regionButtons = region.findAll('button');
+		expect(regionButtons[regionButtons.length - 1].element).toBe(danger.get('button').element);
+		expect(danger.get('.rp-editor-inspector-delete').find('.rp-host-icon').exists()).toBe(true);
+		expect(danger.get('.rp-editor-inspector-delete').text()).toBe(t('en', 'editor.inspector.delete-zone'));
 	});
 });
 
@@ -237,38 +277,15 @@ function mountStandalone(dto: InspectorDto) {
 }
 
 describe('the Room Inspector, mounted standalone', () => {
-	it('omits the type/floor/area fields and both lists while the plan has not hydrated, keeping the name and Delete', () => {
+	it('omits the type/floor/area fields and the Coming later line while the plan has not hydrated, keeping the name and Delete', () => {
 		useProjectStore().zones = new Map([[FIXTURE_ZONES[0].id, FIXTURE_ZONES[0]]]);
 		const wrapper = mountStandalone({ kind: 'zone', id: 'zone-kitchen' as never, name: 'Kitchen', areaMm2: 12_000_000 });
 
 		const room = wrapper.find('.rp-room-inspector');
 		expect(room.find('h3').text()).toBe('Kitchen');
 		expect(room.find('dl').exists()).toBe(false);
-		expect(wrapper.find('.rp-question-nav').exists()).toBe(false);
-		expect(wrapper.find('.rp-linked-content').exists()).toBe(false);
+		expect(wrapper.find('.rp-coming-later').exists()).toBe(false);
 		expect(room.find('.rp-editor-inspector-delete').exists()).toBe(true);
 		expect(room.find('.rp-object-rotation-actions').exists()).toBe(false);
-	});
-});
-
-/**
- * `unavailable.includes(row.section)` is only ever asked with `unavailable ===
- * INSPECTOR_SECTIONS` through the mounted editor above — nothing here has a supported
- * section yet — so its FALSE arm and the `--unavailable`/state-span absence it drives are
- * reachable only by mounting the row components directly with an empty list.
- */
-describe('HomeownerQuestionNav mounted directly', () => {
-	it('marks no row unavailable and prints no state span when nothing is unavailable', () => {
-		const wrapper = mount(HomeownerQuestionNav, { props: { unavailable: [] } });
-		expect(wrapper.findAll('.rp-question-nav__row--unavailable')).toHaveLength(0);
-		expect(wrapper.find('.rp-question-nav__state').exists()).toBe(false);
-	});
-});
-
-describe('LinkedContentList mounted directly', () => {
-	it('marks no row unavailable and prints no state span when nothing is unavailable', () => {
-		const wrapper = mount(LinkedContentList, { props: { unavailable: [] } });
-		expect(wrapper.findAll('.rp-linked-content__row--unavailable')).toHaveLength(0);
-		expect(wrapper.find('.rp-linked-content__state').exists()).toBe(false);
 	});
 });

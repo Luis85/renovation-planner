@@ -34,7 +34,9 @@ import { FakeLeaf } from '../helpers/workspace';
 // as JavaScript. `../helpers/settle` has no import beyond `Promise`/`Date`/`setTimeout`.
 import { settleUntil } from '../helpers/settle';
 import { selectMultipleOnceReady } from './multiSelectionKnob';
+import { collapsePanelsOnceReady } from './panelsKnob';
 import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
+import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps } from './detailPlanKnob';
 
 /**
@@ -407,6 +409,7 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			readBinary: () => Promise.resolve(new ArrayBuffer(0)),
 		} as unknown as BackgroundVault,
 		clipboard: createEditorClipboard(),
+		panelLayout: memoryDeviceStorage(),
 		// The page's own scheme toggle changes the body class, and the plugin's variables
 		// resolve from it — so a "theme change" here is exactly what Obsidian's `css-change`
 		// means, and the toggle drives it through this.
@@ -483,6 +486,8 @@ export interface PlanEditorHarnessOptions {
 	readonly locked?: string;
 	/** Comma-separated seeded zone ids, each given one detail plan (`detailPlanKnob.ts`). */
 	readonly detailed?: string;
+	/** `collapsed`, `layers` or `inspector`: collapses those full-layout side panels once drawn. */
+	readonly panels?: string;
 }
 
 /**
@@ -762,6 +767,7 @@ export function mountPlanEditorHarness(
 		knobs.push(guardKnob(selectZoneOnceReady(leafEl, options.select)));
 	}
 	if (options.add === true) knobs.push(guardKnob(openAddMenuOnceReady(leafEl)));
+	if (options.panels !== undefined) knobs.push(guardKnob(collapsePanelsOnceReady(leafEl, options.panels)));
 	if (options.area === true) knobs.push(guardKnob(enterAreaTaskOnceReady(leafEl)));
 	if (options.numericArea === true) knobs.push(guardKnob(enterNumericArea(leafEl)));
 	if (options.room !== undefined) knobs.push(guardKnob(enterRoomTaskOnceReady(leafEl, options.room)));

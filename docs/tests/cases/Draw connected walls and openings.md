@@ -38,6 +38,7 @@ live Obsidian acceptance.
 | Read/execute/undo exception boundary | `tests/plugin/guardedStructure.test.ts` and command recovery tests |
 | Reflow without losing input/focus, translated wrapping, themes and root overflow | four browser scenarios; `structureJourney.test.ts` and existing responsive suites |
 | Listener/stage/draft retirement | `structureLifecycle.test.ts`, existing canvas lifecycle suites |
+| A chain starting or ending on a wall body cuts the host at the join (endpoint, perpendicular and Shift-ray snaps, two cuts on one wall, opening refusal, auto-finish, numeric 1 mm join, status line and cut marks) | `tests/domain/spatial/wallJoin.test.ts`, `tests/domain/spatial/splitWall.test.ts`, `structureDraft.test.ts`, `tests/presentation/editor/structure/StructureTool.test.ts`, `structureLifecycle.test.ts`, `finalOverviewPresentation.test.ts` |
 
 Unqualified editor test names are under `tests/presentation/editor/`; command names under
 `tests/application/commands/`; persistence under `tests/infrastructure/obsidian/repositories/`.

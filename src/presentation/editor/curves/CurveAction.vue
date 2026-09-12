@@ -14,6 +14,7 @@ async function open(event: Event): Promise<void> {
 	<button
 		v-if="runtime.curveTask.available.value"
 		type="button"
+		class="rp-inspector-action"
 		data-rp-action="edit-curves"
 		:aria-disabled="runtime.curveTask.blocked.value"
 		@click="open"

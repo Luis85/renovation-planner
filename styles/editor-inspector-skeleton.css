@@ -34,11 +34,12 @@
 }
 
 /*
- * Action rows: M00's stacked rows, not a wrap of bordered buttons. Keyed on `data-rp-action` (the
- * focus-restoration hook every action button carries and the renovation opener does not) rather
- * than on a bare `button` subject: `buttonFocusRing.test.ts` reads a classless `button` subject as
- * reaching EVERY button, so a (0,3,1) `box-shadow: none` there outranked the asset library's
- * selected-row ring and reported it — measured.
+ * Action rows: M00's stacked rows, not a wrap of bordered buttons. Keyed on the
+ * `.rp-inspector-action` class each action component's button root wears (the renovation opener
+ * does not), for both button gates: a classless `button` subject is read as reaching EVERY button,
+ * so a (0,3,1) `box-shadow: none` there outranked the asset library's selected-row ring and was
+ * reported; an attribute-only subject is outside `targetsAButton` entirely, so neither gate would
+ * notice this ring being deleted. Both measured.
  */
 .renovation-plan-editor .rp-inspector-actions {
 	display: flex;
@@ -47,7 +48,7 @@
 	margin: var(--size-4-2) 0;
 }
 
-.renovation-plan-editor .rp-inspector-actions > [data-rp-action] {
+.renovation-plan-editor .rp-inspector-actions > .rp-inspector-action {
 	display: flex;
 	align-items: center;
 	justify-content: flex-start;
@@ -66,16 +67,16 @@
 	cursor: pointer;
 }
 
-.renovation-plan-editor .rp-inspector-actions > [data-rp-action]:hover {
+.renovation-plan-editor .rp-inspector-actions > .rp-inspector-action:hover {
 	background-color: var(--background-modifier-hover);
 }
 
-.renovation-plan-editor .rp-inspector-actions > [data-rp-action]:focus-visible {
+.renovation-plan-editor .rp-inspector-actions > .rp-inspector-action:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
 }
 
-.renovation-plan-editor .rp-inspector-actions > [data-rp-action][aria-disabled='true'] {
+.renovation-plan-editor .rp-inspector-actions > .rp-inspector-action[aria-disabled='true'] {
 	color: var(--text-faint);
 	cursor: not-allowed;
 }

@@ -9,6 +9,7 @@ const runtime = useEditorRuntime();
 <template>
 	<button
 		type="button"
+		class="rp-inspector-action"
 		data-rp-action="edit-outline"
 		:aria-disabled="runtime.outlineEdit.blocked.value"
 		@click="runInspectorAction($event, 'edit-outline', () => runtime.outlineEdit.editOutline(zoneId))"

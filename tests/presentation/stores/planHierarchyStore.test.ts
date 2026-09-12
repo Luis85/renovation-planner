@@ -36,17 +36,30 @@ describe('PlanHierarchyStore', () => {
 	});
 
 	/**
-	 * The ponytail comment on `load`: a failed read keeps the last answer rather than blanking
-	 * it, because the breadcrumb and guide are additive and the plan's own read already reports
-	 * a vault fault.
+	 * A failed read keeps the last answer on screen AND says it failed: a detail plan whose
+	 * hierarchy could not be read must not pass for a parentless plan (PBI guarantee).
 	 */
-	it('keeps the previous hierarchy when a later read fails', async () => {
+	it('keeps the previous hierarchy when a later read fails, flags the failure, and clears it on the next success', async () => {
 		const store = usePlanHierarchyStore();
 		await store.load({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(ok(HOUSE)) }, FIXTURE_PLAN.id);
+		expect(store.failed).toBe(false);
 
 		await store.load({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(err(READ_FAILED)) }, FIXTURE_PLAN.id);
-
 		expect(store.hierarchy).toEqual(HOUSE);
+		expect(store.failed).toBe(true);
+
+		await store.load({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(ok(SITE)) }, FIXTURE_PLAN.id);
+		expect(store.failed).toBe(false);
+	});
+
+	it('does not let an older failing read, resolving late, flag a newer successful one', async () => {
+		const store = usePlanHierarchyStore();
+		const first = defer<ReturnType<typeof err<typeof READ_FAILED>>>();
+		const firstLoad = store.load({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => first.promise }, 'plan-house');
+		await store.load({ ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(ok(SITE)) }, 'plan-site');
+		first.resolve(err(READ_FAILED));
+		await firstLoad;
+		expect(store.failed).toBe(false);
 	});
 
 	/** A slower earlier read must never land over a later one — `load`'s own request counter. */

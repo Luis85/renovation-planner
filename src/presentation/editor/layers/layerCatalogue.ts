@@ -58,16 +58,20 @@ const AVAILABLE = { state: 'available', reasonKey: null, action: null } as const
  * against. `writesBlocked` (design spec §2.9) joins that reason mechanism rather than adding a
  * second one: with no background, the row's own "no background" reason stays, and the paused
  * reason applies only once there IS a background but writes are blocked anyway.
+ *
+ * A detail plan's guide (ADR-0028) draws on this layer, so with a guide and no background the
+ * row is a live toggle that says what it shows rather than a disabled row claiming there is
+ * nothing to see.
  */
-export function layerCatalogue(plan: PlanDto | null, toggles: LayerToggles, writesBlocked = false): readonly LayerEntry[] {
+export function layerCatalogue(plan: PlanDto | null, toggles: LayerToggles, writesBlocked = false, hasGuide = false): readonly LayerEntry[] {
 	if (plan === null) return [];
 	const hasReference = plan.background !== null;
 	const entries: LayerEntry[] = [
 		{
 			id: 'reference',
 			labelKey: 'editor.layer.reference-plan',
-			state: hasReference ? 'available' : 'supported-empty',
-			reasonKey: hasReference ? null : 'editor.layer.reference-plan.none',
+			state: hasReference || hasGuide ? 'available' : 'supported-empty',
+			reasonKey: hasReference ? null : hasGuide ? 'editor.layer.reference-plan.guide-only' : 'editor.layer.reference-plan.none',
 			action: {
 				labelKey: 'editor.layer.reference-plan.set-scale',
 				toolId: 'calibrate',

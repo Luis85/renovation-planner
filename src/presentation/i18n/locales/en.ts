@@ -480,6 +480,7 @@ export const en = {
 	// both optional on `CreatePlanInput` and this form sends neither: slice 5's background is
 	// its own command, and a plan without one is a state the editor already draws.
 	'form.new-plan.title': 'New plan',
+	'form.new-detail-plan.title': 'New detail plan for {name}',
 	'form.new-plan.name': 'Name',
 	// Design slice 21's detail state, its one empty state and its one refusal that reaches the
 	// user as a notice rather than as a banner. `No plans yet` is deliberately distinct copy from

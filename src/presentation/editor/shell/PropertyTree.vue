@@ -23,7 +23,7 @@ import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import PropertyTreeRow from './PropertyTreeRow.vue';
 
 const { project, plan, plans } = storeToRefs(useProjectStore());
-const { hierarchy } = storeToRefs(usePlanHierarchyStore());
+const { hierarchy, failed } = storeToRefs(usePlanHierarchyStore());
 const context = usePlanEditorContext();
 /**
  * Floors are this plan's own siblings — same parent (or both root) — never every plan of the
@@ -85,7 +85,13 @@ function rowOpener(planId: string, disabled = false): (() => void) | undefined {
 			</li>
 		</ul>
 		<p
-			v-if="hierarchy.parentZoneMissing"
+			v-if="failed"
+			class="rp-editor-inspector-empty"
+		>
+			{{ tr('editor.input.hierarchy-unreadable') }}
+		</p>
+		<p
+			v-else-if="hierarchy.parentZoneMissing"
 			class="rp-editor-inspector-empty"
 		>
 			{{ tr('editor.input.parent-zone-missing') }}

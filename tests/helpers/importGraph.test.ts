@@ -83,9 +83,9 @@ describe('an import edge', () => {
 	});
 
 	it('resolves the other script extensions and the other index spellings', () => {
-		for (const target of ['src/x.tsx', 'src/x.mts', 'src/x.cts', 'src/x.jsx', 'src/x.cjs', 'src/x/index.js', 'src/x/index.mjs']) {
-			expect(reaches({ 'src/entry.ts': "import './x';", [target]: '' }, target), target).toBe(true);
-		}
+		const targets = ['src/x.tsx', 'src/x.mts', 'src/x.cts', 'src/x.jsx', 'src/x.cjs', 'src/x/index.js', 'src/x/index.mjs'];
+
+		expect(targets.filter((target) => !reaches({ 'src/entry.ts': "import './x';", [target]: '' }, target))).toEqual([]);
 	});
 
 	it('throws, naming the importer, for a relative specifier that resolves to nothing', () => {

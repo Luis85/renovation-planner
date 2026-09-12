@@ -59,6 +59,15 @@ interface ChildReport {
 }
 
 const CHILD_RUN_MS = 45_000;
+
+/** The child's JSON report, or `null` when it is missing or not JSON. */
+function readReport(file: string): ChildReport | null {
+	try {
+		return JSON.parse(readFileSync(file, 'utf8')) as ChildReport;
+	} catch {
+		return null;
+	}
+}
 let out: string;
 let child: ReturnType<typeof spawnSync>;
 let report: ChildReport;
@@ -78,14 +87,17 @@ beforeAll(() => {
 		],
 		{ cwd: REPO, encoding: 'utf8', timeout: CHILD_RUN_MS },
 	);
-	try {
-		report = JSON.parse(readFileSync(reportFile, 'utf8')) as ChildReport;
-	} catch (cause) {
+	// Read outside any `catch`: `lib` is ES2021, so `new Error(message, { cause })` does not
+	// compile, and the reader below answers `null` rather than throwing so the one throw here can
+	// carry the child's exit code, signal and stderr — what a bare ENOENT or SyntaxError never says.
+	const parsed = readReport(reportFile);
+	if (parsed === null) {
 		throw new Error(
-			`the child vitest left no readable report (exit ${String(child.status)}, signal ${String(child.signal)}, ${String(cause)}):
+			`the child vitest left no readable report at ${reportFile} (exit ${String(child.status)}, signal ${String(child.signal)}):
 ${String(child.stderr)}`,
 		);
 	}
+	report = parsed;
 }, CHILD_RUN_MS + 5_000);
 
 afterAll(() => {

@@ -118,6 +118,7 @@ export const planningDe = {
 	"planning.rule.element-length": "Elementlänge",
 	"planning.rule.object-area": "Objektfläche",
 	"planning.rule.wall-length": "Wandlänge",
+	"planning.rule.wall-volume": "Wandvolumen",
 	"planning.rule.opening-area": "Öffnungsfläche",
 	"planning.rule.count": "Ein ausgewähltes Element",
 	"planning.rule.placement-count": "Platzierungen dieses Objekts im Raum",

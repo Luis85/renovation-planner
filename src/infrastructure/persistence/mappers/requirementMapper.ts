@@ -54,8 +54,10 @@ function moneyOrNull(value: unknown): string | null {
 		: null;
 }
 
-/** The lowest schema that holds this source: an older build refuses a rule it does not know as newer, never as corrupt. */
-function requirementSchemaVersion(source: Requirement['source']): 1 | 2 | 3 | 4 {
+/** The lowest schema that holds this requirement: an older build refuses what it does not know as newer, never as corrupt. */
+function requirementSchemaVersion(requirement: Requirement): 1 | 2 | 3 | 4 | 5 {
+	const source = requirement.source;
+	if (source?.rule === 'wall-volume' || source?.construction) return 5;
 	if (!source) return 1;
 	if (source.rule === 'placement-count') return 4;
 	return source.rule === 'element-length' || source.rule === 'object-area' ? 3 : 2;
@@ -73,7 +75,7 @@ export function requirementToPersistence(
 	const currency = requirement.calculatedFrom.unitCost.currency;
 	return {
 		type: REQUIREMENT_TYPE,
-		'schema-version': requirementSchemaVersion(requirement.source),
+		'schema-version': requirementSchemaVersion(requirement),
 		...(requirement.source ? { source: requirement.source } : {}),
 		id: requirement.id,
 		revision,

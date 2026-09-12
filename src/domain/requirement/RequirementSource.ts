@@ -7,7 +7,7 @@ import { EMPTY_STRUCTURE, wallLength, type Structure } from '../spatial/Structur
 import { membershipProbe } from '../spatial/assetPlacement';
 import { elementLength, type SpatialElement } from '../spatial/SpatialElement';
 
-export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'opening-area', 'element-length', 'object-area', 'count', 'placement-count', 'manual'] as const;
+export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'wall-volume', 'opening-area', 'element-length', 'object-area', 'count', 'placement-count', 'manual'] as const;
 /** Geometry references stay on the Requirement; procurement and payment facts do not. */
 export interface RequirementSource {
 	readonly planId: string;
@@ -20,6 +20,8 @@ export interface RequirementSource {
 	readonly coverage: string;
 	readonly lot: string;
 	readonly minimum: string;
+	/** Marks the one entry a subject's planned material produces (ADR-0030); absent on every other requirement. */
+	readonly construction?: true;
 }
 export interface QuantityGeometry {
 	readonly objects: readonly (CurvedPolygon & { readonly id: string })[];
@@ -38,7 +40,8 @@ export function validRequirementSource(source: RequirementSource): boolean {
 	return !!source.planId && !!source.targetId && QUANTITY_RULES.includes(source.rule)
 		&& ['current', 'intended'].includes(source.state) && validDecimal(source.manual)
 		&& validDecimal(source.coverage, true) && (!source.lot || validDecimal(source.lot, true))
-		&& (!source.minimum || (!!source.lot && validDecimal(source.minimum, true)));
+		&& (!source.minimum || (!!source.lot && validDecimal(source.minimum, true)))
+		&& (source.construction === undefined || source.construction === true);
 }
 function roomMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry): Measurement | null {
  const room = geometry.objects.find(item => item.id === roomId);
@@ -56,6 +59,7 @@ function wallMeasurement(source: RequirementSource, structure: Structure): Measu
  const length = wallLength(wall);
  if (source.rule === 'count') return { raw: 1, unit: 'piece' };
  if (source.rule === 'wall-length') return { raw: length, unit: 'm' };
+ if (source.rule === 'wall-volume') return { raw: length * wall.height * wall.thickness, unit: 'm3' };
  if (source.rule !== 'wall-gross' && source.rule !== 'wall-net') return null;
  const deducted = source.rule === 'wall-net' ? structure.openings.filter(item => item.hostId === wall.id).reduce((sum, item) => sum + item.width * item.height, 0) : 0;
  return { raw: length * wall.height - deducted, unit: 'm2' };

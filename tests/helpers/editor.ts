@@ -283,7 +283,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 			projectPlansListeners.set(listener, projectId);
 			return () => projectPlansListeners.delete(listener);
 		}),
-		// Its OWN set, not an alias of the plan door's: the whole point of the third source is
+		// Its OWN set, not an alias of the plan door's: the whole point of the catalogue source is
 		// that the two fire on different events, so a fixture that folded them together could
 		// not tell a build that had merged them back from one that had not.
 		onCatalogueChanged: (listener) => {

@@ -1,7 +1,7 @@
 /**
- * "The set of plans in THIS project changed" — design slice 21's third change source.
+ * "The set of plans in THIS project changed" — the project-plans change source, design slice 21's.
  *
- * A third source rather than a filter on either of the two that exist, because it asks a
+ * The project-plans source, its own rather than a filter on the plan or project-list one, because it asks a
  * third question: `planChangeSource` is "this PLAN changed" and every caller binds a plan id;
  * `projectListChangeSource` is "the set of PROJECTS changed" and is unfiltered. This one is
  * filtered on the OWNING PROJECT, which `PlanCreated`'s payload carries.

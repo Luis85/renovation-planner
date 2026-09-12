@@ -4,13 +4,13 @@ import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
 import { disposeAll, subscribeAll } from './subscriptions';
 
 /**
- * "Some plan of THIS project changed, from anywhere" — design slice 21's third change source.
+ * "Some plan of THIS project changed, from anywhere" — the project-plans change source, design slice 21's.
  *
  * It lives in `application/` for the reason its two siblings do, and that reason is the whole
  * point of the indirection: this layer is the one that may know both halves — the `EventBus`
  * port and the event names — so `presentation/` gets a callback and never learns either.
  *
- * **Why a THIRD source rather than a filter on one of the two.** `createPlanChangeSource`
+ * **Why a source of its own rather than a filter on the plan or project-list one.** `createPlanChangeSource`
  * answers "tell me when THIS plan changed" and every caller binds a plan id; this view has
  * none, it has a PROJECT. `createProjectListChangeSource` answers "the set of projects
  * changed" and is unfiltered; delivering that here would re-read one project's plans for

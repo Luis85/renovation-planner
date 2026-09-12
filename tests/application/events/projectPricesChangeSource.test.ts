@@ -178,7 +178,7 @@ describe('createProjectPricesChangeSource', () => {
 	 * **The zone-list events (A2).** A Requirement's own existence changing the SET of rows a
 	 * zone's Inspector draws — created, deleted, or restored — had no subscriber anywhere in
 	 * `src/`: the figures source only ever hears about a figure moving on a row that is already
-	 * there. Landing them here rather than in a fourth source of their own is what T6's ledger
+	 * there. Landing them here rather than in a source of their own is what T6's ledger
 	 * ruling records: this source's Plan Editor caller already wires its listener straight to an
 	 * unconditional `reloadInspector` with no per-id filter (unlike the figures source's
 	 * `drawsRequirement` guard, which a brand-new row could never satisfy), so it is the one

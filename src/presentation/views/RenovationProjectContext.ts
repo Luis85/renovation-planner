@@ -176,7 +176,7 @@ export interface RenovationProjectDeps {
 	 */
 	readonly openAssetLibrary: () => void;
 	/**
-	 * "Some plan of THIS project changed — re-read it." The third change source
+	 * "Some plan of THIS project changed — re-read it." The project-plans change source
 	 * (`projectPlansChangeSource`), filtered on the owning project, which `PlanCreated`'s
 	 * payload carries.
 	 *

@@ -11,7 +11,7 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * point of the indirection: this layer is the one that may know both halves — the `EventBus`
  * port and the event names — so `presentation/` gets a callback and never learns either.
  *
- * **Why a THIRD source rather than a filter on either existing one.** `createPlanChangeSource`
+ * **Why a source of its own — the catalogue source — rather than a filter on the plan or project-list one.** `createPlanChangeSource`
  * answers "tell me when THIS plan changed" and every caller of it has a plan id to bind; an
  * Asset has belonged to no project since design slice 19 and to no plan ever, so there is no
  * id here to bind and the unfiltered category is the whole of what this caller wants — which

@@ -1,7 +1,7 @@
 /**
  * The Inspector's own subscription: "this requirement's STORED figures moved."
  *
- * A FOURTH source beside the plan, catalogue and project-list ones, and the argument for it is
+ * The requirement-figures source, beside the plan, catalogue and project-list ones, and the argument for it is
  * an ORDERING rather than a narrowing. The unit-cost block has three inputs — the library's
  * price, this project's own, and the provenance `calculatedFrom.unitCost` records — and neither
  * `AssetUpdated` nor `AssetPriceOverrideChanged` rewrites the third. The cascade does, and it is

@@ -9,6 +9,8 @@ import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { defer } from '../../helpers/async';
+import { Notice } from '../../helpers/obsidian-mock';
+import { activateNotices, disposeNotices } from '../../../src/presentation/notices/notify';
 import { makeZone } from '../../helpers/entities';
 import { pointerAt } from '../../helpers/tool-context';
 import { err, ok } from '../../../src/core/result/Result';
@@ -22,7 +24,7 @@ import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialEle
 import type { BoundingBox } from '../../../src/core/geometry/BoundingBox';
 
 const rigs: { unmount(): void }[] = [];
-afterEach(() => { rigs.splice(0).forEach(rig => rig.unmount()); });
+afterEach(() => { rigs.splice(0).forEach(rig => rig.unmount()); disposeNotices(); });
 
 const centre = (box: BoundingBox) => ({ x: (box.min.x + box.max.x) / 2, y: (box.min.y + box.max.y) / 2 });
 const square = [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 3000 }, { x: 0, y: 3000 }];
@@ -123,4 +125,22 @@ it('offers and saves nothing for an item with no caption, while blocked, or afte
 	rigs.splice(rigs.indexOf(rig), 1); rig.unmount();
 	late.resolve(ok(baseline)); await disposed;
 	expect(expectDefined(rig.project.structure.elements?.find(item => item.id === element.id), 'element').labelOffset).toBeUndefined();
+});
+
+it('reports a failed save even after the leaf that started it is gone', async () => {
+	// Unlike the dispose case above (deferred `read`, never reaches the write), this leaf is
+	// gone AFTER the baseline read and DURING the write itself: the failure still has to reach
+	// the user, because the renovator's drop was lost either way.
+	activateNotices(); // inert until activated (`editorFaults.test.ts`'s own precedent), per test so the queue's dedup cannot fold this into an earlier case's notice
+	const rig = await elementRig(), before = Notice.shown.length;
+	const pending = defer<Awaited<ReturnType<typeof rig.runtime.dispatcher.run>>>();
+	vi.spyOn(rig.runtime.dispatcher, 'run').mockReturnValueOnce(pending.promise);
+	rig.runtime.renderState.labelPreview = { id: element.id, offset: { dx: 7, dy: 7 } };
+	const disposed = rig.runtime.labelActions.move(element.id, { dx: 7, dy: 7 });
+	await settle();
+	rigs.splice(rigs.indexOf(rig), 1); rig.unmount();
+	pending.resolve(err(injectedPersistenceError()));
+	await disposed;
+	await settleUntil(() => Notice.shown.length === before + 1, 'the dispose-time save failure notice');
+	expect(rig.runtime.renderState.labelPreview).toBeNull();
 });

@@ -155,6 +155,7 @@ watch(() => editor.stageSize.width > 0 && editor.stageSize.height > 0 && shapesA
 					:pins="evidencePins"
 					:dimension-obstacles="dimensionLayout.bounds"
 					:caption-viewport="dimensionLayout.viewport"
+					:label-preview="runtime.renderState.labelPreview"
 					:transform="transform"
 					:tokens="props.tokens"
 					:visible="layerVisibility.zone"

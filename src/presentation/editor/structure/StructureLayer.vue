@@ -34,7 +34,7 @@ const noDraftPoints: readonly Point[] = [];
 const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall' ? task.draft.points : noDraftPoints);
 function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
-const elements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind !== 'asset'), elementNames.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value));
+const elements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind !== 'asset'), elementNames.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value, runtime.renderState.labelPreview));
 const elementDraft = computed(() => {
 	const draft = runtime.elementTask.draft;
 	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];

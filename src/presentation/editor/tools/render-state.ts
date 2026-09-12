@@ -1,6 +1,7 @@
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { LineSegment } from '../../../core/geometry/LineSegment';
 import type { Point } from '../../../core/geometry/Point';
+import type { Vector } from '../../../core/geometry/Vector';
 import type { RotationInteraction } from '../elements/rotationControl';
 
 /**
@@ -106,6 +107,12 @@ export class RenderState {
 	measurement: LineSegment | null = null;
 	/** The in-progress polygon; see `PolygonSketch` for why it is not `previewPolygon`. */
 	polygonSketch: PolygonSketch | null = null;
+	/**
+	 * A caption being dragged (ADR-0029): whose, and the offset from its automatic anchor the pointer
+	 * has reached. Left at the drop until the write has been read back, so the caption does not flick
+	 * back for the length of the save.
+	 */
+	labelPreview: { readonly id: string; readonly offset: Vector } | null = null;
 
 	reset(): void {
 		this.hoveredObjectId = null;
@@ -119,5 +126,6 @@ export class RenderState {
 		this.snapGuides = [];
 		this.measurement = null;
 		this.polygonSketch = null;
+		this.labelPreview = null;
 	}
 }

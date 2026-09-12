@@ -13,7 +13,9 @@ import { storeToRefs } from 'pinia';
 import { useProjectStore } from '../../../stores/ProjectStore';
 import type { ThemeTokens } from '../../theme/themeTokens';
 import type { NodeTransform } from '../../viewport/Viewport';
+import type { Vector } from '../../../../core/geometry/Vector';
 import { toZoneRenderModel } from './ZoneRenderModel';
+import { captionPins } from './captionPlacement';
 import { enclosedByBoundary } from '../../../../domain/spatial/encloseRoom';
 import { useDrawnStructure } from '../../structure/drawnStructure';
 import ZoneShape from './ZoneShape.vue';
@@ -35,17 +37,19 @@ const props = defineProps<{
 	tokens: ThemeTokens;
 	visible: boolean;
 	zoom: number;
+	labelPreview?: { readonly id: string; readonly offset: Vector } | null;
 }>();
 
 const { zones } = storeToRefs(useProjectStore()), structure = useDrawnStructure();
 const selection = useSelectionStore();
 const session = useRenovationSession(), workspace = useWorkspaceStore();
-const captionObstacles = computed(() => session.visible && workspace.layerVisibility.annotation ? props.pins : []);
+const captionObstacles = computed(() => captionPins(props.pins, session.visible, workspace.layerVisibility.annotation));
 const selected = computed(() => new Set<string>(selection.selectedIds));
 
 const models = computed(() => {
 	const preview = new Map(props.preview?.map(object => [object.id, object]));
-	return [...zones.value.values()].map(zone => toZoneRenderModel({ ...zone, ...preview.get(zone.id) }));
+	const label = props.labelPreview;
+	return [...zones.value.values()].map(zone => toZoneRenderModel({ ...zone, ...preview.get(zone.id), ...(label?.id === zone.id ? { labelOffset: label.offset } : {}) }));
 });
 const enclosed = computed(() => new Set(models.value.filter(model => enclosedByBoundary(model, structure.value)).map(model => model.id)));
 

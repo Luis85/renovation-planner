@@ -34,9 +34,9 @@
  */
 import { computed } from 'vue';
 import type { ThemeTokens } from '../../theme/themeTokens';
-import { labelAnchor, zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
+import { zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
 import { formatArea } from '../../shell/formatArea';
-import { captionOffsetY, DETAIL_CAPTION_BOTTOM, type NumberedPin } from './captionPlacement';
+import { captionBottom, roomCaptionAnchor, type NumberedPin } from './captionPlacement';
 import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
 import { polygonPolyline } from '../../../../core/geometry/curvePolyline';
 
@@ -73,7 +73,6 @@ const flatPoints = computed(() => {
 });
 
 const fill = computed(() => props.tokens[zoneFillToken(props.model.zoneType)]);
-const anchor = computed(() => labelAnchor(props.model.points, props.model.bulges));
 
 /**
  * Captions are sized in SCREEN pixels but positioned in world millimetres, so their font
@@ -91,11 +90,13 @@ const anchor = computed(() => labelAnchor(props.model.points, props.model.bulges
  */
 const CAPTION_PX = 14;
 const captionScale = computed(() => 1 / props.zoom);
-// Viewport/obstacle movement often leaves a caption in the same place. Propagate only a
-// changed displacement, so vue-konva does not diff six unchanged configs for every Room.
-const captionDisplacement = computed(() => captionOffsetY(anchor.value, props.pins, props.zoom, props.dimensionObstacles,
-	{ viewport: props.captionViewport, ...(props.detailCaption === null ? {} : { bottom: DETAIL_CAPTION_BOTTOM }) }));
-const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + captionDisplacement.value, width: 180, offsetX: 90, align: 'center',
+// A caption's position is two NUMBERS rather than one Point: an unchanged position then propagates
+// nothing, so vue-konva does not diff seven unchanged configs for every Room.
+const captionAnchor = computed(() => roomCaptionAnchor(props.model, props.zoom, props.pins, props.dimensionObstacles,
+	{ viewport: props.captionViewport, bottom: captionBottom(props.detailCaption !== null) }));
+const captionX = computed(() => captionAnchor.value.x);
+const captionY = computed(() => captionAnchor.value.y);
+const captionLayout = computed(() => ({ x: captionX.value, y: captionY.value, width: 180, offsetX: 90, align: 'center',
 	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
 	// `perfectDrawEnabled: false`: a locked zone's translucent group would otherwise send this
 	// fill-and-stroke text through the stage's buffer canvas, which throws while the stage is 0×0.

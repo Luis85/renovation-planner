@@ -231,7 +231,7 @@ describe('the Room Inspector, through the real mounted editor', () => {
 		const toolbar = room.get('.rp-inspector-toolbar').findAll('button');
 		expect(toolbar.map((button) => button.attributes('data-rp-action') ?? button.attributes('data-rp-lock')))
 			.toEqual(['rotate-object-left', 'rotate-object-right', 'rotate-object', 'zone-kitchen']);
-		expect(room.get('.rp-inspector-actions').find('[data-rp-action="edit-outline"]').exists()).toBe(true);
+		expect(room.get('.rp-inspector-actions').find('.rp-inspector-action[data-rp-action="rename-room"]').exists()).toBe(true);
 		const danger = room.get('.rp-inspector-danger');
 		expect(room.element.lastElementChild).toBe(danger.element);
 		// At the foot of the REGION, not only of the room body: nothing the frame mounts follows it.
@@ -254,7 +254,6 @@ function mountStandalone(dto: InspectorDto) {
 	const runtime = {
 		inspectorDto: ref(dto),
 		rotationActions: { target: computed(() => null), available: computed(() => false), blocked: computed(() => true), active: computed(() => false), rotate: () => Promise.resolve() } satisfies Pick<EditorRuntime['rotationActions'], 'target' | 'available' | 'blocked' | 'active' | 'rotate'>,
-		outlineEdit: { blocked: ref(false), editOutline: () => Promise.resolve() },
 		inspectorRequirements: ref([]),
 		assetOptions: ref([]),
 		hydrateInspector: () => Promise.resolve(),

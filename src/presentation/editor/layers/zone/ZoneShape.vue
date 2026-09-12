@@ -36,7 +36,7 @@ import { computed } from 'vue';
 import type { ThemeTokens } from '../../theme/themeTokens';
 import { labelAnchor, zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
 import { formatArea } from '../../shell/formatArea';
-import { captionOffsetY, type NumberedPin } from './captionPlacement';
+import { captionOffsetY, DETAIL_CAPTION_BOTTOM, type NumberedPin } from './captionPlacement';
 import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
 import { polygonPolyline } from '../../../../core/geometry/curvePolyline';
 
@@ -51,6 +51,8 @@ const props = defineProps<{
 	pins: readonly NumberedPin[];
 	dimensionObstacles: readonly BoundingBox[];
 	captionViewport: BoundingBox | null;
+	/** The plans detailing this zone, as its third caption line (ADR-0028); `null` for none. */
+	detailCaption: string | null;
 }>();
 
 /**
@@ -91,7 +93,8 @@ const CAPTION_PX = 14;
 const captionScale = computed(() => 1 / props.zoom);
 // Viewport/obstacle movement often leaves a caption in the same place. Propagate only a
 // changed displacement, so vue-konva does not diff six unchanged configs for every Room.
-const captionDisplacement = computed(() => captionOffsetY(anchor.value, props.pins, props.zoom, props.dimensionObstacles, props.captionViewport));
+const captionDisplacement = computed(() => captionOffsetY(anchor.value, props.pins, props.zoom, props.dimensionObstacles,
+	{ viewport: props.captionViewport, ...(props.detailCaption === null ? {} : { bottom: DETAIL_CAPTION_BOTTOM }) }));
 const captionLayout = computed(() => ({ x: anchor.value.x, y: anchor.value.y + captionDisplacement.value, width: 180, offsetX: 90, align: 'center',
 	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
 	// `perfectDrawEnabled: false`: a locked zone's translucent group would otherwise send this
@@ -115,11 +118,14 @@ const nameConfig = computed(() => ({ ...captionLayout.value, offsetY: CAPTION_PX
 	text: props.model.label, fontSize: CAPTION_PX + 2, fontStyle: 'bold', height: CAPTION_PX + 5, fill: props.tokens.zoneLabel }));
 const areaConfig = computed(() => ({ ...captionLayout.value, offsetY: 0,
 	text: formatArea(props.model.areaMm2), fontSize: CAPTION_PX, fill: props.tokens.zoneLabel }));
+// Hidden rather than unmounted when nothing details this zone, for the same child-list reason as the fill.
+const detailConfig = computed(() => ({ ...captionLayout.value, name: 'zone-detail-plans', offsetY: -CAPTION_PX * 1.3,
+	text: props.detailCaption ?? '', visible: props.detailCaption !== null, fontSize: CAPTION_PX - 2, height: CAPTION_PX, fill: props.tokens.zoneCaption }));
 </script>
 
 <template>
 	<VGroup
-		v-memo="[groupConfig, fillConfig, outlineConfig, nameConfig, areaConfig]"
+		v-memo="[groupConfig, fillConfig, outlineConfig, nameConfig, areaConfig, detailConfig]"
 		:config="groupConfig"
 	>
 		<!--
@@ -133,5 +139,6 @@ const areaConfig = computed(() => ({ ...captionLayout.value, offsetY: 0,
 		<VLine :config="outlineConfig" />
 		<VText :config="nameConfig" />
 		<VText :config="areaConfig" />
+		<VText :config="detailConfig" />
 	</VGroup>
 </template>

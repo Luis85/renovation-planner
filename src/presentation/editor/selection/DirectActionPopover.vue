@@ -8,7 +8,6 @@ import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
 import { formatMetres } from '../shell/formatLength';
 import { tr } from '../../i18n/strings';
 import type { RenovationMode } from '../renovation/renovationSession';
-import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import HostIcon from '../../components/HostIcon.vue';
@@ -19,13 +18,14 @@ const saves = useSaveStateStore();
 const { target, session } = useDirectActionContext();
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null), optionsId = useId();
 const modes = computed(() => planning.context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const);
+const detailAction = computed(() => target.value?.roomId && runtime.renovation.available ? (target.value.wall ? 'change' : 'detail') : null);
+// A zone's shape is edited by dragging its vertices on the canvas, so a zone offers only Add detail and nothing without it.
 const visible = computed(() => target.value !== null && target.value.visible && session.perspective !== 'review' && runtime.activeToolId.value === 'select' && runtime.renderState.rotationDegrees === null
-	&& (target.value.zone || target.value.wall || target.value.opening || session.perspective === 'plan'));
+	&& (target.value.zone ? detailAction.value !== null : target.value.wall || target.value.opening || session.perspective === 'plan'));
 const blocked = computed(() => runtime.writesBlocked.value || saves.state === 'saving');
 const detailBlocked = computed(() => blocked.value || runtime.renovation.blocked.value || (planning.context.commands.planning !== undefined && planning.blocked.value));
 const editIcon = computed(() => target.value?.wall ? 'ruler' : 'pencil');
 const editLabel = computed(() => tr(target.value?.wall ? 'editor.direct.edit-length' : 'editor.direct.edit-shape'));
-const detailAction = computed(() => target.value?.roomId && runtime.renovation.available ? (target.value.wall ? 'change' : 'detail') : null);
 function position(box: BoundingBox, zone: boolean) {
 	const point = worldToScreen({ x: zone ? (box.min.x + box.max.x) / 2 : box.max.x, y: box.max.y }, editor.viewport, STAGE_PIXELS);
 	return { left: `${Math.max(8, Math.min(editor.stageSize.width - 180, point.x + (zone ? -86 : 20)))}px`,
@@ -39,7 +39,6 @@ watch(() => target.value?.id, () => { expanded.value = false; });
 function edit(): void {
 	const item = target.value;
 	if (!item || blocked.value) return;
-	if (item.zone) { void runtime.outlineEdit.editOutline(item.zone.id as ZoneId); return; }
 	if (item.wall || item.opening) { void runtime.structureActions.edit(item.id); return; }
 	void runtime.elementActions.edit(item.id);
 }
@@ -81,6 +80,7 @@ function escape(event: KeyboardEvent): void {
 		</button>
 		<div class="rp-direct-actions__buttons">
 			<button
+				v-if="!target.zone"
 				type="button"
 				data-rp-canvas-edit
 				:aria-disabled="blocked"

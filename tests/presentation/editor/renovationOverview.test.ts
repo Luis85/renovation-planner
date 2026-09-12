@@ -65,13 +65,11 @@ it('opens connected Costs from Plan while retaining the Room', async () => {
 	expect(rig.session.mode).toBe('costs'); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 });
 
-it('opens Room name and outline editing from Overview while retaining the selected Room', async () => {
+it('opens Room name editing from Overview while retaining the selected Room', async () => {
 	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
 	await rig.wrapper.get('[data-rp-action="rename-room"]').trigger('click'); await settle();
 	expect(rig.dialogs.current?.kind).toBe('form'); rig.dialogs.resolve('cancel'); await settle();
-	await rig.wrapper.get('[data-rp-action="edit-outline"]').trigger('click'); await settle();
-	expect(rig.wrapper.find('[data-rp-form="outline-points"]').exists()).toBe(true);
-	rig.dialogs.resolve('cancel'); await settle(); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
+	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 	expect(rig.session.mode).toBe('overview');
 });
 

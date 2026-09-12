@@ -36,7 +36,7 @@ import { settleUntil } from '../helpers/settle';
 import { selectMultipleOnceReady } from './multiSelectionKnob';
 import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
-import { detailPlanDeps, lockedZoneDeps } from './detailPlanKnob';
+import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps } from './detailPlanKnob';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -443,11 +443,11 @@ export interface MountedPlanEditor {
 }
 
 /**
- * The six harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
- * `?add`, `?room=<w>x<d>`, `?stale`, `?detail` and `?locked=<id,id>` — for a headless capture
- * that needs the Room Inspector, the Add menu, the room task already under way, the trust
- * path's own stale-projection warning, a fresh detail plan, or a locked zone, with nothing to
- * click. All six are optional and independent; nothing here refuses combining them, and `?room`
+ * The seven harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
+ * `?add`, `?room=<w>x<d>`, `?stale`, `?detail`, `?locked=<id,id>` and `?detailed=<id,id>` — for a
+ * headless capture that needs the Room Inspector, the Add menu, the room task already under way,
+ * the trust path's own stale-projection warning, a fresh detail plan, a locked zone, or a zone
+ * with detail plans, with nothing to click. All seven are optional and independent; nothing here refuses combining them, and `?room`
  * needs no combining with `?add`: it opens the Add menu itself on its way through, so pairing
  * the two is redundant rather than contradictory. `?stale` is the one that is not independent of
  * `?select` in EFFECT, even though both are legal on their own: see `mountPlanEditorHarness` for
@@ -483,6 +483,8 @@ export interface PlanEditorHarnessOptions {
 	readonly detail?: boolean;
 	/** Comma-separated seeded zone ids answered as locked (`detailPlanKnob.ts`). */
 	readonly locked?: string;
+	/** Comma-separated seeded zone ids, each given one detail plan (`detailPlanKnob.ts`). */
+	readonly detailed?: string;
 }
 
 /**
@@ -728,7 +730,8 @@ export function mountPlanEditorHarness(
 	const downstream = workspace && new URLSearchParams(location.search).has('downstream') ? downstreamWorkspace(workspace, leafEl) : null;
 	const deps = downstream?.deps ?? (workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base);
 	const detailed = options.detail === true ? detailPlanDeps(deps) : deps;
-	const composed = options.locked === undefined ? detailed : lockedZoneDeps(detailed, options.locked.split(','));
+	const locked = options.locked === undefined ? detailed : lockedZoneDeps(detailed, options.locked.split(','));
+	const composed = options.detailed === undefined ? locked : detailedZoneDeps(locked, options.detailed.split(','));
 	const view = new PlanEditorView((downstream?.leaf ?? new FakeLeaf()) as never, composed);
 	downstream?.attach(view);
 	leafEl.appendChild(view.containerEl);

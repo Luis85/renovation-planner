@@ -754,10 +754,8 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the Plan Editor's bundle, for the factory and the rebind. */
 	private planEditorViewDeps(): PlanEditorDeps {
-		return {
-			...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard),
-			viewPreferences: editorViewPreferencesStore(this.app, `${this.manifest.id}:editor-view`, this.root.logger),
-		};
+		const viewPreferences = editorViewPreferencesStore(this.app, `${this.manifest.id}:editor-view`, this.root.logger);
+		return { ...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard), viewPreferences };
 	}
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */

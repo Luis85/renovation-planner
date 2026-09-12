@@ -8,6 +8,7 @@ import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { useAssetShapeStore } from '../../../src/presentation/stores/AssetShapeStore';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
+import { err } from '../../../src/core/result/Result';
 import { worldToScreen, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
@@ -15,6 +16,68 @@ afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restore
 async function setup() { const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle(); return rig; }
 async function menu(rig: Awaited<ReturnType<typeof setup>>) { rig.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle(); }
 async function action(rig: Awaited<ReturnType<typeof setup>>, id: string) { await menu(rig); await rig.wrapper.get(`[data-rp-context-action="${id}"]`).trigger('click'); await settle(); }
+async function menuAt(rig: Awaited<ReturnType<typeof setup>>, world: { x: number; y: number }, altKey = false) {
+	const at = worldToScreen(world, useEditorStore(rig.pinia).viewport, STAGE_PIXELS), box = rig.canvasEl.getBoundingClientRect();
+	rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, altKey, clientX: box.left + at.x, clientY: box.top + at.y })); await settle();
+}
+
+it('adds a point where the menu opened to a Room, a wall and a path, each undone in one step', async () => {
+	const rig = await setup(), addPoint = async () => { await rig.wrapper.get('[data-rp-context-action="add-point"]').trigger('click'); await settle(); };
+	await menuAt(rig, { x: 2000, y: 300 }); expect(rig.selection.selectedIds).toEqual([rig.room.id]); await addPoint();
+	await settleUntil(() => rig.project.zones.get(rig.room.id)?.points.length === 5, 'Room point added');
+	expect(rig.project.zones.get(rig.room.id)?.points).toContainEqual({ x: 2000, y: 0 });
+	await rig.runtime.undo(); await settleUntil(() => rig.project.zones.get(rig.room.id)?.points.length === 4, 'Room point undone');
+	await menuAt(rig, { x: 1000, y: 0 }); expect(rig.selection.selectedIds).toEqual(['wall-a']); await addPoint();
+	await settleUntil(() => rig.project.structure.walls.length === 5, 'wall cut');
+	expect(rig.project.structure.walls.filter(wall => [wall.start, wall.end].some(point => point.x === 1000 && point.y === 0))).toHaveLength(2);
+	await rig.runtime.undo(); await settleUntil(() => rig.project.structure.walls.length === 4, 'wall cut undone');
+	const read = expectOk(await rig.renovation.read(rig.plan.id)), path = { id: 'element-context-path', kind: 'path' as const, name: 'Garden path', points: [{ x: 500, y: 1500 }, { x: 2500, y: 1500 }] };
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, elementInput(read, path), rig.runtime.structureTask.ledger))); await settle();
+	const pathPoints = () => rig.project.structure.elements?.find(item => item.id === path.id)?.points.length;
+	rig.selection.select([path.id as never]); await menuAt(rig, { x: 1500, y: 1500 }); await addPoint();
+	await settleUntil(() => pathPoints() === 3, 'path point added');
+	await rig.runtime.undo(); await settleUntil(() => pathPoints() === 2, 'path point undone');
+});
+
+it('greys Add point on a wall where the cut would pass through an opening', async () => {
+	const rig = await setup(), baseline = expectOk(await rig.services.read(rig.plan.id));
+	const structure = { ...rig.project.structure, openings: [{ id: 'opening-cut', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2100, sill: 0 }] };
+	expectOk(await rig.runtime.dispatcher.run(rig.services.command({ planId: rig.plan.id, baseline, structure, ledger: rig.runtime.structureTask.ledger }))); await settle();
+	// The opening sits on top at that point, so Alt cycles past it to its wall.
+	await menuAt(rig, { x: 1000, y: 0 }); expect(rig.selection.selectedIds).toEqual(['opening-cut']);
+	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
+	await menuAt(rig, { x: 1000, y: 0 }, true); expect(rig.selection.selectedIds).toEqual(['wall-a']);
+	expect(rig.wrapper.get('[data-rp-context-action="add-point"]').attributes('aria-disabled')).toBe('true');
+	await rig.runtime.structureActions.addPoint('wall-a', 1000); await settle();
+	expect(rig.project.structure.walls).toHaveLength(4);
+});
+
+it('offers no point on a corner or an end, and leaves a zone unchanged when its write is refused', async () => {
+	const rig = await setup(), escape = () => rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
+	const addPoint = () => rig.wrapper.find('[data-rp-context-action="add-point"]');
+	const area = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden', geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
+	await rig.runtime.refreshProjection(); rig.selection.select([area.id]); await settle();
+	await menuAt(rig, { x: 5002, y: 2 }); expect(rig.selection.selectedIds).toEqual([area.id]); expect(addPoint().exists()).toBe(false); await escape();
+	await menuAt(rig, { x: 2, y: 0 }); expect(rig.selection.selectedIds).toHaveLength(1); expect(addPoint().exists()).toBe(false); await escape();
+	const read = expectOk(await rig.renovation.read(rig.plan.id)), fence = { id: 'element-context-fence', kind: 'fence' as const, name: 'Fence', points: [{ x: 500, y: 1500 }, { x: 2500, y: 1500 }] };
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, elementInput(read, fence), rig.runtime.structureTask.ledger))); await settle();
+	rig.selection.select([fence.id as never]); await menuAt(rig, { x: 502, y: 1500 }); expect(rig.selection.selectedIds).toEqual([fence.id]); expect(addPoint().exists()).toBe(false); await escape();
+	vi.spyOn(rig.deps.commands.moveObject, 'execute').mockResolvedValueOnce(err({ category: 'Reference', code: 'zone-not-found', message: 'Gone.' }) as never);
+	rig.selection.select([area.id]); await menuAt(rig, { x: 6000, y: 300 }); await addPoint().trigger('click'); await settle();
+	expect(rig.project.zones.get(area.id)?.points).toHaveLength(4);
+});
+
+it('cuts no wall while another structure edit runs, from a stale floor, or when the read faults', async () => {
+	const rig = await setup(), actions = rig.runtime.structureActions;
+	const savedWalls = async () => expectOk(await rig.services.read(rig.plan.id)).document.structure?.walls.length;
+	const first = actions.addPoint('wall-a', 1000); await actions.addPoint('wall-a', 3000); await first; await settle();
+	expect(await savedWalls()).toBe(5);
+	await rig.runtime.undo(); await settle(); expect(await savedWalls()).toBe(4);
+	rig.project.structure = { ...rig.project.structure, walls: rig.project.structure.walls.slice(1) };
+	await actions.addPoint('wall-b', 1000); await settle(); expect(await savedWalls()).toBe(4);
+	vi.spyOn(rig.services, 'read').mockRejectedValueOnce(new Error('read fault'));
+	await actions.addPoint('wall-a', 1000); expect(await savedWalls()).toBe(4);
+});
 
 it('right-clicks a placed asset by its real footprint, not the 500 mm placeholder square', async () => {
 	const rig = await assetPlacementRig();
@@ -84,6 +147,7 @@ it('routes Area metadata to its existing form and persists it through real histo
 	// An Area has no detail route and its shape is edited on the canvas, so nothing floats beside it.
 	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(false);
 	await menu(rig); expect(rig.wrapper.find('[data-rp-context-action="edit"]').exists()).toBe(false);
+	expect(rig.wrapper.get('[data-rp-context-action="rename"]').text()).toBe('Edit area details');
 	await action(rig, 'rename'); const form = rig.wrapper.get('[data-rp-form="area-details"]');
 	await form.get('input[name="name"]').setValue('Patio'); await form.get('select[name="zoneType"]').setValue('Terrace');
 	await form.trigger('submit'); await settleUntil(() => rig.dialogs.current === null, 'Area metadata saved');
@@ -148,7 +212,7 @@ it('orders the menu by group with a separator between groups, draws one known ic
 	rig.selection.select([rig.room.id]); await menu(rig);
 	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
 	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(rig.room.name);
-	expect(groupedIds(menuEl)).toEqual(['rename', 'rotate', '|', 'measure', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
+	expect(groupedIds(menuEl)).toEqual(['rename', 'add-point', 'rotate', '|', 'measure', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
 	for (const item of menuEl.findAll('[data-rp-context-action]')) { expect(item.find('.rp-host-icon[data-icon]').exists()).toBe(true); expect(item.find('[data-icon-missing]').exists()).toBe(false); }
 	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select(['wall-a' as never]); await menu(rig);

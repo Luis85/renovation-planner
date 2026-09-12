@@ -63,7 +63,10 @@ it('keeps rotation feedback clear of the direct-action popover and restores acti
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
 	const object = { id: 'element-feedback', kind: 'object' as const, name: 'Cabinet', points: [{ x: 1000, y: 500 }, { x: 1800, y: 500 }, { x: 1800, y: 1100 }, { x: 1000, y: 1100 }] };
 	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, elementInput(baseline, object), rig.runtime.structureTask.ledger)));
-	rig.selection.select([object.id as never]); await settle(); await hoverRotation(rig.runtime, useEditorStore(rig.pinia), object.points[0]);
+	rig.selection.select([object.id as never]); await settle();
+	// A Room context gives the object its Add detail popover, the one this feedback must stay clear of.
+	rig.session.roomId = rig.room.id; rig.session.targetId = object.id; await settle();
+	await hoverRotation(rig.runtime, useEditorStore(rig.pinia), object.points[0]);
 	const saved = new Map(rig.stack.vault.entries);
 	const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'rotation handle');
 	const tool = rig.runtime.toolManager, destination = pointerAt(handle.x + 1000, handle.y + 1000);

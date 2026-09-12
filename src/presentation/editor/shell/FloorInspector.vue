@@ -89,12 +89,14 @@ const count = (value: number): string => String(value);
  * second command path. `reorder.available` hides it without the command and in review
  * perspective; `reorder.paused` is `runtime.writesBlocked` under the tree's own name, and while
  * it holds the select carries §2.9's pair (`RoomInspector`'s `pausedAttrs` shape: both
- * attributes while paused, NEITHER while live). `write()` already refuses a paused write, so the
- * handler's own check is not a second guard on the dispatch — it puts the DOM value back, which
- * `:value` alone cannot: the store's `kind` never changed, so Vue has nothing to re-patch, and a
- * select left reading `floor` over a plan still saved as `room` is a control lying about a
- * paused write. `useId()` rather than a fixed id because two Plan editor leaves share one
- * document.
+ * attributes while paused, NEITHER while live). `setKind` answers whether the write landed, and
+ * when it did not — refused while paused, or rejected by the command and reported there — the
+ * DOM value is put back to the saved kind, which `:value` alone cannot do: the store's `kind`
+ * never changed, so Vue has nothing to re-patch, and a select left reading `floor` over a plan
+ * still saved as `room` is a control lying about a write that did not happen. Never reset on
+ * success: `ProjectStore` re-hydrates on `PlanDetailsChanged` asynchronously, and snapping back
+ * to the old kind in that window would flicker. `useId()` rather than a fixed id because two
+ * Plan editor leaves share one document.
  */
 const reorder = usePlanReorder();
 const kindId = useId();
@@ -103,12 +105,12 @@ const kindPausedAttrs = computed(() =>
 		? ({ 'aria-disabled': 'true', 'aria-describedby': runtime.pausedReasonId } as Record<string, string>)
 		: ({} as Record<string, string>),
 );
-function onKindChange(event: Event): void {
+async function onKindChange(event: Event): Promise<void> {
 	const plan = project.plan;
 	if (!plan) return;
 	const select = event.target as HTMLSelectElement;
-	if (reorder.paused.value) { select.value = plan.kind; return; }
-	void reorder.setKind(plan.id, select.value as PlanKind);
+	const landed = await reorder.setKind(plan.id, select.value as PlanKind);
+	if (!landed) select.value = project.plan?.kind ?? plan.kind;
 }
 </script>
 

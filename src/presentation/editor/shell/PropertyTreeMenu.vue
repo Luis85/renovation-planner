@@ -38,7 +38,7 @@ const paused = reorder.paused;
 const menu = ref<HTMLElement | null>(null);
 const position = ref({ left: `${props.x}px`, top: `${props.y}px` });
 
-function run(disabled: boolean, action: () => Promise<void>): void {
+function run(disabled: boolean, action: () => Promise<unknown>): void {
 	if (disabled || paused.value) return;
 	emit('close');
 	void action();

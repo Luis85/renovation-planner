@@ -72,13 +72,22 @@ export function usePlanReorder() {
 	const available = computed(() => command !== undefined && session.perspective !== 'review');
 	const paused = computed(() => runtime.writesBlocked.value);
 
-	async function write(writes: readonly { planId: string; kind?: PlanKind; order?: number }[]): Promise<void> {
-		if (command === undefined || paused.value || writes.length === 0) return;
+	/**
+	 * Resolves to whether EVERY write landed — `false` when refused up front (no command, paused)
+	 * or when one was rejected, which is reported here and nowhere else. A caller whose control
+	 * shows the value it asked for (the Floor inspector's Kind select) needs that answer to put
+	 * the control back: the re-read below refreshes the hierarchy, never `ProjectStore.plan`.
+	 */
+	async function write(writes: readonly { planId: string; kind?: PlanKind; order?: number }[]): Promise<boolean> {
+		if (command === undefined || paused.value) return false;
+		if (writes.length === 0) return true;
+		let landed = true;
 		for (const entry of writes) {
 			const result = await command.execute({ ...entry, planId: entry.planId as PlanId });
-			if (!result.ok) { reportDispatchFailure(result.error); break; }
+			if (!result.ok) { reportDispatchFailure(result.error); landed = false; break; }
 		}
 		await store.load(context.queries, context.planId);
+		return landed;
 	}
 	function siblingsOf(id: string): readonly PropertyTreeNode[] {
 		const node = findNode(hierarchy.value.tree, id);

@@ -7,6 +7,7 @@ import { NO_HIERARCHY } from '../../../../src/presentation/read-models/planHiera
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { unavailablePlanEditorCommands } from '../../../../src/presentation/editor/planEditorCommands';
+import * as notices from '../../../../src/presentation/notices/notify';
 import { mountPlanEditorCanvas, runtimeOf, settle, type CanvasHarness } from '../../../helpers/editor';
 import { fakeQueries, FIXTURE_PLAN } from '../../../helpers/planFixtures';
 
@@ -154,6 +155,21 @@ describe('the Kind select', () => {
 		expect(execute).not.toHaveBeenCalled();
 		// The DOM value is put back too: the store's `kind` never moved, so `:value` alone re-patches nothing.
 		expect((select.element as HTMLSelectElement).value).toBe('room');
+	});
+
+	it('a refused write is reported and the select goes back to the saved kind', async () => {
+		const execute = vi.fn<() => Promise<{ ok: false; error: { category: string; code: string; message: string } }>>(() =>
+			Promise.resolve({ ok: false, error: { category: 'Validation', code: 'plan.not-found', message: 'x' } }));
+		const notify = vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(() => undefined);
+		harness = await withKindCommand(execute as never);
+		await settle();
+		const select = harness.wrapper.get('select[data-rp-field="plan-kind"]');
+		await select.setValue('floor');
+		await settle();
+		expect(execute).toHaveBeenCalledOnce();
+		expect(notify).toHaveBeenCalledOnce();
+		expect((select.element as HTMLSelectElement).value).toBe('room');
+		notify.mockRestore();
 	});
 });
 

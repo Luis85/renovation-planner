@@ -17,6 +17,7 @@
 3. Found while tracing every writer of a room's sidecar entry, each of which would otherwise drop or distort a moved caption: a calibration rescales offsets with the geometry; the group-move projection (`groupSnapshot.ts`) and the group write's zone versions (`zoneGeometryVersions.ts`) carry the offset; the zone version digest (`digest.ts`) observes it.
 4. `Zone.withLabelOffset` takes `Vector | null`: undo of a first drag must restore the automatic caption. No UI clears an offset.
 5. No new fixed `harness-shot` capture: the harness Plan Editor floor has no renovation services, so a drag cannot save there. The jsdom rendering test and the manual case cover it.
+6. Main moved during execution (#148 draws a zone's detail plans as a THIRD caption line; `captionOffsetY`'s fifth parameter became `{ viewport, bottom }`). The branch merges `origin/main` after Task 1; Tasks 4 and 6 use `captionBottom(detailed)` so a room caption's drawn position and grab box both honour the taller block.
 
 ## Global Constraints
 
@@ -606,8 +607,8 @@ git commit -m "commands: write a caption offset with a zone move, and rescale of
   - `measureLabelWidth(text: string, fontPx: number): number`
   - `textLabelBounds(layout: { readonly x: number; readonly y: number; readonly text: string }, zoom: number, measure?: (text: string, fontPx: number) => number): BoundingBox`
   - The layout shape is written inline, never as an exported type: nothing outside the module would import it (fallow `unused-exports`), and a non-exported name in these signatures is a `private-type-leaks` error.
-  - `roomCaptionBounds(anchor: Point, zoom: number): BoundingBox`
-  - `captionPlacement.ts`: `CAPTION_BOUNDS_PX`, `captionPins(pins, sessionVisible: boolean, annotationVisible: boolean)`, `roomCaptionAnchor(zone, zoom, pins, dimensions, viewport): Point`
+  - `roomCaptionBounds(anchor: Point, zoom: number, bottom: number): BoundingBox`
+  - `captionPlacement.ts`: `CAPTION_BOUNDS_PX`, `captionPins(pins, sessionVisible: boolean, annotationVisible: boolean)`, `captionBottom(detailed: boolean): number`, `roomCaptionAnchor(zone, zoom, pins, dimensions, options: { readonly viewport: BoundingBox | null; readonly bottom: number }): Point`
   - `RenderState.labelPreview: { readonly id: string; readonly offset: Vector } | null`
   - `withElementPreviews(elements, names, rotation, moved, label?: { readonly id: string; readonly offset: Vector } | null)`
   - `ZoneRenderModel.labelOffset?: Vector`; `ZoneLayer` prop `labelPreview`
@@ -619,7 +620,7 @@ Create `tests/presentation/editor/labels/labelLayout.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest';
 import { assetLabelLayout, elementCaptionLayout, elementLabelLayout, measureLabelWidth, roomCaptionBounds, textLabelBounds } from '../../../../src/presentation/editor/labels/labelLayout';
-import { captionOffsetY, captionPins, roomCaptionAnchor } from '../../../../src/presentation/editor/layers/zone/captionPlacement';
+import { captionBottom, captionOffsetY, captionPins, DETAIL_CAPTION_BOTTOM, roomCaptionAnchor } from '../../../../src/presentation/editor/layers/zone/captionPlacement';
 import { elementFootprint } from '../../../../src/presentation/editor/elements/elementFootprint';
 import { withElementPreviews } from '../../../../src/presentation/editor/elements/elementPreviews';
 import type { NamedSpatialElement } from '../../../../src/domain/spatial/SpatialElement';
@@ -658,11 +659,14 @@ describe('element and asset name tags', () => {
 describe('room captions', () => {
 	it('draw a dragged caption at anchor plus offset, ignoring the pins an automatic one clears', () => {
 		const pins = [{ x: 500, y: 500, number: 1 }];
-		const automatic = roomCaptionAnchor({ points: square }, 1, pins, [], null);
+		const automatic = roomCaptionAnchor({ points: square }, 1, pins, [], { viewport: null, bottom: captionBottom(false) });
 		expect(automatic).toEqual({ x: 500, y: 500 + captionOffsetY({ x: 500, y: 500 }, pins, 1) });
 		expect(automatic.y).not.toBe(500);
-		expect(roomCaptionAnchor({ points: square, labelOffset: { dx: 50, dy: -70 } }, 1, pins, [], null)).toEqual({ x: 550, y: 430 });
-		expect(roomCaptionBounds({ x: 500, y: 500 }, 2)).toEqual({ min: { x: 454.5, y: 488 }, max: { x: 545.5, y: 516 } });
+		// A third caption line (a zone's detail plans, ADR-0028) clears obstacles with a taller block.
+		expect(roomCaptionAnchor({ points: square }, 1, pins, [], { viewport: null, bottom: captionBottom(true) }).y).toBe(500 + captionOffsetY({ x: 500, y: 500 }, pins, 1, [], { bottom: DETAIL_CAPTION_BOTTOM }));
+		expect(roomCaptionAnchor({ points: square, labelOffset: { dx: 50, dy: -70 } }, 1, pins, [], { viewport: null, bottom: captionBottom(true) })).toEqual({ x: 550, y: 430 });
+		expect(roomCaptionBounds({ x: 500, y: 500 }, 2, captionBottom(false))).toEqual({ min: { x: 454.5, y: 488 }, max: { x: 545.5, y: 516 } });
+		expect(roomCaptionBounds({ x: 500, y: 500 }, 2, captionBottom(true)).max.y).toBe(500 + DETAIL_CAPTION_BOTTOM / 2);
 	});
 
 	it('clear pins only while the session and the annotation layer both show them', () => {
@@ -751,17 +755,24 @@ export function captionPins<T extends NumberedPin>(pins: readonly T[], sessionVi
 	return sessionVisible && annotationVisible ? pins : [];
 }
 
+/** Where a room caption's block ends, in screen px: lower while it carries a third line naming its detail plans (ADR-0028). */
+export function captionBottom(detailed: boolean): number {
+	return detailed ? DETAIL_CAPTION_BOTTOM : CAPTION.bottom;
+}
+
 /**
  * Where a room caption is DRAWN (ADR-0029). A dragged caption sits exactly at its automatic anchor
  * plus its offset — a placement the renovator chose wins — and only an undragged one is displaced
  * around pins and dimension labels.
  */
-export function roomCaptionAnchor(zone: { readonly points: readonly Point[]; readonly bulges?: readonly number[]; readonly labelOffset?: Vector | null }, zoom: number, pins: readonly NumberedPin[], dimensions: readonly BoundingBox[], viewport: BoundingBox | null): Point {
+export function roomCaptionAnchor(zone: { readonly points: readonly Point[]; readonly bulges?: readonly number[]; readonly labelOffset?: Vector | null }, zoom: number, pins: readonly NumberedPin[], dimensions: readonly BoundingBox[], options: { readonly viewport: BoundingBox | null; readonly bottom: number }): Point {
 	const anchor = labelAnchor(zone.points, zone.bulges);
 	if (zone.labelOffset) return { x: anchor.x + zone.labelOffset.dx, y: anchor.y + zone.labelOffset.dy };
-	return { x: anchor.x, y: anchor.y + captionOffsetY(anchor, pins, zoom, dimensions, viewport) };
+	return { x: anchor.x, y: anchor.y + captionOffsetY(anchor, pins, zoom, dimensions, options) };
 }
 ```
+
+(Since the merge of `origin/main`, `captionPlacement.ts` already exports `DETAIL_CAPTION_BOTTOM` and `captionOffsetY` takes `{ viewport, bottom }` as its fifth parameter; the `const CAPTION = …` line this step replaces is unchanged.)
 
 - [ ] **Step 5: Create the placement module**
 
@@ -822,11 +833,11 @@ export function textLabelBounds(layout: { readonly x: number; readonly y: number
 	return { min: { x: layout.x, y: layout.y }, max: { x: layout.x + measure(layout.text, ELEMENT_LABEL_FONT_PX) / zoom, y: layout.y + ELEMENT_LABEL_FONT_PX / zoom } };
 }
 
-/** A room caption's world box: its fixed name-and-area block around the drawn anchor. */
-export function roomCaptionBounds(anchor: Point, zoom: number): BoundingBox {
+/** A room caption's world box around the drawn anchor; `bottom` is `captionBottom(…)`, lower while a detail-plans line shows. */
+export function roomCaptionBounds(anchor: Point, zoom: number, bottom: number): BoundingBox {
 	return {
 		min: { x: anchor.x - CAPTION_BOUNDS_PX.halfWidth / zoom, y: anchor.y + CAPTION_BOUNDS_PX.top / zoom },
-		max: { x: anchor.x + CAPTION_BOUNDS_PX.halfWidth / zoom, y: anchor.y + CAPTION_BOUNDS_PX.bottom / zoom },
+		max: { x: anchor.x + CAPTION_BOUNDS_PX.halfWidth / zoom, y: anchor.y + bottom / zoom },
 	};
 }
 ```
@@ -850,14 +861,15 @@ and `reset()` gains `this.labelPreview = null;`.
 
 `ZoneShape.vue`:
 - import line 37 becomes `import { zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';`
-- import line 39 becomes `import { roomCaptionAnchor, type NumberedPin } from './captionPlacement';`
+- import line 39 (`import { captionOffsetY, DETAIL_CAPTION_BOTTOM, type NumberedPin } from './captionPlacement';` since the merge) becomes `import { captionBottom, roomCaptionAnchor, type NumberedPin } from './captionPlacement';`
 - delete `const anchor = computed(() => labelAnchor(props.model.points, props.model.bulges));`
-- replace the two lines starting `// Viewport/obstacle movement often leaves a caption in the same place.` through `const captionDisplacement = …` and the first line of `captionLayout` with:
+- replace the comment starting `// Viewport/obstacle movement often leaves a caption in the same place.`, the two-line `const captionDisplacement = computed(…` statement, and the first line of `captionLayout` with:
 
 ```ts
 // A caption's position is two NUMBERS rather than one Point: an unchanged position then propagates
-// nothing, so vue-konva does not diff six unchanged configs for every Room.
-const captionAnchor = computed(() => roomCaptionAnchor(props.model, props.zoom, props.pins, props.dimensionObstacles, props.captionViewport));
+// nothing, so vue-konva does not diff seven unchanged configs for every Room.
+const captionAnchor = computed(() => roomCaptionAnchor(props.model, props.zoom, props.pins, props.dimensionObstacles,
+	{ viewport: props.captionViewport, bottom: captionBottom(props.detailCaption !== null) }));
 const captionX = computed(() => captionAnchor.value.x);
 const captionY = computed(() => captionAnchor.value.y);
 const captionLayout = computed(() => ({ x: captionX.value, y: captionY.value, width: 180, offsetX: 90, align: 'center',
@@ -1260,7 +1272,7 @@ git commit -m "editor: make a selected item's caption a drag target in the Selec
 - Create: `tests/presentation/editor/labelDrag.test.ts`
 
 **Interfaces:**
-- Consumes: `LabelHit`, `LabelMoveDeps` (Task 5); `roomCaptionAnchor`, `captionPins`, `roomCaptionBounds`, `elementCaptionLayout`, `textLabelBounds` (Task 4); `ReversibleMoveZoneCommand` offset states (Task 3); `Zone.labelOffset` (Task 2).
+- Consumes: `LabelHit`, `LabelMoveDeps` (Task 5); `roomCaptionAnchor`, `captionPins`, `captionBottom`, `roomCaptionBounds`, `elementCaptionLayout`, `textLabelBounds` (Task 4); `usePlanHierarchyStore().hierarchy.detailPlans[].parentZoneId` (from `origin/main`, ADR-0028); `ReversibleMoveZoneCommand` offset states (Task 3); `Zone.labelOffset` (Task 2).
 - Produces: `createLabelActions(context, runtime)` returning `{ hits: ComputedRef<readonly LabelHit[]>; move(id: string, offset: Vector): Promise<void>; setCaptionContext(evidence: readonly NumberedPin[], layout: DimensionObstacleLayout): void }`; `RotationBaseline.labelCommand(offset: Vector): UndoableCommand`; `EditorRuntime.labelActions`.
 
 - [ ] **Step 1: Write the failing integration tests**
@@ -1434,7 +1446,8 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { notifyFault, notifyOperationFailure } from '../../notices/notify';
-import { captionPins, roomCaptionAnchor, type NumberedPin } from '../layers/zone/captionPlacement';
+import { captionBottom, captionPins, roomCaptionAnchor, type NumberedPin } from '../layers/zone/captionPlacement';
+import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import { labelAnchor } from '../layers/zone/ZoneRenderModel';
 import type { DimensionObstacleLayout } from '../resize/useDimensionObstacles';
 import { projectedRotationTarget, readRotationBaseline } from '../elements/rotationBaseline';
@@ -1446,8 +1459,10 @@ import { elementCaptionLayout, roomCaptionBounds, textLabelBounds, type LabelHit
  * (`rotationBaseline.ts`), so a caption drag has their stale check, history and conflict refusal.
  */
 export function createLabelActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'renderState'> & { readonly ledger: SessionWriteLedger }) {
-	const project = useProjectStore(), editor = useEditorStore(), workspace = useWorkspaceStore(), shapes = useAssetShapeStore();
+	const project = useProjectStore(), editor = useEditorStore(), workspace = useWorkspaceStore(), shapes = useAssetShapeStore(), plans = usePlanHierarchyStore();
 	const selection = useSelectionStore(), saves = useSaveStateStore(), session = useRenovationSession(), dialogs = useDialogStore();
+	// A zone some plan details draws a third caption line (ADR-0028), so its caption block is taller.
+	const detailed = computed(() => new Set(plans.hierarchy.detailPlans.map(detail => detail.parentZoneId)));
 	const pins = shallowRef<readonly NumberedPin[]>([]), dimensions = shallowRef<DimensionObstacleLayout>({ bounds: [], viewport: null });
 	const working = ref(false);
 	let alive = true;
@@ -1458,9 +1473,10 @@ export function createLabelActions(context: PlanEditorContext, runtime: Pick<Edi
 	function hitFor(id: string, zoom: number): LabelHit | null {
 		const zone = project.zones.get(id);
 		if (zone) {
-			const drawn = roomCaptionAnchor(zone, zoom, captionPins(pins.value, session.visible, workspace.layerVisibility.annotation), dimensions.value.bounds, dimensions.value.viewport);
+			const bottom = captionBottom(detailed.value.has(id));
+			const drawn = roomCaptionAnchor(zone, zoom, captionPins(pins.value, session.visible, workspace.layerVisibility.annotation), dimensions.value.bounds, { viewport: dimensions.value.viewport, bottom });
 			const automatic = labelAnchor(zone.points, zone.bulges);
-			return { id, bounds: roomCaptionBounds(drawn, zoom), offset: { dx: drawn.x - automatic.x, dy: drawn.y - automatic.y } };
+			return { id, bounds: roomCaptionBounds(drawn, zoom, bottom), offset: { dx: drawn.x - automatic.x, dy: drawn.y - automatic.y } };
 		}
 		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
 		if (!element || name === undefined) return null;

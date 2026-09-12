@@ -274,3 +274,26 @@
 .renovation-plan-editor .rp-editor-layers .rp-room-list__item:focus-within > .rp-editor-inspector-lock {
 	opacity: 1;
 }
+
+/*
+ * The sidebar's row fill spans the whole item, lock slot included (design spec §2's list row:
+ * fill/accent is a property of the whole row, trailing action included). `editor-inspector.css`
+ * paints hover and selected fills on `.rp-room-list__row` alone, which is `flex: 1 1 auto` inside
+ * `.rp-room-list__item` and stops short of the lock's own `flex: none` slot — the quiet-lock rule
+ * above then leaves that slot visibly blank. Painted on the ITEM via `:has()` reading the row's
+ * own state, scoped to `.rp-editor-layers`, so the row keeps `aria-pressed`, its own
+ * `:focus-visible` ring and the lock's tab order and hover/focus reveal untouched, and the
+ * Inspector's own room list (unrelated to this task) keeps its per-row-only fill.
+ */
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:hover,
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:has(> .rp-room-list__row[aria-pressed='true']) {
+	border-radius: var(--radius-s);
+}
+
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item:has(> .rp-room-list__row[aria-pressed='true']) {
+	background-color: var(--background-modifier-active-hover);
+}

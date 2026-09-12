@@ -33,7 +33,7 @@ describe('the obsidian module alias', () => {
 	it('points at a mock that exists', () => {
 		const target = aliasOf(vitestConfig);
 
-		expect(target).toMatch(/obsidian-mock\.ts$/);
+		expect(target.endsWith('obsidian-mock.ts')).toBe(true);
 		expect(existsSync(target)).toBe(true);
 	});
 });
@@ -68,15 +68,6 @@ describe('the Vue plugin, in every config that transforms source', () => {
 });
 
 /**
- * The SSR-SFC refusal (`scripts/vitest-no-ssr-sfc.mjs`) is a gate only while the suite config
- * REGISTERS it: `tests/build/no-ssr-sfc.test.ts` drives the plugin through a fixture config of
- * its own, so deleting `noSsrSfc()` from `vitest.config.ts` switched the rule off with every
- * test green — watched, with the line removed, before this case existed. Asked of the real
- * config object rather than of its text: the plugin is present by name, and it precedes the Vue
- * plugin in the flattened list, since a `pre` transform behind `vite:vue` would see compiled
- * output rather than the SFC.
- */
-/**
  * The `build-lint` project's `include` is DERIVED from the import graph (`eslintBootingTests` in
  * `vitest.config.ts`), and the two files the first, text-matched version of that derivation
  * missed are the pin: `tests/helpers/eslint.test.ts` reaches the shared instance as a sibling
@@ -96,6 +87,15 @@ describe('the ESLint-booting project', () => {
 	});
 });
 
+/**
+ * The SSR-SFC refusal (`scripts/vitest-no-ssr-sfc.mjs`) is a gate only while the suite config
+ * REGISTERS it: `tests/build/no-ssr-sfc.test.ts` drives the plugin through a fixture config of
+ * its own, so deleting `noSsrSfc()` from `vitest.config.ts` switched the rule off with every
+ * test green — watched, with the line removed, before this case existed. Asked of the real
+ * config object rather than of its text: the plugin is present by name, and it precedes the Vue
+ * plugin in the flattened list, since a `pre` transform behind `vite:vue` would see compiled
+ * output rather than the SFC.
+ */
 describe('the SSR-SFC refusal, in the suite config', () => {
 	it('is registered ahead of the Vue plugin', () => {
 		const names = pluginNames(vitestConfig);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import path from 'node:path';
+import { callsOf, namesIdentifier, parseScript, parseSource, type ParsedScript } from '../../helpers/parsedSource';
 
 /**
  * The rule: a subscriber must never acquire a reference lock. `EventBus.publish` awaits its
@@ -10,9 +11,12 @@ import path from 'node:path';
  * unrecoverably: `waitForRelease` fires only from `releaseAll`, which the publisher reaches
  * only after `publish` returns.
  *
- * **What this tripwire can and cannot see.** It reads module TEXT, so it catches a subscriber
- * module that NAMES the lock TYPE (`ReferenceLocks`), either convenience wrapper (`withLevel1`,
- * `withLevel2`) or either acquisition DOOR (`acquire(`, `beginSession(`). The doors are the
+ * **What this tripwire can and cannot see.** It reads each module's PARSED tree
+ * (`tests/helpers/parsedSource.ts`), so it catches a subscriber module that NAMES the lock TYPE
+ * (`ReferenceLocks`) or either convenience wrapper (`withLevel1`, `withLevel2`) as an
+ * identifier, or CALLS either acquisition DOOR (`acquire(`, `beginSession(`) — and a comment
+ * spelling any of the five is neither an identifier nor a call, where the text scan this
+ * replaced would have read it as a lock. The doors are the
  * rule's own verb — "must never ACQUIRE" — and without them the LITERAL violation was the one
  * shape this instrument could not see: a registrar reaching a lock through a deps interface
  * declared elsewhere writes `deps.locks.acquire(...)` and need name nothing else. It is still
@@ -57,7 +61,7 @@ import path from 'node:path';
  *   which takes the door directly and whose publish reaches a live subscriber under the lock it
  *   is still holding.
  * - And the ASSEMBLED predicate is bracketed, positively and negatively, because both of the
- *   above test `LOCK_PATTERNS` directly and would survive `namesALock` itself being broken —
+ *   above test `LOCK_ARMS` directly and would survive `namesALock` itself being broken —
  *   an `every` for a `some`, an `&& false`, an inverted return. It must match every anchor and
  *   it must not match the whole tree.
  *
@@ -75,32 +79,38 @@ const sources = (dir: string): string[] =>
 		return entry.name.endsWith('.ts') ? [full] : [];
 	});
 
-const REGISTRATION_SPELLINGS = ['.subscribe(', 'subscribeAll('] as const;
+/** A module, parsed once per case that asks. */
+const parsed = new Map<string, ParsedScript>();
+const scriptOf = (file: string): ParsedScript => {
+	let script = parsed.get(file);
+	if (script === undefined) parsed.set(file, (script = parseScript(file)));
+	return script;
+};
+
+const REGISTRATION_CALLS = ['subscribe', 'subscribeAll'] as const;
 
 const registrars = (): string[] =>
-	sources('src').filter((file) => {
-		const text = readFileSync(file, 'utf8');
-		return REGISTRATION_SPELLINGS.some((spelling) => text.includes(spelling));
-	});
+	sources('src').filter((file) => REGISTRATION_CALLS.some((callee) => callsOf(scriptOf(file).file, scriptOf(file), callee).length > 0));
 
 /**
  * The judgement half's three arms, spelled ONCE so the rule below and the controls below that
- * cannot disagree about what naming a lock means.
+ * cannot disagree about what naming a lock means. Each is a question of the parsed tree: the
+ * type and the wrappers as identifiers anywhere in it, the doors as calls.
  */
-const LOCK_PATTERNS = {
-	type: /ReferenceLocks/,
-	helper: /withLevel1|withLevel2/,
-	door: /acquire\(|beginSession\(/,
+const LOCK_ARMS = {
+	type: (script: ParsedScript): boolean => namesIdentifier(script.file, 'ReferenceLocks'),
+	helper: (script: ParsedScript): boolean => namesIdentifier(script.file, 'withLevel1') || namesIdentifier(script.file, 'withLevel2'),
+	door: (script: ParsedScript): boolean => callsOf(script.file, script, 'acquire').length > 0 || callsOf(script.file, script, 'beginSession').length > 0,
 } as const;
 
 /**
  * One anchor per arm — a real module that drives these locks through the arm it stands for, so
  * a verb RENAMED in `src/` reddens here rather than leaving the rule matching a vocabulary
- * nothing uses any more. Both records below are typed off `LOCK_PATTERNS`, so an arm added
+ * nothing uses any more. Both records below are typed off `LOCK_ARMS`, so an arm added
  * without one, and one orphaned by a deleted arm, are each a BUILD error rather than a quietly
  * weaker control.
  */
-const ANCHORS: Record<keyof typeof LOCK_PATTERNS, string> = {
+const ANCHORS: Record<keyof typeof LOCK_ARMS, string> = {
 	type: path.join('src', 'application', 'reference', 'deleteResolution.ts'),
 	helper: path.join('src', 'application', 'commands', 'asset', 'updateAssetShape.ts'),
 	door: path.join('src', 'application', 'commands', 'asset-price', 'SetAssetPriceOverride.ts'),
@@ -112,7 +122,7 @@ const ANCHORS: Record<keyof typeof LOCK_PATTERNS, string> = {
  * satisfy. Every alternative inside every arm appears exactly once, so dropping `|withLevel2`
  * or `|beginSession(` now reddens the token's own assertion instead of riding on a sibling.
  */
-const LOCK_SPECIMENS: Record<keyof typeof LOCK_PATTERNS, readonly string[]> = {
+const LOCK_SPECIMENS: Record<keyof typeof LOCK_ARMS, readonly string[]> = {
 	type: ['const locks: ReferenceLocks = createReferenceLocks();'],
 	helper: ['await locks.withLevel1(id, run);', 'await locks.withLevel2(id, run);'],
 	door: ['const held = await locks.acquire(2, id);', 'const session = locks.beginSession();'],
@@ -127,10 +137,7 @@ const LOCK_SPECIMENS: Record<keyof typeof LOCK_PATTERNS, readonly string[]> = {
  */
 const changeSources = (): string[] => sources('src').filter((file) => file.endsWith('ChangeSource.ts'));
 
-const namesALock = (file: string): boolean => {
-	const text = readFileSync(file, 'utf8');
-	return Object.values(LOCK_PATTERNS).some((pattern) => pattern.test(text));
-};
+const namesALock = (file: string): boolean => Object.values(LOCK_ARMS).some((arm) => arm(scriptOf(file)));
 
 describe('subscriber modules and the reference locks', () => {
 	it('finds the subscriber modules at all', () => {
@@ -144,9 +151,9 @@ describe('subscriber modules and the reference locks', () => {
 	it('every TOKEN of the offender predicate can still recognise a lock', () => {
 		// Blinding-proof: a specimen is written here, so an arm narrowed to its anchor's own
 		// incidental identifiers matches nothing and fails at its own token.
-		for (const arm of Object.keys(LOCK_SPECIMENS) as (keyof typeof LOCK_PATTERNS)[]) {
+		for (const arm of Object.keys(LOCK_SPECIMENS) as (keyof typeof LOCK_ARMS)[]) {
 			for (const specimen of LOCK_SPECIMENS[arm]) {
-				expect(LOCK_PATTERNS[arm].test(specimen), `${arm} arm against ${specimen}`).toBe(true);
+				expect(LOCK_ARMS[arm](parseSource('specimen.ts', specimen)), `${arm} arm against ${specimen}`).toBe(true);
 			}
 		}
 	});
@@ -154,14 +161,14 @@ describe('subscriber modules and the reference locks', () => {
 	it('every arm still recognises the vocabulary src actually uses', () => {
 		// Rename-proof, which the specimens above cannot be: they are this test's own copy of
 		// the vocabulary and stay green while src renames a verb out from under the rule.
-		for (const arm of Object.keys(ANCHORS) as (keyof typeof LOCK_PATTERNS)[]) {
-			const matched = LOCK_PATTERNS[arm].test(readFileSync(ANCHORS[arm], 'utf8'));
+		for (const arm of Object.keys(ANCHORS) as (keyof typeof LOCK_ARMS)[]) {
+			const matched = LOCK_ARMS[arm](scriptOf(ANCHORS[arm]));
 			expect(matched, `${arm} arm against ${ANCHORS[arm]}`).toBe(true);
 		}
 	});
 
 	it('the assembled predicate matches every anchor and is not simply everything', () => {
-		// Both controls above read LOCK_PATTERNS directly, so they survive namesALock itself
+		// Both controls above read LOCK_ARMS directly, so they survive namesALock itself
 		// being broken — an `every` for a `some`, an `&& false`, an inverted return. This
 		// brackets the predicate the rule below actually calls.
 		const matched = sources('src').filter((file) => namesALock(file));

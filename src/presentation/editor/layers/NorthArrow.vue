@@ -48,15 +48,22 @@ function key(event: KeyboardEvent): void {
 	event.preventDefault();
 	void commit(snapped(bearing.value + turn));
 }
+/**
+ * Saves queue behind one another in the history, so a turn made while one is in flight counts from
+ * the LATEST bearing asked for (`queued`), and only the newest request lets go of the preview —
+ * an earlier one finishing must not drop the user back to a bearing they have already turned past.
+ */
+let queued: number | null = null, ticket = 0;
 async function commit(north: number): Promise<void> {
 	const planNorth = service.value;
-	if (planNorth === null || north === saved.value) { draft.value = null; return; }
-	draft.value = north;
+	if (planNorth === null || north === (queued ?? saved.value)) { draft.value = queued; return; }
+	const mine = ++ticket;
+	draft.value = queued = north;
 	try {
 		const result = await runtime.dispatcher.run(planNorth.command(context.planId as PlanId, north));
 		if (!result.ok) notifyOperationFailure(result.error);
 	} catch (cause) { notifyFault(cause, context.commands.logger, 'editor.north.failed'); }
-	finally { draft.value = null; }
+	finally { if (mine === ticket) draft.value = queued = null; }
 }
 </script>
 
@@ -76,7 +83,7 @@ async function commit(north: number): Promise<void> {
 		@pointerdown="press"
 		@pointermove.stop="drag"
 		@pointerup="release"
-		@pointercancel="draft = null"
+		@pointercancel="draft = queued"
 		@keydown="key"
 	>
 		<circle

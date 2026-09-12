@@ -6,7 +6,7 @@ import { err, ok } from '../../../src/core/result/Result';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 import { useRenovationSession } from '../../../src/presentation/editor/renovation/renovationSession';
 import { activateNotices } from '../../../src/presentation/notices/notify';
-import { mountPlanEditorCanvas, settle, type EditorHarness } from '../../helpers/editor';
+import { mountPlanEditorCanvas, settle, settleUntil, type EditorHarness } from '../../helpers/editor';
 import { Notice } from '../../helpers/obsidian-mock';
 import { FIXTURE_PLAN } from '../../helpers/planFixtures';
 import { installObsidianDom } from '../../helpers/dom';
@@ -45,6 +45,28 @@ describe('north arrow', () => {
 			await arrow.trigger('keydown', { key: 'a' });
 			await settle();
 			expect(command.mock.calls).toEqual([['plan-ground', 105], ['plan-ground', 75]]);
+		} finally { h.unmount(); }
+	});
+
+	it('turns from the latest queued bearing while an earlier save is still finishing', async () => {
+		const pending: (() => void)[] = [];
+		const { command, commands } = northService(() => new Promise((resolve) => { pending.push(() => resolve(ok('wrote'))); }));
+		const h = await mountPlanEditorCanvas({ plan: { ...FIXTURE_PLAN, north: 90 }, commands });
+		try {
+			const arrow = await shown(h);
+			await arrow.trigger('keydown', { key: 'ArrowRight' });
+			await settleUntil(() => pending.length === 1, 'the first save');
+			await arrow.trigger('keydown', { key: 'ArrowRight' });
+			(pending.shift() as () => void)();
+			await settleUntil(() => pending.length === 1, 'the second save');
+			expect(arrow.get('g').attributes('transform')).toBe('rotate(120)');
+			await arrow.trigger('keydown', { key: 'ArrowRight' });
+			(pending.shift() as () => void)();
+			await settleUntil(() => pending.length === 1, 'the third save');
+			(pending.shift() as () => void)();
+			await settle();
+			expect(command.mock.calls.map((call) => call[1])).toEqual([105, 120, 135]);
+			expect(arrow.get('g').attributes('transform')).toBe('rotate(90)');
 		} finally { h.unmount(); }
 	});
 

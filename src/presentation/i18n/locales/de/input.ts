@@ -23,6 +23,8 @@ export const inputDe: Record<keyof typeof inputEn, string> = {
 	'editor.input.hierarchy-unreadable': 'Es konnte nicht gelesen werden, zu welchen Plänen dieser Plan gehört.',
 	'editor.input.detail-plan-new': 'Neuer Detailplan',
 	'editor.input.detail-plan-open': '{name} öffnen',
-	'editor.input.detail-plan-guide-caption': '{name} · Umriss aus {plan}',
+	'editor.input.detail-plan-caption-one': '▸ {name}',
+	'editor.input.detail-plan-caption-many': '▸ {count} Detailpläne',
+	'editor.input.detail-plan-guide-caption':'{name} · Umriss aus {plan}',
 	'editor.input.detail-plan-guide-explainer': 'Der gestrichelte Umriss ist {name} aus {plan}. Er dient nur als Hilfslinie und wird in diesem Plan nicht gespeichert. Fügen Sie einen Referenzplan hinzu, der an derselben linken oberen Ecke zugeschnitten ist, und legen Sie den Maßstab fest – dann liegen beide übereinander.',
 };

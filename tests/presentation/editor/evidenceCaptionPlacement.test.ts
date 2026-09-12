@@ -27,7 +27,7 @@ async function withPins(distant = false) {
 }
 
 function expectClearCaptions(group: Konva.Group, stage: Konva.Stage): void {
-	const captions = group.find<Konva.Text>('Text');
+	const captions = group.find<Konva.Text>('Text').filter(text => text.isVisible());
 	expect(captions).toHaveLength(2);
 	for (const caption of captions) {
 		const text = caption.getClientRect();

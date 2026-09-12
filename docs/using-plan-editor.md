@@ -71,9 +71,10 @@ comes from; with nothing selected and until a reference plan is added, the Inspe
 the outline is. **Fit floor** frames the guide while the Reference plan layer is visible, and
 that layer's eye hides it. Crop the new plan's reference image at the same corner and calibrate
 it, and the drawing lines up with the guide. A zone can have several detail plans, for example
-one per floor, and its right-click menu lists **Open** for each. On a detail plan, the breadcrumb
-and the Property tree list every plan above it, and each name opens that plan. If the zone is
-later deleted, the outline disappears and the Property tree says so.
+one per floor, and its right-click menu lists **Open** for each. On the canvas, a zone with
+detail plans shows a third line under its area: the plan's name, or how many there are. On a
+detail plan, the breadcrumb and the Property tree list every plan above it, and each name opens
+that plan. If the zone is later deleted, the outline disappears and the Property tree says so.
 
 ## Group and enclose a room
 

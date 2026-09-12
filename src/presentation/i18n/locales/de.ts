@@ -380,6 +380,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.project.price-orphan': 'Objekt nicht mehr verfügbar',
 	'view.project.price-unreadable': 'Objekt konnte nicht gelesen werden',
 	'form.new-plan.title': 'Neuer Plan',
+	'form.new-detail-plan.title': 'Neuer Detailplan für {name}',
 	'form.new-plan.name': 'Name',
 	// SIEZEN, wie jeder andere Fließtext in dieser Datei ('Erstellen Sie eines, um zu beginnen.',
 	// 'Zeichnen Sie die erste Zone auf diesem Plan.'): die englische Vorlage kennt diese

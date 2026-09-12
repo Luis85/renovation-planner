@@ -14,6 +14,9 @@ describe('EditorContextBar', () => {
 		const harness = await mountPlanEditorCanvas();
 		const crumbs = harness.wrapper.findAll('.rp-context-bar__crumb').map((c) => c.text());
 		expect(crumbs).toEqual(['Willow House', 'Ground floor']);
+		const current = harness.wrapper.findAll('.rp-context-bar__crumb').at(-1);
+		expect(current?.attributes('aria-current')).toBe('page');
+		expect(harness.wrapper.findAll('.rp-context-bar__crumb[aria-current]')).toHaveLength(1);
 	});
 
 	/**

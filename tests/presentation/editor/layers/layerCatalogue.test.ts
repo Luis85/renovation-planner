@@ -83,4 +83,17 @@ describe('layerCatalogue', () => {
 		expect(reference.action?.enabled).toBe(false);
 		expect(reference.action?.reasonKey).toBe('editor.layer.reference-plan.none');
 	});
+
+	it('makes the reference row a live toggle naming the guide when a detail plan has a guide but no background', () => {
+		const [reference] = layerCatalogue(FIXTURE_PLAN, toggles(), false, true);
+		expect(reference.state).toBe('available');
+		expect(reference.reasonKey).toBe('editor.layer.reference-plan.guide-only');
+		expect(reference.action).toEqual({ labelKey: 'editor.layer.reference-plan.set-scale', toolId: 'calibrate', enabled: false, reasonKey: 'editor.layer.reference-plan.none' });
+	});
+
+	it('says nothing extra about a guide once a background exists', () => {
+		const [reference] = layerCatalogue({ ...FIXTURE_PLAN, background: { path: 'Plans/g.png', kind: 'image' } }, toggles(), false, true);
+		expect(reference.state).toBe('available');
+		expect(reference.reasonKey).toBeNull();
+	});
 });

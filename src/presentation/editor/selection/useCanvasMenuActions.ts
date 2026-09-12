@@ -35,6 +35,11 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	function ordered(result: readonly CanvasMenuAction[]): CanvasMenuAction[] {
 		return GROUP_ORDER.flatMap(group => result.filter(action => action.group === group)).map(action => ({ ...action, reason: action.reason ?? reason(action.disabled === true) }));
 	}
+	/** Fit floor or Fit selection; a greyed Fit floor says there is nothing to frame rather than blaming another tool. */
+	function fitAction(ids: readonly string[]): CanvasMenuAction {
+		const nothingToFit = frame(ids.length === 0) === null;
+		return { id: 'fit', label: ids.length ? 'editor.view.fit-selection' : 'editor.view.fit-floor', group: 'view', icon: 'maximize', disabled: nothingToFit, ...(nothingToFit && ids.length === 0 ? { reason: 'editor.view.fit-nothing' as const } : {}), run: () => fit(ids.length === 0) };
+	}
 	/** A wall's create actions, at the point the menu opened on it: a new wall joined there, or an opening centred there. */
 	function wallActions(id: string, blocked: boolean): CanvasMenuAction[] {
 		if (!project.structure.walls.some(wall => wall.id === id)) return [];
@@ -70,7 +75,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	return computed<readonly CanvasMenuAction[]>(() => {
 		const ids = selection.selectedIds, id = ids[0];
 		const blocked = runtime.writesBlocked.value, review = session.perspective === 'review', panning = runtime.activeToolId.value === 'pan';
-		const result: CanvasMenuAction[] = [{ id: 'fit', label: ids.length ? 'editor.view.fit-selection' : 'editor.view.fit-floor', group: 'view', icon: 'maximize', disabled: frame(ids.length === 0) === null, run: () => fit(ids.length === 0) }];
+		const result: CanvasMenuAction[] = [fitAction(ids)];
 		// Hidden rather than greyed when nothing selected is copyable: every disabled reason here names an edit, and Copy is not one.
 		if (clipboard?.canCopy.value) result.push({ id: 'copy', label: 'editor.input.copy', group: 'clipboard', icon: 'copy', run: () => { clipboard.copy(); } });
 		if (review) return ordered(result);

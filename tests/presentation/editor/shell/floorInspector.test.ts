@@ -2,8 +2,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
 import { t } from '../../../../src/presentation/i18n/strings';
+import { ok } from '../../../../src/core/result/Result';
+import { NO_HIERARCHY } from '../../../../src/presentation/read-models/planHierarchy';
+import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { mountPlanEditorCanvas, settle, type CanvasHarness } from '../../../helpers/editor';
+import { fakeQueries, FIXTURE_PLAN } from '../../../helpers/planFixtures';
 
 /**
  * The Inspector FRAME (Task 15, component library §8): `EntityInspector.vue` routes by
@@ -20,6 +24,10 @@ afterEach(() => {
 	harness?.unmount();
 	harness = null;
 });
+
+const HOUSE = { name: 'House', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }] };
+/** A detail plan's fixture: a parent zone with an ancestry one plan deep, so `guideSource` has both name and plan. */
+const detail = (parentZone: typeof HOUSE | null) => ({ zones: [], queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok({ ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan' }], parentZone })) } });
 
 describe('the floor state', () => {
 	it('with nothing selected shows the floor summary: counts available, unbuilt aggregates unavailable, never zero', async () => {
@@ -68,6 +76,28 @@ describe('the floor state', () => {
  * `settle()`, which both drains that timer and proves `changePlan()` — an ordinary refresh
  * that leaves the (already empty) selection untouched — does not arm it again.
  */
+describe('a detail plan in the floor state', () => {
+	it('explains the dashed outline while the plan has no reference plan', async () => {
+		harness = await mountPlanEditorCanvas(detail(HOUSE));
+		await settle();
+		expect(harness.wrapper.get('.rp-floor-inspector__guide').text()).toBe(t('en', 'editor.input.detail-plan-guide-explainer', { name: 'House', plan: 'Site plan' }));
+	});
+
+	it('drops the explanation once a reference plan is set', async () => {
+		harness = await mountPlanEditorCanvas(detail(HOUSE));
+		await settle();
+		useProjectStore(harness.pinia).plan = { ...FIXTURE_PLAN, background: { path: 'Plans/g.png', kind: 'image' } };
+		await settle();
+		expect(harness.wrapper.find('.rp-floor-inspector__guide').exists()).toBe(false);
+	});
+
+	it('never explains a guide that is not drawn', async () => {
+		harness = await mountPlanEditorCanvas(detail(null));
+		await settle();
+		expect(harness.wrapper.find('.rp-floor-inspector__guide').exists()).toBe(false);
+	});
+});
+
 describe('the guidance region', () => {
 	it('announces guidance once when the selection clears, and not on a refresh', async () => {
 		harness = await mountPlanEditorCanvas();

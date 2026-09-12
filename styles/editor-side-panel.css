@@ -1,0 +1,74 @@
+/*
+ * The Plan editor's side panels (2026-09-12 side panels spec §2): the section header here, and
+ * from Task 7 the frame, header, resize handle and collapsed strip. Imported after
+ * `editor-shell-fidelity.css` and `editor-visual-shell.css` so a tie on specificity resolves here,
+ * but every rule below is written to win on specificity anyway.
+ *
+ * The chevron is a host icon (`PanelSection.vue`) rotated a quarter turn while closed. It replaced
+ * a CSS-border triangle that read heavier than the heading beside it.
+ */
+
+.renovation-plan-editor .rp-sidebar-section {
+	padding-block: var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.renovation-plan-editor .rp-sidebar-section:last-child {
+	border-bottom: 0;
+}
+
+.renovation-plan-editor .rp-sidebar-section > summary,
+.renovation-plan-editor .rp-reference-options > summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-height: 32px;
+	margin: 0;
+	padding: 0 var(--size-4-1);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	border-radius: var(--radius-s);
+	list-style: none;
+	cursor: pointer;
+}
+
+.renovation-plan-editor .rp-reference-options > summary {
+	font-weight: var(--font-normal);
+	color: var(--text-muted);
+}
+
+.renovation-plan-editor .rp-sidebar-section > summary::-webkit-details-marker,
+.renovation-plan-editor .rp-reference-options > summary::-webkit-details-marker {
+	display: none;
+}
+
+.renovation-plan-editor .rp-sidebar-section > summary:hover,
+.renovation-plan-editor .rp-reference-options > summary:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-sidebar-section > summary:focus-visible,
+.renovation-plan-editor .rp-reference-options > summary:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.renovation-plan-editor .rp-sidebar-section__chevron {
+	flex: 0 0 16px;
+	margin-inline-start: auto;
+	color: var(--text-muted);
+	transform: rotate(-90deg);
+	transition: transform 120ms ease;
+}
+
+.renovation-plan-editor .rp-sidebar-section[open] > summary > .rp-sidebar-section__chevron,
+.renovation-plan-editor .rp-reference-options[open] > summary > .rp-sidebar-section__chevron {
+	transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.renovation-plan-editor .rp-sidebar-section__chevron {
+		transition: none;
+	}
+}

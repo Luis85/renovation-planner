@@ -148,4 +148,19 @@ describe('full-layout side panels', () => {
 
 		expect(document.activeElement).toBe(harness.wrapper.get(`[data-rp-strip="${side}"] [data-rp-panel-toggle="${side}"]`).element);
 	});
+
+	it('opens exactly the section a strip button names and focuses its summary', async () => {
+		const { harness } = await mounted();
+		await harness.wrapper.get('.rp-side-panel__toggle[data-rp-panel-toggle="layers"]').trigger('click');
+		await settle();
+		expect(harness.wrapper.get('.rp-property-elements').attributes('open')).toBeUndefined();
+
+		await harness.wrapper.get('[data-rp-strip-section="elements"]').trigger('click');
+		await settle();
+
+		const elements = harness.wrapper.get('[data-rp-section="elements"]');
+		expect(elements.attributes('open')).toBeDefined();
+		expect(harness.wrapper.get('.rp-property-context').attributes('open')).toBeDefined();
+		expect(document.activeElement).toBe(elements.get('summary').element);
+	});
 });

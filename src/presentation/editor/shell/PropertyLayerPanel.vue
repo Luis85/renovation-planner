@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import ChangeLegend from './ChangeLegend.vue';
+import PanelSection from './PanelSection.vue';
 import PropertyTree from './PropertyTree.vue';
 import StructureList from '../structure/StructureList.vue';
 /** Current Project → Floor context and presentation layers, with the non-canvas entity
  * routes disclosed separately. Stores survive modeless panel hiding and reflow. */
 import ReferenceAction from '../reference/ReferenceAction.vue';
+import HostIcon from '../../components/HostIcon.vue';
 import { computed } from 'vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { storeToRefs } from 'pinia';
@@ -60,22 +62,18 @@ const entries = computed(() => {
 		data-rp-region="layers"
 		:aria-label="tr('editor.property-panel')"
 	>
-		<details
-			class="rp-sidebar-section rp-property-context"
+		<PanelSection
+			section="context"
+			:title="tr('editor.shell.property')"
 			open
 		>
-			<summary class="rp-editor-panel-title">
-				{{ tr('editor.shell.property') }}
-			</summary>
 			<PropertyTree />
-		</details>
-		<details
-			class="rp-sidebar-section rp-property-layers"
+		</PanelSection>
+		<PanelSection
+			section="layers"
+			:title="tr('editor.rail.layers')"
 			open
 		>
-			<summary class="rp-editor-panel-title">
-				{{ tr('editor.rail.layers') }}
-			</summary>
 			<LayerList
 				:entries="entries"
 				:plan="plan"
@@ -85,18 +83,22 @@ const entries = computed(() => {
 				v-if="session.perspective !== 'review'"
 				class="rp-reference-options"
 			>
-				<summary>{{ tr('editor.shell.reference-options') }}</summary>
+				<summary>
+					<span>{{ tr('editor.shell.reference-options') }}</span>
+					<HostIcon
+						name="chevron-down"
+						class="rp-sidebar-section__chevron"
+					/>
+				</summary>
 				<ReferenceAction />
 			</details>
 			<ChangeLegend v-if="runtime.renovation.available" />
-		</details>
-		<details
-			class="rp-sidebar-section rp-property-rooms"
+		</PanelSection>
+		<PanelSection
+			section="rooms"
+			:title="tr('editor.selection.records')"
 			open
 		>
-			<summary class="rp-editor-panel-title">
-				{{ tr('editor.selection.records') }}
-			</summary>
 			<RoomSummaryList
 				v-if="records.length > 0"
 				:records="records"
@@ -114,12 +116,12 @@ const entries = computed(() => {
 			<p v-if="records.length > 1">
 				{{ tr('editor.selection.hint') }}
 			</p>
-		</details>
-		<details class="rp-sidebar-section rp-property-elements">
-			<summary class="rp-editor-panel-title">
-				{{ tr('editor.structure.list') }}
-			</summary>
+		</PanelSection>
+		<PanelSection
+			section="elements"
+			:title="tr('editor.structure.list')"
+		>
 			<StructureList />
-		</details>
+		</PanelSection>
 	</aside>
 </template>

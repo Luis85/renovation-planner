@@ -78,6 +78,32 @@ it('grabs no caption in the select-multiple mode, and an unselected room still m
 	expect(rig.runtime.renderState.labelPreview).toBeNull();
 });
 
+/** A room whose caption was moved and saved, projected; the renovation and planning baselines must still match it. */
+async function movedCaptionRig() {
+	const rig = await renovationEditor(true); rigs.push(rig); rig.changePlan(); await settle();
+	const saved = expectDefined(expectOk(await rig.stack.zones.getById(rig.room.id)), 'room');
+	expectOk(await rig.stack.zones.save(saved.entity.withLabelOffset({ dx: 300, dy: -200 }), saved.version));
+	await rig.runtime.refreshProjection(); await settle();
+	expect(rig.project.zones.get(rig.room.id)?.labelOffset).toEqual({ dx: 300, dy: -200 });
+	return rig;
+}
+
+it('still opens a renovation edit on a room whose caption was moved', async () => {
+	const rig = await movedCaptionRig();
+	const pending = rig.runtime.renovation.edit('existing', rig.room.id); await settle();
+	expect(rig.wrapper.find('[data-rp-form="renovation"]').exists()).toBe(true);
+	rig.dialogs.resolve('cancel'); await pending;
+});
+
+it('still opens a planning note on a room whose caption was moved', async () => {
+	const rig = await movedCaptionRig();
+	rig.selection.select([rig.room.id]); await settle();
+	await rig.wrapper.get('[data-rp-action="add"]').trigger('click'); await settle();
+	await rig.wrapper.get('[data-rp-entry="note"]').trigger('click'); await settle();
+	expect(rig.wrapper.find('[data-rp-form="planning"]').exists()).toBe(true);
+	rig.dialogs.resolve('cancel'); await settle();
+});
+
 const element: NamedSpatialElement = { id: 'element-path', kind: 'path', name: 'Garden path', points: [{ x: 500, y: 500 }, { x: 3000, y: 500 }] };
 
 async function elementRig() {

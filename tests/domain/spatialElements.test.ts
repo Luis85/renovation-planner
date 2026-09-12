@@ -67,6 +67,13 @@ describe('generic spatial elements share floor geometry contracts', () => {
 			{ ...line, kind: 'object' as const, assetId: 'asset-radiator' },
 		]) expect(validSpatialElement(invalid)).toBe(false);
 	});
+	it('treats a moved caption on a room or an element as a changed geometry document (ADR-0029)', () => {
+		const room = { id: 'zone-room', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 0, y: 1000 }] };
+		const document = { objects: [room], calibration: null, structure: { ...EMPTY_STRUCTURE, elements: [line] } };
+		expect(sameGeometryDocument(document, { ...document, objects: [{ ...room, labelOffset: undefined }] })).toBe(true);
+		expect(sameGeometryDocument(document, { ...document, objects: [{ ...room, labelOffset: { dx: 10, dy: 0 } }] })).toBe(false);
+		expect(sameGeometryDocument(document, { ...document, structure: { ...EMPTY_STRUCTURE, elements: [{ ...line, labelOffset: { dx: 0, dy: -5 } }] } })).toBe(false);
+	});
 	it('treats a changed asset id as a changed geometry document', () => {
 		const asset: SpatialElement = { id: 'element-radiator', kind: 'asset', assetId: 'asset-a', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }] };
 		const document = { objects: [], calibration: null, structure: { ...EMPTY_STRUCTURE, elements: [asset] } };

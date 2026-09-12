@@ -120,6 +120,14 @@ it('retires a pending gesture after peer member edits even when the group boundi
 	gesture.move(pointerAt(2000, 1000)); gesture.finish(pointerAt(2000, 1000)); await settle();
 	expect(gesture.active).toBe(false); expect(write).not.toHaveBeenCalled();
 });
+it('refuses a group move whose fresh read differs from its snapshot only by a peer-moved caption, keeping the peer drop', async () => {
+	const { rig, room } = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id)), peer = { dx: 250, dy: -120 };
+	expectOk(await rig.geometry.write(rig.plan.id, { ...before.document, objects: before.document.objects.map(object => object.id === room.id ? { ...object, labelOffset: peer } : object) }, before.version));
+	const write = vi.spyOn(rig.geometry, 'write');
+	await rig.runtime.groupActions.moveBy({ dx: 100, dy: 0 }); await settle();
+	expect(write).not.toHaveBeenCalled();
+	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.objects.find(object => object.id === room.id)?.labelOffset).toEqual(peer);
+});
 it('ungroups without moving members, then saves an explicit multi-selection as a group again', async () => {
 	const { rig } = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id)).document.structure, write = vi.spyOn(rig.geometry, 'write');
 	await rig.wrapper.get('[data-rp-group-action="ungroup"]').trigger('click'); await settleUntil(() => !rig.project.groups.length, 'ungroup');

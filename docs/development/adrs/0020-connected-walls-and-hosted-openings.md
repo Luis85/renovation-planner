@@ -14,8 +14,9 @@ points and millimetres. Existing Zone IDs, polygon entries, note ownership and r
 appearance stay intact. No wall is a polygon or a Zone. Walls/Openings contain spatial facts
 only, owned by this sidecar; there are no redundant Markdown notes for these measurements.
 Room names and classification continue to belong to existing Zone notes. Renovation records,
-wall construction text, work/material/cost/evidence links and their future note ownership are
-outside this decision and unavailable in this contribution.
+wall construction text (a catalogue material since [ADR-0031](0031-construction-materials-and-plan-patterns.md)),
+work/material/cost/evidence links and their future note ownership are outside this decision and
+unavailable in this contribution.
 
 Wall: stable `wall-` ID, start/end centre-line points, thickness and height. Opening: stable
 `opening-` ID, door/window/opening kind, host wall ID, distance from host start to opening start,

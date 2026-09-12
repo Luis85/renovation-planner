@@ -15,7 +15,8 @@ Its optional `source` records Plan, spatial target, Work and outcome IDs, curren
 state, quantity rule, manual input, coverage, lot size and minimum order. The existing
 Requirement owns calculated/overridden quantities and estimated costs. Plan renovation
 frontmatter owns optional `depth` arrays for procurement, cost obligations and evidence.
-Record IDs stay separate from selected Room/wall/opening IDs and from filenames.
+Record IDs stay separate from selected Room/wall/opening IDs and from filenames. A Requirement
+may also originate from a plan when its wall has no room ([ADR-0031](0031-construction-materials-and-plan-patterns.md)).
 
 Room area/perimeter use the independent Room outline in both states. Straight wall length,
 one wall face gross/net area, hosted opening area and selected-item count use the chosen

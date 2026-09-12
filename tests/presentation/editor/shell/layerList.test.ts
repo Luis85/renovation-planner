@@ -8,7 +8,9 @@ import { describe, expect, it } from 'vitest';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useWorkspaceStore } from '../../../../src/presentation/stores/WorkspaceStore';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
-import { FIXTURE_PLAN } from '../../../helpers/planFixtures';
+import { ok } from '../../../../src/core/result/Result';
+import { NO_HIERARCHY } from '../../../../src/presentation/read-models/planHierarchy';
+import { fakeQueries, FIXTURE_PLAN } from '../../../helpers/planFixtures';
 import { mountPlanEditorCanvas, runtimeOf, settle } from '../../../helpers/editor';
 
 describe('LayerList, mounted inside the editor', () => {
@@ -120,5 +122,36 @@ describe('LayerList, mounted inside the editor', () => {
 		await action.trigger('click');
 
 		expect(runtimeOf(harness).activeToolId.value).toBe('calibrate');
+	});
+
+	/**
+	 * A detail plan with a parent-zone guide (ADR-0028) and no background of its own: the row
+	 * is a live toggle naming the guide, and Set scale must name the SAME guide rather than the
+	 * unrelated "no reference plan has been added" sentence layerCatalogue used to leave on the
+	 * action alone — the pairing this suite already proves for "no background at all" applies
+	 * here too, so the two spans collapse into one.
+	 */
+	it('renders ONE reason under the reference row for a detail plan with a guide and no background, and Set scale points at it', async () => {
+		const parentZone = { name: 'House', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }] };
+		const harness = await mountPlanEditorCanvas({
+			zones: [],
+			queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok({ ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan' }], parentZone })) },
+		});
+		await settle();
+
+		const reference = harness.wrapper.get('[data-rp-layer="reference"]');
+		expect(reference.attributes('disabled')).toBeUndefined();
+		const reasonId = reference.attributes('aria-describedby');
+		expect(reasonId).toBeTruthy();
+		expect(harness.wrapper.find(`#${reasonId}`).text()).toBe(t('en', 'editor.layer.reference-plan.guide-only'));
+
+		const action = harness.wrapper.find('button[data-rp-action="set-scale"]');
+		expect(action.attributes('aria-disabled')).toBe('true');
+		// The SAME id the checkbox's own reason carries: one sentence, not a second span
+		// repeating it under Set scale.
+		expect(action.attributes('aria-describedby')).toBe(reasonId);
+
+		const sentence = t('en', 'editor.layer.reference-plan.guide-only');
+		expect(harness.wrapper.find('.rp-layer-list').text().split(sentence).length - 1).toBe(1);
 	});
 });

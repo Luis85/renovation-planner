@@ -146,8 +146,8 @@ export class SelectTool implements EditorTool {
 		this.context = null;
 	}
 
-	pointerDown(event: EditorPointerEvent): void {
-		const context = this.context;
+	pointerDown(input: EditorPointerEvent): void {
+		const context = this.context, event = this.withMode(input);
 		if (context === null || event.button !== 'primary') return;
 		context.renderState.rotationHoverSuppressed = event.modifiers.alt;
 
@@ -203,6 +203,14 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = null;
 	}
 
+	/**
+	 * The "select multiple" mode reads as a held Shift, so a click and the hover predicting it
+	 * both choose rather than edit. Only the press and the hover: a move mid-gesture keeps the
+	 * physical Shift, which is the rotation snap there, not a selection modifier.
+	 */
+	private withMode(event: EditorPointerEvent): EditorPointerEvent {
+		return this.deps.multiSelectionMode?.() === true ? { ...event, modifiers: { ...event.modifiers, shift: true } } : event;
+	}
 	private focusSelectedMember(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
 		if (event.modifiers.shift || event.modifiers.alt || context.selection.selectedIds.length < 2 || !context.selection.isSelected(id as EntityId<string>)) return false;
 		if (!context.writesBlocked()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
@@ -252,7 +260,7 @@ export class SelectTool implements EditorTool {
 	private updateHover(context: EditorContext, event: EditorPointerEvent): void {
 		// Ordinary hover predicts the same body/handle as a click; affordance approach stays separate.
 		context.renderState.rotationHoverSuppressed = event.modifiers.alt;
-		const { target } = this.targetAt(context, event);
+		const { target } = this.targetAt(context, this.withMode(event));
 		context.renderState.rotationHoverId = target?.kind === 'rotation' ? target.id : this.approachingRotation(context, event) ?? target?.id ?? null;
 		context.renderState.hoveredObjectId = target === null ? null : target.id;
 		context.renderState.hoveredTargetKind = target === null ? null : target.kind;

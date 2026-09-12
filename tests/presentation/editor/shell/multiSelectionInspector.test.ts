@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
+import { STAGE_PIXELS, worldToScreen } from '../../../../src/presentation/editor/viewport/Viewport';
 import { mountPlanEditorCanvas, runtimeOf, settle, type CanvasHarness } from '../../../helpers/editor';
 import { resizeTo } from '../../../helpers/layout';
 import { click } from '../../../helpers/planEditorRig';
@@ -125,6 +126,17 @@ describe('Editor selection across the list, canvas and Inspector', () => {
 		const mode = harness.wrapper.find('.rp-overlay-panel [data-rp-action="multiple-selection"]');
 		expect((mode.element as HTMLInputElement).checked).toBe(true);
 		await harness.wrapper.find('.rp-overlay-panel [data-rp-id="zone-terrace"]').trigger('click');
+		await settle();
+		expect(useSelectionStore().selectedIds).toEqual(['zone-kitchen', 'zone-terrace']);
+	});
+	it('applies the list\'s "select multiple" mode to plain clicks on the plan too', async () => {
+		harness = await mountPlanEditorCanvas();
+		await harness.wrapper.find('.rp-editor-layers [data-rp-action="multiple-selection"]').setValue(true);
+		// Inside the kitchen rectangle, then inside the terrace triangle, in world millimetres.
+		for (const world of [{ x: 2000, y: 1500 }, { x: 7000, y: 500 }]) {
+			const at = worldToScreen(world, useEditorStore().viewport, STAGE_PIXELS);
+			click(harness.canvasEl, at.x, at.y);
+		}
 		await settle();
 		expect(useSelectionStore().selectedIds).toEqual(['zone-kitchen', 'zone-terrace']);
 	});

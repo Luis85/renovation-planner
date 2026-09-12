@@ -103,7 +103,6 @@ const entries = computed(() => {
 				v-if="records.length > 0"
 				:records="records"
 				:heading="tr('editor.selection.records')"
-				:toggle-selection="toggleSelection"
 			/>
 			<label v-if="records.length > 1">
 				<input

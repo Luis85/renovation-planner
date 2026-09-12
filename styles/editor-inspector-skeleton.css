@@ -155,3 +155,87 @@
 	color: var(--text-faint);
 	cursor: not-allowed;
 }
+
+/* The element's identity subline: its kind, then its area, stair or length. */
+.renovation-plan-editor .rp-inspector-subline {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+/* An element in the plan perspective with nothing to edit leaves an empty row group; Vue's
+   `v-if` placeholders are comments, which `:empty` ignores. */
+.renovation-plan-editor .rp-inspector-actions:empty {
+	display: none;
+}
+
+/* "More actions": a nested disclosure wearing the sidebar's chevron, which points right until open. */
+.renovation-plan-editor .rp-inspector-more {
+	margin-top: var(--size-4-2);
+}
+
+.renovation-plan-editor .rp-inspector-more > summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-height: 32px;
+	padding: 0 var(--size-4-1);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	border-radius: var(--radius-s);
+	list-style: none;
+	cursor: pointer;
+}
+
+.renovation-plan-editor .rp-inspector-more > summary::-webkit-details-marker {
+	display: none;
+}
+
+.renovation-plan-editor .rp-inspector-more > summary:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-inspector-more > summary:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.renovation-plan-editor .rp-inspector-more[open] > summary > .rp-sidebar-section__chevron {
+	transform: none;
+}
+
+/*
+ * The floor's one primary action. An accent OUTLINE with a tint and weight, not a filled accent:
+ * `editor-shell.css` measured white on `--interactive-accent` under 4.5:1 in both schemes, which is
+ * why the floating Select button already wears this pattern.
+ */
+.renovation-plan-editor .rp-inspector-primary > button {
+	width: 100%;
+	min-height: 32px;
+	height: auto;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	white-space: normal;
+	background-color: var(--background-modifier-active-hover);
+	box-shadow: none;
+	border: 1px solid var(--interactive-accent);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.renovation-plan-editor .rp-inspector-primary > button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-inspector-primary > button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.renovation-plan-editor .rp-inspector-primary > button[aria-disabled='true'] {
+	color: var(--text-faint);
+	border-color: var(--background-modifier-border);
+	cursor: not-allowed;
+}

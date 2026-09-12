@@ -104,6 +104,13 @@ it('repeating explicit enclosure reuses the saved group and walls without a new 
 	expect(write).not.toHaveBeenCalled(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
 	expect(rig.selection.selectedIds).toHaveLength(5);
 });
+it('draws a grouped wall\'s group controls above its Delete, at the foot of the Inspector region', async () => {
+	const rig = await setup(), wall = expectDefined(rig.project.structure.walls.find(item => rig.project.groups[0].memberIds.includes(item.id)), 'enclosing wall');
+	rig.selection.select([wall.id as never]); await settle();
+	const region = rig.wrapper.get('[data-rp-region="inspector"]'), regionButtons = region.findAll('button');
+	expect(region.find('.rp-structure-inspector [data-rp-group-controls] + .rp-inspector-danger').exists()).toBe(true);
+	expect(regionButtons[regionButtons.length - 1].attributes('data-rp-action')).toBe('delete-structure');
+});
 it('keeps precise group text during read-only recovery and routes Open source without replaying a command', async () => {
 	const rig = await setup(); await rig.wrapper.get('[data-rp-group-transform="rotate"]').trigger('click');
 	await settleUntil(() => rig.wrapper.find('[data-rp-form="object-rotation"]').exists(), 'group form');

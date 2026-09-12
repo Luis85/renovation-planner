@@ -72,9 +72,9 @@ const selection = computed(() => spatialSelection(selectedIds.value, records.val
 
 /**
  * Which single-selection body the chain below draws once the review, task-tool and multiple
- * arms have passed — named ONCE, rather than re-derived beside the chain, so the room arm can take
- * `GroupControls` inside its body (above Delete, side panels spec §3) and the trailing mount can
- * skip exactly that arm without the two drifting apart.
+ * arms have passed — named ONCE, rather than re-derived beside the chain, so the room, structure and
+ * element arms can take `GroupControls` inside their bodies (above Delete, side panels spec §3) and
+ * the trailing mount can skip exactly those arms without the two drifting apart.
  */
 const body = computed(() => {
 	if (renovationSession.perspective === 'renovate') return 'renovate';
@@ -113,13 +113,21 @@ const groupsShown = computed(() => activeToolId.value === 'select' && renovation
 		</MultiSelectionInspector>
 		<RenovationInspector v-else-if="body === 'renovate'" />
 		<FloorInspector v-else-if="body === 'floor'" />
-		<StructureInspector v-else-if="body === 'structure'" />
-		<ElementInspector v-else-if="body === 'element'" />
+		<StructureInspector v-else-if="body === 'structure'">
+			<template #actions>
+				<GroupControls v-if="groupsShown" />
+			</template>
+		</StructureInspector>
+		<ElementInspector v-else-if="body === 'element'">
+			<template #actions>
+				<GroupControls v-if="groupsShown" />
+			</template>
+		</ElementInspector>
 		<RoomInspector v-else>
 			<template #actions>
 				<GroupControls v-if="groupsShown" />
 			</template>
 		</RoomInspector>
-		<GroupControls v-if="selection.kind !== 'multiple' && groupsShown && body !== 'room'" />
+		<GroupControls v-if="selection.kind !== 'multiple' && groupsShown && (body === 'floor' || body === 'renovate')" />
 	</aside>
 </template>

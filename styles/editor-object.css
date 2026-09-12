@@ -33,7 +33,6 @@
 }
 
 .renovation-plan-editor .rp-element-inspector > p { margin: 0; }
-.renovation-plan-editor .rp-element-inspector > .rp-dialog-actions { justify-content: flex-start; }
 .renovation-plan-editor .rp-element-inspector button { height: auto; min-height: 32px; white-space: normal; }
 
 .renovation-plan-editor .rp-element-task > form {

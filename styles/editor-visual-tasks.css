@@ -91,8 +91,6 @@
 
 .renovation-plan-editor .rp-multi-selection > p:first-child { font-size: 18px; font-weight: var(--font-semibold); }
 .renovation-plan-editor .rp-multi-selection > p { margin-block: 12px; }
-.renovation-plan-editor .rp-structure-inspector details { margin-top: 20px; }
-.renovation-plan-editor .rp-structure-inspector summary { margin-bottom: 12px; }
 
 .renovation-plan-editor .rp-warning-strip { background: var(--background-primary); }
 .renovation-plan-editor .rp-warning-strip__item {

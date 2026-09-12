@@ -4,7 +4,7 @@
 	margin: 8px 0;
 }
 
-.renovation-plan-editor .rp-structure-inspector > .rp-structure-renovation-entry {
+.renovation-plan-editor .rp-structure-inspector > .rp-inspector-more > .rp-structure-renovation-entry {
 	gap: 6px;
 	margin-block: 8px;
 }
@@ -19,14 +19,6 @@
 	width: 100%;
 	min-width: 0;
 }
-
-.renovation-plan-editor .rp-structure-inspector > details {
-	margin-block: 6px 0;
-	padding-block: 6px;
-}
-
-.renovation-plan-editor .rp-structure-inspector > details > summary { margin-bottom: 0; }
-.renovation-plan-editor .rp-structure-inspector > details[open] > summary { margin-bottom: 6px; }
 
 .renovation-plan-editor .rp-multi-selection {
 	display: grid;

@@ -43,6 +43,7 @@ import { useAssetShapeStore } from '../stores/AssetShapeStore';
 import { usePlanHierarchyStore } from '../stores/PlanHierarchyStore';
 import { guideFramePoints } from './hierarchy/parentZoneGuide';
 import CanvasGrid from './layers/CanvasGrid.vue';
+import NorthArrow from './layers/NorthArrow.vue';
 import RoomDimensionLabels from './resize/RoomDimensionLabels.vue';
 import DirectActionPopover from './selection/DirectActionPopover.vue';
 
@@ -183,6 +184,7 @@ watch(() => editor.stageSize.width > 0 && editor.stageSize.height > 0 && shapesA
 			</VStage>
 		</template>
 		<template #overlay>
+			<NorthArrow />
 			<RoomDimensionLabels
 				:preview="runtime.curveTask.preview.value ?? runtime.groupActions.preview.value"
 				@obstacles="layout => { dimensionLayout = layout; }"

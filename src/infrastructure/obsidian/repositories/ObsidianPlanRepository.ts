@@ -249,7 +249,7 @@ export class ObsidianPlanRepository {
 			await this.deps.fileManager.processFrontMatter(note, (frontmatter: Record<string, unknown>) => {
 				conflict = checkExpectedVersion('plan', plan.id, versionOfFrontmatter(frontmatter), write.expected);
 				if (conflict) return;
-				for (const key of ['reference-appearance', 'renovation', 'spatial-elements', 'parent-plan', 'parent-zone']) if (!(key in dto)) delete frontmatter[key];
+				for (const key of ['reference-appearance', 'renovation', 'spatial-elements', 'parent-plan', 'parent-zone', 'north']) if (!(key in dto)) delete frontmatter[key];
 				Object.assign(frontmatter, dto);
 			});
 			if (conflict) return err(conflict);

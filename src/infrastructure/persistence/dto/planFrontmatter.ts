@@ -60,10 +60,18 @@ const PlanFrontmatterSchemaV8 = PlanFrontmatterSchemaV7.extend({ 'schema-version
  * because the discriminator migration lifts every older note to 9 in memory; the mapper refuses a
  * note carrying only one of them. Written only for a plan that has a parent.
  */
-export const PlanFrontmatterSchemaV9 = PlanFrontmatterSchemaV8.extend({
+const PlanFrontmatterSchemaV9 = PlanFrontmatterSchemaV8.extend({
 	'schema-version': z.literal(9),
 	'parent-plan': z.string().min(1).optional(),
 	'parent-zone': z.string().min(1).optional(),
 });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8, PlanFrontmatterSchemaV9]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV9>;
+/**
+ * The plan's north bearing, written only once one is set; an older writer would strip it. A
+ * hand-edited value outside 0–359 reads as unset rather than making the whole plan unopenable.
+ */
+export const PlanFrontmatterSchemaV10 = PlanFrontmatterSchemaV9.extend({
+	'schema-version': z.literal(10),
+	north: z.number().int().min(0).max(359).optional().catch(undefined),
+});
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8, PlanFrontmatterSchemaV9, PlanFrontmatterSchemaV10]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV10>;

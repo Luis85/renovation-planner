@@ -605,6 +605,8 @@ describe('every service leaving the composition root is guarded', () => {
 			'editorDeps.commands.logger',
 			// Argument-taking factory: all three doors are exercised by guardedReferencePlan.test.ts.
 			// Planning factory doors are driven by planningEditorServices.test.ts.
+			// Argument-taking factory: execute/undo doors are exercised by guardedPlanNorth.test.ts.
+			'editorDeps.commands.planNorth',
             'editorDeps.commands.planning',
             'editorDeps.commands.referencePlan',
 			// All read/execute/undo factory doors are exercised in guardedRenovation.test.ts.

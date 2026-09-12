@@ -79,15 +79,18 @@ const elementDraft = computed(() => {
 			`wallPasses` chains walls meeting end to end (two at a joint, equally thick) into one
 			run, so the mitre join draws that corner exactly at any angle, a closed loop included.
 			Every other joint is where runs END: the pass ORDER closes its inner corner (run B's
-			body covers run A's edge), and `wallPasses` carries both butt-capped passes past it
-			(body by the largest half thickness among the walls it JOINS, edge `1 / zoom`
-			further), which closes the outer one; a free end gets only the edge's extra
-			`1 / zoom`, its 1 px dark cap.
+			body covers run A's edge), and `wallPasses` carries both butt-capped passes past it,
+			which closes the outer one: a T's stem until its far corner meets the host's far
+			face, at any angle, so it never pokes through; any other shared end by the largest
+			half thickness among the walls it JOINS (edge `1 / zoom` further); a free end gets
+			only the edge's extra `1 / zoom`, its 1 px dark cap.
 			Refused: `lineCap: 'square'` draws every free end `thickness / 2` too long.
-			ponytail: a T, or two unequal walls meeting, is still capped rather than mitred:
-			exact at a right angle, a small wedge or nub at any other. Canvas bevels a mitre
-			sharper than about 11° (`miterLimit` 10). The selection dash and handles keep the
-			unextended centreline. `OpeningSymbols` cuts both passes at the edge pass's width.
+			ponytail: two unequal walls meeting, or three with none straight through, are still
+			capped rather than mitred: exact at a right angle, a small wedge or nub at any other;
+			a stem thicker than its host at a shallow angle is pulled back behind the joint,
+			leaving a notch on its own side. Canvas bevels a mitre sharper than about 11°
+			(`miterLimit` 10). The selection dash and handles keep the unextended centreline.
+			`OpeningSymbols` cuts both passes at the edge pass's width.
 		-->
 		<VLine
 			v-for="run in runs"

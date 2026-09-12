@@ -132,9 +132,12 @@ else the existing snapped/unsnapped text. `{n}` is the wall's 1-based index in
 `formatMetres(offset)`. English and German.
 
 **Overlay** (`WallDraftOverlay.vue`): a new prop `cuts: readonly { point: Point; tangent: Point;
-thickness: number }[]`. Each draws a `VLine` named `wall-draft-cut` across the host: centred on
-`point`, perpendicular to `tangent`, length `thickness + 16 / zoom`, stroke `tokens.accent`,
-`2 / zoom`, `listening: false`. `StructureLayer.vue` computes the list from `joins.start`,
+thickness: number }[]`. Each draws a pair of `VLine`s named `wall-draft-cut` across the host,
+one `8 / zoom` either side of `point` along `tangent`, perpendicular to it, length
+`thickness + 16 / zoom`, stroke `tokens.accent`, `2 / zoom`, `listening: false`. Never one through
+`point`: a new wall passes through it, and at a right angle a tick there lies along the new wall's
+own line and cannot be told from it (found by drawing in the harness; this section first specified
+that single tick). `StructureLayer.vue` computes the list from `joins.start`,
 `joins.end` and `pending` (deduplicated by point) with `wallTangent(wall, offset)` and the host's
 thickness, and passes it only while `draw-wall` is active.
 
@@ -181,6 +184,7 @@ Nothing cuts until the write succeeds. Cancelling the tool cuts nothing. One his
   cut, a popped last point drops it, an opening refusal, start and end on the same wall.
 - `tests/presentation/editor/structure/StructureTool.test.ts`: start by click, end by click with
   `finish` called once, a refused end not finishing, `pending` cleared by an endpoint snap.
-- Form and overlay cases: the status line text per state; a `wall-draft-cut` line per cut.
+- Form and overlay cases: the status line text per state; a pair of `wall-draft-cut` lines per cut, either side of the join.
 - `drawnStructure`: the preview's host is two walls while a start or end join is recorded.
-- The mark's look is checked by drawing in the browser harness at `?view=plan-editor&reference` (Task 9 of the plan); no fixed headless shot, since neither harness fixture seeds walls AND structure services together. That check found the tick indistinguishable from the draft segment at a right angle — see the increment history's "Wall joins" section.
+- `wallPasses`: a T's stem stops where its far corner meets the host's far face at any angle, so a joined wall never pokes through.
+- The mark's look is checked by drawing in the browser harness at `?view=plan-editor&reference` (Task 9 of the plan); no fixed headless shot, since neither harness fixture seeds walls AND structure services together. That check found the first, single tick indistinguishable from the draft segment at a right angle, which is why the mark is a pair — see the increment history's "Wall joins" section.

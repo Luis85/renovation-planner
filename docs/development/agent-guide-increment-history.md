@@ -5728,7 +5728,8 @@ exact. The draft holds `joins.start` and `joins.end`, applied in that order by `
 join is resolved against the floor with the start cut already made, which is what makes two cuts on
 one wall name the right half without a special case. A click landing on a body with points already
 placed auto-finishes. Numeric entry joins at 1 mm. The form names the join ("Joins wall 3 at 1.2 m,
-at a right angle") and the overlay draws a `wall-draft-cut` tick across each host; the preview builds
+at a right angle") and the overlay draws a pair of `wall-draft-cut` ticks across each host, either
+side of the join; the preview builds
 on the cut floor so the host renders as two halves while drawing.
 
 **What was refused.** An intermediate corner joining a wall (a per-point split list for a case not in
@@ -5737,11 +5738,26 @@ harness has no structure services and the reference workspace seeds no walls, so
 by drawing a room and a partition in `npm run harness` at `?view=plan-editor&reference`, captured once
 in both schemes by a one-off Playwright script rather than a fixed shot.
 
-**What that check found, and no gate could.** At a right-angle join the `wall-draft-cut` tick is not
-distinguishable as a cut mark: it runs across the host exactly along the draft segment, in the same
-accent colour as the dashed rubber band, so it reads as part of that line — a longer dash at the end
-join, and hidden under the vertex square at the start join. The status line is then the only visible
-join feedback. The Konva nodes confirm it: two `wall-draft-cut` lines, each 310 world units, horizontal
-at the partition's y across vertical hosts. Whether the tick reads at any other angle was not checked.
+**What that check found, and no gate could.** The first mark was one tick through the cut point, and
+at a right-angle join it was not distinguishable as a cut mark: it ran across the host exactly along
+the draft segment, in the same accent colour as the dashed rubber band — a longer dash at the end join,
+hidden under the vertex square at the start join — so the status line was the only visible join
+feedback. The Konva nodes confirmed it: two 310-unit lines, horizontal at the partition's y across
+vertical hosts. The mark is now a PAIR of ticks `8 / zoom` either side of the join: a new wall passes
+through the cut point, between them, so it can lie along neither. Re-captured at a right angle in both
+schemes, both ticks read at the start join (bracketing the vertex square) and at the end join.
+
+**A T's stem no longer pokes through its host.** Drawing with the feature, the user found joined walls
+sticking out past the far face of the wall they join, at every angle but a right one. `wallPasses`
+carried a T's stem past the joint by the host's half thickness along the stem — the canvas fidelity
+pass's documented ceiling, which this increment turned from a rare case (the context menu's "New wall
+from here") into the common one. A stem is now carried until the far corner of its butt cap meets the
+host's far face, `(host half − stem half · cos) / sin` of the angle between them, and the edge pass
+until its corner meets the far side of the host's 1 px dark line. At a right angle that is the old
+half thickness, so the existing right-angle T case is unchanged; a stem thicker than its host at a
+shallow angle comes out negative and is pulled back, leaving a notch on its own side, which the
+template's `ponytail:` line now names beside the unequal L. The two host halves were already drawn
+flush (collinear, each carried over the other). `wallPasses.test.ts` pins an oblique T and the thick
+shallow stem; an oblique partition captured in both schemes shows both hosts' outer faces straight.
 
 **Spec:** `docs/superpowers/specs/2026-09-12-wall-tool-join-and-split-design.md`.

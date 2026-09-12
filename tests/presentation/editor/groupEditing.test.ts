@@ -54,9 +54,12 @@ it('moves a grouped Room, walls and later hosted opening from the immutable poin
 	expect(rig.selection.selectedIds).toContain(opening.id);
 	let release!: () => void; const pending = new Promise<void>(resolve => { release = resolve; }), originalWrite = rig.geometry.write.bind(rig.geometry);
 	const write = vi.spyOn(rig.geometry, 'write').mockImplementationOnce(async (...args) => { await pending; return originalWrite(...args); }), tool = rig.runtime.toolManager;
-	tool.pointerDown(pointerAt(1800, 1400)); tool.pointerMove(pointerAt(2100, 1550));
+	// Pressed at (500,2600) rather than the room's centre: the centre now sits inside the
+	// selected room's own caption grab box (ADR-0029), and only the DRAG DELTA below matters
+	// for the translated points this case asserts.
+	tool.pointerDown(pointerAt(500, 2600)); tool.pointerMove(pointerAt(800, 2750));
 	expect(rig.runtime.groupActions.preview.value?.objects[0].points[0]).toEqual({ x: 300, y: 150 });
-	tool.pointerMove(pointerAt(2200, 1600)); tool.pointerUp(pointerAt(2300, 1700));
+	tool.pointerMove(pointerAt(900, 2800)); tool.pointerUp(pointerAt(1000, 2900));
 	// The drop stays where it landed while the write and its read-back are in flight, rather than
 	// snapping back to the saved geometry until the refreshed projection arrives.
 	await settleUntil(() => write.mock.calls.length === 1, 'group write');
@@ -116,6 +119,14 @@ it('retires a pending gesture after peer member edits even when the group boundi
 	await rig.runtime.refreshProjection(); const write = vi.spyOn(rig.geometry, 'write');
 	gesture.move(pointerAt(2000, 1000)); gesture.finish(pointerAt(2000, 1000)); await settle();
 	expect(gesture.active).toBe(false); expect(write).not.toHaveBeenCalled();
+});
+it('refuses a group move whose fresh read differs from its snapshot only by a peer-moved caption, keeping the peer drop', async () => {
+	const { rig, room } = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id)), peer = { dx: 250, dy: -120 };
+	expectOk(await rig.geometry.write(rig.plan.id, { ...before.document, objects: before.document.objects.map(object => object.id === room.id ? { ...object, labelOffset: peer } : object) }, before.version));
+	const write = vi.spyOn(rig.geometry, 'write');
+	await rig.runtime.groupActions.moveBy({ dx: 100, dy: 0 }); await settle();
+	expect(write).not.toHaveBeenCalled();
+	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.objects.find(object => object.id === room.id)?.labelOffset).toEqual(peer);
 });
 it('ungroups without moving members, then saves an explicit multi-selection as a group again', async () => {
 	const { rig } = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id)).document.structure, write = vi.spyOn(rig.geometry, 'write');

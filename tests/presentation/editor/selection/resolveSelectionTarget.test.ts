@@ -134,3 +134,35 @@ describe('resolveSelectionTarget', () => {
 		expect(resolveSelectionTarget(input)).toEqual({ kind: 'body', id: 'below' });
 	});
 });
+
+describe('resolveSelectionTarget caption grabs', () => {
+	const room = square('room', 0, 0, 1000);
+	const labels = [{ id: 'room', bounds: { min: { x: 400, y: 450 }, max: { x: 600, y: 520 } }, offset: { dx: 0, dy: 0 } }];
+	const hit = { candidates: [room], labels, worldPoint: { x: 500, y: 500 }, handleToleranceWorld: 50, labelToleranceWorld: 10 };
+
+	it('grabs a selected item caption, padded, ahead of its body', () => {
+		expect(resolveSelectionTarget({ ...hit, selectedIds: ['room'] })).toEqual({ kind: 'label', id: 'room' });
+		expect(resolveSelectionTarget({ ...hit, selectedIds: ['room'], worldPoint: { x: 395, y: 500 } })).toEqual({ kind: 'label', id: 'room' });
+		expect(resolveSelectionTarget({ ...hit, selectedIds: ['room'], worldPoint: { x: 380, y: 500 } })).toEqual({ kind: 'body', id: 'room' });
+	});
+
+	it('never grabs an unselected, undrawn or cycled caption', () => {
+		expect(resolveSelectionTarget({ ...hit, selectedIds: [] })).toEqual({ kind: 'body', id: 'room' });
+		expect(resolveSelectionTarget({ ...hit, selectedIds: ['room'], candidates: [] })).toBeNull();
+		expect(resolveSelectionTarget({ ...hit, selectedIds: ['room'], cycle: true })).toEqual({ kind: 'body', id: 'room' });
+	});
+
+	it('leaves a vertex handle to the handle even where a caption covers it', () => {
+		const corner = [{ id: 'room', bounds: { min: { x: -20, y: -20 }, max: { x: 100, y: 100 } }, offset: { dx: 0, dy: 0 } }];
+		expect(resolveSelectionTarget({ ...hit, labels: corner, selectedIds: ['room'], worldPoint: { x: 0, y: 0 } })).toEqual({ kind: 'handle', id: 'room', vertexIndex: 0 });
+		expect(resolveSelectionTarget({ ...hit, labels: corner, selectedIds: ['room'], worldPoint: { x: 90, y: 90 } })).toEqual({ kind: 'label', id: 'room' });
+	});
+
+	it('gives two overlapping selected captions to the later entry, which is the more recently selected item', () => {
+		const other = square('other', 200, 200, 1000);
+		const overlapping = [labels[0], { id: 'other', bounds: { min: { x: 450, y: 480 }, max: { x: 650, y: 560 } }, offset: { dx: 0, dy: 0 } }];
+		const both = { ...hit, candidates: [room, other], labels: overlapping, selectedIds: ['room', 'other'] };
+		expect(resolveSelectionTarget(both)).toEqual({ kind: 'label', id: 'other' });
+		expect(resolveSelectionTarget({ ...both, labels: overlapping.toReversed() })).toEqual({ kind: 'label', id: 'room' });
+	});
+});

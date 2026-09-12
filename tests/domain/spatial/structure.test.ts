@@ -89,3 +89,10 @@ describe('ADR-0020 spatial geometry', () => {
 		expect(validateStructure({ ...EMPTY_STRUCTURE, walls: [{ ...wall, bulge: 0.5 }] }, []).ok).toBe(true);
 	});
 });
+
+describe('scaleStructure caption offsets', () => {
+	it('rescales an element caption offset with its points', () => {
+		const element = { id: 'element-cabinet', kind: 'object' as const, points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }], labelOffset: { dx: 3, dy: -4 } };
+		expect(scaleStructure({ walls: [], openings: [], boundaries: [], elements: [element] }, 2).elements?.[0].labelOffset).toEqual({ dx: 6, dy: -8 });
+	});
+});

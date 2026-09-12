@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { structureStack } from '../../../helpers/structure';
 import { expectDefined, expectErr, expectOk } from '../../../helpers/domain';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
-import { SpatialObjectGeometrySchemaV7, type PlanGeometryDTO } from '../../../../src/infrastructure/persistence/dto/planGeometry';
+import { SpatialObjectGeometrySchemaV10, type PlanGeometryDTO } from '../../../../src/infrastructure/persistence/dto/planGeometry';
 
 async function setup() {
 	const rig = await structureStack(); expectOk(await rig.room.execute());
@@ -59,7 +59,7 @@ it('refuses invalid curved content on read and dangling group membership on writ
 	const text = expectDefined(rig.stack.vault.entries.get(sidecar), 'sidecar bytes'), dto = JSON.parse(text) as PlanGeometryDTO;
 	// The DTO accepts four coordinates and four bulges; the collapsed curved edge is a geometry refusal.
 	const objects = dto.objects.map(object => ({ ...object, points: [object.points[0], object.points[0], ...object.points.slice(2)], bulges: [0.25, 0, 0, 0] }));
-	for (const object of objects) expect(SpatialObjectGeometrySchemaV7.safeParse(object).success).toBe(true);
+	for (const object of objects) expect(SpatialObjectGeometrySchemaV10.safeParse(object).success).toBe(true);
 	const invalidCurve = JSON.stringify({ ...dto, schemaVersion: 7, objects });
 	rig.stack.vault.entries.set(sidecar, invalidCurve);
 	expect(expectErr(await rig.geometry.read(rig.plan.id))).toMatchObject({ code: 'plan-geometry.curve-invalid' });

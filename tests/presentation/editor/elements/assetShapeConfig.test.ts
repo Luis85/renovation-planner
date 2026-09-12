@@ -29,4 +29,8 @@ describe('assetShapeConfig', () => {
 		expect(config.footprint.dash).toEqual([6, 4]);
 		expect(config.cross).toEqual([[750, 750, 1250, 1250], [1250, 750, 750, 1250]]);
 	});
+	it('draws the name tag above the footprint, moved by a dragged offset', () => {
+		expect(assetShapeConfig(element, () => shape, state).label).toMatchObject({ x: 1000, y: 682, text: 'Radiator' });
+		expect(assetShapeConfig({ ...element, labelOffset: { dx: -100, dy: 50 } }, () => shape, state).label).toMatchObject({ x: 900, y: 732 });
+	});
 });

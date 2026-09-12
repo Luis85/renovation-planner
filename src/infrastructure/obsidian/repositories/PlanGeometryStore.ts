@@ -7,7 +7,7 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV9 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV10 } from '../../persistence/dto/planGeometry';
 import { validateSpatialGroups } from '../../../domain/spatial/SpatialGroup';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
@@ -24,13 +24,29 @@ function canonicalJson(dto: PlanGeometryDTO): string {
 	return JSON.stringify(dto, null, '\t');
 }
 
+/** A moved caption anywhere in the document needs schema 10; an older build must refuse it rather than drop it. */
+function hasMovedCaption(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended'>): boolean {
+	return dto.objects.some(object => object.labelOffset !== undefined) || [dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.labelOffset !== undefined) === true);
+}
+
+/**
+ * The lowest schema that holds the content once nothing above schema 5 applies — pulled
+ * out of `writtenSchema` (alongside `hasMovedCaption`) because the doubled optional-chain
+ * reads (`structure?.elements?.length`) push that function's own complexity over budget,
+ * not because this arm is reused anywhere.
+ */
+function lowestSchemaFor(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): PlanGeometryDTO['schemaVersion'] {
+	return dto.structure?.elements?.length || dto.intended?.elements?.length ? 4 : dto.intended ? 3 : dto.structure ? 2 : 1;
+}
+
 function writtenSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended' | 'groups'>): PlanGeometryDTO['schemaVersion'] {
+	if (hasMovedCaption(dto)) return 10;
 	if ([dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.kind === 'asset'))) return 9;
 	if ([dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.kind === 'stair' || element.kind === 'arrow'))) return 8;
 	if (dto.objects.some(object => object.bulges !== undefined) || [dto.structure, dto.intended].some(structure => structure?.walls.some(wall => wall.bulge !== undefined))) return 7;
 	if (dto.groups?.length) return 6;
 	if ([dto.structure, dto.intended].some(structure => structure?.openings.some(opening => opening.swing !== undefined))) return 5;
-	return dto.structure?.elements?.length || dto.intended?.elements?.length ? 4 : dto.intended ? 3 : dto.structure ? 2 : 1;
+	return lowestSchemaFor(dto);
 }
 
 function validateSidecarContent(dto: PlanGeometryDTO): Result<void, ValidationError> {
@@ -274,7 +290,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV9.safeParse(migrated);
+		const validated = PlanGeometrySchemaV10.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

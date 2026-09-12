@@ -147,3 +147,20 @@ describe('calibration undo against the real sidecar (design slice 7, DoD 3)', ()
 		expect(error).toMatchObject({ category: 'Validation', code: 'plan-geometry.external-modification' });
 	});
 });
+
+describe('a zone caption offset in the sidecar', () => {
+	it('is saved on the zone entry, read by the port, and seen by the versions a group write prepares', async () => {
+		const { stack, zones, planId, sidecar } = await seeded();
+		const [zone] = zones;
+		if (!zone) throw new Error('no zone was seeded');
+		const loaded = expectOk(await stack.zones.getById(zone.id));
+		if (!loaded) throw new Error('the seeded zone did not load');
+		expectOk(await stack.zones.save(zone.withLabelOffset({ dx: 7, dy: -3 }), loaded.version));
+		const object = expectOk(await sidecar.read(planId)).document.objects.find(item => item.id === zone.id);
+		expect(object?.labelOffset).toEqual({ dx: 7, dy: -3 });
+		const labelled = expectOk(await stack.zones.prepareGeometryVersions(zone.id, { ...zone.geometry, labelOffset: { dx: 7, dy: -3 } }));
+		const unlabelled = expectOk(await stack.zones.prepareGeometryVersions(zone.id, zone.geometry));
+		expect(labelled?.zone.entity.labelOffset).toEqual({ dx: 7, dy: -3 });
+		expect(labelled?.zone.version).not.toEqual(unlabelled?.zone.version);
+	});
+});

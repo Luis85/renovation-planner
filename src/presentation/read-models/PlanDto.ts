@@ -1,5 +1,6 @@
 import type { ProjectRowFacts } from '../../application/ports/ProjectListFacts';
 import type { Point } from '../../core/geometry/Point';
+import type { Vector } from '../../core/geometry/Vector';
 import type { PlanBackgroundRef } from '../../domain/plan/PlanBackgroundRef';
 import type { Calibration } from '../../domain/plan/Calibration';
 import type { Plan } from '../../domain/plan/Plan';
@@ -59,6 +60,8 @@ export interface ZoneDto {
 	readonly status: string;
 	/** Present only while locked (ADR-0027): the canvas clicks through a locked zone. */
 	readonly locked?: true;
+	/** A dragged caption's offset from its automatic anchor, world mm (ADR-0029); present only while moved. */
+	readonly labelOffset?: Vector;
 	/** World millimetres, straight from `Zone.geometry` — never screen coordinates. */
 	readonly points: readonly Point[];
 }
@@ -159,6 +162,7 @@ export function toZoneDto(zone: Zone): ZoneDto {
 		zoneType: zone.zoneType,
 		status: zone.status,
 		...(zone.locked ? { locked: true as const } : {}),
+		...(zone.labelOffset ? { labelOffset: { ...zone.labelOffset } } : {}),
 		// Copied, not aliased. The entity's own array is frozen only by convention, and a
 		// render model handed the same reference would let a later slice's edit reach back
 		// into a loaded entity — the one direction the read pipeline must not have.

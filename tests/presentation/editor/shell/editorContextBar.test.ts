@@ -85,4 +85,13 @@ describe('EditorContextBar', () => {
 		expect(harness.wrapper.find('.rp-context-bar [data-rp-open-plan]').exists()).toBe(false);
 		expect(harness.wrapper.findAll('.rp-context-bar__crumb').map((crumb) => crumb.text())).toEqual(['Willow House', 'Site', 'Ground floor']);
 	});
+
+	it('draws each ancestor crumb with its kind icon', async () => {
+		const harness = await mountPlanEditorCanvas({
+			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: () => Promise.resolve() },
+			queries: { ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site', kind: 'site' }], detailPlans: [], parentZone: null, parentZoneMissing: false, tree: [] })) },
+		});
+		await settle();
+		expect(harness.wrapper.get('[data-rp-open-plan="plan-site"]').find('.rp-host-icon[data-icon="land-plot"]').exists()).toBe(true);
+	});
 });

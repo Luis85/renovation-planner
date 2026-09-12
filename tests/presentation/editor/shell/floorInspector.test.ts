@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { ok } from '../../../../src/core/result/Result';
 import { NO_HIERARCHY } from '../../../../src/presentation/read-models/planHierarchy';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
-import { mountPlanEditorCanvas, settle, type CanvasHarness } from '../../../helpers/editor';
+import { unavailablePlanEditorCommands } from '../../../../src/presentation/editor/planEditorCommands';
+import { mountPlanEditorCanvas, runtimeOf, settle, type CanvasHarness } from '../../../helpers/editor';
 import { fakeQueries, FIXTURE_PLAN } from '../../../helpers/planFixtures';
 
 /**
@@ -95,6 +96,64 @@ describe('a detail plan in the floor state', () => {
 		harness = await mountPlanEditorCanvas(detail(null));
 		await settle();
 		expect(harness.wrapper.find('.rp-floor-inspector__guide').exists()).toBe(false);
+	});
+});
+
+/**
+ * The Kind select (Property tree polish, Task 10): bound to `PlanDto.kind`, written through
+ * `usePlanReorder().setKind` — the one `updatePlanDetails` door the tree's row menu also uses —
+ * and absent without that command or in review perspective. While writes are paused it stays
+ * focusable, carries §2.9's `aria-disabled` plus the shared reason, and a change dispatches
+ * nothing: the harness's `execute` spy is what proves the refusal, since a disabled-looking
+ * select still fires `change` in jsdom.
+ */
+const kindExecute = () => vi.fn<() => Promise<ReturnType<typeof ok<{ plan: { entity: typeof FIXTURE_PLAN; version: { revision: number } } }>>>>(() =>
+	Promise.resolve(ok({ plan: { entity: { ...FIXTURE_PLAN, kind: 'room' as const }, version: { revision: 1 } } })));
+const withKindCommand = (execute = kindExecute()) =>
+	mountPlanEditorCanvas({ plan: { ...FIXTURE_PLAN, kind: 'room' }, commands: { ...unavailablePlanEditorCommands(), updatePlanDetails: { execute } } as never });
+
+describe('the Kind select', () => {
+	it('offers a Kind select bound to the plan and writes through updatePlanDetails', async () => {
+		const execute = kindExecute();
+		harness = await withKindCommand(execute);
+		await settle();
+		const select = harness.wrapper.get('select[data-rp-field="plan-kind"]');
+		expect((select.element as HTMLSelectElement).value).toBe('room');
+		expect(harness.wrapper.get(`label[for="${select.attributes('id')}"]`).text()).toBe(t('en', 'form.new-plan.kind'));
+		await select.setValue('floor');
+		await settle();
+		expect(execute).toHaveBeenCalledWith({ planId: FIXTURE_PLAN.id, kind: 'floor' });
+	});
+
+	it('draws no Kind select without the command', async () => {
+		harness = await mountPlanEditorCanvas({});
+		await settle();
+		expect(harness.wrapper.find('select[data-rp-field="plan-kind"]').exists()).toBe(false);
+	});
+
+	it('hides the Kind select in review perspective', async () => {
+		harness = await withKindCommand();
+		await settle();
+		await runtimeOf(harness).renovation.perspective('review');
+		await settle();
+		expect(harness.wrapper.find('select[data-rp-field="plan-kind"]').exists()).toBe(false);
+	});
+
+	it('while writes are paused the select is aria-disabled with the reason, and a change dispatches nothing', async () => {
+		const execute = kindExecute();
+		harness = await withKindCommand(execute);
+		await settle();
+		useProjectStore(harness.pinia).stale = true;
+		await settle();
+		const select = harness.wrapper.get('select[data-rp-field="plan-kind"]');
+		expect(select.attributes('aria-disabled')).toBe('true');
+		expect(select.attributes('disabled')).toBeUndefined();
+		expect(select.attributes('aria-describedby')?.split(' ')).toContain(runtimeOf(harness).pausedReasonId);
+		await select.setValue('floor');
+		await settle();
+		expect(execute).not.toHaveBeenCalled();
+		// The DOM value is put back too: the store's `kind` never moved, so `:value` alone re-patches nothing.
+		expect((select.element as HTMLSelectElement).value).toBe('room');
 	});
 });
 

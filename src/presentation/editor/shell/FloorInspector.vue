@@ -21,7 +21,6 @@ import { useFloorSummary } from './useFloorSummary';
 import FloorSpatialLists from './FloorSpatialLists.vue';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import RenovationLinkedSummary from '../renovation/RenovationLinkedSummary.vue';
-import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
@@ -29,7 +28,13 @@ import { guideSource } from '../hierarchy/parentZoneGuide';
 import { renovationSummary } from '../renovation/renovationSummary';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import HostIcon from '../../components/HostIcon.vue';
+import { computed, useId } from 'vue';
+import { PLAN_KINDS, type PlanKind } from '../../../domain/plan/PlanKind';
+import { PLAN_KIND_LABELS } from '../editorIcons';
+import { useEditorRuntime } from '../runtime';
+import { usePlanReorder } from './usePlanReorder';
 const context = usePlanEditorContext();
+const runtime = useEditorRuntime();
 
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
@@ -77,6 +82,34 @@ function textFor<T>(aggregate: Aggregate<T>, format: (value: T) => string): stri
 }
 
 const count = (value: number): string => String(value);
+
+/**
+ * The plan's Kind (ADR-0029), written through `usePlanReorder().setKind` — the ONE
+ * `updatePlanDetails` door the Property tree's row menu also takes, so this select adds no
+ * second command path. `reorder.available` hides it without the command and in review
+ * perspective; `reorder.paused` is `runtime.writesBlocked` under the tree's own name, and while
+ * it holds the select carries §2.9's pair (`RoomInspector`'s `pausedAttrs` shape: both
+ * attributes while paused, NEITHER while live). `write()` already refuses a paused write, so the
+ * handler's own check is not a second guard on the dispatch — it puts the DOM value back, which
+ * `:value` alone cannot: the store's `kind` never changed, so Vue has nothing to re-patch, and a
+ * select left reading `floor` over a plan still saved as `room` is a control lying about a
+ * paused write. `useId()` rather than a fixed id because two Plan editor leaves share one
+ * document.
+ */
+const reorder = usePlanReorder();
+const kindId = useId();
+const kindPausedAttrs = computed(() =>
+	reorder.paused.value
+		? ({ 'aria-disabled': 'true', 'aria-describedby': runtime.pausedReasonId } as Record<string, string>)
+		: ({} as Record<string, string>),
+);
+function onKindChange(event: Event): void {
+	const plan = project.plan;
+	if (!plan) return;
+	const select = event.target as HTMLSelectElement;
+	if (reorder.paused.value) { select.value = plan.kind; return; }
+	void reorder.setKind(plan.id, select.value as PlanKind);
+}
 </script>
 
 <template>
@@ -91,6 +124,27 @@ const count = (value: number): string => String(value);
 		>
 			{{ tr('editor.input.detail-plan-guide-explainer', guide) }}
 		</p>
+		<div
+			v-if="reorder.available.value && project.plan"
+			class="rp-editor-requirement-assign"
+		>
+			<label :for="kindId">{{ tr('form.new-plan.kind') }}</label>
+			<select
+				:id="kindId"
+				data-rp-field="plan-kind"
+				:value="project.plan.kind"
+				v-bind="kindPausedAttrs"
+				@change="onKindChange"
+			>
+				<option
+					v-for="kind in PLAN_KINDS"
+					:key="kind"
+					:value="kind"
+				>
+					{{ tr(PLAN_KIND_LABELS[kind]) }}
+				</option>
+			</select>
+		</div>
 		<ReferenceAction />
 		<section
 			v-if="starting"

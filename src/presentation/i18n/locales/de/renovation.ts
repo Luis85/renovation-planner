@@ -162,5 +162,5 @@ export const renovationDe = {
 	"renovation.material.no-quantity": "Für Baustoffe mit der Einheit {unit} wird keine Menge berechnet.",
 	"renovation.material-missing": "Dieses Objekt ist nicht mehr in der Asset-Bibliothek. Ein anderes wählen.",
 	"renovation.material-target": "Ein Baustoff gehört an eine Wand, ein Produkt an eine Tür oder ein Fenster.",
-	"renovation.construction-referenced":"Eine Kostenposition oder Bestellung nutzt noch die Menge dieses Baustoffs. Zuerst diese entfernen.",
+	"renovation.construction-referenced": "Eine Kostenposition oder Bestellung nutzt noch die Menge dieses Baustoffs: {names}. Zuerst diese entfernen.",
 };

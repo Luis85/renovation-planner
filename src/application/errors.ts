@@ -22,6 +22,15 @@ export function referenceError(code: string, message: string): ReferenceError {
 	return { category: 'Reference', code, message };
 }
 
+/** What a reference refusal names, for the `{names}` placeholder in its copy; `message` stays internal. */
+export interface NamedReferents {
+	readonly names: readonly string[];
+}
+
+export function namedReferenceError(code: string, message: string, names: readonly string[]): ReferenceError & NamedReferents {
+	return { ...referenceError(code, message), names };
+}
+
 /**
  * The failed-RECALCULATION error: the figures could not be produced (an input no longer
  * resolves, an engine stage refused), which is a calculation outcome rather than a command

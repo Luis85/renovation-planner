@@ -6,7 +6,10 @@ import { settle } from '../../helpers/editor';
 import { expectDefined, expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset } from '../../helpers/entities';
 import { EMPTY_RENOVATION, type Renovation, type RenovationSubject } from '../../../src/domain/renovation/Renovation';
-import { withPlanRenovation } from '../../../src/domain/plan/Plan';
+import { withPlanRenovation, withPlanSpatialElements } from '../../../src/domain/plan/Plan';
+import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
+import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
+import { renovationMessage } from '../../../src/presentation/editor/renovation/renovationMessage';
 import { constructionAsset } from '../../../src/application/commands/renovation/constructionEntries';
 import { constructionAwareRenovation } from '../../../src/application/commands/renovation/ConstructionMaterialCommand';
 import type { PlanningDeps } from '../../../src/application/commands/renovation/materialPlanning';
@@ -65,7 +68,9 @@ describe('the construction entry (ADR-0031)', () => {
 			depth: { procurement: [], evidence: [], costs: [{ id: 'cost-render', targetId: 'wall-a', workId: '', title: 'Render', category: 'material', requirementId: entry.entity.id, planned: null, facts: [], cancelled: false }] } };
 		expectOk(await write(rig, withCost));
 		const before = [...rig.stack.vault.entries];
-		expect(await write(rig, { ...withCost, subjects: [wall({ change: 'unchanged', description: 'Brick' })] })).toMatchObject({ ok: false, error: { code: 'renovation.construction-referenced' } });
+		const refused = await write(rig, { ...withCost, subjects: [wall({ change: 'unchanged', description: 'Brick' })] });
+		expect(refused).toMatchObject({ ok: false, error: { code: 'renovation.construction-referenced' } });
+		expect(renovationMessage(expectErr(refused))).toContain('Render');
 		expect([...rig.stack.vault.entries]).toEqual(before);
 	});
 
@@ -162,5 +167,90 @@ describe('the construction entry beside its subject (spec §8)', () => {
 		rig.stack.requirements.save = requirementSave; rig.stack.plans.save = planSave;
 		expect(leftWritesBehind(expectErr(await create.execute()))).toBe(true);
 		expect(leftWritesBehind(expectErr(await create.undo()))).toBe(true);
+		expect(expectErr(await create.undo()).code).toBe('renovation.recovery-required');
+	});
+});
+
+const unchanged = (): Renovation => ({ ...EMPTY_RENOVATION, subjects: [wall({ change: 'unchanged', description: 'Brick' })] });
+const bytes = (rig: Rig) => [...rig.stack.vault.entries];
+const element: NamedSpatialElement = { id: 'element-path', kind: 'path', name: 'Garden path', points: [{ x: -1000, y: 0 }, { x: 3000, y: 0 }, { x: 3000, y: 2000 }] };
+/** Runs `peer` once the entry step's last write (its sidecar confirmation) lands, before the renovation step reads anything. */
+function afterDelete(rig: Rig, peer: () => Promise<void>): () => void {
+	const sidecarWrite = rig.geometry.write.bind(rig.geometry);
+	let writes = 0;
+	rig.geometry.write = async (...args) => { const written = await sidecarWrite(...args); if (++writes === 1) await peer(); return written; };
+	return () => { rig.geometry.write = sidecarWrite; };
+}
+
+describe('a construction write refused part-way puts back what already moved', () => {
+	it.each(['refuses', 'throws'])('puts the subject back when a read %s before its entry is saved', async how => {
+		const { rig, render } = await setup();
+		const create = await command(rig, rendered(render.id));
+		const planSave = rig.stack.plans.save.bind(rig.stack.plans), getProject = rig.stack.projects.getById.bind(rig.stack.projects);
+		let armed = false;
+		rig.stack.plans.save = (...args) => { armed = true; rig.stack.plans.save = planSave; return planSave(...args); };
+		rig.stack.projects.getById = (...args) => {
+			if (!armed) return getProject(...args);
+			armed = false; rig.stack.projects.getById = getProject;
+			return how === 'throws' ? Promise.reject(new Error('Injected.')) : Promise.resolve(injected);
+		};
+		const refused = expectErr(await create.execute());
+		rig.stack.plans.save = planSave; rig.stack.projects.getById = getProject;
+		expect(leftWritesBehind(refused)).toBe(false);
+		expect([await entries(rig), await subjects(rig)]).toEqual([[], []]);
+		const before = bytes(rig);
+		await create.undo();
+		expect(bytes(rig)).toEqual(before);
+	});
+
+	it('puts the entry back when the sidecar moved after the entry was deleted', async () => {
+		const { rig, render } = await setup();
+		expectOk(await write(rig, rendered(render.id)));
+		const clear = await command(rig, unchanged());
+		const restore = afterDelete(rig, async () => {
+			const snapshot = expectOk(await rig.geometry.read(rig.plan.id));
+			expectOk(await rig.geometry.write(rig.plan.id, { ...snapshot.document, objects: snapshot.document.objects.map(item => ({ ...item, labelOffset: { dx: 100, dy: 100 } })) }, snapshot.version));
+		});
+		const refused = expectErr(await clear.execute());
+		restore();
+		expect([refused.code, leftWritesBehind(refused)]).toEqual(['undo.superseded', false]);
+		expect((await entries(rig)).map(item => item.entity.assetId)).toEqual([render.id]);
+		expect((await subjects(rig)).map(item => item.planned?.assetId)).toEqual([render.id]);
+		const before = bytes(rig);
+		await clear.undo();
+		expect(bytes(rig)).toEqual(before);
+	});
+
+	it('keeps the plan note version check across the rebase, so a peer label survives and the entry is put back', async () => {
+		const { rig, render } = await setup();
+		expectOk(await write(rig, rendered(render.id)));
+		const added = expectOk(await rig.renovation.read(rig.plan.id));
+		expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(added, elementInput(added, element), rig.runtime.structureTask.ledger)));
+		const baseline = expectOk(await rig.renovation.read(rig.plan.id));
+		const relabel = rig.renovation.command(baseline, { ...elementInput(baseline, { ...element, name: 'Local label' }), renovation: unchanged() }, rig.runtime.structureTask.ledger);
+		const restore = afterDelete(rig, async () => {
+			const loaded = expectDefined(expectOk(await rig.stack.plans.getById(rig.plan.id)), 'plan');
+			expectOk(await rig.stack.plans.save(expectOk(withPlanSpatialElements(loaded.entity, [{ id: element.id, name: 'Peer label' }])), loaded.version));
+		});
+		expectErr(await relabel.execute());
+		restore();
+		const current = expectOk(await rig.renovation.read(rig.plan.id));
+		expect(current.plan.entity.spatialElements?.map(item => item.name)).toEqual(['Peer label']);
+		expect(current.plan.entity.renovation?.subjects.map(item => item.planned?.assetId)).toEqual([render.id]);
+		expect((await entries(rig)).map(item => item.entity.assetId)).toEqual([render.id]);
+	});
+
+	it('retires when the renovation step left writes behind, even though the entry is put back', async () => {
+		const { rig, render } = await setup();
+		expectOk(await write(rig, rendered(render.id)));
+		const clear = await command(rig, unchanged());
+		const planSave = rig.stack.plans.save.bind(rig.stack.plans), geometryWrite = rig.geometry.write.bind(rig.geometry);
+		let planSaves = 0, geometryWrites = 0;
+		rig.stack.plans.save = (...args) => ++planSaves === 2 ? Promise.resolve(injected) : planSave(...args);
+		rig.geometry.write = (...args) => ++geometryWrites === 2 ? Promise.resolve(injected) : geometryWrite(...args);
+		expect(leftWritesBehind(expectErr(await clear.execute()))).toBe(true);
+		rig.stack.plans.save = planSave; rig.geometry.write = geometryWrite;
+		expect((await entries(rig)).map(item => item.entity.assetId)).toEqual([render.id]);
+		expect(expectErr(await clear.execute()).code).toBe('renovation.recovery-required');
 	});
 });

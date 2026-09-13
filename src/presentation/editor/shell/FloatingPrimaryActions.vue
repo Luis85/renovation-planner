@@ -46,52 +46,57 @@ const emit = defineEmits<{ openAdd: [] }>();
 			type="button"
 			class="rp-primary-actions__button"
 			data-rp-action="select"
+			:aria-label="tr('editor.primary.select')"
 			:aria-pressed="runtime.activeToolId.value === 'select'"
 			:aria-disabled="!canSwitch"
 			@click="runtime.setTool('select')"
 		>
-			<HostIcon name="mouse-pointer-2" />{{ tr('editor.primary.select') }}
+			<HostIcon name="mouse-pointer-2" /><span class="rp-primary-actions__label">{{ tr('editor.primary.select') }}</span>
 		</button>
 		<button
 			type="button"
 			class="rp-primary-actions__button"
 			data-rp-action="pan"
+			:aria-label="tr('editor.input.pan')"
 			:aria-pressed="runtime.activeToolId.value === 'pan'"
 			:aria-disabled="!canSwitch"
 			@click="runtime.setTool('pan')"
 		>
-			<HostIcon name="hand" />{{ tr('editor.input.pan') }}
+			<HostIcon name="hand" /><span class="rp-primary-actions__label">{{ tr('editor.input.pan') }}</span>
 		</button>
 		<button
 			v-if="layoutAddAvailable"
 			type="button"
 			class="rp-primary-actions__button"
 			data-rp-action="add"
+			:aria-label="tr('editor.primary.add')"
 			aria-haspopup="menu"
 			:aria-expanded="props.addOpen"
 			:aria-disabled="!canSwitch"
 			@click="canSwitch && emit('openAdd')"
 		>
-			<HostIcon name="plus" />{{ tr('editor.primary.add') }}
+			<HostIcon name="plus" /><span class="rp-primary-actions__label">{{ tr('editor.primary.add') }}</span>
 		</button>
 		<button
 			v-if="workAvailable"
 			type="button"
 			class="rp-primary-actions__button rp-primary-actions__work"
 			data-rp-action="add-work"
+			:aria-label="tr('renovation.add.work')"
 			:aria-disabled="runtime.renovation.blocked.value"
 			@click="addWork"
 		>
-			<HostIcon name="plus" />{{ tr('renovation.add.work') }}
+			<HostIcon name="plus" /><span class="rp-primary-actions__label">{{ tr('renovation.add.work') }}</span>
 		</button>
 		<button
 			v-if="renovationContextAvailable"
 			type="button"
 			class="rp-primary-actions__button"
 			data-rp-action="renovation-more"
+			:aria-label="tr('editor.structure.more')"
 			@click="revealDetails"
 		>
-			<HostIcon name="panels-top-left" />{{ tr('editor.structure.more') }}
+			<HostIcon name="panels-top-left" /><span class="rp-primary-actions__label">{{ tr('editor.structure.more') }}</span>
 		</button>
 	</div>
 </template>

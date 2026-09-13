@@ -48,9 +48,9 @@ describe('native selected Room dimension editing', () => {
 		await runtime.undo(); expect((await read(r)).entity.geometry.points).toEqual(original);
 		expect(runtime.canUndo.value).toBe(false);
 	});
-	it('edits one scalar in Renovate, preserves raw comma text through viewport changes, and reverses exactly', async () => {
+	it('edits one scalar in Plan, preserves raw comma text through viewport changes, and reverses exactly', async () => {
 		const r = await rig(), runtime = runtimeOf(r.harness), before = await read(r);
-		useRenovationSession(r.harness.pinia).perspective = 'renovate';
+		useRenovationSession(r.harness.pinia).perspective = 'plan';
 		await open(r);
 		const input = r.harness.wrapper.get(`${selector} input`);
 		expect(document.activeElement).toBe(input.element);

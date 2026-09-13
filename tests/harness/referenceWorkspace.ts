@@ -31,6 +31,7 @@ import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
 import { ok } from '../../src/core/result/Result';
 import { evidenceGalleryFixtures } from './evidenceGalleryFixtures';
+import { seedItems } from './itemKnob';
 
 /** Real repositories over FakeVault; only the two binary sources are served as static fixtures. */
 export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning = false) {
@@ -68,6 +69,7 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			const names = ['Post 1', 'Post 2', 'Post 3', 'Free post', 'Ceiling beam'];
 			expectOk(await stack.plans.save(expectOk(withPlanSpatialElements(loaded.entity, elements.map((item, index) => ({ id: item.id, name: names[index] })))), loaded.version));
 		}
+		if (new URLSearchParams(location.search).has('item')) await seedItems(stack, geometry, plan);
 		stack.vault.entries.set('scan.png', 'PNG fixture'); stack.vault.entries.set('scan.pdf', 'PDF fixture');
 	})();
 	const reviewNotes = new ObsidianReviewNotes(stack.deps.vault, stack.index);

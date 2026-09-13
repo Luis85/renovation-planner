@@ -53,7 +53,13 @@ it('retires a pending curve read when the selected subject changes and preserves
 });
 
 it('cancels pointer bend interruption and the entire task without writes or camera changes', async () => {
-	const rig = await setup(), editor = useEditorStore(rig.pinia), original = JSON.stringify(editor.viewport), bytes = [...rig.stack.vault.entries];
+	const rig = await setup(), editor = useEditorStore(rig.pinia);
+	// At the default camera the drag below runs from 48 px to 8 px under the canvas's top edge —
+	// inside the edge-scroll zone, so a frame landing mid-gesture on a busy machine scrolled the
+	// plan, bent the edge further and moved the camera this case asserts is untouched. Moving the
+	// camera BEFORE `original` is taken keeps the gesture inside the pane and the claim intact.
+	editor.panByScreen(0, 300);
+	const original = JSON.stringify(editor.viewport), bytes = [...rig.stack.vault.entries];
 	await rig.runtime.curveTask.open(rig.room.id); await settle();
 	const canvas = expectDefined(rig.canvasEl, 'canvas'), bounds = canvas.getBoundingClientRect();
 	const at = (point: Point) => { const screen = worldToScreen(point, editor.viewport, STAGE_PIXELS); return { x: screen.x + bounds.left, y: screen.y + bounds.top }; };

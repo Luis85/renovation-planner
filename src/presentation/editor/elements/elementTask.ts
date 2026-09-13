@@ -6,14 +6,16 @@ import type { RenovationBaseline, RenovationServices } from '../../../applicatio
 import type { Point } from '../../../core/geometry/Point';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import { spatialError } from '../../../domain/spatial/structureGeometry';
+import { postOutline } from '../../../domain/spatial/structuralElement';
 import { createEntityId } from '../../../core/identity/generateId';
 import { useSelectionStore } from '../selection/selection-store';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { notifyFault } from '../../notices/notify';
 import { recordDraftFailure } from '../tools/with-stale-gate';
 import { ElementTool } from './ElementTool';
-import { createElementDraft, draftElement, ELEMENT_TOOLS, type ElementToolId } from './elementDraft';
+import { createElementDraft, draftElement, pointsAfterUndo, ELEMENT_TOOLS, type ElementToolId } from './elementDraft';
 import { elementInput } from './elementInput';
+import { boundingRectangle, type ObjectShapeMode } from './objectShape';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 
 export function createElementTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'setTool' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { ledger: WriteLedger }) {
@@ -37,14 +39,37 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		draft.points = points.map(point => ({ ...point })); draft.error = null; return true;
 	}
 	function addPoint(point: Point): boolean {
-		if (blocked.value || draft.pendingInput || ((draft.kind === 'measurement' || draft.kind === 'stair') && draft.points.length === 2)) return false;
+		if (draft.kind === 'post') return placePost(point);
+		if (blocked.value || draft.pendingInput || ((draft.kind === 'measurement' || draft.kind === 'stair' || draft.kind === 'beam') && draft.points.length === 2)) return false;
 		const previous = draft.points[draft.points.length - 1];
 		if (previous && previous.x === point.x && previous.y === point.y) return false;
 		const added = setPoints([...draft.points, point]);
 		if (added) draft.text = { x: '', y: '' };
+		// A beam is exactly its two ends, so the second one saves it (structural posts and beams design §5).
+		if (added && draft.kind === 'beam' && draft.points.length === 2) void finish();
 		return added;
 	}
-	function undoPoint(): void { if (!blocked.value && !draft.pendingInput && !draft.text.x && !draft.text.y) setPoints(draft.points.slice(0, -1)); }
+	/** One click is one whole post: its section centred on the point, saved at once. */
+	function placePost(point: Point): boolean {
+		if (blocked.value || draft.pendingInput || !setPoints(postOutline(point, draft.post.width, draft.post.depth))) return false;
+		draft.text = { x: '', y: '' };
+		void finish();
+		return true;
+	}
+	function undoPoint(): void { if (!blocked.value && !draft.pendingInput && !draft.text.x && !draft.text.y) setPoints(pointsAfterUndo(draft)); }
+	/** Pending typed input belongs to the mode it was typed in, so it has to be applied or discarded before the mode changes. */
+	const shapeLocked = computed(() => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y);
+	/**
+	 * Rectangle drag or free-form corners for an item (2026-09-13 item modes spec §A). The outline carries across:
+	 * free-form keeps the corners as editable points, rectangle takes their bounding box — or nothing, when that
+	 * box has no area.
+	 */
+	function setShape(shape: ObjectShapeMode): boolean {
+		if (shapeLocked.value || draft.shape === shape) return false;
+		draft.shape = shape;
+		if (shape === 'rectangle') draft.points = boundingRectangle(draft.points) ?? [];
+		return true;
+	}
 	async function finish(): Promise<void> {
 		if (blocked.value || !baseline.value || !context.commands.renovation) return;
 		if (draft.text.x || draft.text.y || draft.pendingInput) { draft.error = spatialError('numeric'); return; }
@@ -57,7 +82,11 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 			if (!result.ok) {
 				await recordDraftFailure(draft, result.error, () => runtime.refreshProjection()); return;
 			}
-			selection.select([element.id as ReturnType<typeof createEntityId>]); draft.busy = false; runtime.returnToSelect();
+			selection.select([element.id as ReturnType<typeof createEntityId>]);
+			// The post tool stays on for the next post along a wall, with the section last typed. `start` reads a
+			// fresh baseline; the dispatcher has already refreshed the projection it is compared against.
+			if (element.kind === 'post') { const post = { ...draft.post }; start('place-post'); draft.post = post; return; }
+			draft.busy = false; runtime.returnToSelect();
 		} catch (cause) { if (reads.current(ticket)) notifyFault(cause, context.commands.logger, 'editor.element.write-failed'); }
 		finally { if (reads.current(ticket)) draft.busy = false; }
 	}
@@ -70,7 +99,7 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		if (reads.current(ticket)) addPoint(point);
 	}
 	for (const id of Object.keys(ELEMENT_TOOLS) as ElementToolId[]) runtime.toolManager.register(new ElementTool(id, {
-		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, finish: () => { void finish(); },
+		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, setPoints, finish: () => { void finish(); },
 	}));
-	return { draft, blocked, canFinish, needsRead, retry, setPoints, addPoint, undoPoint, finish, measureFrom, available: context.commands.renovation !== undefined };
+	return { draft, blocked, canFinish, needsRead, retry, setPoints, addPoint, undoPoint, setShape, shapeLocked, finish, measureFrom, available: context.commands.renovation !== undefined };
 }

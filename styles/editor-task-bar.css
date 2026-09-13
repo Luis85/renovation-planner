@@ -134,6 +134,23 @@
 	outline-offset: 2px;
 }
 
+/*
+ * Rectangle | Free-form for an item (2026-09-13 item modes spec §A): the pressed mode wears a real
+ * border, the accent tint and the weight — the host's own buttons are borderless
+ * (`button { border: 0; }` in Obsidian's own sheet), so a bare `border-color` had nothing to
+ * colour. The same second channel `editor-shell.css`'s `.rp-primary-actions__button[aria-pressed='true']`
+ * uses: a border width so the accent shows, and the tint it uses.
+ */
+.renovation-plan-editor .rp-object-shape {
+	display: inline-flex;
+	gap: var(--size-4-1);
+}
+.renovation-plan-editor .rp-object-shape button[aria-pressed='true'] {
+	border: 1px solid var(--interactive-accent);
+	background-color: var(--background-modifier-active-hover);
+	font-weight: var(--font-semibold);
+}
+
 @container (max-width: 899px) {
 	.rp-task-banner {
 		gap: 6px var(--size-4-2);

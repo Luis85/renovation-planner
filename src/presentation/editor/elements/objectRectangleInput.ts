@@ -1,9 +1,18 @@
 import type { Point } from '../../../core/geometry/Point';
-import { parseCoordinateMetres, parseMetres, type LengthRefusal } from '../shell/formatLength';
+import { boundingBoxOf } from '../../../core/geometry/operations';
+import { formatMetres, parseCoordinateMetres, parseMetres, type LengthRefusal } from '../shell/formatLength';
 
 export interface ObjectRectangleText { x: string; y: string; width: string; depth: string }
 export type RectangleField = keyof ObjectRectangleText;
 export function emptyObjectRectangle(): ObjectRectangleText { return { x: '0', y: '0', width: '', depth: '' }; }
+
+/** The outline's bounding box as the fields' text: the inverse of `objectRectangleProposal` for whole millimetres, the empty entry for no outline. */
+export function rectangleTextFromPoints(points: readonly Point[]): ObjectRectangleText {
+	const box = boundingBoxOf({ points });
+	if (!box.ok) return emptyObjectRectangle();
+	const { min, max } = box.value;
+	return { x: formatMetres(min.x), y: formatMetres(min.y), width: formatMetres(max.x - min.x), depth: formatMetres(max.y - min.y) };
+}
 
 /** A numeric proposal replaces the temporary outline only when explicitly applied. */
 export function objectRectangleProposal(text: ObjectRectangleText): { points: Point[] | null; errors: Record<RectangleField, LengthRefusal | null> } {

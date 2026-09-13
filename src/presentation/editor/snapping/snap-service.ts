@@ -41,6 +41,17 @@ function requirePositiveFinite(value: number, field: string): void {
 export interface SnapCandidates {
 	readonly vertices?: readonly Point[];
 	readonly edges?: readonly (LineSegment & { readonly bulge?: number })[];
+	/**
+	 * Every point whose x or y is worth lining up with — a neighbour's vertices and box
+	 * centres. Read by the axis-alignment stage only, after vertex and edge have declined.
+	 */
+	readonly alignments?: readonly Point[];
+}
+
+/** A snapped point and the guide segments that say why it landed there. */
+export interface SnapResult {
+	readonly point: Point;
+	readonly guides: LineSegment[];
 }
 
 function roundToStep(value: number, step: number): number {
@@ -115,6 +126,24 @@ function nearestWithinTolerance<T>(
 }
 
 /**
+ * The alignment whose `axis` coordinate is nearest `value` within `tolerance`, else `null`.
+ * Strictly-closer wins, so a tie keeps the first in iteration order — the same rule
+ * `nearestWithinTolerance` pins for points.
+ */
+function nearestAlignment(value: number, alignments: readonly Point[], axis: 'x' | 'y', tolerance: number): Point | null {
+	let best: Point | null = null;
+	let bestDistance = Infinity;
+	for (const candidate of alignments) {
+		const d = Math.abs(candidate[axis] - value);
+		if (d <= tolerance && d < bestDistance) {
+			bestDistance = d;
+			best = candidate;
+		}
+	}
+	return best;
+}
+
+/**
  * The one editor-level snapping service (SDD §21), implemented once rather than
  * per-tool. A tool calls `snapPoint` during both `pointerMove` (the snapped preview
  * written to render state) and `pointerUp` (the committed point) — always the same
@@ -163,20 +192,41 @@ export class SnapService {
 	}
 
 	/**
-	 * Precedence, NOT nearest-wins: a vertex within tolerance always wins over an edge
-	 * within tolerance, even one strictly closer to `point` than the vertex is. The SDD
-	 * states the order as vertex > edge > the original point, and that is what this
-	 * implements — a reader expecting "whichever candidate is closest overall" would be
-	 * wrong, and a test pins the precedence case where the edge is nearer and still
-	 * loses.
+	 * `snapPoint` with the reason attached. Precedence, NOT nearest-wins: a vertex within
+	 * tolerance always wins over an edge within tolerance, even one strictly closer to `point`
+	 * than the vertex is, and either wins over an axis alignment. The order is vertex > edge >
+	 * axis alignment > the original point (spec §3.2) — a reader expecting "whichever
+	 * candidate is closest overall" would be wrong, and tests pin the precedence cases where
+	 * the later stage is nearer and still loses.
+	 *
+	 * The first two answer one guide from the pointer to where it landed; the axis stage
+	 * decides x and y independently and answers one guide PER AXIS that fired, from the landed
+	 * point to the alignment it matched — which is axis-aligned by construction, and is what
+	 * the canvas draws as the dashed "lined up with" line.
+	 *
+	 * When no stage fires the answer is `point` ITSELF, not an equal copy: callers pin
+	 * `snapPoint`'s no-snap answer with `toBe`, and a `landed` object built unconditionally
+	 * turned them red — measured, not guessed.
 	 */
-	snapPoint(point: Point, candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): Point {
+	snapPointWithGuides(point: Point, candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): SnapResult {
+		if (!this.enabled) return { point, guides: [] };
 		const vertex = this.snapToVertex(point, candidates.vertices ?? [], toleranceMm);
-		if (vertex !== null) {
-			return vertex;
-		}
+		if (vertex !== null) return { point: vertex, guides: [{ start: point, end: vertex }] };
 		const edge = this.snapToEdge(point, candidates.edges ?? [], toleranceMm);
-		return edge ?? point;
+		if (edge !== null) return { point: edge, guides: [{ start: point, end: edge }] };
+		const alignments = candidates.alignments ?? [];
+		const alongX = nearestAlignment(point.x, alignments, 'x', toleranceMm);
+		const alongY = nearestAlignment(point.y, alignments, 'y', toleranceMm);
+		if (alongX === null && alongY === null) return { point, guides: [] };
+		const landed = { x: alongX?.x ?? point.x, y: alongY?.y ?? point.y };
+		const guides: LineSegment[] = [];
+		if (alongX !== null) guides.push({ start: landed, end: alongX });
+		if (alongY !== null) guides.push({ start: landed, end: alongY });
+		return { point: landed, guides };
+	}
+
+	snapPoint(point: Point, candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): Point {
+		return this.snapPointWithGuides(point, candidates, toleranceMm).point;
 	}
 
 	snapRotation(angleRadians: number): number {

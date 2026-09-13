@@ -35,6 +35,7 @@ function pendingTrace(): AssetShape {
 		anchor: { x: 0, y: 0 },
 		anchorPending: false,
 		facing: 0,
+		details: [],
 	};
 }
 
@@ -98,6 +99,17 @@ describe('calibrating an asset from the designer', () => {
 		const shape = (await rig.document()).shape;
 		expect(shape?.footprint.points[2]).toEqual({ x: 1000, y: 600 });   // doubled from 500 x 300
 		expect(shape?.footprintPending).toBe(false);
+		rig.unmount();
+	});
+
+	/** A detail captured before a scale is converted by the same rescale, so it earns the same warning. */
+	it('warns before rescaling a pending detail, even over a measured outline', async () => {
+		const detail = { id: 'd1', name: 'seat', line: 'solid' as const, pending: true, outline: expectOk(footprintFromDimensions(200, 200)) };
+		const rig = await designerRig({ shape: { ...pendingTrace(), footprintPending: false, details: [detail] } });
+
+		await measure(rig);
+
+		expect(rig.wrapper.find('.rp-dialog-title').text()).toBe(t('en', 'designer.calibrate.recalibrate.title'));
 		rig.unmount();
 	});
 

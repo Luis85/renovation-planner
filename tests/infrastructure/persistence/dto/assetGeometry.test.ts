@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	AssetGeometrySchema,
 	AssetGeometrySchemaV1,
 	AssetShapeSchemaV1,
 } from '../../../../src/infrastructure/persistence/dto/assetGeometry';
@@ -136,6 +137,7 @@ describe('the schema and the port document', () => {
 				...shape,
 				footprint: { points: shape.footprint.points.map(([x, y]) => ({ x, y })) },
 				clearance: null,
+				details: [],
 			},
 		};
 		expect(document.shape !== null && isOk(validateAssetShape(document.shape))).toBe(true);
@@ -149,5 +151,31 @@ describe('the schema and the port document', () => {
 	it('refuses a too-few-vertex CLEARANCE too, which is the arm a footprint-only rule would miss', () => {
 		const corrupt = { ...valid, shape: { ...valid.shape, clearance: { points: [[0, 0], [10, 0]] } } };
 		expect(AssetGeometrySchemaV1.safeParse(corrupt).success).toBe(false);
+	});
+});
+
+describe('AssetGeometrySchema, which reads every version this build knows', () => {
+	it('refuses a document that is not an object at all, rather than raising it', () => {
+		expect(AssetGeometrySchema.safeParse(null).success).toBe(false);
+	});
+
+	it('raises a version 1 document to version 2 with no details', () => {
+		const parsed = AssetGeometrySchema.parse(valid);
+		expect(parsed.schemaVersion).toBe(2);
+		expect(parsed.shape?.details).toEqual([]);
+	});
+
+	it('is refused by a version-1-only schema, so an older build cannot drop details on its next write', () => {
+		const v2 = { ...valid, schemaVersion: 2, shape: { ...validShape, details: [] } };
+		expect(AssetGeometrySchemaV1.safeParse(v2).success).toBe(false);
+	});
+
+	it('refuses a bulge beyond a semicircle', () => {
+		const curved = { ...valid, schemaVersion: 2, shape: { ...validShape, footprint: { ...validShape.footprint, bulges: [1.5, 0, 0, 0] }, details: [] } };
+		expect(AssetGeometrySchema.safeParse(curved).success).toBe(false);
+	});
+
+	it('refuses a version this build does not know', () => {
+		expect(AssetGeometrySchema.safeParse({ ...valid, schemaVersion: 3 }).success).toBe(false);
 	});
 });

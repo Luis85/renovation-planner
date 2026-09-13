@@ -21,6 +21,7 @@ import { useDialogStore } from '../../src/presentation/dialogs/dialog-store';
 import { err, ok } from '../../src/core/result/Result';
 import NewAssetForm from '../../src/presentation/views/NewAssetForm.vue';
 import NewPlanForm from '../../src/presentation/views/NewPlanForm.vue';
+import AssetPresetForm from '../../src/presentation/designer/presets/AssetPresetForm.vue';
 import { makeAsset, makePlan } from '../helpers/entities';
 import { recorder } from '../helpers/logger';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
@@ -196,6 +197,23 @@ describe('axe against dialog content accessibility.test.ts has no room for', () 
 		});
 		await nextTick();
 
+		const results = await axe.run(view.contentEl, runOptions);
+		expect(results.violations).toEqual([]);
+	});
+
+	it('reports no semantic violations with the asset preset form open', async () => {
+		const { view } = mountHarness(document.body);
+		await flushPromises();
+
+		void useDialogStore().openDialog({
+			kind: 'form',
+			title: 'Start from a preset',
+			component: AssetPresetForm,
+			props: { replaces: true },
+		});
+		await nextTick();
+
+		expect(view.contentEl.querySelector('.rp-asset-preset-form')).not.toBeNull();
 		const results = await axe.run(view.contentEl, runOptions);
 		expect(results.violations).toEqual([]);
 	});

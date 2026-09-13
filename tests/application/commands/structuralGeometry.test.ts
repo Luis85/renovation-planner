@@ -7,9 +7,24 @@ import { sameGeometryDocument } from '../../../src/application/commands/spatial/
 import { MigrationRunner } from '../../../src/infrastructure/persistence/migration/MigrationRunner';
 import { PLAN_GEOMETRY_MIGRATIONS } from '../../../src/infrastructure/persistence/migration/geometry/plan/plan-geometry.migrations';
 import { ObsidianPlanGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
+import { PlanGeometrySchemaV11 } from '../../../src/infrastructure/persistence/dto/planGeometry';
 
 const post: SpatialElement = { id: 'element-post', kind: 'post', loadBearing: true, points: postOutline({ x: 1000, y: 500 }, 140, 140) };
 const beam: SpatialElement = { id: 'element-beam', kind: 'beam', loadBearing: false, width: 160, points: [{ x: 0, y: 1500 }, { x: 4000, y: 1500 }] };
+
+/**
+ * Spec §9's schema case ("the structural refine refuses a beam without width and an object with
+ * `loadBearing`") had no test exercising `structuralRule` directly (final review finding F5) — the
+ * malformed-element case below always went through `rig.geometry.write`, which is domain
+ * validation on top of the schema. This calls `PlanGeometrySchemaV11.safeParse` on its own.
+ */
+it('refuses the structural refine at the schema itself: an object carrying loadBearing, a path carrying width', () => {
+	const document = { schemaVersion: 11 as const, planId: 'plan-a', revision: 0, unit: 'mm' as const, calibration: null, objects: [], structure: WALL_LOOP };
+	const objectWithLoadBearing = { id: 'element-object', kind: 'object' as const, points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }], loadBearing: true };
+	expect(PlanGeometrySchemaV11.safeParse({ ...document, structure: { ...WALL_LOOP, elements: [objectWithLoadBearing] } }).success).toBe(false);
+	const pathWithWidth = { id: 'element-path', kind: 'path' as const, points: [{ x: 0, y: 0 }, { x: 1000, y: 1000 }], width: 160 };
+	expect(PlanGeometrySchemaV11.safeParse({ ...document, structure: { ...WALL_LOOP, elements: [pathWithWidth] } }).success).toBe(false);
+});
 
 it('round-trips posts and beams as schema 11, which a build that stops at 10 refuses', async () => {
 	const rig = await structureStack();

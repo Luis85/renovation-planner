@@ -28,7 +28,8 @@ async function choose(choice: 'rooms' | 'empty', event: Event): Promise<void> {
 		</p>
 		<button
 			type="button"
-			class="rp-empty-state__action"
+			class="rp-floor-start__option rp-empty-state__action"
+			data-rp-route="rooms"
 			:aria-disabled="runtime.writesBlocked.value"
 			@click="choose('rooms', $event)"
 		>
@@ -37,13 +38,18 @@ async function choose(choice: 'rooms' | 'empty', event: Event): Promise<void> {
 			<span class="rp-floor-start__description">{{ tr('editor.reference.rooms-description') }}</span>
 			<span class="rp-floor-start__recommended">{{ tr('editor.creation.recommended') }}</span>
 		</button>
-		<ReferenceAction>
+		<ReferenceAction
+			class="rp-floor-start__option rp-empty-state__action"
+			data-rp-route="reference"
+		>
 			<HostIcon name="file-up" />
 			<span class="rp-floor-start__title">{{ tr('editor.reference.upload') }}</span>
 			<span class="rp-floor-start__description">{{ tr('editor.reference.upload-description') }}</span>
 		</ReferenceAction>
 		<button
 			type="button"
+			class="rp-floor-start__option rp-empty-state__action"
+			data-rp-route="empty"
 			@click="choose('empty', $event)"
 		>
 			<HostIcon name="grid-2x-2" />

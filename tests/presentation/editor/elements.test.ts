@@ -31,18 +31,20 @@ describe('spatial element drafts and real selection projections', () => {
 		const draft = createElementDraft(), start = vi.fn<(id: string) => void>(), stop = vi.fn<() => void>(), finish = vi.fn<() => void>();
 		let blocked = false;
 		const addPoint = vi.fn<(point: Point) => boolean>(point => { draft.points.push(point); return true; });
-		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked: () => blocked });
+		const setPoints = (next: readonly Point[]) => { draft.points = next.map(point => ({ ...point })); return true; };
+		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, setPoints, blocked: () => blocked });
 		const r = toolContext({ snapPoint: point => ({ x: Math.round(point.x), y: Math.round(point.y) }) });
 		tool.pointerDown(pointerAt(10, 20)); expect(addPoint).not.toHaveBeenCalled();
 		tool.activate(r.context); expect(start).toHaveBeenCalledWith('draw-path');
 		tool.pointerDown({ ...pointerAt(10, 20), button: 'secondary' }); expect(addPoint).not.toHaveBeenCalled();
-		tool.pointerDown(pointerAt(10.2, 20.3)); expect(draft.points).toEqual([{ x: 10, y: 20 }]); expect(tool.hasDraft()).toBe(true);
+		expect(tool.tracksPointer()).toBe(false);
+		tool.pointerDown(pointerAt(10.2, 20.3)); expect(draft.points).toEqual([{ x: 10, y: 20 }]); expect(tool.hasDraft()).toBe(true); expect(tool.tracksPointer()).toBe(true);
 		tool.abandonGesture(); expect(draft.cursor).toBeNull(); expect(draft.points).toHaveLength(1);
 		expect(tool.editCorner(-1, { x: 15, y: 25 })).toBe(true); expect(tool.editCorner(8, null)).toBe(false);
 		blocked = true; tool.pointerMove(pointerAt(30, 40)); tool.pointerDown(pointerAt(30, 40)); expect(draft.points).toHaveLength(1); expect(tool.editCorner(-1, null)).toBe(false);
 		draft.busy = true; tool.cancel(); expect(tool.hasDraft()).toBe(true); draft.busy = false; tool.cancel(); expect(tool.hasDraft()).toBe(false);
 		blocked = false; tool.pointerDown(pointerAt(10, 20)); expect(tool.editCorner(-1, null)).toBe(true); expect(tool.editCorner(-1, null)).toBe(false);
-		tool.finish(); expect(finish).toHaveBeenCalledOnce(); tool.pointerUp(); tool.deactivate(); expect(stop).toHaveBeenCalledOnce();
+		tool.finish(); expect(finish).toHaveBeenCalledOnce(); tool.pointerUp(pointerAt(20, 30)); tool.deactivate(); expect(stop).toHaveBeenCalledOnce();
 		tool.pointerMove(pointerAt(20, 30)); expect(r.dispatched).toEqual([]);
 	});
 	it('places no point when a press becomes blocked between its own two blocked() reads', () => {
@@ -54,9 +56,10 @@ describe('spatial element drafts and real selection projections', () => {
 		// null and never calls `addPoint`.
 		const draft = createElementDraft(), start = vi.fn<(id: string) => void>(), stop = vi.fn<() => void>(), finish = vi.fn<() => void>();
 		const addPoint = vi.fn<(point: Point) => boolean>(point => { draft.points.push(point); return true; });
+		const setPoints = (next: readonly Point[]) => { draft.points = next.map(point => ({ ...point })); return true; };
 		let reads = 0;
 		const blocked = () => { reads += 1; return reads > 1; };
-		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked });
+		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, setPoints, blocked });
 		const r = toolContext();
 		tool.activate(r.context);
 
@@ -67,7 +70,7 @@ describe('spatial element drafts and real selection projections', () => {
 	});
 	it('writes a guide on pointerMove and clears it on cancel, abandonGesture and deactivate, each safe unactivated', () => {
 		const draft = createElementDraft();
-		const deps = { draft, start: vi.fn<(id: string) => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(), addPoint: () => true, blocked: () => false };
+		const deps = { draft, start: vi.fn<(id: string) => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(), addPoint: () => true, setPoints: () => true, blocked: () => false };
 		const tool = new ElementTool('draw-path', deps);
 		const r = toolContext({ snapCandidates: () => ({ alignments: [{ x: 300, y: 900 }] }) });
 		tool.activate(r.context);

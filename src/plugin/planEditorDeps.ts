@@ -104,6 +104,14 @@ export function planEditorDeps(
 					createZone: persistence.createZone,
 					createPlan: persistence.createPlan,
 					updatePlanDetails: persistence.updatePlanDetails,
+					// The GUARDED doors, as every other member here: the New asset dialog's pair plus the
+					// measured outline write (2026-09-13 item modes spec §B).
+					assetCreation: {
+						createAsset: persistence.createAsset,
+						setAssetFootprintFromDimensions: persistence.assetDesign.setFootprintFromDimensions,
+						setAssetFootprint: persistence.assetDesign.setFootprint,
+						defaultCurrency: persistence.defaultCurrency,
+					},
 					referencePlan: guardedReferencePlan(referencePlanServices(persistence.plans, persistence.geometry, root.eventBus, persistence.files), root.logger),
 					planNorth: guardedPlanNorth(planNorthServices(persistence.plans, root.eventBus), root.logger),
 					moveObject: persistence.moveZone,

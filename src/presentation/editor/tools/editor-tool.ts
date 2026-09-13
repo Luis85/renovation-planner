@@ -30,6 +30,8 @@ export type ToolId =
 	| 'pan'
 	| 'place-stair'
 	| 'draw-arrow'
+	| 'place-post'
+	| 'draw-beam'
 	| 'draw-polygon'
 	| 'draw-room'
 	| 'edit-room-dimension'
@@ -115,4 +117,13 @@ export interface EditorTool {
 	abandonGesture(): void;
 	/** Does this tool hold work a user would lose to `cancel()`? Escape asks before cancelling. */
 	hasDraft(): boolean;
+	/**
+	 * Is something being DRAWN whose loose end follows the pointer right now — a drag in progress,
+	 * or a chain with points already placed? The canvas scrolls the plan while such a pointer rests
+	 * at the pane's edge, re-issuing the move each frame, so a tool answering `true` must take what
+	 * it commits from the event's world point rather than from a screen delta. Absent means never:
+	 * a tool opts in, because a hover at the edge scrolling the plan is wrong for every tool that
+	 * is not mid-drawing.
+	 */
+	tracksPointer?(): boolean;
 }

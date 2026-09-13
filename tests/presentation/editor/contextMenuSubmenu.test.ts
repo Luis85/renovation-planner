@@ -33,6 +33,20 @@ function stubNestedMenuSize(width: number, height: number): () => void {
 		Object.defineProperty(HTMLElement.prototype, 'offsetHeight', heightDescriptor);
 	};
 }
+/**
+ * Obsidian's `.workspace-leaf` is `contain: strict`, which makes the LEAF — not the viewport — the
+ * containing block of the fixed nested menu. Modelled by drawing the nested menu at its inline
+ * `left`/`top` plus that block's origin, the way a browser does.
+ */
+function stubNestedMenuOrigin(x: number, y: number): () => void {
+	const original = Element.prototype.getBoundingClientRect;
+	HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement): DOMRect {
+		if (!isNestedMenu(this)) return original.call(this);
+		const left = x + Number.parseFloat(this.style.left), top = y + Number.parseFloat(this.style.top);
+		return { left, top, right: left + 160, bottom: top + 220, width: 160, height: 220, x: left, y: top } as DOMRect;
+	};
+	return () => { Reflect.deleteProperty(HTMLElement.prototype, 'getBoundingClientRect'); };
+}
 
 it('puts a wall\'s geometry and record creations in one Add submenu, separated', async () => {
 	const rig = await setup(); await menuFor(rig, 'wall-a');
@@ -55,6 +69,19 @@ it('places the Add submenu beside its parent button, inside the editor root, rat
 	expect(nested.style.left).toBe(`${expected.left}px`);
 	expect(nested.style.top).toBe(`${expected.top}px`);
 	expect(nested.style.left).not.toBe('0px');
+});
+
+it('draws the Add submenu beside its parent when an ancestor, not the viewport, contains the fixed menu', async () => {
+	const rig = await setup(); await menuFor(rig, 'wall-a');
+	const root = rig.wrapper.element as HTMLElement, button = parent(rig).element as HTMLElement;
+	placeAt(root, 400, 80, 1200, 640); placeAt(button, 600, 150, 160, 32);
+	const restoreSize = stubNestedMenuSize(160, 220), restoreOrigin = stubNestedMenuOrigin(360, 80);
+	try {
+		await parent(rig).trigger('click'); await settle();
+		const drawn = rig.wrapper.get<HTMLElement>('.rp-canvas-context-menu--nested').element.getBoundingClientRect();
+		const expected = submenuPlacement(button.getBoundingClientRect(), { width: 160, height: 220 }, root.getBoundingClientRect());
+		expect({ left: drawn.left, top: drawn.top }).toEqual(expected);
+	} finally { restoreOrigin(); restoreSize(); }
 });
 
 it('offers only record creations for a room, an area and an opening, and no submenu for several items or in Review', async () => {

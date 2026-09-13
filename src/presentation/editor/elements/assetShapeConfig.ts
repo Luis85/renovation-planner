@@ -19,7 +19,8 @@ export function assetShapeConfig(element: NamedSpatialElement, shapeOf: ShapeLoo
 		footprint: { name: shape ? 'asset-footprint' : 'asset-placeholder', points: flat(footprint), closed: true, stroke: ink,
 			strokeWidth: (selected ? 3 : 2) / zoom, fill: tokens.canvasBackground, dash: shape ? [] : [6 / zoom, 4 / zoom] },
 		// Symbols spec, Decision 4: array order, lighter than the outline of record; solid covers, dashed does not.
-		details: (placed?.details ?? []).map(detail => ({ name: 'asset-detail', points: flat(detail.points), closed: true, stroke: ink, strokeWidth: 1 / zoom,
+		// Details use zoneStroke at 1 px against the footprint's 2 px so the outline still reads as the object's edge.
+		details: (placed?.details ?? []).map(detail => ({ name: 'asset-detail', points: flat(detail.points), closed: true, stroke: tokens.zoneStroke, strokeWidth: 1 / zoom, listening: false,
 			...(detail.line === 'solid' ? { fill: tokens.canvasBackground } : { dash: [4 / zoom, 3 / zoom] }) })),
 		cross: shape ? null : [flat([footprint[0], footprint[2]]), flat([footprint[1], footprint[3]])],
 		tick: { name: 'asset-facing', points: flat([anchor, { x: anchor.x + 16 / zoom * Math.cos(heading), y: anchor.y + 16 / zoom * Math.sin(heading) }]), stroke: ink, strokeWidth: 2 / zoom },

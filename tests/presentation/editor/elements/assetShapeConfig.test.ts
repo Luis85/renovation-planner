@@ -49,4 +49,14 @@ describe('assetShapeConfig', () => {
 	it('draws no details for a placement whose shape cannot be read', () => {
 		expect(assetShapeConfig(element, () => null, state).details).toEqual([]);
 	});
+
+	it('details use zoneStroke regardless of selection, and do not listen', () => {
+		const tokensWithDifferentAccent = { ...tokens, accent: 'selected-accent' };
+		const withDetails = { ...shape, details: [
+			{ id: 'd1', name: 'seat', outline: square(100), line: 'solid' as const, pending: false },
+		] };
+		const selectedConfig = assetShapeConfig(element, () => withDetails, { ...state, selected: true, tokens: tokensWithDifferentAccent });
+		expect(selectedConfig.details[0]).toMatchObject({ stroke: 'ink', listening: false });
+		expect(selectedConfig.footprint.stroke).toBe('selected-accent');
+	});
 });

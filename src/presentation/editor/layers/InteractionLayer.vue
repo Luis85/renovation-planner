@@ -40,6 +40,7 @@ import { SELECTION_BADGE_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../handleMet
 import RoomDraftSketch from './RoomDraftSketch.vue';
 import MarqueeOverlay from './MarqueeOverlay.vue';
 import { structureCandidates } from '../structure/structureCandidates';
+import { draftingHitContext } from '../elements/draftingMarks';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import GestureSketch from './GestureSketch.vue';
 import ObjectRotationHandle from '../elements/ObjectRotationHandle.vue';
@@ -59,7 +60,7 @@ const runtime = useEditorRuntime();
 const candidates = computed(() => {
 	const preview = runtime.curveTask.preview.value ?? runtime.groupActions?.preview.value, objects = new Map(preview?.objects.map(object => [object.id, object]));
 	return new Map<string, SpatialObjectCandidate>([...[...zones.value].map(([id, zone]) => [id, { ...zone, ...objects.get(id) }] as const),
-		...structureCandidates(preview?.structure ?? projectStore.structure, assetShapes.shapeOf, { zoom: editorStore.viewport.zoom, names: new Map(projectStore.plan?.spatialElements?.map(item => [item.id, item.name])) }).map(item => [item.id, item] as const)]);
+		...structureCandidates(preview?.structure ?? projectStore.structure, assetShapes.shapeOf, draftingHitContext(editorStore.viewport.zoom, projectStore.plan?.spatialElements)).map(item => [item.id, item] as const)]);
 });
 const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 

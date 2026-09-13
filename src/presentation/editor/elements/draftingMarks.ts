@@ -1,5 +1,5 @@
 import type { Point } from '../../../core/geometry/Point';
-import type { NamedSpatialElement, SpatialElement, SpatialElementKind } from '../../../domain/spatial/SpatialElement';
+import type { NamedSpatialElement, SpatialElement, SpatialElementKind, SpatialElementMetadata } from '../../../domain/spatial/SpatialElement';
 import { dimensionChain } from '../../../domain/spatial/dimensionChain';
 import { formatMetres } from '../shell/formatLength';
 import { measureLabelWidth } from '../labels/labelLayout';
@@ -104,6 +104,11 @@ export function draftingMarks(element: NamedSpatialElement, zoom: number): Draft
 /** What a screen-constant mark, or a chain's band, needs to be hit: the zoom it is drawn at and, for a text, its words. */
 export interface DraftingHitContext { readonly zoom: number; readonly names: ReadonlyMap<string, string> }
 const LINE_HIT_PX = 6;
+
+/** The one way a `DraftingHitContext` is built, so the tool, the interaction layer and the context menu read the same list (plan drafting tools task 5, finding 2). */
+export function draftingHitContext(zoom: number, named: readonly SpatialElementMetadata[] | undefined): DraftingHitContext {
+	return { zoom, names: new Map(named?.map(item => [item.id, item.name])) };
+}
 
 function box(centre: Point, halfWidth: number, halfHeight: number): Point[] {
 	return [{ x: centre.x - halfWidth, y: centre.y - halfHeight }, { x: centre.x + halfWidth, y: centre.y - halfHeight },

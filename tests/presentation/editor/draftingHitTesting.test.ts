@@ -11,6 +11,8 @@ import { hasPointHandles } from '../../../src/presentation/editor/elements/Eleme
 import { acceptsElementPoints } from '../../../src/presentation/editor/elements/elementDraft';
 import { measureLabelWidth } from '../../../src/presentation/editor/labels/labelLayout';
 import { DRAFTING_TEXT_PX } from '../../../src/presentation/editor/elements/draftingMarks';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { worldToScreen, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
 
 const mounted: EditorRig[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -50,4 +52,30 @@ it('keeps a dimension chain\'s offset when one of its points is dragged', async 
 	rig.runtime.toolManager.pointerDown(pointerAt(4560, 0)); rig.runtime.toolManager.pointerMove(pointerAt(4900, 150)); rig.runtime.toolManager.pointerUp(pointerAt(4900, 150));
 	await settleUntil(() => rig.project.structure.elements?.[0].points[3].x !== 4560, 'dragged point saved');
 	expect(rig.project.structure.elements?.[0]).toMatchObject({ kind: 'dimension', offset: -600 });
+});
+
+it('keeps a section\'s look side when one of its points is dragged', async () => {
+	const rig = await editorWith(mounted, SECTION_A);
+	rig.selection.select([SECTION_A.id as never]); await settle();
+	rig.runtime.toolManager.pointerDown(pointerAt(-1000, 2000)); rig.runtime.toolManager.pointerMove(pointerAt(-1000, 2300)); rig.runtime.toolManager.pointerUp(pointerAt(-1000, 2300));
+	await settleUntil(() => rig.project.structure.elements?.[0].points[0].y !== 2000, 'dragged point saved');
+	expect(rig.project.structure.elements?.[0]).toMatchObject({ kind: 'section', flipped: false });
+});
+
+it('right-clicks a text mark across its drawn words, not only its stored point, without clearing the selection', async () => {
+	const rig = await editorWith(mounted, TEXT_A), editorStore = useEditorStore(rig.pinia);
+	const half = measureLabelWidth(TEXT_A.name, DRAFTING_TEXT_PX) / editorStore.viewport.zoom / 2;
+	const at = worldToScreen({ x: 1500 + half - 2, y: 1500 }, editorStore.viewport, STAGE_PIXELS), box = rig.canvasEl.getBoundingClientRect();
+	rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + at.x, clientY: box.top + at.y }));
+	await settle();
+	expect(rig.selection.selectedIds).toEqual([TEXT_A.id]);
+});
+
+it('clicks a text mark through the same drafting context the tool uses, not only structureCandidates\'s own call', async () => {
+	const rig = await editorWith(mounted, TEXT_A), editorStore = useEditorStore(rig.pinia);
+	rig.selection.clear(); await settle();
+	const half = measureLabelWidth(TEXT_A.name, DRAFTING_TEXT_PX) / editorStore.viewport.zoom / 2;
+	rig.runtime.toolManager.pointerDown(pointerAt(1500 + half - 2, 1500)); rig.runtime.toolManager.pointerUp(pointerAt(1500 + half - 2, 1500));
+	await settle();
+	expect(rig.selection.selectedIds).toEqual([TEXT_A.id]);
 });

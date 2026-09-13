@@ -22,6 +22,7 @@ import { notifyOperationFailure } from '../../notices/notify';
 import { reportDispatchFailure } from '../report-failure';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import { canvasCandidates } from '../selection/canvasCandidates';
+import { draftingHitContext } from '../elements/draftingMarks';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import { useEditorStore } from '../../stores/EditorStore';
@@ -92,7 +93,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			previewWall: deps.previewWall,
 			editWall: deps.editWall,
 			spatialObjects: () => canvasCandidates(projectStore.zones.values(), projectStore.structure, workspace.layerVisibility, assetShapes.shapeOf,
-				{ zoom: editor.viewport.zoom, names: new Map(projectStore.plan?.spatialElements?.map(item => [item.id, item.name])) }),
+				draftingHitContext(editor.viewport.zoom, projectStore.plan?.spatialElements)),
 			// Body drags AND vertex drags produce the same command: a vertex drag is a
 			// whole-geometry replacement in which one point differs, so there is one adapter
 			// and only forward/inverse change.

@@ -23,8 +23,9 @@ renovation details at all.
   opening or element — never a zone. `''` is refused.
 - Secondary shared links (ADR-0021 "Editor completion") still name a present zone.
 - Evidence with no room has no pin: a pin is a fraction of a room's bounding box.
-- A plan note holding such a record is written at schema 11 (pure 10 → 11 migration), so an older
-  build refuses the note as newer instead of refusing its records as corrupt.
+- A plan note holding such a record is written at schema 12 (pure 11 → 12 migration), so an older
+  build refuses the note as newer instead of refusing its records as corrupt. (Main's ADR-0029
+  took schema 11 for a plan's kind and sibling order; 12 extends it.)
 - A room-less wall that later encloses a room keeps its records room-less.
 
 ## Alternatives

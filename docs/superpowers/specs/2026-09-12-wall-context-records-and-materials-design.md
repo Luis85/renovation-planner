@@ -100,6 +100,8 @@ never link to a record in an unrelated room.
 
 ### 3.4 Persistence
 
+> **Amendment (2026-09-13, merge of main #156):** main's ADR-0029 took plan note schema 11 for a plan's kind and sibling order; this branch writes **12** (`PlanFrontmatterSchemaV12` extends main's V11, pure 11→12 migration). Read every "11" for the plan note in §3.4, §6.2 and §8 as 12.
+
 - `src/infrastructure/persistence/dto/renovation.ts` and `planningDepth.ts`: `roomId: id.optional()`
   on subjects, work, decisions and the depth `context`. `SharedLinksSchema` is unchanged.
 - **Plan note schema v11** (shared with §6.2): `PlanFrontmatterSchemaV11 =

@@ -19,11 +19,12 @@ const roomless: Renovation = {
 		procurement: [{ id: 'buy-wall', targetId: 'wall-a', workId: '', requirementId: 'requirement-render', unit: 'm2', purchased: '0', reserved: '0' }] },
 };
 
-describe('plan note schema 11 keeps records without a room from older writers', () => {
-	it('round-trips every room-less record kind at schema 11', () => {
+/** 12, not 11: ADR-0029 took plan schema 11 for a plan's kind and sibling order, and 12 extends it. */
+describe('plan note schema 12 keeps records without a room from older writers', () => {
+	it('round-trips every room-less record kind at schema 12', () => {
 		const plan = makePlan({ projectId: makeProject().id, renovation: roomless });
 		const dto = planToPersistence(plan, 3);
-		expect(dto['schema-version']).toBe(11);
+		expect(dto['schema-version']).toBe(12);
 		expect(expectOk(planFromPersistence(dto, null)).renovation).toEqual(roomless);
 	});
 	it('writes what it wrote before when every record has a room', () => {
@@ -31,16 +32,24 @@ describe('plan note schema 11 keeps records without a room from older writers', 
 		const plan = makePlan({ projectId: makeProject().id, renovation: { subjects: [{ id: 'detail', roomId, targetId: roomId, kind: 'floor', existing: { description: 'Tiles', condition: 'good' }, planned: null }], work: [], decisions: [] } });
 		expect(planToPersistence(plan, 3)['schema-version']).toBe(3);
 	});
-	it('is refused by a schema-10 reader as newer, not as corrupt', () => {
+	it('is refused by a schema-11 reader as newer, not as corrupt', () => {
 		const dto = planToPersistence(makePlan({ projectId: makeProject().id, renovation: roomless }), 3);
-		const old = new MigrationRunner(); old.registerAll('plan', PLAN_MIGRATIONS.filter(step => step.toVersion <= 10));
-		expect(() => old.migrateToLatest('plan', dto, 11)).toThrow('newer than this build supports');
+		const old = new MigrationRunner(); old.registerAll('plan', PLAN_MIGRATIONS.filter(step => step.toVersion <= 11));
+		expect(() => old.migrateToLatest('plan', dto, 12)).toThrow('newer than this build supports');
 	});
-	it('writes a subject material at schema 11 even when the subject has a room', () => {
+	it('writes a subject material at schema 12 even when the subject has a room', () => {
 		const roomId = createZoneId();
 		const plan = makePlan({ projectId: makeProject().id, renovation: { subjects: [{ id: 'detail', roomId, targetId: 'wall-a', kind: 'wall', existing: { description: 'Brick', condition: 'good', assetId: 'asset-brick' }, planned: null }], work: [], decisions: [] } });
 		const dto = planToPersistence(plan, 3);
-		expect(dto['schema-version']).toBe(11);
+		expect(dto['schema-version']).toBe(12);
 		expect(expectOk(planFromPersistence(dto, null)).renovation?.subjects[0].existing?.assetId).toBe('asset-brick');
+	});
+	it('writes 12, not 11, when the plan also carries a kind and order, and round-trips all three', () => {
+		const plan = makePlan({ projectId: makeProject().id, kind: 'room', order: 3, renovation: roomless });
+		const dto = planToPersistence(plan, 3);
+		expect(dto).toMatchObject({ 'schema-version': 12, kind: 'room', order: 3 });
+		const read = expectOk(planFromPersistence(dto, null));
+		expect(read).toMatchObject({ kind: 'room', order: 3 });
+		expect(read.renovation).toEqual(roomless);
 	});
 });

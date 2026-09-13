@@ -20,7 +20,7 @@ no room (ADR-0030) with no way to carry one.
 - A wall's or opening's Existing and Planned facts carry an optional catalogue `assetId`: one core
   material for a wall, one product for a door or window. `unchanged` keeps the existing material;
   `remove` carries none. Only a material a write introduces must exist; a note naming a deleted
-  asset reads and stays editable. Written at plan schema 11.
+  asset reads and stays editable. Written at plan schema 12.
 - An asset has an optional `planPattern` from a fixed list drawn in theme colours (the Asset
   library's Inspector field — [design amendment 5](../../user-experience/archive/asset-library-overview-DESIGN-SPEC.md)).
   It is an additive `.catch(null)` key with no schema bump — the `height` trade: an older build
@@ -57,7 +57,7 @@ no room (ADR-0030) with no way to carry one.
 
 - Amends ADR-0020's deferral of "wall construction text", ADR-0022's room-only requirement origin,
   and *Edit a selected wall precisely*'s out-of-scope construction line.
-- A plan note holding a material is refused by an older build as newer (schema 11), and a
+- A plan note holding a material is refused by an older build as newer (schema 12), and a
   requirement note with a plan origin likewise (schema 5).
 - A wall's pattern is lost if an older build saves its asset.
 - A construction entry's quantity override survives a change of material only while the unit stays

@@ -25,6 +25,7 @@ it('keeps Select and Pan in both perspectives but reserves layout Add for Plan',
 	runtime.renovation.focus(roomId, 'overview');
 	await settle();
 	expect(actionIds()).toEqual(['select', 'pan', 'add-work', 'renovation-more']);
+	expect(harness.wrapper.get('[data-rp-action="renovation-more"] [data-icon="panels-top-left"]').attributes('data-icon-missing')).toBeUndefined();
 	expect(harness.wrapper.find('.rp-add-menu').exists()).toBe(false);
 	contextMenu.vm.$emit('openAdd');
 	await settle();

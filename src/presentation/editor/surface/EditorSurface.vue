@@ -106,7 +106,9 @@ const props = defineProps<{
 }>();
 
 const editor = props.editor;
-const toolManager = props.toolManager;
+// Annotated rather than inferred: fallow resolves a class member through an explicit type
+// annotation where it is consumed, and `activeToolTracksPointer` is called only from this file.
+const toolManager: ToolManager = props.toolManager;
 const activeToolId = props.activeToolId;
 const renderState = props.renderState;
 const { viewport } = storeToRefs(editor);

@@ -76,13 +76,21 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			} });
 		});
 	}
-	/** Load-bearing is an owned geometry fact, so it travels the same guarded, undoable write as a move. */
-	function setLoadBearing(id: string, loadBearing: boolean): Promise<void> {
+	/** One owned fact changed in place — load-bearing, a section's look side — through the same guarded, undoable write as a move. */
+	function rewrite(id: string, change: (element: NamedSpatialElement) => NamedSpatialElement | null): Promise<void> {
 		return operate(id, async ({ baseline, element }) => {
-			if ((element.kind !== 'post' && element.kind !== 'beam') || element.loadBearing === loadBearing || !context.commands.renovation) return;
-			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, loadBearing }), runtime.structureTask.ledger));
+			const next = change(element);
+			if (!next || !context.commands.renovation) return;
+			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, next), runtime.structureTask.ledger));
 			if (alive && !result.ok) notifyOperationFailure(result.error);
 		});
+	}
+	function setLoadBearing(id: string, loadBearing: boolean): Promise<void> {
+		return rewrite(id, element => (element.kind === 'post' || element.kind === 'beam') && element.loadBearing !== loadBearing ? { ...element, loadBearing } : null);
+	}
+	/** Turns a section line to look at its other side (plan drafting tools design §7). */
+	function flip(id: string): Promise<void> {
+		return rewrite(id, element => element.kind === 'section' ? { ...element, flipped: element.flipped !== true } : null);
 	}
 	function remove(id: string): Promise<void> {
 		return operate(id, async ({ baseline, element }) => {
@@ -116,5 +124,5 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
 		preview.value = alive && !blocked.value && element && name && points ? { ...element, name, points } : null;
 	}
-	return { edit, remove, setLoadBearing, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
+	return { edit, remove, setLoadBearing, flip, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
 }

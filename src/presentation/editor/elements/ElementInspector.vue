@@ -5,7 +5,7 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
-import { elementLength } from '../../../domain/spatial/SpatialElement';
+import { draftingKind, elementLength, pointKind } from '../../../domain/spatial/SpatialElement';
 import { postSection } from '../../../domain/spatial/structuralElement';
 import { area } from '../../../core/geometry/operations';
 import { formatArea } from '../shell/formatArea';
@@ -71,18 +71,28 @@ async function edit(event: Event): Promise<void> {
 			:element="element"
 		/>
 		<p
-			v-else
+			v-else-if="!pointKind(element.kind)"
 			class="rp-inspector-subline"
 		>
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
 		<LoadBearingSwitch :element="element" />
-		<StructureRenovationEntry />
+		<StructureRenovationEntry v-if="!draftingKind(element.kind)" />
 		<ObjectRotationControls
 			v-if="session.perspective === 'plan'"
 			:id="element.id"
 		/>
 		<div class="rp-inspector-actions">
+			<button
+				v-if="element.kind === 'section' && session.perspective === 'plan'"
+				type="button"
+				class="rp-inspector-action"
+				data-rp-action="flip-section"
+				:aria-disabled="runtime.elementActions.blocked.value"
+				@click="runtime.elementActions.flip(element.id)"
+			>
+				{{ tr('editor.drafting.flip') }}
+			</button>
 			<button
 				v-if="session.perspective === 'renovate'"
 				type="button"

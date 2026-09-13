@@ -22,8 +22,16 @@ const room = computed(() => project.zones.get(session.roomId));
 const selectedZone = computed(() => project.zones.get(selection.selectedIds[0]));
 const element = computed(() => project.structure.walls.some(item => item.id === session.targetId) || project.structure.openings.some(item => item.id === session.targetId));
 const generic = computed(() => project.structure.elements?.some(item => item.id === session.targetId));
+const selectedElement = computed(() => project.structure.elements?.find(item => item.id === session.targetId));
+const selectedWall = computed(() => project.structure.walls.find(item => item.id === session.targetId));
+const selectedOpening = computed(() => project.structure.openings.find(item => item.id === session.targetId));
 const headingVisible = computed(() => session.mode === 'overview' || !room.value);
-function heading(): string { return selectedZone.value?.name || room.value?.name || tr('renovation.select-room'); }
+function heading(): string {
+	if (selectedElement.value) return project.plan?.spatialElements?.find(item => item.id === selectedElement.value?.id)?.name ?? selectedElement.value.id;
+	if (selectedWall.value) return tr('editor.add.wall.label');
+	if (selectedOpening.value) return tr(`editor.add.${selectedOpening.value.kind}.label`);
+	return selectedZone.value?.name || room.value?.name || tr('renovation.select-room');
+}
 const standaloneZone = computed(() => selectedZone.value?.zoneType !== 'Room' ? selectedZone.value : undefined);
 /**
  * The frame's group controls arrive through the `actions` slot. A wall, opening or element body
@@ -32,7 +40,7 @@ const standaloneZone = computed(() => selectedZone.value?.zoneType !== 'Room' ? 
  * `review` is excluded because `ReviewInspector` replaces both bodies there, so the trailing mount is
  * then the only one; `EntityInspector`, this component's one caller, passes no slot in Review anyway.
  */
-const bodyTakesActions = computed(() => session.perspective !== 'review' && selection.selectedIds.length > 0 && (generic.value === true || element.value));
+const bodyTakesActions = computed(() => session.perspective === 'plan' && selection.selectedIds.length > 0 && (generic.value === true || element.value));
 const root = ref<HTMLElement | null>(null);
 watch(() => [session.focusedId, session.mode], async () => {
 	if (!session.focusedId) return;
@@ -53,13 +61,14 @@ watch(() => [session.focusedId, session.mode], async () => {
 		v-else
 		ref="root"
 		class="rp-renovation-inspector"
+		:class="{ 'rp-renovation-inspector--focused': session.perspective === 'renovate' }"
 	>
-		<ElementInspector v-if="generic">
+		<ElementInspector v-if="generic && session.perspective === 'plan'">
 			<template #actions>
 				<slot name="actions" />
 			</template>
 		</ElementInspector>
-		<StructureInspector v-else-if="element">
+		<StructureInspector v-else-if="element && session.perspective === 'plan'">
 			<template #actions>
 				<slot name="actions" />
 			</template>

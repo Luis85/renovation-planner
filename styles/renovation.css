@@ -10,6 +10,28 @@
 	text-decoration: underline;
 	text-underline-offset: 4px;
 }
+.rp-room-navigation--semantic {
+	padding-block: var(--size-4-1);
+	border-block: 1px solid var(--background-modifier-border);
+}
+.rp-renovation-overview-actions {
+	display: grid;
+	gap: var(--size-4-2);
+	margin-block: var(--size-4-3);
+}
+.rp-renovation-overview-actions .mod-cta {
+	justify-content: center;
+}
+.rp-renovation-layout-route {
+	display: inline-flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	width: 100%;
+}
+.rp-renovation-inspector--focused > h3 {
+	margin-bottom: 0;
+}
 .rp-renovation-inspector,
 .rp-renovation-fields {
 	display: grid;

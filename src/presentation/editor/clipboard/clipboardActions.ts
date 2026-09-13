@@ -7,7 +7,8 @@ import { captureClipboard, type SpatialClipboard } from '../../../domain/spatial
 import { PasteCommand } from '../../../application/commands/spatial/PasteCommand';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorStore } from '../../stores/EditorStore';
-import { notifyFault } from '../../notices/notify';
+import { notifyFault, notifySuccess } from '../../notices/notify';
+import { tr } from '../../i18n/strings';
 import { reportDispatchFailure } from '../report-failure';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from '../renovation/renovationSession';
@@ -15,8 +16,34 @@ import { stageCentreWorld } from '../viewport/Viewport';
 import { createZoneHistory } from '../add/createZoneHistory';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
+import { clipboardSummary, type ClipboardSummary } from './editorClipboard';
 
 type ClipboardRuntime = Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'structureTask' | 'structureActions' | 'elementActions' | 'rotationActions'>;
+
+const SUMMARY_KEYS = {
+	rooms: 'editor.clipboard.rooms',
+	walls: 'editor.clipboard.walls',
+	doors: 'editor.clipboard.doors',
+	windows: 'editor.clipboard.windows',
+	openings: 'editor.clipboard.openings',
+	elements: 'editor.clipboard.elements',
+} as const;
+
+function pasteSummaryRows(summary: ClipboardSummary): readonly string[] {
+	return (Object.entries(summary) as [keyof ClipboardSummary, number][])
+		.filter(([, count]) => count > 0)
+		.map(([kind, count]) => tr(SUMMARY_KEYS[kind], { count: String(count) }));
+}
+
+/** The notice is confirmation and recovery guidance; the ordinary selected-result Details stay the inspection route. */
+function pastedNotice(clipboard: SpatialClipboard, floor: string): string {
+	return [
+		tr('editor.clipboard.pasted', { floor }),
+		pasteSummaryRows(clipboardSummary(clipboard)).join(' · '),
+		tr('editor.clipboard.excluded'),
+		tr('editor.clipboard.undo'),
+	].join(' ');
+}
 
 /** Copy and Paste for ONE leaf, over the clipboard every leaf shares (design spec §6). */
 function createClipboardActions(context: PlanEditorContext, runtime: ClipboardRuntime) {
@@ -51,7 +78,10 @@ function createClipboardActions(context: PlanEditorContext, runtime: ClipboardRu
 		try {
 			const result = await runtime.dispatcher.run(command);
 			// `select` focuses the first id whenever the old focus is not among the new ones, which pasted ids never are.
-			if (result.ok) selection.select(command.pastedIds.map(id => id as EntityId<string>));
+			if (result.ok) {
+				selection.select(command.pastedIds.map(id => id as EntityId<string>));
+				notifySuccess(pastedNotice(value.clipboard, project.plan?.name ?? tr('editor.floor')));
+			}
 			else reportDispatchFailure(result.error);
 		} catch (cause) { notifyFault(cause, context.commands.logger, 'editor.clipboard.paste-failed'); }
 	}

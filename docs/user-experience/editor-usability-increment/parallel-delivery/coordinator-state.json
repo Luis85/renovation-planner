@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T21:21:31+02:00",
-  "status": "wave-7-visual-accessibility-audit",
+  "updatedAt": "2026-09-13T23:31:17+02:00",
+  "status": "final-astra-review-running",
   "integration": {
     "branch": "main",
     "remote": "origin/main",
@@ -18,8 +18,8 @@
   },
   "limits": {
     "maxConcurrentCodingTasks": 3,
-    "activeCodingTasks": 1,
-    "heavyVerificationOwner": "I15 visual/accessibility verification; corrected stacked CI reruns continue remotely"
+    "activeCodingTasks": 0,
+    "heavyVerificationOwner": "none locally; corrected stacked CI reruns continue remotely"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -27,10 +27,10 @@
     "baseSha": "bab369891807a05472e51a163438662b5bb65aea",
     "rootPacket": "I00",
     "rootPr": 174,
-    "currentReviewedTipPacket": "I07",
-    "currentReviewedTipSha": "db5e33a9b28495a7c6f3c179cf4db629f102f1ba",
-    "currentProvisionalTipPacket": "I15",
-    "currentProvisionalTipSha": "d975b1486ce2640c08a71b91e2b82bff0412d997",
+    "currentReviewedTipPacket": "I16",
+    "currentReviewedTipSha": "2e6c82cb80e0f765f7de291fd88c3faa0a79a6aa",
+    "currentProvisionalTipPacket": "I17",
+    "currentProvisionalTipSha": "28ac7f27f02448a0c872155679b81ffd85fa2e3c",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
@@ -77,7 +77,7 @@
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
       "pr": 176,
-      "headSha": "0f45ff5e724cc49e8c9c9b8d2b7d64da7992b5b7",
+      "headSha": "0647350862dff99a98d9ae39ae9bd8bf76344fe4",
       "verificationOwner": "I02 worker; coordinator follow-up reviewed",
       "blockers": []
     },
@@ -92,7 +92,7 @@
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
       "pr": 177,
-      "headSha": "19272389582a5e9c5ce914e6ab3acea1952839c1",
+      "headSha": "f5ff173aae5959b414b1950afe45cbd54b0a9576",
       "verificationOwner": "I04 worker; coordinator follow-up reviewed",
       "blockers": []
     },
@@ -107,7 +107,7 @@
       "baseSha": "19272389582a5e9c5ce914e6ab3acea1952839c1",
       "prerequisitePackets": ["I00", "I01"],
       "pr": 179,
-      "headSha": "93775c4e5e16916047f00c3c1ae730b74ea35c90",
+      "headSha": "a5175adeef49023f379cd15887d0f4fce685cd2c",
       "verificationOwner": "I03 worker (slot granted)",
       "blockers": []
     },
@@ -122,7 +122,7 @@
       "baseSha": "93775c4e5e16916047f00c3c1ae730b74ea35c90",
       "prerequisitePackets": ["I00", "I04"],
       "pr": 180,
-      "headSha": "d892458af1c67630d121fc6adfb96b2b7195c833",
+      "headSha": "a2b52480ca31d9b6702b110526f1e5f3f00d4ac8",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
@@ -137,7 +137,7 @@
       "baseSha": "d892458af1c67630d121fc6adfb96b2b7195c833",
       "prerequisitePackets": ["I00", "I02"],
       "pr": 181,
-      "headSha": "dfba682ba23b159b4e818ca3bef8ca794864312b",
+      "headSha": "ebdeb12e3c260118d18fb6fd133f29e4c40f6d6b",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
@@ -152,7 +152,7 @@
       "baseSha": "dfba682ba23b159b4e818ca3bef8ca794864312b",
       "prerequisitePackets": ["I00", "I06"],
       "pr": 184,
-      "headSha": "db5e33a9b28495a7c6f3c179cf4db629f102f1ba",
+      "headSha": "29c0118b635d7f2adc3c5324819aa25f9d9678f7",
       "verificationOwner": "I07 worker (slot granted)",
       "blockers": []
     },
@@ -167,7 +167,7 @@
       "baseSha": "db5e33a9b28495a7c6f3c179cf4db629f102f1ba",
       "prerequisitePackets": ["I00", "I01", "I04", "I05"],
       "pr": 185,
-      "headSha": "d014946ff5c7261363dfd0dbbc582a9d33700483",
+      "headSha": "0f334990c71ad4a137e5c775dbfb7b34364cf2e8",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
@@ -182,7 +182,7 @@
       "baseSha": "2783521b9258c62ec5f1ac684119993921ec457a",
       "prerequisitePackets": ["I00", "I03"],
       "pr": 186,
-      "headSha": "bc7ac1a4c5a1541c92811924fc3293332a7af8d6",
+      "headSha": "06f4bd5effc3f0dc8daac385719d53f27a90e514",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
@@ -197,7 +197,7 @@
       "baseSha": "bc7ac1a4c5a1541c92811924fc3293332a7af8d6",
       "prerequisitePackets": ["I00", "I03", "I08", "I09"],
       "pr": 188,
-      "headSha": "fe793466f989daedc737700689f734ef772a5efe",
+      "headSha": "2d0f7c9222e2e0ed49b739ed71721089416b11ab",
       "verificationOwner": "I10 worker and coordinator final-parent rerun",
       "blockers": []
     },
@@ -212,7 +212,7 @@
       "baseSha": "fe793466f989daedc737700689f734ef772a5efe",
       "prerequisitePackets": ["I00", "I03", "I07", "I10"],
       "pr": 189,
-      "headSha": "6187d2ebe48488a3ef91006246d0d30f18c5b7aa",
+      "headSha": "3a0a7de983a8c1af1dfcdaae7638a05199c47f6a",
       "verificationOwner": "coordinator final-parent gate",
       "blockers": []
     },
@@ -227,7 +227,7 @@
       "baseSha": "6187d2ebe48488a3ef91006246d0d30f18c5b7aa",
       "prerequisitePackets": ["I00", "I03", "I09", "I11"],
       "pr": 190,
-      "headSha": "88cdd06550ce7eb182dde11fe74541d38a0d8e31",
+      "headSha": "201580cd91f7e02cc89d442dc9867cd9b72af995",
       "verificationOwner": "I12 worker (slot granted)",
       "blockers": []
     },
@@ -242,7 +242,7 @@
       "baseSha": "88cdd06550ce7eb182dde11fe74541d38a0d8e31",
       "prerequisitePackets": ["I00", "I07", "I08", "I12"],
       "pr": 192,
-      "headSha": "a48d62e62359d0a7eba70d833f9d280257027377",
+      "headSha": "a528b39c707453bccfde21fa6f85fab1342cbbf7",
       "verificationOwner": "I13 worker and coordinator final-parent gate",
       "blockers": []
     },
@@ -257,7 +257,7 @@
       "baseSha": "a48d62e62359d0a7eba70d833f9d280257027377",
       "prerequisitePackets": ["I00", "I04", "I08", "I10", "I11", "I13"],
       "pr": 193,
-      "headSha": "545461a67f56a4d8653cd6323a0b635f56378b81",
+      "headSha": "bf6ce930be0a6a99c60958f7b0b3a8689a3afe8f",
       "verificationOwner": "I14 worker and coordinator SelectTool/runtime integration",
       "blockers": []
     },
@@ -272,24 +272,54 @@
       "baseSha": "545461a67f56a4d8653cd6323a0b635f56378b81",
       "prerequisitePackets": ["I00", "I10", "I14"],
       "pr": 194,
-      "headSha": "d975b1486ce2640c08a71b91e2b82bff0412d997",
+      "headSha": "2e3f0b7be727abaece831ff62178cdd3a4fca81a",
       "verificationOwner": "coordinator decision audit",
       "blockers": ["No approved non-drag arbitrary-corner interaction; exact unsupported task and release consequence are recorded rather than implemented."]
     },
     "I15": {
       "status": "visual-accessibility-audit-running",
-      "taskId": "client-new-thread:fc4a4c01-0c74-46f6-a716-e9f1f6d2ee6c",
+      "taskId": "01a09c2f-7359-7110-8fe8-986b56812e19",
       "hostId": "local",
       "model": "gpt-5.6-terra",
       "reasoning": "high",
       "branch": "codex/usability-i15-visual-accessibility",
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i15-visual-accessibility",
-      "baseSha": "d975b1486ce2640c08a71b91e2b82bff0412d997",
+      "baseSha": "2e3f0b7be727abaece831ff62178cdd3a4fca81a",
       "prerequisitePackets": ["I01", "I02", "I03", "I04", "I05", "I06", "I07", "I08", "I09", "I10", "I11", "I12", "I13", "I14", "I18"],
-      "pr": null,
-      "headSha": "d975b1486ce2640c08a71b91e2b82bff0412d997",
+      "pr": 195,
+      "headSha": "5410b987cdd1aaf4c40efe508e8e7aa6d24fd53d",
       "verificationOwner": "I15 audit worker",
-      "blockers": []
+      "blockers": ["In-app Browser could not save local screenshots, so the Product Design screenshot audit remains incomplete; native/AT/human evidence is not claimed."]
+    },
+    "I16": {
+      "status": "stacked-pr-open-full-gate-passed",
+      "taskId": "01a09c44-75ac-7b00-babd-0241d5e1d987",
+      "hostId": "local",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "branch": "codex/usability-i16-integration-native",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i16-integration-native",
+      "baseSha": "5410b987cdd1aaf4c40efe508e8e7aa6d24fd53d",
+      "prerequisitePackets": ["I15"],
+      "pr": 198,
+      "headSha": "2e6c82cb80e0f765f7de291fd88c3faa0a79a6aa",
+      "verificationOwner": "I16 worker and coordinator full gate",
+      "blockers": ["No installed/targetable Obsidian app; native reopen/PDF/two-leaf/focus/recovery and AT/human journeys remain unperformed."]
+    },
+    "I17": {
+      "status": "stacked-pr-open-docs-verified",
+      "taskId": "01a09c44-a137-7c82-b786-fbc2c5f0930c",
+      "hostId": "local",
+      "model": "gpt-5.6-luna",
+      "reasoning": "high",
+      "branch": "codex/usability-i17-docs-user-validation",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i17-docs-user-validation",
+      "baseSha": "2e6c82cb80e0f765f7de291fd88c3faa0a79a6aa",
+      "prerequisitePackets": ["I16"],
+      "pr": 199,
+      "headSha": "28ac7f27f02448a0c872155679b81ffd85fa2e3c",
+      "verificationOwner": "I17 worker and coordinator link/source check",
+      "blockers": ["Participant, screen-reader, native Obsidian, host-zoom and contrast/target-size sessions remain not run; release decision stays human-owned."]
     }
   },
   "externalChanges": [
@@ -304,7 +334,8 @@
     "finalReview": {
       "model": "gpt-6-astra",
       "reasoning": "high",
-      "status": "queued-after-adopted-packets"
+      "status": "running",
+      "taskId": "client-new-thread:0f586a99-a030-4e43-ab5a-cf221b8aa044"
     },
     "improvementAndPolish": {
       "model": "gpt-6-astra",
@@ -312,5 +343,5 @@
       "status": "queued-after-final-review"
     }
   },
-  "nextAdmissionGate": "Finish I15 verification/reporting on the corrected I18 parent. Route production defects to owners, then dispatch I16/I17 on the verified I15 tip before final Astra review and polish."
+  "nextAdmissionGate": "Receive the independent GPT-6 Astra/high review of the full I17 tip. Apply its accepted findings in a final polish branch, rerun appropriate gates, open the final stacked PR, and leave the chain unmerged."
 }

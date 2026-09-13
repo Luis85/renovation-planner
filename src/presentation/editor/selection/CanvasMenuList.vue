@@ -4,6 +4,7 @@ import { tr } from '../../i18n/strings';
 import HostIcon from '../../components/HostIcon.vue';
 import { isSubmenu, type CanvasMenuAction, type CanvasMenuItem, type CanvasMenuSubmenu } from './useCanvasMenuActions';
 import { submenuPlacement } from './submenuPlacement';
+import { focusStep } from './menuKeyboard';
 
 defineOptions({ name: 'CanvasMenuList' });
 const props = defineProps<{ items: readonly CanvasMenuItem[]; label: string; title?: string | null; host: HTMLElement | null; nested?: boolean; position?: { left: string; top: string } }>();
@@ -37,14 +38,8 @@ function activate(item: CanvasMenuItem, event: Event, focusFirst: boolean): void
 function hover(item: CanvasMenuItem, event: Event): void {
 	if (isSubmenu(item)) void expand(item, event.currentTarget as HTMLElement, false); else open.value = null;
 }
-function move(event: KeyboardEvent): void {
-	// With focus outside the items (index −1) ↓ goes to the first and ↑ to the LAST — main's `menuKeyboard.ts` fix, kept here.
-	const items = levelItems(), from = Math.max(items.indexOf(document.activeElement as HTMLElement), event.key === 'ArrowUp' ? 0 : -1);
-	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (from + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-	items[next]?.focus();
-}
 function navigate(event: KeyboardEvent): boolean {
-	if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) { move(event); return true; }
+	if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) { focusStep(event.key, levelItems()); return true; }
 	return false;
 }
 /** Escape on an open submenu's own anchor closes just that submenu first — the same "innermost popup first" step Escape takes from inside it — and only a second press (nothing left open) closes the whole menu. */

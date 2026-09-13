@@ -5982,8 +5982,11 @@ Plan: `docs/superpowers/plans/2026-09-13-konva-obsidian-perf-polish.md` — no s
 research, §2 the measurement, §4 the levers held back and §5 what was refused by name (a rAF
 throttle, `stage.listening(false)`, `Konva.pixelRatio = 1`, merging layers below five,
 `ItemView.onResize`, vue-konva's strict mode, `obsidian.debounce` in `presentation/`). One PR,
-`main` merged three times along the way (5f71c6d5, 52de4fa8, 3b1a03bf; vue-konva 3.4 → 4.0.1 among
-it), the three tasks' test sets re-run green on the merged tree.
+`main` merged four times along the way (5f71c6d5, 52de4fa8, 3b1a03bf, 507637e1; vue-konva 3.4 →
+4.0.1 among it, and the last took `main`'s side for the Task 1 files #167 had carried copies of),
+the three tasks' test sets re-run green on the merged tree. Task 5, user-requested:
+`EditorSurface.vue` sat at exactly its 400 counted-line cap, so its keyboard doors moved whole to
+`src/presentation/editor/surface/keyDoors.ts` (`canvasKeyDoors`), 400 → 324 (65488430).
 
 **What the code measured before any task**, in `npm run harness` at `?view=plan-editor`,
 1600×1000, DPR 1, the two-room fixture, from the Browser pane at 31fb0c3f: `window.Konva.stages[0]`
@@ -6041,5 +6044,16 @@ trigger and flat across sizes. Per-room render-model rebuild on a one-room previ
 1.2–1.6 ms of Vue work per move. Caption `group.cache()` (4.3): the zone layer's own `drawScene`
 2.8–5.0 ms. Dropping the `construction` canvas (4.4): no memory complaint, and it draws in 0 ms.
 **What no lever targets**: wheel ZOOM Vue work grows with rooms — 6.9 → 20.7 → 36.8–37.4 ms at
-0 / 40 / 80 — past a 33 ms frame at `rooms=80`, so one notch drops a frame there. Not taken in
-this run; a separate session was started to profile what re-renders per room on a zoom change.
+0 / 40 / 80 — past a 33 ms frame at `rooms=80`, so one notch drops a frame there. Profiled and cut
+in PR #167 (`main`, in this branch since 507637e1): every room caption's `1 / zoom` scale travelled
+through its vue-konva `config`, so each notch re-rendered every `ZoneShape` and re-applied
+`scaleX,scaleY` to all 252 caption Texts through the deep config watch and each group's `onUpdated`
+walk, and each room's automatic caption anchor (`labelAnchor`) was re-derived although it depends
+on the geometry alone. `ZoneLayer.vue` now writes the counter-scale onto every `.zone-caption` node
+from one watch (and from the layer's Konva `add` event for a room mounted later), and
+`ZoneShape.vue` caches the anchor per geometry. Zoom Vue work at `rooms=80`: 34.5–37.0 → 7.6 ms
+back to back on 74973601 (vue-konva 3.4.0), and 7.7–8.2 ms quiet after rebasing onto 4ca4c7ea
+(vue-konva 4.0.1) — AT §4's 8 ms trigger rather than clearly under it. Pinned by
+`tests/presentation/editor/zoneZoomConfiguration.test.ts`; the two Runs rows of
+`docs/tests/cases/Canvas performance.md` carry the loaded-CPU interleaving and the residual 0 → 80
+growth (about 2 ms, each `ZoneShape`'s props update its `v-memo` then skips).

@@ -35,7 +35,7 @@ export interface SetAssetFootprintInput {
  */
 type InheritedShape = Pick<
 	AssetShape,
-	'clearance' | 'clearancePending' | 'anchorPending' | 'anchor' | 'facing'
+	'clearance' | 'clearancePending' | 'anchorPending' | 'anchor' | 'facing' | 'details'
 >;
 
 /** What an asset nobody has drawn on yet inherits: nothing, centred, facing +x. */
@@ -45,6 +45,7 @@ const UNDESIGNED: InheritedShape = {
 	anchorPending: false,
 	anchor: { x: 0, y: 0 },
 	facing: 0,
+	details: [],
 };
 
 function withFootprint(

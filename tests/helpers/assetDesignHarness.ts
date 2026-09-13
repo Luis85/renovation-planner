@@ -91,6 +91,7 @@ export const drawn = (): AssetShape => ({
 	anchor: { x: 5, y: 5 },
 	anchorPending: false,
 	facing: 0,
+	details: [],
 });
 
 /** A vault fault a test can inject, shaped exactly as the ports' own union permits. */

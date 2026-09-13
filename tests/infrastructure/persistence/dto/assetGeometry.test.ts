@@ -136,6 +136,7 @@ describe('the schema and the port document', () => {
 				...shape,
 				footprint: { points: shape.footprint.points.map(([x, y]) => ({ x, y })) },
 				clearance: null,
+				details: [],
 			},
 		};
 		expect(document.shape !== null && isOk(validateAssetShape(document.shape))).toBe(true);

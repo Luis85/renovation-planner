@@ -72,6 +72,7 @@ const measured = (): AssetShape => ({
 	clearance: null,
 	anchor: { x: 0, y: 0 },
 	facing: 0,
+	details: [],
 });
 
 /**
@@ -90,6 +91,7 @@ const awaitingScale = (): AssetShape => ({
 	clearance: { points: [...TRIANGLE] },
 	anchor: { x: 5, y: 5 },
 	facing: 0,
+	details: [],
 });
 
 /**

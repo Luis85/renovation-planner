@@ -34,6 +34,7 @@ const shapeWith = (footprintOrigin: FootprintOrigin, footprintPending: boolean):
 	clearance: null,
 	anchor: { x: 0, y: 0 },
 	facing: 0,
+	details: [],
 });
 
 /**

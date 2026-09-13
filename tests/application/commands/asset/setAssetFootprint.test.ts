@@ -79,6 +79,7 @@ const decorated = (): AssetShape => ({
 	clearance: { points: [...TRIANGLE] },
 	anchor: { x: 100, y: 50 },
 	facing: Math.PI / 2,
+	details: [],
 });
 
 /**

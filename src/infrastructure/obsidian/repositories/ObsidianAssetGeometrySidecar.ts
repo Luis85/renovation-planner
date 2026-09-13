@@ -55,6 +55,7 @@ function shapeFromPersistence(stored: StoredShape): Result<AssetShape, Repositor
 		clearance: stored.clearance === null ? null : toPolygon(stored.clearance),
 		anchor: { x: stored.anchor.x, y: stored.anchor.y },
 		facing: stored.facing,
+		details: [],
 	});
 }
 

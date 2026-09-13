@@ -423,6 +423,10 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.validation',
 		'domain/asset/AssetShape.ts',
 	],
+	// The symbols spec's detail validation (2026-09-13).
+	['asset.invalid-detail', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],
+	['asset.degenerate-detail', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],
+	['asset.invalid-detail-id', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],
 	// The one `assetError` call outside the domain, and the only one of the seventeen whose
 	// module is an application command.
 	['asset.no-footprint', 'Validation', 'error.category.validation', 'application/commands/asset/updateAssetShape.ts'],

@@ -17,7 +17,8 @@ describe('drafting mark layout', () => {
 		expect(marks.texts[0]).toMatchObject({ x: 595, y: -600, rotation: 0 });
 		const zero = draftingMarks({ ...DIMENSION_A, points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 400 }, { x: 3000, y: 0 }] }, 1);
 		expect(zero.texts.map(item => item.text)).toEqual([formatMetres(1000), formatMetres(2000)]);
-		expect(draftingMarks({ ...DIMENSION_A, points: [{ x: 0, y: 3000 }, { x: 0, y: 0 }] }, 1).texts[0].rotation).toBe(90);
+		expect(draftingMarks({ ...DIMENSION_A, points: [{ x: 0, y: 3000 }, { x: 0, y: 0 }] }, 1).texts[0].rotation).toBe(-90);
+		expect(draftingMarks({ ...DIMENSION_A, points: [{ x: 0, y: 0 }, { x: 0, y: 3000 }] }, 1).texts[0].rotation).toBe(-90);
 	});
 
 	it('draws a section line\'s arrows on its look side, and on the other side once flipped', () => {
@@ -33,9 +34,11 @@ describe('drafting mark layout', () => {
 		expect(view).toMatchObject({ name: 'drafting-view-arrow', closed: true });
 		expect(view.fill).toBeUndefined();
 		expect(view.points.slice(0, 2)).toEqual([-1490, 1000]);
+		expect(draftingMarks(VIEW_A, 1).texts).toEqual([expect.objectContaining({ text: 'A-01' })]);
 		expect(draftingMarks(HATCH_A, 1).lines[0]).toMatchObject({ name: 'drafting-hatch', closed: true, fill: 'pattern' });
 		expect(draftingMarks(BOUNDARY_A, 2).lines[0]).toMatchObject({ name: 'drafting-boundary', dash: [8, 4] });
 		expect(draftingMarks(GRID_A, 2).circles).toEqual([expect.objectContaining({ x: 7000, y: 0, radius: GRID_RADIUS_PX / 2 })]);
+		expect(draftingMarks(GRID_A, 2).texts).toEqual([expect.objectContaining({ text: '1', x: 7000, y: 0 })]);
 		expect(draftingMarks(TEXT_A, 1).texts).toEqual([expect.objectContaining({ text: 'Wintergarten', x: 1500, y: 1500, fontSize: DRAFTING_TEXT_PX, offsetY: DRAFTING_TEXT_PX / 2 })]);
 		expect(draftingMarks({ id: 'element-path', kind: 'path', name: 'Path', points: BOUNDARY_A.points }, 1)).toEqual({ lines: [], texts: [], circles: [] });
 	});

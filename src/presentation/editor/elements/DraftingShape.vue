@@ -18,7 +18,7 @@ const marks = computed(() => {
 	return {
 		lines: drawn.lines.map(line => ({ name: line.name, points: line.points, closed: line.closed === true, dash: line.dash ?? [], stroke: stroke.value, strokeWidth: line.strokeWidth * weight, listening: false, ...fillOf(line.fill) })),
 		circles: drawn.circles.map(circle => ({ ...circle, stroke: stroke.value, strokeWidth: circle.strokeWidth * weight, listening: false })),
-		texts: drawn.texts.map(item => ({ ...item, fill: props.selected ? props.tokens.accent : props.tokens.zoneLabel, align: 'center', listening: false })),
+		texts: drawn.texts.map(item => ({ ...item, fill: props.selected ? props.tokens.accent : props.tokens.zoneLabel, align: 'center', listening: false, wrap: 'none' })),
 	};
 });
 </script>

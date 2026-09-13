@@ -61,17 +61,17 @@ const cuts = computed<readonly WallCut[]>(() => {
 function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
 /** Posts, beams and every drafting mark but a hatch draw above the wall paint (see the elements block below); every other kind, a hatch included, draws below it. */
-const isStructuralKind = (kind: string): boolean => kind === 'post' || kind === 'beam' || (draftingKind(kind) && kind !== 'hatch');
+const drawsAboveWalls = (kind: string): boolean => kind === 'post' || kind === 'beam' || (draftingKind(kind) && kind !== 'hatch');
 const elements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind !== 'asset'), elementNames.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value, runtime.renderState.labelPreview));
-const structuralElements = computed(() => elements.value.filter(element => isStructuralKind(element.kind)));
-const nonStructuralElements = computed(() => elements.value.filter(element => !isStructuralKind(element.kind)));
+const structuralElements = computed(() => elements.value.filter(element => drawsAboveWalls(element.kind)));
+const nonStructuralElements = computed(() => elements.value.filter(element => !drawsAboveWalls(element.kind)));
 const elementDraft = computed(() => {
 	const draft = runtime.elementTask.draft;
 	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];
 	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...draftCursorPoints(draft)], ...draftPreviewFields(draft) }];
 });
-const structuralElementDraft = computed(() => elementDraft.value.filter(element => isStructuralKind(element.kind)));
-const nonStructuralElementDraft = computed(() => elementDraft.value.filter(element => !isStructuralKind(element.kind)));
+const structuralElementDraft = computed(() => elementDraft.value.filter(element => drawsAboveWalls(element.kind)));
+const nonStructuralElementDraft = computed(() => elementDraft.value.filter(element => !drawsAboveWalls(element.kind)));
 </script>
 <template>
 	<VLayer :config="{ name: 'architecture', listening: false, visible, ...transform }">

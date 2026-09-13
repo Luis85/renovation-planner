@@ -43,6 +43,15 @@ it('draws every drafting mark, a chain\'s lengths, no separate name tag, and a h
 	expect(expectDefined(rig.stage.findOne<Konva.Line>('.drafting-hatch'), 'hatch').fillPatternImage()).toBeTruthy();
 	expect(rig.stage.find('.drafting-grid')).toHaveLength(1);
 	const wallBody = paintOrder(rig.stage, expectDefined(rig.stage.find('.wall-body')[0], 'wall body'));
-	expect(paintOrder(rig.stage, expectDefined(rig.stage.findOne('.drafting-section-line'), 'section'))).toBeGreaterThan(wallBody);
+	for (const name of ['drafting-dimension-line', 'drafting-section-line', 'drafting-view-arrow', 'drafting-text', 'drafting-boundary', 'drafting-grid']) {
+		expect(paintOrder(rig.stage, expectDefined(rig.stage.findOne(`.${name}`), name))).toBeGreaterThan(wallBody);
+	}
 	expect(paintOrder(rig.stage, expectDefined(rig.stage.findOne('.drafting-hatch'), 'hatch'))).toBeLessThan(wallBody);
+});
+
+it('never wraps drafting text onto a second line', async () => {
+	const rig = await editorWith(mounted, ...DRAFTING_MARKS);
+	const texts = rig.stage.find<Konva.Group>('.drafting-shape').flatMap(group => group.find<Konva.Text>('Text'));
+	expect(texts.length).toBeGreaterThan(0);
+	for (const node of texts) expect(node.wrap()).toBe('none');
 });

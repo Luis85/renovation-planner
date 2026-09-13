@@ -32,11 +32,11 @@ function text(name: string, words: string, at: Point, zoom: number, style: { fon
 	const width = measureLabelWidth(words, fontPx) / zoom, fontSize = fontPx / zoom;
 	return { name, text: words, x: at.x, y: at.y, fontSize, width, offsetX: width / 2, offsetY: lift > 0 ? fontSize + lift : fontSize / 2, rotation };
 }
-/** The line's bearing in degrees, turned half a revolution when it would read upside down. */
+/** The line's bearing in degrees, turned half a revolution when it would read upside down (DIN 406 / ISO 129: an exactly vertical chain reads bottom to top, never top to bottom). */
 function uprightDegrees(direction: Point): number {
 	const degrees = Math.atan2(direction.y, direction.x) * 180 / Math.PI;
-	if (degrees > 90) return degrees - 180;
-	return degrees <= -90 ? degrees + 180 : degrees;
+	if (degrees >= 90) return degrees - 180;
+	return degrees < -90 ? degrees + 180 : degrees;
 }
 
 /** The dimension line, an extension line from every point to it, a 45° tick at every foot, and each non-zero segment's length over it. */

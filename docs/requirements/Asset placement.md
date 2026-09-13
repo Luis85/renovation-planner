@@ -1,9 +1,9 @@
 ---
 type: Feature
 parent: "[[Asset library]]"
-order: 20
-status: "In Progress"
-started: "2026-09-11"
+order: 25
+status: In Progress
+started: 2026-09-11
 finished: ""
 start: ""
 due: ""

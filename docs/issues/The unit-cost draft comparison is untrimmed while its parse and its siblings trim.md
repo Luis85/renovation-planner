@@ -1,10 +1,10 @@
 ---
 type: Issue
 parent: "[[Asset library]]"
-order: 40
+order: 80
 status: Done
 started: ""
-finished: "2026-09-08"
+finished: 2026-09-08
 horizon: Now
 start: ""
 due: ""

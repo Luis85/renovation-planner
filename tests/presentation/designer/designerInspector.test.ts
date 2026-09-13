@@ -77,6 +77,13 @@ describe('the designer’s inspector', () => {
 		expect(wrapper.find('input[name="width"]').exists()).toBe(false);
 	});
 
+	/** A curve's box is irrational: a curved table measures 2121.3203435596424 wide. */
+	it('shows dimensions in whole millimetres, never the float a curve measures to', () => {
+		const wrapper = mountInspector({ dimensions: { width: 2121.3203435596424, depth: 863.6038969321073 } });
+
+		expect(wrapper.find('.rp-designer-inspector-fields dd').text()).toBe('2121 × 864 mm');
+	});
+
 	it('says so where a measurement would otherwise appear, when a trace is unscaled', () => {
 		const wrapper = mountInspector({ dimensionsUnscaled: true });
 

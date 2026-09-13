@@ -187,6 +187,19 @@ describe('the designer’s dimensions dialog', () => {
 		expect(descriptor).not.toHaveProperty('warning');
 	});
 
+	/** A default is a value Save writes in one click, so it is offered in the whole millimetres the inspector shows. */
+	it('offers the current dimensions back in whole millimetres', async () => {
+		const harness = await seeded();
+		await harness.seed({ ...drawn(), footprint: { points: [{ x: 0, y: 0 }, { x: 100.4, y: 0 }, { x: 100.4, y: 99.6 }, { x: 0, y: 99.6 }] } });
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue(null);
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(vi.mocked(dialogs.openDialog).mock.calls[0][0]).toHaveProperty('initial', { width: 100, depth: 100 });
+	});
+
 	it('offers the same editor from the inspector once a shape exists', async () => {
 		const harness = await seeded();
 		await harness.seed(drawn());

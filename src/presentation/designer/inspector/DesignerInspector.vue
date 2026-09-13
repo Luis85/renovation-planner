@@ -121,7 +121,8 @@ const dimensionsLabel = computed(() =>
 			class="rp-designer-inspector-fields"
 		>
 			<dt>{{ tr('designer.inspector.dimensions') }}</dt>
-			<dd>{{ dimensions.width }} × {{ dimensions.depth }} mm</dd>
+			<!-- Whole millimetres: a curve's box is irrational, and no drawing is read finer than that. -->
+			<dd>{{ Math.round(dimensions.width) }} × {{ Math.round(dimensions.depth) }} mm</dd>
 		</dl>
 		<p
 			v-if="dimensions !== null && design.dimensionsUnscaled"

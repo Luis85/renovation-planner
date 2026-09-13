@@ -203,7 +203,8 @@ async function editDimensions(): Promise<void> {
 	const result = await dialogs.openDialog({
 		kind: 'asset-dimensions',
 		title: tr('designer.dimensions.edit.title'),
-		...(dimensions !== null && !unscaled ? { initial: dimensions } : {}),
+		// In the whole millimetres `DesignerInspector` shows, never a curve's irrational box.
+		...(dimensions !== null && !unscaled ? { initial: { width: Math.round(dimensions.width), depth: Math.round(dimensions.depth) } } : {}),
 		...(unscaled ? { warning: tr('designer.dimensions.unscaled') } : {}),
 	});
 	if (result === null) return;

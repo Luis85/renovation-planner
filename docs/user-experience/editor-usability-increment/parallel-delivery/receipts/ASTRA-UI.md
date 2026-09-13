@@ -4,7 +4,7 @@
 - Branch/worktree: `codex/usability-astra-ui-fidelity` / `D:\codex-worktrees\5d41\renovation-planner`.
 - Starting source: `3eda2de15`; updated I17 `d211d75ee444` was fast-forwarded before production edits, bringing current `origin/main` `fa78293a9` into this branch.
 - Implementation commit: `5d694bfff8400465c34bff46af645b1d354cf4a4` — `Polish editor action hierarchy and narrow layouts`.
-- PR: the initial pass deliberately did not open one. The resumed integration is authorized to open exactly one stacked UI PR above #200 after the full gate. No main merge or main-checkout modification.
+- PR: [#201 — Polish Plan editor hierarchy and narrow layouts](https://github.com/Luis85/renovation-planner/pull/201), base `codex/usability-astra-code-polish`, directly above #200. Opened after the full combined gate passed. Neither PR was merged; #200 and its branch were not modified.
 - Full audit, numbered screenshots, strengths/fixes, reference boards, limits and risks: [Astra UI report](../../astra-ui-fidelity/README.md).
 - Exact image/source hashes: [manifest](../../astra-ui-fidelity/manifest.json).
 
@@ -60,6 +60,7 @@ No overlap with code-hardening ownership. The final 460 px frames expose partial
 - Current-run browser confirmation: `RP_CHROMIUM_EXECUTABLE='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' node scripts/editor-usability-combined-check.mjs` against the combined harness at `http://127.0.0.1:5181/` passed. Edge version 153.0.4234.32 is explicitly unpinned. The in-app Browser independently exercised/saved the same EN/DE 460 × 800 collapsed/expanded states.
 - Overlap **closed for these states**: 16.3125 px between popover and taskbar in each locale/state. Opener unobscured, inside canvas, keyboard focused with `:focus-visible`; expanded menu remains within canvas and above taskbar. Enter/Escape preserves saved-note bytes, selection and camera; Escape returns focus to opener. Four IAB plus four Edge screenshots were saved and individually inspected. See [combined report](../../astra-ui-fidelity/combined/report.json), [manifest](../../astra-ui-fidelity/combined/manifest.json), and C1–C4 in the [visual report](../../astra-ui-fidelity/README.md).
 - No combined UI fix was needed, so the requested single combined confirmation/fix cycle was respected. Full native, AT, human and I18 limits remain open as above.
+- Final evidence checks: 47 local Markdown links, 20 application-source SHA-256 hashes, and 8 combined screenshot hashes verified; `git diff --check` passed. Evidence commit `99076fa42` follows the verified tooling/application tip without changing application source. The subsequent PR-link receipt update is documentation only.
 
 Exact combined commands:
 

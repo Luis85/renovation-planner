@@ -93,4 +93,4 @@ The implementation now matches the proposals' primary-action hierarchy, paired d
 
 No changes overlap the code pass's select-tool/ToolManager, structure action guards, `useCanvasMenuActions`, `DirectActionPopover`, `StructureInspector`, `RenovationEntry` focus handlers, or I11/I14 tests. This branch changes two shell components, creation locale modules, five CSS partials, I05 focused assertions, the capture driver, and this evidence package. No domain commands, geometry, storage model, mode switching or layer preferences changed.
 
-The resumed integration merged the code-polish branch normally and owns the combined final gate. It opens exactly one UI PR with base `codex/usability-astra-code-polish`, directly above #200. Neither PR is merged by this task.
+The resumed integration merged the code-polish branch normally, passed the combined final gate, and opened [PR #201](https://github.com/Luis85/renovation-planner/pull/201) with base `codex/usability-astra-code-polish`, directly above #200. Neither PR is merged by this task.

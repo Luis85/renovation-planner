@@ -9,7 +9,8 @@ export interface DrawRoomToolDeps {
 	readonly defaultName: () => string;
 }
 
-function normalised(a: Point, b: Point): RoomRect {
+/** Two opposite drag corners into a `RoomRect`: min corner, absolute width and depth. */
+export function normalised(a: Point, b: Point): RoomRect {
 	return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), depth: Math.abs(b.y - a.y) };
 }
 

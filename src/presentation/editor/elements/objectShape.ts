@@ -1,13 +1,21 @@
 import type { Point } from '../../../core/geometry/Point';
+import { normalised } from '../tools/draw-room-tool';
+import { polygonForRect } from '../add/room-draft-store';
 
 /** How an item's outline is drawn (2026-09-13 item modes spec §A): one rectangle drag, or corner by corner. */
 export type ObjectShapeMode = 'rectangle' | 'free';
 
-/** The rectangle two opposite corners span, clockwise from the top-left; `null` when it encloses no area. */
+/**
+ * The rectangle two opposite corners span, clockwise from the top-left; `null` when it
+ * encloses no area. Built from the room tool's own helpers (spec §A) rather than a second
+ * normalisation: `normalised` turns the drag into a `RoomRect`, and `polygonForRect` turns
+ * that into the same clockwise-from-min-corner quadrilateral the room draft draws.
+ */
 export function rectangleCorners(a: Point, b: Point): Point[] | null {
-	const left = Math.min(a.x, b.x), top = Math.min(a.y, b.y), right = Math.max(a.x, b.x), bottom = Math.max(a.y, b.y);
-	if (left === right || top === bottom) return null;
-	return [{ x: left, y: top }, { x: right, y: top }, { x: right, y: bottom }, { x: left, y: bottom }];
+	const rect = normalised(a, b);
+	if (rect.width === 0 || rect.depth === 0) return null;
+	const polygon = polygonForRect(rect);
+	return polygon === null ? null : [...polygon.points];
 }
 
 /** Free-form to rectangle: the outline's bounding box, or `null` when it spans no area. */

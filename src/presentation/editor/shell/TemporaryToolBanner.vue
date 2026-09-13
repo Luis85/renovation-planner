@@ -58,6 +58,8 @@ const runtime = useEditorRuntime();
 const isCurves = computed(() => runtime.activeToolId.value === 'edit-curves');
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
 const isElement = computed(() => isElementTool(runtime.activeToolId.value));
+/** An item's instruction follows how it is being drawn (2026-09-13 item modes spec §A). */
+const isRectangleItem = computed(() => runtime.activeToolId.value === 'place-object' && runtime.elementTask.draft.shape === 'rectangle');
 const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
 
@@ -174,7 +176,7 @@ watch(task, (next) => {
 			>{{ tr('editor.room.snapped') }}</span>
 			<span
 				:id="instructionId"
-			>{{ tr(task.instructionKey) }}</span>
+			>{{ tr(isRectangleItem ? 'editor.element.banner.object-rectangle' : task.instructionKey) }}</span>
 			<span
 				v-if="runtime.activeToolId.value === 'move-opening'"
 				role="status"

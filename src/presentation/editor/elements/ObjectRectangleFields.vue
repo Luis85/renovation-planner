@@ -10,7 +10,7 @@ const props = defineProps<{ task: {
 	draft: { rectangle: ObjectRectangleText; text: { x: string; y: string }; points: readonly Point[]; pendingInput: boolean };
 	blocked: Readonly<Ref<boolean>>;
 	setPoints(points: readonly Point[]): boolean;
-} }>();
+}; open?: boolean }>();
 const task = props.task, draft = task.draft, root = ref<HTMLElement | null>(null), hintId = useId();
 const fields = ['x', 'y', 'width', 'depth'] as const;
 const proposal = computed(() => objectRectangleProposal(draft.rectangle));
@@ -49,6 +49,7 @@ function onKey(event: KeyboardEvent): void {
 	<details
 		ref="root"
 		class="rp-object-rectangle"
+		:open="props.open"
 	>
 		<summary>{{ tr('editor.object.rectangle') }}</summary>
 		<p :id="hintId">

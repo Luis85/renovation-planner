@@ -14,8 +14,9 @@ async function setup() {
 	const rig = await structureEditor(true); mounted.push(rig);
 	rig.runtime.setTool('place-object');
 	await settleUntil(() => !rig.runtime.elementTask.draft.loading, 'item baseline');
-	expect(rig.runtime.elementTask.setShape('free')).toBe(true);
+	expect(rig.runtime.elementTask.setShape('free')).toBe(true); await settle();
 	await rig.wrapper.get('.rp-object-rectangle summary').trigger('click');
+	expect(rig.wrapper.get<HTMLDetailsElement>('.rp-object-rectangle').element.open).toBe(true);
 	return { ...rig, task: rig.runtime.elementTask };
 }
 it('applies precise rectangle input once, then saves one named item with reversible identity and geometry', async () => {

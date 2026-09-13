@@ -3,6 +3,7 @@ import DraftRecovery from '../forms/DraftRecovery.vue';
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import FieldError from '../../components/FieldError.vue';
 import ObjectRectangleFields from './ObjectRectangleFields.vue';
+import ObjectShapeSwitch from './ObjectShapeSwitch.vue';
 import StairDraftFields from './StairDraftFields.vue';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { useEditorRuntime } from '../runtime';
@@ -16,6 +17,8 @@ onBeforeUnmount(() => {
 	const root = taskRoot.value, editor = root?.closest<HTMLElement>('.renovation-plan-editor');
 	if (root?.contains(document.activeElement)) void nextTick(() => { if (editor?.isConnected) editor.querySelector<HTMLElement>('.rp-plan-canvas')?.focus(); });
 });
+/** A rectangle item is entered through its rectangle fields alone; per-point entry is free-form's (2026-09-13 item modes spec §A). */
+const pointEntry = computed(() => draft.kind !== 'object' || draft.shape === 'free');
 const pointForm = ref<HTMLElement | null>(null), attemptedPoint = ref(false);
 const coordinates = computed(() => ({ x: parseCoordinateMetres(draft.text.x), y: parseCoordinateMetres(draft.text.y) }));
 const point = computed(() => {
@@ -77,66 +80,70 @@ async function add(): Promise<void> {
 				@input="input('name', $event)"
 			></label>
 		</FieldError>
+		<ObjectShapeSwitch v-if="draft.kind === 'object'" />
 		<ObjectRectangleFields
 			v-if="draft.kind === 'object'"
 			:task="task"
+			:open="draft.shape === 'rectangle'"
 		/>
 		<StairDraftFields
 			v-if="draft.kind === 'stair'"
 			:task="task"
 		/>
-		<form
-			ref="pointForm"
-			@submit.prevent="add"
-			@keydown="nativeSubmitKey"
-		>
-			<DraftRecovery
-				v-if="task.needsRead.value || runtime.writesBlocked.value"
-				:retry="task.retry"
-				:open-source="runtime.openPlanNote"
-			/>
-			<FieldError
-				v-for="axis in ['x', 'y'] as const"
-				:key="axis"
-				v-slot="{ inputId, aria }"
-				:message="coordinateMessage(axis)"
+		<DraftRecovery
+			v-if="task.needsRead.value || runtime.writesBlocked.value"
+			:retry="task.retry"
+			:open-source="runtime.openPlanNote"
+		/>
+		<template v-if="pointEntry">
+			<form
+				ref="pointForm"
+				@submit.prevent="add"
+				@keydown="nativeSubmitKey"
 			>
-				<label
-					:for="inputId"
-					class="rp-dialog-field"
-				>{{ tr(axis === 'x' ? 'editor.area.x' : 'editor.area.y') }}<input
-					:id="inputId"
-					v-bind="aria"
-					:name="'element-' + axis"
-					type="text"
-					inputmode="decimal"
-					:value="draft.text[axis]"
-					:readonly="pointReadonly"
-					@input="input(axis, $event)"
-				></label>
-			</FieldError>
+				<FieldError
+					v-for="axis in ['x', 'y'] as const"
+					:key="axis"
+					v-slot="{ inputId, aria }"
+					:message="coordinateMessage(axis)"
+				>
+					<label
+						:for="inputId"
+						class="rp-dialog-field"
+					>{{ tr(axis === 'x' ? 'editor.area.x' : 'editor.area.y') }}<input
+						:id="inputId"
+						v-bind="aria"
+						:name="'element-' + axis"
+						type="text"
+						inputmode="decimal"
+						:value="draft.text[axis]"
+						:readonly="pointReadonly"
+						@input="input(axis, $event)"
+					></label>
+				</FieldError>
+				<button
+					type="submit"
+					:aria-disabled="addBlocked"
+				>
+					{{ tr('editor.element.add-point') }}
+				</button>
+			</form>
+			<ol>
+				<li
+					v-for="(value, index) in draft.points"
+					:key="index"
+				>
+					{{ formatMetres(value.x) }} m, {{ formatMetres(value.y) }} m
+				</li>
+			</ol>
 			<button
-				type="submit"
-				:aria-disabled="addBlocked"
+				type="button"
+				:aria-disabled="undoBlocked"
+				@click="task.undoPoint()"
 			>
-				{{ tr('editor.element.add-point') }}
+				{{ tr('editor.element.undo-point') }}
 			</button>
-		</form>
-		<ol>
-			<li
-				v-for="(value, index) in draft.points"
-				:key="index"
-			>
-				{{ formatMetres(value.x) }} m, {{ formatMetres(value.y) }} m
-			</li>
-		</ol>
-		<button
-			type="button"
-			:aria-disabled="undoBlocked"
-			@click="task.undoPoint()"
-		>
-			{{ tr('editor.element.undo-point') }}
-		</button>
+		</template>
 		<div class="rp-dialog-actions">
 			<button
 				type="button"

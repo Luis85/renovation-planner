@@ -134,6 +134,16 @@
 	outline-offset: 2px;
 }
 
+/* Rectangle | Free-form for an item (2026-09-13 item modes spec §A): the pressed mode wears the accent border and weight. */
+.renovation-plan-editor .rp-object-shape {
+	display: inline-flex;
+	gap: var(--size-4-1);
+}
+.renovation-plan-editor .rp-object-shape button[aria-pressed='true'] {
+	border-color: var(--interactive-accent);
+	font-weight: var(--font-semibold);
+}
+
 @container (max-width: 899px) {
 	.rp-task-banner {
 		gap: 6px var(--size-4-2);

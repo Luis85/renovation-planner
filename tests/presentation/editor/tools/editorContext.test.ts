@@ -3,7 +3,8 @@
  * suite pins beyond plain wiring, because they are both project Definition-of-Done items
  * routed here (see `docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`):
  *
- * - **DoD 11** — the facade's own type surface is exactly the eight spec members, and no
+ * - **DoD 11** — the facade's own type surface is exactly the nine spec members (eight from
+ *   the slice-6 spec plus `snapCandidates`, the smart alignment guides increment), and no
  *   member (at any depth) exposes a function shaped like a repository method
  *   (`getById`/`save`/`delete`/`listBy*`). That is a runtime check over a real
  *   `EditorContext` built from stub deps, plus a check that the walker doing the work can
@@ -115,6 +116,7 @@ function stubDeps(): EditorContextDeps {
 		bindViewport: stubViewport,
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
+		snapCandidates: () => ({}),
 		// Through the real mapper, because `EditorContextDeps.commandDispatcher` requires the
 		// brand only `mapDispatchFaults` can apply — which is the point of the brand: a
 		// composition cannot hand a tool a dispatcher whose `run` may still reject.
@@ -135,6 +137,7 @@ const SPEC_MEMBERS = [
 	'viewport',
 	'selection',
 	'snapService',
+	'snapCandidates',
 	'commandDispatcher',
 	'writeLedger',
 	'renderState',
@@ -230,6 +233,7 @@ describe('EditorContext', () => {
 		expect(context.viewport).toBe(viewport);
 		expect(context.selection).toBe(deps.selection);
 		expect(context.snapService).toBe(deps.snapService);
+		expect(context.snapCandidates).toBe(deps.snapCandidates);
 		expect(context.commandDispatcher).toBe(deps.commandDispatcher);
 		expect(context.writeLedger).toBe(deps.writeLedger);
 		expect(context.renderState).toBe(deps.renderState);
@@ -237,7 +241,7 @@ describe('EditorContext', () => {
 		expect(context.writesBlocked).toBe(deps.writesBlocked);
 	});
 
-	it('DoD 11: has exactly the eight spec members, nothing more and nothing fewer', () => {
+	it('DoD 11: has exactly the nine spec members, nothing more and nothing fewer', () => {
 		const context = createEditorContext(stubDeps());
 
 		expect(Object.keys(context).toSorted()).toEqual(SPEC_MEMBERS);

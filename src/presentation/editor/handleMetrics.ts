@@ -95,6 +95,10 @@ export const POLYGON_CLOSE_GRAB_RADIUS_PX = 12;
  * `startWorld` it otherwise has no use for.
  */
 export const CLICK_EPSILON_PX = 4;
+
+/** Snap and alignment tolerance in screen pixels, scaled by the camera at every call. */
+export const SNAP_TOLERANCE_PX = 8;
+
 /** Constant screen size shared by M11 badge drawing and hit testing. */
 export const SELECTION_BADGE_RADIUS_PX = 12;
 

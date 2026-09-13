@@ -52,6 +52,7 @@ import { singleFlight } from '../composables/single-flight';
 import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { createEditorSnapService } from './snapping/editorSnapping';
+import { roomSnapCandidates } from './snapping/roomSnapCandidates';
 import { editorViewportAdapter } from './viewport/editorViewportAdapter';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
@@ -466,10 +467,7 @@ function registerSelectionRetirement(
 			const exists = (id: string): boolean => zones.has(id) || [...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === id);
 			const survivors = selection.selectedIds.filter((id) => exists(String(id)));
 			if (survivors.length !== selection.selectedIds.length) selection.select(survivors);
-			if (renderState.hoveredObjectId !== null && !exists(renderState.hoveredObjectId)) {
-				renderState.hoveredObjectId = null;
-				renderState.hoveredTargetKind = null;
-			}
+			if (renderState.hoveredObjectId !== null && !exists(renderState.hoveredObjectId)) { renderState.hoveredObjectId = null; renderState.hoveredTargetKind = null; }
 		},
 	);
 }
@@ -699,6 +697,9 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 			bindViewport: () => viewportAdapter,
 			selection,
 			snapService: createEditorSnapService(() => editor.snappingEnabled),
+			// ponytail: recomputed per call over every zone and element; a per-entity memo is the
+			// upgrade if a plan ever carries enough vertices for a pointer move to notice.
+			snapCandidates: (exclude = []) => roomSnapCandidates(projectStore.zones.values(), projectStore.structure, new Set(exclude)),
 			commandDispatcher: toolDispatcher,
 			writeLedger: ledger,
 			renderState,

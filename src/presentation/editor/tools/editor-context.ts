@@ -3,7 +3,7 @@ import type { Vector } from '../../../core/geometry/Vector';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { Calibration } from '../../../domain/plan/Calibration';
 import type { SelectionStore } from '../selection/selection-store';
-import type { SnapService } from '../snapping/snap-service';
+import type { SnapCandidates, SnapService } from '../snapping/snap-service';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import type { UndoableCommand } from './undoable-command';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
@@ -49,6 +49,13 @@ export interface EditorContext {
 	};
 	readonly selection: SelectionStore;
 	readonly snapService: SnapService;
+	/**
+	 * The geometry a gesture may snap or align to — every zone, wall, opening and element on
+	 * the subject — minus the entities in `exclude`, so a dragged item never snaps to itself.
+	 * One supply for every tool (smart alignment guides increment, spec §4); the designer
+	 * answers an empty set.
+	 */
+	readonly snapCandidates: (exclude?: Iterable<string>) => SnapCandidates;
 	readonly commandDispatcher: { run(command: UndoableCommand): Promise<DispatchResult> };
 	/**
 	 * What this editor's own history has written, per entity — see
@@ -128,6 +135,7 @@ export interface EditorContextDeps {
 	bindViewport(): EditorContext['viewport'];
 	selection: SelectionStore;
 	snapService: SnapService;
+	snapCandidates: EditorContext['snapCandidates'];
 	/**
 	 * The one field here that is NOT simply the context's own type, and the difference is a
 	 * guarantee rather than a decoration.
@@ -161,6 +169,7 @@ export function createEditorContext(deps: EditorContextDeps): EditorContext {
 		viewport: deps.bindViewport(),
 		selection: deps.selection,
 		snapService: deps.snapService,
+		snapCandidates: deps.snapCandidates,
 		commandDispatcher: deps.commandDispatcher,
 		writeLedger: deps.writeLedger,
 		renderState: deps.renderState,

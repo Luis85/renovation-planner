@@ -93,6 +93,7 @@
 .rp-editor-measurements {
 	display: flex;
 	flex: 1;
+	min-width: 0;
 	gap: var(--size-4-3);
 	justify-content: center;
 	white-space: nowrap;

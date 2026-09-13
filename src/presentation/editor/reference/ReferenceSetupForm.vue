@@ -13,6 +13,7 @@ import { prepareValid, setupMeasurement } from './referenceSetup';
 import ReferencePreview from './ReferencePreview.vue';
 import ReferenceReview from './ReferenceReview.vue';
 import ReferencePrepare from './ReferencePrepare.vue';
+import ReferenceMeasure from './ReferenceMeasure.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { notifyFault } from '../../notices/notify';
@@ -184,60 +185,17 @@ onMounted(() => { if (path.value) void load(); });
 					:has-raster="raster !== null"
 					@load="load"
 				/>
-				<section
+				<ReferenceMeasure
 					v-if="step === 2"
-					class="rp-reference-measure"
-				>
-					<p class="rp-reference-measure__help">
-						{{ tr('editor.reference.measure-help') }}
-					</p>
-					<ol
-						class="rp-reference-point-progress"
-						:aria-label="tr('editor.reference.preview')"
-					>
-						<li
-							v-for="point in pointStates"
-							:key="point.label"
-							:class="{ 'is-selected': point.selected }"
-							:data-rp-reference-point="point.label.toLowerCase()"
-						>
-							<strong>{{ point.label }}</strong>
-							<span>{{ point.state }}</span>
-							<output>{{ point.coordinates }}</output>
-						</li>
-					</ol>
-					<label class="rp-dialog-field rp-reference-measure__length">{{ tr('editor.reference.length') }}<input
-						v-model="length"
-						name="length"
-						type="text"
-						inputmode="decimal"
-						:readonly="paused"
-					></label>
-					<details class="rp-reference-disclosure">
-						<summary>{{ tr('editor.reference.exact-points') }}</summary>
-						<div class="rp-reference-grid">
-							<label
-								v-for="key in (['ax', 'ay', 'bx', 'by'] as const)"
-								:key="key"
-								class="rp-dialog-field"
-							>{{ tr(`editor.reference.${key}`) }}<input
-								v-model="coordinates[key]"
-								:name="key"
-								type="number"
-								step="any"
-								:readonly="paused"
-							></label>
-						</div>
-					</details>
-					<button
-						type="button"
-						:aria-disabled="paused"
-						data-rp-reference-action="another-distance"
-						@click="!paused && anotherDistance()"
-					>
-						{{ tr('editor.reference.another') }}
-					</button>
-				</section>
+					v-model:ax="coordinates.ax"
+					v-model:ay="coordinates.ay"
+					v-model:bx="coordinates.bx"
+					v-model:by="coordinates.by"
+					v-model:length="length"
+					:points="pointStates"
+					:paused="paused"
+					@another="anotherDistance"
+				/>
 				<ReferenceReview
 					v-if="step === 3"
 					v-model:opacity="appearance.opacity"

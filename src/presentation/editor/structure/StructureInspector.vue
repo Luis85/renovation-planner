@@ -1,19 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick } from 'vue';
-import { useProjectStore } from '../../stores/ProjectStore';
-import { useSelectionStore } from '../selection/selection-store';
-import { useEditorRuntime } from '../runtime';
-import { useRenovationSession } from '../renovation/renovationSession';
 import { tr } from '../../i18n/strings';
 import StructureFacts from './StructureFacts.vue';
 import StructureRenovationEntry from './StructureRenovationEntry.vue';
 import StructurePlanActions from './StructurePlanActions.vue';
 import HostIcon from '../../components/HostIcon.vue';
-const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime(), session = useRenovationSession();
-const id = computed(() => String(selection.selectedIds[0]));
-const wall = computed(() => project.structure.walls.find(candidate => candidate.id === id.value));
-const opening = computed(() => project.structure.openings.find(candidate => candidate.id === id.value));
-const paused = computed(() => runtime.writesBlocked.value || runtime.structureActions.active.value);
+import { useStructureInspectorTarget } from './useStructureInspectorTarget';
+const { project, runtime, session, id, wall, opening, paused } = useStructureInspectorTarget();
 const rooms = computed(() => project.structure.boundaries.filter(boundary => boundary.wallIds.includes(id.value)).map(boundary => project.zones.get(boundary.roomId)?.name ?? boundary.roomId));
 const subject = computed(() => project.plan?.renovation?.subjects.find(item => item.targetId === id.value));
 const catalogue = computed(() => runtime.planning.baseline.value?.catalogue);

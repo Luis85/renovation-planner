@@ -16,10 +16,9 @@ import type {
 } from '../../core/errors/AppError';
 import type { Command } from '../../application/commands/Command';
 import type { DispatchOutcome, DispatchResult } from '../../application/commands/DispatchOutcome';
-import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
-import type { SetAssetFootprintFromDimensionsInput, SetAssetFootprintInput } from '../../application/commands/asset/SetAssetFootprint';
-import type { Asset } from '../../domain/asset/Asset';
+import type { SetAssetFootprintInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { Query } from '../../application/queries/Query';
+import type { NewAssetDialogDeps } from '../views/newAssetDialog';
 import type { CalibratePlanInput } from '../../application/commands/plan/ReversibleCalibratePlan';
 import type { CreateZoneInput } from '../../application/commands/zone/CreateZone';
 import type { MoveSpatialObjectInput, MoveSpatialObjectResult } from '../../application/commands/zone/MoveSpatialObject';
@@ -102,11 +101,8 @@ export interface PlanEditorCommandServices {
 	 * the outline write it stores measured. OPTIONAL like `createPlan`: without it the context menu offers no
 	 * promotion and `unavailablePlanEditorCommands` needs no refusing stand-in.
 	 */
-	readonly assetCreation?: {
-		readonly createAsset: Command<CreateAssetInput, Result<Asset, AppError>>;
-		readonly setAssetFootprintFromDimensions: Command<SetAssetFootprintFromDimensionsInput, DispatchResult>;
+	readonly assetCreation?: NewAssetDialogDeps['commands'] & {
 		readonly setAssetFootprint: Command<SetAssetFootprintInput, DispatchResult>;
-		readonly defaultCurrency: string;
 	};
 	readonly moveObject: Command<
 		MoveSpatialObjectInput,

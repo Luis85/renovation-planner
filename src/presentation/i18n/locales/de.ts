@@ -27,6 +27,7 @@ import { deAssetLibrary } from './de-assetLibrary';
 import { editorDe } from './de/editor';
 import { renovationDe } from './de/renovation';
 import { deMobile } from './de/mobile';
+import { newAssetFootprintDe } from './de/newAssetFootprint';
 
 export const de: Partial<Record<StringKey, string>> = {
 	...projectWorkDe,
@@ -36,6 +37,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	...planDe,
 	...editorDe,
 	...deMobile,
+	...newAssetFootprintDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.price-apply': 'Übernehmen',
@@ -443,12 +445,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'form.new-asset.unit': 'Einheit',
 	'form.new-asset.unit-cost': 'Stückpreis',
 	'form.new-asset.currency': 'Währung',
-	'form.new-asset.width': 'Breite in Millimetern (optional)',
-	'form.new-asset.depth': 'Tiefe in Millimetern (optional)',
-	'form.new-asset.already-created':
-		'Das Objekt ist gespeichert. Seine Angaben lassen sich im Katalog bearbeiten; nur die Maße unten stehen noch aus.',
-	'form.new-asset.outline': 'Grundfläche: der Umriss des Gegenstands, {width} × {depth} mm',
-	'form.new-asset.already-created-outline': 'Das Objekt ist gespeichert. Seine Angaben lassen sich im Katalog bearbeiten; nur seine Grundfläche steht noch aus.',
 	'form.new-asset.category.material': 'Baustoff',
 	'form.new-asset.category.furniture': 'Möbel',
 	'form.new-asset.category.fixture': 'Einbauteil',

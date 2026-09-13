@@ -56,7 +56,7 @@ async function add(): Promise<void> {
 		data-rp-form="element-create"
 	>
 		<h3>{{ tr(zoneTypeLabel(draft.kind)) }}</h3>
-		<p>{{ tr('editor.element.create-hint') }}</p>
+		<p>{{ tr(pointEntry ? 'editor.element.create-hint' : 'editor.element.banner.object-rectangle') }}</p>
 		<p
 			v-if="draft.error"
 			role="alert"

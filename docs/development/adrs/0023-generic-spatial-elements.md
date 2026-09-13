@@ -35,7 +35,7 @@ Shared draft API: `runtime.elementTask` exposes `draft` (kind, name, points, cur
 
 Mixed current-spatial deletion uses one existing RenovationCommand proposal for selected generic elements, walls and openings. It includes hosted openings in current/intended snapshots, preserves independent Room outlines, and refuses unresolved material or renovation references before confirmation. It preserves selection and captured-baseline guards across delayed reads and confirmation; compensation and Undo/Redo use the existing shared ledger. This is the `elementActions.removeMany` continuation, verified in the 117-test integration checkpoint at `88b9ee3d`.
 
-## Amendment 2026-09-13
+## Amendment — 2026-09-13
 
 An object still never references an asset on its own. **Add to asset library**
 (`docs/superpowers/specs/2026-09-13-plan-editor-item-modes-and-library-design.md`) is an explicit

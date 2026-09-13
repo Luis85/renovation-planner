@@ -8,6 +8,7 @@ import { screenPoint } from '../viewport/Viewport';
 import type { Point } from '../../../core/geometry/Point';
 import StairShape from './StairShape.vue';
 import DirectionArrowShape from './DirectionArrowShape.vue';
+import StructuralShape from './StructuralShape.vue';
 import { hasPointHandles } from './ElementMove';
 import { outlineKind } from '../../../domain/spatial/SpatialElement';
 import { VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
@@ -56,6 +57,13 @@ const shapes = computed(() => props.elements.map(element => {
 				:points="shape.element.points"
 				:selected="shape.selected"
 				:editable="shape.single"
+				:tokens="tokens"
+				:zoom="zoom"
+			/>
+			<StructuralShape
+				v-else-if="shape.element.kind === 'post' || shape.element.kind === 'beam'"
+				:element="shape.element"
+				:selected="shape.selected"
 				:tokens="tokens"
 				:zoom="zoom"
 			/>

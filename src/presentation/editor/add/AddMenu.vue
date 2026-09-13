@@ -68,7 +68,7 @@ const runtime = useEditorRuntime();
 const project = useProjectStore(), workspace = useWorkspaceStore();
 const note = useNoteCreation();
 const creation: CreationRuntime = { setTool: id => runtime.setTool(id), createNote: note.activate, chooseAsset: () => { void runtime.elementTask.assets.choose(runtime.assetOptions.value); } };
-const isElementEntry = (entry: CreationEntry): boolean => ['item', 'path', 'fence', 'measurement', 'stair', 'arrow'].includes(entry.id);
+const isElementEntry = (entry: CreationEntry): boolean => ['item', 'path', 'fence', 'measurement', 'stair', 'arrow', 'post', 'beam'].includes(entry.id);
 const spatialReason = computed(() => tr(runtime.structureTask.available ? 'editor.structure.error.host-missing' : 'editor.structure.error.unavailable'));
 function spatialUnavailable(entry: CreationEntry): boolean {
 	if (entry.id === 'note') return !note.available.value;
@@ -223,13 +223,13 @@ function activate(entry: CreationEntry): void {
 	if (runtime.writesBlocked.value || spatialUnavailable(entry)) return;
 	emit('close');
 	activateCreationEntry(entry.id, creation);
-	if (isElementEntry(entry) && !['stair', 'arrow'].includes(entry.id)) {
+	if (isElementEntry(entry) && !['stair', 'arrow', 'post', 'beam'].includes(entry.id)) {
 		const root = (menuRoot.value as HTMLElement).closest('.renovation-plan-editor');
 		workspace.revealInspector();
 		void nextTick(() => root?.querySelector<HTMLInputElement>('[name="element-name"]')?.focus());
 	}
-	if (['area', 'wall', 'door', 'window', 'opening', 'stair', 'arrow'].includes(entry.id)) {
-		if (['stair', 'arrow'].includes(entry.id) && workspace.layoutMode === 'constrained') workspace.closeOverlay();
+	if (['area', 'wall', 'door', 'window', 'opening', 'stair', 'arrow', 'post', 'beam'].includes(entry.id)) {
+		if (['stair', 'arrow', 'post', 'beam'].includes(entry.id) && workspace.layoutMode === 'constrained') workspace.closeOverlay();
 		const canvas = (menuRoot.value as HTMLElement).closest<HTMLElement>('.rp-plan-canvas');
 		void nextTick(() => canvas?.focus());
 	}

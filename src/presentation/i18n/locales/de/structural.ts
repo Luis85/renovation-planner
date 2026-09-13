@@ -1,0 +1,20 @@
+import type { structuralEn } from '../en/structural';
+export const structuralDe: Record<keyof typeof structuralEn, string> = {
+	'editor.add.post.label': 'Stütze',
+	'editor.add.post.description': 'Ein Pfosten oder Fachwerkständer, der Last trägt',
+	'editor.add.post.synonyms': 'Pfosten, Ständer, Pfeiler, Säule, Fachwerk',
+	'editor.add.beam.label': 'Balken',
+	'editor.add.beam.description': 'Ein Deckenbalken oder Unterzug über dem Raum',
+	'editor.add.beam.synonyms': 'Unterzug, Deckenbalken, Träger, Fachwerk',
+	'editor.post.banner': 'Klicken, um eine Stütze zu setzen. Das Werkzeug bleibt für die nächste aktiv.',
+	'editor.beam.banner': 'Anfang und Ende des Balkens anklicken.',
+	'editor.structural.width': 'Breite (m)',
+	'editor.structural.depth': 'Tiefe (m)',
+	'editor.structural.width-invalid': 'Geben Sie eine Breite zwischen 0,001 und 1000 m ein.',
+	'editor.structural.depth-invalid': 'Geben Sie eine Tiefe zwischen 0,001 und 1000 m ein.',
+	'editor.structural.post-summary': '{width} × {depth} m',
+	'editor.structural.beam-summary': '{length} m · {width} m breit',
+	'editor.structural.load-bearing': 'Tragend',
+	'editor.structural.apply': 'Maße übernehmen',
+	'editor.structural.delete-warning': 'Tragendes Bauteil: {names}. Entfernen nur nach statischer Prüfung.',
+};

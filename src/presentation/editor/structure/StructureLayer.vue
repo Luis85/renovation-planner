@@ -63,8 +63,8 @@ const elements = computed(() => withElementPreviews((structure.value.elements ??
 const elementDraft = computed(() => {
 	const draft = runtime.elementTask.draft;
 	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];
-	const cursor = draft.cursor && (!['measurement', 'stair'].includes(draft.kind) || draft.points.length < 2) ? [draft.cursor] : [];
-	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...cursor], ...(draft.kind === 'stair' ? { stair: draft.stair } : {}) }];
+	const cursor = draft.cursor && (!['measurement', 'stair', 'beam'].includes(draft.kind) || draft.points.length < 2) ? [draft.cursor] : [];
+	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...cursor], ...(draft.kind === 'stair' ? { stair: draft.stair } : {}), ...(draft.kind === 'beam' ? { width: draft.beamWidth, loadBearing: true } : {}) }];
 });
 </script>
 <template>

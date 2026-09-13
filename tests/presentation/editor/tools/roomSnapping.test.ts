@@ -9,8 +9,8 @@ import { pointerAt, toolContext } from '../../../helpers/tool-context';
 beforeEach(() => setActivePinia(createPinia()));
 function armed() {
  const draft = useRoomDraftStore();
- const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1', snapCandidates: () => ({ vertices: [{ x: 0, y: 0 }, { x: 4000, y: 3000 }], edges: [{ start: { x: 0, y: 3000 }, end: { x: 4000, y: 3000 } }] }) });
- const { context } = toolContext({ worldPerScreenPixel: 10 });
+ const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1' });
+ const { context } = toolContext({ worldPerScreenPixel: 10, snapCandidates: () => ({ vertices: [{ x: 0, y: 0 }, { x: 4000, y: 3000 }], edges: [{ start: { x: 0, y: 3000 }, end: { x: 4000, y: 3000 } }] }) });
  const actual = { ...context, snapService: EDITOR_SNAP_SERVICE }; tool.activate(actual);
  return { draft, tool, context: actual };
 }
@@ -21,6 +21,19 @@ it('closes Object edges for snapping while keeping paths and fence segments open
  expect(result.edges).toHaveLength(6); expect(result.vertices).toHaveLength(7);
  expect(result.edges).toContainEqual({ start: object.points[3], end: object.points[0] });
  expect(result.edges).not.toContainEqual({ start: path.points[2], end: path.points[0] });
+});
+it('lists alignments — zone vertices, zone box centres, wall endpoints, element points — and drops an excluded entity entirely', () => {
+ const zone = { id: 'zone-a', points: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 100 }, { x: 0, y: 100 }] };
+ const object = { id: 'element-object', kind: 'object' as const, points: [{ x: 500, y: 500 }, { x: 600, y: 500 }, { x: 600, y: 600 }] };
+ const wall = { id: 'wall-a', start: { x: 1000, y: 0 }, end: { x: 2000, y: 0 }, height: 2400, thickness: 150 };
+ const structure = { walls: [wall], openings: [], boundaries: [], elements: [object] };
+ const all = roomSnapCandidates([zone], structure);
+ expect(all.alignments).toEqual(expect.arrayContaining([...zone.points, { x: 100, y: 50 }, wall.start, wall.end, ...object.points]));
+ expect(all.alignments).toHaveLength(4 + 1 + 2 + 3);
+ const without = roomSnapCandidates([zone], structure, new Set(['zone-a', 'element-object']));
+ expect(without.vertices).toEqual([wall.start, wall.end]);
+ expect(without.edges).toHaveLength(1);
+ expect(without.alignments).toEqual([wall.start, wall.end]);
 });
 
 describe('Room snapping uses current geometry and screen-sized tolerance', () => {
@@ -48,9 +61,17 @@ describe('Room snapping uses current geometry and screen-sized tolerance', () =>
   }
   tool.pointerDown(pointerAt(0, 0)); tool.pointerMove(pointerAt(4000, 3000)); expect(draft.rect).toBeNull();
  });
+ it('draws an axis guide when a corner lines up with a neighbour and nothing is within point tolerance', () => {
+  const draft = useRoomDraftStore(), tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1' });
+  const { context } = toolContext({ worldPerScreenPixel: 10, snapCandidates: () => ({ alignments: [{ x: 6000, y: 9000 }] }) });
+  const actual = { ...context, snapService: EDITOR_SNAP_SERVICE }; tool.activate(actual);
+  tool.pointerDown(pointerAt(1000, 1000)); tool.pointerMove(pointerAt(5950, 2000));
+  expect(draft.rect).toEqual({ x: 1000, y: 1000, width: 5000, depth: 1000 });
+  expect(actual.renderState.snapGuides).toEqual([{ start: { x: 6000, y: 2000 }, end: { x: 6000, y: 9000 } }]);
+ });
  it('includes closed zone edges, wall centre lines and hosted endpoints without inventing edges for incomplete zones', () => {
   const points = [{ x: 1, y: 2 }, { x: 3, y: 4 }, { x: 5, y: 6 }];
-  const result = roomSnapCandidates([{ points }, { points: [{ x: 8, y: 9 }] }], { ...WALL_LOOP, openings: [{ id: 'opening-test', kind: 'door', hostId: 'wall-a', offset: 100, width: 900, height: 2100, sill: 0 }] });
+  const result = roomSnapCandidates([{ id: 'zone-a', points }, { id: 'zone-b', points: [{ x: 8, y: 9 }] }], { ...WALL_LOOP, openings: [{ id: 'opening-test', kind: 'door', hostId: 'wall-a', offset: 100, width: 900, height: 2100, sill: 0 }] });
   expect(result.edges).toContainEqual({ start: points[2], end: points[0] });
   expect(result.edges).toHaveLength(3 + WALL_LOOP.walls.length);
   expect(result.vertices).toHaveLength(4 + WALL_LOOP.walls.length * 2 + 2);

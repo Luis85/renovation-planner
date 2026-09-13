@@ -139,6 +139,7 @@ function buildContext(history: CommandHistory): {
 		bindViewport: stubViewport,
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
+		snapCandidates: () => ({}),
 		// Through `mapDispatchFaults`, which `EditorContextDeps` requires: the brand is what
 		// makes "a tool's dispatch door cannot reject" a compile-time fact rather than a rule
 		// each surface remembers. It forwards straight to `history.run` on every path this file

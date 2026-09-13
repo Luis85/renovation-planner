@@ -24,7 +24,9 @@ it('snaps Room creation to actual circular edges while leaving empty chord space
 	const candidates = roomSnapCandidates([room], { walls: [wall], openings: [], boundaries: [] });
 	const projected = snap.snapPoint({ x: 2000, y: -995 }, candidates);
 	expect(projected.x).toBeCloseTo(2000); expect(projected.y).toBeCloseTo(-1000);
-	const chord = { x: 2000, y: 0 }; expect(snap.snapPoint(chord, candidates)).toBe(chord);
+	// Straight-edge candidates only: with `alignments` the chord aligns at distance 0 to the zone's
+	// box centre (x = 2000) and a vertex (y = 0), which builds an equal point rather than this one.
+	const chord = { x: 2000, y: 0 }; expect(snap.snapPoint(chord, { vertices: candidates.vertices, edges: candidates.edges })).toBe(chord);
 	expect(snap.snapToEdge(chord, [{ start: chord, end: chord, bulge: 0.5 }])).toBeNull();
 	expect(snap.snapPoint({ x: 1, y: 1 }, candidates)).toBe(points[0]);
 });

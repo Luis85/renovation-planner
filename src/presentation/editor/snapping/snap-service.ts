@@ -1,7 +1,8 @@
-import { distance, project } from '../../../core/geometry/operations';
+import { distance, extentOf, project } from '../../../core/geometry/operations';
 import { isOk } from '../../../core/result/Result';
 import type { LineSegment } from '../../../core/geometry/LineSegment';
 import type { Point } from '../../../core/geometry/Point';
+import type { Vector } from '../../../core/geometry/Vector';
 import { arcProjection } from '../../../core/geometry/circularArc';
 
 /**
@@ -34,13 +35,58 @@ function requirePositiveFinite(value: number, field: string): void {
 }
 
 /**
- * Candidate geometry a calling tool supplies, sourced from the active plan's
- * already-loaded zones (`EditorContext.subject`). `SnapService` never queries for
- * this itself — it only ever ranks what it is handed.
+ * Candidate geometry a calling tool supplies, sourced from `EditorContext.snapCandidates`
+ * (the active plan's zones, structure and elements minus what is being dragged).
+ * `SnapService` never queries for this itself — it only ever ranks what it is handed.
  */
 export interface SnapCandidates {
 	readonly vertices?: readonly Point[];
 	readonly edges?: readonly (LineSegment & { readonly bulge?: number })[];
+	/**
+	 * Every point whose x or y is worth lining up with — a neighbour's vertices and box
+	 * centres. Read by the axis-alignment stage only, after vertex and edge have declined.
+	 */
+	readonly alignments?: readonly Point[];
+}
+
+/** A snapped point and the guide segments that say why it landed there. */
+export interface SnapResult {
+	readonly point: Point;
+	readonly guides: LineSegment[];
+}
+
+/** The extra vector a body move applies to EVERY point, and the guides that say why. */
+export interface TranslationSnap {
+	readonly correction: Vector;
+	readonly guides: LineSegment[];
+}
+
+/** The nearest (moving point, landing) pair `land` answers within tolerance, else `null`. */
+function nearestPair(moving: readonly Point[], land: (from: Point) => Point | null): { from: Point; to: Point } | null {
+	let best: { from: Point; to: Point } | null = null;
+	let bestDistance = Infinity;
+	for (const from of moving) {
+		const to = land(from);
+		if (to === null) continue;
+		const d = distance(from, to);
+		if (d < bestDistance) {
+			bestDistance = d;
+			best = { from, to };
+		}
+	}
+	return best;
+}
+
+/** The moving feature and alignment with the smallest |delta| on `axis` within tolerance. */
+function nearestAxisMatch(features: readonly Point[], alignments: readonly Point[], axis: 'x' | 'y', tolerance: number): { feature: Point; to: Point; delta: number } | null {
+	let best: { feature: Point; to: Point; delta: number } | null = null;
+	for (const feature of features) {
+		const to = nearestAlignment(feature[axis], alignments, axis, tolerance);
+		if (to === null) continue;
+		const delta = to[axis] - feature[axis];
+		if (best === null || Math.abs(delta) < Math.abs(best.delta)) best = { feature, to, delta };
+	}
+	return best;
 }
 
 function roundToStep(value: number, step: number): number {
@@ -115,10 +161,29 @@ function nearestWithinTolerance<T>(
 }
 
 /**
+ * The alignment whose `axis` coordinate is nearest `value` within `tolerance`, else `null`.
+ * Strictly-closer wins, so a tie keeps the first in iteration order — the same rule
+ * `nearestWithinTolerance` pins for points.
+ */
+function nearestAlignment(value: number, alignments: readonly Point[], axis: 'x' | 'y', tolerance: number): Point | null {
+	let best: Point | null = null;
+	let bestDistance = Infinity;
+	for (const candidate of alignments) {
+		const d = Math.abs(candidate[axis] - value);
+		if (d <= tolerance && d < bestDistance) {
+			bestDistance = d;
+			best = candidate;
+		}
+	}
+	return best;
+}
+
+/**
  * The one editor-level snapping service (SDD §21), implemented once rather than
- * per-tool. A tool calls `snapPoint` during both `pointerMove` (the snapped preview
- * written to render state) and `pointerUp` (the committed point) — always the same
- * function, so a drag's preview can never drift from what actually gets committed.
+ * per-tool. A tool calls one of `snapPointWithGuides`/`snapTranslation` during both
+ * `pointerMove` (the snapped preview and its guides written to render state) and
+ * `pointerUp` (the committed geometry) — always the same function, so a drag's preview
+ * can never drift from what actually gets committed.
  *
  * Nothing here reads a store, a repository, or a Konva node: grid spacing, tolerance and
  * angle step arrive once through `config`, and candidate geometry arrives as a plain
@@ -163,20 +228,74 @@ export class SnapService {
 	}
 
 	/**
-	 * Precedence, NOT nearest-wins: a vertex within tolerance always wins over an edge
-	 * within tolerance, even one strictly closer to `point` than the vertex is. The SDD
-	 * states the order as vertex > edge > the original point, and that is what this
-	 * implements — a reader expecting "whichever candidate is closest overall" would be
-	 * wrong, and a test pins the precedence case where the edge is nearer and still
-	 * loses.
+	 * `snapPoint` with the reason attached. Precedence, NOT nearest-wins: a vertex within
+	 * tolerance always wins over an edge within tolerance, even one strictly closer to `point`
+	 * than the vertex is, and either wins over an axis alignment. The order is vertex > edge >
+	 * axis alignment > the original point (spec §3.2) — a reader expecting "whichever
+	 * candidate is closest overall" would be wrong, and tests pin the precedence cases where
+	 * the later stage is nearer and still loses.
+	 *
+	 * The first two answer one guide from the pointer to where it landed; the axis stage
+	 * decides x and y independently and answers one guide PER AXIS that fired, from the landed
+	 * point to the alignment it matched — which is axis-aligned by construction, and is what
+	 * the canvas draws as the dashed "lined up with" line.
+	 *
+	 * When no stage fires the answer is `point` ITSELF, not an equal copy: callers pin
+	 * `snapPoint`'s no-snap answer with `toBe`, and a `landed` object built unconditionally
+	 * turned them red — measured, not guessed.
 	 */
-	snapPoint(point: Point, candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): Point {
+	snapPointWithGuides(point: Point, candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): SnapResult {
+		if (!this.enabled) return { point, guides: [] };
 		const vertex = this.snapToVertex(point, candidates.vertices ?? [], toleranceMm);
-		if (vertex !== null) {
-			return vertex;
-		}
+		if (vertex !== null) return { point: vertex, guides: [{ start: point, end: vertex }] };
 		const edge = this.snapToEdge(point, candidates.edges ?? [], toleranceMm);
-		return edge ?? point;
+		if (edge !== null) return { point: edge, guides: [{ start: point, end: edge }] };
+		const alignments = candidates.alignments ?? [];
+		const alongX = nearestAlignment(point.x, alignments, 'x', toleranceMm);
+		const alongY = nearestAlignment(point.y, alignments, 'y', toleranceMm);
+		if (alongX === null && alongY === null) return { point, guides: [] };
+		const landed = { x: alongX?.x ?? point.x, y: alongY?.y ?? point.y };
+		const guides: LineSegment[] = [];
+		if (alongX !== null) guides.push({ start: landed, end: alongX });
+		if (alongY !== null) guides.push({ start: landed, end: alongY });
+		return { point: landed, guides };
+	}
+
+	snapPoint(point: Point, candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): Point {
+		return this.snapPointWithGuides(point, candidates, toleranceMm).point;
+	}
+
+	/**
+	 * A body move's snap (spec §3.3). `moving` is the shape ALREADY translated by the raw
+	 * pointer delta; the answer is one more vector to add to every point, so a move stays a
+	 * translation and can never deform the shape. Stages, in precedence: the nearest moving
+	 * vertex to a candidate vertex; the nearest moving vertex to an edge; then per axis, the
+	 * smallest delta between any moving FEATURE (its vertices plus the box centre — a box's
+	 * min and max on an axis are already some vertex's coordinate) and any alignment
+	 * coordinate. Guides: the point stages draw pre-correction vertex → landing; the axis
+	 * stage draws the corrected feature → alignment, which is a straight axis-aligned line.
+	 *
+	 * The no-snap answer is a FRESH object per call, never a shared constant: the drag tools
+	 * hand `guides` straight to render state, which draw-room pushes into, so a shared array
+	 * would carry one call's push into every later no-snap answer. Pinned by a test.
+	 */
+	snapTranslation(moving: readonly Point[], candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): TranslationSnap {
+		if (!this.enabled || moving.length === 0) return { correction: { dx: 0, dy: 0 }, guides: [] };
+		const pair = nearestPair(moving, (from) => this.snapToVertex(from, candidates.vertices ?? [], toleranceMm))
+			?? nearestPair(moving, (from) => this.snapToEdge(from, candidates.edges ?? [], toleranceMm));
+		if (pair !== null) {
+			return { correction: { dx: pair.to.x - pair.from.x, dy: pair.to.y - pair.from.y }, guides: [{ start: pair.from, end: pair.to }] };
+		}
+		const alignments = candidates.alignments ?? [];
+		const { minX, maxX, minY, maxY } = extentOf(moving);
+		const features = [...moving, { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }];
+		const alongX = nearestAxisMatch(features, alignments, 'x', toleranceMm);
+		const alongY = nearestAxisMatch(features, alignments, 'y', toleranceMm);
+		const correction: Vector = { dx: alongX?.delta ?? 0, dy: alongY?.delta ?? 0 };
+		const guides: LineSegment[] = [];
+		if (alongX !== null) guides.push({ start: { x: alongX.feature.x + correction.dx, y: alongX.feature.y + correction.dy }, end: alongX.to });
+		if (alongY !== null) guides.push({ start: { x: alongY.feature.x + correction.dx, y: alongY.feature.y + correction.dy }, end: alongY.to });
+		return { correction, guides };
 	}
 
 	snapRotation(angleRadians: number): number {

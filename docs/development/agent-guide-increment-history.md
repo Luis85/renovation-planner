@@ -6057,3 +6057,59 @@ back to back on 74973601 (vue-konva 3.4.0), and 7.7–8.2 ms quiet after rebasin
 `tests/presentation/editor/zoneZoomConfiguration.test.ts`; the two Runs rows of
 `docs/tests/cases/Canvas performance.md` carry the loaded-CPU interleaving and the residual 0 → 80
 growth (about 2 ms, each `ZoneShape`'s props update its `v-memo` then skips).
+
+## Smart alignment guides, 2026-09-13
+
+Spec: `docs/superpowers/specs/2026-09-13-smart-alignment-guides-design.md`; plan:
+`docs/superpowers/plans/2026-09-13-smart-alignment-guides.md`, whose header lists four
+deviations, all smaller than the spec.
+
+**What landed.** `SnapService.snapPointWithGuides` and `snapTranslation`
+(`src/presentation/editor/snapping/snap-service.ts`): vertex, then edge, then x/y axis
+alignment against a new `alignments` candidate list, each answer carrying the `LineSegment`
+guides that say why. `snapPoint` is the point half of the first. `EditorContext.snapCandidates(exclude)`
+is the ONE supply, built in `editor/runtime.ts` from `roomSnapCandidates` (now with `alignments`
+and an exclusion set); the designer answers `{}`. Every single-item positional gesture switched
+from `snapPoint(x, {})` — which had made the select tool's and `ElementMove`'s snapping the
+identity since slice 6 — to the two methods at `SNAP_TOLERANCE_PX` (8, `handleMetrics.ts`) scaled
+by the camera. A multi-selection body drag (`groups/GroupMoveGesture.ts`, which the select tool
+routes a drag of two or more selected items or of a group to) never snapped and still does not:
+its `start(ids, event)` receives no `EditorContext`, so the spec's §6 names it left alone and
+§8 defers it. The select tool's drag PREVIEW now goes through the same call as the commit, which
+the service docblock had claimed of every tool and the select tool had not done — except below
+the click epsilon, where the release discards the gesture and the final review found a 1 px
+jitter previewing an up-to-8 px flick toward a neighbour and back, so the select tool and
+`ElementMove` hand the service no candidates until the pointer has travelled past
+`CLICK_EPSILON_PX`. Guides draw through the unchanged `SnapGuides.vue`; the banner hint keys on
+guides present rather than on `draw-room`.
+
+**What was found on the way.** The select tool's body move was snapping at the configured 8 mm
+regardless of zoom, so at any working zoom it never fired; the draw-room and element tools had
+already been scaling 8 px by the camera. The two `computed` candidate memos (draw-room's and the
+element task's) were duplicates of each other and are gone. Executing the plan then found four
+more. **Making snapping real turned existing rig tests red** — `areaCreation.e2e`,
+`areaNumeric.e2e`, `zoneEditing`, `interactionLayer` and `elementInteractionGuards` had pinned
+UNSNAPPED coordinates that sat within tolerance of the rig's fixture geometry and had passed only
+because the identity snap never moved them; each moved its OWN pointer coordinates out of
+tolerance rather than editing a shared fixture, since those tests are about area creation, zone
+editing and previews and snapping has its own cases, and `interactionLayer` counts circles
+excluding `SnapGuides.vue`'s `snap-target` dot. **`src/presentation/editor/runtime.ts` sits at
+399 of its 400 `max-lines`** after this increment — a hover-clear `if` in
+`registerSelectionRetirement` was folded onto one line to fit the `snapCandidates` supply, which
+`check:fast` cannot see because `max-lines` is ESLint-only — and the durable fix is extracting
+`registerSelectionRetirement` to its own module before the next edit there. **`ElementMove.move`
+passed `this.points(event)` as an ARGUMENT to `previewElement?.()`**, and an argument to an
+optional call is never evaluated when the dep is absent, so the guide writes inside `points`
+never ran without a previewer; the call is evaluated first now, with the comment saying why. And
+**two cases the plan wrote were never red as written** — a click-without-drag "leaves no guides
+behind" case that dispatched no `pointerMove`, so the guides were already empty, and the select
+tool's body-drag exclusion, which nothing pinned — both caught in review, the first given a
+sub-epsilon move before the release and the second a case that fails when the dragged zone is
+handed back to the service as its own neighbour.
+
+**Deferred**, named in the spec's §8: full-extent guide lines, equal-spacing guides, an
+alignment-tolerance setting, walls joining the shared stage, a suppress-snap modifier, the
+multi-selection drag above, a vertex drag that excludes only itself and its incident edges rather
+than its whole entity (so a corner can align with its own zone's other corners), and the axis
+stage yielding to a held Shift angle rather than bending it by up to the tolerance. The manual
+case `docs/tests/cases/Alignment guides while dragging.md` is written and unrun.

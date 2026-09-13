@@ -14,8 +14,9 @@ import { selectSpatial } from '../selection/selectSpatial';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { LabelMove, type LabelMoveDeps } from '../labels/LabelMove';
-import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX, LABEL_GRAB_PADDING_PX } from '../handleMetrics';
+import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX, LABEL_GRAB_PADDING_PX, SNAP_TOLERANCE_PX } from '../handleMetrics';
 import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
+import type { SnapCandidates } from '../snapping/snap-service';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
@@ -99,8 +100,8 @@ type Gesture =
  * simply not the fastest at very large ones (SDD §28's spatial index is an optimization this
  * slice deliberately ships without).
  * - **Dragging the body** updates only a transient preview while the pointer moves; domain
- * geometry is untouched mid-drag (SDD §20). On release the total world delta translates
- * the ORIGINAL polygon, every vertex goes back through the snap service, and the result
+ * geometry is untouched mid-drag (SDD §20). Preview and release alike translate the
+ * ORIGINAL polygon by the total world delta through ONE `snapTranslation`, and the result
  * re-validates through `createPolygon` before ONE move gesture is dispatched — one drag,
  * one command, one history entry (SDD §31). A near-zero delta is a pure selection: no
  * command, no history entry.
@@ -244,6 +245,43 @@ export class SelectTool implements EditorTool {
 		if (hit.kind === 'wall' && target.kind === 'handle' && target.vertexIndex === 1 && !context.writesBlocked()) this.wallGesture = { id: hit.id, start: event.worldPoint };
 	}
 
+	/**
+	 * The dragged zone at `event`, through ONE snap call for either gesture kind: a body is
+	 * translated by the total delta and corrected by `snapTranslation` — so the shape stays
+	 * rigid — and a vertex goes through `snapPointWithGuides`; both write the guides.
+	 * `pointerMove` and `pointerUp` both call this, which is what makes the preview unable to
+	 * drift from the commit. `candidates` is the caller's, because `pointerMove` hands `{}`
+	 * below the click epsilon: the release discards that gesture (`isClick`), so a snapped
+	 * preview there would flick the zone up to a tolerance toward a neighbour and back on a
+	 * jittering tap. With no candidates the service answers the raw point and no guides.
+	 */
+	private moved(context: EditorContext, gesture: Gesture, event: EditorPointerEvent, candidates: SnapCandidates): Point[] {
+		const tolerance = SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel();
+		if (gesture.kind === 'body') {
+			const translated = translate(gesture.original, this.deltaOf(gesture, event)).points;
+			const snap = context.snapService.snapTranslation(translated, candidates, tolerance);
+			context.renderState.snapGuides = snap.guides;
+			return translated.map((point) => ({ x: point.x + snap.correction.dx, y: point.y + snap.correction.dy }));
+		}
+		const snap = context.snapService.snapPointWithGuides(event.worldPoint, candidates, tolerance);
+		context.renderState.snapGuides = snap.guides;
+		const points = [...gesture.original.points];
+		points[gesture.index] = snap.point;
+		return points;
+	}
+	private deltaOf(gesture: Gesture, event: EditorPointerEvent): Vector {
+		return { dx: event.worldPoint.x - gesture.startWorld.x, dy: event.worldPoint.y - gesture.startWorld.y };
+	}
+	/**
+	 * Camera-scaled, and measured for BOTH gesture kinds: below it the pointer never travelled,
+	 * so there is nothing to move whichever handle it went down on. The ONE epsilon the move's
+	 * preview and the release's commit judge by.
+	 */
+	private isClick(context: EditorContext, gesture: Gesture, event: EditorPointerEvent): boolean {
+		const by = this.deltaOf(gesture, event);
+		return Math.hypot(by.dx, by.dy) <= CLICK_EPSILON_PX * context.viewport.worldPerScreenPixel();
+	}
+
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null) return;
@@ -257,17 +295,8 @@ export class SelectTool implements EditorTool {
 			this.updateHover(context, event);
 			return;
 		}
-		if (this.gesture.kind === 'body') {
-			const by: Vector = {
-				dx: event.worldPoint.x - this.gesture.startWorld.x,
-				dy: event.worldPoint.y - this.gesture.startWorld.y,
-			};
-			context.renderState.previewPolygon = translate(this.gesture.original, by).points;
-			return;
-		}
-		const preview = [...this.gesture.original.points];
-		preview[this.gesture.index] = event.worldPoint;
-		context.renderState.previewPolygon = preview;
+		const candidates = this.isClick(context, this.gesture, event) ? {} : context.snapCandidates([this.gesture.zoneId]);
+		context.renderState.previewPolygon = this.moved(context, this.gesture, event, candidates);
 	}
 	private updateHover(context: EditorContext, event: EditorPointerEvent): void {
 		// Ordinary hover predicts the same body/handle as a click; affordance approach stays separate.
@@ -312,41 +341,15 @@ export class SelectTool implements EditorTool {
 		if (event.button !== 'primary') return;
 		this.gesture = null;
 
-		const by: Vector = {
-			dx: event.worldPoint.x - gesture.startWorld.x,
-			dy: event.worldPoint.y - gesture.startWorld.y,
-		};
-		// Camera-scaled, and measured for BOTH gesture kinds: below it the pointer never
-		// travelled, so there is nothing to move whichever handle it went down on.
-		const worldPerPixel = context.viewport.worldPerScreenPixel();
-		if (Math.hypot(by.dx, by.dy) <= CLICK_EPSILON_PX * worldPerPixel) {
+		if (this.isClick(context, gesture, event)) {
 			// A click, not a drag: pure selection, nothing dispatched, no history entry.
 			context.renderState.previewPolygon = null;
+			context.renderState.snapGuides = [];
 			return;
 		}
 
-		let forwardPoints: Point[];
-		if (gesture.kind === 'body') {
-			// ONE snap, of the translated first vertex, and the correction it produces is
-			// applied to every point. Snapping each vertex independently was the previous
-			// spelling and is not a translation at all: with a live candidate set, one
-			// corner would land on a guide while the opposite corner stayed where it was,
-			// so a "move" would silently deform the zone and change its area.
-			const translated = translate(gesture.original, by).points;
-			const anchor = translated[0];
-			const snappedAnchor = context.snapService.snapPoint(anchor, {});
-			const correction: Vector = {
-				dx: snappedAnchor.x - anchor.x,
-				dy: snappedAnchor.y - anchor.y,
-			};
-			forwardPoints = translated.map((point) => ({
-				x: point.x + correction.dx,
-				y: point.y + correction.dy,
-			}));
-		} else {
-			forwardPoints = [...gesture.original.points];
-			forwardPoints[gesture.index] = context.snapService.snapPoint(event.worldPoint, {});
-		}
+		const forwardPoints = this.moved(context, gesture, event, context.snapCandidates([gesture.zoneId]));
+		context.renderState.snapGuides = [];
 		void this.commit(context, gesture.zoneId, gesture.original, forwardPoints);
 	}
 
@@ -357,7 +360,7 @@ export class SelectTool implements EditorTool {
 		this.deps.previewWall?.(null);
 		const context = this.context;
 		this.gesture = null;
-		if (context !== null) { this.marquee.cancel(context); context.renderState.previewPolygon = null; }
+		if (context !== null) { this.marquee.cancel(context); context.renderState.previewPolygon = null; context.renderState.snapGuides = []; }
 		return context;
 	}
 

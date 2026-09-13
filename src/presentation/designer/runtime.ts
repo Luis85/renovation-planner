@@ -265,6 +265,8 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			bindViewport: () => viewportAdapter,
 			selection,
 			snapService: EDITOR_SNAP_SERVICE,
+			// The designer's tools snap to nothing (spec §4.2); the shared service is the identity here.
+			snapCandidates: () => ({}),
 			commandDispatcher: toolDispatcher,
 			writeLedger: geometryLedger,
 			renderState,

@@ -1,5 +1,3 @@
-import { computed } from 'vue';
-import { roomSnapCandidates } from '../snapping/roomSnapCandidates';
 import type { SessionWriteLedger, WriteLedger } from '../../../application/editor/WriteLedger';
 import { createZoneHistory } from '../add/createZoneHistory';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
@@ -142,8 +140,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			}),
 		);
 	}
-	const roomCandidates = computed(() => roomSnapCandidates(projectStore.zones.values(), projectStore.structure));
-	toolManager.register(new DrawRoomTool({ draft: roomDraft, defaultName: defaultRoomName, snapCandidates: () => roomCandidates.value }));
+	toolManager.register(new DrawRoomTool({ draft: roomDraft, defaultName: defaultRoomName }));
 	toolManager.register(
 		new CalibrateTool({
 			// The two dialogs this gesture may open, in the order it opens them. Both go

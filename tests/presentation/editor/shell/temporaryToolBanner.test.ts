@@ -228,4 +228,18 @@ describe('TemporaryToolBanner', () => {
 		expect(runtime.structureTask.draft.points).toHaveLength(1);
 		value.unmount();
 	});
+
+	it('shows the snapped hint under any creation tool once guides exist, not only under draw-room', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-polygon');
+		await settle();
+		expect(harness.wrapper.find('.rp-task-banner').text()).not.toContain(t('en', 'editor.room.snapped'));
+		runtime.renderState.snapGuides = [{ start: { x: 0, y: 0 }, end: { x: 0, y: 100 } }];
+		await settle();
+		expect(harness.wrapper.find('.rp-task-banner').text()).toContain(t('en', 'editor.room.snapped'));
+		runtime.renderState.snapGuides = [];
+		await settle();
+		expect(harness.wrapper.find('.rp-task-banner').text()).not.toContain(t('en', 'editor.room.snapped'));
+	});
 });

@@ -6,7 +6,7 @@ import { pointerAt, toolContext } from '../../../helpers/tool-context';
 
 function armed() {
 	const draft = useRoomDraftStore();
-	const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1', snapCandidates: () => ({}) });
+	const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1' });
 	const { context } = toolContext(); // worldPerScreenPixel 1 → epsilon is 4 world units
 	tool.activate(context);
 	return { tool, draft, context };
@@ -330,7 +330,7 @@ describe('DrawRoomTool', () => {
 	// its render-state guard exists to skip.
 	it('cancel, abandonGesture and deactivate are safe on a tool that was never activated', () => {
 		const draft = useRoomDraftStore();
-		const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1', snapCandidates: () => ({}) });
+		const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1' });
 		draft.setRect({ x: 0, y: 0, width: 1000, depth: 1000 });
 		expect(() => tool.cancel()).not.toThrow();
 		expect(draft.rect).toBeNull();

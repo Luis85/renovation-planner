@@ -36,7 +36,7 @@ export interface Harness {
 	gateNextDispatch: () => () => void;
 }
 
-export function harness(options: { worldPerScreenPixel?: number } = {}): Harness {
+export function harness(options: { worldPerScreenPixel?: number; snapCandidates?: EditorContext['snapCandidates'] } = {}): Harness {
 	setActivePinia(createPinia());
 	const dispatched: UndoableCommand[] = [];
 	const completions: Polygon[] = [];
@@ -50,6 +50,7 @@ export function harness(options: { worldPerScreenPixel?: number } = {}): Harness
 
 	const { context } = toolContext({
 		worldPerScreenPixel: options.worldPerScreenPixel,
+		snapCandidates: options.snapCandidates,
 		commandDispatcher: {
 			run: (runnable) => {
 				if (gate !== null) {

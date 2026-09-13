@@ -1,13 +1,11 @@
-import type { SnapCandidates } from '../snapping/snap-service';
 import type { Point } from '../../../core/geometry/Point';
-import { CLICK_EPSILON_PX } from '../handleMetrics';
+import { CLICK_EPSILON_PX, SNAP_TOLERANCE_PX } from '../handleMetrics';
 import type { RoomDraftPort, RoomRect, RoomRectSnapshot } from '../add/room-draft-store';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 
 export interface DrawRoomToolDeps {
 	readonly draft: RoomDraftPort;
-	readonly snapCandidates: () => SnapCandidates;
 	readonly defaultName: () => string;
 }
 
@@ -159,16 +157,16 @@ export class DrawRoomTool implements EditorTool {
 		this.restore();
 	}
 
+	private snapped(point: Point, context: EditorContext): Point {
+		const snap = context.snapService.snapPointWithGuides(point, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
+		context.renderState.snapGuides.push(...snap.guides);
+		return snap.point;
+	}
 	/**
 	 * Undo whatever this gesture overwrote, if it overwrote anything. One function for the two
 	 * doors that owe it, so the "only if a snapshot was taken" half cannot be kept at one and
 	 * forgotten at the other.
 	 */
-	private snapped(point: Point, context: EditorContext): Point {
-		const snapped = context.snapService.snapPoint(point, this.deps.snapCandidates(), 8 * context.viewport.worldPerScreenPixel());
-		if (snapped !== point) context.renderState.snapGuides.push({ start: point, end: snapped });
-		return snapped;
-	}
 	private restore(): void {
 		if (this.pressUndo === null) return;
 		this.deps.draft.restoreRect(this.pressUndo);

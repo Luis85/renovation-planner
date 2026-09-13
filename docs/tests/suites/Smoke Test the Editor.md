@@ -13,9 +13,10 @@ The Phase 5 continuation adds [Draw connected walls and openings](../cases/Draw%
 Its traceability separates automated/FakeVault and browser evidence from still-unperformed live
 host/screenreader acceptance. It is a supplemental journey, outside the historical 344-step
 census below; that dated census is not a claim that the new journey was accepted in Obsidian.
-[[Copy and paste across floors]] and [[Delete a selection or group]] are outside that census too:
-their steps are lists with no `Reachable by` verdicts yet, so neither the triage column's "every
-step" nor its step counts include them.
+[[Copy and paste across floors]], [[Delete a selection or group]] and
+[[Alignment guides while dragging]] are outside that census too: their steps carry no
+`Reachable by` verdicts yet, so neither the triage column's "every step" nor its step counts
+include them.
 
 The cases that can only be run **by a human, inside Obsidian**. Everything here exists
 because `npm run check` cannot see it.
@@ -689,3 +690,8 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   step. What only a vault shows is Obsidian's own handling of both keys inside a leaf, the host's
   `trash` menu icon, and the Room's note leaving the vault and returning on Undo. Its steps carry
   no `Reachable by` verdicts yet (see the head of this file).
+- [[Alignment guides while dragging]] — the smart alignment guides increment: a dragged room,
+  corner, element or drawing cursor snaps to a vertex, an edge or an x/y alignment and draws a
+  dashed guide saying why. What only a vault shows is whether the guide is legible against a
+  themed plan, whether 8 screen pixels is the right pull for a real hand, and whether a live Snap
+  toggle silences it. Its steps carry no `Reachable by` verdicts yet (see the head of this file).

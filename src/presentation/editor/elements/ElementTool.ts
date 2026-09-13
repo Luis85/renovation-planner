@@ -3,7 +3,7 @@ import type { EditorPointerEvent, EditorTool } from '../tools/editor-tool';
 import type { ElementDraft, ElementToolId } from './elementDraft';
 import { discardElementGeometry } from './elementDraft';
 import type { Point } from '../../../core/geometry/Point';
-import type { SnapCandidates } from '../snapping/snap-service';
+import { SNAP_TOLERANCE_PX } from '../handleMetrics';
 import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 
 /** Multi-click linear drafts share the standard tool lifecycle and require explicit Finish. */
@@ -11,10 +11,10 @@ export class ElementTool implements EditorTool {
 	private context: EditorContext | null = null;
 	constructor(readonly id: ElementToolId, private readonly deps: {
 		draft: ElementDraft; start(id: ElementToolId): void; stop(): void; blocked(): boolean;
-		addPoint(point: Point): boolean; finish(): void; candidates(): SnapCandidates;
+		addPoint(point: Point): boolean; finish(): void;
 	}) {}
 	activate(context: EditorContext): void { this.context = context; this.deps.start(this.id); }
-	deactivate(): void { this.context = null; this.deps.stop(); }
+	deactivate(): void { if (this.context) this.context.renderState.snapGuides = []; this.context = null; this.deps.stop(); }
 	private inputContext(): EditorContext | null { return this.context && !this.deps.blocked() ? this.context : null; }
 	pointerDown(event: EditorPointerEvent): void {
 		if (event.button !== 'primary' || !this.inputContext()) return;
@@ -25,12 +25,14 @@ export class ElementTool implements EditorTool {
 		const context = this.inputContext();
 		if (!context) return;
 		const constrained = constrainDrawingPoint(this.deps.draft.points.at(-1), event.worldPoint, event.modifiers.shift && this.id !== 'place-object', context.snapService);
-		this.deps.draft.cursor = context.snapService.snapPoint(constrained, this.deps.candidates(), 8 * context.viewport.worldPerScreenPixel());
+		const snap = context.snapService.snapPointWithGuides(constrained, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
+		this.deps.draft.cursor = snap.point;
+		context.renderState.snapGuides = snap.guides;
 	}
 	pointerUp(): void { /* Completed points belong to pointer down. */ }
 	finish(): void { this.deps.finish(); }
-	cancel(): void { if (!this.deps.draft.busy) discardElementGeometry(this.deps.draft); }
-	abandonGesture(): void { this.deps.draft.cursor = null; }
+	cancel(): void { if (this.context) this.context.renderState.snapGuides = []; if (!this.deps.draft.busy) discardElementGeometry(this.deps.draft); }
+	abandonGesture(): void { this.deps.draft.cursor = null; if (this.context) this.context.renderState.snapGuides = []; }
 	hasDraft(): boolean { return this.deps.draft.points.length > 0 || this.deps.draft.pendingInput || !!this.deps.draft.text.x || !!this.deps.draft.text.y; }
 	editCorner(index: number, point: Point | null): boolean {
 		if (this.deps.blocked()) return false;

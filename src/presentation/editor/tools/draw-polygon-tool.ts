@@ -5,6 +5,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
 import type { EntityId } from '../../../core/identity/EntityId';
 import { closesPolygon } from '../closeTarget';
+import { SNAP_TOLERANCE_PX } from '../handleMetrics';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 import type { UndoableCommand } from './undoable-command';
@@ -251,7 +252,8 @@ export class DrawPolygonTool implements EditorTool {
 	}
 
 	/**
-	 * **A documented no-op, which is the whole point of this method existing separately.**
+	 * **Clears the guides and nothing else, which is the whole point of this method existing
+	 * separately.**
 	 * This tool places its vertex on `pointerdown` and holds nothing that the matching
 	 * `pointerup` would complete — so an interruption between the two has nothing to abandon,
 	 * and the buffer it would otherwise reach is the user's accumulated polygon rather than
@@ -262,7 +264,10 @@ export class DrawPolygonTool implements EditorTool {
 	 * its staleness is already handled by `generation`, which only a real cancellation bumps.
 	 */
 	abandonGesture(): void {
-		// Nothing is transient here: see above.
+		// The buffer and its sketch are not transient (see above); the guides are — spec §5
+		// names this exit, and a guide left standing after focus loss describes a pointer that
+		// is no longer there.
+		if (this.context) this.context.renderState.snapGuides = [];
 	}
 
 	/** Any placed vertex is work Escape must ask about before `cancel()` discards it. */
@@ -303,15 +308,18 @@ export class DrawPolygonTool implements EditorTool {
 	 * polygon has nothing to be straight relative to, and constraining it against some
 	 * invented origin would move a point the user placed deliberately.
 	 *
-	 * Order: constrain, THEN snap. Unobservable today — both tools hand `snapPoint` an empty
-	 * candidate set, so it is the identity — and written this way round deliberately, because
-	 * a vertex or edge within tolerance is a real feature of the drawing while a constrained
-	 * ray is a straight-edge the user is holding against it. That is the precedence CAD gives
-	 * object snap over polar tracking.
+	 * Order: constrain, THEN snap — a vertex or edge within tolerance is a real feature of the
+	 * drawing while a constrained ray is a straight-edge the user is holding against it, which
+	 * is the precedence CAD gives object snap over polar tracking. Observable since the smart
+	 * alignment guides increment gave this tool real candidates; before that both tools handed
+	 * `snapPoint` an empty set and the order was unobservable.
 	 */
 	private landingPoint(context: EditorContext, event: EditorPointerEvent): Point {
 		const anchor = this.buffer.at(-1);
-		return context.snapService.snapPoint(constrainDrawingPoint(anchor, event.worldPoint, event.modifiers.shift, context.snapService), {});
+		const constrained = constrainDrawingPoint(anchor, event.worldPoint, event.modifiers.shift, context.snapService);
+		const snap = context.snapService.snapPointWithGuides(constrained, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
+		context.renderState.snapGuides = snap.guides;
+		return snap.point;
 	}
 
 	/**
@@ -329,6 +337,7 @@ export class DrawPolygonTool implements EditorTool {
 
 	private clearSketch(context: EditorContext): void {
 		context.renderState.polygonSketch = null;
+		context.renderState.snapGuides = [];
 	}
 
 	private async closePolygon(context: EditorContext): Promise<void> {

@@ -32,3 +32,17 @@ renovation details at all.
 - **A placeholder "floor" key.** A fabricated key every zone lookup silently misses.
 - **Require an Area.** Needs an "outside" area drawn around the property first.
 - **Store the target id in `roomId`.** A field named for rooms holding wall ids.
+
+## Consequences
+
+- Amends ADR-0021's "one Room context" for a record's primary link; secondary shared links keep it.
+- A vault holding a room-less record opened in an older build refuses that plan note until the build
+  is updated.
+- A room-less record appears in no room's summary or Review marker; the wall's own details, the
+  floor totals and the Review inspector list it, and the project work view shows it with no room.
+- Enclosing a room-less wall in a room later does not move its records into that room.
+
+## Revisit when
+
+A renovator needs a room-less record to join a room it later bounds, or records that span several
+walls with no room between them.

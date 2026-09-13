@@ -93,6 +93,8 @@ never link to a record in an unrelated room.
   context too, so the floor total counts each once and a wall's own cost summary shows them.
 - **Project work view** — `readProjectWork` (`src/application/queries/schedule/ProjectWork.ts`)
   drops absent room ids; a row with no room shows its target's name instead.
+  *Amended 2026-09-13:* the row shows **No room** instead — a wall has no user-given name to show
+  there, so a generated label would name nothing the renovator recognises.
 - **Review markers** — `ReviewRoomMarkers.vue` / `useReviewPresentation.ts` draw no room marker for
   a room-less finding; it is listed in the Review inspector and selects its target when chosen.
 

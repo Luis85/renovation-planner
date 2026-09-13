@@ -37,7 +37,7 @@ export function createStructureBulkEdit(context: PlanEditorContext, runtime: Pic
 		const selected = selection.selectedIds.join();
 		try {
 			const read = await services.read(context.planId as PlanId);
-			if (!alive || selection.selectedIds.join() !== selected || runtime.writesBlocked.value) return;
+			if (!alive || selection.selectedIds.join() !== selected || runtime.writesBlocked.value || state.blocked.value) return;
 			const { snapshot, recovery } = state.prepareBaseline(read);
 			if (!snapshot) { await recovery; return; }
 			const structure = snapshot.document.structure;

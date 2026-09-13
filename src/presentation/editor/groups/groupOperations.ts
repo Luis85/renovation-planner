@@ -44,6 +44,10 @@ export function createGroupOperations(context: PlanEditorContext, runtime: Group
 	function current(snapshot: GroupSnapshot): boolean {
 		return alive && !blocked.value && membersPermitted(snapshot) && snapshot.generation === generation.value && sameGeometryDocument(snapshot.document, document.value);
 	}
+	/** Group membership can change in Renovate; the geometry carried beside it cannot. */
+	function geometryPermitted(snapshot: GroupSnapshot, next: PlanGeometryDocument): boolean {
+		return session.perspective === 'plan' || sameGeometryDocument({ ...snapshot.document, groups: next.groups }, next);
+	}
 	async function operate(snapshot: GroupSnapshot, action: (baseline: PlanGeometrySnapshot, dispatch: (next: PlanGeometryDocument) => Promise<DispatchResult>) => Promise<void>): Promise<void> {
 		const services = context.commands.groups;
 		if (!services || !current(snapshot) || working.value || dialogs.current) return;
@@ -55,7 +59,7 @@ export function createGroupOperations(context: PlanEditorContext, runtime: Group
 			if (!sameGeometryDocument({ ...read.value.document, structure: read.value.document.structure ?? EMPTY_STRUCTURE }, snapshot.document)) { notifyOperationFailure(staleWriteRefusal()); await runtime.refreshProjection(); return; }
 			let spent = false;
 			await action(read.value, async next => {
-				if (spent || !current(snapshot)) return err(staleWriteRefusal());
+				if (spent || !current(snapshot) || !geometryPermitted(snapshot, next)) return err(staleWriteRefusal());
 				const result = await runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: read.value, document: next, ledger: runtime.ledger }));
 				// A failed readback never authorizes replay against the original captured document.
 				spent = result.ok ? result.value === 'wrote' : leftWritesBehind(result.error);
@@ -65,6 +69,7 @@ export function createGroupOperations(context: PlanEditorContext, runtime: Group
 		finally { working.value = false; preview.value = null; }
 	}
 	async function commit(snapshot: GroupSnapshot, next: PlanGeometryDocument): Promise<boolean> {
+		if (!geometryPermitted(snapshot, next)) return false;
 		if (sameGeometryDocument(snapshot.document, next)) return current(snapshot);
 		let saved = false;
 		await operate(snapshot, async (_baseline, dispatch) => {

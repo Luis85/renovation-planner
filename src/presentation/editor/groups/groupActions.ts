@@ -21,10 +21,12 @@ import { createGroupRotation } from './groupRotation';
 import { GroupMoveGesture, type GroupMoveDependencies } from './GroupMoveGesture';
 import { translatedGroup } from './groupTransforms';
 import type { RotationShape } from '../elements/objectRotation';
+import { useRenovationSession } from '../renovation/renovationSession';
 
 /** Persist group membership separately from selection, with implicit hosted openings. */
 export function createGroupActions(context: PlanEditorContext, runtime: GroupOperationRuntime) {
 	const project = useProjectStore(), selection = useSelectionStore(), workspace = useWorkspaceStore(), editor = useEditorStore();
+	const session = useRenovationSession();
 	const operations = createGroupOperations(context, runtime), rotation = createGroupRotation(context, runtime, operations);
 	const saved = computed(() => selectedGroup(project.groups, selection.selectedIds, project.structure));
 	const spatialIds = computed(() => new Set([...project.zones.keys(), ...project.structure.walls.map(item => item.id), ...project.structure.openings.map(item => item.id), ...project.structure.elements?.map(item => item.id) ?? []]));
@@ -43,6 +45,7 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 		return groupRotationTarget(snapshot, visible);
 	}
 	const currentTarget = computed(() => selection.selectedIds.length > 1 || saved.value ? target(selection.selectedIds[0]) : null);
+	const editableTarget = computed(() => session.perspective === 'plan' ? currentTarget.value : null);
 	const disabled = computed(() => operations.blocked.value || operations.working.value || (currentTarget.value !== null && !operations.current(currentTarget.value.group)));
 	function choose(ids: readonly string[]): void { selection.select(ids.map(id => id as EntityId<string>)); }
 	function defaultName(id: string): string {
@@ -60,6 +63,7 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 		await operations.commit(snapshot, { ...snapshot.document, groups: snapshot.document.groups?.filter(item => item.id !== snapshot.id) });
 	}
 	async function enclose(id: string): Promise<void> {
+		if (session.perspective !== 'plan') return;
 		const snapshot = operations.capture([id], true), zone = project.zones.get(id);
 		if (!snapshot || zone?.zoneType !== 'Room') return;
 		const room = snapshot.document.objects.find(object => object.id === id); if (!room) return;
@@ -78,7 +82,7 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 		if (ids.length === 1 && !existing && expandSelection(ids[0]).length > 1) result.push({ id: 'select-group', label: 'editor.group.select-saved', icon: 'square-dashed-mouse-pointer', run: () => choose(expandSelection(ids[0])) });
 		if (existing) result.push({ id: 'ungroup', label: 'editor.group.ungroup', icon: 'ungroup', disabled: disabled.value, run: () => ungroup(ids) });
 		else if (groupRoots(ids, project.structure).length > 1) result.push({ id: 'group', label: 'editor.group.group', icon: 'group', disabled: disabled.value, run: () => group(ids) });
-		if (ids.length === 1 && project.zones.get(ids[0])?.zoneType === 'Room') result.push({ id: 'enclose', label: 'editor.group.enclose', icon: 'brick-wall', disabled: disabled.value, run: () => enclose(ids[0]) });
+		if (ids.length === 1 && project.zones.get(ids[0])?.zoneType === 'Room') result.push({ id: 'enclose', label: 'editor.group.enclose', icon: 'brick-wall', disabled: disabled.value || session.perspective !== 'plan', run: () => enclose(ids[0]) });
 		return result;
 	}
 	provideCanvasGroupActions({ actions, expandSelection });
@@ -91,14 +95,15 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 	watch(operations.generation, () => selectionMove.cancel(), { flush: 'sync' });
 	onBeforeUnmount(() => selectionMove.cancel());
 	async function moveBy(delta: Vector): Promise<void> {
+		if (session.perspective !== 'plan') return;
 		const snapshot = operations.capture(selection.selectedIds); if (snapshot) await operations.commit(snapshot, translatedGroup(snapshot, delta));
 	}
 	async function rotate(id: string, degrees?: number): Promise<void> {
-		const shape = currentTarget.value; if (shape?.id === id) await rotation.rotate(shape.group, degrees);
+		const shape = editableTarget.value; if (shape?.id === id) await rotation.rotate(shape.group, degrees);
 	}
-	return { active: operations.working, blocked: operations.blocked, disabled, preview: operations.preview, saved, target: currentTarget,
-		canRotateShape: (shape: RotationShape) => Boolean(shape.group && operations.current(shape.group)),
-		groupRotationTarget: target, expandSelection, selectionMove, actions, moveBy, rotate, moveRotation: rotation.move,
-		previewRotation: (id: string | null, points?: readonly Point[]) => rotation.preview(id && currentTarget.value?.id === id ? currentTarget.value.group : null, points),
+	return { active: operations.working, blocked: operations.blocked, disabled, preview: operations.preview, saved, target: editableTarget,
+		canRotateShape: (shape: RotationShape) => session.perspective === 'plan' && Boolean(shape.group && operations.current(shape.group)),
+		groupRotationTarget: (id: string) => session.perspective === 'plan' ? target(id) : null, expandSelection, selectionMove, actions, moveBy, rotate, moveRotation: rotation.move,
+		previewRotation: (id: string | null, points?: readonly Point[]) => rotation.preview(id && editableTarget.value?.id === id ? editableTarget.value.group : null, points),
 	};
 }

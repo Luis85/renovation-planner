@@ -1,6 +1,8 @@
 # Parallel implementation delivery
 
-**Planning only · 2026-09-13 · 19 packets · No implementation sessions started.**
+**Delivery update · 2026-09-14 · 19 packets implemented or explicitly dispositioned in stacked review.**
+
+The packet text and dispatch files below preserve the original planning baseline. Current implementation, PR and evidence status lives in [receipts](receipts/) and the [Astra corrective review](receipts/astra-code-polish.md). Native/AT/user validation and the deferred arbitrary-corner route remain open; a stacked PR is not a merge to main.
 
 The user asked to implement later in parallel sessions using weaker models. These packets turn U0–U9 and the chosen [hybrid screens](../mockups/README.md) into small reviewable concerns with concrete file ownership, prerequisite gates, checks and copy-ready prompts.
 
@@ -38,7 +40,7 @@ Read [session-contract.md](session-contract.md) before dispatch. Each packet con
 | [I17 — Align help and collect novice acceptance evidence](packets/i17-docs-user-validation.md) | 8 | I15 | luna / high |
 | [I18 — Resolve the conditional non-drag corner-editing gap](packets/i18-corner-access.md) | 6 | I00, I10, I14 | terra / high |
 
-All packets are **not started**. I09's chooser and I18's corner-access design are conditional: record their adopted/deferred scope and release consequence in I00. A deferred accessibility failure cannot be called an AA pass.
+At the original planning baseline all packets were **not started**; those packet headers are historical, not current delivery status. I09's chooser and I18's corner-access design are conditional: record their adopted/deferred scope and release consequence in I00. A deferred accessibility failure cannot be called an AA pass.
 
 ## Safe default waves
 

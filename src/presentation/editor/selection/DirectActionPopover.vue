@@ -12,11 +12,14 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import HostIcon from '../../components/HostIcon.vue';
 import DirectDetailOptions from './DirectDetailOptions.vue';
+import { useTaskbarClearance } from '../shell/useTaskbarClearance';
 
 const runtime = useEditorRuntime(), editor = useEditorStore(), planning = usePlanningContext();
 const saves = useSaveStateStore();
 const { target, session } = useDirectActionContext();
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null), optionsId = useId();
+const root = ref<HTMLElement | null>(null);
+const taskbarClearance = useTaskbarClearance(root, { includeContent: true });
 const modes = computed(() => planning.context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const);
 const detailAction = computed(() => target.value?.roomId && runtime.renovation.available ? (target.value.wall ? 'change' : 'detail') : null);
 const length = computed(() => {
@@ -27,16 +30,17 @@ const length = computed(() => {
 const visible = computed(() => target.value !== null && target.value.visible && session.perspective !== 'review' && runtime.activeToolId.value === 'select' && runtime.renderState.rotationDegrees === null
 	&& (target.value.zone || target.value.wall || target.value.opening || session.perspective === 'plan') && (detailAction.value !== null || length.value !== null));
 const blocked = computed(() => runtime.writesBlocked.value || saves.state === 'saving');
+const geometryBlocked = computed(() => blocked.value || session.perspective !== 'plan');
 const detailBlocked = computed(() => blocked.value || runtime.renovation.blocked.value || (planning.context.commands.planning !== undefined && planning.blocked.value));
 function position(box: BoundingBox, zone: boolean) {
 	const point = worldToScreen({ x: zone ? (box.min.x + box.max.x) / 2 : box.max.x, y: box.max.y }, editor.viewport, STAGE_PIXELS);
 	return { left: `${Math.max(8, Math.min(editor.stageSize.width - 180, point.x + (zone ? -86 : 20)))}px`,
-		top: `${Math.max(60, Math.min(editor.stageSize.height - 170, point.y + (zone ? 18 : -24)))}px` };
+		top: `${Math.max(60, Math.min(editor.stageSize.height - Math.max(170, taskbarClearance.value), point.y + (zone ? 18 : -24)))}px` };
 }
 watch(() => target.value?.id, () => { expanded.value = false; });
 function edit(): void {
 	const item = target.value;
-	if (!item || blocked.value) return;
+	if (!item || geometryBlocked.value) return;
 	void runtime.structureActions.edit(item.id);
 }
 async function detail(mode: Exclude<RenovationMode, 'overview'>): Promise<void> {
@@ -59,6 +63,7 @@ function escape(event: KeyboardEvent): void {
 <template>
 	<div
 		v-if="visible && target"
+		ref="root"
 		class="rp-direct-actions"
 		:class="{ 'rp-direct-actions--zone': target?.zone }"
 		:style="position(target.box, Boolean(target.zone))"
@@ -69,7 +74,7 @@ function escape(event: KeyboardEvent): void {
 			type="button"
 			class="rp-dimension-label rp-wall-dimension"
 			data-rp-wall-length
-			:aria-disabled="blocked"
+			:aria-disabled="geometryBlocked"
 			:aria-label="tr('editor.direct.length-value', { value: length })"
 			@click="edit"
 		>

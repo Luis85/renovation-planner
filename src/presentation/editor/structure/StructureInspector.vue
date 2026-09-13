@@ -33,9 +33,10 @@ async function remove(event: Event): Promise<void> {
 async function openRenovation(event: Event): Promise<void> {
 	if (!opening.value || !runtime.renovation.available || paused.value) return;
 	const opener = event.currentTarget as HTMLElement;
+	const inspector = opener.closest<HTMLElement>('[data-rp-region="inspector"]');
 	runtime.renovation.focus(session.roomId, 'overview', opening.value.id);
 	await nextTick();
-	opener.closest<HTMLElement>('[data-rp-region="inspector"]')?.focus();
+	if (!opener.isConnected && inspector?.isConnected) inspector.focus();
 }
 </script>
 <template>

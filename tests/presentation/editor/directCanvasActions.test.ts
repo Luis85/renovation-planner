@@ -73,6 +73,7 @@ describe('selected spatial canvas actions', () => {
 	});
 	it('keeps wall length behind Preview/Apply and routes Mark change through Planned authority', async () => {
 		const value = await setup();
+		await value.runtime.renovation.perspective('plan');
 		value.selection.select(['wall-a' as never]); await settle();
 		value.session.roomId = value.room.id; value.session.targetId = 'wall-a'; await settle();
 		expect(value.wrapper.find('[data-rp-canvas-detail]').exists()).toBe(false);

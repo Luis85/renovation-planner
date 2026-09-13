@@ -290,6 +290,7 @@ export class SelectTool implements EditorTool {
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null) return;
+		if (!this.canMutateGeometry() || context.writesBlocked()) this.cancelGeometryGesture();
 		if (this.deps.selectionMove?.active) { this.deps.selectionMove.move(event); return; }
 		if (this.labelMove.move(event)) return;
 		if (this.marquee.active) { this.marquee.move(context, event); return; }
@@ -338,6 +339,7 @@ export class SelectTool implements EditorTool {
 		return true;
 	}
 	pointerUp(event: EditorPointerEvent): void {
+		if (!this.canMutateGeometry() || this.context?.writesBlocked()) this.cancelGeometryGesture();
 		if (this.finishSelectionGesture(event)) return;
 		if (this.labelMove.finish(event)) return;
 		if (this.elementRotation.active && this.context) { this.elementRotation.finish(this.context, event); return; }
@@ -366,13 +368,22 @@ export class SelectTool implements EditorTool {
 		void this.commit(context, gesture.zoneId, gesture.original, forwardPoints);
 	}
 
-	private discardGesture(): EditorContext | null {
+	/** Retire only undispatched geometry. Selection marquees and pending writes keep their owner. */
+	cancelGeometryGesture(): boolean {
+		if (!this.gesture && !this.wallGesture && !this.elementMove.active && !this.elementRotation.active && !this.labelMove.active && !this.deps.selectionMove?.active) return false;
 		this.deps.selectionMove?.cancel();
 		this.elementMove.cancel(); this.elementRotation.cancel(); this.labelMove.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
 		this.gesture = null;
+		if (context !== null) { context.renderState.previewPolygon = null; context.renderState.snapGuides = []; }
+		return true;
+	}
+
+	private discardGesture(): EditorContext | null {
+		this.cancelGeometryGesture();
+		const context = this.context;
 		if (context !== null) { this.marquee.cancel(context); context.renderState.previewPolygon = null; context.renderState.snapGuides = []; }
 		return context;
 	}

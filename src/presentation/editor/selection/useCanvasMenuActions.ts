@@ -37,6 +37,14 @@ export interface CanvasMenuSubmenu { readonly id: string; readonly label: String
 export type CanvasMenuItem = CanvasMenuAction | CanvasMenuSubmenu;
 export function isSubmenu(item: CanvasMenuItem): item is CanvasMenuSubmenu { return 'children' in item; }
 const GROUP_ORDER: readonly CanvasMenuGroup[] = ['plans', 'edit', 'create', 'records', 'clipboard', 'arrange', 'view', 'destructive'];
+const GEOMETRY_ACTIONS = new Set(['add-point', 'edit', 'move-opening', 'rotate', 'add', 'measure', 'add-door', 'add-window', 'add-opening', 'new-wall', 'enclose']);
+/** A captured menu action must obey the current perspective when invoked later. */
+function guardGeometryActions(actions: readonly CanvasMenuAction[], canEdit: () => boolean, elementSelected: boolean, planOnly: boolean): CanvasMenuAction[] {
+	return actions.map(action => {
+		if (!GEOMETRY_ACTIONS.has(action.id) && !(action.id === 'rename' && elementSelected)) return action;
+		return { ...action, disabled: action.disabled === true || !canEdit(), reason: planOnly ? 'editor.element.plan-geometry' : action.reason, run: () => { if (canEdit()) return action.run(); } };
+	});
+}
 /**
  * A plain item's promotion into the asset library (2026-09-13 item modes spec §B); nothing where this leaf cannot create an asset.
  * Outside `useCanvasMenuActions` only for that function's 100-line budget. Greyed by `promote`'s own refusal predicate;
@@ -56,7 +64,8 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	/** Why a greyed item is greyed: a stale floor first, since that one blocks everything, else whatever tool or edit is in flight. */
 	function reason(disabled: boolean): StringKey | undefined { return !disabled ? undefined : runtime.writesBlocked.value ? 'editor.stale-write-refused' : 'editor.input.unavailable'; }
 	function orderActions(result: readonly CanvasMenuAction[]): CanvasMenuAction[] {
-		return GROUP_ORDER.flatMap(group => result.filter(action => action.group === group)).map(action => ({ ...action, reason: action.reason ?? reason(action.disabled === true) }));
+		const guarded = guardGeometryActions(result, () => session.perspective === 'plan' && !runtime.writesBlocked.value, project.structure.elements?.some(item => item.id === selection.selectedIds[0]) === true, session.perspective !== 'plan');
+		return GROUP_ORDER.flatMap(group => guarded.filter(action => action.group === group)).map(action => ({ ...action, reason: action.reason ?? reason(action.disabled === true) }));
 	}
 	function ordered(result: readonly CanvasMenuItem[]): CanvasMenuItem[] {
 		return GROUP_ORDER.flatMap(group => result.filter(item => item.group === group)).map(item => {

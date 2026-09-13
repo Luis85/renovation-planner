@@ -6,6 +6,7 @@ import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
 import { elementLength } from '../../../domain/spatial/SpatialElement';
+import { postSection } from '../../../domain/spatial/structuralElement';
 import { area } from '../../../core/geometry/operations';
 import { formatArea } from '../shell/formatArea';
 import { formatMetres } from '../shell/formatLength';
@@ -26,6 +27,19 @@ const stairSummary = computed(() => {
 	if (element.value?.kind !== 'stair' || !stair) return null;
 	return tr('editor.stair.summary', { width: formatMetres(stair.width), run: formatMetres(elementLength(element.value)), treads: String(stair.treads), direction: tr(stair.direction === 'up' ? 'editor.stair.up' : 'editor.stair.down') });
 });
+/** Section or length and width for a post or beam, in metres like every other inspector measure. */
+const structuralSummary = computed(() => {
+	const value = element.value;
+	if (value?.kind === 'beam' && value.width) return tr('editor.structural.beam-summary', { length: formatMetres(elementLength(value)), width: formatMetres(value.width) });
+	const section = value?.kind === 'post' ? postSection(value.points) : null;
+	return section ? tr('editor.structural.post-summary', { width: formatMetres(section.width), depth: formatMetres(section.depth) }) : null;
+});
+function toggleLoadBearing(event: Event): void {
+	// The saved projection answers the checked state once the write lands; a refused write leaves it unchanged.
+	event.preventDefault();
+	const value = element.value;
+	if (value && !runtime.elementActions.blocked.value) void runtime.elementActions.setLoadBearing(value.id, value.loadBearing !== true);
+}
 async function edit(event: Event): Promise<void> {
 	if (!element.value) return;
 	const opener = event.currentTarget as HTMLElement, root = opener.closest<HTMLElement>('.renovation-plan-editor');
@@ -55,6 +69,12 @@ async function edit(event: Event): Promise<void> {
 		>
 			{{ stairSummary }}
 		</p>
+		<p
+			v-else-if="structuralSummary"
+			class="rp-inspector-subline"
+		>
+			{{ structuralSummary }}
+		</p>
 		<AssetPlacementDetails
 			v-else-if="element.kind === 'asset'"
 			:element="element"
@@ -65,6 +85,19 @@ async function edit(event: Event): Promise<void> {
 		>
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
+		<label
+			v-if="(element.kind === 'post' || element.kind === 'beam') && session.perspective === 'plan'"
+			class="rp-dialog-field"
+		>
+			<input
+				type="checkbox"
+				name="load-bearing"
+				:checked="element.loadBearing === true"
+				:aria-disabled="runtime.elementActions.blocked.value"
+				@click="toggleLoadBearing"
+			>
+			{{ tr('editor.structural.load-bearing') }}
+		</label>
 		<StructureRenovationEntry />
 		<ObjectRotationControls
 			v-if="session.perspective === 'plan'"

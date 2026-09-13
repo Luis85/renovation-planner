@@ -74,6 +74,14 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			} });
 		});
 	}
+	/** Load-bearing is an owned geometry fact, so it travels the same guarded, undoable write as a move. */
+	function setLoadBearing(id: string, loadBearing: boolean): Promise<void> {
+		return operate(id, async ({ baseline, element }) => {
+			if ((element.kind !== 'post' && element.kind !== 'beam') || element.loadBearing === loadBearing || !context.commands.renovation) return;
+			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, loadBearing }), runtime.structureTask.ledger));
+			if (alive && !result.ok) notifyOperationFailure(result.error);
+		});
+	}
 	function remove(id: string): Promise<void> {
 		return operate(id, async ({ baseline, element }) => {
 			const materials = await removalSources(context, [id]); if (!alive) return;
@@ -105,5 +113,5 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
 		preview.value = alive && !blocked.value && element && name && points ? { ...element, name, points } : null;
 	}
-	return { edit, remove, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
+	return { edit, remove, setLoadBearing, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
 }

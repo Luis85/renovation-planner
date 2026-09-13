@@ -15,13 +15,15 @@ function rangeKey(event: KeyboardEvent): void {
 	<section class="rp-reference-review">
 		<div class="rp-reference-review__summary">
 			<p>{{ scaleSummary }}</p>
-			<p class="rp-reference-review__preview">{{ tr('editor.reference.preview-only') }}</p>
+			<p class="rp-reference-review__preview">
+				{{ tr('editor.reference.preview-only') }}
+			</p>
 			<p>
-			{{ path }}<template v-if="page !== null">
-				· {{ tr('editor.reference.page') }} {{ page }}
-			</template> · {{ rotation }}°
-			<br>{{ crop.x }}, {{ crop.y }} · {{ crop.width }} × {{ crop.height }} px
-		</p>
+				{{ path }}<template v-if="page !== null">
+					· {{ tr('editor.reference.page') }} {{ page }}
+				</template> · {{ rotation }}°
+				<br>{{ crop.x }}, {{ crop.y }} · {{ crop.width }} × {{ crop.height }} px
+			</p>
 		</div>
 		<label class="rp-dialog-field">{{ tr('editor.reference.opacity') }}<input
 			v-model.number="opacity"

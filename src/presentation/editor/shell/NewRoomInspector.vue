@@ -44,7 +44,7 @@ import { useEditorRuntime } from '../runtime';
 import { useEditorStore } from '../../stores/EditorStore';
 import { screenPoint, screenToWorld, STAGE_PIXELS } from '../viewport/Viewport';
 import type { DimensionAxis } from '../add/room-draft-store';
-import type { LengthRefusal } from './formatLength';
+import { formatMetres, type LengthRefusal } from './formatLength';
 import { formatArea } from './formatArea';
 import FieldError from '../../components/FieldError.vue';
 import FreeShapeRoomAction from '../add/FreeShapeRoomAction.vue';
@@ -200,6 +200,22 @@ function onCreate(): void {
 const areaText = computed<string>(() => (draft.areaMm2 === null ? NO_FIGURE : formatArea(draft.areaMm2)));
 
 /**
+ * A refused dimension keeps the last accepted side in the draft store, so the outline remains
+ * useful while the user corrects the field. The explicit state marker keeps that outline from
+ * being mistaken for saved geometry; the localized preview sentence reuses the existing editor
+ * vocabulary until the shared room-specific label is added to both locale dictionaries.
+ */
+const lastValidPreview = computed(() => {
+	const rect = draft.rect;
+	if (rect === null || (draft.widthError === null && draft.depthError === null)) return null;
+	return tr('editor.resize.preview', {
+		width: formatMetres(rect.width),
+		depth: formatMetres(rect.depth),
+		area: formatArea(rect.width * rect.depth),
+	});
+});
+
+/**
  * **A browser drops focus to `<body>` when the focused control unmounts**, and this whole
  * body unmounts the moment the task ends — Create returns to Select, so the user who pressed
  * it is left nowhere. The frame's `<aside class="rp-editor-inspector">` carries `tabindex="-1"`
@@ -230,11 +246,6 @@ onBeforeUnmount(() => {
 		<h3 class="rp-editor-panel-title">
 			{{ tr('editor.room.new.heading') }}
 		</h3>
-
-		<FreeShapeRoomAction />
-		<p class="rp-new-room__hint">
-			{{ tr('editor.room.free-shape-hint') }}
-		</p>
 
 		<div class="rp-new-room__field">
 			<label :for="nameId">{{ tr('editor.room.name') }}</label>
@@ -310,6 +321,22 @@ onBeforeUnmount(() => {
 			<dt>{{ tr('editor.room.area') }}</dt>
 			<dd>{{ areaText }}</dd>
 		</dl>
+
+		<p
+			v-if="lastValidPreview !== null"
+			class="rp-new-room__preview"
+			data-rp-preview-state="last-valid"
+			role="status"
+		>
+			{{ lastValidPreview }}
+		</p>
+
+		<div class="rp-new-room__advanced">
+			<FreeShapeRoomAction />
+			<p class="rp-new-room__hint">
+				{{ tr('editor.room.free-shape-hint') }}
+			</p>
+		</div>
 
 		<label class="rp-new-room__keep">
 			<input

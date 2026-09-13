@@ -20,7 +20,11 @@ const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null);
 const relatedIcon = computed(() => expanded.value ? 'chevron-up' : 'chevron-down');
 const focusedRenovationOverview = computed(() => session.perspective === 'renovate' && session.mode === 'overview');
 function editableStructureTarget(targetId: string): boolean {
-	return [project.structure, project.intended].some(structure => [...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === targetId));
+	for (const structure of [project.structure, project.intended]) {
+		if (!structure) continue;
+		if ([...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === targetId)) return true;
+	}
+	return false;
 }
 const workEligible = computed(() => runtime.renovation.available && (project.zones.has(props.roomId) || editableStructureTarget(session.targetId)));
 const modes = computed(() => session.mode === 'overview' && session.perspective === 'plan'

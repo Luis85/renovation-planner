@@ -48,9 +48,9 @@ async function layoutDimensions(rig: Awaited<ReturnType<typeof gallery>>) {
 	});
 }
 type Rectangle = { x: number; y: number; width: number; height: number };
-function assertClear(rig: Awaited<ReturnType<typeof gallery>>, dimensions: readonly Rectangle[]): void {
+function assertClear(rig: Awaited<ReturnType<typeof gallery>>, dimensions: readonly Rectangle[], expectedPins = 6): void {
 	const pins = rig.stage.find<Konva.Group>('.evidence-pin').map(pin => expectDefined(pin.findOne<Konva.Shape>('.evidence-pin-target'), 'pin target').getClientRect());
-	expect(pins).toHaveLength(6);
+	expect(pins).toHaveLength(expectedPins);
 	const captions = rig.group.find<Konva.Text>('Text').filter(text => text.isVisible()); expect(captions).toHaveLength(2);
 	for (const caption of captions) {
 		const box = caption.getClientRect();
@@ -59,19 +59,22 @@ function assertClear(rig: Awaited<ReturnType<typeof gallery>>, dimensions: reado
 	}
 }
 
-it.each([0.05, 0.09])('keeps two native captions clear of six fixed pins and measured dimensions at zoom %s, through pan and inline editing', async zoom => {
+it.each([0.05, 0.09])('keeps captions clear of Renovate evidence and Plan dimensions at zoom %s', async zoom => {
 	const rig = await gallery(), editor = useEditorStore(rig.pinia);
 	editor.viewport = { zoom, pan: { x: -1000, y: -4000 } }; await flushLayout();
 	const line = expectDefined(rig.group.findOne<Konva.Line>('Line'), 'Room geometry'), points = line.points();
 	const pins = rig.stage.find<Konva.Group>('.evidence-pin').map(pin => pin.position()), bytes = [...rig.stack.vault.entries];
 	assertClear(rig, await layoutDimensions(rig));
 	editor.panByScreen(17, -13); await flushLayout(); assertClear(rig, await layoutDimensions(rig));
+	expect(rig.wrapper.find('[data-rp-dimension="width"]').exists()).toBe(false);
+	await rig.runtime.renovation.perspective('plan'); await flushLayout();
+	expect(rig.stage.find<Konva.Group>('.evidence-pin')).toHaveLength(0);
 	const button = rig.wrapper.get('[data-rp-dimension="width"]'); (button.element as HTMLElement).focus(); await button.trigger('click'); await flushLayout();
 	expect(rig.wrapper.find('[data-rp-form="room-dimension"]').exists()).toBe(true);
-	assertClear(rig, await layoutDimensions(rig));
-	rig.runtime.roomDimension.cancel(); await flushLayout(); assertClear(rig, await layoutDimensions(rig));
+	assertClear(rig, await layoutDimensions(rig), 0);
+	rig.runtime.roomDimension.cancel(); await flushLayout(); assertClear(rig, await layoutDimensions(rig), 0);
 	expect(document.activeElement).toBe(rig.wrapper.get('[data-rp-dimension="width"]').element);
-	expect(rig.stage.find<Konva.Group>('.evidence-pin').map(pin => pin.position())).toEqual(pins);
+	expect(pins).toHaveLength(6);
 	expect(line.points()).toBe(points); expect([...rig.stack.vault.entries]).toEqual(bytes);
 	useWorkspaceStore(rig.pinia).toggleLayer('zone'); await flushLayout();
 	expect(rig.wrapper.find('.rp-dimension-anchor').exists()).toBe(false);
@@ -82,13 +85,14 @@ it('uses a visible downward caption position when a native inline dimension is c
 	editor.viewport = { zoom: 0.05, pan: { x: -1000, y: 0 } }; await flushLayout();
 	const line = expectDefined(rig.group.findOne<Konva.Line>('Line'), 'Room geometry'), points = line.points();
 	const pins = rig.stage.find<Konva.Group>('.evidence-pin').map(pin => pin.position()), bytes = [...rig.stack.vault.entries];
+	await rig.runtime.renovation.perspective('plan'); await flushLayout();
 	await rig.wrapper.get('[data-rp-dimension="width"]').trigger('click'); await flushLayout();
 	const form = rig.wrapper.get('[data-rp-form="room-dimension"]');
 	expect((form.element.parentElement as HTMLElement).style.top).toBe('48px');
-	const dimensions = await layoutDimensions(rig); assertClear(rig, dimensions);
+	const dimensions = await layoutDimensions(rig); assertClear(rig, dimensions, 0);
 	const top = Math.min(...rig.group.find<Konva.Text>('Text').map(text => text.getClientRect().y));
 	expect(top).toBeGreaterThan(348);
-	expect(rig.stage.find<Konva.Group>('.evidence-pin').map(pin => pin.position())).toEqual(pins);
+	expect(pins).toHaveLength(6);
 	expect(line.points()).toBe(points); expect([...rig.stack.vault.entries]).toEqual(bytes);
 	rig.runtime.roomDimension.cancel(); await flushLayout();
 });

@@ -39,7 +39,9 @@ function rig(snapCandidates: (exclude?: Iterable<string>) => SnapCandidates) {
 
 describe('SelectTool alignment guides', () => {
 	it('the body preview is snapped exactly as the commit is, and guides show mid-drag and clear on release', async () => {
-		const { tool, context, gestures } = rig(() => ({ alignments: [{ x: 300, y: 900 }] }));
+		// The alignment exists only when the dragged zone is excluded: a body drag that forgot
+		// the exclusion would snap back toward its own original position instead.
+		const { tool, context, gestures, excluded } = rig((exclude) => ([...(exclude ?? [])].includes('zone-a') ? { alignments: [{ x: 300, y: 900 }] } : {}));
 		tool.pointerDown(pointerAt(10, 10));
 		tool.pointerMove(pointerAt(207, 10)); // raw delta +197: right edge at 297, 3 from x=300
 		expect(context.renderState.previewPolygon?.[1]).toEqual({ x: 300, y: 0 });
@@ -50,6 +52,8 @@ describe('SelectTool alignment guides', () => {
 		await flush();
 		expect(gestures[0]?.forward).toEqual(previewed);
 		expect(context.renderState.snapGuides).toEqual([]);
+		expect(excluded.length).toBeGreaterThan(0);
+		expect(excluded.every((ids) => ids.includes('zone-a'))).toBe(true);
 	});
 
 	it('a vertex drag snaps on preview and commit alike and excludes its own zone', async () => {
@@ -82,6 +86,10 @@ describe('SelectTool alignment guides', () => {
 	it('a click without a drag leaves no guides behind', async () => {
 		const { tool, context } = rig(() => ({ vertices: [{ x: 5, y: 0 }] }));
 		tool.pointerDown(pointerAt(10, 10));
+		// Within the click epsilon, but the move WRITES a guide (corner at (0.2, 0), 4.8 from
+		// the candidate) — so the release's own clear is what this case asserts.
+		tool.pointerMove(pointerAt(10.2, 10));
+		expect(context.renderState.snapGuides).toHaveLength(1);
 		tool.pointerUp(pointerAt(10, 10));
 		await flush();
 		expect(context.renderState.snapGuides).toEqual([]);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T15:44:32+02:00",
+  "updatedAt": "2026-09-13T16:34:02+02:00",
   "status": "in-progress",
   "integration": {
     "branch": "main",
@@ -19,7 +19,7 @@
   "limits": {
     "maxConcurrentCodingTasks": 3,
     "activeCodingTasks": 3,
-    "heavyVerificationOwner": "I03"
+    "heavyVerificationOwner": "I07"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -27,8 +27,8 @@
     "baseSha": "bab369891807a05472e51a163438662b5bb65aea",
     "rootPacket": "I00",
     "rootPr": 174,
-    "currentReviewedTipPacket": "I04",
-    "currentReviewedTipSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
+    "currentReviewedTipPacket": "I06",
+    "currentReviewedTipSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
@@ -90,12 +90,12 @@
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
       "pr": 177,
-      "headSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
+      "headSha": "8bed46e5faaf1d73064e772a95da93710bb28f4b",
       "verificationOwner": "I04 worker; coordinator follow-up reviewed",
       "blockers": []
     },
     "I03": {
-      "status": "running",
+      "status": "reviewed-stack-parent-ci-pending",
       "taskId": "01a09b02-fbd0-7882-9a0c-8dee3a4f77e4",
       "hostId": "local",
       "model": "gpt-5.6-luna",
@@ -104,13 +104,13 @@
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i03-room-details",
       "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
       "prerequisitePackets": ["I00", "I01"],
-      "pr": null,
-      "headSha": null,
+      "pr": 179,
+      "headSha": "28ad19b3f8a5f948c994cf32e725d6c97f66754b",
       "verificationOwner": "I03 worker (slot granted)",
       "blockers": []
     },
     "I05": {
-      "status": "running",
+      "status": "reviewed-stack-parent-ci-pending",
       "taskId": "01a09b03-111c-7d91-b9ce-7ce3310dbaea",
       "hostId": "local",
       "model": "gpt-5.6-luna",
@@ -119,13 +119,13 @@
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i05-room-start-draft",
       "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
       "prerequisitePackets": ["I00", "I04"],
-      "pr": null,
-      "headSha": null,
+      "pr": 180,
+      "headSha": "ea1e1af3d5325dbfa2a3d641192b5f18cc5fdf89",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
     "I06": {
-      "status": "running",
+      "status": "reviewed-stack-parent-ci-pending",
       "taskId": "01a09b03-039c-7453-9ff5-41becf7c5f50",
       "hostId": "local",
       "model": "gpt-5.6-luna",
@@ -134,6 +134,51 @@
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i06-reference-prepare",
       "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
       "prerequisitePackets": ["I00", "I02"],
+      "pr": 181,
+      "headSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
+      "verificationOwner": "waiting for shared slot",
+      "blockers": []
+    },
+    "I07": {
+      "status": "running",
+      "taskId": "01a09b30-4999-71a3-aea6-a1dec33d8842",
+      "hostId": "local",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "branch": "codex/usability-i07-reference-scale-review",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i07-reference-scale-review",
+      "baseSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
+      "prerequisitePackets": ["I00", "I06"],
+      "pr": null,
+      "headSha": null,
+      "verificationOwner": "I07 worker (slot granted)",
+      "blockers": []
+    },
+    "I08": {
+      "status": "running",
+      "taskId": "01a09b30-535e-7d13-9330-be07a3ac9949",
+      "hostId": "local",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "branch": "codex/usability-i08-taskbar",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i08-taskbar",
+      "baseSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
+      "prerequisitePackets": ["I00", "I01", "I04", "I05"],
+      "pr": null,
+      "headSha": null,
+      "verificationOwner": "waiting for shared slot",
+      "blockers": []
+    },
+    "I09": {
+      "status": "running",
+      "taskId": "01a09b30-60b3-70b2-9a3c-605b63fb16c0",
+      "hostId": "local",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "branch": "codex/usability-i09-selection",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i09-selection",
+      "baseSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
+      "prerequisitePackets": ["I00", "I03"],
       "pr": null,
       "headSha": null,
       "verificationOwner": "waiting for shared slot",
@@ -160,5 +205,5 @@
       "status": "queued-after-final-review"
     }
   },
-  "nextAdmissionGate": "Review and verify Wave 2. Finalize the serial stack as I04 -> I03 -> I05 -> I06, then dispatch Wave 3 from the reviewed I06 tip."
+  "nextAdmissionGate": "Review and verify Wave 3. Finalize the serial stack as I06 -> I07 -> I08 -> I09, then dispatch Wave 4 from the reviewed I09 tip."
 }

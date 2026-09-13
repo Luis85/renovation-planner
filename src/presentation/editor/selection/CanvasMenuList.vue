@@ -26,7 +26,9 @@ async function expand(item: CanvasMenuSubmenu, opener: HTMLElement, focusFirst: 
 	const child = opener.parentElement?.querySelector<HTMLElement>(':scope > [role="menu"]');
 	if (child && props.host) {
 		const at = submenuPlacement(opener.getBoundingClientRect(), { width: child.offsetWidth, height: child.offsetHeight }, props.host.getBoundingClientRect());
-		childPosition.value = { left: `${at.left}px`, top: `${at.top}px` };
+		// `position: fixed` is viewport-relative only when no ancestor contains it, and Obsidian's `.workspace-leaf` is `contain: strict` — so subtract where the child's containing block actually starts, measured from where it is drawn now.
+		const drawn = child.getBoundingClientRect(), originLeft = drawn.left - Number.parseFloat(child.style.left), originTop = drawn.top - Number.parseFloat(child.style.top);
+		childPosition.value = { left: `${at.left - originLeft}px`, top: `${at.top - originTop}px` };
 	}
 	if (focusFirst) child?.querySelector<HTMLElement>('[role="menuitem"]:not([aria-disabled="true"])')?.focus();
 }

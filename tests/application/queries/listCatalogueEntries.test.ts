@@ -5,7 +5,8 @@
  * `collectNotes`'s last-writer-wins map — and nothing short of the real pipeline can produce
  * a `no-id` or `duplicate-id` exclusion honestly.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { err } from '../../../src/core/result/Result';
 import { ListCatalogueEntries } from '../../../src/application/queries/ListCatalogueEntries';
 import { createRepositoryStack, type RepositoryStack } from '../../helpers/vault';
 import { expectOk } from '../../helpers/domain';
@@ -198,5 +199,13 @@ describe('ListCatalogueEntries', () => {
 				{ assetId: null, path: dupFirstPath, reason: 'duplicate-id', code: null },
 			]),
 		);
+	});
+
+	it('answers the repository refusal itself when the catalogue cannot be listed at all', async () => {
+		const stack = createRepositoryStack();
+		const refusal = { category: 'Persistence' as const, code: 'test.offline', message: 'Offline' };
+		vi.spyOn(stack.assets, 'listAll').mockResolvedValueOnce(err(refusal));
+
+		expect(await listCatalogue(stack)).toEqual(err(refusal));
 	});
 });

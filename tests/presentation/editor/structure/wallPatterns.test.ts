@@ -29,4 +29,9 @@ describe('a wall body outline', () => {
 		expect(points.length).toBeGreaterThan(8);
 		expect(points.length % 2).toBe(0);
 	});
+	it('collapses a zero-length wall onto its point rather than into NaN', () => {
+		const points = wallBodyPolygon({ id: 'w', start: { x: 10, y: 20 }, end: { x: 10, y: 20 }, thickness: 200, height: 2400 }, 1);
+		expect(points.length).toBeGreaterThan(0);
+		expect(points.every(point => point.x === 10 && point.y === 20)).toBe(true);
+	});
 });

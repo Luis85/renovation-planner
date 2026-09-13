@@ -75,4 +75,18 @@ describe('planMaterialUsers', () => {
 		const result = await planMaterialUsers({ vault: stack.deps.vault, index: stack.index }, createAssetId());
 		expect(expectOk(result)).toEqual([]);
 	});
+
+	it('skips a plan note with no renovation, and names a user whose note has no name by its id', async () => {
+		const stack = createRepositoryStack();
+		const project = expectOk(await stack.projects.save(makeProject(), 'absent'));
+		const assetId = createAssetId();
+		const unnamed = await planWithFrontmatter(stack, project.entity.id, 'Unnamed', { subjects: [subject({ planned: { assetId } })], work: [], decisions: [] });
+		const unnamedPath = stack.index.getPath(unnamed) ?? '';
+		stack.vault.entries.set(unnamedPath, `---\n${stringify({ name: 7, renovation: { subjects: [subject({ planned: { assetId } })], work: [], decisions: [] } })}---\n`);
+		const bare = await planWithFrontmatter(stack, project.entity.id, 'Bare', null);
+		stack.vault.entries.set(stack.index.getPath(bare) ?? '', `---\n${stringify({ name: 'Bare' })}---\n`);
+
+		const result = await planMaterialUsers({ vault: stack.deps.vault, index: stack.index }, assetId);
+		expect(expectOk(result)).toEqual([unnamed]);
+	});
 });

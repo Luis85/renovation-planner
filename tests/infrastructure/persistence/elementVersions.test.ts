@@ -59,5 +59,6 @@ describe('conditional element persistence versions protect older writers', () =>
 		expect(dto).not.toHaveProperty('origin-zone');
 		expect(expectOk(requirementFromPersistence(dto)).origin).toEqual({ kind: 'plan', planId: 'plan' });
 		expect(requirementFromPersistence({ ...dto, 'origin-plan': undefined }).ok).toBe(false);
+		expect(requirementFromPersistence({ ...dto, 'origin-kind': 'zone' }).ok).toBe(false);
 	});
 });

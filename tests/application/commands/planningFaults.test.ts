@@ -60,6 +60,21 @@ describe('planning safety under unavailable dependencies', () => {
  vi.spyOn(rig.deps.requirements, 'listByProject').mockResolvedValueOnce(err(failure)); await rig.deps.events.publish({ type: 'PlanCalibrated', payload: { planId: rig.plan.id } }); expect(notify.cascadeAborted).toHaveBeenCalledTimes(2);
  await rig.deps.events.publish({ type: 'GeometrySidecarChanged', payload: { entityType: 'renovation-plan', entityId: rig.plan.id } }); subscription.dispose();
  });
+ it('re-measures nothing on an index rebuild when no index was given to list plans from', async () => {
+ const rig = await planningStack(), notify = { cascadeAborted: vi.fn<(id: string) => void>(), staleMarkerFailed: vi.fn<() => void>() }, recalculate = vi.fn<() => Promise<ReturnType<typeof ok<void>>>>().mockResolvedValue(ok(undefined));
+ const subscription = registerOnPlanningChanged(rig.deps.events, { ...rig.deps, index: undefined, logger: rig.stack.logger, notify, recalculate });
+ vi.spyOn(rig.deps.plans, 'getById').mockResolvedValue(ok(null));
+ await rig.deps.events.publish({ type: 'ProjectIndexRebuilt' });
+ expect(notify.cascadeAborted).not.toHaveBeenCalled(); expect(recalculate).not.toHaveBeenCalled();
+ subscription.dispose();
+ });
+ it('refuses evidence linked to a room-less decision whose subject is gone, which has no context to share', async () => {
+ const rig = await planningStack(), baseline = expectOk(await rig.read());
+ const orphan = { id: 'decision-orphan', subjectId: 'detail-gone', question: 'Which render?', resolved: false, resolution: '' };
+ const evidence = { ...rig.evidence, roomId: undefined, targetId: 'wall-a', workId: '', recordId: orphan.id };
+ expect(validateDepthLinks({ ...rig.value, decisions: [...rig.value.decisions, orphan], depth: { ...EMPTY_DEPTH, evidence: [evidence] } }, baseline).ok).toBe(false);
+ expect(validateDepthLinks({ ...rig.value, decisions: [...rig.value.decisions, orphan], depth: { ...EMPTY_DEPTH, evidence: [{ ...evidence, recordId: '' }] } }, baseline).ok).toBe(true);
+ });
  it('keeps legacy Inspector status honest for contextual sources and missing geometry', async () => {
  const rig = await planningStack(); expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());
  const deps = { ...rig.deps, zones: rig.stack.zones, logger: rig.stack.logger }, query = new GetRequirementsForZone(deps);

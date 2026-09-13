@@ -65,6 +65,17 @@ function catalogueChoices(planning: ReturnType<typeof usePlanningReadState>): Ma
 	return planning.baseline?.catalogue.map(({ asset }) => ({ id: asset.id, name: asset.name, category: asset.category, unit: asset.unit })) ?? [];
 }
 
+function createWorkActions(available: boolean, blocked: () => boolean, editable: (roomId: string) => boolean,
+	focus: (roomId: string, mode: RenovationMode) => void, edit: (kind: RenovationEditKind, roomId: string) => Promise<void>) {
+	function canAddWork(roomId: string): boolean { return available && editable(roomId); }
+	async function addWork(roomId: string): Promise<void> {
+		if (!canAddWork(roomId) || blocked()) return;
+		focus(roomId, 'work');
+		await edit('work', roomId);
+	}
+	return { addWork, canAddWork };
+}
+
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {
 	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore(), planning = usePlanningReadState(), workspace = useWorkspaceStore();
 	const session = useRenovationSession(), dialogs = useDialogStore(), save = useSaveStateStore();
@@ -136,14 +147,6 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.edit.failed'); }
 		finally { loading.value = false; }
 	}
-	function canAddWork(roomId: string): boolean {
-		return context.commands.renovation !== undefined && editableContext(roomId, project, session);
-	}
-	async function addWork(roomId: string): Promise<void> {
-		if (!canAddWork(roomId) || blocked.value) return;
-		focus(roomId, 'work');
-		await edit('work', roomId);
-	}
 	async function change(make: (read: RenovationBaseline) => RenovationInput, message: string): Promise<void> {
 		if (blocked.value || dialogs.current || !context.commands.renovation) return;
 		loading.value = true;
@@ -171,5 +174,6 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.batch.failed'); }
 		finally { loading.value = false; }
 	}
-	return { perspective, focus, edit, addWork, canAddWork, batch, change, blocked, available: context.commands.renovation !== undefined };
+	const work = createWorkActions(context.commands.renovation !== undefined, () => blocked.value, roomId => editableContext(roomId, project, session), focus, edit);
+	return { perspective, focus, edit, ...work, batch, change, blocked, available: context.commands.renovation !== undefined };
 }

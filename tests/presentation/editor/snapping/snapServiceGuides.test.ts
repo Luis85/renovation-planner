@@ -97,7 +97,7 @@ describe('SnapService.snapTranslation', () => {
 	});
 
 	it('an edge projection within tolerance wins over an axis alignment', () => {
-		// The corner (100, 0) projects onto the edge y=-6 at (100, -6); an alignment at y=-1 is nearer.
+		// The square's bottom edge projects onto the candidate edge y=-6, 6 away; an alignment at y=-1 is nearer.
 		const result = service().snapTranslation(square, { edges: [{ start: { x: 0, y: -6 }, end: { x: 200, y: -6 } }], alignments: [{ x: 900, y: -1 }] });
 		// Both (0, 0) and (100, 0) project at distance 6; the first in iteration order keeps the tie.
 		expect(result.correction).toEqual({ dx: 0, dy: -6 });
@@ -125,5 +125,14 @@ describe('SnapService.snapTranslation', () => {
 
 	it('a disabled service answers zero with no guides', () => {
 		expect(disabled().snapTranslation(square, { vertices: [{ x: 0, y: 0 }] })).toEqual(NONE);
+	});
+
+	it('every no-snap answer carries its OWN guides array, so a caller pushing into one cannot corrupt the next', () => {
+		// The drag tools hand `guides` straight to render state, which draw-room pushes into.
+		const s = service();
+		const first = s.snapTranslation([], { vertices: [{ x: 0, y: 0 }] });
+		first.guides.push({ start: { x: 0, y: 0 }, end: { x: 1, y: 1 } });
+		expect(s.snapTranslation([], { vertices: [{ x: 0, y: 0 }] }).guides).toEqual([]);
+		expect(disabled().snapTranslation(square, {}).guides).not.toBe(disabled().snapTranslation(square, {}).guides);
 	});
 });

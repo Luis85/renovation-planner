@@ -61,8 +61,6 @@ export interface TranslationSnap {
 	readonly guides: LineSegment[];
 }
 
-const NO_TRANSLATION: TranslationSnap = { correction: { dx: 0, dy: 0 }, guides: [] };
-
 /** The nearest (moving point, landing) pair `land` answers within tolerance, else `null`. */
 function nearestPair(moving: readonly Point[], land: (from: Point) => Point | null): { from: Point; to: Point } | null {
 	let best: { from: Point; to: Point } | null = null;
@@ -275,9 +273,13 @@ export class SnapService {
 	 * min and max on an axis are already some vertex's coordinate) and any alignment
 	 * coordinate. Guides: the point stages draw pre-correction vertex → landing; the axis
 	 * stage draws the corrected feature → alignment, which is a straight axis-aligned line.
+	 *
+	 * The no-snap answer is a FRESH object per call, never a shared constant: the drag tools
+	 * hand `guides` straight to render state, which draw-room pushes into, so a shared array
+	 * would carry one call's push into every later no-snap answer. Pinned by a test.
 	 */
 	snapTranslation(moving: readonly Point[], candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): TranslationSnap {
-		if (!this.enabled || moving.length === 0) return NO_TRANSLATION;
+		if (!this.enabled || moving.length === 0) return { correction: { dx: 0, dy: 0 }, guides: [] };
 		const pair = nearestPair(moving, (from) => this.snapToVertex(from, candidates.vertices ?? [], toleranceMm))
 			?? nearestPair(moving, (from) => this.snapToEdge(from, candidates.edges ?? [], toleranceMm));
 		if (pair !== null) {

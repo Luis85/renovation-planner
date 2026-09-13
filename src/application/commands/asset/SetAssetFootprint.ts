@@ -33,15 +33,15 @@ export interface SetAssetFootprintInput {
  * the footprint, its provenance or its pending flag.
  *
  * Spelled as a `Pick` rather than as a whole shape with a placeholder footprint, so the
- * set is derived from `AssetShape` and a seventh field cannot be added to the domain
- * without this failing to compile. Setting a footprint must never clear a clearance, an
- * anchor or a facing, and it must not touch `clearancePending` or `anchorPending`: those
- * flags say when THOSE coordinate groups were captured, and a footprint capture is not an
+ * set is derived from `AssetShape`: a field added to the domain shape fails to compile in
+ * `withFootprint` below until it is named here or set there. Setting a footprint must
+ * never clear a clearance, an anchor or a facing, and it must not touch `clearancePending`
+ * or `anchorPending`: those flags say when THOSE coordinate groups were captured, and a footprint capture is not an
  * event in their history.
  */
 type InheritedShape = Pick<
 	AssetShape,
-	'clearance' | 'clearancePending' | 'anchorPending' | 'anchor' | 'facing'
+	'clearance' | 'clearancePending' | 'anchorPending' | 'anchor' | 'facing' | 'details'
 >;
 
 /** What an asset nobody has drawn on yet inherits: nothing, centred, facing +x. */
@@ -51,6 +51,7 @@ const UNDESIGNED: InheritedShape = {
 	anchorPending: false,
 	anchor: { x: 0, y: 0 },
 	facing: 0,
+	details: [],
 };
 
 function withFootprint(

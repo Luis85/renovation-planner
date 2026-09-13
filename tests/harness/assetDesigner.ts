@@ -1,4 +1,7 @@
 import { createAssetId } from '../../src/domain/asset/AssetId';
+import { dimensionsOf } from '../../src/domain/asset/AssetShape';
+import { ASSET_PRESETS } from '../../src/domain/asset/presets/catalogue';
+import { defaultValues } from '../../src/domain/asset/presets/presetGeometry';
 import { AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
 import type { AssetDesignerDeps } from '../../src/presentation/designer/AssetDesignerContext';
 import type { AssetDesignDto } from '../../src/application/queries/GetAssetDesign';
@@ -64,12 +67,26 @@ const inertLogger: Logger = {
 	error: () => undefined,
 };
 
-function assetDesignerHarnessDeps(): AssetDesignerDeps {
+/**
+ * `?preset=<id>` seeds the fixture with that preset at its defaults, so a capture draws curves and
+ * details instead of the empty state (asset designer symbols spec, Testing). An unknown id is the
+ * shapeless fixture.
+ */
+function designFor(presetId: string | null): AssetDesignDto {
+	const preset = ASSET_PRESETS.find((item) => item.id === presetId);
+	if (preset === undefined) return HARNESS_ASSET_DESIGN;
+	const built = preset.build(defaultValues(preset));
+	if (!built.ok) return HARNESS_ASSET_DESIGN;
+	const measured = dimensionsOf(built.value.footprint);
+	return { ...HARNESS_ASSET_DESIGN, shape: built.value, dimensions: measured.ok ? measured.value : null };
+}
+
+function assetDesignerHarnessDeps(presetId: string | null): AssetDesignerDeps {
 	return {
 		// A fresh DTO per call, not the constant — `planEditor.ts`'s `getPlan` carries the same
 		// rule: the real query builds its DTO from a note it just read, and handing back the
 		// module object would let a mutation through Pinia's reactive state edit the fixture.
-		queries: { getAssetDesign: () => Promise.resolve(ok(structuredClone(HARNESS_ASSET_DESIGN))) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(structuredClone(designFor(presetId)))) },
 		commands: unavailableAssetDesignerCommands(),
 		logger: inertLogger,
 		picker: inertPicker,
@@ -103,13 +120,13 @@ export interface MountedAssetDesigner {
 	view: AssetDesignerView;
 }
 
-export function mountAssetDesignerHarness(root: HTMLElement): MountedAssetDesigner {
+export function mountAssetDesignerHarness(root: HTMLElement, presetId: string | null = null): MountedAssetDesigner {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();
 	root.empty();
 
 	const leafEl = root.createDiv('rp-harness-leaf');
-	const view = new AssetDesignerView(new FakeLeaf() as never, assetDesignerHarnessDeps());
+	const view = new AssetDesignerView(new FakeLeaf() as never, assetDesignerHarnessDeps(presetId));
 	leafEl.appendChild(view.containerEl);
 
 	// State first, then open — the restored-leaf order `mountPlanEditorHarness` uses. `void`

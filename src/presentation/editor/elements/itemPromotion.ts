@@ -17,23 +17,33 @@ import { centredFootprint } from './objectShape';
  *
  * `assetCreation` is read per call rather than captured, so the menu asks what this leaf can do when it is drawn.
  * Every refusal of the replacing write gets the one warning: what the user needs is where the asset went.
+ *
+ * The item is looked up again once the dialog closes: it stayed open while a cost was typed, and a sync, another
+ * leaf or an undo may have removed, moved or renamed it meanwhile. Writing the placement then would resurrect or
+ * revert it, since the write reads a fresh baseline and appends a missing id, so a changed item is refused the same
+ * way. An item with no label is not promotable: the placement could not be written with an empty name.
  */
 export function createItemPromotion(context: PlanEditorContext, assets: Pick<ReturnType<typeof createAssetPlacementTask>, 'write'>) {
 	const project = useProjectStore(), dialogs = useDialogStore(), busy = ref(false);
 	const available = (): boolean => context.commands.assetCreation !== undefined;
-	async function promote(elementId: string): Promise<void> {
-		const creation = context.commands.assetCreation;
+	function promotable(elementId: string) {
 		const item = project.structure.elements?.find(element => element.id === elementId);
-		if (!creation || item?.kind !== 'object' || dialogs.current !== null) return;
-		const name = project.plan?.spatialElements?.find(label => label.id === elementId)?.name ?? '';
-		const { centre, footprint } = centredFootprint(item.points);
+		const name = project.plan?.spatialElements?.find(label => label.id === elementId)?.name;
+		return item?.kind === 'object' && name ? { points: item.points, name } : null;
+	}
+	async function promote(elementId: string): Promise<void> {
+		const creation = context.commands.assetCreation, before = promotable(elementId);
+		if (!creation || !before || dialogs.current !== null) return;
+		const { name } = before, { centre, footprint } = centredFootprint(before.points);
 		const outcome = await openNewAssetDialog({
 			dialogs, busy, logger: context.commands.logger, commands: creation,
 			prefill: { name, outline: { points: footprint, write: input => creation.setAssetFootprint.execute(input) } },
 		});
 		if (outcome === null) return;
-		const placed = await assets.write({ id: item.id, kind: 'asset', assetId: outcome.assetId, points: placementPoints(centre, 0), name });
-		if (!placed) notifyWarning(tr('editor.asset.promote-unplaced'));
+		const after = promotable(elementId);
+		// By value: a projection refresh replaces the points array without changing a point.
+		const unchanged = after?.name === name && JSON.stringify(after.points) === JSON.stringify(before.points);
+		if (!unchanged || !(await assets.write({ id: elementId, kind: 'asset', assetId: outcome.assetId, points: placementPoints(centre, 0), name }))) notifyWarning(tr('editor.asset.promote-unplaced'));
 	}
 	return { available, promote };
 }

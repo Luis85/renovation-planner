@@ -32,13 +32,13 @@
  * light-theme stroke on a dark ground until the leaf was reopened; `designerTheme.test.ts`
  * replaced that sentence with a case.
  *
- * **What is still resolved against `document.documentElement`, said plainly rather than
- * implied:** the plan editor passes its own root element so a theme scoping variables to a
- * subtree is read where the canvas actually sits, and this component owns no such element —
- * its outermost node belongs to `EditorSurface`. So it passes `ref(null)`, which is the
- * composable's documented fallback. A subtree-scoped theme is therefore read from the document
- * here; closing that means hoisting the tokens to `AssetDesignerRoot`, which owns
- * `.renovation-asset-designer`, and handing them down as a prop.
+ * **What is still resolved against `document.body`, said plainly rather than implied:** the
+ * plan editor passes its own root element so a theme scoping variables to a subtree is read
+ * where the canvas actually sits, and this component owns no such element — its outermost node
+ * belongs to `EditorSurface`. So it passes `ref(null)`, which is the composable's documented
+ * fallback, `body`, where Obsidian declares its palette. A theme scoping variables below `body`
+ * is therefore not read here; closing that means hoisting the tokens to `AssetDesignerRoot`,
+ * which owns `.renovation-asset-designer`, and handing them down as a prop.
  */
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';

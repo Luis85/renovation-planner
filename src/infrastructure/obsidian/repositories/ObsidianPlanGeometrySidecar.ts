@@ -20,11 +20,9 @@ import {
 function toTuples(points: readonly { x: number; y: number }[]): [number, number][] {
 	return points.map((point) => [point.x, point.y]);
 }
-/** The persisted DTO's element `kind` enum does not yet carry the seven drafting-mark kinds (plan drafting tools design's own persistence task widens it); nothing produces one yet, so this cast holds until that schema lands. */
-type PersistedElements = NonNullable<PlanGeometryDTO['structure']>['elements'];
 function toStructure(structure: Structure | undefined): PlanGeometryDTO['structure'] {
 	return structure ? {
-		...(structure.elements?.length ? { elements: structure.elements.map(element => ({ ...element, points: element.points.map(point => ({ ...point })) })) as PersistedElements } : {}),
+		...(structure.elements?.length ? { elements: structure.elements.map(element => ({ ...element, points: element.points.map(point => ({ ...point })) })) } : {}),
 		walls: structure.walls.map(wall => ({ ...wall, start: { ...wall.start }, end: { ...wall.end } })),
 		openings: structure.openings.map(opening => ({ ...opening })),
 		boundaries: structure.boundaries.map(boundary => ({ ...boundary, wallIds: [...boundary.wallIds] })),

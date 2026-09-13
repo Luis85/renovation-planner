@@ -4,7 +4,8 @@ import { ownerWindowOf } from '../../composables/use-owner-listener';
 /**
  * Brings every layer of `stage` to the pixel ratio of the monitor the window is on, now and
  * after each move. Konva samples `devicePixelRatio` once per module and never again
- * (`Canvas.js`, `getDevicePixelRatio`), so a layer is built at whatever the window reported at
+ * (`Global.js`, `Konva.pixelRatio`, which `Canvas.js`'s constructor takes before it would ever
+ * reach `getDevicePixelRatio`), so a layer is built at whatever the window reported at
  * plugin load: a window dragged between a 2× and a 1× monitor draws blurry or four times too
  * large until the plugin reloads, and a stage created AFTER the move is stale from its first
  * paint. So the start resizes any layer whose backing store disagrees with the window (and

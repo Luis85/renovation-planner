@@ -5982,8 +5982,8 @@ Plan: `docs/superpowers/plans/2026-09-13-konva-obsidian-perf-polish.md` — no s
 research, §2 the measurement, §4 the levers held back and §5 what was refused by name (a rAF
 throttle, `stage.listening(false)`, `Konva.pixelRatio = 1`, merging layers below five,
 `ItemView.onResize`, vue-konva's strict mode, `obsidian.debounce` in `presentation/`). One PR,
-`main` merged twice along the way (vue-konva 3.4 → 4.0.1 among it), the three tasks' test sets
-re-run green on the merged tree.
+`main` merged three times along the way (5f71c6d5, 52de4fa8, 3b1a03bf; vue-konva 3.4 → 4.0.1 among
+it), the three tasks' test sets re-run green on the merged tree.
 
 **What the code measured before any task**, in `npm run harness` at `?view=plan-editor`,
 1600×1000, DPR 1, the two-room fixture, from the Browser pane at 31fb0c3f: `window.Konva.stages[0]`
@@ -6028,7 +6028,10 @@ store until the plugin reloaded; on start it brings layers built at Konva's cach
 window's current one, then follows `(resolution: <n>dppx)` changes on the stage container's own
 window. jsdom has no `matchMedia`, so `tests/helpers/canvas.ts`'s `installCanvas()` installs an
 EventTarget-backed one that never fires on its own. **Unverified by any gate**: whether
-Chromium/Electron fires `change` for that query on a monitor move — a vault fact.
+Chromium/Electron fires `change` for that query on a monitor move — a vault fact. Electron's page
+zoom (Obsidian's Ctrl+= / Ctrl+-) also changes `devicePixelRatio`, so the follower is EXPECTED to
+fire on every zoom step too — expected and not verified in a vault, stated here so nobody reads
+those `change` events as a storm.
 
 **The §4 levers, each held by a measurement.** Taken 2026-09-13 at dca2aacd in the pinned headless
 Chromium 151.0.7922.34 against the same `npm run harness` server (the Browser pane was hidden and

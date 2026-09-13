@@ -16,7 +16,7 @@
  * The monitor's pixel ratio is the same shape of question — a canvas kept current as its
  * surroundings change — so its one wiring case lives here rather than in a file of its own.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
@@ -150,11 +150,11 @@ describe('the designer canvas and the monitor the window is on', () => {
 		const stage = await mountDesigner();
 		const layers = stage?.getLayers() ?? [];
 		expect(layers.length).toBeGreaterThan(0);
+		onTestFinished(() => { Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 1 }); });
 
 		Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 2 });
 		armedMediaQueries().at(-1)?.dispatchEvent(new Event('change'));
 
 		expect(layers.map((layer) => layer.getCanvas().getPixelRatio())).toEqual(layers.map(() => 2));
-		Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 1 });
 	});
 });

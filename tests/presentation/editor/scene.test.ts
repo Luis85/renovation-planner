@@ -7,7 +7,7 @@
  * Real Konva throughout — see `tests/helpers/editor.ts` for why nothing here is stubbed.
  */
 import Konva from 'konva';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest';
 import { KONVA_LAYER_IDS } from '../../../src/presentation/editor/scene/KonvaLayers';
 import { t } from '../../../src/presentation/i18n/strings';
 import {
@@ -251,12 +251,12 @@ describe('the monitor the window is on', () => {
 	 */
 	it('resizes every layer backing store when the device pixel ratio changes', async () => {
 		const harness = await mount();
+		onTestFinished(() => { Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 1 }); });
 
 		Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 2 });
 		armedMediaQueries().at(-1)?.dispatchEvent(new Event('change'));
 
 		expect(harness.stage.getLayers().map((layer) => layer.getCanvas().getPixelRatio())).toEqual(KONVA_LAYER_IDS.map(() => 2));
-		Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 1 });
 	});
 });
 

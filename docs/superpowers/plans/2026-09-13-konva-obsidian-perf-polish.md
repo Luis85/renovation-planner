@@ -30,7 +30,7 @@ Konva (https://konvajs.org/docs/performance/All_Performance_Tips.html and the pa
 2. "Do not create too many layers. Usually 3-5 is max." Each layer is one full-size scene canvas (plus a hit canvas, which Konva 10 sizes to 0×0 when the layer is `listening: false` — `node_modules/konva/lib/Layer.js`, `setSize`).
 3. `listening: false` on non-interactive nodes and layers removes them from the hit graph.
 4. `perfectDrawEnabled: false` avoids the buffer canvas a fill+stroke+opacity shape otherwise draws through; `shadowForStrokeEnabled: false` avoids a second pass on stroked shapes with shadows.
-5. `Konva.pixelRatio` defaults to `devicePixelRatio`; Konva reads it ONCE per module and caches it (`node_modules/konva/lib/Canvas.js`, `getDevicePixelRatio`), so a window moved to a monitor with a different ratio keeps drawing at the old one.
+5. `Konva.pixelRatio` is `window.devicePixelRatio || 1`, read ONCE at module load (`node_modules/konva/lib/Global.js`, the `pixelRatio` field; `Canvas.js`'s constructor takes it before ever reaching `getDevicePixelRatio`), so a window moved to a monitor with a different ratio keeps drawing at the old one.
 6. Memory leaks: `destroy()` nodes and stages on teardown; Konva assigns `window.Konva` at module scope.
 7. vue-konva applies only changed `config` keys (non-strict mode), deep-watches every node's `config`, and on a Layer's or Group's `onUpdated` walks its vnode subtree to re-derive z-order. Template order is z-order; keys must be stable ids.
 
@@ -408,8 +408,8 @@ Konva reads `devicePixelRatio` once per module and caches it (§1.5), and each l
 ```ts
 /**
  * Keeps every layer of `stage()` drawing at the pixel ratio of the monitor the window is on.
- * Konva samples `devicePixelRatio` once per module and never again (Canvas.js,
- * `getDevicePixelRatio`), so without this a window dragged between a 2× and a 1× monitor draws
+ * Konva samples `devicePixelRatio` once per module and never again (Global.js,
+ * `Konva.pixelRatio`), so without this a window dragged between a 2× and a 1× monitor draws
  * blurry or four times too large until the plugin reloads. Arms `matchMedia('(resolution:
  * <dpr>dppx)')` on the element's own window — a pop-out has one — and re-arms after each change,
  * since the query is for one value. Returns the disposer; call it on unmount.

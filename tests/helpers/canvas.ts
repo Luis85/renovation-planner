@@ -209,24 +209,19 @@ function installImageDecoding(): void {
  * `matchMedia`, which jsdom does not implement at all — and every stage-mounting component
  * arms `(resolution: <dpr>dppx)` on mount (`followPixelRatio`), so without this a canvas mount
  * throws `matchMedia is not a function`. Modelled no wider than that caller reads: a list IS
- * an `EventTarget` (the real `MediaQueryList extends EventTarget`), carries `media`, and
- * answers `matches` as whether the query's ratio is the window's `devicePixelRatio` NOW. It
- * never fires `change` on its own — a test that moves the window to another monitor sets
- * `devicePixelRatio` and dispatches `change` on the list the mount armed, which
- * `armedMediaQueries()` hands back in arming order. Any other query is refused at the call
- * rather than answered with an invented `matches`, for `getContext`'s reason above. Installed
- * on the main `window` only: a stage mounted in an iframe's document asks THAT window and is
- * refused by name.
+ * an `EventTarget` (the real `MediaQueryList extends EventTarget`) and carries `media`; no
+ * `matches`, because nothing reads one. It never fires `change` on its own — a test that moves
+ * the window to another monitor sets `devicePixelRatio` and dispatches `change` on the list the
+ * mount armed, which `armedMediaQueries()` hands back in arming order. Any other query is
+ * refused at the call rather than answered with an invented list, for `getContext`'s reason
+ * above. `installCanvas` installs it on the main `window` only: a stage mounted in an iframe's
+ * document asks THAT window, which a test gives its own through `installMatchMedia`.
  */
 class FakeMediaQueryList extends EventTarget {
 	readonly listeners = new Set<EventListenerOrEventListenerObject>();
 
-	constructor(private readonly win: Window, readonly media: string, private readonly ratio: number) {
+	constructor(readonly media: string) {
 		super();
-	}
-
-	get matches(): boolean {
-		return this.ratio === this.win.devicePixelRatio;
 	}
 
 	override addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: AddEventListenerOptions | boolean): void {
@@ -252,13 +247,13 @@ export function mediaQueryListeners(): number {
 	return armed.reduce((count, list) => count + list.listeners.size, 0);
 }
 
-function installMatchMedia(win: Window): void {
+/** The fake above on `win` — the main window through `installCanvas`, an iframe's by a test that mounts there. */
+export function installMatchMedia(win: Window): void {
 	Object.defineProperty(win, 'matchMedia', {
 		configurable: true,
 		value: (query: string): MediaQueryList => {
-			const dppx = /^\(resolution: (\d+(?:\.\d+)?)dppx\)$/.exec(query);
-			if (dppx === null) throw new Error(`the fake matchMedia models only "(resolution: <n>dppx)", not ${query}`);
-			const list = new FakeMediaQueryList(win, query, Number(dppx[1]));
+			if (!/^\(resolution: \d+(?:\.\d+)?dppx\)$/.test(query)) throw new Error(`the fake matchMedia models only "(resolution: <n>dppx)", not ${query}`);
+			const list = new FakeMediaQueryList(query);
 			armed.push(list);
 			return list as unknown as MediaQueryList;
 		},

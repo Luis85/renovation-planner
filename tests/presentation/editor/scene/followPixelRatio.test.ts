@@ -9,15 +9,15 @@
  * last, exactly as a browser would deliver it.
  */
 import Konva from 'konva';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { armedMediaQueries, installCanvas } from '../../../helpers/canvas';
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { armedMediaQueries, installCanvas, installMatchMedia } from '../../../helpers/canvas';
 import { followPixelRatio } from '../../../../src/presentation/editor/scene/followPixelRatio';
 
-/** A stage of a known size on a host in the document, so a backing store is asserted in pixels. */
-function stageOn(layers: number): Konva.Stage {
+/** A stage of a known size on a host in `doc`, so a backing store is asserted in pixels. */
+function stageOn(layers: number, doc: Document = document): Konva.Stage {
 	installCanvas();
-	const host = document.createElement('div');
-	document.body.append(host);
+	const host = doc.createElement('div');
+	doc.body.append(host);
 	const stage = new Konva.Stage({ container: host, width: 100, height: 50 });
 	for (let index = 0; index < layers; index += 1) stage.add(new Konva.Layer());
 	return stage;
@@ -65,8 +65,8 @@ describe('followPixelRatio', () => {
 	});
 
 	/**
-	 * A leaf opened AFTER the move: Konva builds every new layer at the ratio it cached at load
-	 * (`Canvas.js`, `getDevicePixelRatio`), so the stage is stale before any `change` can fire.
+	 * A leaf opened AFTER the move: Konva builds every new layer at the ratio it sampled at load
+	 * (`Global.js`, `Konva.pixelRatio`), so the stage is stale before any `change` can fire.
 	 */
 	it('brings layers built at a stale cached ratio to the window’s current one when it starts', () => {
 		setDevicePixelRatio(1);
@@ -82,6 +82,28 @@ describe('followPixelRatio', () => {
 		}
 		expect(draw).toHaveBeenCalledOnce();
 		expect(armedMediaQueries().at(-1)?.media).toBe('(resolution: 2dppx)');
+	});
+
+	/**
+	 * An Obsidian pop-out leaf: the stage's container lives in another document with a window
+	 * of its own, and THAT window's ratio is the monitor the pop-out is on. A REAL second
+	 * document (an iframe's), per the fake rule; its window gets the same fake as the main one.
+	 */
+	it('reads the ratio of, and arms on, the window that owns the stage container', () => {
+		const frame = document.createElement('iframe');
+		document.body.append(frame);
+		onTestFinished(() => frame.remove());
+		const doc = frame.contentDocument as Document, win = frame.contentWindow as Window;
+		installMatchMedia(win);
+		const stage = stageOn(1, doc);
+		Object.defineProperty(win, 'devicePixelRatio', { configurable: true, value: 2 });
+		const popOut = vi.spyOn(win, 'matchMedia'), main = vi.spyOn(window, 'matchMedia');
+
+		followPixelRatio(stage);
+
+		expect(popOut).toHaveBeenCalledWith('(resolution: 2dppx)');
+		expect(main).not.toHaveBeenCalled();
+		expect(stage.getLayers()[0].getCanvas().getPixelRatio()).toBe(2);
 	});
 
 	it('does nothing when the ratio reported did not change', () => {

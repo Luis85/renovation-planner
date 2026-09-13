@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T14:42:42+02:00",
+  "updatedAt": "2026-09-13T14:55:17+02:00",
   "status": "in-progress",
   "integration": {
     "branch": "main",
@@ -18,8 +18,8 @@
   },
   "limits": {
     "maxConcurrentCodingTasks": 3,
-    "activeCodingTasks": 1,
-    "heavyVerificationOwner": "I00"
+    "activeCodingTasks": 3,
+    "heavyVerificationOwner": "I01"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -27,13 +27,13 @@
     "baseSha": "bab369891807a05472e51a163438662b5bb65aea",
     "rootPacket": "I00",
     "rootPr": 174,
-    "currentReviewedTipPacket": null,
-    "currentReviewedTipSha": null,
+    "currentReviewedTipPacket": "I00",
+    "currentReviewedTipSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
     "I00": {
-      "status": "refreshing-after-upstream-merge",
+      "status": "reviewed-stack-root-ci-pending",
       "taskId": "01a09abe-68e3-7041-adea-59b071334eb0",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -45,8 +45,53 @@
         "c78524b8d2e76dd2cb14e210499f4ea0a3b3be48"
       ],
       "pr": 174,
-      "headSha": "cc603d2bcb988679658d8fd934e2e41d7cac7e5a",
+      "headSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "verificationOwner": "I00 worker",
+      "blockers": []
+    },
+    "I01": {
+      "status": "running",
+      "taskId": "01a09ad5-df64-7301-af48-0cd2879a0924",
+      "hostId": "local",
+      "model": "gpt-5.6-luna",
+      "reasoning": "high",
+      "branch": "codex/usability-i01-mode-header",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i01-mode-header",
+      "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
+      "prerequisitePackets": ["I00"],
+      "pr": null,
+      "headSha": null,
+      "verificationOwner": "I01 worker (slot granted)",
+      "blockers": []
+    },
+    "I02": {
+      "status": "running",
+      "taskId": "01a09ad5-e8b0-7171-9f4b-d42e2b718899",
+      "hostId": "local",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "branch": "codex/usability-i02-panels",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i02-panels",
+      "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
+      "prerequisitePackets": ["I00"],
+      "pr": null,
+      "headSha": null,
+      "verificationOwner": "waiting for shared slot",
+      "blockers": []
+    },
+    "I04": {
+      "status": "running",
+      "taskId": "01a09ad5-f701-7cb3-9883-272f70232169",
+      "hostId": "local",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "branch": "codex/usability-i04-renovate-details",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i04-renovate-details",
+      "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
+      "prerequisitePackets": ["I00"],
+      "pr": null,
+      "headSha": null,
+      "verificationOwner": "waiting for shared slot",
       "blockers": []
     }
   },
@@ -55,7 +100,7 @@
       "pr": 172,
       "status": "merged",
       "mergeSha": "bab369891807a05472e51a163438662b5bb65aea",
-      "relationship": "Merged while I00 was running; touches its read-only EditorSurface.vue, so PR #174 is being refreshed and its recorded contracts revalidated before admission."
+      "relationship": "Merged while I00 was running; its extracted EditorSurface/keyDoors seams were revalidated on PR #174 before Wave 1 dispatch."
     }
   ],
   "postImplementation": {
@@ -70,5 +115,5 @@
       "status": "queued-after-final-review"
     }
   },
-  "nextAdmissionGate": "Refresh and review I00 against bab369891807a05472e51a163438662b5bb65aea, verify its final PR head, adopt it as the unmerged stack root, then dispatch I01, I02 and I04 from that reviewed tip."
+  "nextAdmissionGate": "Review and verify Wave 1. Finalize the serial stack as I00 -> I01 -> I02 -> I04, then dispatch Wave 2 from the reviewed I04 tip."
 }

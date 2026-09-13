@@ -40,8 +40,10 @@
  * is therefore not read here; closing that means hoisting the tokens to `AssetDesignerRoot`,
  * which owns `.renovation-asset-designer`, and handing them down as a prop.
  */
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
+import type Konva from 'konva';
+import { followPixelRatio } from '../editor/scene/followPixelRatio';
 import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import type { StringKey } from '../i18n/locales/en';
 import type { ToolId } from '../editor/tools/editor-tool';
@@ -172,6 +174,18 @@ function framedBounds(all: boolean): BoundingBox | null {
 	if (!all || current === null) return null;
 	return boundsOfZones([current.footprint, ...(current.clearance === null ? [] : [current.clearance])]);
 }
+
+/**
+ * vue-konva's `VStage` exposes `getStage()`; the layers follow the monitor's pixel ratio through
+ * it, exactly as `PlanCanvas.vue` wires the other stage. The ref is set by the time `onMounted`
+ * runs — `VStage` renders unconditionally inside the slot — so the null arm Vue types for it is
+ * unreachable and is not written. The disposer runs in this component's `onBeforeUnmount`,
+ * which Vue invokes BEFORE `VStage`'s own destroys the stage.
+ */
+const stageRef = ref<{ getStage(): Konva.Stage } | null>(null);
+let stopPixelRatio!: () => void;
+onMounted(() => { stopPixelRatio = followPixelRatio((stageRef.value as { getStage(): Konva.Stage }).getStage()); });
+onBeforeUnmount(() => stopPixelRatio());
 </script>
 
 <template>
@@ -189,7 +203,10 @@ function framedBounds(all: boolean): BoundingBox | null {
 		:finish-area="noArea"
 	>
 		<template #default="{ size }">
-			<VStage :config="size">
+			<VStage
+				ref="stageRef"
+				:config="size"
+			>
 				<!--
 					The asset's spec sheet, drawn by the SAME component the plan editor mounts.
 					Its position among its siblings is the contract — see `layers/backgroundLayer.ts`

@@ -46,6 +46,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { tr, currentLanguage } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
+import { listenOnOwner } from '../../composables/use-owner-listener';
 import { useEditorRuntime } from '../runtime';
 import { useNoteCreation } from './noteCreation';
 import HostIcon from '../../components/HostIcon.vue';
@@ -350,15 +351,18 @@ function onFocusOut(event: FocusEvent): void {
 	emit('close');
 }
 
+let stopOutside: (() => void) | null = null;
 onMounted(() => {
 	// The catalogue always has an available entry; Room remains the first recommendation.
 	const first = CREATION_CATALOGUE[0];
 	focusEntry(first.id);
-	document.addEventListener('pointerdown', onDocumentPointerDown, { capture: true });
+	// On the document that OWNS the menu, which in a pop-out leaf is not the plugin's `document`.
+	stopOutside = listenOnOwner(menuRoot.value as HTMLElement, 'document', 'pointerdown', onDocumentPointerDown, { capture: true });
 });
 
 onBeforeUnmount(() => {
-	document.removeEventListener('pointerdown', onDocumentPointerDown, { capture: true });
+	stopOutside?.();
+	stopOutside = null;
 	// Hand focus back ONLY if this menu still holds it. The focus-out door closes the menu
 	// BECAUSE focus moved to another control, and reclaiming it there steals the control the
 	// user just reached. `menuRoot` is cast rather than optionally chained for the reason

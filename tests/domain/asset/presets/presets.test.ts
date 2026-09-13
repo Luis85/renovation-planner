@@ -60,4 +60,23 @@ describe('preset refusals that are not ranges', () => {
 		const curved = ASSET_PRESETS.find((preset) => preset.id === 'curved-table');
 		expect(curved && expectErr(curved.build({ radius: 600, depth: 600, sweep: 90 })).code).toBe('asset.preset-incoherent');
 	});
+
+	it('refuses a fractional seat count', () => {
+		const sofa = ASSET_PRESETS.find((preset) => preset.id === 'sofa');
+		expect(sofa && expectErr(sofa.build({ width: 2000, depth: 900, seats: 2.5 })).code).toBe('asset.preset-value-out-of-range');
+	});
+
+	it('refuses a tree whose trunk is half its canopy or more', () => {
+		const tree = ASSET_PRESETS.find((preset) => preset.id === 'tree');
+		expect(tree && expectErr(tree.build({ canopy: 1000, trunk: 500 })).code).toBe('asset.preset-incoherent');
+	});
+
+	it('offers all fourteen presets', () => {
+		expect(ASSET_PRESETS.map((preset) => preset.id)).toEqual([
+			'rect-table', 'round-table', 'oval-table', 'curved-table',
+			'chair', 'armchair', 'sofa',
+			'toilet', 'washbasin', 'shower-tray', 'bathtub',
+			'tree', 'shrub', 'bed',
+		]);
+	});
 });

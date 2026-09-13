@@ -6,6 +6,8 @@ import { backDepth, membershipProbe, placedOutline, placementHeading, placementP
 
 const rounded = (points: readonly Point[]): Point[] => points.map(p => ({ x: Math.round(p.x * 1e6) / 1e6 + 0, y: Math.round(p.y * 1e6) / 1e6 + 0 }));
 const rect = (w: number, d: number): Point[] => [{ x: -w / 2, y: -d / 2 }, { x: w / 2, y: -d / 2 }, { x: w / 2, y: d / 2 }, { x: -w / 2, y: d / 2 }];
+const QUARTER = Math.tan(Math.PI / 8);
+const circle = (r: number) => ({ points: [{ x: 0, y: -r }, { x: r, y: 0 }, { x: 0, y: r }, { x: -r, y: 0 }], bulges: [QUARTER, QUARTER, QUARTER, QUARTER] });
 function shape(patch: Partial<AssetShape> = {}): AssetShape {
 	return { footprint: { points: rect(1000, 600) }, footprintOrigin: 'typed', footprintPending: false, clearancePending: false, anchorPending: false, clearance: null, anchor: { x: 0, y: 0 }, facing: 0, details: [], ...patch };
 }
@@ -53,5 +55,22 @@ describe('asset placement geometry', () => {
 		expect(backDepth(shape({ facing: Math.PI / 2 }))).toBeCloseTo(300);
 		expect(backDepth(shape({ anchor: { x: -500, y: 0 } }))).toBe(0);
 		expect(backDepth(shape({ anchor: { x: -800, y: 0 } }))).toBe(0);
+	});
+
+	it('places each detail with the footprint transform and keeps its line style', () => {
+		const element = { points: placementPoints({ x: 0, y: 0 }, Math.PI) };
+		const outline = placedOutline(element, shape({ details: [{ id: 'd', name: 'd', outline: { points: rect(200, 100) }, line: 'dashed', pending: false }] }));
+		expect(outline.details.map(detail => detail.line)).toEqual(['dashed']);
+		expect(rounded(outline.details[0].points)).toEqual(rounded(rotate({ points: rect(200, 100) }, Math.PI, { x: 0, y: 0 }).points));
+	});
+
+	it('flattens a curved footprint into the outline a plan draws and hits', () => {
+		const footprint = placedOutline({ points: placementPoints({ x: 0, y: 0 }, 0) }, shape({ footprint: circle(500) })).footprint;
+		expect(footprint.length).toBeGreaterThan(4);
+		expect(Math.max(...footprint.map(point => Math.hypot(point.x, point.y)))).toBeCloseTo(500, 6);
+	});
+
+	it('measures back depth from the arc, not only its corner points', () => {
+		expect(backDepth(shape({ footprint: circle(500), facing: Math.PI / 4 }))).toBeGreaterThan(499);
 	});
 });

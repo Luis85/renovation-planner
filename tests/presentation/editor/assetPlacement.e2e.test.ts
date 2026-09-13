@@ -10,6 +10,7 @@ import { installObsidianDom } from '../../helpers/dom';
 import { ok } from '../../../src/core/result/Result';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { trError } from '../../../src/presentation/i18n/toUserMessage';
+import * as notices from '../../../src/presentation/notices/notify';
 import { activateNotices, disposeNotices } from '../../../src/presentation/notices/notify';
 
 type Rig = Awaited<ReturnType<typeof assetPlacementRig>>;
@@ -99,4 +100,21 @@ it('refuses an asset with no footprint before the tool starts', async () => {
 	await choose(rig, sketch.id, sketch.name);
 	expect(rig.runtime.activeToolId.value).toBe('select');
 	expect(Notice.shown).toContain(tr('editor.asset.no-shape'));
+});
+
+it('notifies the fault once, logs it and writes nothing when placing throws', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	await choose(rig, radiator.id, radiator.name);
+	const cause = new Error('Vault write failed');
+	const fault = vi.spyOn(notices, 'notifyFault');
+	vi.spyOn(rig.runtime.dispatcher, 'run').mockRejectedValueOnce(cause);
+	await typePlacement(rig, '1', '1');
+	await settleUntil(() => fault.mock.calls.length > 0, 'fault notice');
+	expect(fault).toHaveBeenCalledExactlyOnceWith(cause, rig.deps.commands.logger, 'editor.asset.write-failed');
+	expect(rig.project.structure.elements ?? []).toHaveLength(0);
+	const draft = rig.runtime.elementTask.assets.draft;
+	expect(draft.busy).toBe(false);
+	expect(draft.error).toBeNull();
+	expect(rig.runtime.activeToolId.value).toBe('place-asset');
 });

@@ -33,6 +33,7 @@ it('keeps standalone Area rotation in Plan while Renovate offers the explicit la
 	const area = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden',
 		geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
 	await rig.runtime.refreshProjection(); rig.selection.select([area.id]); await settle();
+	await rig.runtime.renovation.perspective('plan'); await settle();
 	expect(rig.wrapper.find('.rp-room-more-actions').exists()).toBe(true);
 
 	await rig.runtime.renovation.perspective('renovate'); await settle();

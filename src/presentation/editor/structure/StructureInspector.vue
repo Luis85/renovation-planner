@@ -52,8 +52,10 @@ async function act(event: Event, remove: boolean): Promise<void> {
 			:rooms="rooms"
 			:materials="materials"
 		/>
+		<StructureRenovationEntry v-if="session.perspective === 'renovate'" />
 		<div class="rp-inspector-actions">
 			<button
+				v-if="session.perspective === 'plan'"
 				type="button"
 				class="rp-inspector-action"
 				:aria-disabled="paused"
@@ -63,7 +65,7 @@ async function act(event: Event, remove: boolean): Promise<void> {
 				{{ tr('editor.structure.edit') }}
 			</button>
 			<button
-				v-if="opening"
+				v-if="opening && session.perspective === 'plan'"
 				type="button"
 				class="rp-inspector-action"
 				:aria-disabled="!runtime.openingMove.available.value"
@@ -83,7 +85,10 @@ async function act(event: Event, remove: boolean): Promise<void> {
 				{{ tr('editor.structure.set-material') }}
 			</button>
 		</div>
-		<details class="rp-inspector-more">
+		<details
+			v-if="session.perspective === 'plan'"
+			class="rp-inspector-more"
+		>
 			<summary>
 				<span>{{ tr('editor.structure.more') }}</span>
 				<HostIcon

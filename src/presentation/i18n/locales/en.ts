@@ -866,6 +866,11 @@ export const en = {
 	// Derived, not a fifth state: `saved` AND `ProjectStore.stale`. The middle dot is the
 	// component library's own spelling of this label.
 	'save-state.saved-refresh-needed': 'Saved · refresh needed',
+	// I00 reserves the captions consumed by the mode-header packet. The existing
+	// `renovation.plan`/`.renovate`/`.review` keys remain the short radio labels.
+	'editor.perspective.plan.caption': 'Draw and adjust',
+	'editor.perspective.renovate.caption': 'Plan the work',
+	'editor.perspective.review.caption': 'Check the plan',
 	...enAssetLibrary,
 } as const;
 

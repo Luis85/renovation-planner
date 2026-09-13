@@ -24,11 +24,17 @@ function wanted(subject: RenovationSubject | undefined, baseline: PlanningBaseli
 		source: { planId: baseline.plan.entity.id, targetId: subject.targetId, workId: '', outcomeId: subject.id, state: 'intended', rule, manual: '0', coverage: '1', lot: '', minimum: '', construction: true } };
 }
 
+/** A planned asset the catalogue cannot find — an unreadable or deleted note — leaves its entry as it stands (spec §6.1). */
+function unknownAsset(subject: RenovationSubject | undefined, baseline: PlanningBaseline): boolean {
+	const assetId = subject && constructionAsset(subject);
+	return !!assetId && !baseline.catalogue.some(item => item.asset.id === assetId);
+}
+
 /** The entry writes that make the saved construction entries match `proposed`'s subjects; deletions first. */
 export function constructionSteps(baseline: PlanningBaseline, proposed: Renovation): readonly ConstructionStep[] {
 	const entries = new Map(baseline.materials.filter(item => item.entity.source?.construction).map(item => [item.entity.source?.outcomeId ?? '', item.entity]));
 	const subjects = new Map(proposed.subjects.map(item => [item.id, item]));
-	const deletes = [...entries].filter(([subjectId]) => !wanted(subjects.get(subjectId), baseline)).map(([, entry]): ConstructionStep => ({ kind: 'delete', id: entry.id }));
+	const deletes = [...entries].filter(([subjectId]) => !wanted(subjects.get(subjectId), baseline) && !unknownAsset(subjects.get(subjectId), baseline)).map(([, entry]): ConstructionStep => ({ kind: 'delete', id: entry.id }));
 	const saves = proposed.subjects.flatMap((subject): ConstructionStep[] => {
 		const input = wanted(subject, baseline), entry = entries.get(subject.id);
 		if (!input) return [];

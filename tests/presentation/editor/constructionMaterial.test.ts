@@ -74,6 +74,18 @@ describe('the construction entry (ADR-0031)', () => {
 		expect([...rig.stack.vault.entries]).toEqual(before);
 	});
 
+	it('leaves an entry whose asset left the catalogue untouched through an unrelated write (spec §6.1)', async () => {
+		const { rig, render } = await setup();
+		expectOk(await write(rig, { ...EMPTY_RENOVATION, subjects: [wall({ change: 'modify', description: 'Rendered', assetId: render.id })] }));
+		const [entry] = await entries(rig);
+		expectOk(await rig.stack.requirements.save(expectOk(entry.entity.withQuantityOverride({ value: new Decimal('20'), unit: 'm2' })), entry.version));
+		const asset = expectDefined(expectOk(await rig.stack.assets.getById(render.id)), 'asset');
+		expectOk(await rig.stack.assets.delete(render.id, asset.version));
+		const work = { id: 'work-border', targetId: 'wall-a', title: 'Repoint', description: '', order: 0, progress: 'pending' as const, responsibility: 'diy' as const, outcomes: [], dependencies: [] };
+		expectOk(await write(rig, { ...EMPTY_RENOVATION, subjects: [wall({ change: 'modify', description: 'Rendered', assetId: render.id })], work: [work] }));
+		expect((await entries(rig)).map(item => [item.entity.id, item.entity.assetId, item.entity.quantity.override?.value.toString()])).toEqual([[entry.entity.id, render.id, '20']]);
+	});
+
 	it('restores the subject when the entry cannot be written', async () => {
 		const { rig, render } = await setup();
 		const save = rig.stack.requirements.save.bind(rig.stack.requirements);

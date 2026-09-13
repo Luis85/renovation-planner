@@ -24,7 +24,7 @@ page.on('pageerror', error => errors.push(error.message));
 const route = theme => `${process.env.RP_HARNESS_URL ?? server.resolvedUrls.local[0]}?view=plan-editor&bare&reference&planning&fidelity&theme=${theme}`;
 async function stable() {
 	await page.evaluate(() => document.fonts.ready);
-	await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => { requestAnimationFrame(resolve); }); }));
 }
 async function shot(name) {
 	if (process.argv.includes('--continue') && existsSync(`${out}/${name}.png`)) return;

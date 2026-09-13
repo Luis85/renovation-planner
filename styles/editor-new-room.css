@@ -101,6 +101,12 @@
 	color: var(--text-muted);
 }
 
+.rp-new-room__preview-label {
+	display: block;
+	margin-block-end: var(--size-4-1);
+	color: var(--text-normal);
+}
+
 .rp-new-room__advanced {
 	display: grid;
 	gap: var(--size-4-1);

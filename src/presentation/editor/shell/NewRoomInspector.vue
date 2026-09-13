@@ -201,18 +201,21 @@ const areaText = computed<string>(() => (draft.areaMm2 === null ? NO_FIGURE : fo
 
 /**
  * A refused dimension keeps the last accepted side in the draft store, so the outline remains
- * useful while the user corrects the field. The explicit state marker keeps that outline from
- * being mistaken for saved geometry; the localized preview sentence reuses the existing editor
- * vocabulary until the shared room-specific label is added to both locale dictionaries.
+ * useful while the user corrects the field. The explicit state marker and localized label keep
+ * that outline from being mistaken for saved geometry; the dimensions reuse the existing editor
+ * preview vocabulary.
  */
 const lastValidPreview = computed(() => {
 	const rect = draft.rect;
 	if (rect === null || (draft.widthError === null && draft.depthError === null)) return null;
-	return tr('editor.resize.preview', {
-		width: formatMetres(rect.width),
-		depth: formatMetres(rect.depth),
-		area: formatArea(rect.width * rect.depth),
-	});
+	return {
+		label: tr('editor.room.last-valid-preview'),
+		values: tr('editor.resize.preview', {
+			width: formatMetres(rect.width),
+			depth: formatMetres(rect.depth),
+			area: formatArea(rect.width * rect.depth),
+		}),
+	};
 });
 
 /**
@@ -328,7 +331,8 @@ onBeforeUnmount(() => {
 			data-rp-preview-state="last-valid"
 			role="status"
 		>
-			{{ lastValidPreview }}
+			<strong class="rp-new-room__preview-label">{{ lastValidPreview.label }}</strong>
+			<span>{{ lastValidPreview.values }}</span>
 		</p>
 
 		<div class="rp-new-room__advanced">

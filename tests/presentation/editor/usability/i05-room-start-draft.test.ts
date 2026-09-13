@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
+import { t } from '../../../../src/presentation/i18n/strings';
 import { mountPlanEditorCanvas, runtimeOf, settle } from '../../../helpers/editor';
 
 const mounted: Awaited<ReturnType<typeof mountPlanEditorCanvas>>[] = [];
@@ -46,6 +47,7 @@ it('puts the ordinary room fields before free-form shape controls and marks the 
 	await settle();
 	expect(width.attributes('aria-invalid')).toBe('true');
 	expect(form.find('[data-rp-preview-state="last-valid"]').exists()).toBe(true);
+	expect(form.get('.rp-new-room__preview-label').text()).toBe(t('en', 'editor.room.last-valid-preview'));
 	expect(form.get('.rp-new-room__create').attributes('aria-disabled')).toBe('true');
 	expect(harness.wrapper.get('.rp-task-banner__finish').attributes('aria-disabled')).toBe('true');
 	// Cancel remains the explicit task exit while the draft is invalid.

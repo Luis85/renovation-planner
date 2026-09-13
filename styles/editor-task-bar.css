@@ -50,6 +50,21 @@
 	color: var(--text-muted);
 }
 
+/* A retained Room draft has a visible task outcome as well as the field-level explanation in
+ * Details. Busy is deliberately neutral: it gates the two completion/cancel doors without
+ * claiming the in-flight write can be cancelled. */
+.rp-task-banner--invalid {
+	border-color: var(--text-error);
+}
+
+.rp-task-banner--invalid [data-rp-task-state-message='invalid'] {
+	color: var(--text-error);
+}
+
+.rp-task-banner--busy [data-rp-task-state-message='busy'] {
+	color: var(--text-accent);
+}
+
 /* Title and instruction read as one line where the width allows, and wrap as one block where not. */
 .rp-task-banner__text {
 	flex: 1 1 14rem;
@@ -124,6 +139,11 @@
 .rp-task-banner .rp-task-banner__finish[aria-disabled='true'] {
 	color: var(--text-muted);
 	background-color: var(--background-modifier-border);
+	cursor: not-allowed;
+}
+
+.rp-task-banner .rp-task-banner__cancel[aria-disabled='true'] {
+	color: var(--text-muted);
 	cursor: not-allowed;
 }
 

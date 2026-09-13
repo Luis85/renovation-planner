@@ -58,7 +58,10 @@ const runtime = useEditorRuntime();
 const isCurves = computed(() => runtime.activeToolId.value === 'edit-curves');
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
 const isElement = computed(() => isElementTool(runtime.activeToolId.value));
-const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
+const isRoom = computed(() => runtime.activeToolId.value === 'draw-room');
+const roomBusy = computed(() => isRoom.value && runtime.roomDraft.submitting);
+const roomInvalid = computed(() => isRoom.value && !roomBusy.value && runtime.roomDraftIncomplete.value);
+const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || roomBusy.value || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
 
 const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey; finish?: true }>>> = {
@@ -90,6 +93,7 @@ const task = computed(() => {
 const root = ref<HTMLElement | null>(null);
 const taskbarClearance = useTaskbarClearance(root);
 const instructionId = useId();
+const taskStateId = useId();
 const isArea = computed(() => runtime.activeToolId.value === 'draw-area');
 const isOutline = computed(() => isArea.value || runtime.activeToolId.value === 'draw-polygon');
 const finishLabel = computed(() => tr(isCurves.value ? 'editor.curves.save' : isStructure.value
@@ -162,6 +166,8 @@ watch(task, (next) => {
 		v-if="task !== null"
 		ref="root"
 		class="rp-task-banner"
+		:class="{ 'rp-task-banner--invalid': roomInvalid, 'rp-task-banner--busy': roomBusy }"
+		:data-rp-task-state="roomBusy ? 'busy' : roomInvalid ? 'invalid' : undefined"
 		:style="{ '--rp-taskbar-clearance': `${taskbarClearance}px` }"
 		role="region"
 		:aria-label="tr('editor.task.banner')"
@@ -175,6 +181,18 @@ watch(task, (next) => {
 			<span
 				:id="instructionId"
 			>{{ tr(task.instructionKey) }}</span>
+			<span
+				v-if="roomBusy"
+				:id="taskStateId"
+				data-rp-task-state-message="busy"
+				role="status"
+			>{{ tr('save-state.saving') }}</span>
+			<span
+				v-else-if="roomInvalid"
+				:id="taskStateId"
+				data-rp-task-state-message="invalid"
+				role="status"
+			>{{ tr('editor.task.finish.blocked') }}</span>
 			<span
 				v-if="runtime.activeToolId.value === 'move-opening'"
 				role="status"
@@ -196,6 +214,7 @@ watch(task, (next) => {
 				type="button"
 				class="rp-task-banner__cancel"
 				:aria-disabled="cancelBlocked"
+				:aria-describedby="roomBusy ? taskStateId : undefined"
 				@click="cancel"
 			>
 				{{ tr('editor.task.cancel') }}

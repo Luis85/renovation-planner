@@ -15,9 +15,14 @@ import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import { computed } from 'vue';
 import HostIcon from '../../components/HostIcon.vue';
+import { useRenovationSession } from '../renovation/renovationSession';
 
 const runtime = useEditorRuntime();
+const session = useRenovationSession();
 const canSwitch = computed(() => runtime.activeToolId.value === null || runtime.toolManager.canDeactivateActiveTool());
+// Add opens the layout menu. Renovate keeps the two navigation tools, while its eligible work
+// and context actions remain in the Renovation Details routes that already own their commands.
+const layoutAddAvailable = computed(() => session.perspective === 'plan');
 const props = defineProps<{ addOpen: boolean }>();
 const emit = defineEmits<{ openAdd: [] }>();
 </script>
@@ -49,6 +54,7 @@ const emit = defineEmits<{ openAdd: [] }>();
 			<HostIcon name="hand" />{{ tr('editor.input.pan') }}
 		</button>
 		<button
+			v-if="layoutAddAvailable"
 			type="button"
 			class="rp-primary-actions__button"
 			data-rp-action="add"

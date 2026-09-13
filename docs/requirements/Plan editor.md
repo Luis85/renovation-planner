@@ -79,6 +79,15 @@ An item beneath this epic is done when:
 - Feature A through E acceptance journeys and the consolidated domain guarantees are traced to
   their source specifications.
 
+## Proposed next increment — 2026-09-13
+
+The [usability consolidation plan](../user-experience/editor-usability-increment/README.md)
+proposes consolidating existing 2D capabilities through clearer tasks, Details hierarchy,
+reference setup, selection, safe editing and inclusive compact layouts. It includes current
+browser evidence, dated competitive research, acceptance criteria and a novice/native validation
+plan. Implementation is not started by this proposal; 3D and new domain capabilities are excluded.
+Accepted later interaction amendments take precedence over older mockup placement details.
+
 ## Sources
 
 - [Editor design specification set](../user-experience/renovation-planner-editor-specs/README.md)

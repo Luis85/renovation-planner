@@ -433,8 +433,12 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['asset.part-not-found', 'Validation', 'error.category.validation', 'domain/asset/shapeEdits.ts'],
 	['asset.vertex-out-of-range', 'Validation', 'error.category.validation', 'domain/asset/shapeEdits.ts'],
 	['asset.invalid-scale', 'Validation', 'error.category.validation', 'domain/asset/shapeEdits.ts'],
-	// The one `assetError` call outside the domain, and the only one of the seventeen whose
-	// module is an application command.
+	['asset.detail-at-limit', 'Validation', 'error.category.validation', 'domain/asset/detailEdits.ts'],
+	['asset.no-details', 'Validation', 'error.category.validation', 'domain/asset/detailEdits.ts'],
+	['asset.details-await-scale', 'Validation', 'error.category.validation', 'domain/asset/detailEdits.ts'],
+	// The one `assetError` call outside the domain: every other row above is minted somewhere
+	// under `domain/asset/`, which `grep -rl "assetError(" src/domain/asset src/application/commands/asset`
+	// confirms rather than a remembered count.
 	['asset.no-footprint', 'Validation', 'error.category.validation', 'application/commands/asset/updateAssetShape.ts'],
 	// `assetNotFound` rather than `assetError`, which is why a grep for the latter misses it
 	// and why it is a `Reference` refusal: nothing about the input is wrong, the thing it

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T18:14:18+02:00",
-  "status": "ci-repair-verifying",
+  "updatedAt": "2026-09-13T19:44:11+02:00",
+  "status": "wave-3-ci-verifying",
   "integration": {
     "branch": "main",
     "remote": "origin/main",
@@ -19,7 +19,7 @@
   "limits": {
     "maxConcurrentCodingTasks": 3,
     "activeCodingTasks": 0,
-    "heavyVerificationOwner": "PR 177 CI run 34767881958"
+    "heavyVerificationOwner": "PR 184-186 CI; local full-stack lint passed at I09"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -27,10 +27,10 @@
     "baseSha": "bab369891807a05472e51a163438662b5bb65aea",
     "rootPacket": "I00",
     "rootPr": 174,
-    "currentReviewedTipPacket": "I02",
-    "currentReviewedTipSha": "0f45ff5e724cc49e8c9c9b8d2b7d64da7992b5b7",
+    "currentReviewedTipPacket": "I06",
+    "currentReviewedTipSha": "dfba682ba23b159b4e818ca3bef8ca794864312b",
     "currentProvisionalTipPacket": "I09",
-    "currentProvisionalTipSha": "ceb25531dc75ba2ad263d793342c801197c227d3",
+    "currentProvisionalTipSha": "f8c49e06563b7baa65e12b1c15130a212e414ccf",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
@@ -67,7 +67,7 @@
       "blockers": []
     },
     "I02": {
-      "status": "reviewed-stack-parent-ci-pending",
+      "status": "reviewed-stack-parent-ci-passed",
       "taskId": "01a09ad5-e8b0-7171-9f4b-d42e2b718899",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -82,7 +82,7 @@
       "blockers": []
     },
     "I04": {
-      "status": "reviewed-stack-parent-ci-pending",
+      "status": "reviewed-stack-parent-ci-passed",
       "taskId": "01a09ad5-f701-7cb3-9883-272f70232169",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -92,97 +92,97 @@
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
       "pr": 177,
-      "headSha": "bc98a8e3826551831ade0889706cdc908d568ec3",
+      "headSha": "19272389582a5e9c5ce914e6ab3acea1952839c1",
       "verificationOwner": "I04 worker; coordinator follow-up reviewed",
-      "blockers": ["Awaiting full CI rerun 34767881958 after 9,937 tests passed and the remaining three fallow template-complexity findings were structurally refactored."]
+      "blockers": []
     },
     "I03": {
-      "status": "paused-pending-i04-ci-propagation",
+      "status": "reviewed-stack-parent-ci-passed",
       "taskId": "01a09b02-fbd0-7882-9a0c-8dee3a4f77e4",
       "hostId": "local",
       "model": "gpt-5.6-luna",
       "reasoning": "high",
       "branch": "codex/usability-i03-room-details",
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i03-room-details",
-      "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
+      "baseSha": "19272389582a5e9c5ce914e6ab3acea1952839c1",
       "prerequisitePackets": ["I00", "I01"],
       "pr": 179,
-      "headSha": "7ae8a1d11bb39d458fbaf362abde3b231c991e95",
+      "headSha": "93775c4e5e16916047f00c3c1ae730b74ea35c90",
       "verificationOwner": "I03 worker (slot granted)",
       "blockers": []
     },
     "I05": {
-      "status": "paused-pending-i04-ci-propagation",
+      "status": "reviewed-stack-parent-ci-passed",
       "taskId": "01a09b03-111c-7d91-b9ce-7ce3310dbaea",
       "hostId": "local",
       "model": "gpt-5.6-luna",
       "reasoning": "high",
       "branch": "codex/usability-i05-room-start-draft",
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i05-room-start-draft",
-      "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
+      "baseSha": "93775c4e5e16916047f00c3c1ae730b74ea35c90",
       "prerequisitePackets": ["I00", "I04"],
       "pr": 180,
-      "headSha": "a2c36184f2f30ceb0b31155239c4dc3f1b8607a9",
+      "headSha": "d892458af1c67630d121fc6adfb96b2b7195c833",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
     "I06": {
-      "status": "paused-pending-i04-ci-propagation",
+      "status": "reviewed-stack-parent-ci-passed",
       "taskId": "01a09b03-039c-7453-9ff5-41becf7c5f50",
       "hostId": "local",
       "model": "gpt-5.6-luna",
       "reasoning": "high",
       "branch": "codex/usability-i06-reference-prepare",
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i06-reference-prepare",
-      "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
+      "baseSha": "d892458af1c67630d121fc6adfb96b2b7195c833",
       "prerequisitePackets": ["I00", "I02"],
       "pr": 181,
-      "headSha": "356f491eba8d3a4a3189dcd03336b2395582a558",
+      "headSha": "dfba682ba23b159b4e818ca3bef8ca794864312b",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
     "I07": {
-      "status": "provisional-paused",
+      "status": "ci-rerun-after-eslint-repair",
       "taskId": "01a09b30-4999-71a3-aea6-a1dec33d8842",
       "hostId": "local",
       "model": "gpt-5.6-terra",
       "reasoning": "high",
       "branch": "codex/usability-i07-reference-scale-review",
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i07-reference-scale-review",
-      "baseSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
+      "baseSha": "dfba682ba23b159b4e818ca3bef8ca794864312b",
       "prerequisitePackets": ["I00", "I06"],
-      "pr": null,
-      "headSha": "cb9fb9cbd91c15cb18263bfd829b9e40d9be507b",
+      "pr": 184,
+      "headSha": "295abc3a46ba8876a4e888412ea0bf78e6ea86f7",
       "verificationOwner": "I07 worker (slot granted)",
       "blockers": []
     },
     "I08": {
-      "status": "provisional-paused",
+      "status": "ci-rerun-after-parent-and-lint-repair",
       "taskId": "01a09b30-535e-7d13-9330-be07a3ac9949",
       "hostId": "local",
       "model": "gpt-5.6-terra",
       "reasoning": "high",
       "branch": "codex/usability-i08-taskbar",
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i08-taskbar",
-      "baseSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
+      "baseSha": "295abc3a46ba8876a4e888412ea0bf78e6ea86f7",
       "prerequisitePackets": ["I00", "I01", "I04", "I05"],
-      "pr": null,
-      "headSha": "13f68c9e120369c3370a08f4e7862ee9e8faff89",
+      "pr": 185,
+      "headSha": "2783521b9258c62ec5f1ac684119993921ec457a",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
     "I09": {
-      "status": "provisional-paused",
+      "status": "ci-rerun-after-parent-repair",
       "taskId": "01a09b30-60b3-70b2-9a3c-605b63fb16c0",
       "hostId": "local",
       "model": "gpt-5.6-terra",
       "reasoning": "high",
       "branch": "codex/usability-i09-selection",
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i09-selection",
-      "baseSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
+      "baseSha": "2783521b9258c62ec5f1ac684119993921ec457a",
       "prerequisitePackets": ["I00", "I03"],
-      "pr": null,
-      "headSha": "ceb25531dc75ba2ad263d793342c801197c227d3",
+      "pr": 186,
+      "headSha": "f8c49e06563b7baa65e12b1c15130a212e414ccf",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     }
@@ -207,5 +207,5 @@
       "status": "queued-after-final-review"
     }
   },
-  "nextAdmissionGate": "Require PR #177 full CI green on 34767881958. Its corrected head is already propagated through I03-I09; once green, finalize Wave 3 verification and PRs before Wave 4."
+  "nextAdmissionGate": "Require PRs #184-#186 green on their corrected heads. PRs #177 and #179-#181 are green; once Wave 3 is green, dispatch I10/I11/I12 from the verified I09 tip."
 }

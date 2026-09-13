@@ -11,13 +11,15 @@ import { DEFAULT_BEAM_WIDTH, DEFAULT_POST_SECTION } from '../../../domain/spatia
 
 export type ElementToolId = 'place-object' | 'draw-path' | 'draw-fence' | 'measure' | 'place-stair' | 'draw-arrow' | 'place-post' | 'draw-beam';
 /** No tool here produces `'asset'` yet — placement lands through its own flow (plan editor asset placement design §2). */
-export const ELEMENT_TOOLS: Readonly<Record<ElementToolId, Exclude<SpatialElementKind, 'asset'>>> = {
+/** The kinds this draft flow can hold. Not `'asset'` (its own flow, above) and not a drafting mark — those seven kinds get their own tools and draft handling (plan drafting tools design), not yet wired into this file. */
+type DraftableKind = Exclude<SpatialElementKind, 'asset' | 'dimension' | 'section' | 'view' | 'hatch' | 'text' | 'boundary' | 'grid'>;
+export const ELEMENT_TOOLS: Readonly<Record<ElementToolId, DraftableKind>> = {
 	'place-object': 'object', 'draw-path': 'path', 'draw-fence': 'fence', measure: 'measurement',
 	'place-stair': 'stair', 'draw-arrow': 'arrow', 'place-post': 'post', 'draw-beam': 'beam',
 };
 export function isElementTool(id: ToolId | null): id is ElementToolId { return id !== null && id in ELEMENT_TOOLS; }
 export interface ElementDraft {
-	kind: Exclude<SpatialElementKind, 'asset'>; name: string; points: Point[]; cursor: Point | null;
+	kind: DraftableKind; name: string; points: Point[]; cursor: Point | null;
 	text: { x: string; y: string };
 	rectangle: ObjectRectangleText;
 	stair: StairOptions;

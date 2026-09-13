@@ -2,6 +2,7 @@ import { depthRecords, EMPTY_DEPTH } from './PlanningDepth';
 import { err, ok, type Result } from '../../core/result/Result';
 import type { ValidationError } from '../../core/errors/AppError';
 import { EMPTY_STRUCTURE, type Structure } from '../spatial/Structure';
+import { draftingKind } from '../spatial/SpatialElement';
 import { renovationError, type Renovation, type RenovationSubject } from './Renovation';
 import { spatialContexts, type PrimaryContext, type SharedSpatialContext } from './SharedLinks';
 
@@ -10,8 +11,10 @@ export interface RenovationSpatialContext {
 	readonly structure?: Structure;
 	readonly intended?: Structure;
 }
+/** Rooms, walls, openings and elements a record can name; a drafting mark is never one (plan drafting tools design §3). */
 function spatialIds(structure: Structure = EMPTY_STRUCTURE, rooms: readonly string[]): Set<string> {
-	return new Set([...rooms, ...structure.walls.map(item => item.id), ...structure.openings.map(item => item.id), ...(structure.elements ?? []).map(item => item.id)]);
+	const elements = (structure.elements ?? []).filter(item => !draftingKind(item.kind));
+	return new Set([...rooms, ...structure.walls.map(item => item.id), ...structure.openings.map(item => item.id), ...elements.map(item => item.id)]);
 }
 
 /** A room it names must be present; a record with none must target a wall, opening or element, never a zone (ADR-0030). */

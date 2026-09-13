@@ -34,6 +34,8 @@ export class ElementTool implements EditorTool {
 	cancel(): void { if (this.context) this.context.renderState.snapGuides = []; if (!this.deps.draft.busy) discardElementGeometry(this.deps.draft); }
 	abandonGesture(): void { this.deps.draft.cursor = null; if (this.context) this.context.renderState.snapGuides = []; }
 	hasDraft(): boolean { return this.deps.draft.points.length > 0 || this.deps.draft.pendingInput || !!this.deps.draft.text.x || !!this.deps.draft.text.y; }
+	/** A linear element trails the pointer from its last placed point. */
+	tracksPointer(): boolean { return this.deps.draft.points.length > 0; }
 	editCorner(index: number, point: Point | null): boolean {
 		if (this.deps.blocked()) return false;
 		const points = this.deps.draft.points, resolved = index === -1 ? points.length - 1 : index;

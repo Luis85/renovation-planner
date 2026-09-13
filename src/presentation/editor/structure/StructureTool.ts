@@ -61,6 +61,8 @@ export class StructureTool implements EditorTool {
 	/** A focus change preserves completed points; only the guides, which describe a pointer no longer there, go. */
 	abandonGesture(): void { if (this.context) this.context.renderState.snapGuides = []; }
 	hasDraft(): boolean { return this.deps.draft.points.length > 0 || this.deps.draft.text.length !== ''; }
+	/** A wall chain trails the pointer once its first corner is down; openings are single clicks. */
+	tracksPointer(): boolean { return this.id === 'draw-wall' && this.deps.draft.points.length > 0; }
 	editCorner(index: number, point: null): boolean {
 		if (this.deps.blocked() || point !== null || (index !== -1 && index !== this.deps.draft.points.length - 1)) return false;
 		const draft = this.deps.draft;

@@ -36,7 +36,8 @@ describe('spatial element drafts and real selection projections', () => {
 		tool.pointerDown(pointerAt(10, 20)); expect(addPoint).not.toHaveBeenCalled();
 		tool.activate(r.context); expect(start).toHaveBeenCalledWith('draw-path');
 		tool.pointerDown({ ...pointerAt(10, 20), button: 'secondary' }); expect(addPoint).not.toHaveBeenCalled();
-		tool.pointerDown(pointerAt(10.2, 20.3)); expect(draft.points).toEqual([{ x: 10, y: 20 }]); expect(tool.hasDraft()).toBe(true);
+		expect(tool.tracksPointer()).toBe(false);
+		tool.pointerDown(pointerAt(10.2, 20.3)); expect(draft.points).toEqual([{ x: 10, y: 20 }]); expect(tool.hasDraft()).toBe(true); expect(tool.tracksPointer()).toBe(true);
 		tool.abandonGesture(); expect(draft.cursor).toBeNull(); expect(draft.points).toHaveLength(1);
 		expect(tool.editCorner(-1, { x: 15, y: 25 })).toBe(true); expect(tool.editCorner(8, null)).toBe(false);
 		blocked = true; tool.pointerMove(pointerAt(30, 40)); tool.pointerDown(pointerAt(30, 40)); expect(draft.points).toHaveLength(1); expect(tool.editCorner(-1, null)).toBe(false);

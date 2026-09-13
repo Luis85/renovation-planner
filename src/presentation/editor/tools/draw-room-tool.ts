@@ -181,4 +181,8 @@ export class DrawRoomTool implements EditorTool {
 	hasDraft(): boolean {
 		return this.deps.draft.hasInput;
 	}
+	/** Only while the rectangle is being dragged — a settled draft has no loose end to scroll for. */
+	tracksPointer(): boolean {
+		return this.anchor !== null;
+	}
 }

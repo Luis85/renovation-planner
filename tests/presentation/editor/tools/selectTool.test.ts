@@ -473,22 +473,21 @@ describe('SelectTool', () => {
 	it('a body move is a RIGID translation even when the snap moves the anchor', () => {
 		// The snap used to be applied to every vertex INDEPENDENTLY, which is not a
 		// translation: with live candidates one corner lands on a guide while the opposite
-		// corner stays put, so a "move" silently changes the zone's shape and area. One snap
-		// of the anchor, that correction applied to every point.
+		// corner stays put, so a "move" silently changes the zone's shape and area. One
+		// correction from `snapTranslation`, applied to every point.
 		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
 		setActivePinia(createPinia());
 		const { context, rejections } = toolContext({
 			commandDispatcher: { run: () => Promise.resolve(ok('wrote')) },
-			// A grid that only ever pulls the first vertex — the pathological case an
-			// independent per-vertex snap deforms and a delta snap does not.
-			snapPoint: (point) => (point.x === 50 && point.y === 0 ? { x: 40, y: 0 } : point),
+			// One neighbour vertex 8 mm left of where the dragged square's first corner lands.
+			snapCandidates: () => ({ vertices: [{ x: 40, y: 0 }] }),
 		});
 		const h: Harness = { context, gestures: [], rejections };
 		const tool = build(h, candidates);
 		tool.activate(h.context);
 
 		tool.pointerDown(eventAt(10, 10));
-		tool.pointerUp(eventAt(60, 10)); // delta (+50, 0); anchor lands on (50, 0) and snaps to (40, 0)
+		tool.pointerUp(eventAt(58, 10)); // delta (+48, 0); corner lands on (48, 0), 8 from (40, 0), snaps
 
 		expect(h.gestures).toHaveLength(1);
 		// Every point moved by the SAME corrected delta (+40, 0): still a 100 x 100 square.

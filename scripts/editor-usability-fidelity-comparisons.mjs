@@ -8,7 +8,7 @@ await mkdir(out, { recursive: true });
 const boards = [
 	['modes', 'hybrid-01-modes', ['03-plan-selection', '04-renovate-selection']],
 	['dark', 'ux10-dark', ['12-dark-plan', '13-dark-renovate']],
-	['narrow', 'ux09-narrow-v2', ['07-narrow-canvas', '08-de-dark-draft', '11-de-renovate-canvas']],
+	['narrow', 'ux09-narrow-v2', ['07-narrow-canvas', '08-de-dark-draft', '06-narrow-work']],
 ];
 for (const [name, reference, captures] of boards) {
 	const proposed = await loadImage(`${base}/mockups/images/${reference}.png`);

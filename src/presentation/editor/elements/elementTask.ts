@@ -13,8 +13,9 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import { notifyFault } from '../../notices/notify';
 import { recordDraftFailure } from '../tools/with-stale-gate';
 import { ElementTool } from './ElementTool';
-import { createElementDraft, draftElement, ELEMENT_TOOLS, type ElementToolId } from './elementDraft';
+import { createElementDraft, draftElement, pointsAfterUndo, ELEMENT_TOOLS, type ElementToolId } from './elementDraft';
 import { elementInput } from './elementInput';
+import { boundingRectangle, type ObjectShapeMode } from './objectShape';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 
 export function createElementTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'setTool' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { ledger: WriteLedger }) {
@@ -55,7 +56,20 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		void finish();
 		return true;
 	}
-	function undoPoint(): void { if (!blocked.value && !draft.pendingInput && !draft.text.x && !draft.text.y) setPoints(draft.points.slice(0, -1)); }
+	function undoPoint(): void { if (!blocked.value && !draft.pendingInput && !draft.text.x && !draft.text.y) setPoints(pointsAfterUndo(draft)); }
+	/** Pending typed input belongs to the mode it was typed in, so it has to be applied or discarded before the mode changes. */
+	const shapeLocked = computed(() => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y);
+	/**
+	 * Rectangle drag or free-form corners for an item (2026-09-13 item modes spec §A). The outline carries across:
+	 * free-form keeps the corners as editable points, rectangle takes their bounding box — or nothing, when that
+	 * box has no area.
+	 */
+	function setShape(shape: ObjectShapeMode): boolean {
+		if (shapeLocked.value || draft.shape === shape) return false;
+		draft.shape = shape;
+		if (shape === 'rectangle') draft.points = boundingRectangle(draft.points) ?? [];
+		return true;
+	}
 	async function finish(): Promise<void> {
 		if (blocked.value || !baseline.value || !context.commands.renovation) return;
 		if (draft.text.x || draft.text.y || draft.pendingInput) { draft.error = spatialError('numeric'); return; }
@@ -85,7 +99,7 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		if (reads.current(ticket)) addPoint(point);
 	}
 	for (const id of Object.keys(ELEMENT_TOOLS) as ElementToolId[]) runtime.toolManager.register(new ElementTool(id, {
-		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, finish: () => { void finish(); },
+		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, setPoints, finish: () => { void finish(); },
 	}));
-	return { draft, blocked, canFinish, needsRead, retry, setPoints, addPoint, undoPoint, finish, measureFrom, available: context.commands.renovation !== undefined };
+	return { draft, blocked, canFinish, needsRead, retry, setPoints, addPoint, undoPoint, setShape, shapeLocked, finish, measureFrom, available: context.commands.renovation !== undefined };
 }

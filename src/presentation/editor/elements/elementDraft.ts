@@ -7,6 +7,7 @@ import { outlineKind, validSpatialElement } from '../../../domain/spatial/Spatia
 import { areaOutline } from '../add/areaOutline';
 import type { ToolId } from '../tools/editor-tool';
 import { DEFAULT_STAIR, type StairOptions } from '../../../domain/spatial/stairGeometry';
+import type { ObjectShapeMode } from './objectShape';
 import { DEFAULT_BEAM_WIDTH, DEFAULT_POST_SECTION } from '../../../domain/spatial/structuralElement';
 
 export type ElementToolId = 'place-object' | 'draw-path' | 'draw-fence' | 'measure' | 'place-stair' | 'draw-arrow' | 'place-post' | 'draw-beam';
@@ -20,6 +21,8 @@ export interface ElementDraft {
 	kind: Exclude<SpatialElementKind, 'asset'>; name: string; points: Point[]; cursor: Point | null;
 	text: { x: string; y: string };
 	rectangle: ObjectRectangleText;
+	/** Only an item reads it (2026-09-13 item modes spec §A); every other kind is drawn corner by corner. */
+	shape: ObjectShapeMode;
 	stair: StairOptions;
 	/** The section the next post is placed with, world mm. */
 	post: { width: number; depth: number };
@@ -29,12 +32,12 @@ export interface ElementDraft {
 	loading: boolean; busy: boolean; conflict: boolean; error: AppError | null;
 }
 export function createElementDraft(): ElementDraft {
-	return reactive({ kind: 'object', name: '', points: [], cursor: null, text: { x: '', y: '' }, rectangle: emptyObjectRectangle(), stair: { ...DEFAULT_STAIR },
+	return reactive({ kind: 'object', name: '', shape: 'rectangle', points: [], cursor: null, text: { x: '', y: '' }, rectangle: emptyObjectRectangle(), stair: { ...DEFAULT_STAIR },
 		post: { ...DEFAULT_POST_SECTION }, beamWidth: DEFAULT_BEAM_WIDTH, pendingInput: false, loading: false, busy: false, conflict: false, error: null });
 }
 export function discardElementGeometry(draft: ElementDraft): void {
-	const { kind, name, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
-	Object.assign(draft, createElementDraft(), { kind, name, loading, busy, conflict, error });
+	const { kind, name, shape, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
+	Object.assign(draft, createElementDraft(), { kind, name, shape, loading, busy, conflict, error });
 }
 /** Every proposal of an element's points passes here: a valid element, and an object or post outline that does not cross itself. */
 export function acceptsElementPoints(element: SpatialElement, points: readonly Point[]): boolean {
@@ -48,4 +51,15 @@ function structuralFields(draft: ElementDraft): Pick<SpatialElement, 'width' | '
 export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSpatialElement | null {
 	const element = { id, kind: draft.kind, name: draft.name.trim(), points: draft.points.map(point => ({ ...point })), ...(draft.kind === 'stair' ? { stair: { ...draft.stair } } : {}), ...structuralFields(draft) };
 	return element.name && acceptsElementPoints(element, element.points) ? element : null;
+}
+/**
+ * The points left after "undo the last point" — canvas Backspace and `elementTask.undoPoint()`
+ * both resolve to this (PR #182 follow-up F-B). An item's rectangle drag names one shape from a
+ * single gesture; its four corners are not four placed points, so undoing it drops the whole
+ * outline rather than one corner. Every other kind, and a free-form item, still steps back one
+ * point — the same rule `ElementTool.editCorner(-1, null)` reaches for `place-object`, so the
+ * mode check lives here once rather than in both doors.
+ */
+export function pointsAfterUndo(draft: ElementDraft): Point[] {
+	return draft.kind === 'object' && draft.shape === 'rectangle' ? [] : draft.points.slice(0, -1);
 }

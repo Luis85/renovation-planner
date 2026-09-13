@@ -2,6 +2,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { LineSegment } from '../../../core/geometry/LineSegment';
 import type { Structure } from '../../../domain/spatial/Structure';
 import type { SpatialElement } from '../../../domain/spatial/SpatialElement';
+import { outlineKind } from '../../../domain/spatial/SpatialElement';
 import { openingPoints } from '../../../domain/spatial/Structure';
 import { extentOf } from '../../../core/geometry/operations';
 import type { SnapCandidates } from './snap-service';
@@ -21,7 +22,7 @@ function collectZone(zone: SnapZone, into: Collected): void {
 function collectElement(element: SpatialElement, into: Collected): void {
 	into.vertices.push(...element.points); into.alignments.push(...element.points);
 	element.points.slice(1).forEach((point, index) => into.edges.push({ start: element.points[index], end: point }));
-	if (element.kind === 'object' && element.points.length > 2) into.edges.push({ start: element.points[element.points.length - 1], end: element.points[0] });
+	if (outlineKind(element.kind) && element.points.length > 2) into.edges.push({ start: element.points[element.points.length - 1], end: element.points[0] });
 }
 
 /**

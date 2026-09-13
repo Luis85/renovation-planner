@@ -39,8 +39,11 @@ export function createAssetPlacementTask(context: PlanEditorContext, runtime: Pi
 		return null;
 	}
 
-	/** One reversible write through the leaf's dispatcher, from a fresh baseline: a second placement must not reuse the first one's version. */
-	async function write(element: NamedSpatialElement): Promise<boolean> {
+	/**
+	 * One reversible write through the leaf's dispatcher, from a fresh baseline: a second placement must not reuse the first one's version.
+	 * `onFault` is the door a thrown fault takes; a caller announcing every failure in a sentence of its own passes `faultError`, which only maps and logs.
+	 */
+	async function write(element: NamedSpatialElement, onFault: typeof notifyFault = notifyFault): Promise<boolean> {
 		const services = context.commands.renovation;
 		if (blocked.value || !services) return false;
 		draft.busy = true;
@@ -51,7 +54,7 @@ export function createAssetPlacementTask(context: PlanEditorContext, runtime: Pi
 			if (result.ok) { draft.error = null; return true; }
 			await recordDraftFailure(draft, result.error, () => runtime.refreshProjection());
 			return false;
-		} catch (cause) { notifyFault(cause, context.commands.logger, 'editor.asset.write-failed'); return false; }
+		} catch (cause) { onFault(cause, context.commands.logger, 'editor.asset.write-failed'); return false; }
 		finally { draft.busy = false; }
 	}
 

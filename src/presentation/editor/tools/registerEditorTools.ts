@@ -88,7 +88,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			expandSelection: deps.expandSelection, selectionMove: deps.selectionMove, multiSelectionMode: deps.multiSelectionMode,
 			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, rotationDisplayTarget: deps.rotationDisplayTarget, rotationControls: deps.rotationControls, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
 			previewElement: deps.previewElement,
-			moveElement: deps.moveElement,
+			moveElement: deps.moveElement, elementWritesBlocked: deps.elementWritesBlocked,
 			labelHits: deps.labelHits, moveLabel: deps.moveLabel,
 			previewWall: deps.previewWall,
 			editWall: deps.editWall,

@@ -275,6 +275,11 @@ export class DrawPolygonTool implements EditorTool {
 		return this.buffer.length > 0;
 	}
 
+	/** The rubber band trails the pointer from the last vertex until the shape closes. */
+	tracksPointer(): boolean {
+		return this.buffer.length > 0;
+	}
+
 	/**
 	 * Whether a click at `worldPoint` closes the polygon, asked of `closesPolygon` — the same
 	 * predicate `InteractionLayer` asks to decide whether to promise a close, so what the

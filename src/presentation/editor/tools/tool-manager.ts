@@ -72,6 +72,11 @@ export class ToolManager {
 		return this.activeTool?.hasDraft() ?? false;
 	}
 
+	/** Whether the active tool's loose end follows the pointer; `false` with no tool. Edge scrolling's question. */
+	activeToolTracksPointer(): boolean {
+		return this.activeTool?.tracksPointer?.() ?? false;
+	}
+
 	finishActiveTool(): void {
 		this.activeTool?.finish?.();
 	}

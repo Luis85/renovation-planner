@@ -46,6 +46,7 @@ import ObjectRotationHandle from '../elements/ObjectRotationHandle.vue';
 import SnapGuides from './SnapGuides.vue';
 import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
 import { polygonPolyline } from '../../../core/geometry/curvePolyline';
+import { closedFootprintKind } from '../../../domain/spatial/SpatialElement';
 import CurveHandles from '../curves/CurveHandles.vue';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
@@ -106,7 +107,7 @@ const hoverClosed = computed(() => {
 	// fill's `v-if="hoverOutlineFlat !== null && hoverClosed"` — gate on `hoverOutlineFlat !== null`
 	// first, which answers null for a null `hoveredObjectId`: the id is set whenever this evaluates.
 	const kind = candidates.value.get(runtime.renderState.hoveredObjectId as string)?.kind;
-	return kind === undefined || kind === 'object' || kind === 'stair' || kind === 'asset';
+	return kind === undefined || closedFootprintKind(kind);
 });
 
 /**
@@ -132,7 +133,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 	const zone = candidates.value.get(id);
 	return zone === undefined ? [] : [{
 		id,
-		closed: zone.kind === undefined || zone.kind === 'object' || zone.kind === 'stair' || zone.kind === 'asset',
+		closed: zone.kind === undefined || closedFootprintKind(zone.kind),
 		number: selectedIds.value.indexOf(id) + 1,
 		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
 		strokeWidth: focusedId.value === id ? 3 : 2,

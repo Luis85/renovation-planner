@@ -6,10 +6,12 @@ import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
 import { elementLength } from '../../../domain/spatial/SpatialElement';
+import { postSection } from '../../../domain/spatial/structuralElement';
 import { area } from '../../../core/geometry/operations';
 import { formatArea } from '../shell/formatArea';
 import { formatMetres } from '../shell/formatLength';
 import AssetPlacementDetails from './AssetPlacementDetails.vue';
+import LoadBearingSwitch from './LoadBearingSwitch.vue';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import HostIcon from '../../components/HostIcon.vue';
 import ElementGeometryActions from './ElementGeometryActions.vue';
@@ -23,6 +25,15 @@ const stairSummary = computed(() => {
 	if (element.value?.kind !== 'stair' || !stair) return null;
 	return tr('editor.stair.summary', { width: formatMetres(stair.width), run: formatMetres(elementLength(element.value)), treads: String(stair.treads), direction: tr(stair.direction === 'up' ? 'editor.stair.up' : 'editor.stair.down') });
 });
+/** Section or length and width for a post or beam, in metres like every other inspector measure. */
+const structuralSummary = computed(() => {
+	const value = element.value;
+	if (value?.kind === 'beam' && value.width) return tr('editor.structural.beam-summary', { length: formatMetres(elementLength(value)), width: formatMetres(value.width) });
+	const section = value?.kind === 'post' ? postSection(value.points) : null;
+	return section ? tr('editor.structural.post-summary', { width: formatMetres(section.width), depth: formatMetres(section.depth) }) : null;
+});
+/** One template branch for both measured summaries, for the same template-complexity budget as `stairSummary`. */
+const summary = computed(() => stairSummary.value ?? structuralSummary.value);
 </script>
 <template>
 	<section
@@ -41,10 +52,10 @@ const stairSummary = computed(() => {
 			{{ formatArea(measuredArea.value) }}
 		</p>
 		<p
-			v-else-if="stairSummary"
+			v-else-if="summary"
 			class="rp-inspector-subline"
 		>
-			{{ stairSummary }}
+			{{ summary }}
 		</p>
 		<AssetPlacementDetails
 			v-else-if="element.kind === 'asset'"
@@ -56,6 +67,7 @@ const stairSummary = computed(() => {
 		>
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
+		<LoadBearingSwitch :element="element" />
 		<StructureRenovationEntry />
 		<ElementGeometryActions />
 		<!-- The frame's group controls, above Delete so Delete stays the foot of the whole region (side panels spec §3). -->

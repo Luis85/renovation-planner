@@ -164,6 +164,11 @@ export class SetFacingTool implements EditorTool {
 		return this.origin !== null;
 	}
 
+	/** The direction's head trails the pointer from the world-fixed origin for the whole drag. */
+	tracksPointer(): boolean {
+		return this.origin !== null;
+	}
+
 	/**
 	 * Where the drag's head is: the pointer, pulled onto a whole angle from the ORIGIN while
 	 * Shift is held.

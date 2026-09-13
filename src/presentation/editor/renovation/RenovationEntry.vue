@@ -19,7 +19,10 @@ function detailTitle(): string { return semantic.value ? tr(`renovation.title.${
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null);
 const relatedIcon = computed(() => expanded.value ? 'chevron-up' : 'chevron-down');
 const focusedRenovationOverview = computed(() => session.perspective === 'renovate' && session.mode === 'overview');
-const workEligible = computed(() => runtime.renovation.available && (!!props.roomId || !!session.targetId));
+function editableStructureTarget(targetId: string): boolean {
+	return [project.structure, project.intended].some(structure => [...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === targetId));
+}
+const workEligible = computed(() => runtime.renovation.available && (project.zones.has(props.roomId) || editableStructureTarget(session.targetId)));
 const modes = computed(() => session.mode === 'overview' && session.perspective === 'plan'
 	? context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const
 	: session.mode === 'overview' ? ['existing', 'planned', 'work'] as const

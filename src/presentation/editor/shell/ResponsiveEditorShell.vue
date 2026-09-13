@@ -33,6 +33,7 @@ function focusedRegion(active: Element): Region | null {
 	if (container) return container.dataset.rpShellRegion as Region;
 	const rail = active.getAttribute('data-rp-rail');
 	if (rail === 'layers') return 'layers';
+	if (active.getAttribute('data-rp-rail-section') === 'layers') return 'layers';
 	return rail === 'details' ? 'inspector' : null;
 }
 

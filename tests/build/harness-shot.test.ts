@@ -639,6 +639,10 @@ describe('the headless harness capture script', () => {
 			'asset-designer-dark',
 			'asset-designer-light',
 			'asset-designer-narrow',
+			'asset-designer-preset-curved-table',
+			'asset-designer-preset-sofa',
+			'asset-designer-preset-toilet',
+			'asset-designer-preset-tree',
 			'asset-library-actions',
 			'asset-library-dark',
 			'asset-library-light',
@@ -968,6 +972,10 @@ describe('the headless harness capture script', () => {
 	 */
 	it('takes the asset designer at a sidebar width, through the route that opens it', () => {
 		expect(shot('asset-designer-narrow')).toMatchObject({ query: '?view=asset-designer', width: 460 });
+	});
+
+	it('seeds the designer with a preset through the harness knob', () => {
+		expect(shot('asset-designer-preset-toilet')).toMatchObject({ query: '?view=asset-designer&preset=toilet' });
 	});
 
 	/**

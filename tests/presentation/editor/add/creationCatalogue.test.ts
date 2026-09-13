@@ -25,7 +25,7 @@ function entryById(id: CreationEntryId): CreationEntry {
 describe('the creation catalogue', () => {
 	it('offers Room and Area, each activating its own geometry path', () => {
 		const available = CREATION_CATALOGUE.filter((e) => e.availability.kind === 'available');
-		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'stair', 'area', 'path', 'fence', 'item', 'asset', 'measurement', 'arrow', 'note']);
+		expect(available.map((e) => e.id)).toEqual(['room', 'wall', 'door', 'window', 'opening', 'stair', 'post', 'beam', 'area', 'path', 'fence', 'item', 'asset', 'measurement', 'arrow', 'note']);
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		available[0].activate({ setTool });
 		expect(setTool).toHaveBeenCalledWith('draw-room');
@@ -51,7 +51,7 @@ describe('the creation catalogue', () => {
 		expect(chooseAsset).toHaveBeenCalledOnce(); expect(setTool).not.toHaveBeenCalled();
 	});
 
-	it.each([['path', 'draw-path'], ['fence', 'draw-fence'], ['item', 'place-object'], ['measurement', 'measure'], ['stair', 'place-stair'], ['arrow', 'draw-arrow']] as const)('starts the implemented %s task exactly once', (id, tool) => {
+	it.each([['path', 'draw-path'], ['fence', 'draw-fence'], ['item', 'place-object'], ['measurement', 'measure'], ['stair', 'place-stair'], ['arrow', 'draw-arrow'], ['post', 'place-post'], ['beam', 'draw-beam']] as const)('starts the implemented %s task exactly once', (id, tool) => {
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		expect(entryById(id).availability.kind).toBe('available');
 		activateCreationEntry(id, { setTool }); expect(setTool).toHaveBeenCalledExactlyOnceWith(tool);
@@ -110,6 +110,8 @@ describe('the creation catalogue', () => {
 			'window',
 			'opening',
 			'stair',
+			'post',
+			'beam',
 			'area',
 			'path',
 			'fence',

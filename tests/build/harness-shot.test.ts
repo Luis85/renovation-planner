@@ -690,6 +690,9 @@ describe('the headless harness capture script', () => {
 			'plan-editor-selected-dark',
 			'plan-editor-stale',
 			'plan-editor-stale-narrow',
+			'plan-editor-structural',
+			'plan-editor-structural-dark',
+			'plan-editor-structural-narrow',
 			'plan-editor-tree-dark',
 			'plan-editor-tree-light',
 			'plan-editor-tree-narrow',
@@ -863,6 +866,12 @@ describe('the headless harness capture script', () => {
 		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' above
 		// for why a bare `PLAN_EDITOR_VIEW` wait is exactly the defect being refused here.
 		expect(shot('plan-editor-narrow').selector).toEqual(['.rp-plan-canvas', '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail']);
+	});
+
+	it('takes the structural shots through the ?structural knob, one of them at a sidebar width', () => {
+		for (const name of ['plan-editor-structural', 'plan-editor-structural-dark', 'plan-editor-structural-narrow']) expect(planEditorQuery(name).has('structural')).toBe(true);
+		expect(planEditorQuery('plan-editor-structural-dark').has('theme')).toBe(false);
+		expect(shot('plan-editor-structural-narrow').width).toBe(460);
 	});
 
 	/**

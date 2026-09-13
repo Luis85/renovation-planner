@@ -1,5 +1,6 @@
 import { contains, distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
+import { outlineKind } from '../../../domain/spatial/SpatialElement';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { rotationControlContains } from '../elements/rotationControl';
@@ -14,7 +15,7 @@ export type SelectionTarget =
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
 
-const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'object' || candidate.kind === 'stair' || candidate.kind === 'asset' ? 4 : candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
+const priority = (candidate: SpatialObjectCandidate): number => outlineKind(candidate.kind) || candidate.kind === 'stair' || candidate.kind === 'asset' ? 4 : candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
 
 function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	return candidate.points.slice(1).some((b, index) => {
@@ -27,7 +28,7 @@ function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: nu
 
 function containsCandidate(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	if (candidate.hitPoints) { const inside = contains({ points: candidate.hitPoints }, point); return inside.ok && inside.value; }
-	if (candidate.kind && candidate.kind !== 'object') return nearLine(candidate, point, tolerance);
+	if (candidate.kind && !outlineKind(candidate.kind)) return nearLine(candidate, point, tolerance);
 	const inside = contains(candidate, point);
 	return inside.ok && inside.value;
 }

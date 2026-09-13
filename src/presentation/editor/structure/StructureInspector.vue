@@ -57,7 +57,9 @@ async function openRenovation(event: Event): Promise<void> {
 		:data-rp-structure-kind="opening ? opening.kind : 'wall'"
 	>
 		<template v-if="opening">
-			<h3 data-rp-opening-identity>{{ openingLabel }}</h3>
+			<h3 data-rp-opening-identity>
+				{{ openingLabel }}
+			</h3>
 			<p
 				class="rp-structure-opening-context"
 				data-rp-opening-context
@@ -73,19 +75,29 @@ async function openRenovation(event: Event): Promise<void> {
 			</p>
 			<dl class="rp-editor-inspector-fields rp-structure-opening-facts">
 				<dt>{{ tr('editor.structure.host') }}</dt>
-				<dd data-rp-opening-property="host">{{ openingHostLabel }}</dd>
+				<dd data-rp-opening-property="host">
+					{{ openingHostLabel }}
+				</dd>
 				<dt>{{ tr('renovation.target.room') }}</dt>
 				<dd data-rp-opening-property="room-context">
 					{{ openingRooms.length ? openingRooms.join(' / ') : tr('renovation.target.none') }}
 				</dd>
 				<dt>{{ tr('editor.structure.width') }}</dt>
-				<dd data-rp-opening-property="width">{{ formatMetres(opening.width) }} m</dd>
+				<dd data-rp-opening-property="width">
+					{{ formatMetres(opening.width) }} m
+				</dd>
 				<dt>{{ tr('editor.structure.height') }}</dt>
-				<dd data-rp-opening-property="height">{{ formatMetres(opening.height) }} m</dd>
+				<dd data-rp-opening-property="height">
+					{{ formatMetres(opening.height) }} m
+				</dd>
 				<dt>{{ tr('editor.structure.offset') }}</dt>
-				<dd data-rp-opening-property="offset">{{ formatMetres(opening.offset) }} m</dd>
+				<dd data-rp-opening-property="offset">
+					{{ formatMetres(opening.offset) }} m
+				</dd>
 				<dt>{{ tr('editor.structure.sill') }}</dt>
-				<dd data-rp-opening-property="sill">{{ formatMetres(opening.sill) }} m</dd>
+				<dd data-rp-opening-property="sill">
+					{{ formatMetres(opening.sill) }} m
+				</dd>
 				<template v-if="materials">
 					<dt>{{ tr('renovation.product') }}</dt>
 					<dd>{{ materials.existing ?? tr('renovation.material.none') }}</dd>

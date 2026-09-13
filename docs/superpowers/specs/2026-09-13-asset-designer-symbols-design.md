@@ -104,7 +104,8 @@ No `MigrationRunner`: the store already declines one for a stated reason (the
 
 `SetAssetShape({ assetId, shape })` writes a complete `AssetShape` through `updateAssetShape` and
 the existing versioned reversible edit (`ReversibleAssetGeometryEdit` already snapshots and
-restores the entire geometry). It keeps the background and calibration.
+restores the entire geometry). It keeps the background and calibration. It never answers
+`no-write`: re-applying an identical shape writes again, which costs a revision and nothing else.
 
 Both presets (Decision 8) and every part edit (Decision 9) compute a new shape in the domain and
 dispatch this one command, so the guarded-services / command-bundle / reversible-adapter /
@@ -126,8 +127,10 @@ details untouched.
 `fields: { key, kind: 'length' | 'count' | 'angle', min, max, default }[]`.
 
 - **`id` is data** — like a command id, never renamed.
-- **No text in the domain.** Names and labels are i18n keys `preset.<id>` and
-  `preset.<id>.<field>`, in `en` and `de`.
+- **No text in the domain.** Preset names are i18n keys `preset.<id>`; field labels are shared by
+  field key, `designer.preset.field.<key>`, because a width is labelled the same on every preset.
+  Preset ids (`PresetId`) and field keys (`PresetFieldKey`) are closed unions, so a missing label is
+  a build error. Detail `name`s are stable lowercase keys (`seat`, `bowl`), not display text.
 - **Shared conventions:** centred on the origin; width along x, depth along y; front toward +y, so
   `facing = π/2`; typed footprint, never pending; a default clearance where a common one exists.
   The front convention matches wall snapping: `assetPlacementDraft` offsets by `backDepth`, which
@@ -231,10 +234,15 @@ three treatments:
 
 **Carries vertices and bulges through** (a similarity transform leaves a bulge unchanged):
 validation (`AssetShape.ts`), calibration (`CalibrateAsset.ts`), the sidecar adapter
-(`ObsidianAssetGeometrySidecar.ts`), `placedOutline` (`assetPlacement.ts`).
+(`ObsidianAssetGeometrySidecar.ts`).
 
 **Reads the flattened curve** through `polygonPolyline` (the `ZoneShape.vue` pattern):
 
+- `placedOutline` (`assetPlacement.ts`) — flattened at a fixed 1 mm world tolerance *before* it is
+  turned onto the placement, so its `Point[]` answer and every plan consumer of it
+  (`elementFootprint`, hit-testing, labels, rotation handles) stay exactly as they are. *(Amended
+  while planning: the design said "carries bulges through"; flattening here is the smaller change
+  and 1 mm of sagitta is below a plan's pixel.)*
 - `backDepth` (`assetPlacement.ts`) — an arc can reach past its corner points, so the points alone
   answer wrong;
 - designer `footprintLayer.ts` and `clearanceLayer.ts`, at a zoom-aware tolerance of 0.25 px ÷ zoom;
@@ -255,7 +263,8 @@ validation (`AssetShape.ts`), calibration (`CalibrateAsset.ts`), the sidecar ada
 
 ## Presentation
 
-- **Preset dialog:** `src/presentation/dialogs/AssetPresetDialog.vue` through `DialogHost`, opened
+- **Preset dialog:** `src/presentation/designer/presets/AssetPresetForm.vue` under the existing
+  `kind: 'form'` (no new dialog kind — `presentation/dialogs/` holds no field knowledge), opened
   by a "Start from preset" button beside "Set dimensions" in the designer inspector. A preset picker
   grouped with `<optgroup>`, one number input per field, a live SVG preview of what `build` answers.
   Apply is disabled while `build` refuses, with the mapped refusal shown. On an asset that already
@@ -303,8 +312,10 @@ Decisions 1–11, the rendering and presentation above, `en` and `de` strings fo
   fakes; the toolbar's exact-list test updated deliberately.
 - **Dialogs and inspector:** jsdom (preview updates, Apply disabled on refusal, one dispatch), plus
   an axe scan in the `accessibility*.test.ts` family.
-- **Captures:** `harness-shot` of each preset group in the designer, a placed symbol on a plan
-  (render-only, so the services-less plan-editor harness is enough), and each selection mode.
+- **Captures:** `harness-shot` of each preset group in the designer (a `?preset=` knob on the
+  designer harness), and each selection mode. A placed symbol on a plan is NOT captured — the
+  plan-editor harness has no asset-shape source — so it is held by `assetShapeConfig`'s data tests
+  and a manual step instead.
 - **Manual:** `docs/tests/cases/Design an Asset.md` gains a case — a toilet from a preset, adjusted
   by selection — run in a vault before the increment is called done.
 

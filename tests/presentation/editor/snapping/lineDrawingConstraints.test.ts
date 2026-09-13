@@ -24,7 +24,7 @@ it('matches the Zone constraint, placement and Shift release for walls and every
 		expect(constrainsAngle(id)).toBe(true);
 		expect(cursorClassFor({ activeToolId: id, panPhase: 'idle', hoveredObjectId: null, hoveredTargetKind: null })).toBe('rp-plan-canvas-precise');
 		const element = createElementDraft(); element.kind = ELEMENT_TOOLS[id];
-		const tool = new ElementTool(id, { draft: element, start: vi.fn<() => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(), candidates: () => ({}), blocked: () => false, addPoint: point => { element.points.push(point); return true; } });
+		const tool = new ElementTool(id, { draft: element, start: vi.fn<() => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(), blocked: () => false, addPoint: point => { element.points.push(point); return true; } });
 		tool.activate(h.context); tool.pointerDown(shiftPointerAt(0, 0)); tool.pointerMove(shiftPointerAt(2000, 500));
 		expect(element.cursor).toEqual(expected);
 		tool.pointerMove(pointerAt(2000, 500)); expect(element.cursor).toEqual({ x: 2000, y: 500 });

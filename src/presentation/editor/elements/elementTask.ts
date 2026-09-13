@@ -7,11 +7,9 @@ import type { Point } from '../../../core/geometry/Point';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import { spatialError } from '../../../domain/spatial/structureGeometry';
 import { createEntityId } from '../../../core/identity/generateId';
-import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { notifyFault } from '../../notices/notify';
-import { roomSnapCandidates } from '../snapping/roomSnapCandidates';
 import { recordDraftFailure } from '../tools/with-stale-gate';
 import { ElementTool } from './ElementTool';
 import { createElementDraft, draftElement, ELEMENT_TOOLS, type ElementToolId } from './elementDraft';
@@ -19,14 +17,13 @@ import { elementInput } from './elementInput';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 
 export function createElementTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'setTool' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { ledger: WriteLedger }) {
-	const project = useProjectStore(), selection = useSelectionStore(), save = useSaveStateStore();
+	const selection = useSelectionStore(), save = useSaveStateStore();
 	const draft = createElementDraft(), reads = createElementBaseline(context, runtime, draft);
 	const { baseline, needsRead, retry } = reads;
 	let draftId = '';
 	let attempt: { content: string; command: ReturnType<RenovationServices['command']> } | null = null;
 	const blocked = computed(() => draft.busy || draft.loading || draft.conflict || runtime.writesBlocked.value || save.state === 'saving');
 	const canFinish = computed(() => !blocked.value && baseline.value !== null && !draft.text.x && !draft.text.y && !draft.pendingInput && draftElement(draft) !== null);
-	const candidates = computed(() => roomSnapCandidates(project.zones.values(), project.structure));
 	function stop(): void { reads.stop(); draftId = ''; attempt = null; }
 	function start(id: ElementToolId): void { draftId = ''; attempt = null; reads.start(id); }
 
@@ -73,7 +70,7 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		if (reads.current(ticket)) addPoint(point);
 	}
 	for (const id of Object.keys(ELEMENT_TOOLS) as ElementToolId[]) runtime.toolManager.register(new ElementTool(id, {
-		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, finish: () => { void finish(); }, candidates: () => candidates.value,
+		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, finish: () => { void finish(); },
 	}));
 	return { draft, blocked, canFinish, needsRead, retry, setPoints, addPoint, undoPoint, finish, measureFrom, available: context.commands.renovation !== undefined };
 }

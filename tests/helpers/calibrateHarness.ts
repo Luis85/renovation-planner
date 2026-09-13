@@ -131,6 +131,7 @@ export const harness = (): Harness => {
 		// this repository has now recorded half a dozen times. Shared with `tool-context.ts`
 		// rather than built again, so both harnesses snap by the same rules the app does.
 		snapService: harnessSnapService(),
+		snapCandidates: () => ({}),
 		commandDispatcher: {
 			run: (runnable: UndoableCommand) => {
 				dispatched.push(runnable);

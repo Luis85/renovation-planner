@@ -83,7 +83,9 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		if (canvas === null) throw new Error('expected a mounted canvas');
 		click(canvas, 500, 100);
 		click(canvas, 600, 100);
-		click(canvas, 600, 200);
+		// Screen y 210 → world 1620, 120 mm from the fixture zone's y = 1500 vertices and outside the
+		// 80 mm alignment tolerance; 200 → 1520 would snap to 1500.
+		click(canvas, 600, 210);
 		click(canvas, 500, 100); // close click on the first vertex
 		await settle();
 
@@ -95,7 +97,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		expect(created.entity.geometry.points).toEqual([
 			{ x: 4520, y: 520 },
 			{ x: 5520, y: 520 },
-			{ x: 5520, y: 1520 },
+			{ x: 5520, y: 1620 },
 		]);
 
 		// The completion the plan editor hands `DrawPolygonTool` — plan id, counted name, Room —

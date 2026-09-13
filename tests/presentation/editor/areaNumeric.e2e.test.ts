@@ -102,12 +102,14 @@ describe('Area coordinate entry through the mounted editor and real command hist
 		const h = r.harness;
 		const runtime = runtimeOf(h);
 		await start(h);
-		click(h.canvasEl as HTMLElement, 100, 200);
-		await add(h, '4.52', '1.52');
-		await add(h, '6', '1.52');
+		// Screen y 210 → world 1620: 120 mm from the fixture zone's y = 1500 vertices, outside the 80 mm
+		// alignment tolerance — 200 → 1520 would snap to 1500 and the outline would stop being flat.
+		click(h.canvasEl as HTMLElement, 100, 210);
+		await add(h, '4.52', '1.62');
+		await add(h, '6', '1.62');
 		expect(runtime.canFinishArea.value).toBe(false);
 		await h.wrapper.findAll('[data-rp-corner="edit"]')[0]?.trigger('click');
-		expect(runtime.areaCorners.text).toEqual({ x: '0.52', y: '1.52' });
+		expect(runtime.areaCorners.text).toEqual({ x: '0.52', y: '1.62' });
 		const before = JSON.stringify(points(r));
 		for (const key of ['Escape', 'Delete', 'Backspace', ' ', '+', '-']) {
 			await h.wrapper.get('input[name="x"]').trigger('keydown', { key });

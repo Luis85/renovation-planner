@@ -31,7 +31,7 @@ describe('spatial element drafts and real selection projections', () => {
 		const draft = createElementDraft(), start = vi.fn<(id: string) => void>(), stop = vi.fn<() => void>(), finish = vi.fn<() => void>();
 		let blocked = false;
 		const addPoint = vi.fn<(point: Point) => boolean>(point => { draft.points.push(point); return true; });
-		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked: () => blocked, candidates: () => ({}) });
+		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked: () => blocked });
 		const r = toolContext({ snapPoint: point => ({ x: Math.round(point.x), y: Math.round(point.y) }) });
 		tool.pointerDown(pointerAt(10, 20)); expect(addPoint).not.toHaveBeenCalled();
 		tool.activate(r.context); expect(start).toHaveBeenCalledWith('draw-path');
@@ -56,7 +56,7 @@ describe('spatial element drafts and real selection projections', () => {
 		const addPoint = vi.fn<(point: Point) => boolean>(point => { draft.points.push(point); return true; });
 		let reads = 0;
 		const blocked = () => { reads += 1; return reads > 1; };
-		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked, candidates: () => ({}) });
+		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked });
 		const r = toolContext();
 		tool.activate(r.context);
 
@@ -64,6 +64,25 @@ describe('spatial element drafts and real selection projections', () => {
 
 		expect(draft.cursor).toBeNull();
 		expect(addPoint).not.toHaveBeenCalled();
+	});
+	it('writes a guide on pointerMove and clears it on cancel, abandonGesture and deactivate, each safe unactivated', () => {
+		const draft = createElementDraft();
+		const deps = { draft, start: vi.fn<(id: string) => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(), addPoint: () => true, blocked: () => false };
+		const tool = new ElementTool('draw-path', deps);
+		const r = toolContext({ snapCandidates: () => ({ alignments: [{ x: 300, y: 900 }] }) });
+		tool.activate(r.context);
+		const guide = { start: { x: 300, y: 50 }, end: { x: 300, y: 900 } };
+		for (const exit of ['cancel', 'abandonGesture', 'deactivate'] as const) {
+			tool.pointerMove(pointerAt(297, 50));
+			expect(draft.cursor).toEqual({ x: 300, y: 50 }); expect(r.context.renderState.snapGuides).toEqual([guide]);
+			tool[exit](); expect(r.context.renderState.snapGuides).toEqual([]);
+		}
+		// Deactivated: the context is gone, so a move writes nothing and the guides stay clear.
+		tool.pointerMove(pointerAt(297, 50)); expect(r.context.renderState.snapGuides).toEqual([]);
+		// Called directly on a never-activated instance, each exit still does its own work
+		// rather than throwing on the null context its render-state guard exists to skip.
+		const fresh = new ElementTool('draw-path', deps);
+		for (const exit of ['cancel', 'abandonGesture', 'deactivate'] as const) expect(() => fresh[exit]()).not.toThrow();
 	});
 	it('translates Object/line bodies only on a completed meaningful primary drag', () => {
 		const preview = vi.fn<(id: string | null, points?: readonly Point[]) => void>(), move = vi.fn<(id: string, points: readonly Point[]) => void>();

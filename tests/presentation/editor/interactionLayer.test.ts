@@ -47,6 +47,16 @@ function interactionLayer(stage: Konva.Stage | null): Konva.Layer {
 	return layer;
 }
 
+/**
+ * The circles the SKETCH draws — every vertex mark and the close target — without the
+ * `snap-target` circle `SnapGuides.vue` puts at the far end of an alignment guide, which the
+ * smart alignment guides increment made a real possibility here: the rig's fixture zone lines
+ * up with some of the clicks below.
+ */
+function sketchCircles(harness: EditorHarness): Konva.Circle[] {
+	return (interactionLayer(harness.stage).find('Circle') as Konva.Circle[]).filter((circle) => circle.name() !== 'snap-target');
+}
+
 /** Every `Konva.Line` inside the interaction layer carrying the given `name`. */
 function linesNamed(harness: EditorHarness, name: string): Konva.Line[] {
 	return interactionLayer(harness.stage).find(`.${name}`) as Konva.Line[];
@@ -67,9 +77,9 @@ describe('the interaction layer while a zone is being drawn', () => {
 
 		// One circle per click that landed — and none for the pointer, which is the whole
 		// reason the sketch carries its cursor in a separate field.
-		const circles = interactionLayer(harness.stage).find('Circle');
+		const circles = sketchCircles(harness);
 		expect(circles).toHaveLength(3);
-		expect(circles.map((circle) => (circle as Konva.Circle).radius())).toEqual([
+		expect(circles.map((circle) => circle.radius())).toEqual([
 			POLYGON_CLOSE_TARGET_RADIUS_PX,
 			POLYGON_VERTEX_RADIUS_PX,
 			POLYGON_VERTEX_RADIUS_PX,
@@ -90,13 +100,13 @@ describe('the interaction layer while a zone is being drawn', () => {
 		// Five screen pixels from the first vertex: inside the twelve a close click takes.
 		pointer(canvas, 'pointermove', 505, 100);
 		await settle();
-		const armed = interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle;
+		const armed = sketchCircles(harness).at(0) as Konva.Circle;
 		expect(armed.radius()).toBe(POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX);
 
 		// And back down again, so the mark tracks the pointer rather than latching on.
 		pointer(canvas, 'pointermove', 560, 100);
 		await settle();
-		const atRest = interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle;
+		const atRest = sketchCircles(harness).at(0) as Konva.Circle;
 		expect(atRest.radius()).toBe(POLYGON_CLOSE_TARGET_RADIUS_PX);
 	});
 
@@ -121,7 +131,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 		click(canvas, 600, 200);
 		pointer(canvas, 'pointermove', 505, 100);
 		await settle();
-		expect((interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle).radius())
+		expect((sketchCircles(harness).at(0) as Konva.Circle).radius())
 			.toBe(POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX);
 
 		// Zoom in hard, anchored far from the vertex, and move nothing.
@@ -130,7 +140,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 		);
 		await settle();
 
-		const first = interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle;
+		const first = sketchCircles(harness).at(0) as Konva.Circle;
 		expect(first.radius()).toBe(POLYGON_CLOSE_TARGET_RADIUS_PX);
 	});
 
@@ -152,7 +162,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 		click(canvas, 600, 200);
 		pointer(canvas, 'pointermove', 505, 100);
 		await settle();
-		expect((interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle).radius())
+		expect((sketchCircles(harness).at(0) as Konva.Circle).radius())
 			.toBe(POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX);
 
 		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true }));
@@ -160,7 +170,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 
 		// The pointer never moved, so it is still over screen (505, 100) — and the first
 		// vertex is no longer there.
-		const first = interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle;
+		const first = sketchCircles(harness).at(0) as Konva.Circle;
 		expect(first.radius()).toBe(POLYGON_CLOSE_TARGET_RADIUS_PX);
 	});
 
@@ -176,7 +186,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 		pointer(canvas, 'pointermove', 500, 100); // right on the first vertex, and still not closable
 		await settle();
 
-		const first = interactionLayer(harness.stage).find('Circle').at(0) as Konva.Circle;
+		const first = sketchCircles(harness).at(0) as Konva.Circle;
 		expect(first.radius()).toBe(POLYGON_CLOSE_TARGET_RADIUS_PX);
 	});
 });
@@ -197,7 +207,7 @@ describe('the interaction layer while a plan is being calibrated', () => {
 		// nothing about which direction was about to be measured.
 		expect(measurementMarks(harness.stage).endBars).toHaveLength(2);
 		expect(measurementMarks(harness.stage).ticks).toHaveLength(0);
-		expect(interactionLayer(harness.stage).find('Circle')).toHaveLength(0);
+		expect(sketchCircles(harness)).toHaveLength(0);
 	});
 
 	/**

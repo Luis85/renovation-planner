@@ -1,7 +1,7 @@
 import type { EntityId } from '../../src/core/identity/EntityId';
 import type { Point } from '../../src/core/geometry/Point';
 import { RenderState } from '../../src/presentation/editor/tools/render-state';
-import { SnapService, type SnapCandidates } from '../../src/presentation/editor/snapping/snap-service';
+import { SnapService, type SnapCandidates, type SnapResult } from '../../src/presentation/editor/snapping/snap-service';
 import { ANGLE_STEP_RADIANS } from '../../src/presentation/editor/snapping/editorSnapping';
 import type { EditorContext } from '../../src/presentation/editor/tools/editor-context';
 import type { UndoableCommand } from '../../src/presentation/editor/tools/undoable-command';
@@ -40,8 +40,16 @@ export interface ToolContextOptions {
 	readonly worldPerScreenPixel?: number;
 	/** Replaces the dispatcher entirely when a suite needs to fail, gate or count. */
 	readonly commandDispatcher?: EditorContext['commandDispatcher'];
-	/** Replaces the identity snap, for the suites that assert snapping. */
+	/**
+	 * Replaces the identity snap, for the suites that assert snapping. It overrides
+	 * `snapPointWithGuides` (and so `snapPoint`) ONLY: `snapTranslation` calls `snapToVertex`/
+	 * `snapToEdge` directly and never passes through it, so a body drag in the select tool or
+	 * `ElementMove` sees the real service regardless of this option. Force a body-move snap
+	 * through `snapCandidates` instead.
+	 */
 	readonly snapPoint?: (point: Point) => Point;
+	/** What a tool may snap or align to, given what it is dragging. Default: nothing. */
+	readonly snapCandidates?: EditorContext['snapCandidates'];
 	/** What this editor is editing (design slice B2's rename of `activePlan`). */
 	readonly subject?: EditorContext['subject'];
 	/** The trust path (design spec §2.2): defaults to `false`, since no suite here is about it. */
@@ -71,8 +79,9 @@ function selectionDouble(): EditorContext['selection'] {
 }
 
 /**
- * The REAL `SnapService`, composed with the editor's own configuration, with `snapPoint`
- * optionally replaced for the suites that assert snapping.
+ * The REAL `SnapService`, composed with the editor's own configuration, with
+ * `snapPointWithGuides` optionally replaced for the suites that assert snapping — `snapPoint`
+ * is the point half of that answer, so one override governs both.
  *
  * A hand-written literal stood here — `{ snapPoint: … }` behind an `as never` — and it was a
  * fake thinner than the thing it stood for: the moment `snapDirection` existed, every tool
@@ -92,8 +101,10 @@ class HarnessSnapService extends SnapService {
 		super({ gridSpacingMm: 100, toleranceMm: 8, angleStepRadians: ANGLE_STEP_RADIANS });
 	}
 
-	override snapPoint(point: Point, candidates: SnapCandidates): Point {
-		return this.overridePoint === undefined ? super.snapPoint(point, candidates) : this.overridePoint(point);
+	override snapPointWithGuides(point: Point, candidates: SnapCandidates, toleranceMm?: number): SnapResult {
+		return this.overridePoint === undefined
+			? super.snapPointWithGuides(point, candidates, toleranceMm)
+			: { point: this.overridePoint(point), guides: [] };
 	}
 }
 
@@ -116,6 +127,7 @@ export function toolContext(options: ToolContextOptions = {}): ToolContextHarnes
 		},
 		selection: selectionDouble(),
 		snapService: harnessSnapService(options.snapPoint),
+		snapCandidates: options.snapCandidates ?? (() => ({})),
 		commandDispatcher: options.commandDispatcher ?? {
 			run: (command) => {
 				dispatched.push(command);

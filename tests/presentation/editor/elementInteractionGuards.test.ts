@@ -23,10 +23,12 @@ async function setup() {
 }
 it('previews a selected path drag through the real Select tool, clears preview, then saves one translation', async () => {
  const rig = await setup(), tool = rig.runtime.toolManager;
- tool.pointerDown(pointerAt(1500, 500)); tool.pointerMove(pointerAt(1700, 700)); await settle();
- expect(rig.runtime.elementActions.preview.value).toMatchObject({ id: element.id, name: element.name, points: [{ x: 700, y: 700 }, { x: 3200, y: 700 }] });
+ // A (400, 200) delta, not (200, 200): the path's box centre is (1750, 500), and +200 put it 50 mm
+ // from the Studio's x = 2000 centre — inside the 80 mm alignment tolerance, so the drag snapped +50.
+ tool.pointerDown(pointerAt(1500, 500)); tool.pointerMove(pointerAt(1900, 700)); await settle();
+ expect(rig.runtime.elementActions.preview.value).toMatchObject({ id: element.id, name: element.name, points: [{ x: 900, y: 700 }, { x: 3400, y: 700 }] });
  expect(rig.project.structure.elements?.[0].points).toEqual(element.points);
- tool.pointerUp(pointerAt(1700, 700)); await settleUntil(() => rig.project.structure.elements?.[0].points[0].x === 700, 'path drag save');
+ tool.pointerUp(pointerAt(1900, 700)); await settleUntil(() => rig.project.structure.elements?.[0].points[0].x === 900, 'path drag save');
  expect(rig.runtime.elementActions.preview.value).toBeNull();
  await rig.runtime.undo(); await settle(); expect(rig.project.structure.elements?.[0].points).toEqual(element.points);
  rig.project.stale = true; rig.runtime.elementActions.previewElement(element.id, element.points); expect(rig.runtime.elementActions.preview.value).toBeNull();

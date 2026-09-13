@@ -1,10 +1,11 @@
 ---
 type: Task
-order: 50
+order: 140
 status: New
-horizon: "MVP"
+horizon: MVP
 release: "[[MVP]]"
 dependsOn: "[[Confirm merged main carries the verified editor state]]"
+parent: "[[Editor foundation]]"
 ---
 
 # Reconcile SDD sections 17, 60 and 96 with the built editor

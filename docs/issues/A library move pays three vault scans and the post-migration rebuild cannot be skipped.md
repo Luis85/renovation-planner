@@ -1,7 +1,7 @@
 ---
 type: Issue
 parent: "[[Asset library]]"
-order: 30
+order: 60
 status: New
 started: ""
 finished: ""

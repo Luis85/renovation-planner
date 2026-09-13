@@ -3,6 +3,8 @@ type: Task
 status: Active
 horizon: MVP
 release: "[[MVP]]"
+parent: "[[Editor foundation]]"
+order: 150
 ---
 
 # Complete the usable editor release with spatial rotation

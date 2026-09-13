@@ -40,7 +40,7 @@ const standaloneZone = computed(() => selectedZone.value?.zoneType !== 'Room' ? 
  * `review` is excluded because `ReviewInspector` replaces both bodies there, so the trailing mount is
  * then the only one; `EntityInspector`, this component's one caller, passes no slot in Review anyway.
  */
-const bodyTakesActions = computed(() => session.perspective === 'plan' && selection.selectedIds.length > 0 && (generic.value === true || element.value));
+const bodyTakesActions = computed(() => session.perspective !== 'review' && selection.selectedIds.length > 0 && (generic.value === true || element.value));
 const root = ref<HTMLElement | null>(null);
 watch(() => [session.focusedId, session.mode], async () => {
 	if (!session.focusedId) return;
@@ -63,12 +63,12 @@ watch(() => [session.focusedId, session.mode], async () => {
 		class="rp-renovation-inspector"
 		:class="{ 'rp-renovation-inspector--focused': session.perspective === 'renovate' }"
 	>
-		<ElementInspector v-if="generic && session.perspective === 'plan'">
+		<ElementInspector v-if="generic">
 			<template #actions>
 				<slot name="actions" />
 			</template>
 		</ElementInspector>
-		<StructureInspector v-else-if="element && session.perspective === 'plan'">
+		<StructureInspector v-else-if="element">
 			<template #actions>
 				<slot name="actions" />
 			</template>

@@ -12,14 +12,17 @@ function rangeKey(event: KeyboardEvent): void {
 }
 </script>
 <template>
-	<section>
-		<p>
+	<section class="rp-reference-review">
+		<div class="rp-reference-review__summary">
+			<p>{{ scaleSummary }}</p>
+			<p class="rp-reference-review__preview">{{ tr('editor.reference.preview-only') }}</p>
+			<p>
 			{{ path }}<template v-if="page !== null">
 				· {{ tr('editor.reference.page') }} {{ page }}
 			</template> · {{ rotation }}°
 			<br>{{ crop.x }}, {{ crop.y }} · {{ crop.width }} × {{ crop.height }} px
 		</p>
-		<p>{{ scaleSummary }}</p>
+		</div>
 		<label class="rp-dialog-field">{{ tr('editor.reference.opacity') }}<input
 			v-model.number="opacity"
 			name="opacity"
@@ -48,12 +51,19 @@ function rangeKey(event: KeyboardEvent): void {
 		<p v-if="!locked">
 			{{ tr('editor.reference.unlock-help') }}
 		</p>
-		<label v-if="needsConsent"><input
-			v-model="acknowledged"
-			type="checkbox"
-			name="consent"
-			:aria-disabled="paused"
-			@click="refusePaused"
-		>{{ tr('editor.reference.rescale', { factor: factor }) }}</label>
+		<section
+			v-if="needsConsent"
+			class="rp-reference-rescale-impact"
+		>
+			<h4>{{ tr('editor.reference.rescale-impact') }}</h4>
+			<p>{{ tr('editor.reference.rescale', { factor: factor }) }}</p>
+			<label><input
+				v-model="acknowledged"
+				type="checkbox"
+				name="consent"
+				:aria-disabled="paused"
+				@click="refusePaused"
+			>{{ tr('editor.reference.consent') }}</label>
+		</section>
 	</section>
 </template>

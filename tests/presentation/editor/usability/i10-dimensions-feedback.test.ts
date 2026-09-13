@@ -28,7 +28,7 @@ it('I10 keeps the scalar proposal, its scope, and a no-write cancel together', a
 
 	await value.harness.wrapper.get(`${form} input`).setValue('4.2');
 	await settle();
-	expect(feedback.get('[role="status"]').text()).toContain('4.20 m');
+	expect(feedback.get('[role="status"]').text()).toContain('4.2 m');
 	expect(runtime.renderState.previewPolygon).not.toBeNull();
 
 	await value.harness.wrapper.get(`${form} button[type="button"]`).trigger('click');

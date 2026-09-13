@@ -77,8 +77,9 @@ function guides(bounds: BoundingBox) {
 function open(axis: keyof DimensionsText): void { if (room.value) void runtime.roomDimension.open(room.value.id as ZoneId, axis); }
 /** The draft preview is screen-only; this receipt makes its pending status and scope legible. */
 const inlinePreview = computed(() => {
-	if (draft.value === null || runtime.renderState.previewPolygon === null) return null;
-	const proposed = roomDimensions(runtime.renderState.previewPolygon);
+	const activeDraft = draft.value;
+	if (activeDraft === null) return null;
+	const proposed = runtime.renderState.previewPolygon === null ? activeDraft.box : roomDimensions(runtime.renderState.previewPolygon);
 	if (proposed === null) return null;
 	const dimensions = dimensionTexts(proposed);
 	return { ...dimensions, area: formatArea((proposed.max.x - proposed.min.x) * (proposed.max.y - proposed.min.y)) };

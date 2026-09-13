@@ -54,11 +54,10 @@ import BackgroundLayer from '../editor/layers/background/BackgroundLayer.vue';
 import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
 import { useThemeTokens } from '../editor/theme/useThemeTokens';
 import { STAGE_PIXELS, viewportTransform, worldPerScreenPixel } from '../editor/viewport/Viewport';
-import { boundsOfZones } from '../editor/viewport/zoneExtent';
 import { useSelectionStore } from '../editor/selection/selection-store';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { useAssetDesignStore } from './stores/assetDesignStore';
-import { useDesignerRuntime } from './runtime';
+import { designFrame, useDesignerRuntime } from './runtime';
 import { BACKGROUND_LAYER, designerLayerConfig } from './layers/backgroundLayer';
 import { footprintOutline } from './layers/footprintLayer';
 import { clearanceOutline } from './layers/clearanceLayer';
@@ -168,14 +167,13 @@ const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPix
  * this canvas yet. A fit with nothing to frame does nothing, which is `boundsOfZones`' own
  * rule: a jump to nowhere costs the user the view they had and says nothing about why.
  *
- * It goes through `boundsOfZones` rather than scanning coordinates here — the function is
- * named for the plan editor's caller and typed for any `{ points }`, and a second definition of
- * "the box around these points" in this layer would be free to disagree with Core's.
+ * The box itself is `designFrame` (`runtime.ts`), which Apply preset fits to as well, so the two
+ * cannot frame the same design differently.
  */
 function framedBounds(all: boolean): BoundingBox | null {
 	const current = shape.value;
 	if (!all || current === null) return null;
-	return boundsOfZones([current.footprint, ...(current.clearance === null ? [] : [current.clearance])]);
+	return designFrame(current);
 }
 
 /**

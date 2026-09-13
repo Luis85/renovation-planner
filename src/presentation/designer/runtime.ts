@@ -4,6 +4,8 @@ import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { AssetShape } from '../../domain/asset/AssetShape';
+import type { BoundingBox } from '../../core/geometry/BoundingBox';
+import { boundsOfZones } from '../editor/viewport/zoneExtent';
 import { useEditorStore } from '../stores/EditorStore';
 import { useSelectionStore } from '../editor/selection/selection-store';
 import { CommandHistory } from '../editor/tools/command-history';
@@ -123,6 +125,19 @@ export interface DesignerRuntime {
  * saying which door faulted stays true while both doors agree what to call themselves.
  */
 const DISPATCH_FAULT_EVENT = 'designer.dispatch.faulted';
+
+/**
+ * The box around the whole design — the footprint and, when there is one, the clearance, since a
+ * clearance reaches outside its outline and a fit that cropped it would hide the thing being
+ * fitted. Arcs count: `boundsOfZones` hands each `CurvedPolygon` to `boundingBoxOf`, which reads
+ * arc extrema (`layers.test.ts` holds that for a curved table's outer arc).
+ *
+ * ONE definition for its two callers, `DesignerCanvas.framedBounds` (`Shift+1`) and `applyShape`
+ * below, so the fit after a preset cannot drift from the shortcut's.
+ */
+export function designFrame(shape: AssetShape): BoundingBox | null {
+	return boundsOfZones([shape.footprint, ...(shape.clearance === null ? [] : [shape.clearance])]);
+}
 
 /**
  * The three dependencies `CalibrateTool` needs that no other designer tool does (Task B6),
@@ -330,17 +345,17 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	}
 	async function setFootprintFromDimensions(width: number, depth: number): Promise<void> {
 		await notifyIfRefused(
-			reportDispatchFault(
-				context.logger,
-				DISPATCH_FAULT_EVENT,
-				dispatcher.run(edits.setFootprintFromDimensions({ assetId, width, depth })),
-			),
+			reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setFootprintFromDimensions({ assetId, width, depth }))),
 		);
 	}
 	async function applyShape(shape: AssetShape): Promise<void> {
-		await notifyIfRefused(
-			reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setShape({ assetId, shape }))),
-		);
+		const result = await reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setShape({ assetId, shape })));
+		await notifyIfRefused(Promise.resolve(result));
+		// A preset is centred on the origin at whatever size was typed, so it can land wholly outside
+		// the view it was applied from. A WRITTEN shape is framed as `Shift+1` frames it — the same
+		// `fitTo` the plan editor's `selectAndFrame` takes; an asset merely opened keeps its view.
+		const bounds = designFrame(shape);
+		if (result?.ok === true && bounds !== null) editor.fitTo(bounds, editor.stageSize);
 	}
 	function commitHeight(height: number | null): Promise<DispatchResult> {
 		return toolDispatcher.run(edits.setHeight({ assetId, height }));

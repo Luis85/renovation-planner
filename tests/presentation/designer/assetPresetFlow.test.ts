@@ -22,6 +22,9 @@ import { installResizeObserver } from '../../helpers/layout';
 import { ASSET_PRESETS } from '../../../src/domain/asset/presets/catalogue';
 import { defaultValues } from '../../../src/domain/asset/presets/presetGeometry';
 import { t } from '../../../src/presentation/i18n/strings';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { designerRig, type DesignerRig } from '../../helpers/designerRig';
+import { settle } from '../../helpers/editor';
 
 installCanvas();
 installResizeObserver();
@@ -129,5 +132,52 @@ describe('the designer’s preset dialog', () => {
 		await flushPromises();
 
 		expect((await harness.document()).shape?.footprint.points).toEqual(drawn().footprint.points);
+	});
+});
+
+/** Shift+1 as a hand presses it, on the canvas itself — `layers.test.ts`'s `pressOnCanvas`. */
+function pressFitAll(canvas: HTMLElement): void {
+	canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit1', shiftKey: true, bubbles: true, cancelable: true }));
+}
+
+async function applyTree(rig: DesignerRig): Promise<void> {
+	const tree = ASSET_PRESETS.find((preset) => preset.id === 'tree');
+	if (tree === undefined) throw new Error('the catalogue has a tree');
+	vi.spyOn(useDialogStore(rig.pinia), 'openDialog').mockResolvedValue({ action: 'submit', values: expectOk(tree.build(defaultValues(tree))) } as never);
+	await rig.wrapper.find('.rp-designer-start-preset').trigger('click');
+	await settle();
+}
+
+describe('the camera after a preset', () => {
+	/**
+	 * A preset is centred on the origin at whatever size was typed, so a 15 m tree applied from a
+	 * chair-sized view overflows the pane. Apply frames the whole design, and the instrument is
+	 * Shift+1 itself: from the camera the leaf had, the shortcut lands exactly where Apply did.
+	 */
+	it('frames the applied preset exactly as Shift+1 does', async () => {
+		const rig = await designerRig({ shape: null });
+		const editor = useEditorStore(rig.pinia);
+		const before = editor.viewport;
+
+		await applyTree(rig);
+		const applied = editor.viewport;
+		editor.viewport = before;
+		pressFitAll(rig.canvasEl);
+
+		expect(applied).not.toEqual(before);
+		expect(applied).toEqual(editor.viewport);
+		rig.unmount();
+	});
+
+	/** Over a design that exists, so a fit taken regardless of the outcome would move the camera. */
+	it('leaves the camera where it was when the write is refused', async () => {
+		const rig = await designerRig({ shape: drawn(), unrecoveredSettings: true });
+		const editor = useEditorStore(rig.pinia);
+		const before = editor.viewport;
+
+		await applyTree(rig);
+
+		expect(editor.viewport).toEqual(before);
+		rig.unmount();
 	});
 });

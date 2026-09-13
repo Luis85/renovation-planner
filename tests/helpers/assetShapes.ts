@@ -3,8 +3,9 @@
  * validation so a fixture cannot stand in for a shape the domain would refuse.
  */
 import { validateAssetShape, type AssetShape } from '../../src/domain/asset/AssetShape';
-import { circle, rect } from '../../src/domain/asset/presets/presetGeometry';
-import { expectOk } from './domain';
+import { ASSET_PRESETS } from '../../src/domain/asset/presets/catalogue';
+import { circle, defaultValues, rect } from '../../src/domain/asset/presets/presetGeometry';
+import { expectDefined, expectOk } from './domain';
 
 /** The bulge of a quarter-circle edge — what `circle` gives each of its four edges. */
 export const QUARTER = Math.tan(Math.PI / 8);
@@ -33,4 +34,17 @@ export function editableShape(overrides: Partial<AssetShape> = {}): AssetShape {
 			...overrides,
 		}),
 	);
+}
+
+/**
+ * The toilet preset at its defaults: footprint 380 wide with a semicircular front reaching y = 350,
+ * clearance x -390..390 by y -350..950, `detail-1` the tank (x -190..190, y -350..-150), `detail-2`
+ * the bowl (x -152..152, y -125..325), anchor at the origin, facing +y.
+ */
+export function toiletShape(): AssetShape {
+	const toilet = expectDefined(
+		ASSET_PRESETS.find((preset) => preset.id === 'toilet'),
+		'the toilet preset',
+	);
+	return expectOk(toilet.build(defaultValues(toilet)));
 }

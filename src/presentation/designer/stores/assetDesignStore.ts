@@ -1,8 +1,10 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, shallowRef } from 'vue';
 import { isErr } from '../../../core/result/Result';
 import type { AssetDesignDto, AssetDesignError } from '../../../application/queries/GetAssetDesign';
+import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { AssetDesignerQueryServices } from '../../read-models/assetDesignerQueries';
+import { sameSelection, selectionExists, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
 
 /**
  * How far this designer leaf got loading its asset.
@@ -73,6 +75,36 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 	const stale = ref(false);
 
 	/**
+	 * The designer's selection (symbols spec, Decision 10): one part at a time, per leaf, writing
+	 * nothing. It names a PART rather than holding a copy of one, so every read of the design is
+	 * the truth about what is selected, and `hydrate` drops a selection whose part a write or an
+	 * undo has removed.
+	 */
+	const selection = ref<DesignerSelection | null>(null);
+	const mode = ref<SelectionMode>('transform');
+	/**
+	 * A gesture's in-flight shape, drawn instead of `design.shape` while a drag is live. Shallow:
+	 * a validated shape is replaced whole on every move and never mutated, so deep reactivity
+	 * would only proxy geometry nothing edits in place.
+	 */
+	const preview = shallowRef<AssetShape | null>(null);
+
+	/** Choosing a DIFFERENT part resets the mode to Transform; re-choosing the selected part keeps it (Amendment 1). */
+	function select(next: DesignerSelection | null): void {
+		if (!sameSelection(selection.value, next)) mode.value = 'transform';
+		selection.value = next;
+		preview.value = null;
+	}
+
+	function setMode(next: SelectionMode): void {
+		mode.value = next;
+	}
+
+	function setPreview(shape: AssetShape | null): void {
+		preview.value = shape;
+	}
+
+	/**
 	 * The ticket every `hydrate` call takes before its first await, so a slower earlier read
 	 * cannot land on top of a faster later one.
 	 *
@@ -93,6 +125,8 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 		design.value = null;
 		error.value = cause;
 		status.value = 'failed';
+		// Nothing is drawn, so nothing can be selected.
+		selection.value = null;
 		// Nothing is on screen to BE stale: this path blanks the design and the failure state
 		// replaces the canvas.
 		stale.value = false;
@@ -194,11 +228,13 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 		}
 
 		design.value = found.value;
+		// A delete, or an undo that removed a detail, leaves nothing for the selection to name.
+		if (selection.value !== null && !selectionExists(found.value.shape, selection.value)) selection.value = null;
 		status.value = 'ready';
 		// The ONE event that retires a stale-data warning: what is on screen came back from the
 		// vault just now. Every hydration path ends here on success, whatever its options.
 		stale.value = false;
 	}
 
-	return { design, error, status, stale, hydrate };
+	return { design, error, status, stale, hydrate, selection, mode, preview, select, setMode, setPreview };
 });

@@ -179,3 +179,41 @@ The detail-kind vocabulary is unchanged.
 - **Visual:** a harness capture of a plan with a timber-frame wall, posts and beams, in both
   schemes and at sidebar width.
 - **Manual:** a case under `docs/tests/cases/`, marked not run until walked in a vault.
+
+## 10. Amendments during planning
+
+Taken while writing `docs/superpowers/plans/2026-09-13-structural-posts-and-beams.md`, each narrower than §5–§6:
+
+- **The edit form carries name and dimensions only.** A post's width and depth are applied about its centre,
+  keeping its rotation; a beam's width is applied to its unchanged axis. Position is edited by moving the body
+  and, for a beam, by its two point handles — the existing element gestures — not by coordinate fields.
+- **Inspector measures are in metres**, through the same `formatMetres` every other inspector line uses
+  ("0.14 × 0.14 m", "4.2 m · 0.16 m wide"), rather than centimetres.
+- **A beam rotates as a line** about its axis centre, like a measurement; only its hit, framing and selection
+  outline use the widened band.
+- **The icons are application artwork** (`rp-post`, `rp-beam`) registered beside `rp-stairs`, not Lucide names,
+  so no harness icon fixture is added.
+- **The post tool stays on by reading a fresh baseline after each save**, carrying the typed section forward; the
+  beam tool returns to Select after its save, like every other element tool.
+- **Selection priority:** a post ranks with objects, so a click on a post standing in a wall selects the post; a
+  beam ranks with other linear elements, so it never steals a click from a wall or opening it crosses.
+
+## 11. Amendments found during review
+
+Taken while implementing the plan, each narrower or corrective against §5–§6:
+
+- **The planning overlays also treat posts and beams as closed shapes.** `MaterialMarkers.vue` and
+  `CostWorkHighlight.vue` (`src/presentation/editor/planning/`) both read `closedFootprintKind` to decide
+  whether a highlighted or marked element closes its outline — missing from §1's "what exists today" table,
+  which named only the canvas and the Inspector as consumers of a post or beam's shape.
+- **A post standing in a wall draws AFTER every wall pass, not before.** `StructureLayer.vue` used to mount
+  `ElementShapes` ahead of the wall-edge/wall-body/wall-pattern lines in the same Konva layer, so the wall body
+  painted over a post centred on its own centre line — invisible in every scheme, caught only by the harness
+  capture this task took (§9's own listed instrument). Elements now draw last in that layer, on top of every
+  wall pass, so a post reads exactly as filled-with-diagonals as this document always said it would.
+- **Switching directly from the post tool to the beam tool resets the typed section.** `StructuralDraftFields`
+  is keyed by `draft.kind`, and the underlying draft itself is reset to its defaults on any tool change outside
+  the post-to-post continuation §5 and §10 describe — a fresh `place-post` reads a fresh baseline and restores
+  the typed section itself (§10), but `draw-beam` started directly from `place-post` does not inherit it.
+  `tests/presentation/editor/structuralCreation.test.ts` watches this as `resets the structural fields when
+  switching directly from the post tool to the beam tool`.

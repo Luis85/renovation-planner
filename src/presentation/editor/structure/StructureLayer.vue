@@ -69,19 +69,6 @@ const elementDraft = computed(() => {
 </script>
 <template>
 	<VLayer :config="{ name: 'architecture', listening: false, visible, ...transform }">
-		<ElementShapes
-			:elements="elements"
-			:editable="renovationSession.perspective === 'plan' && runtime.activeToolId.value === 'select'"
-			:selected-ids="selection.selectedIds"
-			:tokens="tokens"
-			:zoom="zoom"
-		/>
-		<ElementShapes
-			:elements="elementDraft"
-			:selected-ids="['element-preview']"
-			:tokens="tokens"
-			:zoom="zoom"
-		/>
 		<!--
 			Walls are drawn TWICE, and the two passes run over ALL runs rather than per run:
 			every `wall-edge` (`zoneStroke`, `thickness + 2 / zoom`), then every `wall-body`
@@ -153,6 +140,21 @@ const elementDraft = computed(() => {
 			:viewport="draftViewport"
 			:cursor="runtime.activeToolId.value === 'draw-wall' ? task.draft.cursor : null"
 			:cuts="cuts"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
+		<!-- Elements draw AFTER every wall pass, so a post standing in a wall (structural posts
+			and beams design §5) is not painted over by the wall body that follows it. -->
+		<ElementShapes
+			:elements="elements"
+			:editable="renovationSession.perspective === 'plan' && runtime.activeToolId.value === 'select'"
+			:selected-ids="selection.selectedIds"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
+		<ElementShapes
+			:elements="elementDraft"
+			:selected-ids="['element-preview']"
 			:tokens="tokens"
 			:zoom="zoom"
 		/>

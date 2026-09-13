@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeAsset, makeProject, makeRequirement } from '../../helpers/entities';
 import { Requirement } from '../../../src/domain/requirement/Requirement';
 import { originRoomId, requirementContext } from '../../../src/domain/requirement/RequirementOrigin';
-import type { RequirementSource } from '../../../src/domain/requirement/RequirementSource';
+import { sourceMeasurement, type RequirementSource } from '../../../src/domain/requirement/RequirementSource';
 import type { PlanId } from '../../../src/domain/plan/PlanId';
 import { createZoneId } from '../../../src/domain/zone/ZoneId';
 
@@ -16,6 +16,16 @@ describe('a requirement whose origin is a plan (ADR-0031)', () => {
 		expect(requirementContext(requirement)).toEqual({ roomId: 'wall-a', targetId: 'wall-a' });
 		const zoneId = createZoneId();
 		expect(requirementContext({ origin: { kind: 'zone', zoneId }, source })).toEqual({ roomId: zoneId, targetId: 'wall-a' });
+	});
+	it('measures no room rule without a room (spec §6.6)', () => {
+		const geometry = { objects: [{ id: 'room-a', points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 3000 }, { x: 0, y: 3000 }] }] };
+		const roomSource = { ...source, targetId: 'room-a', state: 'current' as const };
+		const measured = (room: string | undefined) => [
+			sourceMeasurement({ ...roomSource, rule: 'room-area' }, room, geometry, 'm2').ok,
+			sourceMeasurement({ ...roomSource, rule: 'room-perimeter' }, room, geometry, 'm').ok,
+			sourceMeasurement({ ...roomSource, rule: 'placement-count' }, room, geometry, 'piece', 'asset-a').ok,
+		];
+		expect([measured(undefined), measured('room-a')]).toEqual([[false, false, false], [true, true, true]]);
 	});
 	it('needs a source on the same plan', () => {
 		const base = makeRequirement({ projectId: makeProject().id, assetId: makeAsset().id, origin: { kind: 'plan', planId }, source });

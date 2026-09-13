@@ -44,7 +44,6 @@ export function validRequirementSource(source: RequirementSource): boolean {
 		&& (source.construction === undefined || source.construction === true);
 }
 function roomMeasurement(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry): Measurement | null {
- if (!roomId) return null;
  const room = geometry.objects.find(item => item.id === roomId);
  if (!room || source.targetId !== roomId) return null;
  if (source.rule === 'count') return { raw: 1, unit: 'piece' };
@@ -85,7 +84,6 @@ function measurement(source: RequirementSource, roomId: string | undefined, geom
 }
 /** How many placements of `assetId` probe inside the room, in the source's state; zero is an answer, a missing room is not. */
 function placementCount(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry, assetId: string | undefined): number | null {
-	if (!roomId) return null;
 	const room = geometry.objects.find(item => item.id === roomId);
 	if (!room || source.targetId !== roomId || !assetId) return null;
 	const structure = sourceStructure(source, geometry);

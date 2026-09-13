@@ -157,23 +157,13 @@ export class RecalculateRequirementCommand
 
 	/**
 	 * The unsourced (zone-only) path's own area load, split out to keep `execute`'s
-	 * complexity under budget. Called only when `!requirement.source`, which is exactly
-	 * when `execute`'s own guard above has already guaranteed a zone origin — the
-	 * `originRoomId` check below is the type-level restatement of that invariant, not a
-	 * second live case.
+	 * complexity under budget. Called only when `!requirement.source`, and `execute` has
+	 * already refused an unsourced origin that is not a zone — the one place
+	 * `requirement.unsupported-origin` is raised — so the origin here is always a zone. A
+	 * type-only cast rather than a second refusal no input can reach.
 	 */
 	private async zoneAreaMm2(requirement: Requirement): Promise<Result<number, RecalculateRequirementErrors>> {
-		const zoneId = originRoomId(requirement.origin);
-		if (zoneId === undefined) {
-			return err(
-				calculationError(
-					'requirement.unsupported-origin',
-					`Requirement ${requirement.id} has origin kind "${String(requirement.origin.kind)}", `
-						+ 'which no derivation rule covers yet.',
-				),
-			);
-		}
-		const zone = await loadZone(this.deps.zones, zoneId);
+		const zone = await loadZone(this.deps.zones, originRoomId(requirement.origin) as NonNullable<ReturnType<typeof originRoomId>>);
 		if (isErr(zone)) {
 			return err(calculationError('requirement.zone-gone', zone.error.message, zone.error));
 		}

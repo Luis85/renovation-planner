@@ -46,7 +46,7 @@ export interface AssetPreset {
 	build(values: PresetValues): Result<AssetShape, ValidationError>;
 }
 
-export const PRESET_FACING = Math.PI / 2;
+const PRESET_FACING = Math.PI / 2;
 
 export function defaultValues(preset: AssetPreset): PresetValues {
 	return Object.fromEntries(preset.fields.map((field) => [field.key, field.default]));

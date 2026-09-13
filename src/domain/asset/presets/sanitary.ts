@@ -1,10 +1,14 @@
 import { ok } from '../../../core/result/Result';
-import { circle, definePreset, frontClearance, rect, roundFront, stadium, type AssetPreset } from './presetGeometry';
+import { circle, definePreset, frontClearance, rect, roundFront, stadium, type AssetPreset, type PresetDrawing } from './presetGeometry';
 
 /** Standing room in front of a fitting, and to each side of a toilet. */
 const FRONT_REACH_MM = 600;
 const TOILET_SIDE_MM = 200;
 const BATH_RIM_MM = 80;
+
+/** A rectangular fitting's footprint and front clearance; each caller supplies its own details. */
+const rectFitting = (width: number, depth: number, details: PresetDrawing['details']) =>
+	ok({ footprint: rect(width, depth), clearance: frontClearance(width, depth, FRONT_REACH_MM), details });
 
 export const SANITARY_PRESETS: readonly AssetPreset[] = [
 	definePreset('toilet', 'sanitary', [
@@ -26,25 +30,17 @@ export const SANITARY_PRESETS: readonly AssetPreset[] = [
 		{ key: 'depth', kind: 'length', min: 300, max: 650, default: 450 },
 	], (value) => {
 		const width = value('width'), depth = value('depth');
-		return ok({
-			footprint: rect(width, depth),
-			clearance: frontClearance(width, depth, FRONT_REACH_MM),
-			details: [
-				{ name: 'basin', outline: stadium(width * 0.7, depth * 0.6, 0, depth * 0.1) },
-				{ name: 'tap-hole', outline: circle(Math.min(40, width * 0.1), 0, -depth * 0.35) },
-			],
-		});
+		return rectFitting(width, depth, [
+			{ name: 'basin', outline: stadium(width * 0.7, depth * 0.6, 0, depth * 0.1) },
+			{ name: 'tap-hole', outline: circle(Math.min(40, width * 0.1), 0, -depth * 0.35) },
+		]);
 	}),
 	definePreset('shower-tray', 'sanitary', [
 		{ key: 'width', kind: 'length', min: 700, max: 1800, default: 900 },
 		{ key: 'depth', kind: 'length', min: 700, max: 1800, default: 900 },
 	], (value) => {
 		const width = value('width'), depth = value('depth');
-		return ok({
-			footprint: rect(width, depth),
-			clearance: frontClearance(width, depth, FRONT_REACH_MM),
-			details: [{ name: 'drain', outline: circle(Math.min(100, Math.min(width, depth) * 0.15)) }],
-		});
+		return rectFitting(width, depth, [{ name: 'drain', outline: circle(Math.min(100, Math.min(width, depth) * 0.15)) }]);
 	}),
 	definePreset('bathtub', 'sanitary', [
 		{ key: 'length', kind: 'length', min: 1200, max: 2200, default: 1700 },

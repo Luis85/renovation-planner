@@ -83,7 +83,7 @@ const DetailSchemaV2 = z.object({
  * file with details would load it and erase them on its next write; `z.literal(1)` makes that
  * build refuse the file instead.
  */
-export const AssetShapeSchemaV2 = AssetShapeSchemaV1.extend({
+const AssetShapeSchemaV2 = AssetShapeSchemaV1.extend({
 	footprint: OutlineSchemaV2,
 	clearance: OutlineSchemaV2.nullable(),
 	details: z.array(DetailSchemaV2).default([]),

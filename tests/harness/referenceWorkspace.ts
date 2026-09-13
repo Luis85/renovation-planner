@@ -21,6 +21,9 @@ import { makeDeleteZoneCommand } from '../helpers/slice10';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../src/application/queries/GetZoneInspector';
+import { CreateAssetCommand } from '../../src/application/commands/asset/CreateAsset';
+import { SetAssetFootprintCommand, SetAssetFootprintFromDimensionsCommand } from '../../src/application/commands/asset/SetAssetFootprint';
+import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import { toPlanDto, toZoneDto, type PlanDto } from '../../src/presentation/read-models/PlanDto';
 import type { PlanId } from '../../src/domain/plan/PlanId';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
@@ -84,6 +87,7 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			assetShapes: async ids => { await ready; return readAssetShapes(new GetAssetDesignQuery(stack.assets, new ObsidianAssetGeometrySidecar(stack.assetGeometry)), ids); },
 		},
 		commands: { ...base.commands, groups: groupGeometryServices(geometry, stack.zones, stack.events), referencePlan: services, zones: stack.zones, events: stack.events,
+			assetCreation: assetCreation(stack),
 			...(planning ? planningWorkspace(stack, geometry) : { renovation: renovationServices(stack.plans, geometry, stack.events) }),
 			reviewNote: async (id, body) => { const result = await reviewNotes.generate(id, body); return result.ok ? ok(undefined) : result; },
 			structure: structureServices(geometry, stack.events), deleteZone: makeDeleteZoneCommand(stack.zones, stack.events, stack.requirements), requirementEdits: { ...base.commands.requirementEdits, requirements: stack.requirements },
@@ -101,4 +105,15 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 		planningServices.read = async id => { await ready; return read(id); };
 	}
 	return { deps, stack, services, geometry, ready, plan };
+}
+
+/** "Add to asset library" over the same stack (2026-09-13 item modes spec §B): real commands, so a promoted asset and its footprint land where a placement reads them. */
+function assetCreation(stack: ReturnType<typeof createRepositoryStack>) {
+	const design = { sidecar: new ObsidianAssetGeometrySidecar(stack.assetGeometry), assets: stack.assets, events: stack.events, locks: new ReferenceLocks() };
+	return {
+		createAsset: new CreateAssetCommand(stack.assets, stack.events),
+		setAssetFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand(design),
+		setAssetFootprint: new SetAssetFootprintCommand(design),
+		defaultCurrency: 'EUR',
+	};
 }

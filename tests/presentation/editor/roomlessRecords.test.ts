@@ -59,7 +59,11 @@ it('gives an Area the same renovation details a Room gets', async () => {
 	const garden = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden', geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
 	await rig.runtime.refreshProjection(); rig.selection.select([garden.id]); await settle();
 	expect(rig.session.roomId).toBe(garden.id);
+	expect(rig.wrapper.find('[data-rp-action="renovate-room"]').exists()).toBe(true);
+	await rig.wrapper.get('[data-rp-action="renovate-room"]').trigger('click'); await settle();
+	expect(rig.session.perspective).toBe('renovate');
 	expect(rig.wrapper.find('[data-rp-mode="existing"]').exists()).toBe(true);
+	expect(rig.session.roomId).toBe(garden.id);
 });
 
 it('adds a material to a wall that bounds no room as a plan-origin requirement', async () => {

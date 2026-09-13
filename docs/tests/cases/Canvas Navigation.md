@@ -179,6 +179,17 @@ the five values and what they do not claim.
        in `npm run check` can see whether the widget opened.**
     *This is the step the whole of `npm run check` cannot stand in for*: the suite writes its
     own chord events, so it can only prove the canvas handles the grammar it was told about.
+14. `browser` **Edge scrolling while drawing.** Add ▸ Room, press on empty canvas and drag
+    toward the right edge of the pane without releasing; hold the pointer there. Expected: the
+    plan scrolls steadily and the rectangle keeps growing under the pointer; moving the
+    pointer back inward stops it, and so does releasing — a pointer left resting at the edge
+    after the release scrolls nothing. Then draw a wall chain: place one corner, move to the
+    left edge WITHOUT pressing, and hold. Expected: the plan scrolls and the rubber band
+    follows. Merely hovering at an edge with nothing being drawn scrolls nothing. With the
+    Select tool, drag a room and then a marquee to an edge: both scroll and the drop lands
+    where the pointer is over the plan. Dragging a rotation handle to an edge scrolls nothing.
+    *Record whether the speed feels controllable* — `canvasEdgeScroll.test.ts` steps frames by
+    hand, so how fast a real `requestAnimationFrame` loop moves the plan is judged only here.
 
 ## What is deliberately absent, so a tester does not file it
 

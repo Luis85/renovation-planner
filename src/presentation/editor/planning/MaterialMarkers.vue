@@ -10,6 +10,7 @@ import { structureRecords } from '../structure/structureRecords';
 import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
 import { boundsOfZones } from '../viewport/zoneExtent';
 import { originRoomId, requirementContext } from '../../../domain/requirement/RequirementOrigin';
+import { closedFootprintKind } from '../../../domain/spatial/SpatialElement';
 const props = defineProps<{ tokens: ThemeTokens; zoom: number }>();
 const project = useProjectStore(), runtime = useEditorRuntime(), session = useRenovationSession(), shapes = useAssetShapeStore();
 const markers = computed(() => {
@@ -30,7 +31,7 @@ const markers = computed(() => {
   return [{ id: entity.id, roomId: originRoomId(entity.origin) ?? '', number: index + 1,
    x: box.min.x + (22 + offset * 34) / props.zoom,
    y: box.min.y + 22 / props.zoom,
-   points: points.flatMap(point => [point.x, point.y]), closed: project.zones.has(targetId) || (entity.source?.state === 'intended' ? intended : current).some(item => item.id === targetId && ['object', 'stair', 'asset'].includes(item.kind)) }];
+   points: points.flatMap(point => [point.x, point.y]), closed: project.zones.has(targetId) || (entity.source?.state === 'intended' ? intended : current).some(item => item.id === targetId && closedFootprintKind(item.kind)) }];
  });
 });
 </script>

@@ -49,6 +49,8 @@ const PRECISE_TOOLS: readonly ToolId[] = [
 	'place-opening',
 	'place-stair',
 	'draw-arrow',
+	'place-post',
+	'draw-beam',
 	'calibrate',
 	'trace-footprint',
 	'trace-clearance',

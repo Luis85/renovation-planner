@@ -19,6 +19,12 @@ export interface SetAssetFootprintFromDimensionsInput {
 export interface SetAssetFootprintInput {
 	readonly assetId: AssetId;
 	readonly points: readonly Point[];
+	/**
+	 * The outline is already in millimetres — copied off a plan item (2026-09-13 item modes spec §B) —
+	 * so it is stored `typed` and never pending, whatever the surface's calibration says. Absent, the
+	 * outline is a trace and `captureAwaitsScale` decides.
+	 */
+	readonly measured?: true;
 	readonly expected?: EntityVersion;
 }
 
@@ -145,7 +151,9 @@ export class SetAssetFootprintCommand
 			this.deps,
 			input,
 			(current, awaitsScale) =>
-				ok(withFootprint(current, { points: input.points }, 'traced', awaitsScale)),
+				ok(input.measured
+					? withFootprint(current, { points: input.points }, 'typed', false)
+					: withFootprint(current, { points: input.points }, 'traced', awaitsScale)),
 			sameFootprint,
 		);
 	}

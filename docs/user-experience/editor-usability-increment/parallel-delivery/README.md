@@ -2,6 +2,8 @@
 
 **Implementation in progress · 2026-09-13 · Wave 0 I00 dispatched.**
 
+> **Execution override, 2026-09-13:** for this delivery run, implementation PRs form a reviewed stack and are not merged to `main` during packet execution. A prerequisite is eligible when the coordinator has reviewed and verified its final PR head and the dependent branch includes that reviewed tip. Parallel siblings are integrated into a serial PR chain before their PRs are finalized. The final chain remains unmerged for human review.
+
 The user asked to implement later in parallel sessions using weaker models. These packets turn U0–U9 and the chosen [hybrid screens](../mockups/README.md) into small reviewable concerns with concrete file ownership, prerequisite gates, checks and copy-ready prompts.
 
 ## Start here

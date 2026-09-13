@@ -4,6 +4,8 @@ export const inputDe: Record<keyof typeof inputEn, string> = {
 	'editor.input.switch-to-pan': 'Zum Verschiebemodus wechseln',
 	'editor.input.switch-to-select': 'Zum Auswahlmodus wechseln',
 	'editor.input.context': 'Planaktionen',
+	'editor.input.current-target': 'Aktuelles Ziel: {target}',
+	'editor.input.overlap-cycle-guidance': 'Halten Sie beim Klicken Alt gedrückt, um ein anderes überlappendes Element auszuwählen.',
 	'editor.input.edit': 'Bearbeiten',
 	'editor.input.rename': 'Umbenennen',
 	'editor.input.add-point': 'Punkt hinzufügen',

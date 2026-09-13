@@ -3,6 +3,8 @@ export const inputEn = {
 	'editor.input.switch-to-pan': 'Switch to pan mode',
 	'editor.input.switch-to-select': 'Switch to select mode',
 	'editor.input.context': 'Plan actions',
+	'editor.input.current-target': 'Current target: {target}',
+	'editor.input.overlap-cycle-guidance': 'Hold Alt while clicking to select another overlapping item.',
 	'editor.input.edit': 'Edit',
 	'editor.input.rename': 'Rename',
 	'editor.input.add-point': 'Add point',

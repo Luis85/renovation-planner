@@ -10,10 +10,13 @@
 import type Konva from 'konva';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { structureEditor } from '../../helpers/structureEditor';
-import { settle } from '../../helpers/editor';
+import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk } from '../../helpers/domain';
+import { makeAsset } from '../../helpers/entities';
 import { WALL_LOOP } from '../../helpers/structure';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
+import { withPlanRenovation } from '../../../src/domain/plan/Plan';
 
 // jsdom defines no Obsidian CSS variable, so `resolveThemeTokens` would give `--text-normal`
 // (`zoneStroke`, the edge pass) and `--background-secondary` (`wallFill`, the body pass) the
@@ -73,4 +76,29 @@ it('gives the edge pass two screen pixels more than the body pass, at any zoom',
 			expect(edge.stroke()).not.toBe(bodies[index].stroke());
 		}
 	}
+});
+
+/**
+ * A third pass, `wall-pattern`, joins the two above for a wall whose material has a plan
+ * pattern (ADR-0031): drawn after every `wall-body`, filling the wall's own body polygon
+ * rather than its centre-line. Pinned here too, beside the edge/body order this file already
+ * owns, rather than only in `wallPatternPass.test.ts` — this file is the ORDER contract.
+ */
+it('draws the wall-pattern pass after every wall body, for a wall whose material has a pattern', async () => {
+	const rig = await structureEditor(true); rigs.push(rig);
+	const read = expectOk(await rig.geometry.read(rig.plan.id));
+	expectOk(await rig.geometry.write(rig.plan.id, { ...read.document, structure: WALL_LOOP }, read.version));
+	const brick = expectOk(await rig.stack.assets.save(makeAsset({ name: 'Brick', unit: 'm2', planPattern: 'brick' }), 'absent')).entity;
+	const plan = expectDefined(expectOk(await rig.stack.plans.getById(rig.plan.id)), 'plan');
+	const subjects = [{ id: 'pattern-wall', targetId: 'wall-a', kind: 'wall' as const, existing: { description: 'Brick', condition: 'good' as const, assetId: brick.id }, planned: null }];
+	const renovated = expectOk(withPlanRenovation(plan.entity, { ...EMPTY_RENOVATION, subjects }));
+	expectOk(await rig.stack.plans.save(renovated, plan.version));
+	await rig.runtime.refreshProjection(); rig.changePlan(); await settle();
+	await settleUntil(() => rig.runtime.planning.baseline.value?.catalogue.some(item => item.asset.id === brick.id) === true, 'catalogue read');
+	const architecture = expectDefined(rig.stage.findOne<Konva.Layer>('.architecture'), 'architecture layer');
+	await settleUntil(() => architecture.find('.wall-pattern').length > 0, 'pattern pass drawn');
+	const lines = architecture.find<Konva.Shape>('Line');
+	const bodies = architecture.find('.wall-body').map(node => lines.indexOf(node as Konva.Shape));
+	const patterns = architecture.find('.wall-pattern').map(node => lines.indexOf(node as Konva.Shape));
+	expect(Math.min(...patterns)).toBeGreaterThan(Math.max(...bodies));
 });

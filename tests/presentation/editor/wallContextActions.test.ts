@@ -25,18 +25,19 @@ async function rightClick(rig: Rig, world: Point, altKey = false) {
 }
 const item = (rig: Rig, id: string) => rig.wrapper.get(`[data-rp-context-action="${id}"]`);
 const menuIds = (rig: Rig) => rig.wrapper.findAll('[data-rp-context-action]').map(entry => entry.attributes('data-rp-context-action'));
+async function add(rig: Rig, id: string) { await item(rig, 'add-menu').trigger('click'); await settle(); await item(rig, id).trigger('click'); }
 
 it('adds a window and a door where a wall was right-clicked, each one undoable', async () => {
 	const rig = await setup();
 	await rightClick(rig, { x: 1000, y: 0 });
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);
-	expect(menuIds(rig).slice(0, 8)).toEqual(['edit', 'add-point', 'rotate', 'new-wall', 'add-door', 'add-window', 'add-opening', 'measure']);
-	await item(rig, 'add-window').trigger('click');
+	expect(menuIds(rig).slice(0, 5)).toEqual(['edit', 'add-point', 'rotate', 'add-menu', 'measure']);
+	await add(rig, 'add-window');
 	await settleUntil(() => rig.project.structure.openings.length === 1 && rig.runtime.activeToolId.value === 'select', 'window placed');
 	const pane = rig.project.structure.openings[0];
 	expect(pane).toMatchObject({ kind: 'window', hostId: 'wall-a', offset: 550, width: 900 });
 	expect(rig.selection.selectedIds).toEqual([pane.id]);
-	await rightClick(rig, { x: 3000, y: 0 }); await item(rig, 'add-door').trigger('click');
+	await rightClick(rig, { x: 3000, y: 0 }); await add(rig, 'add-door');
 	await settleUntil(() => rig.project.structure.openings.length === 2 && rig.runtime.activeToolId.value === 'select', 'door placed');
 	expect(rig.project.structure.openings[1]).toMatchObject({ kind: 'door', hostId: 'wall-a', offset: 2550 });
 	await rig.runtime.undo(); await settle();
@@ -48,7 +49,7 @@ it('adds a window and a door where a wall was right-clicked, each one undoable',
 
 it('draws a new wall from the right-clicked point and cuts the wall only when it is saved', async () => {
 	const rig = await setup(), task = rig.runtime.structureTask;
-	await rightClick(rig, { x: 2000, y: 0 }); await item(rig, 'new-wall').trigger('click');
+	await rightClick(rig, { x: 2000, y: 0 }); await add(rig, 'new-wall');
 	await settleUntil(() => task.draft.points.length === 1, 'wall started at the click');
 	expect(rig.runtime.activeToolId.value).toBe('draw-wall');
 	expect(task.draft.points[0].x).toBeCloseTo(2000, 0); expect(task.draft.points[0].y).toBe(0);
@@ -63,11 +64,12 @@ it('draws a new wall from the right-clicked point and cuts the wall only when it
 
 it('greys New wall where the click lands inside an opening, and says why', async () => {
 	const rig = await setup();
-	await rightClick(rig, { x: 1000, y: 0 }); await item(rig, 'add-opening').trigger('click');
+	await rightClick(rig, { x: 1000, y: 0 }); await add(rig, 'add-opening');
 	await settleUntil(() => rig.project.structure.openings.length === 1 && rig.runtime.activeToolId.value === 'select', 'opening placed');
 	// The opening is selected and sits over the wall there; Alt cycles past it to the wall beneath.
 	await rightClick(rig, { x: 1000, y: 0 }, true);
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);
+	await item(rig, 'add-menu').trigger('click'); await settle();
 	expect(item(rig, 'new-wall').attributes('aria-disabled')).toBe('true');
 	expect(item(rig, 'new-wall').attributes('title')).toBe('A new wall cannot start or end inside a door, window or opening. Choose a point beside it.');
 });

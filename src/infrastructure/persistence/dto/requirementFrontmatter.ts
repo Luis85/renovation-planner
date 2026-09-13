@@ -51,5 +51,12 @@ const RequirementFrontmatterSchemaV1 = z.object({
 
 const RequirementFrontmatterSchemaV2 = RequirementFrontmatterSchemaV1.extend({ 'schema-version': z.literal(2), source: RequirementSourceSchema.optional() });
 const RequirementFrontmatterSchemaV3 = RequirementFrontmatterSchemaV2.extend({ 'schema-version': z.literal(3) });
-export const RequirementFrontmatterSchemaV4 = RequirementFrontmatterSchemaV3.extend({ 'schema-version': z.literal(4) });
-export const RequirementFrontmatterSchema = z.union([RequirementFrontmatterSchemaV1, RequirementFrontmatterSchemaV2, RequirementFrontmatterSchemaV3, RequirementFrontmatterSchemaV4]);
+const RequirementFrontmatterSchemaV4 = RequirementFrontmatterSchemaV3.extend({ 'schema-version': z.literal(4) });
+/** `wall-volume`, the construction marker (Task 6) and the `plan` origin (Task 7): an older writer would strip or refuse each. */
+export const RequirementFrontmatterSchemaV5 = RequirementFrontmatterSchemaV4.extend({
+	'schema-version': z.literal(5),
+	'origin-kind': z.enum(['zone', 'plan']),
+	'origin-zone': z.string().min(1).optional(),
+	'origin-plan': z.string().min(1).optional(),
+});
+export const RequirementFrontmatterSchema = z.union([RequirementFrontmatterSchemaV1, RequirementFrontmatterSchemaV2, RequirementFrontmatterSchemaV3, RequirementFrontmatterSchemaV4, RequirementFrontmatterSchemaV5]);

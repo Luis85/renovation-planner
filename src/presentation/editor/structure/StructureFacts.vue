@@ -4,7 +4,7 @@ import { wallLength } from '../../../domain/spatial/Structure';
 import type { Wall, Opening } from '../../../domain/spatial/Structure';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { tr } from '../../i18n/strings';
-defineProps<{ wall?: Wall; opening?: Opening; rooms: readonly string[] }>();
+defineProps<{ wall?: Wall; opening?: Opening; rooms: readonly string[]; materials?: { existing?: string; planned?: string } | null }>();
 const project = useProjectStore();
 </script>
 <template>
@@ -22,6 +22,12 @@ const project = useProjectStore();
 				:key="field"
 			>
 				<dt>{{ tr(`editor.structure.${field}`) }}</dt><dd>{{ formatMetres(opening[field]) }} m</dd>
+			</template>
+		</template>
+		<template v-if="materials">
+			<dt>{{ tr(wall ? 'renovation.material' : 'renovation.product') }}</dt><dd>{{ materials.existing ?? tr('renovation.material.none') }}</dd>
+			<template v-if="materials.planned">
+				<dt>{{ tr('editor.structure.planned-material') }}</dt><dd>{{ materials.planned }}</dd>
 			</template>
 		</template>
 	</dl>

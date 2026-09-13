@@ -1,6 +1,7 @@
 import { en, type StringKey } from './locales/en';
 import { currentLanguage, t } from './strings';
 import type { AppError, ErrorCategory } from '../../core/errors/AppError';
+import type { NamedReferents } from '../../application/errors';
 
 /**
  * The ONE place an `AppError` becomes user-facing copy (SDD §66's last step).
@@ -46,6 +47,12 @@ import type { AppError, ErrorCategory } from '../../core/errors/AppError';
 	['migration-failed', 'error.suffix.migration-failed'],
 ];
 
+/** A refusal that names what blocks it fills its copy's `{names}`; any other error leaves its template as it is. */
+function namedParams(error: AppError): Readonly<Record<string, string>> | undefined {
+	const names = (error as Partial<NamedReferents>).names;
+	return names ? { names: names.join(', ') } : undefined;
+}
+
 function hasLocaleKey(key: string): key is StringKey {
 	return key in en;
 }
@@ -62,7 +69,7 @@ const CATEGORY_KEYS: Record<ErrorCategory, StringKey> = {
 };
 
 export function toUserMessage(language: string, error: AppError): string {
-	if (hasLocaleKey(error.code)) return t(language, error.code);
+	if (hasLocaleKey(error.code)) return t(language, error.code, namedParams(error));
 	for (const [suffix, key] of CODE_SUFFIX_KEYS) {
 		if (error.code.endsWith(suffix)) return t(language, key);
 	}

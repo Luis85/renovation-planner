@@ -2,17 +2,19 @@ import { effectiveValue } from '../../../core/derived/DerivedValue';
 import { add, sameMoney, zero, type Money } from '../../../core/money/Money';
 import { prepareMaterial, type PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import { EMPTY_DEPTH, outstanding, type CostRecord } from '../../../domain/renovation/PlanningDepth';
+import { contextOf } from '../../../domain/renovation/SharedLinks';
 import { reconcileCosts } from '../../../domain/cost/reconcileCosts';
 import type { Requirement } from '../../../domain/requirement/Requirement';
+import { originRoomId, requirementContext } from '../../../domain/requirement/RequirementOrigin';
 import type { EvidenceFiles } from '../../../application/ports/EvidenceFiles';
 
 function sourceOf(requirement: Requirement, baseline: PlanningBaseline) {
-	return requirement.source ?? { planId: baseline.plan.entity.id, targetId: requirement.origin.zoneId, workId: '', outcomeId: '', state: 'current' as const, rule: 'room-area' as const, manual: '0', coverage: '1', lot: '', minimum: '' };
+	return requirement.source ?? { planId: baseline.plan.entity.id, targetId: originRoomId(requirement.origin) ?? '', workId: '', outcomeId: '', state: 'current' as const, rule: 'room-area' as const, manual: '0', coverage: '1', lot: '', minimum: '' };
 }
 export function materialRows(baseline: PlanningBaseline) {
 	return baseline.materials.map(({ entity }) => {
 		const source = sourceOf(entity, baseline), selected = baseline.catalogue.find(item => item.asset.id === entity.assetId);
-		const current = prepareMaterial(baseline, { id: entity.id, roomId: entity.origin.zoneId, assetId: entity.assetId, source,
+		const current = prepareMaterial(baseline, { id: entity.id, ...(originRoomId(entity.origin) ? { roomId: originRoomId(entity.origin) } : {}), assetId: entity.assetId, source,
 			waste: entity.wasteFactor.toString(), override: entity.quantity.override?.value.toString() ?? '' });
 		const stale = entity.recalculationStatus === 'stale' || !current.ok || !entity.quantity.calculated.value.eq(current.value.quantity.calculated.value)
 			|| !entity.calculatedFrom.zoneArea.value.eq(current.value.calculatedFrom.zoneArea.value) || entity.calculatedFrom.zoneArea.unit !== current.value.calculatedFrom.zoneArea.unit
@@ -23,14 +25,21 @@ export function materialRows(baseline: PlanningBaseline) {
 			price: entity.calculatedFrom.unitCost, priceChanged: !!selected && !sameMoney(selected.price, entity.calculatedFrom.unitCost) };
 	});
 }
-export function costRows(baseline: PlanningBaseline, roomId: string, prepared = materialRows(baseline)) {
-	return roomCosts(baseline, roomId, prepared);
+export function costRows(baseline: PlanningBaseline, contextId: string, prepared = materialRows(baseline)) {
+	return contextCosts(baseline, contextId, prepared);
 }
-function roomCosts(baseline: PlanningBaseline, roomId: string, allMaterials: ReturnType<typeof materialRows>) {
-	const materials = allMaterials.filter(item => item.entity.origin.zoneId === roomId);
-	const saved = (baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH).costs.filter(item => item.roomId === roomId);
+/** Every cost context on the floor: each zone, and each target a room-less cost is kept on (ADR-0030). */
+export function costContexts(baseline: PlanningBaseline): readonly string[] {
+	const roomless = (baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH).costs.filter(item => item.roomId === undefined).map(item => item.targetId);
+	return [...new Set([...baseline.geometry.document.objects.map(item => item.id), ...roomless,
+		...baseline.materials.filter(m => m.entity.origin.kind === 'plan').map(m => requirementContext(m.entity).targetId)])];
+}
+function contextCosts(baseline: PlanningBaseline, contextId: string, allMaterials: ReturnType<typeof materialRows>) {
+	const materials = allMaterials.filter(item => requirementContext(item.entity).roomId === contextId);
+	const saved = (baseline.plan.entity.renovation?.depth ?? EMPTY_DEPTH).costs.filter(item => contextOf(item) === contextId);
+	const room = baseline.geometry.document.objects.some(item => item.id === contextId) ? { roomId: contextId } : {};
 	const derived: CostRecord[] = materials.filter(item => !saved.some(cost => cost.requirementId === item.entity.id && !cost.cancelled)).map(item => ({
-		id: `estimate:${item.entity.id}`, roomId, targetId: item.source.targetId, workId: item.source.workId, title: item.name, category: 'material', requirementId: item.entity.id,
+		id: `estimate:${item.entity.id}`, ...room, targetId: item.source.targetId, workId: item.source.workId, title: item.name, category: 'material', requirementId: item.entity.id,
 		planned: null, facts: [], cancelled: false }));
 	return [...saved, ...derived].map(record => {
 		const material = materials.find(item => item.entity.id === record.requirementId);
@@ -47,18 +56,18 @@ export function aggregateCosts(rows: ReturnType<typeof costRows>, currency: stri
 }
 export type PlanningFinding = { kind: 'stale' | 'reconciliation' | 'missing-file'; roomId: string; id: string; description: string; mode: 'materials' | 'costs' | 'documents' | 'photos' | 'notes' };
 function financialFindings(baseline: PlanningBaseline, materials: ReturnType<typeof materialRows>): PlanningFinding[] {
- return baseline.geometry.document.objects.flatMap(room => roomCosts(baseline, room.id, materials)
+ return costContexts(baseline).flatMap(contextId => contextCosts(baseline, contextId, materials)
   .filter(row => !row.totals.ok || row.totals.value.remaining.amount.startsWith('-'))
-  .map(row => ({ kind: 'reconciliation' as const, roomId: room.id, id: row.record.id, description: row.record.title, mode: 'costs' as const })));
+  .map(row => ({ kind: 'reconciliation' as const, roomId: row.record.roomId ?? '', id: row.record.id, description: row.record.title, mode: 'costs' as const })));
 }
 export function evidenceFindings(baseline: PlanningBaseline, files?: EvidenceFiles): PlanningFinding[] {
  return (baseline.plan.entity.renovation?.depth?.evidence ?? [])
   .filter(item => files && !files.resolve(item.path + item.subpath, baseline.plan.entity.id).ok)
-  .map(item => ({ kind: 'missing-file', roomId: item.roomId, id: item.id, description: item.description, mode: item.type === 'photo' ? 'photos' : item.type === 'note' ? 'notes' : 'documents' }));
+  .map(item => ({ kind: 'missing-file', roomId: item.roomId ?? '', id: item.id, description: item.description, mode: item.type === 'photo' ? 'photos' : item.type === 'note' ? 'notes' : 'documents' }));
 }
 export function planningFindings(baseline: PlanningBaseline, files?: EvidenceFiles): PlanningFinding[] {
  const materials = materialRows(baseline);
- const stale: PlanningFinding[] = materials.filter(item => item.stale).map(item => ({ kind: 'stale', roomId: item.entity.origin.zoneId, id: item.entity.id, description: item.name, mode: 'materials' }));
+ const stale: PlanningFinding[] = materials.filter(item => item.stale).map(item => ({ kind: 'stale', roomId: originRoomId(item.entity.origin) ?? '', id: item.entity.id, description: item.name, mode: 'materials' }));
  return [...stale, ...financialFindings(baseline, materials), ...evidenceFindings(baseline, files)].toSorted((a, b) => a.kind.localeCompare(b.kind, 'en') || a.id.localeCompare(b.id, 'en'));
 }
 export function shoppingBody(baseline: PlanningBaseline): string | null {
@@ -66,5 +75,5 @@ export function shoppingBody(baseline: PlanningBaseline): string | null {
 	if (materials.some(item => item.stale)) return null;
 	const rows = materials.filter(item => item.outstanding.gt(0));
 	// One row per requirement deliberately preserves pricing/source context; no unsafe name-based merge.
-	return rows.map(item => `- [ ] ${item.name.replace(/[\r\n[\]<>]/g, ' ')}: ${item.outstanding.toString()} ${item.entity.unit} · ${item.price.amount} ${item.price.currency}/${item.entity.unit}\n  [[rp-id:${item.entity.id}]] · [[rp-id:${item.entity.origin.zoneId}]] · ${item.source.state}/${item.source.rule} · waste ${item.entity.wasteFactor.mul(100).toString()}% · lot ${item.source.lot || '—'} · minimum ${item.source.minimum || '—'}`).join('\n');
+	return rows.map(item => `- [ ] ${item.name.replace(/[\r\n[\]<>]/g, ' ')}: ${item.outstanding.toString()} ${item.entity.unit} · ${item.price.amount} ${item.price.currency}/${item.entity.unit}\n  [[rp-id:${item.entity.id}]] · [[rp-id:${requirementContext(item.entity).roomId}]] · ${item.source.state}/${item.source.rule} · waste ${item.entity.wasteFactor.mul(100).toString()}% · lot ${item.source.lot || '—'} · minimum ${item.source.minimum || '—'}`).join('\n');
 }

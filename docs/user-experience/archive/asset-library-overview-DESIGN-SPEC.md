@@ -1758,6 +1758,19 @@ German is checked for the two things the locale test reaches — no `Material` w
 translation names the same holes as its English one. Spelling and every other term remain unread by
 any gate, which is why this file names them rather than implying they are covered.
 
+**Amendment 5 (wall-context-records-and-materials, Task 8): the Inspector (§3.5) gains a Plan
+pattern field, and the inventory grows by nine keys — no ordinal assigned, per Amendment 4.** Spec
+§6.3 and ADR-0031 are the authority; this section records only what a builder of this surface needs
+to know. The field is a select of **None** plus the seven catalogue patterns (brick, stone,
+concrete, timber, insulation, drywall, glass), persisted on the asset as `plan-pattern` — no asset
+schema bump, since the field is optional and additive. It is not a catalogue-only fact: a wall whose
+material carries a pattern draws that pattern's fill on the Plan (Konva `fillPatternImage`, per this
+plan's global constraints), so the Inspector's choice here is also a Plan-editor rendering decision,
+not cosmetic to this surface alone. `view.asset-library.plan-pattern` is the field's own label,
+`view.asset-library.pattern.none` is the empty option, and the seven `view.asset-library.pattern.*`
+keys name the patterns — nine keys, taking `tests/presentation/i18n/strings.test.ts`'s pin from 78
+to 87.
+
 The longest German shelf label is `Benutzerdefiniert` (17 characters). Shelf headers are full-width,
 so they clip nothing — which is the second reason there is no column header row, where a translator
 would have no such room.

@@ -14,7 +14,7 @@ function progress(work: WorkPackage): string { return tr(('renovation.progress.'
 		:class="{ 'is-selected': origin?.planId === row.planId && origin.workId === row.work.id }"
 	>
 		<h3>{{ row.work.title }}</h3>
-		<p>{{ row.floor }} · {{ row.rooms.map(room => room.name ?? tr('schedule.room-missing', { id: room.id })).join(', ') }}</p>
+		<p>{{ row.floor }} · {{ row.rooms.length ? row.rooms.map(room => room.name ?? tr('schedule.room-missing', { id: room.id })).join(', ') : tr('renovation.target.none') }}</p>
 		<p>{{ progress(row.work) }} · <TradeResponsibility :work="row.work" /></p>
 		<p>{{ tr('schedule.start') }}: {{ row.work.schedule?.start ?? tr('schedule.unscheduled') }} · {{ tr('schedule.end') }}: {{ row.work.schedule?.end ?? tr('schedule.unscheduled') }}</p>
 		<p v-if="row.blocking.length">

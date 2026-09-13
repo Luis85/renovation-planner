@@ -1,6 +1,7 @@
 import type { RepositoryError } from './repositoryErrors';
 import type { Result } from '../../core/result/Result';
 import type { AssetId } from '../../domain/asset/AssetId';
+import type { PlanId } from '../../domain/plan/PlanId';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { Requirement } from '../../domain/requirement/Requirement';
@@ -55,6 +56,8 @@ export interface RequirementRepository {
 	 * rather than the two sharing one.
 	 */
 	listByZone(zoneId: ZoneId): Promise<Result<Loaded<Requirement>[], RepositoryError>>;
+	/** STRICT, for `listByZone`'s reason: `readPlanning` must not present a partial material list as the plan's. */
+	listByPlanOrigin(planId: PlanId): Promise<Result<Loaded<Requirement>[], RepositoryError>>;
 	listByAsset(assetId: AssetId): Promise<Result<Loaded<Requirement>[], RepositoryError>>;
 	/**
 	 * TOLERANT, unlike `listByZone` above: one unreadable note is skipped and counted once

@@ -79,10 +79,18 @@ const PlanFrontmatterSchemaV10 = PlanFrontmatterSchemaV9.extend({
  * `Plan.create` is the ONE place that refuses a value outside the vocabulary (`plan.unknown-kind`,
  * `plan.invalid-order`) — a second vocabulary in this schema would be a second answer.
  */
-export const PlanFrontmatterSchemaV11 = PlanFrontmatterSchemaV10.extend({
+const PlanFrontmatterSchemaV11 = PlanFrontmatterSchemaV10.extend({
 	'schema-version': z.literal(11),
 	kind: z.string().optional(),
 	order: z.number().optional(),
 });
-export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8, PlanFrontmatterSchemaV9, PlanFrontmatterSchemaV10, PlanFrontmatterSchemaV11]);
-export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV11>;
+/**
+ * A renovation record with no room (ADR-0030) and a subject naming a catalogue material
+ * (ADR-0031). The shared `RenovationSchema` accepts both at every version, as it accepts v5's
+ * shared links: the version exists to make an older WRITER refuse the note, not to gate this
+ * reader. 12 rather than 11 because ADR-0029 took 11 for a plan's kind and sibling order; 12
+ * extends it, so a v12 note carries `kind` / `order` as well.
+ */
+export const PlanFrontmatterSchemaV12 = PlanFrontmatterSchemaV11.extend({ 'schema-version': z.literal(12) });
+export const PlanFrontmatterSchema = z.union([PlanFrontmatterSchemaV1, PlanFrontmatterSchemaV2, PlanFrontmatterSchemaV3, PlanFrontmatterSchemaV4, PlanFrontmatterSchemaV5, PlanFrontmatterSchemaV6, PlanFrontmatterSchemaV7, PlanFrontmatterSchemaV8, PlanFrontmatterSchemaV9, PlanFrontmatterSchemaV10, PlanFrontmatterSchemaV11, PlanFrontmatterSchemaV12]);
+export type PlanFrontmatterDTO = z.infer<typeof PlanFrontmatterSchemaV12>;

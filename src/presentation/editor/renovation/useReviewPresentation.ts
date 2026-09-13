@@ -24,11 +24,11 @@ export function provideReviewPresentation(context: PlanEditorContext, runtime: E
 	]));
 	const findings = computed(() => reviewRenovation(value.value).map(item => {
 		const sourceLabel = labels.value.get(item.recordId) || item.recordId;
-		return { ...item, roomLabel: project.zones.get(item.roomId)?.name ?? item.roomId, sourceLabel,
+		return { ...item, roomLabel: project.zones.get(item.roomId ?? '')?.name ?? item.roomId ?? tr('renovation.target.none'), sourceLabel,
 			detailLabel: [...new Set([sourceLabel, ...item.causes])].join(' — ') };
 	}));
 	const depth = computed<ReviewPlanningFinding[]>(() => planning.findings.value.map(item => ({ ...item,
-		roomLabel: project.zones.get(item.roomId)?.name ?? item.roomId, sourceLabel: item.description || item.id,
+		roomLabel: project.zones.get(item.roomId)?.name || item.roomId || tr('renovation.target.none'), sourceLabel: item.description || item.id,
 	})));
 	const available = computed(() => !runtime.writesBlocked.value && !planning.loading.value && !planning.failed.value
 		&& (!context.commands.planning || !!planning.baseline.value));

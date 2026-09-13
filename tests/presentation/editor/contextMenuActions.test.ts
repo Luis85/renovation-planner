@@ -212,7 +212,7 @@ it('orders the menu by group with a separator between groups, draws one known ic
 	rig.selection.select([rig.room.id]); await menu(rig);
 	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
 	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(rig.room.name);
-	expect(groupedIds(menuEl)).toEqual(['rename', 'add-point', 'rotate', '|', 'measure', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
+	expect(groupedIds(menuEl)).toEqual(['rename', 'add-point', 'rotate', '|', 'add-menu', 'measure', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
 	for (const item of menuEl.findAll('[data-rp-context-action]')) { expect(item.find('.rp-host-icon[data-icon]').exists()).toBe(true); expect(item.find('[data-icon-missing]').exists()).toBe(false); }
 	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select(['wall-a' as never]); await menu(rig);

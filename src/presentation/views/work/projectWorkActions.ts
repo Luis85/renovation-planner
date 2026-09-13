@@ -54,7 +54,7 @@ export function useProjectWorkActions(context: RenovationProjectDeps, read: Retu
    const busy = ref(false);
    const restoreFocus = captureDownstreamDialogFocus();
    await dialogs.openDialog({ kind: 'form', title: tr('renovation.edit.work'), component: markRaw(RenovationForm), busy,
-    props: { baseline: baseline.value, draft: renovationDraft('work', row.work.roomId, row.work.id, baseline.value.plan.entity.renovation),
+    props: { baseline: baseline.value, draft: renovationDraft('work', row.work.roomId ?? '', row.work.id, baseline.value.plan.entity.renovation),
      busy, paused, retry: read.refresh, openSource: () => context.openRecord?.(row.planId).then(() => undefined) ?? Promise.resolve(),
      dispatch: (input: RenovationInput) => dispatch(baseline.value, input) } });
    await restoreFocus();
@@ -70,7 +70,7 @@ export function useProjectWorkActions(context: RenovationProjectDeps, read: Retu
  }
  async function open(row: ProjectWorkRow): Promise<void> {
   if (!alive || !(await canLeave()) || !alive) return;
-  await context.openPlan(row.planId, { planId: row.planId, roomId: row.work.roomId, workId: row.work.id });
+  await context.openPlan(row.planId, { planId: row.planId, ...(row.work.roomId ? { roomId: row.work.roomId } : {}), workId: row.work.id });
  }
  return { edit, step, open, blocked, canUndo, canRedo, save, sourceId };
 }

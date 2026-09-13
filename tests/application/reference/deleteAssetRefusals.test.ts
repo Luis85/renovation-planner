@@ -341,6 +341,13 @@ describe('DeleteAssetCommand closure refusals', () => {
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
+
+	it('refuses to delete an asset a plan names as a wall or opening material, before touching anything', async () => {
+		const w = await wiredAssetWithLink();
+		const command = new DeleteAssetCommand({ ...assetSequenceCollaborators(), assets: w.assets, requirements: w.requirements, recalculate: w.recalculate, events: w.events, locks: w.locks, logger: silentLogger(), overrides: w.overrides, materialUsers: () => Promise.resolve({ ok: true, value: ['Ground floor'] }) });
+		expect(expectErr(await command.execute({ assetId: w.assetId, resolution: 'delete-anyway' })).code).toBe('asset.material-in-use');
+		expect(expectOk(await w.assets.getById(w.assetId))).not.toBeNull();
+	});
 });
 
 /**

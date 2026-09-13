@@ -22,6 +22,7 @@ import type { AssetPriceOverrideRepository } from '../../ports/AssetPriceOverrid
 import { loadAsset } from './AssignAsset';
 import { loadZone } from '../zone/loadZone';
 import { loadRequirement } from './loadRequirement';
+import { originRoomId } from '../../../domain/requirement/RequirementOrigin';
 import { deriveRequirementFigures } from './deriveRequirementFigures';
 import { resolveEffectiveUnitCost } from './resolveEffectiveUnitCost';
 import { publishIfEffectiveCostChanged } from './SetRequirementQuantityOverride';
@@ -72,7 +73,7 @@ export class RecalculateRequirementCommand
 		if (isErr(loaded)) return err(loaded.error);
 		const requirement = loaded.value.entity;
 
-		if (requirement.origin.kind !== 'zone') {
+		if (!requirement.source && requirement.origin.kind !== 'zone') {
 			return err(
 				calculationError(
 					'requirement.unsupported-origin',
@@ -80,10 +81,6 @@ export class RecalculateRequirementCommand
 						+ 'which no derivation rule covers yet.',
 				),
 			);
-		}
-		const zone = await loadZone(this.deps.zones, requirement.origin.zoneId);
-		if (isErr(zone)) {
-			return err(calculationError('requirement.zone-gone', zone.error.message, zone.error));
 		}
 		const asset = await loadAsset(this.deps.assets, requirement.assetId);
 		if (isErr(asset)) {
@@ -101,12 +98,10 @@ export class RecalculateRequirementCommand
 				),
 			);
 		}
-		const area = zone.value.entity.area();
-		if (isErr(area)) {
-			return err(
-				calculationError('requirement.area-failed', area.error.message, area.error),
-			);
-		}
+		// A sourced requirement (zone or plan origin) never needs the zone's own area — its
+		// figures come from `contextualFigures`' geometry read instead.
+		const areaMm2 = requirement.source ? ok(0) : await this.zoneAreaMm2(requirement);
+		if (isErr(areaMm2)) return areaMm2;
 		const project = await this.deps.projects.getById(requirement.projectId);
 		if (isErr(project)) {
 			return err(calculationError('requirement.project-gone', project.error.message, project.error));
@@ -126,7 +121,7 @@ export class RecalculateRequirementCommand
 		if (isErr(unitCost)) return unitCost;
 		const figures = requirement.source ? await contextualFigures(this.deps, requirement, asset.value, unitCost.value, project.value.entity.currency) : deriveRequirementFigures({
 			quantityOverride: requirement.quantity.override,
-			zoneAreaMm2: area.value,
+			zoneAreaMm2: areaMm2.value,
 			assetUnit: asset.value.unit,
 			unitCost: unitCost.value,
 			wasteFactor: requirement.wasteFactor,
@@ -158,5 +153,24 @@ export class RecalculateRequirementCommand
 		// observe — RequirementRecalculated then CostEstimateChanged — is unchanged.
 		await publishIfEffectiveCostChanged(this.deps.events, saved.value.entity, previousEffective);
 		return ok(saved.value.entity);
+	}
+
+	/**
+	 * The unsourced (zone-only) path's own area load, split out to keep `execute`'s
+	 * complexity under budget. Called only when `!requirement.source`, and `execute` has
+	 * already refused an unsourced origin that is not a zone — the one place
+	 * `requirement.unsupported-origin` is raised — so the origin here is always a zone. A
+	 * type-only cast rather than a second refusal no input can reach.
+	 */
+	private async zoneAreaMm2(requirement: Requirement): Promise<Result<number, RecalculateRequirementErrors>> {
+		const zone = await loadZone(this.deps.zones, originRoomId(requirement.origin) as NonNullable<ReturnType<typeof originRoomId>>);
+		if (isErr(zone)) {
+			return err(calculationError('requirement.zone-gone', zone.error.message, zone.error));
+		}
+		const area = zone.value.entity.area();
+		if (isErr(area)) {
+			return err(calculationError('requirement.area-failed', area.error.message, area.error));
+		}
+		return ok(area.value);
 	}
 }

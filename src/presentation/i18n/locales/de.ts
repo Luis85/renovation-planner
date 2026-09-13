@@ -410,6 +410,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'asset.negative-unit-cost': 'Ein Stückpreis kann nicht negativ sein.',
 	'asset.unit-kind-referenced':
 		'Dieses Objekt wird von einer Anforderung verwendet, daher kann seine Einheit nicht zu einer anderen Messgröße wechseln.',
+	'asset.material-in-use': 'Eine Wand oder Öffnung in einem Plan besteht aus diesem Objekt: {names}. Zuerst diesen Baustoff ändern, dann löschen.',
 	'asset.negative-waste-factor-default': 'Ein Verschnitt kann nicht negativ sein.',
 	'asset.waste-factor-default-above-one': 'Ein Verschnitt ist ein Bruchteil zwischen 0 und 1.',
 	'asset.invalid-height': 'Geben Sie eine Höhe als Zahl in Millimetern ein.',

@@ -4,8 +4,8 @@ import { linksContent } from './SharedLinks';
 
 function content(value: Renovation): unknown {
 	return [depthContent(value.depth ?? EMPTY_DEPTH), value.subjects.map(s => [s.id, s.roomId, s.targetId, s.kind,
-		s.existing ? [s.existing.description, s.existing.condition] : null,
-		s.planned ? [s.planned.change, s.planned.description] : null]),
+		s.existing ? [s.existing.description, s.existing.condition, s.existing.assetId] : null,
+		s.planned ? [s.planned.change, s.planned.description, s.planned.assetId] : null]),
 	value.work.map(w => [w.id, w.roomId, w.targetId, linksContent(w), w.title, w.description, w.order, w.progress, w.responsibility, w.tradeId, w.schedule?.start, w.schedule?.end, w.outcomes, w.dependencies]),
 	value.decisions.map(d => [d.id, d.roomId, d.subjectId, d.question, d.resolution, d.resolved])];
 }
@@ -14,7 +14,7 @@ export function sameRenovation(a: Renovation | undefined, b: Renovation | undefi
 	return JSON.stringify(content(a ?? EMPTY_RENOVATION)) === JSON.stringify(content(b ?? EMPTY_RENOVATION));
 }
 
-const context = (item: { id: string; roomId: string; targetId: string; workId: string }) => [item.id, item.roomId, item.targetId, item.workId];
+const context = (item: { id: string; roomId?: string; targetId: string; workId: string }) => [item.id, item.roomId, item.targetId, item.workId];
 function depthContent(depth: PlanningDepth): unknown {
  return [depth.procurement.map(item => [...context(item), item.requirementId, item.unit, item.purchased, item.reserved]),
  depth.costs.map(item => [...context(item), item.title, item.category, item.requirementId, item.planned ? [item.planned.amount, item.planned.currency] : null, item.cancelled,

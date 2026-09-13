@@ -1187,7 +1187,7 @@ export default defineConfig({
 			// `SetRequirementQuantityOverride.ts`'s domain-method forwards — all four slice
 			// 10's, at `d7d8ee0`, and NONE of them named in the slice-10 paragraph above, so
 			// they are named here rather than left for the next reader to rediscover;
-			// `slice10Composition.ts`'s `cascadeNotices.cascadeAborted`, which the slice-13
+			// `catalogueRequirementComposition.ts`'s `cascadeNotices.cascadeAborted`, which the slice-13
 			// paragraph names at its old address in `composition-root.ts`; and
 			// `planEditorCommands.ts`'s refusal-bundle event-bus callback. Every OTHER file this
 			// increment wrote into measures 100% of all four: `Money.ts`,
@@ -1201,7 +1201,7 @@ export default defineConfig({
 			// regex, so `Project\.ts` also matches `sampleProject.ts` — a file this increment
 			// never touched, whose uncovered `reportFault` closure was reported as though it
 			// were a finding. The same filter MISSED two changed files that do carry
-			// inherited arms (`SetRequirementQuantityOverride.ts` and `slice10Composition.ts`),
+			// inherited arms (`SetRequirementQuantityOverride.ts` and `catalogueRequirementComposition.ts`),
 			// because their names contain none of the words it looks for. A hand-written
 			// filename filter over-matches and under-matches at the same time; the question
 			// the check is actually asking is "which files did this branch change", and
@@ -1286,7 +1286,7 @@ export default defineConfig({
 			// Every OTHER uncovered position in a file this increment touched is INHERITED, and
 			// the blame ran rather than being assumed: `AssignAsset`'s and
 			// `RecalculateRequirement`'s second arms, `Requirement.ts`, `ObsidianZoneRepository`,
-			// `PlanGeometryStore`, `slice10Composition`, `planEditorCommands`, `PlanEditorView`,
+			// `PlanGeometryStore`, `catalogueRequirementComposition`, `planEditorCommands`, `PlanEditorView`,
 			// three of `RequirementRow.vue`'s four and five of `runtime.ts`'s six. Every other
 			// file this increment created or rewrote measures 100% of all four, `AssetPriceList.vue`,
 			// `ProjectDetail.vue`, `ProjectDetailState.vue`, `UnitCostFigures.vue`,

@@ -17,7 +17,7 @@ const props = defineProps<{ baseline: PlanningBaseline }>();
 const contextLabel = useRenovationContextLabel();
 const planning = usePlanningContext(), session = useRenovationSession(), error = ref('');
 let alive = true; onBeforeUnmount(() => { alive = false; });
-const choices = computed(() => recordChoices(props.baseline, session.roomId));
+const choices = computed(() => recordChoices(props.baseline, session.roomId || session.targetId));
 const type = computed(() => session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document');
 const rows = computed(() => orderEvidenceByDate((props.baseline.plan.entity.renovation?.depth?.evidence ?? []).filter(item => inRenovationScope(item, session.roomId, session.targetId) && item.type === type.value && (!session.evidencePhase || item.phase === session.evidencePhase))));
 function isSelected(item: Evidence): boolean {
@@ -90,7 +90,7 @@ function unlink(id: string): void {
 				type="button"
 				class="rp-record-title"
 				:aria-current="isSelected(item) ? 'true' : undefined"
-				@click="planning.runtime.renovation.focus(item.roomId, session.mode, item.id)"
+				@click="planning.runtime.renovation.focus(item.roomId ?? '', session.mode, item.id)"
 			>
 				{{ index + 1 }}. {{ item.description }}
 				<span v-if="isSelected(item)"> · {{ tr('planning.selected') }}</span>

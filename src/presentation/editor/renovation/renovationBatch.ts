@@ -2,7 +2,7 @@ import { createEntityId } from '../../../core/identity/generateId';
 import { ok } from '../../../core/result/Result';
 import { EMPTY_RENOVATION, type RenovationSubject, type WorkPackage } from '../../../domain/renovation/Renovation';
 import { EMPTY_DEPTH, type Evidence } from '../../../domain/renovation/PlanningDepth';
-import { spatialContexts, type SpatialLink } from '../../../domain/renovation/SharedLinks';
+import { spatialContexts, type SharedSpatialContext, type SpatialLink } from '../../../domain/renovation/SharedLinks';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
 import { validateRenovationInput, type RenovationBaseline, type RenovationEditInput } from '../../../application/commands/renovation/RenovationCommand';
 import { tr } from '../../i18n/strings';
@@ -11,7 +11,7 @@ export interface BatchTarget extends SpatialLink { readonly name: string; readon
 export type BatchKind = 'remove' | 'modify' | 'work' | 'evidence';
 export interface BatchDraft { kind: BatchKind; id: string; title: string; path: string; subpath?: string; type: Evidence['type'] }
 
-function shared<T extends SpatialLink & { readonly links?: readonly SpatialLink[] }>(record: T, targets: readonly BatchTarget[]): T {
+function shared<T extends SharedSpatialContext>(record: T, targets: readonly BatchTarget[]): T {
 	const contexts = spatialContexts(record), keys = new Set(contexts.map(item => JSON.stringify([item.roomId, item.targetId])));
 	const added = targets.filter(item => !keys.has(JSON.stringify([item.roomId, item.targetId]))).map(({ roomId, targetId }) => ({ roomId, targetId }));
 	return { ...record, links: [...record.links ?? [], ...added] };

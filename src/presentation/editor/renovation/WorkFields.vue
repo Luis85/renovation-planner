@@ -5,7 +5,7 @@ import { restoreInoperativeChoice } from '../forms/inoperativeControl';
 import { tr } from '../../i18n/strings';
 import type { EditableRenovationDraft } from './renovationDraft';
 import { WORK_PROGRESS, type Renovation } from '../../../domain/renovation/Renovation';
-import { hasRoomContext } from '../../../domain/renovation/SharedLinks';
+import { contextOf, hasRoomContext } from '../../../domain/renovation/SharedLinks';
 const draft = defineModel<EditableRenovationDraft>('draft', { required: true });
 defineProps<{ value: Renovation; frozen: boolean }>();
 </script>
@@ -48,7 +48,7 @@ defineProps<{ value: Renovation; frozen: boolean }>();
 	<fieldset>
 		<legend>{{ tr('renovation.outcomes') }}</legend>
 		<label
-			v-for="item in value.subjects.filter(subject => hasRoomContext(draft.work, subject.roomId) && subject.planned)"
+			v-for="item in value.subjects.filter(subject => hasRoomContext(draft.work, contextOf(subject)) && subject.planned)"
 			:key="item.id"
 		><input
 			v-model="draft.work.outcomes"

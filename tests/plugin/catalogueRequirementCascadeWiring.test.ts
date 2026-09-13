@@ -33,7 +33,7 @@ import { installObsidianDom } from '../helpers/dom';
 installObsidianDom();
 
 /**
- * The composed slice-10 cascade: the subscriptions `composeSlice10` registers at
+ * The composed slice-10 cascade: the subscriptions `composeCatalogueRequirements` registers at
  * composition time must reach the composed root's OWN event bus, and their recalculate
  * hand-off must run the real command against the real repositories. A geometry edit and
  * an asset edit published on the bus therefore end with recalculated figures on disk —
@@ -251,7 +251,7 @@ describe('slice-10 cascade wiring', () => {
  * a hand-wired query.
  *
  * `ListRequirementsReferencing` takes its folder resolver as a collaborator, and the one
- * binding that supplies it in production is a single arrow in `slice10Composition.ts`. Every
+ * binding that supplies it in production is a single arrow in `catalogueRequirementComposition.ts`. Every
  * other case in this repository re-spells that expression itself, so a root that bound
  * `index.getPath` verbatim — a project's NOTE, `…/Refit.md`, where a group owes its FOLDER —
  * would have been caught by nothing at all: a guard on the door nobody dispatches through is

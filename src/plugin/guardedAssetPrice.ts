@@ -38,7 +38,7 @@ import type { ProjectId } from '../domain/project/ProjectId';
 /**
  * A project's own price for a shared catalogue Asset, guarded — the write pair and the read
  * side the price section renders. Held as its own interface rather than folded into
- * `GuardedSlice10Services`: the two commands and the query are composed directly at the root
+ * `GuardedCatalogueRequirementServices`: the two commands and the query are composed directly at the root
  * (the repository they need was already there since Task 5, so nothing new is built beneath
  * them), and a bundle guarded together here is what keeps that composition and its guard in
  * one place, the same discipline every other guarded group in this file already keeps.

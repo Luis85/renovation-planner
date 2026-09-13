@@ -24,7 +24,7 @@ function outcomeLabel(id: string) {
 		<button
 			type="button"
 			class="rp-record-title"
-			@click="actions.focus(item.roomId, 'work', item.id)"
+			@click="actions.focus(item.roomId ?? '', 'work', item.id)"
 		>
 			<span class="rp-work-number">{{ index + 1 }}.</span> {{ item.title }}
 		</button>
@@ -48,7 +48,7 @@ function outcomeLabel(id: string) {
 				class="rp-record-secondary-action"
 				:disabled="actions.blocked.value"
 				data-rp-action="work-record"
-				@click="actions.edit('work', item.roomId, item.id)"
+				@click="actions.edit('work', item.roomId ?? '', item.id)"
 			>
 				{{ tr('renovation.edit') }}
 			</button>
@@ -57,7 +57,7 @@ function outcomeLabel(id: string) {
 				:key="id"
 				type="button"
 				class="rp-record-secondary-action"
-				@click="actions.focus(item.roomId, 'planned', id)"
+				@click="actions.focus(item.roomId ?? '', 'planned', id)"
 			>
 				{{ tr('renovation.outcomes') }}: {{ outcomeLabel(id) }}
 			</button>
@@ -73,7 +73,7 @@ function outcomeLabel(id: string) {
 				v-if="context.commands.planning"
 				type="button"
 				class="rp-record-secondary-action"
-				@click="actions.focus(item.roomId, 'materials', item.id)"
+				@click="actions.focus(item.roomId ?? '', 'materials', item.id)"
 			>
 				{{ tr('renovation.materials') }}
 			</button>

@@ -81,6 +81,15 @@ export const deAssetLibrary = {
 	'view.asset-library.sku': 'SKU',
 	'view.asset-library.height': 'Höhe',
 	'view.asset-library.notes': 'Notizen',
+	'view.asset-library.plan-pattern': 'Planmuster',
+	'view.asset-library.pattern.none': 'Keines',
+	'view.asset-library.pattern.brick': 'Ziegel',
+	'view.asset-library.pattern.stone': 'Naturstein',
+	'view.asset-library.pattern.concrete': 'Beton',
+	'view.asset-library.pattern.timber': 'Holz',
+	'view.asset-library.pattern.insulation': 'Dämmung',
+	'view.asset-library.pattern.drywall': 'Trockenbau',
+	'view.asset-library.pattern.glass': 'Glas',
 	// `Umriss`, not `Grundriss` — this file's own word for an asset's footprint everywhere
 	// else in this list (`view.asset-library.footprint`, and the four keys below); `Grundriss`
 	// is `de.ts`'s separate word for a PLAN (`Grundriss-Editor`, `command.open-plan-editor`,

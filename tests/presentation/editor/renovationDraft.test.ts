@@ -72,6 +72,9 @@ describe('renovation draft semantics and spatial proposals', () => {
 	it('tells the user the chosen trade is gone rather than describing a failed write', () => {
 		expect(renovationMessage({ category: 'Validation', code: 'renovation.trade-missing', message: 'private internal detail' })).toBe(tr('trade.missing'));
 	});
+	it('tells the user a cost or order still uses the construction entry a material change would remove', () => {
+		expect(renovationMessage({ category: 'Reference', code: 'renovation.construction-referenced', message: 'Still used by Render.' })).toBe(tr('renovation.construction-referenced'));
+	});
 	it('opens a Planned edit on a bare subject as a modification with nothing to copy, and labels an unlabelled element target by its id', async () => {
 		const rig = await renovationStack(), baseline = expectOk(await rig.read());
 		const bare = { ...rig.value.subjects[0], id: 'detail-bare', existing: null, planned: null };

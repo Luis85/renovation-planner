@@ -31,7 +31,7 @@
 	"author": "Luis85",
 	"license": "MIT",
 	"devDependencies": {
-		"@napi-rs/canvas": "^1.0.8",
+		"@napi-rs/canvas": "^1.0.9",
 		"@types/node": "^22.20.1",
 		"@types/semver": "^7.8.0",
 		"@typescript-eslint/parser": "^8.68.0",
@@ -40,10 +40,10 @@
 		"@vue/compiler-sfc": "^3.5.42",
 		"@vue/test-utils": "^2.4.11",
 		"axe-core": "^4.13.0",
-		"eslint": "^10.9.1",
+		"eslint": "^10.10.0",
 		"eslint-plugin-obsidianmd": "^0.4.2",
 		"eslint-plugin-vue": "^10.10.0",
-		"fallow": "^3.22.0",
+		"fallow": "^3.24.1",
 		"jsdom": "^30.0.1",
 		"lightningcss": "^1.33.0",
 		"mdast-util-from-markdown": "^2.0.3",
@@ -69,7 +69,7 @@
 		"pinia": "^4.0.3",
 		"ulid": "^3.0.2",
 		"vue": "^3.5.41",
-		"vue-konva": "^3.4.0",
+		"vue-konva": "^4.0.1",
 		"zod": "^4.5.4"
 	}
 }

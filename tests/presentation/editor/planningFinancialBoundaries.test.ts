@@ -8,6 +8,7 @@ import { compare, of, type Money } from '../../../src/core/money/Money';
 import { reconcileCosts } from '../../../src/domain/cost/reconcileCosts';
 import { formatPlanningMoney } from '../../../src/presentation/i18n/planningFormat';
 import { tr } from '../../../src/presentation/i18n/strings';
+import { originRoomId } from '../../../src/domain/requirement/RequirementOrigin';
 
 type Rig = Awaited<ReturnType<typeof renovationEditor>>;
 const mounted: Rig[] = [];
@@ -87,7 +88,7 @@ it('creates material from the native Existing-only subject route without inventi
 	expect(rig.session.focusedId).toBe(subject.id);
 	const requirement = await addMaterial(rig), after = expectOk(await rig.renovation.read(rig.plan.id));
 	expect(requirement.source).toMatchObject({ targetId: subject.targetId, workId: '', outcomeId: '', state: 'current' });
-	expect(requirement.origin.zoneId).toBe(rig.room.id); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
+	expect(originRoomId(requirement.origin)).toBe(rig.room.id); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 	expect(after.plan.entity.renovation).toEqual(before.plan.entity.renovation);
 	expect(after.geometry.document).toEqual(before.geometry.document);
 });

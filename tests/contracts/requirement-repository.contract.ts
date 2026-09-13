@@ -34,6 +34,11 @@ function fabricated(observed: EntityVersion['observed']): EntityVersion {
 	return { revision: 99, observed };
 }
 
+/** A minimal `wall-net` source on `planId`, used by the `listByPlanOrigin` fixtures below. */
+function source(planId: string) {
+	return { planId, targetId: 'wall-a', workId: '', outcomeId: '', state: 'intended' as const, rule: 'wall-net' as const, manual: '0', coverage: '1', lot: '', minimum: '' };
+}
+
 /** One fresh requirement wired to fresh endpoints of the fixture under test. */
 function newRequirement(f: RequirementFixture) {
 	return makeRequirement({
@@ -202,6 +207,16 @@ export function requirementRepositoryContract(make: () => RequirementFixture): v
 				onTarget.id,
 				otherZone.id,
 			]);
+		});
+
+		it('listByPlanOrigin returns only that plan\'s plan-origin requirements', async () => {
+			const f = make();
+			const project = f.otherProject();
+			const onPlan = makeRequirement({ projectId: project, assetId: f.newAsset(), origin: { kind: 'plan', planId: 'plan-a' as never }, source: source('plan-a') });
+			const otherPlan = makeRequirement({ projectId: project, assetId: f.newAsset(), origin: { kind: 'plan', planId: 'plan-b' as never }, source: source('plan-b') });
+			const zoned = makeRequirement({ projectId: project, assetId: f.newAsset(), origin: { kind: 'zone', zoneId: f.newZone() }, source: source('plan-a') });
+			for (const r of [onPlan, otherPlan, zoned]) expectOk(await f.repository.save(r, 'absent'));
+			expect(expectOk(await f.repository.listByPlanOrigin('plan-a' as never)).map((r) => r.entity.id)).toEqual([onPlan.id]);
 		});
 	});
 }

@@ -127,11 +127,11 @@ it('keeps Delete at the region foot in Renovate, for a grouped wall and a groupe
 	await expectDefined(rig.runtime.groupActions.actions(rig.selection.selectedIds).find(item => item.id === 'group'), 'group').run(); await settle();
 	useRenovationSession(rig.pinia).perspective = 'renovate';
 	rig.selection.select([enclosingWall(rig).id as never]); await settle();
-	// The group controls sit above the wall's Delete; what still follows the wall body is its host room's
-	// renovation details, which RenovationInspector draws after the body and this fix does not move.
+	// The group controls sit above each body's Delete; what still follows the body is its renovation details —
+	// the wall's host room's, and the object's own with no room — which RenovationInspector draws after the body.
 	expect(regionFoot(rig, '.rp-structure-inspector')).toEqual({ ...atFoot('delete-structure'), last: 'continue-renovation' });
 	rig.selection.select([object.id as never]); await settle();
-	expect(regionFoot(rig, '.rp-element-inspector')).toEqual(atFoot('delete-element'));
+	expect(regionFoot(rig, '.rp-element-inspector')).toEqual({ ...atFoot('delete-element'), last: 'continue-renovation' });
 });
 it('keeps precise group text during read-only recovery and routes Open source without replaying a command', async () => {
 	const rig = await setup(); await rig.wrapper.get('[data-rp-group-transform="rotate"]').trigger('click');

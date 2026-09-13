@@ -21,7 +21,7 @@ export interface DeleteRequirementInput {
 
 /**
  * The exposed plain removal in the requirement family, constructed once at
- * `slice10Composition.ts:174`.
+ * `catalogueRequirementComposition.ts:184`.
  *
  * **`remove-references` does NOT resolve through it**, and an earlier version of this line said
  * it did. `deleteResolution.ts:221` binds `removeRequirement` straight to

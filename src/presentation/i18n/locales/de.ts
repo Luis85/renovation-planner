@@ -518,9 +518,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'undo.before-execute': 'Noch nichts rückgängig zu machen.',
 	// I00 reserves the captions consumed by the mode-header packet. The existing
 	// `renovation.plan`/`.renovate`/`.review` keys remain the short radio labels.
-	'editor.perspective.plan.caption': 'Zeichnen und anpassen',
-	'editor.perspective.renovate.caption': 'Die Arbeiten planen',
-	'editor.perspective.review.caption': 'Den Plan prüfen',
+	'editor.perspective.plan.caption': 'Zeichnen und anpassen', 'editor.perspective.renovate.caption': 'Die Arbeiten planen', 'editor.perspective.review.caption': 'Den Plan prüfen',
 	...deSaveState,
 	...deAssetLibrary,
 };

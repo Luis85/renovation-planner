@@ -6,7 +6,16 @@
     3072,
     1280
   ],
-  "selectedDirection": null,
+  "selectedDirection": {
+    "kind": "hybrid",
+    "sourceDirections": [
+      1,
+      3
+    ],
+    "selectedBy": "user",
+    "date": "2026-09-13",
+    "screenReview": "produced-not-implementation-approval"
+  },
   "sourceDirectory": "C:/Users/lum/.codex/generated_images/01a09a3a-44bf-7573-a1a6-8b771fded214",
   "images": [
     {
@@ -41,8 +50,121 @@
     }
   ],
   "notes": [
-    "Original PNG bytes retained without edits",
-    "One coherent direction per image with Plan and Renovate states",
-    "See README for known corrections; not implementation-ready"
+    "Original PNG bytes retained without code-based image edits",
+    "Original directions are historical; user selected combination 1 and 3",
+    "Hybrid screen contracts govern exact values; raster geometry remains illustrative",
+    "No UI implementation or native/accessibility acceptance claimed"
+  ],
+  "hybridImages": [
+    {
+      "id": "ux01-hybrid",
+      "file": "images/hybrid-01-modes.png",
+      "sourceFile": "exec-68e7869e-8a63-419c-92b8-72612430bb05.png",
+      "actualWidth": 1942,
+      "actualHeight": 809,
+      "sha256": "8c084e64aa3eb9bdaee414935d49b4a82eb3082617f109f37482230b65526eb8",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": null
+    },
+    {
+      "id": "ux02-start",
+      "file": "images/ux02-start.png",
+      "sourceFile": "exec-27b0c8f4-fe32-4efc-9476-00d4ebc8ed26.png",
+      "actualWidth": 1487,
+      "actualHeight": 1058,
+      "sha256": "8a1cd4a8c768365d9265e9189fab1e1ed3d448f71a4529717b3558a1bc599634",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": null
+    },
+    {
+      "id": "ux03-room-draft",
+      "file": "images/ux03-room-draft.png",
+      "sourceFile": "exec-754dae3d-3896-44f9-b378-aace589d409c.png",
+      "actualWidth": 1942,
+      "actualHeight": 809,
+      "sha256": "77ad2ed7a530be298b42e951d26aa7c3f87db5d7111358553689ebae1af715e5",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": null
+    },
+    {
+      "id": "ux04-05-selection-precision",
+      "file": "images/ux04-05-selection-precision-v2.png",
+      "sourceFile": "exec-5228dd3f-2968-4eb4-b3d1-8ce4b684d035.png",
+      "actualWidth": 1942,
+      "actualHeight": 809,
+      "sha256": "4dc62f9ae79112c5ce87e567ad74cae339387a5eea5469db6f425e6d43053aa8",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": "C:/Users/lum/.codex/generated_images/01a09a3a-44bf-7573-a1a6-8b771fded214/exec-5eaaa5a0-8a12-4ed0-bc78-cba5d088203f.png"
+    },
+    {
+      "id": "ux06-opening",
+      "file": "images/ux06-opening.png",
+      "sourceFile": "exec-150497a0-8153-4a52-bbcb-3bf437ad2af4.png",
+      "actualWidth": 1487,
+      "actualHeight": 1058,
+      "sha256": "f42f6eda6c31086b5f78e3e0c763931d247641c9c38dc50fe9605ccab682279e",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": null
+    },
+    {
+      "id": "ux07-copy-paste",
+      "file": "images/ux07-copy-paste.png",
+      "sourceFile": "exec-b4bec5ad-8784-4e68-a1c5-c29ecdfae920.png",
+      "actualWidth": 1487,
+      "actualHeight": 1058,
+      "sha256": "70643db043e6b80fd85d8c9a855e8dffa9633c1c1f28acaefc215bb8af93dcc8",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": null
+    },
+    {
+      "id": "ux08-reference",
+      "file": "images/ux08-reference.png",
+      "sourceFile": "exec-9a763414-f938-4df4-8c46-9206bb685627.png",
+      "actualWidth": 1942,
+      "actualHeight": 809,
+      "sha256": "d381d9e4b75a673805ad3abf899798ad059e80da314adc620392481bd258c158",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": null
+    },
+    {
+      "id": "ux09-narrow",
+      "file": "images/ux09-narrow-v2.png",
+      "sourceFile": "exec-b8f45c6c-ddd7-47e7-ae45-6c57e278a60f.png",
+      "actualWidth": 1536,
+      "actualHeight": 1024,
+      "sha256": "7df7e50f8e928ac54a062368221f35b6b55a684f8996ad0f147628599415ed70",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": "C:/Users/lum/.codex/generated_images/01a09a3a-44bf-7573-a1a6-8b771fded214/exec-f6a87349-fcef-4f83-8e04-200153310c16.png"
+    },
+    {
+      "id": "ux10-dark",
+      "file": "images/ux10-dark.png",
+      "sourceFile": "exec-ee602d2f-d33a-4233-ac85-282be3d4f234.png",
+      "actualWidth": 1942,
+      "actualHeight": 809,
+      "sha256": "dbfb7f3be492973304c4f531996f88abbf61c92b454e90a37a198f94d33c2314",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": null
+    },
+    {
+      "id": "ux11-12-recovery-mode-guard",
+      "file": "images/ux11-12-recovery-mode-guard-v2.png",
+      "sourceFile": "exec-45d124ef-2ef7-4cee-92f3-47ced8caf4b7.png",
+      "actualWidth": 1942,
+      "actualHeight": 809,
+      "sha256": "4ebc1b18301738a41b7d998146bf2c6384e3c5ee095187ef57c9310aecc63c94",
+      "visuallyInspected": true,
+      "status": "design-review",
+      "supersededSource": "C:/Users/lum/.codex/generated_images/01a09a3a-44bf-7573-a1a6-8b771fded214/exec-03554e41-8637-403c-882f-f5542848a06e.png"
+    }
   ]
 }

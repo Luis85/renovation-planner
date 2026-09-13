@@ -1,77 +1,60 @@
-# Next-increment mockups
+# Next-increment mockups — selected hybrid
 
-**2026-09-13 · Visual exploration · Direction selection pending · No implementation.**
+**2026-09-13 · User-selected combination of directions 1 and 3 · Screen review set produced · No implementation.**
 
-These mockups turn the merged [usability plan](../README.md) into visual proposals. The first review concentrates on its required distinction between Plan and Renovate. Each image contains one coherent direction shown in both modes, using the same selected Kitchen. Three independent directions were generated with built-in Image Gen using both user reference images and the current editor captures as actual image inputs.
+The chosen design combines direction 1's clear Plan/Renovate distinction and readable Details hierarchy with direction 3's larger canvas and compact labeled navigation. The working interpretation is a shared Property/Layers rail, stable Details panel and the existing bottom taskbar. Property opens existing property/floor/room navigation; expanded/resizable panels and non-canvas entity access remain available.
 
-The numbers below match the order the generated results were displayed in the task. They do not imply a ranking. The [prompt set](prompts.md) records the full generation instructions; [manifest.json](manifest.json) records source/output provenance, actual dimensions, hashes and selection status.
+![Combined Plan and Renovate workspace](images/hybrid-01-modes.png)
 
-## Direction 1
+Plan exposes layout information and deliberate exact editing. Renovate exposes existing conditions, planned changes, work and related information, with an explicit Edit layout route. Labels, icons, content and primary actions distinguish the modes; blue/green are theme-aware design directions rather than fixed product colors. Renovate has no default geometry handles.
 
-![Direction 1: paired Plan and Renovate mockups](images/direction-01-calm.png)
+## Screen review set
 
-## Direction 2
+The [gallery and interaction contracts](hybrid-screens.md) contain ten boards covering twelve planned screen areas. Multi-frame boards show related states in a flow, not additional design alternatives.
 
-![Direction 2: paired Plan and Renovate mockups](images/direction-02-guided.png)
-
-## Direction 3
-
-![Direction 3: paired Plan and Renovate mockups](images/direction-03-canvas.png)
-
-## Review contract
-
-Choose the working hierarchy and mode treatment to carry through the remaining screens. This is not authorization to implement and does not lock every generated detail. The selected direction receives a correction pass before it becomes a screen-level visual target.
-
-All directions must ultimately satisfy:
-
-- A visibly labeled Plan/Renovate switch, with restrained mode accents plus text/icons and different relevant controls.
-- Plan Details focuses on identity, dimensions and layout editing; Renovate Details focuses on existing conditions, planned changes, work, materials, costs and evidence.
-- The established bottom taskbar adapts to the active mode; shared navigation and save feedback stay predictable.
-- The same selection and camera survive Plan/Renovate switching. Renovate does not display actionable geometry handles by default; Edit layout returns to deliberate layout editing.
-- Native Obsidian themes, resizable/collapsible panels, supported geometry and command boundaries remain the foundation. Blue/green are candidate accent treatments, not hardcoded theme requirements.
-
-## Inspection findings and corrections before approval
-
-The generated images have been visually inspected. They are useful for hierarchy selection, but are **not implementation-ready specifications** and must not override the merged plan.
-
-| Direction | Observed issue | Required treatment before screen approval |
+| Screen | Image | Focus |
 |---|---|---|
-| 1 | The drawn Kitchen is taller than its 4 m × 3 m labels imply; textured furnishing/floor treatment is more decorative than the requested neutral canvas. | Use a validated, correctly proportioned common scene; simplify material rendering. The numbers are mock data, not geometry evidence. |
-| 2 | Room proportions and scale-bar markings are approximate; grouped fields plus Change room size leave the field-edit/commit behavior visually ambiguous. | Use a validated scene and a single explicit resting-versus-editing contract; preserve existing command/Apply behavior. |
-| 3 | Green corner dots are still shown on the Renovate selection, contrary to the no-geometry-handles requirement; the generic Scale not set footer was carried over. | Remove manipulation handles in Renovate and use truthful reference-specific scale status. Treat the compact rail as an arrangement of existing navigation, not a new navigation model. |
-| All | Generated text, counts, currency formatting, icons, exact target sizes, camera geometry and contrast are illustrative. Some labels combine content differently from current UI. | Normalize copy and supported routes in the selected pass; validate actual accessibility and behavior later in implementation. No mockup proves a live workflow or conformance. |
+| UX-01 | [Mode pair](images/hybrid-01-modes.png) | Shared identity/camera, different tools and Details |
+| UX-02 | [Start](images/ux02-start.png) | Three starting routes; reference optional |
+| UX-03 | [Room draft](images/ux03-room-draft.png) | Valid/invalid input and Create/Cancel |
+| UX-04/05 | [Selection and precision](images/ux04-05-selection-precision-v2.png) | Conditional chooser and size preview |
+| UX-06 | [Opening](images/ux06-opening.png) | Door/host identity and precise edit |
+| UX-07 | [Paste result](images/ux07-copy-paste.png) | Actual scope, exclusions and Undo |
+| UX-08 | [Reference setup](images/ux08-reference.png) | Choose, scale, review/consent |
+| UX-09 | [Narrow panes](images/ux09-narrow-v2.png) | Canvas, draft drawer and Renovate |
+| UX-10 | [Dark appearance](images/ux10-dark.png) | Same mode hierarchy in dark theme |
+| UX-11/12 | [Recovery and draft guard](images/ux11-12-recovery-mode-guard-v2.png) | Stale, unconfirmed save and mode change |
 
-Selection accents and mode accents must remain distinguishable from renovation status. The planned €2,450 and three work items are synthetic data. No amounts imply a quantity/cost calculation has been performed. No generated furniture arrangement creates an asset-catalogue requirement.
+The user selected the combination; the new images do not imply approval of every generated detail or authorize implementation. The [merged increment plan](../implementation-plan.md) remains authoritative. The overlap chooser remains a conditional U4 study. Image creation does not close its adoption decision.
 
-## Screen coverage to produce from the selected direction
+## Visual QA and limits
 
-The requested mockup set is tracked below. The paired directions are delivered as candidates; the remaining screens are deliberately not marked complete. They will share one approved visual vocabulary rather than mixing three variants across an implementation.
+All outputs were inspected. Targeted Image Gen correction passes made the Plan precision action blue, replaced unsupported Door Rename with Edit opening, corrected safety-screen quantities and changed the narrow draft footer to Draft not saved. Revised files replace those initial renderings in this review set. Original generator outputs remain at their source locations.
 
-| Screen ID | State/frame to specify | Plan packages | Status |
-|---|---|---|---|
-| UX-01 | Matched full-width Plan and Renovate with the same selected Room, camera and content | U1/U7 | Three candidate pairs produced; selection/correction pending |
-| UX-02 | Empty floor with clear room/reference/empty starting routes | U1/U2 | Pending direction selection |
-| UX-03 | Create Room: ordinary name/size path, valid preview, invalid input and explicit completion/cancellation | U2 | Pending direction selection |
-| UX-04 | Dense overlap: current selection route and conditional named chooser if adopted | U4 | Pending direction and U4 decision; chooser is not automatically approved |
-| UX-05 | Precise adjustment: resting Details, active size edit and live snapping/measurement feedback | U1/U5 | Pending direction selection |
-| UX-06 | Wall/opening Details with clear host/room identity and supported numeric controls | U1/U5 | Pending direction selection |
-| UX-07 | Copy scope and direct Paste result/Undo; no implied placement-preview lifecycle | U6 | Pending direction selection |
-| UX-08 | Reference setup: choose an existing vault file, optional preparation, two points/known distance, final review/consented rescale | U3 | Pending direction selection |
-| UX-09 | 460 px Plan and Renovate: labeled mode control, Details rail/drawer and return to canvas with a draft | U7/U8 | Pending direction selection |
-| UX-10 | Dark-theme paired Plan/Renovate using the same scene and corresponding mode cues | U7/U8 | Pending direction selection |
-| UX-11 | Saving, failed/stale view and safe recovery with truthful retained content | U6/U8 | Pending direction selection |
-| UX-12 | Attempted mode change during an active task: existing draft guard and explicit next action | U2/U7 | Pending direction selection |
+The hybrid/dark boards remove the earlier Renovate corner handles and generic Scale not set message. Reference review explicitly retains whole-plan rescale consent. Paste shows a committed result and Undo with no placement wizard.
 
-Some rows require multiple frames to specify the transition. Each final screen should include a short adjacent contract: entry state, primary action, secondary routes, selection/camera behavior, completion/cancel semantics, relevant data limitations and acceptance-test mapping. Keep explanatory notes outside the product UI.
+Remaining limitations:
 
-## Completion criteria for the visual package
+- Floor geometry, camera matching, furniture and line lengths are illustrative raster artwork. Use a validated saved scene and actual rendered measurements during implementation; never reconstruct geometry by tracing these images.
+- Small rotated labels, counts and icons can contain generation artifacts. The adjacent screen contract and existing locale/command definitions govern exact copy and supported controls. For example, the precision proposal is 4.00 m × 3.50 m = 14 m², regardless of a malformed rotated glyph.
+- The draft board's Select styling is not authority for active-tool state. During creation it remains a route, not a pressed active tool; the task banner and accessible state must agree.
+- Synthetic €2,450, measurements and counts are examples, not calculated facts. The Paste Room row means one Room; it is not an extra naming field.
+- Target sizes, contrast, German labels and actual 460 px reflow require real UI verification. Loading/saving and every advanced expansion are specified in prose rather than separately drawn.
 
-- [ ] One direction selected and its correction pass reviewed.
-- [ ] Required screen states produced and linked to U0–U9; conditional scope remains identified.
-- [ ] Plan/Renovate pairs use the same validated scene and selection/camera.
-- [ ] Full/narrow and light/dark variants agree on hierarchy and mode meaning.
-- [ ] All depicted controls map to existing capabilities or an explicit usability decision in the plan.
-- [ ] Copy/paste, calibration, room/wall independence and staged Escape contracts remain truthful.
-- [ ] Exact labels, dimensions and interaction notes reviewed before implementation.
+These are visual proposals with reviewed interaction notes, not executable prototypes or native Obsidian acceptance evidence.
 
-PR #168 was confirmed merged, local main was fast-forwarded, and its clean worktree/local branch were removed before this separate mockup branch was created from `ba7fce3ad88b528ae9e9de479f7917d9d0ec371e`. This package changes documentation and image assets only.
+## Provenance and handoff
+
+- [Original directions](directions.md) preserve the earlier exploration; pending-selection statements there are historical.
+- [Original prompts](prompts.md) and [hybrid/screen/correction prompts](hybrid-prompts.md) record exact instructions and attached inputs.
+- [Manifest](manifest.json) records the user's selection, original files, actual sizes and hashes. Original PNG bytes are preserved without code-based cropping, scaling or repainting.
+- [Parallel implementation packets](../parallel-delivery/README.md) define future session boundaries, dependencies and verification. They do not start implementation.
+
+- [x] User selected a combined direction.
+- [x] Hybrid and all screen-area review boards generated and inspected.
+- [x] Important mode/safety inconsistencies received correction passes.
+- [x] Conditional scope and image limits documented.
+- [ ] User reviews screen details and requested refinements.
+- [ ] Implementation verifies exact controls, copy, accessibility and scene data.
+
+This continues draft PR #170. Only documentation and mockup assets change.

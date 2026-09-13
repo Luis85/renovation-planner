@@ -47,6 +47,7 @@ and every gesture in `selectToolAlignmentGuides.test.ts`, `elementMoveAdmission.
 | 6 | Add → Room, drag a rectangle whose right edge nears a neighbour's edge. | Guide and snap as in step 1; the banner reads "Snapped to nearby geometry." |
 | 7 | Turn Snap off in the view menu, repeat step 1. | No guide, no jump. |
 | 8 | Turn Snap on, press Escape mid-drag. | The room returns, no guide remains on the canvas. |
+| 9 | Add → Wall, click three corners of a rectangle, then move the pointer near where the fourth belongs. | The cursor lands square with the first and third corners; a dashed guide runs to each, and a click places the corner there. |
 
 ## Runs
 

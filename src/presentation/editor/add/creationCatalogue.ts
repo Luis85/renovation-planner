@@ -3,7 +3,7 @@ import { t } from '../../i18n/strings';
 import type { EditorRuntime } from '../runtime';
 import type { ToolId } from '../tools/editor-tool';
 
-export type CreationEntryId = 'room' | 'wall' | 'door' | 'window' | 'opening' | 'area' | 'path' | 'fence' | 'item' | 'asset' | 'measurement' | 'note' | 'stair' | 'arrow';
+export type CreationEntryId = 'room' | 'wall' | 'door' | 'window' | 'opening' | 'area' | 'path' | 'fence' | 'item' | 'asset' | 'measurement' | 'note' | 'stair' | 'arrow' | 'post' | 'beam';
 export type CreationGroup = 'structure' | 'property' | 'planning';
 export type CreationRuntime = Pick<EditorRuntime, 'setTool'> & { readonly createNote?: () => void; readonly chooseAsset?: () => void };
 export interface CreationEntry {
@@ -20,7 +20,7 @@ type EntryFor<K extends CreationEntryId> = CreationEntry & { readonly id: K };
 const CREATION_ICONS: Readonly<Record<CreationEntryId, string>> = {
 	room: 'square-dashed', wall: 'brick-wall', door: 'door-open', window: 'panels-top-left', opening: 'rectangle-horizontal',
 	area: 'land-plot', path: 'route', fence: 'fence', item: 'armchair', asset: 'square-dashed-mouse-pointer', measurement: 'ruler', note: 'sticky-note',
-	stair: 'rp-stairs', arrow: 'arrow-up-right',
+	stair: 'rp-stairs', arrow: 'arrow-up-right', post: 'rp-post', beam: 'rp-beam',
 };
 
 /** Every catalogue route is implemented; the menu explains missing capabilities in its current view. */
@@ -36,6 +36,8 @@ const ENTRIES_BY_ID: { readonly [K in CreationEntryId]: EntryFor<K> } = {
 	window: toolEntry('window', 'structure', 'place-window'),
 	opening: toolEntry('opening', 'structure', 'place-opening'),
 	stair: toolEntry('stair', 'structure', 'place-stair'),
+	post: toolEntry('post', 'structure', 'place-post', ['editor.add.post.synonyms']),
+	beam: toolEntry('beam', 'structure', 'draw-beam', ['editor.add.beam.synonyms']),
 	area: toolEntry('area', 'property', 'draw-area', ['editor.add.area.synonyms']),
 	path: toolEntry('path', 'property', 'draw-path'),
 	fence: toolEntry('fence', 'property', 'draw-fence'),

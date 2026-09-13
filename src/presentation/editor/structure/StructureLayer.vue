@@ -60,29 +60,22 @@ const cuts = computed<readonly WallCut[]>(() => {
 /** Renovate retains a selected wall's identity but never presents endpoints as editable. */
 function handles(wall: Wall): readonly Point[] { return renovationSession.perspective === 'plan' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
+/** Posts and beams draw above the wall paint (see the elements block below); every other kind draws below it, as on `main`. */
+const isStructuralKind = (kind: string): boolean => kind === 'post' || kind === 'beam';
 const elements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind !== 'asset'), elementNames.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value, runtime.renderState.labelPreview));
+const structuralElements = computed(() => elements.value.filter(element => isStructuralKind(element.kind)));
+const nonStructuralElements = computed(() => elements.value.filter(element => !isStructuralKind(element.kind)));
 const elementDraft = computed(() => {
 	const draft = runtime.elementTask.draft;
 	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];
-	const cursor = draft.cursor && (!['measurement', 'stair'].includes(draft.kind) || draft.points.length < 2) ? [draft.cursor] : [];
-	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...cursor], ...(draft.kind === 'stair' ? { stair: draft.stair } : {}) }];
+	const cursor = draft.cursor && (!['measurement', 'stair', 'beam'].includes(draft.kind) || draft.points.length < 2) ? [draft.cursor] : [];
+	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...cursor], ...(draft.kind === 'stair' ? { stair: draft.stair } : {}), ...(draft.kind === 'beam' ? { width: draft.beamWidth, loadBearing: true } : {}) }];
 });
+const structuralElementDraft = computed(() => elementDraft.value.filter(element => isStructuralKind(element.kind)));
+const nonStructuralElementDraft = computed(() => elementDraft.value.filter(element => !isStructuralKind(element.kind)));
 </script>
 <template>
 	<VLayer :config="{ name: 'architecture', listening: false, visible, ...transform }">
-		<ElementShapes
-			:elements="elements"
-			:editable="renovationSession.perspective === 'plan' && runtime.activeToolId.value === 'select'"
-			:selected-ids="selection.selectedIds"
-			:tokens="tokens"
-			:zoom="zoom"
-		/>
-		<ElementShapes
-			:elements="elementDraft"
-			:selected-ids="['element-preview']"
-			:tokens="tokens"
-			:zoom="zoom"
-		/>
 		<!--
 			Walls are drawn TWICE, and the two passes run over ALL runs rather than per run:
 			every `wall-edge` (`zoneStroke`, `thickness + 2 / zoom`), then every `wall-body`
@@ -108,6 +101,24 @@ const elementDraft = computed(() => {
 			(ADR-0031). Per wall rather than per run, so the mitre wedge where two differently
 			patterned walls meet stays plain — the spec's named gap.
 		-->
+		<!-- Every non-structural element (and its draft preview) draws before the wall paint, at
+			the top of the layer, exactly as on `main` — an opaque object or stair fill would
+			otherwise blank out any wall it overlaps, the common case since wall centre lines are
+			snap candidates (final review finding F1). Posts and beams are the exception: see the
+			comment below the wall-pattern pass. -->
+		<ElementShapes
+			:elements="nonStructuralElements"
+			:editable="renovationSession.perspective === 'plan' && runtime.activeToolId.value === 'select'"
+			:selected-ids="selection.selectedIds"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
+		<ElementShapes
+			:elements="nonStructuralElementDraft"
+			:selected-ids="['element-preview']"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
 		<VLine
 			v-for="run in runs"
 			:key="'edge-' + run.id"
@@ -122,6 +133,25 @@ const elementDraft = computed(() => {
 			v-for="item in patterned"
 			:key="'pattern-' + item.id"
 			:config="{ name: 'wall-pattern', points: item.points, closed: true, listening: false, fillPatternImage: item.tile, fillPatternRepeat: 'repeat', fillPatternScale: { x: 1 / zoom, y: 1 / zoom } }"
+		/>
+		<!-- Only posts and beams draw here, directly after the wall paint passes above (edge, body,
+			pattern) and before the wall selection dash, endpoint handles, OpeningSymbols and the
+			wall draft below, so a post standing in a wall (structural posts and beams design §5) is
+			not painted over by the wall body that follows it, while the wall handles, openings and
+			the in-progress wall draft still land on top of every element. Every other element kind
+			draws before the wall paint instead (see above) — final review finding F1. -->
+		<ElementShapes
+			:elements="structuralElements"
+			:editable="renovationSession.perspective === 'plan' && runtime.activeToolId.value === 'select'"
+			:selected-ids="selection.selectedIds"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
+		<ElementShapes
+			:elements="structuralElementDraft"
+			:selected-ids="['element-preview']"
+			:tokens="tokens"
+			:zoom="zoom"
 		/>
 		<VGroup
 			v-for="wall in structure.walls"

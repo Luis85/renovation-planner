@@ -38,6 +38,12 @@ an existing Room or Area.
 With canvas focus, Enter finishes an Object, Path, Fence, Measurement, Stair or Direction arrow; Backspace removes
 its last draft point. Pending numeric input must be applied or discarded first. Enter in a
 numeric field applies that field’s form and does not finish the element.
+An **Item** starts as a rectangle: drag on the floor to size it, or type its position and size in
+details. Choose **Free-form** in the task bar or in details to place its corners one by one instead,
+and **Rectangle** to go back; the outline carries across both ways. Right-click a saved item and
+choose **Add to asset library** to create a library asset from its name and outline. The item
+becomes a placement of that asset; Undo turns it back into an item, and the asset stays in the
+library.
 Hold Shift while drawing a line to use the same angle constraints as a Zone. Wall and opening
 placement keeps the canvas available; use Details when you want exact numeric entry.
 

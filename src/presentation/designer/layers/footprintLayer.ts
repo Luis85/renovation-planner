@@ -1,4 +1,5 @@
 import type { Point } from '../../../core/geometry/Point';
+import { polygonPolyline } from '../../../core/geometry/curvePolyline';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { ThemeTokens } from '../../editor/theme/themeTokens';
 
@@ -48,15 +49,18 @@ export function flatPoints(points: readonly Point[]): number[] {
 
 const FOOTPRINT_STROKE_PX = 1.5;
 
+/** Arc flattening in SCREEN pixels, converted per zoom — the tolerance `ZoneShape` draws rooms at. */
+export const ARC_TOLERANCE_PX = 0.25;
+
 /**
  * `null` for an asset with no shape, which is the ordinary starting state of a designed asset
  * and never a failure to read one (`AssetDesignDto.shape`). Nothing is drawn for it — the
  * background layer is what remains, and the no-shape empty state overlays the canvas.
  */
-export function footprintOutline(shape: AssetShape | null, tokens: ThemeTokens): OutlineConfig | null {
+export function footprintOutline(shape: AssetShape | null, tokens: ThemeTokens, worldPerPixel: number): OutlineConfig | null {
 	if (shape === null) return null;
 	return {
-		points: flatPoints(shape.footprint.points),
+		points: flatPoints(polygonPolyline(shape.footprint, ARC_TOLERANCE_PX * worldPerPixel)),
 		closed: true,
 		stroke: tokens.zoneStroke,
 		strokeWidth: FOOTPRINT_STROKE_PX,

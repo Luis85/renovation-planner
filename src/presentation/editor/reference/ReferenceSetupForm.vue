@@ -188,7 +188,9 @@ onMounted(() => { if (path.value) void load(); });
 					v-if="step === 2"
 					class="rp-reference-measure"
 				>
-					<p class="rp-reference-measure__help">{{ tr('editor.reference.measure-help') }}</p>
+					<p class="rp-reference-measure__help">
+						{{ tr('editor.reference.measure-help') }}
+					</p>
 					<ol
 						class="rp-reference-point-progress"
 						:aria-label="tr('editor.reference.preview')"
@@ -214,18 +216,18 @@ onMounted(() => { if (path.value) void load(); });
 					<details class="rp-reference-disclosure">
 						<summary>{{ tr('editor.reference.exact-points') }}</summary>
 						<div class="rp-reference-grid">
-						<label
-							v-for="key in (['ax', 'ay', 'bx', 'by'] as const)"
-							:key="key"
-							class="rp-dialog-field"
-						>{{ tr(`editor.reference.${key}`) }}<input
-							v-model="coordinates[key]"
-							:name="key"
-							type="number"
-							step="any"
-							:readonly="paused"
-						></label>
-					</div>
+							<label
+								v-for="key in (['ax', 'ay', 'bx', 'by'] as const)"
+								:key="key"
+								class="rp-dialog-field"
+							>{{ tr(`editor.reference.${key}`) }}<input
+								v-model="coordinates[key]"
+								:name="key"
+								type="number"
+								step="any"
+								:readonly="paused"
+							></label>
+						</div>
 					</details>
 					<button
 						type="button"

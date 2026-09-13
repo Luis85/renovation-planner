@@ -96,7 +96,7 @@ const finishLabel = computed(() => tr(isCurves.value ? 'editor.curves.save' : is
 	? runtime.activeToolId.value === 'draw-wall' ? 'editor.creation.finish-walls' : 'editor.creation.finish-opening'
 	: isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
 const canFinish = computed(() => isCurves.value ? !runtime.curveTask.blocked.value && runtime.curveTask.target.value !== null && runtime.curveTask.validation.value === null && runtime.curveTask.state.invalidField === null : isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
-const showSnapHint = computed(() => runtime.activeToolId.value === 'draw-room' && runtime.renderState.snapGuides.length > 0);
+const showSnapHint = computed(() => runtime.renderState.snapGuides.length > 0);
 const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
 const finishDescription = computed(() => [instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' '));
 

@@ -1,10 +1,10 @@
 ---
 type: Bug
-order: 40
+order: 160
 status: Done
 started: ""
 finished: ""
-horizon: "MVP"
+horizon: MVP
 start: ""
 due: ""
 risk: ""
@@ -24,6 +24,7 @@ effort: ""
 complexity: ""
 business-value: ""
 business-value-model: ""
+parent: "[[Editor foundation]]"
 ---
 
 # A shallow clone made a stack head read as parentless

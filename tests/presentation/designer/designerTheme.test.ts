@@ -72,13 +72,18 @@ beforeEach(() => {
 	installCanvas();
 	installResizeObserver();
 	themeListeners.clear();
-	document.documentElement.style.setProperty(ZONE_STROKE, 'rgb(1, 2, 3)');
+	// Obsidian declares its palette on `body` (`.theme-light`/`.theme-dark` sit there too), never
+	// on `:root`. The `<html>` decoy is what the designer drew before it read `body`: a white
+	// stroke, invisible on a light theme's white ground.
+	document.documentElement.style.setProperty(ZONE_STROKE, 'rgb(255, 255, 255)');
+	document.body.style.setProperty(ZONE_STROKE, 'rgb(1, 2, 3)');
 });
 
 afterEach(() => {
 	wrapper?.unmount();
 	wrapper = null;
 	document.documentElement.style.removeProperty(ZONE_STROKE);
+	document.body.style.removeProperty(ZONE_STROKE);
 });
 
 async function mountDesigner(): Promise<Konva.Stage | null> {
@@ -109,7 +114,7 @@ describe('the designer palette and a theme change', () => {
 		const stage = await mountDesigner();
 		expect(footprintStroke(stage)).toBe('rgb(1, 2, 3)');
 
-		document.documentElement.style.setProperty(ZONE_STROKE, 'rgb(9, 8, 7)');
+		document.body.style.setProperty(ZONE_STROKE, 'rgb(9, 8, 7)');
 		for (const listener of themeListeners) listener();
 		await settle();
 

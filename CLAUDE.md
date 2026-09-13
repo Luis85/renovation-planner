@@ -245,6 +245,12 @@ most — and the full `npm run check` runs in CI, on the pull request, rather th
 machine where agents are working. No local gate to contend with falls out of that rule;
 nothing has to enforce it.
 
+**A local `vitest run` takes HALF the cores, not Vitest's `cores - 1`** (`maxWorkers` in
+`vitest.config.ts`, which carries the measurement), so two sessions' suites share the machine
+instead of oversubscribing it. CI keeps the default. A solo run that wants every core sets
+`VITEST_MAX_WORKERS`. `npm run analyze` is not a CPU cost worth capping — fallow measured
+under one core on average, with no child processes.
+
 Two things make the gate itself cheaper, and both are measured rather than argued.
 `tsconfig.json` is `incremental` with its build info under `node_modules/.cache/` — 14.3s
 cold against **3.8s warm**, including after touching a source file, so CI (always cold) is

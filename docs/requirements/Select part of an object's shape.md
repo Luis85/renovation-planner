@@ -1,11 +1,11 @@
 ---
 type: PBI
-parent: "[[The designer surface]]"
-order: 90
+parent: "[[Asset Designer Foundations]]"
+order: 8.75
 status: New
 started: ""
 finished: ""
-horizon: "MVP"
+horizon: MVP
 start: ""
 due: ""
 risk: ""

@@ -1,7 +1,8 @@
-import { distance, project } from '../../../core/geometry/operations';
+import { distance, extentOf, project } from '../../../core/geometry/operations';
 import { isOk } from '../../../core/result/Result';
 import type { LineSegment } from '../../../core/geometry/LineSegment';
 import type { Point } from '../../../core/geometry/Point';
+import type { Vector } from '../../../core/geometry/Vector';
 import { arcProjection } from '../../../core/geometry/circularArc';
 
 /**
@@ -52,6 +53,42 @@ export interface SnapCandidates {
 export interface SnapResult {
 	readonly point: Point;
 	readonly guides: LineSegment[];
+}
+
+/** The extra vector a body move applies to EVERY point, and the guides that say why. */
+export interface TranslationSnap {
+	readonly correction: Vector;
+	readonly guides: LineSegment[];
+}
+
+const NO_TRANSLATION: TranslationSnap = { correction: { dx: 0, dy: 0 }, guides: [] };
+
+/** The nearest (moving point, landing) pair `land` answers within tolerance, else `null`. */
+function nearestPair(moving: readonly Point[], land: (from: Point) => Point | null): { from: Point; to: Point } | null {
+	let best: { from: Point; to: Point } | null = null;
+	let bestDistance = Infinity;
+	for (const from of moving) {
+		const to = land(from);
+		if (to === null) continue;
+		const d = distance(from, to);
+		if (d < bestDistance) {
+			bestDistance = d;
+			best = { from, to };
+		}
+	}
+	return best;
+}
+
+/** The moving feature and alignment with the smallest |delta| on `axis` within tolerance. */
+function nearestAxisMatch(features: readonly Point[], alignments: readonly Point[], axis: 'x' | 'y', tolerance: number): { feature: Point; to: Point; delta: number } | null {
+	let best: { feature: Point; to: Point; delta: number } | null = null;
+	for (const feature of features) {
+		const to = nearestAlignment(feature[axis], alignments, axis, tolerance);
+		if (to === null) continue;
+		const delta = to[axis] - feature[axis];
+		if (best === null || Math.abs(delta) < Math.abs(best.delta)) best = { feature, to, delta };
+	}
+	return best;
 }
 
 function roundToStep(value: number, step: number): number {
@@ -227,6 +264,35 @@ export class SnapService {
 
 	snapPoint(point: Point, candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): Point {
 		return this.snapPointWithGuides(point, candidates, toleranceMm).point;
+	}
+
+	/**
+	 * A body move's snap (spec §3.3). `moving` is the shape ALREADY translated by the raw
+	 * pointer delta; the answer is one more vector to add to every point, so a move stays a
+	 * translation and can never deform the shape. Stages, in precedence: the nearest moving
+	 * vertex to a candidate vertex; the nearest moving vertex to an edge; then per axis, the
+	 * smallest delta between any moving FEATURE (its vertices plus the box centre — a box's
+	 * min and max on an axis are already some vertex's coordinate) and any alignment
+	 * coordinate. Guides: the point stages draw pre-correction vertex → landing; the axis
+	 * stage draws the corrected feature → alignment, which is a straight axis-aligned line.
+	 */
+	snapTranslation(moving: readonly Point[], candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): TranslationSnap {
+		if (!this.enabled || moving.length === 0) return NO_TRANSLATION;
+		const pair = nearestPair(moving, (from) => this.snapToVertex(from, candidates.vertices ?? [], toleranceMm))
+			?? nearestPair(moving, (from) => this.snapToEdge(from, candidates.edges ?? [], toleranceMm));
+		if (pair !== null) {
+			return { correction: { dx: pair.to.x - pair.from.x, dy: pair.to.y - pair.from.y }, guides: [{ start: pair.from, end: pair.to }] };
+		}
+		const alignments = candidates.alignments ?? [];
+		const { minX, maxX, minY, maxY } = extentOf(moving);
+		const features = [...moving, { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }];
+		const alongX = nearestAxisMatch(features, alignments, 'x', toleranceMm);
+		const alongY = nearestAxisMatch(features, alignments, 'y', toleranceMm);
+		const correction: Vector = { dx: alongX?.delta ?? 0, dy: alongY?.delta ?? 0 };
+		const guides: LineSegment[] = [];
+		if (alongX !== null) guides.push({ start: { x: alongX.feature.x + correction.dx, y: alongX.feature.y + correction.dy }, end: alongX.to });
+		if (alongY !== null) guides.push({ start: { x: alongY.feature.x + correction.dx, y: alongY.feature.y + correction.dy }, end: alongY.to });
+		return { correction, guides };
 	}
 
 	snapRotation(angleRadians: number): number {

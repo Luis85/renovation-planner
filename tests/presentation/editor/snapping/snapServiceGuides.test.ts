@@ -74,3 +74,56 @@ describe('SnapService.snapPointWithGuides', () => {
 		expect(s.snapPoint({ x: 103, y: 0 }, candidates)).toEqual(s.snapPointWithGuides({ x: 103, y: 0 }, candidates).point);
 	});
 });
+
+describe('SnapService.snapTranslation', () => {
+	const square = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+	const NONE = { correction: { dx: 0, dy: 0 }, guides: [] };
+
+	it('answers zero with no guides when nothing is within tolerance, and for an empty moving set', () => {
+		expect(service().snapTranslation(square, { vertices: [{ x: 500, y: 500 }], alignments: [{ x: 500, y: 500 }] })).toEqual(NONE);
+		expect(service().snapTranslation([], { vertices: [{ x: 0, y: 0 }] })).toEqual(NONE);
+	});
+
+	it('a vertex pair within tolerance wins over a nearer axis alignment; correction is ONE vector', () => {
+		// The square's (100, 100) corner is 8 from the candidate vertex (108, 100); an alignment at x=101 is nearer.
+		const result = service().snapTranslation(square, { vertices: [{ x: 108, y: 100 }], alignments: [{ x: 101, y: 900 }] });
+		expect(result.correction).toEqual({ dx: 8, dy: 0 });
+		expect(result.guides).toEqual([{ start: { x: 100, y: 100 }, end: { x: 108, y: 100 } }]);
+	});
+
+	it('the NEAREST vertex pair decides when several are within tolerance', () => {
+		const result = service().snapTranslation(square, { vertices: [{ x: 109, y: 0 }, { x: 0, y: 103 }] });
+		expect(result.correction).toEqual({ dx: 0, dy: 3 });
+	});
+
+	it('an edge projection within tolerance wins over an axis alignment', () => {
+		// The corner (100, 0) projects onto the edge y=-6 at (100, -6); an alignment at y=-1 is nearer.
+		const result = service().snapTranslation(square, { edges: [{ start: { x: 0, y: -6 }, end: { x: 200, y: -6 } }], alignments: [{ x: 900, y: -1 }] });
+		// Both (0, 0) and (100, 0) project at distance 6; the first in iteration order keeps the tie.
+		expect(result.correction).toEqual({ dx: 0, dy: -6 });
+		expect(result.guides).toEqual([{ start: { x: 0, y: 0 }, end: { x: 0, y: -6 } }]);
+	});
+
+	it('aligns the box centre on x and a vertex on y, independently, each guide from the corrected feature', () => {
+		// centre (50, 50): alignment x=53 pulls it right by 3 (every vertex is 47+ away). y=104 is 4 from
+		// the y=100 vertices; (100, 100) is the first of them in iteration order, so it is the feature.
+		const result = service().snapTranslation(square, { alignments: [{ x: 53, y: 900 }, { x: 900, y: 104 }] });
+		expect(result.correction).toEqual({ dx: 3, dy: 4 });
+		expect(result.guides).toEqual([
+			{ start: { x: 53, y: 54 }, end: { x: 53, y: 900 } },
+			{ start: { x: 103, y: 104 }, end: { x: 900, y: 104 } },
+		]);
+	});
+
+	it('an inner vertex is an x feature, so an L-shape aligns on its notch', () => {
+		const lShape = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 40 }, { x: 60, y: 40 }, { x: 60, y: 100 }, { x: 0, y: 100 }];
+		// The notch at x=60 is 2 from the alignment at 62; the centre (50) is 12 away, outside tolerance.
+		const result = service().snapTranslation(lShape, { alignments: [{ x: 62, y: 900 }] });
+		expect(result.correction).toEqual({ dx: 2, dy: 0 });
+		expect(result.guides).toEqual([{ start: { x: 62, y: 40 }, end: { x: 62, y: 900 } }]);
+	});
+
+	it('a disabled service answers zero with no guides', () => {
+		expect(disabled().snapTranslation(square, { vertices: [{ x: 0, y: 0 }] })).toEqual(NONE);
+	});
+});

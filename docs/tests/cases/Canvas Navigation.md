@@ -185,7 +185,9 @@ the five values and what they do not claim.
     pointer back inward stops it, and so does releasing — a pointer left resting at the edge
     after the release scrolls nothing. Then draw a wall chain: place one corner, move to the
     left edge WITHOUT pressing, and hold. Expected: the plan scrolls and the rubber band
-    follows. Merely hovering at an edge with nothing being drawn scrolls nothing.
+    follows. Merely hovering at an edge with nothing being drawn scrolls nothing. With the
+    Select tool, drag a room and then a marquee to an edge: both scroll and the drop lands
+    where the pointer is over the plan. Dragging a rotation handle to an edge scrolls nothing.
     *Record whether the speed feels controllable* — `canvasEdgeScroll.test.ts` steps frames by
     hand, so how fast a real `requestAnimationFrame` loop moves the plan is judged only here.
 

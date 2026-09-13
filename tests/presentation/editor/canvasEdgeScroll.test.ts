@@ -13,7 +13,10 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
-import { runtimeOf, settle } from '../../helpers/editor';
+import { runtimeOf, settle, settleUntil } from '../../helpers/editor';
+import { expectOk } from '../../helpers/domain';
+
+const PLAN = 'plan-e2e' as never;
 import { clearDimensionFrames, installDimensionFrames, pendingDimensionFrames } from '../../helpers/dimensionFrames';
 import { activateTool, click, pointer, rig } from '../../helpers/planEditorRig';
 import { resizeTo } from '../../helpers/layout';
@@ -62,6 +65,29 @@ describe('edge scrolling while drawing', () => {
 		nextFrame();
 		expect(camera.viewport.pan.x).toBe(settled);
 		expect(draft.rect?.width).toBeGreaterThanOrEqual(grown);
+		harness.unmount();
+	});
+
+	it('carries a Select drag past the edge: the committed move includes the distance scrolled', async () => {
+		// The case the camera lock was written about. A body drag measures its delta in WORLD
+		// coordinates, and every frame re-issues the move, so the zone goes on following the
+		// pointer while the plan scrolls under it — and the release commits that, not the screen delta.
+		const { harness, canvas, camera, zonesRepo } = await editor();
+		activateTool(harness, 'select');
+		await settle();
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0];
+
+		pointer(canvas, 'pointerdown', 300, 300); // inside zone-a's footprint
+		pointer(canvas, 'pointermove', 790, 300);
+		const panned = camera.viewport.pan.x;
+		for (let frame = 0; frame < 4; frame++) nextFrame();
+		expect(camera.viewport.pan.x).toBeGreaterThan(panned);
+		pointer(canvas, 'pointerup', 790, 300);
+		await settleUntil(async () => expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x !== before.x, 'the dragged zone to be written');
+
+		// 490 screen px at the rig's zoom of 0.1 is 4900 world units; four 12 px frames add 480 more.
+		const after = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0];
+		expect(after.x - before.x).toBeGreaterThan(4900 + 400);
 		harness.unmount();
 	});
 

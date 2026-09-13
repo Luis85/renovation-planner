@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T19:44:11+02:00",
-  "status": "wave-3-ci-verifying",
+  "updatedAt": "2026-09-13T20:28:03+02:00",
+  "status": "wave-4-final-verification",
   "integration": {
     "branch": "main",
     "remote": "origin/main",
@@ -18,8 +18,8 @@
   },
   "limits": {
     "maxConcurrentCodingTasks": 3,
-    "activeCodingTasks": 0,
-    "heavyVerificationOwner": "PR 184-186 CI; local full-stack lint passed at I09"
+    "activeCodingTasks": 1,
+    "heavyVerificationOwner": "I12 final targeted gate; PR 184-186 CI reruns continue remotely"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -29,8 +29,8 @@
     "rootPr": 174,
     "currentReviewedTipPacket": "I06",
     "currentReviewedTipSha": "dfba682ba23b159b4e818ca3bef8ca794864312b",
-    "currentProvisionalTipPacket": "I09",
-    "currentProvisionalTipSha": "f8c49e06563b7baa65e12b1c15130a212e414ccf",
+    "currentProvisionalTipPacket": "I12",
+    "currentProvisionalTipSha": "d4fb9f2e8b0f3fb256e2b6c1622aca77719c9e08",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
@@ -152,7 +152,7 @@
       "baseSha": "dfba682ba23b159b4e818ca3bef8ca794864312b",
       "prerequisitePackets": ["I00", "I06"],
       "pr": 184,
-      "headSha": "295abc3a46ba8876a4e888412ea0bf78e6ea86f7",
+      "headSha": "db5e33a9b28495a7c6f3c179cf4db629f102f1ba",
       "verificationOwner": "I07 worker (slot granted)",
       "blockers": []
     },
@@ -167,7 +167,7 @@
       "baseSha": "295abc3a46ba8876a4e888412ea0bf78e6ea86f7",
       "prerequisitePackets": ["I00", "I01", "I04", "I05"],
       "pr": 185,
-      "headSha": "2783521b9258c62ec5f1ac684119993921ec457a",
+      "headSha": "5d27c0c75edcae4e5618b35d59de459e9cac1b84",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
@@ -182,8 +182,53 @@
       "baseSha": "2783521b9258c62ec5f1ac684119993921ec457a",
       "prerequisitePackets": ["I00", "I03"],
       "pr": 186,
-      "headSha": "f8c49e06563b7baa65e12b1c15130a212e414ccf",
+      "headSha": "6e9d293dab6f644cfe3e2484c354303b3ce2c974",
       "verificationOwner": "waiting for shared slot",
+      "blockers": []
+    },
+    "I10": {
+      "status": "stacked-pr-open-ci-pending",
+      "taskId": "01a09be4-042c-7bc0-a6fc-2506974a10c7",
+      "hostId": "local",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "branch": "codex/usability-i10-dimensions-feedback",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i10-dimensions-feedback",
+      "baseSha": "6e9d293dab6f644cfe3e2484c354303b3ce2c974",
+      "prerequisitePackets": ["I00", "I03", "I08", "I09"],
+      "pr": 188,
+      "headSha": "a2a961bd8636247c076a6ac60da66b63c39b31b2",
+      "verificationOwner": "I10 worker and coordinator final-parent rerun",
+      "blockers": []
+    },
+    "I11": {
+      "status": "stacked-pr-open-ci-pending",
+      "taskId": "client-new-thread:8c1a15b3-01d1-445c-862b-24efcf7a213a",
+      "hostId": "local",
+      "model": "gpt-5.6-luna",
+      "reasoning": "high",
+      "branch": "codex/usability-i11-opening-details",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i11-opening-details",
+      "baseSha": "a2a961bd8636247c076a6ac60da66b63c39b31b2",
+      "prerequisitePackets": ["I00", "I03", "I07", "I10"],
+      "pr": 189,
+      "headSha": "acd3efadd378452e53d4104d1c37b4b46b62efc7",
+      "verificationOwner": "coordinator final-parent gate",
+      "blockers": []
+    },
+    "I12": {
+      "status": "final-targeted-gate-running",
+      "taskId": "01a09be4-6ac6-7a31-8730-27ef7cb025fa",
+      "hostId": "local",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "branch": "codex/usability-i12-clipboard-feedback",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i12-clipboard-feedback",
+      "baseSha": "acd3efadd378452e53d4104d1c37b4b46b62efc7",
+      "prerequisitePackets": ["I00", "I03", "I09", "I11"],
+      "pr": null,
+      "headSha": "d4fb9f2e8b0f3fb256e2b6c1622aca77719c9e08",
+      "verificationOwner": "I12 worker (slot granted)",
       "blockers": []
     }
   },
@@ -207,5 +252,5 @@
       "status": "queued-after-final-review"
     }
   },
-  "nextAdmissionGate": "Require PRs #184-#186 green on their corrected heads. PRs #177 and #179-#181 are green; once Wave 3 is green, dispatch I10/I11/I12 from the verified I09 tip."
+  "nextAdmissionGate": "Finish I12 on the serialized I11 parent and open its PR. Require corrected PRs #184-#189 plus I12 green before dispatching Wave 5 I13/I14 from the final I12 tip."
 }

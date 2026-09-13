@@ -141,6 +141,22 @@ export default defineConfig({
 	},
 	test: {
 		environment: 'node',
+		// HALF the cores locally, Vitest's default (cores - 1) in CI. The default is sized for a
+		// machine running ONE suite: two agent sessions each running one put 42 workers on 22
+		// logical cores, and what that produces is not a slow run but a wrong red — `beforeAll`
+		// and case budgets blown by contention. A CI runner has nothing to share its cores with,
+		// so it keeps the default. `VITEST_MAX_WORKERS` overrides both (Vitest reads it after
+		// this config), which is the door for a solo run wanting every core. `build-lint` below
+		// keeps its own `maxWorkers: 1`; `build` and `suite` inherit this one, so they still
+		// match, which Vitest requires of projects sharing a `groupOrder`.
+		//
+		// Measured 2026-09-13, 22 logical cores, 853 files, `vitest run`: SOLO it costs time —
+		// 333s at 21 workers, 543s at 11. TWO AT ONCE is what it is for: both suites finished in
+		// 634s with node holding ~80% of the machine rather than all of it, and no timeout at
+		// the default budgets. The pair shared ONE tree, so `lint-edited.test.ts`'s counter-named
+		// probes collided and one SFC case read the other run's file — a same-tree artifact,
+		// which is why parallel sessions each get their own worktree.
+		maxWorkers: process.env.CI ? undefined : '50%',
 		// TWO PROJECTS, and the split is a COST decision rather than a taxonomy.
 		//
 		// `tests/build/` is the count `ls tests/build/*.test.ts | wc -l` prints today; the files

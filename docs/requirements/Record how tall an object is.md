@@ -1,11 +1,11 @@
 ---
 type: PBI
-parent: "[[Asset shape and dimensions]]"
+parent: "[[Asset Designer Foundations]]"
 order: 20
 status: Done
 started: 2026-08-30
 finished: 2026-09-03
-horizon: "MVP"
+horizon: MVP
 start: ""
 due: ""
 risk: ""

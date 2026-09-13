@@ -11,13 +11,19 @@ const flat = (points: readonly Point[]): number[] => points.flatMap(point => [po
 export function assetShapeConfig(element: NamedSpatialElement, shapeOf: ShapeLookup, state: { readonly selected: boolean; readonly hovered: boolean; readonly tokens: ThemeTokens; readonly zoom: number }) {
 	const { selected, tokens, zoom } = state, shape = element.assetId ? shapeOf(element.assetId) : null;
 	const footprint = elementFootprint(element, shapeOf), anchor = element.points[0], heading = placementHeading(element);
-	const clearance = shape && (selected || state.hovered) ? placedOutline(element, shape).clearance : null;
+	const placed = shape ? placedOutline(element, shape) : null;
+	const clearance = placed && (selected || state.hovered) ? placed.clearance : null;
+	const ink = selected ? tokens.accent : tokens.zoneStroke;
 	return {
 		id: element.id,
-		footprint: { name: shape ? 'asset-footprint' : 'asset-placeholder', points: flat(footprint), closed: true, stroke: selected ? tokens.accent : tokens.zoneStroke,
+		footprint: { name: shape ? 'asset-footprint' : 'asset-placeholder', points: flat(footprint), closed: true, stroke: ink,
 			strokeWidth: (selected ? 3 : 2) / zoom, fill: tokens.canvasBackground, dash: shape ? [] : [6 / zoom, 4 / zoom] },
+		// Symbols spec, Decision 4: array order, lighter than the outline of record; solid covers, dashed does not.
+		// Details use zoneStroke at 1 px against the footprint's 2 px so the outline still reads as the object's edge.
+		details: (placed?.details ?? []).map(detail => ({ name: 'asset-detail', points: flat(detail.points), closed: true, stroke: tokens.zoneStroke, strokeWidth: 1 / zoom, listening: false,
+			...(detail.line === 'solid' ? { fill: tokens.canvasBackground } : { dash: [4 / zoom, 3 / zoom] }) })),
 		cross: shape ? null : [flat([footprint[0], footprint[2]]), flat([footprint[1], footprint[3]])],
-		tick: { name: 'asset-facing', points: flat([anchor, { x: anchor.x + 16 / zoom * Math.cos(heading), y: anchor.y + 16 / zoom * Math.sin(heading) }]), stroke: selected ? tokens.accent : tokens.zoneStroke, strokeWidth: 2 / zoom },
+		tick: { name: 'asset-facing', points: flat([anchor, { x: anchor.x + 16 / zoom * Math.cos(heading), y: anchor.y + 16 / zoom * Math.sin(heading) }]), stroke: ink, strokeWidth: 2 / zoom },
 		clearance: clearance ? { name: 'asset-clearance', points: flat(clearance), closed: true, stroke: tokens.zoneCaption, strokeWidth: 1 / zoom, dash: [6 / zoom, 4 / zoom] } : null,
 		label: { ...assetLabelLayout(element, footprint, zoom), fontSize: ELEMENT_LABEL_FONT_PX / zoom, fill: tokens.zoneLabel, listening: false },
 	};

@@ -7,10 +7,13 @@
  * What the doors DECIDE — arming, Escape's precedence, the nudge's repeat filter, which key
  * frames what — is asserted by the suites that mount the surface (`canvasKeyboardGestures`,
  * `keyboardNudge`, `canvasNavigation`, `emptyStateOverlay`), and nothing here restates them.
- * This file asks only that each door reaches the member of the surface it was extracted
- * against — the one defect a move can ADD, and one a mount suite would report as a behaviour
- * rather than as a wire. jsdom rather than node, because `isCanvasKey` reads `event.target`,
- * which only a dispatched event carries.
+ * This file drives THREE of the doors — the zoom step, the two fit shortcuts and the two
+ * keyup arms — and asks only that each reaches the member of the surface it was extracted
+ * against (`editor.zoomByFactor`, `editor.fitTo`, `host.framedBounds`, `reissuePointerMove`,
+ * `panOverride.disarmSpace`, `syncPanPhase`): the one defect a move can ADD, and one a mount
+ * suite would report as a behaviour rather than as a wire. Escape, the arrows, Enter/Backspace
+ * and the space PRESS are not driven here; the mount suites above hold them. jsdom rather than
+ * node, because `isCanvasKey` reads `event.target`, which only a dispatched event carries.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';

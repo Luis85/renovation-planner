@@ -11,8 +11,10 @@ import { arrowVector, finishShortcut } from './keyboard';
 
 /**
  * The KEYBOARD half of `EditorSurface.vue` — the two handlers its `@keydown`/`@keyup` bind and
- * the shortcuts they route to — lifted out unchanged when that file reached its 400-line
- * budget. The key SEMANTICS (`arrowVector`, `finishShortcut`) were already pure in
+ * the shortcuts they route to — lifted out when that file reached its 400-line budget, every
+ * function verbatim but for ONE read: Escape's pan test asks `panOverride.phase` where it asked
+ * the surface's mirrored `panPhase` ref, and the equivalence is argued where that read is, in
+ * `handleCanvasEscape`. The key SEMANTICS (`arrowVector`, `finishShortcut`) were already pure in
  * `./keyboard.ts`; what lives here is the routing, which reads the surface's own state and so
  * could not be pure. It takes that state as `KeyDoorSurface`, one member per thing a door
  * actually reads, rather than the component instance, so that a door wired to the wrong member

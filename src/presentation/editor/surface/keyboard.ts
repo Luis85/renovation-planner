@@ -5,8 +5,8 @@ import type { ToolId } from '../tools/editor-tool';
 /**
  * What `onKeyDown` needs of a key event to compute an arrow nudge — never the whole
  * `KeyboardEvent`, so this stays a pure function a node test can drive with no DOM at all
- * (a real `KeyboardEvent` satisfies this structurally, so `EditorSurface.vue` passes one
- * straight through).
+ * (a real `KeyboardEvent` satisfies this structurally, so `keyDoors.ts`'s `onKeyDown` passes
+ * one straight through).
  */
 export interface ArrowKeyPress {
 	readonly key: string;
@@ -83,8 +83,9 @@ function finishesOnEnter(tool: ToolId): boolean {
  * task's `blocked` itself. Only a PLAIN Enter finishes (`plainPress`), but `preventDefault`
  * runs for every Enter while one of those tools is active, chorded or not, so nothing beneath
  * the canvas activates on it. Answers whether the key was this shortcut's, so the caller's
- * chain can stop. Pure, and here rather than in `EditorSurface.vue`, because that file met its
- * 400-line budget the day the connected-walls merge widened the Enter branch.
+ * chain can stop. Pure, and here rather than beside its caller, because `EditorSurface.vue` —
+ * where the key doors lived until `keyDoors.ts` took them — met its 400-line budget the day
+ * the connected-walls merge widened the Enter branch.
  */
 export function finishShortcut(event: FinishKeyPress, doors: DraftFinishDoors): boolean {
 	const tool = doors.tool;

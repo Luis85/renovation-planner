@@ -587,14 +587,14 @@ describe('ObsidianAssetGeometrySidecar', () => {
 	 * category — "this build is too old" rather than "your data is bad" — and this store runs
 	 * no runner, because the runner is keyed by the closed `DiagnosticEntityKind` union and
 	 * widening it changes the diagnostics snapshot. So the REFUSAL is the same and the
-	 * category is not: `schemaVersion: z.literal(1)` is what does the refusing.
+	 * category is not: `AssetGeometrySchema`, which knows versions 1 and 2, is what does the refusing.
 	 *
 	 * Registering an `asset-geometry` migration kind is what would flip this case, which is
 	 * the point of having it — the day somebody does, this fails and says so.
 	 */
 	it('refuses a sidecar written by a newer build, as a schema refusal rather than a migration one', async () => {
 		const { sidecar, stack, assetId, path } = seeded();
-		stack.vault.entries.set(path, rawDocument(assetId, { schemaVersion: 2 }));
+		stack.vault.entries.set(path, rawDocument(assetId, { schemaVersion: 3 }));
 
 		const error = expectErr(await sidecar.read(assetId));
 

@@ -27,3 +27,71 @@
 }
 .rp-structure-list ul { padding-inline-start: var(--size-4-4); }
 .rp-structure-list li { margin-block: var(--size-4-1); }
+
+.renovation-plan-editor .rp-structure-opening-context {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+	color: var(--text-normal);
+}
+
+.renovation-plan-editor .rp-structure-opening-floor {
+	margin: var(--size-4-1) 0 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.renovation-plan-editor .rp-structure-opening-floor span {
+	font-weight: var(--font-semibold);
+}
+
+.renovation-plan-editor .rp-structure-opening-facts {
+	margin-top: var(--size-4-4);
+}
+
+.renovation-plan-editor .rp-structure-opening-facts dd {
+	font-variant-numeric: tabular-nums;
+}
+
+.renovation-plan-editor .rp-structure-renovate-route {
+	margin-top: var(--size-4-2);
+}
+
+.renovation-plan-editor .rp-structure-renovate-route > button {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-4-2);
+	width: 100%;
+	min-height: 36px;
+	height: auto;
+	padding: var(--size-4-2);
+	color: var(--text-normal);
+	text-align: start;
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.renovation-plan-editor .rp-structure-renovate-route > button > span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.renovation-plan-editor .rp-structure-renovate-route > button > .rp-host-icon:last-child {
+	margin-inline-start: auto;
+}
+
+.renovation-plan-editor .rp-structure-renovate-route > button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-structure-renovate-route > button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.renovation-plan-editor .rp-structure-renovate-route > button[aria-disabled='true'] {
+	color: var(--text-faint);
+	cursor: not-allowed;
+}

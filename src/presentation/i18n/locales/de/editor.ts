@@ -121,7 +121,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.resize.latest-unavailable': 'Die aktuelle Raumgröße kann nicht gelesen werden. Ihr Entwurf bleibt unverändert. Brechen Sie ab, aktualisieren Sie den Grundriss und öffnen Sie die Größenänderung erneut.',
 	'editor.resize.action': 'Raumgröße ändern',
 	'editor.resize.title': 'Größe ändern: {name}',
-	'editor.resize.anchor': 'Die linke obere Ecke bleibt fest. Die Breite wächst nach rechts, die Tiefe nach unten. Werte in Metern. Der gestrichelte Umriss ist eine Vorschau; erst Anwenden ändert den Raum.',
+	'editor.resize.anchor': 'Die linke obere Ecke bleibt fest. Die Breite wächst nach rechts, die Tiefe nach unten. Werte in Metern. Der gestrichelte Umriss ist eine Vorschau; erst Anwenden ändert den Raum. Unabhängige Wände bleiben unverändert.',
 	'editor.resize.preview': 'Vorschau: {width} m × {depth} m — {area}',
 	'editor.resize.invalid': 'Geben Sie gültige Maße ein, die diesen Raum beschreiben können.',
 	'editor.resize.paused': 'Der Grundriss wird gespeichert oder aktualisiert. Änderungen können derzeit nicht angewendet werden.',

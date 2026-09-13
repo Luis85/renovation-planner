@@ -1,6 +1,8 @@
 # The asset designer, symbols: curves, details, presets and part editing
 
-**Status:** design approved in conversation 2026-09-13; not yet planned.
+**Status:** design approved in conversation 2026-09-13; planned. PR 1 (steps 1–2: curved outlines,
+detail linework and presets) is implemented on branch `claude/asset-editor-modeling-58c8d3`;
+steps 3a and 3b (selection and part editing, draw tools) are outstanding.
 **Builds on:** [`2026-08-30-asset-designer-first-increment-design.md`](./2026-08-30-asset-designer-first-increment-design.md)
 (its Decisions 1, 3 and 6 are load-bearing here), ADR-0014, ADR-0015,
 [`2026-09-10-plan-editor-asset-placement-design.md`](./2026-09-10-plan-editor-asset-placement-design.md).

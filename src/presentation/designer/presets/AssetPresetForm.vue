@@ -93,7 +93,7 @@ function onSubmit(): void {
 				:min="field.min"
 				:max="field.max"
 				:step="field.kind === 'count' ? 1 : 'any'"
-				inputmode="decimal"
+				:inputmode="field.kind === 'count' ? 'numeric' : 'decimal'"
 			>
 		</label>
 		<svg

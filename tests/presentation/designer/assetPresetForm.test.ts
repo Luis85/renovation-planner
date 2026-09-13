@@ -35,6 +35,8 @@ describe('AssetPresetForm', () => {
 
 		expect(wrapper.find('input[name="seats"]').attributes('step')).toBe('1');
 		expect(wrapper.find('input[name="width"]').attributes('step')).toBe('any');
+		expect(wrapper.find('input[name="seats"]').attributes('inputmode')).toBe('numeric');
+		expect(wrapper.find('input[name="width"]').attributes('inputmode')).toBe('decimal');
 		expect(wrapper.findAll('.rp-asset-preset-preview__detail').length).toBeGreaterThan(0);
 	});
 

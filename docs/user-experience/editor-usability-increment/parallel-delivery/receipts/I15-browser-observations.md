@@ -33,3 +33,9 @@ Keyboard observations used the live in-app Browser, not direct store writes: roo
 - `tests/harness/accessibility.test.ts` is a semantic axe/jsdom gate. Its own documented ceiling excludes rendered contrast, visible focus and target-size verification.
 - No text contrast ratio, non-text indicator ratio, hit-region measurement, host zoom, custom/community theme, native Obsidian, assistive technology, or user study was performed.
 - The live Browser snapshots were visually stable when captured, but their images are not local artifacts; they cannot satisfy the required numbered saved-and-inspected screenshot evidence.
+
+## Owner follow-up
+
+- F-01: I08 now uses four 44px icon buttons with explicit accessible names in the 400–439px band; 440px and wider keep labels. Its focused taskbar gate passes.
+- F-02: I02 now uses an 80px narrow rail and normal language-aware wrapping at the smaller UI font. Its shell-fidelity/side-panel gate passes.
+- Both fixes are integrated into the I15 branch and the 48-test accessibility/shell gate passes again. Because the in-app Browser still cannot save its screenshots to inspectable local files, neither visual finding is represented as screenshot-confirmed closure.

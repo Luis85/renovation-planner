@@ -16,6 +16,16 @@ export function structuralText(element: StructuralShapeFacts, name: string): Str
 function lengthOf(text: string, stored: number) {
 	return text === formatMetres(stored) ? { ok: true as const, mm: stored } : parseMetres(text);
 }
+type Length = ReturnType<typeof lengthOf>;
+type Section = NonNullable<ReturnType<typeof postSection>>;
+
+/** The edit for readable fields: a beam's new width on its unchanged axis, or a post resized about its centre. */
+function proposedEdit(element: StructuralShapeFacts, name: string, width: number, section: Section | null, depth: Length | null): StructuralEdit | null {
+	if (element.kind === 'beam') return { name, points: element.points, width };
+	if (!section || !depth?.ok) return null;
+	const points = width === section.width && depth.mm === section.depth ? element.points : resizedPost(element.points, width, depth.mm);
+	return points ? { name, points } : null;
+}
 
 /** What the dimensions form proposes, or which of its fields refuse; position is edited by moving, never here. */
 export function structuralEdit(element: StructuralShapeFacts, text: StructuralText): { edit: StructuralEdit | null; errors: ReadonlySet<'width' | 'depth'> } {
@@ -26,8 +36,5 @@ export function structuralEdit(element: StructuralShapeFacts, text: StructuralTe
 	if (depth && !depth.ok) errors.add('depth');
 	const name = text.name.trim();
 	if (!width.ok || errors.size || !name) return { edit: null, errors };
-	if (element.kind === 'beam') return { edit: { name, points: element.points, width: width.mm }, errors };
-	if (!section || !depth?.ok) return { edit: null, errors };
-	const points = width.mm === section.width && depth.mm === section.depth ? element.points : resizedPost(element.points, width.mm, depth.mm);
-	return { edit: points ? { name, points } : null, errors };
+	return { edit: proposedEdit(element, name, width.mm, section, depth), errors };
 }

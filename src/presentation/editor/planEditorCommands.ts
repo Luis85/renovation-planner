@@ -15,8 +15,10 @@ import type {
 	ReferenceError,AppError
 } from '../../core/errors/AppError';
 import type { Command } from '../../application/commands/Command';
-import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
+import type { DispatchOutcome, DispatchResult } from '../../application/commands/DispatchOutcome';
+import type { SetAssetFootprintInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { Query } from '../../application/queries/Query';
+import type { NewAssetDialogDeps } from '../views/newAssetDialog';
 import type { CalibratePlanInput } from '../../application/commands/plan/ReversibleCalibratePlan';
 import type { CreateZoneInput } from '../../application/commands/zone/CreateZone';
 import type { MoveSpatialObjectInput, MoveSpatialObjectResult } from '../../application/commands/zone/MoveSpatialObject';
@@ -94,6 +96,14 @@ export interface PlanEditorCommandServices {
 	 * Property tree offers no menu and no drag, and the Floor inspector's Kind select is absent.
 	 */
 	readonly updatePlanDetails?: Command<UpdatePlanDetailsInput, Result<{ plan: Loaded<Plan> }, UpdatePlanDetailsError>>;
+	/**
+	 * "Add to asset library" on a plan item (2026-09-13 item modes spec §B): the New asset dialog's own doors plus
+	 * the outline write it stores measured. OPTIONAL like `createPlan`: without it the context menu offers no
+	 * promotion and `unavailablePlanEditorCommands` needs no refusing stand-in.
+	 */
+	readonly assetCreation?: NewAssetDialogDeps['commands'] & {
+		readonly setAssetFootprint: Command<SetAssetFootprintInput, DispatchResult>;
+	};
 	readonly moveObject: Command<
 		MoveSpatialObjectInput,
 		Result<MoveSpatialObjectResult, ReferenceError | GeometryError | RepositoryError>

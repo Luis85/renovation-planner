@@ -5,16 +5,24 @@ import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement
 import { acceptsElementPoints } from './elementDraft';
 import OutlinePointsForm from '../resize/OutlinePointsForm.vue';
 import StairEditForm from './StairEditForm.vue';
+import StructuralEditForm from './StructuralEditForm.vue';
 import type { StairEdit } from './stairInput';
+import type { StructuralEdit } from './structuralInput';
 
 /** Form differences stop here; one guarded command callback remains the write authority. */
 export function elementEditPresentation(element: NamedSpatialElement,
-	dispatch: (value: Pick<NamedSpatialElement, 'name' | 'points' | 'stair'>) => Promise<DispatchResult>,
+	dispatch: (value: Pick<NamedSpatialElement, 'name' | 'points' | 'stair' | 'width'>) => Promise<DispatchResult>,
 	preview: (value: NamedSpatialElement | null) => void) {
 	if (element.kind === 'stair' && element.stair) return { component: markRaw(StairEditForm), props: {
 		options: element.stair,
 		dispatch,
 		preview: (value: StairEdit | null) => preview(value ? { ...element, ...value } : null),
+	} };
+	if (element.kind === 'post' || element.kind === 'beam') return { component: markRaw(StructuralEditForm), props: {
+		kind: element.kind,
+		...(element.width === undefined ? {} : { width: element.width }),
+		dispatch: (value: StructuralEdit) => dispatch(value),
+		preview: (value: StructuralEdit | null) => preview(value ? { ...element, ...value } : null),
 	} };
 	return { component: markRaw(OutlinePointsForm), props: {
 		hint: 'editor.element.edit-hint',

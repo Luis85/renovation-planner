@@ -84,14 +84,29 @@ describe('SelectTool alignment guides', () => {
 	});
 
 	it('a click without a drag leaves no guides behind', async () => {
-		const { tool, context } = rig(() => ({ vertices: [{ x: 5, y: 0 }] }));
+		const { tool, context } = rig(() => ({ vertices: [{ x: 15, y: 0 }] }));
 		tool.pointerDown(pointerAt(10, 10));
-		// Within the click epsilon, but the move WRITES a guide (corner at (0.2, 0), 4.8 from
-		// the candidate) — so the release's own clear is what this case asserts.
-		tool.pointerMove(pointerAt(10.2, 10));
+		// A move past the epsilon WRITES a guide (corner at (10, 0), 5 from the candidate), and
+		// the pointer then comes back to the press point — so the release's own clear is what
+		// this case asserts.
+		tool.pointerMove(pointerAt(20, 10));
 		expect(context.renderState.snapGuides).toHaveLength(1);
 		tool.pointerUp(pointerAt(10, 10));
 		await flush();
 		expect(context.renderState.snapGuides).toEqual([]);
+	});
+
+	it('a move within the click epsilon previews raw and draws no guide, since the release discards it', () => {
+		// A neighbour 2 from the moved right edge, well within the 8 px tolerance: snapped, the
+		// zone would flick 2 toward it on a 1 px jitter and back on the click's release.
+		const { tool, context } = rig(() => ({ alignments: [{ x: 103, y: 900 }] }));
+		tool.pointerDown(pointerAt(10, 10));
+		tool.pointerMove(pointerAt(11, 10));
+		expect(context.renderState.previewPolygon?.[1]).toEqual({ x: 101, y: 0 });
+		expect(context.renderState.snapGuides).toEqual([]);
+		// One pixel past the epsilon the same neighbour snaps and the guide draws.
+		tool.pointerMove(pointerAt(15, 10));
+		expect(context.renderState.previewPolygon?.[1]).toEqual({ x: 103, y: 0 });
+		expect(context.renderState.snapGuides).toHaveLength(1);
 	});
 });

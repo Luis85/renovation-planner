@@ -52,6 +52,20 @@ it('snaps a body move rigidly against the plan minus itself, draws guides, and c
 	move.cancel(); expect(context.renderState.snapGuides).toEqual([]);
 });
 
+it('previews a move within the click epsilon raw and without guides, since finish discards it', () => {
+	const previewElement = vi.fn<NonNullable<ElementMoveDeps['previewElement']>>();
+	const { context } = toolContext({ snapCandidates: () => ({ alignments: [{ x: 103, y: 900 }] }) });
+	const move = new ElementMove({ moveElement: () => undefined, previewElement });
+	const object = { id: 'element-object', kind: 'object' as const, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }] };
+	move.start(context, pointerAt(0, 0), object); move.move(pointerAt(1, 0));
+	// Right edge at 101, 2 from the alignment: within tolerance, but a 1 px jitter is a click.
+	expect(previewElement).toHaveBeenLastCalledWith(object.id, [{ x: 1, y: 0 }, { x: 101, y: 0 }, { x: 101, y: 100 }]);
+	expect(context.renderState.snapGuides).toEqual([]);
+	move.move(pointerAt(5, 0));
+	expect(previewElement).toHaveBeenLastCalledWith(object.id, [{ x: 3, y: 0 }, { x: 103, y: 0 }, { x: 103, y: 100 }]);
+	expect(context.renderState.snapGuides).toHaveLength(1);
+});
+
 it('snaps a vertex drag through the guided point snap', () => {
 	const moveElement = vi.fn<NonNullable<ElementMoveDeps['moveElement']>>();
 	const { context } = toolContext({ snapCandidates: () => ({ vertices: [{ x: 504, y: 0 }] }) });

@@ -16,6 +16,7 @@ import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { LabelMove, type LabelMoveDeps } from '../labels/LabelMove';
 import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX, LABEL_GRAB_PADDING_PX, SNAP_TOLERANCE_PX } from '../handleMetrics';
 import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
+import type { SnapCandidates } from '../snapping/snap-service';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
@@ -245,23 +246,40 @@ export class SelectTool implements EditorTool {
 	}
 
 	/**
-	 * The dragged zone translated by `by` and then corrected by ONE `snapTranslation` — so the
-	 * shape stays rigid — with the guides written. `pointerMove` and `pointerUp` both call this,
-	 * which is what makes the preview unable to drift from the commit.
+	 * The dragged zone at `event`, through ONE snap call for either gesture kind: a body is
+	 * translated by the total delta and corrected by `snapTranslation` — so the shape stays
+	 * rigid — and a vertex goes through `snapPointWithGuides`; both write the guides.
+	 * `pointerMove` and `pointerUp` both call this, which is what makes the preview unable to
+	 * drift from the commit. `candidates` is the caller's, because `pointerMove` hands `{}`
+	 * below the click epsilon: the release discards that gesture (`isClick`), so a snapped
+	 * preview there would flick the zone up to a tolerance toward a neighbour and back on a
+	 * jittering tap. With no candidates the service answers the raw point and no guides.
 	 */
-	private movedBody(context: EditorContext, gesture: Extract<Gesture, { kind: 'body' }>, by: Vector): Point[] {
-		const translated = translate(gesture.original, by).points;
-		const snap = context.snapService.snapTranslation(translated, context.snapCandidates([gesture.zoneId]), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
-		context.renderState.snapGuides = snap.guides;
-		return translated.map((point) => ({ x: point.x + snap.correction.dx, y: point.y + snap.correction.dy }));
-	}
-
-	private movedVertex(context: EditorContext, gesture: Extract<Gesture, { kind: 'vertex' }>, worldPoint: Point): Point[] {
-		const snap = context.snapService.snapPointWithGuides(worldPoint, context.snapCandidates([gesture.zoneId]), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
+	private moved(context: EditorContext, gesture: Gesture, event: EditorPointerEvent, candidates: SnapCandidates): Point[] {
+		const tolerance = SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel();
+		if (gesture.kind === 'body') {
+			const translated = translate(gesture.original, this.deltaOf(gesture, event)).points;
+			const snap = context.snapService.snapTranslation(translated, candidates, tolerance);
+			context.renderState.snapGuides = snap.guides;
+			return translated.map((point) => ({ x: point.x + snap.correction.dx, y: point.y + snap.correction.dy }));
+		}
+		const snap = context.snapService.snapPointWithGuides(event.worldPoint, candidates, tolerance);
 		context.renderState.snapGuides = snap.guides;
 		const points = [...gesture.original.points];
 		points[gesture.index] = snap.point;
 		return points;
+	}
+	private deltaOf(gesture: Gesture, event: EditorPointerEvent): Vector {
+		return { dx: event.worldPoint.x - gesture.startWorld.x, dy: event.worldPoint.y - gesture.startWorld.y };
+	}
+	/**
+	 * Camera-scaled, and measured for BOTH gesture kinds: below it the pointer never travelled,
+	 * so there is nothing to move whichever handle it went down on. The ONE epsilon the move's
+	 * preview and the release's commit judge by.
+	 */
+	private isClick(context: EditorContext, gesture: Gesture, event: EditorPointerEvent): boolean {
+		const by = this.deltaOf(gesture, event);
+		return Math.hypot(by.dx, by.dy) <= CLICK_EPSILON_PX * context.viewport.worldPerScreenPixel();
 	}
 
 	pointerMove(event: EditorPointerEvent): void {
@@ -277,15 +295,8 @@ export class SelectTool implements EditorTool {
 			this.updateHover(context, event);
 			return;
 		}
-		if (this.gesture.kind === 'body') {
-			const by: Vector = {
-				dx: event.worldPoint.x - this.gesture.startWorld.x,
-				dy: event.worldPoint.y - this.gesture.startWorld.y,
-			};
-			context.renderState.previewPolygon = this.movedBody(context, this.gesture, by);
-			return;
-		}
-		context.renderState.previewPolygon = this.movedVertex(context, this.gesture, event.worldPoint);
+		const candidates = this.isClick(context, this.gesture, event) ? {} : context.snapCandidates([this.gesture.zoneId]);
+		context.renderState.previewPolygon = this.moved(context, this.gesture, event, candidates);
 	}
 	private updateHover(context: EditorContext, event: EditorPointerEvent): void {
 		// Ordinary hover predicts the same body/handle as a click; affordance approach stays separate.
@@ -330,23 +341,14 @@ export class SelectTool implements EditorTool {
 		if (event.button !== 'primary') return;
 		this.gesture = null;
 
-		const by: Vector = {
-			dx: event.worldPoint.x - gesture.startWorld.x,
-			dy: event.worldPoint.y - gesture.startWorld.y,
-		};
-		// Camera-scaled, and measured for BOTH gesture kinds: below it the pointer never
-		// travelled, so there is nothing to move whichever handle it went down on.
-		const worldPerPixel = context.viewport.worldPerScreenPixel();
-		if (Math.hypot(by.dx, by.dy) <= CLICK_EPSILON_PX * worldPerPixel) {
+		if (this.isClick(context, gesture, event)) {
 			// A click, not a drag: pure selection, nothing dispatched, no history entry.
 			context.renderState.previewPolygon = null;
 			context.renderState.snapGuides = [];
 			return;
 		}
 
-		const forwardPoints = gesture.kind === 'body'
-			? this.movedBody(context, gesture, by)
-			: this.movedVertex(context, gesture, event.worldPoint);
+		const forwardPoints = this.moved(context, gesture, event, context.snapCandidates([gesture.zoneId]));
 		context.renderState.snapGuides = [];
 		void this.commit(context, gesture.zoneId, gesture.original, forwardPoints);
 	}

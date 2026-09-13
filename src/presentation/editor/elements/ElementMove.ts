@@ -28,7 +28,10 @@ export class ElementMove {
 		const gesture = this.gesture;
 		if (!gesture) return [];
 		const { context } = gesture, tolerance = SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel();
-		const candidates = context.snapCandidates([gesture.element.id]);
+		// Below the click epsilon `finish` discards the gesture, so a snapped preview would flick
+		// the element up to a tolerance toward a neighbour and back on a jittering tap: with no
+		// candidates the service answers the raw point and no guides.
+		const candidates = this.moved(event) ? context.snapCandidates([gesture.element.id]) : {};
 		if (gesture.vertexIndex !== undefined) {
 			const points = [...gesture.points], anchor = points[gesture.vertexIndex === 0 ? 1 : gesture.vertexIndex - 1];
 			const constrained = constrainDrawingPoint(anchor, event.worldPoint, event.modifiers.shift, context.snapService);
@@ -45,10 +48,15 @@ export class ElementMove {
 	// `points` is evaluated OUTSIDE the optional call: it also writes the guides, and an
 	// argument to `previewElement?.()` is never evaluated when the dep is absent.
 	move(event: EditorPointerEvent): void { if (this.gesture) { const points = this.points(event); this.deps.previewElement?.(this.gesture.element.id, points); } }
+	/** Past the camera-scaled click epsilon — the ONE test the preview and the release judge by. */
+	private moved(event: EditorPointerEvent): boolean {
+		const gesture = this.gesture;
+		return gesture !== null && Math.hypot(event.worldPoint.x - gesture.start.x, event.worldPoint.y - gesture.start.y) > CLICK_EPSILON_PX * gesture.context.viewport.worldPerScreenPixel();
+	}
 	finish(context: EditorContext, event: EditorPointerEvent): void {
 		const gesture = this.gesture;
 		if (!gesture || event.button !== 'primary') return;
-		const points = this.points(event), moved = Math.hypot(event.worldPoint.x - gesture.start.x, event.worldPoint.y - gesture.start.y) > CLICK_EPSILON_PX * context.viewport.worldPerScreenPixel();
+		const points = this.points(event), moved = this.moved(event);
 		context.renderState.snapGuides = [];
 		if (!moved || context.writesBlocked() || (gesture.vertexIndex !== undefined && !acceptsElementPoints(gesture.element, points))) { this.cancel(); return; }
 		// Left previewing at the drop; `moveElement` clears it once the write has been read back.

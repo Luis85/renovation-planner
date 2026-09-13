@@ -33,6 +33,8 @@ function heading(): string {
 	return selectedZone.value?.name || room.value?.name || tr('renovation.select-room');
 }
 const standaloneZone = computed(() => selectedZone.value?.zoneType !== 'Room' ? selectedZone.value : undefined);
+const showStandaloneZone = computed(() => session.perspective === 'plan' && standaloneZone.value !== undefined);
+const standaloneZoneId = computed(() => standaloneZone.value?.id ?? '');
 /**
  * The frame's group controls arrive through the `actions` slot. A wall, opening or element body
  * takes them above its own Delete, so Delete stays the foot of the Inspector region (side panels
@@ -61,7 +63,6 @@ watch(() => [session.focusedId, session.mode], async () => {
 		v-else
 		ref="root"
 		class="rp-renovation-inspector"
-		:class="{ 'rp-renovation-inspector--focused': session.perspective === 'renovate' }"
 	>
 		<ElementInspector v-if="generic">
 			<template #actions>
@@ -77,11 +78,11 @@ watch(() => [session.focusedId, session.mode], async () => {
 			{{ heading() }}
 		</h3>
 		<details
-			v-if="standaloneZone && session.perspective === 'plan'"
+			v-if="showStandaloneZone"
 			class="rp-room-more-actions"
 		>
 			<summary>{{ tr('editor.structure.more') }}</summary>
-			<ObjectRotationControls :id="standaloneZone.id" />
+			<ObjectRotationControls :id="standaloneZoneId" />
 		</details>
 		<RenovationDetails
 			v-if="room || element || generic"

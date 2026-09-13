@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T16:56:48+02:00",
-  "status": "ci-repair",
+  "updatedAt": "2026-09-13T18:14:18+02:00",
+  "status": "ci-repair-verifying",
   "integration": {
     "branch": "main",
     "remote": "origin/main",
@@ -19,7 +19,7 @@
   "limits": {
     "maxConcurrentCodingTasks": 3,
     "activeCodingTasks": 0,
-    "heavyVerificationOwner": "PR 177 CI run 34764066483"
+    "heavyVerificationOwner": "PR 177 CI run 34767881958"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -29,8 +29,8 @@
     "rootPr": 174,
     "currentReviewedTipPacket": "I02",
     "currentReviewedTipSha": "0f45ff5e724cc49e8c9c9b8d2b7d64da7992b5b7",
-    "currentProvisionalTipPacket": "I06",
-    "currentProvisionalTipSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
+    "currentProvisionalTipPacket": "I09",
+    "currentProvisionalTipSha": "ceb25531dc75ba2ad263d793342c801197c227d3",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
@@ -52,7 +52,7 @@
       "blockers": []
     },
     "I01": {
-      "status": "ci-rerun-after-root-cause-fix",
+      "status": "ci-rerun-after-complexity-refactor",
       "taskId": "01a09ad5-df64-7301-af48-0cd2879a0924",
       "hostId": "local",
       "model": "gpt-5.6-luna",
@@ -92,9 +92,9 @@
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
       "pr": 177,
-      "headSha": "ea6080a04161f147c582579092a19b55a6d713f4",
+      "headSha": "bc98a8e3826551831ade0889706cdc908d568ec3",
       "verificationOwner": "I04 worker; coordinator follow-up reviewed",
-      "blockers": ["Awaiting full CI rerun 34764066483 after repairing nine inherited capability/test failures."]
+      "blockers": ["Awaiting full CI rerun 34767881958 after 9,937 tests passed and the remaining three fallow template-complexity findings were structurally refactored."]
     },
     "I03": {
       "status": "paused-pending-i04-ci-propagation",
@@ -107,7 +107,7 @@
       "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
       "prerequisitePackets": ["I00", "I01"],
       "pr": 179,
-      "headSha": "28ad19b3f8a5f948c994cf32e725d6c97f66754b",
+      "headSha": "7ae8a1d11bb39d458fbaf362abde3b231c991e95",
       "verificationOwner": "I03 worker (slot granted)",
       "blockers": []
     },
@@ -122,7 +122,7 @@
       "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
       "prerequisitePackets": ["I00", "I04"],
       "pr": 180,
-      "headSha": "ea1e1af3d5325dbfa2a3d641192b5f18cc5fdf89",
+      "headSha": "a2c36184f2f30ceb0b31155239c4dc3f1b8607a9",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
@@ -137,7 +137,7 @@
       "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
       "prerequisitePackets": ["I00", "I02"],
       "pr": 181,
-      "headSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
+      "headSha": "356f491eba8d3a4a3189dcd03336b2395582a558",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
@@ -152,7 +152,7 @@
       "baseSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
       "prerequisitePackets": ["I00", "I06"],
       "pr": null,
-      "headSha": "56b28a47106f86ae1380fb334dc2d21ce641f95c",
+      "headSha": "cb9fb9cbd91c15cb18263bfd829b9e40d9be507b",
       "verificationOwner": "I07 worker (slot granted)",
       "blockers": []
     },
@@ -167,7 +167,7 @@
       "baseSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
       "prerequisitePackets": ["I00", "I01", "I04", "I05"],
       "pr": null,
-      "headSha": "8899aeaa8445c0b16eef7c6a8980f04e83b59c5b",
+      "headSha": "13f68c9e120369c3370a08f4e7862ee9e8faff89",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     },
@@ -182,7 +182,7 @@
       "baseSha": "e5dbc6749aa4b0302bd93c2e899aeb73aac291ac",
       "prerequisitePackets": ["I00", "I03"],
       "pr": null,
-      "headSha": "3ed47eb3a8e404e473666a8d9c85837680371fe8",
+      "headSha": "ceb25531dc75ba2ad263d793342c801197c227d3",
       "verificationOwner": "waiting for shared slot",
       "blockers": []
     }
@@ -207,5 +207,5 @@
       "status": "queued-after-final-review"
     }
   },
-  "nextAdmissionGate": "Require PR #177 full CI green, propagate its corrected head through I03/I05/I06 and rerun their affected CI, then resume Wave 3 stacking/verification."
+  "nextAdmissionGate": "Require PR #177 full CI green on 34767881958. Its corrected head is already propagated through I03-I09; once green, finalize Wave 3 verification and PRs before Wave 4."
 }

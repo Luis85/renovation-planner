@@ -75,10 +75,17 @@ it('keeps Object field Enter local and refuses canvas Finish or Undo point while
  await rig.wrapper.get('input[name="object-width"]').setValue('1'); await rig.wrapper.get('input[name="object-depth"]').setValue('1');
  await rig.wrapper.get('input[name="object-width"]').trigger('keydown', { key: 'Enter' }); await settle();
  expect(task.draft.points).toHaveLength(4); expect(rig.project.structure.elements ?? []).toEqual([]);
- key(rig, 'Backspace'); await settle(); const points = task.draft.points.map(point => ({ ...point })); expect(points).toHaveLength(3);
+ // Rectangle mode: canvas Backspace removes the whole outline, not one corner (PR #182 follow-up
+ // F-B) — a deliberate expectation change from the pre-fix 4 -> 3.
+ key(rig, 'Backspace'); await settle(); expect(task.draft.points).toEqual([]);
  await rig.wrapper.get('input[name="object-width"]').setValue('-'); key(rig, 'Backspace'); key(rig, 'Enter'); await settle();
- expect(task.draft.pendingInput).toBe(true); expect(task.draft.points).toEqual(points); expect(rig.project.structure.elements ?? []).toEqual([]);
- await rig.wrapper.get('[data-rp-action="discard-object-rectangle"]').trigger('click'); await settle(); key(rig, 'Enter');
+ expect(task.draft.pendingInput).toBe(true); expect(task.draft.points).toEqual([]); expect(rig.project.structure.elements ?? []).toEqual([]);
+ await rig.wrapper.get('[data-rp-action="discard-object-rectangle"]').trigger('click'); await settle();
+ expect(task.draft.pendingInput).toBe(false); expect(task.draft.points).toEqual([]);
+ await rig.wrapper.get('input[name="object-width"]').setValue('1'); await rig.wrapper.get('input[name="object-depth"]').setValue('1');
+ await rig.wrapper.get('input[name="object-width"]').trigger('keydown', { key: 'Enter' }); await settle();
+ const points = task.draft.points.map(point => ({ ...point })); expect(points).toHaveLength(4);
+ key(rig, 'Enter');
  await settleUntil(() => rig.project.structure.elements?.length === 1, 'Object canvas Finish');
  expect(rig.project.structure.elements?.[0]).toMatchObject({ kind: 'object', points }); expect(rig.project.plan?.spatialElements?.[0].name).toBe('Cabinet');
 });

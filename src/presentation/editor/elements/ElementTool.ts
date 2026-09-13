@@ -1,7 +1,7 @@
 import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent, EditorTool } from '../tools/editor-tool';
 import type { ElementDraft, ElementToolId } from './elementDraft';
-import { discardElementGeometry } from './elementDraft';
+import { discardElementGeometry, pointsAfterUndo } from './elementDraft';
 import type { Point } from '../../../core/geometry/Point';
 import { SNAP_TOLERANCE_PX } from '../handleMetrics';
 import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
@@ -56,6 +56,10 @@ export class ElementTool implements EditorTool {
 		if (this.deps.blocked()) return false;
 		const points = this.deps.draft.points, resolved = index === -1 ? points.length - 1 : index;
 		if (resolved < 0 || resolved >= points.length) return false;
+		// "Undo the last point" on a rectangle-mode item removes the whole outline rather than one
+		// corner (PR #182 follow-up F-B) — the mode check itself lives in `pointsAfterUndo`, the
+		// same helper `elementTask.ts`'s `undoPoint()` reaches for the other door.
+		if (index === -1 && point === null && this.id === 'place-object') return this.deps.setPoints(pointsAfterUndo(this.deps.draft));
 		if (point) points.splice(resolved, 1, point); else points.splice(resolved, 1);
 		return true;
 	}

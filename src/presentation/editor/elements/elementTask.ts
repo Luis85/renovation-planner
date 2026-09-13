@@ -13,7 +13,7 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import { notifyFault } from '../../notices/notify';
 import { recordDraftFailure } from '../tools/with-stale-gate';
 import { ElementTool } from './ElementTool';
-import { createElementDraft, draftElement, ELEMENT_TOOLS, type ElementToolId } from './elementDraft';
+import { createElementDraft, draftElement, pointsAfterUndo, ELEMENT_TOOLS, type ElementToolId } from './elementDraft';
 import { elementInput } from './elementInput';
 import { boundingRectangle, type ObjectShapeMode } from './objectShape';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
@@ -56,7 +56,7 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		void finish();
 		return true;
 	}
-	function undoPoint(): void { if (!blocked.value && !draft.pendingInput && !draft.text.x && !draft.text.y) setPoints(draft.points.slice(0, -1)); }
+	function undoPoint(): void { if (!blocked.value && !draft.pendingInput && !draft.text.x && !draft.text.y) setPoints(pointsAfterUndo(draft)); }
 	/** Pending typed input belongs to the mode it was typed in, so it has to be applied or discarded before the mode changes. */
 	const shapeLocked = computed(() => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y);
 	/**

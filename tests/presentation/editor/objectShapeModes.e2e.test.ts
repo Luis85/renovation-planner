@@ -22,6 +22,7 @@ async function drag(rig: Rig, from: Point, to: Point) {
 	tools.pointerDown(pointerAt(from.x, from.y)); tools.pointerMove(pointerAt(to.x, to.y)); tools.pointerUp(pointerAt(to.x, to.y));
 	await settle();
 }
+function key(rig: Rig, value: string) { const canvas = expectDefined(rig.canvasEl, 'canvas'); canvas.focus(); canvas.dispatchEvent(new KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true })); }
 const RECTANGLE = [{ x: 1000, y: 500 }, { x: 3000, y: 500 }, { x: 3000, y: 2000 }, { x: 1000, y: 2000 }];
 
 it('starts an item as a rectangle drag and saves the dragged outline', async () => {
@@ -108,6 +109,32 @@ it('shows the same refusal for an untouched Enter in an empty item draft', async
 	await rig.wrapper.get('input[name="object-x"]').trigger('keydown', { key: 'Enter' }); await settle();
 	expect(rig.task.draft.points).toEqual([]);
 	expect(rig.wrapper.get('input[name="object-width"]').attributes('aria-invalid')).toBe('true');
+});
+
+it('clears the whole outline on canvas Backspace in rectangle mode, and elementTask.undoPoint() does the same', async () => {
+	const rig = await setup();
+	await drag(rig, { x: 1000, y: 500 }, { x: 3000, y: 2000 });
+	expect(rig.task.draft.points).toEqual(RECTANGLE);
+	key(rig, 'Backspace'); await settle();
+	expect(rig.task.draft.points).toEqual([]);
+	expect(rig.runtime.toolManager.activeToolHasDraft()).toBe(false);
+
+	await drag(rig, { x: 1000, y: 500 }, { x: 3000, y: 2000 });
+	expect(rig.task.draft.points).toEqual(RECTANGLE);
+	// The "Undo point" button is hidden in rectangle mode (`ElementTaskForm.vue`'s `pointEntry`),
+	// but `undoPoint()` itself carries the same whole-outline rule the canvas key reaches.
+	rig.task.undoPoint();
+	expect(rig.task.draft.points).toEqual([]);
+});
+
+it('still steps back one corner on canvas Backspace in free mode', async () => {
+	const rig = await setup();
+	await rig.wrapper.get('.rp-task-banner [data-rp-object-shape="free"]').trigger('click');
+	for (const point of [{ x: 1000, y: 500 }, { x: 3000, y: 500 }, { x: 3000, y: 2000 }]) { rig.runtime.toolManager.pointerDown(pointerAt(point.x, point.y)); rig.runtime.toolManager.pointerUp(pointerAt(point.x, point.y)); }
+	await settle();
+	expect(rig.task.draft.points).toHaveLength(3);
+	key(rig, 'Backspace'); await settle();
+	expect(rig.task.draft.points).toHaveLength(2);
 });
 
 it('keeps its mode while typed rectangle input is pending, and a click leaves the drawn rectangle', async () => {

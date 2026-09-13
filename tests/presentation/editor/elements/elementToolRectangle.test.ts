@@ -77,3 +77,29 @@ describe('ElementTool, corner by corner', () => {
 		expect(draft.points).toEqual([{ x: 0, y: 0 }, { x: 2000, y: 0 }]);
 	});
 });
+
+describe('ElementTool, undoing the active corner (PR #182 follow-up F-B)', () => {
+	it('clears the whole outline for place-object in rectangle mode, once', () => {
+		const { tool, draft } = armed();
+		tool.pointerDown(pointerAt(800, 200)); tool.pointerUp(pointerAt(5000, 4000));
+		expect(draft.points).toEqual(RECT);
+		expect(tool.editCorner(-1, null)).toBe(true);
+		expect(draft.points).toEqual([]);
+		expect(tool.editCorner(-1, null)).toBe(false);
+	});
+
+	it('still steps back one corner for place-object in free mode', () => {
+		const { tool, draft } = armed('place-object', 'free');
+		for (const point of [{ x: 0, y: 0 }, { x: 2000, y: 0 }, { x: 2000, y: 1000 }]) { tool.pointerDown(pointerAt(point.x, point.y)); tool.pointerUp(pointerAt(point.x, point.y)); }
+		expect(draft.points).toHaveLength(3);
+		expect(tool.editCorner(-1, null)).toBe(true);
+		expect(draft.points).toHaveLength(2);
+	});
+
+	it('leaves an explicit-index deletion alone even in rectangle mode', () => {
+		const { tool, draft } = armed();
+		tool.pointerDown(pointerAt(800, 200)); tool.pointerUp(pointerAt(5000, 4000));
+		expect(tool.editCorner(1, null)).toBe(true);
+		expect(draft.points).toHaveLength(3);
+	});
+});

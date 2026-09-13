@@ -52,3 +52,14 @@ export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSp
 	const element = { id, kind: draft.kind, name: draft.name.trim(), points: draft.points.map(point => ({ ...point })), ...(draft.kind === 'stair' ? { stair: { ...draft.stair } } : {}), ...structuralFields(draft) };
 	return element.name && acceptsElementPoints(element, element.points) ? element : null;
 }
+/**
+ * The points left after "undo the last point" — canvas Backspace and `elementTask.undoPoint()`
+ * both resolve to this (PR #182 follow-up F-B). An item's rectangle drag names one shape from a
+ * single gesture; its four corners are not four placed points, so undoing it drops the whole
+ * outline rather than one corner. Every other kind, and a free-form item, still steps back one
+ * point — the same rule `ElementTool.editCorner(-1, null)` reaches for `place-object`, so the
+ * mode check lives here once rather than in both doors.
+ */
+export function pointsAfterUndo(draft: ElementDraft): Point[] {
+	return draft.kind === 'object' && draft.shape === 'rectangle' ? [] : draft.points.slice(0, -1);
+}

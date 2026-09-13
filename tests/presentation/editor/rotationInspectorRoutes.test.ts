@@ -53,11 +53,12 @@ it('opens the canonical rotation form from every eligible Inspector and explains
 	for (const id of [rig.room.id, area.id, 'wall-a', 'opening-rotation']) {
 		rig.selection.select([id as never]); await settle();
 		useWorkspaceStore(rig.pinia).openOverlay('inspector'); await settle();
-		expect(rig.wrapper.findAll('.rp-object-rotation-actions')).toHaveLength(1);
+		expect(rig.wrapper.findAll('.rp-object-rotation-actions')).toHaveLength(0);
+		expect(rig.wrapper.find('[data-rp-region="inspector"] [data-rp-action="edit-layout"]').exists()).toBe(true);
 	}
 	rig.selection.select(['element-object' as never]); await settle();
 	expect(rig.wrapper.findAll('.rp-object-rotation-actions')).toHaveLength(0);
-	expect(rig.wrapper.find('.rp-inspector-actions > .rp-inspector-action[data-rp-action="element-plan-geometry"]').exists()).toBe(true);
+	expect(rig.wrapper.find('[data-rp-region="inspector"] [data-rp-action="edit-layout"]').exists()).toBe(true);
 	await rig.runtime.renovation.perspective('review'); await settle();
 	expect(rig.wrapper.findAll('.rp-object-rotation-actions')).toHaveLength(0);
 	expect(rig.stage.find('.object-rotation-handle')).toHaveLength(0);

@@ -68,9 +68,11 @@ export interface SpatialElement {
   existing object machinery.
 - **Beam.** `points` is exactly two distinct points, the axis. `width` is a finite number `> 0`.
 - **`validSpatialElement`** adds:
-  - `post`: at least three points (the outline must not cross itself — `acceptsElementPoints`
+  - `post`: exactly four points (the outline must not cross itself — `acceptsElementPoints`
     already applies `areaOutline` to `object`, and applies it to `post` too), `loadBearing` is a
-    boolean, `width` absent.
+    boolean, `width` absent. Fewer or more than four leaves `StructuralShape.vue` drawing nothing
+    and `postSection`/`resizedPost` both returning `null` — an invisible, selectable element
+    reachable only by hand-editing the sidecar (final review finding F4).
   - `beam`: two distinct points, `width` finite and `> 0`, `loadBearing` a boolean.
   - every other kind: `width` and `loadBearing` absent.
 - Defaults for a new element live in the presentation draft, not the domain: post 140 × 140 mm,
@@ -209,17 +211,21 @@ Found during review, each narrower or corrective against §5–§6:
   `InteractionLayer.vue` (whether the hover or selection outline closes) and `RenovationLayer.vue` (whether a
   renovation-change marker's outline closes), and by `structureRecords.ts` (whether an element's footprint
   area is measured) — none of them named in §1 or §6.
-- **Every element kind draws after the wall paint passes and before the wall selection dash, endpoint
-  handles, `OpeningSymbols` and the wall draft — not before the wall paint, and not after everything else
-  either.** `StructureLayer.vue` first mounted `ElementShapes` ahead of the wall-edge/wall-body/wall-pattern
+- **Only posts and beams draw after the wall paint passes and before the wall selection dash, endpoint
+  handles, `OpeningSymbols` and the wall draft — every other element kind stays below the wall paint, as on
+  `main`.** `StructureLayer.vue` first mounted `ElementShapes` ahead of the wall-edge/wall-body/wall-pattern
   lines in the same Konva layer, so the wall body painted over a post centred on its own centre line —
   invisible in every scheme, caught only by the first harness capture of the `?structural` scene (§9's own
-  listed instrument). A later pass then moved `ElementShapes` to the very end of the layer instead, which hid
-  a load-bearing post's own wall-end handle under the post and let an object, fence or stair paint over the
-  wall being drawn. Elements (post, beam and every other non-asset kind `ElementShapes` draws) now draw
-  directly after the wall-pattern pass and before the wall selection group, `OpeningSymbols`, the wall preview
-  line and `WallDraftOverlay`, so a post reads exactly as filled-with-diagonals as this document always said
-  it would, while a wall's own selection handles, its openings and its in-progress draft still draw on top.
+  listed instrument). A later pass then moved the WHOLE `ElementShapes` block (every non-asset kind, not only
+  posts and beams) to sit after the wall paint instead, which fixed the post but broke every other kind: an
+  object, a fence or a stair with an opaque fill now painted over any wall it overlapped, the common case
+  since wall centre lines are snap candidates — caught in final review (finding F1), not by a gate.
+  `StructureLayer.vue` now filters `elements` and the draft preview by kind into two pairs of `<ElementShapes>`
+  blocks: the non-structural pair mounts at the top of the layer, before the wall-edge pass, exactly where
+  `main` always drew it; the structural pair (post, beam) mounts after the wall-pattern pass and before the
+  wall selection group, `OpeningSymbols`, the wall preview line and `WallDraftOverlay`, so a post reads
+  exactly as filled-with-diagonals as this document always said it would, while a wall's own selection
+  handles, its openings and its in-progress draft still draw on top of it.
 - **Switching directly from the post tool to the beam tool resets the typed section.** `StructuralDraftFields`
   is keyed by `draft.kind`, and the underlying draft itself is reset to its defaults (`DEFAULT_POST_SECTION`,
   `elementDraft.ts`) on any tool change outside the one continuation §5 and §10 describe: `elementTask.ts`'s
@@ -228,3 +234,9 @@ Found during review, each narrower or corrective against §5–§6:
   `draw-beam` started directly from `place-post` does not go through that path, so it falls to the plain reset.
   `tests/presentation/editor/structuralCreation.test.ts` watches this as `resets the structural fields when
   switching directly from the post tool to the beam tool`.
+- **§3 said a post needs "at least three points"; `validSpatialElement` accepted 3+.** A 3- or 5-point post is
+  invisible (`StructuralShape.vue`'s `post` computed requires a 4th corner to draw anything) and unresizable
+  (`postSection`/`resizedPost` both return `null` off anything but 4 points) but still selectable and
+  deletable — reachable only by hand-editing the sidecar, and caught in final review rather than by a gate
+  (finding F4). `validSpatialElement` now requires exactly four points for `post`; `object` stays at three
+  or more.

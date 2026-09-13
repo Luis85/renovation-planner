@@ -60,6 +60,8 @@ export function validSpatialElement(element: SpatialElement): boolean {
 	if (element.kind === 'stair') return element.stair !== undefined && stairPlanGeometry(element.points, element.stair) !== null;
 	if (element.stair !== undefined) return false;
 	if (element.kind === 'asset') return !!element.assetId && element.points.length === 2 && Math.hypot(element.points[1].x - element.points[0].x, element.points[1].y - element.points[0].y) > 0;
+	/** A post is exactly four corners — `postSection`/`resizedPost` and `StructuralShape.vue` all require a 4th point. */
+	if (element.kind === 'post') return element.points.length === 4;
 	if (outlineKind(element.kind)) return element.points.length >= 3;
 	if (element.kind === 'measurement' && element.points.length !== 2) return false;
 	return element.points.length >= 2 && element.points.slice(1).every((point, index) => Math.hypot(point.x - element.points[index].x, point.y - element.points[index].y) > 0);

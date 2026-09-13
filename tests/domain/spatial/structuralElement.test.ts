@@ -51,6 +51,17 @@ describe('structural posts and beams', () => {
 		for (const value of refused) expect(validSpatialElement(value)).toBe(false);
 	});
 
+	// A post must have exactly four corners: `StructuralShape.vue` draws nothing without a 4th
+	// (`post` in that computed requires `d`), and `postSection`/`resizedPost` both return `null`
+	// off anything but 4 points — a 3- or 5-point post would be an invisible, selectable element,
+	// reachable only by hand-editing the sidecar (final review finding F4). `object` stays at >= 3.
+	it('requires a post to have exactly four corners, unlike an object', () => {
+		expect(validSpatialElement({ ...post, points: post.points.slice(0, 3) })).toBe(false);
+		expect(validSpatialElement({ ...post, points: [...post.points, { x: 1200, y: 500 }] })).toBe(false);
+		const object: SpatialElement = { id: 'element-object', kind: 'object', points: post.points.slice(0, 3) };
+		expect(validSpatialElement(object)).toBe(true);
+	});
+
 	it('names which kinds are stored outlines and which draw a derived footprint', () => {
 		expect(['object', 'post'].every(kind => outlineKind(kind))).toBe(true);
 		expect(['stair', 'asset', 'beam'].every(kind => derivedFootprintKind(kind))).toBe(true);

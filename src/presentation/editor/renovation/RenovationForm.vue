@@ -118,6 +118,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 				:draft="draft"
 				:value="value"
 				:targets="targets"
+				:structure="current"
 				:frozen="frozen"
 				:catalogue="catalogue ?? []"
 			/>

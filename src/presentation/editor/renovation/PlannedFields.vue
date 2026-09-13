@@ -8,7 +8,7 @@ import type { Structure } from '../../../domain/spatial/Structure';
 import type { EditableRenovationDraft } from './renovationDraft';
 import type { PlannedGeometryDraft } from './plannedGeometry';
 import PlannedGeometryFields from './PlannedGeometryFields.vue';
-import { applyMaterial, materialChoices, type MaterialChoice } from './materialChoices';
+import { applyMaterial, materialChoices, takesMaterial, type MaterialChoice } from './materialChoices';
 const draft = defineModel<EditableRenovationDraft>('draft', { required: true });
 const geometry = defineModel<PlannedGeometryDraft>('geometry', { required: true });
 const props = defineProps<{ structure: Structure; frozen: boolean; catalogue: readonly MaterialChoice[] }>();
@@ -48,7 +48,7 @@ const unmeasured = computed(() => {
 			name="description"
 			:readonly="frozen"
 		/></label>
-		<label v-if="(planned.change === 'modify' || planned.change === 'add') && ['wall', 'door', 'window'].includes(draft.subject.kind)">{{ tr(draft.subject.kind === 'wall' ? 'renovation.material' : 'renovation.product') }}
+		<label v-if="(planned.change === 'modify' || planned.change === 'add') && takesMaterial(draft.subject, structure)">{{ tr(draft.subject.kind === 'wall' ? 'renovation.material' : 'renovation.product') }}
 			<select
 				v-model="material"
 				name="material"

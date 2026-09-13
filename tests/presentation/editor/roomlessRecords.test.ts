@@ -8,6 +8,7 @@ import { EMPTY_DEPTH } from '../../../src/domain/renovation/PlanningDepth';
 import type { Renovation } from '../../../src/domain/renovation/Renovation';
 import { of } from '../../../src/core/money/Money';
 import { renovationCostSummary } from '../../../src/presentation/editor/renovation/renovationCostSummary';
+import { WALL_LOOP } from '../../helpers/structure';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -91,6 +92,30 @@ it('sets a wall material from the Inspector and shows its name', async () => {
 	await form.trigger('submit'); await form.trigger('submit');
 	await settleUntil(() => rig.project.plan?.renovation?.subjects[0]?.existing?.assetId === brick.id, 'material saved');
 	expect(rig.wrapper.get('.rp-structure-inspector').text()).toContain('Clinker brick');
+});
+
+it('offers no Material select for a wall-kind subject whose target is a room', async () => {
+	const rig = await setup();
+	rig.runtime.renovation.focus(rig.room.id, 'existing'); await settle();
+	void rig.runtime.renovation.edit('existing', rig.room.id, '');
+	await settleUntil(() => rig.wrapper.find('[data-rp-form="renovation"]').exists(), 'Existing form open');
+	const form = rig.wrapper.get('[data-rp-form="renovation"]');
+	await form.findAll('select')[0].setValue('wall');
+	expect(form.find('select[name="material"]').exists()).toBe(false);
+});
+
+it('offers Set material… for a wall but not for an opening that is neither a door nor a window', async () => {
+	const rig = await setup();
+	const opening = { id: 'opening-a', kind: 'opening' as const, hostId: 'wall-a', offset: 1000, width: 900, height: 2000, sill: 0 };
+	const before = expectOk(await rig.geometry.read(rig.plan.id));
+	expectOk(await rig.runtime.dispatcher.run(rig.services.command({ planId: rig.plan.id, baseline: before, structure: { ...WALL_LOOP, openings: [opening] }, ledger: rig.runtime.structureTask.ledger })));
+	await rig.runtime.refreshProjection();
+	await settleUntil(() => !!rig.runtime.planning.baseline.value?.catalogue && rig.project.structure.openings.length === 1, 'opening and catalogue read');
+	rig.selection.select(['wall-a' as never]); await settle();
+	expect(rig.wrapper.find('[data-rp-action="set-material"]').exists()).toBe(true);
+	rig.selection.select([opening.id as never]); await settle();
+	expect(rig.wrapper.get('.rp-structure-inspector').text()).not.toContain('Product');
+	expect(rig.wrapper.find('[data-rp-action="set-material"]').exists()).toBe(false);
 });
 
 it('clears a subject\'s material when its kind stops being wall, door or window', async () => {

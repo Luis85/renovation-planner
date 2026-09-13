@@ -22,10 +22,14 @@ function missingContext(item: SharedSpatialContext, rooms: ReadonlySet<string>, 
 	return !validPrimaryRoom(item, rooms) || !present(item.targetId) || (item.links ?? []).some(link => !rooms.has(link.roomId) || !present(link.targetId));
 }
 
-function materialTargetFits(subject: RenovationSubject, structures: readonly Structure[]): boolean {
-	if (subject.existing?.assetId === undefined && subject.planned?.assetId === undefined) return true;
+/** Whether a subject's target can carry a catalogue material: a wall for a wall subject, an opening for any other (ADR-0031). */
+export function materialTargetExists(subject: Pick<RenovationSubject, 'kind' | 'targetId'>, structures: readonly Structure[]): boolean {
 	const ids = structures.flatMap(item => subject.kind === 'wall' ? item.walls.map(wall => wall.id) : item.openings.map(opening => opening.id));
 	return ids.includes(subject.targetId);
+}
+function materialTargetFits(subject: RenovationSubject, structures: readonly Structure[]): boolean {
+	if (subject.existing?.assetId === undefined && subject.planned?.assetId === undefined) return true;
+	return materialTargetExists(subject, structures);
 }
 
 export function validateRenovationTargets(value: Renovation, context: RenovationSpatialContext): Result<void, ValidationError> {

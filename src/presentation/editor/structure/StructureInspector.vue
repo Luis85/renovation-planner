@@ -21,7 +21,9 @@ const rooms = computed(() => project.structure.boundaries.filter(boundary => bou
 const subject = computed(() => project.plan?.renovation?.subjects.find(item => item.targetId === id.value));
 const catalogue = computed(() => runtime.planning.baseline.value?.catalogue);
 const materialName = (assetId: string | undefined) => assetId === undefined ? undefined : catalogue.value?.find(item => item.asset.id === assetId)?.asset.name ?? tr('renovation.material.unknown');
-const materials = computed(() => catalogue.value ? { existing: materialName(subject.value?.existing?.assetId), planned: subject.value?.planned?.assetId !== subject.value?.existing?.assetId ? materialName(subject.value?.planned?.assetId) : undefined } : null);
+/** Only a wall, a door or a window carries a material or product; any other opening has no select to set one in. */
+const takesMaterial = computed(() => !!wall.value || opening.value?.kind === 'door' || opening.value?.kind === 'window');
+const materials = computed(() => catalogue.value && takesMaterial.value ? { existing: materialName(subject.value?.existing?.assetId), planned: subject.value?.planned?.assetId !== subject.value?.existing?.assetId ? materialName(subject.value?.planned?.assetId) : undefined } : null);
 async function setMaterial(): Promise<void> {
 	if (runtime.renovation.blocked.value) return;
 	const planned = session.perspective === 'renovate' && session.mode === 'planned';

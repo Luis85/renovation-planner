@@ -4,9 +4,10 @@ import { computed } from 'vue';
 import { tr } from '../../i18n/strings';
 import { CONDITIONS, type Renovation } from '../../../domain/renovation/Renovation';
 import type { EditableRenovationDraft } from './renovationDraft';
-import { applyMaterial, materialChoices, type MaterialChoice } from './materialChoices';
+import type { Structure } from '../../../domain/spatial/Structure';
+import { applyMaterial, materialChoices, takesMaterial, type MaterialChoice } from './materialChoices';
 const draft = defineModel<EditableRenovationDraft>('draft', { required: true });
-const props = defineProps<{ value: Renovation; targets: readonly { id: string; label: string }[]; frozen: boolean; catalogue: readonly MaterialChoice[] }>();
+const props = defineProps<{ value: Renovation; targets: readonly { id: string; label: string }[]; structure: Structure; frozen: boolean; catalogue: readonly MaterialChoice[] }>();
 const choices = computed(() => materialChoices(props.catalogue, draft.value.subject.kind));
 const material = computed({
 	get: () => draft.value.subject.existing?.assetId ?? '',
@@ -46,7 +47,7 @@ const material = computed({
 				>{{ tr(`renovation.condition.${condition}`) }}</option>
 			</select>
 		</label>
-		<label v-if="['wall', 'door', 'window'].includes(draft.subject.kind)">{{ tr(draft.subject.kind === 'wall' ? 'renovation.material' : 'renovation.product') }}
+		<label v-if="takesMaterial(draft.subject, structure)">{{ tr(draft.subject.kind === 'wall' ? 'renovation.material' : 'renovation.product') }}
 			<select
 				v-model="material"
 				name="material"

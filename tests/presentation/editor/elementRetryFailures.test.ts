@@ -67,3 +67,14 @@ it('keeps a read-paused outline editable but freezes it after an unrecovered wri
  await rig.runtime.refreshProjection(); await settle();
  expect(rig.field.element.readOnly).toBe(true); expect(rig.field.element.value).toBe(text); expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
+
+it('returns focus to the item form after a successful retry in rectangle mode', async () => {
+ const rig = await renovationEditor(true); mounted.push(rig);
+ vi.spyOn(rig.renovation, 'read').mockResolvedValueOnce(err(injectedPersistenceError()));
+ rig.runtime.setTool('place-object');
+ await settleUntil(() => rig.runtime.elementTask.needsRead.value, 'failed item baseline');
+ rig.wrapper.get<HTMLButtonElement>('.rp-draft-recovery button').element.focus();
+ await rig.wrapper.get('.rp-draft-recovery button').trigger('click'); await settle();
+ expect(rig.wrapper.find('.rp-draft-recovery').exists()).toBe(false);
+ expect(document.activeElement).toBe(rig.wrapper.get('input[name="element-name"]').element);
+});

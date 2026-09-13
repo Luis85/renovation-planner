@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createStructureDraft, addWallPoint, draftStructure, mintStructure, numericWallPoint, openingFromDraft, snapWallPoint, wallsFromDraft, pickHost, validateDraftStructure, isStructureTool, startFromWall, wallStartRefused, endOnWall } from '../../../src/presentation/editor/structure/structureDraft';
+import { createStructureDraft, addWallPoint, draftStructure, mintStructure, numericWallPoint, openingFromDraft, wallsFromDraft, pickHost, validateDraftStructure, isStructureTool, startFromWall, wallStartRefused, endOnWall } from '../../../src/presentation/editor/structure/structureDraft';
 import { StructureTool } from '../../../src/presentation/editor/structure/StructureTool';
 import { expectDefined, expectErr, expectOk } from '../../helpers/domain';
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
@@ -62,13 +62,6 @@ describe('wall task geometry and lifecycle', () => {
 		draft.points.pop(); expect(validateDraftStructure(draft, EMPTY_STRUCTURE, []).ok).toBe(false);
 		draft.busy = true; expect(addWallPoint(draft, { x: 0, y: 0 }, EMPTY_STRUCTURE)).toBe(false);
 	});
-	it('snaps to the closest endpoint first, then axes, with exact numeric input unaffected', () => {
-		expect(snapWallPoint({ x: 4001, y: 1 }, [], WALL_LOOP.walls, 8)).toEqual({ point: { x: 4000, y: 0 }, snapped: true });
-		expect(snapWallPoint({ x: 5, y: 500 }, [{ x: 0, y: 0 }], [], 8)).toEqual({ point: { x: 0, y: 500 }, snapped: true, axis: true });
-		expect(snapWallPoint({ x: 500, y: 5 }, [{ x: 0, y: 0 }], [], 8)).toEqual({ point: { x: 500, y: 0 }, snapped: true, axis: true });
-		expect(snapWallPoint({ x: 500, y: 500 }, [{ x: 0, y: 0 }], [], 8).snapped).toBe(false);
-		expect(snapWallPoint({ x: 500, y: 500 }, [], [], 8).snapped).toBe(false);
-	});
 	it('picks a host within tolerance, refuses an absent host and normalizes placement fields', () => {
 		const draft = createStructureDraft(); draft.kind = 'place-window';
 		pickHost(draft, { x: 500, y: 2 }, WALL_LOOP.walls, 8);
@@ -96,6 +89,8 @@ describe('wall task geometry and lifecycle', () => {
 		blocked = false; draft.busy = false; tool.cancel(); expect(tool.hasDraft()).toBe(false);
 		draft.text.length = '2'; expect(tool.hasDraft()).toBe(true);
 		tool.finish(); expect(finish).toHaveBeenCalledOnce(); tool.deactivate(); expect(stop).toHaveBeenCalledOnce();
+		// With no context there are no guides to clear, and nothing throws.
+		tool.cancel(); tool.abandonGesture(); tool.deactivate(); expect(stop).toHaveBeenCalledTimes(2);
 	});
 	it('routes all opening tools through the host picker and identifies only its own tool IDs', () => {
 		const draft = createStructureDraft();

@@ -1,6 +1,7 @@
 import type { Point } from '../../../core/geometry/Point';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { contains } from '../../../core/geometry/operations';
+import { outlineKind } from '../../../domain/spatial/SpatialElement';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent } from '../tools/editor-tool';
@@ -24,7 +25,7 @@ function hit(candidate: SpatialObjectCandidate, box: BoundingBox): boolean {
 	if (!candidate.hitPoints && candidate.bulges?.some(value => value !== 0)) return curvedCandidateIntersection(candidate, box);
 	const points = candidate.hitPoints ?? candidate.points;
 	if (!points.length) return false;
-	const closed = !!candidate.hitPoints || !candidate.kind || candidate.kind === 'object';
+	const closed = !!candidate.hitPoints || !candidate.kind || outlineKind(candidate.kind);
 	if (points.some(point => intersects(point, point, box))) return true;
 	if (points.slice(1).some((point, index) => intersects(points[index], point, box))) return true;
 	if (!closed) return false;

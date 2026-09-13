@@ -97,7 +97,7 @@ describe('persistence composition', () => {
 			asset: 1,
 			requirement: 5,
 			'asset-price': 1,
-			'plan-geometry': 10,
+			'plan-geometry': 11,
 		});
 		expect(snapshot?.migrationState.pending).toEqual([]);
 		expect(snapshot?.obsidianVersion).toBe(apiVersion);

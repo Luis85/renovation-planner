@@ -8,6 +8,7 @@ export const inputDe: Record<keyof typeof inputEn, string> = {
 	'editor.input.overlap-cycle-guidance': 'Halten Sie beim Klicken Alt gedrückt, um ein anderes überlappendes Element auszuwählen.',
 	'editor.input.edit': 'Bearbeiten',
 	'editor.input.rename': 'Umbenennen',
+	'editor.input.add-to-library': 'Zur Objektbibliothek hinzufügen',
 	'editor.input.add-point': 'Punkt hinzufügen',
 	'editor.input.rotate': 'Drehen',
 	'editor.input.copy': 'Kopieren',

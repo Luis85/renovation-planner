@@ -628,9 +628,12 @@ describe('DrawPolygonTool.hasDraft', () => {
 		tool.activate(h.context);
 
 		expect(tool.hasDraft()).toBe(false);
+		expect(tool.tracksPointer()).toBe(false);
 
 		tool.pointerDown(at(0, 0));
 		expect(tool.hasDraft()).toBe(true);
+		// The rubber band trails the pointer from here, so the canvas may scroll at its edge.
+		expect(tool.tracksPointer()).toBe(true);
 	});
 
 	it('is false again once cancel() empties the buffer, and once a close dispatches', async () => {

@@ -127,6 +127,7 @@ it('keeps each Review Room marker near its Room regardless of other Room finding
 });
 it('creates a wall observation via the ordinary Room entry and form, then keeps its source through unchanged/remove proposals', async () => {
  const rig = await renovationEditor(); mounted.push(rig);
+	await rig.wrapper.get('[data-rp-action="renovate-room"]').trigger('click'); await settle();
  await rig.wrapper.get('[data-rp-mode="existing"]').trigger('click'); await settle();
  await panel(rig).get('[data-rp-action="new-record"]').trigger('click'); await settle();
  const selects = rig.wrapper.findAll('.rp-dialog select'); await selects[0].setValue('wall'); await selects[1].setValue('wall-a'); await selects[2].setValue('investigate');

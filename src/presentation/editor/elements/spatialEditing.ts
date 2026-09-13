@@ -16,9 +16,10 @@ import type { LabelMoveDeps } from '../labels/LabelMove';
 /** Compose the existing per-leaf element/rotation actions and their shared pointer bindings. */
 export function createSpatialEditing(context: PlanEditorContext, runtime: Parameters<typeof createElementTask>[1] & Parameters<typeof createElementActions>[1] & Omit<RotationRuntime, 'elementActions'> & CurveTaskRuntime & Parameters<typeof createAssetPlacementTask>[1]) {
 	watchAssetShapes(context);
-	const assets = createAssetPlacementTask(context, runtime);
-	const elementTask = Object.assign(createElementTask(context, runtime), { assets, promotion: createItemPromotion(context, assets) });
 	const elementActions = createElementActions(context, runtime);
+	const assets = createAssetPlacementTask(context, runtime);
+	const promotion = createItemPromotion(context, assets, { writesBlocked: runtime.writesBlocked, elementActionsActive: elementActions.active });
+	const elementTask = Object.assign(createElementTask(context, runtime), { assets, promotion });
 	const groupActions = createGroupActions(context, { ...runtime, spatialBusy: () => elementActions.active.value || runtime.wall?.active.value === true });
 	const rotationActions = createRotationActions(context, { ...runtime, elementActions, groups: groupActions, groupRotationTarget: groupActions.groupRotationTarget });
 	const labelActions = createLabelActions(context, runtime);

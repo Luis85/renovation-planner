@@ -1,5 +1,7 @@
 import { ref } from 'vue';
+import type { Ref } from 'vue';
 import { placementPoints } from '../../../domain/spatial/assetPlacement';
+import { samePoint } from '../../../domain/spatial/Structure';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { tr } from '../../i18n/strings';
 import { notifyWarning } from '../../notices/notify';
@@ -22,8 +24,17 @@ import { centredFootprint } from './objectShape';
  * leaf or an undo may have removed, moved or renamed it meanwhile. Writing the placement then would resurrect or
  * revert it, since the write reads a fresh baseline and appends a missing id, so a changed item is refused the same
  * way. An item with no label is not promotable: the placement could not be written with an empty name.
+ *
+ * `promote` also refuses on its own, before opening the dialog, while writes are blocked or an element action is
+ * active — the SAME two sources `useCanvasMenuActions.ts`'s `promoteActions` greys the entry from
+ * (`blocked || runtime.elementActions.active.value`) — so a door other than that menu entry (a direct call, a future
+ * command) cannot create an asset and only then have the replacing write refused, leaving it unplaced.
  */
-export function createItemPromotion(context: PlanEditorContext, assets: Pick<ReturnType<typeof createAssetPlacementTask>, 'write'>) {
+export function createItemPromotion(
+	context: PlanEditorContext,
+	assets: Pick<ReturnType<typeof createAssetPlacementTask>, 'write'>,
+	gate: { readonly writesBlocked: Readonly<Ref<boolean>>; readonly elementActionsActive: Readonly<Ref<boolean>> },
+) {
 	const project = useProjectStore(), dialogs = useDialogStore(), busy = ref(false);
 	const available = (): boolean => context.commands.assetCreation !== undefined;
 	function promotable(elementId: string) {
@@ -33,7 +44,7 @@ export function createItemPromotion(context: PlanEditorContext, assets: Pick<Ret
 	}
 	async function promote(elementId: string): Promise<void> {
 		const creation = context.commands.assetCreation, before = promotable(elementId);
-		if (!creation || !before || dialogs.current !== null) return;
+		if (!creation || !before || dialogs.current !== null || gate.writesBlocked.value || gate.elementActionsActive.value) return;
 		const { name } = before, { centre, footprint } = centredFootprint(before.points);
 		const outcome = await openNewAssetDialog({
 			dialogs, busy, logger: context.commands.logger, commands: creation,
@@ -41,8 +52,8 @@ export function createItemPromotion(context: PlanEditorContext, assets: Pick<Ret
 		});
 		if (outcome === null) return;
 		const after = promotable(elementId);
-		// By value: a projection refresh replaces the points array without changing a point.
-		const unchanged = after?.name === name && JSON.stringify(after.points) === JSON.stringify(before.points);
+		// By value, per vertex: a projection refresh replaces the points array (and could reorder keys) without moving a point.
+		const unchanged = after?.name === name && after.points.length === before.points.length && after.points.every((point, index) => samePoint(point, before.points[index]));
 		if (!unchanged || !(await assets.write({ id: elementId, kind: 'asset', assetId: outcome.assetId, points: placementPoints(centre, 0), name }))) notifyWarning(tr('editor.asset.promote-unplaced'));
 	}
 	return { available, promote };

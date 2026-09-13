@@ -142,6 +142,21 @@ it('is greyed and opens nothing while writes are blocked or an element action ru
 	rig.runtime.elementActions.active.value = true; await expectRefused(); rig.runtime.elementActions.active.value = false;
 });
 
+it('refuses on its own, not only through the menu, while writes are blocked or an element action runs', async () => {
+	const { rig, item } = await withItem();
+	const names = await assetNames(rig);
+	// A direct promote() call, not the menu entry: if it opened the dialog anyway, `resolve` closes it so the
+	// second case does not inherit an open dialog (`dialogs.current !== null` would refuse it for a different reason).
+	const expectRefusedDirectly = async () => {
+		const pending = rig.runtime.elementTask.promotion.promote(item.id); await settle();
+		expect(rig.wrapper.find('.rp-dialog-form').exists()).toBe(false);
+		rig.dialogs.resolve('cancel'); await pending; await settle();
+	};
+	rig.project.stale = true; await expectRefusedDirectly(); rig.project.stale = false;
+	rig.runtime.elementActions.active.value = true; await expectRefusedDirectly(); rig.runtime.elementActions.active.value = false;
+	expect(await assetNames(rig)).toEqual(names);
+});
+
 it('warns and leaves the item when the asset is created but the item cannot be replaced', async () => {
 	const { rig, item } = await withItem();
 	const warning = vi.spyOn(notices, 'notifyWarning').mockImplementation(() => undefined);

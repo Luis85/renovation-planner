@@ -1,0 +1,103 @@
+{
+  "date": "2026-09-13",
+  "baselineCommit": "4ca4c7ea77e72e3ce4ea631884b353662d69964a",
+  "tool": "Codex in-app browser via cua_repl",
+  "runtime": "Vite 8.2.2; connected reference/planning harness; real Vue/Konva UI with synthetic FakeVault",
+  "url": "http://127.0.0.1:5193/?view=plan-editor&reference&planning&fidelity&theme=light",
+  "language": "en",
+  "images": [
+    {
+      "file": "06-full-runtime-empty-plan.jpg",
+      "width": 1280,
+      "height": 800,
+      "sha256": "8a437820dacdd30eaad807884ba4831e07a513b18a29c67cf4375ccf1cb54f81",
+      "theme": "light",
+      "inspected": true,
+      "mediaType": "image/jpeg"
+    },
+    {
+      "file": "07-full-runtime-room-draft.jpg",
+      "width": 1280,
+      "height": 800,
+      "sha256": "6654c0239b3d16bdfa52202374439874668e9ee63e03a84bdaa76dc09613f96e",
+      "theme": "light",
+      "inspected": true,
+      "mediaType": "image/jpeg"
+    },
+    {
+      "file": "08-full-runtime-room-created.jpg",
+      "width": 1280,
+      "height": 800,
+      "sha256": "1faa1a5d8d718bda4e33d3294475914276487a495587836402289a67963325d6",
+      "theme": "light",
+      "inspected": true,
+      "mediaType": "image/jpeg"
+    },
+    {
+      "file": "09-renovate-continuity.jpg",
+      "width": 1280,
+      "height": 800,
+      "sha256": "0446987f27aefd01c66dc67afcba40ef994f2b9d68d73ae98ecfd0c2349416dc",
+      "theme": "light",
+      "inspected": true,
+      "mediaType": "image/jpeg"
+    },
+    {
+      "file": "10-narrow-renovate.jpg",
+      "width": 460,
+      "height": 800,
+      "sha256": "0da0673887bca7212791af0fd519024ae5480c29048ae688d1b2185d5cfc9152",
+      "theme": "light",
+      "inspected": true,
+      "mediaType": "image/jpeg"
+    },
+    {
+      "file": "11-narrow-details.jpg",
+      "width": 460,
+      "height": 800,
+      "sha256": "9529fd47d5398ce0147cfd0961b455a3b43d714f42c83cb444c185e02b6297d6",
+      "theme": "light",
+      "inspected": true,
+      "mediaType": "image/jpeg"
+    },
+    {
+      "file": "12-reference-setup.jpg",
+      "width": 1280,
+      "height": 800,
+      "sha256": "c94a8f282f9dc7f1ff6ae5276d6132f074292754a516009d6bc008cb8e777430",
+      "theme": "light",
+      "inspected": true,
+      "mediaType": "image/jpeg"
+    },
+    {
+      "file": "13-reference-scale.jpg",
+      "width": 1280,
+      "height": 800,
+      "sha256": "dc79b0df0ef2707c0d16d901e512fb0072899d7acf6a0be2ff9ad9e2f00afa63",
+      "theme": "light",
+      "inspected": true,
+      "mediaType": "image/jpeg"
+    },
+    {
+      "file": "14-plan-dark.jpg",
+      "width": 1280,
+      "height": 800,
+      "sha256": "e3efd8af926b56c961b41edfb77c745ab2413bec86a20d9bb04b99f3bc0d9907",
+      "theme": "dark",
+      "inspected": true,
+      "mediaType": "image/jpeg"
+    }
+  ],
+  "limitations": [
+    "Not a native Obsidian run",
+    "Not a participant study",
+    "No full accessibility assessment",
+    "Calibration reached Set scale then cancelled; no completed calibration claim",
+    "Plain restricted harness exploration 01-05 excluded from accepted product evidence"
+  ],
+  "references": [
+    "reference-01-editor-principles.png",
+    "reference-02-perspectives.png"
+  ],
+  "captureEncoding": "Original browser bytes retained; JPEG extension matches actual encoding. No image transformation."
+}

@@ -32,6 +32,13 @@ function materialTargetFits(subject: RenovationSubject, structures: readonly Str
 	return materialTargetExists(subject, structures);
 }
 
+function subjectContextError(subject: RenovationSubject, rooms: ReadonlySet<string>, current: ReadonlySet<string>, intended: ReadonlySet<string>, structures: readonly Structure[]): string | null {
+	if (!validPrimaryRoom(subject, rooms)) return 'room-missing';
+	if (subject.existing && !current.has(subject.targetId)) return 'source-missing';
+	if (subject.planned && subject.planned.change !== 'remove' && !intended.has(subject.targetId)) return 'target-missing';
+	return materialTargetFits(subject, structures) ? null : 'material-target';
+}
+
 export function validateRenovationTargets(value: Renovation, context: RenovationSpatialContext): Result<void, ValidationError> {
 	const linked = value.subjects.filter(item => item.targetId !== item.roomId).map(item => item.targetId);
 	if (new Set(linked).size !== linked.length) return err(renovationError('target-owner'));
@@ -40,10 +47,8 @@ export function validateRenovationTargets(value: Renovation, context: Renovation
 	const intended = spatialIds(context.intended ?? context.structure, context.roomIds);
 	const materialStructures = [context.structure ?? EMPTY_STRUCTURE, context.intended ?? context.structure ?? EMPTY_STRUCTURE];
 	for (const subject of value.subjects) {
-		if (!validPrimaryRoom(subject, rooms)) return err(renovationError('room-missing'));
-		if (subject.existing && !current.has(subject.targetId)) return err(renovationError('source-missing'));
-		if (subject.planned && subject.planned.change !== 'remove' && !intended.has(subject.targetId)) return err(renovationError('target-missing'));
-		if (!materialTargetFits(subject, materialStructures)) return err(renovationError('material-target'));
+		const refused = subjectContextError(subject, rooms, current, intended, materialStructures);
+		if (refused) return err(renovationError(refused));
 	}
 	const present = (id: string) => current.has(id) || intended.has(id);
 	if ([...depthRecords(value.depth ?? EMPTY_DEPTH), ...value.work].some(item => missingContext(item, rooms, present))) return err(renovationError('target-missing'));

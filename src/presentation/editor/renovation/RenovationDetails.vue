@@ -30,7 +30,8 @@ const targetName = computed(() => contextLabel({ roomId: session.targetId, targe
 const subjects = computed(() => value.value.subjects.filter(item => inRenovationScope(item, session.roomId, session.targetId) && item[session.mode === 'existing' ? 'existing' : 'planned']));
 const work = computed(() => orderedWork(value.value).filter(item => inRenovationScope(item, session.roomId, session.targetId)));
 const decisions = computed(() => value.value.decisions.filter(item => session.targetId && session.targetId !== session.roomId ? subjects.value.some(subject => subject.id === item.subjectId) : item.roomId === session.roomId));
-const roomMetadataVisible = computed(() => !!props.room && session.mode === 'overview' && (!session.targetId || session.targetId === props.room.id));
+const roomArea = computed(() => props.room && session.mode === 'overview' && (!session.targetId || session.targetId === props.room.id) ? formatArea(toSpatialRecordDto(props.room).areaMm2) : '');
+const evidenceSummary = computed(() => !!planning.context.commands.planning && session.mode === 'existing');
 const empty = computed(() => !(session.mode === 'work' ? work.value.length : subjects.value.length));
 function remove(id: string, name: string, proposalOnly = false): void {
 	const materials = planning.baseline.value?.materials.filter(({ entity }) => entity.source?.workId === id || entity.source?.outcomeId === id).map(({ entity }) => planning.baseline.value?.catalogue.find(item => item.asset.id === entity.assetId)?.asset.name ?? entity.id) ?? [];
@@ -42,10 +43,10 @@ function remove(id: string, name: string, proposalOnly = false): void {
 </script>
 <template>
 	<p
-		v-if="props.room && roomMetadataVisible"
+		v-if="roomArea"
 		class="rp-room-metadata"
 	>
-		{{ formatArea(toSpatialRecordDto(props.room).areaMm2) }} · {{ tr('renovation.calculated') }}
+		{{ roomArea }} · {{ tr('renovation.calculated') }}
 	</p>
 	<TransformationSummary
 		v-if="session.mode === 'overview'"
@@ -94,7 +95,7 @@ function remove(id: string, name: string, proposalOnly = false): void {
 			{{ tr(`renovation.add.${session.mode as 'existing' | 'planned' | 'work'}`) }}
 		</button>
 		<RenovationLinkedSummary
-			v-if="planning.context.commands.planning && session.mode === 'existing'"
+			v-if="evidenceSummary"
 			:room-id="contextId"
 			:target-id="session.targetId"
 			evidence-only

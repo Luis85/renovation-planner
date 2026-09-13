@@ -34,6 +34,9 @@ useDialogFormBusy(submitting, props.busy);
 const error = ref<AppError | null>(null), conflict = ref(false), reviewed = ref(false);
 const frozen = computed(() => props.busy.value || conflict.value);
 const submitBlocked = computed(() => frozen.value || props.paused.value);
+const choices = computed(() => props.catalogue ?? []);
+const subjectDraft = computed(() => draft.value.kind === 'existing' || draft.value.kind === 'planned');
+const submitLabel = computed(() => tr(reviewed.value ? 'renovation.apply' : 'renovation.preview'));
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
 const targets = computed(() => [
@@ -99,7 +102,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 		>
 			{{ renovationMessage(error) }}
 		</p>
-		<template v-if="draft.kind === 'existing' || draft.kind === 'planned'">
+		<template v-if="subjectDraft">
 			<label>{{ tr('renovation.kind') }}
 				<select
 					v-model="draft.subject.kind"
@@ -120,7 +123,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 				:targets="targets"
 				:structure="current"
 				:frozen="frozen"
-				:catalogue="catalogue ?? []"
+				:catalogue="choices"
 			/>
 			<PlannedFields
 				v-if="draft.kind === 'planned'"
@@ -128,7 +131,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 				:geometry="geometry"
 				:structure="structure"
 				:frozen="frozen"
-				:catalogue="catalogue ?? []"
+				:catalogue="choices"
 			/>
 		</template>
 		<WorkFields
@@ -153,7 +156,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 			type="submit"
 			:aria-disabled="submitBlocked"
 		>
-			{{ tr(reviewed ? 'renovation.apply' : 'renovation.preview') }}
+			{{ submitLabel }}
 		</button>
 	</form>
 </template>

@@ -15,6 +15,9 @@ const childPosition = ref({ left: '0px', top: '0px' });
 const LEVEL = ':scope > [role="menuitem"], :scope > [role="none"] > [role="menuitem"]';
 defineExpose({ menu });
 watch(() => props.items, () => { open.value = null; });
+function separated(item: CanvasMenuItem, previous: CanvasMenuItem | undefined): boolean { return !!previous && item.group !== previous.group; }
+function ariaDisabled(item: CanvasMenuItem): true | undefined { return item.disabled || undefined; }
+function reasonTitle(item: CanvasMenuItem): string | undefined { return item.disabled && item.reason ? tr(item.reason) : undefined; }
 function levelItems(): HTMLElement[] { return [...menu.value?.querySelectorAll<HTMLElement>(LEVEL) ?? []]; }
 async function expand(item: CanvasMenuSubmenu, opener: HTMLElement, focusFirst: boolean): Promise<void> {
 	if (item.disabled) return;
@@ -81,7 +84,7 @@ function keydown(event: KeyboardEvent, item?: CanvasMenuItem): void {
 			:key="item.id"
 		>
 			<div
-				v-if="index > 0 && item.group !== items[index - 1].group"
+				v-if="separated(item, items[index - 1])"
 				class="rp-canvas-context-menu-separator"
 				role="separator"
 			/>
@@ -96,8 +99,8 @@ function keydown(event: KeyboardEvent, item?: CanvasMenuItem): void {
 					tabindex="-1"
 					aria-haspopup="menu"
 					:aria-expanded="open === item.id"
-					:aria-disabled="item.disabled || undefined"
-					:title="item.disabled && item.reason ? tr(item.reason) : undefined"
+					:aria-disabled="ariaDisabled(item)"
+					:title="reasonTitle(item)"
 					:data-rp-context-action="item.id"
 					@click="activate(item, $event, false)"
 					@pointerenter="hover(item, $event)"
@@ -125,8 +128,8 @@ function keydown(event: KeyboardEvent, item?: CanvasMenuItem): void {
 				type="button"
 				role="menuitem"
 				tabindex="-1"
-				:aria-disabled="item.disabled || undefined"
-				:title="item.disabled && item.reason ? tr(item.reason) : undefined"
+				:aria-disabled="ariaDisabled(item)"
+				:title="reasonTitle(item)"
 				:data-rp-context-action="item.id"
 				@click="activate(item, $event, false)"
 				@pointerenter="hover(item, $event)"

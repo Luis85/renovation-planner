@@ -14,36 +14,44 @@ const project = useProjectStore();
 const floor = computed(() => props.item.kind === 'floor' ? project.zones.get(props.item.targetId) : undefined);
 const emit = defineEmits<{ remove: [id: string, name: string, proposalOnly?: boolean] }>();
 const actions = useEditorRuntime().renovation, session = useRenovationSession();
+const roomId = computed(() => props.item.roomId ?? '');
+const focused = computed(() => session.focusedId === props.item.id);
+const description = computed(() => session.mode === 'existing' ? props.item.existing?.description : props.item.planned?.description || props.item.existing?.description);
+const condition = computed(() => session.mode === 'existing' ? props.item.existing?.condition : undefined);
+const change = computed(() => session.mode === 'planned' ? props.item.planned?.change : undefined);
+const removeLabel = computed(() => tr(session.mode === 'planned' ? 'renovation.discard' : 'renovation.delete'));
+function edit(): void { actions.edit(session.mode === 'existing' ? 'existing' : 'planned', roomId.value, props.item.id); }
+function remove(): void { emit('remove', props.item.id, props.item.existing?.description || subjectLabel(props.item), session.mode === 'planned'); }
 </script>
 <template>
 	<li
 		class="rp-subject-row"
 		:data-rp-record="item.id"
-		:class="{ 'is-selected': session.focusedId === item.id }"
+		:class="{ 'is-selected': focused }"
 	>
 		<button
 			type="button"
 			class="rp-record-title"
-			@click="actions.focus(item.roomId ?? '', session.mode, item.id)"
+			@click="actions.focus(roomId, session.mode, item.id)"
 		>
 			<span class="rp-subject-kind">{{ tr(`renovation.kind.${item.kind}`) }}{{ ' ' }}</span>
-			<span class="rp-subject-description">{{ session.mode === 'existing' ? item.existing?.description : item.planned?.description || item.existing?.description }}</span>
+			<span class="rp-subject-description">{{ description }}</span>
 		</button>
 		<p
-			v-if="session.mode === 'existing' && item.existing"
+			v-if="condition"
 			class="rp-record-metadata"
 		>
-			{{ tr('renovation.condition') }}: {{ tr(`renovation.condition.${item.existing.condition}`) }}
+			{{ tr('renovation.condition') }}: {{ tr(`renovation.condition.${condition}`) }}
 		</p>
 		<p
-			v-if="session.mode === 'planned' && item.planned"
+			v-if="change"
 			class="rp-record-state"
 		>
-			{{ tr(`renovation.change.${item.planned.change}`) }}
+			{{ tr(`renovation.change.${change}`) }}
 		</p>
 		<details
 			class="rp-record-actions"
-			:open="session.focusedId === item.id"
+			:open="focused"
 		>
 			<summary>{{ tr('renovation.record.actions') }}</summary>
 			<p
@@ -59,7 +67,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 					class="rp-record-secondary-action"
 					:disabled="actions.blocked.value"
 					data-rp-action="edit-record"
-					@click="actions.edit(session.mode === 'existing' ? 'existing' : 'planned', item.roomId ?? '', item.id)"
+					@click="edit"
 				>
 					{{ tr('renovation.edit') }}
 				</button>
@@ -68,7 +76,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 					type="button"
 					class="rp-record-secondary-action"
 					data-rp-action="plan-record"
-					@click="actions.edit('planned', item.roomId ?? '', item.id)"
+					@click="actions.edit('planned', roomId, item.id)"
 				>
 					{{ tr('renovation.edit.planned') }}
 				</button>
@@ -76,7 +84,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 					<button
 						type="button"
 						class="rp-record-secondary-action"
-						@click="actions.focus(item.roomId ?? '', 'work', item.id)"
+						@click="actions.focus(roomId, 'work', item.id)"
 					>
 						{{ tr('renovation.required-work') }}
 					</button>
@@ -84,7 +92,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 						type="button"
 						class="rp-record-secondary-action"
 						data-rp-action="work-record"
-						@click="actions.edit('work', item.roomId ?? '', item.id)"
+						@click="actions.edit('work', roomId, item.id)"
 					>
 						{{ tr('renovation.new-work') }}
 					</button>
@@ -92,7 +100,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 						v-if="item.existing"
 						type="button"
 						class="rp-record-secondary-action"
-						@click="actions.focus(item.roomId ?? '', 'existing', item.id)"
+						@click="actions.focus(roomId, 'existing', item.id)"
 					>
 						{{ tr('renovation.source') }}
 					</button>
@@ -100,7 +108,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 						type="button"
 						class="rp-record-secondary-action"
 						data-rp-action="decision-record"
-						@click="actions.edit('decision', item.roomId ?? '', item.id)"
+						@click="actions.edit('decision', roomId, item.id)"
 					>
 						{{ tr('renovation.decision') }}
 					</button>
@@ -109,16 +117,16 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 					type="button"
 					class="rp-record-secondary-action"
 					:disabled="actions.blocked.value"
-					@click="emit('remove', item.id, item.existing?.description || subjectLabel(item), session.mode === 'planned')"
+					@click="remove"
 				>
-					{{ tr(session.mode === 'planned' ? 'renovation.discard' : 'renovation.delete') }}
+					{{ removeLabel }}
 				</button>
 			</div>
 			<button
 				v-if="context.commands.planning"
 				type="button"
 				class="rp-record-secondary-action"
-				@click="actions.focus(item.roomId ?? '', 'materials', item.id)"
+				@click="actions.focus(roomId, 'materials', item.id)"
 			>
 				{{ tr('renovation.materials') }}
 			</button>

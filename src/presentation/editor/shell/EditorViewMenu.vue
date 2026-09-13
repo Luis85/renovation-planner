@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { listenOnOwner } from '../../composables/use-owner-listener';
 import { tr } from '../../i18n/strings';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
@@ -33,8 +34,10 @@ function outside(event: Event): void {
 	const menu = disclosure.value as HTMLDetailsElement;
 	if (menu.open && !menu.contains(event.target as Node)) menu.open = false;
 }
-onMounted(() => document.addEventListener('pointerdown', outside, { capture: true }));
-onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, { capture: true }));
+// On the document that OWNS the menu, which in a pop-out leaf is not the plugin's `document`.
+let stopOutside: (() => void) | null = null;
+onMounted(() => { stopOutside = listenOnOwner(disclosure.value as HTMLDetailsElement, 'document', 'pointerdown', outside, { capture: true }); });
+onBeforeUnmount(() => { stopOutside?.(); stopOutside = null; });
 function escape(event: KeyboardEvent): void {
 	if (event.key !== 'Escape') return;
 	event.stopPropagation();

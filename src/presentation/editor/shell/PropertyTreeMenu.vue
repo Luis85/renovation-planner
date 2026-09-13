@@ -22,6 +22,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import HostIcon from '../../components/HostIcon.vue';
+import { listenOnOwner } from '../../composables/use-owner-listener';
 import { tr } from '../../i18n/strings';
 import { PLAN_KINDS, type PlanKind } from '../../../domain/plan/PlanKind';
 import { PLAN_KIND_ICONS, PLAN_KIND_LABELS } from '../editorIcons';
@@ -52,17 +53,19 @@ function run(disabled: boolean, action: () => Promise<unknown>): void {
 	void action();
 }
 function navigation(event: KeyboardEvent): void { menuNavigation(event, '[role="menuitem"], [role="menuitemradio"]', () => emit('close', true)); }
-function outside(event: PointerEvent): void { if (pointerOutside(menu.value, event)) emit('close', false); }
+function outside(event: Event): void { if (pointerOutside(menu.value, event as PointerEvent)) emit('close', false); }
+let stopOutside: (() => void) | null = null;
 onMounted(() => {
-	document.addEventListener('pointerdown', outside, true);
 	// Bound before `onMounted` runs and already placed in `host` by the Teleport, so it measures
 	// here — a type-only cast, as `CanvasContextMenu` does for its group actions, since `!` is refused.
 	const el = menu.value as HTMLElement;
+	// On the document that OWNS the menu, which in a pop-out leaf is not the plugin's `document`.
+	stopOutside = listenOnOwner(el, 'document', 'pointerdown', outside, { capture: true });
 	// The same clamp `CanvasContextMenu` applies once it can measure itself: inside the host, 8px in.
 	position.value = { left: `${Math.max(8, Math.min(props.x, props.host.clientWidth - el.offsetWidth - 8))}px`, top: `${Math.max(8, Math.min(props.y, props.host.clientHeight - el.offsetHeight - 8))}px` };
 	el.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
 });
-onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true));
+onBeforeUnmount(() => { stopOutside?.(); stopOutside = null; });
 </script>
 
 <template>

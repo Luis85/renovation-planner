@@ -23,6 +23,7 @@ import { deleteZoneHistory } from '../add/createZoneHistory';
 import { notifyFault, notifyOperationFailure } from '../../notices/notify';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
 import { tr } from '../../i18n/strings';
+import { loadBearingWarning } from './loadBearingWarning';
 import type { RenovationBaseline } from '../../../application/commands/renovation/RenovationCommand';
 
 type Proposal = ReturnType<typeof spatialRemovalInput>;
@@ -64,7 +65,7 @@ export function createSpatialRemoval(context: PlanEditorContext, runtime: Pick<E
   const impact = zoneIds.length ? tr('editor.structure.delete-selection-impact', { deleted: String(zoneIds.length), openings: String(proposal.openings) })
    : tr('editor.structure.delete-impact', { openings: String(proposal.openings), rooms: String(proposal.rooms) });
   return await dialogs.openDialog({ kind: 'confirm', title: tr(zoneIds.length ? 'editor.structure.delete-selection' : 'editor.structure.delete'), danger: true,
-   message: tr('renovation.batch.scope', { count: String(selected.length) }) + ' ' + names.join(', ') + '. ' + impact }) === 'confirm';
+   message: tr('renovation.batch.scope', { count: String(selected.length) }) + ' ' + names.join(', ') + '. ' + impact + loadBearingWarning(selected, baseline.geometry.document.structure?.elements, baseline.plan.entity.spatialElements) }) === 'confirm';
  }
  function unavailable(): boolean { return !alive || active.value || blocked.value || !!dialogs.current; }
  function stillCurrent(selected: string): boolean { return alive && !blocked.value && selection.selectedIds.join('|') === selected; }

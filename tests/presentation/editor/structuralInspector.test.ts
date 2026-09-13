@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { settle, settleUntil } from '../../helpers/editor';
-import { expectDefined } from '../../helpers/domain';
+import { expectDefined, expectOk } from '../../helpers/domain';
 import { editorWith, KITCHEN_BEAM, POST_A, type EditorRig } from '../../helpers/structural';
 import { postOutline, postSection } from '../../../src/domain/spatial/structuralElement';
+import { SessionWriteLedger } from '../../../src/application/editor/WriteLedger';
+import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
+import * as notices from '../../../src/presentation/notices/notify';
 
 const mounted: EditorRig[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -41,4 +44,22 @@ it('summarises a post and resizes it about its centre from the dimensions form',
 	const saved = expectDefined(rig.project.structure.elements?.[0], 'resized post');
 	expect(saved.points).toEqual(postOutline({ x: 1000, y: 1000 }, 200, 100));
 	expect(postSection(saved.points)).toEqual({ width: 200, depth: 100 });
+});
+
+it('refuses the load-bearing switch when a peer changes the beam behind the editor first', async () => {
+	const rig = await editorWith(mounted, KITCHEN_BEAM);
+	rig.selection.select([KITCHEN_BEAM.id as never]); await settle();
+	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
+	const peer = { ...KITCHEN_BEAM, width: 220 };
+	expectOk(await rig.renovation.command(baseline, elementInput(baseline, peer), new SessionWriteLedger()).execute());
+	const bytes = [...rig.stack.vault.entries];
+	const notify = vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(() => undefined);
+	const toggle = rig.wrapper.get<HTMLInputElement>('input[name="load-bearing"]');
+	expect(toggle.element.checked).toBe(true);
+	toggle.element.click();
+	await settleUntil(() => !rig.runtime.elementActions.active.value, 'refused stale load-bearing switch');
+	expect(notify).toHaveBeenCalledOnce();
+	expect(rig.wrapper.get<HTMLInputElement>('input[name="load-bearing"]').element.checked).toBe(true);
+	expect(expectDefined(rig.project.structure.elements?.[0], 'refreshed beam').loadBearing).toBe(true);
+	expect([...rig.stack.vault.entries]).toEqual(bytes);
 });

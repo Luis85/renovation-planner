@@ -389,6 +389,16 @@ export class SelectTool implements EditorTool {
 	}
 
 	/**
+	 * Every drag but a rotation: each measures its delta in world coordinates from where it
+	 * started, so a plan scrolling under a pointer resting at the edge carries the move, the
+	 * marquee or the caption further. A rotation's angle is about the shape's own centre, and
+	 * scrolling would turn it rather than extend anything.
+	 */
+	tracksPointer(): boolean {
+		return !this.elementRotation.active && this.hasDraft();
+	}
+
+	/**
 	 * `resolveSelectionTarget`'s input, built ONCE — `pointerDown` and `pointerMove`'s hover
 	 * arm ask the identical question of the identical state, and a second hand-built copy of
 	 * this object is a second place a future field has to be added. Candidates travel back out

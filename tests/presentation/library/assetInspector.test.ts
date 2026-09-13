@@ -10,6 +10,7 @@ import { err, ok } from '../../../src/core/result/Result';
 import { installObsidianDom } from '../../helpers/dom';
 import { anEntry, aNoIdNote } from '../../helpers/assetLibraryRootHarness';
 import { mountInspector } from '../../helpers/assetInspectorHarness';
+import AssetInspectorShape from '../../../src/presentation/library/AssetInspectorShape.vue';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createRequirementId } from '../../../src/domain/requirement/RequirementId';
 import { createAssetId, type AssetId } from '../../../src/domain/asset/AssetId';
@@ -349,7 +350,10 @@ describe('AssetInspector actions', () => {
 
 		expect(inspector.panel.find('[data-field="name"]').exists()).toBe(true);
 		expect(inspector.panel.text()).toContain('Loading shape…');
-		expect(inspector.panel.text()).not.toContain('None');
+		// Scoped to the Shape section rather than the whole panel: the Definition form's own
+		// `Plan pattern` select legitimately carries a `None` option regardless of shape state,
+		// and that is not the leak this case guards against.
+		expect(inspector.panel.getComponent(AssetInspectorShape).text()).not.toContain('None');
 	});
 
 	it('emits back from the narrow-composition control', async () => {

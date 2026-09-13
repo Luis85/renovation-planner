@@ -16,7 +16,8 @@ ZoneStatus remains a progress axis. No Room clone or new hierarchy is needed.
 
 The smallest coherent aggregate is a Plan's optional renovation register in Markdown
 frontmatter. Its records belong to the Plan's Project. A subject has one stable record ID,
-one Room context, and one stable spatial target (Room, wall or opening). A wall/opening has at most one subject in a floor register; multiple descriptive subjects may target the Room. This prevents one subject from discarding another subject’s intended geometry. Existing description,
+one Room context (optional since [ADR-0030](0030-a-renovation-record-may-have-no-room.md)), and
+one stable spatial target (Room, wall or opening). A wall/opening has at most one subject in a floor register; multiple descriptive subjects may target the Room. This prevents one subject from discarding another subject’s intended geometry. Existing description,
 surface/element kind and condition are independent of its optional intended description and
 change classification. Add has no Existing facts; modify/remove/unchanged require Existing.
 Remove carries no intended facts. Unchanged cannot assert different intended facts. Discarding
@@ -113,7 +114,8 @@ therefore require reopening rather than allowing an unsafe historical replacemen
 M11's shared Work and Evidence actions extend a record with optional additional
 `links: readonly { roomId, targetId }[]`. The original fields remain its primary ownership;
 secondary contexts do not duplicate its identity, facts, file or coordinate pin. Every pair
-must be unique and refer to a present Room context and current/intended spatial target.
+must be unique and refer to a present Room context (a secondary link still does; a primary
+context may be none — ADR-0030) and current/intended spatial target.
 Subjects retain the existing single-owner rule. Selecting a wall/opening shows its records
 across room contexts; a Room summary includes records owned by or explicitly linked to it.
 

@@ -6,17 +6,17 @@ const id = z.string().min(1);
 export const RenovationSchema = z.object({
 	depth: PlanningDepthSchema.optional(),
 	subjects: z.array(z.object({
-		id, roomId: id, targetId: id, kind: z.enum(DETAIL_KINDS),
-		existing: z.object({ description: z.string(), condition: z.enum(CONDITIONS) }).nullable(),
-		planned: z.object({ change: z.enum(CHANGES), description: z.string() }).nullable(),
+		id, roomId: id.optional(), targetId: id, kind: z.enum(DETAIL_KINDS),
+		existing: z.object({ description: z.string(), condition: z.enum(CONDITIONS), assetId: id.optional() }).nullable(),
+		planned: z.object({ change: z.enum(CHANGES), description: z.string(), assetId: id.optional() }).nullable(),
 	})),
 	work: z.array(z.object({
-		id, roomId: id, targetId: id, links: SharedLinksSchema, title: z.string(), description: z.string(),
+		id, roomId: id.optional(), targetId: id, links: SharedLinksSchema, title: z.string(), description: z.string(),
 		order: z.number().int().nonnegative(), progress: z.enum(WORK_PROGRESS),
 		responsibility: z.enum(['unassigned', 'diy', 'trade']), tradeId: id.optional(),
 		schedule: z.object({ start: z.string().optional(), end: z.string().optional() }).optional(), outcomes: z.array(id), dependencies: z.array(id),
 	})),
 	decisions: z.array(z.object({
-		id, roomId: id, subjectId: id, question: z.string(), resolution: z.string(), resolved: z.boolean(),
+		id, roomId: id.optional(), subjectId: id, question: z.string(), resolution: z.string(), resolved: z.boolean(),
 	})),
 });

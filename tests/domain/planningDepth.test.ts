@@ -22,8 +22,13 @@ describe('bounded contextual quantity sources', () => {
  ['room-area', 'room', 'm2', 12000000], ['room-perimeter', 'room', 'm', 14000], ['wall-length', 'wall-a', 'm', 4000],
  ['wall-gross', 'wall-a', 'm2', 9600000], ['wall-net', 'wall-a', 'm2', 7800000], ['opening-area', 'door', 'm2', 1800000],
  ['count', 'door', 'piece', 1], ['count', 'wall-a', 'piece', 1], ['count', 'room', 'piece', 1],
+ ['wall-volume', 'wall-a', 'm3', 1440000000],
  ] as const)('measures %s without deriving a Room outline from walls', (rule, targetId, unit, expected) => {
  expect(expectOk(sourceMeasurement({ ...source, rule, targetId }, 'room', geometry, unit)).toString()).toBe(String(expected));
+ });
+ it('accepts only `true` as a construction marker', () => {
+ expect(validRequirementSource({ ...source, construction: true })).toBe(true);
+ expect(validRequirementSource({ ...source, construction: false } as unknown as RequirementSource)).toBe(false);
  });
  it('keeps current/intended independent and only deducts one face of openings on the selected wall', () => {
  const intended = { ...WALL_LOOP, walls: WALL_LOOP.walls.map(wall => ({ ...wall, height: 3000 })) };

@@ -20,8 +20,9 @@ import ExistingFields from './ExistingFields.vue';
 import WorkFields from './WorkFields.vue';
 import DecisionFields from './DecisionFields.vue';
 import PlannedFields from './PlannedFields.vue';
+import type { MaterialChoice } from './materialChoices';
 
-const props = defineProps<{ draft: RenovationDraft; baseline: RenovationBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; dispatch: (input: RenovationInput) => Promise<DispatchResult> }>();
+const props = defineProps<{ draft: RenovationDraft; baseline: RenovationBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; dispatch: (input: RenovationInput) => Promise<DispatchResult>; catalogue?: readonly MaterialChoice[] }>();
 const emit = defineEmits<{ submit: [] }>();
 const draft = ref<EditableRenovationDraft>(structuredClone(toRaw(props.draft)) as EditableRenovationDraft);
 const geometry = ref(plannedGeometryDraft(props.baseline, props.draft.subject));
@@ -33,9 +34,13 @@ useDialogFormBusy(submitting, props.busy);
 const error = ref<AppError | null>(null), conflict = ref(false), reviewed = ref(false);
 const frozen = computed(() => props.busy.value || conflict.value);
 const submitBlocked = computed(() => frozen.value || props.paused.value);
+const choices = computed(() => props.catalogue ?? []);
+const subjectDraft = computed(() => draft.value.kind === 'existing' || draft.value.kind === 'planned');
+const submitLabel = computed(() => tr(reviewed.value ? 'renovation.apply' : 'renovation.preview'));
 let alive = true;
 onBeforeUnmount(() => { alive = false; });
-const targets = computed(() => [{ id: draft.value.subject.roomId, label: tr('renovation.room-target') },
+const targets = computed(() => [
+	...(draft.value.subject.roomId ? [{ id: draft.value.subject.roomId, label: tr('renovation.room-target') }] : []),
 	...(current.elements ?? []).map(item => ({ id: item.id, label: props.baseline.plan.entity.spatialElements?.find(metadata => metadata.id === item.id)?.name ?? item.id })),
 	...current.walls.map((item, index) => ({ id: item.id, label: `${tr('renovation.geometry.wall')} ${index + 1}` })),
 	...current.openings.map((item, index) => ({ id: item.id, label: `${tr('renovation.geometry.opening')} ${index + 1}` }))]);
@@ -43,7 +48,14 @@ function proposal() {
 	const editing = draft.value;
 	const planned = editing.subject.planned;
 	if (planned?.change === 'remove') editing.subject = { ...editing.subject, planned: { change: 'remove', description: '' } };
-	if (planned?.change === 'unchanged') editing.subject = { ...editing.subject, planned: { change: 'unchanged', description: editing.subject.existing?.description ?? '' } };
+	if (planned?.change === 'unchanged') editing.subject = { ...editing.subject, planned: { change: 'unchanged', description: editing.subject.existing?.description ?? '', ...(editing.subject.existing?.assetId ? { assetId: editing.subject.existing.assetId } : {}) } };
+	// A material is only valid on a wall, door or window (ADR-0031): a kind change away from
+	// those drops it here rather than leaving a stale assetId for `validMaterials` to refuse.
+	if (!['wall', 'door', 'window'].includes(editing.subject.kind)) {
+		editing.subject = { ...editing.subject,
+			existing: editing.subject.existing && { ...editing.subject.existing, assetId: undefined },
+			planned: editing.subject.planned && { ...editing.subject.planned, assetId: undefined } };
+	}
 	const input = applyRenovationDraft(props.baseline, editing);
 	return editing.kind === 'planned' ? applyPlannedGeometry(props.baseline, input, editing.subject, geometry.value) : { ok: true as const, value: input };
 }
@@ -90,7 +102,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 		>
 			{{ renovationMessage(error) }}
 		</p>
-		<template v-if="draft.kind === 'existing' || draft.kind === 'planned'">
+		<template v-if="subjectDraft">
 			<label>{{ tr('renovation.kind') }}
 				<select
 					v-model="draft.subject.kind"
@@ -109,7 +121,9 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 				:draft="draft"
 				:value="value"
 				:targets="targets"
+				:structure="current"
 				:frozen="frozen"
+				:catalogue="choices"
 			/>
 			<PlannedFields
 				v-if="draft.kind === 'planned'"
@@ -117,6 +131,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 				:geometry="geometry"
 				:structure="structure"
 				:frozen="frozen"
+				:catalogue="choices"
 			/>
 		</template>
 		<WorkFields
@@ -141,7 +156,7 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 			type="submit"
 			:aria-disabled="submitBlocked"
 		>
-			{{ tr(reviewed ? 'renovation.apply' : 'renovation.preview') }}
+			{{ submitLabel }}
 		</button>
 	</form>
 </template>

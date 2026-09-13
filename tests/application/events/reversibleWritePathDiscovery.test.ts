@@ -227,6 +227,8 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 	'src/application/commands/spatial/PasteCommand.ts::PasteCommand': rows(['execute', 'undo'], 'PasteCommand'),
 	// The same shape as Paste: a composite of reversible commands that writes no file of its own.
 	'src/application/commands/spatial/DeleteSelectionCommand.ts::DeleteSelectionCommand': rows(['execute', 'undo'], 'DeleteSelectionCommand'),
+	// The same shape again: a renovation write and its construction entries, composed, with no file of its own.
+	'src/application/commands/renovation/ConstructionMaterialCommand.ts::ConstructionMaterialCommand': rows(['execute', 'undo'], 'ConstructionMaterialCommand'),
 	'src/application/commands/plan/ConfigurePlanReference.ts::ConfigurePlanReference': rows(['execute', 'undo'], 'ConfigurePlanReference'),
 	'src/application/commands/plan/SetPlanNorth.ts::SetPlanNorth': rows(['execute', 'undo'], 'SetPlanNorth'),
 	'src/application/commands/zone/reversible-rename-zone-command.ts::ReversibleRenameZoneCommand':

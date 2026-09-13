@@ -110,10 +110,10 @@ describe('shared editor records through repository history', () => {
 	it('rejects duplicate, empty and dangling additional contexts and counts only scoped findings', async () => {
 		const rig = await planningStack(), baseline = expectOk(await rig.read());
 		const item = rig.value.work[0];
-		expect(validSharedLinks({ ...item, links: [{ roomId: item.roomId, targetId: item.targetId }] })).toBe(false);
+		expect(validSharedLinks({ ...item, links: [{ roomId: item.roomId ?? '', targetId: item.targetId }] })).toBe(false);
 		expect(validSharedLinks({ ...item, links: [{ roomId: '', targetId: 'wall-b' }] })).toBe(false);
 		expect(validateRenovation({ ...rig.value, work: [{ ...item, links: [{ roomId: '', targetId: 'wall-b' }] }] }).ok).toBe(false);
-		expect(validateRenovation({ ...rig.value, depth: { ...EMPTY_DEPTH, evidence: [{ ...rig.evidence, recordId: '', links: [{ roomId: rig.evidence.roomId, targetId: rig.evidence.targetId }] }] } }).ok).toBe(false);
+		expect(validateRenovation({ ...rig.value, depth: { ...EMPTY_DEPTH, evidence: [{ ...rig.evidence, recordId: '', links: [{ roomId: rig.evidence.roomId ?? '', targetId: rig.evidence.targetId }] }] } }).ok).toBe(false);
 		expect(validateRenovationTargets({ ...rig.value, work: [{ ...item, links: [{ roomId: rig.roomId, targetId: 'gone' }] }] }, { ...baseline.geometry.document, roomIds: [rig.roomId] }).ok).toBe(false);
 		expect(renovationSummary(rig.value, rig.roomId).next?.kind).toBe('decision');
 		expect(renovationSummary(rig.value, rig.roomId, 'wall-b').nextMode).toBe('existing');

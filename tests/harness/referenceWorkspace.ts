@@ -36,7 +36,7 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 	const ready = (async () => {
 		expectOk(await stack.projects.save(makeProject({ id: plan.projectId }), 'absent'));
 		expectOk(await stack.plans.save(plan, 'absent'));
-        if (planning) for (const asset of [makeAsset({ name: 'Oak floor', unit: 'm2' }), makeAsset({ name: 'Skirting', unit: 'm' }), makeAsset({ name: 'Door handles', unit: 'piece' })]) expectOk(await stack.assets.save(asset, 'absent'));
+        if (planning) for (const asset of [makeAsset({ name: 'Oak floor', unit: 'm2' }), makeAsset({ name: 'Skirting', unit: 'm' }), makeAsset({ name: 'Door handles', unit: 'piece' }), makeAsset({ name: 'Clinker brick', unit: 'm2', category: 'material', planPattern: 'brick' })]) expectOk(await stack.assets.save(asset, 'absent'));
 		if (planning && new URLSearchParams(location.search).has('assets')) {
 			const radiator = makeAsset({ name: 'Radiator', unit: 'piece' });
 			expectOk(await stack.assets.save(radiator, 'absent'));

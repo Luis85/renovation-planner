@@ -443,10 +443,14 @@ describe('interpolation', () => {
 	 * Amendment 4 records both, and withdraws the ordinals the two rounds assigned in passing).
 	 * Nothing here can read a design document, so the guarantee is exactly *the count cannot move
 	 * silently* and never *the spec was amended*.
+	 *
+	 * 78 → 87: §6.3's Plan pattern inspector field (ADR-0031) added nine keys —
+	 * `view.asset-library.plan-pattern` and eight `view.asset-library.pattern.*` values (`none`
+	 * plus the seven patterns) — a deliberate spec amendment, not a gap.
 	 */
-	it('pins the Asset library inventory at 78 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(78);
-		expect(assetLibraryKeys(de)).toHaveLength(78);
+	it('pins the Asset library inventory at 87 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(87);
+		expect(assetLibraryKeys(de)).toHaveLength(87);
 	});
 });
 

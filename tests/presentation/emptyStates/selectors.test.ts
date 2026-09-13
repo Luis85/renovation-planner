@@ -32,6 +32,7 @@ const anEntry = (): CatalogueEntryDto => ({
 	height: null,
 	notes: null,
 	background: null,
+	planPattern: null,
 });
 
 const PLAN: PlanDto = {

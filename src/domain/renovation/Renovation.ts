@@ -1,6 +1,6 @@
 import { validWorkSchedule, type WorkSchedule } from '../schedule/WorkSchedule';
 import { validatePlanningDepth } from './validatePlanningDepth';
-import { hasRoomContext, validSharedLinks, type SpatialLink } from './SharedLinks';
+import { contextOf, hasRoomContext, validSharedLinks, type SpatialLink } from './SharedLinks';
 import type { PlanningDepth } from './PlanningDepth';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, ok, type Result } from '../../core/result/Result';
@@ -12,15 +12,17 @@ export const WORK_PROGRESS = ['pending', 'in-progress', 'complete'] as const;
 export interface ExistingFacts {
 	readonly description: string;
 	readonly condition: typeof CONDITIONS[number];
+	readonly assetId?: string;
 }
 export interface PlannedFacts {
 	readonly change: typeof CHANGES[number];
 	readonly description: string;
+	readonly assetId?: string;
 }
 /** One identifiable subject, two independent semantic states (ADR-0021). */
 export interface RenovationSubject {
 	readonly id: string;
-	readonly roomId: string;
+	readonly roomId?: string;
 	readonly targetId: string;
 	readonly kind: typeof DETAIL_KINDS[number];
 	readonly existing: ExistingFacts | null;
@@ -29,7 +31,7 @@ export interface RenovationSubject {
 export interface WorkPackage {
 	readonly links?: readonly SpatialLink[];
 	readonly id: string;
-	readonly roomId: string;
+	readonly roomId?: string;
 	readonly targetId: string;
 	readonly title: string;
 	readonly description: string;
@@ -43,7 +45,7 @@ export interface WorkPackage {
 }
 export interface RenovationDecision {
 	readonly id: string;
-	readonly roomId: string;
+	readonly roomId?: string;
 	readonly subjectId: string;
 	readonly question: string;
 	readonly resolution: string;
@@ -61,8 +63,18 @@ export function renovationError(code: string): ValidationError {
 	return { category: 'Validation', code: `renovation.${code}`, message: `Invalid renovation record: ${code}.` };
 }
 
+/** A catalogue material names what a wall is built of, or which product a door or window is (ADR-0031). */
+const MATERIAL_KINDS: readonly RenovationSubject['kind'][] = ['wall', 'door', 'window'];
+function validMaterials(subject: RenovationSubject): boolean {
+	const { existing, planned } = subject, named = [existing?.assetId, planned?.assetId].filter((id): id is string => id !== undefined);
+	if (named.some(id => !id.trim()) || (named.length > 0 && !MATERIAL_KINDS.includes(subject.kind))) return false;
+	if (planned?.change === 'remove') return planned.assetId === undefined;
+	return planned?.change !== 'unchanged' || planned.assetId === existing?.assetId;
+}
+
 function validSubject(subject: RenovationSubject): boolean {
 	const { existing, planned } = subject;
+	if (!validMaterials(subject)) return false;
 	if (!existing && !planned) return false;
 	if (existing && (!existing.description.trim() || !CONDITIONS.includes(existing.condition))) return false;
 	if (!DETAIL_KINDS.includes(subject.kind)) return false;
@@ -100,14 +112,19 @@ export function validateRenovation(value: Renovation): Result<void, ValidationEr
 }
 function validateRecords(value: Renovation): Result<void, ValidationError> {
 	const all = [...value.subjects, ...value.work, ...value.decisions];
-	if (all.some(item => !item.id.trim() || !item.roomId.trim()) || new Set(all.map(item => item.id)).size !== all.length) return err(renovationError('identity'));
+	if (all.some(item => !item.id.trim() || item.roomId?.trim() === '') || new Set(all.map(item => item.id)).size !== all.length) return err(renovationError('identity'));
 	if (value.subjects.some(item => !item.targetId.trim() || !validSubject(item))) return err(renovationError('state'));
 	const subjects = new Map(value.subjects.map(item => [item.id, item]));
 	const work = validateWorkRecords(value.work, subjects);
 	if (!work.ok) return work;
 	if (hasCycle(value.work)) return err(renovationError('cycle'));
-	if (value.decisions.some(item => !item.question.trim() || (item.resolved && !item.resolution.trim()) || subjects.get(item.subjectId)?.roomId !== item.roomId)) return err(renovationError('decision'));
+	if (value.decisions.some(item => !validDecision(item, subjects))) return err(renovationError('decision'));
 	return ok(undefined);
+}
+/** A missing subject is refused outright: with an optional `roomId`, `undefined === undefined` would otherwise pass it. */
+function validDecision(item: RenovationDecision, subjects: ReadonlyMap<string, RenovationSubject>): boolean {
+	const subject = subjects.get(item.subjectId);
+	return !!subject && !!item.question.trim() && (!item.resolved || !!item.resolution.trim()) && subject.roomId === item.roomId;
 }
 
 function validateWorkRecords(work: readonly WorkPackage[], subjects: ReadonlyMap<string, RenovationSubject>): Result<void, ValidationError> {
@@ -116,7 +133,7 @@ function validateWorkRecords(work: readonly WorkPackage[], subjects: ReadonlyMap
 		if (!validSharedLinks(item)) return err(renovationError('target-missing'));
 		if (!validWork(item)) return err(renovationError('work'));
 		if (new Set(item.dependencies).size !== item.dependencies.length || item.dependencies.some(id => !workIds.has(id))) return err(renovationError('dependency'));
-		if (new Set(item.outcomes).size !== item.outcomes.length || item.outcomes.some(id => !subjects.get(id)?.planned || !hasRoomContext(item, subjects.get(id)?.roomId))) return err(renovationError('outcome'));
+		if (new Set(item.outcomes).size !== item.outcomes.length || item.outcomes.some(id => { const subject = subjects.get(id); return !subject?.planned || !hasRoomContext(item, contextOf(subject)); })) return err(renovationError('outcome'));
 	}
 	return ok(undefined);
 }
@@ -130,7 +147,7 @@ export function blockingWork(value: Renovation, item: WorkPackage): readonly Wor
 
 export interface ReadinessFinding {
 	readonly kind: 'decision' | 'missing-work' | 'missing-outcome' | 'blocked';
-	readonly roomId: string;
+	readonly roomId?: string;
 	readonly recordId: string;
 	readonly causes: readonly string[];
 }

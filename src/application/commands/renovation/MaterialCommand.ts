@@ -12,6 +12,7 @@ import { markUncompensated, type DispatchResult } from '../DispatchOutcome';
 import { persistenceError } from '../../errors';
 import { validateMaterialLinks, validateDepthLinks, materialReferents } from './planningLinks';
 import { prepareMaterial, readPlanning, type MaterialInput, type PlanningBaseline, type PlanningDeps } from './materialPlanning';
+import { originRoomId } from '../../../domain/requirement/RequirementOrigin';
 
 /** One Requirement write, conditional in both directions, through the shared editor history. */
 export class MaterialCommand {
@@ -33,7 +34,9 @@ export class MaterialCommand {
 		this.busy = true;
 		let release: (() => void) | undefined;
 		try {
-		release = await this.deps.locks.acquire([this.baseline.plan.entity.id, ...('deleteId' in this.input ? this.before ? [this.before.entity.origin.zoneId, this.before.entity.assetId] : [] : [this.input.roomId, this.input.assetId])], [this.id]);
+		const room = 'deleteId' in this.input ? (this.before ? originRoomId(this.before.entity.origin) : undefined) : this.input.roomId;
+		const asset = 'deleteId' in this.input ? this.before?.entity.assetId : this.input.assetId;
+		release = await this.deps.locks.acquire([this.baseline.plan.entity.id, ...(room ? [room] : []), ...(asset ? [asset] : [])], [this.id]);
 		return await this.apply(forward); }
 		catch (cause) { return err(persistenceError('material.write-failed', 'The material could not be saved.', cause)); }
 		finally { release?.(); this.busy = false; }

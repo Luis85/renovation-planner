@@ -1,8 +1,9 @@
 import { Decimal } from 'decimal.js';
+import type { z } from 'zod';
 import type { ValidationError } from '../../../core/errors/AppError';
 import type { Money } from '../../../core/money/Money';
 import { of as moneyOf } from '../../../core/money/Money';
-import { ok, type Result } from '../../../core/result/Result';
+import { err, ok, type Result } from '../../../core/result/Result';
 import type { DerivedValue } from '../../../core/derived/DerivedValue';
 import type { Quantity } from '../../../core/units/MeasurementUnit';
 import { toKebab } from '../dto/kebab';
@@ -11,8 +12,10 @@ import {
 	type CalculatedFrom,
 	type RecalculationStatus,
 } from '../../../domain/requirement/Requirement';
+import { requirementError } from '../../../domain/requirement/Requirement.errors';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { RequirementOrigin } from '../../../domain/requirement/RequirementOrigin';
+import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import { parsePersisted } from './parse';
@@ -54,8 +57,10 @@ function moneyOrNull(value: unknown): string | null {
 		: null;
 }
 
-/** The lowest schema that holds this source: an older build refuses a rule it does not know as newer, never as corrupt. */
-function requirementSchemaVersion(source: Requirement['source']): 1 | 2 | 3 | 4 {
+/** The lowest schema that holds this requirement: an older build refuses what it does not know as newer, never as corrupt. */
+function requirementSchemaVersion(requirement: Requirement): 1 | 2 | 3 | 4 | 5 {
+	const source = requirement.source;
+	if (requirement.origin.kind === 'plan' || source?.rule === 'wall-volume' || source?.construction) return 5;
 	if (!source) return 1;
 	if (source.rule === 'placement-count') return 4;
 	return source.rule === 'element-length' || source.rule === 'object-area' ? 3 : 2;
@@ -73,14 +78,14 @@ export function requirementToPersistence(
 	const currency = requirement.calculatedFrom.unitCost.currency;
 	return {
 		type: REQUIREMENT_TYPE,
-		'schema-version': requirementSchemaVersion(requirement.source),
+		'schema-version': requirementSchemaVersion(requirement),
 		...(requirement.source ? { source: requirement.source } : {}),
 		id: requirement.id,
 		revision,
 		project: requirement.projectId,
 		asset: requirement.assetId,
 		'origin-kind': toKebab(requirement.origin.kind),
-		'origin-zone': String(requirement.origin.zoneId),
+		...(requirement.origin.kind === 'zone' ? { 'origin-zone': String(requirement.origin.zoneId) } : { 'origin-plan': String(requirement.origin.planId) }),
 
 		unit: requirement.unit,
 		'waste-factor': requirement.wasteFactor.toString(),
@@ -116,12 +121,14 @@ export function requirementFromPersistence(rawFrontmatter: unknown): Result<Requ
 	if (!frontmatter.ok) return frontmatter;
 	const dto = frontmatter.value;
 
+	const origin = originOf(dto);
+	if (!origin) return err(requirementError('frontmatter-invalid', 'A requirement note must name the zone or plan it comes from.'));
 	const created = Requirement.create({
 		source: 'source' in dto ? dto.source : undefined,
 		id: dto.id as Requirement['id'],
 		projectId: dto.project as ProjectId,
 		assetId: dto.asset as AssetId,
-		origin: { kind: 'zone', zoneId: dto['origin-zone'] as ZoneId } satisfies RequirementOrigin,
+		origin,
 		unit: dto.unit,
 		wasteFactor: new Decimal(dto['waste-factor']),
 		quantity: derivedQuantity(dto),
@@ -136,4 +143,9 @@ export function requirementFromPersistence(rawFrontmatter: unknown): Result<Requ
 	});
 	if (!created.ok) return created;
 	return ok(created.value);
+}
+
+function originOf(dto: z.infer<typeof RequirementFrontmatterSchema>): RequirementOrigin | null {
+	if (dto['origin-kind'] === 'plan') return 'origin-plan' in dto && dto['origin-plan'] ? { kind: 'plan', planId: dto['origin-plan'] as PlanId } : null;
+	return dto['origin-zone'] ? { kind: 'zone', zoneId: dto['origin-zone'] as ZoneId } : null;
 }

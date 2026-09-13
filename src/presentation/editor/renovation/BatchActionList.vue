@@ -11,7 +11,7 @@ import type { SpatialRecordDto } from '../../read-models/spatialRecords';
 
 const props = defineProps<{ selection: Extract<SpatialSelection, { kind: 'multiple' }> }>();
 const project = useProjectStore(), runtime = useEditorRuntime(), roomId = ref('');
-const rooms = computed(() => [...project.zones.values()].filter(item => item.zoneType === 'Room'));
+const rooms = computed(() => [...project.zones.values()].filter(item => item.zoneType === 'Room').map(item => ({ id: item.id, name: item.name, zoneType: item.zoneType })));
 const targets = computed(() => props.selection.records.flatMap(record => {
 	const host = project.structure.openings.find(item => item.id === record.id)?.hostId ?? record.id;
 	const owner = record.kind === 'room' ? record.id : project.plan?.renovation?.subjects.find(item => item.targetId === record.id)?.roomId
@@ -43,6 +43,7 @@ function deleteSelection(): Promise<void> { return deleteItems(runtime, project.
 			v-if="!compatible"
 			v-model="roomId"
 			:rooms="rooms"
+			required
 		/>
 		<p v-if="!compatible">
 			{{ tr('renovation.batch.unsupported') }}

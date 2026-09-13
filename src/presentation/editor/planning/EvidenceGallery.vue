@@ -19,7 +19,7 @@ const planning = usePlanningContext();
 				type="button"
 				:data-rp-evidence-photo="item.id"
 				:aria-current="isSelected(item) ? 'true' : undefined"
-				@click="planning.runtime.renovation.focus(item.roomId, 'photos', item.id)"
+				@click="planning.runtime.renovation.focus(item.roomId ?? '', 'photos', item.id)"
 			>
 				<span class="rp-evidence-photo-title rp-visually-hidden">{{ index + 1 }}. {{ item.description }}</span>
 				<EvidencePreview

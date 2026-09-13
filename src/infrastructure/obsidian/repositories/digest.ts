@@ -3,10 +3,10 @@ import { QuoteFrontmatterSchemaV1 } from '../../persistence/dto/quoteFrontmatter
 import type { ObservationToken } from '../../../application/ports/versioning';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../persistence/dto/assetFrontmatter';
 import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../persistence/dto/assetPriceFrontmatter';
-import { PLAN_TYPE, PlanFrontmatterSchemaV11 } from '../../persistence/dto/planFrontmatter';
+import { PLAN_TYPE, PlanFrontmatterSchemaV12 } from '../../persistence/dto/planFrontmatter';
 import { SpatialObjectGeometrySchemaV10, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
-import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV4 } from '../../persistence/dto/requirementFrontmatter';
+import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV5 } from '../../persistence/dto/requirementFrontmatter';
 import { ZONE_TYPE, ZoneFrontmatterSchemaV2 } from '../../persistence/dto/zoneFrontmatter';
 
 /**
@@ -52,10 +52,10 @@ import { ZONE_TYPE, ZoneFrontmatterSchemaV2 } from '../../persistence/dto/zoneFr
  */
 const SCHEMAS: readonly (readonly [string, { readonly shape: Readonly<Record<string, unknown>> }])[] = [
 	[PROJECT_TYPE, ProjectFrontmatterSchemaV1],
-	[PLAN_TYPE, PlanFrontmatterSchemaV11],
+	[PLAN_TYPE, PlanFrontmatterSchemaV12],
 	[ZONE_TYPE, ZoneFrontmatterSchemaV2],
 	[ASSET_TYPE, AssetFrontmatterSchemaV1],
-	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV4],
+	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV5],
 	[ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1],
 	['renovation-trade', TradeFrontmatterSchemaV1],
 	['renovation-supplier', SupplierFrontmatterSchemaV1],

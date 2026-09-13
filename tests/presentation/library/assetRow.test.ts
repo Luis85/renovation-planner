@@ -32,6 +32,7 @@ function anEntry(overrides: Partial<CatalogueEntryDto> = {}): CatalogueEntryDto 
 		height: null,
 		notes: null,
 		background: null,
+		planPattern: null,
 		...overrides,
 	};
 }

@@ -215,7 +215,7 @@ describe('the renovation project dependencies', () => {
 
 	/**
 	 * A composition that forgets a dependency COMPILES and passes everything else — the
-	 * `slice10CascadeWiring` reason. So this asserts on what the composed door actually
+	 * `catalogueRequirementCascadeWiring` reason. So this asserts on what the composed door actually
 	 * ANSWERS, against a real repository behind a real root, rather than on the member existing.
 	 */
 	it('hands the view both detail-state reads, composed against the real persistence stack', async () => {

@@ -1,6 +1,7 @@
 import type { PlanGeometrySidecar } from '../ports/PlanGeometrySidecar';
 import type { PlanId } from '../../domain/plan/PlanId';
 import { sourceMeasurement } from '../../domain/requirement/RequirementSource';
+import { originRoomId } from '../../domain/requirement/RequirementOrigin';
 import { Decimal } from 'decimal.js';
 import { err, isErr, isOk, ok, type Result } from '../../core/result/Result';
 import type { RepositoryError } from '../ports/repositoryErrors';
@@ -311,7 +312,7 @@ async function measuredSource(deps: RequirementRowDeps, requirement: Requirement
 	let sourceZone: { area(): Result<number, unknown> } | null = zone;
 	if (requirement.source) {
 		const geometry = await deps.geometry?.read(requirement.source.planId as PlanId);
-		const measured = geometry?.ok ? sourceMeasurement(requirement.source, requirement.origin.zoneId, geometry.value.document, requirement.unit, requirement.assetId) : null;
+		const measured = geometry?.ok ? sourceMeasurement(requirement.source, originRoomId(requirement.origin), geometry.value.document, requirement.unit, requirement.assetId) : null;
 		sourceZone = measured?.ok ? { area: () => ok(measured.value.toNumber()) } : null;
 	}
 	return sourceZone;

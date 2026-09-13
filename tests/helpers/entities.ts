@@ -151,6 +151,7 @@ export function anEntry(overrides: Partial<CatalogueEntryDto> = {}): CatalogueEn
 		height: null,
 		notes: null,
 		background: null,
+		planPattern: null,
 		...overrides,
 	};
 }

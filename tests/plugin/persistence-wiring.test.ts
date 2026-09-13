@@ -89,13 +89,13 @@ describe('persistence composition', () => {
 		// to `MIGRATION_SET` and running this file is what proves it now.
 		expect(snapshot?.schemaVersions).toEqual({
 			project: 1,
-			plan: 11,
+			plan: 12,
 			trade: 1,
 			supplier: 1,
 			quote: 1,
 			zone: 2,
 			asset: 1,
-			requirement: 4,
+			requirement: 5,
 			'asset-price': 1,
 			'plan-geometry': 10,
 		});
@@ -280,7 +280,7 @@ describe('persistence composition', () => {
 	 * `VaultChangeAdapter.deps.events` is REQUIRED, so a root that passes none fails to
 	 * compile — but a root that passes a FRESH `createEventBus()` compiles, passes every other
 	 * test in this repository, and announces into an object no view has ever subscribed to.
-	 * That is the same shape `slice10CascadeWiring` and `sequenceNoticeWiring` exist for, with
+	 * That is the same shape `catalogueRequirementCascadeWiring` and `sequenceNoticeWiring` exist for, with
 	 * the compiler covering only the half that is a missing argument.
 	 *
 	 * Driven end to end rather than by reading the field: a foreign project note through the

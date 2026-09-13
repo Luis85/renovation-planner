@@ -12,6 +12,7 @@ import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import { useEditorRuntime } from '../runtime';
 import { useRenovationSession } from './renovationSession';
 import { EMPTY_RENOVATION, orderedWork } from '../../../domain/renovation/Renovation';
+import { contextOf } from '../../../domain/renovation/SharedLinks';
 import { structureCandidates } from '../structure/structureCandidates';
 import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
 import { tr } from '../../i18n/strings';
@@ -26,10 +27,11 @@ const markers = computed(() => {
 	// Existing/Planned/Work records retain their per-room stacks; Review uses Room markers.
 	const rows = new Map<string, number>();
 	return records.flatMap(item => {
-		const room = project.zones.get(item.roomId);
+		const room = project.zones.get(item.roomId ?? '');
 		if (!room?.points.length) return [];
-		const row = rows.get(item.roomId) ?? 0;
-		rows.set(item.roomId, row + 1);
+		const context = contextOf(item);
+		const row = rows.get(context) ?? 0;
+		rows.set(context, row + 1);
 		const left = Math.min(...room.points.map(point => point.x)), top = Math.min(...room.points.map(point => point.y));
 		return [{ ...item, text: `${row + 1}. ${item.label}`, x: left + 20 / props.zoom, y: top + (30 + row * 26) / props.zoom }];
 	});
@@ -78,7 +80,7 @@ function focus(roomId: string, id: string): void {
 			<VGroup
 				v-for="(item, index) in markers"
 				:key="`${item.id}:${index}`"
-				:config="{ name: 'renovation-marker', x: item.x, y: item.y, onClick: () => focus(item.roomId, item.id), onTap: () => focus(item.roomId, item.id) }"
+				:config="{ name: 'renovation-marker', x: item.x, y: item.y, onClick: () => focus(item.roomId ?? '', item.id), onTap: () => focus(item.roomId ?? '', item.id) }"
 			>
 				<VRect :config="{ width: 190 / zoom, height: 24 / zoom, fill: tokens.canvasBackground, stroke: session.focusedId === item.id ? tokens.accent : tokens.zoneStroke, strokeWidth: 1 / zoom }" />
 				<VText :config="{ x: 5 / zoom, y: 4 / zoom, width: 180 / zoom, height: 18 / zoom, ellipsis: true, wrap: 'none', text: item.text, fontSize: 13 / zoom, fill: tokens.zoneLabel }" />

@@ -18,7 +18,7 @@ const actions = useEditorRuntime().renovation, session = useRenovationSession();
 			<button
 				type="button"
 				data-rp-action="decision-record"
-				@click="actions.edit('decision', item.roomId, item.id)"
+				@click="actions.edit('decision', item.roomId ?? '', item.id)"
 			>
 				{{ item.resolved ? tr('renovation.resolved') : tr('renovation.finding.decision') }}: {{ item.question }}
 			</button>

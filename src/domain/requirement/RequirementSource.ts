@@ -7,7 +7,7 @@ import { EMPTY_STRUCTURE, wallLength, type Structure } from '../spatial/Structur
 import { membershipProbe } from '../spatial/assetPlacement';
 import { elementLength, type SpatialElement } from '../spatial/SpatialElement';
 
-export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'opening-area', 'element-length', 'object-area', 'count', 'placement-count', 'manual'] as const;
+export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'wall-volume', 'opening-area', 'element-length', 'object-area', 'count', 'placement-count', 'manual'] as const;
 /** Geometry references stay on the Requirement; procurement and payment facts do not. */
 export interface RequirementSource {
 	readonly planId: string;
@@ -20,6 +20,8 @@ export interface RequirementSource {
 	readonly coverage: string;
 	readonly lot: string;
 	readonly minimum: string;
+	/** Marks the one entry a subject's planned material produces (ADR-0031); absent on every other requirement. */
+	readonly construction?: true;
 }
 export interface QuantityGeometry {
 	readonly objects: readonly (CurvedPolygon & { readonly id: string })[];
@@ -38,9 +40,10 @@ export function validRequirementSource(source: RequirementSource): boolean {
 	return !!source.planId && !!source.targetId && QUANTITY_RULES.includes(source.rule)
 		&& ['current', 'intended'].includes(source.state) && validDecimal(source.manual)
 		&& validDecimal(source.coverage, true) && (!source.lot || validDecimal(source.lot, true))
-		&& (!source.minimum || (!!source.lot && validDecimal(source.minimum, true)));
+		&& (!source.minimum || (!!source.lot && validDecimal(source.minimum, true)))
+		&& (source.construction === undefined || source.construction === true);
 }
-function roomMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry): Measurement | null {
+function roomMeasurement(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry): Measurement | null {
  const room = geometry.objects.find(item => item.id === roomId);
  if (!room || source.targetId !== roomId) return null;
  if (source.rule === 'count') return { raw: 1, unit: 'piece' };
@@ -56,6 +59,7 @@ function wallMeasurement(source: RequirementSource, structure: Structure): Measu
  const length = wallLength(wall);
  if (source.rule === 'count') return { raw: 1, unit: 'piece' };
  if (source.rule === 'wall-length') return { raw: length, unit: 'm' };
+ if (source.rule === 'wall-volume') return { raw: length * wall.height * wall.thickness, unit: 'm3' };
  if (source.rule !== 'wall-gross' && source.rule !== 'wall-net') return null;
  const deducted = source.rule === 'wall-net' ? structure.openings.filter(item => item.hostId === wall.id).reduce((sum, item) => sum + item.width * item.height, 0) : 0;
  return { raw: length * wall.height - deducted, unit: 'm2' };
@@ -71,7 +75,7 @@ function elementMeasurement(source: RequirementSource, element: SpatialElement |
 function sourceStructure(source: RequirementSource, geometry: QuantityGeometry): Structure {
 	return (source.state === 'intended' ? geometry.intended ?? geometry.structure : geometry.structure) ?? EMPTY_STRUCTURE;
 }
-function measurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry): Measurement | null {
+function measurement(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry): Measurement | null {
  const structure = sourceStructure(source, geometry);
  const opening = structure.openings.find(item => item.id === source.targetId);
  if (opening && source.rule === 'opening-area') return { raw: opening.width * opening.height, unit: 'm2' };
@@ -79,7 +83,7 @@ function measurement(source: RequirementSource, roomId: string, geometry: Quanti
  return elementMeasurement(source, structure.elements?.find(item => item.id === source.targetId)) ?? wallMeasurement(source, structure) ?? roomMeasurement(source, roomId, geometry);
 }
 /** How many placements of `assetId` probe inside the room, in the source's state; zero is an answer, a missing room is not. */
-function placementCount(source: RequirementSource, roomId: string, geometry: QuantityGeometry, assetId: string | undefined): number | null {
+function placementCount(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry, assetId: string | undefined): number | null {
 	const room = geometry.objects.find(item => item.id === roomId);
 	if (!room || source.targetId !== roomId || !assetId) return null;
 	const structure = sourceStructure(source, geometry);
@@ -90,12 +94,12 @@ function placementCount(source: RequirementSource, roomId: string, geometry: Qua
 	}).length;
 }
 /** The `'placement-count'` rule's whole `sourceMeasurement` result, kept out of that function's own complexity budget. */
-function placementCountMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry, unit: MeasurementUnit, assetId: string | undefined) {
+function placementCountMeasurement(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry, unit: MeasurementUnit, assetId: string | undefined) {
 	const counted = placementCount(source, roomId, geometry, assetId);
 	return counted !== null && unit === 'piece' ? ok(new Decimal(counted)) : err(sourceError());
 }
 /** Raw world measurement for the existing quantity engine; no synthetic room outline. */
-export function sourceMeasurement(source: RequirementSource, roomId: string, geometry: QuantityGeometry, unit: MeasurementUnit, assetId?: string) {
+export function sourceMeasurement(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry, unit: MeasurementUnit, assetId?: string) {
 	if (!validRequirementSource(source)) return err(sourceError());
 	if (source.rule === 'placement-count') return placementCountMeasurement(source, roomId, geometry, unit, assetId);
 	if (source.rule === 'manual') {

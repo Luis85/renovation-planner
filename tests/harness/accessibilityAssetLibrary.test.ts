@@ -72,6 +72,7 @@ function anAxeCatalogueEntry(): CatalogueEntryDto {
 		height: null,
 		notes: null,
 		background: null,
+		planPattern: null,
 	};
 }
 

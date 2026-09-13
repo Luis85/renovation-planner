@@ -10,7 +10,7 @@ import type { AssetId } from '../asset/AssetId';
 import { checkWasteFraction } from '../asset/Asset';
 import { requirementError } from './Requirement.errors';
 import type { RequirementId } from './RequirementId';
-import type { RequirementOrigin } from './RequirementOrigin';
+import { originRoomId, type RequirementOrigin } from './RequirementOrigin';
 
 /**
  * What the figures were computed FROM — the two inputs that live outside the Requirement
@@ -101,10 +101,11 @@ export class Requirement {
 
 	static create(props: CreateRequirementProps): Result<Requirement, ValidationError> {
 		if (props.source && !validRequirementSource(props.source)) return err(requirementError('source-invalid', 'Invalid quantity source.'));
-		if (props.origin.kind !== 'zone') {
-			return err(
-				requirementError('unknown-origin-kind', `"${String(props.origin.kind)}" is not a requirement origin kind.`),
-			);
+		if (props.origin.kind !== 'zone' && props.origin.kind !== 'plan') {
+			return err(requirementError('unknown-origin-kind', `"${String((props.origin as { kind: unknown }).kind)}" is not a requirement origin kind.`));
+		}
+		if (props.origin.kind === 'plan' && props.source?.planId !== props.origin.planId) {
+			return err(requirementError('source-invalid', 'A plan-origin requirement needs a quantity source on the same plan.'));
 		}
 		const wasteCheck = checkWasteFraction(props.wasteFactor, 'waste-factor', requirementError);
 		if (!wasteCheck.ok) return wasteCheck;
@@ -216,7 +217,7 @@ export class Requirement {
 	 * same marker the other two pay before any recalculation runs.
 	 */
 	repointedTo(origin: RequirementOrigin, assetId: AssetId): Result<Requirement, ValidationError> {
-		if (this.source && origin.zoneId !== this.origin.zoneId) return err(requirementError('source-invalid', 'This action cannot reassign a contextual material to another Room.'));
+		if (this.source && originRoomId(origin) !== originRoomId(this.origin)) return err(requirementError('source-invalid', 'This action cannot reassign a contextual material to another Room.'));
 		return this.with({ origin, assetId, recalculationStatus: 'stale' });
 	}
 }

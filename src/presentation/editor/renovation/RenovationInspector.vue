@@ -3,9 +3,9 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from './renovationSession';
-import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { tr } from '../../i18n/strings';
-import RoomRenovationDetails from './RoomRenovationDetails.vue';
+import { contextSource, defaultRenovationContext } from './defaultRenovationContext';
+import RenovationDetails from './RenovationDetails.vue';
 import ReviewInspector from './ReviewInspector.vue';
 import FloorInspector from '../shell/FloorInspector.vue';
 import StructureInspector from '../structure/StructureInspector.vue';
@@ -13,17 +13,10 @@ import ElementInspector from '../elements/ElementInspector.vue';
 import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 
 const project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
-const value = computed(() => project.plan?.renovation ?? EMPTY_RENOVATION);
 watch(() => selection.selectedIds, ids => {
-	const remembered = session.targetId === ids[0] ? session.roomId : '';
-	session.targetId = ids[0] ?? '';
-	const room = project.zones.get(ids[0]);
-	if (room?.zoneType === 'Room') session.roomId = room.id;
-	else {
-		const target = ids[0], host = project.structure.openings.find(item => item.id === target)?.hostId ?? target;
-		session.roomId = value.value.subjects.find(item => item.targetId === target)?.roomId
-			?? project.structure.boundaries.find(item => item.wallIds.includes(host))?.roomId ?? remembered;
-	}
+	const target = ids[0] ?? '', remembered = session.targetId === target ? session.roomId : '';
+	session.targetId = target;
+	session.roomId = defaultRenovationContext(contextSource(project), target, remembered);
 }, { immediate: true });
 const room = computed(() => project.zones.get(session.roomId));
 const selectedZone = computed(() => project.zones.get(selection.selectedIds[0]));
@@ -31,7 +24,7 @@ const element = computed(() => project.structure.walls.some(item => item.id === 
 const generic = computed(() => project.structure.elements?.some(item => item.id === session.targetId));
 const headingVisible = computed(() => session.mode === 'overview' || !room.value);
 function heading(): string { return selectedZone.value?.name || room.value?.name || tr('renovation.select-room'); }
-const standaloneZone = computed(() => !room.value ? selectedZone.value : undefined);
+const standaloneZone = computed(() => selectedZone.value?.zoneType !== 'Room' ? selectedZone.value : undefined);
 /**
  * The frame's group controls arrive through the `actions` slot. A wall, opening or element body
  * takes them above its own Delete, so Delete stays the foot of the Inspector region (side panels
@@ -81,8 +74,8 @@ watch(() => [session.focusedId, session.mode], async () => {
 			<summary>{{ tr('editor.structure.more') }}</summary>
 			<ObjectRotationControls :id="standaloneZone.id" />
 		</details>
-		<RoomRenovationDetails
-			v-if="room"
+		<RenovationDetails
+			v-if="room || element || generic"
 			:room="room"
 		/>
 	</div>

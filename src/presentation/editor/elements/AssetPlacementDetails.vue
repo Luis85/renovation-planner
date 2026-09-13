@@ -13,6 +13,7 @@ import { useEditorRuntime } from '../runtime';
 import { usePlanningContext } from '../planning/planningContext';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { formatMetres } from '../shell/formatLength';
+import { originRoomId } from '../../../domain/requirement/RequirementOrigin';
 const props = defineProps<{ element: SpatialElement }>();
 const project = useProjectStore(), shapes = useAssetShapeStore(), context = usePlanEditorContext(), runtime = useEditorRuntime(), planning = usePlanningContext(), session = useRenovationSession();
 const assetId = computed(() => props.element.assetId ?? '');
@@ -25,7 +26,7 @@ const summary = computed(() => {
 });
 const room = computed(() => [...project.zones.values()].find(zone => { if (zone.zoneType !== 'Room') return false; const inside = contains(zone, membershipProbe(props.element)); return inside.ok && inside.value; }));
 const canAddMaterial = computed(() => runtime.renovation.available && room.value !== undefined && planning.baseline.value !== null
-	&& !planning.baseline.value.materials.some(({ entity }) => entity.assetId === assetId.value && entity.origin.zoneId === room.value?.id && entity.source?.rule === 'placement-count'));
+	&& !planning.baseline.value.materials.some(({ entity }) => entity.assetId === assetId.value && originRoomId(entity.origin) === room.value?.id && entity.source?.rule === 'placement-count'));
 async function addMaterial(): Promise<void> {
 	if (!room.value) return;
 	session.roomId = room.value.id; session.targetId = room.value.id; session.focusedId = '';

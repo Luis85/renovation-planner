@@ -54,8 +54,8 @@ function planWorkRows(plan: Plan, names: ReadonlyMap<string, string>): readonly 
  const value = plan.renovation ?? EMPTY_RENOVATION;
  const subjects = new Map(value.subjects.map(item => [item.id, item]));
  for (const work of orderedWork(value)) {
-  const roomIds = new Set([work.roomId, ...work.links?.map(link => link.roomId) ?? []]);
-  for (const id of work.outcomes) { const subject = subjects.get(id); if (subject) roomIds.add(subject.roomId); }
+  const roomIds = new Set([work.roomId, ...work.links?.map(link => link.roomId) ?? []].filter((id): id is string => id !== undefined));
+  for (const id of work.outcomes) { const room = subjects.get(id)?.roomId; if (room) roomIds.add(room); }
   rows.push({ planId: plan.id, floor: plan.name, work, blocking: blockingWork(value, work),
    rooms: Array.from(roomIds, id => ({ id, name: names.get(id) ?? null })) });
  }

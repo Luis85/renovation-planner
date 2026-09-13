@@ -19,6 +19,8 @@ export const THEME_TOKENS = {
 	zoneCaption: '--text-muted',
 	/** The light interior between a wall's two edge lines — a surface, not ink. */
 	wallFill: '--background-secondary',
+	/** The hatch of a wall's material pattern (ADR-0031) — ink, drawn over wallFill. */
+	wallPattern: '--text-muted',
 	accent: '--interactive-accent',
 	zoneRoom: '--color-blue',
 	zoneGarden: '--color-green',

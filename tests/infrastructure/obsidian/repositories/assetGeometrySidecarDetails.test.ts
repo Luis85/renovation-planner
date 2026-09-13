@@ -1,0 +1,96 @@
+/**
+ * Schema version 2 (symbols spec, Decision 6): bulges and details cross the storage boundary, a v1
+ * file still reads, and every write is v2 — which is what makes a v1-only build refuse the file
+ * rather than silently dropping its details on its next write.
+ */
+import { describe, expect, it } from 'vitest';
+import { createRepositoryStack } from '../../../helpers/vault';
+import { expectErr, expectOk } from '../../../helpers/domain';
+import { createAssetId } from '../../../../src/domain/asset/AssetId';
+import { assetSidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
+import type { AssetGeometryDocument } from '../../../../src/application/ports/AssetGeometrySidecar';
+import type { CurvedPolygon } from '../../../../src/core/geometry/CurvedPolygon';
+import { shapeFromDimensions, type AssetShape } from '../../../../src/domain/asset/AssetShape';
+
+const seeded = () => {
+	const stack = createRepositoryStack();
+	const assetId = createAssetId();
+	return {
+		stack,
+		assetId,
+		path: assetSidecarPathFor(stack.libraryFolder, assetId),
+		sidecar: new ObsidianAssetGeometrySidecar(stack.assetGeometry),
+	};
+};
+
+const RAW_SHAPE = {
+	footprint: { points: [[-600, -400], [600, -400], [600, 400], [-600, 400]] },
+	footprintOrigin: 'typed',
+	footprintPending: false,
+	clearancePending: false,
+	anchorPending: false,
+	clearance: null,
+	anchor: { x: 0, y: 0 },
+	facing: 0,
+};
+
+const rawDocument = (assetId: string, overrides: Record<string, unknown> = {}): string =>
+	JSON.stringify({ schemaVersion: 1, assetId, revision: 3, unit: 'mm', calibration: null, shape: RAW_SHAPE, ...overrides });
+
+const QUARTER = Math.tan(Math.PI / 8);
+const circle = (radius: number): CurvedPolygon => ({
+	points: [{ x: 0, y: -radius }, { x: radius, y: 0 }, { x: 0, y: radius }, { x: -radius, y: 0 }],
+	bulges: [QUARTER, QUARTER, QUARTER, QUARTER],
+});
+const square = (half: number): CurvedPolygon => ({
+	points: [{ x: -half, y: -half }, { x: half, y: -half }, { x: half, y: half }, { x: -half, y: half }],
+});
+const symbol = (): AssetShape => ({
+	...expectOk(shapeFromDimensions(900, 900)),
+	footprint: circle(450),
+	details: [
+		{ id: 'detail-1', name: 'top', outline: circle(400), line: 'solid', pending: false },
+		{ id: 'detail-2', name: 'overhead', outline: square(200), line: 'dashed', pending: true },
+	],
+});
+
+describe('asset geometry sidecar, schema version 2', () => {
+	it('round-trips a curved footprint and its details', async () => {
+		const { sidecar, assetId } = seeded();
+		const document: AssetGeometryDocument = { calibration: null, shape: symbol() };
+
+		expectOk(await sidecar.write(assetId, document));
+
+		expect(expectOk(await sidecar.read(assetId)).document).toEqual(document);
+	});
+
+	it('reads a version 1 file as a shape with no details, and writes version 2 back', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		stack.vault.entries.set(path, rawDocument(assetId));
+
+		const read = expectOk(await sidecar.read(assetId));
+		expect(read.document.shape?.details).toEqual([]);
+		expectOk(await sidecar.write(assetId, read.document, read.version));
+
+		expect(JSON.parse(stack.vault.entries.get(path) ?? '{}').schemaVersion).toBe(2);
+	});
+
+	it('writes a straight outline with no bulges key', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+
+		expectOk(await sidecar.write(assetId, { calibration: null, shape: expectOk(shapeFromDimensions(1200, 800)) }));
+
+		const stored = JSON.parse(stack.vault.entries.get(path) ?? '{}');
+		expect(stored.shape.footprint).toEqual({ points: [[-600, -400], [600, -400], [600, 400], [-600, 400]] });
+		expect(stored.shape.details).toEqual([]);
+	});
+
+	it('refuses a version 2 outline whose bulge count does not match its edges', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		const shape = { ...RAW_SHAPE, footprint: { ...RAW_SHAPE.footprint, bulges: [0.5] }, details: [] };
+		stack.vault.entries.set(path, rawDocument(assetId, { schemaVersion: 2, shape }));
+
+		expect(expectErr(await sidecar.read(assetId))).toMatchObject({ category: 'Validation', code: 'asset-geometry.schema-invalid' });
+	});
+});

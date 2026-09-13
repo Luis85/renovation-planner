@@ -20,6 +20,11 @@ const shapes = computed(() => props.placements.map(element => assetShapeConfig(e
 				:config="shape.clearance"
 			/>
 			<VLine :config="shape.footprint" />
+			<VLine
+				v-for="(detail, index) in shape.details"
+				:key="index"
+				:config="detail"
+			/>
 			<template v-if="shape.cross">
 				<VLine
 					v-for="(line, index) in shape.cross"

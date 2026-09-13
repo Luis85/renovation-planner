@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sourceMeasurement, type RequirementSource } from '../../src/domain/requirement/RequirementSource';
 import { EMPTY_STRUCTURE } from '../../src/domain/spatial/Structure';
 import type { SpatialElement } from '../../src/domain/spatial/SpatialElement';
+import { postOutline } from '../../src/domain/spatial/structuralElement';
 import { expectOk } from '../helpers/domain';
 
 const source: RequirementSource = { planId: 'plan', targetId: 'element-path', workId: '', outcomeId: '', state: 'current', rule: 'element-length', manual: '2.5', coverage: '1', lot: '', minimum: '' };
@@ -27,5 +28,17 @@ describe('element material quantities use independent floor facts', () => {
 		for (const patch of [{ targetId: object.id }, { rule: 'object-area' as const }, { targetId: 'missing' }]) expect(sourceMeasurement({ ...source, ...patch }, 'room', geometry, 'm').ok).toBe(false);
 		expect(sourceMeasurement(source, 'room', geometry, 'm2').ok).toBe(false);
 		expect(sourceMeasurement({ ...source, targetId: object.id, rule: 'object-area' }, 'room', { ...geometry, structure: { ...EMPTY_STRUCTURE, elements: [{ ...object, points: [] }] } }, 'm2').ok).toBe(false);
+	});
+	it('measures a post like an object — closed area, not an open polyline length (final review finding F2)', () => {
+		const points = postOutline({ x: 0, y: 0 }, 140, 140);
+		const post: SpatialElement = { id: 'element-post', kind: 'post', loadBearing: true, points };
+		const asObject: SpatialElement = { id: 'element-post-object', kind: 'object', points };
+		const geometryWithPost = { objects: [], structure: { ...EMPTY_STRUCTURE, elements: [post] } };
+		const geometryWithObject = { objects: [], structure: { ...EMPTY_STRUCTURE, elements: [asObject] } };
+		const postArea = sourceMeasurement({ ...source, targetId: post.id, rule: 'object-area' }, 'room', geometryWithPost, 'm2');
+		const objectArea = sourceMeasurement({ ...source, targetId: asObject.id, rule: 'object-area' }, 'room', geometryWithObject, 'm2');
+		expect(expectOk(postArea).toString()).toBe(expectOk(objectArea).toString());
+		expect(sourceMeasurement({ ...source, targetId: post.id, rule: 'element-length' }, 'room', geometryWithPost, 'm').ok).toBe(false);
+		expect(sourceMeasurement({ ...source, targetId: asObject.id, rule: 'element-length' }, 'room', geometryWithObject, 'm').ok).toBe(false);
 	});
 });

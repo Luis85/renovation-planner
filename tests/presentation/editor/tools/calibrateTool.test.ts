@@ -561,8 +561,10 @@ describe('CalibrateTool.hasDraft', () => {
 		const tool = newTool(h);
 
 		tool.pointerDown(at(0, 0));
+		expect(tool.tracksPointer()).toBe(true); // the tape trails the pointer from the anchor
 		tool.pointerDown(at(30, 40));
 		expect(tool.hasDraft()).toBe(true); // the second point is buffered, awaiting its release
+		expect(tool.tracksPointer()).toBe(false); // but the measured segment no longer follows anything
 
 		tool.pointerUp(at(30, 40));
 		expect(tool.hasDraft()).toBe(false);

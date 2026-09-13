@@ -80,8 +80,8 @@ const SpatialElementShapeV9 = z.object({
 	id: z.string().startsWith('element-'), kind: z.enum(['object', 'path', 'fence', 'measurement', 'stair', 'arrow', 'asset']),
 	points: z.array(SpatialPointSchema), stair: StairOptionsSchema.optional(), assetId: z.string().min(1).optional(),
 });
-const stairRule = (element: z.infer<typeof SpatialElementShapeV9>) => element.kind === 'stair' ? element.stair !== undefined : element.stair === undefined;
-const assetRule = (element: z.infer<typeof SpatialElementShapeV9>) => (element.kind === 'asset') === (element.assetId !== undefined);
+const stairRule = (element: { readonly kind: string; readonly stair?: unknown }) => element.kind === 'stair' ? element.stair !== undefined : element.stair === undefined;
+const assetRule = (element: { readonly kind: string; readonly assetId?: string }) => (element.kind === 'asset') === (element.assetId !== undefined);
 const ASSET_MESSAGE = { message: 'An asset placement, and only an asset placement, names its asset.' };
 const SpatialElementSchemaV9 = SpatialElementShapeV9.refine(stairRule).refine(assetRule, ASSET_MESSAGE);
 const StructureSchemaV9 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV9).optional() });
@@ -92,6 +92,17 @@ export const SpatialObjectGeometrySchemaV10 = SpatialObjectShapeV7.extend({ labe
 export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV10>;
 const SpatialElementSchemaV10 = SpatialElementShapeV9.extend({ labelOffset: LabelOffsetSchema.optional() }).refine(stairRule).refine(assetRule, ASSET_MESSAGE);
 const StructureSchemaV10 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV10).optional() });
-export const PlanGeometrySchemaV10 = PlanGeometrySchemaV9.extend({ schemaVersion: z.literal(10), objects: z.array(SpatialObjectGeometrySchemaV10), structure: StructureSchemaV10.optional(), intended: StructureSchemaV10.optional() });
-export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9, PlanGeometrySchemaV10]);
-export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV10>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 };
+const PlanGeometrySchemaV10 = PlanGeometrySchemaV9.extend({ schemaVersion: z.literal(10), objects: z.array(SpatialObjectGeometrySchemaV10), structure: StructureSchemaV10.optional(), intended: StructureSchemaV10.optional() });
+/** Schema 11: structural posts and beams (structural posts and beams design §4). */
+const SpatialElementShapeV11 = SpatialElementShapeV9.extend({
+	kind: z.enum(['object', 'path', 'fence', 'measurement', 'stair', 'arrow', 'asset', 'post', 'beam']),
+	labelOffset: LabelOffsetSchema.optional(), width: z.number().positive().max(1e6).optional(), loadBearing: z.boolean().optional(),
+});
+const structuralRule = (element: z.infer<typeof SpatialElementShapeV11>) => (element.kind === 'beam') === (element.width !== undefined)
+	&& (element.kind === 'post' || element.kind === 'beam') === (element.loadBearing !== undefined);
+const STRUCTURAL_MESSAGE = { message: 'A beam, and only a beam, has a width; a post or a beam, and only those, says whether it is load-bearing.' };
+const SpatialElementSchemaV11 = SpatialElementShapeV11.refine(stairRule).refine(assetRule, ASSET_MESSAGE).refine(structuralRule, STRUCTURAL_MESSAGE);
+const StructureSchemaV11 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV11).optional() });
+export const PlanGeometrySchemaV11 = PlanGeometrySchemaV10.extend({ schemaVersion: z.literal(11), structure: StructureSchemaV11.optional(), intended: StructureSchemaV11.optional() });
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9, PlanGeometrySchemaV10, PlanGeometrySchemaV11]);
+export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV11>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 };

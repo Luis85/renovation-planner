@@ -17,6 +17,7 @@ import { WALL_LOOP } from '../../helpers/structure';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { withPlanRenovation } from '../../../src/domain/plan/Plan';
+import { postOutline } from '../../../src/domain/spatial/structuralElement';
 
 // jsdom defines no Obsidian CSS variable, so `resolveThemeTokens` would give `--text-normal`
 // (`zoneStroke`, the edge pass) and `--background-secondary` (`wallFill`, the body pass) the
@@ -101,4 +102,45 @@ it('draws the wall-pattern pass after every wall body, for a wall whose material
 	const bodies = architecture.find('.wall-body').map(node => lines.indexOf(node as Konva.Shape));
 	const patterns = architecture.find('.wall-pattern').map(node => lines.indexOf(node as Konva.Shape));
 	expect(Math.min(...patterns)).toBeGreaterThan(Math.max(...bodies));
+});
+
+/**
+ * Where an element draws relative to the wall paint passes is not one rule for every kind.
+ * Only posts and beams draw ABOVE the wall paint: a load-bearing post centred on a wall's centre
+ * line is otherwise painted over by the wall body that follows it, so a post has to draw AFTER
+ * the wall-body (and wall-pattern) passes, and the wall being selected has to stay above the
+ * post, or a post standing at a wall's end would cover the endpoint handle a user needs to drag
+ * the wall by. Every other element kind (an object, a stair, …) draws where `main` always drew
+ * it: before the wall paint, at the top of the architecture layer — an opaque object fill (or a
+ * stair's) would otherwise blank out any wall it overlaps, the common case since wall centre
+ * lines are snap candidates (final review finding F1).
+ */
+it('draws a post after the wall paint passes and before the selected wall’s endpoint handles, but draws an overlapping object before the wall paint', async () => {
+	const rig = await structureEditor(); rigs.push(rig);
+	const read = expectOk(await rig.geometry.read(rig.plan.id));
+	const elements = [
+		{ id: 'element-post-a', kind: 'post' as const, loadBearing: true, points: postOutline({ x: 2000, y: 0 }, 140, 140) },
+		{ id: 'element-object-a', kind: 'object' as const, points: [{ x: -500, y: -500 }, { x: 500, y: -500 }, { x: 500, y: 500 }, { x: -500, y: 500 }] },
+	];
+	expectOk(await rig.geometry.write(rig.plan.id, { ...read.document, structure: { ...WALL_LOOP, elements } }, read.version));
+	await rig.runtime.refreshProjection(); await settle();
+	rig.selection.select(['wall-a' as never]); await settle();
+	const architecture = expectDefined(rig.stage.findOne<Konva.Layer>('.architecture'), 'architecture layer');
+	const shapes = architecture.find<Konva.Shape>('Shape');
+	const bodies = architecture.find('.wall-body').map(node => shapes.indexOf(node as Konva.Shape));
+	const patterns = architecture.find('.wall-pattern').map(node => shapes.indexOf(node as Konva.Shape));
+	const posts = architecture.find('.post-outline').map(node => shapes.indexOf(node as Konva.Shape));
+	const edges = architecture.find('.wall-edge').map(node => shapes.indexOf(node as Konva.Shape));
+	const handles = shapes.filter(node => node.getClassName() === 'Circle').map(node => shapes.indexOf(node));
+	// The object's own VLine carries no name (only its wrapping VGroup does, `.element-object`),
+	// so it is found through that group rather than by a class name directly on the Shape list.
+	const objectGroup = expectDefined(architecture.findOne<Konva.Group>('.element-object'), 'object element group');
+	const objectLine = expectDefined(objectGroup.findOne<Konva.Line>('Line'), 'object element line');
+	const objectIndex = shapes.indexOf(objectLine);
+	expect(posts.length).toBeGreaterThan(0);
+	expect(objectIndex).toBeGreaterThanOrEqual(0);
+	expect(handles).toHaveLength(2);
+	expect(Math.min(...posts)).toBeGreaterThan(Math.max(...bodies, ...patterns));
+	expect(Math.max(...posts)).toBeLessThan(Math.min(...handles));
+	expect(objectIndex).toBeLessThan(Math.min(...edges, ...bodies));
 });

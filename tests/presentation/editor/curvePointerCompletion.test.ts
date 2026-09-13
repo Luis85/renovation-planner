@@ -27,6 +27,11 @@ it('uses the final native release point with Shift and Alt, refuses finish durin
 	await settleUntil(() => rig.runtime.curveTask.target.value !== null, 'curve baseline');
 	const task = rig.runtime.curveTask, manager = rig.runtime.toolManager, handle = expectDefined(rig.stage.findOne('.curve-bend-0'), 'native bend handle');
 	const start = handle.position(), write = vi.spyOn(rig.geometry, 'write');
+	// At the default camera this drag runs from 48 px below the canvas's top edge to 12 px above
+	// it — inside the edge-scroll zone, so a frame landing mid-gesture on a busy machine scrolled
+	// the plan and moved the bend. Moving the camera first keeps it inside the pane; every point
+	// asserted here is a world point, which the camera does not change.
+	useEditorStore(rig.pinia).panByScreen(0, 300);
 	expect(manager.activeToolHasDraft()).toBe(true);
 	rig.pointer('pointerdown', start, 1, { shiftKey: true, altKey: true });
 	rig.pointer('pointermove', { x: start.x, y: start.y - 400 }, 1, { shiftKey: true, altKey: true }); await settle();

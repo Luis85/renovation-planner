@@ -1,4 +1,5 @@
 import type { Point } from '../../core/geometry/Point';
+import { beamOutline } from './structuralElement';
 
 export interface StairOptions { readonly width: number; readonly treads: number; readonly direction: 'up' | 'down' }
 export const DEFAULT_STAIR: StairOptions = { width: 900, treads: 12, direction: 'up' };
@@ -32,7 +33,8 @@ export function stairPlanGeometry(points: readonly Point[], options: StairOption
 }
 
 /** Framing, hit testing and group bounds can consume full geometry without storing a duplicate outline. */
-export function spatialElementFootprint(element: { readonly kind: string; readonly points: readonly Point[]; readonly stair?: StairOptions }): readonly Point[] {
+export function spatialElementFootprint(element: { readonly kind: string; readonly points: readonly Point[]; readonly stair?: StairOptions; readonly width?: number }): readonly Point[] {
+	if (element.kind === 'beam') return element.width ? beamOutline(element.points, element.width) : [];
 	if (element.kind !== 'stair') return element.points;
 	return element.stair ? stairPlanGeometry(element.points, element.stair)?.outline ?? [] : [];
 }

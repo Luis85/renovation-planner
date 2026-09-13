@@ -58,6 +58,8 @@ const runtime = useEditorRuntime();
 const isCurves = computed(() => runtime.activeToolId.value === 'edit-curves');
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
 const isElement = computed(() => isElementTool(runtime.activeToolId.value));
+/** An item's instruction follows how it is being drawn (2026-09-13 item modes spec §A). */
+const isRectangleItem = computed(() => runtime.activeToolId.value === 'place-object' && runtime.elementTask.draft.shape === 'rectangle');
 const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
 
@@ -69,6 +71,8 @@ const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKe
 	'place-asset': { nameKey: 'editor.add.asset.label', instructionKey: 'editor.asset.banner' },
 	'place-stair': { nameKey: 'editor.add.stair.label', instructionKey: 'editor.stair.banner', finish: true },
 	'draw-arrow': { nameKey: 'editor.add.arrow.label', instructionKey: 'editor.arrow.banner', finish: true },
+	'place-post': { nameKey: 'editor.add.post.label', instructionKey: 'editor.post.banner' },
+	'draw-beam': { nameKey: 'editor.add.beam.label', instructionKey: 'editor.beam.banner' },
 	'draw-path': { nameKey: 'editor.add.path.label', instructionKey: 'editor.element.banner.path', finish: true },
 	'draw-fence': { nameKey: 'editor.add.fence.label', instructionKey: 'editor.element.banner.fence', finish: true },
 	measure: { nameKey: 'editor.add.measurement.label', instructionKey: 'editor.element.banner.measurement', finish: true },
@@ -97,6 +101,16 @@ const finishLabel = computed(() => tr(isCurves.value ? 'editor.curves.save' : is
 	: isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
 const canFinish = computed(() => isCurves.value ? !runtime.curveTask.blocked.value && runtime.curveTask.target.value !== null && runtime.curveTask.validation.value === null && runtime.curveTask.state.invalidField === null : isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 const showSnapHint = computed(() => runtime.renderState.snapGuides.length > 0);
+/**
+ * The instruction key ternary, out of the template and behind fallow's cognitive-complexity
+ * threshold (increment history, 2026-09-13 item modes) — a function over the ALREADY-NARROWED
+ * `task` the `v-if="task !== null"` span below passes, the same shape `pausedDescribedBy` in
+ * `NewAssetForm.vue` uses, rather than a second nullable computed with a branch nothing can
+ * reach.
+ */
+function instruction(current: NonNullable<typeof task.value>): string {
+	return tr(isRectangleItem.value ? 'editor.element.banner.object-rectangle' : current.instructionKey);
+}
 const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
 const finishDescription = computed(() => [instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' '));
 
@@ -174,7 +188,7 @@ watch(task, (next) => {
 			>{{ tr('editor.room.snapped') }}</span>
 			<span
 				:id="instructionId"
-			>{{ tr(task.instructionKey) }}</span>
+			>{{ instruction(task) }}</span>
 			<span
 				v-if="runtime.activeToolId.value === 'move-opening'"
 				role="status"

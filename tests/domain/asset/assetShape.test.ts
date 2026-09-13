@@ -4,6 +4,7 @@ import {
 	footprintFromDimensions,
 	normaliseFacing,
 	shapeFromDimensions,
+	shapeFromOutline,
 	validateAssetShape,
 	type AssetShape,
 } from '../../../src/domain/asset/AssetShape';
@@ -177,6 +178,28 @@ describe('shapeFromDimensions', () => {
 	it('refuses a rectangle whose area underflows, rather than building a shape the validator rejects', () => {
 		const tiny = Number.MIN_VALUE * 2;
 		const result = shapeFromDimensions(tiny, tiny);
+		expect(isErr(result) && result.error.code).toBe('asset.degenerate-footprint');
+	});
+});
+
+describe('shapeFromOutline', () => {
+	it('starts every shape typed, unpending, centred, facing +x and without a clearance, for the given polygon', () => {
+		const points = [{ x: -600, y: -300 }, { x: 600, y: -300 }, { x: 600, y: 300 }, { x: -600, y: 300 }];
+		const result = shapeFromOutline(points);
+		expect(isOk(result) && result.value).toEqual({
+			footprint: { points },
+			footprintOrigin: 'typed',
+			footprintPending: false,
+			clearancePending: false,
+			anchorPending: false,
+			clearance: null,
+			anchor: { x: 0, y: 0 },
+			facing: 0,
+		});
+	});
+
+	it('refuses a collinear outline, exactly as validateAssetShape does for a typed rectangle', () => {
+		const result = shapeFromOutline([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }]);
 		expect(isErr(result) && result.error.code).toBe('asset.degenerate-footprint');
 	});
 });

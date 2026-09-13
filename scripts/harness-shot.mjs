@@ -498,6 +498,11 @@ const SHOTS = [
 	{ name: 'plan-editor-assets', query: '?view=plan-editor&reference&planning&assets&theme=light', selector: FLOOR_STATE },
 	{ name: 'plan-editor-assets-dark', query: '?view=plan-editor&reference&planning&assets', selector: FLOOR_STATE },
 	{ name: 'plan-editor-assets-narrow', query: '?view=plan-editor&reference&planning&assets&theme=light', selector: PLAN_CANVAS, width: 460 },
+	// Structural posts and beams: three wall posts, one free-standing, and a beam overhead
+	// crossing the free post, from the `?structural` knob.
+	{ name: 'plan-editor-structural', query: '?view=plan-editor&reference&planning&structural&theme=light', selector: FLOOR_STATE },
+	{ name: 'plan-editor-structural-dark', query: '?view=plan-editor&reference&planning&structural', selector: FLOOR_STATE },
+	{ name: 'plan-editor-structural-narrow', query: '?view=plan-editor&reference&planning&structural&theme=light', selector: PLAN_CANVAS, width: 460 },
 	// The 2026-09-12 side panels: both collapsed to strips, in both schemes, driven through the real
 	// header buttons (`?panels`); the full layout at its 900px edge, where the canvas floor shrinks
 	// both panels; a selected room in dark; and the German constrained rail.

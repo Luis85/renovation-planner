@@ -574,12 +574,16 @@ describe('SelectTool.hasDraft', () => {
 		tool.activate(h.context);
 
 		expect(tool.hasDraft()).toBe(false);
+		expect(tool.tracksPointer()).toBe(false);
 
 		tool.pointerDown(eventAt(10, 10));
 		expect(tool.hasDraft()).toBe(true);
+		// A body drag measures its delta in world coordinates, so edge scrolling may carry it.
+		expect(tool.tracksPointer()).toBe(true);
 
 		tool.pointerUp(eventAt(60, 10)); // a real drag, dispatched
 		expect(tool.hasDraft()).toBe(false);
+		expect(tool.tracksPointer()).toBe(false);
 	});
 
 	it('is false again once cancel() or abandonGesture() discards the drag', () => {

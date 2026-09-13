@@ -37,7 +37,9 @@ it('treats a handle click as edge choice and waits for the primary release befor
 it('ignores invalid or paused pointer samples and restores the existing bend when its drag is interrupted or deactivated', () => {
 	const { state, tool, context, actions } = setup(0.2); tool.activate(context);
 	const target = state.target as CurveTarget, midpoint = curveEdges(target)[0].midpoint;
+	expect(tool.tracksPointer()).toBe(false);
 	tool.pointerDown(pointerAt(midpoint.x, midpoint.y));
+	expect(tool.tracksPointer()).toBe(true);
 	tool.pointerMove(pointerAt(Number.NaN, -200)); tool.pointerMove(pointerAt(500, Number.POSITIVE_INFINITY));
 	state.blocked = true; tool.pointerMove(pointerAt(500, -200));
 	expect(actions.set).not.toHaveBeenCalled(); state.blocked = false;

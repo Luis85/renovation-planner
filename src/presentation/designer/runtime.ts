@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { AssetId } from '../../domain/asset/AssetId';
+import type { AssetShape } from '../../domain/asset/AssetShape';
 import { useEditorStore } from '../stores/EditorStore';
 import { useSelectionStore } from '../editor/selection/selection-store';
 import { CommandHistory } from '../editor/tools/command-history';
@@ -74,6 +75,13 @@ export interface DesignerRuntime {
 	 * `asset-dimensions` dialog has resolved a real rectangle, never for a cancelled pick.
 	 */
 	readonly setFootprintFromDimensions: (width: number, depth: number) => Promise<void>;
+	/**
+	 * The preset dialog's gesture (asset designer symbols spec, Decision 7): one whole-shape write,
+	 * one history entry. Swallows its `Result` through `notifyIfRefused`/`reportDispatchFault` for
+	 * the reason `setFootprintFromDimensions` gives — a click-bound dispatch with no field to show a
+	 * refusal under.
+	 */
+	readonly applyShape: (shape: AssetShape) => Promise<void>;
 	/**
 	 * Task B8's height field, dispatched through `toolDispatcher` rather than through
 	 * `setBackground`'s pattern: `useFieldCommit` needs the raw `Result` to route a refusal
@@ -329,6 +337,11 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			),
 		);
 	}
+	async function applyShape(shape: AssetShape): Promise<void> {
+		await notifyIfRefused(
+			reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setShape({ assetId, shape }))),
+		);
+	}
 	function commitHeight(height: number | null): Promise<DispatchResult> {
 		return toolDispatcher.run(edits.setHeight({ assetId, height }));
 	}
@@ -359,6 +372,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		redo,
 		setBackground,
 		setFootprintFromDimensions,
+		applyShape,
 		commitHeight,
 		hydrate,
 		toolManager,

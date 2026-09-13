@@ -30,6 +30,7 @@ import {
 	SetAssetFootprintCommand,
 	SetAssetFootprintFromDimensionsCommand,
 } from '../../src/application/commands/asset/SetAssetFootprint';
+import { SetAssetShapeCommand } from '../../src/application/commands/asset/SetAssetShape';
 import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
 import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
 import { SetAssetBackgroundCommand } from '../../src/application/commands/asset/SetAssetBackground';
@@ -289,6 +290,7 @@ export async function seeded(
 	const bundle: AssetDesignCommandBundle = {
 		setFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand(commandDeps),
 		setFootprint: new SetAssetFootprintCommand(commandDeps),
+		setShape: new SetAssetShapeCommand(commandDeps),
 		setClearance: new SetAssetClearanceCommand(commandDeps),
 		setAnchor: new SetAssetAnchorCommand(commandDeps),
 		setFacing: setFacingCommand,

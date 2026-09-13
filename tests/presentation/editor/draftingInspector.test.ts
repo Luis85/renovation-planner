@@ -37,6 +37,8 @@ it('edits a dimension chain\'s offset and keeps its points', async () => {
 	await form.get('input[name="dimension-offset"]').setValue('-0,8');
 	await form.trigger('submit'); await editing; await settle();
 	expect(rig.project.structure.elements?.[0]).toMatchObject({ offset: -800, points: DIMENSION_A.points });
+	await rig.runtime.undo(); await settle();
+	expect(rig.project.structure.elements?.[0].offset).toBe(-600);
 });
 
 it('shows no length line for a text or a grid point, a length for a boundary line, and no renovation entry for any of them', async () => {

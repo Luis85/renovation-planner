@@ -429,6 +429,10 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['asset.invalid-detail-id', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],
 	['asset.preset-value-out-of-range', 'Validation', 'error.category.validation', 'domain/asset/presets/presetGeometry.ts'],
 	['asset.preset-incoherent', 'Validation', 'error.category.validation', 'domain/asset/presets/presetGeometry.ts'],
+	// The symbols spec's part edits (Amendment 1).
+	['asset.part-not-found', 'Validation', 'error.category.validation', 'domain/asset/shapeEdits.ts'],
+	['asset.vertex-out-of-range', 'Validation', 'error.category.validation', 'domain/asset/shapeEdits.ts'],
+	['asset.invalid-scale', 'Validation', 'error.category.validation', 'domain/asset/shapeEdits.ts'],
 	// The one `assetError` call outside the domain, and the only one of the seventeen whose
 	// module is an application command.
 	['asset.no-footprint', 'Validation', 'error.category.validation', 'application/commands/asset/updateAssetShape.ts'],

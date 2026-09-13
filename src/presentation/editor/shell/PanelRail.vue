@@ -19,11 +19,7 @@ async function open(kind: 'layers' | 'inspector', event: MouseEvent, section?: '
 	await nextTick();
 	const panel = shell.querySelector<HTMLElement>(panels[kind]);
 	const destination = section === undefined ? null : panel?.querySelector<HTMLDetailsElement>(`[data-rp-section="${section}"]`);
-	if (destination) {
-		destination.open = true;
-		destination.querySelector<HTMLElement>('summary')?.focus();
-		return;
-	}
+	if (destination) destination.open = true;
 	if (panel && !panel.contains(panel.ownerDocument.activeElement)) panel.focus();
 }
 </script>
@@ -33,7 +29,7 @@ async function open(kind: 'layers' | 'inspector', event: MouseEvent, section?: '
 		<button
 			type="button"
 			class="rp-panel-rail__button"
-			data-rp-rail="layers"
+			data-rp-rail="property"
 			:aria-expanded="overlay === 'layers'"
 			@click="open('layers', $event, 'context')"
 		>
@@ -42,7 +38,7 @@ async function open(kind: 'layers' | 'inspector', event: MouseEvent, section?: '
 		<button
 			type="button"
 			class="rp-panel-rail__button"
-			data-rp-rail-section="layers"
+			data-rp-rail="layers"
 			:aria-expanded="overlay === 'layers'"
 			@click="open('layers', $event, 'layers')"
 		>

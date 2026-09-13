@@ -20,17 +20,17 @@ describe('I02 compact panel navigation', () => {
 		expect(harness.wrapper.get('[data-rp-rail="details"]').text()).toBe(t('en', 'editor.rail.details'));
 		const viewport = { ...useEditorStore(harness.pinia).viewport };
 
-		await harness.wrapper.get('[data-rp-rail="layers"]').trigger('click');
+		await harness.wrapper.get('[data-rp-rail="property"]').trigger('click');
 		await settle();
 		const context = harness.wrapper.get('[data-rp-section="context"]');
 		expect(context.attributes('open')).toBeDefined();
-		expect(document.activeElement).toBe(context.get('summary').element);
+		expect(document.activeElement).toBe(harness.wrapper.get('.rp-overlay-panel').element);
 
-		await harness.wrapper.get('[data-rp-rail-section="layers"]').trigger('click');
+		await harness.wrapper.get('[data-rp-rail="layers"]').trigger('click');
 		await settle();
 		const layers = harness.wrapper.get('[data-rp-section="layers"]');
 		expect(layers.attributes('open')).toBeDefined();
-		expect(document.activeElement).toBe(layers.get('summary').element);
+		expect(document.activeElement).toBe(harness.wrapper.get('.rp-overlay-panel').element);
 		expect({ ...useEditorStore(harness.pinia).viewport }).toEqual(viewport);
 	});
 });

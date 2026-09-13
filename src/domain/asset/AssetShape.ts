@@ -212,18 +212,39 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 }
 
 /**
- * Every shape starts here: the rectangle, centred, facing +x, with no clearance.
+ * Every shape starts here: typed origin, unpending, centred anchor, facing +x, no clearance —
+ * for a footprint that already IS a polygon rather than two numbers still to become one. A
+ * traced outline and (via `shapeFromDimensions` below) a typed rectangle both start here, so
+ * "every shape starts here" is one function rather than one sentence describing two.
  *
  * **Composed and then VALIDATED**, so this constructor and `validateAssetShape` cannot disagree
  * about what a valid shape is — for the reason below and for every future rule neither of them
  * has yet. It is one call rather than a third copy of the area rule, which is what the
  * alternative would have been.
+ */
+export function shapeFromOutline(points: readonly Point[]): Result<AssetShape, ValidationError> {
+	return validateAssetShape({
+		footprint: { points },
+		footprintOrigin: 'typed',
+		footprintPending: false,
+		clearancePending: false,
+		anchorPending: false,
+		clearance: null,
+		anchor: { x: 0, y: 0 },
+		facing: 0,
+	});
+}
+
+/**
+ * A typed width and depth, turned into the rectangle `shapeFromOutline` above validates. The two
+ * constructors are one call apart rather than two copies of the same literal, so they cannot
+ * drift about what "every shape starts here" means.
  *
- * The disagreement was real: at `Number.MIN_VALUE * 2` the rectangle has four DISTINCT vertices
- * whose shoelace products all underflow, so `footprintFromDimensions` answers `ok` for a polygon
- * enclosing exactly zero area and this used to hand back a shape the validator refuses. The
- * translation in `signedAreaSum` cannot help — that addresses cancellation between large terms,
- * and this is underflow of small ones.
+ * The disagreement was real before they shared this call: at `Number.MIN_VALUE * 2` the
+ * rectangle has four DISTINCT vertices whose shoelace products all underflow, so
+ * `footprintFromDimensions` answers `ok` for a polygon enclosing exactly zero area and this used
+ * to hand back a shape the validator refuses. The translation in `signedAreaSum` cannot help —
+ * that addresses cancellation between large terms, and this is underflow of small ones.
  *
  * Only ONE of `validateAssetShape`'s refusals is reachable from here, which is why this is not a
  * dead guard: the shape is built `typed` and not pending, with no clearance and a finite anchor
@@ -237,14 +258,5 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 export function shapeFromDimensions(width: number, depth: number): Result<AssetShape, ValidationError> {
 	const footprint = footprintFromDimensions(width, depth);
 	if (isErr(footprint)) return footprint;
-	return validateAssetShape({
-		footprint: footprint.value,
-		footprintOrigin: 'typed',
-		footprintPending: false,
-		clearancePending: false,
-		anchorPending: false,
-		clearance: null,
-		anchor: { x: 0, y: 0 },
-		facing: 0,
-	});
+	return shapeFromOutline(footprint.value.points);
 }

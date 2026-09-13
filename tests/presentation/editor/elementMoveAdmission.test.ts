@@ -33,6 +33,13 @@ it('anchors an Arrow first-endpoint constraint at its next point and rejects col
 	expect(moveElement).not.toHaveBeenCalled(); expect(move.active).toBe(false); expect(arrow.points[0]).toEqual({ x: 0, y: 0 });
 });
 
+it('commits a beam endpoint drag, keeping the width and load-bearing flag a beam cannot be valid without', () => {
+	const moveElement = vi.fn<NonNullable<ElementMoveDeps['moveElement']>>(), move = new ElementMove({ moveElement });
+	const { context } = toolContext(), beam = { id: 'element-beam', kind: 'beam' as const, width: 160, loadBearing: true, points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }] };
+	move.start(context, pointerAt(1000, 0), beam, 1); move.move(pointerAt(1500, 0)); move.finish(context, pointerAt(1500, 0));
+	expect(moveElement).toHaveBeenCalledWith(beam.id, [{ x: 0, y: 0 }, { x: 1500, y: 0 }], beam);
+});
+
 it('snaps a body move rigidly against the plan minus itself, draws guides, and clears them on finish and cancel', () => {
 	const moveElement = vi.fn<NonNullable<ElementMoveDeps['moveElement']>>(), previewElement = vi.fn<NonNullable<ElementMoveDeps['previewElement']>>();
 	const excluded: string[][] = [];

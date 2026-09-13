@@ -13,6 +13,7 @@ import type { ProjectSummaryDto } from '../../../src/presentation/read-models/Pl
 import { t } from '../../../src/presentation/i18n/strings';
 import { ok } from '../../../src/core/result/Result';
 import { recorder } from '../../helpers/logger';
+import { classesNamed, propertyOf, show, stylesheetRules } from '../../helpers/selectors';
 
 // See `projectDetailStore.test.ts` for why this is stated and why it is `false`.
 const PROJECT: ProjectSummaryDto = {
@@ -147,7 +148,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('carries a plan row’s id up from PlanList', async () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
 		await wrapper.get('.rp-plan-list__row').trigger('click');
@@ -181,8 +182,8 @@ describe('ProjectDetail', () => {
 	 * exactly that: the readable plans it points at do not exist.
 	 */
 	it.each([
-		{ what: 'every plan note refused', rows: [] as { id: string; name: string }[], key: 'view.project.all-plans-unreadable' as const },
-		{ what: 'some refused', rows: [{ id: 'plan-1', name: 'Ground floor' }], key: 'view.project.some-plans-unreadable' as const },
+		{ what: 'every plan note refused', rows: [] as { id: string; name: string; kind: 'floor' }[], key: 'view.project.all-plans-unreadable' as const },
+		{ what: 'some refused', rows: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], key: 'view.project.some-plans-unreadable' as const },
 	])('says which unreadable-plan case it is when $what', ({ rows, key }) => {
 		const wrapper = mount(ProjectDetail, {
 			props: { project: PROJECT, plans: rows, unreadablePlans: 2, emptyState: null, ...PRICE_PROPS },
@@ -217,7 +218,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('draws the partial-read warning above the guidance region', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 1, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 1, emptyState: null, ...PRICE_PROPS },
 		});
 
 		const notice = wrapper.get('.rp-view-notice').element;
@@ -232,7 +233,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('draws the recovery warning with an icon beside its text', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, missingPlan: true, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, missingPlan: true, emptyState: null, ...PRICE_PROPS },
 		});
 
 		expect(wrapper.get('.rp-recovery__warning').text()).toContain(t('en', 'view.project.resume-missing-plan'));
@@ -256,7 +257,7 @@ describe('ProjectDetail', () => {
 	])('moves focus to $what', ({ missingPlan, selector }) => {
 		const wrapper = mount(ProjectDetail, {
 			attachTo: document.body,
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, missingPlan, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, missingPlan, emptyState: null, ...PRICE_PROPS },
 		});
 		expect(document.activeElement).toBe(document.body);
 
@@ -291,7 +292,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('puts the schedule and quote doors below the plan list', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
 		const plans = wrapper.get('.rp-plan-list__section').element;
@@ -311,7 +312,7 @@ describe('ProjectDetail', () => {
 		// reads one of an element's two homes reports a missing rule for every class in the other.
 		const css = [readFileSync('styles/project-detail.css', 'utf8'), readFileSync('styles/project-entry.css', 'utf8')].join('\n');
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' as const }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
 		const emitted = new Set(
@@ -322,18 +323,20 @@ describe('ProjectDetail', () => {
 		);
 
 		expect(emitted.size).toBeGreaterThan(4);
-		// A trailing boundary, not `toContain`: every class here is a PREFIX of a longer one, so
-		// a plain substring test would credit `.rp-x` to a sheet declaring only `.rp-x__row`.
-		for (const name of emitted) expect(css).toMatch(new RegExp(`\\.${name}(?![\\w-])`));
+		// Asked of the parsed sheet's selectors: a class is a node there, so `.rp-x` is not
+		// credited to a sheet declaring only `.rp-x__row`. Reported as the names the sheet lacks.
+		const declared = classesNamed(css);
+
+		expect([...emitted].filter((name) => !declared.has(name))).toEqual([]);
 	});
 
 	/**
 	 * **The BODY owns the scroll, and it is the ONLY region that does.**
 	 *
-	 * Held by a TEXT assertion over the partial rather than by the class merely existing, which
-	 * is all the harvest case above can say: jsdom resolves no CSS, so a rule one word off draws
-	 * wrong with every other case green — this repository has already shipped that defect once
-	 * (`rp-save-state-error` against an emitted `rp-save-state-save-error`).
+	 * Held by an assertion over the PARSED partial's declarations rather than by the class merely
+	 * existing, which is all the harvest case above can say: jsdom resolves no CSS, so a rule one
+	 * word off draws wrong with every other case green — this repository has already shipped that
+	 * defect once (`rp-save-state-error` against an emitted `rp-save-state-save-error`).
 	 *
 	 * What it pins was found by CAPTURING the page and looking at it, which is the only
 	 * instrument here that can see a position. `.rp-plan-list` used to carry this block because
@@ -348,15 +351,20 @@ describe('ProjectDetail', () => {
 	 * present while doing nothing.
 	 */
 	it('gives the scroll to the body and to nothing else', () => {
-		const css = readFileSync('styles/project-detail.css', 'utf8');
-		const body = css.slice(css.indexOf('.rp-project-detail__body {'));
-		const planList = css.slice(css.indexOf('.rp-plan-list {'));
+		const rules = stylesheetRules(readFileSync('styles/project-detail.css', 'utf8'));
+		const rulesFor = (selector: string) => rules.filter((rule) => rule.selectors.map(show).includes(selector));
+		const declared = (selector: string, property: string) =>
+			rulesFor(selector).flatMap((rule) => rule.declarations).find((declaration) => propertyOf(declaration) === property);
 
-		expect(body).toMatch(/flex: 1;/);
-		expect(body).toMatch(/min-height: 0;/);
-		expect(body).toMatch(/overflow-y: auto;/);
-		// The plan list's own rule ends at its closing brace; slicing to it is what stops this
-		// reading a later block's declarations as if they were this one's.
-		expect(planList.slice(0, planList.indexOf('}'))).not.toMatch(/overflow-y|flex: 1/);
+		expect(rulesFor('.rp-project-detail__body')).toHaveLength(1);
+		// `flex: 1` is what the parser reads as grow 1, shrink 1, basis 0% — all three pinned, since
+		// `flex: 1 1 auto` shares the first two and sizes the body from its content instead.
+		expect(declared('.rp-project-detail__body', 'flex')?.value).toEqual({ grow: 1, shrink: 1, basis: { type: 'length-percentage', value: { type: 'percentage', value: 0 } } });
+		expect(declared('.rp-project-detail__body', 'min-height')?.value).toEqual({ type: 'length-percentage', value: { type: 'dimension', value: { unit: 'px', value: 0 } } });
+		expect(declared('.rp-project-detail__body', 'overflow-y')?.value).toBe('auto');
+		// The plan list's own rules — every block whose selector is exactly `.rp-plan-list`, never
+		// a descendant rule's declarations read as if they were this one's.
+		expect(rulesFor('.rp-plan-list')).not.toHaveLength(0);
+		expect(rulesFor('.rp-plan-list').flatMap((rule) => rule.declarations.map(propertyOf)).filter((property) => property === 'overflow-y' || property === 'flex')).toEqual([]);
 	});
 });

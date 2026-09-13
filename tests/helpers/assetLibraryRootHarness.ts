@@ -1,4 +1,3 @@
-import type { ObservationToken } from '../../src/application/ports/versioning';
 /**
  * Mounts `AssetLibraryRoot.vue` BARE — a Pinia plugin and a provided context, never the whole
  * `AssetLibraryView` lifecycle, which `assetLibraryView.test.ts` already owns.
@@ -26,8 +25,7 @@ import type {
 	AssetLibraryDeps,
 } from '../../src/presentation/library/AssetLibraryDeps';
 import { ok } from '../../src/core/result/Result';
-import { currencyOf } from '../../src/core/money/Money';
-import { createAssetId, type AssetId } from '../../src/domain/asset/AssetId';
+import type { AssetId } from '../../src/domain/asset/AssetId';
 import type {
 	CatalogueEntryDto,
 	UnreadableEntry,
@@ -44,34 +42,8 @@ export function definite<T>(value: T | undefined): T {
 	return value;
 }
 
-export function anEntry(overrides: Partial<CatalogueEntryDto> = {}): CatalogueEntryDto {
-	return {
-		version: { revision: 1, observed: 'fixture' as ObservationToken },
-		assetId: createAssetId(),
-		name: 'Oak plank floor',
-		category: 'material',
-		unit: 'm2',
-		unitCostAmount: '34.95',
-		currency: currencyOf('EUR'),
-		wasteFactorDefault: '0.08',
-		supplier: 'Holzhandel Nord',
-		sku: 'EIC-1200-190',
-		height: null,
-		notes: null,
-		background: null,
-		...overrides,
-	};
-}
-
-export function aNoIdNote(overrides: Partial<UnreadableEntry> = {}): UnreadableEntry {
-	return {
-		assetId: null,
-		path: 'Renovation/Library/mystery.md',
-		reason: 'no-id',
-		code: null,
-		...overrides,
-	};
-}
+// The DTO fixtures live in `entities.ts`, where a node test can reach them without this file's mount.
+export { anEntry, aNoIdNote } from './entities';
 
 export function fakeQueries(
 	entries: readonly CatalogueEntryDto[],

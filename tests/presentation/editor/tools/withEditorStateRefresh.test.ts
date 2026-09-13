@@ -38,6 +38,8 @@ const planDto = () => ({
 	id: PLAN_ID,
 	projectId: 'project-1',
 	name: 'Ground floor',
+	kind: 'floor' as const,
+	order: 0,
 	background: null,
 	calibration: null,
 	layers: [],

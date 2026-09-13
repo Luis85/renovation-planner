@@ -17,7 +17,7 @@ const PROJECT: ProjectSummaryDto = {
 	lastWorked: '2026-08-14T00:00:00.000Z',
 };
 
-function row(planId: string | null = 'plan-1', plan = { id: 'plan-1', name: 'Kitchen' }) {
+function row(planId: string | null = 'plan-1', plan = { id: 'plan-1', name: 'Kitchen', kind: 'floor' as const }) {
 	// `planId` stays a PARAMETER here — it decides which `plan` this call passes — even though
 	// the component itself takes no such prop: `fallow`'s unused-component-prop check found that
 	// nothing inside `ContinueRow` ever reads an id, only the resolved `plan`, so the prop was

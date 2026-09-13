@@ -9,14 +9,16 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import PlanList from '../../../src/presentation/views/PlanList.vue';
+import type { PlanSummaryDto } from '../../../src/presentation/read-models/PlanDto';
+import { classesNamed } from '../../helpers/selectors';
 
 describe('PlanList', () => {
 	it('draws one row per plan', () => {
 		const wrapper = mount(PlanList, {
 			props: {
 				plans: [
-					{ id: 'plan-1', name: 'Ground floor' },
-					{ id: 'plan-2', name: 'First floor' },
+					{ id: 'plan-1', name: 'Ground floor', kind: 'floor' },
+					{ id: 'plan-2', name: 'First floor', kind: 'floor' },
 				],
 			},
 		});
@@ -28,7 +30,7 @@ describe('PlanList', () => {
 	});
 
 	it('emits the plan id a row was clicked for', async () => {
-		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor' }] } });
+		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }] } });
 
 		await wrapper.get('.rp-plan-list__row').trigger('click');
 
@@ -49,7 +51,7 @@ describe('PlanList', () => {
 	 * the other direction.
 	 */
 	it('gives every row a real button, not a clickable div', () => {
-		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor' }] } });
+		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }] } });
 
 		const row = wrapper.get('.rp-plan-list__row');
 		expect(row.element.tagName).toBe('BUTTON');
@@ -86,7 +88,7 @@ describe('PlanList', () => {
 	 * one is the nested interactive element P02 forbids by name.
 	 */
 	it('is a native disclosure, open, with the create action outside its summary', () => {
-		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor' }] } });
+		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }] } });
 
 		const disclosure = wrapper.get<HTMLDetailsElement>('.rp-plan-list__disclosure');
 		expect(disclosure.element.tagName).toBe('DETAILS');
@@ -102,8 +104,8 @@ describe('PlanList', () => {
 	 * states.
 	 */
 	it.each([
-		{ what: 'nothing', plans: [] as { id: string; name: string }[], title: 'Plans' },
-		{ what: 'two plans', plans: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }], title: 'Plans (2)' },
+		{ what: 'nothing', plans: [] as PlanSummaryDto[], title: 'Plans' },
+		{ what: 'two plans', plans: [{ id: 'a', name: 'A', kind: 'floor' as const }, { id: 'b', name: 'B', kind: 'floor' as const }], title: 'Plans (2)' },
 	])('heads the section for $what', ({ plans, title }) => {
 		const wrapper = mount(PlanList, { props: { plans } });
 
@@ -121,7 +123,7 @@ describe('PlanList', () => {
 	 */
 	it('declares a rule for every class it actually emits', () => {
 		const css = readFileSync('styles/project-detail.css', 'utf8');
-		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor' }] } });
+		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }] } });
 
 		const emitted = new Set(
 			wrapper
@@ -131,8 +133,10 @@ describe('PlanList', () => {
 		);
 
 		expect(emitted.size).toBeGreaterThan(4);
-		// A trailing boundary, not `toContain`: every class here is a PREFIX of a longer one, so
-		// a plain substring test would credit `.rp-x` to a sheet declaring only `.rp-x__row`.
-		for (const name of emitted) expect(css).toMatch(new RegExp(`\\.${name}(?![\\w-])`));
+		// Asked of the parsed sheet's selectors: a class is a node there, so `.rp-x` is not
+		// credited to a sheet declaring only `.rp-x__row`. Reported as the names the sheet lacks.
+		const declared = classesNamed(css);
+
+		expect([...emitted].filter((name) => !declared.has(name))).toEqual([]);
 	});
 });

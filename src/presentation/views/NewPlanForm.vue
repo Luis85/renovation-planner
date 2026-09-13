@@ -17,6 +17,7 @@
 import { ref, type Ref } from 'vue';
 import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
+import { useFieldInput } from '../composables/use-field-input';
 import { useInvalidFieldFocus } from '../composables/use-invalid-field-focus';
 import { useFormCommit } from '../composables/use-form-commit';
 import type { FieldErrorMap } from '../errors/route-error';
@@ -24,6 +25,8 @@ import { isErr, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { Loaded } from '../../application/ports/versioning';
 import type { Plan, PlanParent } from '../../domain/plan/Plan';
+import { childKindOf, DEFAULT_PLAN_KIND, PLAN_KINDS, type PlanKind } from '../../domain/plan/PlanKind';
+import { PLAN_KIND_LABELS } from '../editor/editorIcons';
 import type { CreatePlanInput } from '../../application/commands/plan/CreatePlan';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { Logger } from '../../application/ports/Logger';
@@ -58,6 +61,8 @@ const props = defineProps<{
 	initialName?: string;
 	/** Makes the created plan a detail plan of this zone. */
 	parent?: PlanParent;
+	/** The parent plan's kind, so a detail plan starts one step below it (ADR-0029). */
+	parentKind?: PlanKind;
 }>();
 
 const emit = defineEmits<{ submit: [values: CreatePlanInput]; projectGone: [] }>();
@@ -101,13 +106,20 @@ const NEW_PLAN_ERRORS: FieldErrorMap<CreatePlanInput> = {
 };
 
 /**
+ * What this form holds: `CreatePlanInput` with `kind` ALWAYS present — `INITIAL` supplies one
+ * and the select only ever writes one — so a restore of the rendered kind needs no fallback.
+ */
+type NewPlanValues = CreatePlanInput & { readonly kind: PlanKind };
+
+/**
  * `background` and `layers` stay unset. Both are optional on `CreatePlanInput`; slice 5's
  * background is its own command (`set-plan-background`), and a plan with no background is a
  * state the editor already draws an empty state for.
  */
-const INITIAL: CreatePlanInput = {
+const INITIAL: NewPlanValues = {
 	projectId: props.projectId as ProjectId,
 	name: props.initialName ?? '',
+	kind: props.parentKind ? childKindOf(props.parentKind) : DEFAULT_PLAN_KIND,
 	...(props.parent ? { parent: props.parent } : {}),
 };
 
@@ -129,7 +141,7 @@ async function dispatchWatchingForAGoneProject(
 	return result;
 }
 
-const form = useFormCommit<CreatePlanInput, { plan: Loaded<Plan> }>({
+const form = useFormCommit<NewPlanValues, { plan: Loaded<Plan> }>({
 	initial: INITIAL,
 	dispatch: dispatchWatchingForAGoneProject,
 	errorMap: NEW_PLAN_ERRORS,
@@ -143,15 +155,8 @@ const form = useFormCommit<CreatePlanInput, { plan: Loaded<Plan> }>({
 const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
 
 
-/**
- * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight past
- * it and make the sole-write-path rule this composable exists for unenforceable.
- */
-function onNameInput(event: Event): void {
-	const control = event.target as HTMLInputElement;
-	if (refuseWhileSubmitting(control, form.values.value.name)) return;
-	form.setField('name', control.value);
-}
+/** Name and kind are both strings on the wire; `useFieldInput`'s docblock carries the `:value` + `@input` rule. */
+const onFieldInput = useFieldInput(form, refuseWhileSubmitting);
 
 // The focus move a rejected submit owes, and the `<form>` ref it queries. One statement of
 // both for all three creation forms — `useInvalidFieldFocus`'s docblock carries the WCAG
@@ -219,10 +224,27 @@ async function onSubmit(): Promise<void> {
 					data-field="name"
 					:value="form.values.value.name"
 					:readonly="form.submitting.value"
-					@input="onNameInput"
+					@input="onFieldInput('name', $event)"
 				>
 			</label>
 		</FieldError>
+		<label class="rp-dialog-field">
+			{{ tr('form.new-plan.kind') }}
+			<select
+				data-field="kind"
+				:value="form.values.value.kind"
+				:aria-disabled="form.submitting.value"
+				@change="onFieldInput('kind', $event)"
+			>
+				<option
+					v-for="kind in PLAN_KINDS"
+					:key="kind"
+					:value="kind"
+				>
+					{{ tr(PLAN_KIND_LABELS[kind]) }}
+				</option>
+			</select>
+		</label>
 		<FormSubmitRow :submitting="form.submitting.value" />
 	</form>
 </template>

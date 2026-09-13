@@ -42,7 +42,7 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * **THREE more for a different question (A2), on the Plan Editor's caller alone.** `REQUIREMENT_LIST_EVENTS`
  * below answers "the SET of rows a zone's Inspector draws just changed" — `RequirementCreated`,
  * `RequirementDeleted`, `RequirementRestored` — which had no subscriber anywhere in `src/`
- * before this. It lives in THIS module rather than a fifth source of its own because the Plan
+ * before this. It lives in THIS module rather than a source of its own because the Plan
  * Editor already wires this source's listener straight to an unconditional reload with no
  * per-id filter: `runtime.ts`'s `context.onProjectPricesChanged(reloadInspector)` re-reads the
  * WHOLE list for the selected zone on every delivery, which is exactly what a row appearing or
@@ -50,8 +50,8 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * give it — that guard can only match a row already in the list it is asked to refresh, so a
  * brand-new row would never pass it. The project pane's PRICES section also hears these now and
  * re-reads its price rows for a Requirement lifecycle change in its own project; harmless under
- * the same "each caller decides" rule the price events already live by, and cheaper than a fifth
- * source for three deliveries a session rarely produces.
+ * the same "each caller decides" rule the price events already live by, and cheaper than a
+ * source of its own for three deliveries a session rarely produces.
  */
 const PRICE_CHANGE_EVENTS = ['AssetPriceOverrideChanged'] as const;
 

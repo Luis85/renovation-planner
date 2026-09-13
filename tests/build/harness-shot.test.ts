@@ -1,7 +1,23 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import ts from 'typescript';
 import { REPO } from '../helpers/repo';
+import {
+	assignedTo,
+	callsOf,
+	constantsOf,
+	descendants,
+	evaluate,
+	expressionsOf,
+	functionNamed,
+	importsOf,
+	namesIdentifier,
+	parseScript,
+	stringsOf,
+	type Literal,
+	type ParsedScript,
+} from '../helpers/parsedSource';
 
 /**
  * The headless capture script's wiring — the shape `lint-edited.test.ts` checks for the
@@ -13,6 +29,18 @@ import { REPO } from '../helpers/repo';
  * assert anything about a screenshot. `scripts/harness-shot.mjs` draws; there is no
  * baseline to diff a PNG against, and driving Playwright here would trade this suite's
  * speed for a check `npm run harness-shot`, run by hand, already gives a developer directly.
+ *
+ * **Every pin over that script is a PARSED read** (`tests/helpers/parsedSource.ts`): the `SHOTS`
+ * table by shot name with its fields evaluated through the script's own constants, a call and
+ * its arguments, an import, an identifier. `SHOTS` is not exported and the script captures at
+ * module scope, so importing it is not an option; the parser is the next authority. The
+ * `toMatch(/name: 'x'[^}]*width: 460/)` pins this replaced read the text, and every one of them
+ * had a way to be wrong that a node cannot: a `[^}]*` class stopped at the first brace of a
+ * template interpolation (measured, the asset-library case failed on exactly that), a `//` line
+ * above an entry fell inside the previous entry's slice, and a comment quoting a field satisfied
+ * a positive pin — which is why two functions here stripped comments with a regex before the
+ * regex that pinned. Reading the tree, a comment is not a node and a property is a property
+ * wherever the line breaks.
  */
 
 const PACKAGE_JSON = path.join(REPO, 'package.json');
@@ -27,17 +55,99 @@ const RESOLVER = path.join(REPO, 'scripts', 'chromium.mjs');
 // the one that happens to own the resolver today — a re-mirrored layout is just as wrong in
 // a caller as in the callee.
 const CHROMIUM_FILES = [RESOLVER, SCRIPT, path.join(REPO, 'scripts', 'concept-shots.mjs')];
+const PAGE = path.join(REPO, 'tests', 'harness', 'page.ts');
+const INDEX_PAGE = path.join(REPO, 'tests', 'harness', 'IndexPage.vue');
 
 const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8')) as {
 	scripts: Record<string, string>;
 	devDependencies: Record<string, string>;
 };
 
-/** `source` with every `/* … *\/` block comment removed — see the one call site below for why
- * a scan for a forbidden CODE shape needs this rather than reading raw text. */
-function withoutCommentary(source: string): string {
-	return source.replace(/\/\*[\s\S]*?\*\//g, '');
+const script = parseScript(SCRIPT);
+const readiness = parseScript(READINESS);
+const page = parseScript(PAGE);
+const indexPage = parseScript(INDEX_PAGE);
+const constants = constantsOf(script);
+
+/** One entry of the `SHOTS` table: its fields evaluated, and the identifiers each field's initializer names. */
+interface Shot {
+	readonly fields: Record<string, Literal>;
+	readonly names: Record<string, string[]>;
 }
+
+/**
+ * The script's `SHOTS` table, by shot name: every object literal in the array initializer of
+ * the `SHOTS` declaration, each field evaluated through the script's top-level constants
+ * (`selector: FLOOR_STATE` reads as the class it names, a template interpolating
+ * `LIBRARY_SELECTED_ASSET` reads as the query it produces, a list as a list). A field whose value
+ * is not a literal is left out, so an assertion about it fails on absence rather than on a stale
+ * spelling. `names` keeps which constants a field was spelled THROUGH, for the pins whose point is
+ * that a selector is the shared constant rather than a second copy of its text.
+ */
+function shotTable(): Map<string, Shot> {
+	const declaration = descendants(script.file, ts.isVariableDeclaration).find((node) => ts.isIdentifier(node.name) && node.name.text === 'SHOTS');
+	const table = new Map<string, Shot>();
+	if (declaration?.initializer !== undefined && ts.isArrayLiteralExpression(declaration.initializer)) {
+		for (const element of declaration.initializer.elements) {
+			if (!ts.isObjectLiteralExpression(element)) continue;
+			const fields: Record<string, Literal> = {};
+			const names: Record<string, string[]> = {};
+			for (const property of element.properties) {
+				if (!ts.isPropertyAssignment(property) || !ts.isIdentifier(property.name)) continue;
+				const value = evaluate(property.initializer, constants);
+				if (value !== null) fields[property.name.text] = value;
+				names[property.name.text] = descendants(property.initializer, ts.isIdentifier).map((identifier) => identifier.text);
+			}
+			const { name, ...rest } = fields;
+			if (typeof name === 'string') table.set(name, { fields: rest, names });
+		}
+	}
+	expect(table.size, 'the SHOTS table parsed to nothing').toBeGreaterThan(0);
+	return table;
+}
+
+const shots = shotTable();
+
+/** One shot's evaluated fields; a name the table lacks fails here rather than as a property of `undefined`. */
+function shot(name: string): Record<string, Literal> {
+	const found = shots.get(name);
+	if (found === undefined) throw new Error(`no shot named ${name}`);
+	return found.fields;
+}
+
+/** The constants a shot's field was spelled through. */
+const namesIn = (name: string, field: string): string[] => shots.get(name)?.names[field] ?? [];
+
+/** A shot's query, as the harness reads it (`page.ts`: `new URLSearchParams(window.location.search)`). */
+const query = (name: string): URLSearchParams => new URLSearchParams(String(shot(name).query));
+
+/**
+ * A Plan Editor shot's query: `view=plan-editor` FIRST, then the knob the caller asks about. The
+ * view is asserted here rather than left to the knob, because a knob alone is satisfied by a
+ * query that dropped `view=` — which draws the project surface and exits 0 under a plan-editor
+ * name. Leading, as the text pins this replaced required, so the `?view=` spelling every capture
+ * URL shares stays the one a reader greps for.
+ */
+function planEditorQuery(name: string): URLSearchParams {
+	const raw = String(shot(name).query);
+	expect(raw.startsWith('?view=plan-editor&'), `${name} does not open on ?view=plan-editor`).toBe(true);
+	const parsed = new URLSearchParams(raw);
+	expect(parsed.get('view')).toBe('plan-editor');
+	return parsed;
+}
+
+/** Every `selector:` property anywhere in the script, evaluated — not only the ones inside `SHOTS`. */
+const selectorsAnywhere = (): Literal[] =>
+	descendants(script.file, ts.isPropertyAssignment)
+		.filter((property) => property.name.getText(script.file) === 'selector')
+		.map((property) => evaluate(property.initializer, constants))
+		.filter((value): value is Literal => value !== null);
+
+/** Every property named `name` with a string value, anywhere in the script — a shot entry written OUTSIDE `SHOTS` shows up here. */
+const namedEntries = (parsed: ParsedScript): number =>
+	descendants(parsed.file, ts.isPropertyAssignment).filter((property) => property.name.getText(parsed.file) === 'name' && ts.isStringLiteralLike(property.initializer)).length;
+
+const isIdCharacter = (character: string): boolean => (character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') || character === '-';
 
 describe('the headless harness capture script', () => {
 	it('is wired as an npm script pointing at a file that exists', () => {
@@ -48,8 +158,9 @@ describe('the headless harness capture script', () => {
 		// `node scripts/harness-shot.mjs` — resolved against the repository root the same
 		// way every script here resolves its own paths, not against this test file's
 		// location.
-		const named = command.replace(/^node\s+/, '').trim();
+		const [runtime, named] = command.trim().split(' ');
 
+		expect(runtime).toBe('node');
 		expect(existsSync(path.join(REPO, named))).toBe(true);
 	});
 
@@ -81,11 +192,13 @@ describe('the headless harness capture script', () => {
 	 * copy that can disagree is precisely the failure the mirrored table already caused once.
 	 */
 	it('asks playwright-core for the executable path instead of constructing one', () => {
-		expect(readFileSync(RESOLVER, 'utf8')).toContain('chromium.executablePath()');
+		const resolver = parseScript(RESOLVER);
+
+		expect(callsOf(resolver.file, resolver, 'chromium.executablePath')).not.toHaveLength(0);
 	});
 
 	it('resolves the browser through that one shared module rather than resolving its own', () => {
-		expect(readFileSync(SCRIPT, 'utf8')).toContain("from './chromium.mjs'");
+		expect(importsOf(script)).toContain('./chromium.mjs');
 	});
 
 	it('writes down no per-platform browser layout of its own, in any file that names a browser', () => {
@@ -120,25 +233,18 @@ describe('the headless harness capture script', () => {
 	 * (selects `entryShots(entry)`, builds the `?entry=` URL, falls back to the fixed shots
 	 * with no argument) is asserted by calling `resolveShots` and `entryShots` directly in
 	 * `entryShots.test.ts`, which can see the real behaviour. Reading `harness-shot.mjs`'s
-	 * source text could only ever confirm it still SAYS the right thing; mutating
+	 * source could only ever confirm it still SAYS the right thing; mutating
 	 * `process.argv[2]` to `process.argv[3]` inside `resolveShots` left every case that used
 	 * to live here green, which is exactly why that logic moved into an importable module.
 	 */
 	it('reads the entry argument through the importable resolveShots, not by hard-coding argv itself', () => {
-		// STRIPPED, like every negative scan in this file. A wiring pin over raw text is
-		// satisfied by a COMMENT carrying the call — including a comment that says the call was
-		// removed — which is the exact inversion of what a pin is for. The two pins here read
-		// raw source until this round while the negatives below them already read stripped;
-		// having both spellings in one file is how the asymmetry survived review.
-		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
-
-		expect(source).toContain("from './entryShots.mjs'");
+		expect(importsOf(script)).toContain('./entryShots.mjs');
 		// `process.env` is the third argument, and it is part of the wiring rather than an
 		// incidental: `resolveShots` refuses `npm run harness-shot X --width=460` — the spelling
 		// npm claims as its own config and never passes through — by reading `npm_config_width`
 		// from it. Dropped here, that command would go back to capturing at the default width
 		// and exiting 0.
-		expect(source).toContain('resolveShots(process.argv, SHOTS, process.env)');
+		expect(callsOf(script.file, script, 'resolveShots').map((call) => call.args)).toEqual([['process.argv', 'SHOTS', 'process.env']]);
 	});
 
 	/**
@@ -149,19 +255,17 @@ describe('the headless harness capture script', () => {
 	 * be imported and called without launching a browser. It now lives in
 	 * `scripts/captureReadiness.mjs` for exactly that reason, and `captureReadiness.test.ts`
 	 * drives the real function with a fake `page` — what this checks is only that the capture
-	 * still calls it, on the real screenshot path, with the real readiness predicate.
+	 * still calls it, on the real screenshot path, with the real readiness predicate, AFTER the
+	 * screenshot: an ORDER between two calls, which is why each is located rather than merely found.
 	 */
 	it('re-checks readiness after the screenshot through the importable reportIfNoLongerDrawn', () => {
-		// Stripped, for the reason the case above gives: this one asserts an ORDER between two
-		// calls, and a block comment mentioning either would move an index and could satisfy the
-		// comparison with one of the calls gone.
-		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
+		expect(importsOf(script)).toContain('./captureReadiness.mjs');
+		const [screenshot] = callsOf(script.file, script, 'page.screenshot');
+		const [recheck] = callsOf(script.file, script, 'reportIfNoLongerDrawn');
 
-		expect(source).toContain("from './captureReadiness.mjs'");
-		expect(source).toContain('await page.screenshot(');
-		expect(source.indexOf('reportIfNoLongerDrawn(page, entry, name, errors, entryHasDrawn)')).toBeGreaterThan(
-			source.indexOf('await page.screenshot('),
-		);
+		expect(screenshot).toBeDefined();
+		expect(recheck?.args).toEqual(['page', 'entry', 'name', 'errors', 'entryHasDrawn']);
+		expect(recheck?.at).toBeGreaterThan(screenshot.at);
 	});
 
 	/**
@@ -169,115 +273,61 @@ describe('the headless harness capture script', () => {
 	 * live in a module that runs a real capture the moment it is imported. What each of them
 	 * DECIDES is driven directly in `captureReadiness.test.ts`, against the real functions with a
 	 * fake `page`; this is only that the capture still reaches them.
-	 *
-	 * Stripped source, like every other scan here.
 	 */
 	it('races the failure card and does not attempt a second scheme for an entry the index lacks', () => {
-		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
-
-		expect(source).toContain('waitUntilReady(page, selector, entry, entryHasDrawn)');
-		expect(source).toContain('kind === UNKNOWN_ENTRY');
+		expect(callsOf(script.file, script, 'waitUntilReady').map((call) => call.args)).toEqual([['page', 'selector', 'entry', 'entryHasDrawn']]);
+		expect(expressionsOf(script.file, script)).toContain('kind === UNKNOWN_ENTRY');
 		// The wait is the imported one, not a local that shadows it — the defect this replaces
 		// was a local `waitUntilReady` awaiting the readiness predicate alone.
-		expect(source).not.toMatch(/function\s+waitUntilReady/);
+		expect(functionNamed(script, 'waitUntilReady')).toBeUndefined();
+		expect(descendants(script.file, ts.isVariableDeclaration).some((node) => node.name.getText(script.file) === 'waitUntilReady')).toBe(false);
 	});
 
 	/**
 	 * The assertion that stops a green run from lying. Waiting on `.rp-harness-stage` alone
 	 * would photograph the placeholder — a successful, empty PNG, which the actor this
 	 * feature exists for cannot tell from a real one.
+	 *
+	 * The predicate ITSELF moved to `captureReadiness.mjs`, where a test can import and drive
+	 * it — `tests/build/entryDrawn.test.ts` is where what it decides is now settled, in both
+	 * directions, against a real DOM. It moved because a review found it wrong: a stage
+	 * holding only Vue's `<!--v-if-->` placeholder passed the old `childNodes.length > 0`,
+	 * which is the empty PNG at exit 0 this whole pin exists to refuse. A source scan could
+	 * never have caught that, and had recorded the function as having nothing to prove.
+	 *
+	 * What stays HERE is the wiring: the readiness question is asked in the page, with the id
+	 * compared as a STRING against `dataset.entry` and never interpolated into a CSS attribute
+	 * selector, because an id is built from a file path and a `"` is a legal filename character
+	 * on POSIX. The two forbidden shapes — a selector built from an entry id, and the
+	 * element-only readiness check this file replaced (`firstElementChild`) — are asked of the
+	 * STRINGS and IDENTIFIERS of both files, since the predicate moved and the capture that calls
+	 * it stayed; a comment is neither, so prose may spell either shape to explain the rule (this
+	 * file's own review once found `[data-entry=` reintroduced in a plan document's copy of this
+	 * very docblock, and the text scan of the day fired on it).
 	 */
 	it('waits for the entry to have rendered, not merely for the stage to exist', () => {
-		// Stripped, like every other scan in this file — including the POSITIVE pins below. A
-		// positive pin over raw source passes when a COMMENT carries the text and the code does
-		// not, which is the same vacuity the negative scans strip to avoid; the direction of the
-		// assertion does not change the hazard.
-		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
+		expect(expressionsOf(readiness.file, readiness)).toContain('stage.dataset.entry');
+		// The POLL lives in `captureReadiness.mjs` — still asked through `waitForFunction` rather
+		// than through a selector — and the capture reaches the predicate at all.
+		expect(callsOf(readiness.file, readiness, 'page.waitForFunction').map((call) => call.args)).toContainEqual(['hasDrawn', 'entry']);
+		expect(namesIdentifier(script.file, 'entryHasDrawn')).toBe(true);
+		// The bare stage class must not be used as a wait target on its own — anywhere in the
+		// script, not only inside `SHOTS`: a second table would be as wrong as the first.
+		expect(selectorsAnywhere().filter((value) => value === '.rp-harness-stage' || (Array.isArray(value) && value.includes('.rp-harness-stage')))).toEqual([]);
 
-		// The predicate ITSELF moved to `captureReadiness.mjs`, where a test can import and drive
-		// it — `tests/build/entryDrawn.test.ts` is where what it decides is now settled, in both
-		// directions, against a real DOM. It moved because a review found it wrong: a stage
-		// holding only Vue's `<!--v-if-->` placeholder passed the old `childNodes.length > 0`,
-		// which is the empty PNG at exit 0 this whole pin exists to refuse. A source scan could
-		// never have caught that, and had recorded the function as having nothing to prove.
-		//
-		// What stays HERE is the wiring: the readiness question is asked in the page, with the id
-		// compared as a STRING against `dataset.entry` and never interpolated into a CSS
-		// attribute selector, because an id is built from a file path and a `"` is a legal
-		// filename character on POSIX.
-		expect(readFileSync(READINESS, 'utf8')).toContain('stage.dataset.entry');
-		// The POLL moved to `captureReadiness.mjs` when the wait became a race against the
-		// failure card — the predicate still lives here, and is still asked through
-		// `waitForFunction` rather than through a selector. Read from the file that now holds the
-		// call, because a pin that keeps naming the old home passes only until someone deletes
-		// the call it can no longer see.
-		expect(readFileSync(READINESS, 'utf8')).toContain('waitForFunction(hasDrawn, entry)');
-		// The capture reaches the predicate at all, which is the half a source scan can still
-		// answer for a module nothing may import.
-		expect(source).toContain('entryHasDrawn');
-		// The bare stage class must not be used as a wait target on its own.
-		expect(source).not.toMatch(/selector:\s*['"`]\.rp-harness-stage['"`]/);
-		// Two scans of the same class, both over the CODE only, with block comments stripped
-		// first (`withoutCommentary`, below): no attribute selector may be built out of an
-		// entry id, and the element-only readiness check this file replaced (`firstElementChild`)
-		// may not return. The bare substring scan this replaced fires on prose that EXPLAINS the
-		// rule as readily as on code that BREAKS it: this file's own review found the
-		// `[data-entry=` substring reintroduced not in this script but in the plan document's
-		// copy of this very JSDoc block, in a parenthetical added to say the earlier version had
-		// been reworded away from it (`docs/superpowers/plans/2026-08-25-harness-prototyping.md`,
-		// fixed in the same round this comment was added) — and a second-round review found the
-		// sibling `firstElementChild` scan one line above still reading raw text, the same class
-		// of gap one line apart. `tests/harness/harness.test.ts` solves the equivalent problem
-		// for its own scan by excluding whole FILES whose text documents the pattern; that does
-		// not transfer here because the explanation and the code it explains live in the SAME
-		// file, so excluding the file would blind the check to the code it exists to watch.
-		// Stripping only what documents the rule — its comments — keeps the check on the actual
-		// danger (a selector built from an id, an element-only readiness check) while leaving
-		// prose free to say anything, including either forbidden shape, without tripping it. Now
-		// that both scans read stripped text, `harness-shot.mjs`'s own comment names
-		// `firstElementChild` directly rather than working around it — the phrasing contortion
-		// existed only because this scan used to read raw source.
-		//
-		// The narrower claim this leaves standing, stated rather than hidden: `withoutCommentary`
-		// strips only `/* … */` block comments. A `//` LINE comment carrying either forbidden
-		// substring would still slip through, and this file's own `//` lines are not proof
-		// otherwise — `//` is the dominant explanatory form in both files scanned here, not an
-		// unused one; the true claim is only that none of those lines currently CARRIES either
-		// substring. (Written without a count: an earlier version said 32, and the number went
-		// stale the moment the predicate moved between the two files.) Widening the strip to line comments
-		// was considered and rejected rather than left as a caveat by omission: a naive
-		// `/\/\/.*$/gm` strip would also eat the real code on `startHarnessServer`'s
-		// `` return { server, baseUrl: `http://127.0.0.1:${address.port}` }; `` line, since its
-		// `//` sits inside a URL literal rather than starting a comment — silently truncating a
-		// line this exact check needs to see, which is a worse defect than the caveat it would
-		// remove. A correct line-comment strip needs a tokenizer aware of string boundaries; that
-		// is a bigger tool than one scan in one test file justifies today.
-		// BOTH files, because the predicate moved: the forbidden shapes are a selector built from
-		// an entry id and an element-only readiness check, and the code that could grow either
-		// now lives in `captureReadiness.mjs` while the capture that calls it stays here. Scanning
-		// only this one would leave the check watching the file the danger left.
 		const scanned = [
-			['harness-shot.mjs', withoutCommentary(source)],
-			['captureReadiness.mjs', withoutCommentary(readFileSync(READINESS, 'utf8'))],
+			['harness-shot.mjs', script],
+			['captureReadiness.mjs', readiness],
 		] as const;
 
-		// Reported as the NAMES that offend rather than as two assertions per file: a bare
-		// `not.toContain` failure says only that some string was present somewhere, and with two
-		// files scanned the first question is which one. (`expect(value, message)` would say it
-		// too, and oxlint's `vitest/valid-expect` refuses that form on a negated matcher.)
-		expect(scanned.filter(([, text]) => text.includes('firstElementChild')).map(([name]) => name)).toEqual([]);
-		expect(scanned.filter(([, text]) => /\[data-entry=/.test(text)).map(([name]) => name)).toEqual([]);
-
-		// `withoutCommentary` must not be kinder than intended — stripping the comments and
-		// leaving no code behind would make every scan above vacuously pass. A known code
-		// substring has to survive the strip in EACH file: one anchor covering both would leave
-		// the other free to be emptied to nothing and still pass.
-		expect(scanned[0][1]).toContain('entryHasDrawn');
-		expect(scanned[1][1]).toContain('stage.dataset.entry');
+		// Reported as the NAMES that offend rather than as two assertions per file: with two files
+		// scanned the first question on a failure is which one.
+		expect(scanned.filter(([, parsed]) => namesIdentifier(parsed.file, 'firstElementChild')).map(([name]) => name)).toEqual([]);
+		expect(scanned.filter(([, parsed]) => stringsOf(parsed.file).some((text) => text.includes('[data-entry='))).map(([name]) => name)).toEqual([]);
 	});
 
 	/**
-	 * WHICH of the two scheme functions each route calls — a source pin, because `page.ts` runs
+	 * WHICH of the two scheme functions each route calls — a parsed pin, because `page.ts` runs
 	 * its mount the moment it is imported. What the two functions DO is driven in
 	 * `tests/harness/harness.test.ts`.
 	 *
@@ -287,11 +337,9 @@ describe('the headless harness capture script', () => {
 	 * asks for, and dropping the whole call would have made every light capture dark.
 	 */
 	it('skips the harness furniture on a bare capture, and still applies the scheme', () => {
-		const source = withoutCommentary(readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8'));
-
-		expect(source).toContain("has('bare')");
-		expect(source).toContain('applyWantedScheme()');
-		expect(source).toContain('drawSchemeToggle()');
+		expect(callsOf(page.file, page, 'has').map((call) => call.args)).toContainEqual(["'bare'"]);
+		expect(callsOf(page.file, page, 'applyWantedScheme')).not.toHaveLength(0);
+		expect(callsOf(page.file, page, 'drawSchemeToggle')).not.toHaveLength(0);
 	});
 
 	/**
@@ -300,7 +348,7 @@ describe('the headless harness capture script', () => {
 	 * unresolved component, and the outer element still satisfies the shot selector.
 	 */
 	it('installs VueKonva on the index app, as the production mount does', () => {
-		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const pageText = readFileSync(PAGE, 'utf8');
 		const production = readFileSync(
 			path.join(REPO, 'src', 'presentation', 'views', 'PlanEditorView.ts'),
 			'utf8',
@@ -309,7 +357,7 @@ describe('the headless harness capture script', () => {
 		// Read from production rather than hard-coded: if the plugin ever installs something
 		// else, this asks the question again instead of pinning today's answer.
 		expect(production).toContain('app.use(VueKonva)');
-		expect(page).toContain('.use(VueKonva)');
+		expect(pageText).toContain('.use(VueKonva)');
 	});
 
 	/**
@@ -322,14 +370,14 @@ describe('the headless harness capture script', () => {
 	 * invisible.
 	 */
 	it('provides PLAN_EDITOR_CONTEXT on the index app, as the production mount does', () => {
-		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const pageText = readFileSync(PAGE, 'utf8');
 		const production = readFileSync(
 			path.join(REPO, 'src', 'presentation', 'views', 'PlanEditorView.ts'),
 			'utf8',
 		);
 
 		expect(production).toContain('app.provide(PLAN_EDITOR_CONTEXT');
-		expect(page).toContain('provide(PLAN_EDITOR_CONTEXT');
+		expect(pageText).toContain('provide(PLAN_EDITOR_CONTEXT');
 	});
 
 	/**
@@ -356,10 +404,10 @@ describe('the headless harness capture script', () => {
 	 * `defineAsyncComponent` now lives is checked for it.
 	 */
 	it('registers every discovered component and mock on the index app, and mirrors that in tests', () => {
-		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		const pageText = readFileSync(PAGE, 'utf8');
 		const testConfig = readFileSync(path.join(REPO, 'tests', 'harness', 'indexApp.ts'), 'utf8');
 
-		for (const source of [page, testConfig]) {
+		for (const source of [pageText, testConfig]) {
 			expect(source).toContain('registrableComponents([');
 			expect(source).toContain('...componentEntries()');
 			expect(source).toContain('...prototypeEntries()');
@@ -388,21 +436,19 @@ describe('the headless harness capture script', () => {
 	 * the shimmed spelling passes the suite and throws on the real page.
 	 */
 	it('installs the Obsidian DOM shim before the index branch uses any extension', () => {
-		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
-		const branch = page.slice(page.indexOf('if (wantsIndex)'), page.indexOf('} else {'));
+		const branch = descendants(page.file, ts.isIfStatement).find((node) => node.expression.getText(page.file) === 'wantsIndex')?.thenStatement;
 
-		const install = branch.indexOf('installObsidianDom()');
-		const firstUse = branch.search(/\.empty\(\)|\.createDiv\(|\.createEl\(/);
+		expect(branch, 'page.ts has no `if (wantsIndex)` branch').toBeDefined();
+		const [install] = callsOf(branch ?? page.file, page, 'installObsidianDom');
+		const uses = ['empty', 'createDiv', 'createEl'].flatMap((extension) => callsOf(branch ?? page.file, page, extension));
+		const firstUse = Math.min(...uses.map((call) => call.at));
 
-		expect(install, 'the index branch never installs the shim').toBeGreaterThanOrEqual(0);
+		expect(install, 'the index branch never installs the shim').toBeDefined();
 		// Written to avoid a CONDITIONAL expect (oxlint's `vitest/no-conditional-expect`, which
-		// `npm run check` fails on with zero tolerance): the brief's literal
-		// `if (firstUse >= 0) expect(install).toBeLessThan(firstUse);` is refused by that rule,
-		// and `linterOptions.noInlineConfig` rules out a suppression. Same claim either way — if
-		// no extension use is found in the branch, the ordering holds vacuously.
-		const shimInstallsFirst = firstUse < 0 || install < firstUse;
-
-		expect(shimInstallsFirst, 'the shim installs before the first Obsidian DOM extension use').toBe(true);
+		// `npm run check` fails on with zero tolerance), and `linterOptions.noInlineConfig` rules
+		// out a suppression. Same claim either way — if no extension use is found in the branch,
+		// the ordering holds vacuously (`Math.min()` of nothing is `Infinity`).
+		expect((install?.at ?? Infinity) < firstUse, 'the shim installs before the first Obsidian DOM extension use').toBe(true);
 	});
 
 	/**
@@ -414,39 +460,29 @@ describe('the headless harness capture script', () => {
 	 * nested component is still a placeholder — a half-drawn screen captured and exited 0 on,
 	 * which is the same defect as the "Pick an entry." capture, one level in.
 	 *
-	 * Asserted on the source for the reason this file's header gives, and the assertion is the
-	 * NEGATIVE one, because that is where the defect was: `open()` may clear `renderedId` and
-	 * must never set it to an id. `<Suspense>` is what sets it, on `@resolve`.
+	 * Asserted on the parsed script for the reason this file's header gives, and the assertion
+	 * is the NEGATIVE one, because that is where the defect was: `open()` may clear `renderedId`
+	 * and must never set it to an id. `<Suspense>` is what sets it, on `@resolve`. Every
+	 * assignment's RIGHT-HAND SIDE is collected and then required to be `null` — the first
+	 * version was a negative-lookahead regex that matched `renderedId.value = null` after
+	 * backtracking, and went red against a correct file. Measured both ways against the
+	 * committed file: this form passes as it stands, goes red when a `renderedId.value =
+	 * entry.id` is injected into `open()`, and goes red when the clear is deleted entirely.
 	 */
 	it('marks the stage ready from Suspense, never from the entry loader', () => {
-		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
-		// The function body ONLY. Sliced to its own closing brace rather than to the next
-		// declaration, so that moving a neighbour cannot quietly widen what this reads.
-		const start = index.indexOf('async function open');
-		const open = index.slice(start, index.indexOf('\n}', start) + 2);
+		const open = functionNamed(indexPage, 'open');
 
-		// Every assignment's RIGHT-HAND SIDE, collected and then required to be `null` — rather
-		// than a negative lookahead, which is how the first version of this was WRONG.
-		//
-		// It read `expect(open).not.toMatch(/renderedId\.value\s*=\s*(?!null)/)`, and that regex
-		// MATCHES `renderedId.value = null`: the engine backtracks `\s*` to zero width, the
-		// lookahead then sees `" nul"` rather than `"null"`, and succeeds. With `.not.toMatch`
-		// around it, the case therefore went RED against a correct file — Task 6 failed on
-		// arrival rather than letting a defect through, which is the less dangerous direction and
-		// still made the task unrunnable.
-		//
-		// Measured, both ways, against the committed file: the repaired form passes on the file as
-		// it stands, goes red when an `renderedId.value = entry.id` is injected into `open()`, and
-		// goes red when the clear is deleted entirely. Enumerating what is assigned has no
-		// backtracking trap and names the offending right-hand side when it fails.
-		const assigned = [...open.matchAll(/renderedId\.value\s*=\s*([^;\n]+)/g)].map((m) => m[1].trim());
+		expect(open, 'IndexPage.vue declares no open()').toBeDefined();
+		const assigned = assignedTo(open ?? indexPage.file, indexPage, 'renderedId.value');
 
-		expect(assigned, 'open() never runs').not.toHaveLength(0);
+		expect(assigned, 'open() never clears renderedId').not.toHaveLength(0);
 		expect([...new Set(assigned)], 'open() marks the stage ready before nested components load').toEqual([
 			'null',
 		]);
-		expect(index).toContain('<Suspense');
-		expect(index).toContain('@resolve="settle()"');
+		const template = readFileSync(INDEX_PAGE, 'utf8');
+
+		expect(template).toContain('<Suspense');
+		expect(template).toContain('@resolve="settle()"');
 	});
 
 	/**
@@ -458,7 +494,7 @@ describe('the headless harness capture script', () => {
 	 * props against a bare `<component :is>`.
 	 */
 	it('turns an unresolved tag or a missing required prop into a named entry failure', () => {
-		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
+		const index = readFileSync(INDEX_PAGE, 'utf8');
 
 		expect(index).toContain('config.warnHandler');
 		// The message ITSELF, with no fragment match in front of it. Pinning the two warning
@@ -480,14 +516,17 @@ describe('the headless harness capture script', () => {
 	 * as a success under the requested name, which is worse than an empty one.
 	 */
 	it('ignores a stale entry load', () => {
-		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
-		const start = index.indexOf('async function open');
-		const open = index.slice(start, index.indexOf('\n}', start) + 2);
+		const open = functionNamed(indexPage, 'open') ?? indexPage.file;
+		const mine = descendants(open, ts.isVariableDeclaration).find((node) => node.name.getText(indexPage.file) === 'mine');
 
-		expect(open).toContain('const mine = ++generation');
+		expect(mine?.initializer?.getText(indexPage.file)).toBe('++generation.value');
 		// Both arms: a stale RESOLVE must not draw, and a stale REJECT must not overwrite a
 		// good entry's screen with the abandoned one's error.
-		expect(open.match(/if \(mine !== generation\.value\) return;/g) ?? []).toHaveLength(2);
+		const guards = descendants(open, ts.isIfStatement).filter(
+			(node) => node.expression.getText(indexPage.file) === 'mine !== generation.value' && ts.isReturnStatement(node.thenStatement),
+		);
+
+		expect(guards).toHaveLength(2);
 	});
 
 	/**
@@ -498,18 +537,18 @@ describe('the headless harness capture script', () => {
 	 * A's content — a capture of the wrong component under the requested name.
 	 */
 	it('unmounts the previous entry before awaiting, and settles only for what is mounted', () => {
-		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
-		const start = index.indexOf('async function open');
-		const open = index.slice(start, index.indexOf('\n}', start) + 2);
-
+		const open = functionNamed(indexPage, 'open') ?? indexPage.file;
 		// The clear happens BEFORE the await, or the stale subtree stays mounted through it.
-		expect(open.indexOf('openComponent.value = null')).toBeGreaterThanOrEqual(0);
-		expect(open.indexOf('openComponent.value = null')).toBeLessThan(open.indexOf('await entry.component()'));
+		const clear = descendants(open, ts.isBinaryExpression).find((node) => node.getText(indexPage.file) === 'openComponent.value = null');
+		const load = descendants(open, ts.isAwaitExpression).find((node) => node.getText(indexPage.file) === 'await entry.component()');
 
-		const settleStart = index.indexOf('function settle');
-		const settle = index.slice(settleStart, index.indexOf('\n}', settleStart) + 2);
+		expect(clear).toBeDefined();
+		expect(load).toBeDefined();
+		expect(clear?.getStart(indexPage.file)).toBeLessThan(load?.getStart(indexPage.file) ?? -1);
 
-		expect(settle).toContain('mountedGeneration !== generation.value');
+		const settle = functionNamed(indexPage, 'settle') ?? indexPage.file;
+
+		expect(expressionsOf(settle, indexPage)).toContain('mountedGeneration !== generation.value');
 	});
 
 	/**
@@ -524,27 +563,24 @@ describe('the headless harness capture script', () => {
 	 * and off the address bar `open()` now writes with it (Finding B's `history.replaceState`,
 	 * same round). It now clones the CURRENT `window.location.search`, deletes the `index`
 	 * routing key and sets `entry`, so a designer's variant survives a click same as an id
-	 * with `&`/`#` in it always did. The two assertions below moved with it: the positive pins
-	 * the new construction (`URLSearchParams(window.location.search)` plus `.set('entry', …)`)
-	 * rather than the old literal object-argument spelling, and the negative is unchanged —
-	 * a raw `` `?entry=${ `` interpolation is still the one thing refused either way.
+	 * with `&`/`#` in it always did. The positive pins the construction and the negative is
+	 * unchanged — a raw `` `?entry=${ `` interpolation is the one thing refused either way.
+	 *
+	 * Asked of `hrefFor`'s own body: the comment on it explains the defect by SPELLING the
+	 * forbidden interpolation, which is why the first version, over the whole file's text, was
+	 * red against correct code. The narrower claim is stated rather than hidden: this covers the
+	 * one function that builds the link. A second link built elsewhere by interpolation is not
+	 * seen here.
 	 */
 	it('builds index links with URLSearchParams rather than interpolating the id', () => {
-		const index = readFileSync(path.join(REPO, 'tests', 'harness', 'IndexPage.vue'), 'utf8');
-		// `hrefFor`'s BODY, sliced the way the case above slices `open()`. Reading the whole file
-		// is what the first version did, and it could not work: the comment on `hrefFor` explains
-		// the defect by SPELLING the forbidden interpolation, so the negative matched the
-		// explanation and the guard was red against correct code. A comment naming a forbidden
-		// spelling is not the forbidden spelling.
-		//
-		// The narrower claim is stated rather than hidden: this covers the one function that
-		// builds the link. A second link built elsewhere by interpolation is not seen here.
-		const start = index.indexOf('function hrefFor');
-		const hrefFor = index.slice(start, index.indexOf('\n}', start) + 2);
+		const hrefFor = functionNamed(indexPage, 'hrefFor');
 
-		expect(hrefFor).toContain('new URLSearchParams(window.location.search)');
-		expect(hrefFor).toContain("params.set('entry', entry.id)");
-		expect(hrefFor, 'a raw ?entry= interpolation is back').not.toContain('`?entry=${');
+		expect(hrefFor, 'IndexPage.vue declares no hrefFor()').toBeDefined();
+		const body = hrefFor ?? indexPage.file;
+
+		expect(expressionsOf(body, indexPage)).toContain('new URLSearchParams(window.location.search)');
+		expect(callsOf(body, indexPage, 'params.set').map((call) => call.args)).toContainEqual(["'entry'", 'entry.id']);
+		expect(stringsOf(body).filter((text) => text.includes('?entry=')), 'a raw ?entry= interpolation is back').toEqual([]);
 	});
 
 	/**
@@ -558,10 +594,8 @@ describe('the headless harness capture script', () => {
 	 * gets its shots from that module rather than sanitising anything itself.
 	 */
 	it('sanitises the entry id for the PNG filename through entryShots, not by re-deriving it here', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		expect(source).toContain("from './entryShots.mjs'");
-		expect(source).not.toContain('createHash');
+		expect(importsOf(script)).toContain('./entryShots.mjs');
+		expect(namesIdentifier(script.file, 'createHash')).toBe(false);
 	});
 
 	/**
@@ -586,32 +620,20 @@ describe('the headless harness capture script', () => {
 	 * and `grep -c "name: '" scripts/harness-shot.mjs` is what answers the question at the
 	 * moment somebody asks it.
 	 *
-	 * **Why a set comparison and not a loop.** `for (name of […]) expect(source).toContain(…)`
+	 * **Why a set comparison and not a loop.** `for (name of […]) expect(…).toContain(…)`
 	 * proves *at least these*, so a shot added to `SHOTS` and not listed here stays green —
 	 * which is exactly how `project-detail-prices` landed unpinned. Measured rather than argued:
 	 * appending `{ name: 'zzz-unlisted', query: '?index', selector: HARNESS_INDEX }` to `SHOTS`
 	 * left this file entirely green under the `toContain` form and reddens here.
 	 *
-	 * **Why TWO narrowings on the slice**, one from each branch and neither subsuming the other:
-	 * the slice is bounded to the `SHOTS` array itself (structural), and `withoutCommentary`
-	 * runs first so a `name: '…'` written inside a docblock — including one INSIDE that array —
-	 * cannot join the census (lexical). An instrument that starts counting prose is the shape
-	 * this block has now paid for twice.
-	 *
-	 * **Why a WHOLE-FILE count beside it**, which is the other branch's instrument and asks a
-	 * question the first cannot: the derivation sees only inside `SHOTS`, so an entry written
-	 * outside that array — a second array, or one moved out — is invisible to it. It is taken
-	 * over the commentary-stripped source for the same reason the slice is, which is the one
-	 * change either instrument needed to survive being put beside the other.
+	 * **Why a WHOLE-FILE count beside it**, which asks a question the table cannot: the table
+	 * sees only inside `SHOTS`, so an entry written outside that array — a second array, or one
+	 * moved out — is invisible to it. Both are parsed reads, so a `name: '…'` written inside a
+	 * docblock — including one INSIDE that array — cannot join either census; an instrument
+	 * that starts counting prose is the shape this block has paid for twice.
 	 */
 	it('defines exactly the fixed shots this file lists, in both directions', () => {
-		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
-		const shotsBlock = source.slice(
-			source.indexOf('const SHOTS = ['),
-			source.indexOf('];', source.indexOf('const SHOTS = [')),
-		);
-
-		const declared = [...shotsBlock.matchAll(/name: '([a-z0-9-]+)'/g)].map((match) => match[1]);
+		const declared = [...shots.keys()];
 
 		expect(declared.toSorted()).toEqual([
 			'asset-designer-dark',
@@ -668,6 +690,10 @@ describe('the headless harness capture script', () => {
 			'plan-editor-selected-dark',
 			'plan-editor-stale',
 			'plan-editor-stale-narrow',
+			'plan-editor-tree-dark',
+			'plan-editor-tree-light',
+			'plan-editor-tree-narrow',
+			'plan-editor-tree-narrow-light',
 			'plan-editor-unsupported',
 			'project-detail',
 			'project-detail-narrow',
@@ -681,9 +707,9 @@ describe('the headless harness capture script', () => {
 			'project-detail-recovery-narrow',
 		]);
 
-		// The whole FILE, not the sliced block — see the header. A shot entry written outside
-		// `SHOTS` is invisible to the derivation above and fails here instead.
-		expect(source.match(/name: '/gu)?.length).toBe(declared.length);
+		// The whole FILE, not the table — see the header. A shot entry written outside `SHOTS`
+		// is invisible to the table above and fails here instead.
+		expect(namedEntries(script)).toBe(declared.length);
 	});
 
 	/**
@@ -711,59 +737,35 @@ describe('the headless harness capture script', () => {
 	 *   4.27:1 dark. A scheme chosen by measurement and recorded only in prose is a scheme that
 	 *   silently flips back — the sentence the index shots' own scheme case already makes.
 	 *
-	 * Source-text assertions, like every case in this block, for its stated reason: `SHOTS` runs
-	 * at module scope behind a browser and no test can import it.
+	 * The asset those four open on is `LIBRARY_SELECTED_ASSET`, named once in the script so a
+	 * fifth selected shot cannot introduce a second spelling: each query is checked against the
+	 * constant's VALUE, and each is checked to have been spelled THROUGH it.
 	 */
 	it('pins what makes each asset library shot different from its siblings', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
+		const asset = constants.get('LIBRARY_SELECTED_ASSET');
 
-		/**
-		 * One shot's own fields, from its `name` to the next entry's.
-		 *
-		 * `[^}]*` is what the three cases below this one use and it CANNOT work here: these
-		 * queries are template literals interpolating `LIBRARY_SELECTED_ASSET`, so a closing
-		 * brace sits between the name and every field after it and the class stops there.
-		 * Measured — the first draft of this case failed at `width: 700` for exactly that.
-		 *
-		 * Comments are stripped BOTH ways first, because a `//` line above an entry falls inside
-		 * the PREVIOUS entry's slice, and these shots' comments quote the very fields being
-		 * pinned. `withoutCommentary` alone handles only the block form.
-		 */
-		const fieldsOf = (name: string): string => {
-			const bare = withoutCommentary(source).replace(/^\s*\/\/.*$/gm, '');
-			const from = bare.indexOf(`name: '${name}'`);
-			const next = bare.indexOf("name: '", from + 1);
-			return bare.slice(from, next === -1 ? bare.length : next);
-		};
+		expect(typeof asset).toBe('string');
+		// Non-empty AND every character an id character: `every` over an empty string is true.
+		expect(String(asset).length, 'LIBRARY_SELECTED_ASSET is empty').toBeGreaterThan(0);
+		expect([...String(asset)].every((character) => isIdCharacter(character)), 'LIBRARY_SELECTED_ASSET is not an id').toBe(true);
 
-		// The four that open on a selection: the route AND the measured scheme.
-		for (const name of [
-			'asset-library-selected',
-			'asset-library-middle',
-			'asset-library-actions',
-			'asset-library-narrow-selected',
-		]) {
-			// A REGEX and not a string, because the thing being matched is source text that
-			// happens to be a template placeholder: `no-template-curly-in-string` refuses the
-			// string form outright, and it is right to — a reader meeting `'…${X}'` in a test
-			// cannot tell an intended literal from a template string somebody forgot to mark.
-			expect(fieldsOf(name)).toMatch(/asset=\$\{LIBRARY_SELECTED_ASSET\}/);
-			expect(fieldsOf(name)).toContain('theme=light');
-		}
+		// The four that open on a selection: the route AND the measured scheme — reported as the
+		// names that fail each check, so a failure says which shot.
+		const selected = ['asset-library-selected', 'asset-library-middle', 'asset-library-actions', 'asset-library-narrow-selected'];
+
+		expect(selected.filter((name) => query(name).get('asset') !== asset)).toEqual([]);
+		expect(selected.filter((name) => !namesIn(name, 'query').includes('LIBRARY_SELECTED_ASSET'))).toEqual([]);
+		expect(selected.filter((name) => query(name).get('theme') !== 'light')).toEqual([]);
 
 		// The three widths of §7's ladder, and the two resting shots that hold the palette.
-		expect(fieldsOf('asset-library-middle')).toContain('width: 700');
-		expect(fieldsOf('asset-library-narrow')).toContain('width: 460');
-		expect(fieldsOf('asset-library-narrow-selected')).toContain('width: 460');
-		expect(fieldsOf('asset-library-dark')).toContain("query: '?view=asset-library'");
-		expect(fieldsOf('asset-library-light')).toContain('theme=light');
+		expect(shot('asset-library-middle').width).toBe(700);
+		expect(shot('asset-library-narrow').width).toBe(460);
+		expect(shot('asset-library-narrow-selected').width).toBe(460);
+		expect(shot('asset-library-dark').query).toBe('?view=asset-library');
+		expect(query('asset-library-light').get('theme')).toBe('light');
 
 		// The one shot whose subject is below the fold.
-		expect(fieldsOf('asset-library-actions')).toContain("scrollTo: '.rp-al-actions'");
-
-		// And the id those four resolve — named once in the script so a fifth selected shot
-		// cannot introduce a second spelling.
-		expect(source).toMatch(/const LIBRARY_SELECTED_ASSET = '[a-z0-9-]+';/);
+		expect(shot('asset-library-actions').scrollTo).toBe('.rp-al-actions');
 	});
 
 	/**
@@ -773,14 +775,17 @@ describe('the headless harness capture script', () => {
 	 * waited on the same wrapper and could photograph a 460px shell with no proof the constrained
 	 * layout's rail had actually appeared. All three now name a selector that only exists once
 	 * the state each shot is FOR has landed; a mutation back to `PLAN_EDITOR_VIEW` fails here.
+	 * The two resting shots are checked to spell it through `FLOOR_STATE`, the one constant, and
+	 * that constant to be the floor inspector.
 	 */
 	it('waits for the hydrated floor state on the resting plan-editor shots, and for the rail as well on the narrow one', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		expect(source).toMatch(/name: 'plan-editor-dark'[^}]*selector: FLOOR_STATE/);
-		expect(source).toMatch(/name: 'plan-editor-light'[^}]*selector: FLOOR_STATE/);
-		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
-		expect(source).toContain("const FLOOR_STATE = '.rp-floor-inspector'");
+		expect(constants.get('FLOOR_STATE')).toBe('.rp-floor-inspector');
+		for (const name of ['plan-editor-dark', 'plan-editor-light']) {
+			expect(shot(name).selector).toBe('.rp-floor-inspector');
+			expect(namesIn(name, 'selector')).toEqual(['FLOOR_STATE']);
+		}
+		expect(shot('plan-editor-narrow').selector).toEqual(['.rp-plan-canvas', '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail']);
+		expect(namesIn('plan-editor-narrow', 'selector')).toEqual(['PLAN_CANVAS']);
 	});
 
 	/**
@@ -796,22 +801,34 @@ describe('the headless harness capture script', () => {
 	 * ADR-0027 — so only the pressed state proves the knob actually locked one).
 	 */
 	it('takes the detail-plan and locked-zone shots through their own knobs, waiting on what only a landed knob produces', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
+		const lockPressed = '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]';
 
-		expect(source).toMatch(/name: 'plan-editor-detail'[^}]*query: '\?view=plan-editor&detail&theme=light'/);
-		expect(source).toMatch(/name: 'plan-editor-detail'[^}]*selector: '\.rp-floor-inspector__guide'/);
-		expect(source).toMatch(/name: 'plan-editor-detail-dark'[^}]*query: '\?view=plan-editor&detail'/);
-		expect(source).toMatch(/name: 'plan-editor-detail-dark'[^}]*selector: '\.rp-floor-inspector__guide'/);
-		expect(source).toMatch(/name: 'plan-editor-detail-narrow-de'[^}]*query: '\?view=plan-editor&detail&theme=light&lang=de'/);
-		expect(source).toMatch(
-			/name: 'plan-editor-detail-narrow-de'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail', DETAIL_ANCESTRY_CRUMB\]/,
-		);
-		expect(source).toMatch(/name: 'plan-editor-locked'[^}]*query: '\?view=plan-editor&locked=harness-terrace,harness-garden&theme=light'/);
-		expect(source).toMatch(/name: 'plan-editor-locked'[^}]*selector: '\.rp-floor-inspector \.rp-editor-inspector-lock\[aria-pressed="true"\]'/);
-		expect(source).toMatch(/name: 'plan-editor-locked-dark'[^}]*query: '\?view=plan-editor&locked=harness-terrace,harness-garden'/);
-		expect(source).toMatch(
-			/name: 'plan-editor-locked-dark'[^}]*selector: '\.rp-floor-inspector \.rp-editor-inspector-lock\[aria-pressed="true"\]'/,
-		);
+		expect(shot('plan-editor-detail')).toEqual({ query: '?view=plan-editor&detail&theme=light', selector: '.rp-floor-inspector__guide' });
+		expect(shot('plan-editor-detail-dark')).toEqual({ query: '?view=plan-editor&detail', selector: '.rp-floor-inspector__guide' });
+		expect(shot('plan-editor-detail-narrow-de')).toEqual({
+			query: '?view=plan-editor&detail&theme=light&lang=de',
+			selector: ['.rp-plan-canvas', '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail', String(constants.get('DETAIL_ANCESTRY_CRUMB'))],
+			width: 460,
+		});
+		expect(namesIn('plan-editor-detail-narrow-de', 'selector')).toEqual(['PLAN_CANVAS', 'DETAIL_ANCESTRY_CRUMB']);
+		expect(shot('plan-editor-locked')).toEqual({ query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: lockPressed });
+		expect(shot('plan-editor-locked-dark')).toEqual({ query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: lockPressed });
+	});
+
+	/**
+	 * Property-tree polish (2026-09-12): the four shots the `?tree` knob exists for, pinned the
+	 * same way. The selector is a LEVEL-3 treeitem, which only the knob's four-plan hierarchy
+	 * produces (the resting harness answers no hierarchy and draws the open plan alone), and the
+	 * two 460px shots want it inside `.rp-overlay-panel` — the tree is hidden behind the rail's
+	 * Layers button there, and only the knob's own press puts it on screen.
+	 */
+	it('takes the property-tree shots through the ?tree knob, waiting on a third level the knob alone produces', () => {
+		const tree = '[role="tree"] [aria-level="3"]';
+
+		expect(shot('plan-editor-tree-dark')).toEqual({ query: '?view=plan-editor&tree', selector: tree });
+		expect(shot('plan-editor-tree-light')).toEqual({ query: '?view=plan-editor&tree&theme=light', selector: tree });
+		expect(shot('plan-editor-tree-narrow')).toEqual({ query: '?view=plan-editor&tree', selector: `.rp-overlay-panel ${tree}`, width: 460 });
+		expect(shot('plan-editor-tree-narrow-light')).toEqual({ query: '?view=plan-editor&tree&theme=light', selector: `.rp-overlay-panel ${tree}`, width: 460 });
 	});
 
 	/**
@@ -821,14 +838,12 @@ describe('the headless harness capture script', () => {
 	 * pair, rather than a claim only a source-text pin could hold.
 	 */
 	it('measures the unsupported shell for horizontal overflow at 320 px, through the importable overflowFinding', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		expect(source).toMatch(/name: 'plan-editor-unsupported'[^}]*width: 320/);
-		expect(source).toMatch(
-			/name: 'plan-editor-unsupported'[^}]*selector: '\.rp-editor-shell\[data-layout="unsupported"\] \.rp-unsupported-width'/,
-		);
-		expect(source).toMatch(/name: 'plan-editor-unsupported'[^}]*measure: '\.rp-editor-shell'/);
-		expect(source).toContain("from './captureMeasures.mjs'");
+		expect(shot('plan-editor-unsupported')).toMatchObject({
+			width: 320,
+			selector: '.rp-editor-shell[data-layout="unsupported"] .rp-unsupported-width',
+			measure: '.rp-editor-shell',
+		});
+		expect(importsOf(script)).toContain('./captureMeasures.mjs');
 	});
 
 	/**
@@ -840,16 +855,14 @@ describe('the headless harness capture script', () => {
 	 * losing `width: 460` off the third would silently photograph the same wide layout twice.
 	 */
 	it('takes the selected-zone and Add-menu shots through the knobs that reach them, and the narrow shot at a sidebar width', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		expect(source).toMatch(/name: 'plan-editor-selected'[^}]*query: '\?view=plan-editor&select=harness-kitchen/);
-		expect(source).toMatch(/name: 'plan-editor-selected'[^}]*selector: '\.rp-room-inspector'/);
-		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*query: '\?view=plan-editor&add/);
-		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*selector: '\.rp-add-menu'/);
-		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*width: 460/);
+		expect(planEditorQuery('plan-editor-selected').get('select')).toBe('harness-kitchen');
+		expect(shot('plan-editor-selected').selector).toBe('.rp-room-inspector');
+		expect(planEditorQuery('plan-editor-add-menu').has('add')).toBe(true);
+		expect(shot('plan-editor-add-menu').selector).toBe('.rp-add-menu');
+		expect(shot('plan-editor-narrow').width).toBe(460);
 		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' above
 		// for why a bare `PLAN_EDITOR_VIEW` wait is exactly the defect being refused here.
-		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
+		expect(shot('plan-editor-narrow').selector).toEqual(['.rp-plan-canvas', '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail']);
 	});
 
 	/**
@@ -881,15 +894,11 @@ describe('the headless harness capture script', () => {
 	 * right is a capture read by eye, which nothing in this suite can do.
 	 */
 	it('takes the room task at both widths, through the ?room knob, waiting on what each width can show', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		expect(source).toMatch(/name: 'plan-editor-add-room'[^}]*query: '\?view=plan-editor&room=4200x3800/);
-		expect(source).toMatch(/name: 'plan-editor-add-room'[^}]*selector: '\.rp-new-room__settled:not\(:empty\)'/);
-		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*query: '\?view=plan-editor&room=4200x3800/);
-		expect(source).toMatch(
-			/name: 'plan-editor-add-room-narrow'[^}]*selector: '\.rp-task-banner__finish\[aria-disabled="false"\]'/,
-		);
-		expect(source).toMatch(/name: 'plan-editor-add-room-narrow'[^}]*width: 460/);
+		expect(planEditorQuery('plan-editor-add-room').get('room')).toBe('4200x3800');
+		expect(shot('plan-editor-add-room').selector).toBe('.rp-new-room__settled:not(:empty)');
+		expect(planEditorQuery('plan-editor-add-room-narrow').get('room')).toBe('4200x3800');
+		expect(shot('plan-editor-add-room-narrow').selector).toBe('.rp-task-banner__finish[aria-disabled="false"]');
+		expect(shot('plan-editor-add-room-narrow').width).toBe(460);
 	});
 
 	/**
@@ -905,22 +914,21 @@ describe('the headless harness capture script', () => {
 	 * both shots would quietly photograph the surface the three above them already cover.
 	 */
 	it('takes the detail state at two widths, and reaches it through the parameter that opens it', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		expect(source).toMatch(/name: 'project-detail'[^}]*query: '\?project=/);
-		expect(source).toMatch(/name: 'project-detail-narrow'[^}]*query: '\?project=/);
-		expect(source).toMatch(/name: 'project-detail-narrow'[^}]*width: 460/);
+		expect(query('project-detail').has('project')).toBe(true);
+		expect(query('project-detail-narrow').has('project')).toBe(true);
+		expect(shot('project-detail-narrow').width).toBe(460);
 		// The narrow one is also the LIGHT one, which is what makes two shots cover both
 		// palettes — measured, not preferred: the status label is the only element on this
 		// surface with a colour of its own, and it measures 6.69:1 in light against 8.13:1 in
 		// dark. Pinned for the same reason the index shots pin theirs: a scheme chosen by
 		// measurement and recorded only in prose is a scheme that silently flips back.
-		expect(source).toMatch(/name: 'project-detail-narrow'[^}]*theme=light/);
+		expect(query('project-detail-narrow').get('theme')).toBe('light');
 		// `&plans=0` is the only thing that makes the START variant's shot different from the wide
 		// one above it: both wait on `.renovation-planner-view`, which the 26-plan fixture
 		// satisfies just as well, so a dropped parameter photographs the active layout under a
 		// name promising the new-project one and exits 0.
-		expect(source).toMatch(/name: 'project-detail-new'[^}]*query: '\?project=[^']*&plans=0'/);
+		expect(query('project-detail-new').has('project')).toBe(true);
+		expect(query('project-detail-new').get('plans')).toBe('0');
 	});
 
 	/**
@@ -940,17 +948,13 @@ describe('the headless harness capture script', () => {
 	 * either wraps or does not.
 	 */
 	it('takes the recovery screen through the parameter that reaches it, in both schemes and at a leaf width', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
+		const three = ['project-detail-recovery', 'project-detail-recovery-light', 'project-detail-recovery-narrow'];
+		const reaching = three.filter((name) => query(name).has('project') && query(name).get('plans') === '2' && query(name).has('recovery'));
 
-		const reaching = ['project-detail-recovery', 'project-detail-recovery-light', 'project-detail-recovery-narrow'].filter(
-			(name) =>
-				new RegExp(`name: '${name}'[^}]*query: '[?]project=[^']*&plans=2&recovery`).test(source),
-		);
-
-		expect(reaching).toEqual(['project-detail-recovery', 'project-detail-recovery-light', 'project-detail-recovery-narrow']);
-		expect(source).not.toMatch(/name: 'project-detail-recovery'[^}]*theme=light/);
-		expect(source).toMatch(/name: 'project-detail-recovery-light'[^}]*theme=light/);
-		expect(source).toMatch(/name: 'project-detail-recovery-narrow'[^}]*width: 460/);
+		expect(reaching).toEqual(three);
+		expect(query('project-detail-recovery').get('theme')).toBeNull();
+		expect(query('project-detail-recovery-light').get('theme')).toBe('light');
+		expect(shot('project-detail-recovery-narrow').width).toBe(460);
 	});
 
 	/**
@@ -963,10 +967,7 @@ describe('the headless harness capture script', () => {
 	 * elsewhere in this file.
 	 */
 	it('takes the asset designer at a sidebar width, through the route that opens it', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		expect(source).toMatch(/name: 'asset-designer-narrow'[^}]*query: '\?view=asset-designer'/);
-		expect(source).toMatch(/name: 'asset-designer-narrow'[^}]*width: 460/);
+		expect(shot('asset-designer-narrow')).toMatchObject({ query: '?view=asset-designer', width: 460 });
 	});
 
 	/**
@@ -978,11 +979,8 @@ describe('the headless harness capture script', () => {
 	 * the name check.
 	 */
 	it('points the index shots at the route that draws the picker', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		for (const query of ["query: '?index'", "query: '?index&theme=light'"]) {
-			expect(source).toContain(query);
-		}
+		expect(shot('index-dark').query).toBe('?index');
+		expect(shot('index-light').query).toBe('?index&theme=light');
 	});
 
 	/**
@@ -993,17 +991,13 @@ describe('the headless harness capture script', () => {
 	 *
 	 * So the two states each need their own SETUP, and this pins that the setup is still there:
 	 * a `focus` selector on one shot, and a query naming an id no entry can have on the other.
-	 * Source-text assertions because `SHOTS` runs at module scope behind a browser — the same
-	 * bargain every case in this block makes — and the behaviour under them is `focusForShot`'s,
-	 * which is asserted directly below.
+	 * Parsed assertions because `SHOTS` runs at module scope behind a browser — the same bargain
+	 * every case in this block makes — and the behaviour under them is `focusForShot`'s, which is
+	 * asserted directly below.
 	 */
 	it('gives the focus ring and the failure card a shot that actually renders them', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		expect(source).toContain("name: 'index-focus'");
-		expect(source).toMatch(/name: 'index-focus'[^}]*focus:/);
-		expect(source).toContain("name: 'index-failure'");
-		expect(source).toMatch(/name: 'index-failure'[^}]*query: '\?entry=no-such-entry/);
+		expect(shot('index-focus').focus).toBeDefined();
+		expect(query('index-failure').get('entry')).toBe('no-such-entry');
 	});
 
 	/**
@@ -1016,33 +1010,27 @@ describe('the headless harness capture script', () => {
 	 * floor was in the one state no capture held, and the numbers contradicting the comment were
 	 * already recorded in `styles/editor.css`.
 	 *
-	 * A source-text assertion, like its siblings above, and it pins the SCHEME only. That a given
+	 * A parsed assertion, like its siblings above, and it pins the SCHEME only. That a given
 	 * scheme is the weaker one is a browser measurement no gate here can make — jsdom resolves no
 	 * `var()` to a colour — so what this can hold is that the choice was made deliberately and has
 	 * not silently flipped back.
 	 */
 	it('takes each index state in the scheme its own contrast is weakest in', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		expect(source).toMatch(/name: 'index-focus'[^}]*theme=light/);
-		expect(source).toMatch(/name: 'index-failure'[^}]*theme=light/);
+		expect(query('index-focus').get('theme')).toBe('light');
+		expect(query('index-failure').get('theme')).toBe('light');
 	});
 
 	/**
 	 * `page.focus()` would leave the element focused and the ring UNDRAWN — `:focus-visible` is a
 	 * keyboard heuristic, so a programmatic focus produces a screenshot identical to the resting
 	 * one. That is the failure mode this whole addition exists to avoid, and it is invisible in
-	 * the PNG, so it is pinned here instead.
+	 * the PNG, so it is pinned here instead. Asked of the CALLS, so `focusForShot`'s own comment
+	 * may name `page.focus(` to say why it is refused — the raw-text version of this assertion
+	 * failed on the sentence explaining the rule it was checking.
 	 */
 	it('reaches the focus target with the keyboard rather than programmatically', () => {
-		// STRIPPED, like every negative scan in this file — and this one proves the convention
-		// rather than merely following it: `focusForShot`'s own comment NAMES `page.focus(` to say
-		// why it is refused, so the raw-text version of this assertion failed on the sentence
-		// explaining the rule it was checking.
-		const source = withoutCommentary(readFileSync(SCRIPT, 'utf8'));
-
-		expect(source).toContain("keyboard.press('Tab')");
-		expect(source).not.toContain('page.focus(');
+		expect(callsOf(script.file, script, 'page.keyboard.press').map((call) => call.args)).toContainEqual(["'Tab'"]);
+		expect(callsOf(script.file, script, 'page.focus')).toEqual([]);
 	});
 
 	/**
@@ -1052,16 +1040,12 @@ describe('the headless harness capture script', () => {
 	 * shot list that exists and times out is the failure it cannot see.
 	 */
 	it('keeps the three project-view shots on URLs that do not request the index', () => {
-		const source = readFileSync(SCRIPT, 'utf8');
-
-		for (const query of ["query: ''", "query: '?theme=light'", "query: '?phone'"]) {
-			expect(source).toContain(query);
-		}
-
-		const page = readFileSync(path.join(REPO, 'tests', 'harness', 'page.ts'), 'utf8');
+		expect(shot('dark').query).toBe('');
+		expect(shot('light').query).toBe('?theme=light');
+		expect(shot('phone').query).toBe('?phone');
 
 		// The index is opt-in. If this ever becomes `!params.has('view')`, all three fixed
 		// shots start timing out with nothing else to report it.
-		expect(page).toContain("params.has('index')");
+		expect(callsOf(page.file, page, 'has').map((call) => call.args)).toContainEqual(["'index'"]);
 	});
 });

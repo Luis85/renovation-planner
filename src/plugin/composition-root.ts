@@ -13,6 +13,8 @@ import { createProjectListChangeSource } from '../application/events/projectList
 import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
 import type { CreatePlanInput, CreatePlanError } from '../application/commands/plan/CreatePlan';
+import { UpdatePlanDetailsCommand } from '../application/commands/plan/UpdatePlanDetails';
+import type { UpdatePlanDetailsInput, UpdatePlanDetailsError } from '../application/commands/plan/UpdatePlanDetails';
 import { CreateProjectCommand } from '../application/commands/project/CreateProject';
 import type { CreateProjectInput, CreateProjectError } from '../application/commands/project/CreateProject';
 import { CreateZoneCommand } from '../application/commands/zone/CreateZone';
@@ -269,10 +271,12 @@ export interface PersistenceServices
 	 * framework those forms mount in, no caller of its own), then "slice 14's empty-state
 	 * actions" (slice 14 shipped no create action at all). `createProject` is dispatched by
 	 * `ViewRoot.vue` (the New project form) and by `sampleProject.ts`; `createPlan` by
-	 * `ProjectDetailState.vue` (the New plan form) and by `sampleProject.ts`.
+	 * `ProjectDetailState.vue` (the New plan form) and by `sampleProject.ts`; `updatePlanDetails`
+	 * by the Plan editor's Property tree and Floor inspector.
 	 */
 	readonly createProject: Command<CreateProjectInput, Result<{ project: Loaded<Project> }, CreateProjectError>>;
 	readonly createPlan: Command<CreatePlanInput, Result<{ plan: Loaded<Plan> }, CreatePlanError>>;
+	readonly updatePlanDetails: Command<UpdatePlanDetailsInput, Result<{ plan: Loaded<Plan> }, UpdatePlanDetailsError>>;
 	readonly createZone: Command<CreateZoneInput, Result<{ zone: Loaded<Zone> }, CreateZoneError>>;
 	/**
 	 * Slice 5's one write in its second face: the undoable adapter slice 6's
@@ -430,6 +434,7 @@ function composeGuarded(
 		...guardAssetDesign({ sidecar: assetGeometry, assets, events: eventBus, locks }, files, logger, map),
 		createProject: guardCommand(new CreateProjectCommand(projects, eventBus, defaultCurrency), 'command.createProject.failed', logger, map),
 		createPlan: guardCommand(new CreatePlanCommand(plans, projects, zones, eventBus), 'command.createPlan.failed', logger, map),
+		updatePlanDetails: guardCommand(new UpdatePlanDetailsCommand(plans, eventBus), 'command.updatePlanDetails.failed', logger, map),
 		createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, map),
 		reversibleSetPlanBackground: guardCommand(
 			new ReversibleSetPlanBackgroundCommand(new SetPlanBackgroundCommand(plans, files, eventBus), plans),

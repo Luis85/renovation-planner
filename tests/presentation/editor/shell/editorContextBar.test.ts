@@ -63,7 +63,7 @@ describe('EditorContextBar', () => {
 			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: (id) => { opened.push(id); return Promise.resolve(); } },
 			queries: {
 				...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
-				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site' }, { id: 'plan-house', name: 'House' }], detailPlans: [], parentZone: null, parentZoneMissing: true })),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site', kind: 'floor' }, { id: 'plan-house', name: 'House', kind: 'floor' }], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: true })),
 			},
 		});
 		await settle();
@@ -77,12 +77,21 @@ describe('EditorContextBar', () => {
 		const harness = await mountPlanEditorCanvas({
 			queries: {
 				...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
-				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site' }], detailPlans: [], parentZone: null, parentZoneMissing: false })),
+				hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site', kind: 'floor' }], detailPlans: [], tree: [], parentZone: null, parentZoneMissing: false })),
 			},
 		});
 		await settle();
 
 		expect(harness.wrapper.find('.rp-context-bar [data-rp-open-plan]').exists()).toBe(false);
 		expect(harness.wrapper.findAll('.rp-context-bar__crumb').map((crumb) => crumb.text())).toEqual(['Willow House', 'Site', 'Ground floor']);
+	});
+
+	it('draws each ancestor crumb with its kind icon', async () => {
+		const harness = await mountPlanEditorCanvas({
+			navigation: { project: () => Promise.resolve(), library: () => undefined, plan: () => Promise.resolve() },
+			queries: { ...fakeQueries(FIXTURE_PLAN), hierarchy: () => Promise.resolve(ok({ ancestry: [{ id: 'plan-site', name: 'Site', kind: 'site' }], detailPlans: [], parentZone: null, parentZoneMissing: false, tree: [] })) },
+		});
+		await settle();
+		expect(harness.wrapper.get('[data-rp-open-plan="plan-site"]').find('.rp-host-icon[data-icon="land-plot"]').exists()).toBe(true);
 	});
 });

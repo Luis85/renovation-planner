@@ -20,6 +20,7 @@
 import { type Ref } from 'vue';
 import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
+import { useFieldInput } from '../composables/use-field-input';
 import { useInvalidFieldFocus } from '../composables/use-invalid-field-focus';
 import { useFormCommit } from '../composables/use-form-commit';
 import type { FieldErrorMap } from '../errors/route-error';
@@ -144,14 +145,11 @@ function fromDateInputValue(value: string): Date | null {
 
 
 /**
- * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight
- * past it and make the sole-write-path rule this composable exists for unenforceable.
+ * The name is the one field here that is a plain string on the wire; `useFieldInput`'s docblock
+ * carries the `:value` + `@input` rule. Every other field below needs a conversion — an optional
+ * status or description rendered as `''`, a `Date | null` — and keeps its own handler.
  */
-function onNameInput(event: Event): void {
-	const control = event.target as HTMLInputElement;
-	if (refuseWhileSubmitting(control, form.values.value.name)) return;
-	form.setField('name', control.value);
-}
+const onFieldInput = useFieldInput(form, refuseWhileSubmitting);
 
 function onStatusInput(event: Event): void {
 	const control = event.target as HTMLSelectElement;
@@ -236,7 +234,7 @@ async function onSubmit(): Promise<void> {
 					data-field="name"
 					:value="form.values.value.name"
 					:readonly="form.submitting.value"
-					@input="onNameInput"
+					@input="onFieldInput('name', $event)"
 				>
 			</label>
 		</FieldError>

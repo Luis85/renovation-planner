@@ -41,7 +41,7 @@ const PROJECT: ProjectSummaryDto = {
 	planCount: 0,
 	lastWorked: null,
 };
-const PLAN: PlanSummaryDto = { id: 'plan-1', name: 'Ground floor' };
+const PLAN: PlanSummaryDto = { id: 'plan-1', name: 'Ground floor', kind: 'floor' };
 
 const session = (): ProjectSession => ({ query: '', completedOpen: false, focusedProjectId: null, scrollTop: 7, guidanceHidden: false });
 

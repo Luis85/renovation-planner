@@ -3,8 +3,9 @@ import type { ReferenceError } from '../../../core/errors/AppError';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import { Plan, type PlanParent } from '../../../domain/plan/Plan';
-import { createPlanId } from '../../../domain/plan/PlanId';
+import { createPlanId, type PlanId } from '../../../domain/plan/PlanId';
 import type { PlanBackgroundRef } from '../../../domain/plan/PlanBackgroundRef';
+import type { PlanKind } from '../../../domain/plan/PlanKind';
 import { planCreated } from '../../../domain/plan/Plan.events';
 import { referenceError } from '../../errors';
 import type { Command } from '../Command';
@@ -21,6 +22,10 @@ export interface CreatePlanInput {
 	readonly layers?: readonly string[];
 	/** Makes the new plan a detail plan of this zone (ADR-0028). */
 	readonly parent?: PlanParent;
+	/** The kind label (ADR-0029); `floor` when omitted. */
+	readonly kind?: PlanKind;
+	/** Rank among siblings; one past the highest sibling when omitted, so a new plan lands last. */
+	readonly order?: number;
 }
 
 export type CreatePlanError = ReferenceError | RepositoryError;
@@ -58,7 +63,14 @@ export class CreatePlanCommand
 			const refused = await this.refuseParent(input.projectId, input.parent);
 			if (refused !== null) return err(refused);
 		}
-		const created = Plan.create({ ...input, id: createPlanId() });
+		// `input.order` is a number and `nextOrder` answers a `Result`, so the two shapes stay apart.
+		let order = input.order;
+		if (order === undefined) {
+			const next = await this.nextOrder(input.projectId, input.parent?.planId ?? null);
+			if (isErr(next)) return next;
+			order = next.value;
+		}
+		const created = Plan.create({ ...input, order, id: createPlanId() });
 		if (isErr(created)) {
 			return created;
 		}
@@ -70,6 +82,14 @@ export class CreatePlanCommand
 			planCreated({ planId: saved.value.entity.id, projectId: saved.value.entity.projectId }),
 		);
 		return ok({ plan: saved.value });
+	}
+
+	/** One past the highest order among the plans sharing this parent (or the roots), so creation appends. */
+	private async nextOrder(projectId: ProjectId, parentId: PlanId | null): Promise<Result<number, RepositoryError>> {
+		const listed = await this.plans.listByProject(projectId);
+		if (isErr(listed)) return listed;
+		const siblings = listed.value.loaded.filter((loaded) => (loaded.entity.parent?.planId ?? null) === parentId);
+		return ok(siblings.length === 0 ? 0 : Math.max(...siblings.map((loaded) => loaded.entity.order)) + 1);
 	}
 
 	/** The parent plan exists in THIS project and the zone sits on that plan, or the reason it does not. */

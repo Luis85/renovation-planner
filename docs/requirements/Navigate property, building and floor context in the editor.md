@@ -101,3 +101,12 @@ adds a plan-to-zone parent link. The context bar and the sidebar's Property tree
 detail plan's ancestry as `Project › Site › House › Ground floor`, each crumb opening its plan
 through the editor's plan reveal. The out-of-scope line about persisting hierarchy is narrowed
 accordingly; Building and Floor entities remain out of scope.
+
+**2026-09-12** — [ADR-0029](../development/adrs/0029-a-plan-carries-a-kind-and-a-sibling-order.md).
+The Property tree draws EVERY plan of the project nested by its parent link as a `role="tree"`
+with arrow-key navigation (closing extension 4a's deferral); each plan carries a persisted kind
+(site, building, floor, room — frontmatter schema v11) that drives its icon and level label;
+siblings are reorderable by drag, by a row menu and by Alt+↑/↓, and the order is persisted.
+Assumption 3's "singular presentation-only Building grouping" is superseded by the kind label.
+The manual walkthrough is `docs/tests/cases/Reorder plans in the Property tree.md` and has not
+been run in a vault.

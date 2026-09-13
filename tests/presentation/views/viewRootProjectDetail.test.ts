@@ -231,7 +231,7 @@ describe('ViewRoot in the detail state', () => {
 		const wrapper = mountRoot({
 			projectId: 'project-1',
 			openPlan,
-			plans: [{ id: 'plan-1', name: 'Ground floor' }],
+			plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }],
 		});
 		await flushPromises();
 
@@ -268,7 +268,7 @@ describe('ViewRoot in the detail state', () => {
 			projectId: 'project-1',
 			rememberContinue,
 			openPlan,
-			plans: [{ id: 'plan-1', name: 'Ground floor' }],
+			plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }],
 		});
 		await flushPromises();
 
@@ -315,7 +315,7 @@ describe('ViewRoot in the detail state', () => {
 			projectId: 'project-1',
 			plansRef: plans,
 			createPlan: (input) => {
-				plans.push({ id: 'plan-9', name: input.name });
+				plans.push({ id: 'plan-9', name: input.name, kind: 'floor' });
 				return Promise.resolve(
 					ok({ plan: { entity: makePlan({ projectId: PROJECT.id as ProjectId }), version: VERSION } }),
 				);
@@ -334,12 +334,12 @@ describe('ViewRoot in the detail state', () => {
 	 * own header button and no empty state at all.
 	 */
 	it('creates a second plan from the plan list’s own header button', async () => {
-		const plans: PlanSummaryDto[] = [{ id: 'plan-1', name: 'Ground floor' }];
+		const plans: PlanSummaryDto[] = [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }];
 		const wrapper = mountRoot({
 			projectId: 'project-1',
 			plansRef: plans,
 			createPlan: (input) => {
-				plans.push({ id: 'plan-2', name: input.name });
+				plans.push({ id: 'plan-2', name: input.name, kind: 'floor' });
 				return Promise.resolve(
 					ok({ plan: { entity: makePlan({ projectId: PROJECT.id as ProjectId }), version: VERSION } }),
 				);
@@ -619,7 +619,7 @@ describe('ViewRoot in the detail state', () => {
 		await flushPromises();
 		expect(wrapper.findAll('.rp-plan-list__row')).toHaveLength(0);
 
-		plans.push({ id: 'plan-1', name: 'Ground floor' });
+		plans.push({ id: 'plan-1', name: 'Ground floor', kind: 'floor' });
 		for (const listener of listeners) listener();
 		await flushPromises();
 

@@ -21,7 +21,6 @@ import { useFloorSummary } from './useFloorSummary';
 import FloorSpatialLists from './FloorSpatialLists.vue';
 import { usePlanEditorContext } from '../PlanEditorContext';
 import RenovationLinkedSummary from '../renovation/RenovationLinkedSummary.vue';
-import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
@@ -29,6 +28,9 @@ import { guideSource } from '../hierarchy/parentZoneGuide';
 import { renovationSummary } from '../renovation/renovationSummary';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import HostIcon from '../../components/HostIcon.vue';
+import { computed } from 'vue';
+// The Kind select is its own SFC (ADR-0029) — this template had crossed the complexity budget with it inline.
+import PlanKindSelect from './PlanKindSelect.vue';
 const context = usePlanEditorContext();
 
 /**
@@ -50,11 +52,12 @@ const { hierarchy } = storeToRefs(usePlanHierarchyStore());
 /** A detail plan's outline explained where nothing covers it (ADR-0028), while there is still a reference plan to line it up with. */
 const guide = computed(() => (project.plan?.background === null ? guideSource(hierarchy.value) : null));
 const starting = computed(() => project.emptyStateKey === 'noBackground' && project.zones.size === 0 && project.unreadableZones === 0);
+// `new Map(undefined)` is the empty map, so the `null` summary (which the template never reads this under) needs no fallback of its own.
 const roomAnnotations = computed(() => new Map(summary.value?.rooms.map(room => [room.id,
 	project.stale || project.unreadableZones > 0
 		? tr('editor.selection.unknown')
 		: tr('renovation.summary.change-count', { count: String(renovationSummary(project.plan?.renovation ?? EMPTY_RENOVATION, room.id).changes) }),
-]) ?? []));
+] as const)));
 
 /** The modifier class an `Aggregate` renders under, or `''` for the plain `available` case. */
 function classFor(aggregate: Aggregate<unknown>): string {
@@ -77,6 +80,7 @@ function textFor<T>(aggregate: Aggregate<T>, format: (value: T) => string): stri
 }
 
 const count = (value: number): string => String(value);
+
 </script>
 
 <template>
@@ -94,6 +98,7 @@ const count = (value: number): string => String(value);
 		<div class="rp-inspector-primary">
 			<ReferenceAction />
 		</div>
+		<PlanKindSelect />
 		<section
 			v-if="starting"
 			class="rp-floor-setup"

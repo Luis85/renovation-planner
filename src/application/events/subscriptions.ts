@@ -10,10 +10,12 @@ import type { GeometrySidecarChangedPayload, ProjectIndexEntryChangedPayload } f
  * `.fallowrc.json`'s duplicates block reviewed the spread and the disposer walk once and wrote
  * its own trigger down — "a sixth source, or any change to how a subscription is released — at
  * which point one `subscribeToAll(events, registrations)` in `application/events/` should take
- * ALL FIVE in one edit, and this key should go rather than grow". There are EIGHT sources now,
- * so the trigger has fired and this is that edit: all eight, never some of them, because a
- * helper adopted by two of eight is a third spelling of one mechanism and that is exactly the
- * half-adoption the deferral was protecting against.
+ * ALL FIVE in one edit, and this key should go rather than grow". The trigger has fired and this
+ * is that edit, taken by EVERY `*ChangeSource.ts` beside this file — `ls
+ * src/application/events/*ChangeSource.ts` is the list, never a number here, since a count in
+ * this sentence has already been one source behind the directory — because a helper adopted by
+ * some of them is a third spelling of one mechanism and that is exactly the half-adoption the
+ * deferral was protecting against.
  *
  * **What deliberately does NOT live here is POLICY.** The event LISTS and the filters differ in
  * every source and are the parts a reader has to get right; sharing either would make two

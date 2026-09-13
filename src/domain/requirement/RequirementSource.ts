@@ -5,7 +5,7 @@ import { err, ok } from '../../core/result/Result';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
 import { EMPTY_STRUCTURE, wallLength, type Structure } from '../spatial/Structure';
 import { membershipProbe } from '../spatial/assetPlacement';
-import { elementLength, type SpatialElement } from '../spatial/SpatialElement';
+import { elementLength, outlineKind, type SpatialElement } from '../spatial/SpatialElement';
 
 export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'wall-volume', 'opening-area', 'element-length', 'object-area', 'count', 'placement-count', 'manual'] as const;
 /** Geometry references stay on the Requirement; procurement and payment facts do not. */
@@ -67,8 +67,8 @@ function wallMeasurement(source: RequirementSource, structure: Structure): Measu
 function elementMeasurement(source: RequirementSource, element: SpatialElement | undefined): Measurement | null {
  if (!element) return null;
  if (source.rule === 'count') return { raw: 1, unit: 'piece' };
- if (element.kind !== 'object' && source.rule === 'element-length') return { raw: elementLength(element), unit: 'm' };
- if (element.kind === 'object' && source.rule === 'object-area') { const measured = area({ points: element.points }); return measured.ok ? { raw: measured.value, unit: 'm2' } : null; }
+ if (!outlineKind(element.kind) && source.rule === 'element-length') return { raw: elementLength(element), unit: 'm' };
+ if (outlineKind(element.kind) && source.rule === 'object-area') { const measured = area({ points: element.points }); return measured.ok ? { raw: measured.value, unit: 'm2' } : null; }
  return null;
 }
 /** The structure to read for a source's state: `intended` only for an intended source, `structure` otherwise. */

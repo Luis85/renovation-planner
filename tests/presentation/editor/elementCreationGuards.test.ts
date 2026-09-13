@@ -70,9 +70,7 @@ it('retains a named creation draft when a peer changes geometry after the baseli
 it('keeps Object field Enter local and refuses canvas Finish or Undo point while rectangle text is pending', async () => {
  const rig = await setup(), task = rig.runtime.elementTask;
  rig.runtime.setTool('place-object'); await settleUntil(() => !task.draft.loading, 'Object baseline');
- expect(task.setShape('free')).toBe(true); await settle();
  await rig.wrapper.get('input[name="element-name"]').setValue('Cabinet');
- await rig.wrapper.get('.rp-object-rectangle summary').trigger('click');
  expect(rig.wrapper.get<HTMLDetailsElement>('.rp-object-rectangle').element.open).toBe(true);
  await rig.wrapper.get('input[name="object-width"]').setValue('1'); await rig.wrapper.get('input[name="object-depth"]').setValue('1');
  await rig.wrapper.get('input[name="object-width"]').trigger('keydown', { key: 'Enter' }); await settle();

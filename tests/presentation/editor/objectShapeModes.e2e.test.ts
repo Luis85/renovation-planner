@@ -45,10 +45,14 @@ it('carries the outline across both switches, from the task bar and from details
 	expect(rig.task.draft.points).toEqual(RECTANGLE);
 	expect(rig.wrapper.get('.rp-task-banner').text()).toContain(tr('editor.element.banner.object'));
 	expect(rig.wrapper.find('input[name="element-x"]').exists()).toBe(true);
+	expect(rig.wrapper.get<HTMLDetailsElement>('.rp-object-rectangle').element.open).toBe(false);
+	expect(rig.wrapper.get('.rp-task-banner [data-rp-object-shape="rectangle"]').attributes('aria-pressed')).toBe('false');
 	rig.runtime.toolManager.pointerDown(pointerAt(2000, 2600)); await settle();
 	expect(rig.task.draft.points).toHaveLength(5);
 	await rig.wrapper.get('.rp-element-task [data-rp-object-shape="rectangle"]').trigger('click');
 	expect(rig.task.draft.points).toEqual([{ x: 1000, y: 500 }, { x: 3000, y: 500 }, { x: 3000, y: 2600 }, { x: 1000, y: 2600 }]);
+	expect(rig.wrapper.get<HTMLDetailsElement>('.rp-object-rectangle').element.open).toBe(true);
+	expect(rig.wrapper.get('.rp-element-task [data-rp-object-shape="free"]').attributes('aria-pressed')).toBe('false');
 });
 
 it('keeps its mode while typed rectangle input is pending, and a click leaves the drawn rectangle', async () => {

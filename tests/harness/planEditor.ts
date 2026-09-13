@@ -38,6 +38,7 @@ import { collapsePanelsOnceReady } from './panelsKnob';
 import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps, treePlanDeps } from './detailPlanKnob';
+import { roomsDeps } from './roomsKnob';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -493,6 +494,8 @@ export interface PlanEditorHarnessOptions {
 	readonly locked?: string;
 	/** Comma-separated seeded zone ids, each given one detail plan (`detailPlanKnob.ts`). */
 	readonly detailed?: string;
+	/** How many synthetic rooms `roomsKnob.ts` appends after the seeded zones (`?rooms=N`). */
+	readonly rooms?: number;
 	/**
 	 * A four-plan property (Site › House › { Ground floor, Attic }) so the Property tree draws
 	 * three levels (`detailPlanKnob.ts`); in the constrained layout the Layers overlay holding
@@ -763,7 +766,8 @@ export function mountPlanEditorHarness(
 	const detailed = options.detail === true ? detailPlanDeps(deps) : deps;
 	const locked = options.locked === undefined ? detailed : lockedZoneDeps(detailed, options.locked.split(','));
 	const detailedZones = options.detailed === undefined ? locked : detailedZoneDeps(locked, options.detailed.split(','));
-	const composed = options.tree === true ? treePlanDeps(detailedZones) : detailedZones;
+	const withRooms = options.rooms === undefined ? detailedZones : roomsDeps(detailedZones, options.rooms);
+	const composed = options.tree === true ? treePlanDeps(withRooms) : withRooms;
 	const view = new PlanEditorView((downstream?.leaf ?? new FakeLeaf()) as never, composed);
 	downstream?.attach(view);
 	leafEl.appendChild(view.containerEl);

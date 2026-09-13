@@ -70,7 +70,7 @@ const wantsAssetDesigner = params.get('view') === 'asset-designer';
 const wantsAssetLibrary = params.get('view') === 'asset-library';
 
 /**
- * The Plan Editor's own nine knobs:`?select=<zoneId>` selects and frames a seeded zone once
+ * The Plan Editor's own ten knobs:`?select=<zoneId>` selects and frames a seeded zone once
  * the editor is ready and `?add` opens the Add menu once it is ready (both Task 21);
  * `?room=<widthMm>x<depthMm>` (Task 14) walks Add → Room → the two length fields, so a capture
  * can show the room task with a sized rectangle under it; `?stale` (Task 14) drives the trust
@@ -80,8 +80,10 @@ const wantsAssetLibrary = params.get('view') === 'asset-library';
  * `?detailed=<id,id>` gives each named seeded zone a detail plan (ADR-0028); `?tree` answers a
  * four-plan property so the Property tree draws three levels (ADR-0029); `?panels=` (the
  * 2026-09-12 side panels) collapses the full layout's side panels through their own header
- * buttons once drawn — `collapsed` for both, or `layers`/`inspector` for one. All
- * nine are read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below
+ * buttons once drawn — `collapsed` for both, or `layers`/`inspector` for one; `?rooms=<n>`
+ * (the 2026-09-13 performance pass) appends that many synthetic rooms after the seeded zones,
+ * which is the only way the canvas can be looked at — or measured — at the plan size SDD §62
+ * budgets for. All ten are read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below
  * rather than read a second time there — one parse of the URL, like every other knob on this
  * page. `?panels` is the one read directly in the literal below rather than through its own
  * named const: `collapsePanelsOnceReady` takes the raw string, so there is no local transform
@@ -105,6 +107,8 @@ const wantsDetail = params.has('detail');
 const lockedZoneIds = params.get('locked') ?? undefined;
 const detailedZoneIds = params.get('detailed') ?? undefined;
 const wantsTree = params.has('tree');
+/** `?rooms=N` (2026-09-13): clamped like `?projects=`, for the same reason its paragraph gives. */
+const askedRooms = Math.max(0, Number.parseInt(params.get('rooms') ?? '', 10));
 
 let view: unknown = null;
 
@@ -235,6 +239,7 @@ if (wantsIndex) {
 				detail: wantsDetail,
 				locked: lockedZoneIds,
 				detailed: detailedZoneIds,
+				rooms: Number.isFinite(askedRooms) ? askedRooms : undefined,
 				tree: wantsTree,
 			}).view
 		: wantsAssetDesigner

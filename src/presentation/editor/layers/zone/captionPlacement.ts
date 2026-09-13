@@ -25,6 +25,9 @@ export const ROOM_CAPTION_TEXT = {
 	detail: { offsetY: -TEXT_PX * 1.3, fontSize: TEXT_PX - 2, height: TEXT_PX },
 } as const;
 
+/** The Konva name every room caption line carries, so `ZoneLayer` can counter-scale them all from one watch. */
+export const ZONE_CAPTION = 'zone-caption';
+
 /** Zone id → its detail-plans caption line: the plan's name for one, a count for several (ADR-0028). Drawn by `ZoneLayer`, grabbed by a caption drag. */
 export function detailPlanCaptions(details: readonly { readonly name: string; readonly parentZoneId: string }[]): ReadonlyMap<string, string> {
 	const byZone = new Map<string, string[]>();
@@ -88,10 +91,11 @@ export function captionBottom(detailed: boolean): number {
 /**
  * Where a room caption is DRAWN (ADR-0029). A dragged caption sits exactly at its automatic anchor
  * plus its offset — a placement the renovator chose wins — and only an undragged one is displaced
- * around pins and dimension labels.
+ * around pins and dimension labels. `options.anchor` is the zone's `labelAnchor` when the caller
+ * already holds it: `ZoneShape` caches it per geometry, so a zoom does not re-derive it per room.
  */
-export function roomCaptionAnchor(zone: { readonly points: readonly Point[]; readonly bulges?: readonly number[]; readonly labelOffset?: Vector | null }, zoom: number, pins: readonly NumberedPin[], dimensions: readonly BoundingBox[], options: { readonly viewport: BoundingBox | null; readonly bottom: number }): Point {
-	const anchor = labelAnchor(zone.points, zone.bulges);
+export function roomCaptionAnchor(zone: { readonly points: readonly Point[]; readonly bulges?: readonly number[]; readonly labelOffset?: Vector | null }, zoom: number, pins: readonly NumberedPin[], dimensions: readonly BoundingBox[], options: { readonly viewport: BoundingBox | null; readonly bottom: number; readonly anchor?: Point }): Point {
+	const anchor = options.anchor ?? labelAnchor(zone.points, zone.bulges);
 	if (zone.labelOffset) return { x: anchor.x + zone.labelOffset.dx, y: anchor.y + zone.labelOffset.dy };
 	return { x: anchor.x, y: anchor.y + captionOffsetY(anchor, pins, zoom, dimensions, options) };
 }

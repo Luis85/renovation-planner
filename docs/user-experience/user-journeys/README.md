@@ -2,14 +2,14 @@
 title: User journey catalogue
 type: user-journey-index
 status: documented
-version: 1
+version: 2
 language: en
-updated: 2026-09-05
+updated: 2026-09-13
 ---
 
 # User journey catalogue
 
-These 38 standalone journeys extract the user goals and flows embedded in the concepts under docs/user-experience. They describe intended experiences, not verified implementation. Each journey records entry conditions, steps, recovery paths, outcome, source sections, and related journeys in English.
+These 39 standalone journeys extract the user goals and flows embedded in product/design research and the concepts under docs/user-experience. They describe intended experiences, not verified implementation. Each journey records entry conditions, steps, recovery paths, outcome, source sections, and related journeys in English.
 
 The [source coverage audit](source-coverage.md) maps the explicit journey lists, prototype scenarios, and screen families to these files, including historical flows and deliberate consolidations.
 
@@ -70,6 +70,7 @@ The [source coverage audit](source-coverage.md) maps the explicit journey lists,
 | UJ-W08 | [Investigate a problem and turn it into work](investigate-renovation-problem.md) | archived-concept |
 | UJ-W09 | [Compare alternatives and preserve a decision](evaluate-and-record-decision.md) | archived-concept |
 | UJ-W10 | [Set up and resume the historical workspace prototype](historical-guided-setup-and-resume.md) | archived-concept |
+| UJ-W11 | [Prepare and reconcile a professional handoff](prepare-professional-handoff.md) | proposed |
 
 ## Conventions and precedence
 
@@ -100,6 +101,7 @@ The editor keeps selection and viewport when resizing and exposes non-canvas acc
 | [Canvas interaction concept](../archive/renovation-canvas-concept-interaction-design.md) | UJ-W06 preserves the Kitchen/problem/decision prototype scenario; UJ-W07–W09 extract progressive precision, problem investigation, and decision lifecycles. Overlapping spatial, work, cost, and evidence goals use the newer editor journeys. |
 | [Archived asset library overview](../archive/asset-library-overview-DESIGN-SPEC.md) | The newer asset-library delivery specification supplies the extracted journeys and its explicit-save proposal. |
 | [JTBD research backlog](../archive/renovation-planner-JTBD-research-backlog.md) | Candidate jobs remain research hypotheses. They are not converted into invented interaction sequences; this catalogue extracts journeys already described in the concepts. |
+| [Product capability map](<../../product/Product Capability Map.md>), [user-research synthesis](../../product/research/renovation-planner-user-research-synthesis.md) and [competitive landscape](../../product/research/renovation-planner-competitive-market-landscape.md) | UJ-W11 turns the explicit communicate/share capability and contractor-brief opportunity into a proposed handoff journey after the user requested that direction. Professionals remain recipients rather than full product users. |
 
 ## Source links for layout variants
 

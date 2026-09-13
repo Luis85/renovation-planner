@@ -8,6 +8,16 @@ To see it as a tree, open this repository as an Obsidian vault (`npm run test-bu
 installs *this* plugin into it) and open `Product Backlog.base`. That view belongs to the
 [Product Backlog](https://github.com/Luis85/backlog-view) plugin, which has to be installed in the vault too.
 
+## Proposed editor usability increment
+
+The [2026-09-13 usability consolidation package](user-experience/editor-usability-increment/README.md)
+is a derived next-increment proposal grounded in current code, dated implementation decisions,
+a current browser walkthrough, competitive research and inclusive usability guidance. It contains
+prioritized work packages and proposed validation gates; it does not mark implementation or
+participant/native acceptance complete. The original received editor designs remain intact.
+
+## Documentation map
+
 | Folder | Holds | Type |
 | --- | --- | --- |
 | `requirements/` | What the plugin is meant to do | `Epic` → `Feature` → `PBI` |

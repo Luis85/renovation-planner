@@ -2,20 +2,20 @@
 title: User journey source coverage
 type: user-journey-coverage
 status: documented
-version: 1
+version: 2
 language: en
-updated: 2026-09-05
+updated: 2026-09-13
 ---
 
 # User journey source coverage
 
-This audit maps described user flows to the [38-journey catalogue](README.md). It covers the explicit journey lists and scenarios in the concept sources below, plus the P00–P07, M00–M17, and AL00–AL11 screen families. It verifies documentation coverage, not implementation or user-test success.
+This audit maps described user flows to the [39-journey catalogue](README.md). It covers the explicit journey lists and scenarios in the concept and product-research sources below, plus the P00–P07, M00–M17, and AL00–AL11 screen families. It verifies documentation coverage, not implementation or user-test success.
 
 ## Method and findings
 
 Read explicit journeys, flows, prototype tasks, entry/interaction/exception sections, and the surrounding contracts. Resolve repeated UXD text to one journey; retain differing historical behavior as an archived concept. A journey is a user goal with an entry, meaningful actions, and an outcome. A button, theme variant, schema field, or unvalidated research job is not by itself another journey.
 
-The follow-up completeness check found gaps in the initial screen-led extraction: existing-room inspection/editing, floor/layer comparison, single-entity deletion, precision-on-demand estimation, problem investigation, decision lifecycle, and the historical wizard/golden path. These are now UJ-E14–E16 and UJ-W07–W10. Door/window insertion is UJ-E13; free-shape room creation is an explicit UJ-E02 alternative. The catalogue now has 38 journeys rather than the initial 30.
+The follow-up completeness check found gaps in the initial screen-led extraction: existing-room inspection/editing, floor/layer comparison, single-entity deletion, precision-on-demand estimation, problem investigation, decision lifecycle, and the historical wizard/golden path. These are UJ-E14–E16 and UJ-W07–W10. Door/window insertion is UJ-E13; free-shape room creation is an explicit UJ-E02 alternative. UJ-W11 was added later from the explicit communicate/share capability, contractor-handoff research and a user decision to take that product direction. The catalogue now has 39 journeys rather than the initial 30.
 
 ## Projects
 
@@ -123,6 +123,7 @@ Sources: [Workspace UXD](../archive/renovation-project-workspace-UXD.md), [wiref
 | Canvas §19–20: refine work and optional measured renovation zones | [UJ-W07](refine-estimate-with-measurements.md) | Measurement and costing remain optional. |
 | Canvas §27–28: first ten minutes, first space, then room work | [UJ-W02](organize-property-spaces.md), [UJ-E06](plan-room-work.md), [UJ-W10](historical-guided-setup-and-resume.md) | No-plan conceptual onboarding and linked work. |
 | Canvas §34: Kitchen, work, estimate, damp wall, photo, decision, return | [UJ-W06](capture-problem-and-decision.md) | Full composite prototype task, linked to separate lifecycles. |
+| Product Capability Map §§13–14, 21, 25 and 29; research synthesis §§14–16; competitive landscape Opportunity 7 | [UJ-W11](prepare-professional-handoff.md) | Proposed purpose-specific handoff, frozen issue and returned-response loop; no recipient account, professional approval or collaboration backend is implied. |
 
 ## Consolidated sources and boundaries
 
@@ -131,7 +132,7 @@ Sources: [Workspace UXD](../archive/renovation-project-workspace-UXD.md), [wiref
 - The [frozen HTML mock inventory](../archive/concepts/README.md) identifies illustrative working/first-run/trouble/localization states, component specimens, a disclosure ladder, and a settings specimen. Plan/canvas states map to editor journeys and UJ-W06–W09. The disclosure ladder illustrates progressive detail; it does not supply additional end-to-end user flows. The single-setting specimen and component states are not promoted into invented journeys.
 - The [JTBD backlog](../archive/renovation-planner-JTBD-research-backlog.md) explicitly contains research hypotheses. All 63 candidate jobs remain research input, not 63 asserted interaction flows. Competitor workflows in the research study are evidence for product recommendations, not additional Renovation Planner journeys.
 - Backlogs, PBIs, enablers, reconciliation, component libraries, copy tables, and verification plans refine the same screen/goal contracts; technical delivery steps are not user journeys. Images and styling files illustrate those contracts rather than define new flows from incidental sample labels.
-- Future catalogue entries and deferred ideas such as Path/Fence creation, automated plan recognition, LiDAR, 3D, contractor permissions, detailed quote comparison, and full scheduling engines lack complete product interaction contracts here. Mentioned entry points and explicit deferrals remain recorded; no unsupported sequence is filled in.
+- Future catalogue entries and deferred ideas such as Path/Fence creation, automated plan recognition, LiDAR, 3D, contractor permissions or messaging, professional approval and full scheduling engines lack complete product interaction contracts here. UJ-W11 defines homeowner-owned artifact handoff and response capture only; detailed quote comparison remains owned by its backlog feature rather than invented in the journey. Mentioned entry points and explicit deferrals remain recorded; no unsupported sequence is filled in.
 - The older mobile-capture idea is not carried forward as permission to write on mobile. Current project scope is mobile read-only. Likewise, historical mandatory setup and portfolio metrics stay historical.
 
 ## Verification boundary

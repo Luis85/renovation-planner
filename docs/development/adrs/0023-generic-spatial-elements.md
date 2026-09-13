@@ -34,3 +34,10 @@ New domain and real-sidecar command cases cover shape validation, exact scaling,
 Shared draft API: `runtime.elementTask` exposes `draft` (kind, name, points, cursor, loading, busy, conflict, error), `blocked`, `canFinish`, `setPoints`, `addPoint`, `undoPoint`, `finish` and `available`. It registers `place-object`, `draw-path`, `draw-fence` and `measure`. Object presentation uses the same `setPoints` preview and `finish` command as pointer input. Saved elements use `runtime.elementActions.edit/remove/move` and its root-owned preview. Movement carries the gesture-start element into the guarded action and refuses a changed kind or point sequence even after a peer edit has refreshed the leaf. Initial baseline recovery uses generation-guarded `needsRead/retry` without clearing the draft; captured baselines are not silently replaced. Element edit dialogs use the existing `DraftRecovery` read-only retry/source actions while retaining local text. Repeating an unchanged compensated creation attempt reuses its command and identity.
 
 Mixed current-spatial deletion uses one existing RenovationCommand proposal for selected generic elements, walls and openings. It includes hosted openings in current/intended snapshots, preserves independent Room outlines, and refuses unresolved material or renovation references before confirmation. It preserves selection and captured-baseline guards across delayed reads and confirmation; compensation and Undo/Redo use the existing shared ledger. This is the `elementActions.removeMany` continuation, verified in the 117-test integration checkpoint at `88b9ee3d`.
+
+## Amendment 2026-09-13
+
+An object still never references an asset on its own. **Add to asset library**
+(`docs/superpowers/specs/2026-09-13-plan-editor-item-modes-and-library-design.md`) is an explicit
+user action: it creates an asset whose footprint is the object's outline and changes the element's
+kind to `asset` under the same id, in one reversible write.

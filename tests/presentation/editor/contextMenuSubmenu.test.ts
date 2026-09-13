@@ -132,3 +132,31 @@ it('has no axe violations with the submenu open', async () => {
 	const rig = await setup(); await menuFor(rig, 'wall-a'); await parent(rig).trigger('click'); await settle();
 	expect((await axe.run(rig.wrapper.element as HTMLElement, runOptions)).violations).toEqual([]);
 }, 30_000);
+
+it('closes an open submenu when its parent is clicked again', async () => {
+	const rig = await setup(); await menuFor(rig, 'wall-a');
+	await parent(rig).trigger('click'); await settle();
+	await parent(rig).trigger('click'); await settle();
+	expect(parent(rig).attributes('aria-expanded')).toBe('false');
+	expect(rig.wrapper.find('.rp-canvas-context-menu--nested').exists()).toBe(false);
+});
+
+it('opens no submenu from a greyed parent, by click or by hover', async () => {
+	const rig = await setup(); rig.project.stale = true; await menuFor(rig, 'wall-a');
+	await parent(rig).trigger('click'); await settle();
+	await parent(rig).trigger('pointerenter'); await settle();
+	expect(parent(rig).attributes('aria-expanded')).toBe('false');
+	expect(rig.wrapper.find('.rp-canvas-context-menu--nested').exists()).toBe(false);
+});
+
+it('ignores ArrowLeft at the top level and ArrowRight on an item that has no submenu', async () => {
+	const rig = await setup(); await menuFor(rig, 'wall-a');
+	const tool = rig.runtime.activeToolId.value;
+	parent(rig).element.focus(); await key(parent(rig), 'ArrowLeft');
+	expect(document.activeElement).toBe(parent(rig).element);
+	const measure = rig.wrapper.get<HTMLElement>('[data-rp-context-action="measure"]');
+	measure.element.focus(); await key(measure, 'ArrowRight');
+	expect(document.activeElement).toBe(measure.element);
+	expect(rig.wrapper.find('.rp-canvas-context-menu').exists()).toBe(true);
+	expect(rig.runtime.activeToolId.value).toBe(tool);
+});

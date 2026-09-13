@@ -10,6 +10,7 @@ import { withPlanRenovation, withPlanSpatialElements } from '../../../src/domain
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
 import { renovationMessage } from '../../../src/presentation/editor/renovation/renovationMessage';
+import { tr } from '../../../src/presentation/i18n/strings';
 import { constructionAsset } from '../../../src/application/commands/renovation/constructionEntries';
 import { constructionAwareRenovation } from '../../../src/application/commands/renovation/ConstructionMaterialCommand';
 import type { PlanningDeps } from '../../../src/application/commands/renovation/materialPlanning';
@@ -105,6 +106,28 @@ describe('the construction entry (ADR-0031)', () => {
 		expect((await write(rig, { ...EMPTY_RENOVATION, subjects: [wall({ change: 'modify', description: 'Rendered', assetId: render.id })] })).ok).toBe(false);
 		rig.stack.requirements.save = save;
 		expect(expectOk(await rig.renovation.read(rig.plan.id)).plan.entity.renovation?.subjects ?? []).toEqual([]);
+	});
+
+	it('refuses a material the catalogue does not hold, or on a target that takes none, says which, and writes nothing', async () => {
+		const { rig, render } = await setup();
+		const before = [...rig.stack.vault.entries];
+		const missing = expectErr(await write(rig, { ...EMPTY_RENOVATION, subjects: [wall(null, { description: 'Brick', condition: 'good', assetId: 'asset-gone' })] }));
+		expect([missing.code, renovationMessage(missing)]).toEqual(['renovation.material-missing', tr('renovation.material-missing')]);
+		const onRoom = { id: 'detail-room', roomId: rig.room.id, targetId: rig.room.id, kind: 'wall' as const, existing: { description: 'Brick', condition: 'good' as const, assetId: render.id }, planned: null };
+		const misplaced = expectErr(await write(rig, { ...EMPTY_RENOVATION, subjects: [onRoom] }));
+		expect([misplaced.code, renovationMessage(misplaced)]).toEqual(['renovation.material-target', tr('renovation.material-target')]);
+		expect([...rig.stack.vault.entries]).toEqual(before);
+	});
+
+	it('refuses a renovation write whose link check cannot read the project, and writes nothing', async () => {
+		const { rig } = await setup();
+		const plain = await command(rig, { ...EMPTY_RENOVATION, subjects: [wall({ change: 'unchanged', description: 'Brick' })] });
+		await settle();
+		const getProject = rig.stack.projects.getById.bind(rig.stack.projects);
+		rig.stack.projects.getById = () => { rig.stack.projects.getById = getProject; return Promise.resolve({ ok: false, error: { category: 'Persistence', code: 'test.injected', message: 'Injected.' } } as never); };
+		const before = [...rig.stack.vault.entries];
+		expect(expectErr(await plain.execute()).code).toBe('test.injected');
+		expect([...rig.stack.vault.entries]).toEqual(before);
 	});
 });
 
@@ -279,5 +302,50 @@ describe('a construction write refused part-way puts back what already moved', (
 		rig.stack.plans.save = planSave; rig.geometry.write = geometryWrite;
 		expect((await entries(rig)).map(item => item.entity.assetId)).toEqual([render.id]);
 		expect(expectErr(await clear.execute()).code).toBe('renovation.recovery-required');
+	});
+
+	it('writes nothing when the first planning read refuses', async () => {
+		const { rig, render } = await setup();
+		const create = await command(rig, rendered(render.id));
+		await settle();
+		const getProject = rig.stack.projects.getById.bind(rig.stack.projects);
+		rig.stack.projects.getById = () => { rig.stack.projects.getById = getProject; return Promise.resolve(injected); };
+		const before = bytes(rig);
+		expect(expectErr(await create.execute()).code).toBe('test.injected');
+		expect(bytes(rig)).toEqual(before);
+	});
+
+	it('puts nothing back when deleting the entry refuses, and keeps the subject', async () => {
+		const { rig, render } = await setup();
+		expectOk(await write(rig, rendered(render.id)));
+		const clear = await command(rig, unchanged());
+		const remove = rig.stack.requirements.delete.bind(rig.stack.requirements);
+		rig.stack.requirements.delete = () => { rig.stack.requirements.delete = remove; return Promise.resolve(injected); };
+		const before = bytes(rig);
+		const refused = expectErr(await clear.execute());
+		expect([refused.code, leftWritesBehind(refused)]).toEqual(['test.injected', false]);
+		expect(bytes(rig)).toEqual(before);
+		expect((await subjects(rig)).map(item => item.planned?.assetId)).toEqual([render.id]);
+	});
+
+	it('puts the entry back when the plan read before the renovation step refuses', async () => {
+		const { rig, render } = await setup();
+		expectOk(await write(rig, rendered(render.id)));
+		const clear = await command(rig, unchanged());
+		const getPlan = rig.stack.plans.getById.bind(rig.stack.plans);
+		const restore = afterDelete(rig, () => { rig.stack.plans.getById = () => { rig.stack.plans.getById = getPlan; return Promise.resolve(injected); }; return Promise.resolve(); });
+		const refused = expectErr(await clear.execute());
+		restore(); rig.stack.plans.getById = getPlan;
+		expect([refused.code, leftWritesBehind(refused)]).toEqual(['test.injected', false]);
+		expect((await entries(rig)).map(item => item.entity.assetId)).toEqual([render.id]);
+		expect((await subjects(rig)).map(item => item.planned?.assetId)).toEqual([render.id]);
+	});
+
+	it('removes the construction entries with a write that drops the whole register', async () => {
+		const { rig, render } = await setup();
+		expectOk(await write(rig, rendered(render.id)));
+		const drop = rig.renovation.command(expectOk(await rig.renovation.read(rig.plan.id)), { renovation: undefined, intended: undefined }, rig.runtime.structureTask.ledger);
+		expectOk(await rig.runtime.dispatcher.run(drop));
+		expect([await entries(rig), await subjects(rig)]).toEqual([[], []]);
 	});
 });

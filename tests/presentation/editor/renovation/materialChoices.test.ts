@@ -23,3 +23,9 @@ it('refuses only a material the proposal introduces, never one a note already na
 	const proposed = { ...EMPTY_RENOVATION, subjects: [{ ...subject, planned: { change: 'modify' as const, description: 'y', assetId: 'also-gone' } }] };
 	expect(introducedUnknownMaterials(proposed, { ...EMPTY_RENOVATION, subjects: [subject] }, new Set(['brick']))).toEqual(['also-gone']);
 });
+
+it('keeps an empty description empty for a material the catalogue does not name', () => {
+	const facts: { description: string; assetId?: string } = { description: '' };
+	applyMaterial(facts, 'gone', catalogue);
+	expect(facts).toEqual({ description: '', assetId: 'gone' });
+});

@@ -16,6 +16,8 @@ describe('a requirement whose origin is a plan (ADR-0031)', () => {
 		expect(requirementContext(requirement)).toEqual({ roomId: 'wall-a', targetId: 'wall-a' });
 		const zoneId = createZoneId();
 		expect(requirementContext({ origin: { kind: 'zone', zoneId }, source })).toEqual({ roomId: zoneId, targetId: 'wall-a' });
+		expect(requirementContext({ origin: { kind: 'zone', zoneId } })).toEqual({ roomId: zoneId, targetId: zoneId });
+		expect(requirementContext({ origin: { kind: 'plan', planId } })).toEqual({ roomId: '', targetId: '' });
 	});
 	it('measures no room rule without a room (spec §6.6)', () => {
 		const geometry = { objects: [{ id: 'room-a', points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 3000 }, { x: 0, y: 3000 }] }] };

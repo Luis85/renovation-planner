@@ -17,7 +17,7 @@ export function useEvidencePins(readEvidence: () => readonly Evidence[]) {
 		const type = session.mode === 'photos' ? 'photo' : session.mode === 'notes' ? 'note' : 'document';
 		const rows = orderEvidenceByDate(readEvidence().filter(item => inRenovationScope(item, session.roomId, session.targetId) && item.type === type && (!session.evidencePhase || item.phase === session.evidencePhase)));
 		return rows.flatMap((item, index) => {
-			const room = project.zones.get(item.roomId);
+			const room = project.zones.get(item.roomId ?? '');
 			if (!item.pin || !room?.points.length) return [];
 			const position = roomPinPosition(room, item.pin);
 			return position ? [{ ...item, number: index + 1, ...position }] : [];

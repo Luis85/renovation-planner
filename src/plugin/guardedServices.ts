@@ -180,7 +180,7 @@ export interface GuardedEditorServices {
 }
 
 /** Design slice 10's write and read side, guarded — the same seam, one slice later. */
-export interface GuardedSlice10Services {
+export interface GuardedCatalogueRequirementServices {
 	readonly createAsset: Command<CreateAssetInput, Result<Asset, RepositoryError>>;
 	readonly updateAsset: Command<UpdateAssetInput, Result<Asset, UpdateAssetErrors>>;
 	readonly deleteAsset: Command<DeleteAssetInput, Result<ResolvedSequence, DeleteAssetErrors>>;
@@ -249,7 +249,7 @@ export interface GuardedDesignCommand<TInput>
 		VersionedDesignCommand<TInput> {}
 
 /**
- * The slice-10 commands and queries as `composeSlice10` builds them — concrete classes,
+ * The catalogue and requirement commands and queries as `composeCatalogueRequirements` builds them — concrete classes,
  * one composition, before anything wraps them.
  *
  * `recalculate` is deliberately NOT here: the root also hands it, unguarded, to
@@ -258,7 +258,7 @@ export interface GuardedDesignCommand<TInput>
  * that layer, not so nothing throws within it — so they take the command itself and only
  * the copy leaving through `PersistenceServices` is wrapped.
  */
-export interface UnguardedSlice10Services {
+export interface UnguardedCatalogueRequirementServices {
 	readonly createAsset: CreateAssetCommand;
 	readonly updateAsset: UpdateAssetCommand;
 	readonly deleteAsset: DeleteAssetCommand;
@@ -397,12 +397,12 @@ function guardBothDoors<TInput, TPlain, TVersioned, E extends AppError>(
  * function holding both would outgrow the size budget every function here shares — the
  * rule is identical and there is exactly one of it.
  */
-export function guardSlice10(
-	slice10: UnguardedSlice10Services,
+export function guardCatalogueRequirements(
+	slice10: UnguardedCatalogueRequirementServices,
 	recalculate: RecalculateRequirementCommand,
 	logger: Logger,
 	map: VaultExceptionMapper,
-): GuardedSlice10Services {
+): GuardedCatalogueRequirementServices {
 	const createAsset = guardCommand(slice10.createAsset, 'command.createAsset.failed', logger, map);
 	const updateAsset = guardCommand(slice10.updateAsset, 'command.updateAsset.failed', logger, map);
 	const deleteAsset = guardCommand(slice10.deleteAsset, 'command.deleteAsset.failed', logger, map);
@@ -467,8 +467,8 @@ function designDoors(name: string): { readonly execute: string; readonly execute
 
 /**
  * The asset designer's half of the same seam, composed and guarded in one place — the shape
- * `guardedEditorServices` takes rather than `guardSlice10`'s, because nothing above this
- * function needs the unguarded commands: `composeSlice10` exists to hand `recalculate` and
+ * `guardedEditorServices` takes rather than `guardCatalogueRequirements`'s, because nothing above this
+ * function needs the unguarded commands: `composeCatalogueRequirements` exists to hand `recalculate` and
  * the delete sequence their raw collaborators INSIDE the application layer, and no design
  * command is dispatched from in there.
  *

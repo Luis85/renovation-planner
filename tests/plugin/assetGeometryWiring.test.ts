@@ -6,7 +6,7 @@
  * root's own asset repository, the root's own asset geometry sidecar and the root's own
  * event bus — and each of the seven guarded under its own boundary event.
  *
- * The same shape as `slice10CascadeWiring.test.ts`, `sequenceNoticeWiring.test.ts` and
+ * The same shape as `catalogueRequirementCascadeWiring.test.ts`, `sequenceNoticeWiring.test.ts` and
  * `libraryOverlapWiring.test.ts`, and it exists for their reason: a composition that passes
  * the wrong collaborator COMPILES, passes every other test here, and says nothing. `events`
  * being a required member is only half a check — a root handing these commands a fresh

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Notice } from '../helpers/obsidian-mock';
 import { activateNotices } from '../../src/presentation/notices/notify';
 import { installObsidianDom } from '../helpers/dom';
-import { composeSlice10 } from '../../src/plugin/slice10Composition';
+import { composeCatalogueRequirements } from '../../src/plugin/catalogueRequirementComposition';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -33,7 +33,7 @@ installObsidianDom();
  * unbound — but that only holds that SOMETHING answers `priceCleanupFailed`, not that it is the
  * notice door rather than a no-op: a composition binding a stub that swallows the call would
  * still compile, pass and say nothing, and the promised user-visible warning would silently
- * degrade back to the log line Task 7a exists to stop it being. This wires `composeSlice10` for
+ * degrade back to the log line Task 7a exists to stop it being. This wires `composeCatalogueRequirements` for
  * real — the module `deleteAsset` and `sequenceNotices` are both actually built in — and drives
  * an override-delete failure through it, the same shape `sequenceNoticeWiring.test.ts` already
  * uses for its marker-clear sibling.
@@ -48,7 +48,7 @@ async function wired() {
 	const locks = new ReferenceLocks();
 	const index = new InMemoryProjectIndex();
 	const recalculate = new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides });
-	const slice10 = composeSlice10({
+	const slice10 = composeCatalogueRequirements({
 		markers: new InMemorySequenceMarkerStore(),
 		zones,
 		assets,

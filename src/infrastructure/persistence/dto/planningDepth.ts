@@ -6,10 +6,10 @@ import { QUANTITY_RULES } from '../../../domain/requirement/RequirementSource';
 
 const id = z.string().min(1), decimal = z.string().regex(/^(0|[1-9]\d*)(\.\d+)?$/);
 const money = z.object({ amount: decimal, currency: z.string().regex(/^[A-Z]{3}$/) }).transform(value => of(value.amount, value.currency));
-const context = { id, roomId: id, targetId: id, workId: z.string() };
+const context = { id, roomId: id.optional(), targetId: id, workId: z.string() };
 export const SharedLinksSchema = z.array(z.object({ roomId: id, targetId: id })).optional();
 export const RequirementSourceSchema = z.object({ planId: id, targetId: id, workId: z.string(), outcomeId: z.string(), state: z.enum(['current', 'intended']),
-	rule: z.enum(QUANTITY_RULES), manual: decimal, coverage: decimal, lot: z.string(), minimum: z.string() });
+	rule: z.enum(QUANTITY_RULES), manual: decimal, coverage: decimal, lot: z.string(), minimum: z.string(), construction: z.literal(true).optional() });
 export const PlanningDepthSchema = z.object({
 	procurement: z.array(z.object({ ...context, requirementId: id, unit: z.enum(['m', 'm2', 'piece']), purchased: decimal, reserved: decimal })),
 	costs: z.array(z.object({ ...context, title: z.string(), category: z.enum(['material', 'labor', 'other']), requirementId: z.string(), planned: money.nullable(), cancelled: z.boolean(),

@@ -3,6 +3,7 @@ import type { PlanningBaseline } from '../../../application/commands/renovation/
 import { spatialContexts, type SharedSpatialContext, type SpatialLink } from '../../../domain/renovation/SharedLinks';
 import type { RenovationMode } from './renovationSession';
 import { inRenovationScope } from './renovationSummary';
+import { requirementContext } from '../../../domain/requirement/RequirementOrigin';
 
 export interface NavigationRecords { renovation: Renovation; materials: PlanningBaseline['materials'] }
 function recordContext(records: NavigationRecords, id: string): SharedSpatialContext | undefined {
@@ -16,7 +17,7 @@ function recordContext(records: NavigationRecords, id: string): SharedSpatialCon
  const materialId = id.startsWith('estimate:') ? id.slice('estimate:'.length) : id;
  const material = materials.find(item => item.entity.id === materialId)?.entity;
  if (!material) return undefined;
- return { roomId: material.origin.zoneId, targetId: material.source?.targetId ?? material.origin.zoneId };
+ return requirementContext(material);
 }
 
 function linkedEvidenceContext(records: NavigationRecords, id: string, mode: RenovationMode | undefined, roomId: string, current: SpatialLink | null): SpatialLink | null {

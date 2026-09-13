@@ -10,22 +10,28 @@ export const NOTE_CREATION: InjectionKey<NoteCreation> = Symbol('editor-note-cre
 /** Add uses the same evidence form and ordinary Markdown file service as Room Notes. */
 export function provideNoteCreation(runtime: EditorRuntime, planning: ReturnType<typeof usePlanningContext>) {
  const project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
- const roomId = computed(() => {
-  if (selection.selectedIds.length !== 1) return '';
+ const roomId = computed<string | null>(() => {
+  if (selection.selectedIds.length !== 1) return null;
   const id = selection.selectedIds[0];
-  if (project.zones.get(id)?.zoneType === 'Room') return id;
+  if (project.zones.has(id)) return id;
   const element = [...project.structure.walls, ...project.structure.openings, ...project.structure.elements ?? []].some(item => item.id === id);
-  return element && session.targetId === id && project.zones.get(session.roomId)?.zoneType === 'Room' ? session.roomId : '';
+  return element && session.targetId === id ? session.roomId : null;
  });
- const available = computed(() => roomId.value !== '' && !!planning.files && !!planning.context.commands.planning
+ const available = computed(() => roomId.value !== null && !!planning.files && !!planning.context.commands.planning
   && runtime.renovation.available && !planning.blocked.value);
  function activate(): void {
-  if (!available.value) return;
-  const id = roomId.value, focusedId = session.roomId === id ? session.focusedId : '';
+  const id = roomId.value;
+  if (!available.value || id === null) return;
+  const focusedId = session.roomId === id ? session.focusedId : '';
   runtime.returnToSelect(); runtime.renovation.focus(id, 'notes', focusedId);
-  void planning.edit('evidence').catch(cause => notifyFault(cause, planning.context.commands.logger, 'editor.add-note.failed'));
+  void openEvidenceForm(planning);
  }
  const value = { available, activate }; provide(NOTE_CREATION, value); return value;
+}
+
+/** Opens the evidence form for Add › Note, Add › Photo and the canvas menu's own Note and Photo; every caller is detached, so a fault is mapped, logged and notified here. */
+export function openEvidenceForm(planning: ReturnType<typeof usePlanningContext>): Promise<void> {
+ return planning.edit('evidence').catch(cause => notifyFault(cause, planning.context.commands.logger, 'editor.add-note.failed'));
 }
 
 export function useNoteCreation(): NoteCreation {

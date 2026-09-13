@@ -82,4 +82,6 @@ export const structureDe: Record<keyof typeof structureEn, string> = {
 	'spatial.recovery-required': 'Dieser Schritt kann nicht mehr angewendet werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.',
 	'spatial.compensation-failed':
 		'Die Wände konnten nicht gespeichert und das Geschoss nicht wiederhergestellt werden. Öffnen Sie das Geschoss erneut, bevor Sie weiterarbeiten.',
+	'editor.structure.set-material': 'Baustoff festlegen…',
+	'editor.structure.planned-material': 'Geplanter Baustoff',
 };

@@ -5,8 +5,7 @@ import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/p
 import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import { planningServices, type MaterialInput, type PlanningDeps } from '../../src/application/commands/renovation/PlanningServices';
 import { renovationServices } from '../../src/application/commands/renovation/RenovationCommand';
-import { validateDepthLinks } from '../../src/application/commands/renovation/planningLinks';
-import { EMPTY_RENOVATION } from '../../src/domain/renovation/Renovation';
+import { renovationLinkCheck } from '../../src/application/commands/renovation/renovationLinkCheck';
 import { createRequirementId } from '../../src/domain/requirement/RequirementId';
 import { EMPTY_DEPTH, type CostRecord, type Evidence } from '../../src/domain/renovation/PlanningDepth';
 import { of } from '../../src/core/money/Money';
@@ -17,9 +16,7 @@ export async function planningStack() {
  const asset = makeAsset(); expectOk(await rig.stack.assets.save(asset, 'absent'));
  const deps: PlanningDeps = { ...rig.stack, geometry: rig.geometry, overrides: new InMemoryAssetPriceOverrideRepository(), locks: new ReferenceLocks() };
  const services = planningServices(deps);
- const renovation = renovationServices(deps.plans, deps.geometry, deps.events, async (plan, document) => {
- const read = await services.read(plan.id); return read.ok ? validateDepthLinks(plan.renovation ?? EMPTY_RENOVATION, { ...read.value, geometry: { ...read.value.geometry, document } }) : read;
- });
+ const renovation = renovationServices(deps.plans, deps.geometry, deps.events, renovationLinkCheck(deps));
  const input: MaterialInput = { id: createRequirementId(), roomId: rig.roomId, assetId: asset.id, waste: '0.1', override: '',
  source: { planId: rig.plan.id, targetId: rig.roomId, workId: 'work-sand', outcomeId: 'detail-floor', state: 'current', rule: 'room-area', manual: '0', coverage: '1', lot: '', minimum: '' } };
  const cost: CostRecord = { id: 'cost-floor', roomId: rig.roomId, targetId: rig.roomId, workId: 'work-sand', title: 'Floor finish', category: 'material', requirementId: input.id, planned: null, cancelled: false,

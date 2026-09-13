@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // jsdom: the plugin shell touches the DOM through the module mock, exactly as
-// tests/plugin/slice10CascadeWiring.test.ts does.
+// tests/plugin/catalogueRequirementCascadeWiring.test.ts does.
 import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { loadedPlugin } from '../helpers/plugin';
@@ -20,7 +20,7 @@ installObsidianDom();
  * not anything ever registers it at the composition root — this file is what pins that it
  * really is registered, on the SAME bus as every other composed subscription, beside
  * `registerOnAssetUpdated`. Watched red with the `registerOnAssetPriceOverrideChanged(...)`
- * line deleted from `slice10Composition.ts`.
+ * line deleted from `catalogueRequirementComposition.ts`.
  *
  * Structured for extension on purpose: `seededStack` builds a two-project fixture sharing one
  * asset, and each `it` publishes its own event and reads its own outcome, so a later task can

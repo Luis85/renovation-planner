@@ -240,6 +240,7 @@ const HARNESS_ENTRIES: readonly CatalogueEntryDto[] = SEEDS.map((seed) => ({
 	height: seed.height,
 	notes: seed.notes,
 	background: seed.background ?? null,
+	planPattern: null,
 }));
 
 const HARNESS_OUTLINES: ReadonlyMap<AssetId, AssetOutline> = new Map(

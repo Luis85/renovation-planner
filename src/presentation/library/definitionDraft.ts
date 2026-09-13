@@ -4,19 +4,21 @@ import type { UpdateAssetInput } from '../../application/commands/asset/UpdateAs
 import { of as moneyOf } from '../../core/money/Money';
 import type { AssetCategory } from '../../domain/asset/AssetCategory';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
+import { isPlanPattern } from '../../domain/asset/PlanPattern';
 import type { StringKey } from '../i18n/locales/en';
 import { tr } from '../i18n/strings';
 import { normalizeDecimalInput } from './decimalInput';
 
 export interface DefinitionDraft {
 	name: string; category: string; unit: string; unitCost: string;
-	waste: string; supplier: string; sku: string; notes: string; height: string;
+	waste: string; supplier: string; sku: string; notes: string; height: string; planPattern: string;
 }
 export const DEFINITION_LABELS: Record<keyof DefinitionDraft, StringKey> = {
 	name: 'form.new-asset.name', category: 'view.asset-library.category',
 	unit: 'view.asset-library.unit', unitCost: 'view.asset-library.unit-cost',
 	waste: 'view.asset-library.waste', supplier: 'view.asset-library.supplier',
 	sku: 'view.asset-library.sku', notes: 'view.asset-library.notes', height: 'view.asset-library.height',
+	planPattern: 'view.asset-library.plan-pattern',
 };
 export const DEFINITION_ERRORS: Record<string, keyof DefinitionDraft> = {
 	'asset.empty-name': 'name', 'asset.unknown-category': 'category',
@@ -28,7 +30,7 @@ export function definitionDraft(entry: CatalogueEntryDto): DefinitionDraft {
 	return { name: entry.name, category: entry.category, unit: entry.unit,
 		unitCost: entry.unitCostAmount, waste: new Decimal(entry.wasteFactorDefault).mul(100).toString(),
 		supplier: entry.supplier ?? '', sku: entry.sku ?? '', notes: entry.notes ?? '',
-		height: entry.height === null ? '' : String(entry.height) };
+		height: entry.height === null ? '' : String(entry.height), planPattern: entry.planPattern ?? '' };
 }
 export function validateDefinition(draft: DefinitionDraft, currency: string): Partial<Record<keyof DefinitionDraft, string>> {
 	const errors: Partial<Record<keyof DefinitionDraft, string>> = {};
@@ -72,5 +74,6 @@ export function definitionChanges(draft: DefinitionDraft, baseline: CatalogueEnt
 	if (unitCost !== before.unitCost) changes.unitCost = moneyOf(unitCost, baseline.currency);
 	if (waste !== before.waste) changes.wasteFactorDefault = new Decimal(waste).div(100);
 	if (height !== before.height) changes.height = height === '' ? null : Number(height);
+	if (draft.planPattern !== before.planPattern) changes.planPattern = isPlanPattern(draft.planPattern) ? draft.planPattern : null;
 	return changes;
 }

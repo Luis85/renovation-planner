@@ -13,9 +13,10 @@ export interface RenovationDraft {
 	decision: RenovationDecision;
 }
 export type EditableRenovationDraft<T = RenovationDraft> = T extends object ? { -readonly [K in keyof T]: EditableRenovationDraft<T[K]> } : T;
+const room = (roomId: string) => roomId ? { roomId } : {};
 function subjectDraft(kind: RenovationEditKind, roomId: string, subject: RenovationSubject | undefined): RenovationSubject {
 	return subject ? { ...subject, existing: subject.existing && { ...subject.existing }, planned: kind === 'planned' ? subject.planned ?? { change: 'modify', description: subject.existing?.description ?? '' } : subject.planned } : {
-			id: createEntityId('detail'), roomId, targetId: roomId, kind: 'floor',
+			id: createEntityId('detail'), ...room(roomId), targetId: roomId, kind: 'floor',
 			existing: kind === 'existing' ? { description: '', condition: 'unknown' } : null,
 			planned: kind === 'planned' ? { change: 'add', description: '' } : null,
 		};
@@ -26,17 +27,17 @@ export function renovationDraft(kind: RenovationEditKind, roomId: string, record
 		kind,
 		subject: subjectDraft(kind, roomId, subject),
 		work: value.work.find(item => item.id === recordId) ?? {
-			id: createEntityId('work'), roomId, targetId: subject?.targetId ?? roomId, title: '', description: '',
+			id: createEntityId('work'), ...room(roomId), targetId: subject?.targetId ?? roomId, title: '', description: '',
 			order: value.work.length, progress: 'pending', responsibility: 'unassigned', outcomes: subject?.planned ? [subject.id] : [], dependencies: [],
 		},
 		decision: value.decisions.find(item => item.id === recordId) ?? {
-			id: createEntityId('decision'), roomId, subjectId: subject?.id ?? '', question: '', resolution: '', resolved: false,
+			id: createEntityId('decision'), ...room(roomId), subjectId: subject?.id ?? '', question: '', resolution: '', resolved: false,
 		},
 	};
 }
 export function renovationTargetDraft(kind: RenovationEditKind, roomId: string, id: string, baseline: RenovationBaseline, targetId: string): RenovationDraft {
 	const linked = targetId && targetId !== roomId ? baseline.plan.entity.renovation?.subjects.find(item => item.targetId === targetId) : undefined;
-	const draft = renovationDraft(kind, !id && linked ? linked.roomId : roomId, id || linked?.id || '', baseline.plan.entity.renovation);
+	const draft = renovationDraft(kind, !id && linked ? linked.roomId ?? '' : roomId, id || linked?.id || '', baseline.plan.entity.renovation);
 	if (id || linked || !targetId || targetId === roomId) return draft;
 	const { opening, element, name } = targetFacts(baseline, targetId);
 	draft.subject = { ...draft.subject, targetId, kind: detailKind(opening, element) };

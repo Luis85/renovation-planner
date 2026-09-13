@@ -8,6 +8,7 @@ import type { Asset } from '../../../domain/asset/Asset';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
+import type { RequirementOrigin } from '../../../domain/requirement/RequirementOrigin';
 import { validDecimal, sourceError, sourceMeasurement, type RequirementSource } from '../../../domain/requirement/RequirementSource';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { AssetId } from '../../../domain/asset/AssetId';
@@ -34,7 +35,7 @@ export interface PlanningBaseline extends RenovationBaseline {
 	readonly currency: Currency;
 }
 export interface MaterialInput {
-	readonly id: string; readonly roomId: string; readonly assetId: string;
+	readonly id: string; readonly roomId?: string; readonly assetId: string;
 	readonly waste: string; readonly override: string; readonly source: RequirementSource;
 }
 export interface PlanningServices {
@@ -55,6 +56,9 @@ export async function readPlanning(deps: PlanningDeps, id: PlanId): Promise<Resu
 		if (!rows.ok) return rows;
 		materials.push(...rows.value);
 	}
+	const planned = await deps.requirements.listByPlanOrigin(baseline.value.plan.entity.id);
+	if (!planned.ok) return planned;
+	materials.push(...planned.value);
 	const catalogue: { asset: Asset; price: Money }[] = [];
 	for (const item of assets.value.loaded) {
 		const price = await resolveEffectiveUnitCost(deps.overrides, project.value.entity.id, item.entity);
@@ -62,6 +66,10 @@ export async function readPlanning(deps: PlanningDeps, id: PlanId): Promise<Resu
 		catalogue.push({ asset: item.entity, price: price.value });
 	}
 	return ok({ ...baseline.value, materials, catalogue, currency: project.value.entity.currency });
+}
+/** A room-bound material takes the zone it names; a room-less one takes the plan it is on (ADR-0031). */
+function materialOrigin(input: MaterialInput, baseline: PlanningBaseline): RequirementOrigin {
+	return input.roomId ? { kind: 'zone', zoneId: input.roomId as ZoneId } : { kind: 'plan', planId: baseline.plan.entity.id };
 }
 export function prepareMaterial(baseline: PlanningBaseline, input: MaterialInput): Result<Requirement, AppError> {
 	if (!validDecimal(input.waste) || (input.override && !validDecimal(input.override))) return err(sourceError());
@@ -76,7 +84,7 @@ export function prepareMaterial(baseline: PlanningBaseline, input: MaterialInput
 		packaging: input.source.lot ? { lotSize: new Decimal(input.source.lot), ...(input.source.minimum ? { minimumOrder: new Decimal(input.source.minimum) } : {}) } : undefined });
 	if (!figures.ok) return figures;
 	return Requirement.create({ id: input.id as RequirementId, projectId: baseline.plan.entity.projectId, assetId: input.assetId as AssetId,
-		origin: { kind: 'zone', zoneId: input.roomId as ZoneId }, unit: selected.asset.unit, wasteFactor: new Decimal(input.waste), source: input.source,
+		origin: materialOrigin(input, baseline), unit: selected.asset.unit, wasteFactor: new Decimal(input.waste), source: input.source,
 		requiredDate: before?.requiredDate,
 		quantity: { calculated: figures.value.quantity, ...(input.override ? { override: { value: new Decimal(input.override), unit: selected.asset.unit } } : {}) },
 		estimatedCost: { calculated: figures.value.estimatedCost, ...(before?.estimatedCost.override ? { override: before.estimatedCost.override } : {}) }, calculatedFrom: figures.value.calculatedFrom });

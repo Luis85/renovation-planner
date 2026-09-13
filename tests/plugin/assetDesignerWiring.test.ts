@@ -4,7 +4,7 @@
  * That the COMPOSED plugin gives a designer leaf the root's own event bus and the plugin's own
  * index-scan flag — the restored-leaf sequence, end to end.
  *
- * The same shape as `slice10CascadeWiring.test.ts` and `libraryOverlapWiring.test.ts`, and it
+ * The same shape as `catalogueRequirementCascadeWiring.test.ts` and `libraryOverlapWiring.test.ts`, and it
  * exists for the reason those do: a composition that hands over a FRESH `createEventBus()`
  * compiles, passes every unit test in `tests/presentation/designer`, and announces into an
  * object nothing has subscribed to. The compiler owns "a bus was passed"; only a case that

@@ -17,6 +17,16 @@ async function setup() {
  const navigate = (rig.wrapper.vm as unknown as { navigateToRecord(origin: ProjectOrigin): Promise<boolean> }).navigateToRecord;
  return { ...rig, navigate, origin: { planId: rig.plan.id, roomId: rig.room.id, workId: work.id } };
 }
+it('reveals a room-less Work item by selecting its wall, with no room in the session', async () => {
+ const rig = await renovationEditor(true); mounted.push(rig);
+ const work = { id: 'work-border', targetId: 'wall-a', title: 'Repoint', description: '', order: 0, progress: 'pending' as const, responsibility: 'diy' as const, outcomes: [], dependencies: [] };
+ const baseline = expectOk(await rig.renovation.read(rig.plan.id));
+ expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: { subjects: [], work: [work], decisions: [] }, intended: baseline.geometry.document.intended }, rig.runtime.structureTask.ledger))); await settle();
+ const navigate = (rig.wrapper.vm as unknown as { navigateToRecord(origin: ProjectOrigin): Promise<boolean> }).navigateToRecord;
+ expect(await navigate({ planId: rig.plan.id, workId: work.id })).toBe(true); await settle();
+ expect(rig.selection.selectedIds).toEqual(['wall-a']);
+ expect(rig.session).toMatchObject({ mode: 'work', focusedId: 'work-border', roomId: '' });
+});
 it('reveals the original Work identity in the same mounted editor and canvas', async () => {
  const rig = await setup(), canvas = rig.stage, element = rig.wrapper.element, bytes = [...rig.stack.vault.entries];
  rig.selection.clear(); await settle();

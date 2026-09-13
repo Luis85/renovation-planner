@@ -3,7 +3,7 @@ import { recordNavigationContext, type NavigationRecords } from './recordNavigat
 import { usePlanningReadState } from '../planning/planningReadState';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
-import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
+import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
 import { sameRenovation } from '../../../domain/renovation/sameRenovation';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { PlanId } from '../../../domain/plan/PlanId';
@@ -26,10 +26,11 @@ import { renovationTargetDraft, type RenovationEditKind } from './renovationDraf
 import RenovationForm from './RenovationForm.vue';
 import RenovationBatchForm from './RenovationBatchForm.vue';
 import type { BatchKind, BatchTarget } from './renovationBatch';
+import type { MaterialChoice } from './materialChoices';
 
 function navigationTarget(records: NavigationRecords, roomId: string, id: string, current: Parameters<typeof recordNavigationContext>[3], mode: RenovationMode) {
  const destination = id ? recordNavigationContext(records, id, roomId, current, mode) : null;
- return destination ?? (current?.roomId === roomId ? current : { roomId, targetId: roomId });
+ return destination ?? (current?.roomId === roomId ? current : { roomId, targetId: roomId || (current?.targetId ?? '') });
 }
 
 function revealRecord(id: string, workspace: ReturnType<typeof useWorkspaceStore>): void {
@@ -43,8 +44,25 @@ function revealEvidence(id: string, session: ReturnType<typeof useRenovationSess
 }
 function currentContext(roomId: string, targetId: EntityId<string> | undefined, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>) {
 	if (!targetId) return null;
-	const room = project.zones.get(targetId)?.zoneType === 'Room' ? targetId : null;
+	const room = project.zones.has(targetId) ? targetId : null;
 	return { roomId: room ?? (targetId === session.targetId ? session.roomId : roomId), targetId };
+}
+function structureNames(structure: Structure | undefined): readonly string[] {
+	return structure ? [...structure.walls, ...structure.openings, ...structure.elements ?? []].map(item => item.id) : [];
+}
+/**
+ * Any present zone; or no room while the session target is a wall, opening or element, in
+ * either the current structure or the intended one — a planned wall not yet built has no
+ * room to bound either (ADR-0030).
+ */
+function editableContext(roomId: string, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>): boolean {
+	if (roomId) return project.zones.has(roomId);
+	const target = session.targetId;
+	return structureNames(project.structure).includes(target) || structureNames(project.intended).includes(target);
+}
+/** The catalogue the Material/Product select offers, from the current planning read. */
+function catalogueChoices(planning: ReturnType<typeof usePlanningReadState>): MaterialChoice[] {
+	return planning.baseline?.catalogue.map(({ asset }) => ({ id: asset.id, name: asset.name, category: asset.category, unit: asset.unit })) ?? [];
 }
 
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {
@@ -77,10 +95,11 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		}
 		runtime.returnToSelect();
 		const target = navigationTarget({ renovation: project.plan?.renovation ?? EMPTY_RENOVATION, materials: planning.baseline?.materials ?? [] }, roomId, id, currentContext(roomId, selection.selectedIds[0], project, session), mode);
-  Object.assign(session, target, { mode, focusedId: id, perspective: 'renovate' });
+  // A link's roomId is a CONTEXT (spatialContexts); the session holds a zone or nothing.
+  Object.assign(session, { roomId: project.zones.has(target.roomId) ? target.roomId : '', targetId: target.targetId }, { mode, focusedId: id, perspective: 'renovate' });
   revealEvidence(id, session, planning);
   revealRecord(id, workspace);
-  if (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== target.targetId) selection.select([target.targetId as EntityId<string>]);
+  if (target.targetId && (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== target.targetId)) selection.select([target.targetId as EntityId<string>]);
 	}
 	function matches(read: RenovationBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation)
@@ -101,7 +120,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			: Promise.resolve(err(undoSuperseded(context.planId as PlanId)));
 	}
 	async function edit(kind: RenovationEditKind, roomId: string, id = ''): Promise<void> {
-		if (blocked.value || dialogs.current || project.zones.get(roomId)?.zoneType !== 'Room') return;
+		if (blocked.value || dialogs.current || !editableContext(roomId, project, session)) return;
 		loading.value = true;
 		const selected = selection.selectedIds.join('|');
 		try {
@@ -110,7 +129,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 			const draft = renovationTargetDraft(kind, roomId, id, read, session.targetId);
 			const busy = ref(false);
 			await dialogs.openDialog({ kind: 'form', title: tr(`renovation.edit.${kind}`), component: markRaw(RenovationForm), busy,
-				props: { draft, baseline: read, busy, paused: runtime.writesBlocked, retry, openSource: runtime.openPlanNote,
+				props: { draft, baseline: read, busy, paused: runtime.writesBlocked, retry, openSource: runtime.openPlanNote, catalogue: catalogueChoices(planning),
 					dispatch: (input: RenovationInput) => dispatch(read, input),
 				},
 			});

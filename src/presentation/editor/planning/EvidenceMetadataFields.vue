@@ -44,7 +44,7 @@ const emit = defineEmits<{ typeChanged: [event: Event] }>();
 		name="record"
 		@change.capture="restoreInoperativeChoice($event, draft.recordId)"
 	><option value="">{{ tr('planning.unassigned') }}</option><option
-		v-for="record in recordChoices(baseline, draft.roomId)"
+		v-for="record in recordChoices(baseline, draft.roomId || draft.targetId)"
 		:key="record.id"
 		:value="record.id"
 	>{{ record.label }}</option></select></label>

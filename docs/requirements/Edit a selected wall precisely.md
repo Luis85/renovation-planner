@@ -45,7 +45,7 @@ Rooms kept coherent, or every involved entity retains its complete pre-edit stat
 ## Out of scope
 
 - Creating Walls, Rooms or Openings.
-- Changing Wall construction, finish or renovation state.
+- Changing Wall finish or renovation state here. (A wall's construction material is set from its Inspector since ADR-0031.)
 - Deleting a Wall.
 
 ## Acceptance criteria

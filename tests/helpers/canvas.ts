@@ -93,17 +93,21 @@ function installGlobals(): void {
 }
 
 /**
- * `drawImage` is the one call whose ARGUMENT is a DOM node, and the rasterizer refuses one:
- * a jsdom `<img>` holds no pixels and a jsdom `<canvas>` is the empty shell this module's
- * header describes, so `@napi-rs/canvas` answers `Value is not one of these types` and
- * throws out of Konva's own draw — as an unhandled rejection, several frames from anything
- * a test can see.
+ * `drawImage` and `createPattern` are the two calls whose ARGUMENT is a DOM node, and the
+ * rasterizer refuses one: a jsdom `<img>` holds no pixels and a jsdom `<canvas>` is the empty
+ * shell this module's header describes, so `@napi-rs/canvas` answers `Value is not one of
+ * these types` (`drawImage`) or `Value is none of these types` (`createPattern`) and throws
+ * out of Konva's own draw — as an unhandled rejection, several frames from anything a test
+ * can see. `createPattern` is what `fillPatternImage` reaches (ADR-0031's wall hatch, drawn
+ * from an offscreen canvas `patternTile` returns), a second caller of the same DOM-node
+ * argument this proxy already existed to fix for a background raster.
  *
  * So the argument is swapped for the backing that DOES hold the pixels. That is what makes
- * a background raster genuinely drawn here rather than skipped, and it is the narrowest
- * possible intervention for DOM image arguments. The proxy also applies the browser's
- * boolean conversion to arc's direction flag: Konva SVG paths pass numeric 0/1, which
- * browser Canvas accepts but the native Rust binding rejects. Rasterization stays native.
+ * a background raster, or a fill pattern, genuinely drawn here rather than skipped, and it is
+ * the narrowest possible intervention for DOM image arguments. The proxy also applies the
+ * browser's boolean conversion to arc's direction flag: Konva SVG paths pass numeric 0/1,
+ * which browser Canvas accepts but the native Rust binding rejects. Rasterization stays
+ * native.
  */
 function bridgeDrawImage(context: ReturnType<Canvas['getContext']>): unknown {
 	const backed = (source: unknown): unknown => {
@@ -111,6 +115,7 @@ function bridgeDrawImage(context: ReturnType<Canvas['getContext']>): unknown {
 		if (source instanceof HTMLImageElement) return decoded.get(source) ?? source;
 		return source;
 	};
+	const swapsFirstArg = new Set(['drawImage', 'createPattern']);
 	return new Proxy(context as object, {
 		// `Reflect.get(target, property)` and deliberately NOT the three-argument form: the
 		// context is a native object whose accessors require the real instance as `this`, and
@@ -123,7 +128,7 @@ function bridgeDrawImage(context: ReturnType<Canvas['getContext']>): unknown {
 				args[5] = Boolean(args[5]);
 				return (value as (...values: unknown[]) => unknown).apply(target, args);
 			};
-			if (property !== 'drawImage') return value.bind(target);
+			if (typeof property !== 'string' || !swapsFirstArg.has(property)) return value.bind(target);
 			return (source: unknown, ...rest: unknown[]) =>
 				(value as (...args: unknown[]) => unknown).call(target, backed(source), ...rest);
 		},

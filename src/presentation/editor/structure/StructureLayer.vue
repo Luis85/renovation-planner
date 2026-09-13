@@ -18,6 +18,11 @@ import { withElementPreviews } from '../elements/elementPreviews';
 import WallDraftOverlay, { type WallCut } from './WallDraftOverlay.vue';
 import { wallPasses } from './wallPasses';
 import { useEditorStore } from '../../stores/EditorStore';
+import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
+import { wallPatterns } from './wallPatterns';
+import { wallBodyPolygon } from './wallBody';
+import { patternTile } from './patternTile';
+import type { PlanPattern } from '../../../domain/asset/PlanPattern';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const editor = useEditorStore();
@@ -32,6 +37,12 @@ const selected = (id: string): boolean => selection.selectedIds.some(candidate =
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
 const noDraftPoints: readonly Point[] = [];
 const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall' ? task.draft.points : noDraftPoints);
+const patterns = computed(() => wallPatterns(project.plan?.renovation ?? EMPTY_RENOVATION, runtime.planning.baseline.value?.catalogue ?? [], renovationSession.perspective === 'renovate' && renovationSession.mode === 'planned'));
+const tiles = computed(() => new Map([...new Set(patterns.value.values())].map((pattern): [PlanPattern, HTMLCanvasElement | null] => [pattern, patternTile(pattern, props.tokens.wallPattern, props.tokens.wallFill)])));
+const patterned = computed(() => structure.value.walls.flatMap(wall => {
+	const pattern = patterns.value.get(wall.id), tile = pattern ? tiles.value.get(pattern) : null;
+	return tile ? [{ id: wall.id, tile, points: wallBodyPolygon(wall, 0.25 / props.zoom).flatMap(point => [point.x, point.y]) }] : [];
+}));
 /**
  * Every cut the chain would make — its start and end joins and the join under the cursor — one
  * mark per distinct point. A start or pending join names a wall of the committed floor; an end
@@ -91,6 +102,10 @@ const elementDraft = computed(() => {
 			leaving a notch on its own side. Canvas bevels a mitre sharper than about 11°
 			(`miterLimit` 10). The selection dash and handles keep the unextended centreline.
 			`OpeningSymbols` cuts both passes at the edge pass's width.
+
+			A third, per-WALL pass fills a patterned wall's body with its material's hatch
+			(ADR-0031). Per wall rather than per run, so the mitre wedge where two differently
+			patterned walls meet stays plain — the spec's named gap.
 		-->
 		<VLine
 			v-for="run in runs"
@@ -101,6 +116,11 @@ const elementDraft = computed(() => {
 			v-for="run in runs"
 			:key="'body-' + run.id"
 			:config="{ name: 'wall-body', points: run.body, closed: run.closed, stroke: tokens.wallFill, strokeWidth: run.thickness, lineCap: 'butt', lineJoin: 'miter' }"
+		/>
+		<VLine
+			v-for="item in patterned"
+			:key="'pattern-' + item.id"
+			:config="{ name: 'wall-pattern', points: item.points, closed: true, listening: false, fillPatternImage: item.tile, fillPatternRepeat: 'repeat', fillPatternScale: { x: 1 / zoom, y: 1 / zoom } }"
 		/>
 		<VGroup
 			v-for="wall in structure.walls"

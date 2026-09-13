@@ -6,6 +6,7 @@ import type { PlanId } from '../../../domain/plan/PlanId';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import type { PlanGeometrySidecar } from '../../ports/PlanGeometrySidecar';
 import { sourceMeasurement } from '../../../domain/requirement/RequirementSource';
+import { originRoomId } from '../../../domain/requirement/RequirementOrigin';
 import { toMeasuredQuantity } from '../../../domain/cost/quantityEngine';
 import { runRecalculationCascade, type CascadeDeps } from './cascade';
 
@@ -19,7 +20,7 @@ export function registerOnPlanningChanged(events: EventBus, deps: CascadeDeps & 
 		if (!listed.ok || !geometry.ok || listed.value.refused) { deps.notify.cascadeAborted(id); return; }
 		const changed = listed.value.loaded.filter(({ entity }) => {
 			if (!entity.source || entity.source.planId !== id) return false;
-			const raw = sourceMeasurement(entity.source, entity.origin.zoneId, geometry.value.document, entity.unit, entity.assetId);
+			const raw = sourceMeasurement(entity.source, originRoomId(entity.origin), geometry.value.document, entity.unit, entity.assetId);
 			const measured = raw.ok ? toMeasuredQuantity(raw.value, entity.unit) : null;
 			return !measured?.ok || !new Decimal(entity.calculatedFrom.zoneArea.value).eq(measured.value.value);
 		});

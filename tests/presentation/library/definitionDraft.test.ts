@@ -63,4 +63,10 @@ describe('definitionChanges', () => {
 		const draft = { ...definitionDraft(baseline), unitCost: ' 12.50 ' };
 		expect(definitionChanges(draft, baseline)).toEqual({});
 	});
+
+	it('diffs a plan pattern, with an empty choice meaning none', () => {
+		const baseline = { ...anEntry(), planPattern: 'brick' as const };
+		expect(definitionChanges({ ...definitionDraft(baseline), planPattern: '' }, baseline)).toEqual({ planPattern: null });
+		expect(definitionChanges({ ...definitionDraft(baseline), planPattern: 'glass' }, baseline)).toEqual({ planPattern: 'glass' });
+	});
 });

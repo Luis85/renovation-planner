@@ -136,6 +136,15 @@ export const enAssetLibrary = {
 	'view.asset-library.sku': 'SKU',
 	'view.asset-library.height': 'Height',
 	'view.asset-library.notes': 'Notes',
+	'view.asset-library.plan-pattern': 'Plan pattern',
+	'view.asset-library.pattern.none': 'None',
+	'view.asset-library.pattern.brick': 'Brick',
+	'view.asset-library.pattern.stone': 'Stone',
+	'view.asset-library.pattern.concrete': 'Concrete',
+	'view.asset-library.pattern.timber': 'Timber',
+	'view.asset-library.pattern.insulation': 'Insulation',
+	'view.asset-library.pattern.drywall': 'Drywall',
+	'view.asset-library.pattern.glass': 'Glass',
 	// §3.4's row mark, described in words beside the (`aria-hidden`) drawing it sits next to.
 	// All five states get a word here — §3.4 asks for "state AND extent", without a carve-out
 	// for the one state whose extent alone might seem to say enough, and a browsing

@@ -4,6 +4,7 @@ import { formatPlanningNumber } from '../../i18n/planningFormat';
 import type { PlanningDraft } from './planningDraft';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import { QUANTITY_RULES } from '../../../domain/requirement/RequirementSource';
+import { contextOf } from '../../../domain/renovation/SharedLinks';
 import { tr } from '../../i18n/strings';
 const draft = defineModel<PlanningDraft>('draft', { required: true });
 defineProps<{ baseline: PlanningBaseline; paused: boolean }>();
@@ -86,7 +87,7 @@ defineProps<{ baseline: PlanningBaseline; paused: boolean }>();
 		name="outcome"
 		@change.capture="restoreInoperativeChoice($event, draft.source.outcomeId)"
 	><option value="">{{ tr('planning.unassigned') }}</option><option
-		v-for="item in baseline.plan.entity.renovation?.subjects.filter(item => item.roomId === draft.roomId && item.planned)"
+		v-for="item in baseline.plan.entity.renovation?.subjects.filter(item => contextOf(item) === (draft.roomId || draft.targetId) && item.planned)"
 		:key="item.id"
 		:value="item.id"
 	>{{ item.planned?.description || item.existing?.description }}</option></select></label>

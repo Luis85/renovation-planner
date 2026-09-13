@@ -23,13 +23,13 @@ const { findings, depth, clear } = useReviewPresentation();
 // beside it would be contradicted. A plan without planning services needs no guard of its own —
 // its context never reads, so `baseline` stays null and `loading`/`failed` stay false.
 function open(item: ReadinessFinding): void {
-	runtime.renovation.focus(item.roomId, item.kind === 'blocked' || item.kind === 'missing-outcome' ? 'work' : 'planned', item.recordId);
-	if (item.kind === 'decision') void runtime.renovation.edit('decision', item.roomId, item.recordId);
+	runtime.renovation.focus(item.roomId ?? '', item.kind === 'blocked' || item.kind === 'missing-outcome' ? 'work' : 'planned', item.recordId);
+	if (item.kind === 'decision') void runtime.renovation.edit('decision', item.roomId ?? '', item.recordId);
 }
 const plain = (text: string): string => text.replace(/[\r\n]/g, ' ').replace(/[\\[\]<>*_`]/g, '\\$&');
 // A fresh read rather than the panel's baseline, so the note records what is on disk now.
 function renovationLines(value: Renovation): string[] {
- return reviewRenovation(value).map(item => `- ${plain(project.zones.get(item.roomId)?.name ?? item.roomId)}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`);
+ return reviewRenovation(value).map(item => `- ${plain(project.zones.get(item.roomId ?? '')?.name ?? item.roomId ?? tr('renovation.target.none'))}: ${tr(`renovation.finding.${item.kind}`)} — ${item.causes.map(plain).join(', ')} (${item.recordId})`);
 }
 async function noteSnapshot(): Promise<{ name: string; lines: string[] } | null> {
  if (!context.commands.planning) return { name: project.plan?.name ?? '', lines: renovationLines(project.plan?.renovation ?? EMPTY_RENOVATION) };

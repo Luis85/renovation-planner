@@ -11,6 +11,7 @@ import type { Money } from '../../../core/money/Money';
 import type { AssetCategory } from '../../../domain/asset/AssetCategory';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
+import type { PlanPattern } from '../../../domain/asset/PlanPattern';
 import { assetUpdated, assetDesignChanged } from '../../../domain/asset/Asset.events';
 import { assetNotFound } from '../../../domain/asset/Asset.errors';
 import { checkExpectedVersion, type Expected, type EntityVersion } from '../../ports/versioning';
@@ -33,6 +34,7 @@ export interface UpdateAssetInput {
 		wasteFactorDefault: Decimal;
 		notes: string | null;
 		height: number | null;
+		planPattern: PlanPattern | null;
 	}>;
 }
 
@@ -100,7 +102,7 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 
 			const saved = await this.assets.save(candidate, input.expected ?? expected);
 			if (isErr(saved)) return saved;
-			if (candidate.height !== current.height) {
+			if (candidate.height !== current.height || candidate.planPattern !== current.planPattern) {
 				await this.events.publish(assetDesignChanged({ assetId: current.id }));
 			}
 			await this.events.publish(

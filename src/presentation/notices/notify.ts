@@ -138,7 +138,7 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 		 * **The message goes through the CONSTRUCTOR, not only into the DOM.** Obsidian's
 		 * `Notice` records nothing, but this repository's fake pushes its constructor argument
 		 * onto `Notice.shown`, and existing suites make CONTENT assertions against that array
-		 * (`inspectorFaults`, `planEditorCommands`, `sampleProject`, `slice10CascadeWiring`).
+		 * (`inspectorFaults`, `planEditorCommands`, `sampleProject`, `catalogueRequirementCascadeWiring`).
 		 * Constructing with `''` and then writing `messageEl` would fill it with empty strings
 		 * and break every one of them. The structured markup below replaces `messageEl`'s
 		 * content afterwards; the recorded text stays the user's sentence.

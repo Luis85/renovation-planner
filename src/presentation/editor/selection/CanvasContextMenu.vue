@@ -13,15 +13,16 @@ import { resolveSelectionTarget } from './resolveSelectionTarget';
 import { structureCandidates } from '../structure/structureCandidates';
 import { screenPoint, screenToWorld, stageCentreWorld, STAGE_PIXELS } from '../viewport/Viewport';
 import { useCanvasGroupActions } from './canvasGroupActions';
-import { useCanvasMenuActions, type CanvasMenuAction } from './useCanvasMenuActions';
+import { useCanvasMenuActions, isSubmenu, type CanvasMenuAction } from './useCanvasMenuActions';
 import { canvasCandidates } from './canvasCandidates';
 import { structureRecords } from '../structure/structureRecords';
 import { plainPress } from '../surface/keyboard';
-import { menuNavigation, pointerOutside } from './menuKeyboard';
-import HostIcon from '../../components/HostIcon.vue';
+import { pointerOutside } from './menuKeyboard';
+import CanvasMenuList from './CanvasMenuList.vue';
 import type { Point } from '../../../core/geometry/Point';
 const emit = defineEmits<{ openAdd: [] }>();
-const anchor = ref<HTMLElement | null>(null), menu = ref<HTMLElement | null>(null), open = ref(false), position = ref({ left: '0px', top: '0px' });
+const anchor = ref<HTMLElement | null>(null), list = ref<InstanceType<typeof CanvasMenuList> | null>(null), open = ref(false), position = ref({ left: '0px', top: '0px' });
+const menu = computed(() => list.value?.menu ?? null);
 const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), dialogs = useDialogStore(), groups = useCanvasGroupActions();
 /** Where the menu was opened, in world millimetres — where its Paste lands (design spec §4), and where a wall's actions and Measure start. A ref, so those items are rebuilt for every opening. */
 const openedAt = shallowRef<Point>({ x: 0, y: 0 });
@@ -87,14 +88,12 @@ function key(event: KeyboardEvent): void {
 }
 /** Delete and Backspace run this menu's own Delete for the selection (spec §9), so the key never means anything the menu does not. */
 function deleteKey(event: KeyboardEvent): void {
-	const action = actions.value.find(item => item.id === 'delete' && !item.disabled);
+	const action = actions.value.find((item): item is CanvasMenuAction => item.id === 'delete' && !isSubmenu(item) && !item.disabled);
 	if (!action) return;
 	event.preventDefault(); event.stopPropagation(); close(open.value); void action.run();
 }
 function outside(event: PointerEvent): void { if (open.value && pointerOutside(menu.value, event)) close(false); }
 function leave(event: FocusEvent): void { if (open.value && (!event.relatedTarget || !root?.contains(event.relatedTarget as Node))) close(false); }
-/** The shared `role="menu"` keyboard contract (`menuKeyboard.ts`); Escape and Tab both restore focus to the opener here. */
-function navigation(event: KeyboardEvent): void { menuNavigation(event, '[role="menuitem"]', () => close()); }
 function run(action: CanvasMenuAction): void { if (action.disabled) return; close(); void action.run(); }
 watch(() => selection.selectedIds, ids => { if (open.value && (ids.length !== menuIds.length || ids.some((id, index) => id !== menuIds[index]))) close(false); });
 watch(() => dialogs.current, dialog => { if (dialog && open.value) close(false); });
@@ -113,43 +112,16 @@ onBeforeUnmount(() => { root?.removeEventListener('contextmenu', context); root?
 			v-if="open && root"
 			:to="root"
 		>
-			<div
-				ref="menu"
-				class="rp-canvas-context-menu"
-				role="menu"
-				:aria-label="tr('editor.input.context')"
-				:style="position"
-				@keydown="navigation"
-			>
-				<div
-					v-if="title"
-					class="rp-canvas-context-menu-title"
-					role="presentation"
-				>
-					{{ title }}
-				</div>
-				<template
-					v-for="(action, index) in actions"
-					:key="action.id"
-				>
-					<div
-						v-if="index > 0 && action.group !== actions[index - 1].group"
-						class="rp-canvas-context-menu-separator"
-						role="separator"
-					/>
-					<button
-						type="button"
-						role="menuitem"
-						tabindex="-1"
-						:aria-disabled="action.disabled || undefined"
-						:title="action.disabled && action.reason ? tr(action.reason) : undefined"
-						:data-rp-context-action="action.id"
-						@click="run(action)"
-					>
-						<HostIcon :name="action.icon" />{{ tr(action.label, action.params) }}
-					</button>
-				</template>
-			</div>
+			<CanvasMenuList
+				ref="list"
+				:items="actions"
+				:label="tr('editor.input.context')"
+				:title="title"
+				:host="root"
+				:position="position"
+				@run="run"
+				@close="close"
+			/>
 		</Teleport>
 	</div>
 </template>

@@ -17,6 +17,7 @@ import { removalSources } from '../planning/removalSources';
 import { notifyFault, notifyOperationFailure } from '../../notices/notify';
 import { tr } from '../../i18n/strings';
 import { elementInput } from './elementInput';
+import { loadBearingWarning } from './loadBearingWarning';
 import { elementEditPresentation } from './elementEditPresentation';
 import { err } from '../../../core/result/Result';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
@@ -88,7 +89,8 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			if (!materials.ok) { notifyOperationFailure(materials.error); return; }
 			const references = [...materials.value, ...renovationReferents(baseline.plan.entity.renovation ?? EMPTY_RENOVATION, id)];
 			if (references.length) { await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), message: tr('renovation.links', { names: references.join(', ') }) }); return; }
-			const answer = await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), danger: true, message: tr('editor.element.delete-impact', { name: element.name }) });
+			const answer = await dialogs.openDialog({ kind: 'confirm', title: tr('editor.structure.delete'), danger: true,
+				message: tr('editor.element.delete-impact', { name: element.name }) + loadBearingWarning([id], baseline.geometry.document.structure?.elements, baseline.plan.entity.spatialElements) });
 			if (!alive || answer !== 'confirm' || !context.commands.renovation) return;
 			const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, element, true), runtime.structureTask.ledger));
 			if (alive && !result.ok) notifyOperationFailure(result.error);

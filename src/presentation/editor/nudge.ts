@@ -67,10 +67,11 @@ export function createNudgeSelectionAction(deps: {
 	readonly activeToolId: Ref<ToolId | null>;
 	readonly selection: ReturnType<typeof useSelectionStore>;
 	readonly projectStore: ReturnType<typeof useProjectStore>;
+	readonly canMutateGeometry?: () => boolean;
 	readonly moveElement?: (id: string, points: readonly Point[], original: SpatialElement) => Promise<void>;
 }): (by: Vector) => Promise<void> {
 	function resolveNudgeTarget(): ZoneId | null {
-		if (deps.activeToolId.value !== 'select') return null;
+		if (deps.activeToolId.value !== 'select' || deps.canMutateGeometry?.() === false) return null;
 		const [zoneId, ...rest] = deps.selection.selectedIds;
 		if (zoneId === undefined || rest.length > 0) return null;
 		return zoneId as ZoneId;

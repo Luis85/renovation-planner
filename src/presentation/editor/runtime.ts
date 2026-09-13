@@ -799,7 +799,8 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
-	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore, moveElement: elementActions.move });
+	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore,
+		canMutateGeometry: () => session.perspective === 'plan', moveElement: elementActions.move });
 
 	// The assign picker's options and the Inspector's rows, hydrated at mount and re-read on the
 	// three doors that carry what they draw — the catalogue's, the price's and the recalculation

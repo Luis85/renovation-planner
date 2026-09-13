@@ -39,7 +39,7 @@ const box = computed(() => {
 	const geometry = props.preview?.objects.find(item => item.id === selectedRoom.id) ?? selectedRoom;
 	return roomDimensions(geometry.points, geometry.bulges);
 });
-const visible = computed(() => box.value !== null && (draft.value !== null || runtime.renderState.previewPolygon === null) && session.perspective !== 'review' && (workspace.layerVisibility.zone || draft.value !== null)
+const visible = computed(() => box.value !== null && (draft.value !== null || runtime.renderState.previewPolygon === null) && session.perspective === 'plan' && (workspace.layerVisibility.zone || draft.value !== null)
 	&& (runtime.activeToolId.value === 'select' || runtime.activeToolId.value === 'edit-room-dimension'));
 const measured = computed(() => {
 	const tool = runtime.activeToolId.value;

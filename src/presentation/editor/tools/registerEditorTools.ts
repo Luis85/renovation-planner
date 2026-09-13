@@ -24,6 +24,7 @@ import type { PlanEditorContext } from '../PlanEditorContext';
 import { canvasCandidates } from '../selection/canvasCandidates';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { useAssetShapeStore } from '../../stores/AssetShapeStore';
+import { useRenovationSession } from '../renovation/renovationSession';
 import type { Point } from '../../../core/geometry/Point';
 import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
@@ -78,10 +79,12 @@ export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps, Se
 export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
 	const workspace = useWorkspaceStore();
 	const assetShapes = useAssetShapeStore();
+	const renovation = useRenovationSession();
 	toolManager.register(new PanTool());
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
 		new SelectTool({
+			canMutateGeometry: () => renovation.perspective === 'plan',
 			expandSelection: deps.expandSelection, selectionMove: deps.selectionMove, multiSelectionMode: deps.multiSelectionMode,
 			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, rotationDisplayTarget: deps.rotationDisplayTarget, rotationControls: deps.rotationControls, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
 			previewElement: deps.previewElement,

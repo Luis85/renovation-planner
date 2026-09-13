@@ -30,7 +30,7 @@ export function discardElementGeometry(draft: ElementDraft): void {
 	const { kind, name, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
 	Object.assign(draft, createElementDraft(), { kind, name, loading, busy, conflict, error });
 }
-/** Every proposal of an element's points passes here: a valid element, and an object outline that does not cross itself. */
+/** Every proposal of an element's points passes here: a valid element, and an object or post outline that does not cross itself. */
 export function acceptsElementPoints(element: SpatialElement, points: readonly Point[]): boolean {
 	return validSpatialElement({ ...element, points }) && (!outlineKind(element.kind) || areaOutline(points).ok);
 }

@@ -92,6 +92,24 @@ it('leaves a free-form outline unboxed when Apply is pressed with nothing typed'
 	expect(rig.task.draft.points).toEqual(pentagon);
 });
 
+it('names the missing size and focuses Width when Apply is pressed on an empty item draft', async () => {
+	const rig = await setup();
+	const width = () => rig.wrapper.get<HTMLInputElement>('input[name="object-width"]');
+	const depth = () => rig.wrapper.get<HTMLInputElement>('input[name="object-depth"]');
+	await rig.wrapper.get('[data-rp-action="apply-object-rectangle"]').trigger('click'); await settle();
+	expect(rig.task.draft.points).toEqual([]);
+	expect(width().attributes('aria-invalid')).toBe('true');
+	expect(depth().attributes('aria-invalid')).toBe('true');
+	expect(document.activeElement).toBe(width().element);
+});
+
+it('shows the same refusal for an untouched Enter in an empty item draft', async () => {
+	const rig = await setup();
+	await rig.wrapper.get('input[name="object-x"]').trigger('keydown', { key: 'Enter' }); await settle();
+	expect(rig.task.draft.points).toEqual([]);
+	expect(rig.wrapper.get('input[name="object-width"]').attributes('aria-invalid')).toBe('true');
+});
+
 it('keeps its mode while typed rectangle input is pending, and a click leaves the drawn rectangle', async () => {
 	const rig = await setup();
 	await drag(rig, { x: 1000, y: 500 }, { x: 3000, y: 2000 });

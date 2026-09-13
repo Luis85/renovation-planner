@@ -33,8 +33,11 @@ function input(field: RectangleField, event: Event): void {
 	draft.rectangle = { ...shown.value, [field]: control.value }; draft.pendingInput = true;
 }
 function apply(): void {
-	// Nothing typed: the outline is the derived display already, and applying it would silently box a free-form outline (F-A follow-up).
-	if (!editable.value || !draft.pendingInput) return;
+	// Untouched with an outline already drawn: the shown rectangle is that outline, so applying it would
+	// silently box a free-form one (F-A follow-up) — refuse without surfacing errors. Untouched with NO
+	// outline: fall through and let the blank width/depth refuse visibly, as it did before F-A (round 2).
+	if (!editable.value || (!draft.pendingInput && draft.points.length > 0)) return;
+	draft.rectangle = { ...shown.value }; draft.pendingInput = true;
 	if (proposal.value.points && task.setPoints(proposal.value.points)) draft.pendingInput = false;
 	else void nextTick(() => root.value?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus());
 }

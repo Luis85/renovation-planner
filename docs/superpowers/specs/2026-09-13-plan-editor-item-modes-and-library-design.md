@@ -37,8 +37,9 @@ two tool ids (`draw-room`, `draw-polygon`); repeating that here would touch ever
 - `pointerDown` (primary) records a snapped anchor and starts a drag.
 - `pointerMove` during the drag calls `setPoints` with the four corners of the normalised
   rectangle between the anchor and the snapped cursor.
-- `pointerUp` ends the drag. A zero-area drag leaves no points.
-- A new drag replaces the rectangle.
+- `pointerUp` names the rectangle from the release point and ends the drag.
+- A new drag replaces the rectangle. A click (no area) changes nothing, as a click on a room draft
+  does, so a stray click never throws a drawn rectangle away.
 
 Normalising and corner generation reuse the room tool's helpers (`draw-room-tool.ts` /
 `room-draft-store.ts`) rather than a second copy. The details panel shows
@@ -95,10 +96,14 @@ editor's placement read would answer `unscaled` and refuse to place it.
 It is one reversible dispatch, so **undo restores the plain item**. The new asset stays in the
 library; catalogue creation is not in the editor's history anywhere else either.
 
-**Failure.** Asset created but conversion refused (stale floor, conflict): a notice through
-`notifyOperationFailure`, the item is left as it was, and the asset remains in the library. A
-cancelled dialog changes nothing. `{ created: false }` cannot occur, because no `findExisting` is
-passed.
+**Failure.** Asset created but conversion refused (stale floor, conflict, a save in flight): one
+warning, `editor.asset.promote-unplaced`, saying the asset is in the library and the item was not
+replaced; the item is left as it was. One sentence for every refusal, because what the user needs is
+where the asset went, not which write refused. A cancelled dialog changes nothing.
+`{ created: false }` cannot occur, because no `findExisting` is passed.
+
+**Where it lives.** `createItemPromotion` hangs off `runtime.elementTask.promotion`, beside
+`elementTask.assets`, whose `write` it reuses — so `runtime.ts` does not change.
 
 **Wiring.** `PlanEditorCommandServices` gains optional
 `assetCreation?: { createAsset, setAssetFootprint, defaultCurrency }`, built in
@@ -118,8 +123,8 @@ here.
 
 ## Testing
 
-- `ElementTool` rectangle drag: points follow the drag, a re-drag replaces, zero-area leaves none;
-  free-form clicks unchanged.
+- `ElementTool` rectangle drag: points follow the drag, the release names it, a re-drag replaces, a
+  click keeps it; free-form clicks unchanged.
 - Mode switch conversions (a pure function): corners kept; bounding box; cleared when degenerate.
 - `useCanvasMenuActions`: offered for one object, absent for other kinds, several selected, Review,
   or no services; disabled while blocked.

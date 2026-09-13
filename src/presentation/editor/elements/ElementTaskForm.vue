@@ -19,6 +19,8 @@ onBeforeUnmount(() => {
 });
 /** A rectangle item is entered through its rectangle fields alone; per-point entry is free-form's (2026-09-13 item modes spec §A). */
 const pointEntry = computed(() => draft.kind !== 'object' || draft.shape === 'free');
+/** The create-hint key ternary, out of the template and behind fallow's cognitive-complexity threshold. */
+const createHint = computed(() => tr(pointEntry.value ? 'editor.element.create-hint' : 'editor.element.banner.object-rectangle'));
 const pointForm = ref<HTMLElement | null>(null), attemptedPoint = ref(false);
 const coordinates = computed(() => ({ x: parseCoordinateMetres(draft.text.x), y: parseCoordinateMetres(draft.text.y) }));
 const point = computed(() => {
@@ -56,7 +58,7 @@ async function add(): Promise<void> {
 		data-rp-form="element-create"
 	>
 		<h3>{{ tr(zoneTypeLabel(draft.kind)) }}</h3>
-		<p>{{ tr(pointEntry ? 'editor.element.create-hint' : 'editor.element.banner.object-rectangle') }}</p>
+		<p>{{ createHint }}</p>
 		<p
 			v-if="draft.error"
 			role="alert"

@@ -99,6 +99,16 @@ const finishLabel = computed(() => tr(isCurves.value ? 'editor.curves.save' : is
 	: isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
 const canFinish = computed(() => isCurves.value ? !runtime.curveTask.blocked.value && runtime.curveTask.target.value !== null && runtime.curveTask.validation.value === null && runtime.curveTask.state.invalidField === null : isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 const showSnapHint = computed(() => runtime.renderState.snapGuides.length > 0);
+/**
+ * The instruction key ternary, out of the template and behind fallow's cognitive-complexity
+ * threshold (increment history, 2026-09-13 item modes) — a function over the ALREADY-NARROWED
+ * `task` the `v-if="task !== null"` span below passes, the same shape `pausedDescribedBy` in
+ * `NewAssetForm.vue` uses, rather than a second nullable computed with a branch nothing can
+ * reach.
+ */
+function instruction(current: NonNullable<typeof task.value>): string {
+	return tr(isRectangleItem.value ? 'editor.element.banner.object-rectangle' : current.instructionKey);
+}
 const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
 const finishDescription = computed(() => [instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' '));
 
@@ -176,7 +186,7 @@ watch(task, (next) => {
 			>{{ tr('editor.room.snapped') }}</span>
 			<span
 				:id="instructionId"
-			>{{ tr(isRectangleItem ? 'editor.element.banner.object-rectangle' : task.instructionKey) }}</span>
+			>{{ instruction(task) }}</span>
 			<span
 				v-if="runtime.activeToolId.value === 'move-opening'"
 				role="status"

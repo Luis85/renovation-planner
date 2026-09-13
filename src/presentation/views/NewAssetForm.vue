@@ -304,10 +304,60 @@ function pausedDescribedBy(aria: { readonly 'aria-describedby'?: string }): stri
 	return catalogueFrozenReasonId;
 }
 
+/** Either mode's dimensions, once `parseDimensions` has decided blank-versus-typed. */
+type Dimensions = { readonly width: number; readonly depth: number } | null;
+
+/**
+ * The pure half of the footprint, run for its REFUSAL rather than for its shape: the command
+ * re-derives the rectangle itself from the same two numbers, so what is thrown away here is a
+ * repeat of work that costs nothing, and what is bought is that every refusal the numbers
+ * alone can earn is taken with the vault untouched.
+ *
+ * `shapeFromDimensions` rather than `footprintFromDimensions`, because the command's own path
+ * is `withFootprint(current, …)` followed by `validateAssetShape` — and for an asset this form
+ * has just created there IS no current shape, so what it validates is exactly `UNDESIGNED`
+ * plus the typed rectangle, which is what `shapeFromDimensions` composes. The two are the same
+ * shape by construction, so this preflight cannot refuse something the command would accept,
+ * nor accept something it would refuse.
+ */
+function footprintPreflight(dimensions: Dimensions): Result<void, AppError> {
+	if (props.outline) {
+		const shape = shapeFromOutline(props.outline.points);
+		if (isErr(shape)) return shape;
+		return ok(undefined);
+	}
+	if (dimensions !== null) {
+		const shape = shapeFromDimensions(dimensions.width, dimensions.depth);
+		if (isErr(shape)) return shape;
+	}
+	return ok(undefined);
+}
+
+/** The footprint write itself, for either mode, once the asset id exists. */
+async function writeFootprint(
+	assetId: AssetId,
+	dimensions: Dimensions,
+): Promise<Result<{ readonly assetId: AssetId }, AppError>> {
+	if (props.outline) {
+		const written = await props.outline.write({ assetId, points: props.outline.points, measured: true });
+		if (isErr(written)) return written;
+		return ok({ assetId });
+	}
+	if (dimensions === null) return ok({ assetId });
+	const written = await props.setFootprintFromDimensions({
+		assetId,
+		width: dimensions.width,
+		depth: dimensions.depth,
+	});
+	if (isErr(written)) return written;
+	return ok({ assetId });
+}
+
 /**
  * The whole sequence, as `useFormCommit`'s single `dispatch`. Ordered so that everything
  * checkable without a write happens first — see this component's own header for why that
- * ordering is load-bearing rather than tidy.
+ * ordering is load-bearing rather than tidy. Reads create → footprint now that both halves'
+ * outline/dimensions branching lives in `footprintPreflight` and `writeFootprint`.
  */
 async function createAssetAndFootprint(
 	values: NewAssetValues,
@@ -317,24 +367,8 @@ async function createAssetAndFootprint(
 	const unitCostAmount = normalizeDecimalInput(values.unitCostAmount);
 	const money = createMoney(unitCostAmount, values.currency);
 	if (isErr(money)) return money;
-	// The pure half of the footprint, run for its REFUSAL rather than for its shape: the
-	// command re-derives the rectangle itself from the same two numbers, so what is thrown
-	// away here is a repeat of work that costs nothing, and what is bought is that every
-	// refusal the numbers alone can earn is taken with the vault untouched.
-	//
-	// `shapeFromDimensions` rather than `footprintFromDimensions`, because the command's own
-	// path is `withFootprint(current, …)` followed by `validateAssetShape` — and for an asset
-	// this form has just created there IS no current shape, so what it validates is exactly
-	// `UNDESIGNED` plus the typed rectangle, which is what `shapeFromDimensions` composes.
-	// The two are the same shape by construction, so this preflight cannot refuse something
-	// the command would accept, nor accept something it would refuse.
-	if (props.outline) {
-		const shape = shapeFromOutline(props.outline.points);
-		if (isErr(shape)) return shape;
-	} else if (dimensions.value !== null) {
-		const shape = shapeFromDimensions(dimensions.value.width, dimensions.value.depth);
-		if (isErr(shape)) return shape;
-	}
+	const preflight = footprintPreflight(dimensions.value);
+	if (isErr(preflight)) return preflight;
 
 	let assetId = createdAssetId.value;
 	if (assetId === null) {
@@ -350,19 +384,7 @@ async function createAssetAndFootprint(
 		createdAssetId.value = assetId;
 	}
 
-	if (props.outline) {
-		const written = await props.outline.write({ assetId, points: props.outline.points, measured: true });
-		if (isErr(written)) return written;
-		return ok({ assetId });
-	}
-	if (dimensions.value === null) return ok({ assetId });
-	const written = await props.setFootprintFromDimensions({
-		assetId,
-		width: dimensions.value.width,
-		depth: dimensions.value.depth,
-	});
-	if (isErr(written)) return written;
-	return ok({ assetId });
+	return writeFootprint(assetId, dimensions.value);
 }
 
 const form = useFormCommit<NewAssetValues, { readonly assetId: AssetId }>({
@@ -383,6 +405,11 @@ const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
  * to freeze, since the outline came from the item and this form never edits it.
  */
 const catalogueInoperative = computed(() => form.submitting.value || catalogueFrozen.value);
+
+/** The already-created banner's key ternary, out of the template and behind fallow's cognitive-complexity threshold. */
+const alreadyCreatedKey = computed(() =>
+	props.outline ? 'form.new-asset.already-created-outline' : 'form.new-asset.already-created',
+);
 
 /** The outline's width × depth in whole millimetres, for the one line standing where the dimension fields would. */
 const outlineSize = computed(() => {
@@ -463,7 +490,7 @@ async function onSubmit(): Promise<void> {
 			:id="catalogueFrozenReasonId"
 			class="rp-new-asset__created"
 		>
-			{{ tr(outline ? 'form.new-asset.already-created-outline' : 'form.new-asset.already-created') }}
+			{{ tr(alreadyCreatedKey) }}
 		</p>
 		<FieldError
 			v-slot="{ inputId, aria }"

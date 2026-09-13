@@ -8,7 +8,7 @@ const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 
 it('keeps a room-less wall selected while the Renovate work and layout routes use existing actions', async () => {
-	const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle();
+	const rig = await renovationEditor(true); mounted.push(rig); await rig.runtime.refreshProjection(); await settle();
 	rig.selection.select(['wall-a' as never]); await settle();
 	const before = [...rig.stack.vault.entries];
 
@@ -30,7 +30,7 @@ it('keeps a room-less wall selected while the Renovate work and layout routes us
 });
 
 it('keeps standalone Area rotation in Plan while Renovate offers the explicit layout route', async () => {
-	const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle();
+	const rig = await renovationEditor(true); mounted.push(rig);
 	const area = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden',
 		geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
 	await rig.runtime.refreshProjection(); rig.selection.select([area.id]); await settle();

@@ -51,6 +51,12 @@ it('keeps the edge-to-arrow approach hover-only and clears it when its target di
 	current = shape; const alt = pointerAt(point.x, point.y); r.tool.pointerMove({ ...alt, modifiers: { ...alt.modifiers, alt: true } }); expect(r.context.renderState.rotationHoverId).toBeNull();
 });
 
+it('does not edge-scroll a rotation drag, whose angle turns about the shape rather than extending anything', () => {
+	const r = setup(); r.context.selection.select([shape.id as never]);
+	r.tool.pointerDown(pointerAt(r.control.handle.x, r.control.handle.y));
+	expect(r.tool.hasDraft()).toBe(true); expect(r.tool.tracksPointer()).toBe(false);
+});
+
 it('neither offers nor starts rotation while the "select multiple" mode is on, since a touch user has no Alt', () => {
 	const r = setup({ multiSelectionMode: () => true }); r.context.selection.select([shape.id as never]);
 	const at = pointerAt(r.control.handle.x, r.control.handle.y);

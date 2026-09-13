@@ -7,15 +7,16 @@ import { elementInput } from '../../../src/presentation/editor/elements/elementI
 import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
-it.each(['object', 'path'] as const)('highlights the exact current or intended %s used by each material', async kind => {
+it.each(['object', 'path', 'post'] as const)('highlights the exact current or intended %s used by each material', async kind => {
  const rig = await renovationEditor(true); mounted.push(rig);
  const points = [{ x: 500, y: 500 }, { x: 3000, y: 500 }, { x: 3000, y: 2000 }, { x: 500, y: 2000 }];
- const element = { id: 'element-source', name: 'Material source', kind, points };
+ const structural = kind === 'post' ? { loadBearing: true } : {};
+ const element = { id: 'element-source', name: 'Material source', kind, points, ...structural };
  const seed = expectOk(await rig.renovation.read(rig.plan.id));
  expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(seed, elementInput(seed, element), rig.runtime.structureTask.ledger)));
  const baseline = expectOk(await rig.renovation.read(rig.plan.id)), current = expectDefined(baseline.geometry.document.structure, 'structure');
  const intendedPoints = points.map(point => ({ x: point.x + 1200, y: point.y + 700 }));
- const intended = { ...current, elements: [{ id: element.id, kind, points: intendedPoints }] };
+ const intended = { ...current, elements: [{ id: element.id, kind, points: intendedPoints, ...structural }] };
  expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: baseline.plan.entity.renovation, intended }, rig.runtime.structureTask.ledger)));
  const planning = expectDefined(rig.deps.commands.planning, 'planning');
  const materials = [];
@@ -29,7 +30,7 @@ it.each(['object', 'path'] as const)('highlights the exact current or intended %
   rig.runtime.renovation.focus(rig.room.id, 'materials', material.id); await settle();
   const source = expectDefined(rig.stage?.findOne('.material-source'), 'source highlight');
   expect(source.getAttr('points')).toEqual((material.state === 'current' ? points : intendedPoints).flatMap(point => [point.x, point.y]));
-  expect(source.getAttr('closed')).toBe(kind === 'object'); expect(rig.stage?.find('.material-marker')).toHaveLength(2);
+  expect(source.getAttr('closed')).toBe(kind === 'object' || kind === 'post'); expect(rig.stage?.find('.material-marker')).toHaveLength(2);
   expect(rig.session.targetId).toBe(rig.room.id); expect(rig.selection.selectedIds).toEqual([rig.room.id]); expect(rig.session.focusedId).toBe(material.id);
  }
  expect(rig.project.structure).toEqual(current); expect(rig.project.intended).toEqual(intended);

@@ -2,8 +2,9 @@
 /**
  * The creation dialog for a new Asset — design slice A10, and the FIRST form in this plugin
  * whose submit is a SEQUENCE rather than one command: the catalogue entry is created, and
- * then, only if the user typed both dimensions, its rectangle footprint is written into the
- * geometry sidecar (§88).
+ * then, if a footprint was given — both dimensions typed, or an `outline` prop from a plan
+ * item (2026-09-13 item modes spec §B) standing in their place — its rectangle footprint is
+ * written into the geometry sidecar (§88).
  *
  * **No new dialog KIND**, exactly like both of its siblings: it is another `component` under
  * slice 15's existing `kind: 'form'`, so none of the five edits a new kind costs apply. It
@@ -20,13 +21,14 @@
  * reason this file is longer than its siblings:
  *
  *  1. **Everything purely checkable is checked before anything is written.**
- *     `shapeFromDimensions` and `createMoney` are both pure, so a zero, a negative, a
- *     malformed amount and a malformed currency are all caught with the vault untouched.
- *     The preflight runs the WHOLE shape validation, not the half of it about the two
- *     numbers: `footprintFromDimensions` alone accepts `Number.MIN_VALUE * 2`, whose four
- *     vertices are distinct and whose shoelace products all underflow, so the note was
- *     committed and only then was the footprint refused as degenerate — this rule broken by
- *     the code claiming it.
+ *     `shapeFromDimensions`, `shapeFromOutline` and `createMoney` are all pure, so a zero, a
+ *     negative, a malformed amount and a malformed currency are all caught with the vault
+ *     untouched — for BOTH footprint sources, since the outline preflight runs the same
+ *     `validateAssetShape` a typed rectangle does. The preflight runs the WHOLE shape
+ *     validation, not the half of it about the two numbers: `footprintFromDimensions` alone
+ *     accepts `Number.MIN_VALUE * 2`, whose four vertices are distinct and whose shoelace
+ *     products all underflow, so the note was committed and only then was the footprint
+ *     refused as degenerate — this rule broken by the code claiming it.
  *  2. **The created id is kept and reused on retry.** The note is committed before the
  *     sidecar is opened, so a vault fault in between leaves an asset that exists and has no
  *     footprint — usable, simply undesigned. Re-creating it on the retry would turn one
@@ -54,11 +56,15 @@ import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError, ValidationError } from '../../core/errors/AppError';
 import { createMoney } from '../../core/money/Money';
 import { normalizeDecimalInput } from '../library/decimalInput';
-import { shapeFromDimensions } from '../../domain/asset/AssetShape';
+import { shapeFromDimensions, shapeFromOutline } from '../../domain/asset/AssetShape';
+import type { Point } from '../../core/geometry/Point';
 import type { Asset } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
-import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
+import type {
+	SetAssetFootprintFromDimensionsInput,
+	SetAssetFootprintInput,
+} from '../../application/commands/asset/SetAssetFootprint';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { Logger } from '../../application/ports/Logger';
 import { ASSET_CATEGORY_LABELS, MEASUREMENT_UNIT_LABELS } from './assetLabels';
@@ -92,6 +98,17 @@ const props = defineProps<{
 	 */
 	logger: Logger;
 	defaultCurrency: string;
+	/** Opened from a plan item (2026-09-13 item modes spec §B): the item's name to start from. */
+	initialName?: string;
+	/**
+	 * The same gesture's outline, centred and in millimetres, with the write that stores it measured. Present,
+	 * it REPLACES the two dimension fields: the footprint is decided, and a width and depth typed beside it
+	 * would be a second answer to the same question.
+	 */
+	outline?: {
+		readonly points: readonly Point[];
+		write(input: SetAssetFootprintInput): Promise<DispatchResult>;
+	};
 }>();
 
 const emit = defineEmits<{
@@ -175,6 +192,20 @@ const NEW_ASSET_ERRORS: FieldErrorMap<NewAssetValues> = {
 	'asset.invalid-footprint': ['width', 'depth'],
 	'asset.degenerate-footprint': ['width', 'depth'],
 };
+
+/**
+ * Outline mode renders no `width`/`depth` fields (the outline paragraph stands where they
+ * would), so the two footprint codes `NEW_ASSET_ERRORS` routes to that pair would land on a
+ * `FieldError` nothing renders — the preflight's refusal would be checked and then invisible
+ * (fix round 1, finding 1). Derived by OMISSION rather than a second hand-copied table, so the
+ * two cannot drift: a code renamed or added to `NEW_ASSET_ERRORS` above is renamed or added here
+ * for free, and only these two codes are ever about a rectangle with no field left to sit under.
+ */
+const {
+	'asset.invalid-footprint': _outlineInvalidFootprintUnrouted,
+	'asset.degenerate-footprint': _outlineDegenerateFootprintUnrouted,
+	...NEW_ASSET_ERRORS_FOR_OUTLINE
+} = NEW_ASSET_ERRORS;
 
 /**
  * `wasteFactorDefault`, `supplier`, `sku` and `notes` are all optional on
@@ -273,10 +304,60 @@ function pausedDescribedBy(aria: { readonly 'aria-describedby'?: string }): stri
 	return catalogueFrozenReasonId;
 }
 
+/** Either mode's dimensions, once `parseDimensions` has decided blank-versus-typed. */
+type Dimensions = { readonly width: number; readonly depth: number } | null;
+
+/**
+ * The pure half of the footprint, run for its REFUSAL rather than for its shape: the command
+ * re-derives the rectangle itself from the same two numbers, so what is thrown away here is a
+ * repeat of work that costs nothing, and what is bought is that every refusal the numbers
+ * alone can earn is taken with the vault untouched.
+ *
+ * `shapeFromDimensions` rather than `footprintFromDimensions`, because the command's own path
+ * is `withFootprint(current, …)` followed by `validateAssetShape` — and for an asset this form
+ * has just created there IS no current shape, so what it validates is exactly `UNDESIGNED`
+ * plus the typed rectangle, which is what `shapeFromDimensions` composes. The two are the same
+ * shape by construction, so this preflight cannot refuse something the command would accept,
+ * nor accept something it would refuse.
+ */
+function footprintPreflight(dimensions: Dimensions): Result<void, AppError> {
+	if (props.outline) {
+		const shape = shapeFromOutline(props.outline.points);
+		if (isErr(shape)) return shape;
+		return ok(undefined);
+	}
+	if (dimensions !== null) {
+		const shape = shapeFromDimensions(dimensions.width, dimensions.depth);
+		if (isErr(shape)) return shape;
+	}
+	return ok(undefined);
+}
+
+/** The footprint write itself, for either mode, once the asset id exists. */
+async function writeFootprint(
+	assetId: AssetId,
+	dimensions: Dimensions,
+): Promise<Result<{ readonly assetId: AssetId }, AppError>> {
+	if (props.outline) {
+		const written = await props.outline.write({ assetId, points: props.outline.points, measured: true });
+		if (isErr(written)) return written;
+		return ok({ assetId });
+	}
+	if (dimensions === null) return ok({ assetId });
+	const written = await props.setFootprintFromDimensions({
+		assetId,
+		width: dimensions.width,
+		depth: dimensions.depth,
+	});
+	if (isErr(written)) return written;
+	return ok({ assetId });
+}
+
 /**
  * The whole sequence, as `useFormCommit`'s single `dispatch`. Ordered so that everything
  * checkable without a write happens first — see this component's own header for why that
- * ordering is load-bearing rather than tidy.
+ * ordering is load-bearing rather than tidy. Reads create → footprint now that both halves'
+ * outline/dimensions branching lives in `footprintPreflight` and `writeFootprint`.
  */
 async function createAssetAndFootprint(
 	values: NewAssetValues,
@@ -286,21 +367,8 @@ async function createAssetAndFootprint(
 	const unitCostAmount = normalizeDecimalInput(values.unitCostAmount);
 	const money = createMoney(unitCostAmount, values.currency);
 	if (isErr(money)) return money;
-	// The pure half of the footprint, run for its REFUSAL rather than for its shape: the
-	// command re-derives the rectangle itself from the same two numbers, so what is thrown
-	// away here is a repeat of work that costs nothing, and what is bought is that every
-	// refusal the numbers alone can earn is taken with the vault untouched.
-	//
-	// `shapeFromDimensions` rather than `footprintFromDimensions`, because the command's own
-	// path is `withFootprint(current, …)` followed by `validateAssetShape` — and for an asset
-	// this form has just created there IS no current shape, so what it validates is exactly
-	// `UNDESIGNED` plus the typed rectangle, which is what `shapeFromDimensions` composes.
-	// The two are the same shape by construction, so this preflight cannot refuse something
-	// the command would accept, nor accept something it would refuse.
-	if (dimensions.value !== null) {
-		const shape = shapeFromDimensions(dimensions.value.width, dimensions.value.depth);
-		if (isErr(shape)) return shape;
-	}
+	const preflight = footprintPreflight(dimensions.value);
+	if (isErr(preflight)) return preflight;
 
 	let assetId = createdAssetId.value;
 	if (assetId === null) {
@@ -316,20 +384,13 @@ async function createAssetAndFootprint(
 		createdAssetId.value = assetId;
 	}
 
-	if (dimensions.value === null) return ok({ assetId });
-	const written = await props.setFootprintFromDimensions({
-		assetId,
-		width: dimensions.value.width,
-		depth: dimensions.value.depth,
-	});
-	if (isErr(written)) return written;
-	return ok({ assetId });
+	return writeFootprint(assetId, dimensions.value);
 }
 
 const form = useFormCommit<NewAssetValues, { readonly assetId: AssetId }>({
-	initial: { ...INITIAL, currency: props.defaultCurrency },
+	initial: { ...INITIAL, name: props.initialName ?? '', currency: props.defaultCurrency },
 	dispatch: createAssetAndFootprint,
-	errorMap: NEW_ASSET_ERRORS,
+	errorMap: props.outline ? NEW_ASSET_ERRORS_FOR_OUTLINE : NEW_ASSET_ERRORS,
 	toUserMessage: trError,
 	logger: props.logger,
 });
@@ -338,11 +399,24 @@ const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
 /**
  * The five catalogue controls' rendered state, stated once rather than five times. `submitting`
  * is the form-wide half every dialog form has; `catalogueFrozen` is this form's own, and the
- * two dimensions below deliberately take the first alone — they are exactly what a retry
- * re-dispatches, so freezing them would leave the retry unable to change the numbers it exists
- * for.
+ * footprint control below deliberately takes the first alone — in dimensions mode that is the
+ * two width/depth fields, exactly what a retry re-dispatches, so freezing them would leave the
+ * retry unable to change the numbers it exists for; in outline mode there is no control at all
+ * to freeze, since the outline came from the item and this form never edits it.
  */
 const catalogueInoperative = computed(() => form.submitting.value || catalogueFrozen.value);
+
+/** The already-created banner's key ternary, out of the template and behind fallow's cognitive-complexity threshold. */
+const alreadyCreatedKey = computed(() =>
+	props.outline ? 'form.new-asset.already-created-outline' : 'form.new-asset.already-created',
+);
+
+/** The outline's width × depth in whole millimetres, for the one line standing where the dimension fields would. */
+const outlineSize = computed(() => {
+	if (!props.outline) return null;
+	const xs = props.outline.points.map(point => point.x), ys = props.outline.points.map(point => point.y);
+	return { width: String(Math.round(Math.max(...xs) - Math.min(...xs))), depth: String(Math.round(Math.max(...ys) - Math.min(...ys))) };
+});
 
 /**
  * AL03's hint: whatever `findExisting` answers for the name AS TYPED, re-evaluated on every
@@ -416,7 +490,7 @@ async function onSubmit(): Promise<void> {
 			:id="catalogueFrozenReasonId"
 			class="rp-new-asset__created"
 		>
-			{{ tr('form.new-asset.already-created') }}
+			{{ tr(alreadyCreatedKey) }}
 		</p>
 		<FieldError
 			v-slot="{ inputId, aria }"
@@ -548,50 +622,58 @@ async function onSubmit(): Promise<void> {
 				>
 			</label>
 		</FieldError>
-		<FieldError
-			v-slot="{ inputId, aria }"
-			:message="form.fieldErrors.value.get('width') ?? null"
+		<p
+			v-if="outlineSize"
+			class="rp-new-asset__outline"
 		>
-			<label
-				class="rp-dialog-field"
-				:for="inputId"
+			{{ tr('form.new-asset.outline', outlineSize) }}
+		</p>
+		<template v-else>
+			<FieldError
+				v-slot="{ inputId, aria }"
+				:message="form.fieldErrors.value.get('width') ?? null"
 			>
-				{{ tr('form.new-asset.width') }}
-				<input
-					:id="inputId"
-					v-bind="aria"
-					type="number"
-					min="0"
-					step="any"
-					data-field="width"
-					:value="form.values.value.width"
-					:readonly="form.submitting.value"
-					@input="onFieldInput('width', $event)"
+				<label
+					class="rp-dialog-field"
+					:for="inputId"
 				>
-			</label>
-		</FieldError>
-		<FieldError
-			v-slot="{ inputId, aria }"
-			:message="form.fieldErrors.value.get('depth') ?? null"
-		>
-			<label
-				class="rp-dialog-field"
-				:for="inputId"
+					{{ tr('form.new-asset.width') }}
+					<input
+						:id="inputId"
+						v-bind="aria"
+						type="number"
+						min="0"
+						step="any"
+						data-field="width"
+						:value="form.values.value.width"
+						:readonly="form.submitting.value"
+						@input="onFieldInput('width', $event)"
+					>
+				</label>
+			</FieldError>
+			<FieldError
+				v-slot="{ inputId, aria }"
+				:message="form.fieldErrors.value.get('depth') ?? null"
 			>
-				{{ tr('form.new-asset.depth') }}
-				<input
-					:id="inputId"
-					v-bind="aria"
-					type="number"
-					min="0"
-					step="any"
-					data-field="depth"
-					:value="form.values.value.depth"
-					:readonly="form.submitting.value"
-					@input="onFieldInput('depth', $event)"
+				<label
+					class="rp-dialog-field"
+					:for="inputId"
 				>
-			</label>
-		</FieldError>
+					{{ tr('form.new-asset.depth') }}
+					<input
+						:id="inputId"
+						v-bind="aria"
+						type="number"
+						min="0"
+						step="any"
+						data-field="depth"
+						:value="form.values.value.depth"
+						:readonly="form.submitting.value"
+						@input="onFieldInput('depth', $event)"
+					>
+				</label>
+			</FieldError>
+		</template>
 		<FormSubmitRow :submitting="form.submitting.value" />
 	</form>
 </template>

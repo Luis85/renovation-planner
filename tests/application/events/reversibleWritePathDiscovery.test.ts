@@ -330,6 +330,15 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 	'src/presentation/designer/tools/set-anchor-tool.ts::SetAnchorTool': notAnAdapter(
 		'implements EditorTool, not UndoableCommand — no execute/undo pair',
 	),
+	// Pulled into scope by the WORD rather than by any undo behaviour: `editCorner`'s comment
+	// names `elementTask.ts`'s `undoPoint()`. It implements EditorTool, not UndoableCommand, and
+	// its `-1`/`null` branch only rewrites the in-memory draft through `setPoints` (via
+	// `pointsAfterUndo`) exactly as `pointerMove`'s rectangle-drag branch already does — it never
+	// dispatches a command.
+	'src/presentation/editor/elements/ElementTool.ts::ElementTool': notAnAdapter(
+		'implements EditorTool, not UndoableCommand — no execute/undo pair; editCorner only rewrites ' +
+			'the in-memory draft through setPoints, never dispatching a command',
+	),
 	'src/presentation/editor/tools/calibrate-tool.ts::CalibrateTool': notAnAdapter(
 		'implements EditorTool, not UndoableCommand — no execute/undo pair',
 	),

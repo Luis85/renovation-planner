@@ -2,6 +2,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { boundingBoxOf, centroid, coincident, distance, rotate } from '../../../core/geometry/operations';
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
+import { outlineKind } from '../../../domain/spatial/SpatialElement';
 import type { Wall } from '../../../domain/spatial/Structure';
 import type { GroupSnapshot } from '../groups/groupSnapshot';
 import { stairPlanGeometry } from '../../../domain/spatial/stairGeometry';
@@ -17,7 +18,7 @@ export interface RotationShape extends RotationControlShape {
 	readonly group?: GroupSnapshot;
 }
 export interface NamedRotationShape extends RotationShape { readonly name: string }
-function polygon(shape: RotationShape): boolean { return shape.kind === 'object' || shape.kind === 'room' || shape.kind === 'area'; }
+function polygon(shape: RotationShape): boolean { return outlineKind(shape.kind) || shape.kind === 'room' || shape.kind === 'area'; }
 function validRotationPoint(point: Point): boolean {
 	return Number.isFinite(point.x) && Number.isFinite(point.y) && Math.abs(point.x) <= 1e9 && Math.abs(point.y) <= 1e9;
 }

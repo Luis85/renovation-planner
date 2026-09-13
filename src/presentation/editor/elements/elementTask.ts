@@ -6,6 +6,7 @@ import type { RenovationBaseline, RenovationServices } from '../../../applicatio
 import type { Point } from '../../../core/geometry/Point';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import { spatialError } from '../../../domain/spatial/structureGeometry';
+import { postOutline } from '../../../domain/spatial/structuralElement';
 import { createEntityId } from '../../../core/identity/generateId';
 import { useSelectionStore } from '../selection/selection-store';
 import { useSaveStateStore } from '../save-state/save-state-store';
@@ -38,12 +39,22 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		draft.points = points.map(point => ({ ...point })); draft.error = null; return true;
 	}
 	function addPoint(point: Point): boolean {
-		if (blocked.value || draft.pendingInput || ((draft.kind === 'measurement' || draft.kind === 'stair') && draft.points.length === 2)) return false;
+		if (draft.kind === 'post') return placePost(point);
+		if (blocked.value || draft.pendingInput || ((draft.kind === 'measurement' || draft.kind === 'stair' || draft.kind === 'beam') && draft.points.length === 2)) return false;
 		const previous = draft.points[draft.points.length - 1];
 		if (previous && previous.x === point.x && previous.y === point.y) return false;
 		const added = setPoints([...draft.points, point]);
 		if (added) draft.text = { x: '', y: '' };
+		// A beam is exactly its two ends, so the second one saves it (structural posts and beams design §5).
+		if (added && draft.kind === 'beam' && draft.points.length === 2) void finish();
 		return added;
+	}
+	/** One click is one whole post: its section centred on the point, saved at once. */
+	function placePost(point: Point): boolean {
+		if (blocked.value || draft.pendingInput || !setPoints(postOutline(point, draft.post.width, draft.post.depth))) return false;
+		draft.text = { x: '', y: '' };
+		void finish();
+		return true;
 	}
 	function undoPoint(): void { if (!blocked.value && !draft.pendingInput && !draft.text.x && !draft.text.y) setPoints(draft.points.slice(0, -1)); }
 	/** Pending typed input belongs to the mode it was typed in, so it has to be applied or discarded before the mode changes. */
@@ -71,7 +82,11 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 			if (!result.ok) {
 				await recordDraftFailure(draft, result.error, () => runtime.refreshProjection()); return;
 			}
-			selection.select([element.id as ReturnType<typeof createEntityId>]); draft.busy = false; runtime.returnToSelect();
+			selection.select([element.id as ReturnType<typeof createEntityId>]);
+			// The post tool stays on for the next post along a wall, with the section last typed. `start` reads a
+			// fresh baseline; the dispatcher has already refreshed the projection it is compared against.
+			if (element.kind === 'post') { const post = { ...draft.post }; start('place-post'); draft.post = post; return; }
+			draft.busy = false; runtime.returnToSelect();
 		} catch (cause) { if (reads.current(ticket)) notifyFault(cause, context.commands.logger, 'editor.element.write-failed'); }
 		finally { if (reads.current(ticket)) draft.busy = false; }
 	}

@@ -71,6 +71,8 @@ const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKe
 	'place-asset': { nameKey: 'editor.add.asset.label', instructionKey: 'editor.asset.banner' },
 	'place-stair': { nameKey: 'editor.add.stair.label', instructionKey: 'editor.stair.banner', finish: true },
 	'draw-arrow': { nameKey: 'editor.add.arrow.label', instructionKey: 'editor.arrow.banner', finish: true },
+	'place-post': { nameKey: 'editor.add.post.label', instructionKey: 'editor.post.banner' },
+	'draw-beam': { nameKey: 'editor.add.beam.label', instructionKey: 'editor.beam.banner' },
 	'draw-path': { nameKey: 'editor.add.path.label', instructionKey: 'editor.element.banner.path', finish: true },
 	'draw-fence': { nameKey: 'editor.add.fence.label', instructionKey: 'editor.element.banner.fence', finish: true },
 	measure: { nameKey: 'editor.add.measurement.label', instructionKey: 'editor.element.banner.measurement', finish: true },

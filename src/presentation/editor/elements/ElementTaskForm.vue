@@ -5,6 +5,7 @@ import FieldError from '../../components/FieldError.vue';
 import ObjectRectangleFields from './ObjectRectangleFields.vue';
 import ObjectShapeSwitch from './ObjectShapeSwitch.vue';
 import StairDraftFields from './StairDraftFields.vue';
+import StructuralDraftFields from './StructuralDraftFields.vue';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
@@ -21,6 +22,8 @@ onBeforeUnmount(() => {
 const pointEntry = computed(() => draft.kind !== 'object' || draft.shape === 'free');
 /** The create-hint key ternary, out of the template and behind fallow's cognitive-complexity threshold. */
 const createHint = computed(() => tr(pointEntry.value ? 'editor.element.create-hint' : 'editor.element.banner.object-rectangle'));
+/** Out of the template for the same threshold, once posts and beams joined the draft kinds (structural posts and beams). */
+const structural = computed(() => draft.kind === 'post' || draft.kind === 'beam');
 const pointForm = ref<HTMLElement | null>(null), attemptedPoint = ref(false);
 const coordinates = computed(() => ({ x: parseCoordinateMetres(draft.text.x), y: parseCoordinateMetres(draft.text.y) }));
 const point = computed(() => {
@@ -31,7 +34,7 @@ const pointRepeated = computed(() => {
 	const last = draft.points.at(-1), next = point.value;
 	return !!last && !!next && last.x === next.x && last.y === next.y;
 });
-const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || ((draft.kind === 'measurement' || draft.kind === 'stair') && draft.points.length === 2));
+const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || ((draft.kind === 'measurement' || draft.kind === 'stair' || draft.kind === 'beam') && draft.points.length === 2));
 const pointReadonly = computed(() => task.blocked.value || draft.pendingInput);
 const undoBlocked = computed(() => pointReadonly.value || !!draft.text.x || !!draft.text.y || !draft.points.length);
 function coordinateMessage(axis: 'x' | 'y'): string | null {
@@ -82,14 +85,20 @@ async function add(): Promise<void> {
 				@input="input('name', $event)"
 			></label>
 		</FieldError>
-		<ObjectShapeSwitch v-if="draft.kind === 'object'" />
-		<ObjectRectangleFields
-			v-if="draft.kind === 'object'"
-			:task="task"
-			:open="draft.shape === 'rectangle'"
-		/>
+		<template v-if="draft.kind === 'object'">
+			<ObjectShapeSwitch />
+			<ObjectRectangleFields
+				:task="task"
+				:open="draft.shape === 'rectangle'"
+			/>
+		</template>
 		<StairDraftFields
 			v-if="draft.kind === 'stair'"
+			:task="task"
+		/>
+		<StructuralDraftFields
+			v-if="structural"
+			:key="draft.kind"
 			:task="task"
 		/>
 		<DraftRecovery

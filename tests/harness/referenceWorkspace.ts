@@ -12,6 +12,7 @@ import { makeAsset, makePlan, makeProject } from '../helpers/entities';
 import { expectDefined, expectOk } from '../helpers/domain';
 import { shapeFromDimensions } from '../../src/domain/asset/AssetShape';
 import { placementPoints } from '../../src/domain/spatial/assetPlacement';
+import { postOutline } from '../../src/domain/spatial/structuralElement';
 import { withPlanSpatialElements } from '../../src/domain/plan/Plan';
 import { ObsidianPlanGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { referencePlanServices } from '../../src/application/commands/plan/ConfigurePlanReference';
@@ -53,6 +54,19 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			expectOk(await geometry.write(plan.id, { ...baseline.document, structure: { walls: [], openings: [], boundaries: [], elements } }, baseline.version));
 			const loaded = expectDefined(expectOk(await stack.plans.getById(plan.id)), 'harness reference plan');
 			expectOk(await stack.plans.save(expectOk(withPlanSpatialElements(loaded.entity, elements.map((item, index) => ({ id: item.id, name: ['Radiator', 'Radiator', 'Old boiler'][index] })))), loaded.version));
+		}
+		if (new URLSearchParams(location.search).has('structural')) {
+			const baseline = expectOk(await geometry.read(plan.id));
+			const elements = [
+				...[1000, 2500, 4000].map((x, index) => ({ id: `element-harness-post-${index + 1}`, kind: 'post' as const, loadBearing: true, points: postOutline({ x, y: 3000 }, 140, 140) })),
+				{ id: 'element-harness-post-free', kind: 'post' as const, loadBearing: false, points: postOutline({ x: 2500, y: 1500 }, 140, 140) },
+				{ id: 'element-harness-beam', kind: 'beam' as const, loadBearing: true, width: 160, points: [{ x: 0, y: 1500 }, { x: 5000, y: 1500 }] },
+			];
+			const walls = [{ id: 'wall-harness-frame', start: { x: 0, y: 3000 }, end: { x: 5000, y: 3000 }, height: 2500, thickness: 160 }];
+			expectOk(await geometry.write(plan.id, { ...baseline.document, structure: { walls, openings: [], boundaries: [], elements } }, baseline.version));
+			const loaded = expectDefined(expectOk(await stack.plans.getById(plan.id)), 'harness structural plan');
+			const names = ['Post 1', 'Post 2', 'Post 3', 'Free post', 'Ceiling beam'];
+			expectOk(await stack.plans.save(expectOk(withPlanSpatialElements(loaded.entity, elements.map((item, index) => ({ id: item.id, name: names[index] })))), loaded.version));
 		}
 		stack.vault.entries.set('scan.png', 'PNG fixture'); stack.vault.entries.set('scan.pdf', 'PDF fixture');
 	})();

@@ -81,6 +81,21 @@ describe('the designer’s preset dialog', () => {
 		expect((await harness.document()).shape?.details.map((detail) => detail.name)).toEqual(['tank', 'bowl']);
 	});
 
+	it('opens one picker for two clicks landing before the first dialog closes', async () => {
+		const harness = await seeded();
+		await harness.seed(drawn());
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		const open = vi.spyOn(dialogs, 'openDialog');
+
+		const button = wrapper.find('.rp-designer-start-preset');
+		await button.trigger('click');
+		await button.trigger('click');
+		await flushPromises();
+
+		expect(open).toHaveBeenCalledTimes(1);
+		wrapper.unmount();
+	});
+
 	it('writes nothing when the dialog is cancelled', async () => {
 		const harness = await seeded();
 		await harness.seed(drawn());

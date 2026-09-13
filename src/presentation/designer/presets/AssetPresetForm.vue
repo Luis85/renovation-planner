@@ -19,12 +19,14 @@ defineProps<{ replaces: boolean }>();
 const emit = defineEmits<{ submit: [shape: AssetShape] }>();
 
 const groups = PRESET_GROUPS.map((group) => ({ group, presets: ASSET_PRESETS.filter((item) => item.group === group) }));
-// `[0]`, not `.at(0)`: `lib` is ES2021 and `Array.prototype.at` is ES2022.
-const preset = shallowRef<AssetPreset | undefined>(ASSET_PRESETS[0]);
+// `[0]`, not `.at(0)`: `lib` is ES2021 and `Array.prototype.at` is ES2022. The catalogue is never
+// empty — `presets.test.ts` pins all fourteen — so there is no "no preset" state to guard.
+const preset = shallowRef<AssetPreset>(ASSET_PRESETS[0]);
 
 /** `string | number` for the reason `KnownDistanceForm` gives: `v-model` on a number input yields either. */
-const typed = ref<Partial<Record<PresetFieldKey, string | number>>>(preset.value === undefined ? {} : { ...defaultValues(preset.value) });
+const typed = ref<Partial<Record<PresetFieldKey, string | number>>>({ ...defaultValues(preset.value) });
 
+/** A `change` naming no catalogue id keeps the current preset rather than blanking the form. */
 function choose(id: string): void {
 	const next = ASSET_PRESETS.find((item) => item.id === id);
 	if (next === undefined) return;
@@ -32,16 +34,16 @@ function choose(id: string): void {
 	typed.value = { ...defaultValues(next) };
 }
 
-const built = computed(() => {
-	const current = preset.value;
-	if (current === undefined) return null;
-	return current.build(Object.fromEntries(current.fields.map((field) => [field.key, Number(String(typed.value[field.key] ?? '').trim())])));
-});
-const preview = computed(() => (built.value?.ok === true ? presetPreview(built.value.value) : null));
-const refusal = computed(() => (built.value === null || built.value.ok ? null : trError(built.value.error)));
+// Every field is filled by `defaultValues` on each choice; an emptied input is `''`, which `Number`
+// reads as 0 and the range check refuses.
+const built = computed(() =>
+	preset.value.build(Object.fromEntries(preset.value.fields.map((field) => [field.key, Number(String(typed.value[field.key]).trim())]))),
+);
+const preview = computed(() => (built.value.ok ? presetPreview(built.value.value) : null));
+const refusal = computed(() => (built.value.ok ? null : trError(built.value.error)));
 
 function onSubmit(): void {
-	if (built.value?.ok === true) emit('submit', built.value.value);
+	if (built.value.ok) emit('submit', built.value.value);
 }
 </script>
 
@@ -60,7 +62,7 @@ function onSubmit(): void {
 			{{ tr('designer.preset.picker') }}
 			<select
 				name="preset"
-				:value="preset?.id"
+				:value="preset.id"
 				@change="choose(($event.target as HTMLSelectElement).value)"
 			>
 				<optgroup
@@ -78,24 +80,22 @@ function onSubmit(): void {
 				</optgroup>
 			</select>
 		</label>
-		<template v-if="preset !== undefined">
-			<label
-				v-for="field in preset.fields"
-				:key="`${preset.id}-${field.key}`"
-				class="rp-dialog-field"
+		<label
+			v-for="field in preset.fields"
+			:key="`${preset.id}-${field.key}`"
+			class="rp-dialog-field"
+		>
+			{{ tr(`designer.preset.field.${field.key}`) }}
+			<input
+				v-model="typed[field.key]"
+				type="number"
+				:name="field.key"
+				:min="field.min"
+				:max="field.max"
+				:step="field.kind === 'count' ? 1 : 'any'"
+				inputmode="decimal"
 			>
-				{{ tr(`designer.preset.field.${field.key}`) }}
-				<input
-					v-model="typed[field.key]"
-					type="number"
-					:name="field.key"
-					:min="field.min"
-					:max="field.max"
-					:step="field.kind === 'count' ? 1 : 'any'"
-					inputmode="decimal"
-				>
-			</label>
-		</template>
+		</label>
 		<svg
 			v-if="preview !== null"
 			class="rp-asset-preset-preview"
@@ -125,7 +125,7 @@ function onSubmit(): void {
 			<button
 				type="submit"
 				class="rp-dialog-button"
-				:aria-disabled="built === null || !built.ok"
+				:aria-disabled="!built.ok"
 			>
 				{{ tr('designer.preset.apply') }}
 			</button>

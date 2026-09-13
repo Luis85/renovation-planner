@@ -79,7 +79,9 @@ export function definePreset(
 		build(values) {
 			const refused = outOfRange(id, fields, values);
 			if (refused !== null) return err(refused);
-			const drawing = draw((key) => values[key] ?? Number.NaN);
+			// `outOfRange` has checked every declared key, so only a generator asking for an undeclared
+			// one reads `undefined` here — and `Number` makes that the NaN validation refuses.
+			const drawing = draw((key) => Number(values[key]));
 			if (isErr(drawing)) return drawing;
 			return validateAssetShape({
 				footprint: drawing.value.footprint,

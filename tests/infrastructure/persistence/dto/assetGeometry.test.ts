@@ -155,6 +155,10 @@ describe('the schema and the port document', () => {
 });
 
 describe('AssetGeometrySchema, which reads every version this build knows', () => {
+	it('refuses a document that is not an object at all, rather than raising it', () => {
+		expect(AssetGeometrySchema.safeParse(null).success).toBe(false);
+	});
+
 	it('raises a version 1 document to version 2 with no details', () => {
 		const parsed = AssetGeometrySchema.parse(valid);
 		expect(parsed.schemaVersion).toBe(2);

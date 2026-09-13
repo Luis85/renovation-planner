@@ -26,6 +26,10 @@ describe('preset geometry', () => {
 		expect(areaOf(stadium(1800, 1000))).toBeCloseTo(800 * 1000 + Math.PI * 500 ** 2, 6);
 	});
 
+	it('draws a stadium with equal sides as the circle it is', () => {
+		expect(stadium(500, 500)).toEqual(circle(500));
+	});
+
 	it('draws a toilet silhouette: a rectangle with a semicircular front', () => {
 		expect(size(roundFront(380, 700)).map((value) => Math.round(value))).toEqual([380, 700]);
 		expect(areaOf(roundFront(380, 700))).toBeCloseTo(380 * (700 - 190) + (Math.PI * 190 ** 2) / 2, 6);

@@ -66,6 +66,13 @@ describe('preset refusals that are not ranges', () => {
 		expect(sofa && expectErr(sofa.build({ width: 2000, depth: 900, seats: 2.5 })).code).toBe('asset.preset-value-out-of-range');
 	});
 
+	it('refuses a value that is missing, or not a finite number', () => {
+		const [preset] = ASSET_PRESETS;
+		const [field] = preset.fields;
+		expect(expectErr(preset.build({ ...defaultValues(preset), [field.key]: undefined })).code).toBe('asset.preset-value-out-of-range');
+		expect(expectErr(preset.build({ ...defaultValues(preset), [field.key]: Number.POSITIVE_INFINITY })).code).toBe('asset.preset-value-out-of-range');
+	});
+
 	it('refuses a tree whose trunk is half its canopy or more', () => {
 		const tree = ASSET_PRESETS.find((preset) => preset.id === 'tree');
 		expect(tree && expectErr(tree.build({ canopy: 1000, trunk: 500 })).code).toBe('asset.preset-incoherent');

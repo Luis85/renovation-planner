@@ -28,6 +28,26 @@ describe('AssetPresetForm', () => {
 		expect(wrapper.find('input[name="width"]').exists()).toBe(false);
 	});
 
+	it('steps a count by whole numbers and previews the chosen preset’s details', async () => {
+		const wrapper = mount(AssetPresetForm, { props: { replaces: false } });
+
+		await wrapper.find('select[name="preset"]').setValue('sofa');
+
+		expect(wrapper.find('input[name="seats"]').attributes('step')).toBe('1');
+		expect(wrapper.find('input[name="width"]').attributes('step')).toBe('any');
+		expect(wrapper.findAll('.rp-asset-preset-preview__detail').length).toBeGreaterThan(0);
+	});
+
+	it('keeps the current preset when a change names no catalogue id', async () => {
+		const wrapper = mount(AssetPresetForm, { props: { replaces: false } });
+		const select = wrapper.find('select[name="preset"]');
+
+		(select.element as HTMLSelectElement).value = 'no-such-preset';
+		await select.trigger('change');
+
+		expect((wrapper.find('input[name="width"]').element as HTMLInputElement).value).toBe('1600');
+	});
+
 	it('shows the refusal and submits nothing for a value out of range', async () => {
 		const wrapper = mount(AssetPresetForm, { props: { replaces: false } });
 

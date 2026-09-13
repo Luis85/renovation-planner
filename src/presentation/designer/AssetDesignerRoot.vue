@@ -225,7 +225,7 @@ async function startFromPreset(): Promise<void> {
 		kind: 'form',
 		title: tr('designer.preset.title'),
 		component: markRaw(AssetPresetForm),
-		props: { replaces: (design.value?.shape ?? null) !== null },
+		props: { replaces: Boolean(design.value?.shape) },
 	});
 	if (result === 'cancel' || !isShape(result.values)) return;
 	await runtime.applyShape(result.values);

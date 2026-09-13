@@ -42,6 +42,7 @@ import { installObsidianDom } from '../helpers/dom';
 import { lines, recorder, resetRecorder } from '../helpers/logger';
 import { expectOk } from '../helpers/domain';
 import { settle } from '../helpers/async';
+import { shapeFromDimensions } from '../../src/domain/asset/AssetShape';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { AssetDesignChanged } from '../../src/domain/asset/Asset.events';
 import type { PersistenceServices } from '../../src/plugin/composition-root';
@@ -169,6 +170,7 @@ describe('the asset designer the composition root hands out', () => {
 		const results = [
 			await design.setFootprint.execute({ assetId, points: [] }),
 			await design.setFootprintFromDimensions.execute({ assetId, width: 1200, depth: 800 }),
+			await design.setShape.execute({ assetId, shape: expectOk(shapeFromDimensions(1200, 800)) }),
 			await design.setClearance.execute({ assetId, points: null }),
 			await design.setAnchor.execute({ assetId, anchor: { x: 0, y: 0 } }),
 			await design.setFacing.execute({ assetId, facing: 0 }),
@@ -176,13 +178,14 @@ describe('the asset designer the composition root hands out', () => {
 			await design.get.execute(assetId),
 		];
 
-		expect(results.map((result) => result.ok)).toEqual([false, false, false, false, false, false, false]);
+		expect(results.map((result) => result.ok)).toEqual([false, false, false, false, false, false, false, false]);
 		expect(results.map((result) => (result.ok ? null : result.error.code))).toEqual(
-			Array.from({ length: 7 }, () => 'vault.unexpected-failure'),
+			Array.from({ length: 8 }, () => 'vault.unexpected-failure'),
 		);
 		expect(lines.map((line) => line.event)).toEqual([
 			'command.setAssetFootprint.failed',
 			'command.setAssetFootprintFromDimensions.failed',
+			'command.setAssetShape.failed',
 			'command.setAssetClearance.failed',
 			'command.setAssetAnchor.failed',
 			'command.setAssetFacing.failed',
@@ -217,6 +220,7 @@ describe('the asset designer the composition root hands out', () => {
 		const results = [
 			await design.setFootprint.executeWithVersion({ assetId, points: [] }),
 			await design.setFootprintFromDimensions.executeWithVersion({ assetId, width: 1200, depth: 800 }),
+			await design.setShape.executeWithVersion({ assetId, shape: expectOk(shapeFromDimensions(1200, 800)) }),
 			await design.setClearance.executeWithVersion({ assetId, points: null }),
 			await design.setAnchor.executeWithVersion({ assetId, anchor: { x: 0, y: 0 } }),
 			await design.setFacing.executeWithVersion({ assetId, facing: 0 }),
@@ -224,11 +228,12 @@ describe('the asset designer the composition root hands out', () => {
 		];
 
 		expect(results.map((result) => (result.ok ? null : result.error.code))).toEqual(
-			Array.from({ length: 6 }, () => 'vault.unexpected-failure'),
+			Array.from({ length: 7 }, () => 'vault.unexpected-failure'),
 		);
 		expect(lines.map((line) => line.event)).toEqual([
 			'command.setAssetFootprint.with-version.failed',
 			'command.setAssetFootprintFromDimensions.with-version.failed',
+			'command.setAssetShape.with-version.failed',
 			'command.setAssetClearance.with-version.failed',
 			'command.setAssetAnchor.with-version.failed',
 			'command.setAssetFacing.with-version.failed',

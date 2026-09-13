@@ -246,7 +246,7 @@ if (wantsIndex) {
 				item: parseItemKnob(params.get('item')),
 			}).view
 		: wantsAssetDesigner
-			? mountAssetDesignerHarness(document.body).view
+			? mountAssetDesignerHarness(document.body, params.get('preset')).view
 			: wantsAssetLibrary
 				? mountAssetLibraryHarness(document.body, params.get('asset'), params.get('assets') === '0').view
 				: mountHarness(document.body, {

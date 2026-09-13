@@ -20,8 +20,9 @@ export function provideNoteCreation(runtime: EditorRuntime, planning: ReturnType
  const available = computed(() => roomId.value !== null && !!planning.files && !!planning.context.commands.planning
   && runtime.renovation.available && !planning.blocked.value);
  function activate(): void {
-  if (!available.value) return;
-  const id = roomId.value ?? '', focusedId = session.roomId === id ? session.focusedId : '';
+  const id = roomId.value;
+  if (!available.value || id === null) return;
+  const focusedId = session.roomId === id ? session.focusedId : '';
   runtime.returnToSelect(); runtime.renovation.focus(id, 'notes', focusedId);
   void openEvidenceForm(planning);
  }

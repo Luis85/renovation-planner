@@ -1,8 +1,17 @@
 import { expect, it } from 'vitest';
-import { makeAsset } from '../../helpers/entities';
+import { makeAsset, makeProject, makeRequirement } from '../../helpers/entities';
 import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { constructionSteps } from '../../../src/application/commands/renovation/constructionEntries';
 import type { PlanningBaseline } from '../../../src/application/commands/renovation/materialPlanning';
+
+it('deletes a construction entry its subject no longer plans, and never a material entered by hand on the same wall', () => {
+	const render = makeAsset({ name: 'Render', unit: 'm2', category: 'material' }), projectId = makeProject().id;
+	const source = { planId: 'plan-a', targetId: 'wall-a', workId: '', outcomeId: 'detail-wall', state: 'intended' as const, rule: 'wall-net' as const, manual: '0', coverage: '1', lot: '', minimum: '' };
+	const byHand = makeRequirement({ projectId, assetId: render.id, origin: { kind: 'plan', planId: 'plan-a' as never }, source });
+	const entry = makeRequirement({ projectId, assetId: render.id, origin: { kind: 'plan', planId: 'plan-a' as never }, source: { ...source, construction: true } });
+	const baseline = { plan: { entity: { id: 'plan-a' } }, materials: [byHand, entry].map(entity => ({ entity })), catalogue: [{ asset: render }] } as unknown as PlanningBaseline;
+	expect(constructionSteps(baseline, EMPTY_RENOVATION)).toEqual([{ kind: 'delete', id: entry.id, assetId: render.id }]);
+});
 
 it('counts a door product priced per piece and gives a room-bound wall its room (ADR-0031)', () => {
 	const door = makeAsset({ name: 'Oak door', unit: 'piece', category: 'fixture' }), render = makeAsset({ name: 'Render', unit: 'm2', category: 'material' });

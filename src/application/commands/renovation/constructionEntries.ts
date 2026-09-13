@@ -32,7 +32,7 @@ function unknownAsset(subject: RenovationSubject | undefined, baseline: Planning
 
 /** The entry writes that make the saved construction entries match `proposed`'s subjects; deletions first. */
 export function constructionSteps(baseline: PlanningBaseline, proposed: Renovation): readonly ConstructionStep[] {
-	const entries = new Map(baseline.materials.filter(item => item.entity.source?.construction).map(item => [item.entity.source?.outcomeId ?? '', item.entity]));
+	const entries = new Map(baseline.materials.flatMap(({ entity }) => entity.source?.construction ? [[entity.source.outcomeId, entity] as const] : []));
 	const subjects = new Map(proposed.subjects.map(item => [item.id, item]));
 	const deletes = [...entries].filter(([subjectId]) => !wanted(subjects.get(subjectId), baseline) && !unknownAsset(subjects.get(subjectId), baseline)).map(([, entry]): ConstructionStep => ({ kind: 'delete', id: entry.id, assetId: entry.assetId }));
 	// A repointed entry's save runs after the renovation write; that is safe only because a subject's room cannot change through the form today.

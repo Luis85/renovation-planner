@@ -50,6 +50,23 @@ describe('ElementTool, an item in rectangle mode', () => {
 			expect(draft.points).toEqual(after);
 		}
 	});
+
+	it('clears the drag anchor on deactivate, so a later activation does not resume the old drag', () => {
+		const { tool, draft } = armed();
+		tool.pointerDown(pointerAt(800, 200)); tool.pointerMove(pointerAt(5000, 4000));
+		const after = draft.points.map(point => ({ ...point }));
+		tool.deactivate();
+		tool.activate(toolContext().context);
+		tool.pointerMove(pointerAt(9000, 9000));
+		expect(draft.points).toEqual(after);
+	});
+
+	it('keeps the shape mode through cancel — Escape clears the outline, not the choice of how to draw it', () => {
+		const { tool, draft } = armed('place-object', 'free');
+		tool.pointerDown(pointerAt(0, 0)); tool.pointerUp(pointerAt(0, 0));
+		tool.cancel();
+		expect(draft.shape).toBe('free'); expect(draft.points).toEqual([]);
+	});
 });
 
 describe('ElementTool, corner by corner', () => {

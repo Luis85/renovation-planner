@@ -14,6 +14,7 @@ async function setup() {
 	const rig = await structureEditor(true); mounted.push(rig);
 	rig.runtime.setTool('place-object');
 	await settleUntil(() => !rig.runtime.elementTask.draft.loading, 'item baseline');
+	expect(rig.runtime.elementTask.setShape('free')).toBe(true);
 	await rig.wrapper.get('.rp-object-rectangle summary').trigger('click');
 	return { ...rig, task: rig.runtime.elementTask };
 }
@@ -64,6 +65,25 @@ it('retains pending rectangle input through reflow and blocks pointer, Undo poin
 	await cancel.trigger('click'); await settle(); expect(document.activeElement).toBe(rig.wrapper.get('.rp-plan-canvas').element);
 	rig.runtime.setTool('place-object'); await settleUntil(() => !rig.task.draft.loading, 'new item task');
 	expect(rig.task.draft.rectangle).toEqual({ x: '0', y: '0', width: '', depth: '' }); expect(rig.task.draft.pendingInput).toBe(false);
+});
+it('refuses setShape as a no-op when the shape given is already in effect', async () => {
+	const rig = await setup();
+	expect(rig.task.draft.shape).toBe('free');
+	expect(rig.task.setShape('free')).toBe(false);
+	expect(rig.task.draft.shape).toBe('free');
+});
+it('clears a free-form outline with no area when switched to rectangle', async () => {
+	const rig = await setup();
+	expect(rig.task.setPoints([{ x: 0, y: 0 }, { x: 0, y: 1000 }])).toBe(true);
+	expect(rig.task.setShape('rectangle')).toBe(true);
+	expect(rig.task.draft.shape).toBe('rectangle'); expect(rig.task.draft.points).toEqual([]);
+});
+it('refuses setShape while typed X/Y input is pending, leaving the shape and points untouched', async () => {
+	const rig = await setup();
+	await rig.wrapper.get('input[name="element-x"]').setValue('1');
+	expect(rig.task.shapeLocked.value).toBe(true); expect(rig.task.draft.shape).toBe('free');
+	expect(rig.task.setShape('rectangle')).toBe(false);
+	expect(rig.task.draft.shape).toBe('free'); expect(rig.task.draft.points).toEqual([]);
 });
 it('keeps paused fields and pending outline coordinates from being overwritten by a rectangle action', async () => {
 	const rig = await setup(), save = useSaveStateStore(rig.pinia);

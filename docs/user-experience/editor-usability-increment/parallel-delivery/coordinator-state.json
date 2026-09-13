@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T14:29:26+02:00",
+  "updatedAt": "2026-09-13T14:39:47+02:00",
   "status": "in-progress",
   "integration": {
     "branch": "main",
     "remote": "origin/main",
-    "headSha": "39fe06a38d404bd8b50e428f70acfca261ac59ad",
+    "headSha": "bab369891807a05472e51a163438662b5bb65aea",
     "checkout": "D:\\Projects\\renovation-planner",
     "coordinatorBranch": "codex/usability-coordinator",
     "coordinatorWorktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-coordinator",
@@ -21,9 +21,10 @@
     "activeCodingTasks": 1,
     "heavyVerificationOwner": "I00"
   },
+  "mergePolicy": "User authorized end-to-end delivery on 2026-09-13; merge each packet only after coordinator review and final-head verification.",
   "packets": {
     "I00": {
-      "status": "running",
+      "status": "refreshing-after-upstream-merge",
       "taskId": "01a09abe-68e3-7041-adea-59b071334eb0",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -34,8 +35,8 @@
       "prerequisiteMergeShas": [
         "c78524b8d2e76dd2cb14e210499f4ea0a3b3be48"
       ],
-      "pr": null,
-      "headSha": null,
+      "pr": 174,
+      "headSha": "cc603d2bcb988679658d8fd934e2e41d7cac7e5a",
       "verificationOwner": "I00 worker",
       "blockers": []
     }
@@ -43,9 +44,22 @@
   "externalChanges": [
     {
       "pr": 172,
-      "status": "open",
-      "relationship": "Not a packet prerequisite; touches I00 read-only EditorSurface.vue and must not be copied or depended on before merge."
+      "status": "merged",
+      "mergeSha": "bab369891807a05472e51a163438662b5bb65aea",
+      "relationship": "Merged while I00 was running; touches its read-only EditorSurface.vue, so PR #174 is being refreshed and its recorded contracts revalidated before admission."
     }
   ],
-  "nextAdmissionGate": "Review I00, obtain explicit user approval before merging its implementation PR, confirm the merge on main, then dispatch I01, I02 and I04."
+  "postImplementation": {
+    "finalReview": {
+      "model": "gpt-6-astra",
+      "reasoning": "high",
+      "status": "queued-after-adopted-packets"
+    },
+    "improvementAndPolish": {
+      "model": "gpt-6-astra",
+      "reasoning": "high",
+      "status": "queued-after-final-review"
+    }
+  },
+  "nextAdmissionGate": "Refresh and review I00 against bab369891807a05472e51a163438662b5bb65aea, verify its final PR head, merge it, fast-forward/clean up, then dispatch I01, I02 and I04."
 }

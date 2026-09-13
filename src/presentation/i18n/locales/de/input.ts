@@ -19,7 +19,7 @@ export const inputDe: Record<keyof typeof inputEn, string> = {
 	'editor.clipboard.windows': 'Fenster: {count}',
 	'editor.clipboard.openings': 'Weitere Öffnungen: {count}',
 	'editor.clipboard.elements': 'Objekte: {count}',
-	'editor.clipboard.excluded': 'Arbeit, Materialien, Kosten und Nachweise bleiben beim Original.',
+	'editor.clipboard.excluded': 'Arbeit, Baustoffe, Kosten und Nachweise bleiben beim Original.',
 	'editor.clipboard.undo': 'Mit Rückgängig wird dieses Einfügen rückgängig gemacht.',
 	'editor.input.delete': 'Löschen',
 	'editor.input.measure-here': 'Von hier messen',

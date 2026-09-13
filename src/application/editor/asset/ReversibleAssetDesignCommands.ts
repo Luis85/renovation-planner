@@ -10,6 +10,7 @@ import {
 	type VersionedDispatchResult,
 } from '../../commands/DispatchOutcome';
 import type { AssetShapeInput } from '../../commands/asset/updateAssetShape';
+import type { SetAssetShapeInput } from '../../commands/asset/SetAssetShape';
 import type {
 	SetAssetFootprintFromDimensionsInput,
 	SetAssetFootprintInput,
@@ -68,6 +69,7 @@ export interface VersionedDesignCommand<TInput> {
 export interface AssetDesignCommandBundle {
 	readonly setFootprintFromDimensions: VersionedDesignCommand<SetAssetFootprintFromDimensionsInput>;
 	readonly setFootprint: VersionedDesignCommand<SetAssetFootprintInput>;
+	readonly setShape: VersionedDesignCommand<SetAssetShapeInput>;
 	readonly setClearance: VersionedDesignCommand<SetAssetClearanceInput>;
 	readonly setAnchor: VersionedDesignCommand<SetAssetAnchorInput>;
 	readonly setFacing: VersionedDesignCommand<SetAssetFacingInput>;
@@ -606,6 +608,10 @@ export class ReversibleAssetDesignCommands {
 
 	setFootprint(input: SetAssetFootprintInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setFootprint, input);
+	}
+
+	setShape(input: SetAssetShapeInput): ReversibleAssetDesignEdit {
+		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setShape, input);
 	}
 
 	setClearance(input: SetAssetClearanceInput): ReversibleAssetDesignEdit {

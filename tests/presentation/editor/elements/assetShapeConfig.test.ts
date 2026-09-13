@@ -10,6 +10,7 @@ const base = expectOk(shapeFromDimensions(800, 600));
 const shape = { ...base, clearance: { points: [{ x: -600, y: -500 }, { x: 600, y: -500 }, { x: 600, y: 500 }, { x: -600, y: 500 }] } };
 const element = { id: 'element-radiator', kind: 'asset' as const, assetId: 'asset-radiator', name: 'Radiator', points: placementPoints({ x: 1000, y: 1000 }, 0) };
 const state = { selected: false, hovered: false, tokens, zoom: 1 };
+const square = (half: number) => ({ points: [{ x: -half, y: -half }, { x: half, y: -half }, { x: half, y: half }, { x: -half, y: half }] });
 
 describe('assetShapeConfig', () => {
 	it('draws a closed footprint with a facing tick and no clearance at rest', () => {
@@ -32,5 +33,30 @@ describe('assetShapeConfig', () => {
 	it('draws the name tag above the footprint, moved by a dragged offset', () => {
 		expect(assetShapeConfig(element, () => shape, state).label).toMatchObject({ x: 1000, y: 682, text: 'Radiator' });
 		expect(assetShapeConfig({ ...element, labelOffset: { dx: -100, dy: 50 } }, () => shape, state).label).toMatchObject({ x: 900, y: 732 });
+	});
+
+	it('draws each detail: solid covers with the canvas colour, dashed is unfilled', () => {
+		const withDetails = { ...shape, details: [
+			{ id: 'd1', name: 'seat', outline: square(100), line: 'solid' as const, pending: false },
+			{ id: 'd2', name: 'overhead', outline: square(50), line: 'dashed' as const, pending: false },
+		] };
+		const config = assetShapeConfig(element, () => withDetails, state);
+		expect(config.details[0]).toMatchObject({ name: 'asset-detail', closed: true, stroke: 'ink', fill: 'bg', points: [900, 900, 1100, 900, 1100, 1100, 900, 1100] });
+		expect(config.details[1]).toMatchObject({ name: 'asset-detail', dash: [4, 3] });
+		expect(config.details[1]).not.toHaveProperty('fill');
+	});
+
+	it('draws no details for a placement whose shape cannot be read', () => {
+		expect(assetShapeConfig(element, () => null, state).details).toEqual([]);
+	});
+
+	it('details use zoneStroke regardless of selection, and do not listen', () => {
+		const tokensWithDifferentAccent = { ...tokens, accent: 'selected-accent' };
+		const withDetails = { ...shape, details: [
+			{ id: 'd1', name: 'seat', outline: square(100), line: 'solid' as const, pending: false },
+		] };
+		const selectedConfig = assetShapeConfig(element, () => withDetails, { ...state, selected: true, tokens: tokensWithDifferentAccent });
+		expect(selectedConfig.details[0]).toMatchObject({ stroke: 'ink', listening: false });
+		expect(selectedConfig.footprint.stroke).toBe('selected-accent');
 	});
 });

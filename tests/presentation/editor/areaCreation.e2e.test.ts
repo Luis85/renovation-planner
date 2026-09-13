@@ -24,7 +24,9 @@ async function start(harness: Harness): Promise<void> {
 }
 
 function outline(harness: Harness): void {
-	for (const [x, y] of [[100, 200], [500, 200], [500, 450], [100, 450]]) click(harness.canvasEl as HTMLElement, x, y);
+	// Screen y 210, not 200: world 1620 sits 120 mm from the fixture zone's y = 1500 vertices, outside
+	// the 80 mm alignment tolerance at this camera; 200 → 1520 is 20 mm inside it and would snap.
+	for (const [x, y] of [[100, 210], [500, 210], [500, 450], [100, 450]]) click(harness.canvasEl as HTMLElement, x, y);
 }
 
 function key(target: Element, value: string, extra: KeyboardEventInit = {}): void {
@@ -45,7 +47,7 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		expect(harness.wrapper.find('.rp-task-banner__finish').text()).toBe('Create area');
 		outline(harness);
 		await settle();
-		if (door === 'target') click(harness.canvasEl as HTMLElement, 100, 200);
+		if (door === 'target') click(harness.canvasEl as HTMLElement, 100, 210);
 		else if (door === 'Enter') key(harness.canvasEl as HTMLElement, 'Enter');
 		else {
 			const button = harness.wrapper.find('.rp-task-banner__finish');
@@ -58,7 +60,7 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		expect(created.zoneType).toBe('Custom');
 		expect(created.name).toBe('Area 2');
 		expect(created.geometry.points).toEqual([
-			{ x: 520, y: 1520 }, { x: 4520, y: 1520 }, { x: 4520, y: 4020 }, { x: 520, y: 4020 },
+			{ x: 520, y: 1620 }, { x: 4520, y: 1620 }, { x: 4520, y: 4020 }, { x: 520, y: 4020 },
 		]);
 		expect(useSelectionStore(harness.pinia).selectedIds).toEqual([created.id]);
 		expect(harness.wrapper.find('.rp-room-inspector').text()).toContain('Other');
@@ -89,7 +91,7 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		expect(runtime.keepAddingAreas.value).toBe(true);
 		await harness.wrapper.find('.rp-task-banner__repeat input').setValue(false);
 		outline(harness);
-		click(harness.canvasEl as HTMLElement, 100, 200);
+		click(harness.canvasEl as HTMLElement, 100, 210);
 		await settleUntil(() => runtime.activeToolId.value === 'select', 'second Area and Select');
 		expect((await list(zonesRepo)).map((entry) => entry.entity.name)).toEqual(['Kitchen', 'Area 2', 'Area 3']);
 		await start(harness);
@@ -107,7 +109,7 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		await start(harness);
 		await harness.wrapper.find('.rp-task-banner__finish').trigger('click');
 		key(harness.canvasEl as HTMLElement, 'Enter'); // too few points
-		for (const x of [100, 300, 500]) click(harness.canvasEl as HTMLElement, x, 200);
+		for (const x of [100, 300, 500]) click(harness.canvasEl as HTMLElement, x, 210);
 		key(harness.canvasEl as HTMLElement, 'Enter'); // collinear
 		await settle();
 		expect(runtime.canFinishArea.value).toBe(false);
@@ -140,7 +142,7 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		await settleUntil(() => saved.mock.calls.length === 1, 'pending write');
 		expect(runtime.canFinishArea.value).toBe(false);
 		key(harness.canvasEl as HTMLElement, 'Enter');
-		click(harness.canvasEl as HTMLElement, 100, 200);
+		click(harness.canvasEl as HTMLElement, 100, 210);
 		runtime.finishArea();
 		await harness.wrapper.find('.rp-task-banner__cancel').trigger('click');
 		runtime.setTool('draw-room');
@@ -258,7 +260,7 @@ describe('M02 Area through the real catalogue, tools, commands and repositories'
 		outline(harness);
 		expect(runtime.canFinishArea.value).toBe(false);
 		if (door === 'Enter') key(harness.canvasEl as HTMLElement, 'Enter');
-		else click(harness.canvasEl as HTMLElement, 100, 200);
+		else click(harness.canvasEl as HTMLElement, 100, 210);
 		await settle();
 		release();
 		await settleUntil(() => useSaveStateStore().state !== 'saving', 'the move landing');

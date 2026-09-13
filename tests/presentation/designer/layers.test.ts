@@ -33,6 +33,8 @@ import {
 } from '../../../src/presentation/designer/AssetDesignerContext';
 import { resolveThemeTokens } from '../../../src/presentation/editor/theme/themeTokens';
 import { fitViewport } from '../../../src/presentation/editor/viewport/Viewport';
+import { boundingBoxOf } from '../../../src/core/geometry/operations';
+import { ringSector } from '../../../src/domain/asset/presets/presetGeometry';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { footprintOutline } from '../../../src/presentation/designer/layers/footprintLayer';
 import { clearanceOutline } from '../../../src/presentation/designer/layers/clearanceLayer';
@@ -296,6 +298,25 @@ describe('what the designer’s fit shortcuts frame', () => {
 		const footprintOnly = { min: { x: -600, y: -400 }, max: { x: 600, y: 400 } };
 		const fitted = fitViewport(footprintOnly, { width: 800, height: 600 }, 48, before.zoom);
 		expect(store.viewport.zoom).not.toBeCloseTo(fitted?.zoom ?? 0, 9);
+		designer.unmount();
+	});
+
+	/**
+	 * A curved table's outer arc bows past its corner points. Framing the corners alone would crop
+	 * it; the box `boundingBoxOf` draws around the arcs is what `Shift+1` has to fit. The sector
+	 * is width-limited either way, so it is the CENTRING that tells the two boxes apart.
+	 */
+	it('frames an arc that bows past its corner points, not the corners alone', async () => {
+		const sector = ringSector(1500, 600, 90);
+		const designer = await mountDesigner(assetDesign({ shape: { ...BASE, footprint: sector } }));
+		const store = useEditorStore(designer.pinia);
+		const before = store.viewport;
+
+		pressOnCanvas(designer.canvasEl as HTMLElement, 'Digit1');
+
+		const pane = { width: 800, height: 600 };
+		expect(store.viewport).not.toEqual(fitViewport(expectOk(boundingBoxOf({ points: sector.points })), pane, 48, before.zoom));
+		expect(store.viewport).toEqual(fitViewport(expectOk(boundingBoxOf(sector)), pane, 48, before.zoom));
 		designer.unmount();
 	});
 

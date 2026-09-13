@@ -39,7 +39,9 @@ const hostLabel = computed(() => host.value
 	</p>
 	<dl class="rp-editor-inspector-fields rp-structure-opening-facts">
 		<dt>{{ tr('editor.structure.host') }}</dt>
-		<dd data-rp-opening-property="host">{{ hostLabel }}</dd>
+		<dd data-rp-opening-property="host">
+			{{ hostLabel }}
+		</dd>
 		<dt>{{ tr('renovation.target.room') }}</dt>
 		<dd data-rp-opening-property="room-context">
 			{{ rooms.length ? rooms.join(' / ') : tr('renovation.target.none') }}
@@ -49,7 +51,9 @@ const hostLabel = computed(() => host.value
 			:key="field"
 		>
 			<dt>{{ tr(`editor.structure.${field}`) }}</dt>
-			<dd :data-rp-opening-property="field">{{ formatMetres(opening[field]) }} m</dd>
+			<dd :data-rp-opening-property="field">
+				{{ formatMetres(opening[field]) }} m
+			</dd>
 		</template>
 		<StructureMaterialFacts
 			kind="product"

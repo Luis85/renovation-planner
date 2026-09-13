@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
 import { renovationEditor } from '../../../helpers/renovationEditor';
-import { settle } from '../../../helpers/editor';
+import { settle, settleUntil } from '../../../helpers/editor';
 import { expectOk } from '../../../helpers/domain';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
@@ -13,6 +13,7 @@ it('keeps a room-less wall selected while the Renovate work and layout routes us
 	const before = [...rig.stack.vault.entries];
 
 	await rig.runtime.renovation.perspective('renovate'); await settle();
+	await settleUntil(() => rig.selection.selectedIds[0] === 'wall-a' && rig.wrapper.find('.rp-renovation-inspector > h3').exists(), 'room-less wall Renovate Inspector');
 	expect(rig.wrapper.get('.rp-renovation-inspector > h3').text()).toBe('Wall');
 	const addWork = rig.wrapper.get('.rp-renovation-overview-actions [data-rp-action="add-work"]');
 	await addWork.trigger('click'); await settle();
@@ -34,6 +35,7 @@ it('keeps standalone Area rotation in Plan while Renovate offers the explicit la
 		geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
 	await rig.runtime.refreshProjection(); rig.selection.select([area.id]); await settle();
 	await rig.runtime.renovation.perspective('plan'); await settle();
+	await settleUntil(() => rig.selection.selectedIds[0] === area.id && rig.wrapper.find('.rp-room-more-actions').exists(), 'standalone Area Plan disclosure');
 	expect(rig.wrapper.find('.rp-room-more-actions').exists()).toBe(true);
 
 	await rig.runtime.renovation.perspective('renovate'); await settle();

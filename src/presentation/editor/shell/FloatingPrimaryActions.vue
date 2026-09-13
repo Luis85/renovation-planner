@@ -13,16 +13,24 @@
  */
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import HostIcon from '../../components/HostIcon.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 
 const runtime = useEditorRuntime();
 const session = useRenovationSession();
+const workspace = useWorkspaceStore();
 const canSwitch = computed(() => runtime.activeToolId.value === null || runtime.toolManager.canDeactivateActiveTool());
-// Add opens the layout menu. Renovate keeps the two navigation tools, while its eligible work
-// and context actions remain in the Renovation Details routes that already own their commands.
 const layoutAddAvailable = computed(() => session.perspective === 'plan');
+const renovationContextAvailable = computed(() => session.perspective === 'renovate' && (session.roomId !== '' || session.targetId !== ''));
+const workAvailable = computed(() => session.perspective === 'renovate' && runtime.renovation.canAddWork(session.roomId));
+async function addWork(): Promise<void> { await runtime.renovation.addWork(session.roomId); }
+function revealDetails(event: Event): void {
+	const root = (event.currentTarget as HTMLElement).closest<HTMLElement>('.renovation-plan-editor');
+	workspace.revealInspector();
+	void nextTick(() => root?.querySelector<HTMLElement>('[data-rp-region="inspector"]')?.focus());
+}
 const props = defineProps<{ addOpen: boolean }>();
 const emit = defineEmits<{ openAdd: [] }>();
 </script>
@@ -30,6 +38,7 @@ const emit = defineEmits<{ openAdd: [] }>();
 <template>
 	<div
 		class="rp-primary-actions"
+		:class="{ 'rp-primary-actions--renovate': session.perspective === 'renovate' }"
 		role="group"
 		:aria-label="tr('editor.primary-actions')"
 	>
@@ -64,6 +73,25 @@ const emit = defineEmits<{ openAdd: [] }>();
 			@click="canSwitch && emit('openAdd')"
 		>
 			<HostIcon name="plus" />{{ tr('editor.primary.add') }}
+		</button>
+		<button
+			v-if="workAvailable"
+			type="button"
+			class="rp-primary-actions__button rp-primary-actions__work"
+			data-rp-action="add-work"
+			:aria-disabled="runtime.renovation.blocked.value"
+			@click="addWork"
+		>
+			<HostIcon name="plus" />{{ tr('renovation.add.work') }}
+		</button>
+		<button
+			v-if="renovationContextAvailable"
+			type="button"
+			class="rp-primary-actions__button"
+			data-rp-action="renovation-more"
+			@click="revealDetails"
+		>
+			<HostIcon name="ellipsis" />{{ tr('editor.structure.more') }}
 		</button>
 	</div>
 </template>

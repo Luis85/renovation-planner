@@ -132,7 +132,7 @@ describe('TemporaryToolBanner', () => {
 		await settle();
 		const banner = harness.wrapper.get('.rp-task-banner');
 		expect((banner.element as HTMLElement).style.getPropertyValue('--rp-taskbar-clearance')).toBe('96px');
-		expect(banner.classes()).toEqual(['rp-task-banner']);
+		expect(banner.classes()).toEqual(tool === 'draw-room' ? ['rp-task-banner', 'rp-task-banner--invalid'] : ['rp-task-banner']);
 		const actions = banner.get('.rp-task-banner__actions');
 		expect(actions.findAll('button').at(-1)?.classes()).toContain('rp-task-banner__cancel');
 		expect(actions.find('.rp-task-banner__finish').exists()).toBe(tool !== 'calibrate');

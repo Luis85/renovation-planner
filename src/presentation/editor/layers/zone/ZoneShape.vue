@@ -34,9 +34,9 @@
  */
 import { computed } from 'vue';
 import type { ThemeTokens } from '../../theme/themeTokens';
-import { zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
+import { labelAnchor, zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
 import { formatArea } from '../../shell/formatArea';
-import { captionBottom, ROOM_CAPTION_TEXT, roomCaptionAnchor, type NumberedPin } from './captionPlacement';
+import { captionBottom, ROOM_CAPTION_TEXT, roomCaptionAnchor, ZONE_CAPTION, type NumberedPin } from './captionPlacement';
 import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
 import { polygonPolyline } from '../../../../core/geometry/curvePolyline';
 
@@ -75,30 +75,36 @@ const flatPoints = computed(() => {
 const fill = computed(() => props.tokens[zoneFillToken(props.model.zoneType)]);
 
 /**
- * Captions are sized in SCREEN pixels but positioned in world millimetres, so their font
- * size is divided back out of the zoom the layer applies. Konva has no "constant size"
- * flag for a descendant of a scaled container; this is the arithmetic that stands in for
- * one, and it is why the component needs the zoom even though the geometry does not.
+ * Captions are sized in SCREEN pixels but positioned in world millimetres, so each caption node
+ * is scaled by `1 / zoom`. Konva has no "constant size" flag for a descendant of a scaled
+ * container, and one parent cannot carry the scale for captions at different world positions.
+ * **That scale is NOT in these configs**: `ZoneLayer` writes it onto every `.zone-caption` node
+ * from one watch, because in a config it re-rendered every room and re-applied three Text
+ * configs per wheel-zoom notch — 37 ms of Vue work at 80 rooms against pan's flat 3.8 ms
+ * (`docs/tests/cases/Canvas performance.md`). vue-konva applies only the keys a config names,
+ * so it never overwrites the scale `ZoneLayer` set.
  *
  * **`offsetY` is in LOCAL units and must NOT be multiplied by the scale.** Konva applies
  * the offset inside the node's own scaled space, so a local offset of `n` displaces the
- * node by `n × captionScale` world millimetres — which is exactly `n` screen pixels. The
- * first version multiplied by `captionScale` as well, putting the caption
+ * node by `n / zoom` world millimetres — which is exactly `n` screen pixels. The
+ * first version multiplied by the scale as well, putting the caption
  * `n / zoom` × further out: at the default zoom of 0.1 that is ten times too far, and
  * every zone's name landed off the top of the pane. Invisible to jsdom, which draws
  * nothing; found in `npm run harness-shot`.
  *
  * Every line's size and offset is `ROOM_CAPTION_TEXT`'s, which a caption drag bounds too (ADR-0029).
  */
-const captionScale = computed(() => 1 / props.zoom);
+// The automatic anchor depends on the geometry alone, so a zoom must not re-derive it (a centroid
+// and a containment test per room); only the obstacle clearance below reads the zoom.
+const automaticAnchor = computed(() => labelAnchor(props.model.points, props.model.bulges));
 // A caption's position is two NUMBERS rather than one Point: an unchanged position then propagates
 // nothing, so vue-konva does not diff seven unchanged configs for every Room.
 const captionAnchor = computed(() => roomCaptionAnchor(props.model, props.zoom, props.pins, props.dimensionObstacles,
-	{ viewport: props.captionViewport, bottom: captionBottom(props.detailCaption !== null) }));
+	{ viewport: props.captionViewport, bottom: captionBottom(props.detailCaption !== null), anchor: automaticAnchor.value }));
 const captionX = computed(() => captionAnchor.value.x);
 const captionY = computed(() => captionAnchor.value.y);
-const captionLayout = computed(() => ({ x: captionX.value, y: captionY.value, width: ROOM_CAPTION_TEXT.width, offsetX: ROOM_CAPTION_TEXT.width / 2, align: 'center',
-	scaleX: captionScale.value, scaleY: captionScale.value, listening: false, wrap: 'none', ellipsis: true,
+const captionLayout = computed(() => ({ name: ZONE_CAPTION, x: captionX.value, y: captionY.value, width: ROOM_CAPTION_TEXT.width, offsetX: ROOM_CAPTION_TEXT.width / 2, align: 'center',
+	listening: false, wrap: 'none', ellipsis: true,
 	// `perfectDrawEnabled: false`: a locked zone's translucent group would otherwise send this
 	// fill-and-stroke text through the stage's buffer canvas, which throws while the stage is 0×0.
 	stroke: props.tokens.canvasBackground, strokeWidth: 2, fillAfterStrokeEnabled: true, perfectDrawEnabled: false }));
@@ -121,7 +127,7 @@ const nameConfig = computed(() => ({ ...captionLayout.value, ...ROOM_CAPTION_TEX
 const areaConfig = computed(() => ({ ...captionLayout.value, ...ROOM_CAPTION_TEXT.area,
 	text: formatArea(props.model.areaMm2), fill: props.tokens.zoneLabel }));
 // Hidden rather than unmounted when nothing details this zone, for the same child-list reason as the fill.
-const detailConfig = computed(() => ({ ...captionLayout.value, name: 'zone-detail-plans', ...ROOM_CAPTION_TEXT.detail,
+const detailConfig = computed(() => ({ ...captionLayout.value, name: `${ZONE_CAPTION} zone-detail-plans`, ...ROOM_CAPTION_TEXT.detail,
 	text: props.detailCaption ?? '', visible: props.detailCaption !== null, fill: props.tokens.zoneCaption }));
 </script>
 

@@ -7,7 +7,7 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV10 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV11 } from '../../persistence/dto/planGeometry';
 import { validateSpatialGroups } from '../../../domain/spatial/SpatialGroup';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
@@ -39,7 +39,13 @@ function lowestSchemaFor(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): 
 	return dto.structure?.elements?.length || dto.intended?.elements?.length ? 4 : dto.intended ? 3 : dto.structure ? 2 : 1;
 }
 
+/** A post or a beam anywhere needs schema 11; an older build must refuse it rather than drop it. */
+function hasStructuralElement(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): boolean {
+	return [dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.kind === 'post' || element.kind === 'beam') === true);
+}
+
 function writtenSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended' | 'groups'>): PlanGeometryDTO['schemaVersion'] {
+	if (hasStructuralElement(dto)) return 11;
 	if (hasMovedCaption(dto)) return 10;
 	if ([dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.kind === 'asset'))) return 9;
 	if ([dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.kind === 'stair' || element.kind === 'arrow'))) return 8;
@@ -290,7 +296,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV10.safeParse(migrated);
+		const validated = PlanGeometrySchemaV11.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

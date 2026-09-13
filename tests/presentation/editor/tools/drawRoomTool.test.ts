@@ -37,7 +37,9 @@ describe('DrawRoomTool', () => {
 		let settles = 0;
 		const original = draft.settle;
 		draft.settle = () => { settles += 1; original(); };
+		expect(tool.tracksPointer()).toBe(false);
 		tool.pointerDown(pointerAt(5000, 4000));
+		expect(tool.tracksPointer()).toBe(true);
 		tool.pointerMove(pointerAt(3000, 4500));
 		tool.pointerMove(pointerAt(800, 200));
 		expect(draft.rect).toEqual({ x: 800, y: 200, width: 4200, depth: 3800 });
@@ -45,6 +47,9 @@ describe('DrawRoomTool', () => {
 		expect(draft.rect).toEqual({ x: 800, y: 200, width: 4200, depth: 3800 });
 		expect(settles).toBe(1);
 		expect(tool.hasDraft()).toBe(true);
+		// A settled rectangle is still a draft, but nothing trails the pointer any more — so a
+		// pointer left resting at the pane's edge after the release scrolls nothing.
+		expect(tool.tracksPointer()).toBe(false);
 	});
 
 	/**

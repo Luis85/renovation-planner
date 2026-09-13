@@ -13,7 +13,7 @@ afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 async function setup() {
 	const rig = await renovationEditor(true);
 	mounted.push(rig);
-	rig.changePlan();
+	await rig.runtime.refreshProjection();
 	await settle();
 	return rig;
 }
@@ -31,16 +31,16 @@ async function dismiss(rig: Awaited<ReturnType<typeof setup>>) {
 
 it('names the current overlap target, retains the existing Alt cycle, and restores canvas focus on Escape', async () => {
 	const rig = await setup(), baseline = expectOk(await rig.services.read(rig.plan.id));
-	const structure = { ...rig.project.structure, openings: [{ id: 'i09-overlap-door', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2100, sill: 0 }] };
+	const structure = { ...rig.project.structure, openings: [{ id: 'opening-i09-overlap', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 900, height: 2100, sill: 0 }] };
 	expectOk(await rig.runtime.dispatcher.run(rig.services.command({ planId: rig.plan.id, baseline, structure, ledger: rig.runtime.structureTask.ledger })));
 	await settle();
 
 	await openAt(rig, { x: 1000, y: 0 });
-	expect(rig.selection.selectedIds).toEqual(['i09-overlap-door']);
+	expect(rig.selection.selectedIds).toEqual(['opening-i09-overlap']);
 	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe(`${tr('editor.input.current-target', { target: tr('editor.add.door.label') })} ${tr('editor.input.overlap-cycle-guidance')}`);
 	await dismiss(rig);
 	expect(document.activeElement).toBe(rig.canvasEl);
-	expect(rig.selection.selectedIds).toEqual(['i09-overlap-door']);
+	expect(rig.selection.selectedIds).toEqual(['opening-i09-overlap']);
 
 	await openAt(rig, { x: 1000, y: 0 }, true);
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);

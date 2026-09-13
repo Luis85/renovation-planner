@@ -17,6 +17,7 @@ import { WALL_LOOP } from '../../helpers/structure';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { withPlanRenovation } from '../../../src/domain/plan/Plan';
+import { postOutline } from '../../../src/domain/spatial/structuralElement';
 
 // jsdom defines no Obsidian CSS variable, so `resolveThemeTokens` would give `--text-normal`
 // (`zoneStroke`, the edge pass) and `--background-secondary` (`wallFill`, the body pass) the
@@ -101,4 +102,33 @@ it('draws the wall-pattern pass after every wall body, for a wall whose material
 	const bodies = architecture.find('.wall-body').map(node => lines.indexOf(node as Konva.Shape));
 	const patterns = architecture.find('.wall-pattern').map(node => lines.indexOf(node as Konva.Shape));
 	expect(Math.min(...patterns)).toBeGreaterThan(Math.max(...bodies));
+});
+
+/**
+ * Where an element draws relative to the wall paint passes is not covered above: reverting the
+ * element-block move (either back to the top of the layer, or forward to the very end, after the
+ * wall selection group / OpeningSymbols / the wall draft overlay) turns nothing here red. A
+ * load-bearing post centred on a wall's centre line is the case that shows it — its 140mm
+ * section sits entirely inside the wall's 150mm painted body, so it is only visible if it draws
+ * AFTER the wall-body (and wall-pattern) passes; and the wall being selected has to stay above
+ * the post, or a post standing at a wall's end would cover the endpoint handle a user needs to
+ * drag the wall by.
+ */
+it('draws a post after the wall paint passes and before the selected wall’s endpoint handles', async () => {
+	const rig = await structureEditor(); rigs.push(rig);
+	const read = expectOk(await rig.geometry.read(rig.plan.id));
+	const elements = [{ id: 'element-post-a', kind: 'post' as const, loadBearing: true, points: postOutline({ x: 2000, y: 0 }, 140, 140) }];
+	expectOk(await rig.geometry.write(rig.plan.id, { ...read.document, structure: { ...WALL_LOOP, elements } }, read.version));
+	await rig.runtime.refreshProjection(); await settle();
+	rig.selection.select(['wall-a' as never]); await settle();
+	const architecture = expectDefined(rig.stage.findOne<Konva.Layer>('.architecture'), 'architecture layer');
+	const shapes = architecture.find<Konva.Shape>('Shape');
+	const bodies = architecture.find('.wall-body').map(node => shapes.indexOf(node as Konva.Shape));
+	const patterns = architecture.find('.wall-pattern').map(node => shapes.indexOf(node as Konva.Shape));
+	const posts = architecture.find('.post-outline').map(node => shapes.indexOf(node as Konva.Shape));
+	const handles = shapes.filter(node => node.getClassName() === 'Circle').map(node => shapes.indexOf(node));
+	expect(posts.length).toBeGreaterThan(0);
+	expect(handles).toHaveLength(2);
+	expect(Math.min(...posts)).toBeGreaterThan(Math.max(...bodies, ...patterns));
+	expect(Math.max(...posts)).toBeLessThan(Math.min(...handles));
 });

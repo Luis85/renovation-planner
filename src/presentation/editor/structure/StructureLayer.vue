@@ -109,6 +109,24 @@ const elementDraft = computed(() => {
 			:key="'pattern-' + item.id"
 			:config="{ name: 'wall-pattern', points: item.points, closed: true, listening: false, fillPatternImage: item.tile, fillPatternRepeat: 'repeat', fillPatternScale: { x: 1 / zoom, y: 1 / zoom } }"
 		/>
+		<!-- Elements draw directly after the wall paint passes above (edge, body, pattern) and
+			before the wall selection dash, endpoint handles, OpeningSymbols and the wall draft below,
+			so a post standing in a wall (structural posts and beams design §5) is not painted over by
+			the wall body that follows it, while the wall handles, openings and the in-progress wall
+			draft still land on top of every element. -->
+		<ElementShapes
+			:elements="elements"
+			:editable="renovationSession.perspective === 'plan' && runtime.activeToolId.value === 'select'"
+			:selected-ids="selection.selectedIds"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
+		<ElementShapes
+			:elements="elementDraft"
+			:selected-ids="['element-preview']"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
 		<VGroup
 			v-for="wall in structure.walls"
 			:key="wall.id"
@@ -140,21 +158,6 @@ const elementDraft = computed(() => {
 			:viewport="draftViewport"
 			:cursor="runtime.activeToolId.value === 'draw-wall' ? task.draft.cursor : null"
 			:cuts="cuts"
-			:tokens="tokens"
-			:zoom="zoom"
-		/>
-		<!-- Elements draw AFTER every wall pass, so a post standing in a wall (structural posts
-			and beams design §5) is not painted over by the wall body that follows it. -->
-		<ElementShapes
-			:elements="elements"
-			:editable="renovationSession.perspective === 'plan' && runtime.activeToolId.value === 'select'"
-			:selected-ids="selection.selectedIds"
-			:tokens="tokens"
-			:zoom="zoom"
-		/>
-		<ElementShapes
-			:elements="elementDraft"
-			:selected-ids="['element-preview']"
 			:tokens="tokens"
 			:zoom="zoom"
 		/>

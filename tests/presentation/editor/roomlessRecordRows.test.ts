@@ -77,6 +77,15 @@ it('focuses, edits and follows a room-less Work row to its outcome and its mater
 	expect(rig.session).toMatchObject({ ...noRoom, mode: 'materials', focusedId: 'work-border' });
 });
 
+it('counts a room-less wall\'s linked evidence in its overview and follows the link with no room (spec §4.2)', async () => {
+	const rig = await setup(); await mode(rig, 'overview');
+	const notes = rig.wrapper.get('[data-rp-linked="notes"]');
+	expect(notes.text()).toContain('1');
+	await click(notes);
+	expect(rig.session).toMatchObject({ ...noRoom, mode: 'notes' });
+	expect(rig.selection.selectedIds).toEqual(['wall-a']);
+});
+
 it('lists a room-less note on its wall and focuses it from its title', async () => {
 	const rig = await setup(); await mode(rig, 'notes');
 	const title = row(rig, 'note-wall').get('.rp-record-title');

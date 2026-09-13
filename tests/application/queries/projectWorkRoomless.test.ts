@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { expect, it } from 'vitest';
 import { createRepositoryStack } from '../../helpers/vault';
 import { makePlan, makeProject } from '../../helpers/entities';

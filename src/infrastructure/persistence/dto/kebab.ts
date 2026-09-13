@@ -10,14 +10,18 @@ export function toKebab(value: string): string {
 	return value.replace(/_/g, '-').toLowerCase();
 }
 
+/** Casing and separators both normalize away: `in-progress`, `in_progress` and `InProgress` are one value spelled three ways. */
+const normalize = (value: string): string => value.replace(/[^a-z0-9]/gi, '').toUpperCase();
+
 export function kebabEnum<T extends string>(vocabulary: readonly T[]) {
 	return z
 		.string()
 		.transform((value, ctx): T => {
-			// Casing and separators both normalize away: `in-progress`, `in_progress` and
-			// `InProgress` are one value spelled three ways.
-			const normalized = value.replace(/[^a-z0-9]/gi, '').toUpperCase();
-			const parsed = vocabulary.find((candidate) => candidate.replace(/_/g, '').toUpperCase() === normalized);
+			// ONE rule for both sides. The vocabulary used to lose only `_`, so a member the DOMAIN spells with a
+			// hyphen (`building-element`) kept it, matched nothing, and every asset in that category was refused at
+			// its own pre-write read-back — `asset.pre-write-invalid`, found in a live vault.
+			const normalized = normalize(value);
+			const parsed = vocabulary.find((candidate) => normalize(candidate) === normalized);
 			if (parsed === undefined) {
 				ctx.addIssue({ code: 'custom', message: `"${value}" is not in the persisted vocabulary.` });
 				return z.NEVER;

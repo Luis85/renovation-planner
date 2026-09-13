@@ -35,6 +35,6 @@ it('I12 reports actual copied geometry, its target floor, exclusions and existin
 	expect(message).toContain(`Pasted into ${rig.project.plan?.name ?? 'Floor'}.`);
 	expect(message).toContain('Rooms: 1 · Walls: 4');
 	expect(message).toContain('Work, materials, costs and evidence stay with the original.');
-	expect(message).toContain('Use Undo to reverse this paste.');
+	expect(message).toContain('Use undo to reverse this paste.');
 	expect(rig.runtime.canUndo.value).toBe(true);
 });

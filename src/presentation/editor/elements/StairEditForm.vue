@@ -11,9 +11,7 @@ import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { useInvalidFieldFocus } from '../../composables/use-invalid-field-focus';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
-import GeometryNameField from '../forms/GeometryNameField.vue';
-import FormBanner from '../../components/FormBanner.vue';
-import DraftRecovery from '../forms/DraftRecovery.vue';
+import GeometryFormHead from '../forms/GeometryFormHead.vue';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { commitTextInput } from '../forms/commitTextInput';
 import StairFields from './StairFields.vue';
@@ -59,23 +57,16 @@ async function submit(): Promise<void> {
 		@submit.prevent="submit"
 		@keydown="nativeSubmitKey"
 	>
-		<DraftRecovery
-			v-if="blocked.value && !busy.value"
+		<GeometryFormHead
+			:blocked="blocked.value"
+			:busy="busy.value"
 			:retry="retry"
 			:open-source="openSource"
-		/>
-		<FormBanner :message="form.banner.value" />
-		<p
-			v-if="latest.value"
-			role="status"
-		>
-			{{ latest.value }}
-		</p>
-		<GeometryNameField
-			:value="form.values.value.name"
+			:banner="form.banner.value"
+			:latest="latest.value"
+			:name="form.values.value.name"
 			:readonly="paused"
-			:invalid="!form.values.value.name.trim()"
-			@input="nameInput"
+			@name-input="nameInput"
 		/>
 		<StairFields
 			:model-value="form.values.value"

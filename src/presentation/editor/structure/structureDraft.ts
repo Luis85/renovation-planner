@@ -154,19 +154,6 @@ export function mintStructure(structure: Structure): Structure {
 		openings: structure.openings.map(opening => opening.id === 'opening-draft' ? { ...opening, id: createEntityId('opening') } : opening) };
 }
 
-/** Endpoint snap first (a candidate POINT), then the previous point's axes; `axis` marks the second so a caller can let a wall-body join take precedence over it. */
-export function snapWallPoint(point: Point, points: readonly Point[], walls: readonly Wall[], tolerance: number): { point: Point; snapped: boolean; axis?: true } {
-	const candidates = [...points, ...walls.flatMap(wall => [wall.start, wall.end])];
-	const close = candidates.map(candidate => ({ point: candidate, distance: Math.hypot(candidate.x - point.x, candidate.y - point.y) })).filter(candidate => candidate.distance <= tolerance).reduce<{ point: Point; distance: number } | undefined>((best, hit) => !best || hit.distance < best.distance ? hit : best, undefined);
-	if (close) return { point: close.point, snapped: true };
-	const last = points[points.length - 1];
-	if (!last) return { point, snapped: false };
-	const x = Math.abs(last.x - point.x) <= tolerance ? last.x : point.x;
-	const y = Math.abs(last.y - point.y) <= tolerance ? last.y : point.y;
-	const snapped = x !== point.x || y !== point.y;
-	return snapped ? { point: { x, y }, snapped, axis: true } : { point, snapped };
-}
-
 export function pickHost(draft: StructureDraft, point: Point, walls: readonly Wall[], tolerance: number): void {
 	const hits = walls.map(wall => ({ wall, ...projectOntoWall(wall, point), length: wallLength(wall) })).filter(hit => hit.distance <= tolerance);
 	const hit = hits.reduce<(typeof hits)[number] | undefined>((best, candidate) => !best || candidate.distance < best.distance ? candidate : best, undefined);

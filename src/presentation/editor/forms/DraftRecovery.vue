@@ -7,7 +7,11 @@ const save = useSaveStateStore();
 const reading = ref(false);
 const root = ref<HTMLElement | null>(null);
 onBeforeUnmount(() => {
- if (root.value?.contains(document.activeElement)) root.value.closest('form')?.querySelector<HTMLElement>('input, select, textarea')?.focus();
+ // The host is a `<form>` for every point-entry host, but the item task form (2026-09-13 item modes
+ // spec §A) renders this outside its `<form>` in rectangle mode, wearing `data-rp-form` instead
+ // (`ElementTaskForm.vue`). `closest` returns the nearest ancestor, so a host still inside a `<form>`
+ // is unaffected by widening this.
+ if (root.value?.contains(document.activeElement)) root.value.closest('form, [data-rp-form]')?.querySelector<HTMLElement>('input, select, textarea')?.focus();
 });
 async function tryAgain(): Promise<void> {
  if (reading.value || save.unrecoveredWrite) return;

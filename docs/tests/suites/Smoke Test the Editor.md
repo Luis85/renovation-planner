@@ -13,10 +13,10 @@ The Phase 5 continuation adds [Draw connected walls and openings](../cases/Draw%
 Its traceability separates automated/FakeVault and browser evidence from still-unperformed live
 host/screenreader acceptance. It is a supplemental journey, outside the historical 344-step
 census below; that dated census is not a claim that the new journey was accepted in Obsidian.
-[[Copy and paste across floors]], [[Delete a selection or group]] and
-[[Alignment guides while dragging]] are outside that census too: their steps carry no
-`Reachable by` verdicts yet, so neither the triage column's "every step" nor its step counts
-include them.
+[[Copy and paste across floors]], [[Delete a selection or group]],
+[[Alignment guides while dragging]] and [[Draw posts and beams]] are outside that census too:
+their steps carry no `Reachable by` verdicts yet, so neither the triage column's "every step"
+nor its step counts include them.
 
 The cases that can only be run **by a human, inside Obsidian**. Everything here exists
 because `npm run check` cannot see it.
@@ -695,3 +695,9 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   dashed guide saying why. What only a vault shows is whether the guide is legible against a
   themed plan, whether 8 screen pixels is the right pull for a real hand, and whether a live Snap
   toggle silences it. Its steps carry no `Reachable by` verdicts yet (see the head of this file).
+- [[Draw posts and beams]] — the structural posts and beams increment: posts placed per click
+  along a wall, a dashed beam overhead, a Load-bearing switch and a deletion that names what
+  carries load. What only a vault shows is whether the symbols read on a themed plan, whether
+  the host renders the registered `rp-post` and `rp-beam` icons, and whether a post lands on a
+  wall's centre line under a real hand. Its steps carry no `Reachable by` verdicts yet (see the
+  head of this file).

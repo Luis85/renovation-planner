@@ -30,6 +30,8 @@ export type ToolId =
 	| 'pan'
 	| 'place-stair'
 	| 'draw-arrow'
+	| 'place-post'
+	| 'draw-beam'
 	| 'draw-polygon'
 	| 'draw-room'
 	| 'edit-room-dimension'

@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import FieldError from '../../components/FieldError.vue';
 import ObjectRectangleFields from './ObjectRectangleFields.vue';
 import StairDraftFields from './StairDraftFields.vue';
+import StructuralDraftFields from './StructuralDraftFields.vue';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
@@ -26,7 +27,7 @@ const pointRepeated = computed(() => {
 	const last = draft.points.at(-1), next = point.value;
 	return !!last && !!next && last.x === next.x && last.y === next.y;
 });
-const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || ((draft.kind === 'measurement' || draft.kind === 'stair') && draft.points.length === 2));
+const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || ((draft.kind === 'measurement' || draft.kind === 'stair' || draft.kind === 'beam') && draft.points.length === 2));
 const pointReadonly = computed(() => task.blocked.value || draft.pendingInput);
 const undoBlocked = computed(() => pointReadonly.value || !!draft.text.x || !!draft.text.y || !draft.points.length);
 function coordinateMessage(axis: 'x' | 'y'): string | null {
@@ -83,6 +84,11 @@ async function add(): Promise<void> {
 		/>
 		<StairDraftFields
 			v-if="draft.kind === 'stair'"
+			:task="task"
+		/>
+		<StructuralDraftFields
+			v-if="draft.kind === 'post' || draft.kind === 'beam'"
+			:key="draft.kind"
 			:task="task"
 		/>
 		<form

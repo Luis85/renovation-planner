@@ -169,16 +169,41 @@ it('refuses on its own in Review, before the menu ever hides the entry', async (
 	await rig.runtime.renovation.perspective('plan'); await settle();
 });
 
-it('warns and leaves the item when the asset is created but the item cannot be replaced', async () => {
+const quiet = () => undefined;
+/** The promotion's own warning, and the two doors the replacing write reports through for its other callers. */
+function spyNotices() {
+	return { warning: vi.spyOn(notices, 'notifyWarning').mockImplementation(quiet), refusal: vi.spyOn(notices, 'notifyOperationFailure').mockImplementation(quiet), fault: vi.spyOn(notices, 'notifyFault').mockImplementation(quiet) };
+}
+
+const FAILURE = { category: 'Persistence', code: 'test.failed', message: 'Unavailable' } as const;
+it.each([
+	['its write is refused', (rig: Rig) => vi.spyOn(rig.runtime.dispatcher, 'run').mockResolvedValueOnce(err(FAILURE))],
+	['its baseline cannot be read', (rig: Rig) => vi.spyOn(rig.renovation, 'read').mockResolvedValueOnce(err(FAILURE))],
+])('warns and leaves the item when the asset is created but the item cannot be replaced: %s', async (_case, inject) => {
 	const { rig, item } = await withItem();
-	const warning = vi.spyOn(notices, 'notifyWarning').mockImplementation(() => undefined);
+	const { warning, refusal, fault } = spyNotices();
 	await promoteFromMenu(rig);
-	const run = vi.spyOn(rig.runtime.dispatcher, 'run').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.failed', message: 'Unavailable' }));
+	const injected = inject(rig);
 	await submitDialog(rig);
 	await settleUntil(() => warning.mock.calls.length > 0, 'promotion warning'); await settle();
-	expect(run).toHaveBeenCalled();
+	expect(injected).toHaveBeenCalled();
 	expect(await assetNames(rig)).toContain('Cabinet');
 	expect(warning).toHaveBeenCalledTimes(1);
 	expect(warning).toHaveBeenCalledWith(tr('editor.asset.promote-unplaced'));
+	expect(refusal).not.toHaveBeenCalled(); expect(fault).not.toHaveBeenCalled();
 	expect(rig.project.structure.elements?.[0]).toMatchObject({ id: item.id, kind: 'object' });
+});
+
+it('warns once and only logs the fault when replacing the item throws', async () => {
+	const { rig, item } = await withItem();
+	const { warning, refusal, fault } = spyNotices();
+	const cause = new Error('Vault write failed'), log = vi.spyOn(rig.deps.commands.logger, 'error');
+	await promoteFromMenu(rig);
+	vi.spyOn(rig.runtime.dispatcher, 'run').mockRejectedValueOnce(cause);
+	await submitDialog(rig);
+	await settleUntil(() => warning.mock.calls.length > 0, 'promotion warning'); await settle();
+	expect(fault).not.toHaveBeenCalled(); expect(refusal).not.toHaveBeenCalled();
+	expect(warning).toHaveBeenCalledExactlyOnceWith(tr('editor.asset.promote-unplaced'));
+	expect(log).toHaveBeenCalledWith('editor.asset.write-failed', expect.objectContaining({ cause }));
+	expect(rig.project.structure.elements?.[0]).toMatchObject({ id: item.id, kind: 'object', points: CABINET });
 });

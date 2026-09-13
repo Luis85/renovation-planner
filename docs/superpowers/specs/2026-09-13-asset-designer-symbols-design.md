@@ -2,7 +2,8 @@
 
 **Status:** design approved in conversation 2026-09-13; planned. PR 1 (steps 1–2: curved outlines,
 detail linework and presets) is implemented on branch `claude/asset-editor-modeling-58c8d3`;
-steps 3a and 3b (selection and part editing, draw tools) are outstanding.
+steps 3a and 3b (selection and part editing, draw tools) ship together as PR 2 on
+`claude/asset-designer-part-editing` — see Amendment 1.
 **Builds on:** [`2026-08-30-asset-designer-first-increment-design.md`](./2026-08-30-asset-designer-first-increment-design.md)
 (its Decisions 1, 3 and 6 are load-bearing here), ADR-0014, ADR-0015,
 [`2026-09-10-plan-editor-asset-placement-design.md`](./2026-09-10-plan-editor-asset-placement-design.md).
@@ -331,6 +332,79 @@ Decisions 1–11, the rendering and presentation above, `en` and `de` strings fo
 | 3b | Edit points, Bend edges, Decision 11's draw tools, fit to details, `scaleDesign` in "Set dimensions" | PR 3 |
 
 Steps 1 and 2 ship together because step 1 alone gives a user nothing.
+
+## Amendments
+
+### Amendment 1 — 2026-09-13, while planning PR 2 (steps 3a and 3b)
+
+**Sequencing.** Steps 3a and 3b ship as ONE pull request, "PR 2 of 2", after PR 1 (#197, merged
+2026-09-13). The table
+above still describes the content of each step; only its last column changed. The plan is
+[`../plans/2026-09-13-asset-designer-symbols-pr2.md`](../plans/2026-09-13-asset-designer-symbols-pr2.md).
+
+**Plan items carry no curves, measured rather than assumed.** A later request asked that "Add to
+asset library" (the item modes spec, §B) keep an item's curved edges. Planning looked for them and
+found none on this branch or on `origin/main` at `a93eebe5`:
+
+- `SpatialElement` (`src/domain/spatial/SpatialElement.ts`) has no `bulges` field, and no commit on
+  any branch ever gave it one (`git log --all -S bulges -- src/domain/spatial/SpatialElement.ts`
+  prints nothing);
+- the plan sidecar's `bulges` (`SpatialObjectShapeV7` in `planGeometry.ts`,
+  `SpatialObjectGeometry.bulges`) belong to ZONE geometry, and walls carry their own `bulge`;
+- `CurveTool`'s task (`curveTask.ts`) resolves a target only for a Room zone or a wall.
+
+So promotion loses nothing today: an item outline IS its points, and `centredFootprint` →
+`SetAssetFootprint({ measured: true })` stores it exactly. **No code is written for it in PR 2.**
+
+**The door, decided now so the day items gain curves is not a fresh argument.** Tracing keeps
+Decision 7's rule — `SetAssetFootprint` clears the footprint's own bulges on a re-trace, because a
+re-traced outline has new edges. Promotion must NOT use that door for a curved item. When
+`SpatialElement` gains `bulges`, promotion writes through `SetAssetShape` with the translated
+outline and its bulges unchanged (a translation leaves a bulge unchanged, and promotion neither
+rotates nor mirrors: the placement is anchored at the centre facing +x, `placementPoints(centre, 0)`).
+The trigger is the commit that adds `bulges` to `SpatialElement`; its test is the one the request
+named — a promoted item with a bulged edge stores the same bulges, and its flattened outline in
+world space equals the item's.
+
+**Part edits, as built.** Decision 9's list gains five functions the Presentation section already
+needed and never named: `updateDetail` (name and line), `removeClearance`, `moveAnchor`,
+`setFacing` and `nextDetailId`. Every one answers a validated shape, so the anchor, the facing and a
+detail's name travel the same `SetAssetShape` door as everything else. That is what makes Decision
+10's "every gesture is one `SetAssetShape` dispatch" literally true — the narrow `SetAssetAnchor`
+and `SetAssetFacing` stay for their tools, as Decision 7 says.
+
+**Refusals added to `validateAssetShape`'s:** `asset.part-not-found` (an edit names a clearance the
+shape has not got, or an unknown detail id), `asset.vertex-out-of-range` (a vertex or edge index
+outside the outline), `asset.invalid-scale` (a scale factor that is not a finite positive number — a
+negative one would mirror, and mirroring is out of scope), `asset.detail-at-limit` (bring forward on
+the topmost detail, send backward on the bottom one), `asset.no-details` and
+`asset.details-await-scale` (fit to details with none, or with any still in background pixels —
+a typed footprint around pixel coordinates would launder them into millimetres).
+
+**A gesture is conditional on the design it was made against.** Every selection gesture passes
+`expected: design.geometryVersion` — the version the leaf's store read — so a peer write since the
+read refuses the gesture rather than being overwritten by a shape computed from the older design
+(PBI extension 4b). `ReversibleAssetEdit.runForward` already honours a caller's `expected` on the
+first execute.
+
+**Where the capture rule lives.** A detail drawn over an uncalibrated background is pending "by
+the rule tracing already follows" (Decision 11). That rule was a private function inside
+`updateAssetShape.ts`; a draw tool builds its shape in presentation before any command runs, so the
+rule moves to `src/domain/asset/captureAwaitsScale.ts` and both callers ask it.
+
+**Selection details decided while planning.**
+
+- Choosing a DIFFERENT part resets the mode to Transform; re-clicking the selected part keeps it.
+- Transform's box handles are the part's curve-aware bounding box; a side handle scales one axis, a
+  corner both, Shift keeps proportions; the rotate handle rotates about the box centre, Shift snaps
+  to the snap service's step. The anchor and the facing have no mode handles — selecting one and
+  dragging it moves it (the facing takes the pointer's bearing from the anchor).
+- Duplicate inserts the copy directly above the original, offset 100 mm along +x and +y, and
+  selects it. A drawn detail is selected once written, and every trace or draw returns to Select.
+- The inspector's detail rotation is a "rotate by" field that applies and resets to 0: a detail
+  stores no rotation to show.
+- "Set dimensions" uses `scaleDesign` when the shape has details or any curved footprint or
+  clearance edge; otherwise it keeps today's replace-with-rectangle.
 
 ## Docs this changes
 

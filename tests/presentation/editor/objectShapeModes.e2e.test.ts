@@ -58,6 +58,29 @@ it('carries the outline across both switches, from the task bar and from details
 	expect(rig.wrapper.get('.rp-element-task [data-rp-object-shape="free"]').attributes('aria-pressed')).toBe('false');
 });
 
+it('shows the drawn rectangle as its position and size until typed over, and again after Discard', async () => {
+	const rig = await setup(), summary = () => rig.wrapper.get('.rp-object-rectangle summary').text();
+	const shown = () => (['x', 'y', 'width', 'depth'] as const).map(field => rig.wrapper.get<HTMLInputElement>(`input[name="object-${field}"]`).element.value);
+	const action = (name: string) => rig.wrapper.get(`[data-rp-action="${name}-object-rectangle"]`).trigger('click').then(settle);
+	expect(summary()).toBe(tr('editor.object.rectangle-mode'));
+	expect(shown()).toEqual(['0', '0', '', '']);
+	await drag(rig, { x: 1000, y: 500 }, { x: 3000, y: 2000 });
+	expect(shown()).toEqual(['1', '0.5', '2', '1.5']);
+	await rig.wrapper.get('input[name="object-width"]').setValue('2.5');
+	expect(rig.task.draft.pendingInput).toBe(true); expect(shown()).toEqual(['1', '0.5', '2.5', '1.5']);
+	await action('discard');
+	expect(rig.task.draft.pendingInput).toBe(false); expect(shown()).toEqual(['1', '0.5', '2', '1.5']);
+	await action('apply');
+	expect(rig.task.draft.points).toEqual(RECTANGLE); expect(rig.wrapper.findAll('.rp-object-rectangle [aria-invalid="true"]')).toHaveLength(0);
+	await rig.wrapper.get('input[name="object-width"]').setValue('2.5'); await action('apply');
+	expect(rig.task.draft.points).toEqual([{ x: 1000, y: 500 }, { x: 3500, y: 500 }, { x: 3500, y: 2000 }, { x: 1000, y: 2000 }]);
+	expect(rig.task.draft.pendingInput).toBe(false); expect(shown()).toEqual(['1', '0.5', '2.5', '1.5']);
+	await rig.wrapper.get('.rp-task-banner [data-rp-object-shape="free"]').trigger('click');
+	expect(summary()).toBe(tr('editor.object.rectangle'));
+	rig.runtime.toolManager.pointerDown(pointerAt(2000, 2600)); await settle();
+	expect(shown()).toEqual(['1', '0.5', '2.5', '2.1']);
+});
+
 it('keeps its mode while typed rectangle input is pending, and a click leaves the drawn rectangle', async () => {
 	const rig = await setup();
 	await drag(rig, { x: 1000, y: 500 }, { x: 3000, y: 2000 });

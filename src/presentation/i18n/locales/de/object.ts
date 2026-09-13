@@ -28,6 +28,7 @@ export const objectDe: Record<keyof typeof objectEn, string> = {
 	'editor.element.banner.measurement': 'Zwei Punkte zum Messen wählen. Genaue Positionen unter Details eingeben.',
 	'editor.add.element.unavailable': '{name} ist in dieser Ansicht nicht verfügbar.',
 	'editor.object.rectangle': 'Rechteck verwenden',
+	'editor.object.rectangle-mode': 'Position und Größe',
 	'editor.object.mode': 'Form des Gegenstands',
 	'editor.object.mode.rectangle': 'Rechteck',
 	'editor.object.mode.free': 'Freie Form',

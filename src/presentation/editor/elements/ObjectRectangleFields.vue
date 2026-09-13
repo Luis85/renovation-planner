@@ -4,7 +4,7 @@ import type { Point } from '../../../core/geometry/Point';
 import FieldError from '../../components/FieldError.vue';
 import { tr } from '../../i18n/strings';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
-import { emptyObjectRectangle, objectRectangleProposal, type ObjectRectangleText, type RectangleField } from './objectRectangleInput';
+import { emptyObjectRectangle, objectRectangleProposal, rectangleTextFromPoints, type ObjectRectangleText, type RectangleField } from './objectRectangleInput';
 
 const props = defineProps<{ task: {
 	draft: { rectangle: ObjectRectangleText; text: { x: string; y: string }; points: readonly Point[]; pendingInput: boolean };
@@ -14,7 +14,11 @@ const props = defineProps<{ task: {
 const task = props.task, draft = task.draft, root = ref<HTMLElement | null>(null), hintId = useId();
 const fields = ['x', 'y', 'width', 'depth'] as const;
 const proposal = computed(() => objectRectangleProposal(draft.rectangle));
+/** Typed text while an entry is pending; otherwise the current outline's position and size, derived so every outline change shows. */
+const shown = computed(() => draft.pendingInput ? draft.rectangle : rectangleTextFromPoints(draft.points));
 const editable = computed(() => !task.blocked.value && !draft.text.x && !draft.text.y);
+/** `open` is the rectangle mode (`ElementTaskForm`), where Rectangle is already chosen and these fields are its position and size. */
+const summary = computed(() => tr(props.open ? 'editor.object.rectangle-mode' : 'editor.object.rectangle'));
 function message(field: RectangleField): string | null {
 	const error = proposal.value.errors[field];
 	if (!draft.pendingInput || error === null) return null;
@@ -24,12 +28,13 @@ function message(field: RectangleField): string | null {
 }
 function input(field: RectangleField, event: Event): void {
 	const control = event.target as HTMLInputElement;
-	if (!editable.value) { control.value = draft.rectangle[field]; return; }
-	draft.rectangle[field] = control.value; draft.pendingInput = true;
+	if (!editable.value) { control.value = shown.value[field]; return; }
+	// Seeded from what is shown, so editing one field keeps the other three (a copy of itself once pending).
+	draft.rectangle = { ...shown.value, [field]: control.value }; draft.pendingInput = true;
 }
 function apply(): void {
 	if (!editable.value) return;
-	draft.pendingInput = true;
+	draft.rectangle = { ...shown.value }; draft.pendingInput = true;
 	if (proposal.value.points && task.setPoints(proposal.value.points)) draft.pendingInput = false;
 	else void nextTick(() => root.value?.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus());
 }
@@ -51,7 +56,7 @@ function onKey(event: KeyboardEvent): void {
 		class="rp-object-rectangle"
 		:open="props.open"
 	>
-		<summary>{{ tr('editor.object.rectangle') }}</summary>
+		<summary>{{ summary }}</summary>
 		<p :id="hintId">
 			{{ tr('editor.object.rectangle-hint') }}
 		</p>
@@ -69,7 +74,7 @@ function onKey(event: KeyboardEvent): void {
 					:name="`object-${field}`"
 					type="text"
 					inputmode="decimal"
-					:value="draft.rectangle[field]"
+					:value="shown[field]"
 					:readonly="!editable"
 					:aria-describedby="[hintId, aria['aria-describedby']].filter(Boolean).join(' ')"
 					@input="input(field, $event)"

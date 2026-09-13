@@ -27,6 +27,7 @@ export const objectEn = {
 	'editor.element.banner.measurement': 'Choose two points to measure. Use details for precise positions.',
 	'editor.add.element.unavailable': '{name} editing is unavailable in this view.',
 	'editor.object.rectangle': 'Use a rectangle',
+	'editor.object.rectangle-mode': 'Position and size',
 	'editor.object.mode': 'Item shape',
 	'editor.object.mode.rectangle': 'Rectangle',
 	'editor.object.mode.free': 'Free-form',

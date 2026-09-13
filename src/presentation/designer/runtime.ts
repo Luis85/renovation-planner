@@ -3,6 +3,9 @@ import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { AssetId } from '../../domain/asset/AssetId';
+import type { AssetShape } from '../../domain/asset/AssetShape';
+import type { BoundingBox } from '../../core/geometry/BoundingBox';
+import { boundsOfZones } from '../editor/viewport/zoneExtent';
 import { useEditorStore } from '../stores/EditorStore';
 import { useSelectionStore } from '../editor/selection/selection-store';
 import { CommandHistory } from '../editor/tools/command-history';
@@ -75,6 +78,13 @@ export interface DesignerRuntime {
 	 */
 	readonly setFootprintFromDimensions: (width: number, depth: number) => Promise<void>;
 	/**
+	 * The preset dialog's gesture (asset designer symbols spec, Decision 7): one whole-shape write,
+	 * one history entry. Swallows its `Result` through `notifyIfRefused`/`reportDispatchFault` for
+	 * the reason `setFootprintFromDimensions` gives — a click-bound dispatch with no field to show a
+	 * refusal under.
+	 */
+	readonly applyShape: (shape: AssetShape) => Promise<void>;
+	/**
 	 * Task B8's height field, dispatched through `toolDispatcher` rather than through
 	 * `setBackground`'s pattern: `useFieldCommit` needs the raw `Result` to route a refusal
 	 * under the field it is about, so this RESOLVES rather than swallowing — the same reason
@@ -117,6 +127,19 @@ export interface DesignerRuntime {
 const DISPATCH_FAULT_EVENT = 'designer.dispatch.faulted';
 
 /**
+ * The box around the whole design — the footprint and, when there is one, the clearance, since a
+ * clearance reaches outside its outline and a fit that cropped it would hide the thing being
+ * fitted. Arcs count: `boundsOfZones` hands each `CurvedPolygon` to `boundingBoxOf`, which reads
+ * arc extrema (`layers.test.ts` holds that for a curved table's outer arc).
+ *
+ * ONE definition for its two callers, `DesignerCanvas.framedBounds` (`Shift+1`) and `applyShape`
+ * below, so the fit after a preset cannot drift from the shortcut's.
+ */
+export function designFrame(shape: AssetShape): BoundingBox | null {
+	return boundsOfZones([shape.footprint, ...(shape.clearance === null ? [] : [shape.clearance])]);
+}
+
+/**
  * The three dependencies `CalibrateTool` needs that no other designer tool does (Task B6),
  * built here rather than inline so `buildRuntime` stays under its 100-line function budget and
  * so the two dialogs this gesture may open sit together in the order it opens them.
@@ -140,7 +163,10 @@ function calibrationDeps(
 	return {
 		hasGeometryToRescale: () => {
 			const shape = store.design?.shape ?? null;
-			return shape !== null && (shape.footprintPending || shape.clearancePending || shape.anchorPending);
+			return (
+				shape !== null &&
+				(shape.footprintPending || shape.clearancePending || shape.anchorPending || shape.details.some((detail) => detail.pending))
+			);
 		},
 		confirmRecalibration: async () =>
 			(await dialogs.openDialog({
@@ -322,12 +348,17 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	}
 	async function setFootprintFromDimensions(width: number, depth: number): Promise<void> {
 		await notifyIfRefused(
-			reportDispatchFault(
-				context.logger,
-				DISPATCH_FAULT_EVENT,
-				dispatcher.run(edits.setFootprintFromDimensions({ assetId, width, depth })),
-			),
+			reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setFootprintFromDimensions({ assetId, width, depth }))),
 		);
+	}
+	async function applyShape(shape: AssetShape): Promise<void> {
+		const result = await reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setShape({ assetId, shape })));
+		await notifyIfRefused(Promise.resolve(result));
+		// A preset is centred on the origin at whatever size was typed, so it can land wholly outside
+		// the view it was applied from. A WRITTEN shape is framed as `Shift+1` frames it — the same
+		// `fitTo` the plan editor's `selectAndFrame` takes; an asset merely opened keeps its view.
+		const bounds = designFrame(shape);
+		if (result?.ok === true && bounds !== null) editor.fitTo(bounds, editor.stageSize);
 	}
 	function commitHeight(height: number | null): Promise<DispatchResult> {
 		return toolDispatcher.run(edits.setHeight({ assetId, height }));
@@ -359,6 +390,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		redo,
 		setBackground,
 		setFootprintFromDimensions,
+		applyShape,
 		commitHeight,
 		hydrate,
 		toolManager,

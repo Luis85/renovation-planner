@@ -1,21 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick } from 'vue';
-import { useProjectStore } from '../../stores/ProjectStore';
-import { useSelectionStore } from '../selection/selection-store';
-import { useEditorRuntime } from '../runtime';
-import { useRenovationSession } from '../renovation/renovationSession';
 import { tr } from '../../i18n/strings';
 import { formatMetres } from '../shell/formatLength';
 import StructureFacts from './StructureFacts.vue';
 import StructureRenovationEntry from './StructureRenovationEntry.vue';
 import StructurePlanActions from './StructurePlanActions.vue';
 import HostIcon from '../../components/HostIcon.vue';
-const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime(), session = useRenovationSession();
-const id = computed(() => String(selection.selectedIds[0]));
-const wall = computed(() => project.structure.walls.find(candidate => candidate.id === id.value));
-const opening = computed(() => project.structure.openings.find(candidate => candidate.id === id.value));
+import { useStructureInspectorTarget } from './useStructureInspectorTarget';
+const { project, runtime, session, id, wall, opening, paused } = useStructureInspectorTarget();
 const openingHost = computed(() => opening.value ? project.structure.walls.find(candidate => candidate.id === opening.value?.hostId) : undefined);
-const paused = computed(() => runtime.writesBlocked.value || runtime.structureActions.active.value);
 const rooms = computed(() => project.structure.boundaries.filter(boundary => boundary.wallIds.includes(id.value)).map(boundary => project.zones.get(boundary.roomId)?.name ?? boundary.roomId));
 const openingRooms = computed(() => {
 	const hostId = openingHost.value?.id;

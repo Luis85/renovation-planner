@@ -1,22 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick } from 'vue';
-import { useProjectStore } from '../../stores/ProjectStore';
-import { useSelectionStore } from '../selection/selection-store';
-import { useEditorRuntime } from '../runtime';
-import { useRenovationSession } from '../renovation/renovationSession';
+import { nextTick } from 'vue';
 import { tr } from '../../i18n/strings';
 import { useOpeningMoveAction } from './useOpeningMoveAction';
 import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
 import CurveAction from '../curves/CurveAction.vue';
 import StructureRenovationEntry from './StructureRenovationEntry.vue';
 import HostIcon from '../../components/HostIcon.vue';
+import { useStructureInspectorTarget } from './useStructureInspectorTarget';
 
-const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime(), session = useRenovationSession();
 const moveOpening = useOpeningMoveAction();
-const id = computed(() => String(selection.selectedIds[0]));
-const wall = computed(() => project.structure.walls.find(candidate => candidate.id === id.value));
-const opening = computed(() => project.structure.openings.find(candidate => candidate.id === id.value));
-const paused = computed(() => runtime.writesBlocked.value || runtime.structureActions.active.value);
+const { runtime, session, id, wall, opening, paused } = useStructureInspectorTarget();
 
 async function edit(event: Event): Promise<void> {
 	const opener = event.currentTarget as HTMLElement;

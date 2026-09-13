@@ -13,7 +13,7 @@ const GAP = 500;
 const COLUMNS = 10;
 const ORIGIN_X = 12_000;
 
-export function syntheticRooms(count: number, planId: string): ZoneDto[] {
+function syntheticRooms(count: number, planId: string): ZoneDto[] {
 	return Array.from({ length: count }, (_, index) => {
 		const x = ORIGIN_X + (index % COLUMNS) * (WIDTH + GAP);
 		const y = Math.floor(index / COLUMNS) * (DEPTH + GAP);

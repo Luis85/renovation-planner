@@ -14,12 +14,6 @@ const project = useProjectStore();
 			<dt>{{ tr('editor.structure.thickness') }}</dt><dd>{{ formatMetres(wall.thickness) }} m</dd>
 			<dt>{{ tr('editor.structure.height') }}</dt><dd>{{ formatMetres(wall.height) }} m</dd>
 			<dt>{{ tr('editor.structure.rooms') }}</dt><dd>{{ rooms.length ? rooms.join(', ') : tr('editor.structure.no-rooms') }}</dd>
-			<template v-if="materials">
-				<dt>{{ tr(wall ? 'renovation.material' : 'renovation.product') }}</dt><dd>{{ materials.existing ?? tr('renovation.material.none') }}</dd>
-				<template v-if="materials.planned">
-					<dt>{{ tr('editor.structure.planned-material') }}</dt><dd>{{ materials.planned }}</dd>
-				</template>
-			</template>
 		</template>
 		<template v-else-if="opening">
 			<dt>{{ tr('editor.structure.host') }}</dt><dd>{{ tr('editor.structure.wall-number', { n: String(project.structure.walls.findIndex(wall => wall.id === opening!.hostId) + 1) }) }}</dd>
@@ -29,11 +23,11 @@ const project = useProjectStore();
 			>
 				<dt>{{ tr(`editor.structure.${field}`) }}</dt><dd>{{ formatMetres(opening[field]) }} m</dd>
 			</template>
-			<template v-if="materials">
-				<dt>{{ tr(wall ? 'renovation.material' : 'renovation.product') }}</dt><dd>{{ materials.existing ?? tr('renovation.material.none') }}</dd>
-				<template v-if="materials.planned">
-					<dt>{{ tr('editor.structure.planned-material') }}</dt><dd>{{ materials.planned }}</dd>
-				</template>
+		</template>
+		<template v-if="materials">
+			<dt>{{ tr(wall ? 'renovation.material' : 'renovation.product') }}</dt><dd>{{ materials.existing ?? tr('renovation.material.none') }}</dd>
+			<template v-if="materials.planned">
+				<dt>{{ tr('editor.structure.planned-material') }}</dt><dd>{{ materials.planned }}</dd>
 			</template>
 		</template>
 	</dl>

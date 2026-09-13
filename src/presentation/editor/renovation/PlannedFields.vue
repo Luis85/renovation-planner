@@ -9,6 +9,7 @@ import type { EditableRenovationDraft } from './renovationDraft';
 import type { PlannedGeometryDraft } from './plannedGeometry';
 import PlannedGeometryFields from './PlannedGeometryFields.vue';
 import { applyMaterial, materialChoices, takesMaterial, type MaterialChoice } from './materialChoices';
+import MaterialSelect from './MaterialSelect.vue';
 const draft = defineModel<EditableRenovationDraft>('draft', { required: true });
 const geometry = defineModel<PlannedGeometryDraft>('geometry', { required: true });
 const props = defineProps<{ structure: Structure; frozen: boolean; catalogue: readonly MaterialChoice[] }>();
@@ -48,21 +49,13 @@ const unmeasured = computed(() => {
 			name="description"
 			:readonly="frozen"
 		/></label>
-		<label v-if="(planned.change === 'modify' || planned.change === 'add') && takesMaterial(draft.subject, structure)">{{ tr(draft.subject.kind === 'wall' ? 'renovation.material' : 'renovation.product') }}
-			<select
-				v-model="material"
-				name="material"
-				:aria-disabled="frozen"
-				@change.capture="restoreInoperativeChoice($event, material)"
-			>
-				<option value="">{{ tr('renovation.material.none') }}</option>
-				<option
-					v-for="item in choices"
-					:key="item.id"
-					:value="item.id"
-				>{{ item.name }}</option>
-			</select>
-		</label>
+		<MaterialSelect
+			v-if="(planned.change === 'modify' || planned.change === 'add') && takesMaterial(draft.subject, structure)"
+			v-model="material"
+			:kind="draft.subject.kind"
+			:choices="choices"
+			:frozen="frozen"
+		/>
 		<p v-if="unmeasured">
 			{{ tr('renovation.material.no-quantity', { unit: unmeasured }) }}
 		</p>

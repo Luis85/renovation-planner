@@ -7,7 +7,7 @@ import InlineRoomDimension from './InlineRoomDimension.vue';
 import RoomDimensionButton from './RoomDimensionButton.vue';
 
 type Style = Readonly<Record<string, string>>;
-const props = defineProps<{
+defineProps<{
 	box: BoundingBox;
 	draft: RoomDimensionDraft | null;
 	inlinePreview: (DimensionsText & { area: string }) | null;
@@ -50,7 +50,9 @@ const axes = ['width', 'depth'] as const;
 			data-rp-dimension-feedback
 		>
 			<p>{{ tr('editor.resize.current', dimensionTexts(draft.box)) }}</p>
-			<p role="status">{{ tr('editor.resize.preview', inlinePreview) }}</p>
+			<p role="status">
+				{{ tr('editor.resize.preview', inlinePreview) }}
+			</p>
 			<p>{{ tr('editor.resize.anchor') }}</p>
 		</div>
 		<RoomDimensionButton

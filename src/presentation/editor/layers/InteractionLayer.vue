@@ -59,7 +59,7 @@ const runtime = useEditorRuntime();
 const candidates = computed(() => {
 	const preview = runtime.curveTask.preview.value ?? runtime.groupActions?.preview.value, objects = new Map(preview?.objects.map(object => [object.id, object]));
 	return new Map<string, SpatialObjectCandidate>([...[...zones.value].map(([id, zone]) => [id, { ...zone, ...objects.get(id) }] as const),
-		...structureCandidates(preview?.structure ?? projectStore.structure, assetShapes.shapeOf).map(item => [item.id, item] as const)]);
+		...structureCandidates(preview?.structure ?? projectStore.structure, assetShapes.shapeOf, { zoom: editorStore.viewport.zoom, names: new Map(projectStore.plan?.spatialElements?.map(item => [item.id, item.name])) }).map(item => [item.id, item] as const)]);
 });
 const { selectedIds, focusedId } = storeToRefs(useSelectionStore());
 

@@ -24,6 +24,7 @@ import type { PlanEditorContext } from '../PlanEditorContext';
 import { canvasCandidates } from '../selection/canvasCandidates';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { useAssetShapeStore } from '../../stores/AssetShapeStore';
+import { useEditorStore } from '../../stores/EditorStore';
 import type { Point } from '../../../core/geometry/Point';
 import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
@@ -78,6 +79,7 @@ export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps, Se
 export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
 	const workspace = useWorkspaceStore();
 	const assetShapes = useAssetShapeStore();
+	const editor = useEditorStore();
 	toolManager.register(new PanTool());
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
 	toolManager.register(
@@ -89,7 +91,8 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			labelHits: deps.labelHits, moveLabel: deps.moveLabel,
 			previewWall: deps.previewWall,
 			editWall: deps.editWall,
-			spatialObjects: () => canvasCandidates(projectStore.zones.values(), projectStore.structure, workspace.layerVisibility, assetShapes.shapeOf),
+			spatialObjects: () => canvasCandidates(projectStore.zones.values(), projectStore.structure, workspace.layerVisibility, assetShapes.shapeOf,
+				{ zoom: editor.viewport.zoom, names: new Map(projectStore.plan?.spatialElements?.map(item => [item.id, item.name])) }),
 			// Body drags AND vertex drags produce the same command: a vertex drag is a
 			// whole-geometry replacement in which one point differs, so there is one adapter
 			// and only forward/inverse change.

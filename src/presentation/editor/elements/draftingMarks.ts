@@ -1,5 +1,5 @@
 import type { Point } from '../../../core/geometry/Point';
-import type { NamedSpatialElement, SpatialElementKind } from '../../../domain/spatial/SpatialElement';
+import type { NamedSpatialElement, SpatialElement, SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import { dimensionChain } from '../../../domain/spatial/dimensionChain';
 import { formatMetres } from '../shell/formatLength';
 import { measureLabelWidth } from '../labels/labelLayout';
@@ -99,4 +99,34 @@ const MARKS: Readonly<Partial<Record<SpatialElementKind, (element: NamedSpatialE
 /** Every line, text and circle a drafting mark draws; nothing for any other kind. */
 export function draftingMarks(element: NamedSpatialElement, zoom: number): DraftMarks {
 	return MARKS[element.kind]?.(element, zoom) ?? NONE;
+}
+
+/** What a screen-constant mark, or a chain's band, needs to be hit: the zoom it is drawn at and, for a text, its words. */
+export interface DraftingHitContext { readonly zoom: number; readonly names: ReadonlyMap<string, string> }
+const LINE_HIT_PX = 6;
+
+function box(centre: Point, halfWidth: number, halfHeight: number): Point[] {
+	return [{ x: centre.x - halfWidth, y: centre.y - halfHeight }, { x: centre.x + halfWidth, y: centre.y - halfHeight },
+		{ x: centre.x + halfWidth, y: centre.y + halfHeight }, { x: centre.x - halfWidth, y: centre.y + halfHeight }];
+}
+/** The band between a chain's points and its line, padded so a chain whose line lies on its own points is still hit. */
+function dimensionBand(element: SpatialElement, zoom: number): Point[] | undefined {
+	const chain = dimensionChain(element.points, element.offset ?? 0), origin = element.points[0];
+	if (!chain || !origin) return undefined;
+	const { direction, normal } = chain, pad = LINE_HIT_PX / zoom, offset = element.offset ?? 0;
+	const along = element.points.map(point => (point.x - origin.x) * direction.x + (point.y - origin.y) * direction.y);
+	const across = element.points.map(point => (point.x - origin.x) * normal.x + (point.y - origin.y) * normal.y);
+	const start = Math.min(...along) - pad, end = Math.max(...along) + pad, low = Math.min(offset, ...across) - pad, high = Math.max(offset, ...across) + pad;
+	const at = (a: number, b: number): Point => ({ x: origin.x + direction.x * a + normal.x * b, y: origin.y + direction.y * a + normal.y * b });
+	return [at(start, low), at(end, low), at(end, high), at(start, high)];
+}
+/** The world polygon a drafting mark is hit by at `context.zoom`; undefined where its stored points already answer (a line, an outline). */
+export function draftingHitPoints(element: SpatialElement, context: DraftingHitContext): readonly Point[] | undefined {
+	const point = element.points[0], zoom = context.zoom;
+	if (element.kind === 'dimension') return dimensionBand(element, zoom);
+	if (!point) return undefined;
+	if (element.kind === 'grid') return box(point, GRID_RADIUS_PX / zoom, GRID_RADIUS_PX / zoom);
+	if (element.kind === 'view') return box(point, MARKER_PX / zoom, MARKER_PX / zoom);
+	if (element.kind !== 'text') return undefined;
+	return box(point, measureLabelWidth(context.names.get(element.id) ?? '', DRAFTING_TEXT_PX) / zoom / 2, DRAFTING_TEXT_PX / zoom / 2);
 }

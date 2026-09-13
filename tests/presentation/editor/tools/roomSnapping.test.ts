@@ -9,8 +9,8 @@ import { pointerAt, toolContext } from '../../../helpers/tool-context';
 beforeEach(() => setActivePinia(createPinia()));
 function armed() {
  const draft = useRoomDraftStore();
- const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1', snapCandidates: () => ({ vertices: [{ x: 0, y: 0 }, { x: 4000, y: 3000 }], edges: [{ start: { x: 0, y: 3000 }, end: { x: 4000, y: 3000 } }] }) });
- const { context } = toolContext({ worldPerScreenPixel: 10 });
+ const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1' });
+ const { context } = toolContext({ worldPerScreenPixel: 10, snapCandidates: () => ({ vertices: [{ x: 0, y: 0 }, { x: 4000, y: 3000 }], edges: [{ start: { x: 0, y: 3000 }, end: { x: 4000, y: 3000 } }] }) });
  const actual = { ...context, snapService: EDITOR_SNAP_SERVICE }; tool.activate(actual);
  return { draft, tool, context: actual };
 }
@@ -60,6 +60,14 @@ describe('Room snapping uses current geometry and screen-sized tolerance', () =>
    tool[end](); expect(context.renderState.snapGuides).toEqual([]); expect(draft.rect).toBeNull();
   }
   tool.pointerDown(pointerAt(0, 0)); tool.pointerMove(pointerAt(4000, 3000)); expect(draft.rect).toBeNull();
+ });
+ it('draws an axis guide when a corner lines up with a neighbour and nothing is within point tolerance', () => {
+  const draft = useRoomDraftStore(), tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1' });
+  const { context } = toolContext({ worldPerScreenPixel: 10, snapCandidates: () => ({ alignments: [{ x: 6000, y: 9000 }] }) });
+  const actual = { ...context, snapService: EDITOR_SNAP_SERVICE }; tool.activate(actual);
+  tool.pointerDown(pointerAt(1000, 1000)); tool.pointerMove(pointerAt(5950, 2000));
+  expect(draft.rect).toEqual({ x: 1000, y: 1000, width: 5000, depth: 1000 });
+  expect(actual.renderState.snapGuides).toEqual([{ start: { x: 6000, y: 2000 }, end: { x: 6000, y: 9000 } }]);
  });
  it('includes closed zone edges, wall centre lines and hosted endpoints without inventing edges for incomplete zones', () => {
   const points = [{ x: 1, y: 2 }, { x: 3, y: 4 }, { x: 5, y: 6 }];

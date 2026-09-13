@@ -1,13 +1,11 @@
-import type { SnapCandidates } from '../snapping/snap-service';
 import type { Point } from '../../../core/geometry/Point';
-import { CLICK_EPSILON_PX } from '../handleMetrics';
+import { CLICK_EPSILON_PX, SNAP_TOLERANCE_PX } from '../handleMetrics';
 import type { RoomDraftPort, RoomRect, RoomRectSnapshot } from '../add/room-draft-store';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 
 export interface DrawRoomToolDeps {
 	readonly draft: RoomDraftPort;
-	readonly snapCandidates: () => SnapCandidates;
 	readonly defaultName: () => string;
 }
 
@@ -165,9 +163,9 @@ export class DrawRoomTool implements EditorTool {
 	 * forgotten at the other.
 	 */
 	private snapped(point: Point, context: EditorContext): Point {
-		const snapped = context.snapService.snapPoint(point, this.deps.snapCandidates(), 8 * context.viewport.worldPerScreenPixel());
-		if (snapped !== point) context.renderState.snapGuides.push({ start: point, end: snapped });
-		return snapped;
+		const snap = context.snapService.snapPointWithGuides(point, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
+		context.renderState.snapGuides.push(...snap.guides);
+		return snap.point;
 	}
 	private restore(): void {
 		if (this.pressUndo === null) return;

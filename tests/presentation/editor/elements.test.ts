@@ -31,7 +31,7 @@ describe('spatial element drafts and real selection projections', () => {
 		const draft = createElementDraft(), start = vi.fn<(id: string) => void>(), stop = vi.fn<() => void>(), finish = vi.fn<() => void>();
 		let blocked = false;
 		const addPoint = vi.fn<(point: Point) => boolean>(point => { draft.points.push(point); return true; });
-		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked: () => blocked, candidates: () => ({}) });
+		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked: () => blocked });
 		const r = toolContext({ snapPoint: point => ({ x: Math.round(point.x), y: Math.round(point.y) }) });
 		tool.pointerDown(pointerAt(10, 20)); expect(addPoint).not.toHaveBeenCalled();
 		tool.activate(r.context); expect(start).toHaveBeenCalledWith('draw-path');
@@ -56,7 +56,7 @@ describe('spatial element drafts and real selection projections', () => {
 		const addPoint = vi.fn<(point: Point) => boolean>(point => { draft.points.push(point); return true; });
 		let reads = 0;
 		const blocked = () => { reads += 1; return reads > 1; };
-		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked, candidates: () => ({}) });
+		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked });
 		const r = toolContext();
 		tool.activate(r.context);
 

@@ -5,6 +5,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
 import type { EntityId } from '../../../core/identity/EntityId';
 import { closesPolygon } from '../closeTarget';
+import { SNAP_TOLERANCE_PX } from '../handleMetrics';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 import type { UndoableCommand } from './undoable-command';
@@ -303,15 +304,18 @@ export class DrawPolygonTool implements EditorTool {
 	 * polygon has nothing to be straight relative to, and constraining it against some
 	 * invented origin would move a point the user placed deliberately.
 	 *
-	 * Order: constrain, THEN snap. Unobservable today — both tools hand `snapPoint` an empty
-	 * candidate set, so it is the identity — and written this way round deliberately, because
-	 * a vertex or edge within tolerance is a real feature of the drawing while a constrained
-	 * ray is a straight-edge the user is holding against it. That is the precedence CAD gives
-	 * object snap over polar tracking.
+	 * Order: constrain, THEN snap — a vertex or edge within tolerance is a real feature of the
+	 * drawing while a constrained ray is a straight-edge the user is holding against it, which
+	 * is the precedence CAD gives object snap over polar tracking. Observable since the smart
+	 * alignment guides increment gave this tool real candidates; before that both tools handed
+	 * `snapPoint` an empty set and the order was unobservable.
 	 */
 	private landingPoint(context: EditorContext, event: EditorPointerEvent): Point {
 		const anchor = this.buffer.at(-1);
-		return context.snapService.snapPoint(constrainDrawingPoint(anchor, event.worldPoint, event.modifiers.shift, context.snapService), {});
+		const constrained = constrainDrawingPoint(anchor, event.worldPoint, event.modifiers.shift, context.snapService);
+		const snap = context.snapService.snapPointWithGuides(constrained, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
+		context.renderState.snapGuides = snap.guides;
+		return snap.point;
 	}
 
 	/**
@@ -329,6 +333,7 @@ export class DrawPolygonTool implements EditorTool {
 
 	private clearSketch(context: EditorContext): void {
 		context.renderState.polygonSketch = null;
+		context.renderState.snapGuides = [];
 	}
 
 	private async closePolygon(context: EditorContext): Promise<void> {

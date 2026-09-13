@@ -6,12 +6,14 @@ import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
 import { elementLength } from '../../../domain/spatial/SpatialElement';
+import { postSection } from '../../../domain/spatial/structuralElement';
 import { area } from '../../../core/geometry/operations';
 import { formatArea } from '../shell/formatArea';
 import { formatMetres } from '../shell/formatLength';
 import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 import ObjectRotationControls from './ObjectRotationControls.vue';
 import AssetPlacementDetails from './AssetPlacementDetails.vue';
+import LoadBearingSwitch from './LoadBearingSwitch.vue';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 import HostIcon from '../../components/HostIcon.vue';
@@ -26,6 +28,15 @@ const stairSummary = computed(() => {
 	if (element.value?.kind !== 'stair' || !stair) return null;
 	return tr('editor.stair.summary', { width: formatMetres(stair.width), run: formatMetres(elementLength(element.value)), treads: String(stair.treads), direction: tr(stair.direction === 'up' ? 'editor.stair.up' : 'editor.stair.down') });
 });
+/** Section or length and width for a post or beam, in metres like every other inspector measure. */
+const structuralSummary = computed(() => {
+	const value = element.value;
+	if (value?.kind === 'beam' && value.width) return tr('editor.structural.beam-summary', { length: formatMetres(elementLength(value)), width: formatMetres(value.width) });
+	const section = value?.kind === 'post' ? postSection(value.points) : null;
+	return section ? tr('editor.structural.post-summary', { width: formatMetres(section.width), depth: formatMetres(section.depth) }) : null;
+});
+/** One template branch for both measured summaries, for the same template-complexity budget as `stairSummary`. */
+const summary = computed(() => stairSummary.value ?? structuralSummary.value);
 async function edit(event: Event): Promise<void> {
 	if (!element.value) return;
 	const opener = event.currentTarget as HTMLElement, root = opener.closest<HTMLElement>('.renovation-plan-editor');
@@ -50,10 +61,10 @@ async function edit(event: Event): Promise<void> {
 			{{ formatArea(measuredArea.value) }}
 		</p>
 		<p
-			v-else-if="stairSummary"
+			v-else-if="summary"
 			class="rp-inspector-subline"
 		>
-			{{ stairSummary }}
+			{{ summary }}
 		</p>
 		<AssetPlacementDetails
 			v-else-if="element.kind === 'asset'"
@@ -65,6 +76,7 @@ async function edit(event: Event): Promise<void> {
 		>
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
+		<LoadBearingSwitch :element="element" />
 		<StructureRenovationEntry />
 		<ObjectRotationControls
 			v-if="session.perspective === 'plan'"

@@ -94,6 +94,20 @@ describe('the plan editor dependencies', () => {
 		expect(deps.vault).toBeDefined();
 	});
 
+	it('hands over the guarded doors the New asset dialog and the measured outline write need', () => {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const persistence = root.persistence;
+
+		const deps = planEditorDeps(root, new FakeWorkspace() as never, vaultStack().vault, createEditorClipboard(), memoryDeviceStorage());
+
+		const creation = deps.commands.assetCreation;
+		expect(creation?.createAsset).toBeDefined();
+		expect(creation?.createAsset).toBe(persistence?.createAsset);
+		expect(creation?.setAssetFootprintFromDimensions).toBe(persistence?.assetDesign.setFootprintFromDimensions);
+		expect(creation?.setAssetFootprint).toBe(persistence?.assetDesign.setFootprint);
+		expect(creation?.defaultCurrency).toBe(persistence?.defaultCurrency);
+	});
+
 	/**
 	 * Design spec §2.6: the SAME `openProjectNote` the project view uses, because that
 	 * function resolves ANY entity id through the index — a plan's note needs no second

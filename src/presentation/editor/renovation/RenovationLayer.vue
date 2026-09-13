@@ -15,6 +15,7 @@ import { EMPTY_RENOVATION, orderedWork } from '../../../domain/renovation/Renova
 import { contextOf } from '../../../domain/renovation/SharedLinks';
 import { structureCandidates } from '../structure/structureCandidates';
 import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
+import { closedFootprintKind } from '../../../domain/spatial/SpatialElement';
 import { tr } from '../../i18n/strings';
 import ReviewRoomMarkers from './ReviewRoomMarkers.vue';
 const props = defineProps<{ pins: readonly EvidencePin[]; tokens: ThemeTokens; transform: NodeTransform; zoom: number; visible: boolean }>();
@@ -42,7 +43,7 @@ const comparisons = computed(() => value.value.subjects.flatMap(item => {
 	const element = structure.elements?.find(candidate => candidate.id === item.targetId);
 	const candidate = structureCandidates(structure, assetShapes.shapeOf).find(shape => shape.id === item.targetId);
 	const points = candidate ? spatialOutlinePoints(candidate, 0.25 / props.zoom) : [];
-	return points.length ? [{ id: item.id, closed: element?.kind === 'object' || element?.kind === 'stair' || element?.kind === 'asset', points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
+	return points.length ? [{ id: item.id, closed: closedFootprintKind(element?.kind), points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
 }));
 function focus(roomId: string, id: string): void {
 	runtime.renovation.focus(roomId, session.mode, id);

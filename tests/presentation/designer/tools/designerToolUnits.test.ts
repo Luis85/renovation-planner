@@ -256,12 +256,16 @@ describe('SetFacingTool', () => {
 		rig.tool.activate(rig.harness.context);
 
 		expect(rig.tool.hasDraft()).toBe(false);
+		expect(rig.tool.tracksPointer()).toBe(false);
 
 		rig.tool.pointerDown(pointerAt(0, 0));
 		expect(rig.tool.hasDraft()).toBe(true);
+		// The head trails the pointer from a world-fixed origin, so edge scrolling may carry it.
+		expect(rig.tool.tracksPointer()).toBe(true);
 
 		rig.tool.pointerUp(pointerAt(100, 0));
 		expect(rig.tool.hasDraft()).toBe(false);
+		expect(rig.tool.tracksPointer()).toBe(false);
 	});
 
 	it('discards the drag on Escape, and on an interruption, without dispatching', async () => {

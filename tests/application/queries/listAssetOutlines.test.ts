@@ -187,4 +187,19 @@ describe('ListAssetOutlines', () => {
 			sidecarPath: undefined,
 		});
 	});
+
+	it('hands the mark a curved footprint flattened into its arcs, with the diameter as its extent', async () => {
+		const stack = await stackWithAssets([]);
+		const quarter = Math.tan(Math.PI / 8);
+		const round: AssetShape = {
+			...shapeWith('typed', false),
+			footprint: { points: [{ x: 0, y: -50 }, { x: 50, y: 0 }, { x: 0, y: 50 }, { x: -50, y: 0 }], bulges: [quarter, quarter, quarter, quarter] },
+		};
+		expectOk(await stack.geometry.write('round' as AssetId, { calibration: null, shape: round }));
+
+		const answered = (await new ListAssetOutlines(stack.geometry).execute({ assetIds: ['round' as AssetId] })).get('round' as AssetId);
+
+		expect(answered).toMatchObject({ kind: 'measured', extent: { width: 100, depth: 100 } });
+		expect(answered?.kind === 'measured' && answered.points.length).toBeGreaterThan(4);
+	});
 });

@@ -46,6 +46,7 @@ import {
 	type SetAssetFootprintInput,
 	type SetAssetFootprintFromDimensionsInput,
 } from '../application/commands/asset/SetAssetFootprint';
+import { SetAssetShapeCommand, type SetAssetShapeInput } from '../application/commands/asset/SetAssetShape';
 import { SetAssetClearanceCommand, type SetAssetClearanceInput } from '../application/commands/asset/SetAssetClearance';
 import { SetAssetAnchorCommand, type SetAssetAnchorInput } from '../application/commands/asset/SetAssetAnchor';
 import { SetAssetFacingCommand, type SetAssetFacingInput } from '../application/commands/asset/SetAssetFacing';
@@ -225,6 +226,7 @@ export interface GuardedAssetDesignServices {
 	readonly assetDesign: {
 		readonly setFootprint: GuardedDesignCommand<SetAssetFootprintInput>;
 		readonly setFootprintFromDimensions: GuardedDesignCommand<SetAssetFootprintFromDimensionsInput>;
+		readonly setShape: GuardedDesignCommand<SetAssetShapeInput>;
 		readonly setClearance: GuardedDesignCommand<SetAssetClearanceInput>;
 		readonly setAnchor: GuardedDesignCommand<SetAssetAnchorInput>;
 		readonly setFacing: GuardedDesignCommand<SetAssetFacingInput>;
@@ -507,6 +509,7 @@ export function guardAssetDesign(
 		logger,
 		map,
 	);
+	const setShape = guardBothDoors(new SetAssetShapeCommand(deps), designDoors('setAssetShape'), logger, map);
 	const setClearance = guardBothDoors(new SetAssetClearanceCommand(deps), designDoors('setAssetClearance'), logger, map);
 	const setAnchor = guardBothDoors(new SetAssetAnchorCommand(deps), designDoors('setAssetAnchor'), logger, map);
 	const setFacing = guardBothDoors(new SetAssetFacingCommand(deps), designDoors('setAssetFacing'), logger, map);
@@ -529,6 +532,7 @@ export function guardAssetDesign(
 		assetDesign: {
 			setFootprint,
 			setFootprintFromDimensions,
+			setShape,
 			setClearance,
 			setAnchor,
 			setFacing,

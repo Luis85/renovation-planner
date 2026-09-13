@@ -1,7 +1,7 @@
 import type { structuralEn } from '../en/structural';
 export const structuralDe: Record<keyof typeof structuralEn, string> = {
 	'editor.add.post.label': 'Stütze',
-	'editor.add.post.description': 'Ein Pfosten oder Fachwerkständer, der Last trägt',
+	'editor.add.post.description': 'Eine Stütze oder ein Fachwerkständer',
 	'editor.add.post.synonyms': 'Pfosten, Ständer, Pfeiler, Säule, Fachwerk',
 	'editor.add.beam.label': 'Balken',
 	'editor.add.beam.description': 'Ein Deckenbalken oder Unterzug über dem Raum',

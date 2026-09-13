@@ -1,10 +1,10 @@
 export const structuralEn = {
 	'editor.add.post.label': 'Post',
-	'editor.add.post.description': 'A column or timber-frame post that carries load',
+	'editor.add.post.description': 'A column or timber-frame post',
 	'editor.add.post.synonyms': 'Column, pillar, stud, support, timber frame',
 	'editor.add.beam.label': 'Beam',
 	'editor.add.beam.description': 'A ceiling beam or downstand above the room',
-	'editor.add.beam.synonyms': 'Joist, girder, lintel, timber frame',
+	'editor.add.beam.synonyms': 'Joist, girder, timber frame',
 	'editor.post.banner': 'Click to place a post. The tool stays on for the next one.',
 	'editor.beam.banner': 'Click the start and the end of the beam.',
 	'editor.structural.width': 'Width (m)',

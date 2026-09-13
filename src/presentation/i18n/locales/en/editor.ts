@@ -7,6 +7,7 @@ import { objectEn } from './object';
 import { assetPlacementEn } from './assetPlacement';
 import { stairsArrowsEn } from './stairsArrows';
 import { structuralEn } from './structural';
+import { draftingEn } from './drafting';
 import { inputEn } from './input';
 import { groupsEn } from './groups';
 import { creationEn } from './creation';
@@ -41,6 +42,7 @@ export const editorEn = {
 	...groupsEn,
 	...stairsArrowsEn,
 	...structuralEn,
+	...draftingEn,
 	...inputEn,
 	...creationEn,
 	'editor.direct.mark-change': 'Mark change',

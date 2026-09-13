@@ -8,18 +8,20 @@ import { areaOutline } from '../add/areaOutline';
 import type { ToolId } from '../tools/editor-tool';
 import { DEFAULT_STAIR, type StairOptions } from '../../../domain/spatial/stairGeometry';
 import { DEFAULT_BEAM_WIDTH, DEFAULT_POST_SECTION } from '../../../domain/spatial/structuralElement';
+import { dimensionOffsetAt } from '../../../domain/spatial/dimensionChain';
 
-export type ElementToolId = 'place-object' | 'draw-path' | 'draw-fence' | 'measure' | 'place-stair' | 'draw-arrow' | 'place-post' | 'draw-beam';
+export type ElementToolId = 'place-object' | 'draw-path' | 'draw-fence' | 'measure' | 'place-stair' | 'draw-arrow' | 'place-post' | 'draw-beam'
+	| 'draw-dimension' | 'draw-section' | 'place-view' | 'draw-hatch' | 'place-text' | 'draw-boundary' | 'place-grid';
 /** No tool here produces `'asset'` yet — placement lands through its own flow (plan editor asset placement design §2). */
-/** The kinds this draft flow can hold. Not `'asset'` (its own flow, above) and not a drafting mark — those seven kinds get their own tools and draft handling (plan drafting tools design), not yet wired into this file. */
-type DraftableKind = Exclude<SpatialElementKind, 'asset' | 'dimension' | 'section' | 'view' | 'hatch' | 'text' | 'boundary' | 'grid'>;
-export const ELEMENT_TOOLS: Readonly<Record<ElementToolId, DraftableKind>> = {
+export const ELEMENT_TOOLS: Readonly<Record<ElementToolId, Exclude<SpatialElementKind, 'asset'>>> = {
 	'place-object': 'object', 'draw-path': 'path', 'draw-fence': 'fence', measure: 'measurement',
 	'place-stair': 'stair', 'draw-arrow': 'arrow', 'place-post': 'post', 'draw-beam': 'beam',
+	'draw-dimension': 'dimension', 'draw-section': 'section', 'place-view': 'view', 'draw-hatch': 'hatch',
+	'place-text': 'text', 'draw-boundary': 'boundary', 'place-grid': 'grid',
 };
 export function isElementTool(id: ToolId | null): id is ElementToolId { return id !== null && id in ELEMENT_TOOLS; }
 export interface ElementDraft {
-	kind: DraftableKind; name: string; points: Point[]; cursor: Point | null;
+	kind: Exclude<SpatialElementKind, 'asset'>; name: string; points: Point[]; cursor: Point | null;
 	text: { x: string; y: string };
 	rectangle: ObjectRectangleText;
 	stair: StairOptions;
@@ -27,12 +29,16 @@ export interface ElementDraft {
 	post: { width: number; depth: number };
 	/** The width the next beam is saved with, world mm. */
 	beamWidth: number;
+	/** The next dimension chain's offset, world mm: set by the click that places its line, or typed. */
+	offset: number;
+	/** Whether a dimension chain is still taking points or is placing its line (plan drafting tools design §5). */
+	dimensionPhase: 'points' | 'offset';
 	pendingInput: boolean;
 	loading: boolean; busy: boolean; conflict: boolean; error: AppError | null;
 }
 export function createElementDraft(): ElementDraft {
 	return reactive({ kind: 'object', name: '', points: [], cursor: null, text: { x: '', y: '' }, rectangle: emptyObjectRectangle(), stair: { ...DEFAULT_STAIR },
-		post: { ...DEFAULT_POST_SECTION }, beamWidth: DEFAULT_BEAM_WIDTH, pendingInput: false, loading: false, busy: false, conflict: false, error: null });
+		post: { ...DEFAULT_POST_SECTION }, beamWidth: DEFAULT_BEAM_WIDTH, offset: 0, dimensionPhase: 'points', pendingInput: false, loading: false, busy: false, conflict: false, error: null });
 }
 export function discardElementGeometry(draft: ElementDraft): void {
 	const { kind, name, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
@@ -47,7 +53,29 @@ function structuralFields(draft: ElementDraft): Pick<SpatialElement, 'width' | '
 	if (draft.kind === 'beam') return { width: draft.beamWidth, loadBearing: true };
 	return draft.kind === 'post' ? { loadBearing: true } : {};
 }
+/** How many points a kind's draft holds at most: one for a text or grid point, two for the two-point kinds, unbounded otherwise. */
+export function maxDraftPoints(kind: ElementDraft['kind']): number | null {
+	if (kind === 'text' || kind === 'grid') return 1;
+	return ['measurement', 'stair', 'beam', 'section', 'view'].includes(kind) ? 2 : null;
+}
+/** A new dimension chain carries the offset its line was placed at, and a new section line looks the default way (design §3). */
+function draftingFields(draft: ElementDraft): Pick<SpatialElement, 'offset' | 'flipped'> {
+	if (draft.kind === 'dimension') return { offset: draft.offset };
+	return draft.kind === 'section' ? { flipped: false } : {};
+}
+/** The cursor point a preview appends: none once the kind has all its points, and none while a chain's line is being placed. */
+export function draftCursorPoints(draft: ElementDraft): Point[] {
+	if (!draft.cursor || (draft.kind === 'dimension' && draft.dimensionPhase === 'offset')) return [];
+	return draft.points.length < (maxDraftPoints(draft.kind) ?? Number.POSITIVE_INFINITY) ? [draft.cursor] : [];
+}
+/** The kind-specific facts a preview draws with; a chain's line follows the pointer while it is being placed. */
+export function draftPreviewFields(draft: ElementDraft): Pick<SpatialElement, 'stair' | 'width' | 'loadBearing' | 'offset' | 'flipped'> {
+	if (draft.kind === 'stair') return { stair: draft.stair };
+	if (draft.kind === 'beam') return { width: draft.beamWidth, loadBearing: true };
+	if (draft.kind !== 'dimension') return draftingFields(draft);
+	return { offset: draft.dimensionPhase === 'offset' && draft.cursor ? dimensionOffsetAt(draft.points, draft.cursor) : draft.offset };
+}
 export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSpatialElement | null {
-	const element = { id, kind: draft.kind, name: draft.name.trim(), points: draft.points.map(point => ({ ...point })), ...(draft.kind === 'stair' ? { stair: { ...draft.stair } } : {}), ...structuralFields(draft) };
+	const element = { id, kind: draft.kind, name: draft.name.trim(), points: draft.points.map(point => ({ ...point })), ...(draft.kind === 'stair' ? { stair: { ...draft.stair } } : {}), ...structuralFields(draft), ...draftingFields(draft) };
 	return element.name && acceptsElementPoints(element, element.points) ? element : null;
 }

@@ -143,7 +143,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		if (ids.length === 1) result.push(...singleActions(id, blocked), ...addSubmenu(id, blocked));
 		// Only where the composite removal has its services, as the batch panel already requires: an item that would do nothing is worse than none.
 		else if (ids.length && runtime.renovation.available) result.push({ id: 'delete', label: runtime.groupActions.saved.value ? 'editor.group.delete' : 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: multiDeleteBlocked(runtime), run: () => deleteItems(runtime, project.structure, ids) });
-		result.push({ id: 'measure', label: 'editor.input.measure-here', group: 'create', icon: 'ruler', disabled: blocked || !runtime.elementTask.available, run: () => runtime.elementTask.measureFrom(opened()) });
+		result.push({ id: 'measure', label: 'editor.input.measure-here', group: 'create', icon: 'ruler', disabled: blocked || !runtime.elementTask.available, run: () => runtime.elementTask.startAt('measure', opened()) });
 		const rotation = runtime.rotationActions.target.value;
 		if (rotation) result.push({ id: 'rotate', label: 'editor.input.rotate', group: 'edit', icon: 'rotate-cw', disabled: blocked || runtime.rotationActions.blocked.value, run: () => runtime.rotationActions.rotate(rotation.id) });
 		result.push(...groups.actions(ids).map(action => ({ ...action, group: 'arrange' as const })));

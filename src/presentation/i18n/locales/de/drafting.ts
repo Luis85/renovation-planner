@@ -1,0 +1,23 @@
+import type { draftingEn } from '../en/drafting';
+export const draftingDe: Record<keyof typeof draftingEn, string> = {
+	'editor.add.dimension.label': 'Maßkette',
+	'editor.add.section.label': 'Schnittlinie',
+	'editor.add.view.label': 'Ansichtspfeil',
+	'editor.add.hatch.label': 'Schraffur',
+	'editor.add.text.label': 'Text',
+	'editor.add.boundary.label': 'Grenzlinie',
+	'editor.add.grid.label': 'Achspunkt',
+	'editor.drafting.banner.dimension': 'Die zu messenden Punkte anklicken, Fertig wählen und dann die Lage der Maßlinie anklicken.',
+	'editor.drafting.banner.section': 'Beide Enden der Schnittlinie anklicken.',
+	'editor.drafting.banner.view': 'Den Pfeil setzen, dann die Blickrichtung anklicken.',
+	'editor.drafting.banner.hatch': 'Die Ecken der Fläche anklicken, dann Fertig wählen.',
+	'editor.drafting.banner.text': 'Die Stelle anklicken, den Text eingeben, dann Fertig wählen.',
+	'editor.drafting.banner.boundary': 'Die Punkte der Grenzlinie anklicken, dann Fertig wählen.',
+	'editor.drafting.banner.grid': 'Klicken, um einen Achspunkt zu setzen. Das Werkzeug bleibt für den nächsten aktiv.',
+	'editor.drafting.menu': 'Zeichnen',
+	'editor.drafting.text': 'Text',
+	'editor.drafting.offset': 'Abstand (m)',
+	'editor.drafting.offset-invalid': 'Geben Sie den Abstand der Maßlinie in Metern ein.',
+	'editor.drafting.flip': 'Richtung umkehren',
+	'editor.drafting.apply': 'Abstand übernehmen',
+};

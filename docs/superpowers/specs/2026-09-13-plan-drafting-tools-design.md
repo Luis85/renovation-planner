@@ -143,9 +143,13 @@ as an `ElementTool`. No new tool class.
   `stair` and `beam` (no cursor point past two), and `text` and `grid` as a single cursor point.
   In a dimension chain's phase 2 the preview draws the whole chain at the pointer's `offset` and
   adds no cursor point. `ElementDraft` gains `offset: number` and `dimensionPhase: 'points' |
-  'offset'`; Cancel in phase 2 returns to `'points'` with the points kept.
+  'offset'`; **Undo point** in phase 2 returns to `'points'` with the points kept, and Cancel
+  discards the draft as it does for every tool. The click's offset is rounded to whole
+  millimetres.
 - **Rotation.** `hatch` is an `outlineKind`, so it takes the object rotation control and its
-  rotation command exactly as `object` does; no other drafting kind rotates.
+  rotation command exactly as `object` does. `dimension`, `section`, `view` and `boundary` rotate
+  about their length-weighted centre as every open element already does (`linearPivot`); `text`
+  and `grid` have no pivot and do not rotate.
 
 ## 6. Rendering and hit-testing
 
@@ -180,41 +184,49 @@ any drafting kind: `section`, `view`, `text` and `grid` draw their name as part 
 - `section`, `boundary`: line proximity, as `nearLine` already does;
 - `hatch`: its outline.
 
+The screen-size boxes need the zoom and, for a text, its words, so `structureCandidates` takes an
+optional `{ zoom, names }` context. The canvas's own callers (`canvasCandidates` for `SelectTool`,
+and `InteractionLayer`) pass it; a caller without it falls back to the stored points.
+
 **Handles.** `hasPointHandles` answers `true` for `dimension`, `section`, `view`, `hatch` and
 `boundary`; `text` and `grid` move by the ordinary element body drag.
 
 ## 7. Right-click submenu, labels and editing
 
 **Submenu** (`selection/useCanvasMenuActions.ts`): `{ id: 'drafting-menu', label:
-'editor.input.drafting', group: 'create', icon: 'pencil-ruler', children }`, pushed on every
+'editor.drafting.menu', group: 'create', icon: 'pencil', children }`, pushed on every
 right-click outside Review — nothing, one item or several selected — beside Add… or the per-item
 Add submenu; Measure here stays. The existing `CanvasMenuSubmenu` machinery places it, drives it
 by keyboard and greys it when every child is.
 
 | Child id | Label (en / de) | Icon | Runs |
 | --- | --- | --- | --- |
-| `draft-dimension` | Dimension chain / Maßkette | `ruler` | `elementTask.startAt('draw-dimension', opened())` |
-| `draft-section` | Section line / Schnittlinie | `scissors-line-dashed` | `startAt('draw-section', …)` |
-| `draft-view` | View marker / Ansichtspfeil | `triangle` | `startAt('place-view', …)` |
-| `draft-hatch` | Hatched area / Schraffur | `grid-3x3` | `startAt('draw-hatch', …)` |
-| `draft-text` | Text / Text | `type` | `startAt('place-text', …)` |
-| `draft-boundary` | Boundary line / Grenzlinie | `spline` | `startAt('draw-boundary', …)` |
-| `draft-grid` | Grid point / Achspunkt | `circle-dot` | `startAt('place-grid', …)` |
+| `draft-dimension` | Dimension chain / Maßkette | `rp-dimension` | `elementTask.startAt('draw-dimension', opened())` |
+| `draft-section` | Section line / Schnittlinie | `rp-section` | `startAt('draw-section', …)` |
+| `draft-view` | View marker / Ansichtspfeil | `rp-view` | `startAt('place-view', …)` |
+| `draft-hatch` | Hatched area / Schraffur | `rp-hatch` | `startAt('draw-hatch', …)` |
+| `draft-text` | Text / Text | `rp-text` | `startAt('place-text', …)` |
+| `draft-boundary` | Boundary line / Grenzlinie | `rp-boundary` | `startAt('draw-boundary', …)` |
+| `draft-grid` | Grid point / Achspunkt | `rp-grid` | `startAt('place-grid', …)` |
 
 Each child is `disabled: blocked || !runtime.elementTask.available`; its reason comes from the
-existing `reason()`. The icon names are checked against the Lucide build Obsidian 1.13 ships while
-planning; one it lacks gets an `rp-` icon or a harness fixture under the existing
-`editorIconRegistration` rule.
+existing `reason()`. The seven icons are application artwork registered in
+`src/plugin/editorIconRegistration.ts` beside `rp-post` and `rp-beam`: none of the Lucide names
+that would fit is among the harness's pinned icon fixtures, and the menu test refuses a missing
+icon. The parent uses `pencil`, which is.
 
 **Kind labels** in `en` and `de`, wherever posts and beams needed theirs: `zoneTypeLabel` (form
 heading, tree row), `TemporaryToolBanner`, the default-name prefill and `surface/cursor.ts`
 (crosshair).
 
-**Editing** (`elements/ElementInspector.vue` and an edit form on the `StructuralEditForm`
-pattern): **Offset** for a dimension chain and **Flip direction** for a section line, both through
-the same guarded, reversible element edit (`elementActions`, `renovation.command` with
-`elementInput`), so they are undoable and stale-refused like a move. A single selected section
-also offers **Flip direction** in its right-click menu (group `edit`).
+**Editing.** A dimension chain's Edit opens `DimensionEditForm.vue` (name and **Offset**), on the
+`StructuralEditForm` pattern. **Flip direction** is a direct action, as the load-bearing switch
+is: a button in `ElementInspector.vue` and, for a single selected section, an item in its
+right-click menu (group `edit`). Both write through the same guarded, reversible element edit
+(`elementActions`, `renovation.command` with `elementInput`), so they are undoable and
+stale-refused like a move. A text is edited through the existing outline form, whose name field is
+the text. The inspector shows no length line for a text or grid point and no renovation entry for
+any drafting mark.
 
 **Layers panel.** Unchanged: drafting marks draw in the architecture Konva layer and so follow the
 "Walls and openings" row (§9).

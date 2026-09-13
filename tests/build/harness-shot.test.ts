@@ -676,6 +676,10 @@ describe('the headless harness capture script', () => {
 			'plan-editor-detail',
 			'plan-editor-detail-dark',
 			'plan-editor-detail-narrow-de',
+			'plan-editor-item-drag', 'plan-editor-item-drag-dark',
+			'plan-editor-item-promote', 'plan-editor-item-promote-dark', 'plan-editor-item-promote-narrow',
+			'plan-editor-item-rectangle', 'plan-editor-item-rectangle-dark', 'plan-editor-item-rectangle-narrow',
+			'plan-editor-item-saved',
 			'plan-editor-light',
 			'plan-editor-locked',
 			'plan-editor-locked-dark',
@@ -866,6 +870,20 @@ describe('the headless harness capture script', () => {
 		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' above
 		// for why a bare `PLAN_EDITOR_VIEW` wait is exactly the defect being refused here.
 		expect(shot('plan-editor-narrow').selector).toEqual(['.rp-plan-canvas', '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail']);
+	});
+
+	/**
+	 * The item shots: each is the resting editor under a new name unless BOTH the reference workspace (the only floor with
+	 * renovation and asset-creation services) and its own `&item=` gesture are on the query, and each waits on what only
+	 * that gesture lands — an enabled Finish over a pressed Rectangle, the dialog's outline line, or a placement's Replace.
+	 */
+	it('takes the item shots over the reference workspace through the ?item knob, waiting on what each gesture lands', () => {
+		const drawn = ['.rp-task-banner [data-rp-object-shape="rectangle"][aria-pressed="true"]', '.rp-task-banner__finish[aria-disabled="false"]'];
+		const selectors: Record<string, unknown> = { rectangle: drawn, drag: drawn, promote: '.rp-new-asset__outline', saved: '.rp-element-inspector [data-rp-action="replace-asset"]' };
+		const facts = (name: string) => { const parsed = planEditorQuery(name); return [name, parsed.has('reference') && parsed.has('planning'), parsed.get('item'), shot(name).selector, parsed.get('theme'), shot(name).width]; };
+		const wanted = (name: string, item = name.split('-')[3]) => [name, true, item, selectors[item], name.endsWith('-dark') ? null : 'light', name.endsWith('-narrow') ? 460 : undefined];
+		const names = [...shots.keys()].filter((name) => name.startsWith('plan-editor-item-'));
+		expect(names.map((name) => facts(name))).toEqual(names.map((name) => wanted(name)));
 	});
 
 	it('takes the structural shots through the ?structural knob, one of them at a sidebar width', () => {

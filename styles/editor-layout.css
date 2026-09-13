@@ -35,6 +35,7 @@
 	display: flex;
 	flex: 0 0 auto;
 	flex-direction: column;
+	align-items: stretch;
 	gap: var(--size-4-1);
 	padding: var(--size-4-2) var(--size-4-1);
 	background-color: var(--background-primary);
@@ -42,8 +43,17 @@
 }
 
 .rp-panel-rail .rp-panel-rail__button {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--size-4-1);
+	min-width: 48px;
+	min-height: 48px;
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
+	text-align: center;
 	color: var(--text-normal);
 	background-color: transparent;
 	box-shadow: none;

@@ -35,6 +35,7 @@ const props = defineProps<{
 	design: AssetDesignDto;
 	setHeight: (height: number | null) => Promise<DispatchResult>;
 	editDimensions: () => Promise<void>;
+	startFromPreset: () => Promise<void>;
 	logger: Logger;
 }>();
 
@@ -134,6 +135,13 @@ const dimensionsLabel = computed(() =>
 			@click="() => void editDimensions()"
 		>
 			{{ dimensionsLabel }}
+		</button>
+		<button
+			type="button"
+			class="rp-designer-start-preset"
+			@click="() => void startFromPreset()"
+		>
+			{{ tr('designer.inspector.start-preset') }}
 		</button>
 
 		<FieldError

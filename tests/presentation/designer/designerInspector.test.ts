@@ -23,10 +23,12 @@ import { t } from '../../../src/presentation/i18n/strings';
 
 let setHeight: ReturnType<typeof vi.fn<(height: number | null) => Promise<DispatchResult>>>;
 let editDimensions: ReturnType<typeof vi.fn<() => Promise<void>>>;
+let startFromPreset: ReturnType<typeof vi.fn<() => Promise<void>>>;
 
 beforeEach(() => {
 	setHeight = vi.fn<(height: number | null) => Promise<DispatchResult>>().mockResolvedValue(ok('wrote'));
 	editDimensions = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+	startFromPreset = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 });
 
 /**
@@ -61,6 +63,7 @@ function mountInspector(options: Parameters<typeof buildDesign>[0] = {}) {
 			design: buildDesign(options),
 			setHeight,
 			editDimensions,
+			startFromPreset,
 			logger: recorder,
 		},
 	});
@@ -123,6 +126,15 @@ describe('the designer’s inspector', () => {
 		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
 
 		expect(editDimensions).toHaveBeenCalledTimes(1);
+	});
+
+	it('offers a preset as a way to start or replace a design', async () => {
+		const wrapper = mountInspector();
+
+		expect(wrapper.find('.rp-designer-start-preset').text()).toBe(t('en', 'designer.inspector.start-preset'));
+		await wrapper.find('.rp-designer-start-preset').trigger('click');
+
+		expect(startFromPreset).toHaveBeenCalledTimes(1);
 	});
 
 	it('commits a height on blur and keeps the typed value when the command refuses', async () => {

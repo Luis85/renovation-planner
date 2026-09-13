@@ -1,28 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick } from 'vue';
 import { tr } from '../../i18n/strings';
-import { formatMetres } from '../shell/formatLength';
 import StructureFacts from './StructureFacts.vue';
+import OpeningDetails from './OpeningDetails.vue';
 import StructureRenovationEntry from './StructureRenovationEntry.vue';
 import StructurePlanActions from './StructurePlanActions.vue';
 import HostIcon from '../../components/HostIcon.vue';
 import { useStructureInspectorTarget } from './useStructureInspectorTarget';
 const { project, runtime, session, id, wall, opening, paused } = useStructureInspectorTarget();
-const openingHost = computed(() => opening.value ? project.structure.walls.find(candidate => candidate.id === opening.value?.hostId) : undefined);
 const rooms = computed(() => project.structure.boundaries.filter(boundary => boundary.wallIds.includes(id.value)).map(boundary => project.zones.get(boundary.roomId)?.name ?? boundary.roomId));
-const openingRooms = computed(() => {
-	const hostId = openingHost.value?.id;
-	return hostId ? project.structure.boundaries
-		.filter(boundary => boundary.wallIds.includes(hostId))
-		.map(boundary => project.zones.get(boundary.roomId)?.name ?? boundary.roomId) : [];
-});
 const openingLabel = computed(() => opening.value ? tr(`editor.add.${opening.value.kind}.label`) : '');
-const openingHostLabel = computed(() => {
-	const hostId = openingHost.value?.id;
-	return hostId
-		? tr('editor.structure.wall-number', { n: String(project.structure.walls.findIndex(candidate => candidate.id === hostId) + 1) })
-		: opening.value?.hostId ?? '';
-});
 const subject = computed(() => project.plan?.renovation?.subjects.find(item => item.targetId === id.value));
 const catalogue = computed(() => runtime.planning.baseline.value?.catalogue);
 const materialName = (assetId: string | undefined) => assetId === undefined ? undefined : catalogue.value?.find(item => item.asset.id === assetId)?.asset.name ?? tr('renovation.material.unknown');
@@ -57,62 +44,16 @@ async function openRenovation(event: Event): Promise<void> {
 		class="rp-structure-inspector"
 		:data-rp-structure-kind="opening ? opening.kind : 'wall'"
 	>
-		<template v-if="opening">
-			<h3 data-rp-opening-identity>
-				{{ openingLabel }}
-			</h3>
-			<p
-				class="rp-structure-opening-context"
-				data-rp-opening-context
-			>
-				{{ openingRooms.length ? openingRooms.join(' / ') : tr('renovation.target.none') }}
-			</p>
-			<p
-				v-if="project.plan?.name"
-				class="rp-structure-opening-floor"
-				data-rp-opening-floor
-			>
-				<span>{{ tr('editor.inspector.floor-context') }}:</span> {{ project.plan.name }}
-			</p>
-			<dl class="rp-editor-inspector-fields rp-structure-opening-facts">
-				<dt>{{ tr('editor.structure.host') }}</dt>
-				<dd data-rp-opening-property="host">
-					{{ openingHostLabel }}
-				</dd>
-				<dt>{{ tr('renovation.target.room') }}</dt>
-				<dd data-rp-opening-property="room-context">
-					{{ openingRooms.length ? openingRooms.join(' / ') : tr('renovation.target.none') }}
-				</dd>
-				<dt>{{ tr('editor.structure.width') }}</dt>
-				<dd data-rp-opening-property="width">
-					{{ formatMetres(opening.width) }} m
-				</dd>
-				<dt>{{ tr('editor.structure.height') }}</dt>
-				<dd data-rp-opening-property="height">
-					{{ formatMetres(opening.height) }} m
-				</dd>
-				<dt>{{ tr('editor.structure.offset') }}</dt>
-				<dd data-rp-opening-property="offset">
-					{{ formatMetres(opening.offset) }} m
-				</dd>
-				<dt>{{ tr('editor.structure.sill') }}</dt>
-				<dd data-rp-opening-property="sill">
-					{{ formatMetres(opening.sill) }} m
-				</dd>
-				<template v-if="materials">
-					<dt>{{ tr('renovation.product') }}</dt>
-					<dd>{{ materials.existing ?? tr('renovation.material.none') }}</dd>
-					<template v-if="materials.planned">
-						<dt>{{ tr('editor.structure.planned-material') }}</dt>
-						<dd>{{ materials.planned }}</dd>
-					</template>
-				</template>
-			</dl>
-		</template>
+		<OpeningDetails
+			v-if="opening"
+			:opening="opening"
+			:label="openingLabel"
+			:materials="materials"
+		/>
 		<template v-else>
 			<h3>{{ tr('editor.add.wall.label') }}</h3>
 			<StructureFacts
-				:wall="wall"
+				:wall="wall!"
 				:rooms="rooms"
 				:materials="materials"
 			/>

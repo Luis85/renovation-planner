@@ -1,8 +1,8 @@
 # Plan a renovation from the floor
 
 > **Current-route amendments — 2026-09-13.** This guide follows the current Plan Editor
-> routes. **Plan** is the geometry-editing perspective. **Renovate** keeps Select and Add
-> available for context and exposes Existing, Planned, Work and related planning content;
+> routes. **Plan** is the geometry-editing perspective. **Renovate** keeps Select and Pan
+> available, offers **Add work item** for eligible targets, and exposes Existing, Planned, Work and related planning content;
 > choose **Edit geometry in plan** when a geometry change is needed. **Review** is read-only.
 > Switching perspectives does not write a saved change. In German these visible modes are
 > **Plan**, **Renovieren** and **Prüfen**.
@@ -22,8 +22,8 @@ stay attached to the image while the view changes. With the preview focused, arr
 + and − zoom, and F fits the image.
 
 Room outlines and current wall measurements are adjusted in Plan with the existing geometry
-history. Wall edits retain their Preview → Apply confirmation. Renovate keeps Select and Add
-available while its Details routes focus on Existing, Planned, Work and related information;
+history. Wall edits retain their Preview → Apply confirmation. Renovate keeps Select and Pan
+available, with **Add work item** for eligible targets. Its Details routes focus on Existing, Planned, Work and related information;
 **Edit geometry in plan** returns to the geometry perspective. Review remains read-only.
 Changes to intended structure use the Planned forms and their separate geometry.
 

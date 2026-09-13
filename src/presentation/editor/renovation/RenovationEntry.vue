@@ -39,8 +39,12 @@ async function addWork(): Promise<void> {
 	const roomId = props.roomId || session.roomId;
 	await runtime.renovation.addWork(roomId);
 }
-async function editLayout(): Promise<void> {
+async function editLayout(event: Event): Promise<void> {
+	const button = event.currentTarget as HTMLElement;
+	const inspector = button.closest<HTMLElement>('[data-rp-region="inspector"]');
 	await runtime.renovation.perspective('plan');
+	await nextTick();
+	if (!button.isConnected && inspector?.isConnected) inspector.focus();
 }
 </script>
 <template>

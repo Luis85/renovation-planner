@@ -36,13 +36,13 @@ function removalSummary(structure: Structure, selected: readonly string[], openi
 }
 
 export function createStructureActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'refreshProjection'>, ledger: WriteLedger) {
-	const editor = useEditorStore();
-	const dialogs = useDialogStore(), project = useProjectStore(), selection = useSelectionStore();
+	const editor = useEditorStore(), dialogs = useDialogStore(), project = useProjectStore(), selection = useSelectionStore();
 	const preview = ref<Structure | null>(null), active = ref(false);
-	const session = useRenovationSession(), save = useSaveStateStore(), blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
+	const session = useRenovationSession(), save = useSaveStateStore(), removalBlocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
+	const blocked = computed(() => removalBlocked.value || session.perspective !== 'plan');
 	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked });
-	const bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable, prepareBaseline, reviewedWrite });
-	const wallPoint = createWallPointAction(context, { active, unavailable, prepareBaseline, reviewedWrite });
+	const bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
+	const wallPoint = createWallPointAction(context, { active, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
 	let alive = true;
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
 	function matchesProjection(document: PlanGeometryDocument): boolean {
@@ -58,22 +58,23 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		notifyOperationFailure(staleWriteRefusal());
 		return { snapshot: null, recovery: runtime.refreshProjection() };
 	}
-	function unavailable(): boolean { return !alive || active.value || blocked.value || !!dialogs.current; }
+	function unavailable(): boolean { return !alive || active.value || removalBlocked.value || !!dialogs.current; }
+	function geometryUnavailable(): boolean { return unavailable() || blocked.value; }
 	/** The preview and write a structure dialog hands its form; both retire with the leaf. */
 	function reviewedWrite(services: StructureServices, snapshot: PlanGeometrySnapshot) {
 		return {
 			preview: (value: Structure | null) => { preview.value = alive ? value : null; },
-			dispatch: (next: Structure) => !alive ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger })),
+			dispatch: (next: Structure) => !alive || blocked.value ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger })),
 		};
 	}
 	async function edit(id: string, end?: Point, openingPoint?: Point): Promise<void> {
 		// A refused wall-end drop must not strand the preview its release left up.
-		if (unavailable() || !context.commands.structure) { if (end) preview.value = null; return; }
+		if (geometryUnavailable() || !context.commands.structure) { if (end) preview.value = null; return; }
 		active.value = true;
 		const selected = selection.selectedIds.join();
 		try {
 			const baseline = await context.commands.structure.read(context.planId as PlanId);
-			if (!alive || selection.selectedIds.join() !== selected || runtime.writesBlocked.value) return;
+			if (!alive || selection.selectedIds.join() !== selected || blocked.value) return;
 			const { snapshot, recovery } = prepareBaseline(baseline);
 			if (!snapshot) { await recovery; return; }
 			const structure = snapshot.document.structure;

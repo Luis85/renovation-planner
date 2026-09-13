@@ -5,6 +5,8 @@ import { settle } from '../../../helpers/editor';
 import { expectOk } from '../../../helpers/domain';
 import type { Opening } from '../../../../src/domain/spatial/Structure';
 import type { EntityId } from '../../../../src/core/identity/EntityId';
+import { resizeTo } from '../../../helpers/layout';
+import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -61,4 +63,49 @@ it('shows a real room context when the host wall bounds a room', async () => {
 	const inspector = rig.wrapper.get('.rp-structure-inspector');
 	expect(inspector.get('[data-rp-opening-context]').text()).toBe('Studio');
 	expect(inspector.get('[data-rp-opening-property="room-context"]').text()).toBe('Studio');
+});
+
+it.each([1200, 460])('keeps visible focus through both perspective handoffs at %spx', async width => {
+	const rig = await setup();
+	resizeTo(rig.rootEl, width, 900); await settle();
+	if (width === 460) { await rig.wrapper.get('[data-rp-rail="details"]').trigger('click'); await settle(); }
+	const before = expectOk(await rig.geometry.read(rig.plan.id));
+	const history = [rig.runtime.canUndo.value, rig.runtime.canRedo.value];
+	const inspector = rig.wrapper.get<HTMLElement>('[data-rp-region="inspector"]');
+	const openingRoute = rig.wrapper.get<HTMLButtonElement>('[data-rp-action="renovate-opening"]');
+	openingRoute.element.focus(); await openingRoute.trigger('click'); await settle();
+	expect(rig.session.perspective).toBe('renovate');
+	expect(document.activeElement).toBe(inspector.element);
+	expect(inspector.isVisible()).toBe(true);
+	const planRoute = rig.wrapper.get<HTMLButtonElement>('[data-rp-action="edit-layout"]');
+	planRoute.element.focus(); await planRoute.trigger('click'); await settle();
+	expect(rig.session.perspective).toBe('plan');
+	expect(document.activeElement).toBe(inspector.element);
+	expect(inspector.isVisible()).toBe(true);
+	expect(rig.selection.selectedIds).toEqual(['opening-i11-door']);
+	expect(expectOk(await rig.geometry.read(rig.plan.id))).toEqual(before);
+	expect([rig.runtime.canUndo.value, rig.runtime.canRedo.value]).toEqual(history);
+});
+
+it.each(['plan', 'renovate'] as const)('keeps opener focus when the %s handoff is busy or refused', async perspective => {
+	const rig = await setup();
+	await rig.runtime.renovation.perspective(perspective); await settle();
+	const route = rig.wrapper.get<HTMLButtonElement>(`[data-rp-action="${perspective === 'plan' ? 'renovate-opening' : 'edit-layout'}"]`);
+	const before = expectOk(await rig.geometry.read(rig.plan.id));
+	route.element.focus();
+	const saves = useSaveStateStore(rig.pinia);
+	saves.beginSaving();
+	await route.trigger('click'); await settle();
+	expect(rig.session.perspective).toBe(perspective);
+	expect(document.activeElement).toBe(route.element);
+	saves.resolveNeutral();
+	const dialog = rig.dialogs.openDialog({ kind: 'confirm', title: 'Pending decision', message: 'Keep the current task' });
+	await settle();
+	const focused = document.activeElement;
+	await route.trigger('click'); await settle();
+	expect(rig.session.perspective).toBe(perspective);
+	expect(document.activeElement).toBe(focused);
+	rig.dialogs.resolve('cancel'); await dialog; await settle();
+	expect(document.activeElement).toBe(route.element);
+	expect(expectOk(await rig.geometry.read(rig.plan.id))).toEqual(before);
 });

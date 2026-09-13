@@ -44,4 +44,6 @@ export class CurveTool implements EditorTool {
 	cancel(): void { this.abandonGesture(); this.actions.cancel(); }
 	finish(): void { if (!this.drag) this.actions.finish(); }
 	hasDraft(): boolean { return this.actions.target() !== null; }
+	/** A bend follows the pointer's world position while its edge is being dragged. */
+	tracksPointer(): boolean { return this.drag !== null; }
 }

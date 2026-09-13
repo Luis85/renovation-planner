@@ -47,6 +47,14 @@ const previewPoints = computed(() => ([['ax', 'ay'], ['bx', 'by']] as const).map
 	return String(a).trim() !== '' && String(b).trim() !== '' && Number.isFinite(Number(a)) && Number.isFinite(Number(b)) ? { x: Number(a), y: Number(b) } : null;
 }));
 const prepared = computed(() => raster.value !== null && prepareValid(appearance, raster.value.width, raster.value.height));
+const pointStates = computed(() => previewPoints.value.map((point, index) => ({
+	label: index === 0 ? 'A' : 'B',
+	selected: point !== null,
+	coordinates: point === null ? '—' : `${point.x}, ${point.y}`,
+	state: tr(point === null
+		? index === 0 ? 'editor.reference.point-a-pending' : 'editor.reference.point-b-pending'
+		: index === 0 ? 'editor.reference.point-a-ready' : 'editor.reference.point-b-ready'),
+})));
 const scale = computed(() => {
 	const [a, b] = points.value, c = appearance.crop;
 	if (!prepared.value || !a || !b || !raster.value || ![a, b].every(p => p.x >= c.x && p.x <= c.x + c.width && p.y >= c.y && p.y <= c.y + c.height)) return null;
@@ -176,9 +184,36 @@ onMounted(() => { if (path.value) void load(); });
 					:has-raster="raster !== null"
 					@load="load"
 				/>
-				<section v-if="step === 2">
-					<p>{{ tr('editor.reference.measure-help') }}</p>
-					<div class="rp-reference-grid">
+				<section
+					v-if="step === 2"
+					class="rp-reference-measure"
+				>
+					<p class="rp-reference-measure__help">{{ tr('editor.reference.measure-help') }}</p>
+					<ol
+						class="rp-reference-point-progress"
+						:aria-label="tr('editor.reference.preview')"
+					>
+						<li
+							v-for="point in pointStates"
+							:key="point.label"
+							:class="{ 'is-selected': point.selected }"
+							:data-rp-reference-point="point.label.toLowerCase()"
+						>
+							<strong>{{ point.label }}</strong>
+							<span>{{ point.state }}</span>
+							<output>{{ point.coordinates }}</output>
+						</li>
+					</ol>
+					<label class="rp-dialog-field rp-reference-measure__length">{{ tr('editor.reference.length') }}<input
+						v-model="length"
+						name="length"
+						type="text"
+						inputmode="decimal"
+						:readonly="paused"
+					></label>
+					<details class="rp-reference-disclosure">
+						<summary>{{ tr('editor.reference.exact-points') }}</summary>
+						<div class="rp-reference-grid">
 						<label
 							v-for="key in (['ax', 'ay', 'bx', 'by'] as const)"
 							:key="key"
@@ -191,13 +226,7 @@ onMounted(() => { if (path.value) void load(); });
 							:readonly="paused"
 						></label>
 					</div>
-					<label class="rp-dialog-field">{{ tr('editor.reference.length') }}<input
-						v-model="length"
-						name="length"
-						type="text"
-						inputmode="decimal"
-						:readonly="paused"
-					></label>
+					</details>
 					<button
 						type="button"
 						:aria-disabled="paused"

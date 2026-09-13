@@ -22,6 +22,61 @@
 .rp-reference-preview { display: block; width: 100%; height: auto; background: var(--background-secondary); }
 .rp-reference-setup section { display: grid; gap: var(--size-4-2); }
 .rp-reference-setup p { overflow-wrap: anywhere; }
+.rp-reference-measure { align-content: start; }
+.rp-reference-measure__help { margin: 0; }
+.rp-reference-point-progress {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--size-4-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.rp-reference-point-progress li {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: var(--size-4-2);
+	align-items: center;
+	min-height: 2.5rem;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+}
+.rp-reference-point-progress li.is-selected {
+	border-style: solid;
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}
+.rp-reference-point-progress strong {
+	display: grid;
+	place-items: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border: 1px solid currentColor;
+	border-radius: 50%;
+	font-variant-numeric: tabular-nums;
+}
+.rp-reference-point-progress output {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	font-variant-numeric: tabular-nums;
+}
+.rp-reference-point-progress li:not(.is-selected) output { font-size: 0; }
+.rp-reference-point-progress li:not(.is-selected) output::after { content: "—"; font-size: var(--font-ui-small); }
+.rp-reference-measure__length { margin-top: var(--size-4-1); }
+.rp-reference-review__summary { display: grid; gap: var(--size-4-1); }
+.rp-reference-review__summary p { margin: 0; }
+.rp-reference-review__summary p:first-child { font-weight: var(--font-semibold); }
+.rp-reference-review__preview { color: var(--text-muted); }
+.rp-reference-rescale-impact {
+	padding: var(--size-4-2);
+	border: 1px solid var(--text-warning);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+}
+.rp-reference-rescale-impact p { margin: 0; }
+.rp-reference-rescale-impact h4 { margin: 0; }
 .rp-reference-source-picker { display: grid; gap: var(--size-4-1); }
 .rp-reference-source-list {
 	display: grid;

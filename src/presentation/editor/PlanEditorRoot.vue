@@ -210,6 +210,7 @@ const addMenuOpen = ref(false);
 const addButton = ref<HTMLElement | null>(null);
 
 function onOpenAdd(): void {
+	if (renovationSession.perspective !== 'plan') return;
 	addButton.value = (root.value as HTMLElement).querySelector<HTMLElement>('[data-rp-action="add"]');
 	addMenuOpen.value = !addMenuOpen.value;
 }
@@ -389,7 +390,8 @@ watch(() => projectStore.project?.id, (projectId, _previous, onCleanup) => {
 }, { immediate: true });
 const visibleOverlay = computed(() => renovationSession.perspective === 'plan' ? overlay.value : null);
 const showFloorStart = computed(() => visibleOverlay.value !== null && emptyStateKey.value === 'noBackground');
-const showAddMenu = computed(() => renovationSession.perspective !== 'review' && addMenuOpen.value);
+const showAddMenu = computed(() => renovationSession.perspective === 'plan' && addMenuOpen.value);
+watch(() => renovationSession.perspective, perspective => { if (perspective !== 'plan') retireAddMenu(); });
 </script>
 
 <template>

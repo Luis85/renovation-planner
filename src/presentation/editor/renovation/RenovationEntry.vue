@@ -19,14 +19,7 @@ function detailTitle(): string { return semantic.value ? tr(`renovation.title.${
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null);
 const relatedIcon = computed(() => expanded.value ? 'chevron-up' : 'chevron-down');
 const focusedRenovationOverview = computed(() => session.perspective === 'renovate' && session.mode === 'overview');
-function editableStructureTarget(targetId: string): boolean {
-	for (const structure of [project.structure, project.intended]) {
-		if (!structure) continue;
-		if ([...structure.walls, ...structure.openings, ...structure.elements ?? []].some(item => item.id === targetId)) return true;
-	}
-	return false;
-}
-const workEligible = computed(() => runtime.renovation.available && (project.zones.has(props.roomId) || editableStructureTarget(session.targetId)));
+const workEligible = computed(() => runtime.renovation.canAddWork(props.roomId));
 const modes = computed(() => session.mode === 'overview' && session.perspective === 'plan'
 	? context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const
 	: session.mode === 'overview' ? ['existing', 'planned', 'work'] as const
@@ -43,10 +36,8 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 	else (opener.value ?? inspector).focus();
 }
 async function addWork(): Promise<void> {
-	if (!workEligible.value || runtime.renovation.blocked.value) return;
 	const roomId = props.roomId || session.roomId;
-	runtime.renovation.focus(roomId, 'work');
-	await runtime.renovation.edit('work', roomId);
+	await runtime.renovation.addWork(roomId);
 }
 async function editLayout(): Promise<void> {
 	await runtime.renovation.perspective('plan');

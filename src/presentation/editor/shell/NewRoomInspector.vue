@@ -89,6 +89,7 @@ const NO_FIGURE = '–';
 const runtime = useEditorRuntime();
 const editor = useEditorStore();
 const draft = runtime.roomDraft;
+const roomBusy = computed(() => draft.submitting);
 
 const root = ref<HTMLElement | null>(null);
 const nameId = useId();
@@ -195,6 +196,11 @@ function commitOnBlur(axis: DimensionAxis, event: Event): void {
 function onCreate(): void {
 	if (!runtime.canCreateRoom.value || runtime.writesBlocked.value) return;
 	void runtime.createRoom();
+}
+
+function onCancel(): void {
+	if (roomBusy.value) return;
+	runtime.cancelActiveTask();
 }
 
 const areaText = computed<string>(() => (draft.areaMm2 === null ? NO_FIGURE : formatArea(draft.areaMm2)));
@@ -367,7 +373,8 @@ onBeforeUnmount(() => {
 			<button
 				type="button"
 				class="rp-new-room__cancel"
-				@click="runtime.cancelActiveTask()"
+				:aria-disabled="roomBusy"
+				@click="onCancel"
 			>
 				{{ tr('editor.room.cancel') }}
 			</button>

@@ -65,6 +65,19 @@
 	color: var(--text-accent);
 }
 
+/* Renovate's taskbar keeps the shared navigation tools but promotes the existing work route.
+ * Text, icon and border carry the distinction independently of the mode's green accent. */
+.rp-primary-actions--renovate .rp-primary-actions__work {
+	color: var(--text-normal);
+	background: color-mix(in srgb, var(--text-success) 16%, transparent);
+	border-color: var(--text-success);
+	font-weight: var(--bold-weight);
+}
+
+.rp-primary-actions--renovate .rp-primary-actions__work:hover {
+	background: color-mix(in srgb, var(--text-success) 24%, transparent);
+}
+
 /* Title and instruction read as one line where the width allows, and wrap as one block where not. */
 .rp-task-banner__text {
 	flex: 1 1 14rem;

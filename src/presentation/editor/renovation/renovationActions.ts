@@ -136,6 +136,14 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.edit.failed'); }
 		finally { loading.value = false; }
 	}
+	function canAddWork(roomId: string): boolean {
+		return context.commands.renovation !== undefined && editableContext(roomId, project, session);
+	}
+	async function addWork(roomId: string): Promise<void> {
+		if (!canAddWork(roomId) || blocked.value) return;
+		focus(roomId, 'work');
+		await edit('work', roomId);
+	}
 	async function change(make: (read: RenovationBaseline) => RenovationInput, message: string): Promise<void> {
 		if (blocked.value || dialogs.current || !context.commands.renovation) return;
 		loading.value = true;
@@ -163,5 +171,5 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.batch.failed'); }
 		finally { loading.value = false; }
 	}
-	return { perspective, focus, edit, batch, change, blocked, available: context.commands.renovation !== undefined };
+	return { perspective, focus, edit, addWork, canAddWork, batch, change, blocked, available: context.commands.renovation !== undefined };
 }

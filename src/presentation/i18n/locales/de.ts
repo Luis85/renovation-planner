@@ -518,7 +518,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'undo.before-execute': 'Noch nichts rückgängig zu machen.',
 	// I00 reserves the captions consumed by the mode-header packet. The existing
 	// `renovation.plan`/`.renovate`/`.review` keys remain the short radio labels.
-	'editor.perspective.plan.caption': 'Zeichnen und anpassen', 'editor.perspective.renovate.caption': 'Die Arbeiten planen', 'editor.perspective.review.caption': 'Den Plan prüfen', 'editor.room.last-valid-preview': 'Letzte gültige Vorschau',
+	'editor.perspective.plan.caption': 'Zeichnen und anpassen', 'editor.perspective.renovate.caption': 'Die Arbeiten planen', 'editor.perspective.review.caption': 'Den Plan prüfen', 'editor.room.last-valid-preview': 'Letzte gültige Vorschau', 'editor.reference.point-a-ready': 'Erster Punkt ausgewählt', 'editor.reference.point-b-ready': 'Zweiter Punkt ausgewählt', 'editor.reference.point-a-pending': 'Ersten Punkt auswählen', 'editor.reference.point-b-pending': 'Zweiten Punkt auswählen', 'editor.reference.exact-points': 'Exakte Punktkoordinaten', 'editor.reference.preview-only': 'Diese Einstellungen sind nur eine Vorschau, bis Sie den Referenzplan verwenden.', 'editor.reference.rescale-impact': 'Bestehende Geometrie wird skaliert',
 	...deSaveState,
 	...deAssetLibrary,
 };

@@ -23,9 +23,14 @@ export function provideNoteCreation(runtime: EditorRuntime, planning: ReturnType
   if (!available.value) return;
   const id = roomId.value ?? '', focusedId = session.roomId === id ? session.focusedId : '';
   runtime.returnToSelect(); runtime.renovation.focus(id, 'notes', focusedId);
-  void planning.edit('evidence').catch(cause => notifyFault(cause, planning.context.commands.logger, 'editor.add-note.failed'));
+  void openEvidenceForm(planning);
  }
  const value = { available, activate }; provide(NOTE_CREATION, value); return value;
+}
+
+/** Opens the evidence form for Add › Note, Add › Photo and the canvas menu's own Note and Photo; every caller is detached, so a fault is mapped, logged and notified here. */
+export function openEvidenceForm(planning: ReturnType<typeof usePlanningContext>): Promise<void> {
+ return planning.edit('evidence').catch(cause => notifyFault(cause, planning.context.commands.logger, 'editor.add-note.failed'));
 }
 
 export function useNoteCreation(): NoteCreation {

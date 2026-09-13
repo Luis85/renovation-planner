@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import axe from 'axe-core';
+import * as notices from '../../../src/presentation/notices/notify';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk } from '../../helpers/domain';
@@ -9,7 +10,7 @@ import { placeAt } from '../../helpers/layout';
 import { submenuPlacement } from '../../../src/presentation/editor/selection/submenuPlacement';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
-afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
+afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
 type Rig = Awaited<ReturnType<typeof renovationEditor>>;
 async function setup() { const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle(); return rig; }
 async function menuFor(rig: Rig, id: string) { rig.selection.select([id as never]); await settle(); rig.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle(); }
@@ -115,6 +116,16 @@ it('creates a Work item with no room from the submenu of a wall that bounds none
 	const work = expectDefined(rig.project.plan?.renovation?.work[0], 'Work');
 	expect(work.targetId).toBe('wall-a'); expect(work.roomId).toBeUndefined();
 	expectOk(await rig.renovation.read(rig.plan.id));
+});
+
+it('maps, logs and notifies a fault opening Add › Note rather than leaving an unhandled rejection', async () => {
+	const rig = await setup(); await settleUntil(() => !!rig.runtime.planning.baseline.value && !rig.runtime.planning.loading.value, 'planning read');
+	const fault = vi.spyOn(notices, 'notifyFault').mockImplementation(() => undefined);
+	vi.spyOn(rig.dialogs, 'openDialog').mockRejectedValue(new Error('Injected.'));
+	await menuFor(rig, 'wall-a'); await parent(rig).trigger('click'); await settle();
+	await rig.wrapper.get('[data-rp-context-action="add-note"]').trigger('click');
+	await settleUntil(() => fault.mock.calls.length === 1, 'fault notified');
+	expect(fault).toHaveBeenCalledWith(expect.any(Error), expect.anything(), 'editor.add-note.failed');
 });
 
 it('has no axe violations with the submenu open', async () => {

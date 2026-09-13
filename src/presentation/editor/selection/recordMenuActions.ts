@@ -4,6 +4,7 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { contextSource, defaultRenovationContext } from '../renovation/defaultRenovationContext';
 import { usePlanningContextIfProvided } from '../planning/planningContext';
 import { EDITOR_MODE_ICONS } from '../editorIcons';
+import { openEvidenceForm } from '../add/noteCreation';
 import type { CanvasMenuAction } from './useCanvasMenuActions';
 
 const reason = (off: boolean) => off ? 'editor.input.records-unavailable' as const : undefined;
@@ -16,7 +17,7 @@ export function useRecordMenuActions(): (targetId: string, blocked: boolean) => 
 	}
 	async function evidence(targetId: string, mode: 'notes' | 'photos'): Promise<void> {
 		runtime.renovation.focus(context(targetId), mode);
-		await planning?.edit('evidence');
+		if (planning) await openEvidenceForm(planning);
 	}
 	return (targetId, blocked) => {
 		const records = !runtime.renovation.available, files = records || !planning?.files || !planning.context.commands.planning;

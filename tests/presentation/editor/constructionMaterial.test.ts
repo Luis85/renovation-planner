@@ -74,6 +74,18 @@ describe('the construction entry (ADR-0031)', () => {
 		expect([...rig.stack.vault.entries]).toEqual(before);
 	});
 
+	it('names the evidence and the order still using an entry the way a user reads them', async () => {
+		const { rig, render } = await setup();
+		const rendered = { ...EMPTY_RENOVATION, subjects: [wall({ change: 'modify', description: 'Rendered', assetId: render.id })] };
+		expectOk(await write(rig, rendered));
+		const [entry] = await entries(rig);
+		const depth = { costs: [], evidence: [{ id: 'photo-render', targetId: 'wall-a', workId: '', recordId: entry.entity.id, path: 'Photos/wall.png', subpath: '', description: 'Cracked render', type: 'photo' as const, phase: 'before' as const, pin: null }],
+			procurement: [{ id: 'procurement-render', targetId: 'wall-a', workId: '', requirementId: entry.entity.id, unit: 'm2' as const, purchased: '1', reserved: '0' }] };
+		expectOk(await write(rig, { ...rendered, depth }));
+		const refused = expectErr(await write(rig, { ...EMPTY_RENOVATION, subjects: [wall({ change: 'unchanged', description: 'Brick' })], depth }));
+		expect(renovationMessage(refused)).toBe('Other records still use this material\'s quantity: Cracked render, Render. Remove them before changing the material.');
+	});
+
 	it('leaves an entry whose asset left the catalogue untouched through an unrelated write (spec §6.1)', async () => {
 		const { rig, render } = await setup();
 		expectOk(await write(rig, { ...EMPTY_RENOVATION, subjects: [wall({ change: 'modify', description: 'Rendered', assetId: render.id })] }));
@@ -213,6 +225,9 @@ describe('a construction write refused part-way puts back what already moved', (
 		const before = bytes(rig);
 		await create.undo();
 		expect(bytes(rig)).toEqual(before);
+		// The put-back emptied `done`, so a second execute starts afresh rather than replaying the renovation step alone.
+		const again = await create.execute();
+		expect([again.ok, (await entries(rig)).length, (await subjects(rig)).length, bytes(rig).length === before.length]).toEqual([false, 0, 0, true]);
 	});
 
 	it('puts the entry back when the sidecar moved after the entry was deleted', async () => {

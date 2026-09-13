@@ -136,6 +136,8 @@ describe('planning safety under unavailable dependencies', () => {
  vi.spyOn(rig.deps.plans, 'getById').mockResolvedValueOnce(ok(baseline.plan));
  expect((await rig.planning.material(baseline, rig.input, rig.ledger).execute()).ok).toBe(false);
  expect(materialReferents({ ...EMPTY_DEPTH, evidence: [{ ...rig.evidence, recordId: rig.input.id }] }, rig.input.id)).toEqual(['Floor invoice']);
+ const order = { id: 'order-floor', roomId: rig.roomId, targetId: rig.roomId, workId: '', requirementId: rig.input.id, unit: 'm2' as const, purchased: '1', reserved: '0' };
+ expect([materialReferents({ ...EMPTY_DEPTH, procurement: [order] }, rig.input.id), materialReferents({ ...EMPTY_DEPTH, procurement: [order] }, rig.input.id, 'Oak boards')]).toEqual([['order-floor'], ['Oak boards']]);
  });
 
  it('refuses legacy Room reassignment of contextual material and marks a missing source stale through the event cascade', async () => {

@@ -51,7 +51,8 @@ class ConstructionMaterialCommand {
 		const planning = await readPlanning(this.deps, this.planId);
 		if (!planning.ok) return planning;
 		const steps = constructionSteps(planning.value, this.input.renovation ?? EMPTY_RENOVATION);
-		const referents = steps.flatMap(step => step.kind === 'delete' ? materialReferents(planning.value.plan.entity.renovation?.depth, step.id) : []);
+		const names = new Map(planning.value.catalogue.map(item => [item.asset.id, item.asset.name]));
+		const referents = steps.flatMap(step => step.kind === 'delete' ? materialReferents(planning.value.plan.entity.renovation?.depth, step.id, names.get(step.assetId)) : []);
 		if (referents.length) return err(namedReferenceError('renovation.construction-referenced', `Still used by ${referents.join(', ')}.`, referents));
 		for (const step of steps.filter(item => item.kind === 'delete')) { const result = await this.material(step); if (!result.ok) return result; }
 		const renovation = await this.renovation();

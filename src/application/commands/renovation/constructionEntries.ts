@@ -4,7 +4,7 @@ import { constructionRule } from '../../../domain/requirement/constructionRule';
 import type { Renovation, RenovationSubject } from '../../../domain/renovation/Renovation';
 import type { MaterialInput, PlanningBaseline } from './materialPlanning';
 
-export type ConstructionStep = { readonly kind: 'save'; readonly input: MaterialInput } | { readonly kind: 'delete'; readonly id: string };
+export type ConstructionStep = { readonly kind: 'save'; readonly input: MaterialInput } | { readonly kind: 'delete'; readonly id: string; readonly assetId: string };
 
 /** The planned material that produces an entry: a new target, or a material that differs from the existing one (spec §6.5). */
 export function constructionAsset(subject: RenovationSubject): string | undefined {
@@ -34,7 +34,7 @@ function unknownAsset(subject: RenovationSubject | undefined, baseline: Planning
 export function constructionSteps(baseline: PlanningBaseline, proposed: Renovation): readonly ConstructionStep[] {
 	const entries = new Map(baseline.materials.filter(item => item.entity.source?.construction).map(item => [item.entity.source?.outcomeId ?? '', item.entity]));
 	const subjects = new Map(proposed.subjects.map(item => [item.id, item]));
-	const deletes = [...entries].filter(([subjectId]) => !wanted(subjects.get(subjectId), baseline) && !unknownAsset(subjects.get(subjectId), baseline)).map(([, entry]): ConstructionStep => ({ kind: 'delete', id: entry.id }));
+	const deletes = [...entries].filter(([subjectId]) => !wanted(subjects.get(subjectId), baseline) && !unknownAsset(subjects.get(subjectId), baseline)).map(([, entry]): ConstructionStep => ({ kind: 'delete', id: entry.id, assetId: entry.assetId }));
 	const saves = proposed.subjects.flatMap((subject): ConstructionStep[] => {
 		const input = wanted(subject, baseline), entry = entries.get(subject.id);
 		if (!input) return [];

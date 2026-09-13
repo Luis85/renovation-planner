@@ -10,10 +10,11 @@ import type { PlanningBaseline } from './PlanningServices';
 import { contextOf, hasRoomContext, type RoomContext } from '../../../domain/renovation/SharedLinks';
 import { originRoomId, requirementContext } from '../../../domain/requirement/RequirementOrigin';
 
-export function materialReferents(depth: PlanningDepth | undefined, id: string): readonly string[] {
+/** What still uses requirement `id`: a cost by its title, evidence by its description, and an order — which has no name of its own — by `orderName`, else its id. */
+export function materialReferents(depth: PlanningDepth | undefined, id: string, orderName?: string): readonly string[] {
 	return [...depth?.costs.filter(item => item.requirementId === id).map(item => item.title) ?? [],
 		...depth?.evidence.filter(item => item.recordId === id).map(item => item.description) ?? [],
-		...depth?.procurement.filter(item => item.requirementId === id).map(item => item.id) ?? []];
+		...depth?.procurement.filter(item => item.requirementId === id).map(item => orderName ?? item.id) ?? []];
 }
 export function validateMaterialLinks(requirement: Requirement, baseline: PlanningBaseline, renovation = baseline.plan.entity.renovation ?? EMPTY_RENOVATION) {
 	const source = requirement.source;

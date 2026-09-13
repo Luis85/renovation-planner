@@ -8,7 +8,8 @@
     "headSha": "39fe06a38d404bd8b50e428f70acfca261ac59ad",
     "checkout": "D:\\Projects\\renovation-planner",
     "coordinatorBranch": "codex/usability-coordinator",
-    "coordinatorWorktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-coordinator"
+    "coordinatorWorktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-coordinator",
+    "coordinatorPr": 173
   },
   "prerequisites": {
     "planningMockupPr": 170,

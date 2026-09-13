@@ -7,6 +7,8 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
 import { dimensionTexts, roomDimensions, type DimensionsText } from './roomDimensions';
+import { formatArea } from '../shell/formatArea';
+import { tr } from '../../i18n/strings';
 import RoomDimensionButton from './RoomDimensionButton.vue';
 import InlineRoomDimension from './InlineRoomDimension.vue';
 import DraftRoomDimensions from './DraftRoomDimensions.vue';
@@ -57,7 +59,9 @@ function anchor(axis: keyof DimensionsText, bounds: BoundingBox) {
 	const point = worldToScreen({ x: axis === 'width' ? (bounds.min.x + bounds.max.x) / 2 : bounds.min.x,
 		y: axis === 'width' ? bounds.min.y : (bounds.min.y + bounds.max.y) / 2 }, editor.viewport, STAGE_PIXELS);
 	const editing = draft.value?.axis === axis;
-	const top = Math.max(48, Math.min(editor.stageSize.height - (editing ? 250 : 88), point.y - (axis === 'width' ? 44 : 14)));
+	// An active scalar entry includes its preview/impact receipt, so reserve its full screen-space
+	// footprint above the taskbar instead of letting that feedback cover the bottom controls.
+	const top = Math.max(48, Math.min(editor.stageSize.height - (editing ? 372 : 88), point.y - (axis === 'width' ? 44 : 14)));
 	return { left: Math.max(editing ? 124 : 40, Math.min(editor.stageSize.width - (editing ? 124 : 40), point.x - (axis === 'depth' ? 28 : 0))),
 		top, maxHeight: Math.max(100, editor.stageSize.height - top - 88) };
 }
@@ -71,6 +75,14 @@ function guides(bounds: BoundingBox) {
 		depth: { left: `${anchor('depth', bounds).left}px`, top: `${min.y}px`, height: `${max.y - min.y}px` } };
 }
 function open(axis: keyof DimensionsText): void { if (room.value) void runtime.roomDimension.open(room.value.id as ZoneId, axis); }
+/** The draft preview is screen-only; this receipt makes its pending status and scope legible. */
+const inlinePreview = computed(() => {
+	if (draft.value === null || runtime.renderState.previewPolygon === null) return null;
+	const proposed = roomDimensions(runtime.renderState.previewPolygon);
+	if (proposed === null) return null;
+	const dimensions = dimensionTexts(proposed);
+	return { ...dimensions, area: formatArea((proposed.max.x - proposed.min.x) * (proposed.max.y - proposed.min.y)) };
+});
 // Capture ownership before the inline form disappears; never steal focus from another region.
 watch(draft, (next, previous) => {
 	if (next || !previous || !root.value?.contains(root.value.ownerDocument.activeElement)) return;
@@ -127,6 +139,17 @@ watch(draft, (next, previous) => {
 					:draft="draft"
 					:cancel="runtime.roomDimension.cancel"
 				/>
+				<div
+					v-if="draft?.axis === axis && inlinePreview !== null"
+					class="rp-inline-dimension__feedback"
+					data-rp-dimension-feedback
+				>
+					<p>{{ tr('editor.resize.current', dimensionTexts(draft.box)) }}</p>
+					<p role="status">
+						{{ tr('editor.resize.preview', inlinePreview) }}
+					</p>
+					<p>{{ tr('editor.resize.anchor') }}</p>
+				</div>
 				<RoomDimensionButton
 					v-else
 					:axis="axis"

@@ -38,6 +38,7 @@ import type { ToolManager } from '../tools/tool-manager';
 import type { RenderState } from '../tools/render-state';
 import { cursorClassFor } from './cursor';
 import { canvasKeyDoors } from './keyDoors';
+import { useRenovationSession } from '../renovation/renovationSession';
 
 /**
  * What this surface needs of the leaf it is mounted in, and nothing about a Plan.
@@ -108,6 +109,7 @@ const editor = props.editor;
 const toolManager = props.toolManager;
 const activeToolId = props.activeToolId;
 const renderState = props.renderState;
+const renovationSession = useRenovationSession();
 const { viewport } = storeToRefs(editor);
 
 const container = ref<HTMLElement | null>(null);
@@ -956,7 +958,21 @@ function onPointerLeave(event: PointerEvent): void {
  * read them when they lived here.
  */
 const { onKeyDown, onKeyUp } = canvasKeyDoors({
-	container, size, activeToolId, editor, toolManager, panOverride, syncPanPhase, reissuePointerMove, gestureInFlight, host: props,
+	container,
+	size,
+	activeToolId,
+	editor,
+	toolManager,
+	panOverride,
+	syncPanPhase,
+	reissuePointerMove,
+	gestureInFlight,
+	host: {
+		...props,
+		// Selection, fit and camera shortcuts remain useful in Renovate. Arrow nudges are a
+		// geometry write, so they intentionally become a no-op until Edit layout returns to Plan.
+		nudgeSelection: (by) => renovationSession.perspective === 'renovate' ? Promise.resolve() : props.nudgeSelection(by),
+	},
 });
 
 /**

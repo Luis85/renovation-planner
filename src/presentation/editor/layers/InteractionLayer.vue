@@ -145,12 +145,14 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 }));
 
 /**
- * Room outlines stay editable in Plan and Renovate; Review draws no editing handles. A LOCKED
- * zone draws none either: it is not a hit candidate, so its handles could never be grabbed.
+ * Room outlines are editable only in Plan. Renovate keeps the selected outline for context but
+ * deliberately withholds vertex affordances, so work planning cannot look like a geometry
+ * edit. Review draws no editing handles either. A LOCKED zone draws none: it is not a hit
+ * candidate, so its handles could never be grabbed.
  */
 const editableVertices = computed(() => {
 	const lockedSelection = zones.value.get(String(selectedIds.value[0]))?.locked === true;
-	return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && !lockedSelection ? selectedScreenPoints.value : [];
+	return renovationSession.perspective === 'plan' && runtime.activeToolId.value !== 'edit-curves' && !lockedSelection ? selectedScreenPoints.value : [];
 });
 </script>
 

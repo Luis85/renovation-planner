@@ -57,7 +57,8 @@ const cuts = computed<readonly WallCut[]>(() => {
 		.map(wall => ({ point: mark.point, tangent: wallTangent(wall, mark.offset), thickness: wall.thickness })))
 		.filter((cut, index, all) => all.findIndex(other => samePoint(other.point, cut.point)) === index);
 });
-function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
+/** Renovate retains a selected wall's identity but never presents endpoints as editable. */
+function handles(wall: Wall): readonly Point[] { return renovationSession.perspective === 'plan' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
 const elements = computed(() => withElementPreviews((structure.value.elements ?? []).filter(element => element.kind !== 'asset'), elementNames.value, runtime.rotationActions.preview.value, runtime.elementActions.preview.value, runtime.renderState.labelPreview));
 const elementDraft = computed(() => {

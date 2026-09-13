@@ -1,17 +1,20 @@
 import type { Point } from '../../core/geometry/Point';
 import type { Polygon } from '../../core/geometry/Polygon';
 import { createPolygon } from '../../core/geometry/Polygon';
+import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
+import { createCurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import { boundingBoxOf, enclosesArea } from '../../core/geometry/operations';
 import type { GeometryError, ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
+import { validateDetails, type AssetDetail } from './AssetDetail';
 
 const TAU = Math.PI * 2;
 
 export type FootprintOrigin = 'typed' | 'traced';
 
 export interface AssetShape {
-	readonly footprint: Polygon;
+	readonly footprint: CurvedPolygon;
 	readonly footprintOrigin: FootprintOrigin;
 	/**
 	 * One flag per coordinate group that can be captured on its own, each set at THAT
@@ -21,10 +24,12 @@ export interface AssetShape {
 	readonly footprintPending: boolean;
 	readonly clearancePending: boolean;
 	readonly anchorPending: boolean;
-	readonly clearance: Polygon | null;
+	readonly clearance: CurvedPolygon | null;
 	readonly anchor: Point;
 	/** Radians, measured anticlockwise from +x, normalised to [0, 2π). */
 	readonly facing: number;
+	/** Interior linework, drawn in this order over the footprint (symbols spec, Decisions 1 and 4). */
+	readonly details: readonly AssetDetail[];
 }
 
 export interface Dimensions {
@@ -97,7 +102,7 @@ export function footprintFromDimensions(
  * Dimensions are DERIVED (§88) — the bounding box of the footprint, never a stored pair.
  * A traced outline and a typed rectangle answer through one function for that reason.
  */
-export function dimensionsOf(footprint: Polygon): Result<Dimensions, GeometryError> {
+export function dimensionsOf(footprint: CurvedPolygon): Result<Dimensions, GeometryError> {
 	const box = boundingBoxOf(footprint);
 	if (isErr(box)) return box;
 	const width = box.value.max.x - box.value.min.x;
@@ -154,9 +159,13 @@ export function normaliseFacing(radians: number): number {
  * REFUSALS rather than repairs, for the same reason a two-vertex polygon is refused — no
  * command can produce either, so one in a sidecar is a hand edit, and quietly clearing
  * the flag would suppress the unscaled warning over placeholder-space geometry.
+ *
+ * Curved edges are checked for self-intersection only when an edge actually curves
+ * (`validateCurvedBoundary`), so a straight outline gets exactly the validation it had
+ * before curves existed.
  */
 export function validateAssetShape(shape: AssetShape): Result<AssetShape, ValidationError> {
-	const footprint = createPolygon(shape.footprint.points);
+	const footprint = createCurvedPolygon(shape.footprint);
 	if (isErr(footprint)) return err(assetError('invalid-footprint', footprint.error.message));
 	if (!enclosesArea(footprint.value)) {
 		return err(
@@ -166,9 +175,9 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 			),
 		);
 	}
-	let clearance: Polygon | null = null;
+	let clearance: CurvedPolygon | null = null;
 	if (shape.clearance !== null) {
-		const validated = createPolygon(shape.clearance.points);
+		const validated = createCurvedPolygon(shape.clearance);
 		if (isErr(validated)) return err(assetError('invalid-clearance', validated.error.message));
 		if (!enclosesArea(validated.value)) {
 			return err(
@@ -202,12 +211,15 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 			),
 		);
 	}
+	const details = validateDetails(shape.details);
+	if (isErr(details)) return details;
 	return ok({
 		...shape,
 		footprint: footprint.value,
 		clearance,
 		anchor: { x: shape.anchor.x, y: shape.anchor.y },
 		facing: normaliseFacing(shape.facing),
+		details: details.value,
 	});
 }
 
@@ -232,6 +244,7 @@ export function shapeFromOutline(points: readonly Point[]): Result<AssetShape, V
 		clearance: null,
 		anchor: { x: 0, y: 0 },
 		facing: 0,
+		details: [],
 	});
 }
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T15:16:16+02:00",
+  "updatedAt": "2026-09-13T15:31:43+02:00",
   "status": "in-progress",
   "integration": {
     "branch": "main",
@@ -19,7 +19,7 @@
   "limits": {
     "maxConcurrentCodingTasks": 3,
     "activeCodingTasks": 3,
-    "heavyVerificationOwner": "I02"
+    "heavyVerificationOwner": "I04"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -27,13 +27,13 @@
     "baseSha": "bab369891807a05472e51a163438662b5bb65aea",
     "rootPacket": "I00",
     "rootPr": 174,
-    "currentReviewedTipPacket": "I01",
-    "currentReviewedTipSha": "117a3dc53fdc29455d145dcc2f8f3c9636d97dc7",
+    "currentReviewedTipPacket": "I02",
+    "currentReviewedTipSha": "0f45ff5e724cc49e8c9c9b8d2b7d64da7992b5b7",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
     "I00": {
-      "status": "reviewed-stack-root-ci-pending",
+      "status": "reviewed-stack-root-ci-passed",
       "taskId": "01a09abe-68e3-7041-adea-59b071334eb0",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -65,7 +65,7 @@
       "blockers": []
     },
     "I02": {
-      "status": "verifying-on-stacked-parent",
+      "status": "reviewed-stack-parent-ci-pending",
       "taskId": "01a09ad5-e8b0-7171-9f4b-d42e2b718899",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -74,13 +74,13 @@
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i02-panels",
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
-      "pr": null,
-      "headSha": "97be5afd08a3e9a5ba969b7f77a83e54b8c7b600",
-      "verificationOwner": "I02 worker (slot granted)",
+      "pr": 176,
+      "headSha": "0f45ff5e724cc49e8c9c9b8d2b7d64da7992b5b7",
+      "verificationOwner": "I02 worker; coordinator follow-up reviewed",
       "blockers": []
     },
     "I04": {
-      "status": "preparing-provisional-commit",
+      "status": "verifying-on-stacked-parent",
       "taskId": "01a09ad5-f701-7cb3-9883-272f70232169",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -90,8 +90,8 @@
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
       "pr": null,
-      "headSha": null,
-      "verificationOwner": "waiting for shared slot",
+      "headSha": "f42fd2c26013182ace6274a5762374de7933ea1c",
+      "verificationOwner": "I04 worker (slot granted)",
       "blockers": []
     }
   },

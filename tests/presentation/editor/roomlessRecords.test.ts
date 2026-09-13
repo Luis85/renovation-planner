@@ -118,6 +118,32 @@ it('offers Set material… for a wall but not for an opening that is neither a d
 	expect(rig.wrapper.find('[data-rp-action="set-material"]').exists()).toBe(false);
 });
 
+it('names a wall material the catalogue no longer holds Unknown material (spec §6.1)', async () => {
+	const rig = await setup();
+	const brick = expectOk(await rig.stack.assets.save(makeAsset({ name: 'Clinker brick', unit: 'm2', category: 'material' }), 'absent')).entity;
+	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
+	const subject = { id: 'detail-wall', targetId: 'wall-a', kind: 'wall' as const, existing: { description: 'Clinker brick', condition: 'good' as const, assetId: brick.id }, planned: null };
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: { subjects: [subject], work: [], decisions: [] }, intended: undefined }, rig.runtime.structureTask.ledger)));
+	expectOk(await rig.stack.assets.delete(brick.id, expectDefined(expectOk(await rig.stack.assets.getById(brick.id)), 'asset').version));
+	rig.changePlan(); rig.changeCatalogue(); await rig.runtime.refreshProjection();
+	await settleUntil(() => !!rig.runtime.planning.baseline.value && !rig.runtime.planning.baseline.value.catalogue.some(item => item.asset.id === brick.id), 'catalogue without the brick');
+	rig.selection.select(['wall-a' as never]); await settle();
+	expect(rig.wrapper.get('.rp-structure-inspector').text()).toContain('Unknown material');
+});
+
+it('says a planned wall material priced per piece gets no calculated quantity (spec §8)', async () => {
+	const rig = await setup();
+	const block = expectOk(await rig.stack.assets.save(makeAsset({ name: 'Glass block', unit: 'piece', category: 'material' }), 'absent')).entity;
+	await rig.runtime.refreshProjection();
+	await settleUntil(() => rig.runtime.planning.baseline.value?.catalogue.some(item => item.asset.id === block.id) === true, 'catalogue read');
+	rig.selection.select(['wall-a' as never]); await settle();
+	rig.runtime.renovation.focus('', 'planned'); await settle();
+	await rig.wrapper.get('[data-rp-action="set-material"]').trigger('click'); await settle();
+	const form = rig.wrapper.get('[data-rp-form="renovation"]');
+	await form.get('select[name="material"]').setValue(block.id);
+	expect(form.text()).toContain('Quantity isn\'t calculated for materials priced per piece.');
+});
+
 it('clears a subject\'s material when its kind stops being wall, door or window', async () => {
 	const rig = await setup();
 	const brick = expectOk(await rig.stack.assets.save(makeAsset({ name: 'Clinker brick', unit: 'm2', category: 'material' }), 'absent')).entity;

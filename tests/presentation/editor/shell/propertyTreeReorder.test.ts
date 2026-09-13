@@ -11,6 +11,12 @@
  */
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { createPinia } from 'pinia';
+import { computed } from 'vue';
+import PropertyTreeMenu from '../../../../src/presentation/editor/shell/PropertyTreeMenu.vue';
+import { PLAN_EDITOR_CONTEXT } from '../../../../src/presentation/editor/PlanEditorContext';
+import { EDITOR_RUNTIME } from '../../../../src/presentation/editor/runtime';
 import { propertyOf, show, stylesheetRules, type StyleRule } from '../../../helpers/selectors';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
@@ -420,5 +426,28 @@ describe('PropertyTree reordering', () => {
 		await item(harness, FIXTURE_PLAN.id).trigger('keydown', { key: 'ArrowUp', altKey: true });
 		await settle();
 		expect(execute).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * A POP-OUT leaf's menu belongs to another document than the plugin's `document`, so an outside
+	 * press there is heard only by a listener on THAT document. Mounted standalone in a REAL second
+	 * document (an iframe's, never a stub) because the tree harness mounts into the main one.
+	 */
+	it('closes on an outside press in the document that owns it, as a pop-out leaf has', () => {
+		const frame = document.createElement('iframe');
+		document.body.append(frame);
+		onTestFinished(() => frame.remove());
+		const doc = frame.contentDocument as Document;
+		const host = doc.createElement('div');
+		doc.body.append(host);
+		const wrapper = mount(PropertyTreeMenu, {
+			props: { planId: 'plan-ground', name: 'Ground floor', kind: 'floor', host, x: 20, y: 20, first: false, last: false },
+			attachTo: host,
+			global: { plugins: [createPinia()], provide: { [PLAN_EDITOR_CONTEXT as symbol]: { commands: rig().commands }, [EDITOR_RUNTIME as symbol]: { writesBlocked: computed(() => false) } } },
+		});
+		onTestFinished(() => wrapper.unmount());
+		expect(wrapper.element.ownerDocument).toBe(doc);
+		doc.dispatchEvent(new Event('pointerdown'));
+		expect(wrapper.emitted('close')).toEqual([[false]]);
 	});
 });

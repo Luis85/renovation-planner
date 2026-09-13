@@ -23,6 +23,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
+import { listenOnOwner } from '../../composables/use-owner-listener';
 import { tr } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import type { useEditorStore } from '../../stores/EditorStore';
@@ -1231,9 +1232,18 @@ onMounted(() => {
 	// the application losing focus rather than competing for a keystroke, so two Plan Editor
 	// leaves both cleaning up is correct — neither has a held space bar once the window is
 	// deactivated.
-	window.addEventListener('blur', onBlur);
+	//
+	// On the element's OWN window, not the plugin's `window`: an Obsidian pop-out leaf has a
+	// window of its own, and its blur is the one an alt-tab away from it delivers — a listener
+	// on the main window never heard it, which was this same defect back through a door the
+	// paragraph above did not name. Registered below the null return so the element is known.
+	//
+	// A window listener outlives its element unless something removes it, and a closed leaf
+	// still reacting to every window blur would reach into a disposed Pinia store — so its
+	// removal is registered HERE, beside the listener, on the instance this hook runs under.
 	const element = container.value;
 	if (element === null) return;
+	onBeforeUnmount(listenOnOwner(element, 'window', 'blur', onBlur));
 	const measure = (): void => {
 		size.value = { width: element.clientWidth, height: element.clientHeight };
 		// The store's own copy (design slice 12), for `selectAndFrame` — reached from the
@@ -1273,9 +1283,6 @@ onBeforeUnmount(() => {
 	// left for a replay to read.
 	releaseInterruptedInputs();
 	editor.setPointer(null);
-	// A window listener outlives its element unless something removes it, and a closed leaf
-	// still reacting to every window blur would reach into a disposed Pinia store.
-	window.removeEventListener('blur', onBlur);
 	observer?.disconnect();
 	observer = null;
 });

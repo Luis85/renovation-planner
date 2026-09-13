@@ -5,21 +5,33 @@ import { discardElementGeometry } from './elementDraft';
 import type { Point } from '../../../core/geometry/Point';
 import { SNAP_TOLERANCE_PX } from '../handleMetrics';
 import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
+import { rectangleCorners } from './objectShape';
 
-/** Multi-click linear drafts share the standard tool lifecycle and require explicit Finish. */
+/**
+ * Multi-click linear drafts share the standard tool lifecycle and require explicit Finish. An item in
+ * rectangle mode is the one drag (2026-09-13 item modes spec §A): the press anchors a corner, every move
+ * rewrites the four corners, and the release names the rectangle — `DrawRoomTool`'s rule, since a fast
+ * flick is a legal pointer stream with no move at all. A click encloses no area and changes nothing.
+ */
 export class ElementTool implements EditorTool {
 	private context: EditorContext | null = null;
+	private dragAnchor: Point | null = null;
 	constructor(readonly id: ElementToolId, private readonly deps: {
 		draft: ElementDraft; start(id: ElementToolId): void; stop(): void; blocked(): boolean;
-		addPoint(point: Point): boolean; finish(): void;
+		addPoint(point: Point): boolean; setPoints(points: readonly Point[]): boolean; finish(): void;
 	}) {}
 	activate(context: EditorContext): void { this.context = context; this.deps.start(this.id); }
-	deactivate(): void { if (this.context) this.context.renderState.snapGuides = []; this.context = null; this.deps.stop(); }
+	deactivate(): void { if (this.context) this.context.renderState.snapGuides = []; this.context = null; this.dragAnchor = null; this.deps.stop(); }
 	private inputContext(): EditorContext | null { return this.context && !this.deps.blocked() ? this.context : null; }
 	pointerDown(event: EditorPointerEvent): void {
 		if (event.button !== 'primary' || !this.inputContext()) return;
 		this.pointerMove(event);
-		if (this.deps.draft.cursor) this.deps.addPoint(this.deps.draft.cursor);
+		// `blocked()` is read again inside the move above, so a press that turns blocked between
+		// the two reads leaves `draft.cursor` unset — nothing to anchor or add.
+		const cursor = this.deps.draft.cursor;
+		if (!cursor) return;
+		if (this.id === 'place-object' && this.deps.draft.shape === 'rectangle') this.dragAnchor = cursor;
+		else this.deps.addPoint(cursor);
 	}
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.inputContext();
@@ -28,11 +40,17 @@ export class ElementTool implements EditorTool {
 		const snap = context.snapService.snapPointWithGuides(constrained, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
 		this.deps.draft.cursor = snap.point;
 		context.renderState.snapGuides = snap.guides;
+		const corners = this.dragAnchor && rectangleCorners(this.dragAnchor, snap.point);
+		if (corners) this.deps.setPoints(corners);
 	}
-	pointerUp(): void { /* Completed points belong to pointer down. */ }
+	pointerUp(event: EditorPointerEvent): void {
+		if (!this.dragAnchor) return;
+		this.pointerMove(event);
+		this.dragAnchor = null;
+	}
 	finish(): void { this.deps.finish(); }
-	cancel(): void { if (this.context) this.context.renderState.snapGuides = []; if (!this.deps.draft.busy) discardElementGeometry(this.deps.draft); }
-	abandonGesture(): void { this.deps.draft.cursor = null; if (this.context) this.context.renderState.snapGuides = []; }
+	cancel(): void { if (this.context) this.context.renderState.snapGuides = []; this.dragAnchor = null; if (!this.deps.draft.busy) discardElementGeometry(this.deps.draft); }
+	abandonGesture(): void { this.deps.draft.cursor = null; this.dragAnchor = null; if (this.context) this.context.renderState.snapGuides = []; }
 	hasDraft(): boolean { return this.deps.draft.points.length > 0 || this.deps.draft.pendingInput || !!this.deps.draft.text.x || !!this.deps.draft.text.y; }
 	editCorner(index: number, point: Point | null): boolean {
 		if (this.deps.blocked()) return false;

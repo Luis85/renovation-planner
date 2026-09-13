@@ -7,6 +7,7 @@ import { validSpatialElement } from '../../../domain/spatial/SpatialElement';
 import { areaOutline } from '../add/areaOutline';
 import type { ToolId } from '../tools/editor-tool';
 import { DEFAULT_STAIR, type StairOptions } from '../../../domain/spatial/stairGeometry';
+import type { ObjectShapeMode } from './objectShape';
 
 export type ElementToolId = 'place-object' | 'draw-path' | 'draw-fence' | 'measure' | 'place-stair' | 'draw-arrow';
 /** No tool here produces `'asset'` yet — placement lands through its own flow (plan editor asset placement design §2). */
@@ -19,16 +20,18 @@ export interface ElementDraft {
 	kind: Exclude<SpatialElementKind, 'asset'>; name: string; points: Point[]; cursor: Point | null;
 	text: { x: string; y: string };
 	rectangle: ObjectRectangleText;
+	/** Only an item reads it (2026-09-13 item modes spec §A); every other kind is drawn corner by corner. */
+	shape: ObjectShapeMode;
 	stair: StairOptions;
 	pendingInput: boolean;
 	loading: boolean; busy: boolean; conflict: boolean; error: AppError | null;
 }
 export function createElementDraft(): ElementDraft {
-	return reactive({ kind: 'object', name: '', points: [], cursor: null, text: { x: '', y: '' }, rectangle: emptyObjectRectangle(), stair: { ...DEFAULT_STAIR }, pendingInput: false, loading: false, busy: false, conflict: false, error: null });
+	return reactive({ kind: 'object', name: '', shape: 'rectangle', points: [], cursor: null, text: { x: '', y: '' }, rectangle: emptyObjectRectangle(), stair: { ...DEFAULT_STAIR }, pendingInput: false, loading: false, busy: false, conflict: false, error: null });
 }
 export function discardElementGeometry(draft: ElementDraft): void {
-	const { kind, name, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
-	Object.assign(draft, createElementDraft(), { kind, name, loading, busy, conflict, error });
+	const { kind, name, shape, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
+	Object.assign(draft, createElementDraft(), { kind, name, shape, loading, busy, conflict, error });
 }
 /** Every proposal of an element's points passes here: a valid element, and an object outline that does not cross itself. */
 export function acceptsElementPoints(element: SpatialElement, points: readonly Point[]): boolean {

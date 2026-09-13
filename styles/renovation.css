@@ -29,9 +29,6 @@
 	gap: var(--size-4-2);
 	width: 100%;
 }
-.rp-renovation-inspector--focused > h3 {
-	margin-bottom: 0;
-}
 .rp-renovation-inspector,
 .rp-renovation-fields {
 	display: grid;

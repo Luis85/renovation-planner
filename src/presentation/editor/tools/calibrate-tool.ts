@@ -339,6 +339,11 @@ export class CalibrateTool implements EditorTool {
 		return this.pointA !== null || this.pendingCompletion !== null;
 	}
 
+	/** The tape trails the pointer from a placed first point; a measured segment awaiting its distance does not. */
+	tracksPointer(): boolean {
+		return this.pointA !== null;
+	}
+
 	private clearMeasurement(context: EditorContext): void {
 		context.renderState.measurement = null;
 	}

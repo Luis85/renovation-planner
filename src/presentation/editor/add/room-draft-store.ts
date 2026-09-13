@@ -27,7 +27,7 @@ export type DimensionAxis = 'width' | 'depth';
  * function — one action per gesture the drag and the two numeric fields can make — stays
  * under the 100-line function budget.
  */
-function polygonForRect(r: RoomRect): Polygon | null {
+export function polygonForRect(r: RoomRect): Polygon | null {
 	const result = createPolygon([
 		{ x: r.x, y: r.y },
 		{ x: r.x + r.width, y: r.y },

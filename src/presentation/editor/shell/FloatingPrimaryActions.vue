@@ -91,7 +91,7 @@ const emit = defineEmits<{ openAdd: [] }>();
 			data-rp-action="renovation-more"
 			@click="revealDetails"
 		>
-			<HostIcon name="ellipsis" />{{ tr('editor.structure.more') }}
+			<HostIcon name="panels-top-left" />{{ tr('editor.structure.more') }}
 		</button>
 	</div>
 </template>

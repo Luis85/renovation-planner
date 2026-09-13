@@ -9,7 +9,7 @@ import { checkExpectedVersion } from '../../../application/ports/versioning';
 import { ensureFolder, fileStatAt, persistenceError } from './noteIo';
 import { assetSidecarPathFor, parentOf, usableAsFilename } from './paths';
 import type { AssetGeometryDTO } from '../../persistence/dto/assetGeometry';
-import { AssetGeometrySchemaV1 } from '../../persistence/dto/assetGeometry';
+import { AssetGeometrySchema } from '../../persistence/dto/assetGeometry';
 import { KeyedQueues } from './KeyedQueues';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
 import { observeSidecar } from './digest';
@@ -49,7 +49,7 @@ export type AssetSidecarContent = Pick<AssetGeometryDTO, 'calibration' | 'shape'
 const ABSENT_VERSION: EntityVersion = { revision: 0, observed: observeSidecar('') };
 
 const emptyDocument = (assetId: AssetId): AssetGeometryDTO => ({
-	schemaVersion: 1,
+	schemaVersion: 2,
 	assetId,
 	revision: 0,
 	unit: 'mm',
@@ -83,8 +83,8 @@ const emptyDocument = (assetId: AssetId): AssetGeometryDTO => ({
  * the sentence "this build is too old" rather than "your data is bad". This store does not,
  * because the runner is keyed by `DiagnosticEntityKind` and adding `asset-geometry` to that
  * closed union widens the diagnostics snapshot — a decision this task does not own. A
- * future-version sidecar is still REFUSED, by `schemaVersion: z.literal(1)`, and still
- * never loaded; only the category and the sentence are less precise. Pinned by the
+ * future-version sidecar is still REFUSED, by `AssetGeometrySchema`, which knows versions 1
+ * and 2, and still never loaded; only the category and the sentence are less precise. Pinned by the
  * 'refuses a sidecar written by a newer build' case rather than left as a claim here.
  */
 export class AssetGeometryStore {
@@ -128,7 +128,7 @@ export class AssetGeometryStore {
 	private async declaredAssetOf(file: TFile): Promise<string | null> {
 		try {
 			const parsed: unknown = JSON.parse(await this.vault.read(file));
-			const validated = AssetGeometrySchemaV1.safeParse(parsed);
+			const validated = AssetGeometrySchema.safeParse(parsed);
 			return validated.success ? validated.data.assetId : null;
 		} catch {
 			return null;
@@ -237,7 +237,7 @@ export class AssetGeometryStore {
 
 			const nextRevision = current.value.version.revision + 1;
 			const text = canonicalJson({
-				schemaVersion: 1,
+				schemaVersion: 2,
 				assetId,
 				revision: nextRevision,
 				unit: 'mm',
@@ -324,7 +324,7 @@ export class AssetGeometryStore {
 			});
 		}
 
-		const validated = AssetGeometrySchemaV1.safeParse(parsed);
+		const validated = AssetGeometrySchema.safeParse(parsed);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

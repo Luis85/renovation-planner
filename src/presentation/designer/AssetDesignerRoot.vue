@@ -29,13 +29,14 @@
  * level up and leaves it unchecked. A registry the root iterates has the same hole — nothing
  * makes a later task add its entry.
  */
-import { computed, onMounted, ref } from 'vue';
+import { computed, markRaw, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import DialogHost from '../dialogs/DialogHost.vue';
 import { useDialogStore } from '../dialogs/dialog-store';
+import type { AssetShape } from '../../domain/asset/AssetShape';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import SaveStateIndicator from '../editor/save-state/SaveStateIndicator.vue';
@@ -50,6 +51,7 @@ import { isMissingAsset, useAssetDesignStore } from './stores/assetDesignStore';
 import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
+import AssetPresetForm from './presets/AssetPresetForm.vue';
 
 const context = useAssetDesignerContext();
 const dialogs = useDialogStore();
@@ -201,11 +203,33 @@ async function editDimensions(): Promise<void> {
 	const result = await dialogs.openDialog({
 		kind: 'asset-dimensions',
 		title: tr('designer.dimensions.edit.title'),
-		...(dimensions !== null && !unscaled ? { initial: dimensions } : {}),
+		// In the whole millimetres `DesignerInspector` shows, never a curve's irrational box.
+		...(dimensions !== null && !unscaled ? { initial: { width: Math.round(dimensions.width), depth: Math.round(dimensions.depth) } } : {}),
 		...(unscaled ? { warning: tr('designer.dimensions.unscaled') } : {}),
 	});
 	if (result === null) return;
 	await runtime.setFootprintFromDimensions(result.width, result.depth);
+}
+
+/** `FormDialog` carries its payload as `unknown`; the command validates the shape itself. */
+function isShape(values: unknown): values is AssetShape {
+	return typeof values === 'object' && values !== null && 'footprint' in values && 'details' in values;
+}
+
+/**
+ * The symbols spec's preset gesture: open the picker, write what it builds. Guarded like
+ * `editDimensions` against a second dialog, and a cancel writes nothing.
+ */
+async function startFromPreset(): Promise<void> {
+	if (dialogs.current !== null) return;
+	const result = await dialogs.openDialog({
+		kind: 'form',
+		title: tr('designer.preset.title'),
+		component: markRaw(AssetPresetForm),
+		props: { replaces: Boolean(design.value?.shape) },
+	});
+	if (result === 'cancel' || !isShape(result.values)) return;
+	await runtime.applyShape(result.values);
 }
 
 /**
@@ -381,6 +405,7 @@ onMounted(() => {
 					:design="design"
 					:set-height="runtime.commitHeight"
 					:edit-dimensions="editDimensions"
+					:start-from-preset="startFromPreset"
 					:logger="context.logger"
 				/>
 			</div>

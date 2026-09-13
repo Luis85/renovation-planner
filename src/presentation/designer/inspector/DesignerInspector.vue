@@ -35,6 +35,7 @@ const props = defineProps<{
 	design: AssetDesignDto;
 	setHeight: (height: number | null) => Promise<DispatchResult>;
 	editDimensions: () => Promise<void>;
+	startFromPreset: () => Promise<void>;
 	logger: Logger;
 }>();
 
@@ -120,7 +121,8 @@ const dimensionsLabel = computed(() =>
 			class="rp-designer-inspector-fields"
 		>
 			<dt>{{ tr('designer.inspector.dimensions') }}</dt>
-			<dd>{{ dimensions.width }} × {{ dimensions.depth }} mm</dd>
+			<!-- Whole millimetres: a curve's box is irrational, and no drawing is read finer than that. -->
+			<dd>{{ Math.round(dimensions.width) }} × {{ Math.round(dimensions.depth) }} mm</dd>
 		</dl>
 		<p
 			v-if="dimensions !== null && design.dimensionsUnscaled"
@@ -134,6 +136,13 @@ const dimensionsLabel = computed(() =>
 			@click="() => void editDimensions()"
 		>
 			{{ dimensionsLabel }}
+		</button>
+		<button
+			type="button"
+			class="rp-designer-start-preset"
+			@click="() => void startFromPreset()"
+		>
+			{{ tr('designer.inspector.start-preset') }}
 		</button>
 
 		<FieldError

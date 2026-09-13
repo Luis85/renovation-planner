@@ -255,6 +255,12 @@ onBeforeUnmount(() => {
 		<h3 class="rp-editor-panel-title">
 			{{ tr('editor.room.new.heading') }}
 		</h3>
+		<p
+			class="rp-new-room__save-state"
+			role="status"
+		>
+			{{ tr(roomBusy ? 'save-state.saving' : 'editor.creation.draft-unsaved') }}
+		</p>
 
 		<div class="rp-new-room__field">
 			<label :for="nameId">{{ tr('editor.room.name') }}</label>

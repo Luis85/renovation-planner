@@ -198,8 +198,8 @@
 }
 
 @container (max-width: 599px) {
-	.renovation-plan-editor .rp-perspective-controls { width: 100%; }
-	.renovation-plan-editor .rp-perspective-context { min-width: 0; flex: 1 1 auto; }
-	.renovation-plan-editor .rp-context-bar .rp-renovation-switch { flex: 0 1 auto; }
+	.renovation-plan-editor .rp-perspective-controls { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--size-4-1); }
+	.renovation-plan-editor .rp-perspective-context { min-width: 0; max-width: none; display: flex; align-items: center; gap: var(--size-4-2); }
+	.renovation-plan-editor .rp-context-bar .rp-renovation-switch { justify-content: space-between; }
 	.renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button { padding-inline: 8px; }
 }

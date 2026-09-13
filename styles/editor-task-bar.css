@@ -191,6 +191,21 @@
 	}
 }
 
+/* The canvas can be much narrower than its leaf: account for both side panels and the
+ * constrained rail. Wrap labeled actions within the canvas instead of clipping the end actions. */
+.renovation-plan-editor .rp-primary-actions {
+	width: max-content;
+	max-width: calc(100% - 16px);
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.renovation-plan-editor .rp-primary-actions__button {
+	min-height: 44px;
+	height: auto;
+	white-space: normal;
+}
+
 /* At the supported 400px floor the constrained rail leaves less canvas width than four
  * labelled Renovate actions need. Keep every action visible as a named 44px icon button;
  * 460px and wider retain labels, and the 399px shell still uses its unsupported-width state. */

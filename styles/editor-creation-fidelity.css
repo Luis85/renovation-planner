@@ -34,13 +34,22 @@
 .renovation-plan-editor .rp-floor-start > button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 3px; }
 .renovation-plan-editor .rp-new-room__preview[data-rp-preview-state='last-valid'] { border-color: var(--text-warning); }
 .renovation-plan-editor .rp-new-room__advanced > button { min-height: 34px; }
-.renovation-plan-editor .rp-floor-setup { margin-top: 36px; }
-.renovation-plan-editor .rp-floor-setup > p { padding-block: 36px; color: var(--text-muted); }
-.renovation-plan-editor .rp-floor-setup ul { list-style: none; margin: 0; padding: 0; }
-.renovation-plan-editor .rp-floor-setup li { display: flex; align-items: center; gap: 10px; padding-block: 14px; border-bottom: 1px solid var(--background-modifier-border); color: var(--text-muted); }
+.renovation-plan-editor .rp-floor-setup { display: grid; gap: var(--size-4-2); margin-top: var(--size-4-3); }
+.renovation-plan-editor .rp-floor-setup > p { margin: 0; color: var(--text-muted); }
+.renovation-plan-editor .rp-new-room__save-state { margin: 0; color: var(--text-muted); font-size: var(--font-ui-small); }
+.renovation-plan-editor .rp-new-room { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--size-4-2) var(--size-4-3); }
+.renovation-plan-editor .rp-new-room > * { grid-column: 1 / -1; min-width: 0; }
+.renovation-plan-editor .rp-new-room > .rp-field-error { grid-column: auto; }
+.renovation-plan-editor .rp-new-room__field input { width: 100%; min-width: 0; }
+.renovation-plan-editor .rp-new-room .rp-new-room__create:not([aria-disabled='true']) {
+	background: color-mix(in srgb, var(--interactive-accent) 70%, var(--text-normal));
+	color: var(--background-primary);
+}
+.renovation-plan-editor .rp-new-room .rp-new-room__create:not([aria-disabled='true']):hover {
+	background: color-mix(in srgb, var(--interactive-accent) 55%, var(--text-normal));
+}
 @container (max-width: 899px) {
 	.renovation-plan-editor .rp-floor-start { top: 8%; padding: 8px; gap: 8px; }
 	.renovation-plan-editor .rp-floor-start__helper { margin: 0 0 8px; }
 	.renovation-plan-editor .rp-floor-start > button { min-height: 72px; padding: 12px; }
-	.renovation-plan-editor .rp-new-room__actions { grid-template-columns: 1fr; }
 }

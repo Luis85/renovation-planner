@@ -7,6 +7,8 @@ export const creationDe: Record<keyof typeof creationEn, string> = {
 	'editor.creation.start-help': 'Beginnen Sie mit dem, was Sie haben. Maße können Sie später verfeinern.',
 	'editor.creation.recommended': 'Empfohlen',
 	'editor.creation.nothing-added': 'Es wurde noch nichts hinzugefügt.',
+	'editor.creation.start-guidance': 'Fügen Sie in Plan Räume hinzu oder zeichnen Sie Wände und Flächen. Ein Referenzplan ist optional.',
+	'editor.creation.draft-unsaved': 'Entwurf nicht gespeichert',
 	'editor.creation.get-started': 'Erste Schritte',
 	'editor.creation.reference': 'Referenzplan',
 	'editor.creation.scale': 'Maßstab',

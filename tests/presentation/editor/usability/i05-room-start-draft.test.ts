@@ -14,6 +14,9 @@ it('keeps the empty-floor entry point to three real starting routes', async () =
 	expect(start.text()).toContain('Add rooms');
 	expect(start.text()).toContain('Upload a floor plan');
 	expect(start.text()).toContain('Start empty');
+	const guidance = harness.wrapper.get('.rp-floor-setup');
+	expect(guidance.text()).toContain(t('en', 'editor.creation.start-guidance'));
+	expect(guidance.find('ul').exists()).toBe(false);
 
 	await start.get('[data-rp-route="rooms"]').trigger('click');
 	await settle();
@@ -50,6 +53,13 @@ it('puts the ordinary room fields before free-form shape controls and marks the 
 	expect(form.get('.rp-new-room__preview-label').text()).toBe(t('en', 'editor.room.last-valid-preview'));
 	expect(form.get('.rp-new-room__create').attributes('aria-disabled')).toBe('true');
 	expect(harness.wrapper.get('.rp-task-banner__finish').attributes('aria-disabled')).toBe('true');
+	expect(form.get('.rp-new-room__save-state').text()).toBe(t('en', 'editor.creation.draft-unsaved'));
+	runtime.roomDraft.setSubmitting(true);
+	await settle();
+	expect(form.get('.rp-new-room__save-state').text()).toBe(t('en', 'save-state.saving'));
+	runtime.roomDraft.setSubmitting(false);
+	await settle();
+	expect(form.get('.rp-new-room__save-state').text()).toBe(t('en', 'editor.creation.draft-unsaved'));
 	// Cancel remains the explicit task exit while the draft is invalid.
 	expect(form.find('.rp-new-room__cancel').exists()).toBe(true);
 });

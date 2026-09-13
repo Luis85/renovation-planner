@@ -20,6 +20,8 @@ export const FIXTURE_PLAN: PlanDto = {
 	id: 'plan-ground',
 	projectId: 'project-1',
 	name: 'Ground floor',
+	kind: 'floor',
+	order: 0,
 	background: null,
 	// An UNCALIBRATED plan, which is what a fixture with no background should be — and it was
 	// simply ABSENT until `tests/**` was type-checked, on a literal annotated `PlanDto` with

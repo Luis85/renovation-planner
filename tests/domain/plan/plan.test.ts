@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Calibration } from '../../../src/domain/plan/Calibration';
 import { Plan, withPlanNorth } from '../../../src/domain/plan/Plan';
 import { createPlanId } from '../../../src/domain/plan/PlanId';
+import { childKindOf, DEFAULT_PLAN_KIND, isPlanKind, PLAN_KINDS } from '../../../src/domain/plan/PlanKind';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { expectErr, expectOk } from '../../helpers/domain';
 
@@ -116,5 +117,56 @@ describe('Plan.withCalibration', () => {
 		const calibrated = expectOk(base().withCalibration(calibration));
 		expect(expectOk(calibrated.withCalibration(null)).calibration).toBeNull();
 		expect(calibrated.calibration).toBe(calibration);
+	});
+});
+
+describe('Plan kind and order', () => {
+	it('defaults to floor and order 0, and carries both through every with-method', () => {
+		const plan = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'Site' }));
+		expect(plan.kind).toBe('floor');
+		expect(plan.order).toBe(0);
+		const site = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'Site', kind: 'site', order: 3 }));
+		expect(expectOk(site.withBackground(null))).toMatchObject({ kind: 'site', order: 3 });
+		expect(expectOk(site.withCalibration(null))).toMatchObject({ kind: 'site', order: 3 });
+		const oriented = expectOk(withPlanNorth(site, 90));
+		expect(oriented).toMatchObject({ kind: 'site', order: 3, north: 90 });
+		expect(expectOk(site.withDetails({ order: 4 })).north).toBeUndefined();
+		// And a north already set survives a details change — the half the line above cannot see.
+		expect(expectOk(oriented.withDetails({ order: 4 }))).toMatchObject({ kind: 'site', order: 4, north: 90 });
+	});
+
+	it('withDetails re-validates and leaves the parent alone', () => {
+		const parent = { planId: createPlanId(), zoneId: 'zone-house' as never };
+		const plan = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'House', parent }));
+		const moved = expectOk(plan.withDetails({ kind: 'building', order: 2 }));
+		expect(moved).toMatchObject({ kind: 'building', order: 2, parent });
+		expect(expectOk(moved.withDetails({ order: 5 }))).toMatchObject({ kind: 'building', order: 5 });
+		expect(expectErr(plan.withDetails({ kind: 'attic' as never })).code).toBe('plan.unknown-kind');
+		expect(expectErr(plan.withDetails({ order: -1 })).code).toBe('plan.invalid-order');
+		expect(expectErr(plan.withDetails({ order: 1.5 })).code).toBe('plan.invalid-order');
+	});
+
+	it('refuses a kind outside the vocabulary and a bad order at creation', () => {
+		expect(expectErr(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'X', kind: 'attic' as never })).code).toBe('plan.unknown-kind');
+		expect(expectErr(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'X', order: Number.NaN })).code).toBe('plan.invalid-order');
+	});
+
+	/** `-0` is an integer and not below zero, so validation lets it through; it is normalised rather than written as `-0`. */
+	it('normalises a negative zero order to zero, at creation and on a details change', () => {
+		const plan = expectOk(Plan.create({ id: createPlanId(), projectId: projectId(), name: 'X', order: -0 }));
+		expect(Object.is(plan.order, 0)).toBe(true);
+		expect(Object.is(expectOk(plan.withDetails({ order: -0 })).order, 0)).toBe(true);
+	});
+
+	it('PlanKind helpers: vocabulary, guard, and one step down', () => {
+		expect(PLAN_KINDS).toEqual(['site', 'building', 'floor', 'room']);
+		expect(DEFAULT_PLAN_KIND).toBe('floor');
+		expect(isPlanKind('room')).toBe(true);
+		expect(isPlanKind('attic')).toBe(false);
+		expect(isPlanKind(3)).toBe(false);
+		expect(childKindOf('site')).toBe('building');
+		expect(childKindOf('building')).toBe('floor');
+		expect(childKindOf('floor')).toBe('room');
+		expect(childKindOf('room')).toBe('room');
 	});
 });

@@ -7,6 +7,7 @@ import { validateCalibration, type Calibration } from './Calibration';
 import { PLAN_BACKGROUND_KINDS, type PlanBackgroundRef } from './PlanBackgroundRef';
 import { planError } from './Plan.errors';
 import type { PlanId } from './PlanId';
+import { DEFAULT_PLAN_KIND, isPlanKind, type PlanKind } from './PlanKind';
 import type { SpatialElementMetadata } from '../spatial/SpatialElement';
 import type { ZoneId } from '../zone/ZoneId';
 
@@ -14,6 +15,38 @@ import type { ZoneId } from '../zone/ZoneId';
 export interface PlanParent {
 	readonly planId: PlanId;
 	readonly zoneId: ZoneId;
+}
+
+/** The two label fields `UpdatePlanDetailsCommand` writes (ADR-0029). */
+export interface PlanDetails {
+	readonly kind?: PlanKind;
+	readonly order?: number;
+}
+
+/**
+ * The label fields with `base` filling what `details` leaves out, validated. Owns the
+ * defaulting too, because `create` sat at its complexity cap until the spatial-element check
+ * below came out of it; every check taken out of `create` is a branch it gets back.
+ */
+function resolveDetails(details: PlanDetails, base: Required<PlanDetails>): Result<Required<PlanDetails>, ValidationError> {
+	const kind = details.kind ?? base.kind, order = details.order ?? base.order;
+	if (!isPlanKind(kind)) {
+		return err(planError('unknown-kind', `"${String(kind)}" is not a plan kind.`));
+	}
+	if (!Number.isInteger(order) || order < 0) {
+		return err(planError('invalid-order', `A plan order must be a non-negative integer; got ${order}.`));
+	}
+	// `-0` is an integer and not `< 0`, so it reaches here; `+ 0` normalises it to `0` (IEEE 754:
+	// -0 + +0 is +0) rather than letting a `-0` through to a note as the sign it would serialise with.
+	return ok({ kind, order: order + 0 });
+}
+
+/** Element labels need unique `element-` identities and non-empty names; absent is fine. */
+function validateSpatialElements(elements: readonly SpatialElementMetadata[] | undefined): Result<void, ValidationError> {
+	if (elements && (new Set(elements.map(item => item.id)).size !== elements.length || elements.some(item => !item.id.startsWith('element-') || !item.name.trim()))) {
+		return err(planError('invalid-spatial-elements', 'Spatial element labels need unique identities and non-empty names.'));
+	}
+	return ok(undefined);
 }
 
 /**
@@ -56,6 +89,20 @@ function validNorth(north: number | undefined): boolean {
 	return north === undefined || (Number.isInteger(north) && north >= 0 && north < 360);
 }
 
+/**
+ * The bearing and the parent link, checked together for one reason only: `create` sat AT its
+ * complexity cap before north arrived, and each check taken out of it is a branch it gets back.
+ */
+function validateNorthAndParent(props: CreatePlanProps): Result<void, ValidationError> {
+	if (!validNorth(props.north)) {
+		return err(planError('invalid-north', 'North must be a whole number of degrees from 0 to 359.'));
+	}
+	if (props.parent && props.parent.planId === props.id) {
+		return err(planError('parent-is-self', 'A plan cannot detail a zone of itself.'));
+	}
+	return ok(undefined);
+}
+
 export interface CreatePlanProps {
 	readonly spatialElements?: readonly SpatialElementMetadata[];
 	readonly renovation?: Renovation;
@@ -65,6 +112,8 @@ export interface CreatePlanProps {
 	readonly background?: PlanBackgroundRef | null;
 	readonly layers?: readonly string[];
 	readonly parent?: PlanParent | null;
+	readonly kind?: PlanKind;
+	readonly order?: number;
 	/** Whole degrees clockwise from the plan's up, 0–359; absent while nobody has set one. */
 	readonly north?: number;
 }
@@ -80,6 +129,8 @@ interface PlanFields {
 	readonly calibration: Calibration | null;
 	readonly layers: readonly string[];
 	readonly parent: PlanParent | null;
+	readonly kind: PlanKind;
+	readonly order: number;
 }
 
 /**
@@ -98,6 +149,8 @@ export class Plan {
 	readonly calibration: Calibration | null;
 	readonly layers: readonly string[];
 	readonly parent: PlanParent | null;
+	readonly kind: PlanKind;
+	readonly order: number;
 	readonly north?: number;
 
 	private constructor(fields: PlanFields) {
@@ -111,21 +164,26 @@ export class Plan {
 		this.calibration = fields.calibration;
 		this.layers = fields.layers;
 		this.parent = fields.parent;
+		this.kind = fields.kind;
+		this.order = fields.order;
 	}
 
 	static create(props: CreatePlanProps): Result<Plan, ValidationError> {
-		if (props.spatialElements && (new Set(props.spatialElements.map(item => item.id)).size !== props.spatialElements.length || props.spatialElements.some(item => !item.id.startsWith('element-') || !item.name.trim()))) {
-			return err(planError('invalid-spatial-elements', 'Spatial element labels need unique identities and non-empty names.'));
+		const elements = validateSpatialElements(props.spatialElements);
+		if (!elements.ok) {
+			return elements;
 		}
 		if (props.renovation) {
 			const valid = validateRenovation(props.renovation);
 			if (!valid.ok) return valid;
 		}
-		if (!validNorth(props.north)) {
-			return err(planError('invalid-north', 'North must be a whole number of degrees from 0 to 359.'));
+		const linked = validateNorthAndParent(props);
+		if (!linked.ok) {
+			return linked;
 		}
-		if (props.parent && props.parent.planId === props.id) {
-			return err(planError('parent-is-self', 'A plan cannot detail a zone of itself.'));
+		const details = resolveDetails(props, { kind: DEFAULT_PLAN_KIND, order: 0 });
+		if (!details.ok) {
+			return details;
 		}
 		const name = props.name.trim();
 		if (!name) {
@@ -152,6 +210,7 @@ export class Plan {
 				calibration: null,
 				layers: [...layers],
 				parent: props.parent ? { planId: props.parent.planId, zoneId: props.parent.zoneId } : null,
+				...details.value,
 			}),
 		);
 	}
@@ -198,6 +257,18 @@ export class Plan {
 		return ok(new Plan({ ...this.fields(), calibration }));
 	}
 
+	/**
+	 * The label fields, re-validated (ADR-0029). `parent` is untouched: reparenting is not a
+	 * thing this entity offers, and this is the only mutator that could have been mistaken for it.
+	 */
+	withDetails(details: PlanDetails): Result<Plan, ValidationError> {
+		const resolved = resolveDetails(details, this);
+		if (!resolved.ok) {
+			return resolved;
+		}
+		return ok(new Plan({ ...this.fields(), ...resolved.value }));
+	}
+
 	private fields(): PlanFields {
 		return {
 			north: this.north,
@@ -210,6 +281,8 @@ export class Plan {
 			calibration: this.calibration,
 			layers: this.layers,
 			parent: this.parent,
+			kind: this.kind,
+			order: this.order,
 		};
 	}
 }

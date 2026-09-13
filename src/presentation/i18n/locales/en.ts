@@ -482,6 +482,7 @@ export const en = {
 	'form.new-plan.title': 'New plan',
 	'form.new-detail-plan.title': 'New detail plan for {name}',
 	'form.new-plan.name': 'Name',
+	'form.new-plan.kind': 'Kind',
 	// Design slice 21's detail state, its one empty state and its one refusal that reaches the
 	// user as a notice rather than as a banner. `No plans yet` is deliberately distinct copy from
 	// `empty.project.no-projects.*`: a project with no plans is a later stage of the same

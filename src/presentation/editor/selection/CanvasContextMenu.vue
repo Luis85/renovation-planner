@@ -17,6 +17,7 @@ import { useCanvasMenuActions, isSubmenu, type CanvasMenuAction } from './useCan
 import { canvasCandidates } from './canvasCandidates';
 import { structureRecords } from '../structure/structureRecords';
 import { plainPress } from '../surface/keyboard';
+import { pointerOutside } from './menuKeyboard';
 import CanvasMenuList from './CanvasMenuList.vue';
 import type { Point } from '../../../core/geometry/Point';
 const emit = defineEmits<{ openAdd: [] }>();
@@ -91,7 +92,7 @@ function deleteKey(event: KeyboardEvent): void {
 	if (!action) return;
 	event.preventDefault(); event.stopPropagation(); close(open.value); void action.run();
 }
-function outside(event: PointerEvent): void { if (open.value && !menu.value?.contains(event.target as Node)) close(false); }
+function outside(event: PointerEvent): void { if (open.value && pointerOutside(menu.value, event)) close(false); }
 function leave(event: FocusEvent): void { if (open.value && (!event.relatedTarget || !root?.contains(event.relatedTarget as Node))) close(false); }
 function run(action: CanvasMenuAction): void { if (action.disabled) return; close(); void action.run(); }
 watch(() => selection.selectedIds, ids => { if (open.value && (ids.length !== menuIds.length || ids.some((id, index) => id !== menuIds[index]))) close(false); });

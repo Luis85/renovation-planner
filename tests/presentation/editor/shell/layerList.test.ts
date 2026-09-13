@@ -135,7 +135,7 @@ describe('LayerList, mounted inside the editor', () => {
 		const parentZone = { name: 'House', points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }] };
 		const harness = await mountPlanEditorCanvas({
 			zones: [],
-			queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok({ ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan' }], parentZone })) },
+			queries: { ...fakeQueries(FIXTURE_PLAN, []), hierarchy: () => Promise.resolve(ok({ ...NO_HIERARCHY, ancestry: [{ id: 'plan-site', name: 'Site plan', kind: 'site' }], parentZone })) },
 		});
 		await settle();
 

@@ -35,6 +35,11 @@ it('navigates and wraps every menu item, leaves unrelated keys alone, and restor
 	key(menu.element, 'End'); expect(document.activeElement).toBe(items.at(-1)?.element);
 	key(menu.element, 'ArrowDown'); expect(document.activeElement).toBe(items[0].element);
 	key(menu.element, 'ArrowUp'); expect(document.activeElement).toBe(items.at(-1)?.element);
+	// With focus OUTSIDE the items, ↑ lands on the last entry (not the one before it) and ↓ on the first.
+	(document.activeElement as HTMLElement).blur();
+	key(menu.element, 'ArrowUp'); expect(document.activeElement).toBe(items.at(-1)?.element);
+	(document.activeElement as HTMLElement).blur();
+	key(menu.element, 'ArrowDown'); expect(document.activeElement).toBe(items[0].element);
 	key(menu.element, 'Home'); expect(document.activeElement).toBe(items[0].element);
 	key(menu.element, 'ArrowDown'); expect(document.activeElement).toBe(items[1].element);
 	expect(key(menu.element, 'Tab').defaultPrevented).toBe(true); await settle();

@@ -38,8 +38,9 @@ function hover(item: CanvasMenuItem, event: Event): void {
 	if (isSubmenu(item)) void expand(item, event.currentTarget as HTMLElement, false); else open.value = null;
 }
 function move(event: KeyboardEvent): void {
-	const items = levelItems(), index = items.indexOf(document.activeElement as HTMLElement);
-	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+	// With focus outside the items (index −1) ↓ goes to the first and ↑ to the LAST — main's `menuKeyboard.ts` fix, kept here.
+	const items = levelItems(), from = Math.max(items.indexOf(document.activeElement as HTMLElement), event.key === 'ArrowUp' ? 0 : -1);
+	const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (from + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
 	items[next]?.focus();
 }
 function navigate(event: KeyboardEvent): boolean {

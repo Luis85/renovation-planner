@@ -104,6 +104,7 @@ function reopenDeps(): PlanEditorDeps {
 		panelLayout: memoryDeviceStorage(),
 		onThemeChange: noSubscription,
 		onPlanChanged: noSubscription,
+		onProjectPlansChanged: noSubscription,
 		onCatalogueChanged: noSubscription,
 		onProjectPricesChanged: noSubscription,
 		onRequirementFiguresChanged: noSubscription,

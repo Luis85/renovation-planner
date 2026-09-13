@@ -270,6 +270,27 @@ const nthOfArgumentsOf = (component: SelectorComponent): SelectorList =>
 	component.type === 'pseudo-class' && 'of' in component && Array.isArray(component.of) ? component.of : [];
 
 /**
+ * Every class name any selector in `css` mentions, anywhere — an ancestor, a subject, or inside
+ * a pseudo-class argument. The "does the sheet declare this class at all" question, which the
+ * component tests ask of every class a mounted component emits. A class is a NODE here, so
+ * `.rp-x` is not credited to a sheet declaring only `.rp-x__row` — the trailing boundary the
+ * regex form of this check had to spell by hand.
+ */
+export function classesNamed(css: string): Set<string> {
+	const named = new Set<string>();
+	const walk = (component: SelectorComponent): void => {
+		if (component.type === 'class') named.add(component.name);
+		for (const argument of [...argumentsOf(component), ...nthOfArgumentsOf(component)]) {
+			for (const part of argument) walk(part);
+		}
+	};
+	for (const rule of stylesheetRules(css)) {
+		for (const selector of rule.selectors) for (const component of selector) walk(component);
+	}
+	return named;
+}
+
+/**
  * The class names a selector's SUBJECT wears — its last compound, the element the rule styles.
  *
  * An ancestor mention does not count: `.rp-dialog-button .icon` styles the icon. Nor does a

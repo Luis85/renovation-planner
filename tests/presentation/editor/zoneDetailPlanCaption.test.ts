@@ -13,7 +13,7 @@ import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 let open: CanvasHarness | null = null;
 afterEach(() => { open?.unmount(); open = null; });
 
-const detail = (id: string, name: string, parentZoneId: string): DetailPlanDto => ({ id: id as PlanId, name, parentZoneId });
+const detail = (id: string, name: string, parentZoneId: string): DetailPlanDto => ({ id: id as PlanId, name, kind: 'floor', parentZoneId });
 
 async function captions(detailPlans: readonly DetailPlanDto[]) {
 	open = await mountPlanEditorCanvas({ queries: { ...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), hierarchy: () => Promise.resolve(ok({ ...NO_HIERARCHY, detailPlans })) } });

@@ -382,6 +382,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'form.new-plan.title': 'Neuer Plan',
 	'form.new-detail-plan.title': 'Neuer Detailplan für {name}',
 	'form.new-plan.name': 'Name',
+	'form.new-plan.kind': 'Art',
 	// SIEZEN, wie jeder andere Fließtext in dieser Datei ('Erstellen Sie eines, um zu beginnen.',
 	// 'Zeichnen Sie die erste Zone auf diesem Plan.'): die englische Vorlage kennt diese
 	// Unterscheidung nicht, und zwei Anreden in einer Oberfläche sind derselbe Fehler wie zwei

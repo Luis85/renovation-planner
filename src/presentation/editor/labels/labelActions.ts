@@ -16,7 +16,7 @@ import { captionBottom, captionPins, detailPlanCaptions, roomCaptionAnchor, type
 import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import { labelAnchor, toZoneRenderModel } from '../layers/zone/ZoneRenderModel';
 import type { DimensionObstacleLayout } from '../resize/useDimensionObstacles';
-import { projectedRotationTarget, readRotationBaseline } from '../elements/rotationBaseline';
+import { projectedElement, projectedRotationTarget, readRotationBaseline } from '../elements/rotationBaseline';
 import { elementCaptionLayout, roomCaptionBounds, textLabelBounds, type LabelHit } from './labelLayout';
 
 /**
@@ -44,9 +44,9 @@ export function createLabelActions(context: PlanEditorContext, runtime: Pick<Edi
 			const automatic = labelAnchor(zone.points, zone.bulges);
 			return { id, bounds: roomCaptionBounds(drawn, zoom, { label: model.label, areaMm2: model.areaMm2, detail }), offset: { dx: drawn.x - automatic.x, dy: drawn.y - automatic.y } };
 		}
-		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
-		if (!element || name === undefined) return null;
-		return { id, bounds: textLabelBounds(elementCaptionLayout({ ...element, name }, shapes.shapeOf, zoom), zoom), offset: element.labelOffset ?? { dx: 0, dy: 0 } };
+		const element = projectedElement(project, id);
+		if (!element) return null;
+		return { id, bounds: textLabelBounds(elementCaptionLayout(element, shapes.shapeOf, zoom), zoom), offset: element.labelOffset ?? { dx: 0, dy: 0 } };
 	}
 	const hits = computed<readonly LabelHit[]>(() => blocked.value ? [] : selection.selectedIds.flatMap(id => hitFor(String(id), editor.viewport.zoom) ?? []));
 

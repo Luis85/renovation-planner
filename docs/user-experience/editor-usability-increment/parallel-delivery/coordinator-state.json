@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T15:31:43+02:00",
+  "updatedAt": "2026-09-13T15:44:32+02:00",
   "status": "in-progress",
   "integration": {
     "branch": "main",
@@ -19,7 +19,7 @@
   "limits": {
     "maxConcurrentCodingTasks": 3,
     "activeCodingTasks": 3,
-    "heavyVerificationOwner": "I04"
+    "heavyVerificationOwner": "I03"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -27,8 +27,8 @@
     "baseSha": "bab369891807a05472e51a163438662b5bb65aea",
     "rootPacket": "I00",
     "rootPr": 174,
-    "currentReviewedTipPacket": "I02",
-    "currentReviewedTipSha": "0f45ff5e724cc49e8c9c9b8d2b7d64da7992b5b7",
+    "currentReviewedTipPacket": "I04",
+    "currentReviewedTipSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
@@ -80,7 +80,7 @@
       "blockers": []
     },
     "I04": {
-      "status": "verifying-on-stacked-parent",
+      "status": "reviewed-stack-parent-ci-pending",
       "taskId": "01a09ad5-f701-7cb3-9883-272f70232169",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -89,9 +89,54 @@
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i04-renovate-details",
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
+      "pr": 177,
+      "headSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
+      "verificationOwner": "I04 worker; coordinator follow-up reviewed",
+      "blockers": []
+    },
+    "I03": {
+      "status": "running",
+      "taskId": "01a09b02-fbd0-7882-9a0c-8dee3a4f77e4",
+      "hostId": "local",
+      "model": "gpt-5.6-luna",
+      "reasoning": "high",
+      "branch": "codex/usability-i03-room-details",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i03-room-details",
+      "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
+      "prerequisitePackets": ["I00", "I01"],
       "pr": null,
-      "headSha": "f42fd2c26013182ace6274a5762374de7933ea1c",
-      "verificationOwner": "I04 worker (slot granted)",
+      "headSha": null,
+      "verificationOwner": "I03 worker (slot granted)",
+      "blockers": []
+    },
+    "I05": {
+      "status": "running",
+      "taskId": "01a09b03-111c-7d91-b9ce-7ce3310dbaea",
+      "hostId": "local",
+      "model": "gpt-5.6-luna",
+      "reasoning": "high",
+      "branch": "codex/usability-i05-room-start-draft",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i05-room-start-draft",
+      "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
+      "prerequisitePackets": ["I00", "I04"],
+      "pr": null,
+      "headSha": null,
+      "verificationOwner": "waiting for shared slot",
+      "blockers": []
+    },
+    "I06": {
+      "status": "running",
+      "taskId": "01a09b03-039c-7453-9ff5-41becf7c5f50",
+      "hostId": "local",
+      "model": "gpt-5.6-luna",
+      "reasoning": "high",
+      "branch": "codex/usability-i06-reference-prepare",
+      "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i06-reference-prepare",
+      "baseSha": "ded93356f8820fa6776cbe790ec955e2b4c781ce",
+      "prerequisitePackets": ["I00", "I02"],
+      "pr": null,
+      "headSha": null,
+      "verificationOwner": "waiting for shared slot",
       "blockers": []
     }
   },
@@ -115,5 +160,5 @@
       "status": "queued-after-final-review"
     }
   },
-  "nextAdmissionGate": "Review and verify Wave 1. Finalize the serial stack as I00 -> I01 -> I02 -> I04, then dispatch Wave 2 from the reviewed I04 tip."
+  "nextAdmissionGate": "Review and verify Wave 2. Finalize the serial stack as I04 -> I03 -> I05 -> I06, then dispatch Wave 3 from the reviewed I06 tip."
 }

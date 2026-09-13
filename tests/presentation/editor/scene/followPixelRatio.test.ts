@@ -64,6 +64,26 @@ describe('followPixelRatio', () => {
 		expect(stage.getLayers()[0].getCanvas().getPixelRatio()).toBe(2);
 	});
 
+	/**
+	 * A leaf opened AFTER the move: Konva builds every new layer at the ratio it cached at load
+	 * (`Canvas.js`, `getDevicePixelRatio`), so the stage is stale before any `change` can fire.
+	 */
+	it('brings layers built at a stale cached ratio to the window’s current one when it starts', () => {
+		setDevicePixelRatio(1);
+		const stage = stageOn(2);
+		setDevicePixelRatio(2);
+		const draw = vi.spyOn(stage.getLayers()[0], 'batchDraw');
+
+		followPixelRatio(stage);
+
+		for (const layer of stage.getLayers()) {
+			expect(layer.getCanvas().getPixelRatio()).toBe(2);
+			expect(layer.getCanvas()._canvas.width).toBe(200);
+		}
+		expect(draw).toHaveBeenCalledOnce();
+		expect(armedMediaQueries().at(-1)?.media).toBe('(resolution: 2dppx)');
+	});
+
 	it('does nothing when the ratio reported did not change', () => {
 		const stage = stageOn(1);
 		const draw = vi.spyOn(stage.getLayers()[0], 'batchDraw');

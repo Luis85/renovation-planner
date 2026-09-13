@@ -7,6 +7,7 @@ import { expectDefined, expectOk } from '../../helpers/domain';
 import { pointerAt } from '../../helpers/tool-context';
 import { registerEditorIcons } from '../../../src/plugin/editorIconRegistration';
 import { postOutline } from '../../../src/domain/spatial/structuralElement';
+import { formatMetres } from '../../../src/presentation/editor/shell/formatLength';
 
 type Rig = Awaited<ReturnType<typeof renovationEditor>>;
 const mounted: Rig[] = [];
@@ -60,6 +61,20 @@ it('saves a beam on its second click with the typed width and draws it as two da
 	const edges = rig.stage.find<Konva.Line>('.beam-edge');
 	expect(edges).toHaveLength(2);
 	expect(edges[0].dash()).toHaveLength(2);
+});
+
+it('resets the structural fields when switching directly from the post tool to the beam tool', async () => {
+	const rig = await setup('post');
+	await rig.wrapper.get('input[name="structural-width"]').setValue('0,2');
+	expect(rig.wrapper.get<HTMLInputElement>('input[name="structural-width"]').element.value).toBe('0,2');
+	await rig.wrapper.get('[data-rp-action="add"]').trigger('click');
+	await rig.wrapper.get('[data-rp-entry="beam"]').trigger('click');
+	await settleUntil(() => rig.runtime.activeToolId.value === 'draw-beam' && !rig.runtime.elementTask.draft.loading, 'switched to beam');
+	expect(rig.wrapper.get<HTMLInputElement>('input[name="structural-width"]').element.value).toBe(formatMetres(160));
+	click(rig, 500, 3000); click(rig, 3500, 3000);
+	await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'saved beam');
+	const beam = expectDefined(rig.project.structure.elements?.[0], 'saved beam');
+	expect(beam).toMatchObject({ kind: 'beam', width: 160 });
 });
 
 it('refuses to place while a typed section is unreadable, then places with the corrected one', async () => {

@@ -88,6 +88,7 @@ async function add(): Promise<void> {
 		/>
 		<StructuralDraftFields
 			v-if="draft.kind === 'post' || draft.kind === 'beam'"
+			:key="draft.kind"
 			:task="task"
 		/>
 		<form

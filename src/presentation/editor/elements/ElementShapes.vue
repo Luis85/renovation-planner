@@ -32,7 +32,7 @@ const shapes = computed(() => props.elements.map(element => {
 	const selected = props.selectedIds.includes(element.id), closed = outlineKind(element.kind), ruler = element.kind === 'measurement' && element.points.length === 2;
 	const zoom = props.zoom, tokens = props.tokens, stroke = selected ? tokens.accent : tokens.zoneStroke, label = elementLabelLayout(element, zoom);
 	const single = props.editable === true && selected && props.selectedIds.length === 1;
-	return { id: element.id, name: 'element-' + element.kind, element, selected, single, handles: pointHandles(element, single, zoom, tokens), marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
+	return { id: element.id, name: 'element-' + element.kind, element, selected, single, structural: element.kind === 'post' || element.kind === 'beam', handles: pointHandles(element, single, zoom, tokens), marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
 		line: { points: element.points.flatMap(vertex => [vertex.x, vertex.y]), closed, stroke, strokeWidth: (selected && !ruler ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: closed ? tokens.canvasBackground : undefined },
 		label: { ...label, fontSize: ELEMENT_LABEL_FONT_PX / zoom, fill: tokens.zoneLabel, listening: false } };
 }));
@@ -61,7 +61,7 @@ const shapes = computed(() => props.elements.map(element => {
 				:zoom="zoom"
 			/>
 			<StructuralShape
-				v-else-if="shape.element.kind === 'post' || shape.element.kind === 'beam'"
+				v-else-if="shape.structural"
 				:element="shape.element"
 				:selected="shape.selected"
 				:tokens="tokens"

@@ -13,6 +13,7 @@ import { formatMetres } from '../shell/formatLength';
 import { runInspectorAction } from '../shell/restoreInspectorActionFocus';
 import ObjectRotationControls from './ObjectRotationControls.vue';
 import AssetPlacementDetails from './AssetPlacementDetails.vue';
+import LoadBearingSwitch from './LoadBearingSwitch.vue';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 import HostIcon from '../../components/HostIcon.vue';
@@ -34,12 +35,8 @@ const structuralSummary = computed(() => {
 	const section = value?.kind === 'post' ? postSection(value.points) : null;
 	return section ? tr('editor.structural.post-summary', { width: formatMetres(section.width), depth: formatMetres(section.depth) }) : null;
 });
-function toggleLoadBearing(event: Event): void {
-	// The saved projection answers the checked state once the write lands; a refused write leaves it unchanged.
-	event.preventDefault();
-	const value = element.value;
-	if (value && !runtime.elementActions.blocked.value) void runtime.elementActions.setLoadBearing(value.id, value.loadBearing !== true);
-}
+/** One template branch for both measured summaries, for the same template-complexity budget as `stairSummary`. */
+const summary = computed(() => stairSummary.value ?? structuralSummary.value);
 async function edit(event: Event): Promise<void> {
 	if (!element.value) return;
 	const opener = event.currentTarget as HTMLElement, root = opener.closest<HTMLElement>('.renovation-plan-editor');
@@ -64,16 +61,10 @@ async function edit(event: Event): Promise<void> {
 			{{ formatArea(measuredArea.value) }}
 		</p>
 		<p
-			v-else-if="stairSummary"
+			v-else-if="summary"
 			class="rp-inspector-subline"
 		>
-			{{ stairSummary }}
-		</p>
-		<p
-			v-else-if="structuralSummary"
-			class="rp-inspector-subline"
-		>
-			{{ structuralSummary }}
+			{{ summary }}
 		</p>
 		<AssetPlacementDetails
 			v-else-if="element.kind === 'asset'"
@@ -85,19 +76,7 @@ async function edit(event: Event): Promise<void> {
 		>
 			{{ formatMetres(elementLength(element)) }} m
 		</p>
-		<label
-			v-if="(element.kind === 'post' || element.kind === 'beam') && session.perspective === 'plan'"
-			class="rp-dialog-field"
-		>
-			<input
-				type="checkbox"
-				name="load-bearing"
-				:checked="element.loadBearing === true"
-				:aria-disabled="runtime.elementActions.blocked.value"
-				@click="toggleLoadBearing"
-			>
-			{{ tr('editor.structural.load-bearing') }}
-		</label>
+		<LoadBearingSwitch :element="element" />
 		<StructureRenovationEntry />
 		<ObjectRotationControls
 			v-if="session.perspective === 'plan'"

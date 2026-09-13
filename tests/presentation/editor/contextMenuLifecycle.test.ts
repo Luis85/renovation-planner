@@ -6,6 +6,7 @@ import { pointerAt } from '../../helpers/tool-context';
 import { expectOk } from '../../helpers/domain';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { worldToScreen, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
+import { tr } from '../../../src/presentation/i18n/strings';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -127,7 +128,7 @@ it('targets the unlocked zone beneath a locked one, and offers no zone target ov
 	rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + overlap.x, clientY: box.top + overlap.y }));
 	await settle();
 	expect(rig.selection.selectedIds).toEqual([under.id]);
-	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe('Nook');
+	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe(`${tr('editor.input.current-target', { target: 'Nook' })} ${tr('editor.input.overlap-cycle-guidance')}`);
 	await rig.wrapper.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 
 	// (3000, 2500) sits inside the locked room only — nothing else there to click through to.

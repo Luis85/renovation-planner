@@ -35,6 +35,7 @@ export function createSpatialEditing(context: PlanEditorContext, runtime: Parame
 		commitRotation: (id, points, original) => { void rotationActions.move(id, points, original); },
 		previewElement: elementActions.previewElement,
 		moveElement: (id, points, original) => { void elementActions.move(id, points, original); },
+		elementWritesBlocked: () => elementActions.blocked.value || elementActions.active.value,
 		labelHits: () => labelActions.hits.value,
 		moveLabel: (id, offset) => { void labelActions.move(id, offset); },
 	};

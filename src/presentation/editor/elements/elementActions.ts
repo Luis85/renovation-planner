@@ -34,7 +34,8 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 	const active = ref(false), preview = ref<NamedSpatialElement | null>(null);
 	const blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective !== 'plan' || runtime.activeToolId.value !== 'select');
 	let alive = true, rotationEpoch = 0;
-	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { rotationEpoch += 1; preview.value = null; }, { flush: 'sync' });
+	// An operation in flight owns its preview and clears it when its write has been read back; clearing it here drew the saved geometry meanwhile, so the element jumped back and forward.
+	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { rotationEpoch += 1; if (!active.value) preview.value = null; }, { flush: 'sync' });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
 	function matchesProjection(baseline: RenovationBaseline, id: string): boolean {
@@ -56,7 +57,7 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		active.value = true;
 		try { const value = await read(id); if (value && alive && !blocked.value) await action(value); }
 		catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.element.operation-failed'); }
-		finally { active.value = false; preview.value = null; }
+		finally { active.value = false; if (preview.value?.id === id) preview.value = null; }
 	}
 	function edit(id: string): Promise<void> {
 		const selected = selection.selectedIds.join('|');

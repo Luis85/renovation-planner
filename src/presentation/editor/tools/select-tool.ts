@@ -29,6 +29,7 @@ import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 export interface SpatialObjectCandidate {
 	readonly kind?: 'wall' | 'opening' | SpatialElementKind;
 	readonly width?: number;
+	readonly loadBearing?: boolean;
 	readonly id: string;
 	readonly points: readonly Point[];
 	readonly bulges?: readonly number[];

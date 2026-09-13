@@ -3,6 +3,7 @@ import type { AssetId } from '../../domain/asset/AssetId';
 import type { Dimensions } from '../../domain/asset/AssetShape';
 import { dimensionsOf } from '../../domain/asset/AssetShape';
 import type { Point } from '../../core/geometry/Point';
+import { polygonPolyline } from '../../core/geometry/curvePolyline';
 import type { Query } from './Query';
 import type { AssetGeometrySidecar } from '../ports/AssetGeometrySidecar';
 
@@ -89,7 +90,8 @@ export class ListAssetOutlines
 
 		return {
 			kind: shape.footprintPending ? 'unscaled' : 'measured',
-			points: shape.footprint.points,
+			// Arcs flattened at 1 mm: the 20px mark draws straight segments (symbols spec, Rendering).
+			points: polygonPolyline(shape.footprint),
 			extent: measured.value,
 		};
 	}

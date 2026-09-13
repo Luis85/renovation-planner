@@ -62,6 +62,7 @@ function shapeWith(overrides: Partial<AssetShape> = {}): AssetShape {
 		anchor: { x: 0, y: 0 },
 		anchorPending: false,
 		facing: 0,
+		details: [],
 		...overrides,
 	};
 }

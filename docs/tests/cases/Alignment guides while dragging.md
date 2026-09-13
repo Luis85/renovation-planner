@@ -10,8 +10,9 @@ status: Ready
 
 # Alignment guides while dragging
 
-The smart alignment guides increment: dragging a room, a room corner, an element or a drawing
-cursor snaps it to existing geometry and draws a dashed guide with a dot at what it matched.
+The smart alignment guides increment: dragging one room, a room corner, an element or a drawing
+cursor snaps it to existing geometry and draws a dashed guide with a dot at what it matched. A
+drag of several selected items, or of a group, is deliberately not snapped (spec §6).
 `docs/superpowers/specs/2026-09-13-smart-alignment-guides-design.md` is the design and
 `docs/superpowers/plans/2026-09-13-smart-alignment-guides.md` the plan.
 

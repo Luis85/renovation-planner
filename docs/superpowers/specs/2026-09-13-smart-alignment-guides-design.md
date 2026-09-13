@@ -35,7 +35,7 @@ select tool does not, and this increment makes that sentence true.
 | --- | --- |
 | Kind of guideline | **Smart guides**: automatic while dragging. No user-placed guidelines. |
 | What lines up with what | **Point snap first, then axis alignment.** A vertex within tolerance of a vertex wins outright, then a point on an edge, then the dragged item's box edges and centre line up with neighbours' vertices and centres on x and y independently. |
-| Which gestures | **Every positional gesture**: zone body move, zone vertex drag, element body move, element vertex drag, the draw-room rectangle, the polygon and element drawing cursors. |
+| Which gestures | **Every positional gesture of one item**: zone body move, zone vertex drag, element body move, element vertex drag, the draw-room rectangle, the polygon and element drawing cursors. A multi-selection drag is left alone (§6). |
 | Activation | **The existing Snap toggle.** Guides are what snapping looks like when it fires. No new preference, control or locale string for a toggle. |
 | Rendering | **The existing `SnapGuides.vue`, unchanged.** A guide runs from the snapped feature to the neighbour feature it matched, dot at the neighbour end. |
 | Where it lives | **`SnapService`, extended in place.** One service, one precedence, one candidate supply. A second alignment service beside it was refused. |
@@ -89,7 +89,9 @@ move stays a translation and can never deform the shape (the select tool's own c
 it snaps one vertex rather than each).
 
 Features of the moving set: its vertices, plus the six box features (min x, max x, centre x,
-min y, max y, centre y) computed with `extentOf` from `core/geometry/operations.ts`.
+min y, max y, centre y) computed with `extentOf` from `core/geometry/operations.ts` (the plan's
+deviation 3 narrows this to the vertices plus the box centre: a box's min and max on an axis
+are already some vertex's coordinate).
 
 1. **Vertex stage**: the nearest (moving vertex, candidate vertex) pair within tolerance wins
    outright. Correction is that pair's vector; one guide from the moving vertex to the
@@ -140,7 +142,9 @@ Built in `registerEditorTools.ts` from the project store, replacing the draw-roo
 is today, but per ENTITY rather than flattened: a map from entity id to that entity's
 vertices, edges and alignments. A call drops the excluded ids and concatenates the rest,
 which is a linear pass over a plan's entities and is not a cost worth a second cache. A
-flattened list cannot be filtered by id, which is why the memo keeps the ids.
+flattened list cannot be filtered by id, which is why the memo keeps the ids. (The plan's
+deviation 1 ships no memo at all: `snapCandidates(exclude)` recomputes `roomSnapCandidates`
+on every call.)
 
 The designer's `createEditorContext` call in `designer/runtime.ts` supplies
 `() => ({})`, so its tools keep snapping against nothing, as today.
@@ -183,6 +187,11 @@ Left alone, deliberately:
 - `elements/AssetPlacementTool.ts`: wall-hosted placement through `placementAt`.
 - `designer/tools/set-anchor-tool.ts`: the designer supplies no candidates (§4.2), so its
   `snapPoint(…, {})` stays the identity.
+- A multi-selection body drag: `SelectTool.focusSelectedMember` and `selectGroup` route a
+  drag of two or more selected items, or of a group, to `groups/GroupMoveGesture.ts`, whose
+  `move` translates the snapshot by the raw delta with no snap and no guides.
+  `GroupMoveGesture.start(ids, event)` receives no `EditorContext`, so it has no snap service
+  and no candidate supply to reach; giving it both is its own increment (§8).
 
 The Shift angle constraint keeps its current order everywhere it exists: constrain, then
 snap.
@@ -229,3 +238,12 @@ Named here so they are not rediscovered as omissions:
 - A separate alignment tolerance or an "alignment guides" toggle as a tier-4 setting.
 - Wall drawing joining the shared alignment stage (§6).
 - A modifier key to suppress snapping for one gesture.
+- A multi-selection body drag through `snapTranslation` (§6): `GroupMoveGesture` would need
+  the `EditorContext`, or a snap service and candidate supply of its own, and the exclusion
+  set would be every id in the snapshot.
+- A vertex drag excludes its whole entity, so a corner cannot align with its own zone's
+  other corners. The upgrade is excluding only the dragged vertex and its two incident edges,
+  which needs the exclusion to name a feature rather than an entity.
+- The axis stage runs after the Shift angle constraint (§6's "constrain, then snap") and can
+  bend a held angle by up to the tolerance. The upgrade is skipping the axis stage while
+  Shift is held, or admitting only alignments that lie on the constrained ray.

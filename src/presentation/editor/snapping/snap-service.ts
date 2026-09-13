@@ -35,9 +35,9 @@ function requirePositiveFinite(value: number, field: string): void {
 }
 
 /**
- * Candidate geometry a calling tool supplies, sourced from the active plan's
- * already-loaded zones (`EditorContext.subject`). `SnapService` never queries for
- * this itself — it only ever ranks what it is handed.
+ * Candidate geometry a calling tool supplies, sourced from `EditorContext.snapCandidates`
+ * (the active plan's zones, structure and elements minus what is being dragged).
+ * `SnapService` never queries for this itself — it only ever ranks what it is handed.
  */
 export interface SnapCandidates {
 	readonly vertices?: readonly Point[];
@@ -180,9 +180,10 @@ function nearestAlignment(value: number, alignments: readonly Point[], axis: 'x'
 
 /**
  * The one editor-level snapping service (SDD §21), implemented once rather than
- * per-tool. A tool calls `snapPoint` during both `pointerMove` (the snapped preview
- * written to render state) and `pointerUp` (the committed point) — always the same
- * function, so a drag's preview can never drift from what actually gets committed.
+ * per-tool. A tool calls one of `snapPointWithGuides`/`snapTranslation` during both
+ * `pointerMove` (the snapped preview and its guides written to render state) and
+ * `pointerUp` (the committed geometry) — always the same function, so a drag's preview
+ * can never drift from what actually gets committed.
  *
  * Nothing here reads a store, a repository, or a Konva node: grid spacing, tolerance and
  * angle step arrive once through `config`, and candidate geometry arrives as a plain

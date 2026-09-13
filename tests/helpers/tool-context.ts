@@ -40,7 +40,13 @@ export interface ToolContextOptions {
 	readonly worldPerScreenPixel?: number;
 	/** Replaces the dispatcher entirely when a suite needs to fail, gate or count. */
 	readonly commandDispatcher?: EditorContext['commandDispatcher'];
-	/** Replaces the identity snap, for the suites that assert snapping. */
+	/**
+	 * Replaces the identity snap, for the suites that assert snapping. It overrides
+	 * `snapPointWithGuides` (and so `snapPoint`) ONLY: `snapTranslation` calls `snapToVertex`/
+	 * `snapToEdge` directly and never passes through it, so a body drag in the select tool or
+	 * `ElementMove` sees the real service regardless of this option. Force a body-move snap
+	 * through `snapCandidates` instead.
+	 */
 	readonly snapPoint?: (point: Point) => Point;
 	/** What a tool may snap or align to, given what it is dragging. Default: nothing. */
 	readonly snapCandidates?: EditorContext['snapCandidates'];

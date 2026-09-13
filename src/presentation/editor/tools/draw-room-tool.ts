@@ -157,16 +157,16 @@ export class DrawRoomTool implements EditorTool {
 		this.restore();
 	}
 
-	/**
-	 * Undo whatever this gesture overwrote, if it overwrote anything. One function for the two
-	 * doors that owe it, so the "only if a snapshot was taken" half cannot be kept at one and
-	 * forgotten at the other.
-	 */
 	private snapped(point: Point, context: EditorContext): Point {
 		const snap = context.snapService.snapPointWithGuides(point, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
 		context.renderState.snapGuides.push(...snap.guides);
 		return snap.point;
 	}
+	/**
+	 * Undo whatever this gesture overwrote, if it overwrote anything. One function for the two
+	 * doors that owe it, so the "only if a snapshot was taken" half cannot be kept at one and
+	 * forgotten at the other.
+	 */
 	private restore(): void {
 		if (this.pressUndo === null) return;
 		this.deps.draft.restoreRect(this.pressUndo);

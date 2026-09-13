@@ -5987,13 +5987,19 @@ deviations, all smaller than the spec.
 alignment against a new `alignments` candidate list, each answer carrying the `LineSegment`
 guides that say why. `snapPoint` is the point half of the first. `EditorContext.snapCandidates(exclude)`
 is the ONE supply, built in `editor/runtime.ts` from `roomSnapCandidates` (now with `alignments`
-and an exclusion set); the designer answers `{}`. Every positional gesture switched from
-`snapPoint(x, {})` — which had made the select tool's and `ElementMove`'s snapping the identity
-since slice 6 — to the two methods at `SNAP_TOLERANCE_PX` (8, `handleMetrics.ts`) scaled by the
-camera. The select tool's drag PREVIEW now goes through the same call as the commit, which the
-service docblock had claimed of every tool and the select tool had not done. Guides draw through
-the unchanged `SnapGuides.vue`; the banner hint keys on guides present rather than on
-`draw-room`.
+and an exclusion set); the designer answers `{}`. Every single-item positional gesture switched
+from `snapPoint(x, {})` — which had made the select tool's and `ElementMove`'s snapping the
+identity since slice 6 — to the two methods at `SNAP_TOLERANCE_PX` (8, `handleMetrics.ts`) scaled
+by the camera. A multi-selection body drag (`groups/GroupMoveGesture.ts`, which the select tool
+routes a drag of two or more selected items or of a group to) never snapped and still does not:
+its `start(ids, event)` receives no `EditorContext`, so the spec's §6 names it left alone and
+§8 defers it. The select tool's drag PREVIEW now goes through the same call as the commit, which
+the service docblock had claimed of every tool and the select tool had not done — except below
+the click epsilon, where the release discards the gesture and the final review found a 1 px
+jitter previewing an up-to-8 px flick toward a neighbour and back, so the select tool and
+`ElementMove` hand the service no candidates until the pointer has travelled past
+`CLICK_EPSILON_PX`. Guides draw through the unchanged `SnapGuides.vue`; the banner hint keys on
+guides present rather than on `draw-room`.
 
 **What was found on the way.** The select tool's body move was snapping at the configured 8 mm
 regardless of zoom, so at any working zoom it never fired; the draw-room and element tools had
@@ -6020,5 +6026,8 @@ sub-epsilon move before the release and the second a case that fails when the dr
 handed back to the service as its own neighbour.
 
 **Deferred**, named in the spec's §8: full-extent guide lines, equal-spacing guides, an
-alignment-tolerance setting, walls joining the shared stage, a suppress-snap modifier. The
-manual case `docs/tests/cases/Alignment guides while dragging.md` is written and unrun.
+alignment-tolerance setting, walls joining the shared stage, a suppress-snap modifier, the
+multi-selection drag above, a vertex drag that excludes only itself and its incident edges rather
+than its whole entity (so a corner can align with its own zone's other corners), and the axis
+stage yielding to a held Shift angle rather than bending it by up to the tolerance. The manual
+case `docs/tests/cases/Alignment guides while dragging.md` is written and unrun.

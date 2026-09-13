@@ -144,9 +144,11 @@ it('is greyed and opens nothing while writes are blocked or an element action ru
 
 it('refuses on its own, not only through the menu, while writes are blocked or an element action runs', async () => {
 	const { rig, item } = await withItem();
-	const names = await assetNames(rig);
 	// A direct promote() call, not the menu entry: if it opened the dialog anyway, `resolve` closes it so the
 	// second case does not inherit an open dialog (`dialogs.current !== null` would refuse it for a different reason).
+	// The dialog-absence check right after settle() is what can fail against the unfixed code (round 2's own RED
+	// evidence); a trailing "no asset created" check here would only ever pass, since `resolve('cancel')` already
+	// guarantees that regardless of the guard under test (finding 8, round 3) — so it is not repeated.
 	const expectRefusedDirectly = async () => {
 		const pending = rig.runtime.elementTask.promotion.promote(item.id); await settle();
 		expect(rig.wrapper.find('.rp-dialog-form').exists()).toBe(false);
@@ -154,7 +156,17 @@ it('refuses on its own, not only through the menu, while writes are blocked or a
 	};
 	rig.project.stale = true; await expectRefusedDirectly(); rig.project.stale = false;
 	rig.runtime.elementActions.active.value = true; await expectRefusedDirectly(); rig.runtime.elementActions.active.value = false;
+});
+
+it('refuses on its own in Review, before the menu ever hides the entry', async () => {
+	const { rig, item } = await withItem();
+	const names = await assetNames(rig);
+	await rig.runtime.renovation.perspective('review'); await settle();
+	const pending = rig.runtime.elementTask.promotion.promote(item.id); await settle();
+	expect(rig.wrapper.find('.rp-dialog-form').exists()).toBe(false);
+	await pending;
 	expect(await assetNames(rig)).toEqual(names);
+	await rig.runtime.renovation.perspective('plan'); await settle();
 });
 
 it('warns and leaves the item when the asset is created but the item cannot be replaced', async () => {

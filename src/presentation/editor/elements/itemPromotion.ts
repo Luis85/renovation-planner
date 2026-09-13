@@ -5,6 +5,7 @@ import { samePoint } from '../../../domain/spatial/Structure';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { tr } from '../../i18n/strings';
 import { notifyWarning } from '../../notices/notify';
+import { useRenovationSession } from '../renovation/renovationSession';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { openNewAssetDialog } from '../../views/newAssetDialog';
 import type { PlanEditorContext } from '../PlanEditorContext';
@@ -25,17 +26,23 @@ import { centredFootprint } from './objectShape';
  * revert it, since the write reads a fresh baseline and appends a missing id, so a changed item is refused the same
  * way. An item with no label is not promotable: the placement could not be written with an empty name.
  *
- * `promote` also refuses on its own, before opening the dialog, while writes are blocked or an element action is
- * active — the SAME two sources `useCanvasMenuActions.ts`'s `promoteActions` greys the entry from
- * (`blocked || runtime.elementActions.active.value`) — so a door other than that menu entry (a direct call, a future
- * command) cannot create an asset and only then have the replacing write refused, leaving it unplaced.
+ * `promote` also refuses on its own, before opening the dialog, while writes are blocked, an element action is
+ * active, or the perspective is Review (spec §B excludes only Review, not Renovate) — the same sources
+ * `useCanvasMenuActions.ts`'s `promoteActions` greys or hides the entry from: `gate.writesBlocked`/
+ * `gate.elementActionsActive` are the identical `runtime.writesBlocked`/`runtime.elementActions.active` refs the
+ * menu's `disabled` expression reads, and `session.perspective` is the identical `useRenovationSession()` store the
+ * menu's `review` early return reads — not a second notion of any of the three. That closes only the one door this
+ * check can see: a direct call (or a future command) opening the dialog under a condition the menu already refuses
+ * or hides it for. It says nothing about the OTHER way the replacing write can still be refused once the dialog IS
+ * open — a floor that turns stale, or the item itself changing, while a cost is being typed — which is what the
+ * paragraph above and its one warning are for.
  */
 export function createItemPromotion(
 	context: PlanEditorContext,
 	assets: Pick<ReturnType<typeof createAssetPlacementTask>, 'write'>,
 	gate: { readonly writesBlocked: Readonly<Ref<boolean>>; readonly elementActionsActive: Readonly<Ref<boolean>> },
 ) {
-	const project = useProjectStore(), dialogs = useDialogStore(), busy = ref(false);
+	const project = useProjectStore(), dialogs = useDialogStore(), session = useRenovationSession(), busy = ref(false);
 	const available = (): boolean => context.commands.assetCreation !== undefined;
 	function promotable(elementId: string) {
 		const item = project.structure.elements?.find(element => element.id === elementId);
@@ -44,7 +51,7 @@ export function createItemPromotion(
 	}
 	async function promote(elementId: string): Promise<void> {
 		const creation = context.commands.assetCreation, before = promotable(elementId);
-		if (!creation || !before || dialogs.current !== null || gate.writesBlocked.value || gate.elementActionsActive.value) return;
+		if (!creation || !before || dialogs.current !== null || gate.writesBlocked.value || gate.elementActionsActive.value || session.perspective === 'review') return;
 		const { name } = before, { centre, footprint } = centredFootprint(before.points);
 		const outcome = await openNewAssetDialog({
 			dialogs, busy, logger: context.commands.logger, commands: creation,

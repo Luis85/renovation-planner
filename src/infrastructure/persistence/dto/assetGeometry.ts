@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CalibrationSchemaV1 } from './planGeometry';
+import { BULGE_MESSAGE, BulgeSchema, CalibrationSchemaV1, oneBulgePerEdge } from './planGeometry';
 
 const pointTuple = z.tuple([z.number(), z.number()]);
 
@@ -64,6 +64,45 @@ export const AssetGeometrySchemaV1 = z.object({
 	shape: AssetShapeSchemaV1.nullable(),
 });
 
+/** One closed outline: the plan sidecar's V7 bulge rule, reused rather than re-declared. */
+const OutlineSchemaV2 = z
+	.object({ points: z.array(pointTuple).min(3), bulges: z.array(BulgeSchema).optional() })
+	.refine(oneBulgePerEdge, BULGE_MESSAGE);
+
+const DetailSchemaV2 = z.object({
+	id: z.string().min(1),
+	name: z.string(),
+	outline: OutlineSchemaV2,
+	line: z.enum(['solid', 'dashed']),
+	pending: z.boolean().default(false),
+});
+
+/**
+ * Version 2 (asset designer symbols spec, Decision 6): outlines may curve and a shape carries
+ * `details`. The bump is REQUIRED: a Zod object strips unknown keys, so a v1-only build reading a
+ * file with details would load it and erase them on its next write; `z.literal(1)` makes that
+ * build refuse the file instead.
+ */
+export const AssetShapeSchemaV2 = AssetShapeSchemaV1.extend({
+	footprint: OutlineSchemaV2,
+	clearance: OutlineSchemaV2.nullable(),
+	details: z.array(DetailSchemaV2).default([]),
+});
+
+const AssetGeometrySchemaV2 = AssetGeometrySchemaV1.extend({
+	schemaVersion: z.literal(2),
+	shape: AssetShapeSchemaV2.nullable(),
+});
+
+/** A v1 document is a valid v2 one once it says so: `details` defaults to `[]`, `bulges` is optional. */
+function raiseVersion1(input: unknown): unknown {
+	if (typeof input !== 'object' || input === null) return input;
+	return (input as { schemaVersion?: unknown }).schemaVersion === 1 ? { ...input, schemaVersion: 2 } : input;
+}
+
+/** Every version this build reads, answered as version 2. The store parses with this and nothing else. */
+export const AssetGeometrySchema = z.preprocess(raiseVersion1, AssetGeometrySchemaV2);
+
 /**
  * The parsed document's shape, for the store and the adapter that raise it.
  *
@@ -73,4 +112,4 @@ export const AssetGeometrySchemaV1 = z.object({
  * holds. Inferred rather than hand-written: a second spelling of a Zod schema's output is
  * a second answer to what is in the file.
  */
-export type AssetGeometryDTO = z.infer<typeof AssetGeometrySchemaV1>;
+export type AssetGeometryDTO = z.infer<typeof AssetGeometrySchemaV2>;

@@ -12,6 +12,7 @@ import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { validateAssetShape } from '../../../domain/asset/AssetShape';
 import type { Calibration } from '../../../domain/plan/Calibration';
 import { validateCalibration } from '../../../domain/plan/Calibration';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { AssetGeometryDTO } from '../../persistence/dto/assetGeometry';
 import type { AssetGeometryStore, AssetSidecarContent } from './AssetGeometryStore';
 import {
@@ -20,20 +21,27 @@ import {
 } from '../../persistence/mappers/planMapper';
 
 type StoredShape = NonNullable<AssetGeometryDTO['shape']>;
-type StoredPolygon = StoredShape['footprint'];
+type StoredOutline = StoredShape['footprint'];
 
 const toTuples = (points: readonly { x: number; y: number }[]): [number, number][] =>
 	points.map((point) => [point.x, point.y]);
 
-const toPolygon = (stored: StoredPolygon): { points: { x: number; y: number }[] } => ({
+const toOutline = (stored: StoredOutline): CurvedPolygon => ({
 	points: stored.points.map(([x, y]) => ({ x, y })),
+	...(stored.bulges === undefined ? {} : { bulges: [...stored.bulges] }),
+});
+
+/** A straight outline is written with no `bulges` key, so it stays what a v1 reader would have written. */
+const toStoredOutline = (outline: CurvedPolygon): StoredOutline => ({
+	points: toTuples(outline.points),
+	...(outline.bulges === undefined ? {} : { bulges: [...outline.bulges] }),
 });
 
 /**
  * A stored shape raised to the domain's, and then RUN THROUGH the domain's own validator.
  *
  * The schema and the validator refuse different things and neither subsumes the other, so
- * the read owes both. `AssetShapeSchemaV1` counts vertices and types fields; it cannot see
+ * the read owes both. `AssetShapeSchemaV2` counts vertices and types fields; it cannot see
  * that an anchor coordinate is `NaN` (JSON has no such literal, but `1e999` parses to
  * `Infinity` and `z.number()` accepts it), that a facing is non-finite, or that the
  * per-attribute pending flags are in a combination no command can produce. Every command
@@ -47,15 +55,21 @@ const toPolygon = (stored: StoredPolygon): { points: { x: number; y: number }[] 
  */
 function shapeFromPersistence(stored: StoredShape): Result<AssetShape, RepositoryError> {
 	return validateAssetShape({
-		footprint: toPolygon(stored.footprint),
+		footprint: toOutline(stored.footprint),
 		footprintOrigin: stored.footprintOrigin,
 		footprintPending: stored.footprintPending,
 		clearancePending: stored.clearancePending,
 		anchorPending: stored.anchorPending,
-		clearance: stored.clearance === null ? null : toPolygon(stored.clearance),
+		clearance: stored.clearance === null ? null : toOutline(stored.clearance),
 		anchor: { x: stored.anchor.x, y: stored.anchor.y },
 		facing: stored.facing,
-		details: [],
+		details: stored.details.map((detail) => ({
+			id: detail.id,
+			name: detail.name,
+			outline: toOutline(detail.outline),
+			line: detail.line,
+			pending: detail.pending,
+		})),
 	});
 }
 
@@ -102,14 +116,21 @@ function calibrationFromStored(
 }
 
 const shapeToPersistence = (shape: AssetShape): StoredShape => ({
-	footprint: { points: toTuples(shape.footprint.points) },
+	footprint: toStoredOutline(shape.footprint),
 	footprintOrigin: shape.footprintOrigin,
 	footprintPending: shape.footprintPending,
 	clearancePending: shape.clearancePending,
 	anchorPending: shape.anchorPending,
-	clearance: shape.clearance === null ? null : { points: toTuples(shape.clearance.points) },
+	clearance: shape.clearance === null ? null : toStoredOutline(shape.clearance),
 	anchor: { x: shape.anchor.x, y: shape.anchor.y },
 	facing: shape.facing,
+	details: shape.details.map((detail) => ({
+		id: detail.id,
+		name: detail.name,
+		outline: toStoredOutline(detail.outline),
+		line: detail.line,
+		pending: detail.pending,
+	})),
 });
 
 /**

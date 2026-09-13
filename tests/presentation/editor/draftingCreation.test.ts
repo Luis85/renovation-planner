@@ -115,6 +115,7 @@ it('starts every tool at a point from outside its pointer', async () => {
 	for (const tool of tools) {
 		const point = { x: 3000, y: 3000 };
 		await rig.runtime.elementTask.startAt(tool, point);
+		await settle();
 		expect(rig.runtime.elementTask.draft.points).toEqual([point]);
 		expect(rig.project.structure.elements ?? []).toHaveLength(0);
 		rig.runtime.setTool('select');

@@ -137,8 +137,10 @@ readonly snapCandidates: (exclude?: Iterable<EntityId>) => SnapCandidates;
 
 Built in `registerEditorTools.ts` from the project store, replacing the draw-room-only
 `roomCandidates` computed there. Memoised on the store's zones and structure as that computed
-is today; the exclusion filter runs per call over the memoised full set, which is a linear
-pass over a plan's vertices and is not a cost worth a second cache.
+is today, but per ENTITY rather than flattened: a map from entity id to that entity's
+vertices, edges and alignments. A call drops the excluded ids and concatenates the rest,
+which is a linear pass over a plan's entities and is not a cost worth a second cache. A
+flattened list cannot be filtered by id, which is why the memo keeps the ids.
 
 The designer's `createEditorContext` call in `designer/runtime.ts` supplies
 `() => ({})`, so its tools keep snapping against nothing, as today.

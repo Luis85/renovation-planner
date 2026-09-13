@@ -1,6 +1,7 @@
+import { polygonPolyline } from '../../../core/geometry/curvePolyline';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { ThemeTokens } from '../../editor/theme/themeTokens';
-import { flatPoints, type OutlineConfig } from './footprintLayer';
+import { ARC_TOLERANCE_PX, flatPoints, type OutlineConfig } from './footprintLayer';
 
 /**
  * The space an asset needs AROUND itself — an oven's door swing, a chair's pull-out — drawn
@@ -29,10 +30,10 @@ const CLEARANCE_STROKE_PX = 1;
  * ordinary — `AssetShape.clearance` is nullable and `validateAssetShape` refuses only the
  * incoherent pairing of an absent clearance with a pending flag on it.
  */
-export function clearanceOutline(shape: AssetShape | null, tokens: ThemeTokens): OutlineConfig | null {
+export function clearanceOutline(shape: AssetShape | null, tokens: ThemeTokens, worldPerPixel: number): OutlineConfig | null {
 	if (shape === null || shape.clearance === null) return null;
 	return {
-		points: flatPoints(shape.clearance.points),
+		points: flatPoints(polygonPolyline(shape.clearance, ARC_TOLERANCE_PX * worldPerPixel)),
 		closed: true,
 		stroke: tokens.accent,
 		strokeWidth: CLEARANCE_STROKE_PX,

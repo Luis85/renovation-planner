@@ -1,6 +1,6 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { ReferenceError, ValidationError } from '../../../core/errors/AppError';
-import type { Polygon } from '../../../core/geometry/Polygon';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import { coincident } from '../../../core/geometry/operations';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
@@ -352,10 +352,16 @@ export function requireShape(current: AssetShape | null): Result<AssetShape, Val
  * it should be, and at 45 degrees there is no exact value to restore — so a re-trace landing
  * a nanometre away is the same outline and must not buy a revision the save indicator then
  * reports as a save.
+ *
+ * Bulges are compared exactly, an absent list counting as all zeros: a stadium and the
+ * rectangle through its corners share every point, and a comparison over points alone
+ * answered `no-write` to replacing one with the other.
  */
-export function samePolygon(a: Polygon, b: Polygon): boolean {
+export function samePolygon(a: CurvedPolygon, b: CurvedPolygon): boolean {
 	return (
 		a.points.length === b.points.length &&
-		a.points.every((point, index) => coincident(point, b.points[index]))
+		a.points.every(
+			(point, index) => coincident(point, b.points[index]) && (a.bulges?.[index] ?? 0) === (b.bulges?.[index] ?? 0),
+		)
 	);
 }

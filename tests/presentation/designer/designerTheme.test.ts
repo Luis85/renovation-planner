@@ -12,6 +12,9 @@
  *
  * Asserted on the DRAWN stroke rather than on the token object, because the token object is
  * equally refreshed by a build that never hands the new value to a layer.
+ *
+ * The monitor's pixel ratio is the same shape of question — a canvas kept current as its
+ * surroundings change — so its one wiring case lives here rather than in a file of its own.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
@@ -27,7 +30,7 @@ import { unavailableAssetDesignerCommands } from '../../../src/presentation/desi
 import { ok } from '../../../src/core/result/Result';
 import { assetDesign } from '../../helpers/assetDesign';
 import { emptyBackgroundVault } from '../../helpers/background';
-import { installCanvas } from '../../helpers/canvas';
+import { armedMediaQueries, installCanvas } from '../../helpers/canvas';
 import { installObsidianDom } from '../../helpers/dom';
 import { installResizeObserver, placeAt, resizeTo } from '../../helpers/layout';
 import { recorder } from '../../helpers/logger';
@@ -134,5 +137,24 @@ describe('the designer palette and a theme change', () => {
 		wrapper = null;
 
 		expect(themeListeners.size).toBe(0);
+	});
+});
+
+describe('the designer canvas and the monitor the window is on', () => {
+	/**
+	 * `scene/followPixelRatio.test.ts` holds the follower itself; this is what proves
+	 * `DesignerCanvas` MOUNTS it, which no unit case can see. The fake `matchMedia` never fires
+	 * on its own, so the monitor move is the ratio write plus the `change` on the armed list.
+	 */
+	it('resizes every layer backing store when the device pixel ratio changes', async () => {
+		const stage = await mountDesigner();
+		const layers = stage?.getLayers() ?? [];
+		expect(layers.length).toBeGreaterThan(0);
+
+		Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 2 });
+		armedMediaQueries().at(-1)?.dispatchEvent(new Event('change'));
+
+		expect(layers.map((layer) => layer.getCanvas().getPixelRatio())).toEqual(layers.map(() => 2));
+		Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 1 });
 	});
 });

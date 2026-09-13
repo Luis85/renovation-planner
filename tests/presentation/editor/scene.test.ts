@@ -21,6 +21,7 @@ import {
 } from '../../helpers/editor';
 import { FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { connectedObservers } from '../../helpers/layout';
+import { armedMediaQueries, mediaQueryListeners } from '../../helpers/canvas';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 
 /** What `afterEach` unmounts; every case reads its harness from the local const `mount` hands back. */
@@ -241,20 +242,40 @@ describe('theme and accessibility of a zone', () => {
 	});
 });
 
+describe('the monitor the window is on', () => {
+	/**
+	 * Konva samples `devicePixelRatio` once per module, so a window dragged from a 2× to a 1×
+	 * monitor keeps a backing store four times too large until something calls `setPixelRatio`.
+	 * The unit case is `scene/followPixelRatio.test.ts`; this one is what proves `PlanCanvas`
+	 * MOUNTS it, which no unit case can see. The fake `matchMedia` never fires on its own.
+	 */
+	it('resizes every layer backing store when the device pixel ratio changes', async () => {
+		const harness = await mount();
+
+		Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 2 });
+		armedMediaQueries().at(-1)?.dispatchEvent(new Event('change'));
+
+		expect(harness.stage.getLayers().map((layer) => layer.getCanvas().getPixelRatio())).toEqual(KONVA_LAYER_IDS.map(() => 2));
+		Object.defineProperty(window, 'devicePixelRatio', { configurable: true, value: 1 });
+	});
+});
+
 describe("the editor own lifecycle", () => {
-	it('leaves no Konva stage, theme listener or resize observer behind on unmount', async () => {
+	it('leaves no Konva stage, theme listener, media query listener or resize observer behind on unmount', async () => {
 		const stagesBefore = Konva.stages.length;
 		const observersBefore = connectedObservers();
 
 		const mounted = await mountPlanEditor();
 		expect(Konva.stages.length).toBe(stagesBefore + 1);
 		expect(mounted.themeListeners()).toBe(1);
+		expect(mediaQueryListeners()).toBe(1);
 
 		mounted.unmount();
 		await settle();
 
 		expect(Konva.stages.length).toBe(stagesBefore);
 		expect(mounted.themeListeners()).toBe(0);
+		expect(mediaQueryListeners()).toBe(0);
 		expect(connectedObservers()).toBe(observersBefore);
 	});
 

@@ -15,7 +15,9 @@ import { useEvidencePins } from './planning/evidencePins';
 import { useExistingPhotos } from './planning/existingPhotos';
 import ExistingPhotoStrip from './planning/ExistingPhotoStrip.vue';
 import type { Point } from '../../core/geometry/Point';
-import { computed, shallowRef, watch, watchEffect } from 'vue';
+import type Konva from 'konva';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, watchEffect } from 'vue';
+import { followPixelRatio } from './scene/followPixelRatio';
 import type { DimensionObstacleLayout } from './resize/useDimensionObstacles';
 import { storeToRefs } from 'pinia';
 import { useEditorStore } from '../stores/EditorStore';
@@ -111,6 +113,17 @@ watch(() => editor.stageSize.width > 0 && editor.stageSize.height > 0 && shapesA
 	const bounds = framedBounds(true, false);
 	if (bounds !== null) editor.fitTo(bounds, editor.stageSize);
 }, { once: true });
+
+/**
+ * vue-konva's `VStage` exposes `getStage()`; the layers follow the monitor's pixel ratio through
+ * it. The ref is set by the time `onMounted` runs — `VStage` renders unconditionally inside the
+ * slot — so the null arm Vue types for it is unreachable and is not written. The disposer runs
+ * in this component's `onBeforeUnmount`, which Vue invokes BEFORE `VStage`'s own destroys the stage.
+ */
+const stageRef = ref<{ getStage(): Konva.Stage } | null>(null);
+let stopPixelRatio!: () => void;
+onMounted(() => { stopPixelRatio = followPixelRatio((stageRef.value as { getStage(): Konva.Stage }).getStage()); });
+onBeforeUnmount(() => stopPixelRatio());
 </script>
 
 <template>
@@ -129,7 +142,10 @@ watch(() => editor.stageSize.width > 0 && editor.stageSize.height > 0 && shapesA
 	>
 		<template #default="{ size }">
 			<CanvasGrid />
-			<VStage :config="size">
+			<VStage
+				ref="stageRef"
+				:config="size"
+			>
 				<BackgroundLayer
 					name="background"
 					:reference="background"

@@ -64,21 +64,26 @@ describe('NewAssetForm with an item outline', () => {
 	it('retries only the outline after a refused write, never creating a second asset', async () => {
 		const refused = err({ category: 'Persistence', code: 'asset-geometry.write-failed', message: 'x' } as AppError);
 		const write = vi.fn<Write>().mockResolvedValueOnce(refused).mockResolvedValue(ok('wrote'));
-		const { wrapper, createAsset } = mountWithOutline(CENTRED, write);
+		const { wrapper, asset, createAsset } = mountWithOutline(CENTRED, write);
 		await submit(wrapper);
 		expect(wrapper.emitted('submit')).toBeUndefined();
 		expect(wrapper.get('.rp-new-asset__created').text()).toBe(t('en', 'form.new-asset.already-created-outline'));
 		await wrapper.get('form').trigger('submit'); await flushPromises();
 		expect(createAsset).toHaveBeenCalledTimes(1);
 		expect(write).toHaveBeenCalledTimes(2);
+		expect(write).toHaveBeenLastCalledWith({ assetId: asset.id, points: CENTRED, measured: true });
 		expect(wrapper.emitted('submit')).toHaveLength(1);
 	});
 
-	it('refuses an outline enclosing no area before anything is written', async () => {
+	it('refuses an outline enclosing no area before anything is written, and says so in the banner', async () => {
 		const { wrapper, createAsset, write } = mountWithOutline([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 0 }]);
 		await submit(wrapper);
 		expect(createAsset).not.toHaveBeenCalled();
 		expect(write).not.toHaveBeenCalled();
 		expect(wrapper.emitted('submit')).toBeUndefined();
+		// Outline mode renders no width/depth fields, so `asset.degenerate-footprint` cannot be
+		// routed to either one (finding 1, fix round 1) — it has to reach the banner instead, or
+		// the refusal is invisible.
+		expect(wrapper.get('.rp-form-banner').text()).toContain(t('en', 'asset.degenerate-footprint'));
 	});
 });

@@ -2,8 +2,9 @@
 /**
  * The creation dialog for a new Asset — design slice A10, and the FIRST form in this plugin
  * whose submit is a SEQUENCE rather than one command: the catalogue entry is created, and
- * then, only if the user typed both dimensions, its rectangle footprint is written into the
- * geometry sidecar (§88).
+ * then, if a footprint was given — both dimensions typed, or an `outline` prop from a plan
+ * item (2026-09-13 item modes spec §B) standing in their place — its rectangle footprint is
+ * written into the geometry sidecar (§88).
  *
  * **No new dialog KIND**, exactly like both of its siblings: it is another `component` under
  * slice 15's existing `kind: 'form'`, so none of the five edits a new kind costs apply. It
@@ -20,13 +21,14 @@
  * reason this file is longer than its siblings:
  *
  *  1. **Everything purely checkable is checked before anything is written.**
- *     `shapeFromDimensions` and `createMoney` are both pure, so a zero, a negative, a
- *     malformed amount and a malformed currency are all caught with the vault untouched.
- *     The preflight runs the WHOLE shape validation, not the half of it about the two
- *     numbers: `footprintFromDimensions` alone accepts `Number.MIN_VALUE * 2`, whose four
- *     vertices are distinct and whose shoelace products all underflow, so the note was
- *     committed and only then was the footprint refused as degenerate — this rule broken by
- *     the code claiming it.
+ *     `shapeFromDimensions`, `shapeFromOutline` and `createMoney` are all pure, so a zero, a
+ *     negative, a malformed amount and a malformed currency are all caught with the vault
+ *     untouched — for BOTH footprint sources, since the outline preflight runs the same
+ *     `validateAssetShape` a typed rectangle does. The preflight runs the WHOLE shape
+ *     validation, not the half of it about the two numbers: `footprintFromDimensions` alone
+ *     accepts `Number.MIN_VALUE * 2`, whose four vertices are distinct and whose shoelace
+ *     products all underflow, so the note was committed and only then was the footprint
+ *     refused as degenerate — this rule broken by the code claiming it.
  *  2. **The created id is kept and reused on retry.** The note is committed before the
  *     sidecar is opened, so a vault fault in between leaves an asset that exists and has no
  *     footprint — usable, simply undesigned. Re-creating it on the retry would turn one
@@ -54,7 +56,7 @@ import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError, ValidationError } from '../../core/errors/AppError';
 import { createMoney } from '../../core/money/Money';
 import { normalizeDecimalInput } from '../library/decimalInput';
-import { shapeFromDimensions, validateAssetShape, type AssetShape } from '../../domain/asset/AssetShape';
+import { shapeFromDimensions, shapeFromOutline } from '../../domain/asset/AssetShape';
 import type { Point } from '../../core/geometry/Point';
 import type { Asset } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
@@ -192,6 +194,20 @@ const NEW_ASSET_ERRORS: FieldErrorMap<NewAssetValues> = {
 };
 
 /**
+ * Outline mode renders no `width`/`depth` fields (the outline paragraph stands where they
+ * would), so the two footprint codes `NEW_ASSET_ERRORS` routes to that pair would land on a
+ * `FieldError` nothing renders — the preflight's refusal would be checked and then invisible
+ * (fix round 1, finding 1). Derived by OMISSION rather than a second hand-copied table, so the
+ * two cannot drift: a code renamed or added to `NEW_ASSET_ERRORS` above is renamed or added here
+ * for free, and only these two codes are ever about a rectangle with no field left to sit under.
+ */
+const {
+	'asset.invalid-footprint': _outlineInvalidFootprintUnrouted,
+	'asset.degenerate-footprint': _outlineDegenerateFootprintUnrouted,
+	...NEW_ASSET_ERRORS_FOR_OUTLINE
+} = NEW_ASSET_ERRORS;
+
+/**
  * `wasteFactorDefault`, `supplier`, `sku` and `notes` are all optional on
  * `CreateAssetInput` and this form sends none: they are catalogue detail rather than
  * identity, and `UpdateAssetCommand` is what edits them. The five fields below are exactly
@@ -218,14 +234,6 @@ function parseDimensions(
 	if (width === '' && depth === '') return ok(null);
 	if (width === '' || depth === '') return err(dimensionsIncomplete());
 	return ok({ width: Number(width), depth: Number(depth) });
-}
-
-/**
- * The shape `SetAssetFootprintCommand` validates for a just-created asset given `measured: true` — rule 1
- * above applied to an outline, so a footprint the command would refuse is refused with the vault untouched.
- */
-function outlineShape(points: readonly Point[]): AssetShape {
-	return { footprint: { points }, footprintOrigin: 'typed', footprintPending: false, clearance: null, clearancePending: false, anchorPending: false, anchor: { x: 0, y: 0 }, facing: 0 };
 }
 
 /**
@@ -321,7 +329,7 @@ async function createAssetAndFootprint(
 	// The two are the same shape by construction, so this preflight cannot refuse something
 	// the command would accept, nor accept something it would refuse.
 	if (props.outline) {
-		const shape = validateAssetShape(outlineShape(props.outline.points));
+		const shape = shapeFromOutline(props.outline.points);
 		if (isErr(shape)) return shape;
 	} else if (dimensions.value !== null) {
 		const shape = shapeFromDimensions(dimensions.value.width, dimensions.value.depth);
@@ -360,7 +368,7 @@ async function createAssetAndFootprint(
 const form = useFormCommit<NewAssetValues, { readonly assetId: AssetId }>({
 	initial: { ...INITIAL, name: props.initialName ?? '', currency: props.defaultCurrency },
 	dispatch: createAssetAndFootprint,
-	errorMap: NEW_ASSET_ERRORS,
+	errorMap: props.outline ? NEW_ASSET_ERRORS_FOR_OUTLINE : NEW_ASSET_ERRORS,
 	toUserMessage: trError,
 	logger: props.logger,
 });
@@ -369,9 +377,10 @@ const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
 /**
  * The five catalogue controls' rendered state, stated once rather than five times. `submitting`
  * is the form-wide half every dialog form has; `catalogueFrozen` is this form's own, and the
- * two dimensions below deliberately take the first alone — they are exactly what a retry
- * re-dispatches, so freezing them would leave the retry unable to change the numbers it exists
- * for.
+ * footprint control below deliberately takes the first alone — in dimensions mode that is the
+ * two width/depth fields, exactly what a retry re-dispatches, so freezing them would leave the
+ * retry unable to change the numbers it exists for; in outline mode there is no control at all
+ * to freeze, since the outline came from the item and this form never edits it.
  */
 const catalogueInoperative = computed(() => form.submitting.value || catalogueFrozen.value);
 

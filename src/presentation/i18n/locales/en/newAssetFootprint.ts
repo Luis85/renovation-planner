@@ -2,10 +2,10 @@
  * The New asset dialog's footprint copy — the two typed dimensions, the sentence naming what a
  * retry re-sends once the catalogue entry exists, and their outline counterpart (2026-09-13 item
  * modes spec §B), when the dialog is opened from a plan item instead of typed from blank. Split
- * out of `en.ts` for the same reason `en/mobile.ts` is: this task's two new keys left `en.ts`
- * over the 400-line `max-lines` cap with no headroom to spare, and the fix is the extraction
- * rather than a wider budget. `en.ts` spreads this object into its own
- * (`...newAssetFootprintEn,`), so `StringKey = keyof typeof en` stays exact.
+ * out of `en.ts` for the same reason `en/mobile.ts` is: the New asset form's footprint keys keep
+ * pushing `en.ts` past the 400-line `max-lines` cap, and the fix is the extraction rather than a
+ * wider budget. `en.ts` spreads this object into its own (`...newAssetFootprintEn,`), so
+ * `StringKey = keyof typeof en` stays exact.
  */
 export const newAssetFootprintEn = {
 	// The unit is named in the LABEL rather than left to a placeholder: every world

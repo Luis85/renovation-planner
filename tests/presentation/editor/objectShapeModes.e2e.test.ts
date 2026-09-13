@@ -5,6 +5,7 @@ import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined } from '../../helpers/domain';
 import { pointerAt } from '../../helpers/tool-context';
 import { tr } from '../../../src/presentation/i18n/strings';
+import { spatialError } from '../../../src/domain/spatial/structureGeometry';
 import type { Point } from '../../../src/core/geometry/Point';
 
 const mounted: Awaited<ReturnType<typeof structureEditor>>[] = [];
@@ -115,8 +116,13 @@ it('clears the whole outline on canvas Backspace in rectangle mode, and elementT
 	const rig = await setup();
 	await drag(rig, { x: 1000, y: 500 }, { x: 3000, y: 2000 });
 	expect(rig.task.draft.points).toEqual(RECTANGLE);
+	// The whole-outline clear routes through `setPoints`, which also clears a stale `draft.error`
+	// (PR #182 review round 1, folded minor) — seeded here with the same value `finish()`'s own
+	// validation refusal sets, without going through the write path.
+	rig.task.draft.error = spatialError('element-invalid');
 	key(rig, 'Backspace'); await settle();
 	expect(rig.task.draft.points).toEqual([]);
+	expect(rig.task.draft.error).toBeNull();
 	expect(rig.runtime.toolManager.activeToolHasDraft()).toBe(false);
 
 	await drag(rig, { x: 1000, y: 500 }, { x: 3000, y: 2000 });
@@ -133,8 +139,13 @@ it('still steps back one corner on canvas Backspace in free mode', async () => {
 	for (const point of [{ x: 1000, y: 500 }, { x: 3000, y: 500 }, { x: 3000, y: 2000 }]) { rig.runtime.toolManager.pointerDown(pointerAt(point.x, point.y)); rig.runtime.toolManager.pointerUp(pointerAt(point.x, point.y)); }
 	await settle();
 	expect(rig.task.draft.points).toHaveLength(3);
+	// A free-form item's Backspace also routes through `setPoints` (`ElementTool.editCorner`'s -1/null
+	// branch is keyed on the tool id, not the shape), so it clears a stale `draft.error` too — same as
+	// rectangle mode's whole-outline clear above (PR #182 review round 1, folded minor).
+	rig.task.draft.error = spatialError('element-invalid');
 	key(rig, 'Backspace'); await settle();
 	expect(rig.task.draft.points).toHaveLength(2);
+	expect(rig.task.draft.error).toBeNull();
 });
 
 it('keeps its mode while typed rectangle input is pending, and a click leaves the drawn rectangle', async () => {

@@ -75,13 +75,17 @@ it('keeps Object field Enter local and refuses canvas Finish or Undo point while
  await rig.wrapper.get('input[name="object-width"]').setValue('1'); await rig.wrapper.get('input[name="object-depth"]').setValue('1');
  await rig.wrapper.get('input[name="object-width"]').trigger('keydown', { key: 'Enter' }); await settle();
  expect(task.draft.points).toHaveLength(4); expect(rig.project.structure.elements ?? []).toEqual([]);
+ const corners = task.draft.points.map(point => ({ ...point }));
+ // Backspace and Enter both refuse while rectangle text is pending, changing nothing — proved
+ // against this NON-EMPTY outline (PR #182 review round 1) so a broken refusal shows as a
+ // mutation rather than a no-op that an already-empty draft could not have caught either way.
+ await rig.wrapper.get('input[name="object-width"]').setValue('-'); key(rig, 'Backspace'); key(rig, 'Enter'); await settle();
+ expect(task.draft.pendingInput).toBe(true); expect(task.draft.points).toEqual(corners); expect(rig.project.structure.elements ?? []).toEqual([]);
+ await rig.wrapper.get('[data-rp-action="discard-object-rectangle"]').trigger('click'); await settle();
+ expect(task.draft.pendingInput).toBe(false); expect(task.draft.points).toEqual(corners);
  // Rectangle mode: canvas Backspace removes the whole outline, not one corner (PR #182 follow-up
  // F-B) — a deliberate expectation change from the pre-fix 4 -> 3.
  key(rig, 'Backspace'); await settle(); expect(task.draft.points).toEqual([]);
- await rig.wrapper.get('input[name="object-width"]').setValue('-'); key(rig, 'Backspace'); key(rig, 'Enter'); await settle();
- expect(task.draft.pendingInput).toBe(true); expect(task.draft.points).toEqual([]); expect(rig.project.structure.elements ?? []).toEqual([]);
- await rig.wrapper.get('[data-rp-action="discard-object-rectangle"]').trigger('click'); await settle();
- expect(task.draft.pendingInput).toBe(false); expect(task.draft.points).toEqual([]);
  await rig.wrapper.get('input[name="object-width"]').setValue('1'); await rig.wrapper.get('input[name="object-depth"]').setValue('1');
  await rig.wrapper.get('input[name="object-width"]').trigger('keydown', { key: 'Enter' }); await settle();
  const points = task.draft.points.map(point => ({ ...point })); expect(points).toHaveLength(4);

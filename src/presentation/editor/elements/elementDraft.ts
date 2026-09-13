@@ -3,7 +3,7 @@ import { reactive } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
 import type { SpatialElement, SpatialElementKind, NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
-import { validSpatialElement } from '../../../domain/spatial/SpatialElement';
+import { outlineKind, validSpatialElement } from '../../../domain/spatial/SpatialElement';
 import { areaOutline } from '../add/areaOutline';
 import type { ToolId } from '../tools/editor-tool';
 import { DEFAULT_STAIR, type StairOptions } from '../../../domain/spatial/stairGeometry';
@@ -32,7 +32,7 @@ export function discardElementGeometry(draft: ElementDraft): void {
 }
 /** Every proposal of an element's points passes here: a valid element, and an object outline that does not cross itself. */
 export function acceptsElementPoints(element: SpatialElement, points: readonly Point[]): boolean {
-	return validSpatialElement({ ...element, points }) && (element.kind !== 'object' || areaOutline(points).ok);
+	return validSpatialElement({ ...element, points }) && (!outlineKind(element.kind) || areaOutline(points).ok);
 }
 export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSpatialElement | null {
 	const element = { id, kind: draft.kind, name: draft.name.trim(), points: draft.points.map(point => ({ ...point })), ...(draft.kind === 'stair' ? { stair: { ...draft.stair } } : {}) };

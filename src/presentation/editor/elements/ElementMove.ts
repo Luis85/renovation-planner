@@ -7,8 +7,8 @@ import type { SpatialObjectCandidate } from '../tools/select-tool';
 import { CLICK_EPSILON_PX, SNAP_TOLERANCE_PX } from '../handleMetrics';
 import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 
-/** Elements whose individual points drag; a stair and an asset move only as a body. */
-export const hasPointHandles = (kind: string | undefined): boolean => kind === 'arrow' || kind === 'path' || kind === 'fence' || kind === 'measurement' || kind === 'object';
+/** Elements whose individual points drag; a stair, a post and an asset move only as a body. */
+export const hasPointHandles = (kind: string | undefined): boolean => kind === 'arrow' || kind === 'path' || kind === 'fence' || kind === 'measurement' || kind === 'object' || kind === 'beam';
 export interface ElementMoveDeps {
 	previewElement?: (id: string | null, points?: readonly Point[]) => void;
 	moveElement?: (id: string, points: readonly Point[], original: SpatialElement) => void;

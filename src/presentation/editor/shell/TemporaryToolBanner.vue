@@ -50,6 +50,8 @@ import type { StringKey } from '../../i18n/locales/en';
 import type { ToolId } from '../tools/editor-tool';
 import { useEditorRuntime } from '../runtime';
 import TaskDrawingControls from './TaskDrawingControls.vue';
+import TaskBannerMessages from './TaskBannerMessages.vue';
+import TaskBannerActions from './TaskBannerActions.vue';
 import { isStructureTool } from '../structure/structureDraft';
 import { isElementTool } from '../elements/elementDraft';
 import { useTaskbarClearance } from './useTaskbarClearance';
@@ -61,6 +63,7 @@ const isElement = computed(() => isElementTool(runtime.activeToolId.value));
 const isRoom = computed(() => runtime.activeToolId.value === 'draw-room');
 const roomBusy = computed(() => isRoom.value && runtime.roomDraft.submitting);
 const roomInvalid = computed(() => isRoom.value && !roomBusy.value && runtime.roomDraftIncomplete.value);
+const roomState = computed(() => roomBusy.value ? 'busy' as const : roomInvalid.value ? 'invalid' as const : null);
 const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || roomBusy.value || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
 
@@ -101,6 +104,12 @@ const finishLabel = computed(() => tr(isCurves.value ? 'editor.curves.save' : is
 	: isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
 const canFinish = computed(() => isCurves.value ? !runtime.curveTask.blocked.value && runtime.curveTask.target.value !== null && runtime.curveTask.validation.value === null && runtime.curveTask.state.invalidField === null : isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
 const showSnapHint = computed(() => runtime.renderState.snapGuides.length > 0);
+const openingMessage = computed(() => {
+	if (runtime.activeToolId.value !== 'move-opening') return null;
+	if (runtime.openingMove.loading.value) return tr('editor.opening-move.loading');
+	if (runtime.openingMove.saving.value) return tr('editor.opening-move.saving');
+	return runtime.openingMove.message.value;
+});
 const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
 const finishDescription = computed(() => [instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' '));
 
@@ -167,58 +176,30 @@ watch(task, (next) => {
 		ref="root"
 		class="rp-task-banner"
 		:class="{ 'rp-task-banner--invalid': roomInvalid, 'rp-task-banner--busy': roomBusy }"
-		:data-rp-task-state="roomBusy ? 'busy' : roomInvalid ? 'invalid' : undefined"
+		:data-rp-task-state="roomState ?? undefined"
 		:style="{ '--rp-taskbar-clearance': `${taskbarClearance}px` }"
 		role="region"
 		:aria-label="tr('editor.task.banner')"
 	>
-		<div class="rp-task-banner__text">
-			<strong role="status">{{ tr(task.nameKey) }}</strong>
-			<span
-				v-if="showSnapHint"
-				role="status"
-			>{{ tr('editor.room.snapped') }}</span>
-			<span
-				:id="instructionId"
-			>{{ tr(task.instructionKey) }}</span>
-			<span
-				v-if="roomBusy"
-				:id="taskStateId"
-				data-rp-task-state-message="busy"
-				role="status"
-			>{{ tr('save-state.saving') }}</span>
-			<span
-				v-else-if="roomInvalid"
-				:id="taskStateId"
-				data-rp-task-state-message="invalid"
-				role="status"
-			>{{ tr('editor.task.finish.blocked') }}</span>
-			<span
-				v-if="runtime.activeToolId.value === 'move-opening'"
-				role="status"
-			>{{ runtime.openingMove.loading.value ? tr('editor.opening-move.loading') : runtime.openingMove.saving.value ? tr('editor.opening-move.saving') : runtime.openingMove.message.value }}</span>
-		</div>
+		<TaskBannerMessages
+			:name="tr(task.nameKey)"
+			:instruction="tr(task.instructionKey)"
+			:instruction-id="instructionId"
+			:state="roomState"
+			:state-id="taskStateId"
+			:show-snap-hint="showSnapHint"
+			:opening-message="openingMessage"
+		/>
 		<TaskDrawingControls />
-		<div class="rp-task-banner__actions">
-			<button
-				v-if="task.finish || isStructure"
-				type="button"
-				class="rp-task-banner__finish"
-				:aria-disabled="finishBlocked"
-				:aria-describedby="finishDescription"
-				@click="onFinish"
-			>
-				{{ finishLabel }}
-			</button>
-			<button
-				type="button"
-				class="rp-task-banner__cancel"
-				:aria-disabled="cancelBlocked"
-				:aria-describedby="roomBusy ? taskStateId : undefined"
-				@click="cancel"
-			>
-				{{ tr('editor.task.cancel') }}
-			</button>
-		</div>
+		<TaskBannerActions
+			:show-finish="task.finish === true || isStructure"
+			:finish-blocked="finishBlocked"
+			:finish-description="finishDescription"
+			:finish-label="finishLabel"
+			:cancel-blocked="cancelBlocked"
+			:cancel-description="roomBusy ? taskStateId : undefined"
+			@finish="onFinish"
+			@cancel="cancel"
+		/>
 	</div>
 </template>

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-13T14:55:17+02:00",
+  "updatedAt": "2026-09-13T15:16:16+02:00",
   "status": "in-progress",
   "integration": {
     "branch": "main",
@@ -19,7 +19,7 @@
   "limits": {
     "maxConcurrentCodingTasks": 3,
     "activeCodingTasks": 3,
-    "heavyVerificationOwner": "I01"
+    "heavyVerificationOwner": "I02"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -27,8 +27,8 @@
     "baseSha": "bab369891807a05472e51a163438662b5bb65aea",
     "rootPacket": "I00",
     "rootPr": 174,
-    "currentReviewedTipPacket": "I00",
-    "currentReviewedTipSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
+    "currentReviewedTipPacket": "I01",
+    "currentReviewedTipSha": "117a3dc53fdc29455d145dcc2f8f3c9636d97dc7",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
@@ -50,7 +50,7 @@
       "blockers": []
     },
     "I01": {
-      "status": "running",
+      "status": "reviewed-stack-parent-ci-pending",
       "taskId": "01a09ad5-df64-7301-af48-0cd2879a0924",
       "hostId": "local",
       "model": "gpt-5.6-luna",
@@ -59,13 +59,13 @@
       "worktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-i01-mode-header",
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
-      "pr": null,
-      "headSha": null,
+      "pr": 175,
+      "headSha": "117a3dc53fdc29455d145dcc2f8f3c9636d97dc7",
       "verificationOwner": "I01 worker (slot granted)",
       "blockers": []
     },
     "I02": {
-      "status": "running",
+      "status": "verifying-on-stacked-parent",
       "taskId": "01a09ad5-e8b0-7171-9f4b-d42e2b718899",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -75,12 +75,12 @@
       "baseSha": "50e6a8dd30658d38e8f7474723fcedb00182a937",
       "prerequisitePackets": ["I00"],
       "pr": null,
-      "headSha": null,
-      "verificationOwner": "waiting for shared slot",
+      "headSha": "97be5afd08a3e9a5ba969b7f77a83e54b8c7b600",
+      "verificationOwner": "I02 worker (slot granted)",
       "blockers": []
     },
     "I04": {
-      "status": "running",
+      "status": "preparing-provisional-commit",
       "taskId": "01a09ad5-f701-7cb3-9883-272f70232169",
       "hostId": "local",
       "model": "gpt-5.6-terra",

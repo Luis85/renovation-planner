@@ -2,6 +2,7 @@
 import { afterEach, expect, it } from 'vitest';
 import { renovationEditor } from '../../../helpers/renovationEditor';
 import { settle } from '../../../helpers/editor';
+import { expectOk } from '../../../helpers/domain';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -25,4 +26,17 @@ it('keeps a room-less wall selected while the Renovate work and layout routes us
 	expect(rig.session.perspective).toBe('plan');
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);
 	expect([...rig.stack.vault.entries]).toEqual(before);
+});
+
+it('keeps standalone Area rotation in Plan while Renovate offers the explicit layout route', async () => {
+	const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle();
+	const area = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden',
+		geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
+	await rig.runtime.refreshProjection(); rig.selection.select([area.id]); await settle();
+	expect(rig.wrapper.find('.rp-room-more-actions').exists()).toBe(true);
+
+	await rig.runtime.renovation.perspective('renovate'); await settle();
+	expect(rig.wrapper.find('.rp-room-more-actions').exists()).toBe(false);
+	expect(rig.wrapper.find('[data-rp-action="rotate-object"]').exists()).toBe(false);
+	expect(rig.wrapper.find('.rp-renovation-overview-actions [data-rp-action="edit-layout"]').exists()).toBe(true);
 });

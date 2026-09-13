@@ -77,7 +77,7 @@ watch(() => [session.focusedId, session.mode], async () => {
 			{{ heading() }}
 		</h3>
 		<details
-			v-if="standaloneZone"
+			v-if="standaloneZone && session.perspective === 'plan'"
 			class="rp-room-more-actions"
 		>
 			<summary>{{ tr('editor.structure.more') }}</summary>

@@ -4,6 +4,7 @@ import { renovationEditor } from '../../../helpers/renovationEditor';
 import { settle } from '../../../helpers/editor';
 import { expectOk } from '../../../helpers/domain';
 import type { Opening } from '../../../../src/domain/spatial/Structure';
+import type { EntityId } from '../../../../src/core/identity/EntityId';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -21,7 +22,7 @@ async function setup(withRoom = false) {
 		structure: { ...rig.project.structure, openings: [opening], boundaries },
 		ledger: rig.runtime.structureTask.ledger,
 	})));
-	rig.selection.select([opening.id]);
+	rig.selection.select([opening.id as EntityId<string>]);
 	await settle();
 	return rig;
 }

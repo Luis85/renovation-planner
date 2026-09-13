@@ -19,6 +19,7 @@ Keep the labeled mode switch visible, use restrained mode-specific accents along
 
 | Document | Purpose |
 |---|---|
+| [Mockup directions and screen coverage](mockups/README.md) | Three paired Plan/Renovate image directions, inspection notes and remaining screen states; visual selection is pending before implementation |
 | [Implementation plan](implementation-plan.md) | Scope, priorities, work packages, detailed acceptance criteria, dependencies, decision gates and delivery sequence |
 | [Validation and release plan](validation-plan.md) | Novice research, accessibility checks, regression coverage, measurements and release gates |
 | [Current editor walkthrough](audit.md) | Nine current-run screenshots, observed strengths/friction and explicit evidence limits |

@@ -1,0 +1,48 @@
+{
+  "date": "2026-09-13",
+  "baselineCommit": "ba7fce3ad88b528ae9e9de479f7917d9d0ec371e",
+  "method": "built-in Image Gen",
+  "requestedDimensions": [
+    3072,
+    1280
+  ],
+  "selectedDirection": null,
+  "sourceDirectory": "C:/Users/lum/.codex/generated_images/01a09a3a-44bf-7573-a1a6-8b771fded214",
+  "images": [
+    {
+      "displayOrder": 1,
+      "file": "images/direction-01-calm.png",
+      "sourceFile": "exec-22976d42-1713-4fdd-9aa6-398516b0175d.png",
+      "actualWidth": 1942,
+      "actualHeight": 809,
+      "sha256": "6e4ee06d7b8c1fed4ad16f4ffb685f29faa4824ebc711b47ebb17a1f07e96060",
+      "status": "candidate-not-approved",
+      "visuallyInspected": true
+    },
+    {
+      "displayOrder": 2,
+      "file": "images/direction-02-guided.png",
+      "sourceFile": "exec-288912c0-f3ba-4e7e-a12b-9fbb28c9bf1b.png",
+      "actualWidth": 1942,
+      "actualHeight": 809,
+      "sha256": "4be8722e3efbc6302bb52f136024dc53addddb75753c64c7966dde4c808cce86",
+      "status": "candidate-not-approved",
+      "visuallyInspected": true
+    },
+    {
+      "displayOrder": 3,
+      "file": "images/direction-03-canvas.png",
+      "sourceFile": "exec-308d02f6-8aa0-47f2-95ba-84b36047951c.png",
+      "actualWidth": 2172,
+      "actualHeight": 724,
+      "sha256": "2125c9c157ec4c7af38a69421d2d8342a8a2a0f84d0e1f0ec289741752373600",
+      "status": "candidate-not-approved",
+      "visuallyInspected": true
+    }
+  ],
+  "notes": [
+    "Original PNG bytes retained without edits",
+    "One coherent direction per image with Plan and Renovate states",
+    "See README for known corrections; not implementation-ready"
+  ]
+}

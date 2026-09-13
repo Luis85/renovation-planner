@@ -447,6 +447,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'form.new-asset.depth': 'Tiefe in Millimetern (optional)',
 	'form.new-asset.already-created':
 		'Das Objekt ist gespeichert. Seine Angaben lassen sich im Katalog bearbeiten; nur die Maße unten stehen noch aus.',
+	'form.new-asset.outline': 'Grundfläche: der Umriss des Gegenstands, {width} × {depth} mm',
+	'form.new-asset.already-created-outline': 'Das Objekt ist gespeichert. Seine Angaben lassen sich im Katalog bearbeiten; nur seine Grundfläche steht noch aus.',
 	'form.new-asset.category.material': 'Baustoff',
 	'form.new-asset.category.furniture': 'Möbel',
 	'form.new-asset.category.fixture': 'Einbauteil',

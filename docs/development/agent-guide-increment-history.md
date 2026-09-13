@@ -5975,3 +5975,50 @@ is owned the day it is added (ADR-0029), so by design rather than open.
 **`docs/tests/cases/Reorder plans in the Property tree.md` is written and NOT run**: real
 Electron drag and drop and the keyboard context-menu event are checkable in no gate here, and
 its Runs table says so.
+
+## Smart alignment guides, 2026-09-13
+
+Spec: `docs/superpowers/specs/2026-09-13-smart-alignment-guides-design.md`; plan:
+`docs/superpowers/plans/2026-09-13-smart-alignment-guides.md`, whose header lists four
+deviations, all smaller than the spec.
+
+**What landed.** `SnapService.snapPointWithGuides` and `snapTranslation`
+(`src/presentation/editor/snapping/snap-service.ts`): vertex, then edge, then x/y axis
+alignment against a new `alignments` candidate list, each answer carrying the `LineSegment`
+guides that say why. `snapPoint` is the point half of the first. `EditorContext.snapCandidates(exclude)`
+is the ONE supply, built in `editor/runtime.ts` from `roomSnapCandidates` (now with `alignments`
+and an exclusion set); the designer answers `{}`. Every positional gesture switched from
+`snapPoint(x, {})` — which had made the select tool's and `ElementMove`'s snapping the identity
+since slice 6 — to the two methods at `SNAP_TOLERANCE_PX` (8, `handleMetrics.ts`) scaled by the
+camera. The select tool's drag PREVIEW now goes through the same call as the commit, which the
+service docblock had claimed of every tool and the select tool had not done. Guides draw through
+the unchanged `SnapGuides.vue`; the banner hint keys on guides present rather than on
+`draw-room`.
+
+**What was found on the way.** The select tool's body move was snapping at the configured 8 mm
+regardless of zoom, so at any working zoom it never fired; the draw-room and element tools had
+already been scaling 8 px by the camera. The two `computed` candidate memos (draw-room's and the
+element task's) were duplicates of each other and are gone. Executing the plan then found four
+more. **Making snapping real turned existing rig tests red** — `areaCreation.e2e`,
+`areaNumeric.e2e`, `zoneEditing`, `interactionLayer` and `elementInteractionGuards` had pinned
+UNSNAPPED coordinates that sat within tolerance of the rig's fixture geometry and had passed only
+because the identity snap never moved them; each moved its OWN pointer coordinates out of
+tolerance rather than editing a shared fixture, since those tests are about area creation, zone
+editing and previews and snapping has its own cases, and `interactionLayer` counts circles
+excluding `SnapGuides.vue`'s `snap-target` dot. **`src/presentation/editor/runtime.ts` sits at
+399 of its 400 `max-lines`** after this increment — a hover-clear `if` in
+`registerSelectionRetirement` was folded onto one line to fit the `snapCandidates` supply, which
+`check:fast` cannot see because `max-lines` is ESLint-only — and the durable fix is extracting
+`registerSelectionRetirement` to its own module before the next edit there. **`ElementMove.move`
+passed `this.points(event)` as an ARGUMENT to `previewElement?.()`**, and an argument to an
+optional call is never evaluated when the dep is absent, so the guide writes inside `points`
+never ran without a previewer; the call is evaluated first now, with the comment saying why. And
+**two cases the plan wrote were never red as written** — a click-without-drag "leaves no guides
+behind" case that dispatched no `pointerMove`, so the guides were already empty, and the select
+tool's body-drag exclusion, which nothing pinned — both caught in review, the first given a
+sub-epsilon move before the release and the second a case that fails when the dragged zone is
+handed back to the service as its own neighbour.
+
+**Deferred**, named in the spec's §8: full-extent guide lines, equal-spacing guides, an
+alignment-tolerance setting, walls joining the shared stage, a suppress-snap modifier. The
+manual case `docs/tests/cases/Alignment guides while dragging.md` is written and unrun.

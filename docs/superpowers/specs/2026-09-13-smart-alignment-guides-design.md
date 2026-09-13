@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-13
 **Baseline:** `main` at `31fb0c3f`.
-**Status:** proposed design, approved section by section in brainstorming on 2026-09-13.
+**Status:** proposed design, approved section by section in brainstorming on 2026-09-13. The implementation plan derived from it is `docs/superpowers/plans/2026-09-13-smart-alignment-guides.md`.
 Where this document and the SDD disagree, the SDD is the authority (§19 interaction layer,
 §21 snapping architecture; interaction spec §22–23).
 

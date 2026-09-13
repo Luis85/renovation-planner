@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import SpatialInspectorActions from './SpatialInspectorActions.vue';
 import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
+import CurveAction from '../curves/CurveAction.vue';
 /**
  * The Inspector's ROOM state (component library §8's `RoomInspector`) — the BODY the frame
  * (`EntityInspector.vue`, Task 15) routes to once exactly one entity is selected. Through
@@ -54,7 +55,7 @@ import ObjectRotationControls from '../elements/ObjectRotationControls.vue';
  * Delete stays at the foot of the whole Inspector region (side panels spec §3) rather than only
  * of this body — the same slot name `MultiSelectionInspector` takes them through.
  */
-import { computed, watch } from 'vue';
+import { computed, nextTick, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { zoneTypeLabel } from './zoneTypeLabel';
@@ -172,6 +173,23 @@ const comingLater = computed<readonly InspectorSection[]>(() => {
  * chaining rather than a guard, matching `SpatialInspectorActions`'s `overview?.record` below.
  */
 const zoneLocked = computed(() => overview.value?.record.locked === true);
+
+/**
+ * Plan's one renovation hand-off. The former entry mounted the complete renovation inventory
+ * beside the geometry actions; Plan needs one deliberate route instead, while Renovate owns that
+ * inventory after the existing perspective transition. The overview guard keeps the route honest
+ * during the brief read gap where the DTO still has a name but ProjectStore has no zone record.
+ */
+const renovationRouteVisible = computed(() => overview.value !== null && runtime.renovation?.available === true);
+const renovationRouteLabel = computed(() => `${tr('renovation.renovate')}: ${dto.value.kind === 'zone' ? dto.value.name : ''}`.replace(/: $/, ''));
+
+async function openRenovation(event: Event): Promise<void> {
+	if (!renovationRouteVisible.value || dto.value.kind !== 'zone' || !runtime.renovation) return;
+	const inspector = (event.currentTarget as HTMLElement).closest<HTMLElement>('[data-rp-region="inspector"]');
+	runtime.renovation.focus(dto.value.id, 'overview');
+	await nextTick();
+	inspector?.focus();
+}
 </script>
 
 <template>
@@ -198,20 +216,54 @@ const zoneLocked = computed(() => overview.value?.record.locked === true);
 			<dd>{{ tr(overview.status.captionKey) }}</dd>
 		</dl>
 
-		<div class="rp-inspector-toolbar">
-			<ObjectRotationControls :id="dto.id" />
-			<ZoneLockRow
-				:zone-id="dto.id"
-				:name="dto.name"
-				:locked="zoneLocked"
-			/>
-		</div>
-
 		<div class="rp-inspector-actions">
 			<SpatialInspectorActions
 				:zone-id="dto.id"
 				:record="overview?.record"
 			/>
+		</div>
+
+		<details
+			v-if="overview !== null"
+			class="rp-inspector-more"
+		>
+			<summary>
+				<span>{{ tr('editor.structure.more') }}</span>
+				<HostIcon
+					name="chevron-down"
+					class="rp-sidebar-section__chevron"
+				/>
+			</summary>
+			<div class="rp-inspector-toolbar">
+				<ObjectRotationControls :id="dto.id" />
+				<ZoneLockRow
+					:zone-id="dto.id"
+					:name="dto.name"
+					:locked="zoneLocked"
+				/>
+			</div>
+			<div
+				v-if="overview.record.kind === 'room'"
+				class="rp-inspector-actions"
+			>
+				<CurveAction :id="dto.id" />
+			</div>
+		</details>
+
+		<div
+			v-if="renovationRouteVisible"
+			class="rp-inspector-primary rp-room-renovate-route"
+		>
+			<button
+				type="button"
+				data-rp-action="renovate-room"
+				:aria-label="renovationRouteLabel"
+				@click="openRenovation"
+			>
+				<HostIcon name="hammer" />
+				<span>{{ renovationRouteLabel }}</span>
+				<HostIcon name="arrow-right" />
+			</button>
 		</div>
 
 		<section

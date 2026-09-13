@@ -196,3 +196,47 @@
 	overflow-wrap: anywhere;
 	font-size: var(--font-ui-small);
 }
+
+/* One Plan hand-off after common Room edits; Renovate owns its full inventory after navigation. */
+.renovation-plan-editor .rp-room-renovate-route {
+	margin-top: var(--size-4-2);
+}
+
+.renovation-plan-editor .rp-room-renovate-route > button {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-4-2);
+	width: 100%;
+	min-height: 36px;
+	height: auto;
+	padding: var(--size-4-2) var(--size-4-3);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	text-align: start;
+	white-space: normal;
+	background-color: var(--background-modifier-active-hover);
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.renovation-plan-editor .rp-room-renovate-route > button > span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.renovation-plan-editor .rp-room-renovate-route > button > .rp-host-icon:last-child {
+	margin-inline-start: auto;
+}
+
+.renovation-plan-editor .rp-room-renovate-route > button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.renovation-plan-editor .rp-room-renovate-route > button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}

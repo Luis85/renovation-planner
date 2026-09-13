@@ -10,7 +10,7 @@ const session = useRenovationSession();
 </script>
 <template>
 	<details
-		v-if="!session.targetId || session.targetId === room.id"
+		v-if="session.perspective === 'plan' && (!session.targetId || session.targetId === room.id)"
 		class="rp-room-more-actions"
 	>
 		<summary>{{ tr('editor.structure.more') }}</summary>

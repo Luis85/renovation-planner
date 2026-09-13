@@ -1,0 +1,138 @@
+{
+  "verifiedSource": "418a44cd3120336e3c48b8954e431247313705d0",
+  "codePolishBase": "d97241a52c8f11fc7809491643c1ab1cb401c013",
+  "images": [
+    {
+      "bytes": 25297,
+      "accepted": true,
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/combined/01-en-iab-collapsed.png",
+      "sha256": "77fc3c41776112c3453681a23fe35359c266fc0829d59926084c9af5adea520f"
+    },
+    {
+      "bytes": 30975,
+      "accepted": true,
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/combined/02-en-iab-expanded.png",
+      "sha256": "62dcaa52aa086035dddcf7b0b3fb8131c44f259dd34e37e970bd64a5a4a53633"
+    },
+    {
+      "bytes": 27261,
+      "accepted": true,
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/combined/03-de-iab-collapsed.png",
+      "sha256": "a0a888d3e123e1826aa19cda37e6b5d0a15bfcd43f35cdf7073088a872415933"
+    },
+    {
+      "bytes": 32755,
+      "accepted": true,
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/combined/04-de-iab-expanded.png",
+      "sha256": "ef341de770a2d2d6a8a782b801df4b1007ed11068c9356c4e9d1facacc3d62f8"
+    },
+    {
+      "bytes": 35485,
+      "accepted": true,
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/combined/de-collapsed.png",
+      "sha256": "4aaa34568add7c2c87e2919a577c9a02446e74ada272aa4b0dea305eec486553"
+    },
+    {
+      "bytes": 43876,
+      "accepted": true,
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/combined/de-expanded.png",
+      "sha256": "ab0043cad353922c1241c49dd4c8ce2c097b9ed616edeeffc95916293f607375"
+    },
+    {
+      "bytes": 32262,
+      "accepted": true,
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/combined/en-collapsed.png",
+      "sha256": "b01f76f320df95dc880897b3f9c2326e6c54db6302564d0aecbb4b6339180472"
+    },
+    {
+      "bytes": 38924,
+      "accepted": true,
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/combined/en-expanded.png",
+      "sha256": "85dec6e4df4f480ae9a708716a6662d08fb2dbec5b83a7a25327d75c61bf830c"
+    }
+  ],
+  "captureSource": "6b2280948d29d2b1f02cf4890cb51504c7bcd643",
+  "sourceFiles": [
+    {
+      "sha256": "8a905b6df4e91a8b81e5e0846b8ffc7bc38ccb6b0b0200b9caa92a67d1ab5abb",
+      "path": "src/presentation/editor/groups/groupActions.ts"
+    },
+    {
+      "sha256": "9578636b430e14296d16243767e163416c94740ab7be861101e374e75361b7dd",
+      "path": "src/presentation/editor/groups/groupOperations.ts"
+    },
+    {
+      "sha256": "3c959f5b161faf7e7613f87f7fffaa085fefb5885963aa6f8ec38ce33b6b353f",
+      "path": "src/presentation/editor/renovation/RenovationEntry.vue"
+    },
+    {
+      "sha256": "bc48c56c4254ce19f2c2bff81bff7c2092751fd4012207a0122a3cd3cdc8182b",
+      "path": "src/presentation/editor/selection/DirectActionPopover.vue"
+    },
+    {
+      "sha256": "10be2a996fc351cb0da2865e7608f0d32093c01fbf37b1bf4c1fcc2634b7d115",
+      "path": "src/presentation/editor/selection/useCanvasMenuActions.ts"
+    },
+    {
+      "sha256": "bc8f89162ecc4eadffd32c422e486273e5f5e666b23b1c692a513638af84e3ab",
+      "path": "src/presentation/editor/shell/FloorInspector.vue"
+    },
+    {
+      "sha256": "071ae941643d130ae8151791134346784d0d92e1b47d13634f56924d7fe110b4",
+      "path": "src/presentation/editor/shell/NewRoomInspector.vue"
+    },
+    {
+      "sha256": "603579f1f7dd1e3d00696bbbffda8c57c90dc1a993fb3230ba414ae253dc6506",
+      "path": "src/presentation/editor/shell/useTaskbarClearance.ts"
+    },
+    {
+      "sha256": "84c8f87963780cefc8145ade2523e45c2747fbeb9603efcdabe6b26a6e765563",
+      "path": "src/presentation/editor/structure/StructureInspector.vue"
+    },
+    {
+      "sha256": "56eb3d27398a26371937ea4f7769400dfea6d74795fb08ebc7caf5f0129a63b4",
+      "path": "src/presentation/editor/structure/structureActions.ts"
+    },
+    {
+      "sha256": "352e4a4166c3cae26ceb2a369e7e75b2c0363cc425cb9b397c7bff6bc390336a",
+      "path": "src/presentation/editor/structure/structureBulkEdit.ts"
+    },
+    {
+      "sha256": "fbea4d9a944a3698d4780eb9ee308953c08220e4807f6e60740d8ae44fa24e65",
+      "path": "src/presentation/editor/tools/registerEditorTools.ts"
+    },
+    {
+      "sha256": "da8114635dc3d8b4d6015b8aaeb44aec9697ad7b2d1c9d8e8271789edfcf01f0",
+      "path": "src/presentation/editor/tools/select-tool.ts"
+    },
+    {
+      "sha256": "8faac7b30cb3d9e7064572e9af50b1b15effad11fa6f3f82ca9d54a3e3dd3a43",
+      "path": "src/presentation/i18n/locales/de/creation.ts"
+    },
+    {
+      "sha256": "052e1a3e0870214fb98d405910096e48c142c81a6723c5a2da192e299fe42bd6",
+      "path": "src/presentation/i18n/locales/en/creation.ts"
+    },
+    {
+      "sha256": "d240f4493266688ced3eb5aeeb971001c586ef69ecfc464f6871b44639574215",
+      "path": "styles/editor-creation-fidelity.css"
+    },
+    {
+      "sha256": "a755753de084ddcf76971cefe1a4403accc6f3b8b51f97444ba03075f24c9cc2",
+      "path": "styles/editor-inspector-skeleton.css"
+    },
+    {
+      "sha256": "1609d4c819d3b7ebb45963f63cd39c5aa606944e3f9703fe62b74c5f94d63de4",
+      "path": "styles/editor-task-bar.css"
+    },
+    {
+      "sha256": "a8ba6a303e1f10ba09094351062c03cbc8da90c8c2e8cd734107b21d6169d99f",
+      "path": "styles/editor-visual-records.css"
+    },
+    {
+      "sha256": "8e34ac812bdbed3bb7b5e3a2bf8491f9a760c446c82e843ead565ffc6460aa12",
+      "path": "styles/editor-visual-shell.css"
+    }
+  ],
+  "applicationSourceUnchangedSinceCapture": true
+}

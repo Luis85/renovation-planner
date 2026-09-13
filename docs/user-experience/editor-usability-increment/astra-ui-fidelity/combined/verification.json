@@ -1,0 +1,21 @@
+{
+  "date": "2026-09-14",
+  "command": "npm run check",
+  "exitCode": 0,
+  "startedSource": "3f3f2a86589df2aef84db21edf33d6a5ce2fbb19",
+  "completedSource": "418a44cd3120336e3c48b8954e431247313705d0",
+  "sourceChangeDuringRun": "Only registration of the three manual evidence scripts as Fallow entry points, before chained analysis. No src/ or styles/ file changed.",
+  "build": { "passed": true, "modules": 1383 },
+  "lint": { "oxlint": "passed", "eslint": "passed" },
+  "tests": { "filesPassed": 935, "testsPassed": 10222, "testsSkipped": 1, "totalTests": 10223, "durationSeconds": 1281.68 },
+  "coverage": {
+    "statements": { "percent": 99.23, "covered": 25821, "total": 26019 },
+    "branches": { "percent": 98.10, "covered": 19053, "total": 19422 },
+    "functions": { "percent": 99.29, "covered": 7463, "total": 7516 },
+    "lines": { "percent": 99.67, "covered": 19098, "total": 19160 }
+  },
+  "analysis": { "passed": true, "filesAnalyzed": 1072, "deadFiles": 0, "deadExports": 0, "aboveThreshold": 0, "maintainability": 86.9, "informationalCaptureHelperCloneGroups": 1 },
+  "focused": { "filesPassed": 19, "testsPassed": 364 },
+  "combinedBrowser": { "locales": ["en", "de"], "width": 460, "height": 800, "states": ["collapsed", "expanded"], "clearancePx": 16.3125, "keyboardFocus": "passed", "escapeRestore": "passed", "savedNotesCameraSelectionPreserved": true },
+  "limits": ["Native Obsidian", "assistive technology", "host zoom", "community themes", "human validation", "I18 arbitrary-corner non-drag/keyboard route remains unsupported"]
+}

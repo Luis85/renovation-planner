@@ -10,8 +10,9 @@ function wallTool(structure = WALL_LOOP) {
 	const draft = createStructureDraft();
 	const finish = vi.fn<() => void>();
 	const tool = new StructureTool('draw-wall', { draft, structure: () => structure, start: vi.fn<() => void>(), stop: vi.fn<() => void>(), finish, blocked: () => false });
-	tool.activate(toolContext().context);
-	return { draft, finish, tool };
+	const { context } = toolContext();
+	tool.activate(context);
+	return { context, draft, finish, tool };
 }
 
 describe('StructureTool', () => {
@@ -24,6 +25,31 @@ describe('StructureTool', () => {
 		expect(draft.pending).toBeNull(); expect(draft.cursor).toEqual({ x: 4000, y: 0 });
 		tool.pointerMove(pointerAt(2000, 1500));
 		expect(draft.pending).toBeNull(); expect(draft.snapped).toBe(false);
+	});
+	it('lines a rectangle\'s last corner up with the chain\'s own first corner, drawing a guide per axis', () => {
+		const { context, draft, tool } = wallTool(EMPTY_STRUCTURE);
+		tool.pointerDown(pointerAt(0, 0)); tool.pointerDown(pointerAt(4000, 0)); tool.pointerDown(pointerAt(4000, 3000));
+		// x lines up with corner A — not the last point, which is all the axis snap used to know — and y with corner C.
+		tool.pointerMove(pointerAt(5, 2996));
+		expect(draft.cursor).toEqual({ x: 0, y: 3000 }); expect(draft.snapped).toBe(true);
+		expect(context.renderState.snapGuides).toEqual([{ start: { x: 0, y: 3000 }, end: { x: 0, y: 0 } }, { start: { x: 0, y: 3000 }, end: { x: 4000, y: 3000 } }]);
+		tool.pointerDown(pointerAt(5, 2996));
+		expect(draft.points.at(-1)).toEqual({ x: 0, y: 3000 });
+		tool.cancel(); expect(context.renderState.snapGuides).toEqual([]);
+	});
+	it('aligns with the floor\'s geometry, guides an endpoint snap, and yields an alignment to a wall body', () => {
+		const draft = createStructureDraft();
+		const tool = new StructureTool('draw-wall', { draft, structure: () => WALL_LOOP, start: vi.fn<() => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(), blocked: () => false });
+		const { context } = toolContext({ snapCandidates: () => ({ alignments: [{ x: 2000, y: 9000 }] }) });
+		tool.activate(context);
+		tool.pointerMove(pointerAt(2005, 1500));
+		expect(draft.cursor).toEqual({ x: 2000, y: 1500 }); expect(context.renderState.snapGuides).toEqual([{ start: { x: 2000, y: 1500 }, end: { x: 2000, y: 9000 } }]);
+		tool.pointerMove(pointerAt(2004, 5));
+		expect(draft.pending).toMatchObject({ wallId: 'wall-a', offset: 2004 }); expect(context.renderState.snapGuides).toEqual([]);
+		tool.pointerMove(pointerAt(3996, 3));
+		expect(draft.cursor).toEqual({ x: 4000, y: 0 }); expect(context.renderState.snapGuides).toEqual([{ start: { x: 3996, y: 3 }, end: { x: 4000, y: 0 } }]);
+		tool.abandonGesture(); expect(context.renderState.snapGuides).toEqual([]);
+		tool.pointerMove(pointerAt(3996, 3)); tool.deactivate(); expect(context.renderState.snapGuides).toEqual([]);
 	});
 	it('starts the chain on a wall body with a click, cutting the host, and keeps drawing', () => {
 		const { draft, finish, tool } = wallTool();

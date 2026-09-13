@@ -19,4 +19,19 @@ describe('DrawPolygonTool: alignment guides', () => {
 		tool.cancel();
 		expect(h.context.renderState.snapGuides).toEqual([]);
 	});
+
+	it('abandonGesture clears the guide and leaves the placed vertices standing', () => {
+		// Spec §5 names `abandonGesture` as a clearing site. It is otherwise the documented no-op:
+		// focus loss must not destroy the polygon, so the buffer and its sketch survive it.
+		const h = harness({ snapCandidates: () => ({ alignments: [{ x: 300, y: 900 }] }) });
+		const tool = build(h);
+		tool.activate(h.context);
+		tool.pointerDown(at(0, 0));
+		tool.pointerMove(at(297, 50));
+		expect(h.context.renderState.snapGuides).toHaveLength(1);
+		tool.abandonGesture();
+		expect(h.context.renderState.snapGuides).toEqual([]);
+		expect(h.context.renderState.polygonSketch?.vertices).toEqual([{ x: 0, y: 0 }]);
+		expect(tool.hasDraft()).toBe(true);
+	});
 });

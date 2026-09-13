@@ -252,7 +252,8 @@ export class DrawPolygonTool implements EditorTool {
 	}
 
 	/**
-	 * **A documented no-op, which is the whole point of this method existing separately.**
+	 * **Clears the guides and nothing else, which is the whole point of this method existing
+	 * separately.**
 	 * This tool places its vertex on `pointerdown` and holds nothing that the matching
 	 * `pointerup` would complete — so an interruption between the two has nothing to abandon,
 	 * and the buffer it would otherwise reach is the user's accumulated polygon rather than
@@ -263,7 +264,10 @@ export class DrawPolygonTool implements EditorTool {
 	 * its staleness is already handled by `generation`, which only a real cancellation bumps.
 	 */
 	abandonGesture(): void {
-		// Nothing is transient here: see above.
+		// The buffer and its sketch are not transient (see above); the guides are — spec §5
+		// names this exit, and a guide left standing after focus loss describes a pointer that
+		// is no longer there.
+		if (this.context) this.context.renderState.snapGuides = [];
 	}
 
 	/** Any placed vertex is work Escape must ask about before `cancel()` discards it. */

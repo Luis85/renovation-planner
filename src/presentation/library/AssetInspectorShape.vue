@@ -42,6 +42,7 @@ import { computed } from 'vue';
 import type { AssetDesignDto, AssetDesignError } from '../../application/queries/GetAssetDesign';
 import type { AssetBackgroundRef } from '../../domain/asset/Asset';
 import type { Dimensions } from '../../domain/asset/AssetShape';
+import { polygonPolyline } from '../../core/geometry/curvePolyline';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import type { SectionStatus } from './ticketedSection';
@@ -158,7 +159,7 @@ const outline = computed((): AssetOutline | null => {
 	if (design === null) return null;
 	if (design.shape === null || design.dimensions === null) return { kind: 'none' };
 	return { kind: design.dimensionsUnscaled ? 'unscaled' : 'measured',
-		points: design.shape.footprint.points, extent: design.dimensions };
+		points: polygonPolyline(design.shape.footprint), extent: design.dimensions };
 });
 </script>
 

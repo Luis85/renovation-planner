@@ -19,6 +19,8 @@ Keep the labeled mode switch visible, use restrained mode-specific accents along
 
 | Document | Purpose |
 |---|---|
+| [Selected hybrid mockups and screen contracts](mockups/README.md) | User-selected combination of directions 1 and 3; ten boards covering twelve screen areas with state notes; no implementation |
+| [Parallel implementation packets](parallel-delivery/README.md) | Nineteen bounded packets with model suggestions, file ownership, dependencies, copy-ready session prompts and integration rules |
 | [Implementation plan](implementation-plan.md) | Scope, priorities, work packages, detailed acceptance criteria, dependencies, decision gates and delivery sequence |
 | [Validation and release plan](validation-plan.md) | Novice research, accessibility checks, regression coverage, measurements and release gates |
 | [Current editor walkthrough](audit.md) | Nine current-run screenshots, observed strengths/friction and explicit evidence limits |

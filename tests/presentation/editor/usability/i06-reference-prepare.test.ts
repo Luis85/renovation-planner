@@ -25,13 +25,24 @@ describe('I06 reference preparation', () => {
 		const wrapper = setup();
 		const option = wrapper.get('[data-rp-reference-source="plans/Ground-floor.png"]');
 
+		expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+		expect(wrapper.find('[role="group"]').attributes('aria-label')).toBe('Source file in your vault');
+		expect(option.attributes('aria-pressed')).toBe('false');
 		expect(option.text()).toContain('Ground-floor.png');
 		expect(option.text()).toContain('plans/Ground-floor.png');
 		await option.trigger('click');
 
 		expect(wrapper.get('input[name="source"]').element).toHaveProperty('value', 'plans/Ground-floor.png');
+		expect(option.attributes('aria-pressed')).toBe('true');
 		expect(wrapper.find('.rp-reference-source-context').text()).toContain('Ground-floor.png');
 		expect(wrapper.find('.rp-reference-source-context').text()).toContain('plans/Ground-floor.png');
+	});
+
+	it('uses native disabled buttons while the preparation surface is paused', async () => {
+		const wrapper = setup();
+		await wrapper.setProps({ paused: true });
+
+		for (const option of wrapper.findAll('[data-rp-reference-source]')) expect(option.attributes('disabled')).toBeDefined();
 	});
 
 	it('keeps PDF page and raster preparation controls in native disclosures', async () => {

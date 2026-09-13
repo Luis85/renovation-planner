@@ -45,7 +45,7 @@ function choose(source: string): void {
 			></label>
 			<div
 				class="rp-reference-source-list"
-				role="listbox"
+				role="group"
 				:aria-label="tr('editor.reference.source')"
 			>
 				<button
@@ -53,10 +53,9 @@ function choose(source: string): void {
 					:key="candidate"
 					type="button"
 					class="rp-reference-source-option"
-					role="option"
 					:class="{ 'is-selected': candidate === selectedSource }"
-					:aria-selected="candidate === selectedSource"
-					:aria-disabled="paused"
+					:aria-pressed="candidate === selectedSource"
+					:disabled="paused"
 					:data-rp-reference-source="candidate"
 					:title="candidate"
 					@click="choose(candidate)"

@@ -31,12 +31,25 @@
 	font-size: var(--font-ui-smaller);
 }
 
+/*
+ * A TINT behind `--text-normal`, with only the glyph in the error colour. The banner used to paint
+ * `--text-error` on `--background-modifier-error-hover`, and Obsidian's own sheet resolves BOTH to
+ * `--color-red`: a live vault showed a solid red block with the sentence in it invisible, in both
+ * schemes. Solid error red has no readable foreground (`asset-library-inspector.css` measured
+ * `--text-on-accent` at 3.45:1 on it), so this takes the 18% tint the Inspector's Delete hover
+ * already uses, and the red border still says "failure".
+ */
 .rp-form-banner {
 	padding: var(--size-4-2);
 	border: 1px solid var(--background-modifier-error);
 	border-radius: var(--radius-s);
-	background-color: var(--background-modifier-error-hover);
+	background-color: color-mix(in oklch, var(--background-modifier-error) 18%, transparent);
+	color: var(--text-normal);
 	font-size: var(--font-ui-small);
+}
+
+.rp-form-banner__glyph {
+	color: var(--text-error);
 }
 
 /*

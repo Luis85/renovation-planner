@@ -282,6 +282,15 @@ describe('SetAssetClearance', () => {
 		expect(await revision()).toBe(written);
 	});
 
+	it('writes a straight boundary over a curved one with the same corners', async () => {
+		const { clearance, assetId, seed, storedShape } = await seeded();
+		await seed({ calibration: CALIBRATION, shape: { ...measured(), clearance: { points: [...WIDER], bulges: [0.5, 0, 0.5, 0] } } });
+
+		expect(expectOk(await clearance.execute({ assetId, points: WIDER }))).toBe('wrote');
+
+		expect((await storedShape())?.clearance?.bulges).toBeUndefined();
+	});
+
 	/**
 	 * The state a comparison over coordinates alone answers `no-write` to, leaving the
 	 * boundary flagged as awaiting a scale forever: the calibration arrives without the

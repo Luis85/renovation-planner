@@ -241,6 +241,36 @@ describe('SetAssetFootprintFromDimensions', () => {
 		expect(await revision()).toBe(written);
 	});
 
+	/**
+	 * `oval-table` stores its stadium as a rectangle's corners plus bulges, so "Edit dimensions"
+	 * over it at the same size asks for identical corners. A comparison over the corners alone
+	 * answered `no-write` and the curves stayed, with nothing said.
+	 */
+	it('writes a straight rectangle over a curved outline with the same corners', async () => {
+		const { typed, assetId, seed, storedShape } = await seeded();
+		await seed({
+			calibration: null,
+			shape: { ...decorated(), footprint: { points: [...CENTRED_RECTANGLE], bulges: [0, 1, 0, 1] }, footprintOrigin: 'typed' },
+		});
+
+		expect(expectOk(await typed.execute({ assetId, width: 1200, depth: 800 }))).toBe('wrote');
+
+		expect((await storedShape())?.footprint.bulges).toBeUndefined();
+	});
+
+	it('counts an all-zero bulge list as the straight outline it draws', async () => {
+		const { typed, assetId, seed, revision } = await seeded();
+		await seed({
+			calibration: null,
+			shape: { ...decorated(), footprint: { points: [...CENTRED_RECTANGLE], bulges: [0, 0, 0, 0] }, footprintOrigin: 'typed' },
+		});
+		const before = await revision();
+
+		expect(expectOk(await typed.execute({ assetId, width: 1200, depth: 800 }))).toBe('no-write');
+
+		expect(await revision()).toBe(before);
+	});
+
 	it('writes again when a dimension really changes', async () => {
 		const { typed, assetId, storedShape } = await seeded();
 		await typed.execute({ assetId, width: 1200, depth: 800 });

@@ -37,6 +37,7 @@ const ORIGIN: Point = { x: 0, y: 0 };
 
 /**
  * The shape with every coordinate group that AWAITS a scale converted, and none that does not.
+ * Each detail is a fourth group with its own flag (symbols spec, Decision 5).
  *
  * **One flag per group, and no conjunction with provenance.** `footprintOrigin` stays `'traced'`
  * for the life of an outline, so it can say where coordinates came from and never what has
@@ -62,6 +63,11 @@ function rescaled(shape: AssetShape, correction: number): AssetShape {
 		clearancePending: false,
 		anchor: shape.anchorPending ? scaleShape(shape.anchor, correction, ORIGIN) : shape.anchor,
 		anchorPending: false,
+		details: shape.details.map((detail) =>
+			detail.pending
+				? { ...detail, outline: scaleShape(detail.outline, correction, ORIGIN), pending: false }
+				: detail,
+		),
 	};
 }
 
@@ -85,6 +91,7 @@ function documentFinite(calibration: Calibration, shape: AssetShape | null): boo
 		pointsFinite(shape.footprint.points)
 		&& pointsFinite(shape.clearance?.points ?? [])
 		&& pointsFinite([shape.anchor])
+		&& shape.details.every((detail) => pointsFinite(detail.outline.points))
 	);
 }
 

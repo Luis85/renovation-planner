@@ -132,6 +132,7 @@ function refusingBundle(): AssetDesignCommandBundle {
 	return {
 		setFootprintFromDimensions: refusingCommand(),
 		setFootprint: refusingCommand(),
+		setShape: refusingCommand(),
 		setClearance: refusingCommand(),
 		setAnchor: refusingCommand(),
 		setFacing: refusingCommand(),

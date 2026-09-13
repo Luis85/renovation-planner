@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
- * The asset designer's Konva stage: the five layers of `layers/` — four world-space and the
+ * The asset designer's Konva stage: the six layers of `layers/` — five world-space and the
  * gesture layer above them — drawn through the same gesture surface the plan editor uses
- * (design slice B4, ADR-0015). It was four until the review fixes gave the designer a
- * transient layer; counted from `DesignerLayerName` rather than remembered.
+ * (design slice B4, ADR-0015). Counted from `DesignerLayerName` rather than remembered: it was
+ * four until the review fixes gave the designer a transient layer, and five until Task 5 gave
+ * it a details layer for interior linework.
  *
  * **`EditorSurface` is shared, not copied.** Task B1 lifted every pointer, wheel and key door
  * out of `PlanCanvas.vue` for exactly this mount — some thirty documented findings about
@@ -53,14 +54,14 @@ import BackgroundLayer from '../editor/layers/background/BackgroundLayer.vue';
 import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
 import { useThemeTokens } from '../editor/theme/useThemeTokens';
 import { STAGE_PIXELS, viewportTransform, worldPerScreenPixel } from '../editor/viewport/Viewport';
-import { boundsOfZones } from '../editor/viewport/zoneExtent';
 import { useSelectionStore } from '../editor/selection/selection-store';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { useAssetDesignStore } from './stores/assetDesignStore';
-import { useDesignerRuntime } from './runtime';
+import { designFrame, useDesignerRuntime } from './runtime';
 import { BACKGROUND_LAYER, designerLayerConfig } from './layers/backgroundLayer';
 import { footprintOutline } from './layers/footprintLayer';
 import { clearanceOutline } from './layers/clearanceLayer';
+import { detailOutlines } from './layers/detailsLayer';
 import { anchorMark, facingArrow } from './layers/anchorLayer';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
 
@@ -151,8 +152,9 @@ const background = computed(() => design.value?.background ?? null);
 /** The asset's OWN calibration, reduced to the raster's drawn scale; `1` uncalibrated. */
 const pixelsPerWorldUnit = computed(() => design.value?.calibration?.pixelsPerWorldUnit ?? 1);
 
-const footprint = computed(() => footprintOutline(shape.value, tokens.value));
-const clearance = computed(() => clearanceOutline(shape.value, tokens.value));
+const footprint = computed(() => footprintOutline(shape.value, tokens.value, worldPerPixel.value));
+const details = computed(() => detailOutlines(shape.value, tokens.value, worldPerPixel.value));
+const clearance = computed(() => clearanceOutline(shape.value, tokens.value, worldPerPixel.value));
 const anchor = computed(() => anchorMark(shape.value, tokens.value, worldPerPixel.value));
 const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPixel.value));
 
@@ -165,14 +167,13 @@ const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPix
  * this canvas yet. A fit with nothing to frame does nothing, which is `boundsOfZones`' own
  * rule: a jump to nowhere costs the user the view they had and says nothing about why.
  *
- * It goes through `boundsOfZones` rather than scanning coordinates here — the function is
- * named for the plan editor's caller and typed for any `{ points }`, and a second definition of
- * "the box around these points" in this layer would be free to disagree with Core's.
+ * The box itself is `designFrame` (`runtime.ts`), which Apply preset fits to as well, so the two
+ * cannot frame the same design differently.
  */
 function framedBounds(all: boolean): BoundingBox | null {
 	const current = shape.value;
 	if (!all || current === null) return null;
-	return boundsOfZones([current.footprint, ...(current.clearance === null ? [] : [current.clearance])]);
+	return designFrame(current);
 }
 
 /**
@@ -227,6 +228,13 @@ onBeforeUnmount(() => stopPixelRatio());
 					<VLine
 						v-if="footprint !== null"
 						:config="{ ...footprint, name: 'asset-footprint-outline' }"
+					/>
+				</VLayer>
+				<VLayer :config="designerLayerConfig('asset-details', transform)">
+					<VLine
+						v-for="(detail, index) in details"
+						:key="index"
+						:config="{ ...detail, name: 'asset-detail' }"
 					/>
 				</VLayer>
 				<VLayer :config="designerLayerConfig('asset-clearance', transform)">

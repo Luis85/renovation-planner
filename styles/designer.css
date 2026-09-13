@@ -257,7 +257,8 @@
  */
 /* REVIEWED CLONE: the bordered variant with a leading `width`/`margin` — the flat button is per-component by
    necessity; the argument is on `.rp-designer-tool-button`, above in this file. */
-.rp-designer-inspector .rp-designer-edit-dimensions {
+.rp-designer-inspector .rp-designer-edit-dimensions,
+.rp-designer-inspector .rp-designer-start-preset {
 	width: 100%;
 	/* The reviewed clone starts at margin; target the declaration rather than the selector. */
 	/* fallow-ignore-next-line code-duplication */
@@ -274,14 +275,37 @@
 	cursor: pointer;
 }
 
-.rp-designer-inspector .rp-designer-edit-dimensions:hover {
+.rp-designer-inspector .rp-designer-edit-dimensions:hover,
+.rp-designer-inspector .rp-designer-start-preset:hover {
 	background-color: var(--background-modifier-hover);
 }
 
 /* The ring, for the reason `editor.css`'s toolbar `:focus-visible` comment gives at length. */
-.rp-designer-inspector .rp-designer-edit-dimensions:focus-visible {
+.rp-designer-inspector .rp-designer-edit-dimensions:focus-visible,
+.rp-designer-inspector .rp-designer-start-preset:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
+}
+
+/* The preset dialog's preview (asset designer symbols spec). Colours are theme variables. */
+.rp-asset-preset-form .rp-asset-preset-preview {
+	width: 100%;
+	height: 160px;
+	background-color: var(--background-secondary);
+	border-radius: var(--radius-s);
+}
+
+.rp-asset-preset-preview .rp-asset-preset-preview__footprint,
+.rp-asset-preset-preview .rp-asset-preset-preview__detail {
+	fill: var(--background-primary);
+	stroke: var(--text-normal);
+	stroke-width: 1.5px;
+	vector-effect: non-scaling-stroke;
+}
+
+.rp-asset-preset-preview .rp-asset-preset-preview__detail--dashed {
+	fill: none;
+	stroke-dasharray: 4 3;
 }
 
 .rp-designer-field {

@@ -31,15 +31,18 @@ it('edits a Room corner in Renovate through one reversible geometry command', as
  await rig.runtime.undo(); await settle(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before.document);
  await rig.runtime.redo(); await settle(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(saved.document);
 });
-it('keeps Renovate primary Add keyboard reachable and closes it without clearing selection', async () => {
- const rig = await setup(), add = rig.wrapper.get<HTMLButtonElement>('[data-rp-action="add"]');
- add.element.focus(); await add.trigger('click'); await settle();
- expect(rig.wrapper.find('[role="menu"]').exists()).toBe(true);
- await rig.wrapper.get('.rp-add-menu input[type="search"]').trigger('keydown', { key: 'Escape' }); await settle();
- expect(rig.wrapper.find('[role="menu"]').exists()).toBe(false);
- expect(document.activeElement).toBe(add.element); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
- await rig.runtime.renovation.perspective('review'); await settle();
+it('keeps Renovate work and Details actions keyboard reachable without exposing layout Add', async () => {
+ const rig = await setup();
  expect(rig.wrapper.find('[data-rp-action="add"]').exists()).toBe(false);
+ const work = rig.wrapper.get<HTMLButtonElement>('[data-rp-action="add-work"]');
+ work.element.focus(); expect(document.activeElement).toBe(work.element);
+ const more = rig.wrapper.get<HTMLButtonElement>('[data-rp-action="renovation-more"]');
+ more.element.focus(); await more.trigger('click'); await settle();
+ expect(rig.selection.selectedIds).toEqual([rig.room.id]);
+ expect(rig.wrapper.get('[data-rp-region="inspector"]').element).toBe(document.activeElement);
+ await rig.runtime.renovation.perspective('review'); await settle();
+ expect(rig.wrapper.find('[data-rp-action="add-work"]').exists()).toBe(false);
+ expect(rig.wrapper.find('[data-rp-action="renovation-more"]').exists()).toBe(false);
  expect(rig.stage.findOne<Konva.Layer>('.interaction')?.find('Circle')).toHaveLength(0);
  expect(rig.stage.findOne<Konva.Layer>('.interaction')?.findOne('.object-rotation-handle')).toBeUndefined();
 });

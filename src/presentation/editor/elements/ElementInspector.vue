@@ -81,7 +81,7 @@ async function edit(event: Event): Promise<void> {
 				{{ tr('editor.element.plan-geometry') }}
 			</button>
 			<button
-				v-if="element.kind !== 'asset'"
+				v-if="element.kind !== 'asset' && session.perspective === 'plan'"
 				type="button"
 				class="rp-inspector-action"
 				data-rp-action="edit-element"

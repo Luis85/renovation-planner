@@ -8,6 +8,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createPinia } from 'pinia';
 import { computed, nextTick } from 'vue';
 import {
 	mountPlanEditorCanvas as mountPlanEditorCanvasRaw,
@@ -574,5 +575,32 @@ describe('the Add menu, mounted standalone', () => {
 		expect(order).toEqual(['close', 'setTool']);
 		expect(wrapper.emitted('close')).toHaveLength(1);
 		wrapper.unmount();
+	});
+
+	/**
+	 * An Obsidian POP-OUT leaf's menu belongs to another document than the plugin's `document`,
+	 * so an outside press there is heard only by a listener on THAT document. The second
+	 * document is a REAL one — an iframe's — never a stub, per the fake rule; the Pinia is named
+	 * here rather than inherited from a sibling's mounted editor, so the case passes on its own.
+	 */
+	it('closes on an outside press in the document that owns it, as a pop-out leaf has', async () => {
+		const frame = document.createElement('iframe');
+		document.body.append(frame);
+		const doc = frame.contentDocument as Document;
+		const host = doc.createElement('div');
+		doc.body.append(host);
+		const wrapper = mount(AddMenu, {
+			props: { anchor: null },
+			attachTo: host,
+			global: { plugins: [createPinia()], provide: { [EDITOR_RUNTIME as symbol]: stubRuntime(vi.fn<(id: ToolId | null) => void>()), [NOTE_CREATION as symbol]: { available: computed(() => false), activate: vi.fn<() => void>() } } },
+		});
+		await nextTick();
+		expect(wrapper.element.ownerDocument).toBe(doc);
+
+		doc.dispatchEvent(new Event('pointerdown'));
+		await nextTick();
+		expect(wrapper.emitted('close')).toEqual([[]]);
+		wrapper.unmount();
+		frame.remove();
 	});
 });

@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Plan editor and canvas]]"
 order: 60
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-13
+finished: 2026-09-13
 start: ""
 due: ""
 risk: ""
@@ -143,3 +143,33 @@ review of the diff.
 - The alternative to deciding this deliberately is deciding it under a lint error, and the
   file's own history says what gets reached for then: a collapsed literal, and the same
   question spelled twice.
+
+## What closed it
+
+**2026-09-13.** Commit `65488430` ("Split EditorSurface below its line budget", branch
+`claude/konva-obsidian-perf-polish-a86782`, Task 5 of the Konva/Obsidian performance-polish
+run) took **candidate seam 1, the keyboard alone**, and not the recommendation above. Measured
+with the command in *What is true today*, `EditorSurface.vue` counts **324** lines after it
+(it had reached 400 by then, not the 399 this note recorded), and the module that came out,
+`src/presentation/editor/surface/keyDoors.ts`, counts 112 with its factory at 81. Every
+function moved verbatim with its comments; no test case was edited, which is the signal
+*What would notice* asked for.
+
+Why the whole-input-layer seam was refused, in this note's own terms: the four fields it
+names are not all keyboard-side. `toolGesturePointer` is written at the press door and read
+only by `isGestureOwner`, deliberately never cleared and safe only because it is read beside
+`toolManager.gestureInFlight`; `swallowedPointers` is written at three pointer doors and
+cleared by `releaseInterruptedInputs`, which `onBlur` and unmount both call. A seam around the
+whole input layer would have carried both of those and both predicates across it with all
+five pointer doors, `movePanOverride`, `onMouseDown`, the two event converters and
+`lastStagePoint` — ~150 counted lines through the most-litigated code in the history, for a
+target the keyboard seam already met. The keyboard doors read `panOverride` (arm/disarm
+and `phase`) and `gestureInFlight` and write nothing else the pointer doors own, so the
+shared state crosses the seam as an INTERFACE (`KeyDoorSurface`, ten members) rather than as a
+second spelling of either predicate.
+
+What of this note still stands: the pointer routing and its four fields remain in
+`EditorSurface.vue`, read against each other in one file, exactly as *What a decomposition
+must not do* requires — and the concern about the template's own 36-line comment paying the
+budget in full is unchanged. The cap will be reached again; when it is, the pointer region is
+the next seam and this note's constraint on it is the rule to read first.

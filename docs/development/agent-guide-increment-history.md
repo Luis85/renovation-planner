@@ -5976,6 +5976,88 @@ is owned the day it is added (ADR-0029), so by design rather than open.
 Electron drag and drop and the keyboard context-menu event are checkable in no gate here, and
 its Runs table says so.
 
+## Konva and Obsidian performance polish, 2026-09-13
+
+Plan: `docs/superpowers/plans/2026-09-13-konva-obsidian-perf-polish.md` — no spec; its §1 is the
+research, §2 the measurement, §4 the levers held back and §5 what was refused by name (a rAF
+throttle, `stage.listening(false)`, `Konva.pixelRatio = 1`, merging layers below five,
+`ItemView.onResize`, vue-konva's strict mode, `obsidian.debounce` in `presentation/`). One PR,
+`main` merged four times along the way (5f71c6d5, 52de4fa8, 3b1a03bf, 507637e1; vue-konva 3.4 →
+4.0.1 among it, and the last took `main`'s side for the Task 1 files #167 had carried copies of),
+the three tasks' test sets re-run green on the merged tree. Task 5, user-requested:
+`EditorSurface.vue` sat at exactly its 400 counted-line cap, so its keyboard doors moved whole to
+`src/presentation/editor/surface/keyDoors.ts` (`canvasKeyDoors`), 400 → 324 (65488430).
+
+**What the code measured before any task**, in `npm run harness` at `?view=plan-editor`,
+1600×1000, DPR 1, the two-room fixture, from the Browser pane at 31fb0c3f: `window.Konva.stages[0]`
+probed, `Konva.Layer.prototype.drawScene` wrapped to count draws, 40 synthetic wheel events on
+`.rp-plan-canvas`, Vue's microtask flush timed before the next two frames.
+
+| Fact | Measured |
+|---|---|
+| Konva layers mounted | 7, all `listening: false`, stage `listening: true`; no shape in `background`, `construction`, `asset`, `annotation` |
+| Canvas per layer | scene 992×912 → 3.6 MB each, 25.2 MB total at DPR 1 (×4 at DPR 2); hit 0 MB (Konva 10 sizes it to zero for a non-listening layer) |
+| Pan / zoom / hover, one event: Vue work, layer draws | 3.4 ms, 7 of 7 / 6.9 ms, 7 of 7 / 0.8 ms, 0 |
+| `Konva.autoDrawEnabled` / `hitOnDragEnabled` | true / false (the defaults, correct) |
+
+**Already right, verified by reading, so no task existed for it.** Every layer, group and shape
+sets `listening: false` (the two `StructureLayer.vue` shapes that omit it, `wall-edge` and
+`wall-body`, sit under a non-listening layer, which Konva resolves by ancestor walk);
+`perfectDrawEnabled: false` on every fill+stroke shape carrying opacity, the wall passes
+stroke-only, no shadow anywhere; `strokeScaleEnabled: false` on every screen-sized outline,
+captions counter-scaled by `1 / zoom`; `onload` registers only, the index scan starts in
+`onLayoutReady` and the vault listeners are `registerEvent`ed inside it; deferred views are guarded
+(`rebindOpenViews` checks `leaf.view` by `instanceof`, `revealPlanEditor.ts` matches leaves by
+`getViewState().state.planId`); `PlanEditorView.onClose` unmounts the app, which destroys the stage,
+and `konvaGlobal.ts` releases `window.Konva`; Chromium already coalesces `wheel` and `pointermove`
+to one per frame; `touch-action: none` on the canvas (`styles/editor.css`), and the stage is sized
+by `EditorSurface.vue`'s `ResizeObserver` on its container.
+
+**What landed.** Task 1: `?rooms=N` (`tests/harness/roomsKnob.ts`, read by `tests/harness/page.ts`)
+appends N synthetic 4000×3000 mm rooms after the seeded zones, and
+`docs/tests/cases/Canvas performance.md` carries the probe and a Runs table — the instrument for
+everything below. Task 2: `src/presentation/composables/use-owner-listener.ts` (`ownerWindowOf`,
+`listenOnOwner`), so the outside-press doors of `AddMenu`, `EditorViewMenu` and `PropertyTreeMenu`
+and `EditorSurface`'s window blur register on the element's OWN document and window — in a pop-out
+leaf those three menus never closed on an outside press and a space-pan armed there stayed armed
+after that window lost focus; `tests/presentation/composables/useOwnerListener.test.ts` drives a
+real second document (an iframe's), and the next defect of the same family, NOT fixed, is
+`AddMenu`'s focus-out door still testing `instanceof Node` against the main realm. Task 3:
+`src/presentation/editor/scene/followPixelRatio.ts`, `followPixelRatio(stage)` — the plan's
+`(element, () => stage | null)` signature narrowed because its null arms were unreachable —
+mounted by `PlanCanvas.vue` and `DesignerCanvas.vue`: Konva samples `devicePixelRatio` once per
+module, so a window moved between a 2× and a 1× monitor drew blurry or at four times the backing
+store until the plugin reloaded; on start it brings layers built at Konva's cached ratio to the
+window's current one, then follows `(resolution: <n>dppx)` changes on the stage container's own
+window. jsdom has no `matchMedia`, so `tests/helpers/canvas.ts`'s `installCanvas()` installs an
+EventTarget-backed one that never fires on its own. **Unverified by any gate**: whether
+Chromium/Electron fires `change` for that query on a monitor move — a vault fact. Electron's page
+zoom (Obsidian's Ctrl+= / Ctrl+-) also changes `devicePixelRatio`, so the follower is EXPECTED to
+fire on every zoom step too — expected and not verified in a vault, stated here so nobody reads
+those `change` events as a storm.
+
+**The §4 levers, each held by a measurement.** Taken 2026-09-13 at dca2aacd in the pinned headless
+Chromium 151.0.7922.34 against the same `npm run harness` server (the Browser pane was hidden and
+had no animation frames), 1600×1000, DPR 1; `rooms=0` reproduced the pane's 3.4 / 6.9 ms, so the
+rows compare. Camera-only layer re-render (4.1): pan 3.7–3.9 ms at `rooms=80`, under its 8 ms
+trigger and flat across sizes. Per-room render-model rebuild on a one-room preview (4.2): room drag
+1.2–1.6 ms of Vue work per move. Caption `group.cache()` (4.3): the zone layer's own `drawScene`
+2.8–5.0 ms. Dropping the `construction` canvas (4.4): no memory complaint, and it draws in 0 ms.
+**What no lever targets**: wheel ZOOM Vue work grows with rooms — 6.9 → 20.7 → 36.8–37.4 ms at
+0 / 40 / 80 — past a 33 ms frame at `rooms=80`, so one notch drops a frame there. Profiled and cut
+in PR #167 (`main`, in this branch since 507637e1): every room caption's `1 / zoom` scale travelled
+through its vue-konva `config`, so each notch re-rendered every `ZoneShape` and re-applied
+`scaleX,scaleY` to all 252 caption Texts through the deep config watch and each group's `onUpdated`
+walk, and each room's automatic caption anchor (`labelAnchor`) was re-derived although it depends
+on the geometry alone. `ZoneLayer.vue` now writes the counter-scale onto every `.zone-caption` node
+from one watch (and from the layer's Konva `add` event for a room mounted later), and
+`ZoneShape.vue` caches the anchor per geometry. Zoom Vue work at `rooms=80`: 34.5–37.0 → 7.6 ms
+back to back on 74973601 (vue-konva 3.4.0), and 7.7–8.2 ms quiet after rebasing onto 4ca4c7ea
+(vue-konva 4.0.1) — AT §4's 8 ms trigger rather than clearly under it. Pinned by
+`tests/presentation/editor/zoneZoomConfiguration.test.ts`; the two Runs rows of
+`docs/tests/cases/Canvas performance.md` carry the loaded-CPU interleaving and the residual 0 → 80
+growth (about 2 ms, each `ZoneShape`'s props update its `v-memo` then skips).
+
 ## Smart alignment guides, 2026-09-13
 
 Spec: `docs/superpowers/specs/2026-09-13-smart-alignment-guides-design.md`; plan:

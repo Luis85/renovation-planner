@@ -3,7 +3,9 @@ import DraftRecovery from '../forms/DraftRecovery.vue';
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import FieldError from '../../components/FieldError.vue';
 import ObjectRectangleFields from './ObjectRectangleFields.vue';
+import ObjectShapeSwitch from './ObjectShapeSwitch.vue';
 import StairDraftFields from './StairDraftFields.vue';
+import StructuralDraftFields from './StructuralDraftFields.vue';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
@@ -16,6 +18,12 @@ onBeforeUnmount(() => {
 	const root = taskRoot.value, editor = root?.closest<HTMLElement>('.renovation-plan-editor');
 	if (root?.contains(document.activeElement)) void nextTick(() => { if (editor?.isConnected) editor.querySelector<HTMLElement>('.rp-plan-canvas')?.focus(); });
 });
+/** A rectangle item is entered through its rectangle fields alone; per-point entry is free-form's (2026-09-13 item modes spec §A). */
+const pointEntry = computed(() => draft.kind !== 'object' || draft.shape === 'free');
+/** The create-hint key ternary, out of the template and behind fallow's cognitive-complexity threshold. */
+const createHint = computed(() => tr(pointEntry.value ? 'editor.element.create-hint' : 'editor.element.banner.object-rectangle'));
+/** Out of the template for the same threshold, once posts and beams joined the draft kinds (structural posts and beams). */
+const structural = computed(() => draft.kind === 'post' || draft.kind === 'beam');
 const pointForm = ref<HTMLElement | null>(null), attemptedPoint = ref(false);
 const coordinates = computed(() => ({ x: parseCoordinateMetres(draft.text.x), y: parseCoordinateMetres(draft.text.y) }));
 const point = computed(() => {
@@ -26,7 +34,7 @@ const pointRepeated = computed(() => {
 	const last = draft.points.at(-1), next = point.value;
 	return !!last && !!next && last.x === next.x && last.y === next.y;
 });
-const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || ((draft.kind === 'measurement' || draft.kind === 'stair') && draft.points.length === 2));
+const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || ((draft.kind === 'measurement' || draft.kind === 'stair' || draft.kind === 'beam') && draft.points.length === 2));
 const pointReadonly = computed(() => task.blocked.value || draft.pendingInput);
 const undoBlocked = computed(() => pointReadonly.value || !!draft.text.x || !!draft.text.y || !draft.points.length);
 function coordinateMessage(axis: 'x' | 'y'): string | null {
@@ -53,7 +61,7 @@ async function add(): Promise<void> {
 		data-rp-form="element-create"
 	>
 		<h3>{{ tr(zoneTypeLabel(draft.kind)) }}</h3>
-		<p>{{ tr('editor.element.create-hint') }}</p>
+		<p>{{ createHint }}</p>
 		<p
 			v-if="draft.error"
 			role="alert"
@@ -77,66 +85,76 @@ async function add(): Promise<void> {
 				@input="input('name', $event)"
 			></label>
 		</FieldError>
-		<ObjectRectangleFields
-			v-if="draft.kind === 'object'"
-			:task="task"
-		/>
+		<template v-if="draft.kind === 'object'">
+			<ObjectShapeSwitch />
+			<ObjectRectangleFields
+				:task="task"
+				:open="draft.shape === 'rectangle'"
+			/>
+		</template>
 		<StairDraftFields
 			v-if="draft.kind === 'stair'"
 			:task="task"
 		/>
-		<form
-			ref="pointForm"
-			@submit.prevent="add"
-			@keydown="nativeSubmitKey"
-		>
-			<DraftRecovery
-				v-if="task.needsRead.value || runtime.writesBlocked.value"
-				:retry="task.retry"
-				:open-source="runtime.openPlanNote"
-			/>
-			<FieldError
-				v-for="axis in ['x', 'y'] as const"
-				:key="axis"
-				v-slot="{ inputId, aria }"
-				:message="coordinateMessage(axis)"
+		<StructuralDraftFields
+			v-if="structural"
+			:key="draft.kind"
+			:task="task"
+		/>
+		<DraftRecovery
+			v-if="task.needsRead.value || runtime.writesBlocked.value"
+			:retry="task.retry"
+			:open-source="runtime.openPlanNote"
+		/>
+		<template v-if="pointEntry">
+			<form
+				ref="pointForm"
+				@submit.prevent="add"
+				@keydown="nativeSubmitKey"
 			>
-				<label
-					:for="inputId"
-					class="rp-dialog-field"
-				>{{ tr(axis === 'x' ? 'editor.area.x' : 'editor.area.y') }}<input
-					:id="inputId"
-					v-bind="aria"
-					:name="'element-' + axis"
-					type="text"
-					inputmode="decimal"
-					:value="draft.text[axis]"
-					:readonly="pointReadonly"
-					@input="input(axis, $event)"
-				></label>
-			</FieldError>
+				<FieldError
+					v-for="axis in ['x', 'y'] as const"
+					:key="axis"
+					v-slot="{ inputId, aria }"
+					:message="coordinateMessage(axis)"
+				>
+					<label
+						:for="inputId"
+						class="rp-dialog-field"
+					>{{ tr(axis === 'x' ? 'editor.area.x' : 'editor.area.y') }}<input
+						:id="inputId"
+						v-bind="aria"
+						:name="'element-' + axis"
+						type="text"
+						inputmode="decimal"
+						:value="draft.text[axis]"
+						:readonly="pointReadonly"
+						@input="input(axis, $event)"
+					></label>
+				</FieldError>
+				<button
+					type="submit"
+					:aria-disabled="addBlocked"
+				>
+					{{ tr('editor.element.add-point') }}
+				</button>
+			</form>
+			<ol>
+				<li
+					v-for="(value, index) in draft.points"
+					:key="index"
+				>
+					{{ formatMetres(value.x) }} m, {{ formatMetres(value.y) }} m
+				</li>
+			</ol>
 			<button
-				type="submit"
-				:aria-disabled="addBlocked"
+				type="button"
+				:aria-disabled="undoBlocked"
+				@click="task.undoPoint()"
 			>
-				{{ tr('editor.element.add-point') }}
+				{{ tr('editor.element.undo-point') }}
 			</button>
-		</form>
-		<ol>
-			<li
-				v-for="(value, index) in draft.points"
-				:key="index"
-			>
-				{{ formatMetres(value.x) }} m, {{ formatMetres(value.y) }} m
-			</li>
-		</ol>
-		<button
-			type="button"
-			:aria-disabled="undoBlocked"
-			@click="task.undoPoint()"
-		>
-			{{ tr('editor.element.undo-point') }}
-		</button>
+		</template>
 		<div class="rp-dialog-actions">
 			<button
 				type="button"

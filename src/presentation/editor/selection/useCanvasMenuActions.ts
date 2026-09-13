@@ -37,6 +37,16 @@ export interface CanvasMenuSubmenu { readonly id: string; readonly label: String
 export type CanvasMenuItem = CanvasMenuAction | CanvasMenuSubmenu;
 export function isSubmenu(item: CanvasMenuItem): item is CanvasMenuSubmenu { return 'children' in item; }
 const GROUP_ORDER: readonly CanvasMenuGroup[] = ['plans', 'edit', 'create', 'records', 'clipboard', 'arrange', 'view', 'destructive'];
+/**
+ * A plain item's promotion into the asset library (2026-09-13 item modes spec §B); nothing where this leaf cannot create an asset.
+ * Outside `useCanvasMenuActions` only for that function's 100-line budget. Greyed by `promote`'s own refusal predicate;
+ * its Review arm never greys here, since the menu returns before single-selection actions there and the entry is hidden.
+ */
+function promoteActions(runtime: ReturnType<typeof useEditorRuntime>, project: ReturnType<typeof useProjectStore>, id: string): CanvasMenuAction[] {
+	const promotion = runtime.elementTask.promotion;
+	if (!promotion.available() || !project.structure.elements?.some(item => item.id === id && item.kind === 'object')) return [];
+	return [{ id: 'add-to-library', label: 'editor.input.add-to-library', group: 'records', icon: 'square-dashed-mouse-pointer', disabled: promotion.refused(), run: () => promotion.promote(id) }];
+}
 export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
 	const moveOpening = useOpeningMoveAction(), clipboard = useClipboardActions();
@@ -140,7 +150,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		result.push(panning ? { id: 'select', label: 'editor.input.switch-to-select', group: 'view', icon: 'mouse-pointer-2', run: () => runtime.setTool('select') } : { id: 'pan', label: 'editor.input.switch-to-pan', group: 'view', icon: 'hand', run: () => runtime.setTool('pan') });
 		if (!ids.length) result.push({ id: 'add', label: 'editor.primary.add', group: 'create', icon: 'plus', disabled: blocked, run: add });
 		if (clipboard?.hasClipboard.value) result.push({ id: 'paste', label: 'editor.input.paste', group: 'clipboard', icon: 'clipboard-paste', disabled: !clipboard.canPaste.value, run: () => clipboard.paste(opened()) });
-		if (ids.length === 1) result.push(...singleActions(id, blocked), ...addSubmenu(id, blocked));
+		if (ids.length === 1) result.push(...singleActions(id, blocked), ...promoteActions(runtime, project, id), ...addSubmenu(id, blocked));
 		// Only where the composite removal has its services, as the batch panel already requires: an item that would do nothing is worse than none.
 		else if (ids.length && runtime.renovation.available) result.push({ id: 'delete', label: runtime.groupActions.saved.value ? 'editor.group.delete' : 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: multiDeleteBlocked(runtime), run: () => deleteItems(runtime, project.structure, ids) });
 		result.push({ id: 'measure', label: 'editor.input.measure-here', group: 'create', icon: 'ruler', disabled: blocked || !runtime.elementTask.available, run: () => runtime.elementTask.measureFrom(opened()) });

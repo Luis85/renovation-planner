@@ -112,8 +112,16 @@ button.rp-property-tree__row:focus-visible { outline: 2px solid var(--interactiv
 	.renovation-plan-editor .rp-editor-status-bar { gap: 6px 12px; }
 }
 @container (max-width: 599px) {
-	.renovation-plan-editor .rp-panel-rail { width: 72px; }
-	.renovation-plan-editor .rp-panel-rail .rp-panel-rail__button { flex-direction: column; text-align: center; padding: 8px 2px; overflow-wrap: anywhere; }
+	.renovation-plan-editor .rp-panel-rail { width: 80px; }
+	.renovation-plan-editor .rp-panel-rail .rp-panel-rail__button {
+		flex-direction: column;
+		padding: 8px 2px;
+		font-size: var(--font-ui-smaller);
+		text-align: center;
+		overflow-wrap: normal;
+		word-break: normal;
+		hyphens: auto;
+	}
 	.renovation-plan-editor .rp-context-bar { gap: 6px; }
 	.renovation-plan-editor .rp-editor-status { white-space: normal; }
 	.renovation-plan-editor .rp-editor-hint, .renovation-plan-editor .rp-editor-paused-hint { white-space: normal; }

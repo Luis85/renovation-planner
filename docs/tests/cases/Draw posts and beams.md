@@ -19,8 +19,10 @@ drawn. **Create sample renovation project** seeds a floor; draw a wall on it fir
 
 ## Why a human is the only instrument for three of these
 
-Every write, undo and warning below is driven in `tests/presentation/editor/structuralCreation.test.ts`,
-`structuralInspector.test.ts` and `structuralDeletion.test.ts`. Outside all of it:
+Every write and warning below is driven in `tests/presentation/editor/structuralCreation.test.ts`,
+`structuralInspector.test.ts` and `structuralDeletion.test.ts`. Of step 3, only the load-bearing toggle and
+one undo are (on a beam, in `structuralInspector.test.ts`) — no test there drives a redo, and none renders or
+asserts the filled ↔ outline-only swap itself, only the underlying `loadBearing` boolean. Outside all of it:
 
 1. **Whether the post and beam symbols read as structure on a themed plan.** jsdom draws nothing; the harness
    shots use Obsidian's default colours only.
@@ -33,12 +35,12 @@ Every write, undo and warning below is driven in `tests/presentation/editor/stru
 | # | Do | Expect |
 | --- | --- | --- |
 | 1 | Add → Post. Click three points along the wall's centre line. | Three filled squares with diagonals, centred on the wall; the tool stays on after each. |
-| 2 | Escape. Select one post. | The Inspector heading reads "Post" (its default name) and the subline below it reads "0.14 × 0.14 m", with Load-bearing ticked. |
+| 2 | Escape. Select one post. | The Inspector's sublines read "Post" and "0.14 × 0.14 m", with Load-bearing ticked. |
 | 3 | Untick Load-bearing. Undo. Redo. | The square turns outline-only, back to filled, and outline-only again. |
 | 4 | Add → Beam. Click either side of the room, crossing the wall. | Two dashed parallel lines; the Inspector shows its length and "0.16 m wide". |
 | 5 | Edit the beam, set width 0.24, apply. | The dashed band widens. |
 | 6 | Delete a load-bearing post. | The confirmation ends "Load-bearing: Post. Remove only after a structural check." Confirm removes it; Undo restores it. |
-| 7 | Select two posts and the beam, press Delete. | One confirmation naming every load-bearing item. |
+| 7 | Select two posts and the beam, press Delete, then Cancel. | One confirmation naming every load-bearing item; Cancel leaves all three in place. |
 | 8 | Reopen the plan note's geometry sidecar in a text editor. | `"schemaVersion": 11`, each post with `"loadBearing"`, the beam with `"width"`. |
 
 ## Runs

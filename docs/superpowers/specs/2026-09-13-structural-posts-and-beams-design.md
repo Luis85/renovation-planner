@@ -200,20 +200,31 @@ Taken while writing `docs/superpowers/plans/2026-09-13-structural-posts-and-beam
 
 ## 11. Amendments found during review
 
-Taken while implementing the plan, each narrower or corrective against §5–§6:
+Found during review, each narrower or corrective against §5–§6:
 
-- **The planning overlays also treat posts and beams as closed shapes.** `MaterialMarkers.vue` and
-  `CostWorkHighlight.vue` (`src/presentation/editor/planning/`) both read `closedFootprintKind` to decide
-  whether a highlighted or marked element closes its outline — missing from §1's "what exists today" table,
-  which named only the canvas and the Inspector as consumers of a post or beam's shape.
-- **A post standing in a wall draws AFTER every wall pass, not before.** `StructureLayer.vue` used to mount
-  `ElementShapes` ahead of the wall-edge/wall-body/wall-pattern lines in the same Konva layer, so the wall body
-  painted over a post centred on its own centre line — invisible in every scheme, caught only by the harness
-  capture this task took (§9's own listed instrument). Elements now draw last in that layer, on top of every
-  wall pass, so a post reads exactly as filled-with-diagonals as this document always said it would.
+- **§1's "what exists today" table named neither consumer of a post or beam's shape.** §6 named only
+  `ElementShapes` (canvas) and `ElementInspector` (subline). `closedFootprintKind`
+  (`src/domain/spatial/SpatialElement.ts`) is also read by the planning overlays `MaterialMarkers.vue` and
+  `CostWorkHighlight.vue` (whether a highlighted or marked element closes its outline), by
+  `InteractionLayer.vue` (whether the hover or selection outline closes) and `RenovationLayer.vue` (whether a
+  renovation-change marker's outline closes), and by `structureRecords.ts` (whether an element's footprint
+  area is measured) — none of them named in §1 or §6.
+- **Every element kind draws after the wall paint passes and before the wall selection dash, endpoint
+  handles, `OpeningSymbols` and the wall draft — not before the wall paint, and not after everything else
+  either.** `StructureLayer.vue` first mounted `ElementShapes` ahead of the wall-edge/wall-body/wall-pattern
+  lines in the same Konva layer, so the wall body painted over a post centred on its own centre line —
+  invisible in every scheme, caught only by the first harness capture of the `?structural` scene (§9's own
+  listed instrument). A later pass then moved `ElementShapes` to the very end of the layer instead, which hid
+  a load-bearing post's own wall-end handle under the post and let an object, fence or stair paint over the
+  wall being drawn. Elements (post, beam and every other non-asset kind `ElementShapes` draws) now draw
+  directly after the wall-pattern pass and before the wall selection group, `OpeningSymbols`, the wall preview
+  line and `WallDraftOverlay`, so a post reads exactly as filled-with-diagonals as this document always said
+  it would, while a wall's own selection handles, its openings and its in-progress draft still draw on top.
 - **Switching directly from the post tool to the beam tool resets the typed section.** `StructuralDraftFields`
-  is keyed by `draft.kind`, and the underlying draft itself is reset to its defaults on any tool change outside
-  the post-to-post continuation §5 and §10 describe — a fresh `place-post` reads a fresh baseline and restores
-  the typed section itself (§10), but `draw-beam` started directly from `place-post` does not inherit it.
+  is keyed by `draft.kind`, and the underlying draft itself is reset to its defaults (`DEFAULT_POST_SECTION`,
+  `elementDraft.ts`) on any tool change outside the one continuation §5 and §10 describe: `elementTask.ts`'s
+  `finish()` captures `draft.post` before calling `start('place-post')` after a successful post save, then
+  restores it right after, which is what carries the typed section forward from one post to the next (§10).
+  `draw-beam` started directly from `place-post` does not go through that path, so it falls to the plain reset.
   `tests/presentation/editor/structuralCreation.test.ts` watches this as `resets the structural fields when
   switching directly from the post tool to the beam tool`.

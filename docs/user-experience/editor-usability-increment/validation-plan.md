@@ -41,7 +41,7 @@ The novice's first complete task is the primary outcome. Secondary tasks each ha
 | T8 Existing manipulation | Place or adjust the supported door, then make a precise rotation or move | Same valid result using pointer and an equivalent precision route; correct impact comprehension |
 | T9 Copy scope | Copy the specified Room/group to another supplied floor | Predicts copied dependencies/exclusions; one direct paste and correct undo; optional preview only if separately adopted |
 | T10 Interrupt/compact | Open the related note, return, narrow the pane and continue editing | Same meaningful context and draft; Details/canvas return works |
-| T11 Perspective | Find this element's existing renovation information, then return to Plan | Same target and camera; understands actual versus intended change |
+| T11 Distinct modes | Explain where you would change this room's size and where you would plan its renovation work; do each supported task, then return | Identifies Plan versus Renovate without coaching; finds each mode's relevant controls; same target/camera on direct return; no accidental geometry edit in Renovate |
 | T12 Save confidence | Finish for today, reopen, then encounter a controlled failed/stale write | Correctly distinguishes saved/failed/stale; persisted data independently verified |
 
 Run T1–T4/T5/T12 for all first-time participants. Allocate T6–T11 to enough participants to obtain at least five independent attempts per secondary core workflow across the candidate/accessibility sessions, with denominators shown. If 60 minutes cannot accommodate tasks, schedule follow-up or additional sessions; do not infer unobserved success. The domain-specific advanced task may be adapted only to already supported behavior.
@@ -59,6 +59,7 @@ Moderator assistance ladder: repeat goal → neutral encouragement → direction
 | Serious mistakes | Zero unnoticed unit/magnitude errors, wrong-target destructive writes, data loss or false belief that a failed save succeeded |
 | Recovery | At least 5 of 6 recover a supported change independently; zero unrecoverable losses in controlled regression scenarios |
 | State comprehension | At least 5 of 6 correctly explain selection, preview versus saved, and next action at predefined probes |
+| Mode comprehension | All six final-round novices receive the short T11 mode-identification probe; at least 5 of 6 correctly choose Plan for layout changes and Renovate for work/material/cost context without coaching. Report the full T11 task denominator separately. Visual distinction is required even if continuity already passes. |
 | Task ease | Median at least 5 on a custom 1–7 ease question for core tasks; investigate recurring scores ≤2 rather than averaging them away |
 | Confidence | Supporting target: at least 5 of 6 rate confidence in doing the task alone later ≥4/5; performance remains the primary gate |
 | Efficiency | Exploratory target: 25% lower median first-room time from baseline, with no accuracy/access regression; report raw times and sample differences, not significance |
@@ -81,6 +82,7 @@ Use the [inclusive research memo](research/inclusive-usability.md) for source-le
 - Test 1280/1024/900/899/640/460/400/399 px leaf widths and representative 800/600 px heights, plus 320 CSS px reflow of nonspatial controls. Use high-risk pairings rather than every combination: German narrow forms, dark dense geometry, large-text dialogs, and active drafts crossing both layout boundaries.
 - Test native interface zoom at 100/200/400%, separately from OS display scaling and canvas zoom. The two-dimensional canvas may meet the reflow exception; toolbars, forms and errors still require individual evaluation. Below-width messaging alone does not prove zoom accessibility.
 - Include light/dark, a representative community theme/custom accent, English/German, mouse/trackpad, keyboard and reduced-motion. Preserve input/caret and current target across full/constrained/unsupported transitions or explicitly resolve unsupported state retention before release.
+- Compare paired Plan/Renovate captures at identical selection/camera/data; verify different tools and Details hierarchy as well as visible mode cues. Check mode identification without color, distinct status semantics and labeled switching at 460 px. Test that selecting renovation information cannot accidentally manipulate geometry and that Edit layout restores a deliberate Plan editing context.
 
 No claim of full AA conformance follows from this checklist alone. The release receipt must state assessed scope, criteria, methods, exceptions and unresolved issues. A core-task success gate is necessary but not sufficient for an overall conformance claim.
 
@@ -125,6 +127,7 @@ Consent to observation, recordings, quotes and follow-up separately. Store conta
 
 - [ ] Baseline and final implementation commits identified; accepted historical decisions preserved.
 - [ ] All accepted U0–U9 criteria have receipts or explicitly scoped remaining decisions.
+- [ ] Plan/Renovate distinction passes paired-screen, mode-comprehension and default-interaction checks; selection, draft safeguards and camera continuity are preserved.
 - [ ] No P0 data/safety/access issue remains; P1 failures have a fix or explicit release disposition.
 - [ ] Automated targeted checks, complete repository gate and required CI passed on final code.
 - [ ] Current visual and interaction evidence covers changed tasks with valid fixtures.

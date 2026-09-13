@@ -6,6 +6,15 @@ Make the existing 2D editor predictable enough that a person with little confide
 
 The recommendation is to consolidate three connected experiences first: **draw and adjust a room; prepare and scale a reference; select, inspect and safely change existing elements.** Carry the same interaction rules through walls, openings, objects, groups, perspectives and narrow Obsidian panes. Keep 3D as a future consumer of the existing model, with no 3D work in this increment.
 
+**Confirmed product direction — user follow-up, 2026-09-13:** the clear distinction between Plan and Renovate in the reference pictures is a required part of this increment. The two modes must feel purposefully different through their tools, Details content and visual cues, while sharing the same plan and selected element. This is stronger than merely preserving the current perspective switch.
+
+| Mode | User purpose | Default emphasis |
+|---|---|---|
+| Plan | Draw and adjust the physical layout | Rooms, walls, openings, objects, dimensions, snapping and reference setup |
+| Renovate | Plan what should happen to the selected space or element | Existing conditions, planned changes, work, materials, costs and evidence already supported |
+
+Keep the labeled mode switch visible, use restrained mode-specific accents alongside text/icons, and adapt the bottom taskbar and Details panel to the active purpose. Renovation content must not dominate Plan; geometry manipulation must not be the default action while selecting renovation information. An explicit layout-edit route retains access to existing geometry operations. Switching between Plan and Renovate preserves the selected element and camera under the existing draft/session safeguards. [U7](implementation-plan.md#u7--make-plan-and-renovate-clearly-distinct-modes) defines the detailed contract.
+
 ## Read this package
 
 | Document | Purpose |
@@ -41,7 +50,7 @@ Current code and dated amendments establish what exists and why; they do not pro
 
 ## Delivery recommendation
 
-Start with a short baseline and interaction-contract phase, then deliver complete task slices in this order: **reference clarity → room/Details hierarchy → selection and safe manipulation → compact/accessibility consistency → release validation**. Accessibility work begins with the first slice, not at the end. Use the release gates in [validation-plan.md](validation-plan.md) to decide whether the increment is ready.
+Start with a short baseline and the **Plan/Renovate mode contract**, then deliver complete task slices in this order: **mode-specific shell and Details → reference and room-task clarity → selection and safe manipulation → compact/accessibility consistency → release validation**. The mode distinction shapes the first design slice rather than arriving as finishing polish. Accessibility work begins with the first slice, not at the end. Use the release gates in [validation-plan.md](validation-plan.md) to decide whether the increment is ready.
 
 The implementation plan contains ten bounded packages, including explicit conditional decisions where evidence is incomplete. Initial sizing is **24–40 person-days plus participant recruitment**, an estimate for planning rather than a commitment. Review that range after baseline testing; reduce breadth before reducing safety, accessibility or end-to-end validation.
 

@@ -15,6 +15,7 @@ A first-time private renovator can choose a sensible start, create or trace a ro
 - Existing room, area, wall, opening, object and group workflows: discoverability, order, copy, visual hierarchy, editing feedback and recovery.
 - Current reference import/calibration, layer visibility/locking, selection, clipboard, undo/redo, save/conflict communication and panel behavior.
 - Existing Plan/Renovate/Review context and navigation, without expanding renovation functionality.
+- A clearly visible and functional distinction between Plan and Renovate, explicitly confirmed by the user on 2026-09-13: mode-specific tools, Details priorities and visual cues over the same plan.
 - Native theme integration, English/German copy, desktop pointer/keyboard/non-drag alternatives, zoom and split-pane behavior.
 - Documentation corrections and meaningful verification tied to the exact implementation commit.
 
@@ -44,7 +45,7 @@ Interaction affordances over existing commands can be in scope: a clearer picker
 | Copy summary and optional placement preview | Snapshot/dependency scope exists; Paste currently executes directly | Explain actual scope/destination; evaluate the optional preview separately instead of claiming it exists (U6) |
 | Two points + known distance | Implemented staged reference workflow with exposed pixel coordinates | Prioritize ordinary visual task; disclose exact controls (U3) |
 | Narrow-pane access | Rails/drawers exist at 400–899 px | Verify every active task, draft and focus transition; clear recovery below minimum (U8) |
-| Plan/Renovate continuity | Confirmed for one created room in current walkthrough | Preserve selection/camera; simplify mode-relevant Details and test more target types (U7) |
+| Clear Plan/Renovate distinction and continuity | Switching works for one created room; current Plan still exposes extensive renovation navigation | Required mode-specific taskbar, Details hierarchy and visual cues; preserve selection/camera and test more targets (U7) |
 
 ## 3. Prioritization and evidence rules
 
@@ -61,7 +62,7 @@ Use **O** for current-run observation, **C** for source/history-backed behavior,
 | U4 Selection and overlap | P1; validate chooser | C/H/R | Reliably reach intended/locked/overlapping targets | 2–4 days |
 | U5 Manipulation and feedback | P1 | C/H/R | Know what moves and by how much | 3–5 days |
 | U6 Copy, delete and recovery | P0 safety; P1 presentation | C/H | Predict results and recover safely | 2–3 days |
-| U7 Perspective continuity | P1 | O/C/H | Change task focus without losing place | 1–2 days |
+| U7 Distinct Plan/Renovate modes | P1, first design slice | Explicit user direction/O/C | Recognize the active purpose through tools and content without losing place | 1–2 days |
 | U8 Compact, inclusive visual polish | P0 access; P1 polish | O/C/R | Same task works across supported contexts | 3–5 days |
 | U9 Validation and handoff | P0 release gate | C/H | Measured usability and current release evidence | 3–5 days |
 
@@ -84,14 +85,14 @@ Total: 24–40 person-days. Estimates assume existing commands are retained and 
 
 ### U1 — Make the shell and Details panel easy to scan
 
-**Owner:** product/interaction designer + frontend. **Dependencies:** U0.
+**Owner:** product/interaction designer + frontend. **Dependencies:** U0 and the U7 mode contract; implement the shared shell and mode presentation together.
 
 Keep context at the top and the established bottom taskbar. In Details, keep a stable identity header (name, kind, floor where ambiguous, size/area and lock state). Put everyday actions before advanced shape operations. Treat the following order as the first prototype to test:
 
 1. Identity and essential dimensions.
 2. Name/size and applicable direct edit actions.
 3. Shape/rotation/structure details in a labeled disclosure, with the accepted canvas affordances intact.
-4. Compact navigation to existing renovation information appropriate to perspective.
+4. In Plan, one clear route to renovate the selected element; in Renovate, prominent existing/planned/work and related-content navigation. Do not present both full toolsets at once.
 5. Secondary and destructive actions in their established safe locations.
 
 Do not copy the screenshot's width/height fields onto every shape. Axis-aligned room width/depth, rotated or irregular outlines, wall thickness/length and opening dimensions are different concepts. Show only truthful editable values; otherwise expose the existing appropriate route with a short explanation.
@@ -164,21 +165,45 @@ Keep routine edits lightweight. Do not add confirmation dialogs to every change.
 
 **Verify:** single Room/Area, wall/opening and group snapshots supported by current commands; multi-selection and destination changes; missing source after copy; copy while typing does not steal text clipboard; Escape; undo/redo; reference/dependency guards; failed write and external vault edit; close/reopen and app restart in a disposable vault.
 
-### U7 — Clarify perspectives and preserve place
+### U7 — Make Plan and Renovate clearly distinct modes
 
-**Owner:** product designer + planning frontend. **Dependencies:** U1/U2.
+**Owner:** product designer + planning frontend. **Dependencies:** U0. Establish this contract before U1/U2; implement and test mode presentation with those packages. This is a required direction, not an optional hypothesis.
 
-Plan emphasizes arrangement and dimensions; Renovate emphasizes the existing/planned/work information already supported; Review emphasizes existing checks and return navigation. The selected identity stays stable. Avoid duplicated full renovation menus dominating Plan, while retaining a clear route to the selected element's related content.
+**User confirmation, 2026-09-13:** incorporate the clear Plan/Renovate distinction shown in reference 2. A mode change must be apparent from the working interface as well as from the selected switch label.
 
-**Acceptance:** switching perspective preserves plan, selection and camera according to the existing session contract, including restoring the pre-Review selection/camera snapshot when returning to Renovate; applicable drafts are handled explicitly before switching; no unexpected geometry write occurs; room, wall, opening, object and room-less record contexts are truthful; panel title and available actions explain the new task focus; returning from a detail or linked note restores usable context; hidden/deleted/unreadable selections have explicit fallbacks. Perspective names and Existing/Planned terminology are not collapsed into one ambiguous state.
+| Surface | Plan mode | Renovate mode |
+|---|---|---|
+| Purpose | “Draw and adjust your space” | “Plan your renovation” |
+| Bottom taskbar | Select, Pan and existing layout-creation actions through Add | Select, Pan and supported contextual renovation actions, such as adding work, materials or a note; offer only actions valid for the current target |
+| Details header | Same element identity, with layout/size information | Same element identity, with renovation summary and state |
+| Main Details content | Name, dimensions, shape, opening/structure properties and reference controls where applicable | Existing conditions, planned changes, work, materials, costs and evidence already supported |
+| Canvas emphasis | Geometry, selection, relevant dimensions and manipulation feedback | Spatial context and existing renovation markers/status; reduce idle geometry handles and measurements that compete with the current information task |
+| Default interaction | Select and explicitly create/manipulate layout | Select the element to understand or edit its renovation information; layout manipulation requires an explicit action |
+| Cross-mode route | “Renovate this element” or equivalent clear navigation, preserving target | “Edit layout” or equivalent explicit route to Plan, preserving target |
 
-**Verify:** round-trip Plan → Renovate → Review → Plan with selected/unselected/multi/locked elements; room-less wall records; unsupported selection; linked note return; two simultaneous plan leaves. Current single-room continuity is a positive baseline, not a complete pass.
+The taskbar stays in its established bottom location. Shared navigation, Undo/Redo and save feedback retain stable positions and truthful availability. Contextual renovation actions use existing commands and current target eligibility, including elements without a Room; this does not introduce new work/material/note capability. Avoid a long disabled action list when nothing is selected: give a short selection instruction and a usable selection route.
+
+**Visual contract:** retain always-visible text labels Plan and Renovate, a clear selected state and distinct icons. Use a restrained mode accent consistently on the switch, primary task action and Details mode cue. The reference's blue/green distinction is a useful starting direction for light/dark prototypes, not a hardcoded replacement for Obsidian theme tokens. Map accents through accessible theme-aware variables and verify contrast. Text, icons and changed content must distinguish modes without color. Do not recolor the entire plan or reuse a mode accent in a way that changes the meaning of renovation statuses or selection.
+
+**Interaction contract:** switching Plan ↔ Renovate changes presentation and available default interactions, not geometry, records or Existing/Planned meaning. Keep selection and camera stable; route existing geometry edits explicitly through Plan rather than removing the capability. During an active draft, retain the existing guard and staged cancellation behavior before completing the switch. Remember mode context through ordinary panel/linked-content returns according to the current session contract; do not invent new cross-restart persistence. Review keeps its existing read/review purpose and its pre-Review context restoration rules.
+
+**Acceptance:**
+
+1. With the same Room selected, Plan and Renovate show recognizably different taskbar actions, main Details content and mode cues. The label alone is insufficient.
+2. Plan's default Details does not show the full work/material/cost/evidence navigation; one clear route reaches that same element in Renovate. Renovate's default Details does not foreground width/depth/rotation/curve tools; an explicit route reaches them in Plan.
+3. Selecting renovation information cannot accidentally start a geometry drag or resize. Contextual layout editing is explicit, using existing operations and no new domain model.
+4. Plan ↔ Renovate retains the valid selected identity and camera; Review → Renovate restores its existing pre-Review snapshot. Draft guards, invalid/deleted targets, multi-selection and room-less elements have explicit outcomes.
+5. Both labels and the active state remain visible at supported narrow widths and with enlarged text; keyboard and screen-reader users can identify and change mode without relying on accent color.
+6. No mode switch writes geometry or alters Existing/Planned semantics. Hidden indicators do not delete their records or overwrite saved layer preferences.
+7. A novice can say which mode is for changing a room's size and which is for planning its work, find the appropriate action and return to the same element without coaching. The validation plan records this as a separate comprehension gate.
+
+**Verify:** capture paired Plan/Renovate screens using the same selected target, camera, viewport and data in light/dark and at 460 px. Test mode-specific taskbar actions, accidental-manipulation prevention, round-trip Plan → Renovate → Review → Plan with selected/unselected/multi/locked elements, room-less wall records, linked note return and two simultaneous leaves. Current single-room continuity is a positive baseline, not acceptance of this stronger distinction.
 
 ### U8 — Apply inclusive visual polish and compact-layout rules
 
 **Owner:** accessibility specialist + frontend/design systems + QA. **Dependencies:** begins at U0, closes after U1–U7.
 
-Use Obsidian semantic tokens, existing icons and typography. Improve readable text hierarchy, spacing, alignment, field labeling, focus visibility, disabled-state explanation and long-label handling. Avoid hardcoded branded blue/green panels and visual noise. Do not rely on color for selection, snap, lock, validation or renovation status.
+Use Obsidian semantic tokens, existing icons and typography. Improve readable text hierarchy, spacing, alignment, field labeling, focus visibility, disabled-state explanation and long-label handling. Support U7's restrained mode-specific accents through theme-aware tokens, with text/icon distinctions and no wholesale branded panels. Do not rely on color for mode, selection, snap, lock, validation or renovation status.
 
 At wide widths retain resizable/collapsible panels. At 400–899 px preserve current rails/drawers; return to the canvas must be explicit and restore selection/draft. When a resize leaves content offscreen, make existing Fit/reveal navigation discoverable; do not automatically change camera during an edit. Below 400 px provide a clear widening/focus action and preserve state. Separately assess whether essential nonspatial controls can remain available under host zoom: the 2D canvas reflow exception does not exempt surrounding UI.
 
@@ -198,8 +223,8 @@ Run formative rounds during delivery, then the final unaided core-task gate with
 
 | Stage | Work | Gate to proceed |
 |---|---|---|
-| A: establish | U0 and initial U8 audit | Production-capable fixture verified; baseline task failures and accepted historical decisions recorded |
-| B: prove two core tasks | U3 reference clarity; U1/U2 room hierarchy and guidance | End-to-end room and reference prototypes tested; accessible alternatives preserved; conditional choices resolved |
+| A: establish | U0, U7 mode contract and initial U8 audit | Production-capable fixture verified; mode-specific tool/content matrix and accepted historical decisions recorded |
+| B: prove distinct modes and two core tasks | U1/U7 mode-specific shell and Details; U2/U3 room/reference clarity | Paired Plan/Renovate prototypes and end-to-end room/reference tasks tested; accessible alternatives preserved |
 | C: consolidate existing edits | U4/U5/U6 with U7 | Select → inspect → change → undo/recover passes for representative supported entities |
 | D: finish across contexts | U8 and remaining U7 checks | Same core task works in supported split panes, locales/themes and native host |
 | E: release decision | U9 | Novice, accessibility, regression and native evidence gates satisfied |
@@ -215,7 +240,7 @@ Each implementation branch should deliver one concern with related docs/tests an
 | Exact reference fields | Disclose pixel/path details beneath the ordinary workflow, with keyboard access retained | Reference owner + non-drag/keyboard setup and two-point novice task |
 | Arbitrary-corner accessibility | Design an understandable equivalent within current geometry capability; do not restore rejected coordinate dialog automatically | Accessibility + geometry owners; explicit user review of concrete interaction if changing accepted direction |
 | Camera after resizing/selecting | Preserve current intentional camera behavior; expose existing fit/reveal route | Observe disorientation/recovery in split-pane tasks before changing navigation semantics |
-| Room inspector cross-links | Compact in Plan, prominent in Renovate | Check related-content findability and existing context continuity |
+| Room inspector cross-links | Confirmed direction: one clear route from Plan; full renovation hierarchy in Renovate | Test wording/findability and context continuity; mode separation itself is required |
 | “Scale not set” | Distinguish reference calibration from authored geometric dimensions | Domain/reference owner confirms truthful wording for every state |
 
 These are implementation-stage decision gates. The planning request does not require waiting for answers before delivering this proposal.

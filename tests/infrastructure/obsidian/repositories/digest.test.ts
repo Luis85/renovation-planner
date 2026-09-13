@@ -6,7 +6,7 @@ import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../../../src/infras
 import { PLAN_TYPE, PlanFrontmatterSchemaV12 } from '../../../../src/infrastructure/persistence/dto/planFrontmatter';
 import { ZONE_TYPE, ZoneFrontmatterSchemaV2 } from '../../../../src/infrastructure/persistence/dto/zoneFrontmatter';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/assetFrontmatter';
-import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV4 } from '../../../../src/infrastructure/persistence/dto/requirementFrontmatter';
+import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV5 } from '../../../../src/infrastructure/persistence/dto/requirementFrontmatter';
 import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/assetPriceFrontmatter';
 import { ENTITY_TYPES, type EntityType } from '../../../../src/application/ports/ProjectIndex';
 
@@ -108,7 +108,9 @@ describe("a note is digested against its own kind's schema", () => {
 		[PLAN_TYPE]: PlanFrontmatterSchemaV12,
 		[ZONE_TYPE]: ZoneFrontmatterSchemaV2,
 		[ASSET_TYPE]: AssetFrontmatterSchemaV1,
-		[REQUIREMENT_TYPE]: RequirementFrontmatterSchemaV4,
+		// V5, not V4: `origin-kind` widened to `plan` and `origin-plan` is V5's key, so a digest
+		// derived from V4 let an outside edit of a plan-origin requirement's `origin-plan` pass unseen.
+		[REQUIREMENT_TYPE]: RequirementFrontmatterSchemaV5,
 		[ASSET_PRICE_TYPE]: AssetPriceFrontmatterSchemaV1,
 		'renovation-trade': TradeFrontmatterSchemaV1,
 		'renovation-supplier': SupplierFrontmatterSchemaV1,

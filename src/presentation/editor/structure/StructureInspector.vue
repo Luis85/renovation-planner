@@ -8,6 +8,7 @@ import { tr } from '../../i18n/strings';
 import StructureFacts from './StructureFacts.vue';
 import StructureRenovationEntry from './StructureRenovationEntry.vue';
 import StructurePlanActions from './StructurePlanActions.vue';
+import HostIcon from '../../components/HostIcon.vue';
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime(), session = useRenovationSession();
 const id = computed(() => String(selection.selectedIds[0]));
 const wall = computed(() => project.structure.walls.find(candidate => candidate.id === id.value));

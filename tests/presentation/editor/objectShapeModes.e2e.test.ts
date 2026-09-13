@@ -81,6 +81,17 @@ it('shows the drawn rectangle as its position and size until typed over, and aga
 	expect(shown()).toEqual(['1', '0.5', '2.5', '2.1']);
 });
 
+it('leaves a free-form outline unboxed when Apply is pressed with nothing typed', async () => {
+	const rig = await setup();
+	await drag(rig, { x: 1000, y: 500 }, { x: 3000, y: 2000 });
+	await rig.wrapper.get('.rp-task-banner [data-rp-object-shape="free"]').trigger('click');
+	rig.runtime.toolManager.pointerDown(pointerAt(2000, 2600)); await settle();
+	const pentagon = rig.task.draft.points.map(point => ({ ...point }));
+	expect(pentagon).toHaveLength(5);
+	await rig.wrapper.get('[data-rp-action="apply-object-rectangle"]').trigger('click'); await settle();
+	expect(rig.task.draft.points).toEqual(pentagon);
+});
+
 it('keeps its mode while typed rectangle input is pending, and a click leaves the drawn rectangle', async () => {
 	const rig = await setup();
 	await drag(rig, { x: 1000, y: 500 }, { x: 3000, y: 2000 });

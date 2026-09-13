@@ -50,10 +50,13 @@ describe('AssetPresetForm', () => {
 
 	it('shows the refusal and submits nothing for a value out of range', async () => {
 		const wrapper = mount(AssetPresetForm, { props: { replaces: false } });
+		const apply = () => wrapper.find('button[type="submit"]').attributes('aria-disabled');
+		expect(apply()).toBe('false');
 
 		await wrapper.find('input[name="width"]').setValue('0');
 		await wrapper.find('form').trigger('submit');
 
+		expect(apply()).toBe('true');
 		expect(wrapper.text()).toContain(t('en', 'asset.preset-value-out-of-range'));
 		expect(wrapper.emitted('submit')).toBeUndefined();
 	});

@@ -21,6 +21,7 @@ import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
 import { ASSET_PRESETS } from '../../../src/domain/asset/presets/catalogue';
 import { defaultValues } from '../../../src/domain/asset/presets/presetGeometry';
+import { t } from '../../../src/presentation/i18n/strings';
 
 installCanvas();
 installResizeObserver();
@@ -79,6 +80,28 @@ describe('the designer’s preset dialog', () => {
 
 		expect(vi.mocked(dialogs.openDialog).mock.calls[0][0]).toMatchObject({ kind: 'form', props: { replaces: true } });
 		expect((await harness.document()).shape?.details.map((detail) => detail.name)).toEqual(['tank', 'bowl']);
+	});
+
+	/**
+	 * Spec acceptance criterion "one undo entry": Apply replaces footprint, clearance and details
+	 * in ONE history entry, so a single undo brings back the traced outline with no details left.
+	 */
+	it('takes the whole preset back with one undo', async () => {
+		const harness = await seeded();
+		await harness.seed(drawn());
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		const toilet = ASSET_PRESETS.find((preset) => preset.id === 'toilet');
+		if (toilet === undefined) throw new Error('the catalogue has a toilet');
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ action: 'submit', values: expectOk(toilet.build(defaultValues(toilet))) } as never);
+		await wrapper.find('.rp-designer-start-preset').trigger('click');
+		await flushPromises();
+		expect((await harness.document()).shape?.details).toHaveLength(2);
+
+		const undo = wrapper.findAll('.rp-designer-tools button').find((button) => button.text() === t('en', 'designer.toolbar.undo'));
+		await undo?.trigger('click');
+		await flushPromises();
+
+		expect((await harness.document()).shape).toEqual(drawn());
 	});
 
 	it('opens one picker for two clicks landing before the first dialog closes', async () => {

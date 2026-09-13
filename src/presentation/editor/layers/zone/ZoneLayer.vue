@@ -8,14 +8,15 @@
  *
  * The layer, not a shape, carries the viewport transform — see `viewportTransform`.
  */
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import type Konva from 'konva';
 import { storeToRefs } from 'pinia';
 import { useProjectStore } from '../../../stores/ProjectStore';
 import type { ThemeTokens } from '../../theme/themeTokens';
 import type { NodeTransform } from '../../viewport/Viewport';
 import type { Vector } from '../../../../core/geometry/Vector';
 import { toZoneRenderModel } from './ZoneRenderModel';
-import { captionPins, detailPlanCaptions } from './captionPlacement';
+import { captionPins, detailPlanCaptions, ZONE_CAPTION } from './captionPlacement';
 import { enclosedByBoundary } from '../../../../domain/spatial/encloseRoom';
 import { useDrawnStructure } from '../../structure/drawnStructure';
 import ZoneShape from './ZoneShape.vue';
@@ -54,10 +55,32 @@ const enclosed = computed(() => new Set(models.value.filter(model => enclosedByB
 
 const { hierarchy } = storeToRefs(usePlanHierarchyStore());
 const detailCaptions = computed(() => detailPlanCaptions(hierarchy.value.detailPlans));
+
+/**
+ * Every room caption's `1 / zoom` counter-scale (see `ZoneShape`'s caption docblock), written onto
+ * the Konva nodes from this one watch instead of through each caption's config — which re-rendered
+ * every room per zoom notch. A room mounted later is scaled when its group joins the layer: vue-konva
+ * adds a group only after its captions, so the layer's Konva `add` event sees them. The listener is
+ * bound through the node rather than as `@add` on `<VLayer>`, which Vue warns about on every render
+ * of a fragment-rooted component. A rescan per `add` is one pass per room mounted, not per zoom.
+ */
+const layer = ref<{ getNode(): Konva.Layer } | null>(null);
+let zoneLayer: Konva.Layer | undefined;
+function counterScale(zoom: number): void {
+	zoneLayer?.find(`.${ZONE_CAPTION}`).forEach(caption => caption.scale({ x: 1 / zoom, y: 1 / zoom }));
+}
+watch(layer, (component) => {
+	if (component === null) return;
+	zoneLayer = component.getNode();
+	zoneLayer.on('add', () => counterScale(props.zoom));
+	counterScale(props.zoom);
+}, { immediate: true, flush: 'post' });
+watch(() => props.zoom, counterScale);
 </script>
 
 <template>
 	<VLayer
+		ref="layer"
 		:config="{
 			name: 'zone',
 			listening: false,

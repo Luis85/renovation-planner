@@ -107,7 +107,7 @@ const PlanGeometrySchemaV11 = PlanGeometrySchemaV10.extend({ schemaVersion: z.li
 /** Schema 12: drafting marks — dimension chains, section and view markers, hatches, text, boundary lines, grid points (plan drafting tools design §4). */
 const SpatialElementShapeV12 = SpatialElementShapeV11.extend({
 	kind: z.enum(['object', 'path', 'fence', 'measurement', 'stair', 'arrow', 'asset', 'post', 'beam', 'dimension', 'section', 'view', 'hatch', 'text', 'boundary', 'grid']),
-	offset: z.number().finite().min(-1e6).max(1e6).optional(), flipped: z.boolean().optional(),
+	offset: z.number().min(-1e6).max(1e6).optional(), flipped: z.boolean().optional(),
 });
 const draftingRule = (element: { readonly kind: string; readonly offset?: number; readonly flipped?: boolean }) => (element.kind === 'dimension') === (element.offset !== undefined)
 	&& (element.kind === 'section') === (element.flipped !== undefined);

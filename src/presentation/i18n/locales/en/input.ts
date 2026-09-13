@@ -19,7 +19,7 @@ export const inputEn = {
 	'editor.clipboard.openings': 'Other openings: {count}',
 	'editor.clipboard.elements': 'Objects: {count}',
 	'editor.clipboard.excluded': 'Work, materials, costs and evidence stay with the original.',
-	'editor.clipboard.undo': 'Use Undo to reverse this paste.',
+	'editor.clipboard.undo': 'Use undo to reverse this paste.',
 	'editor.input.delete': 'Delete',
 	'editor.input.measure-here': 'Measure from here',
 	'editor.input.add': 'Add',

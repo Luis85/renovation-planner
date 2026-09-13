@@ -102,6 +102,17 @@ describe('calibrating an asset from the designer', () => {
 		rig.unmount();
 	});
 
+	/** A detail captured before a scale is converted by the same rescale, so it earns the same warning. */
+	it('warns before rescaling a pending detail, even over a measured outline', async () => {
+		const detail = { id: 'd1', name: 'seat', line: 'solid' as const, pending: true, outline: expectOk(footprintFromDimensions(200, 200)) };
+		const rig = await designerRig({ shape: { ...pendingTrace(), footprintPending: false, details: [detail] } });
+
+		await measure(rig);
+
+		expect(rig.wrapper.find('.rp-dialog-title').text()).toBe(t('en', 'designer.calibrate.recalibrate.title'));
+		rig.unmount();
+	});
+
 	/**
 	 * Declining writes nothing at all — the discriminator the two cases above cannot give
 	 * between a dialog that is consulted and one that is merely shown.

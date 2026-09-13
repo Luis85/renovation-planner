@@ -163,7 +163,10 @@ function calibrationDeps(
 	return {
 		hasGeometryToRescale: () => {
 			const shape = store.design?.shape ?? null;
-			return shape !== null && (shape.footprintPending || shape.clearancePending || shape.anchorPending);
+			return (
+				shape !== null &&
+				(shape.footprintPending || shape.clearancePending || shape.anchorPending || shape.details.some((detail) => detail.pending))
+			);
 		},
 		confirmRecalibration: async () =>
 			(await dialogs.openDialog({

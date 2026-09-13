@@ -4,6 +4,7 @@ import { nextTick } from 'vue';
 import type { Perspective } from '../renovation/renovationSession';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
+import type { StringKey } from '../../i18n/locales/en';
 import { useEditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
@@ -20,6 +21,11 @@ const context = usePlanEditorContext();
 const { project, plan } = storeToRefs(useProjectStore());
 const { hierarchy } = storeToRefs(usePlanHierarchyStore());
 const perspectives: readonly Perspective[] = ['plan', 'renovate', 'review'];
+const perspectiveCaptions: Readonly<Record<Perspective, StringKey>> = {
+	plan: 'editor.perspective.plan.caption',
+	renovate: 'editor.perspective.renovate.caption',
+	review: 'editor.perspective.review.caption',
+};
 /**
  * The ancestry crumb's click handler, or `undefined` to draw it as text — plain script
  * rather than a ternary inline in the template, because vue-tsc does not narrow `plan` into
@@ -80,24 +86,42 @@ async function switchPerspective(event: KeyboardEvent, current: Perspective): Pr
 		<slot name="perspective" />
 		<div
 			v-if="runtime.renovation.available"
-			class="rp-renovation-switch"
-			role="radiogroup"
-			:aria-label="tr('editor.shell.perspectives')"
+			class="rp-perspective-controls"
 		>
-			<button
-				v-for="perspective in perspectives"
-				:key="perspective"
-				class="rp-perspective-button"
-				:data-rp-perspective="perspective"
-				type="button"
-				role="radio"
-				:aria-checked="session.perspective === perspective"
-				:tabindex="session.perspective === perspective ? 0 : -1"
-				@keydown="switchPerspective($event, perspective)"
-				@click="runtime.renovation.perspective(perspective)"
+			<div
+				class="rp-perspective-context"
+				:data-rp-perspective-context="session.perspective"
+				aria-hidden="true"
 			>
-				<HostIcon :name="EDITOR_PERSPECTIVE_ICONS[perspective]" />{{ tr(`renovation.${perspective}`) }}
-			</button>
+				<span class="rp-perspective-context__mode">
+					<HostIcon :name="EDITOR_PERSPECTIVE_ICONS[session.perspective]" />
+					{{ tr(`renovation.${session.perspective}`) }}
+				</span>
+				<span class="rp-perspective-context__caption">
+					{{ tr(perspectiveCaptions[session.perspective]) }}
+				</span>
+			</div>
+			<div
+				class="rp-renovation-switch"
+				role="radiogroup"
+				:aria-label="tr('editor.shell.perspectives')"
+			>
+				<button
+					v-for="perspective in perspectives"
+					:key="perspective"
+					class="rp-perspective-button"
+					:data-rp-perspective="perspective"
+					type="button"
+					role="radio"
+					:aria-checked="session.perspective === perspective"
+					:aria-label="`${tr(`renovation.${perspective}`)}: ${tr(perspectiveCaptions[perspective])}`"
+					:tabindex="session.perspective === perspective ? 0 : -1"
+					@keydown="switchPerspective($event, perspective)"
+					@click="runtime.renovation.perspective(perspective)"
+				>
+					<HostIcon :name="EDITOR_PERSPECTIVE_ICONS[perspective]" />{{ tr(`renovation.${perspective}`) }}
+				</button>
+			</div>
 		</div>
 		<span class="rp-context-bar__spacer" />
 		<div

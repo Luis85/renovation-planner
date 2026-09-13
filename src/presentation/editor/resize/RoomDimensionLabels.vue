@@ -8,11 +8,9 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
 import { dimensionTexts, roomDimensions, type DimensionsText } from './roomDimensions';
 import { formatArea } from '../shell/formatArea';
-import { tr } from '../../i18n/strings';
-import RoomDimensionButton from './RoomDimensionButton.vue';
-import InlineRoomDimension from './InlineRoomDimension.vue';
 import DraftRoomDimensions from './DraftRoomDimensions.vue';
 import RoomEdgeMeasurements from './RoomEdgeMeasurements.vue';
+import RoomDimensionControls from './RoomDimensionControls.vue';
 import { roomSketchPoints } from './roomEdgeMeasurements';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
@@ -23,7 +21,7 @@ import type { PlanGeometryDocument } from '../../../application/ports/PlanGeomet
 const props = defineProps<{ preview?: PlanGeometryDocument | null }>();
 const emit = defineEmits<{ obstacles: [layout: DimensionObstacleLayout]; rotationObstacles: [bounds: readonly BoundingBox[]] }>();
 const runtime = useEditorRuntime(), editor = useEditorStore(), project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
-const root = ref<HTMLElement | null>(null), axes = ['width', 'depth'] as const;
+const root = ref<HTMLElement | null>(null);
 const workspace = useWorkspaceStore();
 useDimensionObstacles(root, () => editor.viewport, bounds => emit('obstacles', bounds), {
 	publish: bounds => emit('rotationObstacles', bounds),
@@ -116,49 +114,16 @@ watch(draft, (next, previous) => {
 			:closed="true"
 			:omit-axis-controls="false"
 		/>
-		<template v-if="visible && box">
-			<template v-if="draft === null">
-				<span
-					class="rp-dimension-guide rp-dimension-guide--width"
-					:style="guides(box).width"
-					aria-hidden="true"
-				/>
-				<span
-					class="rp-dimension-guide rp-dimension-guide--depth"
-					:style="guides(box).depth"
-					aria-hidden="true"
-				/>
-			</template>
-			<div
-				v-for="axis in axes"
-				:key="axis"
-				class="rp-dimension-anchor"
-				:style="position(axis, box)"
-			>
-				<InlineRoomDimension
-					v-if="draft?.axis === axis"
-					:draft="draft"
-					:cancel="runtime.roomDimension.cancel"
-				/>
-				<div
-					v-if="draft?.axis === axis && inlinePreview !== null"
-					class="rp-inline-dimension__feedback"
-					data-rp-dimension-feedback
-				>
-					<p>{{ tr('editor.resize.current', dimensionTexts(draft.box)) }}</p>
-					<p role="status">
-						{{ tr('editor.resize.preview', inlinePreview) }}
-					</p>
-					<p>{{ tr('editor.resize.anchor') }}</p>
-				</div>
-				<RoomDimensionButton
-					v-else
-					:axis="axis"
-					:text="dimensionTexts(box)[axis]"
-					:disabled="runtime.resizeRoomBlocked.value || draft !== null"
-					@click="open(axis)"
-				/>
-			</div>
-		</template>
+		<RoomDimensionControls
+			v-if="visible && box"
+			:box="box"
+			:draft="draft"
+			:inline-preview="inlinePreview"
+			:blocked="runtime.resizeRoomBlocked.value"
+			:position="position"
+			:guides="guides"
+			:open="open"
+			:cancel="runtime.roomDimension.cancel"
+		/>
 	</div>
 </template>

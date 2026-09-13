@@ -1,6 +1,6 @@
 # Contract for a bounded implementation session
 
-This contract applies when the user starts implementation. The current task only prepares mockups and packets; it does not launch code sessions.
+This contract applies to every implementation session dispatched from the parallel delivery record.
 
 ## Read in this order
 

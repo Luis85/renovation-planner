@@ -1,6 +1,6 @@
 # Parallel implementation delivery
 
-**Planning only · 2026-09-13 · 19 packets · No implementation sessions started.**
+**Implementation in progress · 2026-09-13 · Wave 0 I00 dispatched.**
 
 The user asked to implement later in parallel sessions using weaker models. These packets turn U0–U9 and the chosen [hybrid screens](../mockups/README.md) into small reviewable concerns with concrete file ownership, prerequisite gates, checks and copy-ready prompts.
 

@@ -36,6 +36,7 @@ import type { NodeTransform } from '../../editor/viewport/Viewport';
 export type DesignerLayerName =
 	| 'asset-background'
 	| 'asset-footprint'
+	| 'asset-details'
 	| 'asset-clearance'
 	| 'asset-anchor'
 	| 'asset-gesture';

@@ -36,6 +36,7 @@ import { fitViewport } from '../../../src/presentation/editor/viewport/Viewport'
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { footprintOutline } from '../../../src/presentation/designer/layers/footprintLayer';
 import { clearanceOutline } from '../../../src/presentation/designer/layers/clearanceLayer';
+import { detailOutlines } from '../../../src/presentation/designer/layers/detailsLayer';
 import { anchorMark, facingArrow } from '../../../src/presentation/designer/layers/anchorLayer';
 import { footprintFromDimensions, type AssetShape } from '../../../src/domain/asset/AssetShape';
 import type { AssetDesignDto } from '../../../src/application/queries/GetAssetDesign';
@@ -65,6 +66,15 @@ const WITH_CLEARANCE: AssetShape = {
 	clearance: expectOk(footprintFromDimensions(1600, 1200)),
 };
 
+const QUARTER = Math.tan(Math.PI / 8);
+const WITH_DETAILS: AssetShape = {
+	...BASE,
+	details: [
+		{ id: 'd1', name: 'top', line: 'solid', pending: false, outline: { points: [{ x: 0, y: -300 }, { x: 300, y: 0 }, { x: 0, y: 300 }, { x: -300, y: 0 }], bulges: [QUARTER, QUARTER, QUARTER, QUARTER] } },
+		{ id: 'd2', name: 'overhead', line: 'dashed', pending: false, outline: { points: [{ x: -100, y: -100 }, { x: 100, y: -100 }, { x: 100, y: 100 }, { x: -100, y: 100 }] } },
+	],
+};
+
 /**
  * Everything the four modules would put on the canvas for one shape, gathered the way
  * `DesignerCanvas.vue` gathers it. A helper rather than four calls per case, because every
@@ -73,8 +83,8 @@ const WITH_CLEARANCE: AssetShape = {
 function renderLayers(design: { shape: AssetShape | null }) {
 	const arrow = facingArrow(design.shape, TOKENS, UNIT_SCALE);
 	return {
-		footprint: footprintOutline(design.shape, TOKENS),
-		clearance: clearanceOutline(design.shape, TOKENS),
+		footprint: footprintOutline(design.shape, TOKENS, UNIT_SCALE),
+		clearance: clearanceOutline(design.shape, TOKENS, UNIT_SCALE),
 		anchor: anchorMark(design.shape, TOKENS, UNIT_SCALE),
 		facing: arrow?.shaft,
 		head: arrow?.head,
@@ -180,6 +190,20 @@ describe('the designer’s drawing vocabulary', () => {
 		const used = [drawn.footprint?.stroke, drawn.clearance?.stroke, drawn.anchor?.fill, drawn.facing?.stroke];
 
 		expect(used.every((colour) => Object.values(TOKENS).includes(colour ?? ''))).toBe(true);
+	});
+
+	it('fills a solid detail with the canvas colour and leaves a dashed one unfilled', () => {
+		const [solid, dashed] = detailOutlines(WITH_DETAILS, TOKENS, UNIT_SCALE);
+		expect(solid.fill).toBe(TOKENS.canvasBackground);
+		expect(solid.dash).toBeUndefined();
+		expect(dashed.fill).toBeUndefined();
+		expect(dashed.dash).not.toBeUndefined();
+	});
+
+	it('draws curved outlines as their arcs rather than their corners', () => {
+		const circular = { ...BASE, footprint: WITH_DETAILS.details[0].outline };
+		expect(detailOutlines(WITH_DETAILS, TOKENS, UNIT_SCALE)[0].points.length).toBeGreaterThan(8);
+		expect(footprintOutline(circular, TOKENS, UNIT_SCALE)?.points.length).toBeGreaterThan(8);
 	});
 });
 
@@ -317,12 +341,13 @@ describe('the designer canvas, mounted', () => {
 	 * The layers in their order, by NAME — an assertion about the scene rather than about the
 	 * template, so a layer dropped from the canvas fails here even if its module survives.
 	 */
-	it('draws the five layers, beneath-to-above, with the background first and the gesture last', async () => {
+	it('draws the six layers, beneath-to-above, with the background first and the gesture last', async () => {
 		const designer = await mountDesigner(assetDesign());
 
 		expect(designer.stage?.getLayers().map((layer) => layer.name())).toEqual([
 			'asset-background',
 			'asset-footprint',
+			'asset-details',
 			'asset-clearance',
 			'asset-anchor',
 			'asset-gesture',
@@ -394,6 +419,7 @@ describe('the designer canvas, mounted', () => {
 			false,
 			false,
 			false,
+			false,
 		]);
 		designer.unmount();
 	});
@@ -445,6 +471,13 @@ describe('the designer canvas, mounted', () => {
 		const designer = await mountDesigner(assetDesign({ shape: WITH_CLEARANCE }));
 
 		expect(designer.stage?.findOne('.asset-clearance-outline')).toBeDefined();
+		designer.unmount();
+	});
+
+	it('draws one detail node per detail', async () => {
+		const designer = await mountDesigner(assetDesign({ shape: WITH_DETAILS }));
+
+		expect(designer.stage?.find('.asset-detail')).toHaveLength(2);
 		designer.unmount();
 	});
 

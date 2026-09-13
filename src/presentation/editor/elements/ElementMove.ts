@@ -4,7 +4,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent } from '../tools/editor-tool';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
-import { CLICK_EPSILON_PX } from '../handleMetrics';
+import { CLICK_EPSILON_PX, SNAP_TOLERANCE_PX } from '../handleMetrics';
 import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 
 /** Elements whose individual points drag; a stair and an asset move only as a body. */
@@ -27,23 +27,33 @@ export class ElementMove {
 	private points(event: EditorPointerEvent): Point[] {
 		const gesture = this.gesture;
 		if (!gesture) return [];
+		const { context } = gesture, tolerance = SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel();
+		const candidates = context.snapCandidates([gesture.element.id]);
 		if (gesture.vertexIndex !== undefined) {
 			const points = [...gesture.points], anchor = points[gesture.vertexIndex === 0 ? 1 : gesture.vertexIndex - 1];
-			const constrained = constrainDrawingPoint(anchor, event.worldPoint, event.modifiers.shift, gesture.context.snapService);
-			points[gesture.vertexIndex] = gesture.context.snapService.snapPoint(constrained, {});
+			const constrained = constrainDrawingPoint(anchor, event.worldPoint, event.modifiers.shift, context.snapService);
+			const snap = context.snapService.snapPointWithGuides(constrained, candidates, tolerance);
+			context.renderState.snapGuides = snap.guides;
+			points[gesture.vertexIndex] = snap.point;
 			return points;
 		}
-		return gesture.points.map(original => ({ x: original.x + event.worldPoint.x - gesture.start.x, y: original.y + event.worldPoint.y - gesture.start.y }));
+		const translated = gesture.points.map(original => ({ x: original.x + event.worldPoint.x - gesture.start.x, y: original.y + event.worldPoint.y - gesture.start.y }));
+		const snap = context.snapService.snapTranslation(translated, candidates, tolerance);
+		context.renderState.snapGuides = snap.guides;
+		return translated.map(point => ({ x: point.x + snap.correction.dx, y: point.y + snap.correction.dy }));
 	}
-	move(event: EditorPointerEvent): void { if (this.gesture) this.deps.previewElement?.(this.gesture.element.id, this.points(event)); }
+	// `points` is evaluated OUTSIDE the optional call: it also writes the guides, and an
+	// argument to `previewElement?.()` is never evaluated when the dep is absent.
+	move(event: EditorPointerEvent): void { if (this.gesture) { const points = this.points(event); this.deps.previewElement?.(this.gesture.element.id, points); } }
 	finish(context: EditorContext, event: EditorPointerEvent): void {
 		const gesture = this.gesture;
 		if (!gesture || event.button !== 'primary') return;
 		const points = this.points(event), moved = Math.hypot(event.worldPoint.x - gesture.start.x, event.worldPoint.y - gesture.start.y) > CLICK_EPSILON_PX * context.viewport.worldPerScreenPixel();
+		context.renderState.snapGuides = [];
 		if (!moved || context.writesBlocked() || (gesture.vertexIndex !== undefined && !acceptsElementPoints(gesture.element, points))) { this.cancel(); return; }
 		// Left previewing at the drop; `moveElement` clears it once the write has been read back.
 		this.gesture = null; this.deps.previewElement?.(gesture.element.id, points);
 		this.deps.moveElement?.(gesture.element.id, points, gesture.element);
 	}
-	cancel(): void { this.gesture = null; this.deps.previewElement?.(null); }
+	cancel(): void { if (this.gesture) this.gesture.context.renderState.snapGuides = []; this.gesture = null; this.deps.previewElement?.(null); }
 }

@@ -38,6 +38,8 @@ Accepted capture inventory: `01-remplanner-faq.jpg` (expanded thickness answer),
 
 ## Door/window follow-up packet
 
+The user's later product decision explicitly endorses task-specific selected-item button overlays and compact direct-edit overlays/right-click menus. The current wall panel/menu already implements that pattern, with Inspector and keyboard parity. This does not authorize restoring generic Add detail. Opening follow-ups should use the same task-specific pattern and the geometry decisions below.
+
 The additional reference shows three circular along-wall points, paired vertical arrows, paired horizontal arrows, swing arc and measurements. A static image does not prove whether the vertical arrows resize or move; that meaning needs live/public confirmation.
 
 Existing: direct hosted move (`openingMove.ts`, `OpeningMoveTool.ts`), exact offset/width/height/sill (`StructureEditForm.vue`), hinge start/end, side left/right and angle (`OpeningSwingFields.vue`), and host-derived symbols. Missing: a compact direct opening-size/swing popup and clearly named width/offset steps or hinge/swing flips with preview/Apply/Cancel and 44 px keyboard controls. Endpoint resizing needs a fixed-end versus centre-anchor decision, host containment/overlap refusal, and curved-host `alongWall`/`projectOntoWall` semantics. Also audit the `openingMove.ts` own permitted predicate, which currently excludes Review rather than explicitly requiring Plan.

@@ -54,7 +54,7 @@ The current task's native computer API is disabled and no standalone node_repl C
 - One Impeccable detector over the changed presentation/style targets: [result `[]`](../evidence/astra-wall-tool/impeccable.json). No detector rerun.
 - Read-only full npm audit: two high findings, `fast-uri` and `js-yaml`, in development dependencies. Production-only audit: zero vulnerabilities. No audit fixes or lockfile changes.
 
-Final gate/coverage, publication identity and CI state are appended after completion.
+Final gate/coverage and publication follow below.
 
 ### Completed integration diagnostic and final preflight
 
@@ -65,6 +65,27 @@ Additional tests cover an externally changed baseline, a shared save arriving du
 Fallow preflight found a duplicated state declaration and template cognitive complexity 21. The shared `StructureReviewState` and computed status text remove those findings without changing rendered behavior. The subsequent CRAP warnings came from stale coverage line positions after extraction. Fresh diagnostic coverage over the three refactored modules and their wall/bulk/context tests passed all 27 tests (34.80 s); Fallow using that diagnostic data reports no findings for those modules, with maximum CRAP 16, 12 and 8 respectively (unchanged limit 32). The focused coverage report is intentionally separate from the whole-project report; its subset does not satisfy all whole-project percentage floors and is not a substitute for the final full gate. No coverage data was patched or merged, and no threshold or suppression was changed. The three existing capture-script clone groups also appear in green base PR #209's CI log and remain unchanged.
 
 Final full verification command: PowerShell `$env:VITEST_MAX_WORKERS = '1'; npm run check`. The final tree must receive exit 0 before publication; CI is additional verification.
+
+### Clean final local gate
+
+`npm run check` completed with **exit 0** on the exact application/test tree `6f871008b4ea2018f1a20f37f437ab4113cfc7b3`, using `VITEST_MAX_WORKERS=1`, Windows, Node 24.20.0 and npm 11.18.0. Build transformed 1,420 modules; full oxlint/ESLint passed. **973 files / 10,637 tests passed / one intentional skip**. Coverage took 2,533.21 s and passed all unchanged thresholds:
+
+| Metric | Coverage | Covered / total |
+| --- | --- | --- |
+| Statements | 99.23% | 27,055 / 27,263 |
+| Branches | 98.06% | 19,880 / 20,273 |
+| Functions | 99.29% | 7,860 / 7,916 |
+| Lines | 99.67% | 19,964 / 20,029 |
+
+The chained Fallow step passed with exit 0: 1,104 files, no dead files or exports, zero above-threshold findings, 7,295 analyzed units and maintainability 86.8. Three pre-existing capture-script clone groups and the hidden-directory advisory remain nonblocking, as on the green base PR. The final full run regenerated coverage normally; the preflight line-position mismatches are gone.
+
+After the gate, only receipt/verification bookkeeping and the user endorsement were added. No application or test code changed. [Machine-readable result](../evidence/astra-wall-tool/verification.json) records the verified identity and counters. Raw logs are retained in the local ignored `node_modules/.cache/wall-tool-verification/` directory and are not committed.
+
+### User endorsement and integration boundary
+
+On 2026-09-14, the user explicitly endorsed task-specific button overlays on selected items plus a compact overlay/right-click editing menu. This implementation already satisfies that decision for walls: the selected-wall adjustment panel supplies numeric entry and whole-wall minus/plus controls; the context menu supplies direct entry and focused adjustment; Details and keyboard entry retain the same reversible command path. No additional code change was required. This endorsement does not restore the removed generic Add detail affordance and is not a claim of native/AT acceptance.
+
+The final ancestry fetch found newer main `9ef607030` ([PR #211](https://github.com/Luis85/renovation-planner/pull/211), asset-designer selection polish), merged during the long gate. That is a separate 61-file designer/docs change, not included in this wall-only stack above #209. The branch includes the original required main `acfb7c7d1` and the inspected `e04f5ba76` refresh; #209 remains `836399775`. This is an explicit integration boundary for the coordinator, not a claim that the later main tip is an ancestor.
 
 ## Remaining limits
 

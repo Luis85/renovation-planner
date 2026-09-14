@@ -1,7 +1,8 @@
 /*
  * The asset designer inspector's section for the selected part (asset designer symbols spec,
- * "Inspector for the selection"). Its own partial because `designer.css` sits within a few lines of
- * the assembler's 400-line cap. Obsidian variables only, no colour literal (SDD §84).
+ * "Inspector for the selection"), and the selection's mode control in the toolbar. Its own partial
+ * because `designer.css` sits within a few lines of the assembler's 400-line cap. Obsidian variables
+ * only, no colour literal (SDD §84).
  */
 
 .rp-designer-selection {
@@ -69,4 +70,35 @@
 .rp-designer-inspector > aside:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
+}
+
+/*
+ * The selection's mode control (asset designer symbols spec, Decision 10), in the toolbar only while Select
+ * holds an outline — drawn as ONE segmented control, so a mode no longer reads as a second tool pressed
+ * beside Select (selection polish critique, finding 15). Its buttons are `.rp-designer-tool-button`s, so
+ * `designer.css`'s flat-button rules style them; the group draws the one border round all three.
+ */
+.rp-designer-selection-modes {
+	display: flex;
+	flex-wrap: wrap;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+/*
+ * The pressed MODE keeps the fill and the weight `.rp-designer-tool-active` gives it and drops the accent
+ * border the pressed TOOL keeps. Three classes, with the `:hover` twin, to outrank that rule's (0,2,0) and
+ * (0,3,0) without leaning on which partial `styles/index.css` imports last.
+ */
+.rp-designer-tools .rp-designer-selection-modes .rp-designer-tool-active,
+.rp-designer-tools .rp-designer-selection-modes .rp-designer-tool-active:hover {
+	border-color: transparent;
+}
+
+/*
+ * Each wrapped row of actions fills the column, as Edit dimensions and Start from preset below it do
+ * (critique finding 22). Qualified with `.rp-designer-inspector` for the specificity reason above.
+ */
+.rp-designer-inspector .rp-designer-selection-actions .rp-designer-selection-button {
+	flex: 1 1 auto;
 }

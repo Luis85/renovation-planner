@@ -14,7 +14,8 @@
  * **Its buttons ARE `.rp-designer-tool-button`s**, inside the toolbar's `.rp-designer-tools`, so the
  * flat-button rules and the active-state rule that already win Obsidian's
  * `button:not(.clickable-icon)` contest (`buttonSpecificity.test.ts`) style them — no second button
- * rule to argue. `styles/designer.css` adds only the group's own rule.
+ * rule to argue. `styles/designer-selection.css` adds only the group's border and the pressed mode's
+ * plain border, which is what sets a mode apart from a pressed tool.
  *
  * **Each button's `title` names the gesture its mode offers** — which handles a mode draws says nothing
  * about what dragging them does — using the `title` tooltip both designer toolbars already use. The button's

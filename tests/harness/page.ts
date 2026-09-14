@@ -20,6 +20,7 @@ import { createApp } from 'vue';
 import VueKonva from 'vue-konva';
 import { mountHarness } from './mount';
 import { mountPlanEditorHarness, parseRoomKnob } from './planEditor';
+import { parseItemKnob } from './itemKnob';
 import { mountAssetDesignerHarness } from './assetDesigner';
 import { mountAssetLibraryHarness } from './assetLibrary';
 import { seedFixture, harnessEditorContext } from './fixture';
@@ -242,6 +243,8 @@ if (wantsIndex) {
 				detailed: detailedZoneIds,
 				rooms: Number.isFinite(askedRooms) ? askedRooms : undefined,
 				tree: wantsTree,
+				// `&item=<gesture>` (2026-09-14): refused on the console when unknown, like `?room`; see `itemKnob.ts`.
+				item: parseItemKnob(params.get('item')),
 			}).view
 		: wantsAssetDesigner
 			? mountAssetDesignerHarness(

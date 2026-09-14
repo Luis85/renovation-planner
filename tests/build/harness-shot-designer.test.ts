@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { query, shot } from '../helpers/harnessShotTable';
+import { query, shot } from '../helpers/harnessShotFixtures';
 
 /**
  * The asset designer's fixed shots, pinned on what makes each different from a sibling. Split out of
  * `harness-shot.test.ts` — which still holds the whole table in both directions — when these pins
  * pushed that file past the 450-line test budget; both read the one parsed table in
- * `tests/helpers/harnessShotTable.ts`.
+ * `tests/helpers/harnessShotFixtures.ts`.
  */
 describe('the asset designer shots', () => {
 	/**

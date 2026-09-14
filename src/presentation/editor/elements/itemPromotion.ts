@@ -36,7 +36,7 @@ import { centredFootprint } from './objectShape';
  */
 export function createItemPromotion(
 	context: PlanEditorContext,
-	assets: Pick<ReturnType<typeof createAssetPlacementTask>, 'write'>,
+	assets: Pick<ReturnType<typeof createAssetPlacementTask>, 'write' | 'draft'>,
 	gate: { readonly writesBlocked: Readonly<Ref<boolean>>; readonly elementActionsActive: Readonly<Ref<boolean>> },
 ) {
 	const project = useProjectStore(), dialogs = useDialogStore(), session = useRenovationSession(), busy = ref(false);
@@ -59,7 +59,13 @@ export function createItemPromotion(
 		const after = promotable(elementId);
 		// By value, per vertex: a projection refresh replaces the points array (and could reorder keys) without moving a point.
 		const unchanged = after?.name === name && after.points.length === before.points.length && after.points.every((point, index) => samePoint(point, before.points[index]));
-		if (!unchanged || !(await assets.write({ id: elementId, kind: 'asset', assetId: outcome.assetId, points: placementPoints(centre, 0), name }, faultError))) notifyWarning(tr('editor.asset.promote-unplaced'));
+		// `write` reports a refusal onto the PLACEMENT draft (`assetPlacementTask.ts`), the one the
+		// Place asset form renders — a form this promotion has nothing to do with. Restoring it is
+		// what keeps a refusal here from surfacing as a stray error in that unrelated form.
+		const { error: draftError, conflict: draftConflict } = assets.draft;
+		const written = unchanged && await assets.write({ id: elementId, kind: 'asset', assetId: outcome.assetId, points: placementPoints(centre, 0), name }, faultError);
+		Object.assign(assets.draft, { error: draftError, conflict: draftConflict });
+		if (!unchanged || !written) notifyWarning(tr('editor.asset.promote-unplaced'));
 	}
 	return { available, refused, promote };
 }

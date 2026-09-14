@@ -13,7 +13,7 @@ import OpeningSymbols from './OpeningSymbols.vue';
 import { samePoint, wallTangent, type Wall } from '../../../domain/spatial/Structure';
 import { useDrawnStructure } from './drawnStructure';
 import ElementShapes from '../elements/ElementShapes.vue';
-import { isElementTool } from '../elements/elementDraft';
+import { elementPreviewPoints, isElementTool } from '../elements/elementDraft';
 import { withElementPreviews } from '../elements/elementPreviews';
 import WallDraftOverlay, { type WallCut } from './WallDraftOverlay.vue';
 import { wallPasses } from './wallPasses';
@@ -67,8 +67,7 @@ const nonStructuralElements = computed(() => elements.value.filter(element => !i
 const elementDraft = computed(() => {
 	const draft = runtime.elementTask.draft;
 	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];
-	const cursor = draft.cursor && (!['measurement', 'stair', 'beam'].includes(draft.kind) || draft.points.length < 2) ? [draft.cursor] : [];
-	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...cursor], ...(draft.kind === 'stair' ? { stair: draft.stair } : {}), ...(draft.kind === 'beam' ? { width: draft.beamWidth, loadBearing: true } : {}) }];
+	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: elementPreviewPoints(draft), ...(draft.kind === 'stair' ? { stair: draft.stair } : {}), ...(draft.kind === 'beam' ? { width: draft.beamWidth, loadBearing: true } : {}) }];
 });
 const structuralElementDraft = computed(() => elementDraft.value.filter(element => isStructuralKind(element.kind)));
 const nonStructuralElementDraft = computed(() => elementDraft.value.filter(element => !isStructuralKind(element.kind)));

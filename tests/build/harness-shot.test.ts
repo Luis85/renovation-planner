@@ -1,23 +1,29 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import ts from 'typescript';
 import { REPO } from '../helpers/repo';
-import { SCRIPT, constants, namesIn, query, script, shot, shots } from '../helpers/harnessShotTable';
+import { assignedTo, callsOf, descendants, expressionsOf, functionNamed, importsOf, namesIdentifier, parseScript, stringsOf } from '../helpers/parsedSource';
 import {
-	assignedTo,
-	callsOf,
-	descendants,
-	evaluate,
-	expressionsOf,
-	functionNamed,
-	importsOf,
-	namesIdentifier,
-	parseScript,
-	stringsOf,
-	type Literal,
-	type ParsedScript,
-} from '../helpers/parsedSource';
+	CHROMIUM_FILES,
+	INDEX_PAGE,
+	PAGE,
+	RESOLVER,
+	constants,
+	indexPage,
+	isIdCharacter,
+	namedEntries,
+	namesIn,
+	page,
+	pkg,
+	planEditorQuery,
+	query,
+	readiness,
+	script,
+	selectorsAnywhere,
+	shot,
+	shots,
+} from '../helpers/harnessShotFixtures';
 
 /**
  * The headless capture script's wiring — the shape `lint-edited.test.ts` checks for the
@@ -41,60 +47,13 @@ import {
  * a positive pin — which is why two functions here stripped comments with a regex before the
  * regex that pinned. Reading the tree, a comment is not a node and a property is a property
  * wherever the line breaks.
+ *
+ * **The parsed fixtures (both scripts, `page.ts`, `IndexPage.vue`, the `SHOTS` reader) live in
+ * `tests/helpers/harnessShotFixtures.ts` now, shared with `harnessShotItemMode.test.ts`** — the
+ * item-mode and Add-to-asset-library shots this file's own line budget could not hold beside
+ * everything else once that group arrived. The both-directions census below stays HERE, whole,
+ * because it counts the whole `SHOTS` table rather than one group of it.
  */
-
-const PACKAGE_JSON = path.join(REPO, 'package.json');
-// The wait, the post-screenshot re-check and the failure-card reader, split out of SCRIPT so a
-// test can call them (`captureReadiness.test.ts`) — see that file's header.
-const READINESS = path.join(REPO, 'scripts', 'captureReadiness.mjs');
-// Where the browser resolution actually lives, since `concept-shots.mjs` needs the same
-// answer and two copies of it is the shape of the defect the block below describes.
-const RESOLVER = path.join(REPO, 'scripts', 'chromium.mjs');
-// Every file that can name a Chromium. The literal ban applies to all of them, not only to
-// the one that happens to own the resolver today — a re-mirrored layout is just as wrong in
-// a caller as in the callee.
-const CHROMIUM_FILES = [RESOLVER, SCRIPT, path.join(REPO, 'scripts', 'concept-shots.mjs')];
-const PAGE = path.join(REPO, 'tests', 'harness', 'page.ts');
-const INDEX_PAGE = path.join(REPO, 'tests', 'harness', 'IndexPage.vue');
-
-const pkg = JSON.parse(readFileSync(PACKAGE_JSON, 'utf8')) as {
-	scripts: Record<string, string>;
-	devDependencies: Record<string, string>;
-};
-
-// `script`, `constants` and the parsed `SHOTS` table (`shot`, `query`, `namesIn`) live in
-// `tests/helpers/harnessShotTable.ts`, shared with `harness-shot-designer.test.ts`.
-const readiness = parseScript(READINESS);
-const page = parseScript(PAGE);
-const indexPage = parseScript(INDEX_PAGE);
-
-/**
- * A Plan Editor shot's query: `view=plan-editor` FIRST, then the knob the caller asks about. The
- * view is asserted here rather than left to the knob, because a knob alone is satisfied by a
- * query that dropped `view=` — which draws the project surface and exits 0 under a plan-editor
- * name. Leading, as the text pins this replaced required, so the `?view=` spelling every capture
- * URL shares stays the one a reader greps for.
- */
-function planEditorQuery(name: string): URLSearchParams {
-	const raw = String(shot(name).query);
-	expect(raw.startsWith('?view=plan-editor&'), `${name} does not open on ?view=plan-editor`).toBe(true);
-	const parsed = new URLSearchParams(raw);
-	expect(parsed.get('view')).toBe('plan-editor');
-	return parsed;
-}
-
-/** Every `selector:` property anywhere in the script, evaluated — not only the ones inside `SHOTS`. */
-const selectorsAnywhere = (): Literal[] =>
-	descendants(script.file, ts.isPropertyAssignment)
-		.filter((property) => property.name.getText(script.file) === 'selector')
-		.map((property) => evaluate(property.initializer, constants))
-		.filter((value): value is Literal => value !== null);
-
-/** Every property named `name` with a string value, anywhere in the script — a shot entry written OUTSIDE `SHOTS` shows up here. */
-const namedEntries = (parsed: ParsedScript): number =>
-	descendants(parsed.file, ts.isPropertyAssignment).filter((property) => property.name.getText(parsed.file) === 'name' && ts.isStringLiteralLike(property.initializer)).length;
-
-const isIdCharacter = (character: string): boolean => (character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') || character === '-';
 
 describe('the headless harness capture script', () => {
 	it('is wired as an npm script pointing at a file that exists', () => {
@@ -631,6 +590,10 @@ describe('the headless harness capture script', () => {
 			'plan-editor-detail',
 			'plan-editor-detail-dark',
 			'plan-editor-detail-narrow-de',
+			'plan-editor-item-drag', 'plan-editor-item-drag-dark',
+			'plan-editor-item-promote', 'plan-editor-item-promote-dark', 'plan-editor-item-promote-narrow',
+			'plan-editor-item-rectangle', 'plan-editor-item-rectangle-dark', 'plan-editor-item-rectangle-narrow',
+			'plan-editor-item-saved',
 			'plan-editor-light',
 			'plan-editor-locked',
 			'plan-editor-locked-dark',

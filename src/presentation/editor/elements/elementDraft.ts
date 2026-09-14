@@ -63,3 +63,15 @@ export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSp
 export function pointsAfterUndo(draft: ElementDraft): Point[] {
 	return draft.kind === 'object' && draft.shape === 'rectangle' ? [] : draft.points.slice(0, -1);
 }
+/**
+ * The canvas preview's vertex list (StructureLayer.vue's `elementDraft`): every other draft
+ * trails the cursor as the next corner to place, but a rectangle-mode item's cursor already IS
+ * one of the four corners `ElementTool` writes into `draft.points` on every move — appending it
+ * again drew an extra vertex, a diagonal from a corner to the pointer instead of the closed
+ * rectangle (vault defect, caught by no gate). Same mode check as `pointsAfterUndo` above.
+ */
+export function elementPreviewPoints(draft: ElementDraft): readonly Point[] {
+	if (draft.kind === 'object' && draft.shape === 'rectangle') return draft.points;
+	const cursor = draft.cursor && (!['measurement', 'stair', 'beam'].includes(draft.kind) || draft.points.length < 2) ? [draft.cursor] : [];
+	return [...draft.points, ...cursor];
+}

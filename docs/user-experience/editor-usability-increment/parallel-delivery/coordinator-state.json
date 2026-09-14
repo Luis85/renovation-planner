@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-14T02:59:54+02:00",
-  "status": "complete-chain-green-unmerged",
+  "updatedAt": "2026-09-14T14:11:03+02:00",
+  "status": "complete-chain-green-unmerged-current-main",
   "integration": {
     "branch": "main",
     "remote": "origin/main",
-    "headSha": "fa78293a9d300997047dc33dbb0467b1cccf6976",
+    "headSha": "acfb7c7d11268eed7c6a39dbd52cdeab7bc961e7",
     "checkout": "D:\\Projects\\renovation-planner",
     "coordinatorBranch": "codex/usability-coordinator",
     "coordinatorWorktree": "D:\\Projects\\renovation-planner\\.worktrees\\usability-coordinator",
@@ -24,13 +24,13 @@
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
     "baseBranch": "main",
-    "baseSha": "fa78293a9d300997047dc33dbb0467b1cccf6976",
+    "baseSha": "acfb7c7d11268eed7c6a39dbd52cdeab7bc961e7",
     "rootPacket": "I00",
     "rootPr": 174,
-    "currentReviewedTipPacket": "ASTRA-NATIVE",
-    "currentReviewedTipSha": "d0a7f165bc06f912ced5b73cb3b036522cbe3635",
-    "currentProvisionalTipPacket": "ASTRA-NATIVE",
-    "currentProvisionalTipSha": "d0a7f165bc06f912ced5b73cb3b036522cbe3635",
+    "currentReviewedTipPacket": "ASTRA-MAIN-REFRESH",
+    "currentReviewedTipSha": "836399775e91ccf05e44959b6bea9960605defbb",
+    "currentProvisionalTipPacket": "ASTRA-MAIN-REFRESH",
+    "currentProvisionalTipSha": "836399775e91ccf05e44959b6bea9960605defbb",
     "integrationRule": "Parallel workers may start from the same reviewed stack tip; before a packet PR is finalized, integrate the preceding reviewed packet branch into it and set that preceding packet branch as its PR base. Never merge a packet to main during this run."
   },
   "packets": {
@@ -340,6 +340,12 @@
       "status": "merged",
       "mergeSha": "fa78293a9d300997047dc33dbb0467b1cccf6976",
       "relationship": "Current-main asset-symbol work was merged into I00, propagated through the full stack, and included in the Astra code, UI and native full gates."
+    },
+    {
+      "pr": 208,
+      "status": "merged",
+      "mergeSha": "acfb7c7d11268eed7c6a39dbd52cdeab7bc961e7",
+      "relationship": "The current-main refresh through PRs #205-#208 was normally merged into the top of the strict stack as commit 25b1b0a434eaf4ed58849cf59b1d00e58428325d, conflict-reviewed and covered by PR #209."
     }
   ],
   "postImplementation": {
@@ -384,7 +390,24 @@
       "headSha": "d0a7f165bc06f912ced5b73cb3b036522cbe3635",
       "nativeEvidence": "Obsidian 1.13.7, disposable synthetic test vault, 25 current-run screenshots",
       "fullGate": "936 files; 10,225 passed; 1 intentional skip; coverage thresholds passed; analysis zero above threshold"
+    },
+    "currentMainRefreshAndPolish": {
+      "model": "gpt-6-astra",
+      "reasoning": "high",
+      "status": "complete-ci-green",
+      "taskId": "01a09f6b-1068-7be2-8475-f1c9c25f2702",
+      "branch": "codex/usability-astra-main-refresh-polish",
+      "pr": 209,
+      "headSha": "836399775e91ccf05e44959b6bea9960605defbb",
+      "mainMergeSha": "25b1b0a434eaf4ed58849cf59b1d00e58428325d",
+      "fullGate": "970 files; 10,611 passed; 1 intentional skip; 99.24/98.08/99.32/99.68 percent coverage; Fallow zero dead code and zero above-threshold complexity",
+      "changes": [
+        "Resolved four main-stack conflicts while preserving new drafting, asset-designer and camera capabilities.",
+        "Guarded drafting admission and renovation-record eligibility outside Plan.",
+        "Preserved hover-then-click submenu activation and exposed disabled Delete state.",
+        "Removed the user-declined selected-item Add detail affordance while preserving Details and wall-only controls."
+      ]
     }
   },
-  "nextAdmissionGate": "The strict chain is green and ready for human review and ordered chain merge. Do not merge any implementation PR without explicit user approval; I18 and the remaining AT, participant, German-host and failure-injection evidence limits stay open."
+  "nextAdmissionGate": "PR #209 is the green current-main tip of the strict unmerged chain and is ready for human review. Do not merge any implementation PR without explicit user approval; I18 and the remaining native, AT and participant evidence limits stay open."
 }

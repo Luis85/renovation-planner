@@ -7,6 +7,8 @@ import { settle, settleUntil } from '../../helpers/editor';
 import { pointerAt } from '../../helpers/tool-context';
 import { expectOk } from '../../helpers/domain';
 import { installObsidianDom } from '../../helpers/dom';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { clientWidthFor, resizeTo } from '../../helpers/layout';
 import { ok } from '../../../src/core/result/Result';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { trError } from '../../../src/presentation/i18n/toUserMessage';
@@ -58,6 +60,33 @@ it('places repeated copies, snapped to a wall face, each its own undo step, and 
 	await rig.wrapper.get('.rp-plan-canvas').trigger('keydown', { key: 'Escape' }); await settle();
 	expect(rig.runtime.activeToolId.value).toBe('select');
 	expect(previews(rig)).toHaveLength(0);
+});
+
+/** Every element measures `width × height` from its first read, as a real pane's canvas does on mount — jsdom answers 0 until `resizeTo`. */
+function measuredOnMount(width: number, height: number): () => void {
+	const restoreWidth = clientWidthFor(() => width);
+	const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'clientHeight') as PropertyDescriptor;
+	Object.defineProperty(Element.prototype, 'clientHeight', { configurable: true, get: () => height });
+	return () => { restoreWidth(); Object.defineProperty(Element.prototype, 'clientHeight', descriptor); };
+}
+
+it('keeps the camera where the user left it when a placement lands on a remounted canvas', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const editor = useEditorStore(rig.pinia);
+	const radiator = await rig.saveAsset('Radiator');
+	// Below the floor width and back: the canvas remounts over a stage that already has an area.
+	const shell = rig.wrapper.get('.rp-editor-shell').element as HTMLElement;
+	resizeTo(shell, 300, 800); await settle();
+	const restore = measuredOnMount(800, 600);
+	try { resizeTo(shell, 1280, 800); await settle(); } finally { restore(); }
+	expect(editor.stageSize).toEqual({ width: 800, height: 600 });
+	await choose(rig, radiator.id, radiator.name);
+	editor.panByScreen(137, -59); await settle();
+	const camera = editor.viewport;
+	rig.runtime.toolManager.pointerDown(pointerAt(1500, 1500));
+	await settleUntil(() => (rig.project.structure.elements ?? []).length === 1, 'placement');
+	await settle();
+	expect(editor.viewport).toEqual(camera);
 });
 
 it('places at typed coordinates with the asset\'s own facing, and Done leaves the tool', async () => {

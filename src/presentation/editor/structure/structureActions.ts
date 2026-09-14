@@ -26,6 +26,7 @@ import { editWall, validSpatialPoint } from '../../../domain/spatial/structureGe
 import { createWallRotationActions } from './wallRotationActions';
 import { createStructureBulkEdit, type StructureServices } from './structureBulkEdit';
 import { createWallPointAction } from './wallPointAction';
+import { createWallThicknessActions } from './wallThicknessActions';
 function removalIds(id: string | readonly string[]): readonly string[] { return typeof id === 'string' ? [id] : [...new Set(id)]; }
 function removalSummary(structure: Structure, selected: readonly string[], openings: number, rooms: number): string {
 	const names = selected.map(target => {
@@ -33,6 +34,11 @@ function removalSummary(structure: Structure, selected: readonly string[], openi
 		return wallIndex >= 0 ? tr('editor.structure.wall-number', { n: String(wallIndex + 1) }) : tr('renovation.geometry.opening');
 	});
 	return (selected.length > 1 ? tr('renovation.batch.scope', { count: String(selected.length) }) + ' ' + names.join(', ') + '. ' : '') + tr('editor.structure.delete-impact', { openings: String(openings), rooms: String(rooms) });
+}
+
+function matchesProjection(project: ReturnType<typeof useProjectStore>, document: PlanGeometryDocument): boolean {
+	return sameGeometryDocument({ objects: [], structure: project.structure, calibration: project.plan?.calibration ?? null },
+		{ objects: [], structure: document.structure, calibration: document.calibration });
 }
 
 export function createStructureActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'refreshProjection'>, ledger: WriteLedger) {
@@ -43,18 +49,15 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked });
 	const bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
 	const wallPoint = createWallPointAction(context, { active, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
+	const thickness = createWallThicknessActions(context, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
 	let alive = true;
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
-	function matchesProjection(document: PlanGeometryDocument): boolean {
-		return sameGeometryDocument({ objects: [], structure: project.structure, calibration: project.plan?.calibration ?? null },
-			{ objects: [], structure: document.structure, calibration: document.calibration });
-	}
 	function prepareBaseline(result: Result<PlanGeometrySnapshot, AppError>): { snapshot: PlanGeometrySnapshot | null; recovery: Promise<void> | null } {
 		if (!result.ok) {
 			notifyOperationFailure(result.error);
 			return { snapshot: null, recovery: null };
 		}
-		if (matchesProjection(result.value.document)) return { snapshot: result.value, recovery: null };
+		if (matchesProjection(project, result.value.document)) return { snapshot: result.value, recovery: null };
 		notifyOperationFailure(staleWriteRefusal());
 		return { snapshot: null, recovery: runtime.refreshProjection() };
 	}
@@ -64,7 +67,7 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	function reviewedWrite(services: StructureServices, snapshot: PlanGeometrySnapshot) {
 		return {
 			preview: (value: Structure | null) => { preview.value = alive ? value : null; },
-			dispatch: (next: Structure) => !alive || blocked.value ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger })),
+			dispatch: (next: Structure, admit?: () => boolean) => !alive || blocked.value ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger, admit })),
 		};
 	}
 	async function edit(id: string, end?: Point, openingPoint?: Point): Promise<void> {
@@ -136,5 +139,5 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		const wall = project.structure.walls.find(item => item.id === id);
 		preview.value = alive && wall && end ? editWall(project.structure, { ...wall, end }) : null;
 	}
-	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, ...rotation, ...bulk, ...wallPoint };
+	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, thickness, ...rotation, ...bulk, ...wallPoint };
 }

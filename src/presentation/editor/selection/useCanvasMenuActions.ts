@@ -38,7 +38,7 @@ export interface CanvasMenuSubmenu { readonly id: string; readonly label: String
 export type CanvasMenuItem = CanvasMenuAction | CanvasMenuSubmenu;
 export function isSubmenu(item: CanvasMenuItem): item is CanvasMenuSubmenu { return 'children' in item; }
 const GROUP_ORDER: readonly CanvasMenuGroup[] = ['plans', 'edit', 'create', 'records', 'clipboard', 'arrange', 'view', 'destructive'];
-const GEOMETRY_ACTIONS = new Set(['add-point', 'edit', 'move-opening', 'rotate', 'add', 'measure', 'add-door', 'add-window', 'add-opening', 'new-wall', 'enclose']);
+const GEOMETRY_ACTIONS = new Set(['wall-thickness', 'adjust-thickness', 'add-point', 'edit', 'move-opening', 'rotate', 'add', 'measure', 'add-door', 'add-window', 'add-opening', 'new-wall', 'enclose']);
 /** A captured menu action must obey the current perspective when invoked later. */
 function guardGeometryActions(actions: readonly CanvasMenuAction[], canEdit: () => boolean, elementSelected: boolean, planOnly: boolean): CanvasMenuAction[] {
 	return actions.map(action => {
@@ -55,6 +55,14 @@ function promoteActions(runtime: ReturnType<typeof useEditorRuntime>, project: R
 	const promotion = runtime.elementTask.promotion;
 	if (!promotion.available() || !project.structure.elements?.some(item => item.id === id && item.kind === 'object')) return [];
 	return [{ id: 'add-to-library', label: 'editor.input.add-to-library', group: 'records', icon: 'square-dashed-mouse-pointer', disabled: promotion.refused(), run: () => promotion.promote(id) }];
+}
+function thicknessActions(runtime: ReturnType<typeof useEditorRuntime>, id: string, wall: boolean, blocked: boolean): CanvasMenuAction[] {
+	if (!wall) return [];
+	const thickness = runtime.structureActions.thickness, disabled = blocked || runtime.structureActions.active.value || !runtime.structureTask.available;
+	return [
+		{ id: 'wall-thickness', label: 'editor.wall-thickness.edit', group: 'edit', icon: 'text-cursor-input', disabled, run: () => thickness.begin(id) },
+		{ id: 'adjust-thickness', label: 'editor.wall-thickness.adjust', group: 'edit', icon: 'move-horizontal', disabled, run: () => thickness.begin(id, 'adjust') },
+	];
 }
 export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
@@ -123,6 +131,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 			{ id: 'new-wall', label: 'editor.input.add.wall-here', group: 'create', icon: 'brick-wall', disabled: disabled || refused, reason: refused ? 'editor.structure.error.opening-split' : undefined, run: () => task.drawFrom(id, at, tolerance) },
 		];
 	}
+
 	/** The Add submenu for a single selection outside Review: a wall's geometry creations plus every target's record creations but a drafting mark's, joined and grouped. Nothing for several items, and nothing where neither applies. */
 	function addSubmenu(id: string, blocked: boolean): CanvasMenuSubmenu[] {
 		if (!project.zones.has(id) && !structureCandidates(project.structure).some(item => item.id === id)) return [];
@@ -147,7 +156,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 			if (element) result.push({ id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
 			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked || actions.active.value, run: () => actions.remove(id) });
 		}
-		result.push(...addPointActions(id, blocked));
+		result.push(...addPointActions(id, blocked), ...thicknessActions(runtime, id, project.structure.walls.some(wall => wall.id === id), blocked));
 		return result;
 	}
 	return computed<readonly CanvasMenuItem[]>(() => {

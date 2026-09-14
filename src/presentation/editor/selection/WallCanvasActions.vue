@@ -15,7 +15,7 @@ import { useTaskbarClearance } from '../shell/useTaskbarClearance';
 const runtime = useEditorRuntime(), editor = useEditorStore(), planning = usePlanningContext(), saves = useSaveStateStore();
 const { target, session } = useDirectActionContext();
 const root = ref<HTMLElement | null>(null), clearance = useTaskbarClearance(root, { includeContent: true });
-const visible = computed(() => target.value?.wall && target.value.visible && session.perspective !== 'review' && runtime.activeToolId.value === 'select' && runtime.renderState.rotationDegrees === null);
+const visible = computed(() => target.value?.wall && target.value.visible && !runtime.structureActions.thickness.target.value && session.perspective !== 'review' && runtime.activeToolId.value === 'select' && runtime.renderState.rotationDegrees === null);
 const length = computed(() => { const wall = target.value?.wall; return wall ? formatMetres(Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y)) : ''; });
 const showChange = computed(() => target.value?.roomId && runtime.renovation.available);
 const blocked = computed(() => runtime.writesBlocked.value || saves.state === 'saving');

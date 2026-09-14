@@ -79,3 +79,30 @@ describe('the designer’s warnings, toolbar and selection actions', () => {
 		expect(declared(rules, '.rp-designer-inspector .rp-designer-selection-actions .rp-designer-selection-button', 'flex')).toEqual(parsed('flex', '1 1 auto'));
 	});
 });
+
+describe('the inspector’s headings, hint and unavailable actions', () => {
+	/** Critique finding 4: the "Inspector" `<h2>` and the section `<h3>`s were styled alike, so a section added no hierarchy. */
+	it('sets the section headings in normal text at semibold, under the muted panel title', () => {
+		const rules = partial('designer-selection.css');
+
+		expect(declared(rules, '.rp-designer-inspector .rp-designer-section-title', 'color')).toEqual(parsed('color', 'var(--text-normal)'));
+		expect(declared(rules, '.rp-designer-inspector .rp-designer-section-title', 'font-weight')).toEqual(parsed('font-weight', 'var(--font-semibold)'));
+	});
+
+	/** Critique finding 11: an unavailable action is `aria-disabled` now, and must look exactly as a `:disabled` one did. */
+	it('draws an aria-disabled selection action as a disabled one', () => {
+		const rules = partial('designer-selection.css');
+		const disabled = '.rp-designer-inspector .rp-designer-selection-button:disabled';
+		const unavailable = ".rp-designer-inspector .rp-designer-selection-button[aria-disabled='true']";
+
+		expect(declared(rules, unavailable, 'color')).toEqual(parsed('color', 'var(--text-faint)'));
+		for (const property of ['color', 'background-color', 'cursor']) {
+			expect(declared(rules, unavailable, property)).toEqual(declared(rules, disabled, property));
+		}
+	});
+
+	/** Critique finding 25: the facing angle's direction hint reads quieter than its label. */
+	it('draws a field hint in muted text', () => {
+		expect(declared(partial('designer-selection.css'), '.rp-designer-field-hint', 'color')).toEqual(parsed('color', 'var(--text-muted)'));
+	});
+});

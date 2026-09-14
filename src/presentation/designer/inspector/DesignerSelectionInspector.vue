@@ -28,7 +28,7 @@
  * A part the shape lacks renders nothing (PBI extension 2a). The store prunes such a selection on
  * its next read; this guard covers the frame between the two.
  */
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useId } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { AppError, ValidationError } from '../../../core/errors/AppError';
@@ -68,8 +68,17 @@ interface NumberField {
 	readonly value: number;
 	readonly edit: (value: number) => ShapeEdit;
 	readonly resets?: true;
+	/** A one-line description drawn under the field and linked by `aria-describedby`; only the facing's angle has one. */
+	readonly hint?: StringKey;
 }
 
+/**
+ * `disabled` marks an action with nothing to do here — Bring forward on the topmost detail, Send backward on
+ * the bottom one. It is drawn `aria-disabled` and its press runs nothing, never `:disabled`: pressing Send
+ * backward until the detail is last would otherwise disable the very button that has focus, and Chromium
+ * drops focus to `<body>` (selection polish critique, finding 11). `NewAssetForm.vue`'s paused controls take
+ * the same split, and `EmptyState.vue`'s action the same no-op press.
+ */
 interface Action {
 	readonly name: string;
 	readonly label: StringKey;
@@ -103,6 +112,9 @@ onBeforeUnmount(() => {
 	const aside = section !== null && section.contains(document.activeElement) ? section.closest<HTMLElement>('aside') : null;
 	if (aside !== null) void nextTick(() => aside.focus());
 });
+
+/** The facing angle's hint paragraph, which its field names by `aria-describedby`; `useId` is unique per leaf's app. */
+const hintId = useId();
 
 /** One write's outcome: the refusal it answers is shown, and a write that lands clears the last one. */
 async function show(written: Promise<DispatchResult>): Promise<boolean> {
@@ -179,7 +191,7 @@ const fields = computed((): readonly NumberField[] => {
 		default: {
 			// Exhaustive at compile time: a new kind of selection reaches this line and fails to narrow.
 			const _facing: 'facing' = selection.kind;
-			return [{ name: 'angle', label: 'designer.selection.angle', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
+			return [{ name: 'angle', label: 'designer.selection.angle', hint: 'designer.selection.angle.hint', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
 		}
 	}
 });
@@ -240,7 +252,7 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 		class="rp-designer-selection"
 		:data-kind="selection.kind"
 	>
-		<h3 class="rp-designer-panel-title">
+		<h3 class="rp-designer-panel-title rp-designer-section-title">
 			{{ tr(`designer.selection.${selection.kind}`) }}
 		</h3>
 		<p
@@ -278,21 +290,31 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 				</select>
 			</label>
 		</template>
-		<label
+		<template
 			v-for="field in fields"
 			:key="field.name"
-			class="rp-designer-field"
 		>
-			{{ tr(field.label) }}
-			<input
-				type="number"
-				:name="field.name"
-				step="any"
-				inputmode="decimal"
-				:value="Math.round(field.value)"
-				@change="(event: Event) => void onNumber(field, event)"
+			<label class="rp-designer-field">
+				{{ tr(field.label) }}
+				<input
+					type="number"
+					:name="field.name"
+					step="any"
+					inputmode="decimal"
+					:value="Math.round(field.value)"
+					:aria-describedby="field.hint === undefined ? undefined : hintId"
+					@change="(event: Event) => void onNumber(field, event)"
+				>
+			</label>
+			<!-- Outside the label, so the hint is the field's DESCRIPTION and never part of its name. -->
+			<p
+				v-if="field.hint !== undefined"
+				:id="hintId"
+				class="rp-designer-field-hint"
 			>
-		</label>
+				{{ tr(field.hint) }}
+			</p>
+		</template>
 		<div
 			v-if="actions.length > 0"
 			class="rp-designer-selection-actions"
@@ -303,8 +325,8 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 				type="button"
 				class="rp-designer-selection-button"
 				:name="action.name"
-				:disabled="action.disabled"
-				@click="action.run()"
+				:aria-disabled="action.disabled ? 'true' : undefined"
+				@click="action.disabled ? undefined : action.run()"
 			>
 				{{ tr(action.label) }}
 			</button>

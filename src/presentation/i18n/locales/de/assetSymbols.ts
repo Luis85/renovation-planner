@@ -95,4 +95,6 @@ export const assetSymbolsDe: Record<keyof typeof assetSymbolsEn, string> = {
 	'designer.selection.mode.transform.tip': 'Den Teil ziehen, um ihn zu verschieben, einen eckigen Griff, um ihn zu skalieren, oder den runden Griff, um ihn zu drehen',
 	'designer.selection.mode.points.tip': 'Eine Ecke ziehen, um sie zu verschieben; sie rastet an den Ecken der anderen Teile und am Ankerpunkt ein',
 	'designer.selection.mode.bend.tip': 'Den Griff in der Mitte einer Kante ziehen, um diese Kante zu biegen',
+	'designer.inspector.asset': 'Objekt',
+	'designer.selection.angle.hint': 'Ein Winkel von 0 zeigt nach rechts, 90 nach unten',
 };

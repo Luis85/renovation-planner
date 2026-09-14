@@ -102,4 +102,8 @@ export const assetSymbolsEn = {
 	'designer.selection.mode.transform.tip': 'Drag the part to move it, a square handle to resize it or the round handle to rotate it',
 	'designer.selection.mode.points.tip': 'Drag a corner to move it; it snaps to the corners of the other parts and to the anchor',
 	'designer.selection.mode.bend.tip': 'Drag the handle in the middle of an edge to curve that edge',
+	// The asset-level block's own heading, so its Dimensions never read as the selected part's (critique finding 4).
+	'designer.inspector.asset': 'Asset',
+	// Under the facing's angle field, as its description: `facingTip` adds the sine to y, and y grows DOWN the screen.
+	'designer.selection.angle.hint': 'An angle of 0 points right, and 90 points down',
 } as const;

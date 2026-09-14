@@ -139,6 +139,13 @@ const dimensionsLabel = computed(() =>
 			:edit-shape="editShape"
 			:select="select"
 		/>
+		<!--
+			The asset's own block gets a heading of its own, so its Dimensions never read as the size of the
+			part whose section sits right above them (selection polish critique, finding 4).
+		-->
+		<h3 class="rp-designer-panel-title rp-designer-section-title">
+			{{ tr('designer.inspector.asset') }}
+		</h3>
 		<dl
 			v-if="dimensions !== null"
 			class="rp-designer-inspector-fields"

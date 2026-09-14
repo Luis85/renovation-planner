@@ -48,7 +48,9 @@
 	outline-offset: 1px;
 }
 
-.rp-designer-inspector .rp-designer-selection-button:disabled {
+/* `[aria-disabled]` beside `:disabled`: an unavailable reorder keeps its focus (`DesignerSelectionInspector`'s `Action`). */
+.rp-designer-inspector .rp-designer-selection-button:disabled,
+.rp-designer-inspector .rp-designer-selection-button[aria-disabled='true'] {
 	color: var(--text-faint);
 	background-color: transparent;
 	cursor: default;
@@ -101,4 +103,22 @@
  */
 .rp-designer-inspector .rp-designer-selection-actions .rp-designer-selection-button {
 	flex: 1 1 auto;
+}
+
+/*
+ * The two SECTION headings — the selected part's and the asset's own — one level under the muted panel
+ * title: normal text at semibold, where both had worn the title's own muted medium and added no hierarchy
+ * (selection polish critique, finding 4). Two classes, to outrank `.rp-designer-panel-title` in `designer.css`
+ * without leaning on import order.
+ */
+.rp-designer-inspector .rp-designer-section-title {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+/* The facing angle's direction hint (critique finding 25): a description under its field, quieter than the label. */
+.rp-designer-field-hint {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
 }

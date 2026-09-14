@@ -85,6 +85,12 @@ function buttons(wrapper: VueWrapper): (string | undefined)[] {
 	return wrapper.findAll('button').map((button) => button.attributes('name'));
 }
 
+/** An action button's `aria-disabled` and `disabled`, together: an unavailable reorder sets the first, never the second. */
+function actionState(wrapper: VueWrapper, name: string): [string | undefined, boolean] {
+	const button = wrapper.find(`[name="${name}"]`);
+	return [button.attributes('aria-disabled'), (button.element as HTMLButtonElement).disabled];
+}
+
 function nameField(wrapper: VueWrapper): string {
 	return (wrapper.find('[name="detail-name"]').element as HTMLInputElement).value;
 }
@@ -172,6 +178,20 @@ describe('what the inspector offers for each kind of part', () => {
 		const { wrapper } = mountFor({ kind: 'detail', id: 'detail-9' });
 
 		expect(() => wrapper.unmount()).not.toThrow();
+	});
+
+	/**
+	 * Critique finding 25: "Angle in degrees" did not say which way 0 points or which way the angle grows.
+	 * `facingTip` adds the sine to y and y grows DOWN the screen, so 0 points right and 90 points down; the
+	 * field names that sentence as its description. No other field carries one.
+	 */
+	it('describes the facing’s angle by where 0 and 90 point, and no other field', () => {
+		const facing = mountFor({ kind: 'facing' }).wrapper;
+		const describedBy = facing.find('[name="angle"]').attributes('aria-describedby');
+
+		expect(describedBy).toBeDefined();
+		expect(facing.find(`[id="${String(describedBy)}"]`).text()).toBe(t('en', 'designer.selection.angle.hint'));
+		expect(mountFor(BOWL).wrapper.findAll('input[aria-describedby]')).toHaveLength(0);
 	});
 
 	/**
@@ -356,14 +376,29 @@ describe('fields committed before the refresh lands', () => {
 });
 
 describe('what an action commits', () => {
-	it('disables Bring forward on the topmost detail and Send backward on the bottom one', () => {
+	/**
+	 * Critique finding 11: an unavailable reorder is `aria-disabled`, never `disabled` — pressing Send backward
+	 * until the detail is last would otherwise disable the button that has focus, and Chromium drops focus to
+	 * the page. `NewAssetForm.vue`'s paused controls take the same split.
+	 */
+	it('marks Bring forward unavailable on the topmost detail and Send backward on the bottom one, disabling neither', () => {
 		const top = mountFor(BOWL).wrapper;
 		const bottom = mountFor({ kind: 'detail', id: 'detail-1' }).wrapper;
 
-		expect((top.find('[name="bring-forward"]').element as HTMLButtonElement).disabled).toBe(true);
-		expect((top.find('[name="send-backward"]').element as HTMLButtonElement).disabled).toBe(false);
-		expect((bottom.find('[name="bring-forward"]').element as HTMLButtonElement).disabled).toBe(false);
-		expect((bottom.find('[name="send-backward"]').element as HTMLButtonElement).disabled).toBe(true);
+		expect(actionState(top, 'bring-forward')).toEqual(['true', false]);
+		expect(actionState(top, 'send-backward')).toEqual([undefined, false]);
+		expect(actionState(bottom, 'bring-forward')).toEqual([undefined, false]);
+		expect(actionState(bottom, 'send-backward')).toEqual(['true', false]);
+	});
+
+	/** A GUARD, green before and after: a press on an unavailable reorder reaches no edit. */
+	it('commits nothing for a press on an unavailable reorder', async () => {
+		const { wrapper, applied } = mountFor(BOWL);
+
+		await wrapper.find('[name="bring-forward"]').trigger('click');
+		await flushPromises();
+
+		expect(applied).toEqual([]);
 	});
 
 	it.each([
@@ -445,6 +480,34 @@ describe('the inspector in the mounted designer', () => {
 			await settle();
 
 			expect(document.activeElement).toBe(rig.wrapper.find('.rp-designer-inspector aside').element);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * Critique finding 11, mounted: the reorder lands, the button turns unavailable under the focus it still
+	 * holds, and a second press writes nothing. jsdom is not known to blur a control that turns disabled, so
+	 * the `activeElement` line is a guard; the attribute lines are what fail before the fix.
+	 */
+	it('keeps focus on Send backward once the detail is last, and a second press writes nothing', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		try {
+			useAssetDesignStore(rig.pinia).select(BOWL);
+			await settle();
+			const button = rig.wrapper.find('.rp-designer-selection [name="send-backward"]').element as HTMLButtonElement;
+			button.focus();
+			button.click();
+			await settleUntil(async () => (await rig.document()).shape?.details[0]?.id === 'detail-2', 'the reorder to land');
+			await settle();
+
+			expect(button.getAttribute('aria-disabled')).toBe('true');
+			expect(button.disabled).toBe(false);
+			expect(document.activeElement).toBe(button);
+
+			button.click();
+			await settle();
+			expect((await rig.document()).shape?.details.map((detail) => detail.id)).toEqual(['detail-2', 'detail-1']);
 		} finally {
 			rig.unmount();
 		}

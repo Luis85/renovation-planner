@@ -6,6 +6,7 @@ This is a current-run **Windows Obsidian** review. Browser harness results are n
 
 - Worktree: `D:/codex-worktrees/4cb2/renovation-planner`.
 - Branch: `codex/usability-astra-native-polish`, stacked directly above `codex/usability-astra-ui-fidelity` / [PR #201](https://github.com/Luis85/renovation-planner/pull/201). No lower branch or main checkout was changed.
+- Delivery: [PR #203 — Polish native editor restrictions and compact Review](https://github.com/Luis85/renovation-planner/pull/203), open and unmerged. Publication snapshot: GitHub MERGEABLE, CI queued/running; no completed CI verdict is claimed by that snapshot.
 - Starting source: `144382e674b5c47199fb1aa0935b900b7b2c48e8`.
 - App: pre-existing Windows Obsidian **1.13.7**, confirmed by the returned window title. Native Computer Use selected only the window for the synthetic vault.
 - Vault type/path: existing, explicitly documented **disposable synthetic test vault**, `C:/Users/lum/.codex/tmp/renovation-planner-finalization-vault`. Its `Test vault.md` says “Synthetic data only.” See the earlier [vault scope record](../../renovation-planner-editor-specs/implementation/release-native-acceptance.md).

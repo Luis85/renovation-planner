@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-09-14",
+  "coordinatorThreadId": "01a09aba-b390-7650-a5d0-8d62f3066d29",
+  "planningThreadId": "01a0a064-04e7-7252-becf-c54cdc07819d",
+  "planningBranch": "codex/remplanner-adoption-plan",
+  "baselineSha": "836399775e91ccf05e44959b6bea9960605defbb",
+  "baselinePr": 209,
+  "integrationBranch": "main",
+  "finalStackTip": null,
+  "planningPr": null,
+  "dispatchAllowed": false,
+  "dispatchBlocker": "Parent instruction: no coding dispatch; wall verification owns machine. Validate JSON/links only after lease release.",
+  "maxConcurrentCodingTasks": 3,
+  "verificationOwner": "01a0a05e-1ed9-7541-969c-4d71e6ee7cee",
+  "machineLease": "wall-exclusive",
+  "reservedTasks": [
+    {
+      "threadId": "01a0a05e-1ed9-7541-969c-4d71e6ee7cee",
+      "branch": "codex/usability-astra-wall-tool-polish",
+      "status": "active",
+      "scope": "Wall drawing/thickness, structure command admission/cancellation, shared opening seams; opening inventory completed, direct opening UI explicitly deferred to follow-up."
+    },
+    {
+      "threadId": "01a0a060-b9d8-70c2-892f-ce30ba026b08",
+      "branch": "codex/usability-astra-item-colors",
+      "status": "active",
+      "scope": "Plain Item and asset appearance, palette, persistence/schema, menu and Inspector actions."
+    }
+  ],
+  "reservedPathPrefixes": [
+    "src/presentation/editor/structure",
+    "src/presentation/editor/selection",
+    "src/presentation/editor/elements",
+    "src/domain/spatial",
+    "src/application/commands/spatial",
+    "src/infrastructure/persistence",
+    "src/infrastructure/obsidian/repositories",
+    "src/presentation/i18n/locales",
+    "styles"
+  ],
+  "reservedExactPaths": [
+    "src/presentation/editor/PlanCanvas.vue",
+    "src/presentation/editor/runtime.ts"
+  ],
+  "packets": [
+    {
+      "id": "R00",
+      "title": "Reconcile final stack and admit packets",
+      "kind": "coordination",
+      "model": "gpt-6-astra",
+      "reasoning": "high",
+      "status": "queued",
+      "dependsOn": [],
+      "baseSha": null,
+      "branch": "codex/remplanner-r00",
+      "threadId": null,
+      "ownedExistingPaths": [
+        "docs/user-experience/remplanner-adoption/parallel-delivery/dispatch.json",
+        "docs/user-experience/remplanner-adoption/implementation-plan.md",
+        "docs/user-experience/remplanner-adoption/parallel-delivery/prompts.md"
+      ],
+      "ownedNewPaths": [
+        "docs/user-experience/remplanner-adoption/parallel-delivery/receipts/R00.md"
+      ],
+      "targetedTests": [],
+      "blockers": [
+        "final-wall-color-tip",
+        "ownership-release"
+      ]
+    },
+    {
+      "id": "R01",
+      "title": "Direct opening size and swing",
+      "kind": "coding",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "status": "queued",
+      "dependsOn": [
+        "R00"
+      ],
+      "baseSha": null,
+      "branch": "codex/remplanner-r01",
+      "threadId": null,
+      "ownedExistingPaths": [
+        "src/presentation/editor/PlanCanvas.vue",
+        "src/presentation/editor/runtime.ts",
+        "src/presentation/editor/structure/StructurePlanActions.vue",
+        "src/presentation/editor/selection/useCanvasMenuActions.ts",
+        "src/presentation/editor/structure/structureActions.ts",
+        "src/presentation/editor/structure/openingMove.ts",
+        "src/presentation/editor/structure/OpeningMoveTool.ts",
+        "src/presentation/editor/structure/OpeningSwingFields.vue",
+        "src/presentation/editor/structure/OpeningDetails.vue",
+        "src/presentation/i18n/locales/en/structure.ts",
+        "src/presentation/i18n/locales/de/structure.ts",
+        "styles/index.css"
+      ],
+      "ownedNewPaths": [
+        "src/presentation/editor/structure/openingDirectActions.ts",
+        "src/presentation/editor/structure/OpeningDirectPanel.vue",
+        "styles/editor-opening-direct.css",
+        "tests/presentation/editor/remplanner-opening-direct.test.ts",
+        "docs/user-experience/remplanner-adoption/parallel-delivery/receipts/R01.md"
+      ],
+      "targetedTests": [
+        "tests/presentation/editor/openingMove.test.ts",
+        "tests/presentation/editor/openingUsability.test.ts",
+        "tests/presentation/editor/openingSwingQueuedInput.test.ts",
+        "tests/presentation/editor/openingFreshPersistence.test.ts",
+        "tests/presentation/editor/structureActions.test.ts",
+        "tests/presentation/editor/usability/i11-opening-details.test.ts",
+        "tests/presentation/editor/usability/i14-mode-input-guard.test.ts"
+      ],
+      "blockers": [
+        "final-wall-color-tip",
+        "wall-opening-shared-seams",
+        "no-dispatch-machine-lease"
+      ]
+    },
+    {
+      "id": "R02",
+      "title": "Drawing and keyboard help",
+      "kind": "coding",
+      "model": "gpt-5.6-luna",
+      "reasoning": "high",
+      "status": "queued",
+      "dependsOn": [
+        "R01"
+      ],
+      "baseSha": null,
+      "branch": "codex/remplanner-r02",
+      "threadId": null,
+      "ownedExistingPaths": [
+        "src/presentation/editor/shell/EditorViewMenu.vue",
+        "src/presentation/i18n/locales/en/editor.ts",
+        "src/presentation/i18n/locales/de/editor.ts",
+        "styles/index.css",
+        "docs/using-plan-editor.md"
+      ],
+      "ownedNewPaths": [
+        "src/presentation/editor/shell/EditorDrawingHelp.vue",
+        "styles/editor-drawing-help.css",
+        "tests/presentation/editor/remplanner-drawing-help.test.ts",
+        "docs/user-experience/remplanner-adoption/parallel-delivery/receipts/R02.md"
+      ],
+      "targetedTests": [
+        "tests/presentation/editor/shell/editorViewMenuPopOut.test.ts",
+        "tests/presentation/editor/inputInteractions.test.ts",
+        "tests/presentation/editor/keyboardNudge.test.ts",
+        "tests/presentation/editor/usability/i14-mode-input-guard.test.ts"
+      ],
+      "blockers": [
+        "final-wall-color-tip",
+        "shared-locales-styles",
+        "no-dispatch-machine-lease"
+      ]
+    },
+    {
+      "id": "R03",
+      "title": "Selection measurement visibility",
+      "kind": "coding",
+      "model": "gpt-5.6-terra",
+      "reasoning": "high",
+      "status": "queued",
+      "dependsOn": [
+        "R02"
+      ],
+      "baseSha": null,
+      "branch": "codex/remplanner-r03",
+      "threadId": null,
+      "ownedExistingPaths": [
+        "src/presentation/editor/shell/EditorViewMenu.vue",
+        "src/presentation/editor/PlanEditorContext.ts",
+        "src/presentation/editor/PlanEditorRoot.vue",
+        "src/presentation/stores/WorkspaceStore.ts",
+        "src/infrastructure/obsidian/plugin-data/EditorViewPreferencesStore.ts",
+        "src/presentation/editor/resize/RoomDimensionLabels.vue",
+        "src/presentation/editor/resize/useDimensionObstacles.ts",
+        "src/presentation/editor/selection/WallCanvasActions.vue",
+        "src/presentation/i18n/locales/en/editor.ts",
+        "src/presentation/i18n/locales/de/editor.ts"
+      ],
+      "ownedNewPaths": [
+        "tests/presentation/editor/remplanner-measurement-visibility.test.ts",
+        "docs/user-experience/remplanner-adoption/parallel-delivery/receipts/R03.md"
+      ],
+      "targetedTests": [
+        "tests/infrastructure/obsidian/plugin-data/editorViewPreferencesStore.test.ts",
+        "tests/presentation/editor/roomDimensionInline.test.ts",
+        "tests/presentation/editor/roomDimensionLifecycle.test.ts",
+        "tests/presentation/editor/dimensionObstacles.test.ts",
+        "tests/presentation/editor/usability/i10-dimensions-feedback.test.ts",
+        "tests/presentation/editor/shell/editorViewMenuPopOut.test.ts"
+      ],
+      "blockers": [
+        "final-wall-color-tip",
+        "wall-label-final-contract",
+        "no-dispatch-machine-lease"
+      ]
+    },
+    {
+      "id": "R04",
+      "title": "Integrate and verify adoption wave",
+      "kind": "integration",
+      "model": "gpt-6-astra",
+      "reasoning": "high",
+      "status": "queued",
+      "dependsOn": [
+        "R03"
+      ],
+      "baseSha": null,
+      "branch": "codex/remplanner-r04",
+      "threadId": null,
+      "ownedExistingPaths": [
+        "docs/user-experience/remplanner-adoption/parallel-delivery/dispatch.json",
+        "docs/user-experience/remplanner-adoption/validation-plan.md",
+        "docs/using-plan-editor.md"
+      ],
+      "ownedNewPaths": [
+        "docs/user-experience/remplanner-adoption/parallel-delivery/receipts/R04.md",
+        "docs/user-experience/remplanner-adoption/evidence/integration"
+      ],
+      "targetedTests": [],
+      "blockers": [
+        "all-coding-receipts",
+        "full-verification-lease",
+        "native-human-evidence"
+      ]
+    },
+    {
+      "id": "R05",
+      "title": "Define local handoff and print contract",
+      "kind": "design",
+      "model": "gpt-6-astra",
+      "reasoning": "high",
+      "status": "deferred",
+      "dependsOn": [
+        "R04"
+      ],
+      "baseSha": null,
+      "branch": "codex/remplanner-r05",
+      "threadId": null,
+      "ownedExistingPaths": [
+        "docs/user-experience/remplanner-adoption/adoption-matrix.md"
+      ],
+      "ownedNewPaths": [
+        "docs/user-experience/remplanner-adoption/handoff-contract.md",
+        "docs/user-experience/remplanner-adoption/parallel-delivery/receipts/R05.md"
+      ],
+      "targetedTests": [],
+      "blockers": [
+        "future-scope-selection"
+      ]
+    }
+  ]
+}

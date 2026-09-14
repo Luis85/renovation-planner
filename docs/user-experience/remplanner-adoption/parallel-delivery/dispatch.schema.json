@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RemPlanner dispatch",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "updated",
+    "coordinatorThreadId",
+    "planningThreadId",
+    "planningBranch",
+    "baselineSha",
+    "baselinePr",
+    "integrationBranch",
+    "finalStackTip",
+    "planningPr",
+    "dispatchAllowed",
+    "dispatchBlocker",
+    "maxConcurrentCodingTasks",
+    "verificationOwner",
+    "machineLease",
+    "reservedTasks",
+    "reservedPathPrefixes",
+    "reservedExactPaths",
+    "packets"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "updated": {
+      "type": "string"
+    },
+    "coordinatorThreadId": {
+      "type": "string"
+    },
+    "planningThreadId": {
+      "type": "string"
+    },
+    "planningBranch": {
+      "type": "string"
+    },
+    "baselineSha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "baselinePr": {
+      "type": "integer"
+    },
+    "integrationBranch": {
+      "type": "string"
+    },
+    "finalStackTip": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "planningPr": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "dispatchAllowed": {
+      "type": "boolean"
+    },
+    "dispatchBlocker": {
+      "type": "string"
+    },
+    "maxConcurrentCodingTasks": {
+      "const": 3
+    },
+    "verificationOwner": {
+      "type": "string"
+    },
+    "machineLease": {
+      "type": "string"
+    },
+    "reservedTasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "threadId",
+          "branch",
+          "status",
+          "scope"
+        ],
+        "properties": {
+          "threadId": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "reservedPathPrefixes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "reservedExactPaths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "packets": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "model",
+          "reasoning",
+          "status",
+          "dependsOn",
+          "baseSha",
+          "branch",
+          "threadId",
+          "ownedExistingPaths",
+          "ownedNewPaths",
+          "targetedTests",
+          "blockers"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^R0[0-5]$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "coordination",
+              "coding",
+              "integration",
+              "design"
+            ]
+          },
+          "model": {
+            "enum": [
+              "gpt-6-astra",
+              "gpt-5.6-terra",
+              "gpt-5.6-luna"
+            ]
+          },
+          "reasoning": {
+            "const": "high"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "active",
+              "pushed",
+              "accepted",
+              "deferred",
+              "blocked"
+            ]
+          },
+          "dependsOn": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "baseSha": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{40}$"
+              }
+            ]
+          },
+          "branch": {
+            "type": "string",
+            "pattern": "^codex/"
+          },
+          "threadId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ownedExistingPaths": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "ownedNewPaths": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetedTests": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "blockers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

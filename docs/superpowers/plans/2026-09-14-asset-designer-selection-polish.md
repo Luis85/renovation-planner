@@ -3859,3 +3859,1970 @@ Run: `git status --short`
 Expected: empty. The findings file is gitignored, and no source or test file was edited. Report the findings file's path and the count of QUALIFIES and REJECTED findings to the controller.
 
 **Captures:** none.
+
+---
+
+## Amendment 1 — 2026-09-14, from Task 1's capture critique
+
+Task 1 took 30 designer captures and wrote 27 numbered critique findings (git-ignored, `.superpowers/sdd/…/task-1-critique.md`). The controller's rulings:
+
+- **Accepted, as Tasks 10–14:** #1 an opened asset is not framed (Task 10); #2 the unscaled warning fails contrast in light, #5 Undo/Redo orphaned on a wrapped row (alignment only), #15 the mode control looks like a second pressed tool, #22 selection actions at natural width, #24 toolbar titles repeat the label (Task 11); #7 a selected outline drops its dash, #8 the anchor/facing ring muddles the dot and arrowhead, #17 points and bend handles share a glyph, #19 light-theme strokes at the 3:1 floor (Task 12); #4 the asset block reads as the part's, #11 reorder buttons disable under focus, #25 the facing angle states no direction (Task 13); #6 the inspector keeps its width at a sidebar width (Task 14).
+- **Already covered:** #12 (Task 3), #13 (Task 2), #14 (Task 5), #27 (Task 4).
+- **Deferred, each with a trigger:** #3 handles bury a small part (Task 10's framing removes the common case; trigger: a report at small scale); #9 live size while drawing (new chrome beyond a hint; trigger: users correcting drawn sizes by number).
+- **Declined:** #5's tool grouping (reorders the pinned `DESIGNER_TOOL_LABELS` order, a product decision); #10 open trace previewed closed (`GestureSketch.vue` is shared with the plan editor); #16 bold label shifts buttons 2 px (sizing trick costs more than it fixes); #18 rotation handle on an inner line (toilet-specific; moves hit-test pins); #20 two-column fields (revisit after Tasks 3 and 14 change the column); #21 clearance size fields (the spec's Presentation section offers the clearance Delete only); #23 unstyled Line dropdown (the harness sheet declares no `select` rule — a manual vault check in the final task); #26 pending parts drawn like calibrated ones (a pending dash collides with `line: 'dashed'` details).
+- **Execution order:** Tasks 2–8, then 10–14, then Task 9 (the review sees the polish code too), then any tasks Task 9 adds, then the final docs, changelog and re-capture task.
+- **Drafting:** Tasks 10–14 were drafted from reading at `a85631b4`, against the tree Tasks 2–8 leave, and are not probe-verified; each implementer's red step is the check. Task 10's first step found no restored camera (`AssetDesignerView.getState` saves only the asset id), so the fit-on-open ruling holds as written.
+
+### Task 10: Frame an opened asset once
+
+Critique finding 1, ruling C#1. **Not probe-verified; the implementer's red step is the check.**
+
+**Why the code said "an asset merely opened keeps its view" (measured, so this task stays inside the ruling):**
+- `git log -S "merely opened keeps its view" -- src/presentation/designer/runtime.ts` prints one commit, `350f8513 fix(designer): frame the design after a preset is applied`.
+- Its message scopes a PRESET fit: "a refused write and an asset merely opened keep their view". It describes what that commit left out. It is not a decision with a reason behind it.
+- No camera is restored for a leaf. `AssetDesignerView.getState()` returns `{ assetId: this.assetId ?? '' }` and nothing else.
+- `docs/development/agent-guide-increment-history.md` has no entry on framing an opened asset (grep for `merely opened`, `keeps its view` and `fit.*open`: no hits).
+- So the fit runs whenever an asset opens. No restored-camera check is needed.
+
+**Where it goes.** The fit goes in `DesignerCanvas.vue`, beside `framedBounds`, using the plan editor's own pattern (`PlanCanvas.vue`: `watch(() => editor.stageSize.width > 0 && …, fit, { once: true })`).
+- It stays out of `runtime.ts`: `buildRuntime` measures 99 of 100 lines, and Task 8 leaves it at 99.
+- The canvas mounts only once `design !== null` (`AssetDesignerRoot.vue`'s `v-else`), so the design is already read when the watch starts.
+- It asks exactly once, at the first measured size. A shape traced later is never jumped to.
+
+**What else the behaviour change reaches (measured by reading):**
+- **`designerRig`.** Every rig case with a shape would open framed. The rig's geometry notes and the Global Constraints' rig trap (10 mm per pixel, an 80 mm grab radius) are arithmetic at `DEFAULT_VIEWPORT`. So the rig puts that camera back unless a case asks for `camera: 'opened'`.
+- **`layers.test.ts`.** `frames the footprint and the clearance around it, never the outline alone` asserts that `Shift+1` MOVES the camera. After this task it opens already framed there, so that case starts from `DEFAULT_VIEWPORT`. No other case in that file reads the camera except against a `fitViewport` it computes, which is unchanged.
+- **The harness.** `driveHarness` pressed `Shift+1` because the product did not fit. It stops pressing, so a capture photographs the product's own fit. `&camera=default` now puts `DEFAULT_VIEWPORT` back, which keeps `asset-designer-select-transform-unframed` showing the small-on-screen state (ruling C#3's deferred trigger).
+
+**Files:**
+- Modify: `src/presentation/designer/DesignerCanvas.vue`:
+  - the `vue` import at `:44`;
+  - the `framedBounds` docblock's last paragraph at `:161-162`;
+  - a new `watch` directly after `framedBounds` (`:164-168`).
+
+  Task 2 edits `:139-147` of the same file; nothing here overlaps it.
+- Modify: `src/presentation/designer/runtime.ts:407-409` (a comment inside `applyShape`; no code). Task 8 does not touch `applyShape`.
+- Modify: `tests/helpers/designerRig.ts` (header geometry note, `DesignerRigOptions`, the mount tail at `:330-334`, the `Viewport` import)
+- Modify: `tests/presentation/designer/assetPresetFlow.test.ts` (imports; a new `describe` at the end)
+- Modify: `tests/presentation/designer/layers.test.ts`: the `Viewport` import at `:35`, and one case, `frames the footprint and the clearance around it, never the outline alone` (`:306-322`)
+- Modify: `tests/harness/assetDesigner.ts` (imports; `driveHarness` docblock and body, `:206-246`)
+- Modify: `tests/harness/assetDesignerSelectKnob.test.ts` (header line 5; the case at `:86-101`; imports)
+- Modify: `tests/harness/page.ts:8` (header phrase)
+- Modify: `scripts/harness-shot.mjs:738` (comment only; the table is untouched, so its 394/400 lines do not move)
+
+**Interfaces:**
+- Consumes: `designFrame` (via `framedBounds(true)`), `EditorStore.fitTo`, `EditorStore.stageSize`, and `DEFAULT_VIEWPORT` from `src/presentation/editor/viewport/Viewport.ts`. All exist.
+- Produces:
+  - `DesignerRigOptions.camera?: 'default' | 'opened'`. It defaults to `'default'`, which assigns `DEFAULT_VIEWPORT` after the rig sizes the canvas.
+  - The behaviour: an opened asset whose design has a shape at the canvas's first measured size is fitted exactly as `Shift+1` fits it.
+  - The harness's `&camera=default` now means "put back `DEFAULT_VIEWPORT`" rather than "skip the fit".
+  - No `src/` export and no shared-contract type changes.
+
+- [ ] **Step 1: Confirm the reason still stands**
+
+Run: `git log --oneline -S "merely opened keeps its view" -- src/presentation/designer/runtime.ts`
+
+Expected: exactly `350f8513 fix(designer): frame the design after a preset is applied`.
+
+Run: `grep -n "getState" -A3 src/presentation/designer/AssetDesignerView.ts`
+
+Expected: `return { assetId: this.assetId ?? '' };`, with no camera field.
+
+If either answer differs (a persisted camera now exists), STOP and report: ruling C#1 says to fit only when no camera was restored.
+
+- [ ] **Step 2: Give the rig its camera option, and write the failing test**
+
+In `tests/helpers/designerRig.ts`, change the Viewport import:
+
+```ts
+import { DEFAULT_VIEWPORT, STAGE_PIXELS, worldToScreen } from '../../src/presentation/editor/viewport/Viewport';
+```
+
+Extend the header's geometry note. Replace:
+
+```ts
+ * Geometry note: `DEFAULT_ZOOM` is 0.1 with a 48 px margin, so world = 10 × screen − 480 per
+ * axis at the default camera. `at()` below derives the screen point from the LIVE viewport
+```
+
+with:
+
+```ts
+ * Geometry note: `DEFAULT_ZOOM` is 0.1 with a 48 px margin, so world = 10 × screen − 480 per
+ * axis at the default camera — which an opened asset does NOT keep (`DesignerCanvas` frames it), so
+ * `options.camera` puts it back unless a case asks otherwise. `at()` below derives the screen point from the LIVE viewport
+```
+
+In `DesignerRigOptions`, after `unrecoveredSettings`, add:
+
+```ts
+	/**
+	 * The camera a case starts at. An asset OPENS framed (`DesignerCanvas`), which moves the camera the
+	 * moment the canvas is sized; `'default'` — the default — puts `DEFAULT_VIEWPORT` back after that,
+	 * because the geometry every case here reasons in (10 mm per pixel, an 80 mm grab radius, the header's
+	 * `world = 10 × screen − 480`) is arithmetic at that camera, and a user reaches it by zooming out.
+	 * `'opened'` keeps what opening did, for the cases about the opening fit itself.
+	 */
+	readonly camera?: 'default' | 'opened';
+```
+
+Replace the mount tail (`:330-334`):
+
+```ts
+	placeAt(canvasEl, 0, 0, 800, 600);
+	resizeTo(canvasEl, 800, 600);
+	await settle();
+
+	const editor = useEditorStore(pinia);
+```
+
+with:
+
+```ts
+	placeAt(canvasEl, 0, 0, 800, 600);
+	resizeTo(canvasEl, 800, 600);
+	await settle();
+
+	const editor = useEditorStore(pinia);
+	if (options.camera !== 'opened') editor.viewport = DEFAULT_VIEWPORT;
+```
+
+In `tests/presentation/designer/layers.test.ts`, change `:35` to:
+
+```ts
+import { DEFAULT_VIEWPORT, fitViewport } from '../../../src/presentation/editor/viewport/Viewport';
+```
+
+In the case `frames the footprint and the clearance around it, never the outline alone` only, replace its first three lines:
+
+```ts
+		const designer = await mountDesigner(assetDesign({ shape: WITH_CLEARANCE }));
+		const store = useEditorStore(designer.pinia);
+		const before = store.viewport;
+```
+
+with:
+
+```ts
+		const designer = await mountDesigner(assetDesign({ shape: WITH_CLEARANCE }));
+		const store = useEditorStore(designer.pinia);
+		// The design opened framed (`DesignerCanvas`); start from the default camera so the press has a fit to make.
+		store.viewport = DEFAULT_VIEWPORT;
+		const before = store.viewport;
+```
+
+In `tests/presentation/designer/assetPresetFlow.test.ts`, add two imports:
+
+```ts
+import { DEFAULT_VIEWPORT } from '../../../src/presentation/editor/viewport/Viewport';
+import { toiletShape } from '../../helpers/assetShapes';
+```
+
+and change the rig import to:
+
+```ts
+import { designerRig, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
+```
+
+Append at the end of the file:
+
+```ts
+/**
+ * An asset OPENS framed (selection polish critique, finding 1): once, at the canvas's first measured size,
+ * exactly as `Shift+1` frames it — and only a design that HAS a shape then. `designerRig`'s
+ * `camera: 'opened'` keeps what opening did; every other rig case gets the default camera back.
+ */
+describe('the camera an asset opens with', () => {
+	it('frames an opened design exactly as Shift+1 does', async () => {
+		const rig = await designerRig({ shape: toiletShape(), camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		const opened = editor.viewport;
+
+		pressFitAll(rig.canvasEl);
+
+		expect(opened).not.toEqual(DEFAULT_VIEWPORT);
+		expect(editor.viewport).toEqual(opened);
+		rig.unmount();
+	});
+
+	/**
+	 * A GUARD, green before and after: the fit is asked once, at the first measure. A fit that waited for a
+	 * shape instead would jump the camera the moment the user's first trace lands, away from the sheet they
+	 * were tracing at.
+	 */
+	it('leaves a shapeless asset where it opened, and does not jump when its first outline is traced', async () => {
+		const rig = await designerRig({ shape: null, camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		expect(editor.viewport).toEqual(DEFAULT_VIEWPORT);
+
+		rig.toolbarButton(t('en', 'designer.toolbar.trace-footprint')).click();
+		await settle();
+		tracePolygon(rig, [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }]);
+		await settle();
+
+		expect((await rig.document()).shape).not.toBeNull();
+		expect(editor.viewport).toEqual(DEFAULT_VIEWPORT);
+		rig.unmount();
+	});
+});
+```
+
+- [ ] **Step 3: Run it to watch it fail**
+
+Run: `npm run check:fast -- tests/presentation/designer/assetPresetFlow.test.ts tests/presentation/designer/layers.test.ts`
+
+Expected:
+- oxlint and vue-tsc clean;
+- FAIL, 1 failed: `frames an opened design exactly as Shift+1 does`, with `AssertionError: expected { pan: { x: -480, y: -480 }, zoom: 0.1 } not to deeply equal { pan: { x: -480, y: -480 }, zoom: 0.1 }`;
+- the guard and every `layers.test.ts` case pass.
+
+- [ ] **Step 4: Implement the opening fit**
+
+In `DesignerCanvas.vue`, change `:44` to:
+
+```ts
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+```
+
+In `framedBounds`' docblock, replace:
+
+```ts
+ * The whole-design box is `designFrame` (`runtime.ts`), which Apply preset fits to as well, so the two
+ * cannot frame the same design differently.
+```
+
+with:
+
+```ts
+ * The whole-design box is `designFrame` (`runtime.ts`), which Apply preset fits to as well, and the fit an
+ * opened design takes below asks this very function — so none of the three frames a design differently.
+```
+
+Directly after the closing `}` of `function framedBounds`, add:
+
+```ts
+/**
+ * An asset OPENS framed, as `Shift+1` frames it (selection polish critique, finding 1): opened at the default
+ * camera, a toilet was a few dozen pixels in the corner with its handles piled on it. Once, the first time
+ * the stage has an area — the canvas mounts only over a design already read, so what is drawn then is the
+ * design as opened. A design with no shape at that moment keeps its camera, and `once` ends the question
+ * there: a footprint traced afterwards is drawn at the camera the user traced it at, never jumped to.
+ * Nothing restores a camera to defer to: `AssetDesignerView.getState` persists the asset id alone. The plan
+ * editor's `PlanCanvas` opens a plan the same way.
+ */
+watch(
+	() => editor.stageSize.width > 0 && editor.stageSize.height > 0,
+	() => {
+		const bounds = framedBounds(true);
+		if (bounds !== null) editor.fitTo(bounds, editor.stageSize);
+	},
+	{ once: true },
+);
+```
+
+In `runtime.ts`, replace the comment inside `applyShape` (`:407-409`):
+
+```ts
+		// A preset is centred on the origin at whatever size was typed, so it can land wholly outside
+		// the view it was applied from. A WRITTEN shape is framed as `Shift+1` frames it — the same
+		// `fitTo` the plan editor's `selectAndFrame` takes; an asset merely opened keeps its view.
+```
+
+with:
+
+```ts
+		// A preset is centred on the origin at whatever size was typed, so it can land wholly outside
+		// the view it was applied from. A WRITTEN shape is framed as `Shift+1` frames it — the same
+		// `fitTo` the plan editor's `selectAndFrame` takes. An OPENED asset is framed once by `DesignerCanvas`.
+```
+
+- [ ] **Step 5: Run it to watch it pass, and watch the guard go red against its mutant**
+
+Run: `npm run check:fast -- tests/presentation/designer/assetPresetFlow.test.ts tests/presentation/designer/layers.test.ts`
+
+Expected: PASS, every case.
+
+**Mutant (temporary, restore it straight after).** Change the watch source to:
+
+```ts
+	() => shape.value !== null && editor.stageSize.width > 0 && editor.stageSize.height > 0,
+```
+
+Run: `npx vitest run tests/presentation/designer/assetPresetFlow.test.ts --testTimeout=20000`
+
+Expected: FAIL, 1 failed: `leaves a shapeless asset where it opened…`, with `AssertionError: expected { pan: …, zoom: … } to deeply equal { pan: { x: -480, y: -480 }, zoom: 0.1 }`.
+
+Restore the source from Step 4 exactly, and re-run the same command. Expected: PASS.
+
+- [ ] **Step 6: Stop the harness pressing a fit the product now takes**
+
+In `tests/harness/assetDesigner.ts`, add an import beside the other `src/presentation` imports:
+
+```ts
+import { DEFAULT_VIEWPORT } from '../../src/presentation/editor/viewport/Viewport';
+```
+
+Replace the `driveHarness` docblock (`:206-223`) with:
+
+```ts
+/**
+ * What every `?preset=` capture waits on. It waits first for the leaf's mount, then for TWO things before
+ * touching anything: the design, which the leaf reads after it mounts, and the canvas's first measured size
+ * (`EditorStore.stageSize`) — the moment `DesignerCanvas` frames an opened design, so a capture taken before
+ * it would photograph the unframed camera. A bare `setTimeout(0)` promised neither.
+ *
+ * Then, in order:
+ * - `&select=`/`&mode=`, through the REAL Select button and the leaf's own store;
+ * - `&camera=default`, which puts `DEFAULT_VIEWPORT` back — the camera a user zoomed out to, where the toilet
+ *   is a few dozen pixels across. No fit is pressed otherwise: a capture shows the opening fit the product
+ *   took, so a regression in that fit is photographed rather than repaired by this page;
+ * - `&draw=`, LAST, so the preview it leaves is drawn at the camera the capture keeps.
+ *
+ * Last of all it sets `data-rp-harness-ready` on the view: the mark `scripts/harness-shot.mjs`'s preset
+ * shots wait on, since the view element itself is attached at mount, before any of this. The leaf's Pinia
+ * is reached through the Vue app `AssetDesignerView` mounts on its host element. Harness-only: no
+ * production seam exists for this, and none is added.
+ */
+```
+
+Replace the body's tail (`:240-245`):
+
+```ts
+	const canvas = view.contentEl.querySelector('.rp-plan-canvas') as HTMLElement;
+	if (knobs.camera !== 'default') {
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: '!', code: 'Digit1', shiftKey: true, bubbles: true }));
+	}
+	if (knobs.draw !== undefined) drawInHarness(view, canvas, knobs.draw);
+	view.contentEl.dataset.rpHarnessReady = '';
+```
+
+with:
+
+```ts
+	if (knobs.camera === 'default') editor.viewport = DEFAULT_VIEWPORT;
+	if (knobs.draw !== undefined) drawInHarness(view, view.contentEl.querySelector('.rp-plan-canvas') as HTMLElement, knobs.draw);
+	view.contentEl.dataset.rpHarnessReady = '';
+```
+
+In `tests/harness/assetDesignerSelectKnob.test.ts`:
+
+(a) Header, replace:
+
+```ts
+ * `&select=` and `&mode=`, `&pending`, `&draw=` and `&camera=default` beside `&preset=`, and the Shift+1
+ * fit every preset takes.
+```
+
+with:
+
+```ts
+ * `&select=` and `&mode=`, `&pending`, `&draw=` and `&camera=default` beside `&preset=`, and the fit an
+ * opened design takes.
+```
+
+If the line break falls differently, replace the same two phrases wherever they sit in lines 5-6.
+
+(b) Add `import { DEFAULT_VIEWPORT } from '../../src/presentation/editor/viewport/Viewport';` beside the `EditorStore` import.
+
+(c) Replace the docblock and case at `:86-101`:
+
+```ts
+/**
+ * A second Shift+1 is the instrument: a fit that already ran against the measured canvas leaves the
+ * camera where it is, while a fit that never ran — or ran into 0 × 0 — would move it now.
+ */
+it('frames a preset exactly as Shift+1 does, and &camera=default keeps the view it opened with', async () => {
+```
+
+through its closing `});`, with:
+
+```ts
+/**
+ * A second Shift+1 is the instrument: the fit the designer took on opening, against the measured canvas,
+ * leaves nothing for the press to move — while a fit that never ran, or ran into 0 × 0, would move it now.
+ * The harness presses no fit of its own, so this is the product's.
+ */
+it('opens a preset framed exactly as Shift+1 frames it, and &camera=default puts the default camera back', async () => {
+	const framed = await mountKnobs('curved-table');
+	await landed(framed.view);
+	const fitted = framed.editor.viewport;
+	framed.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit1', shiftKey: true, bubbles: true, cancelable: true }));
+	expect(framed.editor.viewport).toEqual(fitted);
+	expect(fitted).not.toEqual(DEFAULT_VIEWPORT);
+
+	const opened = await mountKnobs('curved-table', { camera: 'default' });
+	await landed(opened.view);
+	expect(opened.editor.viewport).toEqual(DEFAULT_VIEWPORT);
+});
+```
+
+In `tests/harness/page.ts:8`, replace `` `&camera=default` skipping the fit `` with `` `&camera=default` putting the default camera back after the opening fit ``.
+
+In `scripts/harness-shot.mjs:738`, replace:
+
+```js
+	// The same Transform selection at the camera an opened asset keeps (`&camera=default`), where the toilet
+```
+
+with:
+
+```js
+	// The same Transform selection at the default camera (`&camera=default`, a user zoomed out), where the toilet
+```
+
+- [ ] **Step 7: Run every mounted designer suite and the harness**
+
+The camera change reaches every mounted designer, so run the directories:
+
+Run: `npm run check:fast -- tests/presentation/designer tests/harness tests/build/harness-shot-designer.test.ts --testTimeout=20000`
+
+Expected: oxlint and vue-tsc clean, and every case passes. If any case OTHER than the two named above reddens on a camera assertion or a grab or snap distance, STOP and report it: never edit its expectation.
+
+- [ ] **Step 8: Lint, budgets, fallow**
+
+Run: `npx eslint src/presentation/designer/DesignerCanvas.vue src/presentation/designer/runtime.ts tests/helpers/designerRig.ts tests/presentation/designer/assetPresetFlow.test.ts tests/presentation/designer/layers.test.ts tests/harness/assetDesigner.ts tests/harness/assetDesignerSelectKnob.test.ts tests/harness/page.ts scripts/harness-shot.mjs`
+
+Expected: no output.
+
+Budgets (ESLint lines):
+- `DesignerCanvas.vue`: 162 measured, 163 after Task 2 → ≈ 173 of 400;
+- `runtime.ts`: unchanged, a comment only (224 measured, 241 after Task 8); `buildRuntime` untouched at 99 of 100;
+- `designerRig.ts`: 219 measured → ≈ 221 of 450;
+- `assetPresetFlow.test.ts`: 136 measured → ≈ 166 of 450;
+- `layers.test.ts`: ≈ 358 after Task 2 → ≈ 359 of 450;
+- `assetDesigner.ts`: 160 measured → ≈ 158 of 450;
+- `assetDesignerSelectKnob.test.ts`: 100 measured → ≈ 101 of 450.
+
+Run: `npx fallow dead-code` then `npx fallow dupes`. Expected: nothing naming these files.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add src/presentation/designer/DesignerCanvas.vue src/presentation/designer/runtime.ts tests/helpers/designerRig.ts tests/presentation/designer/assetPresetFlow.test.ts tests/presentation/designer/layers.test.ts tests/harness/assetDesigner.ts tests/harness/assetDesignerSelectKnob.test.ts tests/harness/page.ts scripts/harness-shot.mjs
+git commit -m "$(cat <<'EOF'
+fix(designer): frame an opened asset once, as Shift+1 frames it
+
+An opened asset kept the default camera, so a toilet was a few dozen pixels in the corner under its
+own handles. The canvas now fits the design once, at its first measured size; a shapeless asset
+keeps its camera and a later trace never jumps it. The rig restores the default camera its cases
+reason in, and the harness no longer presses a fit of its own.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+- [ ] **Step 10: Re-take the captures and open them**
+
+Run: `npm run harness-shot` (foreground, timeout 600000).
+
+Expected: exit 0.
+
+Open `harness-shots/asset-designer-preset-toilet.png`, `asset-designer-preset-curved-table.png`, `asset-designer-select-transform.png` and `asset-designer-select-transform-unframed.png`. Say which were opened.
+
+**Captures this changes:** none, by intent.
+- Every preset shot was already fitted by the harness's own `Shift+1`, and the product's fit is the same call on the same box. The four opened PNGs must look as Task 1 left them.
+- `-select-transform-unframed` must still show the toilet small in the corner, now through the `DEFAULT_VIEWPORT` reset.
+- A difference in any of the four is a finding to report.
+
+---
+
+### Task 11: Designer CSS and toolbar polish
+
+Critique findings 2, 5 (the Undo/Redo half only), 15, 22 and 24; rulings C#2, C#5, C#15, C#22 and C#24. **Not probe-verified; the implementer's red step is the check.**
+
+**Measured before drafting:**
+- `styles/designer.css` is 380 raw lines. Moving the mode-group rule out of it and into `designer-selection.css` (Task 5 leaves that file at ≈ 72) gives this task and Task 14 room.
+- No test pins `.rp-designer-toolbar-spacer` (grep over `tests/`).
+- `dialogKinds.test.ts:341` pins the text `.rp-dialog-warning {` in `styles/dialogs.css`, so that selector keeps its exact spelling.
+- The toolbar's exact-list case reads `.rp-designer-tools button` (a descendant selector), and `rig.toolbarButton` and the harness's `pressTool` use the same one. So wrapping Undo/Redo in a group changes no list.
+- The knob test's `.rp-designer-tools > button[aria-pressed="true"]` only reads buttons that carry `aria-pressed`, and Undo/Redo carry none.
+- No test pins a tool button's `title`. Task 4 pins the mode buttons' titles, which stay.
+- No existing designer test reads a stylesheet, so this task creates `designerStyles.test.ts`, and Tasks 13 and 14 append to it.
+
+**Files:**
+- Modify: `src/presentation/designer/DesignerToolbar.vue` (docblock; template: drop both kinds of `:title`, and replace the spacer and the two history buttons with one `.rp-designer-history` group)
+- Modify: `src/presentation/designer/DesignerSelectionModes.vue` (one docblock sentence; Task 4 leaves the rest)
+- Modify: `styles/designer.css` (`.rp-designer-unscaled`; `.rp-designer-toolbar-spacer` → `.rp-designer-history`; delete the `.rp-designer-selection-modes` block at the end)
+- Modify: `styles/designer-selection.css` (header; append the mode group, the pressed-mode override and the action fill)
+- Modify: `styles/dialogs.css:55-66` (`.rp-dialog-warning`)
+- Create: `tests/presentation/designer/designerStyles.test.ts`
+- Test: `tests/presentation/designer/designerToolbar.test.ts` (one new `describe` at the end)
+
+**Interfaces:**
+- Consumes: Task 3's `<p class="rp-designer-unscaled">` in the selection section, which takes the new style with no markup change. Task 4's mode-button `title`s, which are kept.
+- Produces:
+  - the class `rp-designer-history` (a `div` wrapping Undo and Redo, the last child of `.rp-designer-tools`);
+  - `.rp-designer-toolbar-spacer` removed from markup and stylesheet;
+  - no `title` on any `.rp-designer-tools > button` or history button;
+  - in `tests/presentation/designer/designerStyles.test.ts`, the local helpers `onlyRule`, `partial`, `parsed`, `spelled` and `declared`, which Tasks 13 and 14 append cases against.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `tests/presentation/designer/designerStyles.test.ts`:
+
+```ts
+/**
+ * The asset designer's stylesheet partials, read through lightningcss (`tests/helpers/selectors.ts`): jsdom
+ * resolves no CSS, so what a template's class LOOKS like is only what these rules declare. Every expected
+ * value is the same parser's reading of a one-rule reference sheet, so no case spells lightningcss's AST by
+ * hand; and a rule is found by its WHOLE selector under its condition, so a descendant rule's declarations
+ * are never read as this one's.
+ */
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { propertyOf, show, stylesheetRules, type StyleRule } from '../../helpers/selectors';
+
+function onlyRule(css: string): StyleRule {
+	const [rule] = stylesheetRules(css);
+	if (rule === undefined) throw new Error(`no rule parsed from: ${css}`);
+	return rule;
+}
+
+const partial = (file: string): StyleRule[] => stylesheetRules(readFileSync(`styles/${file}`, 'utf8'));
+
+/** How the parser reads `property: value`, as the one-item list `declared` answers for a single rule. */
+const parsed = (property: string, value: string): unknown[] =>
+	onlyRule(`.reference { ${property}: ${value}; }`).declarations.map((declaration) => declaration.value);
+
+/** How `show` spells a selector, read off the parser rather than retyped — attribute quoting included. */
+const spelled = (selector: string): string => onlyRule(`${selector} { color: inherit; }`).selectors.map(show).join(', ');
+
+/** Every value `property` takes in the rules whose selector list names `selector`, under `condition` (`''`: none). */
+function declared(rules: readonly StyleRule[], selector: string, property: string, condition = ''): unknown[] {
+	const wanted = spelled(selector);
+	return rules
+		.filter((rule) => rule.condition === condition && rule.selectors.map(show).includes(wanted))
+		.flatMap((rule) => rule.declarations.filter((declaration) => propertyOf(declaration) === property).map((declaration) => declaration.value));
+}
+
+describe('the designer’s warnings, toolbar and selection actions', () => {
+	/**
+	 * Critique finding 2: `--text-warning` as TEXT measured about 2.73:1 on the light inspector, under the
+	 * 4.5:1 AA floor for text this size. The sentence is normal text and the warning colour is a rule on its
+	 * leading edge — on the designer, and in the dimensions dialog, which makes the same claim.
+	 */
+	it.each([
+		['designer.css', '.rp-designer-unscaled'],
+		['dialogs.css', '.rp-dialog-warning'],
+	])('draws %s’s %s in normal text beside a warning-coloured rule', (file, selector) => {
+		const rules = partial(file);
+
+		expect(declared(rules, selector, 'color')).toEqual(parsed('color', 'var(--text-normal)'));
+		expect(declared(rules, selector, 'border-inline-start')).toEqual(parsed('border-inline-start', '2px solid var(--text-warning)'));
+		expect(declared(rules, selector, 'padding-inline-start')).toEqual(parsed('padding-inline-start', 'var(--size-4-2)'));
+	});
+
+	/** Critique finding 5, the half ruled in: a `flex: 1` spacer stops pushing once the toolbar wraps. */
+	it('ends Undo and Redo as one group on whichever row they land, with no spacer left', () => {
+		const rules = partial('designer.css');
+
+		expect(declared(rules, '.rp-designer-history', 'display')).toEqual(parsed('display', 'flex'));
+		expect(declared(rules, '.rp-designer-history', 'margin-inline-start')).toEqual(parsed('margin-inline-start', 'auto'));
+		expect(rules.flatMap((rule) => rule.selectors.map(show)).filter((selector) => selector.includes('rp-designer-toolbar-spacer'))).toEqual([]);
+	});
+
+	/** Critique finding 15: the pressed mode wore the pressed tool's accent border and read as a second tool. */
+	it('draws the selection modes as one bordered control, the pressed mode without the tool’s accent border', () => {
+		const rules = partial('designer-selection.css');
+
+		expect(declared(rules, '.rp-designer-selection-modes', 'border')).toEqual(parsed('border', '1px solid var(--background-modifier-border)'));
+		expect(declared(rules, '.rp-designer-selection-modes', 'border-radius')).toEqual(parsed('border-radius', 'var(--radius-s)'));
+		for (const pressed of [
+			'.rp-designer-tools .rp-designer-selection-modes .rp-designer-tool-active',
+			'.rp-designer-tools .rp-designer-selection-modes .rp-designer-tool-active:hover',
+		]) {
+			expect(declared(rules, pressed, 'border-color')).toEqual(parsed('border-color', 'transparent'));
+		}
+	});
+
+	/** Critique finding 22: natural-width actions over full-width asset buttons, wrapping into uneven rows. */
+	it('lets each wrapped row of selection actions fill the column', () => {
+		const rules = partial('designer-selection.css');
+
+		expect(declared(rules, '.rp-designer-inspector .rp-designer-selection-actions .rp-designer-selection-button', 'flex')).toEqual(parsed('flex', '1 1 auto'));
+	});
+});
+```
+
+At the end of `tests/presentation/designer/designerToolbar.test.ts`, append:
+
+```ts
+/**
+ * Undo and Redo sit in ONE trailing group, which `designer.css` ends on whichever row it wraps to (critique
+ * finding 5), and no toolbar button repeats its label as a tooltip (finding 24): a button's text is its
+ * name. The mode buttons keep their describing tooltips, pinned in `the selection mode buttons` above.
+ */
+describe('the toolbar’s own markup', () => {
+	it('groups Undo and Redo last, and gives no button a tooltip repeating its label', async () => {
+		const rig = await designerRig();
+		const history = rig.wrapper.find('.rp-designer-tools > .rp-designer-history');
+
+		expect(history.findAll('button').map((button) => button.text())).toEqual([t('en', 'designer.toolbar.undo'), t('en', 'designer.toolbar.redo')]);
+		expect(rig.wrapper.find('.rp-designer-tools').element.lastElementChild).toBe(history.element);
+		expect(rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.attributes('title')).filter((title) => title !== undefined)).toEqual([]);
+		rig.unmount();
+	});
+});
+```
+
+- [ ] **Step 2: Run them to watch them fail**
+
+Run: `npm run check:fast -- tests/presentation/designer/designerStyles.test.ts tests/presentation/designer/designerToolbar.test.ts`
+
+Expected: oxlint and vue-tsc clean. FAIL, 6 failed:
+- the two `draws …’s … in normal text…` cases, each with an `AssertionError` on `toEqual`, since `color` is still `var(--text-warning)`;
+- `ends Undo and Redo as one group…`, `draws the selection modes as one bordered control…` and `lets each wrapped row of selection actions fill the column`, each with `AssertionError: expected [] to deeply equal [ … ]`;
+- `groups Undo and Redo last…`, with `Error: Cannot call findAll on an empty DOMWrapper.`
+
+- [ ] **Step 3: Implement the toolbar markup**
+
+In `DesignerToolbar.vue`, append a paragraph to the header docblock before its closing ` */`:
+
+```ts
+ *
+ * **No button here carries a `title`.** Each one's text IS its accessible name, so a tooltip repeating
+ * it shows a sighted user nothing new and may be announced twice (selection polish critique, finding 24).
+ * The mode buttons' `title`s describe a gesture, which is why `DesignerSelectionModes` keeps them. Undo and
+ * Redo are ONE group, `.rp-designer-history`, which `designer.css` ends on whichever row it wraps to — the
+ * `flex: 1` spacer it replaces stopped pushing once the toolbar wrapped (finding 5).
+```
+
+Replace the whole `<template>` with:
+
+```html
+<template>
+	<div
+		class="rp-designer-tools"
+		role="toolbar"
+		:aria-label="tr('designer.toolbar')"
+	>
+		<button
+			v-for="mode in MODES"
+			:key="mode.label"
+			type="button"
+			class="rp-designer-tool-button"
+			:class="{ 'rp-designer-tool-active': runtime.activeToolId.value === mode.id }"
+			:aria-pressed="runtime.activeToolId.value === mode.id"
+			@click="runtime.setTool(mode.id)"
+		>
+			{{ tr(mode.label) }}
+		</button>
+		<DesignerSelectionModes v-if="runtime.activeToolId.value === 'select' && isOutlineSelection(designStore.selection)" />
+		<div class="rp-designer-history">
+			<button
+				type="button"
+				class="rp-designer-tool-button"
+				:disabled="!runtime.canUndo.value"
+				@click="runtime.undo()"
+			>
+				{{ tr('designer.toolbar.undo') }}
+			</button>
+			<button
+				type="button"
+				class="rp-designer-tool-button"
+				:disabled="!runtime.canRedo.value"
+				@click="runtime.redo()"
+			>
+				{{ tr('designer.toolbar.redo') }}
+			</button>
+		</div>
+	</div>
+</template>
+```
+
+In `DesignerSelectionModes.vue`'s docblock (Task 4 appended a paragraph after this one; leave it), replace:
+
+```ts
+ * `button:not(.clickable-icon)` contest (`buttonSpecificity.test.ts`) style them — no second button
+ * rule to argue. `styles/designer.css` adds only the group's own rule.
+```
+
+with:
+
+```ts
+ * `button:not(.clickable-icon)` contest (`buttonSpecificity.test.ts`) style them — no second button
+ * rule to argue. `styles/designer-selection.css` adds only the group's border and the pressed mode's
+ * plain border, which is what sets a mode apart from a pressed tool.
+```
+
+- [ ] **Step 4: Implement the stylesheet changes**
+
+In `styles/designer.css`, replace the unscaled block:
+
+```css
+/*
+ * The unscaled warning. `--text-warning`, not `--text-error`: a traced-but-uncalibrated
+ * footprint is an expected, recoverable state on the way to being designed, never a fault.
+ */
+.rp-designer-unscaled {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+}
+```
+
+with:
+
+```css
+/*
+ * The unscaled warning. The SENTENCE is `--text-normal`, and the warning colour is a rule on its leading
+ * edge: `--text-warning` as text measured about 2.73:1 on `--background-secondary` in the light theme, under
+ * the 4.5:1 AA floor for text this size (selection polish critique, finding 2). The words carry the meaning,
+ * so the rule is decoration. `--text-warning`, not `--text-error`: a traced-but-uncalibrated footprint is an
+ * expected, recoverable state on the way to being designed, never a fault.
+ */
+.rp-designer-unscaled {
+	margin: 0 0 var(--size-4-2);
+	padding-inline-start: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-normal);
+	border-inline-start: 2px solid var(--text-warning);
+}
+```
+
+Replace:
+
+```css
+.rp-designer-toolbar-spacer {
+	flex: 1;
+}
+```
+
+with:
+
+```css
+/*
+ * Undo and Redo as ONE trailing group: `margin-inline-start: auto` ends it on the row it shares with the
+ * tools and on whichever row it wraps to, where a `flex: 1` spacer stopped pushing (critique finding 5).
+ */
+.rp-designer-history {
+	display: flex;
+	gap: var(--size-4-2);
+	margin-inline-start: auto;
+}
+```
+
+Delete the last block of the file, from `/*` through the closing `}`, with the blank line before it:
+
+```css
+/*
+ * The selection's mode control (asset designer symbols spec, Decision 10), in the toolbar only while
+ * Select holds an outline. Its buttons are `.rp-designer-tool-button`s, so the flat-button and
+ * active-state rules above already style them; this only groups the three and sets them off from the
+ * tools with a rule on the leading edge.
+ */
+.rp-designer-selection-modes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+	padding-inline-start: var(--size-4-2);
+	border-inline-start: 1px solid var(--background-modifier-border);
+}
+```
+
+In `styles/designer-selection.css`, replace the header:
+
+```css
+/*
+ * The asset designer inspector's section for the selected part (asset designer symbols spec,
+ * "Inspector for the selection"). Its own partial because `designer.css` sits within a few lines of
+ * the assembler's 400-line cap. Obsidian variables only, no colour literal (SDD §84).
+ */
+```
+
+with:
+
+```css
+/*
+ * The asset designer inspector's section for the selected part (asset designer symbols spec,
+ * "Inspector for the selection"), and the selection's mode control in the toolbar. Its own partial
+ * because `designer.css` sits within a few lines of the assembler's 400-line cap. Obsidian variables
+ * only, no colour literal (SDD §84).
+ */
+```
+
+Append at the end of the file, after Task 5's `:focus-visible` rule:
+
+```css
+
+/*
+ * The selection's mode control (asset designer symbols spec, Decision 10), in the toolbar only while Select
+ * holds an outline — drawn as ONE segmented control, so a mode no longer reads as a second tool pressed
+ * beside Select (selection polish critique, finding 15). Its buttons are `.rp-designer-tool-button`s, so
+ * `designer.css`'s flat-button rules style them; the group draws the one border round all three.
+ */
+.rp-designer-selection-modes {
+	display: flex;
+	flex-wrap: wrap;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+/*
+ * The pressed MODE keeps the fill and the weight `.rp-designer-tool-active` gives it and drops the accent
+ * border the pressed TOOL keeps. Three classes, with the `:hover` twin, to outrank that rule's (0,2,0) and
+ * (0,3,0) without leaning on which partial `styles/index.css` imports last.
+ */
+.rp-designer-tools .rp-designer-selection-modes .rp-designer-tool-active,
+.rp-designer-tools .rp-designer-selection-modes .rp-designer-tool-active:hover {
+	border-color: transparent;
+}
+
+/*
+ * Each wrapped row of actions fills the column, as Edit dimensions and Start from preset below it do
+ * (critique finding 22). Qualified with `.rp-designer-inspector` for the specificity reason above.
+ */
+.rp-designer-inspector .rp-designer-selection-actions .rp-designer-selection-button {
+	flex: 1 1 auto;
+}
+```
+
+In `styles/dialogs.css`, replace `:55-66`:
+
+```css
+/*
+ * A descriptor's `warning` — a sentence about the values a form is asking for, not a refusal.
+ * `--text-warning` rather than `--text-muted`, which is what tells it from `.rp-dialog-message`
+ * beside it: the message says what the dialog is about, and this says something is not right
+ * about the data behind it. The same variable `.rp-designer-unscaled` uses on the inspector,
+ * because it is the same claim reaching the user on a second surface.
+ */
+.rp-dialog-warning {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+}
+```
+
+with:
+
+```css
+/*
+ * A descriptor's `warning` — a sentence about the values a form is asking for, not a refusal. The words
+ * are `--text-normal` and `--text-warning` is a rule on the leading edge, which is what tells it from
+ * `.rp-dialog-message` beside it: the message says what the dialog is about, and this says something is
+ * not right about the data behind it. Not `--text-warning` as TEXT: that measured about 2.73:1 in the light
+ * theme, under the 4.5:1 AA floor (selection polish critique, finding 2). The same treatment
+ * `.rp-designer-unscaled` takes on the inspector, because it is the same claim on a second surface.
+ */
+.rp-dialog-warning {
+	margin: 0;
+	padding-inline-start: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-normal);
+	border-inline-start: 2px solid var(--text-warning);
+}
+```
+
+- [ ] **Step 5: Run them to watch them pass, plus the pins that read the same markup and sheets**
+
+Run: `npm run check:fast -- tests/presentation/designer/designerStyles.test.ts tests/presentation/designer/designerToolbar.test.ts tests/presentation/designer/designerSelection.test.ts tests/presentation/dialogs/dialogKinds.test.ts tests/harness/assetDesignerSelectKnob.test.ts tests/build/buttonSpecificity.test.ts tests/build/buttonFocusRing.test.ts tests/build/libraryComponentStyles.test.ts tests/build/styles.test.ts --testTimeout=20000`
+
+Expected: oxlint and vue-tsc clean; every case passes. In particular:
+- `offers Pan, Select, every design tool, Undo and Redo, in that order` stays exact;
+- `libraryComponentStyles.test.ts` finds `rp-designer-history` declared.
+
+Run: `npm run build`
+
+Expected: exit 0. That is the assembler's check: every partial within 400 raw lines, no colour literal.
+
+- [ ] **Step 6: Lint, budgets, fallow**
+
+Run: `npx eslint src/presentation/designer/DesignerToolbar.vue src/presentation/designer/DesignerSelectionModes.vue tests/presentation/designer/designerStyles.test.ts tests/presentation/designer/designerToolbar.test.ts`
+
+Expected: no output.
+
+Run: `wc -l styles/designer.css styles/designer-selection.css styles/dialogs.css`
+
+Expected:
+- `designer.css` ≈ 376 raw (was 380);
+- `designer-selection.css` ≈ 104 (≈ 72 after Task 5);
+- `dialogs.css` ≈ 231 (was 228).
+
+All are ≤ 400.
+
+ESLint budgets:
+- `DesignerToolbar.vue`: 56 measured → ≈ 55 of 400;
+- `DesignerSelectionModes.vue`: 32 → 32;
+- `designerToolbar.test.ts`: ≈ 172 after Task 4 → ≈ 183 of 450;
+- `designerStyles.test.ts`: ≈ 60 of 450.
+
+Run: `npx fallow dead-code` then `npx fallow dupes`. Expected: nothing naming these files.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/presentation/designer/DesignerToolbar.vue src/presentation/designer/DesignerSelectionModes.vue styles/designer.css styles/designer-selection.css styles/dialogs.css tests/presentation/designer/designerStyles.test.ts tests/presentation/designer/designerToolbar.test.ts
+git commit -m "$(cat <<'EOF'
+fix(designer): legible warnings, a segmented mode control and a trailing Undo group
+
+The unscaled and dialog warnings draw normal text beside a warning-coloured rule, since
+--text-warning as text failed AA contrast in the light theme. Undo and Redo end whichever row they
+wrap to, the selection modes read as one control rather than a second pressed tool, selection
+actions fill their rows, and toolbar buttons no longer repeat their label as a tooltip.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+- [ ] **Step 8: Re-take the captures and open them**
+
+Run: `npm run harness-shot` (foreground, timeout 600000). Expected: exit 0.
+
+**Captures this changes, all to be opened:**
+- The warning rule: `asset-designer-pending` and `asset-designer-pending-anchor-light` (Task 3's line and the Dimensions warning, both now normal text with a rule).
+- The segmented mode control:
+  - `asset-designer-select-transform`, `-select-transform-light`, `-select-transform-unframed`;
+  - `-select-points`, `-select-points-light`, `-select-bend`, `-select-bend-dark`;
+  - `-select-footprint`, `-select-footprint-light`, `-select-clearance`, `-select-clearance-light`;
+  - `-select-narrow`, `-select-narrow-de`, `asset-designer-pending`.
+- The action rows filling the column: `-select-footprint`, `-select-points`, `-select-clearance`, `-select-transform`, `-select-narrow`, `-select-narrow-de`, `asset-designer-pending`.
+- Undo and Redo on a wrapped row, now at its end: `asset-designer-narrow`, `-select-narrow`, `-select-narrow-de`.
+- At 1280 the group sits where the spacer put it, so `asset-designer-dark` and `-light` should look unchanged. Open them to confirm.
+- The dialog warning and the dropped tooltips appear in no capture.
+
+---
+
+### Task 12: Legible selection marks
+
+Critique findings 7, 8, 17 and 19; rulings C#7, C#8, C#17 and C#19. **Not probe-verified; the implementer's red step is the check.**
+
+**Measured before drafting:**
+- `VERTEX_GRAB_RADIUS_PX` is 8 (the ring). The anchor dot is `POLYGON_CLOSE_TARGET_RADIUS_PX` 6.
+- After this task the ring's stroke is 2, so it covers 7–9 px.
+- A halo at 6.5 px with a 3 px stroke paints the canvas colour over 5–8 px. What reads is the dot out to 5 px, then 2 px of canvas, then the ring. The same band cuts the facing's arrowhead short of the ring.
+- vue-konva's `applyNodeProps` unsets a key a new config omits (`t.hasOwnProperty(e) || i?.setAttr(e, void 0)` in `node_modules/vue-konva/dist/vue-konva.js`). So `rotation` and `dash` may be present only when they apply: a node reused across a mode or selection change sheds them.
+- The halo is one more `Rect` in the canvas's existing `.asset-selection-handle` `v-for`. A ring selection therefore draws TWO handle nodes, and Task 2's case in `layers.test.ts` changes its count from 1 to 2 here.
+
+**Files:**
+- Modify: `src/presentation/designer/layers/selectionLayer.ts` (whole file below)
+- Modify: `src/presentation/designer/layers/clearanceLayer.ts` (`CLEARANCE_DASH_PX` exported; `CLEARANCE_STROKE_PX` 1 → 1.5, with its docblock)
+- Modify: `src/presentation/designer/layers/detailsLayer.ts` (`DETAIL_DASH_PX` exported)
+- Test: `tests/presentation/designer/selectionLayer.test.ts` (imports; one assertion added to the Transform case; the ring case rewritten; two new cases)
+- Test: `tests/presentation/designer/layers.test.ts`:
+  - one assertion in `draws the clearance distinct from the footprint…` (`:104-109`);
+  - the two `toHaveLength(1)` in Task 2's `keeps the %s ring under Draw rectangle…` become `toHaveLength(2)`
+
+**Interfaces:**
+- Consumes: `OutlinePart` (`src/domain/asset/shapeEdits.ts`), `HandleRole` (`selection/handles.ts`) and `isOutlineSelection`, which exist. Task 2's `marks` gate is unchanged: a ring selection's marks, halo included, stay under every tool.
+- Produces:
+  - `export const CLEARANCE_DASH_PX: readonly number[]` (`[8, 6]`) in `clearanceLayer.ts`;
+  - `export const DETAIL_DASH_PX: readonly number[]` (`[4, 3]`) in `detailsLayer.ts`;
+  - both consumed by `selectionLayer.ts` in `src/`, which is fallow's requirement;
+  - `HandleMarkConfig.rotation?: number` (`45` on a Bend edges handle, absent otherwise);
+  - `selectionMarks(...).outline.dash` present for a selected clearance and a selected `line: 'dashed'` detail;
+  - a ring selection's `handles` is `[halo, ring]`.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `tests/presentation/designer/selectionLayer.test.ts`, add the imports:
+
+```ts
+import { clearanceOutline } from '../../../src/presentation/designer/layers/clearanceLayer';
+import { detailOutlines } from '../../../src/presentation/designer/layers/detailsLayer';
+```
+
+In `restrokes a selected outline in the accent and draws eight square box handles and a round rotate handle`, add as its last line:
+
+```ts
+		expect(marks.handles.every((handle) => handle.strokeWidth === 2)).toBe(true);
+```
+
+Replace the whole case `rings the anchor, or the facing tip, at the grab radius and leaves it unfilled` with:
+
+```ts
+	/**
+	 * The ring stays at the GRAB radius — it shows the region a press takes — over a canvas-coloured halo
+	 * drawn first, which parts it from the anchor dot and cuts the facing's arrowhead short of it (critique
+	 * finding 8). Both unfilled, so neither hides the mark it surrounds.
+	 */
+	it('rings the anchor, or the facing tip, at the grab radius over a canvas-coloured halo, both unfilled', () => {
+		const anchor = selectionMarks(TOILET, { kind: 'anchor' }, 'transform', TOKENS, 1);
+		const facing = selectionMarks(TOILET, { kind: 'facing' }, 'transform', TOKENS, 1);
+		const tip = facingTip(TOILET, 1);
+		const [halo, ring] = anchor.handles;
+
+		expect(anchor.outline).toBeNull();
+		expect(anchor.handles).toHaveLength(2);
+		expect(halo).toMatchObject({ x: TOILET.anchor.x, y: TOILET.anchor.y, width: 13, cornerRadius: 6.5, stroke: TOKENS.canvasBackground, strokeWidth: 3 });
+		expect(ring).toMatchObject({ x: TOILET.anchor.x, y: TOILET.anchor.y, width: 16, cornerRadius: 8, stroke: TOKENS.accent, strokeWidth: 2 });
+		expect(halo).not.toHaveProperty('fill');
+		expect(ring).not.toHaveProperty('fill');
+		expect(facing.handles.map((handle) => ({ x: handle.x, y: handle.y }))).toEqual([tip, tip]);
+	});
+
+	/**
+	 * Dashed means overhead or provisional (`clearanceLayer.ts`, `detailsLayer.ts`), so a selected clearance
+	 * or dashed detail keeps its dash in the accent restroke rather than turning solid while it is edited
+	 * (critique finding 7). Compared against each layer's own config, never retyped.
+	 */
+	it('keeps the part’s own dash on the selected outline, and draws a solid one solid', () => {
+		const dashedTank = { ...TOILET, details: TOILET.details.map((detail) => (detail.id === 'detail-1' ? { ...detail, line: 'dashed' as const } : detail)) };
+
+		expect(clearanceOutline(TOILET, TOKENS, 1)?.dash).toBeDefined();
+		expect(selectionMarks(TOILET, { kind: 'clearance' }, 'transform', TOKENS, 1).outline?.dash).toEqual(clearanceOutline(TOILET, TOKENS, 1)?.dash);
+		expect(selectionMarks(dashedTank, TANK_SELECTED, 'transform', TOKENS, 1).outline?.dash).toEqual(detailOutlines(dashedTank, TOKENS, 1)[0]?.dash);
+		expect(selectionMarks(TOILET, TANK_SELECTED, 'transform', TOKENS, 1).outline).not.toHaveProperty('dash');
+		expect(selectionMarks(TOILET, { kind: 'footprint' }, 'transform', TOKENS, 1).outline).not.toHaveProperty('dash');
+	});
+
+	/** A bend handle is a diamond, so Bend edges and Edit points no longer draw the same glyph (critique finding 17). */
+	it('draws a Bend edges handle as a diamond, and rotates no other handle', () => {
+		const bend = selectionMarks(TOILET, TANK_SELECTED, 'bend', TOKENS, 1).handles;
+		const others = [
+			...selectionMarks(TOILET, TANK_SELECTED, 'points', TOKENS, 1).handles,
+			...selectionMarks(TOILET, TANK_SELECTED, 'transform', TOKENS, 1).handles,
+			...selectionMarks(TOILET, { kind: 'anchor' }, 'transform', TOKENS, 1).handles,
+		];
+
+		expect(bend.length).toBeGreaterThan(0);
+		expect(bend.every((handle) => handle.cornerRadius === 0 && handle.rotation === 45)).toBe(true);
+		expect(others.filter((handle) => 'rotation' in handle)).toEqual([]);
+	});
+```
+
+In `tests/presentation/designer/layers.test.ts`, inside `draws the clearance distinct from the footprint, so neither is mistaken for the other`, after `expect(drawn.clearance?.dash).not.toBeUndefined();` add:
+
+```ts
+		// 1.5, not 1: a 1 px accent dash measured about 2.98:1 on the light canvas (critique finding 19).
+		expect(drawn.clearance?.strokeWidth).toBe(1.5);
+```
+
+In Task 2's case `keeps the %s ring under Draw rectangle, its only selection mark`, change both `expect(designer.stage.find('.asset-selection-handle')).toHaveLength(1);` to:
+
+```ts
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(2);
+```
+
+and change its docblock's first sentence to:
+
+```ts
+	 * The anchor's and the facing's ring, over its halo, is that selection's ONLY mark — neither has an outline to restroke
+```
+
+- [ ] **Step 2: Run them to watch them fail**
+
+Run: `npx vitest run tests/presentation/designer/selectionLayer.test.ts tests/presentation/designer/layers.test.ts --testTimeout=20000`
+
+(`npm run check:fast` stops earlier, at `vue-tsc` `TS2339`, because `rotation` is not yet a member of `HandleMarkConfig`.)
+
+Expected: FAIL.
+- `selectionLayer.test.ts`, 4 failed:
+  - the Transform case, on `expected false to be true` (strokes are 1.5);
+  - the ring case, with `expected [ …(1) ] to have a length of 2 but got 1`;
+  - the dash case, with `expected undefined to deeply equal [ 8, 6 ]`;
+  - the diamond case, with `expected false to be true`.
+- `layers.test.ts`, 3 failed:
+  - the clearance case, with `expected 1 to be 1.5`;
+  - `keeps the anchor ring…` and `keeps the facing ring…`, each with `expected [ …(1) ] to have a length of 2 but got 1`.
+
+- [ ] **Step 3: Export the dashes and thicken the clearance**
+
+In `clearanceLayer.ts`, replace:
+
+```ts
+const CLEARANCE_DASH_PX = [8, 6];
+
+/** Thinner than the footprint: the outline of record is the heavier of the two marks. */
+const CLEARANCE_STROKE_PX = 1;
+```
+
+with:
+
+```ts
+export const CLEARANCE_DASH_PX: readonly number[] = [8, 6];
+
+/**
+ * The footprint's own weight: the DASH, not the stroke, tells the two apart. It was 1 px, and a 1 px
+ * accent dash measured about 2.98:1 against the light theme's white canvas, under WCAG 1.4.11's 3:1 for
+ * a non-text mark; a thicker line renders closer to the token's own colour (selection polish critique,
+ * finding 19). `selectionLayer.ts` restrokes a selected clearance in the dash above.
+ */
+const CLEARANCE_STROKE_PX = 1.5;
+```
+
+In `detailsLayer.ts`, replace:
+
+```ts
+const DETAIL_DASH_PX = [4, 3];
+```
+
+with:
+
+```ts
+/** Also the dash `selectionLayer.ts` restrokes a selected dashed detail in, so it stays dashed while edited. */
+export const DETAIL_DASH_PX: readonly number[] = [4, 3];
+```
+
+- [ ] **Step 4: Rewrite `selectionLayer.ts`**
+
+Replace the whole of `src/presentation/designer/layers/selectionLayer.ts` with:
+
+```ts
+import type { BoundingBox } from '../../../core/geometry/BoundingBox';
+import type { Point } from '../../../core/geometry/Point';
+import { polygonPolyline } from '../../../core/geometry/curvePolyline';
+import type { AssetShape } from '../../../domain/asset/AssetShape';
+import { outlineOf, type OutlinePart } from '../../../domain/asset/shapeEdits';
+import { VERTEX_GRAB_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../../editor/handleMetrics';
+import type { ThemeTokens } from '../../editor/theme/themeTokens';
+import { boundsOfZones } from '../../editor/viewport/zoneExtent';
+import { isOutlineSelection, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
+import { selectionHandles, type HandleRole } from '../selection/handles';
+import { facingTip } from './anchorLayer';
+import { CLEARANCE_DASH_PX } from './clearanceLayer';
+import { DETAIL_DASH_PX } from './detailsLayer';
+import { ARC_TOLERANCE_PX, flatPoints, type OutlineConfig } from './footprintLayer';
+
+/**
+ * What the designer draws for its selection (symbols spec, Decision 10): the selected outline
+ * restroked in the accent, in its part's own dash; a mark per handle the active mode offers; and a
+ * ring, over a halo, on the anchor or the facing tip. Every mark is sized in SCREEN pixels on a
+ * world-space layer, like `anchorLayer.ts`.
+ *
+ * **One Konva `Rect` per mark**, so the canvas renders a single `v-for` and never a `<template>`
+ * fragment inside its `VLayer`: square with no `cornerRadius`, a diamond with `rotation`, round with
+ * its radius as `cornerRadius`. vue-konva UNSETS a key a later config omits (`applyNodeProps`), so
+ * `rotation` and `dash` are present only where they apply and a node reused across a mode or
+ * selection change sheds them.
+ */
+export interface HandleMarkConfig {
+	readonly x: number;
+	readonly y: number;
+	readonly width: number;
+	readonly height: number;
+	readonly offsetX: number;
+	readonly offsetY: number;
+	/** `0` for a box or bend handle; the radius for a round one, which makes the rect a circle. */
+	readonly cornerRadius: number;
+	/** `45` on a Bend edges handle, which turns its square into a diamond; absent on every other mark. */
+	readonly rotation?: number;
+	/** Absent on the anchor/facing ring and its halo, which must not hide the mark they surround. */
+	readonly fill?: string;
+	readonly stroke: string;
+	readonly strokeWidth: number;
+	readonly strokeScaleEnabled: false;
+	readonly listening: false;
+	readonly perfectDrawEnabled: false;
+}
+
+const SELECTED_STROKE_PX = 2;
+
+/**
+ * 2, not 1.5: a 1.5 px accent handle measured about 3.35:1 against the light theme's white canvas, on
+ * WCAG 1.4.11's 3:1 floor, and a thicker stroke renders closer to the token's own colour (selection
+ * polish critique, finding 19).
+ */
+const HANDLE_STROKE_PX = 2;
+
+/** The ring is drawn at the GRAB radius, so it shows exactly the region a press will take. */
+const RING_RADIUS_PX = VERTEX_GRAB_RADIUS_PX;
+
+/**
+ * A canvas-coloured band drawn BEFORE the ring, from 5 to 8 px out. The ring's 2 px stroke covers 7 to 9
+ * px over it, so what reads is the 6 px anchor dot out to 5 px, then 2 px of canvas, then the ring — and
+ * the facing's arrowhead stops short of the ring rather than tangling with it. A selected anchor read as a
+ * slightly fatter dot without it (critique finding 8). The ring itself stays at the grab radius.
+ */
+const HALO_RADIUS_PX = 6.5;
+const HALO_STROKE_PX = 3;
+
+/** Which mark a handle wears: a box handle square, a bend handle a diamond (critique finding 17), a vertex and the rotate handle round. */
+const HANDLE_STYLE: Record<HandleRole['kind'], 'square' | 'diamond' | 'round'> = { box: 'square', edge: 'diamond', vertex: 'round', rotate: 'round' };
+
+type MarkStyle = 'square' | 'diamond' | 'round' | 'ring' | 'halo';
+
+type PointSelection = Exclude<DesignerSelection, { readonly kind: 'footprint' | 'clearance' | 'detail' }>;
+
+function pointOf(shape: AssetShape, selection: PointSelection, worldPerPixel: number): Point {
+	return selection.kind === 'anchor' ? shape.anchor : facingTip(shape, worldPerPixel);
+}
+
+function mark(at: Point, radius: number, style: MarkStyle, tokens: ThemeTokens): HandleMarkConfig {
+	return {
+		x: at.x,
+		y: at.y,
+		width: radius * 2,
+		height: radius * 2,
+		offsetX: radius,
+		offsetY: radius,
+		cornerRadius: style === 'square' || style === 'diamond' ? 0 : radius,
+		...(style === 'diamond' ? { rotation: 45 } : {}),
+		...(style === 'ring' || style === 'halo' ? {} : { fill: tokens.canvasBackground }),
+		stroke: style === 'halo' ? tokens.canvasBackground : tokens.accent,
+		strokeWidth: style === 'halo' ? HALO_STROKE_PX : HANDLE_STROKE_PX,
+		strokeScaleEnabled: false,
+		listening: false,
+		perfectDrawEnabled: false,
+	};
+}
+
+/**
+ * The selected part's own dash — the clearance's, or a `line: 'dashed'` detail's — so dashed keeps meaning
+ * overhead or provisional while the part is edited (critique finding 7). `null` for a solid outline.
+ */
+function outlineDash(shape: AssetShape, part: OutlinePart): readonly number[] | null {
+	if (part.kind === 'clearance') return CLEARANCE_DASH_PX;
+	return part.kind === 'detail' && shape.details.some((detail) => detail.id === part.id && detail.line === 'dashed') ? DETAIL_DASH_PX : null;
+}
+
+export function selectionMarks(
+	shape: AssetShape | null,
+	selection: DesignerSelection | null,
+	mode: SelectionMode,
+	tokens: ThemeTokens,
+	worldPerPixel: number,
+): { readonly outline: OutlineConfig | null; readonly handles: readonly HandleMarkConfig[] } {
+	if (shape === null || selection === null) return { outline: null, handles: [] };
+	if (!isOutlineSelection(selection)) {
+		const at = pointOf(shape, selection, worldPerPixel);
+		return { outline: null, handles: [mark(at, HALO_RADIUS_PX * worldPerPixel, 'halo', tokens), mark(at, RING_RADIUS_PX * worldPerPixel, 'ring', tokens)] };
+	}
+	const outline = outlineOf(shape, selection);
+	const dash = outlineDash(shape, selection);
+	return {
+		outline: outline === null
+			? null
+			: {
+				points: flatPoints(polygonPolyline(outline, ARC_TOLERANCE_PX * worldPerPixel)),
+				closed: true,
+				stroke: tokens.accent,
+				strokeWidth: SELECTED_STROKE_PX,
+				strokeScaleEnabled: false,
+				listening: false,
+				perfectDrawEnabled: false,
+				...(dash === null ? {} : { dash: [...dash] }),
+			},
+		handles: selectionHandles(shape, selection, mode, worldPerPixel).map((handle) =>
+			mark(handle.at, VERTEX_HANDLE_RADIUS_PX * worldPerPixel, HANDLE_STYLE[handle.role.kind], tokens),
+		),
+	};
+}
+
+/**
+ * What `Shift+2` frames: a selected outline's curve-aware box, or the anchor or facing tip as a point
+ * (`fitViewport` keeps the zoom and centres on a point). `null` — nothing to frame — with no
+ * selection or for a part the shape does not have.
+ */
+export function selectionFrame(shape: AssetShape, selection: DesignerSelection | null, worldPerPixel: number): BoundingBox | null {
+	if (selection === null) return null;
+	if (!isOutlineSelection(selection)) {
+		const at = pointOf(shape, selection, worldPerPixel);
+		return { min: at, max: at };
+	}
+	const outline = outlineOf(shape, selection);
+	return boundsOfZones(outline === null ? [] : [outline]);
+}
+```
+
+- [ ] **Step 5: Run them to watch them pass**
+
+Run: `npm run check:fast -- tests/presentation/designer/selectionLayer.test.ts tests/presentation/designer/layers.test.ts tests/presentation/designer/designerSelection.test.ts tests/presentation/designer/tools/designerSelectTool.test.ts tests/harness/assetDesignerSelectKnob.test.ts --testTimeout=20000`
+
+Expected: oxlint and vue-tsc clean; every case passes.
+
+- [ ] **Step 6: Lint, budgets, fallow**
+
+Run: `npx eslint src/presentation/designer/layers/selectionLayer.ts src/presentation/designer/layers/clearanceLayer.ts src/presentation/designer/layers/detailsLayer.ts tests/presentation/designer/selectionLayer.test.ts tests/presentation/designer/layers.test.ts`
+
+Expected: no output. The complexity of `mark` stays well under 16.
+
+Budgets (ESLint lines):
+- `selectionLayer.ts`: 89 measured → ≈ 106 of 400;
+- `clearanceLayer.ts`: 19 → 19;
+- `detailsLayer.ts`: 28 → 28;
+- `selectionLayer.test.ts`: 62 measured → ≈ 88 of 450;
+- `layers.test.ts`: ≈ 359 after Task 10 → ≈ 360 of 450.
+
+Run: `npx fallow dead-code` then `npx fallow dupes`. Expected: nothing naming these files. `CLEARANCE_DASH_PX` and `DETAIL_DASH_PX` each have a `src/` consumer in `selectionLayer.ts`.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/presentation/designer/layers/selectionLayer.ts src/presentation/designer/layers/clearanceLayer.ts src/presentation/designer/layers/detailsLayer.ts tests/presentation/designer/selectionLayer.test.ts tests/presentation/designer/layers.test.ts
+git commit -m "$(cat <<'EOF'
+fix(designer): keep a selected part's dash, halo the anchor ring, diamond bend handles
+
+A selected clearance or dashed detail keeps its dash in the accent restroke. The anchor and
+facing ring sits over a canvas-coloured halo, so it no longer merges with the dot or crosses the
+arrowhead. Bend edges handles are diamonds, distinct from Edit points' round ones, and the
+clearance and handle strokes are heavier to clear 3:1 on the light canvas.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+- [ ] **Step 8: Re-take the captures and open them**
+
+Run: `npm run harness-shot` (foreground, timeout 600000). Expected: exit 0.
+
+**Captures this changes, all to be opened:**
+- The dashed selected clearance: `asset-designer-select-clearance`, `-select-clearance-light`.
+- The halo and ring:
+  - `-select-anchor`, `-select-anchor-light`, `asset-designer-pending-anchor-light`;
+  - `-select-facing`, `-select-facing-light` (check the arrowhead stops short of the ring).
+- The diamond bend handles: `-select-bend`, `-select-bend-dark`.
+- Heavier handle strokes: `-select-transform`, `-select-transform-light`, `-select-transform-unframed`, `-select-points`, `-select-points-light`, `-select-footprint`, `-select-footprint-light`, `-select-narrow`, `-select-narrow-de`, `asset-designer-pending`.
+- The 1.5 px clearance on every toilet-based shot: `asset-designer-preset-toilet`, `-draw-rect`, `-draw-rect-light`, `-draw-circle`, `-draw-trace-detail`, plus the select shots above. Also `-preset-sofa`, `-preset-tree` and `-preset-curved-table`, where each draws a clearance.
+
+---
+
+### Task 13: Inspector clarity
+
+Critique findings 4, 11 and 25; rulings C#4, C#11 and C#25. **Not probe-verified; the implementer's red step is the check.** Written against Tasks 3 and 5's result in `DesignerSelectionInspector.vue`.
+
+**Measured before drafting:**
+- **The `aria-disabled` precedents:**
+  - `NewAssetForm.vue:263` states that a paused control is inoperative and never `:disabled`, since Chromium blurs a disabled element to `<body>`.
+  - `EmptyState.vue` binds `:aria-disabled="actionDisabled ? 'true' : undefined"` with `@click="actionDisabled ? undefined : emit('action')"`, the no-op press this task copies.
+  - `styles/dialogs.css:166` records that Obsidian dims `button[aria-disabled="true"]` like `button[disabled]`. The designer's own `:disabled` rule sets colour, background and cursor, so this task gives the attribute the same rule.
+- **Which way the facing points.** `AssetShape.facing` is "anticlockwise from +x" in the domain's terms. `facingTip` ADDS `sin(facing)` to y, and y grows DOWN the screen. So on screen 0 points right, 90 points down, and a positive angle turns clockwise. The critique's wording "0 points right, 90 points down" matches.
+- **Existing precedent a digit-first English string passes:** `'90° left'` in `locales/en/object.ts`.
+- **Ids:** `useId()` is the repo's id source (`FieldError.vue`), and `AssetDesignerView` sets `app.config.idPrefix` per app, so two designer leaves do not collide.
+- **jsdom focus:** jsdom is not known to run focus fix-up when a focused control turns disabled (not probe-verified). So in the mounted case the `document.activeElement` line is a guard, and the attribute lines are the red.
+- **Axe:** an `it.each` that needs `HARNESS_SCAN_MS` takes it from a wrapping `describe(name, { timeout }, …)`, as `accessibility.test.ts` does.
+
+**Files:**
+- Modify: `src/presentation/designer/inspector/DesignerInspector.vue` (an `<h3>` after `<DesignerSelectionInspector … />`)
+- Modify: `src/presentation/designer/inspector/DesignerSelectionInspector.vue`:
+  - the `vue` import;
+  - `NumberField` gains `hint`;
+  - `Action`'s docblock;
+  - `hintId`;
+  - the facing field in `fields`' `default` arm;
+  - the template: the `<h3>` class, the field `v-for`, and the action button
+- Modify: `src/presentation/i18n/locales/en/assetSymbols.ts`, `src/presentation/i18n/locales/de/assetSymbols.ts` (two keys each, after Task 4's)
+- Modify: `styles/designer-selection.css` (the `:disabled` rule gains `[aria-disabled='true']`; two rules appended)
+- Test: `tests/presentation/designer/designerSelectionInspector.test.ts`:
+  - `describe('what the inspector offers for each kind of part')` gains the hint case;
+  - `describe('what an action commits')`'s first case is replaced, and a no-op case is added;
+  - `describe('the inspector in the mounted designer')` gains the focus case
+- Test: `tests/presentation/designer/designerInspector.test.ts` (one case in `describe('the designer’s inspector')`)
+- Test: `tests/presentation/designer/designerStyles.test.ts` (one `describe` appended after Task 11's)
+- Test: `tests/harness/accessibilityDesignerSelection.test.ts` (the first case becomes a two-row `it.each` inside a `describe` carrying the timeout; Task 5's case stays)
+
+**Interfaces:**
+- Consumes: Task 3's `pendingPart`/`fields` shape; Task 5's `import { computed, nextTick, onBeforeUnmount, ref } from 'vue'` and `root` ref; Task 11's `designerStyles.test.ts` helpers `partial`, `parsed` and `declared`.
+- Produces:
+  - locale keys `designer.inspector.asset` and `designer.selection.angle.hint`;
+  - the class `rp-designer-section-title` on both inspector `<h3>`s;
+  - the class `rp-designer-field-hint`;
+  - an unavailable action is `aria-disabled="true"` (never `disabled`), and its click runs nothing;
+  - the facing's `angle` input carries `aria-describedby` naming the hint paragraph.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `designerSelectionInspector.test.ts`, inside `describe('what the inspector offers for each kind of part')`, after `draws nothing for a part the shape lacks`, add:
+
+```ts
+	/**
+	 * Critique finding 25: "Angle in degrees" did not say which way 0 points or which way the angle grows.
+	 * `facingTip` adds the sine to y and y grows DOWN the screen, so 0 points right and 90 points down; the
+	 * field names that sentence as its description. No other field carries one.
+	 */
+	it('describes the facing’s angle by where 0 and 90 point, and no other field', () => {
+		const facing = mountFor({ kind: 'facing' }).wrapper;
+		const describedBy = facing.find('[name="angle"]').attributes('aria-describedby');
+
+		expect(describedBy).toBeDefined();
+		expect(facing.find(`[id="${String(describedBy)}"]`).text()).toBe(t('en', 'designer.selection.angle.hint'));
+		expect(mountFor(BOWL).wrapper.findAll('input[aria-describedby]')).toHaveLength(0);
+	});
+```
+
+In `describe('what an action commits')`, replace the case `disables Bring forward on the topmost detail and Send backward on the bottom one` with:
+
+```ts
+	/**
+	 * Critique finding 11: an unavailable reorder is `aria-disabled`, never `disabled` — pressing Send backward
+	 * until the detail is last would otherwise disable the button that has focus, and Chromium drops focus to
+	 * the page. `NewAssetForm.vue`'s paused controls take the same split.
+	 */
+	it('marks Bring forward unavailable on the topmost detail and Send backward on the bottom one, disabling neither', () => {
+		const top = mountFor(BOWL).wrapper;
+		const bottom = mountFor({ kind: 'detail', id: 'detail-1' }).wrapper;
+		const state = (wrapper: VueWrapper, name: string) => {
+			const button = wrapper.find(`[name="${name}"]`);
+			return [button.attributes('aria-disabled'), (button.element as HTMLButtonElement).disabled];
+		};
+
+		expect(state(top, 'bring-forward')).toEqual(['true', false]);
+		expect(state(top, 'send-backward')).toEqual([undefined, false]);
+		expect(state(bottom, 'bring-forward')).toEqual([undefined, false]);
+		expect(state(bottom, 'send-backward')).toEqual(['true', false]);
+	});
+
+	/** A GUARD, green before and after: a press on an unavailable reorder reaches no edit. */
+	it('commits nothing for a press on an unavailable reorder', async () => {
+		const { wrapper, applied } = mountFor(BOWL);
+
+		await wrapper.find('[name="bring-forward"]').trigger('click');
+		await flushPromises();
+
+		expect(applied).toEqual([]);
+	});
+```
+
+In `describe('the inspector in the mounted designer')`, after Task 5's `it.each`, add:
+
+```ts
+	/**
+	 * Critique finding 11, mounted: the reorder lands, the button turns unavailable under the focus it still
+	 * holds, and a second press writes nothing. jsdom is not known to blur a control that turns disabled, so
+	 * the `activeElement` line is a guard; the attribute lines are what fail before the fix.
+	 */
+	it('keeps focus on Send backward once the detail is last, and a second press writes nothing', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		try {
+			useAssetDesignStore(rig.pinia).select(BOWL);
+			await settle();
+			const button = rig.wrapper.find('.rp-designer-selection [name="send-backward"]').element as HTMLButtonElement;
+			button.focus();
+			button.click();
+			await settleUntil(async () => (await rig.document()).shape?.details[0]?.id === 'detail-2', 'the reorder to land');
+			await settle();
+
+			expect(button.getAttribute('aria-disabled')).toBe('true');
+			expect(button.disabled).toBe(false);
+			expect(document.activeElement).toBe(button);
+
+			button.click();
+			await settle();
+			expect((await rig.document()).shape?.details.map((detail) => detail.id)).toEqual(['detail-2', 'detail-1']);
+		} finally {
+			rig.unmount();
+		}
+	});
+```
+
+In `designerInspector.test.ts`, after `draws a section for the selected part only while something is selected`, add:
+
+```ts
+	/**
+	 * Critique finding 4: under a selected detail's section, the asset's "Dimensions 380 × 700 mm" read as
+	 * that detail's size. The asset's own block now opens with its own heading, after the part's section.
+	 */
+	it('heads the asset’s own block, after the selected part’s section when there is one', () => {
+		const headings = (selection: DesignerSelection | null) => mountInspector({}, selection).findAll('h3').map((heading) => heading.text());
+
+		expect(headings(null)).toEqual([t('en', 'designer.inspector.asset')]);
+		expect(headings({ kind: 'footprint' })).toEqual([t('en', 'designer.selection.footprint'), t('en', 'designer.inspector.asset')]);
+	});
+```
+
+At the end of `designerStyles.test.ts`, append:
+
+```ts
+describe('the inspector’s headings, hint and unavailable actions', () => {
+	/** Critique finding 4: the "Inspector" `<h2>` and the section `<h3>`s were styled alike, so a section added no hierarchy. */
+	it('sets the section headings in normal text at semibold, under the muted panel title', () => {
+		const rules = partial('designer-selection.css');
+
+		expect(declared(rules, '.rp-designer-inspector .rp-designer-section-title', 'color')).toEqual(parsed('color', 'var(--text-normal)'));
+		expect(declared(rules, '.rp-designer-inspector .rp-designer-section-title', 'font-weight')).toEqual(parsed('font-weight', 'var(--font-semibold)'));
+	});
+
+	/** Critique finding 11: an unavailable action is `aria-disabled` now, and must look exactly as a `:disabled` one did. */
+	it('draws an aria-disabled selection action as a disabled one', () => {
+		const rules = partial('designer-selection.css');
+		const disabled = '.rp-designer-inspector .rp-designer-selection-button:disabled';
+		const unavailable = ".rp-designer-inspector .rp-designer-selection-button[aria-disabled='true']";
+
+		expect(declared(rules, unavailable, 'color')).toEqual(parsed('color', 'var(--text-faint)'));
+		for (const property of ['color', 'background-color', 'cursor']) {
+			expect(declared(rules, unavailable, property)).toEqual(declared(rules, disabled, property));
+		}
+	});
+
+	/** Critique finding 25: the facing angle's direction hint reads quieter than its label. */
+	it('draws a field hint in muted text', () => {
+		expect(declared(partial('designer-selection.css'), '.rp-designer-field-hint', 'color')).toEqual(parsed('color', 'var(--text-muted)'));
+	});
+});
+```
+
+In `tests/harness/accessibilityDesignerSelection.test.ts`, change `import { expect, it } from 'vitest';` to `import { describe, expect, it } from 'vitest';`.
+
+Replace the first case, `reports no violations for the designer with a detail selected`, from `it(` through its closing `});`, with:
+
+```ts
+/** A detail's section, and the facing's, whose angle field names its direction hint by `aria-describedby` (critique finding 25). */
+describe('the designer with a part selected', { timeout: HARNESS_SCAN_MS }, () => {
+	it.each([
+		[{ kind: 'detail', id: 'detail-2' }, 'detail-name'],
+		[{ kind: 'facing' }, 'angle'],
+	] as const)('reports no violations with %o selected', async (selection, field) => {
+		const rig = await designerRig({ shape: toiletShape() });
+		try {
+			useAssetDesignStore(rig.pinia).select(selection);
+			await settle();
+
+			expect(rig.wrapper.find(`.rp-designer-selection [name="${field}"]`).exists()).toBe(true);
+			const results = await axe.run(rig.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			rig.unmount();
+		}
+	});
+});
+```
+
+- [ ] **Step 2: Run them to watch them fail**
+
+Run: `npx vitest run tests/presentation/designer/designerSelectionInspector.test.ts tests/presentation/designer/designerInspector.test.ts tests/presentation/designer/designerStyles.test.ts tests/harness/accessibilityDesignerSelection.test.ts --testTimeout=20000`
+
+(`npm run check:fast` stops earlier, at `vue-tsc` `TS2345`, because the two keys are not yet `StringKey`s.)
+
+Expected: FAIL.
+- `designerSelectionInspector.test.ts`, 3 failed:
+  - `describes the facing’s angle…`, with `AssertionError: expected undefined to be defined`;
+  - `marks Bring forward unavailable…`, with `AssertionError: expected [ undefined, true ] to deeply equal [ 'true', false ]`;
+  - `keeps focus on Send backward…`, with `AssertionError: expected null to be 'true'`.
+- `designerInspector.test.ts`, 1 failed: `heads the asset’s own block…`, with `AssertionError: expected [] to deeply equal [ …(1) ]`.
+- `designerStyles.test.ts`, 3 failed, each an `AssertionError` on `toEqual`.
+- `accessibilityDesignerSelection.test.ts` passes: a facing selection already scans clean. It becomes the check that the new `aria-describedby` resolves.
+- The guard `commits nothing for a press on an unavailable reorder` passes.
+
+- [ ] **Step 3: Add the strings**
+
+`src/presentation/i18n/locales/en/assetSymbols.ts`, before `} as const;` (after Task 4's keys):
+
+```ts
+	// The asset-level block's own heading, so its Dimensions never read as the selected part's (critique finding 4).
+	'designer.inspector.asset': 'Asset',
+	// Under the facing's angle field, as its description: `facingTip` adds the sine to y, and y grows DOWN the screen.
+	'designer.selection.angle.hint': '0 points right, 90 points down',
+```
+
+`src/presentation/i18n/locales/de/assetSymbols.ts`, before `};`:
+
+```ts
+	'designer.inspector.asset': 'Objekt',
+	'designer.selection.angle.hint': '0 zeigt nach rechts, 90 nach unten',
+```
+
+- [ ] **Step 4: Implement the headings**
+
+In `DesignerInspector.vue`, directly after the `<DesignerSelectionInspector … />` element (before `<dl`), add:
+
+```html
+		<!--
+			The asset's own block gets a heading of its own, so its Dimensions never read as the size of the
+			part whose section sits right above them (selection polish critique, finding 4).
+		-->
+		<h3 class="rp-designer-panel-title rp-designer-section-title">
+			{{ tr('designer.inspector.asset') }}
+		</h3>
+```
+
+In `DesignerSelectionInspector.vue`, change the section heading's opening tag to:
+
+```html
+		<h3 class="rp-designer-panel-title rp-designer-section-title">
+```
+
+- [ ] **Step 5: Implement the unavailable actions and the hint**
+
+In `DesignerSelectionInspector.vue`, change the Vue import (Task 5's) to:
+
+```ts
+import { computed, nextTick, onBeforeUnmount, ref, useId } from 'vue';
+```
+
+In `interface NumberField`, after `readonly resets?: true;`, add:
+
+```ts
+	/** A one-line description drawn under the field and linked by `aria-describedby`; only the facing's angle has one. */
+	readonly hint?: StringKey;
+```
+
+Replace `interface Action {` with:
+
+```ts
+/**
+ * `disabled` marks an action with nothing to do here — Bring forward on the topmost detail, Send backward on
+ * the bottom one. It is drawn `aria-disabled` and its press runs nothing, never `:disabled`: pressing Send
+ * backward until the detail is last would otherwise disable the very button that has focus, and Chromium
+ * drops focus to `<body>` (selection polish critique, finding 11). `NewAssetForm.vue`'s paused controls take
+ * the same split, and `EmptyState.vue`'s action the same no-op press.
+ */
+interface Action {
+```
+
+After `const refusal = ref<AppError | null>(null);` (and Task 5's `root` and `onBeforeUnmount` block that follow it), add:
+
+```ts
+/** The facing angle's hint paragraph, which its field names by `aria-describedby`; `useId` is unique per leaf's app. */
+const hintId = useId();
+```
+
+In `fields`' `default` arm, replace the returned line:
+
+```ts
+			return [{ name: 'angle', label: 'designer.selection.angle', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
+```
+
+with:
+
+```ts
+			return [{ name: 'angle', label: 'designer.selection.angle', hint: 'designer.selection.angle.hint', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
+```
+
+In the template, replace the number-field block:
+
+```html
+		<label
+			v-for="field in fields"
+			:key="field.name"
+			class="rp-designer-field"
+		>
+			{{ tr(field.label) }}
+			<input
+				type="number"
+				:name="field.name"
+				step="any"
+				inputmode="decimal"
+				:value="Math.round(field.value)"
+				@change="(event: Event) => void onNumber(field, event)"
+			>
+		</label>
+```
+
+with:
+
+```html
+		<template
+			v-for="field in fields"
+			:key="field.name"
+		>
+			<label class="rp-designer-field">
+				{{ tr(field.label) }}
+				<input
+					type="number"
+					:name="field.name"
+					step="any"
+					inputmode="decimal"
+					:value="Math.round(field.value)"
+					:aria-describedby="field.hint === undefined ? undefined : hintId"
+					@change="(event: Event) => void onNumber(field, event)"
+				>
+			</label>
+			<!-- Outside the label, so the hint is the field's DESCRIPTION and never part of its name. -->
+			<p
+				v-if="field.hint !== undefined"
+				:id="hintId"
+				class="rp-designer-field-hint"
+			>
+				{{ tr(field.hint) }}
+			</p>
+		</template>
+```
+
+Replace the action button's two bindings:
+
+```html
+				:disabled="action.disabled"
+				@click="action.run()"
+```
+
+with:
+
+```html
+				:aria-disabled="action.disabled ? 'true' : undefined"
+				@click="action.disabled ? undefined : action.run()"
+```
+
+In `styles/designer-selection.css`, replace:
+
+```css
+.rp-designer-inspector .rp-designer-selection-button:disabled {
+```
+
+with:
+
+```css
+/* `[aria-disabled]` beside `:disabled`: an unavailable reorder keeps its focus (`DesignerSelectionInspector`'s `Action`). */
+.rp-designer-inspector .rp-designer-selection-button:disabled,
+.rp-designer-inspector .rp-designer-selection-button[aria-disabled='true'] {
+```
+
+Append at the end of the file:
+
+```css
+
+/*
+ * The two SECTION headings — the selected part's and the asset's own — one level under the muted panel
+ * title: normal text at semibold, where both had worn the title's own muted medium and added no hierarchy
+ * (selection polish critique, finding 4). Two classes, to outrank `.rp-designer-panel-title` in `designer.css`
+ * without leaning on import order.
+ */
+.rp-designer-inspector .rp-designer-section-title {
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+/* The facing angle's direction hint (critique finding 25): a description under its field, quieter than the label. */
+.rp-designer-field-hint {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+```
+
+- [ ] **Step 6: Run them to watch them pass**
+
+Run: `npm run check:fast -- tests/presentation/designer/designerSelectionInspector.test.ts tests/presentation/designer/designerInspector.test.ts tests/presentation/designer/designerStyles.test.ts tests/harness/accessibilityDesignerSelection.test.ts tests/presentation/designer/assetDesignerRoot.test.ts tests/build/libraryComponentStyles.test.ts tests/build/buttonSpecificity.test.ts --testTimeout=20000`
+
+Expected: oxlint and vue-tsc clean; every case passes. Both axe rows are clean, and `libraryComponentStyles.test.ts` finds `rp-designer-section-title` and `rp-designer-field-hint` declared.
+
+Run: `npm run build`. Expected: exit 0.
+
+- [ ] **Step 7: Lint, budgets, fallow**
+
+Run: `npx eslint src/presentation/designer/inspector/DesignerInspector.vue src/presentation/designer/inspector/DesignerSelectionInspector.vue src/presentation/i18n/locales/en/assetSymbols.ts src/presentation/i18n/locales/de/assetSymbols.ts tests/presentation/designer/designerSelectionInspector.test.ts tests/presentation/designer/designerInspector.test.ts tests/presentation/designer/designerStyles.test.ts tests/harness/accessibilityDesignerSelection.test.ts`
+
+Expected: no output.
+
+If `sentence-case-locale-module` refuses `'0 points right, 90 points down'`, STOP and report rather than rewording. `'90° left'` in `en/object.ts` is the precedent that it passes.
+
+Budgets:
+- `DesignerInspector.vue`: 128 measured → ≈ 131 ESLint lines of 400;
+- `DesignerSelectionInspector.vue`: ≈ 236 after Task 5 → ≈ 249 of 400;
+- `en/assetSymbols.ts`: ≈ 104 raw after Task 4 → ≈ 108;
+- `de/assetSymbols.ts`: ≈ 98 → ≈ 100;
+- `styles/designer-selection.css`: ≈ 104 after Task 11 → ≈ 124 raw of 400;
+- `designerSelectionInspector.test.ts`: ≈ 325 after Task 5 → ≈ 378 of 450;
+- `designerInspector.test.ts`: 137 measured → ≈ 145 of 450;
+- `designerStyles.test.ts`: ≈ 60 → ≈ 82 of 450;
+- `accessibilityDesignerSelection.test.ts`: ≈ 37 after Task 5 → ≈ 40 of 450.
+
+`en.ts` and `de.ts` are untouched.
+
+Run: `npx fallow dead-code` then `npx fallow dupes`. Expected: nothing naming these files. The axe `it.each` replaces the single case and so removes a likely clone rather than adding one.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add src/presentation/designer/inspector/DesignerInspector.vue src/presentation/designer/inspector/DesignerSelectionInspector.vue src/presentation/i18n/locales/en/assetSymbols.ts src/presentation/i18n/locales/de/assetSymbols.ts styles/designer-selection.css tests/presentation/designer/designerSelectionInspector.test.ts tests/presentation/designer/designerInspector.test.ts tests/presentation/designer/designerStyles.test.ts tests/harness/accessibilityDesignerSelection.test.ts
+git commit -m "$(cat <<'EOF'
+fix(designer): head the asset block, keep focus on an unavailable reorder, explain the facing angle
+
+The asset's own block gets an "Asset" heading and both section headings sit visibly under the
+panel title, so the asset's dimensions no longer read as the selected part's. Bring forward and
+Send backward turn aria-disabled rather than disabled, so focus stays on them at the end of the
+order. The facing angle field describes where 0 and 90 point.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+- [ ] **Step 9: Re-take the captures and open them**
+
+Run: `npm run harness-shot` (foreground, timeout 600000). Expected: exit 0.
+
+**Captures this changes, all to be opened:**
+- The "Asset" heading appears in every capture that draws the inspector over a design:
+  - `asset-designer-dark`, `-light`, `-narrow`;
+  - every `asset-designer-preset-*`, `-select-*`, `-pending*` and `-draw-*` shot.
+
+  Open at least `asset-designer-dark`, `-select-transform`, `-select-narrow-de` and `asset-designer-pending`.
+- The semibold section headings: every `-select-*` and `-pending*` shot.
+- The facing hint: `asset-designer-select-facing`, `-select-facing-light`.
+- The topmost detail's Bring forward in `-select-transform` should look exactly as before, now through `[aria-disabled='true']`. Open it to confirm.
+- Focus staying put appears in no capture.
+
+---
+
+### Task 14: Stack the inspector under the canvas at a sidebar width
+
+Critique finding 6, ruling C#6 (CSS stacking, no drawer). **Not probe-verified; the implementer's red step and the captures are the check.** No PLANNING CONFLICT: the canvas keeps a measured height (below).
+
+**Measured before drafting (read-only; the plan editor is not changed):**
+- **The designer's layout** (`styles/designer.css`):
+  - `.renovation-asset-designer` is a flex column at `height: 100%` holding toolbar, `.rp-designer-body`, notices and status.
+  - `.rp-designer-body` is a flex ROW (`flex: 1; min-height: 0`) holding `.rp-designer-canvas` (`flex: 1; min-height: 0; min-width: 0`) and `.rp-designer-inspector` (`flex: 0 0 auto; width: 14rem; overflow-y: auto; border-left`).
+  - At a 460 px leaf that leaves the canvas about 236 px wide.
+  - No element is a container today.
+- **How the canvas gets its size:**
+  - `EditorSurface.vue` measures its `.rp-plan-canvas` element's `clientWidth`/`clientHeight` in a `ResizeObserver` and writes `editor.setStageSize`.
+  - `.rp-plan-canvas` (`styles/editor.css:160`) is `flex: 1; min-height: 0`, stretched inside `.rp-designer-canvas`'s row, so its height IS the canvas region's height.
+- **The plan editor's answer:**
+  - `ResponsiveEditorShell.vue` computes `data-layout` in TypeScript.
+  - The constrained layout moves the inspector into an absolutely positioned `.rp-inspector-drawer` (`styles/editor-layout.css`) beside `container-type: inline-size` on its shell (`styles/editor-visual-shell.css:3`).
+  - The ruling declines the drawer, so no attribute and no Vue change are needed. An `@container` rule is enough.
+- **Why the canvas keeps a MEASURED height.** Stacked, both regions take a ZERO flex basis (`flex: 3 1 0` and `flex: 2 1 0`), so their heights are fixed shares of `.rp-designer-body`, whatever the inspector holds.
+  - A content-sized inspector (`flex: 0 0 auto`) would take the whole column once a detail is selected, and `EditorSurface` would measure a canvas of 0. That is the conflict the ruling told the drafter to stop on, and this split avoids it.
+  - The inspector already has `min-height: 0` and `overflow-y: auto`, so it scrolls inside its share.
+- **Budget:** `designer.css` sits at ≈ 376 raw after Task 11, too close for a ~40-line block, so the rules go in a new partial `styles/designer-narrow.css`.
+- **Specificity:** every override is qualified with `.renovation-asset-designer` (0,2,0), so it outranks `designer.css`'s (0,1,0) rules without depending on import order.
+- **Container name:** `tests/build/styles.test.ts` requires every named `@container` to name a container the shipped sheet declares. `container-name: rp-designer` is that declaration, in the longhand `project-list-narrow.css` uses.
+- **Threshold:** 35rem is the critique's ~560 px at Obsidian's 16 px root.
+
+**Files:**
+- Create: `styles/designer-narrow.css`
+- Modify: `styles/index.css` (one `@import`, directly after `@import "./designer-selection.css";`)
+- Test: `tests/presentation/designer/designerStyles.test.ts` (one `describe` appended after Task 13's)
+
+**Interfaces:**
+- Consumes: Task 11's `designerStyles.test.ts` helpers `onlyRule`, `partial`, `parsed` and `declared`.
+- Produces:
+  - the container `rp-designer` (inline-size) on `.renovation-asset-designer`;
+  - below 35rem, `.rp-designer-body` stacks as a column with the canvas above the inspector at a 3 : 2 split.
+
+  No markup or TypeScript change.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `tests/presentation/designer/designerStyles.test.ts`:
+
+```ts
+/**
+ * Critique finding 6: at a 460px leaf the inspector kept its 14rem and left the canvas about 236px wide.
+ * Below 35rem the inspector stacks under the canvas, in FIXED flex shares — a content-sized inspector would
+ * take the whole column once a detail is selected and leave `EditorSurface` measuring a canvas of nothing.
+ * The condition is the parser's reading of the query itself, never a hand-written serialisation.
+ */
+describe('the designer at a sidebar leaf’s width', () => {
+	const narrow = (): string => onlyRule('@container rp-designer (width < 35rem) { .reference { color: inherit; } }').condition;
+
+	it('makes the designer root the container whose width is asked', () => {
+		const rules = partial('designer-narrow.css');
+
+		expect(declared(rules, '.renovation-asset-designer', 'container-type')).toEqual(parsed('container-type', 'inline-size'));
+		expect(declared(rules, '.renovation-asset-designer', 'container-name')).toEqual(parsed('container-name', 'rp-designer'));
+	});
+
+	it('stacks the inspector under the canvas below 35rem, in fixed shares of the body', () => {
+		const rules = partial('designer-narrow.css');
+
+		expect(narrow()).not.toBe('');
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-body', 'flex-direction', narrow())).toEqual(parsed('flex-direction', 'column'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-canvas', 'flex', narrow())).toEqual(parsed('flex', '3 1 0'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'flex', narrow())).toEqual(parsed('flex', '2 1 0'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'width', narrow())).toEqual(parsed('width', 'auto'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'border-left', narrow())).toEqual(parsed('border-left', 'none'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'border-top', narrow())).toEqual(parsed('border-top', '1px solid var(--background-modifier-border)'));
+	});
+});
+```
+
+- [ ] **Step 2: Run it to watch it fail**
+
+Run: `npm run check:fast -- tests/presentation/designer/designerStyles.test.ts`
+
+Expected: oxlint and vue-tsc clean. FAIL, 2 failed, each with `Error: ENOENT: no such file or directory, open 'styles/designer-narrow.css'`.
+
+- [ ] **Step 3: Implement**
+
+Create `styles/designer-narrow.css`:
+
+```css
+/*
+ * The asset designer at a sidebar leaf's width (selection polish critique, finding 6). Below 35rem —
+ * about 560px at Obsidian's 16px root — the inspector keeping its 14rem left the canvas about 236px wide
+ * at a 460px leaf, with the selected part a small figure under its handles. There the inspector stacks
+ * UNDER the canvas. No drawer: that is the plan editor's constrained answer (`editor-layout.css`), and a
+ * second mechanism this surface does not need.
+ *
+ * **The canvas keeps a MEASURED height, and the split is why.** Both regions take a zero flex basis, so
+ * their heights are fixed shares of `.rp-designer-body` — three to two — whatever the inspector holds. A
+ * content-sized inspector would take the whole column once a detail is selected, and `EditorSurface`'s
+ * resize observer would then measure a canvas of nothing. The inspector already scrolls (`designer.css`),
+ * now inside its share.
+ *
+ * The container is the Vue root, the nearest element spanning the leaf that is not inside the body it
+ * rearranges; `inline-size` only, so the height chain `designer.css` calls load-bearing is untouched.
+ * Every override names `.renovation-asset-designer` too, so it outranks `designer.css`'s single-class rules
+ * without depending on which partial `styles/index.css` imports last. Obsidian variables only (SDD §84).
+ */
+.renovation-asset-designer {
+	container-type: inline-size;
+	container-name: rp-designer;
+}
+
+@container rp-designer (width < 35rem) {
+	.renovation-asset-designer .rp-designer-body {
+		flex-direction: column;
+	}
+
+	.renovation-asset-designer .rp-designer-canvas {
+		flex: 3 1 0;
+	}
+
+	.renovation-asset-designer .rp-designer-inspector {
+		flex: 2 1 0;
+		width: auto;
+		border-left: none;
+		border-top: 1px solid var(--background-modifier-border);
+	}
+}
+```
+
+In `styles/index.css`, after `@import "./designer-selection.css";`, add:
+
+```css
+@import "./designer-narrow.css";
+```
+
+- [ ] **Step 4: Run it to watch it pass, plus the stylesheet gates**
+
+Run: `npm run check:fast -- tests/presentation/designer/designerStyles.test.ts tests/build/styles.test.ts tests/presentation/designer/assetDesignerRoot.test.ts tests/harness/harness.test.ts --testTimeout=20000`
+
+Expected: oxlint and vue-tsc clean; every case passes. That includes `styles.test.ts`'s `queries no container the sheet does not declare`.
+
+Run: `npm run build`
+
+Expected: exit 0. The assembler resolves the new `@import`, and the partial is ≈ 41 raw lines of 400 with no colour literal.
+
+- [ ] **Step 5: Lint, budgets, fallow**
+
+Run: `npx eslint tests/presentation/designer/designerStyles.test.ts`
+
+Expected: no output.
+
+Budgets:
+- `styles/designer-narrow.css` ≈ 41 raw of 400;
+- `styles/index.css` 125 → 126 raw;
+- `designerStyles.test.ts` ≈ 82 → ≈ 102 ESLint lines of 450;
+- `styles/designer.css` untouched.
+
+Run: `npx fallow dead-code` then `npx fallow dupes`. Expected: nothing naming these files.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add styles/designer-narrow.css styles/index.css tests/presentation/designer/designerStyles.test.ts
+git commit -m "$(cat <<'EOF'
+fix(designer): stack the inspector under the canvas at a sidebar width
+
+Below a 35rem container width the inspector kept its 14rem and left the canvas about 236px wide.
+It now stacks under the canvas, the two taking fixed three-to-two shares of the body so the canvas
+keeps a measured height however tall the inspector is. CSS only; no drawer.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+- [ ] **Step 7: Re-take the captures and OPEN each**
+
+Run: `npm run harness-shot` (foreground, timeout 600000). The three narrow shots already carry `width: 460` in the table.
+
+Expected: exit 0.
+
+Open `harness-shots/asset-designer-narrow.png`, `harness-shots/asset-designer-select-narrow.png` and `harness-shots/asset-designer-select-narrow-de.png`. In each, check:
+- the canvas spans the pane's width above the inspector;
+- the toilet (or the empty state in `-narrow`) draws inside a canvas taller than the inspector;
+- the inspector scrolls rather than pushing the canvas to nothing;
+- no horizontal overflow.
+
+Also open `asset-designer-dark.png` and `asset-designer-select-transform.png` (1280 px). They must be unchanged, inspector beside the canvas, since 1280 px is above the threshold. Say which PNGs were opened.
+
+If a narrow capture shows a canvas with no height, STOP and report: that is ruling C#6's stated failure, and the split's percentage-free flex basis is the part to question first.
+
+**Captures this changes:** `asset-designer-narrow`, `asset-designer-select-narrow`, `asset-designer-select-narrow-de`. No 1280 px capture changes.

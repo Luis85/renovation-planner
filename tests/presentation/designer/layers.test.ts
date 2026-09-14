@@ -106,6 +106,8 @@ describe('the designer’s drawing vocabulary', () => {
 
 		expect(drawn.footprint?.dash).toBeUndefined();
 		expect(drawn.clearance?.dash).not.toBeUndefined();
+		// 1.5, not 1: a 1 px accent dash measured about 2.98:1 on the light canvas (critique finding 19).
+		expect(drawn.clearance?.strokeWidth).toBe(1.5);
 	});
 
 	/**
@@ -507,7 +509,7 @@ describe('the designer canvas, mounted', () => {
 	});
 
 	/**
-	 * The anchor and facing ring is that selection ONLY mark - neither has an outline to restroke
+	 * The anchor's and the facing's ring, over its halo, is that selection's ONLY mark — neither has an outline to restroke
 	 * - so it stays under every tool, as an outline selection accent restroke does (follow-up A1).
 	 */
 	it.each([['anchor'], ['facing']] as const)('keeps the %s ring under Draw rectangle, its only selection mark', async (kind) => {
@@ -516,13 +518,13 @@ describe('the designer canvas, mounted', () => {
 		useAssetDesignStore(designer.pinia).select({ kind });
 		await settle();
 
-		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(1);
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(2);
 		expect(designer.stage.findOne('.asset-selection-outline')).toBeUndefined();
 
 		designer.toolbarButton(t('en', 'designer.toolbar.draw-rect')).click();
 		await settle();
 
-		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(1);
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(2);
 		designer.unmount();
 	});
 

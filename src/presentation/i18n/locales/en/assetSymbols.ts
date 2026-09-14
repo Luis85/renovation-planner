@@ -45,4 +45,9 @@ export const assetSymbolsEn = {
 	'preset.tree': 'Tree',
 	'preset.shrub': 'Shrub',
 	'preset.bed': 'Bed',
+	'designer.toolbar.select': 'Select',
+	'designer.selection.mode': 'Selection mode',
+	'designer.selection.mode.transform': 'Transform',
+	'designer.selection.mode.points': 'Edit points',
+	'designer.selection.mode.bend': 'Bend edges',
 } as const;

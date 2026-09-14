@@ -46,4 +46,9 @@ export const assetSymbolsDe: Record<keyof typeof assetSymbolsEn, string> = {
 	'preset.tree': 'Baum',
 	'preset.shrub': 'Strauch',
 	'preset.bed': 'Bett',
+	'designer.toolbar.select': 'Auswählen',
+	'designer.selection.mode': 'Auswahlmodus',
+	'designer.selection.mode.transform': 'Transformieren',
+	'designer.selection.mode.points': 'Punkte bearbeiten',
+	'designer.selection.mode.bend': 'Kanten biegen',
 };

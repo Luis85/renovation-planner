@@ -364,3 +364,17 @@
 	margin-inline-end: auto;
 	color: var(--text-muted);
 }
+
+/*
+ * The selection's mode control (asset designer symbols spec, Decision 10), in the toolbar only while
+ * Select holds an outline. Its buttons are `.rp-designer-tool-button`s, so the flat-button and
+ * active-state rules above already style them; this only groups the three and sets them off from the
+ * tools with a rule on the leading edge.
+ */
+.rp-designer-selection-modes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+	padding-inline-start: var(--size-4-2);
+	border-inline-start: 1px solid var(--background-modifier-border);
+}

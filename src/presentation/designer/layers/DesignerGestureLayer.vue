@@ -2,7 +2,7 @@
 /**
  * The asset designer's transient layer: the footprint or clearance being traced, and the
  * calibration tape being measured, read from the leaf's `RenderState` and drawn in SCREEN
- * space over the five world-space layers.
+ * space over every world-space layer.
  *
  * Every projection and the close-target rule come from `editor/layers/gestureGeometry.ts`,
  * and the drawing itself is `GestureSketch.vue` (finding E9) — the same component

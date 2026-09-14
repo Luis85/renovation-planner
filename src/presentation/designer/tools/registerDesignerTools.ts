@@ -6,6 +6,7 @@ import { CalibrateTool, type KnownDistanceSupplier } from '../../editor/tools/ca
 import { DrawPolygonTool } from '../../editor/tools/draw-polygon-tool';
 import type { EditorTool } from '../../editor/tools/editor-tool';
 import type { ToolManager } from '../../editor/tools/tool-manager';
+import { DesignerSelectTool, type DesignerSelectToolDeps } from './designer-select-tool';
 import { SetAnchorTool } from './set-anchor-tool';
 import { SetFacingTool } from './set-facing-tool';
 
@@ -57,14 +58,15 @@ import { SetFacingTool } from './set-facing-tool';
  */
 
 /**
- * FIVE tools and no Select. The designer shipped a `SelectTool` over an empty candidate set
- * with a move factory that threw, under a docblock saying Task B8 would give the surface a
- * selection; B8 shipped an inspector that reads the design and no selection, and the button
- * stayed — a live control that did nothing but stop a primary-button pan, which slice 14's
- * amendment refuses. Selection returns with the first thing on this canvas that can be
- * selected and moved, and it returns with its candidates and its gesture together.
+ * Select is FIRST, and it is back on the condition this note used to set for it. The designer once
+ * shipped a `SelectTool` over an empty candidate set with a move factory that threw — a live control
+ * that did nothing but stop a primary-button pan, which slice 14's amendment refuses — and it was
+ * withdrawn until selection could return "with its candidates and its gesture together". The symbols
+ * spec's Decision 10 is that return: `hitDesign` is its candidates (footprint, clearance, details,
+ * anchor, facing, in a stated order) and `DesignerSelectTool` its gesture.
  */
 export const DESIGNER_TOOL_LABELS = {
+	select: 'designer.toolbar.select',
 	'trace-footprint': 'designer.toolbar.trace-footprint',
 	'trace-clearance': 'designer.toolbar.trace-clearance',
 	'set-anchor': 'designer.toolbar.set-anchor',
@@ -123,22 +125,21 @@ export interface DesignerToolDeps {
 	readonly hasGeometryToRescale: () => boolean;
 	/** Asks the user to accept that rescale; `true` proceeds. Never called when the above is false. */
 	readonly confirmRecalibration: () => Promise<boolean>;
-	/**
-	 * Where a completed trace hands control back to (Task 10). This surface registers no
-	 * `select` tool — see this file's own FIVE-tools note above `DESIGNER_TOOL_LABELS` — so
-	 * `runtime.ts` binds this to camera mode (`setTool(null)`) rather than to Select.
-	 */
-	readonly returnToCamera: () => void;
+	/** Where a completed trace hands control back to (Task 10): Select, as on a plan. */
+	readonly returnToSelect: () => void;
+	/** The Select tool's own deps — the leaf's design store and one conditional shape write. */
+	readonly selectTool: DesignerSelectToolDeps;
 }
 
 export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDeps): void {
-	const { assetId, edits, returnToCamera } = deps;
+	const { assetId, edits, returnToSelect } = deps;
 	/**
 	 * TOTAL over `DesignerToolId`, which is what makes the toolbar's table and this function
 	 * one fact rather than two. Registered by iterating the record's own values, so there is no
 	 * second list of "the ones to register".
 	 */
 	const tools: Readonly<Record<DesignerToolId, EditorTool>> = {
+		select: new DesignerSelectTool(deps.selectTool),
 		// `createdId` is `null` for both traces, which is the second of the two states
 		// `PolygonCommand.createdId` declares and the one that interface predicted: tracing an
 		// Asset's outline REPLACES a field of the asset already open, so there is no new entity
@@ -153,9 +154,7 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 			},
 			reportRejected: deps.reportRejected,
 			reportInvalidInput: deps.reportInvalidInput,
-			// The designer registers no `select` tool (see the FIVE-tools note above), so a
-			// completed trace returns to camera mode rather than to a tool that does not exist.
-			onCompleted: returnToCamera,
+			onCompleted: returnToSelect,
 		}),
 		'trace-clearance': new DrawPolygonTool({
 			id: 'trace-clearance',
@@ -167,9 +166,7 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 			},
 			reportRejected: deps.reportRejected,
 			reportInvalidInput: deps.reportInvalidInput,
-			// Same reason as `trace-footprint` above: no Select tool here, so completing a
-			// clearance trace hands control back to camera mode.
-			onCompleted: returnToCamera,
+			onCompleted: returnToSelect,
 		}),
 		'set-anchor': new SetAnchorTool({
 			createCommand: (anchor) => edits.setAnchor({ assetId, anchor }),

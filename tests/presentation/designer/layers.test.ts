@@ -38,7 +38,8 @@ import { ringSector } from '../../../src/domain/asset/presets/presetGeometry';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { footprintOutline } from '../../../src/presentation/designer/layers/footprintLayer';
 import { clearanceOutline } from '../../../src/presentation/designer/layers/clearanceLayer';
-import { detailOutlines } from '../../../src/presentation/designer/layers/detailsLayer';
+import { detailOutlines, footprintEdge } from '../../../src/presentation/designer/layers/detailsLayer';
+import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { anchorMark, facingArrow } from '../../../src/presentation/designer/layers/anchorLayer';
 import { footprintFromDimensions, type AssetShape } from '../../../src/domain/asset/AssetShape';
 import type { AssetDesignDto } from '../../../src/application/queries/GetAssetDesign';
@@ -207,6 +208,23 @@ describe('the designer’s drawing vocabulary', () => {
 		expect(detailOutlines(WITH_DETAILS, TOKENS, UNIT_SCALE)[0].points.length).toBeGreaterThan(8);
 		expect(footprintOutline(circular, TOKENS, UNIT_SCALE)?.points.length).toBeGreaterThan(8);
 	});
+
+	/**
+	 * A solid detail is filled with the canvas colour, so one drawn against the footprint covers the
+	 * inner half of the footprint's stroke. The footprint is stroked AGAIN, unfilled, over the details —
+	 * and only when there are details, since otherwise nothing can cover it.
+	 */
+	it('restrokes the footprint over its details, unfilled, and only when there are details', () => {
+		expect(footprintEdge(null, TOKENS, UNIT_SCALE)).toBeNull();
+		expect(footprintEdge(BASE, TOKENS, UNIT_SCALE)).toBeNull();
+		expect(footprintEdge(WITH_DETAILS, TOKENS, UNIT_SCALE)).toEqual(footprintOutline(WITH_DETAILS, TOKENS, UNIT_SCALE));
+		expect(footprintEdge(WITH_DETAILS, TOKENS, UNIT_SCALE)).not.toHaveProperty('fill');
+	});
+
+	/** The canvas keys each detail node by its id, so a reorder moves nodes rather than repainting them. */
+	it('carries each detail’s id on its config', () => {
+		expect(detailOutlines(WITH_DETAILS, TOKENS, UNIT_SCALE).map((detail) => detail.id)).toEqual(['d1', 'd2']);
+	});
 });
 
 function context(design: AssetDesignDto): AssetDesignerContext {
@@ -321,11 +339,12 @@ describe('what the designer’s fit shortcuts frame', () => {
 	});
 
 	/**
-	 * `Shift+2` frames the SELECTION, and this canvas has nothing selectable on it until Task
-	 * B5. A fit with nothing to frame does NOTHING — `boundsOfZones`' own rule — because a jump
-	 * to nowhere costs the user the view they had and says nothing about why.
+	 * `Shift+2` frames the SELECTION. A fit with nothing to frame does NOTHING — `boundsOfZones`' own
+	 * rule — because a jump to nowhere costs the user the view they had and says nothing about why.
+	 * Renamed deliberately: the canvas HAS a selection since the symbols spec's Decision 10, so the old
+	 * title's reason ("nothing is selectable yet") stopped being true while the behaviour stood.
 	 */
-	it('does nothing on the selection shortcut, because nothing on this canvas is selectable yet', async () => {
+	it('does nothing on the selection shortcut while nothing is selected', async () => {
 		const designer = await mountDesigner(assetDesign({ shape: WITH_CLEARANCE }));
 		const store = useEditorStore(designer.pinia);
 		const before = store.viewport;
@@ -333,6 +352,20 @@ describe('what the designer’s fit shortcuts frame', () => {
 		pressOnCanvas(designer.canvasEl as HTMLElement, 'Digit2');
 
 		expect(store.viewport).toEqual(before);
+		designer.unmount();
+	});
+
+	/** A selected detail is what `Shift+2` fits — its own box, not the design's. */
+	it('frames the selected detail on the selection shortcut', async () => {
+		const designer = await mountDesigner(assetDesign({ shape: WITH_DETAILS }));
+		const store = useEditorStore(designer.pinia);
+		const before = store.viewport;
+		useAssetDesignStore(designer.pinia).select({ kind: 'detail', id: 'd2' });
+
+		pressOnCanvas(designer.canvasEl as HTMLElement, 'Digit2');
+
+		const d2 = { min: { x: -100, y: -100 }, max: { x: 100, y: 100 } };
+		expect(store.viewport).toEqual(fitViewport(d2, { width: 800, height: 600 }, 48, before.zoom));
 		designer.unmount();
 	});
 
@@ -362,15 +395,18 @@ describe('the designer canvas, mounted', () => {
 	 * The layers in their order, by NAME — an assertion about the scene rather than about the
 	 * template, so a layer dropped from the canvas fails here even if its module survives.
 	 */
-	it('draws the six layers, beneath-to-above, with the background first and the gesture last', async () => {
+	it('draws the seven layers, beneath-to-above, with the background first and the gesture last', async () => {
 		const designer = await mountDesigner(assetDesign());
 
+		// `asset-selection` joined above the committed picture and below the gesture (symbols spec,
+		// Decision 10): a handle sits over every part it can be drawn across, and a gesture over it.
 		expect(designer.stage?.getLayers().map((layer) => layer.name())).toEqual([
 			'asset-background',
 			'asset-footprint',
 			'asset-details',
 			'asset-clearance',
 			'asset-anchor',
+			'asset-selection',
 			'asset-gesture',
 		]);
 		designer.unmount();
@@ -441,8 +477,42 @@ describe('the designer canvas, mounted', () => {
 			false,
 			false,
 			false,
+			false,
 		]);
 		designer.unmount();
+	});
+
+	/** The selection is DRAWN, not merely computed: the restroke and one mark per handle, on the stage. */
+	it('draws a selected detail’s outline and its nine Transform handles', async () => {
+		const designer = await mountDesigner(assetDesign({ shape: WITH_DETAILS }));
+		useAssetDesignStore(designer.pinia).select({ kind: 'detail', id: 'd2' });
+		await settle();
+
+		expect(designer.stage?.findOne('.asset-selection-outline')).toBeDefined();
+		expect(designer.stage?.find('.asset-selection-handle')).toHaveLength(9);
+		designer.unmount();
+	});
+
+	/** A gesture's preview replaces the committed design on the canvas until its write settles. */
+	it('draws a gesture’s preview in place of the committed design', async () => {
+		const designer = await mountDesigner(assetDesign());
+		useAssetDesignStore(designer.pinia).setPreview({ ...BASE, footprint: expectOk(footprintFromDimensions(2000, 1000)) });
+		await settle();
+
+		const line = designer.stage?.findOne('.asset-footprint-outline') as Konva.Line | undefined;
+		expect(line?.points()).toEqual([-1000, -500, 1000, -500, 1000, 500, -1000, 500]);
+		designer.unmount();
+	});
+
+	it('restrokes the footprint as the details layer’s last node, and only over details', async () => {
+		const detailed = await mountDesigner(assetDesign({ shape: WITH_DETAILS }));
+		const layer = detailed.stage?.findOne<Konva.Layer>('.asset-details');
+		expect(layer?.getChildren().at(-1)?.name()).toBe('asset-footprint-edge');
+		detailed.unmount();
+
+		const plain = await mountDesigner(assetDesign());
+		expect(plain.stage?.findOne('.asset-footprint-edge')).toBeUndefined();
+		plain.unmount();
 	});
 
 	/**

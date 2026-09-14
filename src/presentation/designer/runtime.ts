@@ -20,6 +20,9 @@ import { useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { knownDistanceSupplier } from '../editor/shell/knownDistance';
 import { registerDesignerTools, type DesignerToolDeps } from './tools/registerDesignerTools';
+import type { DesignerSelectToolDeps } from './tools/designer-select-tool';
+import { designerSnapCandidates } from './selection/snapCandidates';
+import { createEditShape, type EditShape } from './selection/editShape';
 import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-state-refresh';
 import { wrapDispatcher } from '../editor/tools/wrap-dispatcher';
 import { useSaveStateStore } from '../editor/save-state/save-state-store';
@@ -118,6 +121,13 @@ export interface DesignerRuntime {
 	/** The active tool id, `null` for camera mode; mirrors `ToolManager` reactively. */
 	readonly activeToolId: Ref<ToolId | null>;
 	readonly setTool: (id: ToolId | null) => void;
+	/**
+	 * One whole-shape edit of the design this leaf read, dispatched through `toolDispatcher` as ONE
+	 * `SetAssetShape` conditional on that read's `geometryVersion` — or not at all when the edit
+	 * refuses or nothing is drawn (`selection/editShape.ts`). RESOLVES, like `commitHeight`, so a field
+	 * can place a refusal beside itself; a key binding hands the result to `notifyIfRefused`.
+	 */
+	readonly editShape: EditShape;
 }
 
 /**
@@ -176,6 +186,31 @@ function calibrationDeps(
 				danger: true,
 			})) === 'confirm',
 		supplyKnownDistance: knownDistanceSupplier(dialogs),
+	};
+}
+
+/**
+ * The Select tool's deps (symbols spec, Decision 10), built here rather than inline for
+ * `calibrationDeps`' reason: `buildRuntime` sits at its 100-line budget. Every member reads the store
+ * PER CALL, and the write is the reversible adapter conditional on the version the gesture read.
+ */
+function selectToolDeps(
+	store: ReturnType<typeof useAssetDesignStore>,
+	edits: ReversibleAssetDesignCommands,
+	assetId: AssetId,
+): DesignerSelectToolDeps {
+	return {
+		design: () => {
+			const design = store.design;
+			return design?.shape ? { shape: design.shape, geometryVersion: design.geometryVersion } : null;
+		},
+		selection: () => store.selection,
+		mode: () => store.mode,
+		select: (next) => store.select(next),
+		setPreview: (shape) => store.setPreview(shape),
+		createCommand: (shape, expected) => edits.setShape({ assetId, shape, expected }),
+		reportRejected: reportDispatchFailure,
+		reportInvalidInput: notifyOperationFailure,
 	};
 }
 
@@ -291,8 +326,9 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			bindViewport: () => viewportAdapter,
 			selection,
 			snapService: EDITOR_SNAP_SERVICE,
-			// The designer's tools snap to nothing (spec §4.2); the shared service is the identity here.
-			snapCandidates: () => ({}),
+			// The footprint's and every detail's vertices and the anchor, minus the part being dragged
+			// (symbols spec, Decision 10). Read PER CALL, like `subject.calibration` below.
+			snapCandidates: (exclude) => designerSnapCandidates(store.design?.shape ?? null, exclude ?? []),
 			commandDispatcher: toolDispatcher,
 			writeLedger: geometryLedger,
 			renderState,
@@ -309,23 +345,21 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * `EditorSurface`. The manager stays framework-pure (no Vue), so ONE mirror at this seam is
 	 * what a Vue consumer reads, and `setTool` is the one writer of both.
 	 *
-	 * Hoisted above `registerDesignerTools` (Task 10) so `returnToCamera` exists in time to be
-	 * threaded into the two trace tools' `onCompleted` below — `toolManager` is already built
-	 * at this point, which is all `createToolSwitch` needs.
+	 * Hoisted above `registerDesignerTools` (Task 10) so `setTool` exists in time to be threaded
+	 * into the two trace tools' `onCompleted` below — `toolManager` is already built at this point,
+	 * which is all `createToolSwitch` needs.
 	 */
 	const { activeToolId } = storeToRefs(editor);
 	const setTool = createToolSwitch(toolManager, activeToolId);
-	// This surface registers no `select` tool (see `DESIGNER_TOOL_LABELS`'s own note), so a
-	// completed trace returns to camera mode — `setTool(null)` — rather than to a tool that
-	// does not exist.
-	const returnToCamera = (): void => setTool(null);
 
 	registerDesignerTools(toolManager, {
 		assetId,
 		edits,
 		reportRejected: reportDispatchFailure,
 		reportInvalidInput: notifyOperationFailure,
-		returnToCamera,
+		// A completed trace returns to Select, which this surface registers since Decision 10.
+		returnToSelect: () => setTool('select'),
+		selectTool: selectToolDeps(store, edits, assetId),
 		...calibrationDeps(useDialogStore(), store),
 	});
 
@@ -397,6 +431,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		renderState,
 		activeToolId,
 		setTool,
+		editShape: createEditShape(() => store.design, (shape, expected) => toolDispatcher.run(edits.setShape({ assetId, shape, expected }))),
 	};
 }
 

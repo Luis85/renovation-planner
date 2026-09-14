@@ -101,11 +101,17 @@ describe('every tool the toolbar offers', () => {
 		rig.unmount();
 	});
 
-	it('offers Pan, the five design tools, Undo and Redo — and no Select, because nothing here is selectable', async () => {
+	/**
+	 * Select is back (symbols spec, Decision 10) — with its candidates (`hitDesign`) and its gesture
+	 * (`DesignerSelectTool`), the condition `registerDesignerTools.ts` set for returning it. This list
+	 * is updated deliberately with that change and stays EXACT.
+	 */
+	it('offers Pan, Select, the five design tools, Undo and Redo', async () => {
 		const rig = await designerRig();
 		const labels = rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.text());
 		expect(labels).toEqual([
 			t('en', 'designer.toolbar.pan'),
+			t('en', 'designer.toolbar.select'),
 			t('en', 'designer.toolbar.trace-footprint'),
 			t('en', 'designer.toolbar.trace-clearance'),
 			t('en', 'designer.toolbar.set-anchor'),
@@ -193,9 +199,9 @@ describe('the toolbar itself', () => {
 
 /**
  * The Shift constraint is advertised in the STATUS region while a constraining tool is active,
- * and nowhere else. A modifier no control shows and no menu lists is one nobody finds; four of
- * this surface's five tools take it, so leaving it unmentioned would leave it unmentioned on
- * this surface entirely.
+ * and nowhere else. A modifier no control shows and no menu lists is one nobody finds; most of
+ * this surface's tools take it, so leaving it unmentioned would leave it unmentioned on this
+ * surface entirely.
  */
 describe('the shift hint', () => {
 	it('appears for a tool that constrains and not for one that does not', async () => {

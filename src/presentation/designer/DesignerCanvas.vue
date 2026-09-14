@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * The asset designer's Konva stage: the six layers of `layers/` — five world-space and the
+ * The asset designer's Konva stage: the layers of `layers/` — the world-space ones and the
  * gesture layer above them — drawn through the same gesture surface the plan editor uses
- * (design slice B4, ADR-0015). Counted from `DesignerLayerName` rather than remembered: it was
- * four until the review fixes gave the designer a transient layer, and five until Task 5 gave
- * it a details layer for interior linework.
+ * (design slice B4, ADR-0015). Named by `DesignerLayerName` and not counted here: the count
+ * changed with a transient layer, a details layer and the selection layer, and a number in
+ * this sentence was wrong after each.
  *
  * **`EditorSurface` is shared, not copied.** Task B1 lifted every pointer, wheel and key door
  * out of `PlanCanvas.vue` for exactly this mount — some thirty documented findings about
@@ -47,22 +47,21 @@ import type Konva from 'konva';
 import { followPixelRatio } from '../editor/scene/followPixelRatio';
 import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import type { StringKey } from '../i18n/locales/en';
-import type { ToolId } from '../editor/tools/editor-tool';
 import { useEditorStore } from '../stores/EditorStore';
 import EditorSurface from '../editor/surface/EditorSurface.vue';
 import BackgroundLayer from '../editor/layers/background/BackgroundLayer.vue';
 import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
 import { useThemeTokens } from '../editor/theme/useThemeTokens';
 import { STAGE_PIXELS, viewportTransform, worldPerScreenPixel } from '../editor/viewport/Viewport';
-import { useSelectionStore } from '../editor/selection/selection-store';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import { designFrame, useDesignerRuntime } from './runtime';
 import { BACKGROUND_LAYER, designerLayerConfig } from './layers/backgroundLayer';
 import { footprintOutline } from './layers/footprintLayer';
 import { clearanceOutline } from './layers/clearanceLayer';
-import { detailOutlines } from './layers/detailsLayer';
+import { detailOutlines, footprintEdge } from './layers/detailsLayer';
 import { anchorMark, facingArrow } from './layers/anchorLayer';
+import { selectionFrame, selectionMarks } from './layers/selectionLayer';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
 
 /**
@@ -90,7 +89,8 @@ const editor = useEditorStore();
  */
 const editorRefs = storeToRefs(editor);
 const viewport = editorRefs.viewport;
-const { design } = storeToRefs(useAssetDesignStore());
+const designStore = useAssetDesignStore();
+const { design, selection, mode, preview } = storeToRefs(designStore);
 
 const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
@@ -98,39 +98,14 @@ const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // reach — the shape Task B4 shipped while there were no tools to reach.
 const { toolManager, renderState, setTool } = useDesignerRuntime();
 /**
- * The selection store, for `EditorSurface`'s Escape routing alone — none of this surface's five
- * registered tools ever call `context.selection.select(...)`, so `selectedIds` never leaves
- * `[]` today. Wired anyway, the way `PlanCanvas.vue` wires the SAME store class: a second
- * `useSelectionStore()` call resolves to one Pinia instance per app, so this is not a second
- * store to keep in step with the one `runtime.ts` already hands every tool through
- * `EditorContext.selection` — it is that store, read here.
- */
-const selection = useSelectionStore();
-
-/**
- * E8's fix is scoped to the Plan Editor's Zones (Task 14) — this surface's own `selection`
- * never holds anything (see above), so there is nothing an arrow key here could ever move.
+ * E8's fix is scoped to the Plan Editor's Zones (Task 14) — no arrow key moves anything on this
+ * surface yet, so there is nothing for the nudge to do.
  * A named function rather than an inline template arrow: a bare `() => Promise.resolve()`
  * in the template reads `Promise` off the render context instead of the module scope.
  */
 const nudgeSelection = (): Promise<void> => Promise.resolve();
 /** No area task exists in this surface, so Enter on its canvas finishes nothing. */
 const noArea = (): void => undefined;
-
-/**
- * `routeEscape`'s `returned-to-select` arm always asks for the Plan Editor's neutral tool,
- * `'select'` — a tool this surface never registers (`registerDesignerTools` names
- * `trace-footprint`, `trace-clearance`, `set-anchor`, `set-facing` and `calibrate`, and no
- * `select`). `runtime.setTool('select')` would throw `no tool is registered for id 'select'`
- * the first time a user pressed Escape over an empty-buffered trace or a not-yet-pressed
- * anchor/facing tool. Camera mode — `null` — is this surface's own neutral state (see the
- * file header: "Camera mode is still what 'no active tool' means"), so that is what this
- * surface returns to instead; `routeEscape` itself is unaware of the substitution; the
- * outcome it reports back is unread here.
- */
-function escapeSetTool(id: ToolId | null): void {
-	setTool(id === 'select' ? null : id);
-}
 
 const transform = computed(() => viewportTransform(viewport.value));
 
@@ -140,7 +115,12 @@ const transform = computed(() => viewportTransform(viewport.value));
  */
 const worldPerPixel = computed(() => worldPerScreenPixel(viewport.value, STAGE_PIXELS));
 
-const shape = computed(() => design.value?.shape ?? null);
+/**
+ * What every world layer draws: a gesture's in-flight PREVIEW while one is live, else the committed
+ * design. `DesignerSelectTool` clears the preview only once its write has settled and the refresh has
+ * landed, so the canvas never flashes back to the old shape in between.
+ */
+const shape = computed(() => preview.value ?? design.value?.shape ?? null);
 
 /**
  * The asset's own spec sheet — Task B7's stored reference, finally read by something that
@@ -154,6 +134,8 @@ const pixelsPerWorldUnit = computed(() => design.value?.calibration?.pixelsPerWo
 
 const footprint = computed(() => footprintOutline(shape.value, tokens.value, worldPerPixel.value));
 const details = computed(() => detailOutlines(shape.value, tokens.value, worldPerPixel.value));
+const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value, worldPerPixel.value));
+const marks = computed(() => selectionMarks(shape.value, selection.value, mode.value, tokens.value, worldPerPixel.value));
 const clearance = computed(() => clearanceOutline(shape.value, tokens.value, worldPerPixel.value));
 const anchor = computed(() => anchorMark(shape.value, tokens.value, worldPerPixel.value));
 const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPixel.value));
@@ -163,17 +145,17 @@ const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPix
  * there is one, the clearance around it, since a clearance reaches outside the outline it
  * belongs to and a fit that cropped it would hide the thing being fitted.
  *
- * `Shift+2` frames the SELECTION and answers `null`, because there is nothing selectable on
- * this canvas yet. A fit with nothing to frame does nothing, which is `boundsOfZones`' own
- * rule: a jump to nowhere costs the user the view they had and says nothing about why.
+ * `Shift+2` frames the SELECTION — `selectionFrame`, `null` with nothing selected. A fit with nothing
+ * to frame does nothing, which is `boundsOfZones`' own rule: a jump to nowhere costs the user the view
+ * they had and says nothing about why.
  *
- * The box itself is `designFrame` (`runtime.ts`), which Apply preset fits to as well, so the two
+ * The whole-design box is `designFrame` (`runtime.ts`), which Apply preset fits to as well, so the two
  * cannot frame the same design differently.
  */
 function framedBounds(all: boolean): BoundingBox | null {
 	const current = shape.value;
-	if (!all || current === null) return null;
-	return designFrame(current);
+	if (current === null) return null;
+	return all ? designFrame(current) : selectionFrame(current, selection.value, worldPerPixel.value);
 }
 
 /**
@@ -197,9 +179,9 @@ onBeforeUnmount(() => stopPixelRatio());
 		:editor="editor"
 		:framed-bounds="framedBounds"
 		:canvas-label="CANVAS_LABEL"
-		:set-tool="escapeSetTool"
-		:has-selection="() => selection.selectedIds.length > 0"
-		:clear-selection="() => selection.clear()"
+		:set-tool="setTool"
+		:has-selection="() => designStore.selection !== null"
+		:clear-selection="() => designStore.select(null)"
 		:nudge-selection="nudgeSelection"
 		:finish-area="noArea"
 	>
@@ -232,9 +214,13 @@ onBeforeUnmount(() => stopPixelRatio());
 				</VLayer>
 				<VLayer :config="designerLayerConfig('asset-details', transform)">
 					<VLine
-						v-for="(detail, index) in details"
-						:key="index"
+						v-for="detail in details"
+						:key="detail.id"
 						:config="{ ...detail, name: 'asset-detail' }"
+					/>
+					<VLine
+						v-if="footprintEdgeLine !== null"
+						:config="{ ...footprintEdgeLine, name: 'asset-footprint-edge' }"
 					/>
 				</VLayer>
 				<VLayer :config="designerLayerConfig('asset-clearance', transform)">
@@ -255,6 +241,20 @@ onBeforeUnmount(() => stopPixelRatio());
 					<VLine
 						v-if="facing !== null"
 						:config="{ ...facing.head, name: 'asset-facing-head' }"
+					/>
+				</VLayer>
+				<!--
+					The selection: above every committed part it can be drawn across, below the gesture.
+				-->
+				<VLayer :config="designerLayerConfig('asset-selection', transform)">
+					<VLine
+						v-if="marks.outline !== null"
+						:config="{ ...marks.outline, name: 'asset-selection-outline' }"
+					/>
+					<VRect
+						v-for="(handle, index) in marks.handles"
+						:key="index"
+						:config="{ ...handle, name: 'asset-selection-handle' }"
 					/>
 				</VLayer>
 				<!--

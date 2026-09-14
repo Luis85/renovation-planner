@@ -255,6 +255,7 @@ describe('an asset with a spec sheet', () => {
 			'asset-details',
 			'asset-clearance',
 			'asset-anchor',
+			'asset-selection',
 			'asset-gesture',
 		]);
 	});

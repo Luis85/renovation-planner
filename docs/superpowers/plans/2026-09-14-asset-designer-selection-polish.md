@@ -5826,3 +5826,484 @@ Also open `asset-designer-dark.png` and `asset-designer-select-transform.png` (1
 If a narrow capture shows a canvas with no height, STOP and report: that is ruling C#6's stated failure, and the split's percentage-free flex basis is the part to question first.
 
 **Captures this changes:** `asset-designer-narrow`, `asset-designer-select-narrow`, `asset-designer-select-narrow-de`. No 1280 px capture changes.
+
+---
+
+## Amendment 2 — 2026-09-14, from Task 9's simplification review
+
+Task 9 reviewed the selection feature at `441a9609`, after Tasks 1–8 and 10–14 and a merge of `origin/main`. `fallow dead-code` and `fallow dupes` were both clean there. The review found 15 changes that shrink code without changing behaviour (about −55 `src` lines and −4 coverage arms) and rejected 9 candidates (R1–R9), each rejection with its reason. Controller rulings:
+
+- **All 15 accepted, as ONE batched Task 15:** they are small, independent and behaviour-neutral edits over the same files, so they get one implementer and one review.
+- **Finding 11 checked:** `tsconfig.json`'s `lib` already includes `ES2023.Array`. An Obsidian 1.13 runtime ships a Chromium newer than the one those array methods need.
+- **Rejections R1–R9 stand as the reviewer ruled.** R1, R4, R6 and R9 would change behaviour a test pins, and R2 would edit the shared plan-editor `CurveTool`.
+- **Finding 8** also closes the deferred minor about `designer-select-tool.ts`'s stale `pointerDown` comment.
+- **Task 16** is the final docs, changelog and re-capture task, drafted from reading at `441a9609`. It runs last.
+
+### Task 15: Simplify the selection feature (Task 9's findings 1–15)
+
+**Files:** exactly the locations each finding names below. They are all under `src/presentation/designer/{selection,tools,inspector}` and `src/domain/asset/{shapeEdits,detailEdits}.ts`, with no test file unless a finding says so.
+
+**Interfaces:** Finding 2 imports `ShapeEdit` from `selection/editShape.ts`, which is unchanged. Finding 7 moves `DetailWrite` so that `draw-detail-tool.ts` exports it and `registerDesignerTools.ts` imports it. No runtime signature changes.
+
+Every finding is a behaviour-neutral refactor, so the covering tests it names must stay green without edits. No new test is written (TDD's red step does not apply to a pure refactor): if a covering test has to change, that finding changed behaviour, so STOP and report it.
+
+- [ ] **Step 1: Record the baseline.** Run `npm run check:fast -- tests/presentation/designer tests/domain/asset` in the foreground and note the pass count.
+- [ ] **Step 2: Apply the findings one at a time,** in order. Re-run the covering tests each finding names after applying it.
+- [ ] **Step 3: Measure.** Run `npm run check:fast -- tests/presentation/designer tests/domain/asset tests/presentation/editor/shell` (same pass count as step 1, plus the shell guard), then `npx eslint <every touched file>`, `npx fallow dead-code` and `npx fallow dupes`.
+- [ ] **Step 4: Commit** as `refactor(designer): simplify the selection feature (Task 9 findings)`, with the trailer `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`. Commit per finding group if that reads better. Record the ESLint line counts before and after for each touched `src` file in the report.
+
+#### Finding 1: `SetFacingTool`'s `activate` and `deactivate` re-spell `cancel`, and one of their arms is never taken
+
+- **Location:** `src/presentation/designer/tools/set-facing-tool.ts` — `activate` (96–100), `deactivate` (102–107), `cancel` (146–150)
+- **Kind:** duplicated step / unreachable guard
+- **Cut:** the bodies of `activate` and `deactivate`, which each repeat `this.origin = null` and a context-guarded `clearPreview`. `deactivate`'s own `if (context !== null)` is gone with it.
+- **Replacement:** `activate(context) { this.context = context; this.cancel(); }` and `deactivate() { this.cancel(); this.context = null; }`. `clearPreview` then has two callers (`cancel` and `pointerUp`). It can be inlined as `context.renderState.measurement = null`, which drops the helper and its method.
+- **Behaviour change:** none. `activate` sets the context before `cancel` reads it, and `deactivate` clears it after.
+- **Covering tests:** `tests/presentation/designer/tools/designerToolUnits.test.ts` › "sets nothing before it is activated, and nothing after it is deactivated", plus its other SetFacingTool cases.
+- **Coverage arms freed:** `set-facing-tool.ts:105:2` then/else `[2, 0]`. The else arm is never taken, because ToolManager never deactivates a tool it did not activate. That is 2 arms. `set-facing-tool.ts:149:2` else `[3, 0]` (cancel before activate) stays untaken. It is owed one case like `drawDetailTool.test.ts` › "draws nothing before activation…", or it stays a known miss.
+- **Est. net:** −7 lines.
+- **Verdict:** QUALIFIES — the same reset is written three times, and one of its guards has no producer.
+
+#### Finding 2: `ShapeEdit` is exported once and spelled again in both inspector components
+
+- **Location:** `src/presentation/designer/selection/editShape.ts:9` exports `ShapeEdit`. `DesignerSelectionInspector.vue:56` redeclares `type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>`. `DesignerInspector.vue:46` spells the same function type inline in its `editShape` prop.
+- **Kind:** duplicated step (a type)
+- **Cut:** the local `type ShapeEdit` in `DesignerSelectionInspector.vue` and its `Result` import, with `ValidationError` narrowed out of its `AppError` import. In `DesignerInspector.vue`, the inline edit type, the `AssetShape` and `ValidationError` imports, and `type Result` (keep `ok`).
+- **Replacement:** `import type { ShapeEdit } from '../selection/editShape'` in both, and `editShape: (edit: ShapeEdit) => Promise<DispatchResult>` in `DesignerInspector.vue`. `designerKeys.ts` already imports it that way.
+- **Behaviour change:** none (types only). `vue-tsc` is the check.
+- **Covering tests:** `tests/presentation/designer/designerSelectionInspector.test.ts`, `designerInspector.test.ts`, and the type-check in `npm run build`.
+- **Coverage arms freed:** none.
+- **Est. net:** −4 lines.
+- **Verdict:** QUALIFIES — three spellings of one contract. This is the `DispatchResult`-in-seven-places shape CLAUDE.md records, and fallow cannot see it because a single type line is below the clone floor.
+
+#### Finding 3: `SetAnchorTool` snaps through a call its own comment proves is the identity
+
+- **Location:** `src/presentation/designer/tools/set-anchor-tool.ts` — `pointerDown` (73–76)
+- **Kind:** dead flexibility (speculative)
+- **Cut:** `context.snapService.snapPoint(event.worldPoint, {})` and its three-line comment ("the day it is handed candidate geometry … provably the identity").
+- **Replacement:** `void this.place(context, event.worldPoint);`. `SnapService.snapPointWithGuides` (`snap-service.ts:247–257`) answers `point` itself when there are no vertices, no edges and no alignments, and it answers `point` when disabled too. So `{}` can never move the point.
+- **Behaviour change:** none. The same object is passed (`snapPoint`'s no-snap answer is `point`, not a copy).
+- **Covering tests:** `tests/presentation/designer/tools/designerToolUnits.test.ts` SetAnchorTool cases. `rg -n snapPoint tests/presentation/designer/tools/designerToolUnits.test.ts` prints nothing, so no case pins the call.
+- **Coverage arms freed:** none.
+- **Est. net:** −3 lines.
+- **Verdict:** QUALIFIES — this is scaffolding for a future candidate set. When that set arrives, it has to pass real candidates anyway.
+
+#### Finding 4: `DIRECTION_EPSILON_PX` is a second copy of `CLICK_EPSILON_PX`
+
+- **Location:** `src/presentation/designer/tools/set-facing-tool.ts` — `DIRECTION_EPSILON_PX` (33–46) and its use (131–134). The original is `src/presentation/editor/handleMetrics.ts:97` `CLICK_EPSILON_PX = 4`.
+- **Kind:** duplicated step (a constant) / unchecked prose claim
+- **Cut:** the constant and the 12-line docblock. That docblock opens "The same number and the same reason as `SelectTool`'s `CLICK_EPSILON_PX`" and then argues it is not merely copied. Nothing checks that the two stay equal. `rg -n "CLICK_EPSILON_PX" src` shows `designer-select-tool.ts:273` and eight plan-editor gestures import the shared one.
+- **Replacement:** `import { CLICK_EPSILON_PX } from '../../editor/handleMetrics'`, plus one line at the comparison keeping the reason that matters here: a zero drag's `atan2(0, 0)` is due east.
+- **Behaviour change:** none (4 === 4).
+- **Covering tests:** `designerToolUnits.test.ts` SetFacingTool cases, including the too-short-drag `asset.facing-without-direction` refusal.
+- **Coverage arms freed:** none.
+- **Est. net:** −11 lines.
+- **Verdict:** QUALIFIES — a copied magic number whose docblock admits it is the same number.
+
+#### Finding 5: `PREVIEW_TOLERANCE_PX` copies `ARC_TOLERANCE_PX`, and its docblock holds that by hand
+
+- **Location:** `src/presentation/designer/tools/draw-detail-tool.ts:28–29`. The original is `src/presentation/designer/layers/footprintLayer.ts:53` `export const ARC_TOLERANCE_PX = 0.25`, already imported by the clearance, details and selection layers.
+- **Kind:** duplicated step / unchecked prose claim
+- **Cut:** the constant and its docblock ("the designer layers' own figure").
+- **Replacement:** `import { ARC_TOLERANCE_PX } from '../layers/footprintLayer'` at line 88. `footprintLayer.ts` imports only types and `polygonPolyline`. No ESLint rule separates `designer/tools` from `designer/layers` (`rg "designer/layers|designer/tools" eslint.config.mjs` prints nothing), and `selection/hitTest.ts` already imports from `layers/`.
+- **Behaviour change:** none.
+- **Covering tests:** `tests/presentation/designer/tools/drawDetailTool.test.ts` preview cases, and `designerDrawDetails.test.ts`.
+- **Coverage arms freed:** none.
+- **Est. net:** −2 lines.
+- **Verdict:** QUALIFIES — the docblock claims the two figures are one, and an import makes that true.
+
+#### Finding 6: `onNumber` re-implements `valueAsNumber`
+
+- **Location:** `src/presentation/designer/inspector/DesignerSelectionInspector.vue` — `onNumber` (239–245)
+- **Kind:** duplicated step (native platform feature)
+- **Cut:** `const value = input.value.trim() === '' ? Number.NaN : Number(input.value);`, and the docblock's "`Number('')` would otherwise write a zero".
+- **Replacement:** `const value = input.valueAsNumber;`. Every field is `type="number"`, so the browser has already reduced `value` to `''` or a valid float string, and `valueAsNumber` is `NaN` for `''`. The existing `Number.isFinite` guard stays. jsdom implements it for numeric types (`HTMLInputElement-impl.js:476`). The test helper `changeNow` sets `.value` to `''`, `'0'`, `'90'`, `'180'` and `'608'`, and each gives the same answer both ways.
+- **Behaviour change:** none for a `type="number"` input. The `.trim()` was already a no-op, since a sanitized number value holds no whitespace.
+- **Covering tests:** `tests/presentation/designer/designerSelectionInspector.test.ts` › "commits nothing for a field emptied and left", "shows a refusal in one alert, and clears it with the next commit that lands", and the typed width/depth/angle cases.
+- **Coverage arms freed:** `DesignerSelectionInspector.vue:242:15` cond-expr `[1, 17]` — 2 arms.
+- **Est. net:** −1 line.
+- **Verdict:** QUALIFIES — the platform already answers "is this a number".
+
+#### Finding 7: the drawn-detail write's shape is spelled three times
+
+- **Location:** `registerDesignerTools.ts:153–154` (`DetailWriteValue`, `DetailWrite`). `draw-detail-tool.ts:19` (`commandFor`'s result) and `:135` (`dispatch`'s parameter) each spell `{ readonly command: UndoableCommand; readonly detailId: string }` inline.
+- **Kind:** duplicated step (a type)
+- **Cut:** both aliases in `registerDesignerTools.ts` and the two inline object types in `draw-detail-tool.ts`.
+- **Replacement:** `export interface DetailWrite { readonly command: UndoableCommand; readonly detailId: string }` in `draw-detail-tool.ts`, since the tool's deps declare this contract. `registerDesignerTools.ts` imports it (a `src/` consumer, so fallow stays clean) and writes `Result<DetailWrite, ValidationError>` once.
+- **Behaviour change:** none (types only).
+- **Covering tests:** type-check, `drawDetailTool.test.ts`, `designerDrawDetails.test.ts`.
+- **Coverage arms freed:** none.
+- **Est. net:** −2 lines.
+- **Verdict:** QUALIFIES — one producer and one consumer should agree through one declaration.
+
+#### Finding 8: `DesignerSelectTool` explains its no-op curve actions twice, one copy is stale, and `cancel` re-spells `abandonGesture`
+
+- **Location:** `src/presentation/designer/tools/designer-select-tool.ts` — the docblock on `never`/`nothing` (57), the docblock on `curve` (117–124), `cancel` (246–249) and `abandonGesture` (252–255)
+- **Kind:** unchecked prose claim / duplicated step
+- **Cut:** the `curve` field's docblock, lines 117–124. It restates line 57's reason for `blocked`/`busy`/`choose`/`stop`/`cancel`, and its "`pointerDown` forwards to it only on an edge handle" names a method that now only calls `press`. Also cut `cancel`'s two-line body: `CurveTool.cancel()` is `abandonGesture()` plus `actions.cancel()`, and that is `nothing` here, so the two bodies are identical.
+- **Replacement:** one docblock, on the `never`/`nothing` consts, naming `press` and keeping the one fact only 117–124 has: `target` and `set` read `bend` without a null arm because the curve is asked only while a bend exists. `cancel(): void { this.abandonGesture(); }`, which is the form `DrawDetailTool` and `SetFacingTool` use.
+- **Behaviour change:** none.
+- **Covering tests:** `tests/presentation/designer/tools/designerSelectBend.test.ts` (cancel/abandon/switch mid-bend), `designerSelectTool.test.ts` cancel cases.
+- **Coverage arms freed:** none.
+- **Est. net:** −6 lines.
+- **Verdict:** QUALIFIES — this also closes the deferred minor "Task 8: designer-select-tool.ts:118 comment names pointerDown where code now uses press".
+
+#### Finding 9: `traceDetailTool`'s `commandFor` rebuilds a command it could spread
+
+- **Location:** `src/presentation/designer/tools/registerDesignerTools.ts` — `traceDetailTool` › `completion.commandFor` (237–240)
+- **Kind:** duplicated step
+- **Cut:** `const { command } = traced; return { execute: () => command.execute(), undo: () => command.undo(), createdId: null };`
+- **Replacement:** `commandFor: () => ({ ...traced.command, createdId: null }),`. `detailWrite` builds `command` as a plain object whose `execute`/`undo` are arrow properties, so a spread keeps them bound. The footprint and clearance entries must keep their wrappers: `edits.setFootprint(...)` returns a reversible adapter, and a spread would drop its prototype methods.
+- **Behaviour change:** none.
+- **Covering tests:** `tests/presentation/designer/designerDrawDetails.test.ts` trace-detail cases (write, undo, redo).
+- **Coverage arms freed:** none.
+- **Est. net:** −3 lines.
+- **Verdict:** QUALIFIES — it wraps an object that already has the right shape.
+
+#### Finding 10: `fitFootprintToDetails` hand-folds a bounding box that `boundingBoxOf` already folds
+
+- **Location:** `src/domain/asset/detailEdits.ts` — `fitFootprintToDetails` (120–131)
+- **Kind:** duplicated step
+- **Cut:** the four `let min/max` declarations and four `Math.min`/`Math.max` lines.
+- **Replacement:** collect `corners.push(box.value.min, box.value.max)` in the existing loop (keep its `invalid-detail` refusal), then `const { min, max } = unwrap(boundingBoxOf({ points: corners }));`. `boundingBoxOf` (`operations.ts:423`) refuses only empty or non-finite points. Corners taken from boxes that were already measured are neither, and there is at least one detail by line 116. The footprint literal reads `min.x`/`max.y`.
+- **Behaviour change:** none.
+- **Covering tests:** `tests/domain/asset/detailEdits.test.ts` fit-footprint cases (curved details, pending refusal, invalid detail).
+- **Coverage arms freed:** none (the fold has no branches).
+- **Est. net:** −4 lines.
+- **Verdict:** QUALIFIES — core already owns this min/max fold.
+
+#### Finding 11: `reorderDetail` swaps by hand where `Array.prototype.with` does it
+
+- **Location:** `src/domain/asset/detailEdits.ts` — `reorderDetail` (78–80). Also `duplicateDetail` (60).
+- **Kind:** duplicated step (stdlib)
+- **Cut:** `const details = [...shape.details]; details[found.value] = shape.details[to]; details[to] = shape.details[found.value];`
+- **Replacement:** `const details = shape.details.with(found.value, shape.details[to]).with(to, shape.details[found.value]);`. In `duplicateDetail`, `shape.details.toSpliced(found.value + 1, 0, copy)` replaces the slice-spread-slice. `tsconfig.json` `lib` includes `ES2023.Array`, and `hitTest.ts` already calls `findLast` from it.
+- **Behaviour change:** none.
+- **Covering tests:** `tests/domain/asset/detailEdits.test.ts` reorder and duplicate cases.
+- **Coverage arms freed:** none.
+- **Est. net:** −2 lines.
+- **Verdict:** QUALIFIES — a stdlib call replaces a hand-written swap.
+
+#### Finding 12: `shapeEdits.ts`'s header says `removeClearance` is "the one edit that writes a flag"
+
+- **Location:** `src/domain/asset/shapeEdits.ts` — file docblock (29–30)
+- **Kind:** unchecked prose claim
+- **Cut:** "`removeClearance` is the one edit that writes a flag, because validation refuses a pending flag on an absent clearance."
+- **Replacement:** "`removeClearance` writes one, because validation refuses a pending flag on an absent clearance." `rg -n "Pending: false" src/domain/asset/shapeEdits.ts src/domain/asset/detailEdits.ts` prints `shapeEdits.ts:153 clearancePending: false` and also `detailEdits.ts:136 footprintPending: false` (`fitFootprintToDetails`, a sibling whole-shape edit that also writes `footprintOrigin`).
+- **Behaviour change:** none.
+- **Covering tests:** none needed (prose).
+- **Coverage arms freed:** none.
+- **Est. net:** 0 lines.
+- **Verdict:** QUALIFIES — the grep contradicts "the one".
+
+#### Finding 13: `partNotFound`'s docblock lists its askers and misses one
+
+- **Location:** `src/domain/asset/shapeEdits.ts` — `partNotFound` docblock (47–50)
+- **Kind:** unchecked prose claim
+- **Cut:** "Exported because the detail edits and the designer's drag arithmetic ask the same question, and one spelling keeps the count of the places it is asked knowable."
+- **Replacement:** "Exported so every place that asks this has one spelling." `rg -ln "partNotFound" src` prints `detailEdits.ts`, `shapeEdits.ts`, `selection/selectionDrag.ts` and `selection/partExtent.ts`. The inspector's `withPartBox` is the unlisted fourth.
+- **Behaviour change:** none.
+- **Covering tests:** none needed.
+- **Coverage arms freed:** none.
+- **Est. net:** −1 line.
+- **Verdict:** QUALIFIES — a consumer list in prose is already stale.
+
+#### Finding 14: `registerDesignerTools.ts` counts "two hundred lines" and spreads its docblocks across two detached blocks
+
+- **Location:** `src/presentation/designer/tools/registerDesignerTools.ts` — the detached docblock (49–68) above the `DESIGNER_TOOL_LABELS` docblock (70–77)
+- **Kind:** unchecked prose claim
+- **Cut:** "two hundred lines of subtle state" (`wc -l src/presentation/editor/tools/calibrate-tool.ts` prints 414, and no check holds either figure). Also "(Task 13 retired its toolbar; Task 14 gives the gesture a new door there)", which cites another plan's task numbers.
+- **Replacement:** "a two-click gesture, a generation counter, a buffered second point and an `abandonGesture` asymmetry a second implementation would have to get right twice". Fold the two blocks into one docblock on `DESIGNER_TOOL_LABELS`: only the last `/** */` before a declaration attaches to it, so 49–68 documents nothing for an editor's hover.
+- **Behaviour change:** none.
+- **Covering tests:** none needed. The claims beside it hold. `designerToolbar.test.ts:37` derives `TOOLS` from `Object.entries(DESIGNER_TOOL_LABELS)` and presses each button. `tool-manager.ts:122` throws for an unregistered id. `rg -n "as AssetId" src/presentation src/plugin` prints only `runtime.ts:331`, which is "the ONE cast". "The ONE write all three detail tools build" matches the three `detailWrite` callers (`draw-rect`, `draw-circle`, `trace-detail`).
+- **Coverage arms freed:** none.
+- **Est. net:** −3 lines.
+- **Verdict:** QUALIFIES — a count no check holds, and a docblock attached to nothing.
+
+#### Finding 15: `DesignerInspector.vue` wraps `height.onInput` and aliases `design.dimensions`
+
+- **Location:** `src/presentation/designer/inspector/DesignerInspector.vue` — `onHeightInput` (88–90), `dimensions` (92–97)
+- **Kind:** dead flexibility (one-line pass-throughs)
+- **Cut:** `function onHeightInput`, and the `dimensions` computed with its docblock.
+- **Replacement:** `@input="height.onInput(($event.target as HTMLInputElement).value)"` in the template, which already calls `height.onCommit()` inline. `design.dimensions` in the template's three reads and `props.design.dimensions` in `dimensionsLabel`. The docblock's one fact (null exactly when there is no footprint) moves to a template comment on the `v-if`.
+- **Behaviour change:** none.
+- **Covering tests:** `tests/presentation/designer/designerInspector.test.ts` › "commits a height on blur and keeps the typed value when the command refuses", "does not dispatch when a clean height field is blurred", and the dimensions and unscaled-warning cases.
+- **Coverage arms freed:** none.
+- **Est. net:** −7 lines.
+- **Verdict:** QUALIFIES (lowest value) — these are pass-throughs. The height and dimensions block predates this branch and sits in a scoped file.
+
+---
+
+
+### Task 16: Docs, changelog and re-captures
+
+**Files:**
+- Modify: `docs/tests/cases/Design an Asset.md`
+- Modify: `docs/tests/suites/Smoke Test the Editor.md`
+- Modify: `CHANGELOG.md`
+- No `src/`, `tests/` or `scripts/` file changes — this task is documentation only, so **do not run `npx eslint`** (the "run it only if a code or test file is touched" condition does not fire).
+
+**Interfaces:** none — this task produces no code. It reads the finished tree at `441a9609` plus whatever Task 9 (and any tasks its review adds) commits on top, and updates three docs files plus the harness's own gitignored `harness-shots/` output.
+
+**Context you need before starting:** this branch (`claude/asset-designer-selection-polish`) fixed and polished the asset designer's selection feature (symbols spec Amendment 2, Tasks 2–14). `docs/tests/cases/Design an Asset.md` already has steps 29–46 for the underlying selection feature from PR #205 — those steps describe the feature as it shipped BEFORE this branch's fixes, so several of them are now wrong or incomplete. This task brings the manual case up to date, records what a renovator will notice in the changelog, and re-takes every `asset-designer-*` harness capture to confirm nothing regressed visually.
+
+---
+
+- [ ] **Step 1: Re-read the current state of the three files this task touches**
+
+Read `docs/tests/cases/Design an Asset.md`, `docs/tests/suites/Smoke Test the Editor.md` and `CHANGELOG.md` in full before editing — another task (Task 9's review, or a task it adds) may have landed commits on top of `441a9609` and changed line numbers or content this brief quotes. Every quoted "old" string below must be matched verbatim against what is actually in the file; if it does not match, find the equivalent current text and edit that instead of guessing.
+
+- [ ] **Step 2: Insert new step 13a into the main table of `Design an Asset.md`** (a pending anchor's fields are hidden)
+
+Find this row (step 13):
+
+```
+| 13 | `suite` | Click Set anchor, then click once inside the footprint | A small marker appears at that point | `SetAnchorTool`'s commit-on-`pointerDown` gesture — one click, no drag, no second click, and the one designer tool with no generation counter because nothing about it can be interrupted mid-gesture |
+```
+
+Insert this row immediately after it (before step 14):
+
+```
+| 13a | `suite` | Click Select, then click the anchor marker you just placed | The Inspector shows an "Anchor" section with no position field, and one line reads "This part was captured before a scale existed, so its measurements are hidden until the asset is calibrated." | Amendment 2's pending-part rule reaching every part kind, not only the footprint — a millimetre field beside an unscaled anchor would invite a number calibration later multiplies (Task 3, commit 0bde4f73) |
+```
+
+A pending DETAIL shows the same hidden-fields behaviour through the identical `pendingPart` computed in `DesignerSelectionInspector.vue`; it is not walked as a second manual step because nothing distinguishes it from the anchor case at the level a human can see, and the detail branch already has its own jsdom case (`designerSelectionInspector.test.ts`) — the anchor is the cheaper instrument for the human step, per the file's own "measure with the cheapest instrument" rule.
+
+- [ ] **Step 3: Insert new step 24a** (an opened asset frames itself once)
+
+Find step 24:
+
+```
+| 24 | `obsidian` | Toggle the plugin off and back on, then reopen both asset designers | Every shape, the calibration, the anchor, the facing and the height are exactly as you left them, and the console shows no `Several Konva instances detected` and no duplicate-view warning | Persistence living in the `.rpgeo` sidecar rather than in memory, and `onunload` releasing Konva's global — the same failure this suite's own header records finding once, for the Plan Editor, before anything here existed |
+```
+
+Insert this row immediately after it (before step 25):
+
+```
+| 24a | `browser` | Close this asset's designer tab (not the whole plugin), then reopen it from the Renovation project view or the library | The camera frames the whole symbol the moment the canvas has an area — the same view `Shift+1` would give — rather than opening at whatever camera the view last had | Task 10's fix (commit 8ca2f7c8): an asset merely opened used to keep its last view, so a small object could open as a speck in the corner with its handles piled on it (critique finding 1) |
+```
+
+- [ ] **Step 4: Insert four new lettered steps after step 29** (asset heading, mode tooltips, Shift hint, Line dropdown — vault-only)
+
+Find step 29 (its row ends `... a selection writes nothing" |`) followed immediately by step 30 (`Press Right arrow twice ...`). Insert these four rows between 29 and 30, in this order:
+
+```
+| 29a | `suite` | With the bowl still selected, look at the Inspector as a whole, below the Detail section | A second heading reads "Asset", with the asset's own Dimensions line below it — never blended into the Detail section above | Task 13's fix (commit 47467885): before it, the asset's Dimensions sat directly under the Detail section with no heading of its own, so the two read as one block and the asset's footprint size looked like the bowl's (critique finding 4) |
+| 29b | `browser` | Hover, in turn, over the Transform, Edit points and Bend edges buttons (do not click) | Each shows its own tooltip: Transform reads "Drag the part to move it, a square handle to resize it or the round handle to rotate it", Edit points reads "Drag a corner to move it; it snaps to the corners of the other parts and to the anchor", Bend edges reads "Drag the handle in the middle of an edge to curve that edge" | Task 4's fix (commit e52fda6b): the buttons' own text names the mode, not the gesture it offers, so a `title` naming what dragging its handles does now sits beside it |
+| 29c | `suite` | With Transform still the pressed mode and the bowl selected, look at the status bar along the bottom | It reads "Shift keeps proportions and snaps the rotation" | Amendment 2's designer-only Shift hint (Task 4, commit e52fda6b): the shared `select` id must not borrow the plan editor's constrained-angle hint, so this one is asked of the designer's own selection and mode rather than of the shared list |
+| 29d | `obsidian` | With the bowl selected, look at the "Line" dropdown in the Detail section | Record whether it renders with Obsidian's own themed `<select>` chrome or as a plain, unstyled control | Critique finding 23 — the harness's vendored stylesheet declares no `<select>` rule at all, so a plain control there may be a harness artefact rather than a real gap; only a real theme can tell them apart (no code change was made against this finding) |
+```
+
+- [ ] **Step 5: Insert two new lettered steps after step 32** (composing under a queued write, and the held-press lag — vault-only)
+
+Find step 32 (`Drag the bowl's bottom-right handle outward ...`) followed by step 33 (`Click the tank, choose Bend edges ...`). Insert these two rows between them:
+
+```
+| 32a | `obsidian` | Drag the bowl's bottom-right handle outward, and — before releasing — press an arrow key or start a second drag, in quick succession | The second gesture builds on the first once both land: the bowl ends up moved AND resized, with no "Save error" notice at any point | Task 8's one write chain (commit 5f2f4e0b, fix round 54bceeda): a press that arrives while an earlier write is still in flight is held and replayed once it drains, reading the design the replay actually sees, rather than refusing with a stale-write error |
+| 32b | `obsidian` | On a synced or otherwise slow vault, press and hold a drag on a handle for longer than usual before releasing | Nothing changes on screen — no live preview, no selection change — until the queued write lands, at which point the part jumps straight to its final position | The stated trade behind Task 8's write chain: a preview shown before the drain would be the stale read Amendment 2 removes, so the lag is deliberate and only visible on a vault slow enough to show it |
+```
+
+Both need a real vault: a synthetic browser harness has no real note-write latency, so there is no window in which a second gesture or a held drag can arrive while an earlier write is still in flight.
+
+- [ ] **Step 6: Edit step 33 (diamond bend handles) and insert step 33a after it (dash kept while selected)**
+
+Find step 33:
+
+```
+| 33 | `suite` | Click the tank, choose Bend edges, drag the tank's front edge handle toward the bowl and release; then press Undo | That one edge bows toward the bowl while the other three stay straight; Undo straightens it | The plan editor's `CurveTool` bound to a detail outline through `CurveToolActions` |
+```
+
+Replace it with:
+
+```
+| 33 | `suite` | Click the tank, choose Bend edges — its four edge handles are diamonds, not the round vertex handles Edit points draws — drag the tank's front edge handle toward the bowl and release; then press Undo | That one edge bows toward the bowl while the other three stay straight; Undo straightens it | The plan editor's `CurveTool` bound to a detail outline through `CurveToolActions`, and Task 12's diamond handle shape (commit 51c65c4c) telling an edge handle apart from a vertex handle at a glance (critique finding 17) |
+```
+
+Then insert this row immediately after it (before step 34):
+
+```
+| 33a | `browser` | With the bowl selected in Transform, change "Line" from Solid to Dashed, then press Undo | The bowl's outline switches to a dashed stroke immediately, and STAYS dashed while its handles are drawn around it; Undo returns it to solid | Task 12's fix (commit 51c65c4c): a selected detail's outline used to draw solid regardless of its own line style, so the dashed convention (overhead or provisional) vanished the moment a part was being edited (critique finding 7) |
+```
+
+- [ ] **Step 7: Edit steps 34 and 35 (focus continuity) and insert 35a and 35b after them**
+
+Find step 34:
+
+```
+| 34 | `obsidian` | With the tank selected, press Ctrl+D (Cmd+D on macOS) | A copy of the tank appears 100 mm right and 100 mm down, drawn above the original, and it is the selection; its Name reads Tank | Ctrl+D reaching the canvas region rather than an Obsidian hotkey, and `duplicateDetail` inserting above the original and selecting `nextDetailId` |
+```
+
+Replace it with:
+
+```
+| 34 | `obsidian` | With the tank selected, press Ctrl+D (Cmd+D on macOS) | A copy of the tank appears 100 mm right and 100 mm down, drawn above the original, and it is the selection; its Name reads Tank; then press Tab once and confirm focus lands in the Inspector rather than jumping to the top of the pane | Ctrl+D reaching the canvas region rather than an Obsidian hotkey, `duplicateDetail` inserting above the original and selecting `nextDetailId`, and Task 5's focus hand-off (commit 9336b2c6): Duplicate re-keys the section under the button that had focus, so focus moves to the Inspector aside before it unmounts |
+```
+
+Find step 35:
+
+```
+| 35 | `obsidian` | Press Delete | The copy disappears and the Inspector shows no Detail section | Delete reaching the canvas region rather than Obsidian's keymap, and the selection clearing once the part no longer exists |
+```
+
+Replace it with:
+
+```
+| 35 | `obsidian` | Press Delete, then press Tab once | The copy disappears and the Inspector shows no Detail section; Tab moves focus on from the Inspector rather than from the top of the pane | Delete reaching the canvas region rather than Obsidian's keymap, the selection clearing once the part no longer exists, and Task 5's focus hand-off (commit 9336b2c6): Delete prunes the section under the button that had focus, so focus moves to the Inspector aside before it unmounts |
+```
+
+(Ctrl+D and Delete "reaching the canvas region rather than an Obsidian hotkey/keymap" is already the catch-column claim in both rows above — it needed no new step, only the focus clause added to the existing ones.)
+
+Then insert these two rows immediately after step 35 (before step 36):
+
+```
+| 35a | `suite` | Select the bowl (the topmost detail), then click "Bring forward" repeatedly until it stops moving | Once the bowl is topmost, "Bring forward" is visibly dimmed (`aria-disabled`) rather than removed, further clicks do nothing, and focus stays on the button rather than jumping away | Task 13's fix (commit 47467885): the button used to be a real `:disabled`, and Chromium drops focus to `<body>` when a focused control disables itself, which is the same focus-loss class as the Duplicate/Delete fix above (critique finding 11) |
+| 35b | `suite` | Select a detail, then press an arrow key and Delete in quick succession (Delete first, arrow second) | The detail is deleted; the queued arrow key does nothing — no error, no notice, and no stray Undo entry for it | Task 7's fix (commit 31c12265): a nudge or a Delete captured at the key press runs after earlier writes, and skips silently if its part is already gone by the time its own write runs, as the plan editor's nudge does |
+```
+
+- [ ] **Step 8: Edit step 39 (anchor halo) and insert step 39a after it (facing angle hint)**
+
+Find step 39:
+
+```
+| 39 | `suite` | Click exactly on the anchor dot, type 50 into "Horizontal position in millimetres" and press Enter; then press Undo | The Inspector shows an "Anchor" section and no mode control; the dot moves 50 mm right; Undo puts it back | The anchor winning over the bowl beneath it (hit order step 2) and the Inspector's commit on Enter |
+```
+
+Replace it with:
+
+```
+| 39 | `suite` | Click exactly on the anchor dot, type 50 into "Horizontal position in millimetres" and press Enter; then press Undo | The Inspector shows an "Anchor" section and no mode control; a ring is drawn around the dot over a canvas-coloured halo, so the ring reads clearly against the drawing beneath it; the dot moves 50 mm right; Undo puts it back | The anchor winning over the bowl beneath it (hit order step 2), the Inspector's commit on Enter, and Task 12's halo (commit 51c65c4c): a selected anchor used to read as a slightly fatter dot with no visible ring (critique finding 8) |
+```
+
+Then insert this row immediately after it (before step 40):
+
+```
+| 39a | `suite` | Click the facing arrow to select it, then look at the line beneath the angle field | It reads "An angle of 0 points right, and 90 points down" | Task 13's fix (commit 47467885): the facing's direction convention was unstated, so a typed angle's effect had to be guessed (critique finding 25) |
+```
+
+- [ ] **Step 9: Edit step 41 (sidebar-width stacking)**
+
+Find step 41:
+
+```
+| 41 | `browser` | Select the bowl again and narrow the pane to about 460 px | The toolbar and the mode control wrap rather than truncate, and every field of the Detail section stays readable without scrolling sideways | The mode control and the inspector section at a sidebar leaf's real width, which no fixed capture takes |
+```
+
+Replace it with:
+
+```
+| 41 | `browser` | Select the bowl again and narrow the pane to about 460 px | The toolbar and the mode control wrap rather than truncate; the Inspector moves BELOW the canvas rather than beside it, and the canvas keeps a measured height rather than collapsing; every field of the Detail section stays readable without scrolling sideways | The mode control and the inspector section at a sidebar leaf's real width, which no fixed capture takes, and Task 14's fix (commit 848a438b): below a 35rem container the inspector used to keep its 14rem width and leave the canvas about 236px wide, with the selected part a small figure under its handles (critique finding 6) |
+```
+
+- [ ] **Step 10: Re-run the tier greps against the edited `docs/tests/cases/`, and update `docs/tests/suites/Smoke Test the Editor.md`**
+
+Run, from the repository root:
+
+```bash
+grep -rhoE '^\| [0-9]+[a-z]? \| `(suite|browser|obsidian|desktop|judgement)` \|' docs/tests/cases/*.md | sed -E 's/.*`(.*)`.*/\1/' | sort | uniq -c
+grep -rhoE '^\| [0-9]+[a-z]? \| `(suite|browser|obsidian|desktop|judgement)` \|' docs/tests/cases/*.md | wc -l
+grep -ohE '^\s*[0-9]+[a-z]?\.\s+`(suite|browser|obsidian|desktop|judgement)`' 'docs/tests/cases/Canvas Navigation.md' | wc -l
+```
+
+Before this task's edits the table held 367 rows (`suite` 121, `browser` 52, `obsidian` 174, `desktop` 8, `judgement` 12), plus the 18 list-form steps in `Canvas Navigation.md`, for 385 total (`suite` 125, `browser` 57, `obsidian` 176, `desktop` 14, `judgement` 13 — the file's own current header figures). Steps 2–9 above add exactly twelve rows and move none — six `suite` (13a, 29a, 29c, 35a, 35b, 39a), three `browser` (24a, 29b, 33a) and three `obsidian` (29d, 32a, 32b) — so the greps should now print **379 table rows** and **397 total** (`suite` 131, `browser` 60, `obsidian` 179, `desktop` 14, `judgement` 13). **Run the greps and use what they actually print, not this arithmetic**, if they disagree — this file's own history (the "294 steps", "300 steps" etc. paragraphs) is a record of exactly that arithmetic going stale when another task landed a row first; the number is only trustworthy once regrepped against the tree as it stands when this step runs.
+
+In `docs/tests/suites/Smoke Test the Editor.md`, under `## The triage column`:
+
+1. Update the tier table's `Steps` column: `suite` 125 → 131, `browser` 57 → 60, `obsidian` 176 → 179 (`desktop` and `judgement` unchanged at 14 and 13).
+2. Immediately above the paragraph that currently begins `**385 steps — 367 table rows plus 18 list steps in [[Canvas Navigation]], re-run in the edit that added the selection steps to [[Design an Asset]].**`, insert:
+
+   ```
+   **The previous measurement's own account follows, kept as history.**
+   ```
+
+   (This is the file's own convention: each re-run's paragraph is demoted to history and a fresh one takes its place, rather than being edited in place.)
+3. Immediately above that inserted line, add the new top paragraph (adjust the two bracketed counts to whatever step 10's greps actually printed, if they differ from 379/397):
+
+   ```
+   **397 steps — 379 table rows plus 18 list steps in [[Canvas Navigation]], re-run in the edit that added Task 15's selection-polish rows to [[Design an Asset]].** Twelve rows were added and none moved: `suite` 125 → 131, `browser` 57 → 60, `obsidian` 176 → 179, `desktop` and `judgement` unchanged at 14 and 13 — the whole of the movement is the twelve new steps' own tiers (six `suite`, three `browser`, three `obsidian`), which is what makes this a re-run rather than a correction.
+   ```
+
+- [ ] **Step 11: Add one `CHANGELOG.md` entry**
+
+Under `## [Unreleased]` → `### Fixed` (the section already exists — do not create a new `## [Unreleased]` or a new `### Fixed` heading), add this bullet, keeping the existing bullets above it untouched:
+
+```
+- Asset designer: a selected part keeps its own line style (a dashed detail stays dashed while selected), the anchor's ring reads clearly against the drawing under it, and a curved edge's handle now looks different from a corner's. The Shift hint under Select, each selection mode's tooltip and a hint under the facing's angle field say what a gesture does; a part captured before a scale existed hides its millimetre fields instead of showing pixel numbers dressed as measurements, and the same line explains why. Duplicate, Delete and a disabled reorder button keep keyboard focus in the Inspector instead of dropping it to the top of the pane. Opening a design frames its whole symbol the way `Shift+1` would. Two edits made in quick succession now compose instead of one showing a save error, and a queued key on a part someone just deleted does nothing rather than failing. At a sidebar's width the Inspector stacks under the canvas instead of crowding it into a sliver.
+```
+
+- [ ] **Step 12: Re-take every `asset-designer-*` capture**
+
+Run, in the foreground, with a 600000ms timeout:
+
+```bash
+npm run harness-shot
+```
+
+This regenerates every fixed shot (not only the asset designer's) into the gitignored `harness-shots/` folder — there is no flag to capture a subset of the fixed shots; only a single named entry (`npm run harness-shot <id>`) can be captured alone, and that is not what "every `asset-designer-*` capture" asks for here.
+
+**If Chromium fails to launch** (`resolveChromiumExecutable` refuses because the pinned revision is not on disk, per `scripts/chromium.mjs`), stop here, record in this task's report that the pinned Chromium was unavailable and name the error text, and do **not** claim any capture below was checked. Do not attempt `npx playwright install chromium` as a substitute inside this task — that is the developer-laptop remedy this branch's own `CLAUDE.md` says a container with baked-in browsers cannot take, and this task has no authority to change what browser is pinned.
+
+If the run succeeds, use Read to open every one of these 30 files under `harness-shots/` and write one line per file recording what it actually shows (not what the query below implies it should show — the point of opening it is to catch a difference between the two):
+
+- `asset-designer-dark.png` — empty designer shell, no background, dark
+- `asset-designer-light.png` — empty designer shell, no background, light
+- `asset-designer-narrow.png` — empty designer shell at 460px (toolbar wrap)
+- `asset-designer-preset-curved-table.png` — curved-table preset applied and framed
+- `asset-designer-preset-sofa.png` — sofa preset applied and framed
+- `asset-designer-preset-toilet.png` — toilet preset applied and framed
+- `asset-designer-preset-tree.png` — tree preset applied and framed
+- `asset-designer-select-transform.png` — toilet, bowl selected, Transform, dark
+- `asset-designer-select-points.png` — toilet, footprint selected, Edit points, dark
+- `asset-designer-select-bend.png` — curved table, footprint selected, Bend edges, light
+- `asset-designer-select-anchor.png` — toilet, anchor selected, dark
+- `asset-designer-select-transform-light.png` — same as select-transform, light
+- `asset-designer-select-points-light.png` — same as select-points, light
+- `asset-designer-select-bend-dark.png` — same as select-bend, dark
+- `asset-designer-select-anchor-light.png` — same as select-anchor, light
+- `asset-designer-select-footprint.png` — toilet, footprint selected, Transform, dark
+- `asset-designer-select-footprint-light.png` — same, light
+- `asset-designer-select-clearance.png` — toilet, clearance selected, dark
+- `asset-designer-select-clearance-light.png` — same, light
+- `asset-designer-select-facing.png` — toilet, facing selected, dark
+- `asset-designer-select-facing-light.png` — same, light
+- `asset-designer-select-narrow.png` — toilet, detail selected, 460px, English
+- `asset-designer-select-narrow-de.png` — same, German
+- `asset-designer-select-transform-unframed.png` — toilet, detail selected, default (unframed) camera
+- `asset-designer-pending.png` — toilet with a pending detail selected, unscaled warning shown
+- `asset-designer-pending-anchor-light.png` — toilet with a pending anchor selected, light
+- `asset-designer-draw-rect.png` — Draw rectangle mid-drag, dark
+- `asset-designer-draw-rect-light.png` — same, light
+- `asset-designer-draw-circle.png` — Draw circle mid-drag
+- `asset-designer-draw-trace-detail.png` — Trace detail three vertices in
+
+Record findings as a flat list, e.g. `asset-designer-select-bend.png: curved-table footprint selected in Bend edges, light scheme; four diamond edge handles visible on the arc, no clipping.` A one-line "looks fine, matches its name" is acceptable where nothing is wrong; anything that looks off (truncated text, a missing handle, a colour that does not read, overlap) must be written down even though this task has no mandate to fix it — flag it for a follow-up rather than silently accepting it.
+
+- [ ] **Step 13: Backlog verdict for the Shift hint (A3) and the focus rule (A4) — no item written**
+
+Read `docs/requirements/Select part of an object's shape.md` (already done while drafting this task: it is a `PBI`, `status: Done`, `finished: 2026-09-14`, parent `[[Asset Designer Foundations]]`). Its acceptance criteria (numbered 1–6) cover selectability, the inspector describing the selected part, one-undo-entry writes, no control for a missing part, refusing degenerate edits, and leaving plan selection alone — none of them separately names a Shift hint or a focus-continuity rule, and neither appears in its Extensions list either.
+
+**Neither A3 (the Shift hint) nor A4 (the focus rule) needs a backlog item.** Both are refinements the pre-plan rulings identified as measured follow-ups to this same PBI's own acceptance criteria — A3 makes the already-required inspector/selection surface name its own modifier, A4 keeps criterion 2's "the inspector describes the selected part" true across the moment that description's own control disappears — and both are being closed inside this very branch (A3 by Task 4, commit e52fda6b; A4 by Task 5, commit 9336b2c6, and Task 13, commit 47467885) rather than deferred. The `adding-backlog-items` skill's own Phase 0 rule is to write a `Bug`/`Issue`/`Idea` for a defect and refuse to record it as a `PBI` — but there is nothing left to record at all once the fix ships in the same branch that found it: a backlog item exists to carry a decision into a session that does not have this one's context, and a fix already committed needs no such carrier. Do not invoke `adding-backlog-items` to write anything; this step is a documented decision, not an action.
+
+- [ ] **Step 14: Commit**
+
+```bash
+git add "docs/tests/cases/Design an Asset.md" "docs/tests/suites/Smoke Test the Editor.md" CHANGELOG.md
+git commit -m "$(cat <<'EOF'
+docs(designer): update the selection walkthrough, changelog and captures for the polish branch
+
+Design an Asset gains 12 steps and 5 of its existing steps change, covering
+the Shift hint, mode tooltips, hidden pending fields, focus after Duplicate/
+Delete and on a disabled reorder button, a queued key on a deleted part, a
+quick second gesture composing instead of erroring, framing an opened asset,
+the facing angle hint, the asset heading, sidebar-width stacking and the
+selection marks' dash, halo and diamond handles. The smoke-test tier table
+and its dated paragraph are re-run against the new count. One Unreleased
+changelog entry records what a renovator notices. Every asset-designer-*
+harness capture was re-taken and opened.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+EOF
+)"
+git status
+```
+
+Do not run `npx eslint` — no `src/` or `tests/` file is touched by this task. `npm run check:fast` and `npm run check` are also unnecessary here for the same reason, though running `npm run docs` (if it exists in this repository — check `package.json`) after editing the two `docs/tests/` files is a reasonable belt-and-braces check for broken wikilinks before committing, since both edited files carry `[[...]]` links.

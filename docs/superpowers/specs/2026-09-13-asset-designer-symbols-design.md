@@ -446,13 +446,19 @@ alert, because its control sits beside a part that is still drawn.
 `SetAssetShape` dispatch" held, but only for a gesture made against a design that had finished
 refreshing. The first bullet refines Amendment 1's condition:
 
-- Every write a designer leaf makes runs on one serialised chain, each step reading the design when
-  it runs. That covers the select tool's release, every draw and trace tool, the anchor, facing,
-  calibration and height writes, the arrow keys and the inspector.
-- A press that arrives while that chain is busy is held and replayed once it drains. A drag
+- Every write dispatched through a tool — the select tool's release, every draw and trace tool, and
+  the anchor, facing, calibration and height writes — or through `editShape` — the arrow keys and
+  the selection inspector — runs on one serialised chain, each step reading the design when it runs.
+- Five writes dispatch directly and do NOT join that chain: undo, redo, set background, Edit
+  dimensions (`setFootprintFromDimensions`) and Start from preset (`applyShape`). A press or key made
+  while one of those five is still awaiting its read-back reads the OLD version and is refused as a
+  version conflict rather than composing with it. Nothing is overwritten.
+- A press that arrives while the chain is busy is held and replayed once it drains. A drag
   therefore still reads, and is conditional on, the design the user pressed on.
 - A peer write the replayed press has not read refuses the drag. One it has already read, because the chain's read-back brought it in before the replay, is built on, never overwritten.
-- Escape abandons a held press.
+- Escape abandons a held press. While a released gesture waits to replay, Delete and Ctrl+D are
+  ignored rather than queued behind it: both would act on the selection from before the click, which
+  the replay has not made current yet.
 
 ## Docs this changes
 

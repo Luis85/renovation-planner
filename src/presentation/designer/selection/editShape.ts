@@ -24,11 +24,16 @@ export type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationErro
 export type EditShape = (edit: (shape: AssetShape) => ReturnType<ShapeEdit> | null) => Promise<DispatchResult>;
 
 /**
- * The designer leaf's ONE write chain (symbols spec, Amendment 2): every gesture's write is a step on
- * it — a tool's release through the runtime's queued dispatcher, and an `editShape` call — and a step
- * runs only once every earlier one has SETTLED, its read-back included. So a step that reads the design
- * reads what the previous write left, and two gestures made before the first refresh lands compose
- * rather than the second being refused as a version conflict against the user's own first.
+ * The designer leaf's ONE write chain (symbols spec, Amendment 2): a step runs only once every earlier
+ * one has SETTLED, its read-back included. So a step that reads the design reads what the previous
+ * write left, and two gestures made before the first refresh lands compose rather than the second
+ * being refused as a version conflict against the user's own first.
+ *
+ * The joiners are every tool's dispatch (through the runtime's queued dispatcher), `commitHeight` and
+ * `editShape` (the arrow keys and the selection inspector). Five writes dispatch directly instead and do
+ * NOT join this chain: undo, redo, set background, Edit dimensions (`setFootprintFromDimensions`) and
+ * Start from preset (`applyShape`). A press or key made while one of those five is still awaiting its
+ * read-back reads the OLD version and is refused as a version conflict; nothing is overwritten.
  *
  * `writing` and `settled` are the Select tool's two questions for a press (`DesignerSelectTool`'s
  * `hold`): is a write still queued, and when will every write queued so far have landed. `settled`

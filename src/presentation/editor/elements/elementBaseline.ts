@@ -12,6 +12,7 @@ import { useProjectStore } from '../../stores/ProjectStore';
 import { notifyFault } from '../../notices/notify';
 import { tr } from '../../i18n/strings';
 import { createElementDraft, ELEMENT_TOOLS, type ElementDraft, type ElementToolId } from './elementDraft';
+import { nextMarkName } from '../../../domain/spatial/markNames';
 
 /** A draft captures one baseline; read-only recovery cannot replace a captured baseline. */
 export function createElementBaseline(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'refreshProjection'>, draft: ElementDraft) {
@@ -34,9 +35,15 @@ export function createElementBaseline(context: PlanEditorContext, runtime: Pick<
 		} catch (cause) { if (alive && ticket === generation) { draft.error = spatialError('unavailable'); notifyFault(cause, context.commands.logger, 'editor.element.read-failed'); } }
 		finally { if (ticket === generation) draft.loading = false; }
 	}
+	/** The names already given to this plan's elements of `kind`, for the next free sequence name. */
+	function takenNames(kind: string): string[] {
+		const names = new Map(project.plan?.spatialElements?.map(item => [item.id, item.name]));
+		return (project.structure.elements ?? []).filter(item => item.kind === kind).flatMap(item => names.get(item.id) ?? []);
+	}
 	function start(id: ElementToolId): void {
 		stop(); draft.kind = ELEMENT_TOOLS[id];
-		draft.name = tr(`editor.add.${draft.kind === 'object' ? 'item' : draft.kind}.label`);
+		// A text's name IS its words, so it starts empty; section, view and grid marks count up; every other kind takes its label.
+		draft.name = draft.kind === 'text' ? '' : nextMarkName(draft.kind, takenNames(draft.kind)) ?? tr(`editor.add.${draft.kind === 'object' ? 'item' : draft.kind}.label`);
 		reading = readBaseline(generation);
 	}
 	async function retry(): Promise<void> {

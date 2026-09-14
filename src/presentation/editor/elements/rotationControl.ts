@@ -83,7 +83,7 @@ function edgePoints(shape: RotationControlShape): readonly Point[] {
 	return [min, { x: max.x, y: min.y }, max, { x: min.x, y: max.y }];
 }
 function edgesOf(shape: RotationControlShape) {
-	const points = edgePoints(shape), closed = shape.hitPoints !== undefined || ['room', 'area', 'object', 'post', 'group', 'stair'].includes(shape.kind);
+	const points = edgePoints(shape), closed = shape.hitPoints !== undefined || ['room', 'area', 'object', 'post', 'hatch', 'group', 'stair'].includes(shape.kind);
 	const winding = points.reduce((sum, a, index) => { const b = points[(index + 1) % points.length]; return sum + a.x * b.y - b.x * a.y; }, 0);
 	return points.slice(0, closed ? points.length : -1).map((a, index) => {
 		const b = points[(index + 1) % points.length], bulge = shape.kind === 'group' ? 0 : shape.wall?.bulge ?? shape.bulges?.[index] ?? 0, curve = { start: a, end: b, bulge }, length = arcLength(curve), sign = winding < 0 ? -1 : 1;

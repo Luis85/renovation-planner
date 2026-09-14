@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import DraftRecovery from '../forms/DraftRecovery.vue';
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import DraftingDraftFields from './DraftingDraftFields.vue';
 import FieldError from '../../components/FieldError.vue';
 import ObjectRectangleFields from './ObjectRectangleFields.vue';
 import ObjectShapeSwitch from './ObjectShapeSwitch.vue';
 import StairDraftFields from './StairDraftFields.vue';
 import StructuralDraftFields from './StructuralDraftFields.vue';
+import { maxDraftPoints } from './elementDraft';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
@@ -14,6 +16,9 @@ import { parseCoordinateMetres, formatMetres } from '../shell/formatLength';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
 const runtime = useEditorRuntime(), task = runtime.elementTask, draft = task.draft;
 const taskRoot = ref<HTMLElement | null>(null);
+const nameInput = ref<HTMLInputElement | null>(null);
+// A text's point is placed on the canvas and its words typed here, so placing the point hands the keyboard to the field.
+watch(() => draft.kind === 'text' ? draft.points[0] : undefined, point => { if (point) void nextTick(() => nameInput.value?.focus()); });
 onBeforeUnmount(() => {
 	const root = taskRoot.value, editor = root?.closest<HTMLElement>('.renovation-plan-editor');
 	if (root?.contains(document.activeElement)) void nextTick(() => { if (editor?.isConnected) editor.querySelector<HTMLElement>('.rp-plan-canvas')?.focus(); });
@@ -24,6 +29,12 @@ const pointEntry = computed(() => draft.kind !== 'object' || draft.shape === 'fr
 const createHint = computed(() => tr(pointEntry.value ? 'editor.element.create-hint' : 'editor.element.banner.object-rectangle'));
 /** Out of the template for the same threshold, once posts and beams joined the draft kinds (structural posts and beams). */
 const structural = computed(() => draft.kind === 'post' || draft.kind === 'beam');
+/** The remaining compound conditions and ternaries below, out of the template for the same threshold. */
+const nameLabel = computed(() => tr(draft.kind === 'text' ? 'editor.drafting.text' : 'editor.room.name'));
+const nameError = computed(() => draft.name.trim() ? null : tr('editor.element.name-required'));
+const showDimensionOffset = computed(() => draft.kind === 'dimension' && draft.dimensionPhase === 'offset');
+const showRecovery = computed(() => task.needsRead.value || runtime.writesBlocked.value);
+const axisLabel = computed<Record<'x' | 'y', string>>(() => ({ x: tr('editor.area.x'), y: tr('editor.area.y') }));
 const pointForm = ref<HTMLElement | null>(null), attemptedPoint = ref(false);
 const coordinates = computed(() => ({ x: parseCoordinateMetres(draft.text.x), y: parseCoordinateMetres(draft.text.y) }));
 const point = computed(() => {
@@ -34,7 +45,7 @@ const pointRepeated = computed(() => {
 	const last = draft.points.at(-1), next = point.value;
 	return !!last && !!next && last.x === next.x && last.y === next.y;
 });
-const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || ((draft.kind === 'measurement' || draft.kind === 'stair' || draft.kind === 'beam') && draft.points.length === 2));
+const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || (maxDraftPoints(draft.kind) === 2 && draft.points.length === 2));
 const pointReadonly = computed(() => task.blocked.value || draft.pendingInput);
 const undoBlocked = computed(() => pointReadonly.value || !!draft.text.x || !!draft.text.y || !draft.points.length);
 function coordinateMessage(axis: 'x' | 'y'): string | null {
@@ -70,13 +81,14 @@ async function add(): Promise<void> {
 		</p>
 		<FieldError
 			v-slot="{ inputId, aria }"
-			:message="draft.name.trim() ? null : tr('editor.element.name-required')"
+			:message="nameError"
 		>
 			<label
 				:for="inputId"
 				class="rp-dialog-field"
-			>{{ tr('editor.room.name') }}<input
+			>{{ nameLabel }}<input
 				:id="inputId"
+				ref="nameInput"
 				v-bind="aria"
 				name="element-name"
 				type="text"
@@ -101,8 +113,12 @@ async function add(): Promise<void> {
 			:key="draft.kind"
 			:task="task"
 		/>
+		<DraftingDraftFields
+			v-if="showDimensionOffset"
+			:task="task"
+		/>
 		<DraftRecovery
-			v-if="task.needsRead.value || runtime.writesBlocked.value"
+			v-if="showRecovery"
 			:retry="task.retry"
 			:open-source="runtime.openPlanNote"
 		/>
@@ -121,7 +137,7 @@ async function add(): Promise<void> {
 					<label
 						:for="inputId"
 						class="rp-dialog-field"
-					>{{ tr(axis === 'x' ? 'editor.area.x' : 'editor.area.y') }}<input
+					>{{ axisLabel[axis] }}<input
 						:id="inputId"
 						v-bind="aria"
 						:name="'element-' + axis"

@@ -6,11 +6,9 @@ import { ELEMENT_LABEL_FONT_PX, elementLabelLayout } from '../labels/labelLayout
 import { paintRulerMarks, rulerMarks } from '../layers/rulerGeometry';
 import { screenPoint } from '../viewport/Viewport';
 import type { Point } from '../../../core/geometry/Point';
-import StairShape from './StairShape.vue';
-import DirectionArrowShape from './DirectionArrowShape.vue';
-import StructuralShape from './StructuralShape.vue';
+import ElementShape from './ElementShape.vue';
 import { hasPointHandles } from './ElementMove';
-import { outlineKind } from '../../../domain/spatial/SpatialElement';
+import { draftingKind, outlineKind } from '../../../domain/spatial/SpatialElement';
 import { VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
 const props = defineProps<{ elements: readonly NamedSpatialElement[]; selectedIds: readonly string[]; tokens: ThemeTokens; zoom: number; editable?: boolean }>();
 /**
@@ -32,9 +30,10 @@ const shapes = computed(() => props.elements.map(element => {
 	const selected = props.selectedIds.includes(element.id), closed = outlineKind(element.kind), ruler = element.kind === 'measurement' && element.points.length === 2;
 	const zoom = props.zoom, tokens = props.tokens, stroke = selected ? tokens.accent : tokens.zoneStroke, label = elementLabelLayout(element, zoom);
 	const single = props.editable === true && selected && props.selectedIds.length === 1;
-	return { id: element.id, name: 'element-' + element.kind, element, selected, single, structural: element.kind === 'post' || element.kind === 'beam', handles: pointHandles(element, single, zoom, tokens), marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
+	return { id: element.id, name: 'element-' + element.kind, element, selected, single, structural: element.kind === 'post' || element.kind === 'beam', drafting: draftingKind(element.kind), stair: element.kind === 'stair' ? element.stair : undefined, handles: pointHandles(element, single, zoom, tokens), marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
 		line: { points: element.points.flatMap(vertex => [vertex.x, vertex.y]), closed, stroke, strokeWidth: (selected && !ruler ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: closed ? tokens.canvasBackground : undefined },
-		label: { ...label, fontSize: ELEMENT_LABEL_FONT_PX / zoom, fill: tokens.zoneLabel, listening: false } };
+		// A drafting mark draws its own name where the name IS the mark, and shows none elsewhere (plan drafting tools design §6).
+		label: draftingKind(element.kind) ? null : { ...label, fontSize: ELEMENT_LABEL_FONT_PX / zoom, fill: tokens.zoneLabel, listening: false } };
 }));
 </script>
 <template>
@@ -44,45 +43,10 @@ const shapes = computed(() => props.elements.map(element => {
 			:key="shape.id"
 			:config="{ name: shape.name + ' ' + shape.id }"
 		>
-			<StairShape
-				v-if="shape.element.kind === 'stair' && shape.element.stair"
-				:points="shape.element.points"
-				:options="shape.element.stair"
-				:selected="shape.selected"
+			<ElementShape
+				:shape="shape"
 				:tokens="tokens"
 				:zoom="zoom"
-			/>
-			<DirectionArrowShape
-				v-else-if="shape.element.kind === 'arrow'"
-				:points="shape.element.points"
-				:selected="shape.selected"
-				:editable="shape.single"
-				:tokens="tokens"
-				:zoom="zoom"
-			/>
-			<StructuralShape
-				v-else-if="shape.structural"
-				:element="shape.element"
-				:selected="shape.selected"
-				:tokens="tokens"
-				:zoom="zoom"
-			/>
-			<VLine
-				v-else
-				:config="shape.line"
-			/>
-			<VCircle
-				v-for="(handle, index) in shape.handles"
-				:key="index"
-				:config="handle"
-			/>
-			<VShape
-				v-if="shape.marks"
-				:config="shape.marks"
-			/>
-			<VText
-				v-if="shape.label"
-				:config="shape.label"
 			/>
 		</VGroup>
 	</VGroup>

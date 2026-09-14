@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import FieldError from '../../components/FieldError.vue';
 import { tr } from '../../i18n/strings';
-defineProps<{ value: string; readonly: boolean; invalid: boolean }>();
+import type { StringKey } from '../../i18n/locales/en';
+/** `label` names what the name IS where it is not a name — a text's words (plan drafting tools design §5). */
+defineProps<{ value: string; readonly: boolean; invalid: boolean; label?: StringKey }>();
 const emit = defineEmits<{ input: [event: Event] }>();
 </script>
 <template>
@@ -12,7 +14,7 @@ const emit = defineEmits<{ input: [event: Event] }>();
 		<label
 			:for="inputId"
 			class="rp-dialog-field"
-		>{{ tr('editor.room.name') }}
+		>{{ tr(label ?? 'editor.room.name') }}
 			<input
 				:id="inputId"
 				v-bind="aria"

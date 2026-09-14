@@ -510,6 +510,11 @@ const SHOTS = [
 	{ name: 'plan-editor-structural', query: '?view=plan-editor&reference&planning&structural&theme=light', selector: FLOOR_STATE },
 	{ name: 'plan-editor-structural-dark', query: '?view=plan-editor&reference&planning&structural', selector: FLOOR_STATE },
 	{ name: 'plan-editor-structural-narrow', query: '?view=plan-editor&reference&planning&structural&theme=light', selector: PLAN_CANVAS, width: 460 },
+	// Drafting marks around a walled floor: a dimension chain along its north wall, a section line across it, a view
+	// marker, a hatched area to the south, a text, a boundary line and a grid point, from the `?drafting` knob.
+	{ name: 'plan-editor-drafting', query: '?view=plan-editor&reference&planning&drafting&theme=light', selector: FLOOR_STATE },
+	{ name: 'plan-editor-drafting-dark', query: '?view=plan-editor&reference&planning&drafting', selector: FLOOR_STATE },
+	{ name: 'plan-editor-drafting-narrow', query: '?view=plan-editor&reference&planning&drafting&theme=light', selector: PLAN_CANVAS, width: 460 },
 	// Item modes and Add to asset library (2026-09-14), through `&item=` over the reference workspace — the one floor with
 	// renovation and asset-creation services (`tests/harness/itemKnob.ts` seeds a room, a Cabinet and the vault-shaped
 	// item). `rectangle` drags and releases; `drag` never releases, so its PNG is the preview mid-drag. `promote` waits on

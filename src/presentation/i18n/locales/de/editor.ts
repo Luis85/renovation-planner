@@ -36,7 +36,6 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...inputDe,
 	...creationDe,
 	'editor.direct.mark-change': 'Änderung markieren',
-	'editor.direct.add-detail': 'Detail hinzufügen',
 	'editor.direct.length-value': 'Wandlänge bearbeiten, {value} m',
 	'editor.dimension.edit-width': 'Raumbreite bearbeiten, {value} m',
 	'editor.dimension.edit-depth': 'Raumtiefe bearbeiten, {value} m',

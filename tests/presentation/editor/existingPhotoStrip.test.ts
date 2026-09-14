@@ -25,7 +25,7 @@ it('opens a saved photo from Existing details while retaining the spatial contex
 	rig.runtime.renovation.focus(roomId, 'existing'); await settle();
 	const strip = rig.wrapper.get('.rp-existing-photo-strip');
 	expect(strip.findAll('[data-rp-evidence-photo]').map(button => button.attributes('data-rp-evidence-photo'))).toEqual(['wall-photo', 'room-photo']);
-	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(false);
+	expect(rig.wrapper.find('.rp-wall-canvas-actions').exists()).toBe(false);
 	const workspace = useWorkspaceStore(rig.pinia);
 	workspace.layerVisibility.annotation = false; await settle(); expect(rig.wrapper.find('.rp-existing-photo-strip').exists()).toBe(false);
 	workspace.layerVisibility.annotation = true; await settle();

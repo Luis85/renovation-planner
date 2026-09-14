@@ -39,7 +39,7 @@ it('opens the canonical rotation form from every eligible Inspector and explains
 			expect(button.attributes('aria-label')).toBeTruthy();
 			expect(button.attributes('title')).toBeTruthy();
 		}
-		expect(rig.wrapper.findAll('.rp-direct-actions .rp-object-rotation-actions')).toHaveLength(0);
+		expect(rig.wrapper.findAll('.rp-wall-canvas-actions .rp-object-rotation-actions')).toHaveLength(0);
 		expect(controls[0].get('[data-rp-action="rotate-object"]').text()).toContain(id === 'opening-rotation' ? 'Rotate host wall' : 'Rotate by');
 		expect(controls[0].find('.rp-object-rotation-hint').exists()).toBe(id === 'opening-rotation');
 		await controls[0].get('[data-rp-action="rotate-object"]').trigger('click'); await settle();
@@ -65,25 +65,25 @@ it('opens the canonical rotation form from every eligible Inspector and explains
 	expect(new Map(rig.stack.vault.entries)).toEqual(saved);
 });
 
-it('keeps rotation feedback clear of the direct-action popover and restores actions after cancellation', async () => {
+it('keeps rotation feedback and cancellation independent of the removed selected-item action', async () => {
 	const rig = await renovationEditor(); mounted.push(rig);
 	const baseline = expectOk(await rig.renovation.read(rig.plan.id));
 	const object = { id: 'element-feedback', kind: 'object' as const, name: 'Cabinet', points: [{ x: 1000, y: 500 }, { x: 1800, y: 500 }, { x: 1800, y: 1100 }, { x: 1000, y: 1100 }] };
 	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, elementInput(baseline, object), rig.runtime.structureTask.ledger)));
 	rig.selection.select([object.id as never]); await settle();
-	// A Room context gives the object its Add detail popover, the one this feedback must stay clear of.
+	// A remembered Room context must not revive the removed selected-item affordance.
 	rig.session.roomId = rig.room.id; rig.session.targetId = object.id; await settle();
 	await hoverRotation(rig.runtime, useEditorStore(rig.pinia), object.points[0]);
 	const saved = new Map(rig.stack.vault.entries);
 	const handle = expectDefined(rig.runtime.rotationActions.handle.value, 'rotation handle');
 	const tool = rig.runtime.toolManager, destination = pointerAt(handle.x + 1000, handle.y + 1000);
-	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(true);
+	expect(rig.wrapper.find('[data-rp-canvas-detail]').exists()).toBe(false);
 	tool.pointerDown(pointerAt(handle.x, handle.y)); tool.pointerMove(destination); await settle();
 	expect(rig.runtime.renderState.rotationDegrees).not.toBeNull();
 	expect(rig.stage.find('.rotation-angle-label')).toHaveLength(1);
-	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(false);
+	expect(rig.wrapper.find('.rp-wall-canvas-actions').exists()).toBe(false);
 	const canvas = rig.wrapper.get('.rp-plan-canvas').element as HTMLElement;
 	canvas.focus(); canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); tool.pointerUp(destination); await settle();
-	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(true);
+	expect(rig.wrapper.find('[data-rp-canvas-detail]').exists()).toBe(false);
 	expect(new Map(rig.stack.vault.entries)).toEqual(saved);
 });

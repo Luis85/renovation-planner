@@ -146,7 +146,7 @@ it('routes Area metadata to its existing form and persists it through real histo
 	const area = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden', geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
 	await rig.runtime.refreshProjection(); rig.selection.select([area.id]); await settle();
 	// An Area has no detail route and its shape is edited on the canvas, so nothing floats beside it.
-	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(false);
+	expect(rig.wrapper.find('.rp-wall-canvas-actions').exists()).toBe(false);
 	await menu(rig); expect(rig.wrapper.find('[data-rp-context-action="edit"]').exists()).toBe(false);
 	expect(rig.wrapper.get('[data-rp-context-action="rename"]').text()).toBe('Edit area details');
 	await action(rig, 'rename'); const form = rig.wrapper.get('[data-rp-form="area-details"]');

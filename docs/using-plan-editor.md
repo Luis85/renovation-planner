@@ -72,8 +72,8 @@ A Roomâ€™s shape is edited by dragging its corner points on the plan. There is c
 keyboard or other approved non-drag route for editing one arbitrary existing corner. To add a corner, right-click
 a Room, Area, wall, path or fence and choose **Add point**: it lands on the nearest edge where you
 clicked, ready to drag, and one Undo removes it. A wall is cut there into two, so the new junction
-drags like any wall end; a cut through an opening is refused. The nearby **Add detail**
-action opens the contextual Existing, Planned, Work, Materials, Costs or Evidence form. A selected
+drags like any wall end; a cut through an opening is refused. Use **Details** to open the
+selected item’s Existing, Planned, Work, Materials, Costs or Evidence routes. A selected
 wall shows its length label and, when it has a Room context, **Mark change**. Activate the label,
 or right-click the wall and choose **Edit**, to change its length; that still requires Preview
 and Apply. Mark change uses the separate Planned record. Openings, paths and objects are edited

@@ -48,7 +48,6 @@ export const editorEn = {
 	...inputEn,
 	...creationEn,
 	'editor.direct.mark-change': 'Mark change',
-	'editor.direct.add-detail': 'Add detail',
 	'editor.direct.length-value': 'Edit wall length, {value} m',
 	'editor.dimension.edit-width': 'Edit room width, {value} m',
 	'editor.dimension.edit-depth': 'Edit room depth, {value} m',

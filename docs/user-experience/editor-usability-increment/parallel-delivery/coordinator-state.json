@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-09-14T02:35:40+02:00",
-  "status": "final-native-pr-ci-running",
+  "updatedAt": "2026-09-14T02:59:54+02:00",
+  "status": "complete-chain-green-unmerged",
   "integration": {
     "branch": "main",
     "remote": "origin/main",
@@ -19,7 +19,7 @@
   "limits": {
     "maxConcurrentCodingTasks": 3,
     "activeCodingTasks": 0,
-    "heavyVerificationOwner": "none locally; PR #203 CI is running remotely"
+    "heavyVerificationOwner": "none; all stacked PR checks are complete and green"
   },
   "mergePolicy": "User explicitly prohibited merging implementation PRs to main on 2026-09-13. Build a reviewed stacked-PR chain and leave the complete chain unmerged for final human review.",
   "stack": {
@@ -52,7 +52,7 @@
       "blockers": []
     },
     "I01": {
-      "status": "ci-rerun-after-complexity-refactor",
+      "status": "stacked-pr-open-ci-green",
       "taskId": "01a09ad5-df64-7301-af48-0cd2879a0924",
       "hostId": "local",
       "model": "gpt-5.6-luna",
@@ -157,7 +157,7 @@
       "blockers": []
     },
     "I08": {
-      "status": "ci-rerun-after-banner-complexity-repair",
+      "status": "stacked-pr-open-ci-green",
       "taskId": "01a09b30-535e-7d13-9330-be07a3ac9949",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -172,7 +172,7 @@
       "blockers": []
     },
     "I09": {
-      "status": "ci-rerun-after-parent-repair",
+      "status": "stacked-pr-open-ci-green",
       "taskId": "01a09b30-60b3-70b2-9a3c-605b63fb16c0",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -187,7 +187,7 @@
       "blockers": []
     },
     "I10": {
-      "status": "stacked-pr-open-ci-pending",
+      "status": "stacked-pr-open-ci-green",
       "taskId": "01a09be4-042c-7bc0-a6fc-2506974a10c7",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -202,7 +202,7 @@
       "blockers": []
     },
     "I11": {
-      "status": "stacked-pr-open-ci-pending",
+      "status": "stacked-pr-open-ci-green",
       "taskId": "01a09be4-3a78-7250-a4f4-834aa089fa64",
       "hostId": "local",
       "model": "gpt-5.6-luna",
@@ -217,7 +217,7 @@
       "blockers": []
     },
     "I12": {
-      "status": "stacked-pr-open-ci-rerun",
+      "status": "stacked-pr-open-ci-green",
       "taskId": "01a09be4-6ac6-7a31-8730-27ef7cb025fa",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -232,7 +232,7 @@
       "blockers": []
     },
     "I13": {
-      "status": "stacked-pr-open-ci-rerun",
+      "status": "stacked-pr-open-ci-green",
       "taskId": "01a09c09-9e40-7560-bf33-bc21fd3883bc",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -247,7 +247,7 @@
       "blockers": []
     },
     "I14": {
-      "status": "stacked-pr-open-ci-rerun",
+      "status": "stacked-pr-open-ci-green",
       "taskId": "01a09c09-c784-74b3-8bed-75bb6cae7bed",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -277,7 +277,7 @@
       "blockers": ["No approved non-drag arbitrary-corner interaction; exact unsupported task and release consequence are recorded rather than implemented."]
     },
     "I15": {
-      "status": "stacked-pr-open-audit-complete",
+      "status": "stacked-pr-open-audit-complete-ci-green",
       "taskId": "01a09c2f-7359-7110-8fe8-986b56812e19",
       "hostId": "local",
       "model": "gpt-5.6-terra",
@@ -307,7 +307,7 @@
       "blockers": ["The later Astra native pass closes tested real-Obsidian load, PDF, two-leaf, focus, guard, history and reload paths; AT, human acceptance and failure-injection recovery remain unperformed."]
     },
     "I17": {
-      "status": "stacked-pr-open-docs-verified",
+      "status": "stacked-pr-open-docs-verified-ci-green",
       "taskId": "01a09c44-a137-7c82-b786-fbc2c5f0930c",
       "hostId": "local",
       "model": "gpt-5.6-luna",
@@ -377,7 +377,7 @@
     "nativeObsidianReviewAndPolish": {
       "model": "gpt-6-astra",
       "reasoning": "high",
-      "status": "complete-ci-running",
+      "status": "complete-ci-green",
       "taskId": "01a09d1f-ad0e-7091-ba39-a4c0ac4cfb47",
       "branch": "codex/usability-astra-native-polish",
       "pr": 203,
@@ -386,5 +386,5 @@
       "fullGate": "936 files; 10,225 passed; 1 intentional skip; coverage thresholds passed; analysis zero above threshold"
     }
   },
-  "nextAdmissionGate": "Wait for PR #203 CI. If green, the strict unmerged chain is ready for human review and ordered chain merge; do not merge any implementation PR without explicit user approval."
+  "nextAdmissionGate": "The strict chain is green and ready for human review and ordered chain merge. Do not merge any implementation PR without explicit user approval; I18 and the remaining AT, participant, German-host and failure-injection evidence limits stay open."
 }

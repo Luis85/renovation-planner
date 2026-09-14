@@ -31,25 +31,39 @@
 	font-size: var(--font-ui-smaller);
 }
 
+/*
+ * A TINT behind `--text-normal`, with only the glyph in the error colour. The banner used to paint
+ * `--text-error` on `--background-modifier-error-hover`, and Obsidian's own sheet resolves BOTH to
+ * `--color-red`: a live vault showed a solid red block with the sentence in it invisible, in both
+ * schemes. Solid error red has no readable foreground (`asset-library-inspector.css` measured
+ * `--text-on-accent` at 3.45:1 on it), so this takes the 18% tint the Inspector's Delete hover
+ * already uses, and the red border still says "failure".
+ */
 .rp-form-banner {
 	padding: var(--size-4-2);
 	border: 1px solid var(--background-modifier-error);
 	border-radius: var(--radius-s);
-	background-color: var(--background-modifier-error-hover);
+	background-color: color-mix(in oklch, var(--background-modifier-error) 18%, transparent);
+	color: var(--text-normal);
 	font-size: var(--font-ui-small);
 }
 
 /*
  * `FieldError.vue` and `FormBanner.vue` each open their message with the same aria-hidden glyph,
  * inside the flex row `.rp-field-error__message`/`.rp-form-banner` already declares above. The
- * row's own `gap` already separates flex items, so this is belt-and-braces rather than the only
- * thing standing between the glyph and the text — but it is what the widened style scan (X7, and
- * the identical shape found beside it in `rp-field-error__glyph`) asks be declared by name, using
- * the same spacing variable the row's `gap` already uses.
+ * row's own `gap` already separates flex items, so the spacing here is belt-and-braces rather than
+ * the only thing standing between the glyph and the text — but it is what the widened style scan
+ * (X7, and the identical shape found beside it in `rp-field-error__glyph`) asks be declared by
+ * name, using the same spacing variable the row's `gap` already uses. The colour is folded in
+ * beside it rather than kept as `.rp-form-banner__glyph`'s own rule: `.rp-field-error__glyph`
+ * already resolves to `--text-error` here (inherited from `.rp-field-error__message`'s `color`
+ * above, and pinned again by the more specific `.renovation-plan-editor .rp-field-error__glyph`
+ * rule in `editor-visual-tasks.css`), so stating the same value explicitly changes nothing it paints.
  */
 .rp-field-error__glyph,
 .rp-form-banner__glyph {
 	margin-inline-end: var(--size-2-2);
+	color: var(--text-error);
 }
 
 /*

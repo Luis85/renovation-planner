@@ -69,11 +69,6 @@ function draftingFields(draft: ElementDraft): Pick<SpatialElement, 'offset' | 'f
 	if (draft.kind === 'dimension') return { offset: draft.dimensionPhase === 'offset' && draft.cursor ? Math.round(dimensionOffsetAt(draft.points, draft.cursor)) : draft.offset };
 	return draft.kind === 'section' ? { flipped: false } : {};
 }
-/** The cursor point a preview appends: none once the kind has all its points, and none while a chain's line is being placed. */
-export function draftCursorPoints(draft: ElementDraft): Point[] {
-	if (!draft.cursor || (draft.kind === 'dimension' && draft.dimensionPhase === 'offset')) return [];
-	return draft.points.length < (maxDraftPoints(draft.kind) ?? Number.POSITIVE_INFINITY) ? [draft.cursor] : [];
-}
 /** The kind-specific facts a preview draws with; a chain's offset is the one `draftElement` saves, so Finish saves what is drawn. */
 export function draftPreviewFields(draft: ElementDraft): Pick<SpatialElement, 'stair' | 'width' | 'loadBearing' | 'offset' | 'flipped'> {
 	if (draft.kind === 'stair') return { stair: draft.stair };
@@ -94,4 +89,17 @@ export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSp
  */
 export function pointsAfterUndo(draft: ElementDraft): Point[] {
 	return draft.kind === 'object' && draft.shape === 'rectangle' ? [] : draft.points.slice(0, -1);
+}
+/**
+ * The canvas preview's vertex list (StructureLayer.vue's `elementDraft`): every other draft
+ * trails the cursor as the next corner to place, but a rectangle-mode item's cursor already IS
+ * one of the four corners `ElementTool` writes into `draft.points` on every move — appending it
+ * again drew an extra vertex, a diagonal from a corner to the pointer instead of the closed
+ * rectangle (vault defect, caught by no gate). Same mode check as `pointsAfterUndo` above.
+ */
+export function elementPreviewPoints(draft: ElementDraft): readonly Point[] {
+	if (draft.kind === 'object' && draft.shape === 'rectangle') return draft.points;
+	// No cursor once the kind holds all its points, nor while a dimension chain's line is being placed (plan drafting tools design §5).
+	const full = draft.points.length >= (maxDraftPoints(draft.kind) ?? Number.POSITIVE_INFINITY) || (draft.kind === 'dimension' && draft.dimensionPhase === 'offset');
+	return draft.cursor && !full ? [...draft.points, draft.cursor] : draft.points;
 }

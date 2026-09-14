@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { DRAFTING_TEXT_PX, GRID_RADIUS_PX, draftingMarks } from '../../../src/presentation/editor/elements/draftingMarks';
-import { createElementDraft, draftCursorPoints, draftPreviewFields } from '../../../src/presentation/editor/elements/elementDraft';
+import { createElementDraft, draftPreviewFields, elementPreviewPoints } from '../../../src/presentation/editor/elements/elementDraft';
 import { formatMetres } from '../../../src/presentation/editor/shell/formatLength';
 import { BOUNDARY_A, DIMENSION_A, GRID_A, HATCH_A, SECTION_A, TEXT_A, VIEW_A } from '../../helpers/drafting';
 
@@ -54,15 +54,16 @@ describe('drafting mark layout', () => {
 	it('previews a chain\'s line at the pointer while it is placed, and appends no cursor point then or once a kind is full', () => {
 		const draft = createElementDraft();
 		Object.assign(draft, { kind: 'dimension', points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }], cursor: { x: 2000, y: -800 }, offset: -100 });
-		expect(draftCursorPoints(draft)).toEqual([{ x: 2000, y: -800 }]);
+		const ends = [{ x: 0, y: 0 }, { x: 4000, y: 0 }];
+		expect(elementPreviewPoints(draft)).toEqual([...ends, { x: 2000, y: -800 }]);
 		expect(draftPreviewFields(draft)).toEqual({ offset: -100 });
 		draft.dimensionPhase = 'offset';
-		expect(draftCursorPoints(draft)).toEqual([]);
+		expect(elementPreviewPoints(draft)).toEqual(ends);
 		expect(draftPreviewFields(draft)).toEqual({ offset: -800 });
 		Object.assign(draft, { kind: 'section', dimensionPhase: 'points' });
-		expect(draftCursorPoints(draft)).toEqual([]);
+		expect(elementPreviewPoints(draft)).toEqual(ends);
 		expect(draftPreviewFields(draft)).toEqual({ flipped: false });
 		Object.assign(draft, { kind: 'text', points: [{ x: 0, y: 0 }] });
-		expect(draftCursorPoints(draft)).toEqual([]);
+		expect(elementPreviewPoints(draft)).toEqual([{ x: 0, y: 0 }]);
 	});
 });

@@ -13,7 +13,7 @@ import OpeningSymbols from './OpeningSymbols.vue';
 import { samePoint, wallTangent, type Wall } from '../../../domain/spatial/Structure';
 import { useDrawnStructure } from './drawnStructure';
 import ElementShapes from '../elements/ElementShapes.vue';
-import { draftCursorPoints, draftPreviewFields, isElementTool } from '../elements/elementDraft';
+import { draftPreviewFields, elementPreviewPoints, isElementTool } from '../elements/elementDraft';
 import { withElementPreviews } from '../elements/elementPreviews';
 import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import WallDraftOverlay, { type WallCut } from './WallDraftOverlay.vue';
@@ -68,7 +68,7 @@ const nonStructuralElements = computed(() => elements.value.filter(element => !d
 const elementDraft = computed(() => {
 	const draft = runtime.elementTask.draft;
 	if (!isElementTool(runtime.activeToolId.value) || !draft.points.length) return [];
-	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...draft.points, ...draftCursorPoints(draft)], ...draftPreviewFields(draft) }];
+	return [{ id: 'element-preview', kind: draft.kind, name: draft.name, points: [...elementPreviewPoints(draft)], ...draftPreviewFields(draft) }];
 });
 const structuralElementDraft = computed(() => elementDraft.value.filter(element => drawsAboveWalls(element.kind)));
 const nonStructuralElementDraft = computed(() => elementDraft.value.filter(element => !drawsAboveWalls(element.kind)));

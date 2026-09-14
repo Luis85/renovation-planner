@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createElementDraft, draftElement, isElementTool } from '../../../src/presentation/editor/elements/elementDraft';
+import { createElementDraft, draftElement, elementPreviewPoints, isElementTool } from '../../../src/presentation/editor/elements/elementDraft';
 import { ElementTool } from '../../../src/presentation/editor/elements/ElementTool';
 import { ElementMove } from '../../../src/presentation/editor/elements/ElementMove';
 import { resolveSelectionTarget } from '../../../src/presentation/editor/selection/resolveSelectionTarget';
@@ -101,5 +101,19 @@ describe('spatial element drafts and real selection projections', () => {
 		gesture.start(r.context, { ...pointerAt(0, 0), modifiers: { shift: true, ctrl: false, alt: false } }, hit); expect(gesture.active).toBe(false);
 		gesture.start(r.context, pointerAt(0, 0), hit); gesture.finish({ ...r.context, writesBlocked: () => true }, pointerAt(100, 100)); expect(move).toHaveBeenCalledOnce();
 		const unavailable = new ElementMove({}); unavailable.start(r.context, pointerAt(0, 0), hit); expect(unavailable.active).toBe(false); unavailable.cancel();
+	});
+	it('previews a rectangle-mode item as its bare four corners, and every other draft trailing the cursor (vault defect)', () => {
+		const rectangle = createElementDraft();
+		rectangle.points = points.map(point => ({ ...point })); rectangle.cursor = { x: 9000, y: 9000 };
+		expect(elementPreviewPoints(rectangle)).toEqual(points);
+		const free = createElementDraft();
+		free.shape = 'free'; free.points = points.slice(0, 2).map(point => ({ ...point })); free.cursor = { x: 9000, y: 9000 };
+		expect(elementPreviewPoints(free)).toEqual([...free.points, free.cursor]);
+		const path = createElementDraft();
+		path.kind = 'path'; path.points = points.slice(0, 2).map(point => ({ ...point })); path.cursor = { x: 9000, y: 9000 };
+		expect(elementPreviewPoints(path)).toEqual([...path.points, path.cursor]);
+		const beam = createElementDraft();
+		beam.kind = 'beam'; beam.points = points.slice(0, 2).map(point => ({ ...point })); beam.cursor = { x: 9000, y: 9000 };
+		expect(elementPreviewPoints(beam)).toEqual(beam.points);
 	});
 });

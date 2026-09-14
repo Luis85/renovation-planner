@@ -39,6 +39,7 @@ import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps, treePlanDeps } from './detailPlanKnob';
 import { roomsDeps } from './roomsKnob';
+import { driveItemKnob, type ItemGesture } from './itemKnob';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -504,6 +505,8 @@ export interface PlanEditorHarnessOptions {
 	readonly tree?: boolean;
 	/** `collapsed`, `layers` or `inspector`: collapses those full-layout side panels once drawn. */
 	readonly panels?: string;
+	/** Over `reference` (whose `&item` seeds the items): draws an item or promotes a seeded one (`itemKnob.ts`). */
+	readonly item?: ItemGesture;
 }
 
 /**
@@ -805,6 +808,7 @@ export function mountPlanEditorHarness(
 	if (options.numericArea === true) knobs.push(guardKnob(enterNumericArea(leafEl)));
 	if (options.room !== undefined) knobs.push(guardKnob(enterRoomTaskOnceReady(leafEl, options.room)));
 	if (options.tree === true) knobs.push(guardKnob(openLayersOnceReady(leafEl)));
+	if (options.item !== undefined) knobs.push(guardKnob(driveItemKnob(leafEl, options.item)));
 
 	// Every caller's teardown is `await view.onClose()` (`grep -rn "view.onClose()" tests/harness`
 	// today prints 8 files), so wrapping it here surfaces a late knob failure as THAT case's own

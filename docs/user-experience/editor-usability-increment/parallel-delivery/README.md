@@ -2,7 +2,7 @@
 
 **Delivery update · 2026-09-14 · 19 packets implemented or explicitly dispositioned in stacked review.**
 
-The packet text and dispatch files below preserve the original planning baseline. Current implementation, PR and evidence status lives in [receipts](receipts/) and the [Astra corrective review](receipts/astra-code-polish.md). Native/AT/user validation and the deferred arbitrary-corner route remain open; a stacked PR is not a merge to main.
+The packet text and dispatch files below preserve the original planning baseline. Current implementation, PR and evidence status lives in [receipts](receipts/), the [Astra corrective review](receipts/astra-code-polish.md), and the [current-main refresh](receipts/ASTRA-MAIN-REFRESH.md). Native/AT/user validation and the deferred arbitrary-corner route remain open; a stacked PR is not a merge to main.
 
 The user asked to implement later in parallel sessions using weaker models. These packets turn U0–U9 and the chosen [hybrid screens](../mockups/README.md) into small reviewable concerns with concrete file ownership, prerequisite gates, checks and copy-ready prompts.
 

@@ -43,7 +43,7 @@ async function measure(page, name) {
 	for (const button of metrics.buttons) {
 		assert.ok(button.rect.left >= metrics.canvas.left && button.rect.right <= metrics.canvas.right);
 		assert.ok(button.rect.width >= 44 && button.rect.height >= 44);
-		assert.equal(button.unobscured, true);
+		assert.equal(button.unobscured, true, `${name}: ${button.label} is unobscured`);
 	}
 	await page.screenshot({ path: `${out}/${name}.png` });
 	return metrics;
@@ -61,7 +61,7 @@ try {
 		await page.locator('.rp-new-room__create').click(); await page.locator('.rp-room-inspector').waitFor();
 		await closePanel(page);
 		const before = await snapshot(page), plan = await measure(page, `${language}-plan-selection`);
-		await page.setViewportSize({ width: 460, height: 800 }); await stable(page);
+		await page.setViewportSize({ width: 460, height: 800 }); await stable(page); await closePanel(page); await stable(page);
 		const narrow = await measure(page, `${language}-narrow-plan`);
 		await page.locator('[data-rp-perspective="renovate"]').click();
 		await page.locator('[data-rp-perspective="renovate"][aria-checked="true"]').waitFor();

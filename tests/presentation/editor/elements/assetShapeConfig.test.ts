@@ -50,6 +50,20 @@ describe('assetShapeConfig', () => {
 		expect(assetShapeConfig(element, () => null, state).details).toEqual([]);
 	});
 
+	/** A solid detail fills over the inner half of the footprint's stroke; the edge restrokes it on top. */
+	it('restrokes the footprint as an unfilled, non-listening edge when the placement has details', () => {
+		const withDetails = { ...shape, details: [{ id: 'd1', name: 'seat', outline: square(100), line: 'solid' as const, pending: false }] };
+		const config = assetShapeConfig(element, () => withDetails, state);
+		expect(config.edge).toMatchObject({ name: 'asset-footprint-edge', points: config.footprint.points, closed: true, stroke: 'ink', strokeWidth: 2, listening: false });
+		expect(config.edge).not.toHaveProperty('fill');
+		expect(assetShapeConfig(element, () => withDetails, { ...state, selected: true }).edge).toMatchObject({ stroke: 'accent', strokeWidth: 3 });
+	});
+
+	it('draws no edge without details, or without a readable shape', () => {
+		expect(assetShapeConfig(element, () => shape, state).edge).toBeNull();
+		expect(assetShapeConfig(element, () => null, state).edge).toBeNull();
+	});
+
 	it('details use zoneStroke regardless of selection, and do not listen', () => {
 		const tokensWithDifferentAccent = { ...tokens, accent: 'selected-accent' };
 		const withDetails = { ...shape, details: [

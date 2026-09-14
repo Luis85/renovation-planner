@@ -31,7 +31,7 @@ export const objectEn = {
 	'editor.object.mode': 'Item shape',
 	'editor.object.mode.rectangle': 'Rectangle',
 	'editor.object.mode.free': 'Free-form',
-	'editor.object.rectangle-hint': 'Enter its top-left position and size in metres from the plan origin (0, 0). Horizontal positions increase to the right; vertical positions increase downwards. Applying replaces the outline. Finish saves the item.',
+	'editor.object.rectangle-hint': 'Enter its top-left position and size in metres from the plan origin (0, 0). Horizontal positions increase to the right; vertical positions increase downwards. Applying replaces the outline. Finish saves it.',
 	'editor.object.apply-rectangle': 'Apply rectangle',
 	'editor.object.discard-rectangle': 'Discard rectangle entry',
 	'editor.object.pending-rectangle': 'Apply or discard the rectangle entry before continuing the outline or finishing.',

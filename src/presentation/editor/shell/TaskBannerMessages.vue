@@ -16,9 +16,9 @@ defineProps<{
 	<div class="rp-task-banner__text">
 		<strong role="status">{{ name }}</strong>
 		<span
-			v-if="showSnapHint"
-			role="status"
-		>{{ tr('editor.room.snapped') }}</span>
+			class="rp-task-banner__snap"
+			:data-reserve="tr('editor.room.snapped')"
+		><span role="status">{{ showSnapHint ? tr('editor.room.snapped') : '' }}</span></span>
 		<span :id="instructionId">{{ instruction }}</span>
 		<span
 			v-if="state !== null"

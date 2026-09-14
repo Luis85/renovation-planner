@@ -1,0 +1,61 @@
+/*
+ * The asset designer inspector's section for the selected part (asset designer symbols spec,
+ * "Inspector for the selection"). Its own partial because `designer.css` sits within a few lines of
+ * the assembler's 400-line cap. Obsidian variables only, no colour literal (SDD §84).
+ */
+
+.rp-designer-selection {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: 0 0 var(--size-4-4);
+	padding-bottom: var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-designer-selection-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+}
+
+/*
+ * Qualified with `.rp-designer-inspector`: Obsidian's `button:not(.clickable-icon)` scores (0,1,1)
+ * and beats a bare class (`tests/build/buttonSpecificity.test.ts`).
+ * REVIEWED CLONE: the flat bordered button is written once per component by necessity — the
+ * argument is on `.rp-designer-tool-button` in `designer.css`.
+ */
+.rp-designer-inspector .rp-designer-selection-button {
+	/* fallow-ignore-next-line code-duplication */
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-designer-inspector .rp-designer-selection-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* The ring, for the reason `designer.css`'s toolbar `:focus-visible` comment gives. */
+.rp-designer-inspector .rp-designer-selection-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-designer-inspector .rp-designer-selection-button:disabled {
+	color: var(--text-faint);
+	background-color: transparent;
+	cursor: default;
+}
+
+/* A refused edit: the design is unchanged, so this is an error about the typed value, not a warning. */
+.rp-designer-selection-error {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-error);
+}

@@ -26,6 +26,16 @@ async function edit(event: Event): Promise<void> {
 		/>
 		<div class="rp-inspector-actions">
 			<button
+				v-if="element.kind === 'section' && session.perspective === 'plan'"
+				type="button"
+				class="rp-inspector-action"
+				data-rp-action="flip-section"
+				:aria-disabled="runtime.elementActions.blocked.value"
+				@click="runtime.elementActions.flip(element.id)"
+			>
+				{{ tr('editor.drafting.flip') }}
+			</button>
+			<button
 				v-if="session.perspective === 'renovate'"
 				type="button"
 				class="rp-inspector-action"

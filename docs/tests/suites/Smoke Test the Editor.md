@@ -14,7 +14,7 @@ Its traceability separates automated/FakeVault and browser evidence from still-u
 host/screenreader acceptance. It is a supplemental journey, outside the historical 344-step
 census below; that dated census is not a claim that the new journey was accepted in Obsidian.
 [[Copy and paste across floors]], [[Delete a selection or group]],
-[[Alignment guides while dragging]] and [[Draw posts and beams]] are outside that census too:
+[[Alignment guides while dragging]], [[Draw posts and beams]] and [[Draw drafting marks]] are outside that census too:
 their steps carry no `Reachable by` verdicts yet, so neither the triage column's "every step"
 nor its step counts include them.
 
@@ -94,15 +94,22 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 110 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 54 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 153 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 125 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 57 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 176 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 14 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
 
-**344 steps across TWENTY-ONE cases, re-run in the edit that added [[Recover from a stale read]]
-and [[Reload a room]] — 327 table rows across twenty table-form cases plus the same 17 list steps
-in [[Canvas Navigation]].** The trust path contributes eighteen: eleven and seven, `suite` 2,
+**385 steps — 367 table rows plus 18 list steps in [[Canvas Navigation]] — re-run in the edit that
+added the selection steps to [[Design an Asset]].** The table read 344 until that edit while the
+greps already printed 349 + 18 over the tree it was taken from: increments between the two had
+added rows without re-running them, which is why this figure was read off the greps rather than
+taken as 344 plus the eighteen rows that edit added (`suite` 13, `browser` 1, `obsidian` 4).
+
+**The previous measurement's own account follows, kept as history.** *344 steps across TWENTY-ONE
+cases, re-run in the edit that added [[Recover from a stale read]] and [[Reload a room]] — 327
+table rows across twenty table-form cases plus the same 17 list steps in [[Canvas Navigation]].*
+The trust path contributes eighteen: eleven and seven, `suite` 2,
 `obsidian` 16, and nothing in the other three tiers. **It is additive against the previous
 figures per row and not merely in total** — 108 + 2, 54 + 0, 137 + 16, 14 + 0, 13 + 0 — which is
 what says this increment edited no verdict row outside its own two new cases; the sum was read off
@@ -701,3 +708,8 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   the host renders the registered `rp-post` and `rp-beam` icons, and whether a post lands on a
   wall's centre line under a real hand. Its steps carry no `Reachable by` verdicts yet (see the
   head of this file).
+- [[Draw drafting marks]] — the plan drafting tools increment: dimension chains, section and view
+  markers, hatched areas, text, boundary lines and grid points from right-click › Drafting. What
+  only a vault shows is whether the marks read as a plan on a themed vault, whether the host
+  renders the seven registered `rp-` icons, and whether a chain's points land on a room's corners
+  under a real hand. Its steps carry no `Reachable by` verdicts yet (see the head of this file).

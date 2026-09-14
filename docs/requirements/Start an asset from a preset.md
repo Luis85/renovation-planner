@@ -2,9 +2,9 @@
 type: PBI
 parent: "[[Asset Designer Foundations]]"
 order: 8.8
-status: In progress
+status: Done
 started: "2026-09-13"
-finished: ""
+finished: "2026-09-13"
 horizon: MVP
 start: ""
 due: ""

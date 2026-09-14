@@ -235,6 +235,8 @@ describe('TemporaryToolBanner', () => {
 		runtime.setTool('draw-polygon');
 		await settle();
 		expect(harness.wrapper.find('.rp-task-banner').text()).not.toContain(t('en', 'editor.room.snapped'));
+		// The slot is there either way, reserving the hint's width, so the bar does not resize under the pointer.
+		expect(harness.wrapper.get('.rp-task-banner__snap').attributes('data-reserve')).toBe(t('en', 'editor.room.snapped'));
 		runtime.renderState.snapGuides = [{ start: { x: 0, y: 0 }, end: { x: 0, y: 100 } }];
 		await settle();
 		expect(harness.wrapper.find('.rp-task-banner').text()).toContain(t('en', 'editor.room.snapped'));

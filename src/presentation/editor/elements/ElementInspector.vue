@@ -5,12 +5,8 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
-import { elementLength } from '../../../domain/spatial/SpatialElement';
-import { postSection } from '../../../domain/spatial/structuralElement';
-import { area } from '../../../core/geometry/operations';
-import { formatArea } from '../shell/formatArea';
-import { formatMetres } from '../shell/formatLength';
-import AssetPlacementDetails from './AssetPlacementDetails.vue';
+import { draftingKind } from '../../../domain/spatial/SpatialElement';
+import ElementSummaryLine from './ElementSummaryLine.vue';
 import LoadBearingSwitch from './LoadBearingSwitch.vue';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import HostIcon from '../../components/HostIcon.vue';
@@ -18,22 +14,6 @@ import ElementGeometryActions from './ElementGeometryActions.vue';
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const element = computed(() => project.structure.elements?.find(item => item.id === selection.selectedIds[0]));
 const name = computed(() => project.plan?.spatialElements?.find(item => item.id === element.value?.id)?.name ?? element.value?.id ?? '');
-const measuredArea = computed(() => element.value ? area({ points: element.value.points }) : null);
-/** The stair line, in script rather than the template: fallow scores template cognitive complexity, and this ternary sat nested two conditionals deep. */
-const stairSummary = computed(() => {
-	const stair = element.value?.stair;
-	if (element.value?.kind !== 'stair' || !stair) return null;
-	return tr('editor.stair.summary', { width: formatMetres(stair.width), run: formatMetres(elementLength(element.value)), treads: String(stair.treads), direction: tr(stair.direction === 'up' ? 'editor.stair.up' : 'editor.stair.down') });
-});
-/** Section or length and width for a post or beam, in metres like every other inspector measure. */
-const structuralSummary = computed(() => {
-	const value = element.value;
-	if (value?.kind === 'beam' && value.width) return tr('editor.structural.beam-summary', { length: formatMetres(elementLength(value)), width: formatMetres(value.width) });
-	const section = value?.kind === 'post' ? postSection(value.points) : null;
-	return section ? tr('editor.structural.post-summary', { width: formatMetres(section.width), depth: formatMetres(section.depth) }) : null;
-});
-/** One template branch for both measured summaries, for the same template-complexity budget as `stairSummary`. */
-const summary = computed(() => stairSummary.value ?? structuralSummary.value);
 </script>
 <template>
 	<section
@@ -45,30 +25,9 @@ const summary = computed(() => stairSummary.value ?? structuralSummary.value);
 		<p class="rp-inspector-subline">
 			{{ tr(zoneTypeLabel(element.kind)) }}
 		</p>
-		<p
-			v-if="element.kind === 'object' && measuredArea?.ok"
-			class="rp-inspector-subline"
-		>
-			{{ formatArea(measuredArea.value) }}
-		</p>
-		<p
-			v-else-if="summary"
-			class="rp-inspector-subline"
-		>
-			{{ summary }}
-		</p>
-		<AssetPlacementDetails
-			v-else-if="element.kind === 'asset'"
-			:element="element"
-		/>
-		<p
-			v-else
-			class="rp-inspector-subline"
-		>
-			{{ formatMetres(elementLength(element)) }} m
-		</p>
+		<ElementSummaryLine :element="element" />
 		<LoadBearingSwitch :element="element" />
-		<StructureRenovationEntry />
+		<StructureRenovationEntry v-if="!draftingKind(element.kind)" />
 		<ElementGeometryActions />
 		<!-- The frame's group controls, above Delete so Delete stays the foot of the whole region (side panels spec §3). -->
 		<slot name="actions" />

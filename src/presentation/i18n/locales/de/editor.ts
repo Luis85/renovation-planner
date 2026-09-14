@@ -8,6 +8,7 @@ import { objectDe } from './object';
 import { assetPlacementDe } from './assetPlacement';
 import { stairsArrowsDe } from './stairsArrows';
 import { structuralDe } from './structural';
+import { draftingDe } from './drafting';
 import { inputDe } from './input';
 import { groupsDe } from './groups';
 import { creationDe } from './creation';
@@ -31,6 +32,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...groupsDe,
 	...stairsArrowsDe,
 	...structuralDe,
+	...draftingDe,
 	...inputDe,
 	...creationDe,
 	'editor.direct.mark-change': 'Änderung markieren',

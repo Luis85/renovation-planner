@@ -207,13 +207,13 @@ it('orders the menu by group with a separator between groups, draws one known ic
 	const rig = await setup();
 	rig.selection.clear(); await menu(rig);
 	const empty = rig.wrapper.get('.rp-canvas-context-menu');
-	expect(groupedIds(empty)).toEqual(['add', 'measure', '|', 'fit', 'pan']);
+	expect(groupedIds(empty)).toEqual(['add', 'measure', 'drafting-menu', '|', 'fit', 'pan']);
 	expect(empty.find('.rp-canvas-context-menu-title').exists()).toBe(false);
 	await empty.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select([rig.room.id]); await menu(rig);
 	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
 	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(`${t('en', 'editor.input.current-target', { target: rig.room.name })} ${t('en', 'editor.input.overlap-cycle-guidance')}`);
-	expect(groupedIds(menuEl)).toEqual(['rename', 'add-point', 'rotate', '|', 'add-menu', 'measure', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
+	expect(groupedIds(menuEl)).toEqual(['rename', 'add-point', 'rotate', '|', 'add-menu', 'measure', 'drafting-menu', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
 	for (const item of menuEl.findAll('[data-rp-context-action]')) { expect(item.find('.rp-host-icon[data-icon]').exists()).toBe(true); expect(item.find('[data-icon-missing]').exists()).toBe(false); }
 	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select(['wall-a' as never]); await menu(rig);

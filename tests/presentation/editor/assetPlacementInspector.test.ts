@@ -65,6 +65,23 @@ it('reports a refused replace through the mapped notice and leaves the placement
 	expect(rig.project.structure.elements?.[0]?.assetId).toBe('asset-gone');
 });
 
+it('notifies the fault once, logs it and leaves the placement when replace throws', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place('asset-gone', { x: 1000, y: 1000 }, 0, 'Old boiler');
+	const inspector = await selectPlaced(rig, id, 1);
+	const cause = new Error('Vault write failed');
+	const fault = vi.spyOn(notices, 'notifyFault');
+	vi.spyOn(rig.runtime.dispatcher, 'run').mockRejectedValueOnce(cause);
+	await inspector.get('[data-rp-action="replace-asset"]').trigger('click'); await settle();
+	rig.dialogs.resolve({ id: radiator.id });
+	await settleUntil(() => fault.mock.calls.length > 0, 'replace fault');
+	expect(fault).toHaveBeenCalledExactlyOnceWith(cause, rig.deps.commands.logger, 'editor.asset.write-failed');
+	expect(rig.project.structure.elements?.[0]?.assetId).toBe('asset-gone');
+	const draft = rig.runtime.elementTask.assets.draft;
+	expect(draft.busy).toBe(false);
+});
+
 it('adds a placement-count material for the room pre-filled, counting the placement', async () => {
 	const rig = await assetPlacementRig(); mounted.push(rig);
 	const radiator = await rig.saveAsset('Radiator');

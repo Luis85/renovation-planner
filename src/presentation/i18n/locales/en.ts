@@ -585,7 +585,7 @@ export const en = {
 		'A typed footprint is already in millimetres, so it cannot be waiting for a scale.',
 	'asset.absent-clearance-cannot-be-pending': 'There is no clearance to wait for a scale.',
 	'asset.no-footprint':
-		'Give this asset a footprint first; a clearance, an anchor and a facing are each relative to one.',
+		'Give this asset a footprint first; a clearance, an anchor, a facing and a detail are each relative to one.',
 	'asset.not-found': 'That asset no longer exists.',
 	// The one background refusal a USER can reach, on either surface: both pickers snapshot the
 	// vault's candidates and the user picks out of that snapshot, so a file deleted or renamed in

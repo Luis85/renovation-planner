@@ -106,13 +106,20 @@ const framedBounds = usePlanFrame();
 // stage has an area AND every placed asset's shape has been answered — before that, an asset
 // frames as its placeholder, which a larger real footprint then overflows. A remount (the shell
 // dropping the canvas below its floor width) finds both already true and keeps the user's camera.
+// Only the rise counts: `once` would also fire on a FALL, which a new placement causes while its
+// shape is being read — so a remounted canvas used to jump to the whole plan on the next placement.
 const assetShapes = useAssetShapeStore();
 const shapesAnswered = (): boolean => !context.queries.assetShapes
 	|| (project.structure.elements ?? []).every(element => element.kind !== 'asset' || !element.assetId || assetShapes.answerFor(element.assetId) !== null);
-watch(() => editor.stageSize.width > 0 && editor.stageSize.height > 0 && shapesAnswered(), () => {
-	const bounds = framedBounds(true, false);
-	if (bounds !== null) editor.fitTo(bounds, editor.stageSize);
-}, { once: true });
+const readyToFrame = (): boolean => editor.stageSize.width > 0 && editor.stageSize.height > 0 && shapesAnswered();
+if (!readyToFrame()) {
+	const stopOpeningFit = watch(readyToFrame, ready => {
+		if (!ready) return;
+		stopOpeningFit();
+		const bounds = framedBounds(true, false);
+		if (bounds !== null) editor.fitTo(bounds, editor.stageSize);
+	});
+}
 
 /**
  * vue-konva's `VStage` exposes `getStage()`; the layers follow the monitor's pixel ratio through

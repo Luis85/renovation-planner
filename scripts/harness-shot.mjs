@@ -80,6 +80,13 @@ const PLAN_CANVAS = '.rp-plan-canvas';
 const ASSET_LIBRARY_VIEW = '.renovation-asset-library';
 
 /**
+ * What only a DRAWN item outline gives the `&item=rectangle` and `&item=drag` shots: Finish enabled over a pressed
+ * Rectangle. The bare banner attaches when Add → Item arms the tool, before any pointer lands, so it would certify the
+ * arming — the hazard `plan-editor-add-room-narrow`'s comment states for its own Finish.
+ */
+const ITEM_DRAWN = ['.rp-task-banner [data-rp-object-shape="rectangle"][aria-pressed="true"]', '.rp-task-banner__finish[aria-disabled="false"]'];
+
+/**
  * The `?detail` narrow shot's own third marker (detail-plan polish, 2026-09-11): the context
  * bar's ancestry crumb (ADR-0028), which is the only on-screen proof the hierarchy read landed
  * at 460px. The guide explainer the two wide detail shots wait on
@@ -503,6 +510,25 @@ const SHOTS = [
 	{ name: 'plan-editor-structural', query: '?view=plan-editor&reference&planning&structural&theme=light', selector: FLOOR_STATE },
 	{ name: 'plan-editor-structural-dark', query: '?view=plan-editor&reference&planning&structural', selector: FLOOR_STATE },
 	{ name: 'plan-editor-structural-narrow', query: '?view=plan-editor&reference&planning&structural&theme=light', selector: PLAN_CANVAS, width: 460 },
+	// Drafting marks around a walled floor: a dimension chain along its north wall, a section line across it, a view
+	// marker, a hatched area to the south, a text, a boundary line and a grid point, from the `?drafting` knob.
+	{ name: 'plan-editor-drafting', query: '?view=plan-editor&reference&planning&drafting&theme=light', selector: FLOOR_STATE },
+	{ name: 'plan-editor-drafting-dark', query: '?view=plan-editor&reference&planning&drafting', selector: FLOOR_STATE },
+	{ name: 'plan-editor-drafting-narrow', query: '?view=plan-editor&reference&planning&drafting&theme=light', selector: PLAN_CANVAS, width: 460 },
+	// Item modes and Add to asset library (2026-09-14), through `&item=` over the reference workspace — the one floor with
+	// renovation and asset-creation services (`tests/harness/itemKnob.ts` seeds a room, a Cabinet and the vault-shaped
+	// item). `rectangle` drags and releases; `drag` never releases, so its PNG is the preview mid-drag. `promote` waits on
+	// the New asset dialog's outline line; `saved` saves the vault-shaped item as a building element and waits on the
+	// placement's Replace action, which a refused save (its banner up, the dialog open) never draws.
+	{ name: 'plan-editor-item-rectangle', query: '?view=plan-editor&reference&planning&item=rectangle&theme=light', selector: ITEM_DRAWN },
+	{ name: 'plan-editor-item-rectangle-dark', query: '?view=plan-editor&reference&planning&item=rectangle', selector: ITEM_DRAWN },
+	{ name: 'plan-editor-item-rectangle-narrow', query: '?view=plan-editor&reference&planning&item=rectangle&theme=light', selector: ITEM_DRAWN, width: 460 },
+	{ name: 'plan-editor-item-drag', query: '?view=plan-editor&reference&planning&item=drag&theme=light', selector: ITEM_DRAWN },
+	{ name: 'plan-editor-item-drag-dark', query: '?view=plan-editor&reference&planning&item=drag', selector: ITEM_DRAWN },
+	{ name: 'plan-editor-item-promote', query: '?view=plan-editor&reference&planning&item=promote&theme=light', selector: '.rp-new-asset__outline' },
+	{ name: 'plan-editor-item-promote-dark', query: '?view=plan-editor&reference&planning&item=promote', selector: '.rp-new-asset__outline' },
+	{ name: 'plan-editor-item-promote-narrow', query: '?view=plan-editor&reference&planning&item=promote&theme=light', selector: '.rp-new-asset__outline', width: 460 },
+	{ name: 'plan-editor-item-saved', query: '?view=plan-editor&reference&planning&item=saved&theme=light', selector: '.rp-element-inspector [data-rp-action="replace-asset"]' },
 	// The 2026-09-12 side panels: both collapsed to strips, in both schemes, driven through the real
 	// header buttons (`?panels`); the full layout at its 900px edge, where the canvas floor shrinks
 	// both panels; a selected room in dark; and the German constrained rail.
@@ -661,6 +687,32 @@ const SHOTS = [
 	{ name: 'asset-designer-preset-sofa', query: '?view=asset-designer&preset=sofa', selector: ASSET_DESIGNER_VIEW },
 	{ name: 'asset-designer-preset-toilet', query: '?view=asset-designer&preset=toilet', selector: ASSET_DESIGNER_VIEW },
 	{ name: 'asset-designer-preset-tree', query: '?view=asset-designer&preset=tree', selector: ASSET_DESIGNER_VIEW },
+	// The selection (symbols spec, Decision 10): one capture per mode and one of the anchor, through the
+	// designer harness's `&select=`/`&mode=` knobs. Each waits on marks that exist only once the knob
+	// has landed — the pressed mode and that part's inspector section — so a capture cannot be taken of
+	// the designer before its selection. Transform on the toilet's bowl (a detail over the footprint);
+	// Edit points on the toilet's footprint; Bend edges on the curved table's footprint, light, because
+	// that is the shot whose accent edge handles sit on arcs; the anchor has no mode control at all.
+	{
+		name: 'asset-designer-select-transform',
+		query: '?view=asset-designer&preset=toilet&select=detail-2',
+		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="detail"]'],
+	},
+	{
+		name: 'asset-designer-select-points',
+		query: '?view=asset-designer&preset=toilet&select=footprint&mode=points',
+		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'],
+	},
+	{
+		name: 'asset-designer-select-bend',
+		query: '?view=asset-designer&preset=curved-table&select=footprint&mode=bend&theme=light',
+		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'],
+	},
+	{
+		name: 'asset-designer-select-anchor',
+		query: '?view=asset-designer&preset=toilet&select=anchor',
+		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection[data-kind="anchor"]'],
+	},
 	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
 	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
 	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every

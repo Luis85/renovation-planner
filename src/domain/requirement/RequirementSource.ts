@@ -5,7 +5,7 @@ import { err, ok } from '../../core/result/Result';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
 import { EMPTY_STRUCTURE, wallLength, type Structure } from '../spatial/Structure';
 import { membershipProbe } from '../spatial/assetPlacement';
-import { elementLength, outlineKind, type SpatialElement } from '../spatial/SpatialElement';
+import { draftingKind, elementLength, outlineKind, type SpatialElement } from '../spatial/SpatialElement';
 
 export const QUANTITY_RULES = ['room-area', 'room-perimeter', 'wall-gross', 'wall-net', 'wall-length', 'wall-volume', 'opening-area', 'element-length', 'object-area', 'count', 'placement-count', 'manual'] as const;
 /** Geometry references stay on the Requirement; procurement and payment facts do not. */
@@ -80,7 +80,10 @@ function measurement(source: RequirementSource, roomId: string | undefined, geom
  const opening = structure.openings.find(item => item.id === source.targetId);
  if (opening && source.rule === 'opening-area') return { raw: opening.width * opening.height, unit: 'm2' };
  if (opening && source.rule === 'count') return { raw: 1, unit: 'piece' };
- return elementMeasurement(source, structure.elements?.find(item => item.id === source.targetId)) ?? wallMeasurement(source, structure) ?? roomMeasurement(source, roomId, geometry);
+ const element = structure.elements?.find(item => item.id === source.targetId);
+ // A drafting mark measures nothing, so no rule may fall through to a wall or room reading for it.
+ if (element && draftingKind(element.kind)) return null;
+ return elementMeasurement(source, element) ?? wallMeasurement(source, structure) ?? roomMeasurement(source, roomId, geometry);
 }
 /** How many placements of `assetId` probe inside the room, in the source's state; zero is an answer, a missing room is not. */
 function placementCount(source: RequirementSource, roomId: string | undefined, geometry: QuantityGeometry, assetId: string | undefined): number | null {

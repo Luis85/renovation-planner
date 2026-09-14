@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { renovationEditor } from '../../helpers/renovationEditor';
+import { assetPlacementRig } from '../../helpers/assetPlacement';
 import { settle, settleUntil } from '../../helpers/editor';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { elementInput } from '../../../src/presentation/editor/elements/elementInput';
@@ -12,19 +12,24 @@ import { tr } from '../../../src/presentation/i18n/strings';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 
 const CABINET = [{ x: 1000, y: 1000 }, { x: 2200, y: 1000 }, { x: 2200, y: 1600 }, { x: 1000, y: 1600 }];
-const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
+/** The item a live vault could not promote, copied from its plan sidecar: an unsnapped drag, so fractional, and large. */
+const VAULT_ITEM = [
+	{ x: 64725.19161977902, y: 9892.969875901805 }, { x: 74924.95910523995, y: 9892.969875901805 },
+	{ x: 74924.95910523995, y: 17782.043164853258 }, { x: 64725.19161977902, y: 17782.043164853258 },
+];
+const mounted: Awaited<ReturnType<typeof assetPlacementRig>>[] = [];
 afterEach(() => { vi.restoreAllMocks(); for (const rig of mounted.splice(0)) rig.unmount(); });
 
 /** One reversible write of an item through the leaf's own dispatcher, from a fresh baseline: how an item is added, changed or removed here. */
-async function saveItem(rig: Awaited<ReturnType<typeof renovationEditor>>, item: NamedSpatialElement, remove = false) {
+async function saveItem(rig: Awaited<ReturnType<typeof assetPlacementRig>>, item: NamedSpatialElement, remove = false) {
 	const read = expectOk(await rig.renovation.read(rig.plan.id));
 	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, elementInput(read, item, remove), rig.runtime.structureTask.ledger)));
 	await settle();
 }
-async function withItem(kind: 'object' | 'path' = 'object') {
-	const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle();
+async function withItem(kind: 'object' | 'path' = 'object', points = CABINET) {
+	const rig = await assetPlacementRig(); mounted.push(rig); rig.changePlan(); await settle();
 	const item = kind === 'object'
-		? { id: 'element-cabinet', kind, name: 'Cabinet', points: CABINET }
+		? { id: 'element-cabinet', kind, name: 'Cabinet', points }
 		: { id: 'element-path', kind, name: 'Garden path', points: CABINET.slice(0, 2) };
 	await saveItem(rig, item);
 	rig.selection.select([item.id as never]); await settle();
@@ -63,6 +68,33 @@ it('turns an item into a placement of a new asset with the same id, name and out
 
 	expectOk(await rig.runtime.dispatcher.undo()); await settle();
 	expect(rig.project.structure.elements?.[0]).toMatchObject({ id: item.id, kind: 'object', points: CABINET });
+});
+
+it('promotes the item a live vault refused: fractional, large, and a building element', async () => {
+	const { rig, item } = await withItem('object', VAULT_ITEM);
+	await promoteFromMenu(rig);
+	const form = rig.wrapper.get('.rp-dialog-form');
+	expect(form.get('.rp-new-asset__outline').text()).toContain('10200 × 7889');
+	await form.get('[data-field="category"]').setValue('building-element');
+	await form.get('[data-field="unitCostAmount"]').setValue('1');
+	await form.trigger('submit');
+	await settleUntil(() => rig.project.structure.elements?.[0]?.kind === 'asset' || rig.wrapper.find('.rp-form-banner').exists(), 'promotion outcome');
+	expect(rig.wrapper.find('.rp-form-banner').exists()).toBe(false);
+
+	const placed = expectDefined(rig.project.structure.elements?.[0], 'placement');
+	const assetId = expectDefined(placed.assetId, 'asset id');
+	expect(expectDefined(expectOk(await rig.stack.assets.getById(assetId as never)), 'asset').entity.category).toBe('building-element');
+	const shape = expectDefined(expectOk(await new ObsidianAssetGeometrySidecar(rig.stack.assetGeometry).read(assetId as never)).document.shape, 'shape');
+	expect(shape).toMatchObject({ footprintOrigin: 'typed', footprintPending: false });
+	// No rounding is introduced: the footprint is the outline less a whole-millimetre centre, and adding that centre back
+	// is exact up to float64 at these magnitudes (one ulp of 74924.96 is about 1.5e-11 mm), so 1e-9 mm bounds it.
+	const outline = placedOutline(placed, shape).footprint;
+	expect(outline).toHaveLength(VAULT_ITEM.length);
+	outline.forEach((point, index) => {
+		expect(Math.abs(point.x - VAULT_ITEM[index].x)).toBeLessThan(1e-9);
+		expect(Math.abs(point.y - VAULT_ITEM[index].y)).toBeLessThan(1e-9);
+	});
+	expect(item.id).toBe(placed.id);
 });
 
 it('changes nothing when the dialog is cancelled, and opens one dialog for two quick requests', async () => {
@@ -206,4 +238,28 @@ it('warns once and only logs the fault when replacing the item throws', async ()
 	expect(warning).toHaveBeenCalledExactlyOnceWith(tr('editor.asset.promote-unplaced'));
 	expect(log).toHaveBeenCalledWith('editor.asset.write-failed', expect.objectContaining({ cause }));
 	expect(rig.project.structure.elements?.[0]).toMatchObject({ id: item.id, kind: 'object', points: CABINET });
+});
+
+it('leaves the Place asset draft untouched by a refused promotion elsewhere', async () => {
+	const { rig, item } = await withItem();
+	const radiator = await rig.saveAsset('Radiator');
+	const choosing = rig.runtime.elementTask.assets.choose([{ id: radiator.id, name: radiator.name }]); await settle();
+	rig.dialogs.resolve({ id: radiator.id }); await choosing; await settle();
+	expect(rig.wrapper.find('[data-rp-form="asset-place"]').exists()).toBe(true);
+	const draft = rig.runtime.elementTask.assets.draft;
+	expect(draft.error).toBeNull();
+	const { warning } = spyNotices();
+	vi.spyOn(rig.runtime.dispatcher, 'run').mockResolvedValueOnce(err(FAILURE));
+	// `CanvasContextMenu.vue`'s own `unavailable` refuses to open at all while the active tool is
+	// neither `select` nor `pan`, so the menu itself cannot reach `promote` while the Place asset
+	// form (tool `place-asset`) is open — a direct call is the only way this runs concurrently
+	// with that form, and it is what a future entry point (a hotkey, a command) could still reach.
+	const promoting = rig.runtime.elementTask.promotion.promote(item.id); await settle();
+	await submitDialog(rig);
+	await settleUntil(() => warning.mock.calls.length > 0, 'promotion warning');
+	await promoting;
+	expect(draft.error).toBeNull();
+	expect(draft.conflict).toBe(false);
+	expect(rig.wrapper.find('[data-rp-form="asset-place"] [role="alert"]').exists()).toBe(false);
+	expect(rig.project.structure.elements?.find(element => element.id === item.id)).toMatchObject({ kind: 'object' });
 });

@@ -3,6 +3,7 @@ import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
+import type { Result } from '../../../core/result/Result';
 import type { EntityId } from '../../../core/identity/EntityId';
 import { closesPolygon } from '../closeTarget';
 import { SNAP_TOLERANCE_PX } from '../handleMetrics';
@@ -26,8 +27,8 @@ export interface PolygonCommand extends UndoableCommand {
 }
 
 /**
- * What a closed polygon DOES — injected, so ONE drawing tool serves a Plan's Zones and an
- * Asset's footprint and clearance without a branch anywhere in the gesture.
+ * What a closed polygon DOES — injected, so ONE drawing tool serves a Plan's Zones and every
+ * outline the asset designer traces without a branch anywhere in the gesture.
  *
  * A factory rather than an instance: one reversible command holds that ONE creation's
  * snapshot and undo state, exactly like `CalibrateToolDeps.createCommand` for slice 7's
@@ -55,11 +56,15 @@ export interface PolygonCompletion {
 export interface DrawPolygonToolDeps {
 	/** Capability-level completion gate, shared by pointer, keyboard and form completion. */
 	readonly canFinish?: () => boolean;
-	/** A creation capability may require more than the legacy point-list contract. */
-	readonly validateOutline?: typeof createPolygon;
 	/**
-	 * Which tool this instance IS — REQUIRED, because one `DrawPolygonTool` class is now two
-	 * registered tools.
+	 * A creation capability may require more than the legacy point-list contract, and may refuse
+	 * for a reason of its own (the asset designer's trace detail asks the design here). Every
+	 * refusal is pre-dispatch and reaches `reportInvalidInput`.
+	 */
+	readonly validateOutline?: (points: readonly Point[]) => Result<Polygon, AppError>;
+	/**
+	 * Which tool this instance IS — REQUIRED, because one `DrawPolygonTool` class is registered
+	 * under more than one id.
 	 *
 	 * The id was `readonly id: ToolId = 'draw-polygon'`, hard-coded, and `ToolManager.register`
 	 * throws on a duplicate — so the asset designer, which needs the identical gesture for a
@@ -103,8 +108,8 @@ export interface DrawPolygonToolDeps {
 
 /**
  * The polygon-drawing tool (design slice 8, SDD §57), registered under whichever id its deps
- * name — `'draw-polygon'` in the Plan Editor, `'trace-footprint'` and `'trace-clearance'` in
- * the asset designer, which registers two instances of it: click places vertices,
+ * name — `'draw-polygon'` in the Plan Editor, and in the asset designer one instance per
+ * outline it traces (footprint, clearance, detail): click places vertices,
  * clicking near the first vertex of a ≥ 3 vertex buffer closes the shape into ONE command
  * built by the injected `PolygonCompletion`, `Escape` discards. What that command IS — a
  * Zone on a Plan, a footprint on an Asset — is the completion's business and not this

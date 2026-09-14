@@ -20,7 +20,7 @@
  * generic toolbar parameterised over both would need its runtime, its label table and its
  * subject injected, which is three parameters to save nine lines of template.
  *
- * Camera mode (`null`) is a toolbar STATE rather than a fifth `EditorTool`, exactly as it is on
+ * Camera mode (`null`) is a toolbar STATE rather than one more `EditorTool`, exactly as it is on
  * a plan: the camera is ephemeral UI (SDD §15) and never a command, so "no active tool" is what
  * pans and zooms here.
  */
@@ -29,8 +29,12 @@ import type { StringKey } from '../i18n/locales/en';
 import type { ToolId } from '../editor/tools/editor-tool';
 import { DESIGNER_TOOL_LABELS } from './tools/registerDesignerTools';
 import { useDesignerRuntime } from './runtime';
+import { isOutlineSelection } from './selection/designerSelection';
+import { useAssetDesignStore } from './stores/assetDesignStore';
+import DesignerSelectionModes from './DesignerSelectionModes.vue';
 
 const runtime = useDesignerRuntime();
+const designStore = useAssetDesignStore();
 
 /**
  * The mode buttons as DATA, one row per selectable mode — `null` being camera mode, which has
@@ -70,6 +74,7 @@ const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[
 		>
 			{{ tr(mode.label) }}
 		</button>
+		<DesignerSelectionModes v-if="runtime.activeToolId.value === 'select' && isOutlineSelection(designStore.selection)" />
 		<span class="rp-designer-toolbar-spacer" />
 		<button
 			type="button"

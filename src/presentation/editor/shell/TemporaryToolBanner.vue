@@ -53,7 +53,8 @@ import TaskDrawingControls from './TaskDrawingControls.vue';
 import TaskBannerMessages from './TaskBannerMessages.vue';
 import TaskBannerActions from './TaskBannerActions.vue';
 import { isStructureTool } from '../structure/structureDraft';
-import { isElementTool } from '../elements/elementDraft';
+import { isElementTool, isShapedTool } from '../elements/elementDraft';
+import { rectangleInstruction } from '../elements/objectShape';
 import { useTaskbarClearance } from './useTaskbarClearance';
 
 const runtime = useEditorRuntime();
@@ -65,7 +66,7 @@ const roomBusy = computed(() => isRoom.value && runtime.roomDraft.submitting);
 const roomInvalid = computed(() => isRoom.value && !roomBusy.value && runtime.roomDraftIncomplete.value);
 const roomState = computed(() => roomBusy.value ? 'busy' as const : roomInvalid.value ? 'invalid' as const : null);
 /** An item's instruction follows how it is being drawn (2026-09-13 item modes spec §A). */
-const isRectangleItem = computed(() => runtime.activeToolId.value === 'place-object' && runtime.elementTask.draft.shape === 'rectangle');
+const isRectangleItem = computed(() => isShapedTool(runtime.activeToolId.value) && runtime.elementTask.draft.shape === 'rectangle');
 const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || roomBusy.value || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
 
@@ -79,6 +80,13 @@ const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKe
 	'draw-arrow': { nameKey: 'editor.add.arrow.label', instructionKey: 'editor.arrow.banner', finish: true },
 	'place-post': { nameKey: 'editor.add.post.label', instructionKey: 'editor.post.banner' },
 	'draw-beam': { nameKey: 'editor.add.beam.label', instructionKey: 'editor.beam.banner' },
+	'draw-dimension': { nameKey: 'editor.add.dimension.label', instructionKey: 'editor.drafting.banner.dimension', finish: true },
+	'draw-section': { nameKey: 'editor.add.section.label', instructionKey: 'editor.drafting.banner.section', finish: true },
+	'place-view': { nameKey: 'editor.add.view.label', instructionKey: 'editor.drafting.banner.view' },
+	'draw-hatch': { nameKey: 'editor.add.hatch.label', instructionKey: 'editor.drafting.banner.hatch', finish: true },
+	'place-text': { nameKey: 'editor.add.text.label', instructionKey: 'editor.drafting.banner.text', finish: true },
+	'draw-boundary': { nameKey: 'editor.add.boundary.label', instructionKey: 'editor.drafting.banner.boundary', finish: true },
+	'place-grid': { nameKey: 'editor.add.grid.label', instructionKey: 'editor.drafting.banner.grid' },
 	'draw-path': { nameKey: 'editor.add.path.label', instructionKey: 'editor.element.banner.path', finish: true },
 	'draw-fence': { nameKey: 'editor.add.fence.label', instructionKey: 'editor.element.banner.fence', finish: true },
 	measure: { nameKey: 'editor.add.measurement.label', instructionKey: 'editor.element.banner.measurement', finish: true },
@@ -122,7 +130,7 @@ const openingMessage = computed(() => {
  * reach.
  */
 function instruction(current: NonNullable<typeof task.value>): string {
-	return tr(isRectangleItem.value ? 'editor.element.banner.object-rectangle' : current.instructionKey);
+	return tr(isRectangleItem.value ? rectangleInstruction(runtime.elementTask.draft.kind) : current.instructionKey);
 }
 const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
 const finishDescription = computed(() => [instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' '));

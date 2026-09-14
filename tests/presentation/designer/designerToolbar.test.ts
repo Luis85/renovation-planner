@@ -89,6 +89,16 @@ describe('every tool the toolbar offers', () => {
 		rig.unmount();
 	});
 
+	/** The detail tools make the same promise: a traced vertex, a box's corner and a circle's centre land where pressed. */
+	it.each(['draw-rect', 'draw-circle', 'trace-detail'] as const)('gives %s the precise cursor too', async (id) => {
+		const rig = await designerRig();
+
+		await press(rig, DESIGNER_TOOL_LABELS[id]);
+
+		expect(rig.canvasEl.classList.contains('rp-plan-canvas-precise')).toBe(true);
+		rig.unmount();
+	});
+
 	/** ...and nothing else is. One active tool, one marked button. */
 	it('marks exactly one mode at a time', async () => {
 		const rig = await designerRig();
@@ -101,13 +111,22 @@ describe('every tool the toolbar offers', () => {
 		rig.unmount();
 	});
 
-	it('offers Pan, the five design tools, Undo and Redo — and no Select, because nothing here is selectable', async () => {
+	/**
+	 * Select is back (symbols spec, Decision 10) — with its candidates (`hitDesign`) and its gesture
+	 * (`DesignerSelectTool`), the condition `registerDesignerTools.ts` set for returning it. This list
+	 * is updated deliberately with that change and stays EXACT.
+	 */
+	it('offers Pan, Select, every design tool, Undo and Redo, in that order', async () => {
 		const rig = await designerRig();
 		const labels = rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.text());
 		expect(labels).toEqual([
 			t('en', 'designer.toolbar.pan'),
+			t('en', 'designer.toolbar.select'),
 			t('en', 'designer.toolbar.trace-footprint'),
 			t('en', 'designer.toolbar.trace-clearance'),
+			t('en', 'designer.toolbar.draw-rect'),
+			t('en', 'designer.toolbar.draw-circle'),
+			t('en', 'designer.toolbar.trace-detail'),
 			t('en', 'designer.toolbar.set-anchor'),
 			t('en', 'designer.toolbar.set-facing'),
 			t('en', 'designer.toolbar.calibrate'),
@@ -120,7 +139,7 @@ describe('every tool the toolbar offers', () => {
 
 describe('camera mode', () => {
 	/**
-	 * **"No active tool" and never a seventh `EditorTool`.** The camera is ephemeral UI (SDD §15)
+	 * **"No active tool" and never one more `EditorTool`.** The camera is ephemeral UI (SDD §15)
 	 * and is never a command, so the Pan button clears the manager rather than activating
 	 * anything — and it is the state a freshly opened designer rests in, which is what the
 	 * second assertion pins.
@@ -193,9 +212,9 @@ describe('the toolbar itself', () => {
 
 /**
  * The Shift constraint is advertised in the STATUS region while a constraining tool is active,
- * and nowhere else. A modifier no control shows and no menu lists is one nobody finds; four of
- * this surface's five tools take it, so leaving it unmentioned would leave it unmentioned on
- * this surface entirely.
+ * and nowhere else. A modifier no control shows and no menu lists is one nobody finds; most of
+ * this surface's tools take it, so leaving it unmentioned would leave it unmentioned on this
+ * surface entirely.
  */
 describe('the shift hint', () => {
 	it('appears for a tool that constrains and not for one that does not', async () => {

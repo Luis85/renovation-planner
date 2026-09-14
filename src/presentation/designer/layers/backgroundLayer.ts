@@ -23,12 +23,12 @@ import type { NodeTransform } from '../../editor/viewport/Viewport';
  *
  * The background layer's own node is `BackgroundLayer`'s rather than this function's, because
  * that component owns the `visible` prop and the `<VImage>` inside it. `BACKGROUND_LAYER` below
- * is what keeps its name inside the same union all six are checked against.
+ * is what keeps its name inside the same union every layer is checked against.
  */
 /**
  * The designer layer names, as a TYPE rather than an `as const` array, because nothing iterates
  * them: `DesignerCanvas` names each one at its own `<VLayer>` and the compiler checks the
- * literal against this union, so a typo there is a build error rather than a silent sixth
+ * literal against this union, so a typo there is a build error rather than a silent extra
  * layer. The array form was tried and is the worse answer twice over — fallow reports the
  * export as unused, and un-exporting it trips `@typescript-eslint/no-unused-vars`'s "assigned
  * a value but only used as a type", which is precisely the true statement about it.
@@ -39,6 +39,7 @@ export type DesignerLayerName =
 	| 'asset-details'
 	| 'asset-clearance'
 	| 'asset-anchor'
+	| 'asset-selection'
 	| 'asset-gesture';
 
 /**

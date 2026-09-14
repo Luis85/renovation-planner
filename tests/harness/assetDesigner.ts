@@ -10,7 +10,11 @@ import type { BackgroundPicker } from '../../src/presentation/designer/ports';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { Logger } from '../../src/application/ports/Logger';
 import type { ObservationToken } from '../../src/application/ports/versioning';
+import type { App } from 'vue';
 import { ok } from '../../src/core/result/Result';
+import { tr } from '../../src/presentation/i18n/strings';
+import { useAssetDesignStore } from '../../src/presentation/designer/stores/assetDesignStore';
+import type { DesignerSelection, SelectionMode } from '../../src/presentation/designer/selection/designerSelection';
 import { installObsidianDom } from '../helpers/dom';
 import { FakeLeaf } from '../helpers/workspace';
 
@@ -120,7 +124,47 @@ export interface MountedAssetDesigner {
 	view: AssetDesignerView;
 }
 
-export function mountAssetDesignerHarness(root: HTMLElement, presetId: string | null = null): MountedAssetDesigner {
+/** `&select=` spells a part as `partKey` does, minus the `detail:` prefix a URL has no need for. */
+function harnessSelection(select: string): DesignerSelection {
+	return select === 'footprint' || select === 'clearance' || select === 'anchor' || select === 'facing'
+		? { kind: select }
+		: { kind: 'detail', id: select };
+}
+
+/**
+ * Presses the REAL Select button, then sets the leaf's selection and mode through its own store —
+ * once the fixture has hydrated: a macrotask runs after every microtask `onOpen`'s read queues. The
+ * leaf's Pinia is reached through the Vue app `AssetDesignerView` mounts on its host element. Then it
+ * presses `Shift+1` on the canvas, the user's own fit: an opened asset keeps the origin-centred view,
+ * which clips a curved table and draws a toilet a few pixels wide, too small to see a handle on.
+ * Harness-only: no production seam exists for this, and none is added.
+ */
+function selectInHarness(view: AssetDesignerView, selection: { readonly select: string; readonly mode: string }): void {
+	setTimeout(() => {
+		const host = view.contentEl.querySelector('.renovation-asset-designer-view') as HTMLElement & { __vue_app__: App };
+		const button = Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button')).find(
+			(candidate) => candidate.textContent?.trim() === tr('designer.toolbar.select'),
+		);
+		button?.click();
+		const store = useAssetDesignStore(host.__vue_app__.config.globalProperties.$pinia);
+		store.select(harnessSelection(selection.select));
+		const mode: SelectionMode = selection.mode === 'points' || selection.mode === 'bend' ? selection.mode : 'transform';
+		store.setMode(mode);
+		view.contentEl
+			.querySelector('.rp-plan-canvas')
+			?.dispatchEvent(new KeyboardEvent('keydown', { key: '!', code: 'Digit1', shiftKey: true, bubbles: true }));
+	}, 0);
+}
+
+/**
+ * `selection` is `&select=`/`&mode=`, honoured only beside a preset: a shapeless fixture has no part
+ * to select, and a capture of one would photograph a selection nobody could make.
+ */
+export function mountAssetDesignerHarness(
+	root: HTMLElement,
+	presetId: string | null = null,
+	selection: { readonly select: string; readonly mode: string } | null = null,
+): MountedAssetDesigner {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();
 	root.empty();
@@ -134,6 +178,7 @@ export function mountAssetDesignerHarness(root: HTMLElement, presetId: string | 
 	// before resolving.
 	void view.setState({ assetId: HARNESS_ASSET_ID }, {} as never);
 	void view.onOpen();
+	if (presetId !== null && selection !== null) selectInHarness(view, selection);
 
 	return { leafEl, view };
 }

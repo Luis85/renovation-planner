@@ -183,6 +183,7 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Fixed
 
+- Asset designer: a selected part keeps its own line style (a dashed detail stays dashed while selected), the anchor's ring reads clearly against the drawing under it, and a curved edge's handle now looks different from a corner's. The Shift hint under Select, each selection mode's tooltip and a hint under the facing's angle field say what a gesture does; a part captured before a scale existed hides its millimetre fields instead of showing pixel numbers dressed as measurements, and the same line explains why. Duplicate, Delete and a disabled reorder button keep keyboard focus in the Inspector instead of dropping it to the top of the pane. Opening a design frames its whole symbol the way `Shift+1` would. Two edits made in quick succession now compose instead of one showing a save error, and a queued key on a part someone just deleted does nothing rather than failing. At a sidebar's width the Inspector stacks under the canvas instead of crowding it into a sliver.
 - Curved Room containment treats round-off at a tangent as one contact, and failed read-back preserves a paused curve draft for retry.
 - Existing and Planned detail rows and canvas markers show their saved surface or element kind, so identical descriptions remain distinguishable.
 

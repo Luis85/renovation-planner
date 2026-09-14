@@ -94,11 +94,20 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 125 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 57 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 176 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 131 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 60 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 179 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 14 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
+
+**397 steps — 379 table rows plus 18 list steps in [[Canvas Navigation]], re-run in the edit that
+added Task 15's selection-polish rows to [[Design an Asset]].** Twelve rows were added and none
+moved: `suite` 125 → 131, `browser` 57 → 60, `obsidian` 176 → 179, `desktop` and `judgement`
+unchanged at 14 and 13 — the whole of the movement is the twelve new steps' own tiers (six
+`suite`, three `browser`, three `obsidian`), which is what makes this a re-run rather than a
+correction.
+
+**The previous measurement's own account follows, kept as history.**
 
 **385 steps — 367 table rows plus 18 list steps in [[Canvas Navigation]] — re-run in the edit that
 added the selection steps to [[Design an Asset]].** The table read 344 until that edit while the

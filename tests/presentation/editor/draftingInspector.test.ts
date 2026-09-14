@@ -41,6 +41,13 @@ it('edits a dimension chain\'s offset and keeps its points', async () => {
 	expect(rig.project.structure.elements?.[0].offset).toBe(-600);
 });
 
+it('labels a text\'s name field Text when its geometry is edited', async () => {
+	const rig = await editorWith(mounted, TEXT_A);
+	rig.selection.select([TEXT_A.id as never]); await settle();
+	void rig.runtime.elementActions.edit(TEXT_A.id); await settle();
+	expect(rig.wrapper.get('[data-rp-form="outline-points"] label').text()).toBe('Text');
+});
+
 it('shows no length line for a text or a grid point, a length for a boundary line, and no renovation entry for any of them', async () => {
 	const rig = await editorWith(mounted, TEXT_A, GRID_A, BOUNDARY_A);
 	for (const item of [TEXT_A, GRID_A]) {

@@ -61,9 +61,12 @@ export function maxDraftPoints(kind: ElementDraft['kind']): number | null {
 	if (kind === 'text' || kind === 'grid') return 1;
 	return ['measurement', 'stair', 'beam', 'section', 'view'].includes(kind) ? 2 : null;
 }
-/** A new dimension chain carries the offset its line was placed at, and a new section line looks the default way (design §3). */
+/**
+ * A new dimension chain carries the offset its preview draws — the pointer's, in whole millimetres, while its line is being
+ * placed, else the one clicked or typed (typing clears the pointer) — and a new section line looks the default way (design §3).
+ */
 function draftingFields(draft: ElementDraft): Pick<SpatialElement, 'offset' | 'flipped'> {
-	if (draft.kind === 'dimension') return { offset: draft.offset };
+	if (draft.kind === 'dimension') return { offset: draft.dimensionPhase === 'offset' && draft.cursor ? Math.round(dimensionOffsetAt(draft.points, draft.cursor)) : draft.offset };
 	return draft.kind === 'section' ? { flipped: false } : {};
 }
 /** The cursor point a preview appends: none once the kind has all its points, and none while a chain's line is being placed. */
@@ -71,12 +74,11 @@ export function draftCursorPoints(draft: ElementDraft): Point[] {
 	if (!draft.cursor || (draft.kind === 'dimension' && draft.dimensionPhase === 'offset')) return [];
 	return draft.points.length < (maxDraftPoints(draft.kind) ?? Number.POSITIVE_INFINITY) ? [draft.cursor] : [];
 }
-/** The kind-specific facts a preview draws with; a chain's line follows the pointer while it is being placed. */
+/** The kind-specific facts a preview draws with; a chain's offset is the one `draftElement` saves, so Finish saves what is drawn. */
 export function draftPreviewFields(draft: ElementDraft): Pick<SpatialElement, 'stair' | 'width' | 'loadBearing' | 'offset' | 'flipped'> {
 	if (draft.kind === 'stair') return { stair: draft.stair };
 	if (draft.kind === 'beam') return { width: draft.beamWidth, loadBearing: true };
-	if (draft.kind !== 'dimension') return draftingFields(draft);
-	return { offset: draft.dimensionPhase === 'offset' && draft.cursor ? dimensionOffsetAt(draft.points, draft.cursor) : draft.offset };
+	return draftingFields(draft);
 }
 export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSpatialElement | null {
 	const element = { id, kind: draft.kind, name: draft.name.trim(), points: draft.points.map(point => ({ ...point })), ...(draft.kind === 'stair' ? { stair: { ...draft.stair } } : {}), ...structuralFields(draft), ...draftingFields(draft) };

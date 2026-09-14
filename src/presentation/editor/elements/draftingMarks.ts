@@ -9,9 +9,9 @@ import { measureLabelWidth } from '../labels/labelLayout';
  * (plan drafting tools design §6). Pure, so a test can ask what a mark IS; whether it reads as a plan is a capture.
  */
 export const DRAFTING_TEXT_PX = 14;
-export const DIMENSION_TEXT_PX = 11;
+const DIMENSION_TEXT_PX = 11;
 export const GRID_RADIUS_PX = 10;
-export const MARKER_PX = 10;
+const MARKER_PX = 10;
 const GRID_TEXT_PX = 12, TICK_PX = 5, EXTENSION_GAP_PX = 4, EXTENSION_OVERSHOOT_PX = 3, LABEL_GAP_PX = 4;
 
 export interface DraftLine { readonly name: string; readonly points: readonly number[]; readonly strokeWidth: number; readonly closed?: boolean; readonly dash?: readonly number[]; readonly fill?: 'solid' | 'pattern' }

@@ -85,6 +85,11 @@ export function validSpatialElement(element: SpatialElement): boolean {
 	if (!validDraftingFields(element)) return false;
 	if (element.kind === 'stair') return element.stair !== undefined && stairPlanGeometry(element.points, element.stair) !== null;
 	if (element.stair !== undefined) return false;
+	return validPointCount(element);
+}
+
+/** An asset is an anchor and a distinct facing point, an outline three corners or more, a measurement two points, a point kind one; any other line two or more distinct in a row. */
+function validPointCount(element: SpatialElement): boolean {
 	if (element.kind === 'asset') return !!element.assetId && element.points.length === 2 && Math.hypot(element.points[1].x - element.points[0].x, element.points[1].y - element.points[0].y) > 0;
 	if (outlineKind(element.kind)) return element.points.length >= 3;
 	if (element.kind === 'measurement' && element.points.length !== 2) return false;

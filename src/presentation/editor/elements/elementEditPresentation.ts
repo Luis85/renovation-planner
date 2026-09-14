@@ -33,6 +33,7 @@ export function elementEditPresentation(element: NamedSpatialElement,
 	} };
 	return { component: markRaw(OutlinePointsForm), props: {
 		hint: 'editor.element.edit-hint',
+		...(element.kind === 'text' ? { nameLabel: 'editor.drafting.text' as const } : {}),
 		accepts: (points: readonly Point[]) => acceptsElementPoints(element, points),
 		preview: (polygon: { points: readonly Point[] } | null) => preview(polygon ? { ...element, points: polygon.points } : null),
 		dispatch: (polygon: { points: readonly Point[] }, name: string) => dispatch({ name, points: polygon.points }),

@@ -53,4 +53,6 @@ it('flips a selected section line from its menu, and offers it no record creatio
 	expect(has(rig, 'add-menu')).toBe(false);
 	await item(rig, 'flip-section').trigger('click');
 	await settleUntil(() => rig.project.structure.elements?.[0].flipped === true, 'flipped from the menu');
+	await rig.runtime.renovation.perspective('renovate'); rig.selection.select([SECTION_A.id as never]); await menu(rig);
+	expect(has(rig, 'flip-section')).toBe(false);
 });

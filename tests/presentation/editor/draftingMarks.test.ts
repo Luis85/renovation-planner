@@ -43,6 +43,14 @@ describe('drafting mark layout', () => {
 		expect(draftingMarks({ id: 'element-path', kind: 'path', name: 'Path', points: BOUNDARY_A.points }, 1)).toEqual({ lines: [], texts: [], circles: [] });
 	});
 
+	it('draws nothing for a section line or a view marker whose two points coincide or that lacks one', () => {
+		const same = [{ x: 100, y: 100 }, { x: 100, y: 100 }];
+		for (const mark of [SECTION_A, VIEW_A]) {
+			expect(draftingMarks({ ...mark, points: same }, 1)).toEqual({ lines: [], texts: [], circles: [] });
+			expect(draftingMarks({ ...mark, points: same.slice(1) }, 1)).toEqual({ lines: [], texts: [], circles: [] });
+		}
+	});
+
 	it('previews a chain\'s line at the pointer while it is placed, and appends no cursor point then or once a kind is full', () => {
 		const draft = createElementDraft();
 		Object.assign(draft, { kind: 'dimension', points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }], cursor: { x: 2000, y: -800 }, offset: -100 });

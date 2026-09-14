@@ -83,6 +83,16 @@ it('ends a dimension chain\'s points on Finish, steps back on Undo point, and sa
 	expect(rig.project.structure.elements?.[0]).toMatchObject({ kind: 'dimension', offset: -500, points: [{ x: 0, y: 0 }, { x: 1190, y: 0 }, { x: 4560, y: 0 }] });
 });
 
+it('saves a dimension chain at the offset its preview draws when Finish is pressed with the pointer over the canvas', async () => {
+	const rig = await mount(); await use(rig, 'draw-dimension');
+	const task = rig.runtime.elementTask;
+	add(rig, { x: 0, y: 0 }, { x: 4000, y: 0 });
+	await task.finish(); await settle();
+	task.draft.cursor = { x: 2000, y: -700.4 };
+	await task.finish(); await saved(rig, 1);
+	expect(rig.project.structure.elements?.[0]).toMatchObject({ kind: 'dimension', offset: -700 });
+});
+
 it('saves a hatched area and a boundary line on Finish, and refuses a hatch outline that crosses itself', async () => {
 	const rig = await mount(); await use(rig, 'draw-hatch');
 	const task = rig.runtime.elementTask;

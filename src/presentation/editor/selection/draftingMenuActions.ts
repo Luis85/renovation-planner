@@ -3,6 +3,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { StringKey } from '../../i18n/locales/en';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorRuntime } from '../runtime';
+import { useRenovationSession } from '../renovation/renovationSession';
 import type { ElementToolId } from '../elements/elementDraft';
 import type { CanvasMenuAction, CanvasMenuSubmenu } from './useCanvasMenuActions';
 
@@ -18,7 +19,7 @@ const DRAFTING_TOOLS: readonly { readonly id: string; readonly tool: ElementTool
 
 /** Right-click › Drafting: every drafting tool, started at the point the menu opened, and a section line's Flip direction (plan drafting tools design §7). */
 export function useDraftingMenuActions(opened: () => Point) {
-	const runtime = useEditorRuntime(), project = useProjectStore();
+	const runtime = useEditorRuntime(), project = useProjectStore(), session = useRenovationSession();
 	function submenu(blocked: boolean): CanvasMenuSubmenu {
 		const disabled = blocked || !runtime.elementTask.available;
 		return { id: 'drafting-menu', label: 'editor.drafting.menu', group: 'create', icon: 'pencil',
@@ -28,9 +29,10 @@ export function useDraftingMenuActions(opened: () => Point) {
 	function isMark(id: string): boolean {
 		return project.structure.elements?.some(item => item.id === id && draftingKind(item.kind)) === true;
 	}
+	/** Only in the plan perspective, the same test the Inspector's Flip uses: elsewhere the flip is refused. */
 	function flip(id: string, blocked: boolean): CanvasMenuAction[] {
-		if (!project.structure.elements?.some(item => item.id === id && item.kind === 'section')) return [];
-		return [{ id: 'flip-section', label: 'editor.drafting.flip', group: 'edit', icon: 'rotate-cw', disabled: blocked || runtime.elementActions.active.value, run: () => runtime.elementActions.flip(id) }];
+		if (session.perspective !== 'plan' || !project.structure.elements?.some(item => item.id === id && item.kind === 'section')) return [];
+		return [{ id: 'flip-section', label: 'editor.drafting.flip', group: 'edit', icon: 'move-horizontal', disabled: blocked || runtime.elementActions.active.value, run: () => runtime.elementActions.flip(id) }];
 	}
 	return { submenu, flip, isMark };
 }

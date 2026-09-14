@@ -10,7 +10,7 @@ import { resolveSelectionTarget } from '../../../src/presentation/editor/selecti
 import { hasPointHandles } from '../../../src/presentation/editor/elements/ElementMove';
 import { acceptsElementPoints } from '../../../src/presentation/editor/elements/elementDraft';
 import { measureLabelWidth } from '../../../src/presentation/editor/labels/labelLayout';
-import { DRAFTING_TEXT_PX } from '../../../src/presentation/editor/elements/draftingMarks';
+import { DRAFTING_TEXT_PX, draftingHitContext, draftingHitPoints } from '../../../src/presentation/editor/elements/draftingMarks';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { worldToScreen, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
 
@@ -38,6 +38,22 @@ it('hits a chain between its points and its line, a view marker at its triangle,
 	expect(at(3000, 2004)).toEqual({ kind: 'body', id: SECTION_A.id });
 	expect(at(2000, -1250)).toEqual({ kind: 'body', id: BOUNDARY_A.id });
 	expect(at(1500, 6000)).toEqual({ kind: 'body', id: HATCH_A.id });
+});
+
+it('ranks a hatch under the marks and walls drawn over it, and above only a room', () => {
+	const words = { ...TEXT_A, points: [{ x: 1500, y: 6000 }] }, structure = { ...EMPTY_STRUCTURE, elements: [HATCH_A, words] };
+	const room = { id: 'room', points: [{ x: -1000, y: 4000 }, { x: 4000, y: 4000 }, { x: 4000, y: 8000 }, { x: -1000, y: 8000 }] };
+	const wall = { id: 'wall-across', kind: 'wall' as const, width: 200, points: [{ x: 2500, y: 4000 }, { x: 2500, y: 8000 }] };
+	const candidates = [room, wall, ...structureCandidates(structure, undefined, { zoom: 1, names: new Map([[words.id, words.name]]) })];
+	const at = (x: number, y: number) => resolveSelectionTarget({ candidates, selectedIds: [], worldPoint: { x, y }, handleToleranceWorld: 8 });
+	expect([at(1500, 6000), at(2500, 5500), at(500, 5500)]).toEqual([words.id, 'wall-across', HATCH_A.id].map(id => ({ kind: 'body', id })));
+});
+
+it('has no hit polygon for a chain whose first and last points coincide, nor for a mark with no points', () => {
+	const context = draftingHitContext(1, undefined);
+	expect(draftingHitPoints({ ...DIMENSION_A, points: [{ x: 500, y: 500 }, { x: 900, y: 500 }, { x: 500, y: 500 }] }, context)).toBeUndefined();
+	expect(draftingHitPoints({ ...DIMENSION_A, points: [] }, context)).toBeUndefined();
+	expect(draftingHitPoints({ ...GRID_A, points: [] }, context)).toBeUndefined();
 });
 
 it('gives drag handles to every drafting mark of more than one point, and refuses a hatch outline that crosses itself', () => {

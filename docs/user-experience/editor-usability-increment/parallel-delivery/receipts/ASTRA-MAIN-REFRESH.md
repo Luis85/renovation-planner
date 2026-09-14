@@ -93,7 +93,7 @@ The chained Fallow step passed: 1,100 files, zero dead files/exports, zero above
 
 Final source ancestry includes both #203's d0a7f165 and current origin/main acfb7c7d, re-fetched after the successful gate. The main checkout remained clean. Evidence-only updates after this gate receive whitespace, link, UTF-8 and image-hash checks; GitHub CI verifies the published head.
 
-Publication: pending push/PR creation; exactly one PR will target codex/usability-astra-native-polish. No PR is merged by this task.
+Publication: [PR #209](https://github.com/Luis85/renovation-planner/pull/209), base `codex/usability-astra-native-polish`, directly above #203. Exactly one new PR was opened. GitHub CI verifies the published documentation/evidence head; its authoritative live state is on the PR, and the PR description records the completion verdict. CI was queued/running when this publication receipt was committed. No PR is merged by this task.
 
 ## Remaining limits
 

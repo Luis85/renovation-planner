@@ -1,5 +1,6 @@
 import { contains, distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
+import { outlineKind } from '../../../domain/spatial/SpatialElement';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import { rotationControlContains } from '../elements/rotationControl';
@@ -14,7 +15,15 @@ export type SelectionTarget =
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
 
-const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'object' || candidate.kind === 'stair' || candidate.kind === 'asset' ? 4 : candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
+/** A hatch is drawn under walls and every other mark over its area (plan drafting tools design §6), so it ranks just above a room or area. */
+function priority(candidate: SpatialObjectCandidate): number {
+	if (candidate.kind === 'hatch') return 0.5;
+	if (outlineKind(candidate.kind) || candidate.kind === 'stair' || candidate.kind === 'asset') return 4;
+	if (candidate.kind === 'opening') return 3;
+	if (candidate.kind === 'wall') return 2;
+	if (candidate.kind) return 1;
+	return 0;
+}
 
 function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	return candidate.points.slice(1).some((b, index) => {
@@ -27,7 +36,7 @@ function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: nu
 
 function containsCandidate(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	if (candidate.hitPoints) { const inside = contains({ points: candidate.hitPoints }, point); return inside.ok && inside.value; }
-	if (candidate.kind && candidate.kind !== 'object') return nearLine(candidate, point, tolerance);
+	if (candidate.kind && !outlineKind(candidate.kind)) return nearLine(candidate, point, tolerance);
 	const inside = contains(candidate, point);
 	return inside.ok && inside.value;
 }
@@ -87,7 +96,7 @@ function badgeAt(input: {
  * predict, the click asks it to act, so the two cannot disagree. Priority: a single selection's
  * vertex handle or a multi-selection badge, then a selected item's caption, then the topmost
  * containing body, then nothing.
- * Bodies rank Object → Opening → Wall → other elements → Room/Area. Candidates arrive
+ * Bodies rank Object → Opening → Wall → other elements → Hatch → Room/Area. Candidates arrive
  * bottom-first; stable sorting preserves paint order within a kind, scanned top-first.
  * Alt bypasses handles and cycles bodies from the current selection, wrapping.
  */

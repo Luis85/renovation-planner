@@ -12,6 +12,10 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Asset designer: select the footprint, the clearance, a detail, the anchor or the facing and change just that part — move, resize and rotate it with handles (Transform), drag its corners (Edit points) or bow its edges (Bend edges); nudge it with the arrow keys, duplicate a detail with Ctrl+D and delete a detail or the clearance with Delete. The Inspector edits the selected part's position, size, rotation, name, line and drawing order, the anchor's position and the facing's angle, and fits the footprint to its details. Draw rectangle, Draw circle and Trace detail add details, and a detail drawn over an uncalibrated spec sheet waits for its scale. Set dimensions scales a design with details or curved edges about its anchor instead of replacing it with a rectangle. Every change is one undoable write, refused when another pane changed the asset first.
+- Plan editor: a placed asset with details redraws its outline over them, so a solid detail no longer hides the edge of the object.
+- Plan editor: draw an architect's drafting marks from right-click › Drafting — dimension chains with a length over every segment, section lines with a flippable look side, view markers, cross-hatched areas, text, boundary lines and numbered grid points. Each starts at the clicked spot, snaps like every other drawing tool, and is edited, moved, grouped and undone like any element; drafting marks carry no renovation records or quantities. Plan geometry holding a drafting mark is saved as schema 12, which older builds refuse.
+- Plan editor: draw structural Posts and Beams for timber-frame and other load-bearing structure from Add → Post and Add → Beam. A post is placed per click at a typed section and the tool stays on for the next; a beam is saved on its second click at a typed width and drawn dashed above the room. Both carry a Load-bearing switch in the Inspector, and deleting a load-bearing one names it in the confirmation. Plan geometry holding a post or a beam is saved as schema 11, which older builds refuse.
 - Plan editor: place Asset library assets on a plan from Add → Asset…, one click per copy, snapped to face the room when placed against a wall or at typed coordinates. Each placement draws the asset's footprint, facing and clearance, hits and rotates by that footprint, shows its size in the Inspector, and can be replaced or opened in the asset designer. A placement of a deleted asset stays as a placeholder. Plan geometry holding a placement is saved as schema 9, which older builds refuse.
 - Materials: count an asset's placements in a room with the `placement-count` rule, which recalculates when a placement changes and can be added from a placement's Inspector. Requirement notes using it are saved as requirement schema 4, which older builds refuse.
 - Plan editor: lock a zone from the Rooms and areas list or its Inspector so the canvas clicks through it while it stays visible, listed and undoable. Locked zone notes are saved as zone schema 2, which older builds refuse until the zone is unlocked.
@@ -172,12 +176,21 @@ entries are added by the pull request that earns them, never invented at release
   asks oxlint which files it lints so a narrowed `ignorePatterns` fails the build instead of
   quietly shrinking the gate.
 
+- Asset designer: start an asset from one of fourteen presets (tables, seating, bathroom, plants
+  and beds), sized by typed dimensions, with a live preview; one undo restores the previous design.
+- Asset outlines may be curved, and assets carry interior detail linework, drawn in the designer
+  and on plans; the library mark draws the curved outline.
+
 ### Fixed
 
 - Curved Room containment treats round-off at a tangent as one contact, and failed read-back preserves a paused curve draft for retry.
 - Existing and Planned detail rows and canvas markers show their saved surface or element kind, so identical descriptions remain distinguishable.
 
 ### Changed
+
+- Asset geometry sidecars (`.rpgeo`) are now written as schema version 2. Files from earlier
+  versions still read, but an older version of the plugin cannot read an asset file once this
+  version has saved it.
 
 - Existing room details show saved photos in a contextual strip and expose calculated floor area when expanded. Photo navigation preserves spatial context and camera; a peer removal restores owned keyboard focus.
 

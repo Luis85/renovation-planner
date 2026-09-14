@@ -20,13 +20,16 @@ import type { DispatchResult } from '../../../src/application/commands/DispatchO
 import { recorder } from '../../helpers/logger';
 import { assetDesign } from '../../helpers/assetDesign';
 import { t } from '../../../src/presentation/i18n/strings';
+import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
 
 let setHeight: ReturnType<typeof vi.fn<(height: number | null) => Promise<DispatchResult>>>;
 let editDimensions: ReturnType<typeof vi.fn<() => Promise<void>>>;
+let startFromPreset: ReturnType<typeof vi.fn<() => Promise<void>>>;
 
 beforeEach(() => {
 	setHeight = vi.fn<(height: number | null) => Promise<DispatchResult>>().mockResolvedValue(ok('wrote'));
 	editDimensions = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+	startFromPreset = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 });
 
 /**
@@ -55,13 +58,18 @@ function buildDesign(options: {
 	};
 }
 
-function mountInspector(options: Parameters<typeof buildDesign>[0] = {}) {
+function mountInspector(options: Parameters<typeof buildDesign>[0] = {}, selection: DesignerSelection | null = null) {
 	return mount(DesignerInspector, {
 		props: {
 			design: buildDesign(options),
 			setHeight,
 			editDimensions,
+			startFromPreset,
 			logger: recorder,
+			selection,
+			// Never called by these cases: `designerSelectionInspector.test.ts` owns what a selection commits.
+			editShape: vi.fn<() => Promise<DispatchResult>>().mockResolvedValue(ok('no-write')),
+			select: vi.fn<(next: DesignerSelection | null) => void>(),
 		},
 	});
 }
@@ -74,6 +82,13 @@ describe('the designer’s inspector', () => {
 		expect(wrapper.find('input[name="width"]').exists()).toBe(false);
 	});
 
+	/** A curve's box is irrational: a curved table measures 2121.3203435596424 wide. */
+	it('shows dimensions in whole millimetres, never the float a curve measures to', () => {
+		const wrapper = mountInspector({ dimensions: { width: 2121.3203435596424, depth: 863.6038969321073 } });
+
+		expect(wrapper.find('.rp-designer-inspector-fields dd').text()).toBe('2121 × 864 mm');
+	});
+
 	it('says so where a measurement would otherwise appear, when a trace is unscaled', () => {
 		const wrapper = mountInspector({ dimensionsUnscaled: true });
 
@@ -84,6 +99,11 @@ describe('the designer’s inspector', () => {
 		const wrapper = mountInspector({ dimensionsUnscaled: false, origin: 'typed' });
 
 		expect(wrapper.find('.rp-designer-unscaled').exists()).toBe(false);
+	});
+
+	it('draws a section for the selected part only while something is selected', () => {
+		expect(mountInspector().find('.rp-designer-selection').exists()).toBe(false);
+		expect(mountInspector({}, { kind: 'footprint' }).find('.rp-designer-selection').exists()).toBe(true);
 	});
 
 	it('draws no dimensions block at all for a shapeless asset', () => {
@@ -123,6 +143,15 @@ describe('the designer’s inspector', () => {
 		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
 
 		expect(editDimensions).toHaveBeenCalledTimes(1);
+	});
+
+	it('offers a preset as a way to start or replace a design', async () => {
+		const wrapper = mountInspector();
+
+		expect(wrapper.find('.rp-designer-start-preset').text()).toBe(t('en', 'designer.inspector.start-preset'));
+		await wrapper.find('.rp-designer-start-preset').trigger('click');
+
+		expect(startFromPreset).toHaveBeenCalledTimes(1);
 	});
 
 	it('commits a height on blur and keeps the typed value when the command refuses', async () => {

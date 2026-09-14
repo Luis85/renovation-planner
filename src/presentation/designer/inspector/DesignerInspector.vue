@@ -23,7 +23,11 @@ import { computed } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { Logger } from '../../../application/ports/Logger';
-import { ok } from '../../../core/result/Result';
+import { ok, type Result } from '../../../core/result/Result';
+import type { ValidationError } from '../../../core/errors/AppError';
+import type { AssetShape } from '../../../domain/asset/AssetShape';
+import { partKey, type DesignerSelection } from '../selection/designerSelection';
+import DesignerSelectionInspector from './DesignerSelectionInspector.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
@@ -35,7 +39,12 @@ const props = defineProps<{
 	design: AssetDesignDto;
 	setHeight: (height: number | null) => Promise<DispatchResult>;
 	editDimensions: () => Promise<void>;
+	startFromPreset: () => Promise<void>;
 	logger: Logger;
+	/** The part the canvas has selected, `null` for none; its section is keyed by part, so choosing another starts it fresh. */
+	selection: DesignerSelection | null;
+	editShape: (edit: (shape: AssetShape) => Result<AssetShape, ValidationError>) => Promise<DispatchResult>;
+	select: (next: DesignerSelection | null) => void;
 }>();
 
 /**
@@ -115,12 +124,21 @@ const dimensionsLabel = computed(() =>
 		<h2 class="rp-designer-panel-title">
 			{{ tr('designer.inspector') }}
 		</h2>
+		<DesignerSelectionInspector
+			v-if="selection !== null"
+			:key="partKey(selection)"
+			:design="design"
+			:selection="selection"
+			:edit-shape="editShape"
+			:select="select"
+		/>
 		<dl
 			v-if="dimensions !== null"
 			class="rp-designer-inspector-fields"
 		>
 			<dt>{{ tr('designer.inspector.dimensions') }}</dt>
-			<dd>{{ dimensions.width }} × {{ dimensions.depth }} mm</dd>
+			<!-- Whole millimetres: a curve's box is irrational, and no drawing is read finer than that. -->
+			<dd>{{ Math.round(dimensions.width) }} × {{ Math.round(dimensions.depth) }} mm</dd>
 		</dl>
 		<p
 			v-if="dimensions !== null && design.dimensionsUnscaled"
@@ -134,6 +152,13 @@ const dimensionsLabel = computed(() =>
 			@click="() => void editDimensions()"
 		>
 			{{ dimensionsLabel }}
+		</button>
+		<button
+			type="button"
+			class="rp-designer-start-preset"
+			@click="() => void startFromPreset()"
+		>
+			{{ tr('designer.inspector.start-preset') }}
 		</button>
 
 		<FieldError

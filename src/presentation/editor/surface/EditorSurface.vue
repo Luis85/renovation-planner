@@ -23,7 +23,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { listenOnOwner } from '../../composables/use-owner-listener';
+import { listenOnOwner, ownerWindowOf } from '../../composables/use-owner-listener';
 import { tr } from '../../i18n/strings';
 import type { StringKey } from '../../i18n/locales/en';
 import type { useEditorStore } from '../../stores/EditorStore';
@@ -38,6 +38,7 @@ import type { ToolManager } from '../tools/tool-manager';
 import type { RenderState } from '../tools/render-state';
 import { cursorClassFor } from './cursor';
 import { canvasKeyDoors } from './keyDoors';
+import { edgeScroller } from './edgeScroll';
 
 /**
  * What this surface needs of the leaf it is mounted in, and nothing about a Plan.
@@ -90,8 +91,7 @@ const props = defineProps<{
 	 * §85's one operation left unreachable by keyboard (E8, Task 14): an arrow-key press
 	 * translates whatever is selected by `arrowVector`'s vector. Threaded as a prop for the
 	 * same reason `setTool` is — this file holds no `runtime.ts` — and the asset designer's
-	 * own mounter passes a no-op: none of its tools ever populate `selection`, so there is
-	 * never anything for it to move.
+	 * own mounter moves its own selection, a part of one shape (`designer/designerKeys.ts`).
 	 */
 	nudgeSelection: (by: Vector) => Promise<void>;
 	/**
@@ -105,7 +105,9 @@ const props = defineProps<{
 }>();
 
 const editor = props.editor;
-const toolManager = props.toolManager;
+// Annotated rather than inferred: fallow resolves a class member through an explicit type
+// annotation where it is consumed, and `activeToolTracksPointer` is called only from this file.
+const toolManager: ToolManager = props.toolManager;
 const activeToolId = props.activeToolId;
 const renderState = props.renderState;
 const { viewport } = storeToRefs(editor);
@@ -212,6 +214,20 @@ interface ModifierSource {
 	readonly altKey: boolean;
 }
 
+/**
+ * Nothing is held any more — the state to assume when the modifier keys can no longer be
+ * observed. See `onBlur`.
+ */
+const NO_MODIFIERS: ModifierSource = {
+	shiftKey: false,
+	ctrlKey: false,
+	metaKey: false,
+	altKey: false,
+};
+
+/** The modifiers the last move reported, which every edge-scroll frame re-issues with. */
+let edgeModifiers: ModifierSource = NO_MODIFIERS;
+
 function pointerEventAt(
 	source: ModifierSource,
 	at: ScreenPoint,
@@ -276,11 +292,37 @@ function reissuePointerMove(source: ModifierSource): void {
 	// says the same thing truthfully. The camera doors that DO need it are refused during a
 	// pan anyway — `onWheel` and `onKeyDown` both return on `gestureInFlight()`, which a
 	// pan's own `dragState` satisfies.
+	// Remembered before any guard, so edge scrolling re-issues with the modifiers last reported
+	// — a Shift pressed while the pointer rests at the edge keeps constraining every frame after.
+	edgeModifiers = source;
 	if (panOverride.phase === 'panning') return;
 	const at = lastStagePoint.value;
 	if (at === null || activeToolId.value === null) return;
 	toolManager.pointerMove(pointerEventAt(source, at, 'primary'));
 }
+
+/**
+ * Scrolling the plan while a drawing pointer rests at the pane's edge (`./edgeScroll.ts`), so a
+ * room dragged or a wall chain drawn past what is on screen follows the pointer into it.
+ *
+ * **This is the one camera door that moves DURING a gesture**, which `gestureInFlight` refuses
+ * every other door for — and it may, because it is opt-in per tool: `EditorTool.tracksPointer`
+ * answers `true` only for a tool that takes its commit from the event's world point, and each
+ * frame re-issues the move, so the loose end stays under a pointer the world moved beneath. What
+ * `gestureInFlight` protects against is a gesture measured as a SCREEN delta, which no tracking
+ * tool is. A running pan still outranks it: the camera is that gesture's, and `continuePan`
+ * would throw a step away on its next move.
+ */
+const edgeScroll = edgeScroller({
+	size,
+	lastStagePoint,
+	ownerWindow: () => ownerWindowOf(container.value as HTMLElement),
+	tracking: () => panOverride.phase !== 'panning' && toolManager.activeToolTracksPointer(),
+	scroll: (x, y) => {
+		editor.panByScreen(x, y);
+		reissuePointerMove(edgeModifiers);
+	},
+});
 
 /**
  * A pointer position as a `ScreenPoint` in the STAGE's own coordinate space.
@@ -518,6 +560,8 @@ function onPointerDown(event: PointerEvent): void {
 	if (activeToolId.value !== null && activeToolId.value !== 'pan') {
 		toolGesturePointer = event.pointerId;
 		toolManager.pointerDown(editorPointerEvent(event, at));
+		// A wall's first corner placed AT the edge starts scrolling without waiting for a twitch.
+		edgeScroll.follow();
 		return;
 	}
 	editor.beginPan(at, event.pointerId);
@@ -613,6 +657,8 @@ function onPointerMove(event: PointerEvent): void {
 			return;
 		}
 		toolManager.pointerMove(editorPointerEvent(event, at));
+		edgeModifiers = event;
+		edgeScroll.follow();
 		return;
 	}
 	// Camera mode's own drag — the DEFAULT state, and therefore where a second finger on a
@@ -778,17 +824,6 @@ function onPointerCancel(event: PointerEvent): void {
 	lastStagePoint.value = null;
 	editor.setPointer(null);
 }
-
-/**
- * Nothing is held any more — the state to assume when the modifier keys can no longer be
- * observed. See `onBlur`.
- */
-const NO_MODIFIERS: ModifierSource = {
-	shiftKey: false,
-	ctrlKey: false,
-	metaKey: false,
-	altKey: false,
-};
 
 /**
  * Everything a gesture in flight owns, released — the swallowed pointers, the camera's claim
@@ -1033,6 +1068,8 @@ onBeforeUnmount(() => {
 	// starts with its own `lastStagePoint`, `null` by declaration, and there is nothing stale
 	// left for a replay to read.
 	releaseInterruptedInputs();
+	// A pending frame would pan a store this leaf no longer draws.
+	edgeScroll.stop();
 	editor.setPointer(null);
 	observer?.disconnect();
 	observer = null;

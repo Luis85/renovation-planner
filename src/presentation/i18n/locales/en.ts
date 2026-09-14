@@ -6,6 +6,7 @@ import { enAssetLibrary } from './en-assetLibrary';
 import { editorEn } from './en/editor';
 import { renovationEn } from './en/renovation';
 import { enMobile } from './en/mobile';
+import { newAssetFootprintEn } from './en/newAssetFootprint';
 
 /**
  * The English table is the COMPLETE one: a key exists because this file answers it, and
@@ -42,6 +43,7 @@ export const en = {
 	...planEn,
 	...editorEn,
 	...enMobile,
+	...newAssetFootprintEn,
 	'command.open-project': 'Open renovation project',
 	'command.open-project-detail': 'Go to renovation project',
 	'view.project.price-apply': 'Apply',
@@ -583,7 +585,7 @@ export const en = {
 		'A typed footprint is already in millimetres, so it cannot be waiting for a scale.',
 	'asset.absent-clearance-cannot-be-pending': 'There is no clearance to wait for a scale.',
 	'asset.no-footprint':
-		'Give this asset a footprint first; a clearance, an anchor and a facing are each relative to one.',
+		'Give this asset a footprint first; a clearance, an anchor, a facing and a detail are each relative to one.',
 	'asset.not-found': 'That asset no longer exists.',
 	// The one background refusal a USER can reach, on either surface: both pickers snapshot the
 	// vault's candidates and the user picks out of that snapshot, so a file deleted or renamed in
@@ -624,15 +626,8 @@ export const en = {
 	'form.new-asset.unit': 'Unit',
 	'form.new-asset.unit-cost': 'Unit cost',
 	'form.new-asset.currency': 'Currency',
-	// The unit is named in the LABEL rather than left to a placeholder: every world
-	// coordinate in this plugin is millimetres (ADR-009), and a bare `Width` invites metres.
-	'form.new-asset.width': 'Width in millimetres (optional)',
-	'form.new-asset.depth': 'Depth in millimetres (optional)',
-	// Shown only after the catalogue entry has been written and the footprint has not. It
-	// names the state rather than apologising for it: the asset exists, its details are no
-	// longer this dialog's to change, and the dimensions are what a retry re-sends.
-	'form.new-asset.already-created':
-		'The asset is saved. Its details can be edited from the catalogue; only the dimensions below are still pending.',
+	// The width, depth and footprint/outline copy is `newAssetFootprintEn`, spread in above —
+	// see that module's header for why it is a separate file.
 	// One label per `AssetCategory`, so the control never shows the raw union member
 	// (`building-element`). `ASSET_CATEGORY_LABELS` is the `Record` that makes a missing one
 	// a build failure; `assetLabels.test.ts` is what asks whether these resolve.

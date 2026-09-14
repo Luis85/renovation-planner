@@ -233,12 +233,14 @@ describe('an asset with a spec sheet', () => {
 	});
 
 	/**
-	 * The layer is BENEATH the three that draw the object, which is the order Task B4 reserved
-	 * and the only order in which a traced outline is visible over the sheet it was traced on.
-	 * Asserted with a raster actually present, because the order case in `layers.test.ts` reads
-	 * an empty layer and would pass for a layer that can never hold anything.
+	 * The layer is BENEATH the four that draw the object (counted from `DesignerLayerName` rather
+	 * than remembered — the details layer joined the footprint, the clearance and the anchor at
+	 * Task 5), which is the order Task B4 reserved and the only order in which a traced outline is
+	 * visible over the sheet it was traced on. Asserted with a raster actually present, because
+	 * the order case in `layers.test.ts` reads an empty layer and would pass for a layer that can
+	 * never hold anything.
 	 */
-	it('draws the sheet beneath the footprint, the clearance and the anchor', async () => {
+	it('draws the sheet beneath the footprint, the details, the clearance and the anchor', async () => {
 		registerResource(`app://fake/${SHEET}`, pngFixture(400, 300));
 		const designer = await mountDesigner(
 			assetDesign({ background: { path: SHEET, kind: 'image', page: null } }),
@@ -250,8 +252,10 @@ describe('an asset with a spec sheet', () => {
 		expect(designer.stage?.getLayers().map((layer) => layer.name())).toEqual([
 			'asset-background',
 			'asset-footprint',
+			'asset-details',
 			'asset-clearance',
 			'asset-anchor',
+			'asset-selection',
 			'asset-gesture',
 		]);
 	});

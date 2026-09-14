@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import DraftRecovery from '../forms/DraftRecovery.vue';
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import DraftingDraftFields from './DraftingDraftFields.vue';
 import FieldError from '../../components/FieldError.vue';
 import ObjectRectangleFields from './ObjectRectangleFields.vue';
+import ObjectShapeSwitch from './ObjectShapeSwitch.vue';
 import StairDraftFields from './StairDraftFields.vue';
+import StructuralDraftFields from './StructuralDraftFields.vue';
+import { maxDraftPoints, shapedKind } from './elementDraft';
+import { rectangleInstruction } from './objectShape';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
@@ -12,10 +17,26 @@ import { parseCoordinateMetres, formatMetres } from '../shell/formatLength';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
 const runtime = useEditorRuntime(), task = runtime.elementTask, draft = task.draft;
 const taskRoot = ref<HTMLElement | null>(null);
+const nameInput = ref<HTMLInputElement | null>(null);
+// A text's point is placed on the canvas and its words typed here, so placing the point hands the keyboard to the field.
+watch(() => draft.kind === 'text' ? draft.points[0] : undefined, point => { if (point) void nextTick(() => nameInput.value?.focus()); });
 onBeforeUnmount(() => {
 	const root = taskRoot.value, editor = root?.closest<HTMLElement>('.renovation-plan-editor');
 	if (root?.contains(document.activeElement)) void nextTick(() => { if (editor?.isConnected) editor.querySelector<HTMLElement>('.rp-plan-canvas')?.focus(); });
 });
+/** A rectangle item or hatched area is entered through its rectangle fields alone; per-point entry is free-form's (2026-09-13 item modes spec §A). */
+const shaped = computed(() => shapedKind(draft.kind));
+const pointEntry = computed(() => !shaped.value || draft.shape === 'free');
+/** The create-hint key ternary, out of the template and behind fallow's cognitive-complexity threshold. */
+const createHint = computed(() => tr(pointEntry.value ? 'editor.element.create-hint' : rectangleInstruction(draft.kind)));
+/** Out of the template for the same threshold, once posts and beams joined the draft kinds (structural posts and beams). */
+const structural = computed(() => draft.kind === 'post' || draft.kind === 'beam');
+/** The remaining compound conditions and ternaries below, out of the template for the same threshold. */
+const nameLabel = computed(() => tr(draft.kind === 'text' ? 'editor.drafting.text' : 'editor.room.name'));
+const nameError = computed(() => draft.name.trim() ? null : tr('editor.element.name-required'));
+const showDimensionOffset = computed(() => draft.kind === 'dimension' && draft.dimensionPhase === 'offset');
+const showRecovery = computed(() => task.needsRead.value || runtime.writesBlocked.value);
+const axisLabel = computed<Record<'x' | 'y', string>>(() => ({ x: tr('editor.area.x'), y: tr('editor.area.y') }));
 const pointForm = ref<HTMLElement | null>(null), attemptedPoint = ref(false);
 const coordinates = computed(() => ({ x: parseCoordinateMetres(draft.text.x), y: parseCoordinateMetres(draft.text.y) }));
 const point = computed(() => {
@@ -26,7 +47,7 @@ const pointRepeated = computed(() => {
 	const last = draft.points.at(-1), next = point.value;
 	return !!last && !!next && last.x === next.x && last.y === next.y;
 });
-const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || ((draft.kind === 'measurement' || draft.kind === 'stair') && draft.points.length === 2));
+const addBlocked = computed(() => task.blocked.value || draft.pendingInput || !point.value || pointRepeated.value || (maxDraftPoints(draft.kind) === 2 && draft.points.length === 2));
 const pointReadonly = computed(() => task.blocked.value || draft.pendingInput);
 const undoBlocked = computed(() => pointReadonly.value || !!draft.text.x || !!draft.text.y || !draft.points.length);
 function coordinateMessage(axis: 'x' | 'y'): string | null {
@@ -53,7 +74,7 @@ async function add(): Promise<void> {
 		data-rp-form="element-create"
 	>
 		<h3>{{ tr(zoneTypeLabel(draft.kind)) }}</h3>
-		<p>{{ tr('editor.element.create-hint') }}</p>
+		<p>{{ createHint }}</p>
 		<p
 			v-if="draft.error"
 			role="alert"
@@ -62,13 +83,14 @@ async function add(): Promise<void> {
 		</p>
 		<FieldError
 			v-slot="{ inputId, aria }"
-			:message="draft.name.trim() ? null : tr('editor.element.name-required')"
+			:message="nameError"
 		>
 			<label
 				:for="inputId"
 				class="rp-dialog-field"
-			>{{ tr('editor.room.name') }}<input
+			>{{ nameLabel }}<input
 				:id="inputId"
+				ref="nameInput"
 				v-bind="aria"
 				name="element-name"
 				type="text"
@@ -77,66 +99,80 @@ async function add(): Promise<void> {
 				@input="input('name', $event)"
 			></label>
 		</FieldError>
-		<ObjectRectangleFields
-			v-if="draft.kind === 'object'"
-			:task="task"
-		/>
+		<template v-if="shaped">
+			<ObjectShapeSwitch />
+			<ObjectRectangleFields
+				:task="task"
+				:open="draft.shape === 'rectangle'"
+			/>
+		</template>
 		<StairDraftFields
 			v-if="draft.kind === 'stair'"
 			:task="task"
 		/>
-		<form
-			ref="pointForm"
-			@submit.prevent="add"
-			@keydown="nativeSubmitKey"
-		>
-			<DraftRecovery
-				v-if="task.needsRead.value || runtime.writesBlocked.value"
-				:retry="task.retry"
-				:open-source="runtime.openPlanNote"
-			/>
-			<FieldError
-				v-for="axis in ['x', 'y'] as const"
-				:key="axis"
-				v-slot="{ inputId, aria }"
-				:message="coordinateMessage(axis)"
+		<StructuralDraftFields
+			v-if="structural"
+			:key="draft.kind"
+			:task="task"
+		/>
+		<DraftingDraftFields
+			v-if="showDimensionOffset"
+			:task="task"
+		/>
+		<DraftRecovery
+			v-if="showRecovery"
+			:retry="task.retry"
+			:open-source="runtime.openPlanNote"
+		/>
+		<template v-if="pointEntry">
+			<form
+				ref="pointForm"
+				@submit.prevent="add"
+				@keydown="nativeSubmitKey"
 			>
-				<label
-					:for="inputId"
-					class="rp-dialog-field"
-				>{{ tr(axis === 'x' ? 'editor.area.x' : 'editor.area.y') }}<input
-					:id="inputId"
-					v-bind="aria"
-					:name="'element-' + axis"
-					type="text"
-					inputmode="decimal"
-					:value="draft.text[axis]"
-					:readonly="pointReadonly"
-					@input="input(axis, $event)"
-				></label>
-			</FieldError>
+				<FieldError
+					v-for="axis in ['x', 'y'] as const"
+					:key="axis"
+					v-slot="{ inputId, aria }"
+					:message="coordinateMessage(axis)"
+				>
+					<label
+						:for="inputId"
+						class="rp-dialog-field"
+					>{{ axisLabel[axis] }}<input
+						:id="inputId"
+						v-bind="aria"
+						:name="'element-' + axis"
+						type="text"
+						inputmode="decimal"
+						:value="draft.text[axis]"
+						:readonly="pointReadonly"
+						@input="input(axis, $event)"
+					></label>
+				</FieldError>
+				<button
+					type="submit"
+					:aria-disabled="addBlocked"
+				>
+					{{ tr('editor.element.add-point') }}
+				</button>
+			</form>
+			<ol>
+				<li
+					v-for="(value, index) in draft.points"
+					:key="index"
+				>
+					{{ formatMetres(value.x) }} m, {{ formatMetres(value.y) }} m
+				</li>
+			</ol>
 			<button
-				type="submit"
-				:aria-disabled="addBlocked"
+				type="button"
+				:aria-disabled="undoBlocked"
+				@click="task.undoPoint()"
 			>
-				{{ tr('editor.element.add-point') }}
+				{{ tr('editor.element.undo-point') }}
 			</button>
-		</form>
-		<ol>
-			<li
-				v-for="(value, index) in draft.points"
-				:key="index"
-			>
-				{{ formatMetres(value.x) }} m, {{ formatMetres(value.y) }} m
-			</li>
-		</ol>
-		<button
-			type="button"
-			:aria-disabled="undoBlocked"
-			@click="task.undoPoint()"
-		>
-			{{ tr('editor.element.undo-point') }}
-		</button>
+		</template>
 		<div class="rp-dialog-actions">
 			<button
 				type="button"

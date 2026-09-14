@@ -11,10 +11,12 @@ import { useDialogStore } from '../../dialogs/dialog-store';
 import { useSelectionStore } from './selection-store';
 import { resolveSelectionTarget } from './resolveSelectionTarget';
 import { structureCandidates } from '../structure/structureCandidates';
-import { screenPoint, screenToWorld, stageCentreWorld, STAGE_PIXELS } from '../viewport/Viewport';
+import { screenPoint, screenToWorld, stageCentreWorld, worldPerScreenPixel, STAGE_PIXELS } from '../viewport/Viewport';
+import { VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
 import { useCanvasGroupActions } from './canvasGroupActions';
 import { useCanvasMenuActions, isSubmenu, type CanvasMenuAction } from './useCanvasMenuActions';
 import { canvasCandidates } from './canvasCandidates';
+import { draftingHitContext } from '../elements/draftingMarks';
 import { structureRecords } from '../structure/structureRecords';
 import { plainPress } from '../surface/keyboard';
 import { pointerOutside } from './menuKeyboard';
@@ -42,8 +44,10 @@ function contextTarget(event: MouseEvent | KeyboardEvent, x: number, y: number):
 	const rowId = target.closest<HTMLElement>('[data-rp-id]')?.dataset.rpId;
 	if (rowId && (project.zones.has(rowId) || structureCandidates(project.structure).some(item => item.id === rowId))) return rowId;
 	if (keyboard) return undefined;
-	const candidates = canvasCandidates(project.zones.values(), project.structure, workspace.layerVisibility, assetShapes.shapeOf);
-	return resolveSelectionTarget({ candidates, selectedIds: selection.selectedIds, worldPoint: screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS), handleToleranceWorld: 0, cycle: event.altKey })?.id;
+	const candidates = canvasCandidates(project.zones.values(), project.structure, workspace.layerVisibility, assetShapes.shapeOf, draftingHitContext(editor.viewport.zoom, project.plan?.spatialElements));
+	// The select tool's own reach: a line mark has no width, so at 0 a right-click on a section or boundary line missed it and cleared the selection.
+	const reach = VERTEX_GRAB_RADIUS_PX * worldPerScreenPixel(editor.viewport, STAGE_PIXELS);
+	return resolveSelectionTarget({ candidates, selectedIds: selection.selectedIds, worldPoint: screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS), handleToleranceWorld: reach, cycle: event.altKey })?.id;
 }
 function selectContext(hit: string | undefined, keyboard: boolean, event: MouseEvent | KeyboardEvent): void {
 	// `groups.expandSelection` is optional only on the interface (`CanvasGroupActionsProvider`,

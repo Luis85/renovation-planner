@@ -423,8 +423,22 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.validation',
 		'domain/asset/AssetShape.ts',
 	],
-	// The one `assetError` call outside the domain, and the only one of the seventeen whose
-	// module is an application command.
+	// The symbols spec's detail validation (2026-09-13).
+	['asset.invalid-detail', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],
+	['asset.degenerate-detail', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],
+	['asset.invalid-detail-id', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],
+	['asset.preset-value-out-of-range', 'Validation', 'error.category.validation', 'domain/asset/presets/presetGeometry.ts'],
+	['asset.preset-incoherent', 'Validation', 'error.category.validation', 'domain/asset/presets/presetGeometry.ts'],
+	// The symbols spec's part edits (Amendment 1).
+	['asset.part-not-found', 'Validation', 'error.category.validation', 'domain/asset/shapeEdits.ts'],
+	['asset.vertex-out-of-range', 'Validation', 'error.category.validation', 'domain/asset/shapeEdits.ts'],
+	['asset.invalid-scale', 'Validation', 'error.category.validation', 'domain/asset/shapeEdits.ts'],
+	['asset.detail-at-limit', 'Validation', 'error.category.validation', 'domain/asset/detailEdits.ts'],
+	['asset.no-details', 'Validation', 'error.category.validation', 'domain/asset/detailEdits.ts'],
+	['asset.details-await-scale', 'Validation', 'error.category.validation', 'domain/asset/detailEdits.ts'],
+	// Minted by `requireShape` in the application layer rather than under `domain/asset/`, which is
+	// why this row's module column names that file. The column is where each row says where its code
+	// is raised, and rows further down name other modules outside the domain too.
 	['asset.no-footprint', 'Validation', 'error.category.validation', 'application/commands/asset/updateAssetShape.ts'],
 	// `assetNotFound` rather than `assetError`, which is why a grep for the latter misses it
 	// and why it is a `Reference` refusal: nothing about the input is wrong, the thing it

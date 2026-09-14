@@ -45,6 +45,7 @@ export function assetDesign(overrides: Partial<AssetDesignDto> = {}): AssetDesig
 			anchor: { x: 0, y: 0 },
 			anchorPending: false,
 			facing: 0,
+			details: [],
 		},
 		dimensions: { width: 1200, depth: 800 },
 		clearanceExtent: null,

@@ -7,6 +7,12 @@ import {
 import { PlanFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/planFrontmatter';
 import { ProjectFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/projectFrontmatter';
 import { ZoneFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/zoneFrontmatter';
+import { AssetFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/assetFrontmatter';
+import { toKebab } from '../../../../src/infrastructure/persistence/dto/kebab';
+import { ASSET_CATEGORIES } from '../../../../src/domain/asset/AssetCategory';
+import { ZONE_TYPES } from '../../../../src/domain/zone/ZoneType';
+import { ZONE_STATUSES } from '../../../../src/domain/zone/ZoneStatus';
+import { PROJECT_STATUSES } from '../../../../src/domain/project/ProjectStatus';
 
 /**
  * Schema validation fixtures (SDD §43): the valid shapes parse; every invalid shape is
@@ -65,6 +71,33 @@ describe('persisted schemas', () => {
 		expect(parseProjectFrontmatterWith('idea')).toMatchObject({ success: true, data: expect.objectContaining({ status: 'IDEA' }) });
 		expect(parseProjectFrontmatterWith('as-built')).toMatchObject({ success: true, data: expect.objectContaining({ status: 'AS_BUILT' }) });
 		expect(parseProjectFrontmatterWith('in-progress').success).toBe(false); // a zone value, not a project one
+	});
+
+	// A live vault refused "Building element" at `asset.pre-write-invalid`: the one vocabulary member spelled with a
+	// hyphen in the DOMAIN never matched, because the stored value lost its hyphen and the candidate kept it.
+	it('reads back every asset category exactly as the write spells it, a hyphenated one included', () => {
+		const note = { type: 'renovation-asset', 'schema-version': 1, id: 'asset-x', name: 'Item', 'unit-cost': '1', currency: 'EUR', unit: 'piece' };
+		for (const category of ASSET_CATEGORIES) {
+			expect(AssetFrontmatterSchemaV1.safeParse({ ...note, category: toKebab(category) })).toMatchObject({ success: true, data: { category } });
+		}
+	});
+
+	// The same fix (`kebab.ts`'s `kebabEnum`) generalises to every vocabulary it serves; this holds
+	// a future hyphenated `ZoneType`/`ZoneStatus` member the way the asset category test above holds one.
+	it('reads back every zone type and status exactly as the write spells it', () => {
+		for (const zoneType of ZONE_TYPES) {
+			expect(ZoneFrontmatterSchemaV1.safeParse({ ...zoneValid, 'zone-type': toKebab(zoneType) })).toMatchObject({ success: true, data: { 'zone-type': zoneType } });
+		}
+		for (const status of ZONE_STATUSES) {
+			expect(ZoneFrontmatterSchemaV1.safeParse({ ...zoneValid, status: toKebab(status) })).toMatchObject({ success: true, data: { status } });
+		}
+	});
+
+	// Same guarantee for the project lifecycle vocabulary (a future hyphenated `ProjectStatus` member).
+	it('reads back every project status exactly as the write spells it', () => {
+		for (const status of PROJECT_STATUSES) {
+			expect(parseProjectFrontmatterWith(toKebab(status))).toMatchObject({ success: true, data: expect.objectContaining({ status }) });
+		}
 	});
 
 	it('round-trips the plan background reference through three flat keys', () => {

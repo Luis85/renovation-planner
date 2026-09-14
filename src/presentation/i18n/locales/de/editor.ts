@@ -1,11 +1,14 @@
 import { openingMoveDe } from './openingMove';
 import { openingDe } from './opening';
 import { curvesDe } from './curves';
+import { assetSymbolsDe } from './assetSymbols';
 import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
 import { assetPlacementDe } from './assetPlacement';
 import { stairsArrowsDe } from './stairsArrows';
+import { structuralDe } from './structural';
+import { draftingDe } from './drafting';
 import { inputDe } from './input';
 import { groupsDe } from './groups';
 import { creationDe } from './creation';
@@ -25,8 +28,11 @@ import type {
 import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
 	...curvesDe,
+	...assetSymbolsDe,
 	...groupsDe,
 	...stairsArrowsDe,
+	...structuralDe,
+	...draftingDe,
 	...inputDe,
 	...creationDe,
 	'editor.direct.mark-change': 'Änderung markieren',

@@ -47,6 +47,7 @@ const TYPED = {
 	anchor: { x: 0, y: 0 },
 	anchorPending: false,
 	facing: 0,
+	details: [],
 };
 
 /**
@@ -160,12 +161,11 @@ describe('tracing an outline', () => {
 
 	/**
 	 * Task 10 gave `DrawPolygonTool` a required `onCompleted`, which the Plan Editor binds to
-	 * `returnToSelect`. The designer registers no `select` tool at all (see the FIVE-tools note
-	 * on `DESIGNER_TOOL_LABELS`), so both traces bind it to camera mode instead — the same
-	 * substitution `DesignerCanvas.vue`'s `routeEscape` wiring already makes for its
-	 * `returned-to-select` arm.
+	 * `returnToSelect`. The designer bound it to camera mode while it registered no `select` tool;
+	 * the symbols spec's Decision 10 registered one, so a completed trace returns to Select here too.
+	 * Updated deliberately with that change.
 	 */
-	it('a closed footprint leaves no active tool, since this surface has no Select to return to', async () => {
+	it('a closed footprint returns to Select', async () => {
 		const rig = await designerRig({ shape: null });
 
 		await activate(rig, 'designer.toolbar.trace-footprint');
@@ -173,7 +173,7 @@ describe('tracing an outline', () => {
 		tracePolygon(rig, TRIANGLE);
 		await settle();
 
-		expect(rig.activeToolId()).toBeNull();
+		expect(rig.activeToolId()).toBe('select');
 		rig.unmount();
 	});
 });
@@ -181,14 +181,10 @@ describe('tracing an outline', () => {
 /**
  * Camera mode, and the click it takes without writing anything.
  *
- * This used to be the Select tool's case: Select hit-tested an EMPTY candidate list, because
- * nothing on this canvas was selectable until Task B8, so a click through it wrote nothing and
- * selected nothing. The review-fixes plan's Task 6 withdrew that tool — a live control that did
- * nothing but stop a primary-button pan, which slice 14's amendment refuses — so this canvas now
- * rests in camera mode whenever no design tool is active, which is the state Select's own click
- * used to reach anyway for everything except the pan it blocked. The claim that survives the
- * tool's removal is the one this case pins: a click on this canvas, with nothing active to
- * receive it, writes nothing.
+ * The designer OPENS in camera mode: Select is registered (symbols spec, Decision 10) but, like
+ * every other tool here, is active only once its toolbar button is pressed. So a click on a freshly
+ * opened canvas has no tool to receive it, and this case pins that it writes nothing.
+ * `designerSelection.test.ts` is where a click under Select selects a part — still writing nothing.
  */
 describe('camera mode', () => {
 	it('writes nothing for a click, because no tool is active to receive it', async () => {

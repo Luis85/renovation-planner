@@ -7,11 +7,13 @@ import { GetAssetDesignQuery } from '../../src/application/queries/GetAssetDesig
 import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { readAssetShapes } from '../../src/presentation/read-models/assetShapes';
 import { planningWorkspace } from './planningWorkspace';
+import { seedDraftingPlan } from './draftingWorkspace';
 import { createRepositoryStack } from '../helpers/vault';
 import { makeAsset, makePlan, makeProject } from '../helpers/entities';
 import { expectDefined, expectOk } from '../helpers/domain';
 import { shapeFromDimensions } from '../../src/domain/asset/AssetShape';
 import { placementPoints } from '../../src/domain/spatial/assetPlacement';
+import { postOutline } from '../../src/domain/spatial/structuralElement';
 import { withPlanSpatialElements } from '../../src/domain/plan/Plan';
 import { ObsidianPlanGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { referencePlanServices } from '../../src/application/commands/plan/ConfigurePlanReference';
@@ -21,12 +23,16 @@ import { makeDeleteZoneCommand } from '../helpers/slice10';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../src/application/queries/GetZoneInspector';
+import { CreateAssetCommand } from '../../src/application/commands/asset/CreateAsset';
+import { SetAssetFootprintCommand, SetAssetFootprintFromDimensionsCommand } from '../../src/application/commands/asset/SetAssetFootprint';
+import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import { toPlanDto, toZoneDto, type PlanDto } from '../../src/presentation/read-models/PlanDto';
 import type { PlanId } from '../../src/domain/plan/PlanId';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
 import { ok } from '../../src/core/result/Result';
 import { evidenceGalleryFixtures } from './evidenceGalleryFixtures';
+import { seedItems } from './itemKnob';
 
 /** Real repositories over FakeVault; only the two binary sources are served as static fixtures. */
 export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning = false) {
@@ -51,6 +57,21 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			const loaded = expectDefined(expectOk(await stack.plans.getById(plan.id)), 'harness reference plan');
 			expectOk(await stack.plans.save(expectOk(withPlanSpatialElements(loaded.entity, elements.map((item, index) => ({ id: item.id, name: ['Radiator', 'Radiator', 'Old boiler'][index] })))), loaded.version));
 		}
+		if (new URLSearchParams(location.search).has('structural')) {
+			const baseline = expectOk(await geometry.read(plan.id));
+			const elements = [
+				...[1000, 2500, 4000].map((x, index) => ({ id: `element-harness-post-${index + 1}`, kind: 'post' as const, loadBearing: true, points: postOutline({ x, y: 3000 }, 140, 140) })),
+				{ id: 'element-harness-post-free', kind: 'post' as const, loadBearing: false, points: postOutline({ x: 2500, y: 1500 }, 140, 140) },
+				{ id: 'element-harness-beam', kind: 'beam' as const, loadBearing: true, width: 160, points: [{ x: 0, y: 1500 }, { x: 5000, y: 1500 }] },
+			];
+			const walls = [{ id: 'wall-harness-frame', start: { x: 0, y: 3000 }, end: { x: 5000, y: 3000 }, height: 2500, thickness: 160 }];
+			expectOk(await geometry.write(plan.id, { ...baseline.document, structure: { walls, openings: [], boundaries: [], elements } }, baseline.version));
+			const loaded = expectDefined(expectOk(await stack.plans.getById(plan.id)), 'harness structural plan');
+			const names = ['Post 1', 'Post 2', 'Post 3', 'Free post', 'Ceiling beam'];
+			expectOk(await stack.plans.save(expectOk(withPlanSpatialElements(loaded.entity, elements.map((item, index) => ({ id: item.id, name: names[index] })))), loaded.version));
+		}
+		if (new URLSearchParams(location.search).has('drafting')) await seedDraftingPlan(stack, geometry, plan.id);
+		if (new URLSearchParams(location.search).has('item')) await seedItems(stack, geometry, plan);
 		stack.vault.entries.set('scan.png', 'PNG fixture'); stack.vault.entries.set('scan.pdf', 'PDF fixture');
 	})();
 	const reviewNotes = new ObsidianReviewNotes(stack.deps.vault, stack.index);
@@ -84,6 +105,7 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			assetShapes: async ids => { await ready; return readAssetShapes(new GetAssetDesignQuery(stack.assets, new ObsidianAssetGeometrySidecar(stack.assetGeometry)), ids); },
 		},
 		commands: { ...base.commands, groups: groupGeometryServices(geometry, stack.zones, stack.events), referencePlan: services, zones: stack.zones, events: stack.events,
+			assetCreation: assetCreation(stack),
 			...(planning ? planningWorkspace(stack, geometry) : { renovation: renovationServices(stack.plans, geometry, stack.events) }),
 			reviewNote: async (id, body) => { const result = await reviewNotes.generate(id, body); return result.ok ? ok(undefined) : result; },
 			structure: structureServices(geometry, stack.events), deleteZone: makeDeleteZoneCommand(stack.zones, stack.events, stack.requirements), requirementEdits: { ...base.commands.requirementEdits, requirements: stack.requirements },
@@ -101,4 +123,15 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 		planningServices.read = async id => { await ready; return read(id); };
 	}
 	return { deps, stack, services, geometry, ready, plan };
+}
+
+/** "Add to asset library" over the same stack (2026-09-13 item modes spec §B): real commands, so a promoted asset and its footprint land where a placement reads them. */
+function assetCreation(stack: ReturnType<typeof createRepositoryStack>) {
+	const design = { sidecar: new ObsidianAssetGeometrySidecar(stack.assetGeometry), assets: stack.assets, events: stack.events, locks: new ReferenceLocks() };
+	return {
+		createAsset: new CreateAssetCommand(stack.assets, stack.events),
+		setAssetFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand(design),
+		setAssetFootprint: new SetAssetFootprintCommand(design),
+		defaultCurrency: 'EUR',
+	};
 }

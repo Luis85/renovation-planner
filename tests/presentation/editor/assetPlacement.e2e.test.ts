@@ -7,9 +7,12 @@ import { settle, settleUntil } from '../../helpers/editor';
 import { pointerAt } from '../../helpers/tool-context';
 import { expectOk } from '../../helpers/domain';
 import { installObsidianDom } from '../../helpers/dom';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { clientWidthFor, resizeTo } from '../../helpers/layout';
 import { ok } from '../../../src/core/result/Result';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { trError } from '../../../src/presentation/i18n/toUserMessage';
+import * as notices from '../../../src/presentation/notices/notify';
 import { activateNotices, disposeNotices } from '../../../src/presentation/notices/notify';
 
 type Rig = Awaited<ReturnType<typeof assetPlacementRig>>;
@@ -59,6 +62,33 @@ it('places repeated copies, snapped to a wall face, each its own undo step, and 
 	expect(previews(rig)).toHaveLength(0);
 });
 
+/** Every element measures `width × height` from its first read, as a real pane's canvas does on mount — jsdom answers 0 until `resizeTo`. */
+function measuredOnMount(width: number, height: number): () => void {
+	const restoreWidth = clientWidthFor(() => width);
+	const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'clientHeight') as PropertyDescriptor;
+	Object.defineProperty(Element.prototype, 'clientHeight', { configurable: true, get: () => height });
+	return () => { restoreWidth(); Object.defineProperty(Element.prototype, 'clientHeight', descriptor); };
+}
+
+it('keeps the camera where the user left it when a placement lands on a remounted canvas', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const editor = useEditorStore(rig.pinia);
+	const radiator = await rig.saveAsset('Radiator');
+	// Below the floor width and back: the canvas remounts over a stage that already has an area.
+	const shell = rig.wrapper.get('.rp-editor-shell').element as HTMLElement;
+	resizeTo(shell, 300, 800); await settle();
+	const restore = measuredOnMount(800, 600);
+	try { resizeTo(shell, 1280, 800); await settle(); } finally { restore(); }
+	expect(editor.stageSize).toEqual({ width: 800, height: 600 });
+	await choose(rig, radiator.id, radiator.name);
+	editor.panByScreen(137, -59); await settle();
+	const camera = editor.viewport;
+	rig.runtime.toolManager.pointerDown(pointerAt(1500, 1500));
+	await settleUntil(() => (rig.project.structure.elements ?? []).length === 1, 'placement');
+	await settle();
+	expect(editor.viewport).toEqual(camera);
+});
+
 it('places at typed coordinates with the asset\'s own facing, and Done leaves the tool', async () => {
 	const rig = await assetPlacementRig(); mounted.push(rig);
 	const radiator = await rig.saveAsset('Radiator');
@@ -99,4 +129,21 @@ it('refuses an asset with no footprint before the tool starts', async () => {
 	await choose(rig, sketch.id, sketch.name);
 	expect(rig.runtime.activeToolId.value).toBe('select');
 	expect(Notice.shown).toContain(tr('editor.asset.no-shape'));
+});
+
+it('notifies the fault once, logs it and writes nothing when placing throws', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	await choose(rig, radiator.id, radiator.name);
+	const cause = new Error('Vault write failed');
+	const fault = vi.spyOn(notices, 'notifyFault');
+	vi.spyOn(rig.runtime.dispatcher, 'run').mockRejectedValueOnce(cause);
+	await typePlacement(rig, '1', '1');
+	await settleUntil(() => fault.mock.calls.length > 0, 'fault notice');
+	expect(fault).toHaveBeenCalledExactlyOnceWith(cause, rig.deps.commands.logger, 'editor.asset.write-failed');
+	expect(rig.project.structure.elements ?? []).toHaveLength(0);
+	const draft = rig.runtime.elementTask.assets.draft;
+	expect(draft.busy).toBe(false);
+	expect(draft.error).toBeNull();
+	expect(rig.runtime.activeToolId.value).toBe('place-asset');
 });

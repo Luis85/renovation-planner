@@ -74,9 +74,11 @@ const CONSTRAINING_TOOLS: readonly ToolId[] = [
 	'measure',
 	'place-stair',
 	'draw-arrow',
+	'draw-beam',
 	'calibrate',
 	'trace-footprint',
 	'trace-clearance',
+	'trace-detail',
 	'set-facing',
 ];
 

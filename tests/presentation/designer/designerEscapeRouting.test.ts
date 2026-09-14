@@ -1,19 +1,21 @@
 /**
  * @vitest-environment jsdom
  *
- * Task 9 widened `EditorSurface`'s Escape branch from an unconditional `cancelGesture()` to
- * `routeEscape` — and this surface is the asset designer's too (`DesignerCanvas.vue` mounts the
- * same component `PlanCanvas.vue` does). The designer registers no `select` tool at all
- * (`registerDesignerTools` names `trace-footprint`, `trace-clearance`, `set-anchor`,
- * `set-facing` and `calibrate`), so `routeEscape`'s `returned-to-select` arm — which always asks
- * for `'select'` — would throw `no tool is registered for id 'select'` the first time a user
- * pressed Escape over a tool with nothing drawn. `DesignerCanvas.vue`'s `escapeSetTool` is the
- * wiring that answers for that: it substitutes camera mode (`null`, this surface's own neutral
- * state — see that file's header) for the id `routeEscape` never learns is unavailable here.
+ * Escape on the asset designer's surface, which mounts the same `EditorSurface` the Plan Editor does
+ * and so takes `routeEscape` unchanged.
+ *
+ * **Updated deliberately with the symbols spec's Decision 10.** While the designer registered no
+ * `select` tool, `DesignerCanvas.vue`'s `escapeSetTool` substituted camera mode for the
+ * `returned-to-select` arm, and these cases asserted that substitution. The designer now registers
+ * `DesignerSelectTool` and keeps its selection in its own `assetDesignStore`, so the substitution is
+ * gone and the cases assert the Plan Editor's order: an empty creation tool returns to Select, and
+ * Select with a selection clears it.
  */
 import { describe, expect, it } from 'vitest';
-import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
-import { designerRig } from '../../helpers/designerRig';
+import { t } from '../../../src/presentation/i18n/strings';
+import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import { click, designerRig } from '../../helpers/designerRig';
+import { TOILET, detailOutline, justInsideBottom } from '../../helpers/designerSelection';
 import { settle } from '../../helpers/settle';
 
 function key(canvas: HTMLElement, init: KeyboardEventInit): void {
@@ -21,37 +23,43 @@ function key(canvas: HTMLElement, init: KeyboardEventInit): void {
 }
 
 describe('Escape on the asset designer surface', () => {
-	it('returns an empty gesture to camera mode rather than throwing for a missing Select tool', async () => {
+	it('returns a creation tool with nothing drawn to Select', async () => {
 		const rig = await designerRig();
-		rig.toolbarButton('Set anchor').click();
-		expect(rig.activeToolId()).toBe('set-anchor');
-
-		expect(() => key(rig.canvasEl, { key: 'Escape' })).not.toThrow();
-
-		expect(rig.activeToolId()).toBeNull();
-		rig.unmount();
-	});
-
-	it('clears a selection in camera mode, the same as the Plan Editor', async () => {
-		const rig = await designerRig();
-		useSelectionStore(rig.pinia).select(['zone-a' as never]);
+		rig.toolbarButton(t('en', 'designer.toolbar.trace-footprint')).click();
+		expect(rig.activeToolId()).toBe('trace-footprint');
 
 		key(rig.canvasEl, { key: 'Escape' });
 
-		expect(useSelectionStore(rig.pinia).selectedIds).toEqual([]);
+		expect(rig.activeToolId()).toBe('select');
+		rig.unmount();
+	});
+
+	it('clears the designer’s selection under Select, and stays in Select', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		rig.toolbarButton(t('en', 'designer.toolbar.select')).click();
+		await settle();
+		click(rig, justInsideBottom(detailOutline('detail-2')));
+		await settle();
+		const store = useAssetDesignStore(rig.pinia);
+		expect(store.selection).toEqual({ kind: 'detail', id: 'detail-2' });
+
+		key(rig.canvasEl, { key: 'Escape' });
+
+		expect(store.selection).toBeNull();
+		expect(rig.activeToolId()).toBe('select');
 		rig.unmount();
 	});
 });
 
 /**
- * `DesignerCanvas.vue:113`'s `nudgeSelection` is the inert half of E8/Task 14: this surface's
- * own `selection` never holds anything (see that file's header), so `EditorSurface`'s arrow-key
- * routing still calls the prop — there is nothing here for it to move, and the case is that
- * calling it does nothing rather than throwing or writing.
+ * An arrow key reaches `DesignerCanvas`'s `nudgeSelection` whatever is selected — `EditorSurface` does
+ * not ask. Updated deliberately from "the inert nudge" when the designer gained a selection (symbols
+ * spec, Decision 10): with NOTHING selected it still writes nothing. `designerKeyboard.test.ts` is
+ * where a selected part moves.
  */
 describe('an arrow key on the asset designer surface', () => {
-	it('reaches the inert nudgeSelection without throwing or writing to the sidecar', async () => {
-		const rig = await designerRig();
+	it('writes nothing with nothing selected', async () => {
+		const rig = await designerRig({ shape: TOILET });
 		const before = await rig.document();
 
 		expect(() => key(rig.canvasEl, { key: 'ArrowRight' })).not.toThrow();

@@ -4,6 +4,8 @@ import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
 import AreaCornerEditor from '../add/AreaCornerEditor.vue';
 import FreeShapeRoomAction from '../add/FreeShapeRoomAction.vue';
+import ObjectShapeSwitch from '../elements/ObjectShapeSwitch.vue';
+import { isShapedTool } from '../elements/elementDraft';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 const runtime = useEditorRuntime(), workspace = useWorkspaceStore();
 const isCurves = computed(() => runtime.activeToolId.value === 'edit-curves');
@@ -22,6 +24,7 @@ function freeRoomName(event: Event): void {
 }
 </script>
 <template>
+	<ObjectShapeSwitch v-if="isShapedTool(runtime.activeToolId.value)" />
 	<FreeShapeRoomAction
 		v-if="runtime.activeToolId.value === 'draw-room'"
 		canvas

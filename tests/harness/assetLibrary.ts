@@ -292,6 +292,7 @@ function designFor(assetId: AssetId): AssetDesignDto {
 					clearance: { points: box(600, 1180) },
 					anchor: { x: 300, y: 290 },
 					facing: 0,
+					details: [],
 				}
 			: null,
 		dimensions: designed ? { width: 600, depth: 580 } : null,

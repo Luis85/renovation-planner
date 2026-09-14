@@ -9,9 +9,10 @@ import type { EditorContext } from './editor-context';
  * **One union across two surfaces rather than one per surface**, because `ToolManager`,
  * `EditorTool` and `EditorContext` are shared and each names this type: a second union would
  * have to be widened into every one of those signatures, and the manager would then be generic
- * over a parameter it does nothing with. The last four members are the designer's — a
- * `DrawPolygonTool` registered twice under two ids for the footprint and the clearance, plus
- * its own two point-and-drag tools — and no manager ever holds tools from both surfaces, so a
+ * over a parameter it does nothing with. The last seven members are the designer's — a
+ * `DrawPolygonTool` registered three times, for the footprint, the clearance and a traced
+ * detail, its two point-and-drag tools, and `DrawDetailTool` registered twice for a box and a
+ * circle — and no manager ever holds tools from both surfaces, so a
  * `setActiveTool('trace-footprint')` against a Plan Editor's manager throws exactly as an
  * unregistered id always has.
  *
@@ -30,6 +31,15 @@ export type ToolId =
 	| 'pan'
 	| 'place-stair'
 	| 'draw-arrow'
+	| 'place-post'
+	| 'draw-beam'
+	| 'draw-dimension'
+	| 'draw-section'
+	| 'place-view'
+	| 'draw-hatch'
+	| 'place-text'
+	| 'draw-boundary'
+	| 'place-grid'
 	| 'draw-polygon'
 	| 'draw-room'
 	| 'edit-room-dimension'
@@ -50,7 +60,10 @@ export type ToolId =
 	| 'trace-footprint'
 	| 'trace-clearance'
 	| 'set-anchor'
-	| 'set-facing';
+	| 'set-facing'
+	| 'draw-rect'
+	| 'draw-circle'
+	| 'trace-detail';
 
 /**
  * What a tool receives for one pointer interaction (design slice 6, ADR-009).
@@ -115,4 +128,13 @@ export interface EditorTool {
 	abandonGesture(): void;
 	/** Does this tool hold work a user would lose to `cancel()`? Escape asks before cancelling. */
 	hasDraft(): boolean;
+	/**
+	 * Is something being DRAWN whose loose end follows the pointer right now — a drag in progress,
+	 * or a chain with points already placed? The canvas scrolls the plan while such a pointer rests
+	 * at the pane's edge, re-issuing the move each frame, so a tool answering `true` must take what
+	 * it commits from the event's world point rather than from a screen delta. Absent means never:
+	 * a tool opts in, because a hover at the edge scrolling the plan is wrong for every tool that
+	 * is not mid-drawing.
+	 */
+	tracksPointer?(): boolean;
 }

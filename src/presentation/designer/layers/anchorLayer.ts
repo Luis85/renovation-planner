@@ -1,3 +1,4 @@
+import type { Point } from '../../../core/geometry/Point';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { ThemeTokens } from '../../editor/theme/themeTokens';
 import { POLYGON_CLOSE_TARGET_RADIUS_PX } from '../../editor/handleMetrics';
@@ -57,13 +58,24 @@ const ANCHOR_RADIUS_PX = POLYGON_CLOSE_TARGET_RADIUS_PX;
  * How far the facing arrow reaches, in screen pixels, and the size of its head.
  *
  * Declared here rather than in `handleMetrics.ts`, which is deliberate: that module is about
- * vertex marks and the regions that GRAB them, and nothing grabs this arrow — Task B5's
- * set-facing tool takes a drag anywhere on the canvas and reads its direction. A length in a
- * module about grab targets would invite the next author to treat it as one.
+ * vertex marks and the regions that GRAB them, and these are drawn sizes. The arrow's TIP has been
+ * grabbable since the symbols spec's Decision 10 — the select tool's hit order asks `facingTip`
+ * below — but by `VERTEX_GRAB_RADIUS_PX` around that point, so the length is still what the arrow
+ * draws and not a grab region. Task B5's set-facing tool still takes a drag anywhere on the canvas.
  */
 const FACING_LENGTH_PX = 44;
 const FACING_HEAD_PX = 10;
 const FACING_STROKE_PX = 1.5;
+
+/**
+ * The far end of the facing arrow: the anchor plus `FACING_LENGTH_PX` screen pixels along the
+ * facing. One statement of where the tip is, shared by the arrow drawn here and the select tool's
+ * hit order, so the point a user grabs is the point they see.
+ */
+export function facingTip(shape: AssetShape, worldPerPixel: number): Point {
+	const length = FACING_LENGTH_PX * worldPerPixel;
+	return { x: shape.anchor.x + Math.cos(shape.facing) * length, y: shape.anchor.y + Math.sin(shape.facing) * length };
+}
 
 export function anchorMark(
 	shape: AssetShape | null,
@@ -112,10 +124,8 @@ export function facingArrow(
 	const dx = Math.cos(shape.facing);
 	const dy = Math.sin(shape.facing);
 	const { x, y } = shape.anchor;
-	const length = FACING_LENGTH_PX * worldPerPixel;
 	const head = FACING_HEAD_PX * worldPerPixel;
-	const tipX = x + dx * length;
-	const tipY = y + dy * length;
+	const { x: tipX, y: tipY } = facingTip(shape, worldPerPixel);
 	// The head's base, and the two barbs either side of it on the perpendicular `(-dy, dx)`.
 	const baseX = tipX - dx * head;
 	const baseY = tipY - dy * head;

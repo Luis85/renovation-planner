@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createElementDraft, draftElement, isElementTool } from '../../../src/presentation/editor/elements/elementDraft';
+import { createElementDraft, draftElement, elementPreviewPoints, isElementTool } from '../../../src/presentation/editor/elements/elementDraft';
 import { ElementTool } from '../../../src/presentation/editor/elements/ElementTool';
 import { ElementMove } from '../../../src/presentation/editor/elements/ElementMove';
 import { resolveSelectionTarget } from '../../../src/presentation/editor/selection/resolveSelectionTarget';
@@ -31,18 +31,20 @@ describe('spatial element drafts and real selection projections', () => {
 		const draft = createElementDraft(), start = vi.fn<(id: string) => void>(), stop = vi.fn<() => void>(), finish = vi.fn<() => void>();
 		let blocked = false;
 		const addPoint = vi.fn<(point: Point) => boolean>(point => { draft.points.push(point); return true; });
-		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked: () => blocked });
+		const setPoints = (next: readonly Point[]) => { draft.points = next.map(point => ({ ...point })); return true; };
+		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, setPoints, blocked: () => blocked });
 		const r = toolContext({ snapPoint: point => ({ x: Math.round(point.x), y: Math.round(point.y) }) });
 		tool.pointerDown(pointerAt(10, 20)); expect(addPoint).not.toHaveBeenCalled();
 		tool.activate(r.context); expect(start).toHaveBeenCalledWith('draw-path');
 		tool.pointerDown({ ...pointerAt(10, 20), button: 'secondary' }); expect(addPoint).not.toHaveBeenCalled();
-		tool.pointerDown(pointerAt(10.2, 20.3)); expect(draft.points).toEqual([{ x: 10, y: 20 }]); expect(tool.hasDraft()).toBe(true);
+		expect(tool.tracksPointer()).toBe(false);
+		tool.pointerDown(pointerAt(10.2, 20.3)); expect(draft.points).toEqual([{ x: 10, y: 20 }]); expect(tool.hasDraft()).toBe(true); expect(tool.tracksPointer()).toBe(true);
 		tool.abandonGesture(); expect(draft.cursor).toBeNull(); expect(draft.points).toHaveLength(1);
 		expect(tool.editCorner(-1, { x: 15, y: 25 })).toBe(true); expect(tool.editCorner(8, null)).toBe(false);
 		blocked = true; tool.pointerMove(pointerAt(30, 40)); tool.pointerDown(pointerAt(30, 40)); expect(draft.points).toHaveLength(1); expect(tool.editCorner(-1, null)).toBe(false);
 		draft.busy = true; tool.cancel(); expect(tool.hasDraft()).toBe(true); draft.busy = false; tool.cancel(); expect(tool.hasDraft()).toBe(false);
 		blocked = false; tool.pointerDown(pointerAt(10, 20)); expect(tool.editCorner(-1, null)).toBe(true); expect(tool.editCorner(-1, null)).toBe(false);
-		tool.finish(); expect(finish).toHaveBeenCalledOnce(); tool.pointerUp(); tool.deactivate(); expect(stop).toHaveBeenCalledOnce();
+		tool.finish(); expect(finish).toHaveBeenCalledOnce(); tool.pointerUp(pointerAt(20, 30)); tool.deactivate(); expect(stop).toHaveBeenCalledOnce();
 		tool.pointerMove(pointerAt(20, 30)); expect(r.dispatched).toEqual([]);
 	});
 	it('places no point when a press becomes blocked between its own two blocked() reads', () => {
@@ -54,9 +56,10 @@ describe('spatial element drafts and real selection projections', () => {
 		// null and never calls `addPoint`.
 		const draft = createElementDraft(), start = vi.fn<(id: string) => void>(), stop = vi.fn<() => void>(), finish = vi.fn<() => void>();
 		const addPoint = vi.fn<(point: Point) => boolean>(point => { draft.points.push(point); return true; });
+		const setPoints = (next: readonly Point[]) => { draft.points = next.map(point => ({ ...point })); return true; };
 		let reads = 0;
 		const blocked = () => { reads += 1; return reads > 1; };
-		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, blocked });
+		const tool = new ElementTool('draw-path', { draft, start, stop, finish, addPoint, setPoints, blocked });
 		const r = toolContext();
 		tool.activate(r.context);
 
@@ -67,7 +70,7 @@ describe('spatial element drafts and real selection projections', () => {
 	});
 	it('writes a guide on pointerMove and clears it on cancel, abandonGesture and deactivate, each safe unactivated', () => {
 		const draft = createElementDraft();
-		const deps = { draft, start: vi.fn<(id: string) => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(), addPoint: () => true, blocked: () => false };
+		const deps = { draft, start: vi.fn<(id: string) => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(), addPoint: () => true, setPoints: () => true, blocked: () => false };
 		const tool = new ElementTool('draw-path', deps);
 		const r = toolContext({ snapCandidates: () => ({ alignments: [{ x: 300, y: 900 }] }) });
 		tool.activate(r.context);
@@ -98,5 +101,19 @@ describe('spatial element drafts and real selection projections', () => {
 		gesture.start(r.context, { ...pointerAt(0, 0), modifiers: { shift: true, ctrl: false, alt: false } }, hit); expect(gesture.active).toBe(false);
 		gesture.start(r.context, pointerAt(0, 0), hit); gesture.finish({ ...r.context, writesBlocked: () => true }, pointerAt(100, 100)); expect(move).toHaveBeenCalledOnce();
 		const unavailable = new ElementMove({}); unavailable.start(r.context, pointerAt(0, 0), hit); expect(unavailable.active).toBe(false); unavailable.cancel();
+	});
+	it('previews a rectangle-mode item as its bare four corners, and every other draft trailing the cursor (vault defect)', () => {
+		const rectangle = createElementDraft();
+		rectangle.points = points.map(point => ({ ...point })); rectangle.cursor = { x: 9000, y: 9000 };
+		expect(elementPreviewPoints(rectangle)).toEqual(points);
+		const free = createElementDraft();
+		free.shape = 'free'; free.points = points.slice(0, 2).map(point => ({ ...point })); free.cursor = { x: 9000, y: 9000 };
+		expect(elementPreviewPoints(free)).toEqual([...free.points, free.cursor]);
+		const path = createElementDraft();
+		path.kind = 'path'; path.points = points.slice(0, 2).map(point => ({ ...point })); path.cursor = { x: 9000, y: 9000 };
+		expect(elementPreviewPoints(path)).toEqual([...path.points, path.cursor]);
+		const beam = createElementDraft();
+		beam.kind = 'beam'; beam.points = points.slice(0, 2).map(point => ({ ...point })); beam.cursor = { x: 9000, y: 9000 };
+		expect(elementPreviewPoints(beam)).toEqual(beam.points);
 	});
 });

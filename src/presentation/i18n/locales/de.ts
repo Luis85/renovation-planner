@@ -27,6 +27,7 @@ import { deAssetLibrary } from './de-assetLibrary';
 import { editorDe } from './de/editor';
 import { renovationDe } from './de/renovation';
 import { deMobile } from './de/mobile';
+import { newAssetFootprintDe } from './de/newAssetFootprint';
 
 export const de: Partial<Record<StringKey, string>> = {
 	...projectWorkDe,
@@ -36,6 +37,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	...planDe,
 	...editorDe,
 	...deMobile,
+	...newAssetFootprintDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.price-apply': 'Übernehmen',
@@ -429,7 +431,7 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Ein eingegebener Umriss ist bereits in Millimetern und wartet daher auf keinen Maßstab.',
 	'asset.absent-clearance-cannot-be-pending': 'Es gibt keinen Freiraum, der auf einen Maßstab warten könnte.',
 	'asset.no-footprint':
-		'Geben Sie diesem Objekt zuerst einen Umriss; Freiraum, Ankerpunkt und Ausrichtung beziehen sich jeweils darauf.',
+		'Geben Sie diesem Objekt zuerst einen Umriss; Freiraum, Ankerpunkt, Ausrichtung und Details beziehen sich jeweils darauf.',
 	'asset.not-found': 'Dieses Objekt existiert nicht mehr.',
 	'asset.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Datenblatt.',
 	'plan-geometry.write-failed': 'Der Referenzmaßstab konnte nicht gespeichert werden. Ihr Entwurf bleibt erhalten; versuchen Sie es erneut.',
@@ -443,10 +445,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'form.new-asset.unit': 'Einheit',
 	'form.new-asset.unit-cost': 'Stückpreis',
 	'form.new-asset.currency': 'Währung',
-	'form.new-asset.width': 'Breite in Millimetern (optional)',
-	'form.new-asset.depth': 'Tiefe in Millimetern (optional)',
-	'form.new-asset.already-created':
-		'Das Objekt ist gespeichert. Seine Angaben lassen sich im Katalog bearbeiten; nur die Maße unten stehen noch aus.',
 	'form.new-asset.category.material': 'Baustoff',
 	'form.new-asset.category.furniture': 'Möbel',
 	'form.new-asset.category.fixture': 'Einbauteil',

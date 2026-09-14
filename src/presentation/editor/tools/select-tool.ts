@@ -29,6 +29,9 @@ import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 export interface SpatialObjectCandidate {
 	readonly kind?: 'wall' | 'opening' | SpatialElementKind;
 	readonly width?: number;
+	readonly loadBearing?: boolean;
+	readonly offset?: number;
+	readonly flipped?: boolean;
 	readonly id: string;
 	readonly points: readonly Point[];
 	readonly bulges?: readonly number[];
@@ -385,6 +388,16 @@ export class SelectTool implements EditorTool {
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
 		return this.deps.selectionMove?.active === true || this.marquee.active || this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active || this.labelMove.active;
+	}
+
+	/**
+	 * Every drag but a rotation: each measures its delta in world coordinates from where it
+	 * started, so a plan scrolling under a pointer resting at the edge carries the move, the
+	 * marquee or the caption further. A rotation's angle is about the shape's own centre, and
+	 * scrolling would turn it rather than extend anything.
+	 */
+	tracksPointer(): boolean {
+		return !this.elementRotation.active && this.hasDraft();
 	}
 
 	/**

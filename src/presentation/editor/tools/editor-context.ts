@@ -53,7 +53,7 @@ export interface EditorContext {
 	 * The geometry a gesture may snap or align to — every zone, wall, opening and element on
 	 * the subject — minus the entities in `exclude`, so a dragged item never snaps to itself.
 	 * One supply for every tool (smart alignment guides increment, spec §4); the designer
-	 * answers an empty set.
+	 * answers its footprint's and details' vertices and its anchor (`designerSnapCandidates`).
 	 */
 	readonly snapCandidates: (exclude?: Iterable<string>) => SnapCandidates;
 	readonly commandDispatcher: { run(command: UndoableCommand): Promise<DispatchResult> };

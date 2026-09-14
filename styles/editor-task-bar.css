@@ -60,6 +60,27 @@
 	gap: 2px var(--size-4-2);
 }
 
+/*
+ * The snap hint RESERVES its width whether it shows or not. It comes and goes with the pointer's
+ * snap, and leaving the canvas for Finish drops the snap — so a hint that took space only while
+ * shown resized the bar and moved Finish out from under the pointer on its way there. The reserved
+ * copy is generated content under `visibility: hidden`, neither drawn nor read; the live text shares
+ * its grid cell.
+ */
+.rp-task-banner__snap {
+	display: inline-grid;
+}
+
+.rp-task-banner__snap::before,
+.rp-task-banner__snap > span {
+	grid-area: 1 / 1;
+}
+
+.rp-task-banner__snap::before {
+	content: attr(data-reserve);
+	visibility: hidden;
+}
+
 /* The actions close the bar: pushed to its trailing edge, and onto a line of their own when wrapped. */
 .rp-task-banner__actions {
 	display: flex;
@@ -132,6 +153,23 @@
 .rp-task-banner .rp-task-banner__finish:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
+}
+
+/*
+ * Rectangle | Free-form for an item (2026-09-13 item modes spec §A): the pressed mode wears a real
+ * border, the accent tint and the weight — the host's own buttons are borderless
+ * (`button { border: 0; }` in Obsidian's own sheet), so a bare `border-color` had nothing to
+ * colour. The same second channel `editor-shell.css`'s `.rp-primary-actions__button[aria-pressed='true']`
+ * uses: a border width so the accent shows, and the tint it uses.
+ */
+.renovation-plan-editor .rp-object-shape {
+	display: inline-flex;
+	gap: var(--size-4-1);
+}
+.renovation-plan-editor .rp-object-shape button[aria-pressed='true'] {
+	border: 1px solid var(--interactive-accent);
+	background-color: var(--background-modifier-active-hover);
+	font-weight: var(--font-semibold);
 }
 
 @container (max-width: 899px) {

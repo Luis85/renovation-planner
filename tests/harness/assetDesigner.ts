@@ -1,4 +1,7 @@
 import { createAssetId } from '../../src/domain/asset/AssetId';
+import { dimensionsOf } from '../../src/domain/asset/AssetShape';
+import { ASSET_PRESETS } from '../../src/domain/asset/presets/catalogue';
+import { defaultValues } from '../../src/domain/asset/presets/presetGeometry';
 import { AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
 import type { AssetDesignerDeps } from '../../src/presentation/designer/AssetDesignerContext';
 import type { AssetDesignDto } from '../../src/application/queries/GetAssetDesign';
@@ -7,7 +10,11 @@ import type { BackgroundPicker } from '../../src/presentation/designer/ports';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { Logger } from '../../src/application/ports/Logger';
 import type { ObservationToken } from '../../src/application/ports/versioning';
+import type { App } from 'vue';
 import { ok } from '../../src/core/result/Result';
+import { tr } from '../../src/presentation/i18n/strings';
+import { useAssetDesignStore } from '../../src/presentation/designer/stores/assetDesignStore';
+import type { DesignerSelection, SelectionMode } from '../../src/presentation/designer/selection/designerSelection';
 import { installObsidianDom } from '../helpers/dom';
 import { FakeLeaf } from '../helpers/workspace';
 
@@ -64,12 +71,26 @@ const inertLogger: Logger = {
 	error: () => undefined,
 };
 
-function assetDesignerHarnessDeps(): AssetDesignerDeps {
+/**
+ * `?preset=<id>` seeds the fixture with that preset at its defaults, so a capture draws curves and
+ * details instead of the empty state (asset designer symbols spec, Testing). An unknown id is the
+ * shapeless fixture.
+ */
+function designFor(presetId: string | null): AssetDesignDto {
+	const preset = ASSET_PRESETS.find((item) => item.id === presetId);
+	if (preset === undefined) return HARNESS_ASSET_DESIGN;
+	const built = preset.build(defaultValues(preset));
+	if (!built.ok) return HARNESS_ASSET_DESIGN;
+	const measured = dimensionsOf(built.value.footprint);
+	return { ...HARNESS_ASSET_DESIGN, shape: built.value, dimensions: measured.ok ? measured.value : null };
+}
+
+function assetDesignerHarnessDeps(presetId: string | null): AssetDesignerDeps {
 	return {
 		// A fresh DTO per call, not the constant — `planEditor.ts`'s `getPlan` carries the same
 		// rule: the real query builds its DTO from a note it just read, and handing back the
 		// module object would let a mutation through Pinia's reactive state edit the fixture.
-		queries: { getAssetDesign: () => Promise.resolve(ok(structuredClone(HARNESS_ASSET_DESIGN))) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(structuredClone(designFor(presetId)))) },
 		commands: unavailableAssetDesignerCommands(),
 		logger: inertLogger,
 		picker: inertPicker,
@@ -103,13 +124,53 @@ export interface MountedAssetDesigner {
 	view: AssetDesignerView;
 }
 
-export function mountAssetDesignerHarness(root: HTMLElement): MountedAssetDesigner {
+/** `&select=` spells a part as `partKey` does, minus the `detail:` prefix a URL has no need for. */
+function harnessSelection(select: string): DesignerSelection {
+	return select === 'footprint' || select === 'clearance' || select === 'anchor' || select === 'facing'
+		? { kind: select }
+		: { kind: 'detail', id: select };
+}
+
+/**
+ * Presses the REAL Select button, then sets the leaf's selection and mode through its own store —
+ * once the fixture has hydrated: a macrotask runs after every microtask `onOpen`'s read queues. The
+ * leaf's Pinia is reached through the Vue app `AssetDesignerView` mounts on its host element. Then it
+ * presses `Shift+1` on the canvas, the user's own fit: an opened asset keeps the origin-centred view,
+ * which clips a curved table and draws a toilet a few pixels wide, too small to see a handle on.
+ * Harness-only: no production seam exists for this, and none is added.
+ */
+function selectInHarness(view: AssetDesignerView, selection: { readonly select: string; readonly mode: string }): void {
+	setTimeout(() => {
+		const host = view.contentEl.querySelector('.renovation-asset-designer-view') as HTMLElement & { __vue_app__: App };
+		const button = Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button')).find(
+			(candidate) => candidate.textContent?.trim() === tr('designer.toolbar.select'),
+		);
+		button?.click();
+		const store = useAssetDesignStore(host.__vue_app__.config.globalProperties.$pinia);
+		store.select(harnessSelection(selection.select));
+		const mode: SelectionMode = selection.mode === 'points' || selection.mode === 'bend' ? selection.mode : 'transform';
+		store.setMode(mode);
+		view.contentEl
+			.querySelector('.rp-plan-canvas')
+			?.dispatchEvent(new KeyboardEvent('keydown', { key: '!', code: 'Digit1', shiftKey: true, bubbles: true }));
+	}, 0);
+}
+
+/**
+ * `selection` is `&select=`/`&mode=`, honoured only beside a preset: a shapeless fixture has no part
+ * to select, and a capture of one would photograph a selection nobody could make.
+ */
+export function mountAssetDesignerHarness(
+	root: HTMLElement,
+	presetId: string | null = null,
+	selection: { readonly select: string; readonly mode: string } | null = null,
+): MountedAssetDesigner {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();
 	root.empty();
 
 	const leafEl = root.createDiv('rp-harness-leaf');
-	const view = new AssetDesignerView(new FakeLeaf() as never, assetDesignerHarnessDeps());
+	const view = new AssetDesignerView(new FakeLeaf() as never, assetDesignerHarnessDeps(presetId));
 	leafEl.appendChild(view.containerEl);
 
 	// State first, then open — the restored-leaf order `mountPlanEditorHarness` uses. `void`
@@ -117,6 +178,7 @@ export function mountAssetDesignerHarness(root: HTMLElement): MountedAssetDesign
 	// before resolving.
 	void view.setState({ assetId: HARNESS_ASSET_ID }, {} as never);
 	void view.onOpen();
+	if (presetId !== null && selection !== null) selectInHarness(view, selection);
 
 	return { leafEl, view };
 }

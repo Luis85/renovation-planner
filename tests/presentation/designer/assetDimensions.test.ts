@@ -32,9 +32,16 @@ import { seeded, drawn } from '../../helpers/assetDesignHarness';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
+import type { Point } from '../../../src/core/geometry/Point';
+import { circle } from '../../../src/domain/asset/presets/presetGeometry';
+import { toiletShape } from '../../helpers/assetShapes';
+import { Notice } from '../../helpers/obsidian-mock';
+import { activateNotices } from '../../../src/presentation/notices/notify';
+import { installObsidianDom } from '../../helpers/dom';
 
 installCanvas();
 installResizeObserver();
+installObsidianDom();
 
 /**
  * `selectAssetDesignerEmptyState` answers `noShape` only for a SHAPELESS asset that already
@@ -90,6 +97,17 @@ async function mountDesigner(harness: Awaited<ReturnType<typeof seeded>>) {
 	await flushPromises();
 	return { wrapper, dialogs: useDialogStore(pinia) };
 }
+
+function expectNear(points: readonly Point[] | undefined, expected: readonly (readonly [number, number])[]): void {
+	expect(points).toHaveLength(expected.length);
+	points?.forEach((point, index) => {
+		expect(point.x).toBeCloseTo(expected[index][0], 6);
+		expect(point.y).toBeCloseTo(expected[index][1], 6);
+	});
+}
+
+/** 380 × 700, anchored at the origin: a round front, a tank, a stadium bowl and a front clearance. */
+const TOILET = toiletShape();
 
 describe('the designer’s dimensions dialog', () => {
 	it('opens the dimensions dialog from the empty state and writes the rectangle to the OPEN asset', async () => {
@@ -187,6 +205,19 @@ describe('the designer’s dimensions dialog', () => {
 		expect(descriptor).not.toHaveProperty('warning');
 	});
 
+	/** A default is a value Save writes in one click, so it is offered in the whole millimetres the inspector shows. */
+	it('offers the current dimensions back in whole millimetres', async () => {
+		const harness = await seeded();
+		await harness.seed({ ...drawn(), footprint: { points: [{ x: 0, y: 0 }, { x: 100.4, y: 0 }, { x: 100.4, y: 99.6 }, { x: 0, y: 99.6 }] } });
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue(null);
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(vi.mocked(dialogs.openDialog).mock.calls[0][0]).toHaveProperty('initial', { width: 100, depth: 100 });
+	});
+
 	it('offers the same editor from the inspector once a shape exists', async () => {
 		const harness = await seeded();
 		await harness.seed(drawn());
@@ -220,6 +251,100 @@ describe('the designer’s dimensions dialog', () => {
 		const stored = await harness.sidecar.read(harness.assetId);
 		expect(isOk(stored) && stored.value.document.shape?.footprintOrigin).toBe('typed');
 		expect(isOk(stored) && stored.value.document.shape?.footprintPending).toBe(false);
+	});
+
+	/**
+	 * Symbols spec, Decision 9 and Amendment 1: a design with details is SCALED about its anchor, not
+	 * replaced by a rectangle that would throw the tank and the bowl away. ×2 on both axes, so every
+	 * coordinate doubles and every bulge stays what it was.
+	 */
+	it('scales a design with details about its anchor, keeping every curve, as one undoable write', async () => {
+		const harness = await seeded();
+		await harness.seed(TOILET);
+		const before = (await harness.document()).shape;
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 760, depth: 1400 });
+		const fromDimensions = vi.spyOn(harness.bundle.setFootprintFromDimensions, 'executeWithVersion');
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(fromDimensions).not.toHaveBeenCalled();
+		const scaled = (await harness.document()).shape;
+		expectNear(scaled?.footprint.points, [[-380, -700], [380, -700], [380, 320], [-380, 320]]);
+		expect(scaled?.footprint.bulges).toEqual([0, 0, 1, 0]);
+		expectNear(scaled?.clearance?.points, [[-780, -700], [780, -700], [780, 1900], [-780, 1900]]);
+		expectNear(scaled?.details[0].outline.points, [[-380, -700], [380, -700], [380, -300], [-380, -300]]);
+		expectNear(scaled?.details[1].outline.points, [[-304, 54], [304, 54], [304, 346], [-304, 346]]);
+		expect(scaled?.details[1].outline.bulges).toEqual([1, 0, 1, 0]);
+		expect(scaled?.anchor).toEqual({ x: 0, y: 0 });
+
+		const undo = wrapper.findAll('.rp-designer-tools button').find((button) => button.text() === t('en', 'designer.toolbar.undo'));
+		await undo?.trigger('click');
+		await flushPromises();
+
+		expect((await harness.document()).shape).toEqual(before);
+	});
+
+	/** The other arm of the same rule: no details, but a curved footprint, is still scaled — about an anchor that is NOT the origin. */
+	it('scales a design whose footprint curves, even with no details', async () => {
+		const harness = await seeded();
+		await harness.seed({ ...drawn(), footprint: circle(1000), clearance: null });
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 2000, depth: 2000 });
+		const fromDimensions = vi.spyOn(harness.bundle.setFootprintFromDimensions, 'executeWithVersion');
+		const setShape = vi.spyOn(harness.bundle.setShape, 'executeWithVersion');
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(fromDimensions).not.toHaveBeenCalled();
+		expect(setShape).toHaveBeenCalledTimes(1);
+		const footprint = (await harness.document()).shape?.footprint;
+		// `drawn()`'s anchor is (5, 5), so x' = 2x − 5 and y' = 2y − 5.
+		expectNear(footprint?.points, [[-5, -1005], [995, -5], [-5, 995], [-1005, -5]]);
+		const quarter = Math.tan(Math.PI / 8);
+		expect(footprint?.bulges).toEqual([quarter, quarter, quarter, quarter]);
+	});
+
+	/**
+	 * …but not while the footprint is still PENDING (Amendment 1): its coordinates are placeholder
+	 * pixels, so a scale would write the typed millimetres into a footprint that goes on reading as
+	 * unscaled, and a later calibration would multiply them. The typed rectangle replaces it instead.
+	 */
+	it('replaces a PENDING curved footprint with a typed rectangle rather than scaling its placeholder pixels', async () => {
+		const harness = await seeded();
+		await harness.seed({ ...drawn(), footprint: circle(1000), clearance: null, footprintPending: true });
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 2000, depth: 1000 });
+		const setShape = vi.spyOn(harness.bundle.setShape, 'executeWithVersion');
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(setShape).not.toHaveBeenCalled();
+		const shape = (await harness.document()).shape;
+		expect(shape?.footprintOrigin).toBe('typed');
+		expect(shape?.footprintPending).toBe(false);
+		expect(shape?.footprint.bulges).toBeUndefined();
+	});
+
+	/** A scale the domain refuses is REPORTED, and dispatches nothing — never swallowed as a silent no-op. */
+	it('reports a scale the domain refuses and writes nothing', async () => {
+		activateNotices();
+		Notice.shown.length = 0;
+		const harness = await seeded();
+		await harness.seed(TOILET);
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 0, depth: 1400 });
+		const setShape = vi.spyOn(harness.bundle.setShape, 'executeWithVersion');
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(setShape).not.toHaveBeenCalled();
+		expect(Notice.shown).toEqual([t('en', 'asset.invalid-scale')]);
+		expect((await harness.document()).shape).toEqual(TOILET);
 	});
 });
 

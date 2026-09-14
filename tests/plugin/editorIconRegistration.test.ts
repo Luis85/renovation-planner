@@ -7,11 +7,14 @@ import { loadedPlugin } from '../helpers/plugin';
 installObsidianDom();
 afterEach(() => vi.restoreAllMocks());
 
-it('registers the application stair artwork on load and removes it once on unload', async () => {
+it('registers the application artwork on load and removes each icon once on unload', async () => {
 	const add = vi.spyOn(obsidian, 'addIcon'), remove = vi.spyOn(obsidian, 'removeIcon');
 	const { plugin } = await loadedPlugin();
 	try {
 		expect(add).toHaveBeenCalledWith('rp-stairs', expect.stringContaining('M12 88V64H36V40H60V16H88V88Z'));
+		expect(add).toHaveBeenCalledWith('rp-post', expect.stringContaining('M22 22H78V78H22Z'));
+		expect(add).toHaveBeenCalledWith('rp-beam', expect.stringContaining('stroke-dasharray'));
+		for (const name of ['rp-dimension', 'rp-section', 'rp-view', 'rp-hatch', 'rp-text', 'rp-boundary', 'rp-grid']) expect(add).toHaveBeenCalledWith(name, expect.stringContaining('stroke="currentColor"'));
 		const icon = document.createElement('span');
 		obsidian.setIcon(icon, 'rp-stairs');
 		expect(icon.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 100 100');
@@ -20,7 +23,7 @@ it('registers the application stair artwork on load and removes it once on unloa
 		obsidian.setIcon(icon, 'rp-stairs');
 		expect(icon.querySelector('svg')).toBeNull();
 		plugin.onunload();
-		expect(remove).toHaveBeenCalledTimes(1);
-		expect(remove).toHaveBeenCalledWith('rp-stairs');
+		expect(remove).toHaveBeenCalledTimes(10);
+		for (const name of ['rp-stairs', 'rp-post', 'rp-beam', 'rp-dimension', 'rp-section', 'rp-view', 'rp-hatch', 'rp-text', 'rp-boundary', 'rp-grid']) expect(remove).toHaveBeenCalledWith(name);
 	} finally { plugin.onunload(); }
 });

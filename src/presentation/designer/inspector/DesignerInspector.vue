@@ -119,8 +119,15 @@ const dimensionsLabel = computed(() =>
 		sibling this element needs to stand out from), so an own class would style nothing and
 		the widened `libraryComponentStyles.test.ts` scan would keep flagging it undeclared. Kept
 		as a landmark for its `aria-label`, dropped as a class.
+
+		`tabindex="-1"` makes it a surviving focus TARGET and not a Tab stop (spec Amendment 2):
+		`DesignerSelectionInspector` hands focus here when Delete or Duplicate unmounts the button
+		that had it — the plan editor's `EntityInspector` aside, for the same reason.
 	-->
-	<aside :aria-label="tr('designer.inspector')">
+	<aside
+		tabindex="-1"
+		:aria-label="tr('designer.inspector')"
+	>
 		<h2 class="rp-designer-panel-title">
 			{{ tr('designer.inspector') }}
 		</h2>

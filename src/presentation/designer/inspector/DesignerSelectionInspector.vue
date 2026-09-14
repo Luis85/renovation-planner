@@ -28,7 +28,7 @@
  * A part the shape lacks renders nothing (PBI extension 2a). The store prunes such a selection on
  * its next read; this guard covers the frame between the two.
  */
-import { computed, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { AppError, ValidationError } from '../../../core/errors/AppError';
@@ -83,6 +83,26 @@ const exists = computed(() => selectionExists(props.design.shape, props.selectio
 /** Read only inside the `exists` guard, which answers false for a shapeless design — hence the cast. */
 const shape = computed(() => props.design.shape as AssetShape);
 const refusal = ref<AppError | null>(null);
+
+/** The section's own element; `null` only while `exists` is false and the section renders nothing. */
+const root = ref<HTMLElement | null>(null);
+
+/**
+ * **A browser drops focus to `<body>` when the focused control unmounts** (spec Amendment 2), and both
+ * inspector actions that change the selection unmount this section under the button that was pressed:
+ * Delete's write prunes the selection, and Duplicate selects the copy, which re-keys the section. So focus
+ * goes to the inspector's `<aside>` — `tabindex="-1"`, a surviving target and not a Tab stop — and the next
+ * Tab continues from the inspector rather than from the top of the pane. `NewRoomInspector`'s hand-off on
+ * the plan editor, on the next tick for the same reason: the aside outlives this section.
+ *
+ * `closest` answers `null` for a section mounted outside the inspector, and focus elsewhere leaves focus
+ * alone; a section that drew nothing (`root` is `null`) has nothing to ask.
+ */
+onBeforeUnmount(() => {
+	const section = root.value;
+	const aside = section !== null && section.contains(document.activeElement) ? section.closest<HTMLElement>('aside') : null;
+	if (aside !== null) void nextTick(() => aside.focus());
+});
 
 /** One write's outcome: the refusal it answers is shown, and a write that lands clears the last one. */
 async function show(written: Promise<DispatchResult>): Promise<boolean> {
@@ -216,6 +236,7 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 <template>
 	<section
 		v-if="exists"
+		ref="root"
 		class="rp-designer-selection"
 		:data-kind="selection.kind"
 	>

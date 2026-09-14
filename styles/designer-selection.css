@@ -59,3 +59,14 @@
 	font-size: var(--font-ui-smaller);
 	color: var(--text-error);
 }
+
+/*
+ * The inspector itself takes focus when Delete or Duplicate removes the control that had it (spec
+ * Amendment 2) — a hand-off TARGET with `tabindex="-1"`, not a Tab stop. The accent ring every designer
+ * control wears, for the contrast reason `designer.css`'s toolbar `:focus-visible` comment measures, inset
+ * so the panel's own scroll box does not clip it. `:focus-visible` keeps it off a mouse user's click.
+ */
+.rp-designer-inspector > aside:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}

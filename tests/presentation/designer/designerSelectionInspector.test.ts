@@ -27,13 +27,13 @@ import {
 	updateDetail,
 } from '../../../src/domain/asset/detailEdits';
 import { moveAnchor, removeClearance, setFacing } from '../../../src/domain/asset/shapeEdits';
-import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
+import { sameSelection, type DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
 import { toiletShape } from '../../helpers/assetShapes';
 import { expectOk } from '../../helpers/domain';
-import { settle } from '../../helpers/editor';
+import { settle, settleUntil } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
 
 type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
@@ -165,6 +165,13 @@ describe('what the inspector offers for each kind of part', () => {
 		expect(mountFor({ kind: 'detail', id: 'detail-9' }).wrapper.find('.rp-designer-selection').exists()).toBe(false);
 		expect(mountFor({ kind: 'clearance' }, { ...TOILET, clearance: null }).wrapper.find('.rp-designer-selection').exists()).toBe(false);
 		expect(mountFor({ kind: 'footprint' }, null).wrapper.find('.rp-designer-selection').exists()).toBe(false);
+	});
+
+	/** The section draws nothing for a part the shape lacks, so its unmount has no element to ask about focus. */
+	it('unmounts a section drawn for a part the shape lacks without reaching for focus', () => {
+		const { wrapper } = mountFor({ kind: 'detail', id: 'detail-9' });
+
+		expect(() => wrapper.unmount()).not.toThrow();
 	});
 
 	/**
@@ -411,6 +418,33 @@ describe('the inspector in the mounted designer', () => {
 			const bowl = (await rig.document()).shape?.details.find((detail) => detail.id === 'detail-2');
 			expectNear(bowl?.outline.points ?? [], [[-304, 27], [304, 27], [304, 173], [-304, 173]]);
 			expect(rig.toolbarButton(t('en', 'designer.toolbar.undo')).disabled).toBe(false);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * Spec Amendment 2: Delete prunes the selection and Duplicate selects the copy, and either unmounts the
+	 * section under the very button that was pressed — so focus goes to the inspector rather than to the
+	 * page, and the next Tab continues from there. Clearance Delete is the other Delete in the section.
+	 */
+	it.each([
+		['delete', BOWL],
+		['delete', { kind: 'clearance' }],
+		['duplicate', BOWL],
+	] as const)('hands focus to the inspector after %s on %o', async (name, selection) => {
+		const rig = await designerRig({ shape: TOILET });
+		try {
+			const store = useAssetDesignStore(rig.pinia);
+			store.select(selection);
+			await settle();
+			const button = rig.wrapper.find(`.rp-designer-selection [name="${name}"]`).element as HTMLButtonElement;
+			button.focus();
+			button.click();
+			await settleUntil(() => !sameSelection(store.selection, selection), `${name} to land`);
+			await settle();
+
+			expect(document.activeElement).toBe(rig.wrapper.find('.rp-designer-inspector aside').element);
 		} finally {
 			rig.unmount();
 		}

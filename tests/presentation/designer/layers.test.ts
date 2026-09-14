@@ -504,6 +504,26 @@ describe('the designer canvas, mounted', () => {
 		designer.unmount();
 	});
 
+	/**
+	 * The anchor and facing ring is that selection ONLY mark - neither has an outline to restroke
+	 * - so it stays under every tool, as an outline selection accent restroke does (follow-up A1).
+	 */
+	it.each([['anchor'], ['facing']] as const)('keeps the %s ring under Draw rectangle, its only selection mark', async (kind) => {
+		const designer = await designerRig({ shape: WITH_DETAILS });
+		designer.toolbarButton(t('en', 'designer.toolbar.select')).click();
+		useAssetDesignStore(designer.pinia).select({ kind });
+		await settle();
+
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(1);
+		expect(designer.stage.findOne('.asset-selection-outline')).toBeUndefined();
+
+		designer.toolbarButton(t('en', 'designer.toolbar.draw-rect')).click();
+		await settle();
+
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(1);
+		designer.unmount();
+	});
+
 	/** A gesture's preview replaces the committed design on the canvas until its write settles. */
 	it('draws a gesture’s preview in place of the committed design', async () => {
 		const designer = await mountDesigner(assetDesign());

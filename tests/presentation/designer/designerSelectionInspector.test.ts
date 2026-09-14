@@ -166,6 +166,58 @@ describe('what the inspector offers for each kind of part', () => {
 		expect(mountFor({ kind: 'clearance' }, { ...TOILET, clearance: null }).wrapper.find('.rp-designer-selection').exists()).toBe(false);
 		expect(mountFor({ kind: 'footprint' }, null).wrapper.find('.rp-designer-selection').exists()).toBe(false);
 	});
+
+	/**
+	 * A pending detail's or anchor's numbers are placeholder pixels too, which calibration later multiplies
+	 * (spec Amendment 2) — so its millimetre fields are withheld as a pending footprint's are, one line says
+	 * why, and everything that is not a length stays.
+	 */
+	it('offers only Rotation for a pending detail, keeps its name, line and actions, and says why', () => {
+		const pendingBowl = { ...TOILET, details: TOILET.details.map((detail) => (detail.id === 'detail-2' ? { ...detail, pending: true } : detail)) };
+		const { wrapper } = mountFor(BOWL, pendingBowl);
+
+		expect(numberFields(wrapper)).toEqual({ 'rotate-by': '0' });
+		expect(buttons(wrapper)).toEqual(['bring-forward', 'send-backward', 'duplicate', 'delete']);
+		expect(nameField(wrapper)).toBe(t('en', 'designer.detail.bowl'));
+		expect(wrapper.find('[name="detail-line"]').exists()).toBe(true);
+		expect(wrapper.find('.rp-designer-unscaled').text()).toBe(t('en', 'designer.selection.unscaled'));
+	});
+
+	it('offers no position for a pending anchor, and says why', () => {
+		const { wrapper } = mountFor({ kind: 'anchor' }, { ...TOILET, anchorPending: true });
+
+		expect(numberFields(wrapper)).toEqual({});
+		expect(wrapper.find('.rp-designer-unscaled').text()).toBe(t('en', 'designer.selection.unscaled'));
+	});
+
+	/** Every arm that is NOT pending: the flag read is the SELECTED part's, never a neighbour's. */
+	it.each([
+		['a detail', BOWL, TOILET],
+		['a detail beside a pending one', BOWL, { ...TOILET, details: TOILET.details.map((detail) => (detail.id === 'detail-1' ? { ...detail, pending: true } : detail)) }],
+		['the anchor', { kind: 'anchor' }, TOILET],
+		['the facing of a design whose anchor is pending', { kind: 'facing' }, { ...TOILET, anchorPending: true }],
+	] as const)('keeps every field and draws no unscaled line for %s', (_name, selection, shape) => {
+		const { wrapper } = mountFor(selection, shape);
+
+		expect(Object.keys(numberFields(wrapper)).length).toBeGreaterThan(selection.kind === 'detail' ? 1 : 0);
+		expect(wrapper.find('.rp-designer-unscaled').exists()).toBe(false);
+	});
+
+	/** The footprint arm is unchanged: its warning is `DesignerInspector`'s Dimensions block, not a second line here. */
+	it('leaves the pending footprint as it was: no size fields and no unscaled line in the section', () => {
+		const wrapper = mount(DesignerSelectionInspector, {
+			props: {
+				design: assetDesign({ shape: { ...TOILET, footprintOrigin: 'traced', footprintPending: true }, dimensionsUnscaled: true }),
+				selection: { kind: 'footprint' },
+				editShape: vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>(),
+				select: vi.fn<(next: DesignerSelection | null) => void>(),
+			},
+		});
+
+		expect(numberFields(wrapper)).toEqual({});
+		expect(buttons(wrapper)).toEqual(['fit-to-details']);
+		expect(wrapper.find('.rp-designer-unscaled').exists()).toBe(false);
+	});
 });
 
 describe('what a field commits', () => {

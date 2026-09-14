@@ -90,4 +90,5 @@ export const assetSymbolsDe: Record<keyof typeof assetSymbolsEn, string> = {
 	'designer.selection.mode.transform': 'Transformieren',
 	'designer.selection.mode.points': 'Punkte bearbeiten',
 	'designer.selection.mode.bend': 'Kanten biegen',
+	'designer.selection.unscaled': 'Dieser Teil wurde erfasst, bevor ein Maßstab vorlag; seine Maße bleiben ausgeblendet, bis das Objekt kalibriert ist.',
 };

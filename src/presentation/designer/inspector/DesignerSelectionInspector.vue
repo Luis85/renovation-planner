@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
  * The inspector for ONE selected part (asset designer symbols spec, "Inspector for the selection",
- * and Amendment 1): a detail's name, line, centre, size and a rotate-by field, with ordering,
- * duplicate and delete; the footprint's size (withheld while it is pending, whose numbers are
- * placeholder pixels) and Fit to details; the clearance's delete; the anchor's position; the facing's
- * angle.
+ * and Amendments 1 and 2): a detail's name, line, centre, size and a rotate-by field, with ordering,
+ * duplicate and delete; the footprint's size and Fit to details; the clearance's delete; the anchor's
+ * position; the facing's angle. A PENDING part's lengths — a footprint's size, a detail's centre and size,
+ * the anchor's position — are placeholder pixels, so they are withheld.
  *
  * **Every control is one `editShape` call over a pure domain edit**, so a field, a button and a
  * canvas gesture reach the vault through the same `SetAssetShape` door with the same `expected`
@@ -126,18 +126,36 @@ function anchorFields(): NumberField[] {
 	];
 }
 
+/** The selected detail as a one-item list, so the template's closures see it without a narrowing to lose. */
+const selectedDetails = computed(() =>
+	shape.value.details.filter((item) => props.selection.kind === 'detail' && item.id === props.selection.id),
+);
+
+/**
+ * A detail or the anchor captured before a scale existed (spec Amendment 2): its numbers are placeholder
+ * pixels that calibration later multiplies, so a millimetre typed beside them would be rescaled too. Its
+ * length fields are withheld as a pending footprint's are, and one line says why. Rotation stays — it
+ * commutes with calibration's uniform scale — and so do the name, the line and every action.
+ *
+ * The footprint is not asked here: its warning is `DesignerInspector`'s Dimensions block. The facing has
+ * no pending flag, and `selectedDetails` is empty for every kind but a detail.
+ */
+const pendingPart = computed(() =>
+	props.selection.kind === 'anchor' ? shape.value.anchorPending : selectedDetails.value.some((item) => item.pending),
+);
+
 const fields = computed((): readonly NumberField[] => {
 	const selection = props.selection;
 	switch (selection.kind) {
 		case 'detail':
-			return detailFields(selection);
+			return pendingPart.value ? detailFields(selection).filter((field) => field.name === 'rotate-by') : detailFields(selection);
 		case 'footprint':
 			// A pending footprint's numbers are placeholder pixels; the Dimensions block below says so.
 			return props.design.dimensionsUnscaled ? [] : sizeFields(selection);
 		case 'clearance':
 			return [];
 		case 'anchor':
-			return anchorFields();
+			return pendingPart.value ? [] : anchorFields();
 		default: {
 			// Exhaustive at compile time: a new kind of selection reaches this line and fails to narrow.
 			const _facing: 'facing' = selection.kind;
@@ -145,11 +163,6 @@ const fields = computed((): readonly NumberField[] => {
 		}
 	}
 });
-
-/** The selected detail as a one-item list, so the template's closures see it without a narrowing to lose. */
-const selectedDetails = computed(() =>
-	shape.value.details.filter((item) => props.selection.kind === 'detail' && item.id === props.selection.id),
-);
 
 function detailLabel(name: string): string {
 	const key = `designer.detail.${name}`;
@@ -209,6 +222,12 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 		<h3 class="rp-designer-panel-title">
 			{{ tr(`designer.selection.${selection.kind}`) }}
 		</h3>
+		<p
+			v-if="pendingPart"
+			class="rp-designer-unscaled"
+		>
+			{{ tr('designer.selection.unscaled') }}
+		</p>
 		<template
 			v-for="item in selectedDetails"
 			:key="item.id"

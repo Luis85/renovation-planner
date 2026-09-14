@@ -93,4 +93,6 @@ export const assetSymbolsEn = {
 	'designer.selection.mode.transform': 'Transform',
 	'designer.selection.mode.points': 'Edit points',
 	'designer.selection.mode.bend': 'Bend edges',
+	// A pending detail's or anchor's millimetre fields are withheld (spec Amendment 2); this says why, under the section heading.
+	'designer.selection.unscaled': 'This part was captured before a scale existed, so its measurements are hidden until the asset is calibrated.',
 } as const;

@@ -19,6 +19,12 @@ export interface SetAssetFootprintFromDimensionsInput {
 export interface SetAssetFootprintInput {
 	readonly assetId: AssetId;
 	readonly points: readonly Point[];
+	/**
+	 * The outline is already in millimetres — copied off a plan item (2026-09-13 item modes spec §B) —
+	 * so it is stored `typed` and never pending, whatever the surface's calibration says. Absent, the
+	 * outline is a trace and `captureAwaitsScale` decides.
+	 */
+	readonly measured?: true;
 	readonly expected?: EntityVersion;
 }
 
@@ -27,15 +33,15 @@ export interface SetAssetFootprintInput {
  * the footprint, its provenance or its pending flag.
  *
  * Spelled as a `Pick` rather than as a whole shape with a placeholder footprint, so the
- * set is derived from `AssetShape` and a seventh field cannot be added to the domain
- * without this failing to compile. Setting a footprint must never clear a clearance, an
- * anchor or a facing, and it must not touch `clearancePending` or `anchorPending`: those
- * flags say when THOSE coordinate groups were captured, and a footprint capture is not an
+ * set is derived from `AssetShape`: a field added to the domain shape fails to compile in
+ * `withFootprint` below until it is named here or set there. Setting a footprint must
+ * never clear a clearance, an anchor or a facing, and it must not touch `clearancePending`
+ * or `anchorPending`: those flags say when THOSE coordinate groups were captured, and a footprint capture is not an
  * event in their history.
  */
 type InheritedShape = Pick<
 	AssetShape,
-	'clearance' | 'clearancePending' | 'anchorPending' | 'anchor' | 'facing'
+	'clearance' | 'clearancePending' | 'anchorPending' | 'anchor' | 'facing' | 'details'
 >;
 
 /** What an asset nobody has drawn on yet inherits: nothing, centred, facing +x. */
@@ -45,6 +51,7 @@ const UNDESIGNED: InheritedShape = {
 	anchorPending: false,
 	anchor: { x: 0, y: 0 },
 	facing: 0,
+	details: [],
 };
 
 function withFootprint(
@@ -145,7 +152,9 @@ export class SetAssetFootprintCommand
 			this.deps,
 			input,
 			(current, awaitsScale) =>
-				ok(withFootprint(current, { points: input.points }, 'traced', awaitsScale)),
+				ok(input.measured
+					? withFootprint(current, { points: input.points }, 'typed', false)
+					: withFootprint(current, { points: input.points }, 'traced', awaitsScale)),
 			sameFootprint,
 		);
 	}

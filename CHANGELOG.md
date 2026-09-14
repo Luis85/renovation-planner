@@ -174,12 +174,21 @@ entries are added by the pull request that earns them, never invented at release
   asks oxlint which files it lints so a narrowed `ignorePatterns` fails the build instead of
   quietly shrinking the gate.
 
+- Asset designer: start an asset from one of fourteen presets (tables, seating, bathroom, plants
+  and beds), sized by typed dimensions, with a live preview; one undo restores the previous design.
+- Asset outlines may be curved, and assets carry interior detail linework, drawn in the designer
+  and on plans; the library mark draws the curved outline.
+
 ### Fixed
 
 - Curved Room containment treats round-off at a tangent as one contact, and failed read-back preserves a paused curve draft for retry.
 - Existing and Planned detail rows and canvas markers show their saved surface or element kind, so identical descriptions remain distinguishable.
 
 ### Changed
+
+- Asset geometry sidecars (`.rpgeo`) are now written as schema version 2. Files from earlier
+  versions still read, but an older version of the plugin cannot read an asset file once this
+  version has saved it.
 
 - Existing room details show saved photos in a contextual strip and expose calculated floor area when expanded. Photo navigation preserves spatial context and camera; a peer removal restores owned keyboard focus.
 

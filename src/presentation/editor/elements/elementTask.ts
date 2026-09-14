@@ -1,4 +1,4 @@
-import { computed } from 'vue';
+import { computed, type ComputedRef } from 'vue';
 import { createElementBaseline } from './elementBaseline';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
@@ -13,11 +13,28 @@ import { useSaveStateStore } from '../save-state/save-state-store';
 import { notifyFault } from '../../notices/notify';
 import { recordDraftFailure } from '../tools/with-stale-gate';
 import { ElementTool } from './ElementTool';
-import { createElementDraft, draftElement, ELEMENT_TOOLS, maxDraftPoints, type ElementToolId } from './elementDraft';
+import { createElementDraft, draftElement, pointsAfterUndo, ELEMENT_TOOLS, maxDraftPoints, type ElementDraft, type ElementToolId } from './elementDraft';
 import { elementInput } from './elementInput';
+import { boundingRectangle, type ObjectShapeMode } from './objectShape';
 import type { NamedSpatialElement, SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import { dimensionOffsetAt } from '../../../domain/spatial/dimensionChain';
 
+/**
+ * Rectangle drag or free-form corners for an item (2026-09-13 item modes spec §A). The outline carries across:
+ * free-form keeps the corners as editable points, rectangle takes their bounding box — or nothing, when that
+ * box has no area. Outside `createElementTask` only for that function's 100-line budget.
+ */
+function itemShape(draft: ElementDraft, blocked: ComputedRef<boolean>) {
+	/** Pending typed input belongs to the mode it was typed in, so it has to be applied or discarded before the mode changes. */
+	const shapeLocked = computed(() => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y);
+	function setShape(shape: ObjectShapeMode): boolean {
+		if (shapeLocked.value || draft.shape === shape) return false;
+		draft.shape = shape;
+		if (shape === 'rectangle') draft.points = boundingRectangle(draft.points) ?? [];
+		return true;
+	}
+	return { shapeLocked, setShape };
+}
 export function createElementTask(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'toolManager' | 'activeToolId' | 'setTool' | 'returnToSelect' | 'dispatcher' | 'writesBlocked' | 'refreshProjection'> & { ledger: WriteLedger }) {
 	const selection = useSelectionStore(), save = useSaveStateStore();
 	const draft = createElementDraft(), reads = createElementBaseline(context, runtime, draft);
@@ -80,8 +97,9 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		if (blocked.value || draft.pendingInput || draft.text.x || draft.text.y) return;
 		// Placing a chain's line is a step of its own; undoing it keeps every point.
 		if (draft.kind === 'dimension' && draft.dimensionPhase === 'offset') { draft.dimensionPhase = 'points'; return; }
-		setPoints(draft.points.slice(0, -1));
+		setPoints(pointsAfterUndo(draft));
 	}
+	const { shapeLocked, setShape } = itemShape(draft, blocked);
 	/** A chain's first Finish ends its points and starts placing its line; true when that is what this Finish did. */
 	function advanceDimension(): boolean {
 		if (draft.kind !== 'dimension' || draft.dimensionPhase !== 'points') return false;
@@ -125,7 +143,7 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		if (reads.current(ticket)) addPoint(point);
 	}
 	for (const id of Object.keys(ELEMENT_TOOLS) as ElementToolId[]) runtime.toolManager.register(new ElementTool(id, {
-		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, finish: () => { void finish(); },
+		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, setPoints, finish: () => { void finish(); },
 	}));
-	return { draft, blocked, canFinish, needsRead, retry, setPoints, addPoint, undoPoint, finish, startAt, available: context.commands.renovation !== undefined };
+	return { draft, blocked, canFinish, needsRead, retry, setPoints, addPoint, undoPoint, setShape, shapeLocked, finish, startAt, available: context.commands.renovation !== undefined };
 }

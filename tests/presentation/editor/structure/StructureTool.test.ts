@@ -51,6 +51,16 @@ describe('StructureTool', () => {
 		tool.abandonGesture(); expect(context.renderState.snapGuides).toEqual([]);
 		tool.pointerMove(pointerAt(3996, 3)); tool.deactivate(); expect(context.renderState.snapGuides).toEqual([]);
 	});
+	it('trails the pointer once a wall chain has a corner, and never for a single-click opening', () => {
+		const { tool } = wallTool(EMPTY_STRUCTURE);
+		expect(tool.tracksPointer()).toBe(false);
+		tool.pointerDown(pointerAt(0, 0));
+		expect(tool.tracksPointer()).toBe(true);
+		const draft = createStructureDraft();
+		draft.points.push({ x: 0, y: 0 });
+		const door = new StructureTool('place-door', { draft, structure: () => WALL_LOOP, start: vi.fn<() => void>(), stop: vi.fn<() => void>(), finish: vi.fn<() => void>(), blocked: () => false });
+		expect(door.tracksPointer()).toBe(false);
+	});
 	it('starts the chain on a wall body with a click, cutting the host, and keeps drawing', () => {
 		const { draft, finish, tool } = wallTool();
 		tool.pointerDown(pointerAt(1000.3, 4));

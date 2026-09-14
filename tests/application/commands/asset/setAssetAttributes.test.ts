@@ -72,6 +72,7 @@ const measured = (): AssetShape => ({
 	clearance: null,
 	anchor: { x: 0, y: 0 },
 	facing: 0,
+	details: [],
 });
 
 /**
@@ -90,6 +91,7 @@ const awaitingScale = (): AssetShape => ({
 	clearance: { points: [...TRIANGLE] },
 	anchor: { x: 5, y: 5 },
 	facing: 0,
+	details: [],
 });
 
 /**
@@ -278,6 +280,15 @@ describe('SetAssetClearance', () => {
 		expect(expectOk(await clearance.execute({ assetId, points: WIDER }))).toBe('no-write');
 
 		expect(await revision()).toBe(written);
+	});
+
+	it('writes a straight boundary over a curved one with the same corners', async () => {
+		const { clearance, assetId, seed, storedShape } = await seeded();
+		await seed({ calibration: CALIBRATION, shape: { ...measured(), clearance: { points: [...WIDER], bulges: [0.5, 0, 0.5, 0] } } });
+
+		expect(expectOk(await clearance.execute({ assetId, points: WIDER }))).toBe('wrote');
+
+		expect((await storedShape())?.clearance?.bulges).toBeUndefined();
 	});
 
 	/**

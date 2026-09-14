@@ -660,6 +660,12 @@ const SHOTS = [
 	// it, wrapping is not a colour question — nothing here behaves differently by scheme, so
 	// there is nothing to measure and dark is simply this file's own default.
 	{ name: 'asset-designer-narrow', query: '?view=asset-designer', selector: ASSET_DESIGNER_VIEW, width: 460 },
+	// The symbols spec's presets, one per group, seeded through the designer harness's `?preset=` knob so
+	// the canvas draws curves and details rather than the empty state.
+	{ name: 'asset-designer-preset-curved-table', query: '?view=asset-designer&preset=curved-table', selector: ASSET_DESIGNER_VIEW },
+	{ name: 'asset-designer-preset-sofa', query: '?view=asset-designer&preset=sofa', selector: ASSET_DESIGNER_VIEW },
+	{ name: 'asset-designer-preset-toilet', query: '?view=asset-designer&preset=toilet', selector: ASSET_DESIGNER_VIEW },
+	{ name: 'asset-designer-preset-tree', query: '?view=asset-designer&preset=tree', selector: ASSET_DESIGNER_VIEW },
 	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
 	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
 	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every

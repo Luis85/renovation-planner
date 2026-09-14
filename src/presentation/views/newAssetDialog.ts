@@ -1,11 +1,15 @@
 import type { Ref } from 'vue';
 import type { Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
+import type { Point } from '../../core/geometry/Point';
 import type { Asset } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { Logger } from '../../application/ports/Logger';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
-import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
+import type {
+	SetAssetFootprintFromDimensionsInput,
+	SetAssetFootprintInput,
+} from '../../application/commands/asset/SetAssetFootprint';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { useDialogStore } from '../dialogs/dialog-store';
 import NewAssetForm from './NewAssetForm.vue';
@@ -75,6 +79,14 @@ export interface NewAssetDialogDeps {
 	 * and `useFormCommit` requires the door rather than assuming the caller.
 	 */
 	readonly logger: Logger;
+	/**
+	 * "Add to asset library" from a plan item (2026-09-13 item modes spec §B): the name to start from and the
+	 * outline that replaces the dimension fields. Absent for both catalogue surfaces.
+	 */
+	readonly prefill?: {
+		readonly name: string;
+		readonly outline: { readonly points: readonly Point[]; write(input: SetAssetFootprintInput): Promise<DispatchResult> };
+	};
 }
 
 export async function openNewAssetDialog(deps: NewAssetDialogDeps): Promise<NewAssetOutcome> {
@@ -90,6 +102,8 @@ export async function openNewAssetDialog(deps: NewAssetDialogDeps): Promise<NewA
 			logger: deps.logger,
 			defaultCurrency: deps.commands.defaultCurrency,
 			findExisting: deps.findExisting,
+			initialName: deps.prefill?.name,
+			outline: deps.prefill?.outline,
 		},
 		busy: deps.busy,
 	});

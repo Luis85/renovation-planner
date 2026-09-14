@@ -9,14 +9,17 @@ import { createGroupActions } from '../groups/groupActions';
 import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { watchAssetShapes } from './assetShapeLoader';
 import { createAssetPlacementTask } from './assetPlacementTask';
+import { createItemPromotion } from './itemPromotion';
 import { createLabelActions } from '../labels/labelActions';
 import type { LabelMoveDeps } from '../labels/LabelMove';
 
 /** Compose the existing per-leaf element/rotation actions and their shared pointer bindings. */
 export function createSpatialEditing(context: PlanEditorContext, runtime: Parameters<typeof createElementTask>[1] & Parameters<typeof createElementActions>[1] & Omit<RotationRuntime, 'elementActions'> & CurveTaskRuntime & Parameters<typeof createAssetPlacementTask>[1]) {
 	watchAssetShapes(context);
-	const elementTask = Object.assign(createElementTask(context, runtime), { assets: createAssetPlacementTask(context, runtime) });
 	const elementActions = createElementActions(context, runtime);
+	const assets = createAssetPlacementTask(context, runtime);
+	const promotion = createItemPromotion(context, assets, { writesBlocked: runtime.writesBlocked, elementActionsActive: elementActions.active });
+	const elementTask = Object.assign(createElementTask(context, runtime), { assets, promotion });
 	const groupActions = createGroupActions(context, { ...runtime, spatialBusy: () => elementActions.active.value || runtime.wall?.active.value === true });
 	const rotationActions = createRotationActions(context, { ...runtime, elementActions, groups: groupActions, groupRotationTarget: groupActions.groupRotationTarget });
 	const labelActions = createLabelActions(context, runtime);

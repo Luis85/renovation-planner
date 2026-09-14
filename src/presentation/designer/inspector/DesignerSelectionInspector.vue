@@ -10,9 +10,15 @@
  * version (Decision 10). It holds no store and dispatches nothing itself — `DesignerInspector`
  * hands it the design, the selection and the two doors — which is what lets its test mount it bare.
  *
+ * **Every edit reads what it needs from the shape it is HANDED, never from this render.** `editShape`
+ * hands each edit the shape the previous write left, while these props refresh only once that write
+ * resolves — so a centre, an anchor axis or a rotation origin captured at render would quietly undo a
+ * commit still in flight. The render supplies only what the fields SHOW.
+ *
  * Numbers show whole millimetres and whole degrees and commit on `change` (blur or Enter). A typed
  * Width or Depth lands the typed CURVE-AWARE extent (`resizeToExtent`), which a plain factor does not
- * on an arc. A refusal `editShape` answers is shown in ONE alert and cleared by the next commit that
+ * on an arc — and on a curved part it can move the other extent too, since its arcs keep their bulges
+ * (Decision 9). A refusal `editShape` answers is shown in ONE alert and cleared by the next commit that
  * lands. Rotate-by applies and resets to 0: a detail stores no rotation to show.
  *
  * A detail's name is a stable key (Decision 8): the field shows its `designer.detail.<name>` label
@@ -29,15 +35,7 @@ import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { Result } from '../../../core/result/Result';
 import type { DetailLine } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
-import {
-	deleteDetail,
-	duplicateDetail,
-	DUPLICATE_OFFSET_MM,
-	fitFootprintToDetails,
-	nextDetailId,
-	reorderDetail,
-	updateDetail,
-} from '../../../domain/asset/detailEdits';
+import { deleteDetail, fitFootprintToDetails, reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
 import {
 	moveAnchor,
 	moveOutline,
@@ -50,8 +48,9 @@ import {
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 import { hasLocaleKey, trError } from '../../i18n/toUserMessage';
+import { duplicateAndSelect } from '../designerKeys';
 import { selectionExists, type DesignerSelection } from '../selection/designerSelection';
-import { partBox, resizeToExtent } from '../selection/partExtent';
+import { partBox, resizeToExtent, withPartBox } from '../selection/partExtent';
 
 type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
 
@@ -84,14 +83,18 @@ const exists = computed(() => selectionExists(props.design.shape, props.selectio
 const shape = computed(() => props.design.shape as AssetShape);
 const refusal = ref<AppError | null>(null);
 
-/** One write; the refusal it answers is shown, and a write that lands clears the last one. */
-async function commit(edit: ShapeEdit): Promise<boolean> {
-	const result = await props.editShape(edit);
+/** One write's outcome: the refusal it answers is shown, and a write that lands clears the last one. */
+async function show(written: Promise<DispatchResult>): Promise<boolean> {
+	const result = await written;
 	refusal.value = result.ok ? null : result.error;
 	return result.ok;
 }
 
-/** The part's curve-aware box. `outlineOf` answers an outline here because `exists` holds. */
+function commit(edit: ShapeEdit): Promise<boolean> {
+	return show(props.editShape(edit));
+}
+
+/** The part's curve-aware box, for DISPLAY. `outlineOf` answers an outline here because `exists` holds. */
 function boxOf(part: OutlinePart): ReturnType<typeof partBox> {
 	return partBox(outlineOf(shape.value, part) as CurvedPolygon);
 }
@@ -107,18 +110,18 @@ function sizeFields(part: OutlinePart): NumberField[] {
 function detailFields(part: OutlinePart): NumberField[] {
 	const { centre } = boxOf(part);
 	return [
-		{ name: 'centre-x', label: 'designer.selection.centre-x', value: centre.x, edit: (value) => (current) => moveOutline(current, part, { dx: value - centre.x, dy: 0 }) },
-		{ name: 'centre-y', label: 'designer.selection.centre-y', value: centre.y, edit: (value) => (current) => moveOutline(current, part, { dx: 0, dy: value - centre.y }) },
+		{ name: 'centre-x', label: 'designer.selection.centre-x', value: centre.x, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: value - box.centre.x, dy: 0 })) },
+		{ name: 'centre-y', label: 'designer.selection.centre-y', value: centre.y, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: 0, dy: value - box.centre.y })) },
 		...sizeFields(part),
-		{ name: 'rotate-by', label: 'designer.selection.rotate-by', value: 0, edit: (value) => (current) => rotateOutline(current, part, radians(value), centre), resets: true },
+		{ name: 'rotate-by', label: 'designer.selection.rotate-by', value: 0, edit: (value) => (current) => withPartBox(current, part, (box) => rotateOutline(current, part, radians(value), box.centre)), resets: true },
 	];
 }
 
 function anchorFields(): NumberField[] {
 	const { x, y } = shape.value.anchor;
 	return [
-		{ name: 'position-x', label: 'designer.selection.position-x', value: x, edit: (value) => (current) => moveAnchor(current, { x: value, y }) },
-		{ name: 'position-y', label: 'designer.selection.position-y', value: y, edit: (value) => (current) => moveAnchor(current, { x, y: value }) },
+		{ name: 'position-x', label: 'designer.selection.position-x', value: x, edit: (value) => (current) => moveAnchor(current, { x: value, y: current.anchor.y }) },
+		{ name: 'position-y', label: 'designer.selection.position-y', value: y, edit: (value) => (current) => moveAnchor(current, { x: current.anchor.x, y: value }) },
 	];
 }
 
@@ -133,8 +136,11 @@ const fields = computed((): readonly NumberField[] => {
 			return [];
 		case 'anchor':
 			return anchorFields();
-		default: // the facing
+		default: {
+			// Exhaustive at compile time: a new kind of selection reaches this line and fails to narrow.
+			const _facing: 'facing' = selection.kind;
 			return [{ name: 'angle', label: 'designer.selection.angle', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
+		}
 	}
 });
 
@@ -148,23 +154,13 @@ function detailLabel(name: string): string {
 	return hasLocaleKey(key) ? tr(key) : name;
 }
 
-/** The copy's id is read from the shape the edit is handed — the one the write is conditional on. */
-async function duplicate(id: string): Promise<void> {
-	let copy = '';
-	const landed = await commit((current) => {
-		copy = nextDetailId(current);
-		return duplicateDetail(current, id, { dx: DUPLICATE_OFFSET_MM, dy: DUPLICATE_OFFSET_MM });
-	});
-	if (landed) props.select({ kind: 'detail', id: copy });
-}
-
 function detailActions(id: string): Action[] {
 	const details = shape.value.details;
 	const index = details.findIndex((item) => item.id === id);
 	return [
 		{ name: 'bring-forward', label: 'designer.selection.bring-forward', disabled: index === details.length - 1, run: () => void commit((current) => reorderDetail(current, id, 'forward')) },
 		{ name: 'send-backward', label: 'designer.selection.send-backward', disabled: index === 0, run: () => void commit((current) => reorderDetail(current, id, 'backward')) },
-		{ name: 'duplicate', label: 'designer.selection.duplicate', disabled: false, run: () => void duplicate(id) },
+		{ name: 'duplicate', label: 'designer.selection.duplicate', disabled: false, run: () => void show(duplicateAndSelect(props.editShape, id, props.select)) },
 		{ name: 'delete', label: 'designer.selection.delete', disabled: false, run: () => void commit((current) => deleteDetail(current, id)) },
 	];
 }

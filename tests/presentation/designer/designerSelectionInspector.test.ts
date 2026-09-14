@@ -42,12 +42,18 @@ const TOILET = toiletShape();
 
 const BOWL: DesignerSelection = { kind: 'detail', id: 'detail-2' };
 
-function mountFor(selection: DesignerSelection, shape: AssetShape | null = TOILET, answer?: DispatchResult) {
+/**
+ * `advances`: the fake's LIVE shape takes each edit that lands while the props stay on the first read —
+ * `createEditShape`'s serialised chain between a write and the refresh that follows it.
+ */
+function mountFor(selection: DesignerSelection, shape: AssetShape | null = TOILET, answer?: DispatchResult, advances = false) {
 	const applied: Result<AssetShape, ValidationError>[] = [];
+	// Only read for a mounted section, which exists only over a shape.
+	let live = shape as AssetShape;
 	const editShape = vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>((edit) => {
-		// Only reached for a mounted section, which exists only over a shape.
-		const result = edit(shape as AssetShape);
+		const result = edit(live);
 		applied.push(result);
+		if (advances && result.ok) live = result.value;
 		return Promise.resolve(answer ?? (result.ok ? ok('wrote') : err(result.error)));
 	});
 	const select = vi.fn<(next: DesignerSelection | null) => void>();
@@ -57,10 +63,15 @@ function mountFor(selection: DesignerSelection, shape: AssetShape | null = TOILE
 	return { wrapper, editShape, select, applied };
 }
 
-async function change(wrapper: VueWrapper, name: string, value: string): Promise<void> {
+/** One `change`, WITHOUT waiting for the commit it starts to settle. */
+async function changeNow(wrapper: VueWrapper, name: string, value: string): Promise<void> {
 	const control = wrapper.find(`[name="${name}"]`);
 	(control.element as HTMLInputElement | HTMLSelectElement).value = value;
 	await control.trigger('change');
+}
+
+async function change(wrapper: VueWrapper, name: string, value: string): Promise<void> {
+	await changeNow(wrapper, name, value);
 	await flushPromises();
 }
 
@@ -228,6 +239,52 @@ describe('what a field commits', () => {
 	});
 });
 
+/** The middle of an outline's corner points — the bowl's box centre too, since the stadium is symmetric about it. */
+function midpoint(points: readonly Point[]): Point {
+	const xs = points.map((point) => point.x);
+	const ys = points.map((point) => point.y);
+	return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+}
+
+/**
+ * Two commits inside one refresh window (findings r1, Important 1): the second edit is handed the shape
+ * the first wrote while the rendered props still show the first read, so it must build on what it is
+ * handed rather than on a value captured at render.
+ */
+describe('fields committed before the refresh lands', () => {
+	it('keeps a typed position x when position y is typed before the refresh', async () => {
+		const { wrapper, applied } = mountFor({ kind: 'anchor' }, TOILET, undefined, true);
+
+		await changeNow(wrapper, 'position-x', '50');
+		await changeNow(wrapper, 'position-y', '-20');
+		await flushPromises();
+
+		expect(expectOk(applied[1]).anchor).toEqual({ x: 50, y: -20 });
+	});
+
+	it('moves the centre TO a second typed x, not by it again', async () => {
+		const { wrapper, applied } = mountFor(BOWL, TOILET, undefined, true);
+
+		await changeNow(wrapper, 'centre-x', '50');
+		await changeNow(wrapper, 'centre-x', '60');
+		await flushPromises();
+
+		expect(midpoint(outlineOfDetail(applied[1], 'detail-2').points).x).toBeCloseTo(60, 6);
+	});
+
+	it('rotates about the centre a pending move left the bowl at, not the rendered one', async () => {
+		const { wrapper, applied } = mountFor(BOWL, TOILET, undefined, true);
+
+		await changeNow(wrapper, 'centre-x', '50');
+		await changeNow(wrapper, 'rotate-by', '90');
+		await flushPromises();
+
+		const centre = midpoint(outlineOfDetail(applied[1], 'detail-2').points);
+		expect(centre.x).toBeCloseTo(50, 6);
+		expect(centre.y).toBeCloseTo(100, 6);
+	});
+});
+
 describe('what an action commits', () => {
 	it('disables Bring forward on the topmost detail and Send backward on the bottom one', () => {
 		const top = mountFor(BOWL).wrapper;
@@ -279,17 +336,20 @@ describe('what an action commits', () => {
 describe('the inspector in the mounted designer', () => {
 	it('writes a typed width through the leaf as one undoable write', async () => {
 		const rig = await designerRig({ shape: TOILET });
-		useAssetDesignStore(rig.pinia).select(BOWL);
-		await settle();
+		try {
+			useAssetDesignStore(rig.pinia).select(BOWL);
+			await settle();
 
-		const input = rig.wrapper.find('.rp-designer-selection [name="width"]');
-		(input.element as HTMLInputElement).value = '608';
-		await input.trigger('change');
-		await settle();
+			const input = rig.wrapper.find('.rp-designer-selection [name="width"]');
+			(input.element as HTMLInputElement).value = '608';
+			await input.trigger('change');
+			await settle();
 
-		const bowl = (await rig.document()).shape?.details.find((detail) => detail.id === 'detail-2');
-		expectNear(bowl?.outline.points ?? [], [[-304, 27], [304, 27], [304, 173], [-304, 173]]);
-		expect(rig.toolbarButton(t('en', 'designer.toolbar.undo')).disabled).toBe(false);
-		rig.unmount();
+			const bowl = (await rig.document()).shape?.details.find((detail) => detail.id === 'detail-2');
+			expectNear(bowl?.outline.points ?? [], [[-304, 27], [304, 27], [304, 173], [-304, 173]]);
+			expect(rig.toolbarButton(t('en', 'designer.toolbar.undo')).disabled).toBe(false);
+		} finally {
+			rig.unmount();
+		}
 	});
 });

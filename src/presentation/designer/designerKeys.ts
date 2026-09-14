@@ -1,4 +1,5 @@
 import type { Vector } from '../../core/geometry/Vector';
+import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import { DUPLICATE_OFFSET_MM, deleteDetail, duplicateDetail, nextDetailId } from '../../domain/asset/detailEdits';
 import { moveAnchor, moveOutline, removeClearance } from '../../domain/asset/shapeEdits';
 import { notifyIfRefused } from '../editor/report-failure';
@@ -61,12 +62,35 @@ export function designerShortcut(event: DesignerKeyPress, doors: DesignerKeyDoor
 }
 
 /**
+ * Duplicate one detail and select the copy once the write lands. The copy's id is read from the shape
+ * the edit is HANDED — the one the write is conditional on — never from a render. Answers the raw
+ * result, so the Ctrl+D action hands it to `notifyIfRefused` and the inspector's Duplicate button shows
+ * it in its own alert: the one step both doors share.
+ */
+export async function duplicateAndSelect(
+	editShape: EditShape,
+	id: string,
+	select: (next: DesignerSelection) => void,
+): Promise<DispatchResult> {
+	let copy = '';
+	const result = await editShape((shape) => {
+		copy = nextDetailId(shape);
+		return duplicateDetail(shape, id, { dx: DUPLICATE_OFFSET_MM, dy: DUPLICATE_OFFSET_MM });
+	});
+	// The refresh has landed by the time a dispatch resolves, so the copy exists to be selected.
+	if (result.ok) select({ kind: 'detail', id: copy });
+	return result;
+}
+
+/**
  * The three edits a selection key dispatches, over the leaf's store, its `editShape` and its active
  * tool. Arrow-function properties, so a component may destructure one without an unbound `this`.
  *
  * Each action reads the selection at the CALL and answers for itself what it can act on — a detail or
- * the clearance to delete, a detail to duplicate — rather than trusting `designerShortcut` to have
- * asked, because the inspector's buttons call them too. The selection clears itself after a delete: the
+ * the clearance to delete, a detail to duplicate — rather than trusting its caller to have asked:
+ * `designerShortcut` asks at the press, while `nudgeSelection` is reached through `EditorSurface`'s arrow
+ * door, which asks nothing about the part. The inspector's buttons call none of these; they share only
+ * `duplicateAndSelect` above. The selection clears itself after a delete: the
  * refresh re-reads a shape without the part, and the store prunes a selection that names nothing.
  */
 export function selectionKeyActions(
@@ -88,14 +112,7 @@ export function selectionKeyActions(
 		duplicateSelection: async () => {
 			const selection = store.selection;
 			if (selection?.kind !== 'detail') return;
-			let copy = '';
-			const result = await editShape((shape) => {
-				copy = nextDetailId(shape);
-				return duplicateDetail(shape, selection.id, { dx: DUPLICATE_OFFSET_MM, dy: DUPLICATE_OFFSET_MM });
-			});
-			// The refresh has landed by the time a dispatch resolves, so the copy exists to be selected.
-			if (result.ok) store.select({ kind: 'detail', id: copy });
-			await notifyIfRefused(Promise.resolve(result));
+			await notifyIfRefused(duplicateAndSelect(editShape, selection.id, (next) => store.select(next)));
 		},
 		nudgeSelection: (by) => {
 			// The plan editor's `nudge.ts` rule: an arrow moves the selection only under Select, since every

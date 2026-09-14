@@ -40,8 +40,8 @@ export const assetSymbolsEn = {
 	'designer.selection.line': 'Line',
 	'designer.selection.line.solid': 'Solid',
 	'designer.selection.line.dashed': 'Dashed',
-	// Horizontal and vertical rather than a bare x: the sentence-case rule reads a lowercase `x` as the
-	// brand X, which is why `structure.ts` says "horizontal coordinate" too.
+	// "Centre x in millimetres" and "Position x in millimetres" failed `sentence-case-locale-module`;
+	// the "Horizontal …" / "Vertical …" spellings pass.
 	'designer.selection.centre-x': 'Horizontal centre in millimetres',
 	'designer.selection.centre-y': 'Vertical centre in millimetres',
 	'designer.selection.rotate-by': 'Rotation to apply in degrees',

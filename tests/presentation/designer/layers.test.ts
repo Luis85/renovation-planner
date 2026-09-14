@@ -482,14 +482,25 @@ describe('the designer canvas, mounted', () => {
 		designer.unmount();
 	});
 
-	/** The selection is DRAWN, not merely computed: the restroke and one mark per handle, on the stage. */
-	it('draws a selected detail’s outline and its nine Transform handles', async () => {
-		const designer = await mountDesigner(assetDesign({ shape: WITH_DETAILS }));
+	/**
+	 * The selection is DRAWN, not merely computed: the restroke and one mark per handle, on the stage.
+	 * Handles only under Select — under another tool a drawn handle is one nothing grabs — while the
+	 * accent outline stays, so a user drawing still sees what is selected.
+	 */
+	it('draws a selected detail’s outline and its nine Transform handles under Select, and only the outline under another tool', async () => {
+		const designer = await designerRig({ shape: WITH_DETAILS });
+		designer.toolbarButton(t('en', 'designer.toolbar.select')).click();
 		useAssetDesignStore(designer.pinia).select({ kind: 'detail', id: 'd2' });
 		await settle();
 
-		expect(designer.stage?.findOne('.asset-selection-outline')).toBeDefined();
-		expect(designer.stage?.find('.asset-selection-handle')).toHaveLength(9);
+		expect(designer.stage.findOne('.asset-selection-outline')).toBeDefined();
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(9);
+
+		designer.toolbarButton(t('en', 'designer.toolbar.draw-rect')).click();
+		await settle();
+
+		expect(designer.stage.findOne('.asset-selection-outline')).toBeDefined();
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(0);
 		designer.unmount();
 	});
 

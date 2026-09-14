@@ -117,8 +117,9 @@ const worldPerPixel = computed(() => worldPerScreenPixel(viewport.value, STAGE_P
 
 /**
  * What every world layer draws: a gesture's in-flight PREVIEW while one is live, else the committed
- * design. `DesignerSelectTool` clears the preview only once its write has settled and the refresh has
- * landed, so the canvas never flashes back to the old shape in between.
+ * design. `DesignerSelectTool`'s commit clears its own preview only once the write has settled, so a
+ * release does not flash back to the old shape before the refresh lands; `DesignerSelectTool`'s
+ * header names what else can clear a preview in that window.
  */
 const shape = computed(() => preview.value ?? design.value?.shape ?? null);
 
@@ -135,7 +136,15 @@ const pixelsPerWorldUnit = computed(() => design.value?.calibration?.pixelsPerWo
 const footprint = computed(() => footprintOutline(shape.value, tokens.value, worldPerPixel.value));
 const details = computed(() => detailOutlines(shape.value, tokens.value, worldPerPixel.value));
 const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value, worldPerPixel.value));
-const marks = computed(() => selectionMarks(shape.value, selection.value, mode.value, tokens.value, worldPerPixel.value));
+/**
+ * Handles and the anchor/facing ring only under Select, the one tool that grabs them: under another
+ * tool a drawn handle is a control that does nothing. The accent outline stays, so a user drawing
+ * still sees what is selected.
+ */
+const marks = computed(() => {
+	const drawn = selectionMarks(shape.value, selection.value, mode.value, tokens.value, worldPerPixel.value);
+	return activeToolId.value === 'select' ? drawn : { outline: drawn.outline, handles: [] };
+});
 const clearance = computed(() => clearanceOutline(shape.value, tokens.value, worldPerPixel.value));
 const anchor = computed(() => anchorMark(shape.value, tokens.value, worldPerPixel.value));
 const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPixel.value));

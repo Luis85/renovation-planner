@@ -106,3 +106,32 @@ describe('the inspector’s headings, hint and unavailable actions', () => {
 		expect(declared(partial('designer-selection.css'), '.rp-designer-field-hint', 'color')).toEqual(parsed('color', 'var(--text-muted)'));
 	});
 });
+
+/**
+ * Critique finding 6: at a 460px leaf the inspector kept its 14rem and left the canvas about 236px wide.
+ * Below 35rem the inspector stacks under the canvas, in FIXED flex shares — a content-sized inspector would
+ * take the whole column once a detail is selected and leave `EditorSurface` measuring a canvas of nothing.
+ * The condition is the parser's reading of the query itself, never a hand-written serialisation.
+ */
+describe('the designer at a sidebar leaf’s width', () => {
+	const narrow = (): string => onlyRule('@container rp-designer (width < 35rem) { .reference { color: inherit; } }').condition;
+
+	it('makes the designer root the container whose width is asked', () => {
+		const rules = partial('designer-narrow.css');
+
+		expect(declared(rules, '.renovation-asset-designer', 'container-type')).toEqual(parsed('container-type', 'inline-size'));
+		expect(declared(rules, '.renovation-asset-designer', 'container-name')).toEqual(parsed('container-name', 'rp-designer'));
+	});
+
+	it('stacks the inspector under the canvas below 35rem, in fixed shares of the body', () => {
+		const rules = partial('designer-narrow.css');
+
+		expect(narrow()).not.toBe('');
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-body', 'flex-direction', narrow())).toEqual(parsed('flex-direction', 'column'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-canvas', 'flex', narrow())).toEqual(parsed('flex', '3 1 0'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'flex', narrow())).toEqual(parsed('flex', '2 1 0'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'width', narrow())).toEqual(parsed('width', 'auto'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'border-left', narrow())).toEqual(parsed('border-left', 'none'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'border-top', narrow())).toEqual(parsed('border-top', '1px solid var(--background-modifier-border)'));
+	});
+});

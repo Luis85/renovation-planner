@@ -9,7 +9,7 @@ Date: 2026-09-14. Assigned reviewer/implementer: GPT-6 Astra/high. Scope: normal
 - Integrated main: `acfb7c7d11268eed7c6a39dbd52cdeab7bc961e7`, 63 commits beyond the prior integrated main.
 - Merge: `25b1b0a434eaf4ed58849cf59b1d00e58428325d`. Its parents are the two SHAs above, in that order. No rebase, force-push, main merge, or lower-stack mutation.
 - Main correction: `d7786d02b8530dc2ad43f5068d636b7af1a503a8`. Delete availability: `a5963002d`. Add detail removal: `0b43fa553`.
-- PR, final SHA, definitive gate and CI: pending completion below. This sentence is not a passing-gate claim.
+- Definitive local gate: passed on `c499d12f5ca4d33c1c446ee5f7de5711b7dbc28f`. Publication and remote CI are recorded below; later commits contain documentation/evidence updates only.
 
 No repository AGENTS.md or .codex instruction directory was present. The user's supplied contributor instructions apply. Impeccable context ran once; polish/craft guidance, PRODUCT.md and the incumbent implementation were read. [I18](I18.md) remains explicitly deferred: upstream asset-designer part editing is not an approved arbitrary Room/Area-corner interaction for the plan editor.
 
@@ -78,7 +78,22 @@ Completed intermediate full gate: build/lint passed; 969 files passed and one fi
 
 Evidence integrity: 33 image hashes verified; all 211 changed text files decoded as UTF-8; four changed documents / 47 local links resolved. Main was re-fetched at acfb7c7d and is an ancestor; the main checkout was clean. Final publication checks repeat the relevant identities.
 
-**Definitive rerun on the corrected tip, publication and CI: pending.**
+## Definitive gate and publication
+
+`npm run check` completed with **exit 0** on `c499d12f5ca4d33c1c446ee5f7de5711b7dbc28f`, Windows / Node v24.20.0 / npm 11.18.0. Build transformed 1,416 modules; full oxlint/ESLint passed. **970 files / 10,611 tests passed / one intentional skip**. Coverage took 1,223.29 s and passed all unchanged thresholds:
+
+| Metric | Coverage | Covered / total |
+| --- | --- | --- |
+| Statements | 99.24% | 26,858 / 27,063 |
+| Branches | 98.08% | 19,703 / 20,088 |
+| Functions | 99.32% | 7,813 / 7,866 |
+| Lines | 99.68% | 19,874 / 19,936 |
+
+The chained Fallow step passed: 1,100 files, zero dead files/exports, zero above-threshold complexity findings, 7,252 analyzed units, maintainability 86.8. Three non-blocking clone groups and the existing hidden-directory advisory remain. [Machine-readable verification](../../astra-main-refresh/verification.json) preserves identities and counters without raw logs.
+
+Final source ancestry includes both #203's d0a7f165 and current origin/main acfb7c7d, re-fetched after the successful gate. The main checkout remained clean. Evidence-only updates after this gate receive whitespace, link, UTF-8 and image-hash checks; GitHub CI verifies the published head.
+
+Publication: pending push/PR creation; exactly one PR will target codex/usability-astra-native-polish. No PR is merged by this task.
 
 ## Remaining limits
 

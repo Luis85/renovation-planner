@@ -1,0 +1,59 @@
+{
+  "testedSource": "c499d12f5ca4d33c1c446ee5f7de5711b7dbc28f",
+  "merge": "25b1b0a434eaf4ed58849cf59b1d00e58428325d",
+  "stackBase": "d0a7f165bc06f912ced5b73cb3b036522cbe3635",
+  "integratedMain": "acfb7c7d11268eed7c6a39dbd52cdeab7bc961e7",
+  "command": "npm run check",
+  "exitCode": 0,
+  "node": "v24.20.0",
+  "npm": "11.18.0",
+  "os": "Windows",
+  "testFiles": 970,
+  "testsPassed": 10611,
+  "testsSkipped": 1,
+  "coverageDurationSeconds": 1223.29,
+  "coverage": {
+    "statements": {
+      "percent": 99.24,
+      "covered": 26858,
+      "total": 27063
+    },
+    "branches": {
+      "percent": 98.08,
+      "covered": 19703,
+      "total": 20088
+    },
+    "functions": {
+      "percent": 99.32,
+      "covered": 7813,
+      "total": 7866
+    },
+    "lines": {
+      "percent": 99.68,
+      "covered": 19874,
+      "total": 19936
+    }
+  },
+  "fallow": {
+    "exitCode": 0,
+    "files": 1100,
+    "deadFiles": 0,
+    "deadExports": 0,
+    "aboveThresholdComplexity": 0,
+    "cloneGroupsAdvisory": 3
+  },
+  "audit": {
+    "productionVulnerabilities": 0,
+    "fullTreeHighDevVulnerabilities": [
+      "fast-uri",
+      "js-yaml"
+    ],
+    "fixesApplied": false
+  },
+  "browser": {
+    "name": "Microsoft Edge",
+    "version": "153.0.4234.32",
+    "nativeObsidian": false
+  },
+  "I18": "deferred"
+}

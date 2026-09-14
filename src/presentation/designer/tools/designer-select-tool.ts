@@ -30,6 +30,17 @@ export interface DesignerSelectToolDeps {
 	readonly createCommand: (shape: AssetShape, expected: EntityVersion) => UndoableCommand;
 	readonly reportRejected: (error: AppError) => void; // a dispatched refusal
 	readonly reportInvalidInput: (error: AppError) => void; // a domain refusal at release; nothing dispatched
+	/** Whether a write this leaf queued has not settled yet, its read-back included (`createWriteChain`). */
+	readonly writing: () => boolean;
+	/** Resolves once every write queued so far has settled. */
+	readonly settled: () => Promise<void>;
+}
+
+/** A press made while a write was still queued: held, with its latest move and its release, until that write settles. */
+interface Held {
+	readonly down: EditorPointerEvent;
+	move: EditorPointerEvent | null;
+	up: EditorPointerEvent | null;
 }
 
 /** What a press read of the design: the shape a gesture edits and the version its write is conditional on. */
@@ -71,13 +82,13 @@ interface Bend {
  * press and passed as `expected`, so a peer's write during the drag refuses this one rather than
  * being overwritten by a shape computed from the older design.
  *
- * **A release does not join `runtime.editShape`'s serialised chain** (`selection/editShape.ts`), any
- * more than a draw does (`registerDesignerTools.ts`'s `detailWrite`). So a second gesture begun before
- * the first write's refresh lands — another drag or bend, an arrow key, an inspector field — reads the
- * design from before that write, and its own write is refused as a version conflict and reported as if
- * a peer had written. That is safe: the condition refuses and nothing is overwritten. Routing the
- * release through the chain is not the fix, because the version the press read is the right condition
- * for a drag.
+ * **Every write joins the leaf's ONE write chain** (`selection/editShape.ts`'s `createWriteChain`, spec
+ * Amendment 2): `commit` dispatches through the context's dispatcher, which the runtime queues behind
+ * every earlier write and its read-back. And a press that arrives while a write is still queued is
+ * HELD (`hold`) and replayed once the chain drains, so a second drag or bend begun before the first
+ * one's refresh lands reads the design that write left — the one its preview showed — and is
+ * conditional on THAT version. A write queued after a press was taken still refuses its drag, which is
+ * the version check doing its job: nothing is overwritten.
  *
  * **`commit` clears its preview only after its write settles**, so a release does not flash the
  * canvas back to the old shape before the refresh lands. That is what `previewGeneration` guards: an
@@ -100,6 +111,7 @@ export class DesignerSelectTool implements EditorTool {
 	private context: EditorContext | null = null;
 	private drag: Drag | null = null;
 	private bend: Bend | null = null;
+	private held: Held | null = null;
 	private previewGeneration = 0;
 	/**
 	 * Its actions are asked only while a bend exists — `pointerDown` forwards to it only on an edge
@@ -144,6 +156,10 @@ export class DesignerSelectTool implements EditorTool {
 		// would ask a bend that is gone — while a drag is only forgotten, so a plain press clears no preview.
 		if (this.bend !== null) this.abandonGesture();
 		this.drag = null;
+		if (this.deps.writing()) {
+			this.hold(event);
+			return;
+		}
 		const selection = this.deps.selection();
 		const hit = hitDesign(design.shape, event.worldPoint, {
 			selection,
@@ -171,6 +187,10 @@ export class DesignerSelectTool implements EditorTool {
 	}
 
 	pointerMove(event: EditorPointerEvent): void {
+		if (this.held !== null) {
+			this.held.move = event;
+			return;
+		}
 		if (this.bend !== null) {
 			this.curve.pointerMove(event);
 			return;
@@ -182,6 +202,10 @@ export class DesignerSelectTool implements EditorTool {
 
 	pointerUp(event: EditorPointerEvent): void {
 		if (event.button !== 'primary') return;
+		if (this.held !== null) {
+			this.held.up = event;
+			return;
+		}
 		if (this.bend !== null) {
 			// `CurveTool` takes the release's own bulge and drops its drag; `finish` then commits.
 			this.curve.pointerUp(event);
@@ -210,9 +234,9 @@ export class DesignerSelectTool implements EditorTool {
 		this.dropGesture();
 	}
 
-	/** A press with no release yet — so Escape mid-gesture abandons it before it clears the selection. */
+	/** A press with no release yet, or one held behind a write — so Escape abandons it before it clears the selection. */
 	hasDraft(): boolean {
-		return this.drag !== null || this.bend !== null;
+		return this.drag !== null || this.bend !== null || this.held !== null;
 	}
 
 	/** Both gestures compute from the event's world point, so edge scrolling may carry them. */
@@ -296,7 +320,30 @@ export class DesignerSelectTool implements EditorTool {
 	private dropGesture(): void {
 		this.drag = null;
 		this.bend = null;
+		this.held = null;
 		this.deps.setPreview(null);
+	}
+
+	/**
+	 * A press made while a write is still queued is HELD, with its latest move and its release, and
+	 * replayed once every write queued so far has settled — so it reads, and a drag is conditional on,
+	 * the design those writes left (spec Amendments 1 and 2). Replayed through the public doors, so a
+	 * press that finds another write queued by then is simply held again with what it carried.
+	 */
+	private hold(down: EditorPointerEvent): void {
+		const held: Held = { down, move: null, up: null };
+		this.held = held;
+		void this.replayWhenSettled(held);
+	}
+
+	private async replayWhenSettled(held: Held): Promise<void> {
+		await this.deps.settled();
+		// Escape, an interruption or a tool switch dropped it, or a later press replaced it.
+		if (this.held !== held) return;
+		this.held = null;
+		this.pointerDown(held.down);
+		if (held.move !== null) this.pointerMove(held.move);
+		if (held.up !== null) this.pointerUp(held.up);
 	}
 
 	/**

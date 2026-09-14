@@ -3,18 +3,19 @@ import { err, ok, type Result } from '../../../core/result/Result';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
+import { createSerialQueue } from '../../editor/tools/serial-queue';
 
 /** A pure whole-shape edit from `shapeEdits.ts`/`detailEdits.ts`: the edited shape, or why not. */
 export type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
 
 /**
  * One whole-shape edit of the leaf's current design (symbols spec, Amendment 1): a pure edit, dispatched
- * as ONE `SetAssetShape` conditional on the version the leaf read, or not dispatched at all.
+ * as ONE `SetAssetShape` conditional on the version the step read, or not dispatched at all.
  *
- * An edit may answer `null` for "nothing to do on the shape I was handed" (Amendment 2): a key whose
- * part a queued Delete already removed. That resolves `no-write` and dispatches nothing, so it pushes no
- * undo entry. `CommandHistory` pushes one for ANY ok result a command answers, which is why this check
- * lives here and never inside a command.
+ * An edit may answer `null` for "nothing to do on the shape I was handed" (Amendment 2) — a key whose
+ * part a queued Delete already removed. That resolves `no-write` and dispatches nothing, so it pushes
+ * no undo entry: `CommandHistory` pushes one for ANY ok result a command answers, which is why the
+ * check lives here and never inside a command.
  *
  * It RESOLVES every outcome rather than reporting one, so a field can show a refusal beside itself
  * and a key binding can hand it to `notifyIfRefused` — which sends a pre-write `Validation` refusal to
@@ -23,29 +24,62 @@ export type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationErro
 export type EditShape = (edit: (shape: AssetShape) => ReturnType<ShapeEdit> | null) => Promise<DispatchResult>;
 
 /**
- * `design` is read PER CALL — a designer leaf edits and re-reads without remounting. Nothing read yet,
- * or nothing drawn, is `no-write`: there is no shape for an edit to act on, which is not a refusal.
+ * The designer leaf's ONE write chain (symbols spec, Amendment 2): every gesture's write is a step on
+ * it — a tool's release through the runtime's queued dispatcher, and an `editShape` call — and a step
+ * runs only once every earlier one has SETTLED, its read-back included. So a step that reads the design
+ * reads what the previous write left, and two gestures made before the first refresh lands compose
+ * rather than the second being refused as a version conflict against the user's own first.
  *
- * **Every call is chained behind the previous one's settling** — the read, the edit and the write as
- * ONE step, the plan editor's `nudge.ts` fix met again. The dispatcher's queue serialises only the
- * write, a step after this read, and the design is refreshed only by that write's own queued read-back;
- * so two arrow taps before the first refresh landed both edited the same shape against the same
- * version, and the conditional write refused the user's own second tap as a conflict. Chained, each
- * step reads what the previous one wrote. What a caller acts ON — the selection — is captured before it
- * calls, never inside the step.
+ * `writing` and `settled` are the Select tool's two questions for a press (`DesignerSelectTool`'s
+ * `hold`): is a write still queued, and when will every write queued so far have landed. `settled`
+ * queues an empty step rather than counting one, so it never reads as writing itself.
  *
- * `async`, so a fault in `design()`, the edit or `write` rejects the returned promise rather than
- * throwing at the call. Nothing catches that rejection: `write` is the leaf's fault-mapped
- * `toolDispatcher` (`runtime.ts`), which resolves every coded refusal, so only a programming fault gets
- * here — and the key bindings `void` the promise, so it surfaces as an unhandled rejection.
+ * The queue is `createSerialQueue`, shared rather than copied, so a step that rejects cannot wedge the
+ * steps behind it; `pending` is decremented in a `finally` for the same reason.
+ */
+export function createWriteChain(): {
+	readonly enqueue: <T>(step: () => Promise<T>) => Promise<T>;
+	readonly writing: () => boolean;
+	readonly settled: () => Promise<void>;
+} {
+	const queue = createSerialQueue();
+	let pending = 0;
+	return {
+		enqueue: (step) => {
+			pending += 1;
+			return queue(async () => {
+				try {
+					return await step();
+				} finally {
+					pending -= 1;
+				}
+			});
+		},
+		writing: () => pending > 0,
+		settled: () => queue(() => Promise.resolve()),
+	};
+}
+
+/**
+ * `design` is read INSIDE the step — a designer leaf edits and re-reads without remounting, and a step
+ * queued behind a write must see what that write left. Nothing read yet, or nothing drawn, is
+ * `no-write`: there is no shape for an edit to act on, which is not a refusal. What a caller acts ON —
+ * the selection — is captured before it calls, never inside the step.
+ *
+ * `write` must NOT be the chain's own queued dispatcher: a step dispatching through it would wait behind
+ * itself. The runtime hands the fault-mapped dispatcher unqueued.
+ *
+ * A fault in `design()`, the edit or `write` rejects the returned promise rather than throwing at the
+ * call. Nothing catches that rejection: `write` resolves every coded refusal, so only a programming
+ * fault gets here — and the key bindings `void` the promise, so it surfaces as an unhandled rejection.
  */
 export function createEditShape(
+	enqueue: <T>(step: () => Promise<T>) => Promise<T>,
 	design: () => { readonly shape: AssetShape | null; readonly geometryVersion: EntityVersion } | null,
 	write: (shape: AssetShape, expected: EntityVersion) => Promise<DispatchResult>,
 ): EditShape {
-	let chain: Promise<unknown> = Promise.resolve();
-	return (edit) => {
-		const step = chain.then(async (): Promise<DispatchResult> => {
+	return (edit) =>
+		enqueue(async (): Promise<DispatchResult> => {
 			const current = design();
 			if (current === null || current.shape === null) return ok('no-write');
 			const next = edit(current.shape);
@@ -53,8 +87,4 @@ export function createEditShape(
 			if (!next.ok) return err(next.error);
 			return await write(next.value, current.geometryVersion);
 		});
-		// A step that rejected must not wedge every later one behind it: the chain waits for it to SETTLE.
-		chain = step.catch(() => undefined);
-		return step;
-	};
 }

@@ -1,5 +1,5 @@
 import { createAssetId } from '../../src/domain/asset/AssetId';
-import { dimensionsOf } from '../../src/domain/asset/AssetShape';
+import { dimensionsOf, type AssetShape } from '../../src/domain/asset/AssetShape';
 import { ASSET_PRESETS } from '../../src/domain/asset/presets/catalogue';
 import { defaultValues } from '../../src/domain/asset/presets/presetGeometry';
 import { AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
@@ -13,10 +13,16 @@ import type { ObservationToken } from '../../src/application/ports/versioning';
 import type { App } from 'vue';
 import { ok } from '../../src/core/result/Result';
 import { tr } from '../../src/presentation/i18n/strings';
+import type { StringKey } from '../../src/presentation/i18n/locales/en';
 import { useAssetDesignStore } from '../../src/presentation/designer/stores/assetDesignStore';
+import { DESIGNER_TOOL_LABELS } from '../../src/presentation/designer/tools/registerDesignerTools';
+import { useEditorStore } from '../../src/presentation/stores/EditorStore';
 import type { DesignerSelection, SelectionMode } from '../../src/presentation/designer/selection/designerSelection';
 import { installObsidianDom } from '../helpers/dom';
+// `../helpers/settle` and not `../helpers/editor`, for the reason `itemKnob.ts` gives: this reaches a real browser.
+import { settleUntil } from '../helpers/settle';
 import { FakeLeaf } from '../helpers/workspace';
+import { pointer } from './itemKnob';
 
 /**
  * The REAL Asset Designer, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -72,25 +78,47 @@ const inertLogger: Logger = {
 };
 
 /**
+ * The state an uncalibrated spec sheet leaves: a TRACED footprint and every detail, the clearance and the
+ * anchor awaiting a scale — `validateAssetShape` refuses a typed footprint marked pending, so the origin
+ * moves with the flag.
+ */
+function awaitingScale(shape: AssetShape): AssetShape {
+	return {
+		...shape,
+		footprintOrigin: 'traced',
+		footprintPending: true,
+		clearancePending: shape.clearance !== null,
+		anchorPending: true,
+		details: shape.details.map((detail) => ({ ...detail, pending: true })),
+	};
+}
+
+/**
  * `?preset=<id>` seeds the fixture with that preset at its defaults, so a capture draws curves and
  * details instead of the empty state (asset designer symbols spec, Testing). An unknown id is the
  * shapeless fixture.
+ *
+ * `&pending` seeds `awaitingScale`'s version of it, so the inspector's unscaled warnings can be
+ * photographed. The SHEET itself is not drawn: this page has no vault and refuses a background document
+ * (`planEditor.ts`'s header, §55), so the canvas is blank behind the design. `dimensionsUnscaled` follows
+ * the footprint's flag exactly as `GetAssetDesign` derives it.
  */
-function designFor(presetId: string | null): AssetDesignDto {
+function designFor(presetId: string | null, pending: boolean): AssetDesignDto {
 	const preset = ASSET_PRESETS.find((item) => item.id === presetId);
 	if (preset === undefined) return HARNESS_ASSET_DESIGN;
 	const built = preset.build(defaultValues(preset));
 	if (!built.ok) return HARNESS_ASSET_DESIGN;
-	const measured = dimensionsOf(built.value.footprint);
-	return { ...HARNESS_ASSET_DESIGN, shape: built.value, dimensions: measured.ok ? measured.value : null };
+	const shape = pending ? awaitingScale(built.value) : built.value;
+	const measured = dimensionsOf(shape.footprint);
+	return { ...HARNESS_ASSET_DESIGN, shape, dimensions: measured.ok ? measured.value : null, dimensionsUnscaled: shape.footprintPending };
 }
 
-function assetDesignerHarnessDeps(presetId: string | null): AssetDesignerDeps {
+function assetDesignerHarnessDeps(presetId: string | null, pending: boolean): AssetDesignerDeps {
 	return {
 		// A fresh DTO per call, not the constant — `planEditor.ts`'s `getPlan` carries the same
 		// rule: the real query builds its DTO from a note it just read, and handing back the
 		// module object would let a mutation through Pinia's reactive state edit the fixture.
-		queries: { getAssetDesign: () => Promise.resolve(ok(structuredClone(designFor(presetId)))) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(structuredClone(designFor(presetId, pending)))) },
 		commands: unavailableAssetDesignerCommands(),
 		logger: inertLogger,
 		picker: inertPicker,
@@ -131,46 +159,108 @@ function harnessSelection(select: string): DesignerSelection {
 		: { kind: 'detail', id: select };
 }
 
-/**
- * Presses the REAL Select button, then sets the leaf's selection and mode through its own store —
- * once the fixture has hydrated: a macrotask runs after every microtask `onOpen`'s read queues. The
- * leaf's Pinia is reached through the Vue app `AssetDesignerView` mounts on its host element. Then it
- * presses `Shift+1` on the canvas, the user's own fit: an opened asset keeps the origin-centred view,
- * which clips a curved table and draws a toilet a few pixels wide, too small to see a handle on.
- * Harness-only: no production seam exists for this, and none is added.
- */
-function selectInHarness(view: AssetDesignerView, selection: { readonly select: string; readonly mode: string }): void {
-	setTimeout(() => {
-		const host = view.contentEl.querySelector('.renovation-asset-designer-view') as HTMLElement & { __vue_app__: App };
-		const button = Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button')).find(
-			(candidate) => candidate.textContent?.trim() === tr('designer.toolbar.select'),
-		);
-		button?.click();
-		const store = useAssetDesignStore(host.__vue_app__.config.globalProperties.$pinia);
-		store.select(harnessSelection(selection.select));
-		const mode: SelectionMode = selection.mode === 'points' || selection.mode === 'bend' ? selection.mode : 'transform';
-		store.setMode(mode);
-		view.contentEl
-			.querySelector('.rp-plan-canvas')
-			?.dispatchEvent(new KeyboardEvent('keydown', { key: '!', code: 'Digit1', shiftKey: true, bubbles: true }));
-	}, 0);
+/** The draw tools `&draw=` can hold mid-gesture. */
+const DRAW_KNOB_TOOLS = ['draw-rect', 'draw-circle', 'trace-detail'] as const;
+
+/** A box and a circle, each pressed and moved at fractions of the canvas box and never released. */
+const HELD_DRAGS = {
+	'draw-rect': [[0.4, 0.38], [0.6, 0.62]],
+	'draw-circle': [[0.5, 0.5], [0.58, 0.5]],
+} as const;
+
+/** Three clicks and no closing one: an open outline, which writes nothing until it is closed. */
+const TRACED_VERTICES = [[0.4, 0.4], [0.6, 0.4], [0.6, 0.6]] as const;
+
+/** Presses the REAL toolbar button with that label, in whatever language `?lang=` set. */
+function pressTool(view: AssetDesignerView, label: StringKey): void {
+	Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button'))
+		.find((candidate) => candidate.textContent?.trim() === tr(label))
+		?.click();
 }
 
 /**
- * `selection` is `&select=`/`&mode=`, honoured only beside a preset: a shapeless fixture has no part
- * to select, and a capture of one would photograph a selection nobody could make.
+ * `&draw=<tool>` presses that tool and leaves its gesture UNFINISHED, so a capture shows the preview a user
+ * steers by. The pointers are `itemKnob.ts`'s. An unknown tool is refused on the console — which
+ * `harness-shot` records as a failure — rather than photographing a designer with no gesture under a draw
+ * shot's name.
+ */
+function drawInHarness(view: AssetDesignerView, canvas: HTMLElement, draw: string): void {
+	const tool = DRAW_KNOB_TOOLS.find((candidate) => candidate === draw);
+	if (tool === undefined) {
+		console.error(`the &draw knob wants one of ${DRAW_KNOB_TOOLS.join(', ')}; got "${draw}"`);
+		return;
+	}
+	pressTool(view, DESIGNER_TOOL_LABELS[tool]);
+	if (tool === 'trace-detail') {
+		for (const [x, y] of TRACED_VERTICES) {
+			pointer(canvas, 'pointerdown', x, y);
+			pointer(canvas, 'pointerup', x, y);
+		}
+		return;
+	}
+	const [from, to] = HELD_DRAGS[tool];
+	pointer(canvas, 'pointerdown', from[0], from[1]);
+	pointer(canvas, 'pointermove', to[0], to[1]);
+}
+
+/**
+ * What every `?preset=` capture waits on. It waits first for the leaf's mount, then for TWO things before
+ * touching anything: the design, which the leaf reads after it mounts, and the canvas's first measured
+ * size (`EditorStore.stageSize`), without which `Shift+1` fits into 0 × 0 and frames nothing a capture can
+ * use. A bare `setTimeout(0)` promised neither.
+ *
+ * Then, in order:
+ * - `&select=`/`&mode=`, through the REAL Select button and the leaf's own store;
+ * - `Shift+1` on the canvas, the user's own fit — an opened asset keeps its origin-centred view, which
+ *   clips a curved table and draws a toilet a few pixels wide — unless `&camera=default` asks for exactly
+ *   that view;
+ * - `&draw=`, LAST, because a gesture in flight refuses a fit (`keyDoors.ts`).
+ *
+ * Last of all it sets `data-rp-harness-ready` on the view: the mark `scripts/harness-shot.mjs`'s preset
+ * shots wait on, since the view element itself is attached at mount, before any of this. The leaf's Pinia
+ * is reached through the Vue app `AssetDesignerView` mounts on its host element. Harness-only: no
+ * production seam exists for this, and none is added.
+ */
+async function driveHarness(
+	view: AssetDesignerView,
+	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string },
+): Promise<void> {
+	const host = (): (HTMLElement & { __vue_app__: App }) | null => view.contentEl.querySelector('.renovation-asset-designer-view');
+	await settleUntil(() => host() !== null, 'the designer mount');
+	const pinia = (host() as HTMLElement & { __vue_app__: App }).__vue_app__.config.globalProperties.$pinia;
+	const store = useAssetDesignStore(pinia);
+	const editor = useEditorStore(pinia);
+	await settleUntil(() => store.design !== null && editor.stageSize.width > 0, 'the ?preset design on a measured canvas');
+	if (knobs.select !== undefined) {
+		pressTool(view, 'designer.toolbar.select');
+		store.select(harnessSelection(knobs.select));
+		const mode: SelectionMode = knobs.mode === 'points' || knobs.mode === 'bend' ? knobs.mode : 'transform';
+		store.setMode(mode);
+	}
+	const canvas = view.contentEl.querySelector('.rp-plan-canvas') as HTMLElement;
+	if (knobs.camera !== 'default') {
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: '!', code: 'Digit1', shiftKey: true, bubbles: true }));
+	}
+	if (knobs.draw !== undefined) drawInHarness(view, canvas, knobs.draw);
+	view.contentEl.dataset.rpHarnessReady = '';
+}
+
+/**
+ * `knobs` are `page.ts`'s `&select=`, `&mode=`, `&draw=`, `&camera=` and `&pending`, honoured only beside a
+ * preset: a shapeless fixture has no part to select or draw beside, and a capture of one would photograph
+ * a state nobody could reach.
  */
 export function mountAssetDesignerHarness(
 	root: HTMLElement,
 	presetId: string | null = null,
-	selection: { readonly select: string; readonly mode: string } | null = null,
+	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly pending?: boolean } = {},
 ): MountedAssetDesigner {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();
 	root.empty();
 
 	const leafEl = root.createDiv('rp-harness-leaf');
-	const view = new AssetDesignerView(new FakeLeaf() as never, assetDesignerHarnessDeps(presetId));
+	const view = new AssetDesignerView(new FakeLeaf() as never, assetDesignerHarnessDeps(presetId, knobs.pending === true));
 	leafEl.appendChild(view.containerEl);
 
 	// State first, then open — the restored-leaf order `mountPlanEditorHarness` uses. `void`
@@ -178,7 +268,8 @@ export function mountAssetDesignerHarness(
 	// before resolving.
 	void view.setState({ assetId: HARNESS_ASSET_ID }, {} as never);
 	void view.onOpen();
-	if (presetId !== null && selection !== null) selectInHarness(view, selection);
+	// `void`: a wait that times out rejects, which the page reports as an error and `harness-shot` fails on.
+	if (presetId !== null) void driveHarness(view, knobs);
 
 	return { leafEl, view };
 }

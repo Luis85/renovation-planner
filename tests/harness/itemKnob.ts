@@ -58,7 +58,7 @@ async function press(root: HTMLElement, selector: string, waitingFor: string): P
 	root.querySelector<HTMLElement>(selector)?.click();
 }
 
-function pointer(canvas: HTMLElement, type: string, x: number, y: number): void {
+export function pointer(canvas: HTMLElement, type: string, x: number, y: number): void {
 	const box = canvas.getBoundingClientRect();
 	canvas.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, button: 0, buttons: type === 'pointerup' ? 0 : 1, clientX: box.left + box.width * x, clientY: box.top + box.height * y }));
 }

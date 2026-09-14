@@ -5,7 +5,9 @@ import type { Point } from '../../../core/geometry/Point';
 import type { Result } from '../../../core/result/Result';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
-import { outlineOf, type OutlinePart } from '../../../domain/asset/shapeEdits';
+import { outlineOf, setBulge, type OutlinePart } from '../../../domain/asset/shapeEdits';
+import { CurveTool } from '../../editor/curves/CurveTool';
+import type { CurveTarget } from '../../editor/curves/curveDraft';
 import { CLICK_EPSILON_PX, SNAP_TOLERANCE_PX } from '../../editor/handleMetrics';
 import type { EditorContext } from '../../editor/tools/editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from '../../editor/tools/editor-tool';
@@ -41,6 +43,22 @@ interface Drag {
 	moved: boolean;
 }
 
+/** `CurveToolActions` members this tool has no use for: nothing blocks a bend, and `dropGesture` does the rest. */
+const never = (): boolean => false;
+const nothing = (): void => undefined;
+
+/** A Bend edges gesture: one edge of the selected outline, handed to `CurveTool` as a one-edge target. */
+interface Bend {
+	readonly context: EditorContext;
+	readonly design: PressedDesign;
+	readonly selection: OutlinePart;
+	/** The edge's index in the OUTLINE; the curve tool only ever sees it as edge 0. */
+	readonly edge: number;
+	readonly target: CurveTarget;
+	/** The bulge the curve tool last set; `null` while the press has not moved, which writes nothing. */
+	bulge: number | null;
+}
+
 /**
  * The asset designer's Select tool (symbols spec, Decision 10): a click selects by `hitDesign`'s
  * order, a drag moves the part or works the handle it started on, and the release is ONE conditional
@@ -60,21 +78,47 @@ interface Drag {
  * strand the earlier preview on the canvas. The refusal itself is reported whatever happened since
  * (`SetFacingTool`'s rule: a generation guards gesture-owned state, never the report of a write that
  * really was attempted).
+ *
+ * **Bend edges is the plan editor's `CurveTool`, not a copy of it**: an edge-handle press in `bend`
+ * mode is forwarded to one `CurveTool` built over this tool's own `CurveToolActions`, whose `set`
+ * previews `setBulge` and whose `finish` commits through the same `release` a drag does.
  */
 export class DesignerSelectTool implements EditorTool {
 	readonly id: ToolId = 'select';
 
 	private context: EditorContext | null = null;
 	private drag: Drag | null = null;
+	private bend: Bend | null = null;
 	private previewGeneration = 0;
+	/**
+	 * Its actions are asked only while a bend exists — `pointerDown` forwards to it only on an edge
+	 * handle, and its `hasDraft` (true for any target) is never asked — so `target` and `set` read
+	 * `bend` without a null arm. `blocked` and `busy` share one never-true function; `choose`, `stop`
+	 * and `cancel` have nothing to do, because `dropGesture` clears the preview beside every call that
+	 * reaches them.
+	 */
+	private readonly curve: CurveTool;
 
-	constructor(private readonly deps: DesignerSelectToolDeps) {}
+	constructor(private readonly deps: DesignerSelectToolDeps) {
+		this.curve = new CurveTool({
+			target: () => (this.bend as Bend).target,
+			blocked: never,
+			busy: never,
+			set: (_index, bulge) => this.bendTo(bulge),
+			choose: nothing,
+			stop: nothing,
+			cancel: nothing,
+			finish: () => this.finishBend(),
+		});
+	}
 
 	activate(context: EditorContext): void {
 		this.context = context;
+		this.curve.activate(context);
 	}
 
 	deactivate(): void {
+		this.curve.deactivate();
 		this.dropGesture();
 		this.context = null;
 	}
@@ -83,6 +127,11 @@ export class DesignerSelectTool implements EditorTool {
 		const context = this.context;
 		const design = this.deps.design();
 		if (context === null || design === null || event.button !== 'primary') return;
+		// A gesture whose release never arrived (a secondary release, say) must not be finished by THIS
+		// press's release. A leftover bend is abandoned whole — its curve drag with it, or a later cancel
+		// would ask a bend that is gone — while a drag is only forgotten, so a plain press clears no preview.
+		if (this.bend !== null) this.abandonGesture();
+		this.drag = null;
 		const selection = this.deps.selection();
 		const hit = hitDesign(design.shape, event.worldPoint, {
 			selection,
@@ -98,44 +147,61 @@ export class DesignerSelectTool implements EditorTool {
 			this.begin(context, design, hit.selection, { kind: 'body' }, event.worldPoint);
 			return;
 		}
-		// Bend edges is `CurveTool`'s gesture (Task 7); until it is wired an edge handle starts nothing.
-		if (hit.role.kind === 'edge') return;
+		if (hit.role.kind === 'edge') {
+			// An edge handle is drawn only in Bend edges, around an outline the shape has.
+			this.beginBend(context, design, selection as OutlinePart, hit.role.index);
+			this.curve.pointerDown(event);
+			return;
+		}
 		// A handle is only ever drawn around a selection — `selectionHandles` answers `[]` for none — so
 		// the selection it belongs to is never null here, and no guard is written for it.
 		this.begin(context, design, selection as DesignerSelection, hit.role, event.worldPoint);
 	}
 
 	pointerMove(event: EditorPointerEvent): void {
+		if (this.bend !== null) {
+			this.curve.pointerMove(event);
+			return;
+		}
 		const drag = this.drag;
 		if (drag === null || !this.passedEpsilon(drag, event.worldPoint)) return;
 		this.preview(this.shapeAt(drag, event));
 	}
 
 	pointerUp(event: EditorPointerEvent): void {
+		if (event.button !== 'primary') return;
+		if (this.bend !== null) {
+			// `CurveTool` takes the release's own bulge and drops its drag; `finish` then commits.
+			this.curve.pointerUp(event);
+			this.curve.finish();
+			return;
+		}
 		const drag = this.drag;
-		if (drag === null || event.button !== 'primary') return;
+		if (drag === null) return;
 		this.drag = null;
 		if (!this.passedEpsilon(drag, event.worldPoint)) return;
 		this.release(drag.context, this.shapeAt(drag, event), drag.version);
 	}
 
 	cancel(): void {
+		this.curve.cancel();
 		this.dropGesture(); // no command dispatched
 	}
 
-	/** The whole gesture is press-to-release, so an interruption abandons exactly what `cancel()` does. */
+	/** Every gesture here is press-to-release, so an interruption abandons exactly what `cancel()` does. */
 	abandonGesture(): void {
+		this.curve.abandonGesture();
 		this.dropGesture();
 	}
 
-	/** A press with no release yet — so Escape mid-drag abandons the drag before it clears the selection. */
+	/** A press with no release yet — so Escape mid-gesture abandons it before it clears the selection. */
 	hasDraft(): boolean {
-		return this.drag !== null;
+		return this.drag !== null || this.bend !== null;
 	}
 
-	/** Every drag computes from the event's world point, so edge scrolling may carry it once it is a drag. */
+	/** Both gestures compute from the event's world point, so edge scrolling may carry them. */
 	tracksPointer(): boolean {
-		return this.drag?.moved === true;
+		return this.bend !== null || this.drag?.moved === true;
 	}
 
 	private begin(context: EditorContext, design: PressedDesign, selection: DesignerSelection, role: DragRole, from: Point): void {
@@ -213,6 +279,41 @@ export class DesignerSelectTool implements EditorTool {
 
 	private dropGesture(): void {
 		this.drag = null;
+		this.bend = null;
 		this.deps.setPreview(null);
+	}
+
+	/**
+	 * ONE edge as a `kind: 'wall'` target, whose `curveEdges` arm yields only edge 0: `CurveTool` takes
+	 * the FIRST edge whose midpoint is within 22 px, so a whole-outline target bends a neighbour of the
+	 * edge `hitDesign` found on any outline small on screen. `bulgeAt` reads only the edge's start and
+	 * end, so the bulge's sign is the closed ring's.
+	 */
+	private beginBend(context: EditorContext, design: PressedDesign, selection: OutlinePart, edge: number): void {
+		// An edge handle is drawn only on an outline the shape has, so this lookup cannot miss here.
+		const outline = outlineOf(design.shape, selection) as CurvedPolygon;
+		const start = outline.points[edge];
+		const end = outline.points[(edge + 1) % outline.points.length];
+		this.bend = {
+			context,
+			design,
+			selection,
+			edge,
+			bulge: null,
+			target: { id: partKey(selection), kind: 'wall', name: '', geometry: { points: [start, end], bulges: [outline.bulges?.[edge] ?? 0, 0] } },
+		};
+	}
+
+	private bendTo(bulge: number): void {
+		const bend = this.bend as Bend;
+		bend.bulge = bulge;
+		this.preview(setBulge(bend.design.shape, bend.selection, bend.edge, bulge));
+	}
+
+	private finishBend(): void {
+		const bend = this.bend as Bend;
+		this.bend = null;
+		if (bend.bulge === null) return;
+		this.release(bend.context, setBulge(bend.design.shape, bend.selection, bend.edge, bend.bulge), bend.design.geometryVersion);
 	}
 }

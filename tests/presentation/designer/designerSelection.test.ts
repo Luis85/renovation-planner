@@ -176,3 +176,22 @@ describe('the mode control', () => {
 		rig.unmount();
 	});
 });
+
+describe('bending an edge', () => {
+	it('bows the tank’s top edge in one write under Bend edges', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		await press(rig, 'designer.toolbar.select');
+		click(rig, IN_TANK);
+		await settle();
+		await press(rig, 'designer.selection.mode.bend');
+		const top = { x: (TANK.points[0].x + TANK.points[1].x) / 2, y: TANK.points[0].y };
+
+		drag(rig, top, { x: top.x, y: top.y - 50 });
+		await settle();
+
+		const tank = (await rig.document()).shape?.details.find((detail) => detail.id === 'detail-1')?.outline;
+		expect(tank?.bulges?.[0]).toBeCloseTo((2 * 50) / (TANK.points[1].x - TANK.points[0].x), 6);
+		expect(tank?.bulges?.slice(1)).toEqual([0, 0, 0]);
+		rig.unmount();
+	});
+});

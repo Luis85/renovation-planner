@@ -241,22 +241,6 @@ describe('a selected outline', () => {
 
 		expect(rig.written[0]?.shape.details[0]?.outline.points).toEqual([TANK.points[0], TANK.points[1], FOOTPRINT_CORNER, TANK.points[3]]);
 	});
-
-	/** Replaced deliberately by Task 7, which gives this press to `CurveTool`. */
-	it('in Bend edges, starts nothing from an edge handle until the bend gesture is wired', async () => {
-		const rig = selectToolRig({ selection: TANK_SELECTED, mode: 'bend' });
-		rig.tool.activate(rig.harness.context);
-		const midpoint = { x: (TANK.points[0].x + TANK.points[1].x) / 2, y: TANK.points[0].y };
-
-		rig.tool.pointerDown(pointerAt(midpoint.x, midpoint.y));
-		rig.tool.pointerMove(pointerAt(midpoint.x, midpoint.y - 50));
-		rig.tool.pointerUp(pointerAt(midpoint.x, midpoint.y - 50));
-		await flushGesture();
-
-		expect(rig.selected).toEqual([]);
-		expect(rig.previews).toEqual([]);
-		expect(rig.written).toEqual([]);
-	});
 });
 
 describe('an interrupted gesture', () => {
@@ -308,6 +292,23 @@ describe('an interrupted gesture', () => {
 
 		expect(rig.written).toEqual([]);
 		expect(rig.tool.hasDraft()).toBe(true);
+	});
+
+	it('drops a drag left over from a secondary release when the next primary press lands', async () => {
+		const rig = selectToolRig();
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(IN_BOWL.x, IN_BOWL.y));
+		rig.tool.pointerMove(pointerAt(IN_BOWL.x + 100, IN_BOWL.y));
+		rig.tool.pointerUp(pointerAt(IN_BOWL.x + 100, IN_BOWL.y, 'secondary'));
+		// Outside the clearance: a press on nothing, whose release must not commit the older drag.
+		rig.tool.pointerDown(pointerAt(1000, 1000));
+		expect(rig.tool.hasDraft()).toBe(false);
+		rig.tool.pointerUp(pointerAt(1000, 1000));
+		await flushGesture();
+
+		expect(rig.written).toEqual([]);
+		expect(rig.invalid).toEqual([]);
 	});
 
 	it('follows the pointer only once a press has travelled past the click epsilon', () => {

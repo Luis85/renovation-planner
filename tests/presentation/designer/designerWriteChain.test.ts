@@ -27,6 +27,7 @@ const IN_BOWL = justInsideBottom(BOWL);
 /** The same point on the bowl once it has moved 100 mm right — still 162 mm or more from every handle of it. */
 const IN_MOVED_BOWL = { x: IN_BOWL.x + 100, y: IN_BOWL.y };
 const FURTHER = { x: IN_BOWL.x + 200, y: IN_BOWL.y };
+const YET_FURTHER = { x: IN_BOWL.x + 300, y: IN_BOWL.y };
 /** Two corners outside the footprint, more than the 80 mm snap tolerance from every vertex the toilet has. */
 const RECT_FROM = { x: -300, y: 600 };
 const RECT_TO = { x: -200, y: 800 };
@@ -78,6 +79,25 @@ describe('gestures made before the last write lands', () => {
 		await settle();
 
 		await expectBowlMoved(rig, 200);
+		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
+		rig.unmount();
+	});
+
+	/**
+	 * The replay's per-gesture `writing()` re-check (`designer-select-tool.ts`'s `replayWhenSettled`),
+	 * generalised past two gestures: a third quick press must wait for the second's write exactly as the
+	 * second waited for the first's, or it lands on a design the second's write has not yet applied.
+	 */
+	it('compose three drags with no settle between any of them: the bowl ends 300 mm right, and nothing is refused', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		await toolbar(rig, 'designer.toolbar.select');
+
+		drag(rig, IN_BOWL, IN_MOVED_BOWL);
+		drag(rig, IN_MOVED_BOWL, FURTHER);
+		drag(rig, FURTHER, YET_FURTHER);
+		await settle();
+
+		await expectBowlMoved(rig, 300);
 		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
 		rig.unmount();
 	});

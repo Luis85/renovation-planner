@@ -76,6 +76,20 @@ describe('a press made while a write is queued', () => {
 		expect(rig.tool.hasDraft()).toBe(false);
 	});
 
+	it('is not turned into a write by a hover that arrives after its release is recorded', async () => {
+		const { rig, chain } = heldRig();
+		rig.tool.pointerDown(pointerAt(IN_BOWL.x, IN_BOWL.y));
+		rig.tool.pointerUp(pointerAt(IN_BOWL.x, IN_BOWL.y));
+		// A hover with no gesture in flight — `EditorSurface` forwards it here regardless.
+		rig.tool.pointerMove(pointerAt(IN_BOWL.x + 300, IN_BOWL.y));
+
+		chain.wake(false);
+		await flushGesture();
+
+		expect(rig.selected).toEqual([{ kind: 'detail', id: 'detail-2' }]);
+		expect(rig.written).toEqual([]);
+	});
+
 	it('is held again, with what it carried, when another write was queued while it waited', async () => {
 		const { rig, chain } = heldRig();
 		dragBowl(rig);

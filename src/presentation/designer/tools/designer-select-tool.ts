@@ -149,11 +149,16 @@ export class DesignerSelectTool implements EditorTool {
 		this.press(event, true);
 	}
 
-	/** While a press is held, its latest move and its release are recorded on it rather than acted on. */
+	/**
+	 * While a held press has no release yet, its latest move is recorded on it rather than acted on. Once
+	 * its release IS recorded, a later move is a hover with no gesture in flight — `EditorSurface` forwards
+	 * every such hover here for a draw tool's rubber band — and it is dropped rather than overwriting the
+	 * held press's move: replaying that move on release would turn the click into a drag past the epsilon.
+	 */
 	pointerMove(event: EditorPointerEvent): void {
 		const last: Held | undefined = this.held[this.held.length - 1];
 		if (last !== undefined) {
-			last.move = event;
+			if (last.up === null) last.move = event;
 			return;
 		}
 		this.movePointer(event);

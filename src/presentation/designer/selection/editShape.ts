@@ -4,16 +4,23 @@ import type { DispatchResult } from '../../../application/commands/DispatchOutco
 import type { EntityVersion } from '../../../application/ports/versioning';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 
+/** A pure whole-shape edit from `shapeEdits.ts`/`detailEdits.ts`: the edited shape, or why not. */
+export type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
+
 /**
- * One whole-shape edit of the leaf's current design (symbols spec, Amendment 1): a pure edit from
- * `shapeEdits.ts`/`detailEdits.ts`, dispatched as ONE `SetAssetShape` conditional on the version the
- * leaf read, or not dispatched at all.
+ * One whole-shape edit of the leaf's current design (symbols spec, Amendment 1): a pure edit, dispatched
+ * as ONE `SetAssetShape` conditional on the version the leaf read, or not dispatched at all.
+ *
+ * An edit may answer `null` for "nothing to do on the shape I was handed" (Amendment 2): a key whose
+ * part a queued Delete already removed. That resolves `no-write` and dispatches nothing, so it pushes no
+ * undo entry. `CommandHistory` pushes one for ANY ok result a command answers, which is why this check
+ * lives here and never inside a command.
  *
  * It RESOLVES every outcome rather than reporting one, so a field can show a refusal beside itself
  * and a key binding can hand it to `notifyIfRefused` — which sends a pre-write `Validation` refusal to
  * a notice and a write-boundary one to the save indicator, so one door serves both halves.
  */
-export type EditShape = (edit: (shape: AssetShape) => Result<AssetShape, ValidationError>) => Promise<DispatchResult>;
+export type EditShape = (edit: (shape: AssetShape) => ReturnType<ShapeEdit> | null) => Promise<DispatchResult>;
 
 /**
  * `design` is read PER CALL — a designer leaf edits and re-reads without remounting. Nothing read yet,
@@ -42,6 +49,7 @@ export function createEditShape(
 			const current = design();
 			if (current === null || current.shape === null) return ok('no-write');
 			const next = edit(current.shape);
+			if (next === null) return ok('no-write');
 			if (!next.ok) return err(next.error);
 			return await write(next.value, current.geometryVersion);
 		});

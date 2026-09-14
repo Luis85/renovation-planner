@@ -10,6 +10,8 @@ import type { Point } from '../../../src/core/geometry/Point';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import { activateNotices } from '../../../src/presentation/notices/notify';
+import { Notice } from '../../helpers/obsidian-mock';
 import { settle } from '../../helpers/editor';
 import { click, designerRig, type DesignerRig } from '../../helpers/designerRig';
 import { TOILET, detailOutline, justInsideBottom } from '../../helpers/designerSelection';
@@ -94,6 +96,31 @@ describe('Delete', () => {
 
 		expect((await rig.document()).shape?.details).toHaveLength(2);
 		expect(useAssetDesignStore(rig.pinia).selection).toEqual({ kind: 'detail', id: 'detail-2' });
+		rig.unmount();
+	});
+
+	/**
+	 * Amendment 2's silent skip, mounted: a second Delete and an arrow pressed before the first Delete's
+	 * refresh prunes the selection both find the bowl gone when their steps run. Neither says anything
+	 * and neither writes — one Undo brings the bowl back and leaves nothing to undo.
+	 */
+	it('skips, silently, a Delete and an arrow queued behind the Delete that removed their part', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		await selectAt(rig, justInsideBottom(BOWL));
+		// After the mount, which installs the DOM the notice queue draws into.
+		activateNotices();
+		Notice.shown.length = 0;
+
+		key(rig.canvasEl, { key: 'Delete' });
+		key(rig.canvasEl, { key: 'Delete' });
+		key(rig.canvasEl, { key: 'ArrowRight' });
+		await settle();
+
+		expect(Notice.shown).toHaveLength(0);
+		expect((await rig.document()).shape?.details.map((detail) => detail.id)).toEqual(['detail-1']);
+		await press(rig, 'designer.toolbar.undo');
+		expect(await bowlPoints(rig)).toEqual(BOWL.points);
+		expect(rig.toolbarButton(t('en', 'designer.toolbar.undo')).disabled).toBe(true);
 		rig.unmount();
 	});
 });

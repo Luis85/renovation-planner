@@ -47,6 +47,15 @@ describe('createEditShape', () => {
 		expect(recorder.calls).toEqual([]);
 	});
 
+	it('writes nothing, and resolves no-write, for an edit with nothing to do on the shape it is handed', async () => {
+		const recorder = writes();
+
+		const result = await createEditShape(() => ({ shape: TOILET, geometryVersion: DESIGN_VERSION }), recorder.write)(() => null);
+
+		expect(result).toEqual(ok('no-write'));
+		expect(recorder.calls).toEqual([]);
+	});
+
 	it('resolves a refused edit as that refusal, without dispatching', async () => {
 		const recorder = writes();
 		const refusal = assetError('part-not-found', 'That part is not on this shape.');

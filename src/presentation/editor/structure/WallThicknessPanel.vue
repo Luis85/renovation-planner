@@ -16,6 +16,7 @@ const titleId = useId(), hintId = useId(), errorId = useId();
 const title = computed(() => tr('editor.wall-thickness.title', { wall: tr('editor.structure.wall-number', { n: String(project.structure.walls.findIndex(wall => wall.id === control.target.value) + 1) }) }));
 const invalid = computed(() => !control.loading.value && !control.proposal.value);
 const feedback = computed(() => control.error.value ? spatialMessage(control.error.value) : invalid.value ? tr('editor.wall-thickness.invalid') : '');
+const status = computed(() => tr(control.loading.value ? 'editor.loading' : control.busy.value ? 'editor.wall-thickness.saving' : 'editor.wall-thickness.preview', { value: control.value.value === null ? '—' : formatMetres(control.value.value) }));
 let opener: HTMLElement | null = null;
 watch(control.target, async (id, previous) => {
 	if (id) { opener = document.activeElement instanceof HTMLElement ? document.activeElement : null; await nextTick(); if (control.target.value === id) panel.value?.querySelector<HTMLInputElement>('input')?.focus(); }
@@ -107,7 +108,7 @@ onBeforeUnmount(() => { host?.removeEventListener('pointerdown', outside, true);
 				role="status"
 				aria-live="polite"
 			>
-				{{ tr(control.loading.value ? 'editor.loading' : control.busy.value ? 'editor.wall-thickness.saving' : 'editor.wall-thickness.preview', { value: control.value.value === null ? '—' : formatMetres(control.value.value) }) }}
+				{{ status }}
 			</p>
 			<div class="rp-wall-thickness-footer">
 				<button

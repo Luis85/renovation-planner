@@ -56,6 +56,16 @@ The current task's native computer API is disabled and no standalone node_repl C
 
 Final gate/coverage, publication identity and CI state are appended after completion.
 
+### Completed integration diagnostic and final preflight
+
+The completed one-worker integration diagnostic took 2,840.97 s: 973 files, 10,633 tests passed, one failed and one intentional skip. Its only failed assertion still expected the old wall-menu order. The expectation now explicitly includes both new thickness entries; all four wall-context behavior tests passed afterward (25.74 s), including hosted window/door placement and undo. The diagnostic's unchanged coverage floors were met: statements 99.22% (27,049/27,261), branches 98.03% (19,874/20,273), functions 99.26% (7,857/7,915), lines 99.66% (19,961/20,028). This exit-1 run is not presented as the clean final gate.
+
+Additional tests cover an externally changed baseline, a shared save arriving during the baseline read, and outside cancellation after the opener disappears. The final focused wall/context run passed 19 tests in 48.30 s.
+
+Fallow preflight found a duplicated state declaration and template cognitive complexity 21. The shared `StructureReviewState` and computed status text remove those findings without changing rendered behavior. The subsequent CRAP warnings came from stale coverage line positions after extraction. Fresh diagnostic coverage over the three refactored modules and their wall/bulk/context tests passed all 27 tests (34.80 s); Fallow using that diagnostic data reports no findings for those modules, with maximum CRAP 16, 12 and 8 respectively (unchanged limit 32). The focused coverage report is intentionally separate from the whole-project report; its subset does not satisfy all whole-project percentage floors and is not a substitute for the final full gate. No coverage data was patched or merged, and no threshold or suppression was changed. The three existing capture-script clone groups also appear in green base PR #209's CI log and remain unchanged.
+
+Final full verification command: PowerShell `$env:VITEST_MAX_WORKERS = '1'; npm run check`. The final tree must receive exit 0 before publication; CI is additional verification.
+
 ## Remaining limits
 
 Per-side wall offsets require a different geometry contract and are not implemented. Direct opening resize/swing affordances were explicitly sent as a bounded follow-up packet to the adoption coordinator, with shared-file ownership identified; no partial opening UI was added. I18 remains open. Native Obsidian, real assistive technology and arbitrary community themes retain the evidence limits above.

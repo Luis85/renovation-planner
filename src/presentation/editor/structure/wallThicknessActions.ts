@@ -1,10 +1,7 @@
-import { computed, onBeforeUnmount, ref, shallowRef, watch, type Ref } from 'vue';
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import type { PlanGeometrySnapshot } from '../../../application/ports/PlanGeometrySidecar';
-import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { AppError } from '../../../core/errors/AppError';
-import type { Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
-import type { Structure } from '../../../domain/spatial/Structure';
 import { MAX_WALL_THICKNESS, MIN_WALL_THICKNESS, WALL_THICKNESS_STEP, withWallThickness } from '../../../domain/spatial/wallThickness';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import { useEditorStore } from '../../stores/EditorStore';
@@ -14,16 +11,11 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { formatMetres, parseMetres } from '../shell/formatLength';
 import { notifyFault, notifyOperationFailure } from '../../notices/notify';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
-import type { StructureServices } from './structureBulkEdit';
+import type { StructureReviewState } from './structureBulkEdit';
 import { persistenceError } from '../../../application/errors';
 
 /** One preview session, shared by context-menu and Details entry points. Apply owns one history step. */
-export function createWallThicknessActions(context: PlanEditorContext, state: {
-	readonly active: Ref<boolean>; readonly preview: Ref<Structure | null>; readonly blocked: Readonly<Ref<boolean>>;
-	readonly unavailable: () => boolean;
-	readonly prepareBaseline: (result: Result<PlanGeometrySnapshot, AppError>) => { snapshot: PlanGeometrySnapshot | null; recovery: Promise<void> | null };
-	readonly reviewedWrite: (services: StructureServices, snapshot: PlanGeometrySnapshot) => { dispatch: (next: Structure, admit?: () => boolean) => Promise<DispatchResult> };
-}) {
+export function createWallThicknessActions(context: PlanEditorContext, state: StructureReviewState) {
 	const selection = useSelectionStore(), editor = useEditorStore(), session = useRenovationSession(), workspace = useWorkspaceStore();
 	const target = ref<string | null>(null), mode = ref<'entry' | 'adjust'>('entry'), text = ref(''), busy = ref(false), loading = ref(false), failed = ref(false);
 	const baseline = shallowRef<PlanGeometrySnapshot | null>(null), error = shallowRef<AppError | null>(null);

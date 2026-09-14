@@ -173,3 +173,33 @@ it('refuses a real pending command when Plan retires before its version read com
 	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.structure?.walls[0].thickness).toBe(150);
 	expect(rig.runtime.structureActions.active.value).toBe(false);
 });
+
+it('refreshes an externally changed wall before editing and refuses a vanished target', async () => {
+	const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id));
+	const structure = { ...rig.project.structure, walls: rig.project.structure.walls.map(wall => wall.id === 'wall-a' ? { ...wall, thickness: 250 } : wall) };
+	expectOk(await rig.geometry.write(rig.plan.id, { ...before.document, structure }, before.version));
+	await rig.control.begin('wall-a'); expect(rig.control.target.value).toBeNull(); expect(rig.project.structure.walls[0].thickness).toBe(250);
+	await rig.control.begin('wall-a'); expect(rig.control.value.value).toBe(250); rig.control.close();
+	rig.selection.select(['wall-missing' as never]); await rig.control.begin('wall-missing'); expect(rig.control.target.value).toBeNull();
+	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.structure).toEqual(structure);
+});
+
+it('retires an entry when a shared save starts during its baseline read', async () => {
+	const rig = await setup(), originalRead = rig.services.read.bind(rig.services), saves = useSaveStateStore(rig.pinia);
+	let release: (() => void) | undefined;
+	vi.spyOn(rig.services, 'read').mockImplementationOnce(async id => { await new Promise<void>(resolve => { release = resolve; }); return originalRead(id); });
+	const pending = rig.control.begin('wall-a'); await settleUntil(() => release !== undefined, 'entry baseline read');
+	expect(rig.wrapper.get('.rp-wall-thickness-panel').attributes('aria-busy')).toBe('true');
+	saves.beginSaving(); release?.(); await pending;
+	expect(rig.control.target.value).toBeNull(); expect(rig.runtime.structureActions.active.value).toBe(false);
+	saves.resolveNeutral(); expect(rig.project.structure.walls[0].thickness).toBe(150);
+});
+
+it('cancels on outside pointer input and restores canvas focus when the opener has disappeared', async () => {
+	const rig = await setup(), opener = rig.wrapper.get<HTMLButtonElement>('[data-rp-action="wall-thickness"]');
+	opener.element.focus(); await opener.trigger('click'); await settle(); rig.control.increment(1);
+	opener.element.remove();
+	rig.canvasEl.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); await settle();
+	expect(rig.control.target.value).toBeNull(); expect(document.activeElement).toBe(rig.canvasEl);
+	expect(rig.project.structure.walls[0].thickness).toBe(150);
+});

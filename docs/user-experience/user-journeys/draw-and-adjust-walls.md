@@ -6,7 +6,7 @@ status: documented
 source_maturity: specified
 version: 1
 language: en
-updated: 2026-09-05
+updated: 2026-09-14
 area: editor
 actor: private-renovator
 sources:

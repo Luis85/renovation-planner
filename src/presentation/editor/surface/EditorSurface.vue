@@ -91,8 +91,7 @@ const props = defineProps<{
 	 * §85's one operation left unreachable by keyboard (E8, Task 14): an arrow-key press
 	 * translates whatever is selected by `arrowVector`'s vector. Threaded as a prop for the
 	 * same reason `setTool` is — this file holds no `runtime.ts` — and the asset designer's
-	 * own mounter passes a no-op: none of its tools ever populate `selection`, so there is
-	 * never anything for it to move.
+	 * own mounter moves its own selection, a part of one shape (`designer/designerKeys.ts`).
 	 */
 	nudgeSelection: (by: Vector) => Promise<void>;
 	/**

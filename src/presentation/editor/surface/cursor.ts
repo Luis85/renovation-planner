@@ -28,7 +28,8 @@ import type { ToolId } from '../tools/editor-tool';
  * reasoning `CONSTRAINING_TOOLS` (`editorSnapping.ts`) already settled for the Shift-angle
  * question. That surface mounts twice: the Plan Editor with `draw-polygon`, `draw-room`,
  * `calibrate`, and `DesignerCanvas.vue` with `trace-footprint`, `trace-clearance`,
- * `set-anchor`, `set-facing` — each an id the OTHER surface's `ToolManager` never registers,
+ * `trace-detail`, `draw-rect`, `draw-circle`, `set-anchor`, `set-facing` — each an id the OTHER
+ * surface's `ToolManager` never registers,
  * so a designer tool can never be the answer in the Plan Editor and vice versa. What one
  * list buys is that "does this tool want a crosshair" has one answer, checked here rather
  * than reasoned separately per mounter.
@@ -61,6 +62,9 @@ const PRECISE_TOOLS: readonly ToolId[] = [
 	'calibrate',
 	'trace-footprint',
 	'trace-clearance',
+	'trace-detail',
+	'draw-rect',
+	'draw-circle',
 	'set-anchor',
 	'set-facing',
 ];

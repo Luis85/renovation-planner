@@ -36,7 +36,11 @@ import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import DialogHost from '../dialogs/DialogHost.vue';
 import { useDialogStore } from '../dialogs/dialog-store';
-import type { AssetShape } from '../../domain/asset/AssetShape';
+import { dimensionsOf, type AssetShape } from '../../domain/asset/AssetShape';
+import { scaleDesign } from '../../domain/asset/shapeEdits';
+import { hasCurves } from '../../core/geometry/CurvedPolygon';
+import { unwrap } from '../../core/result/Result';
+import { notifyIfRefused } from '../editor/report-failure';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import SaveStateIndicator from '../editor/save-state/SaveStateIndicator.vue';
@@ -48,6 +52,7 @@ import type { BackgroundStatus } from '../editor/layers/background/BackgroundRen
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
 import { isMissingAsset, useAssetDesignStore } from './stores/assetDesignStore';
+import { designerShortcut, selectionKeyActions } from './designerKeys';
 import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
@@ -63,7 +68,8 @@ const dialogs = useDialogStore();
  * one routine rather than three spellings of it.
  */
 const runtime = provideDesignerRuntime(context);
-const { design, error, status, stale } = storeToRefs(useAssetDesignStore());
+const designStore = useAssetDesignStore();
+const { design, error, status, stale, selection } = storeToRefs(designStore);
 
 /**
  * The canvas is drawing a design it can no longer confirm.
@@ -126,7 +132,7 @@ const backgroundStatus = ref<BackgroundStatus>('none');
  * A modifier is invisible: no control shows it and no menu lists it, which is the standing cost
  * of the convention every drawing tool in the field uses. This is the cheapest honest
  * mitigation — present while the gesture it applies to is available, gone the moment it is not
- * — and four of this surface's five tools take it, so its absence would leave the constraint
+ * — and most of this surface's tools take it, so its absence would leave the constraint
  * mentioned nowhere on this surface at all.
  *
  * It sits in the status region rather than in the toolbar for `StatusBar`'s reason: the toolbar
@@ -166,6 +172,22 @@ const overlay = computed<EmptyStateProps | null>(() => {
 	}
 	return resolved;
 });
+
+/**
+ * Does this shape carry a DRAWING that Set dimensions would scale rather than replace (symbols spec,
+ * Decision 9 and Amendment 1)? A shape with details, or with a curved footprint or clearance edge,
+ * does; a plain polygon keeps the replace-with-rectangle it always had.
+ *
+ * Asked only of a footprint already in millimetres: `editDimensions` takes the replace path for a
+ * PENDING one first, because scaling placeholder pixels by typed millimetres would leave the result
+ * flagged pending — still warned about as unscaled, and multiplied again by a later calibration.
+ */
+function scalesDrawing(shape: AssetShape | null): shape is AssetShape {
+	return (
+		shape !== null &&
+		(shape.details.length > 0 || [shape.footprint, ...(shape.clearance === null ? [] : [shape.clearance])].some((outline) => hasCurves(outline)))
+	);
+}
 
 /**
  * Task B8's dimensions gesture, and the ONE place it is written rather than one copy per
@@ -208,7 +230,18 @@ async function editDimensions(): Promise<void> {
 		...(unscaled ? { warning: tr('designer.dimensions.unscaled') } : {}),
 	});
 	if (result === null) return;
-	await runtime.setFootprintFromDimensions(result.width, result.depth);
+	if (unscaled || !scalesDrawing(current?.shape ?? null)) {
+		await runtime.setFootprintFromDimensions(result.width, result.depth);
+		return;
+	}
+	// The ratio is taken against the shape the write is computed from, so it cannot disagree with the
+	// design `editShape` makes conditional. `dimensionsOf` answers for any validated footprint.
+	await notifyIfRefused(
+		runtime.editShape((shape) => {
+			const measured = unwrap(dimensionsOf(shape.footprint));
+			return scaleDesign(shape, result.width / measured.width, result.depth / measured.depth);
+		}),
+	);
 }
 
 /** `FormDialog` carries its payload as `unknown`; the command validates the shape itself. */
@@ -330,6 +363,33 @@ function onFailureAction(): void {
 	void runtime.hydrate();
 }
 
+/**
+ * Delete and Ctrl+D for the designer's selection (symbols spec, Decision 10), bound on the canvas
+ * ELEMENT — `<DesignerCanvas @keydown>` falls through to `EditorSurface`'s focusable root — because
+ * `EditorSurface` routes neither key. The inspector is a sibling region, so a Backspace typed in one
+ * of its fields never reaches this listener.
+ *
+ * Three refusals, each someone else's key:
+ * - a key whose target is not that element itself — `keyDoors.ts`'s `isCanvasKey` rule, so a
+ *   control inside the canvas (the overlay's action button, a later field) keeps its own Backspace;
+ * - any tool but Select — the plan editor's `nudge.ts` rule, since every other tool owns the keyboard
+ *   for its own gesture, and Backspace mid-trace must not delete the part still selected;
+ * - a press still held on the selection (`hasDraft`), whose release is about to write that very part.
+ */
+const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime.activeToolId);
+function onCanvasKeyDown(event: KeyboardEvent): void {
+	if (event.target !== event.currentTarget || runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
+	designerShortcut(event, {
+		selection: designStore.selection,
+		deleteSelection: () => {
+			void keyActions.deleteSelection();
+		},
+		duplicateSelection: () => {
+			void keyActions.duplicateSelection();
+		},
+	});
+}
+
 onMounted(() => {
 	void runtime.hydrate();
 });
@@ -383,6 +443,7 @@ onMounted(() => {
 				<DesignerCanvas
 					v-else
 					@background-status="(next) => (backgroundStatus = next)"
+					@keydown="onCanvasKeyDown"
 				>
 					<EmptyState
 						v-if="overlay !== null"
@@ -407,6 +468,9 @@ onMounted(() => {
 					:edit-dimensions="editDimensions"
 					:start-from-preset="startFromPreset"
 					:logger="context.logger"
+					:selection="selection"
+					:edit-shape="runtime.editShape"
+					:select="designStore.select"
 				/>
 			</div>
 		</div>

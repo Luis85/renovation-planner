@@ -2,9 +2,9 @@
 type: PBI
 parent: "[[Asset Designer Foundations]]"
 order: 8.75
-status: New
-started: ""
-finished: ""
+status: Done
+started: "2026-09-13"
+finished: "2026-09-14"
 horizon: MVP
 start: ""
 due: ""
@@ -84,13 +84,20 @@ undo entry, refused whole or applied whole. A selection by itself writes nothing
 - Anything about a plan's selection, which [[Selection]] owns and which this item must not change.
 - Depicting or selecting the shape on a plan, which is [[Asset placement]]'s.
 
-## Open question
+## Open question — answered
 
 **Whether the first version edits whole parts or individual vertices.** Moving a whole clearance
 boundary and dragging one footprint vertex are different capabilities with different hit-testing:
 the first needs one hit-test per part, the second needs vertex handles, a grab radius and a
 tolerance in screen pixels. Raised rather than assumed, because building the second when only the
 first was wanted is most of the cost.
+
+**Answered: both**, as three modes on one selection, so a rectangle's corner handles and its vertex
+handles never compete for one pointer — Transform moves, resizes and rotates the whole part, Edit
+points drags its vertices, Bend edges bows its edges — and a detail is a selectable part beside the
+four this item names. The hit order and the modes are Decisions 9 and 10 of
+`docs/superpowers/specs/2026-09-13-asset-designer-symbols-design.md`; its Amendment 1 records what
+was decided while planning. The plan is `docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr2.md`.
 
 ## Acceptance criteria
 

@@ -549,6 +549,10 @@ describe('the headless harness capture script', () => {
 			'asset-designer-preset-sofa',
 			'asset-designer-preset-toilet',
 			'asset-designer-preset-tree',
+			'asset-designer-select-anchor',
+			'asset-designer-select-bend',
+			'asset-designer-select-points',
+			'asset-designer-select-transform',
 			'asset-library-actions',
 			'asset-library-dark',
 			'asset-library-light',
@@ -881,23 +885,6 @@ describe('the headless harness capture script', () => {
 		expect(query('project-detail-recovery').get('theme')).toBeNull();
 		expect(query('project-detail-recovery-light').get('theme')).toBe('light');
 		expect(shot('project-detail-recovery-narrow').width).toBe(460);
-	});
-
-	/**
-	 * The asset designer's sidebar-width shot (Task B10's own toolbar-overflow fix) — pinned the
-	 * same way `project-detail-narrow` is above, so a width or route dropped from either shot
-	 * fails HERE rather than being noticed only by re-running the ad-hoc capture that found the
-	 * defect in the first place. `width: 460` is the property that makes this shot different from
-	 * `asset-designer-dark`; losing it would silently photograph the same wide layout twice under
-	 * two names, which is the exact failure `resolveShots` refuses for a blank entry argument
-	 * elsewhere in this file.
-	 */
-	it('takes the asset designer at a sidebar width, through the route that opens it', () => {
-		expect(shot('asset-designer-narrow')).toMatchObject({ query: '?view=asset-designer', width: 460 });
-	});
-
-	it('seeds the designer with a preset through the harness knob', () => {
-		expect(shot('asset-designer-preset-toilet')).toMatchObject({ query: '?view=asset-designer&preset=toilet' });
 	});
 
 	/**

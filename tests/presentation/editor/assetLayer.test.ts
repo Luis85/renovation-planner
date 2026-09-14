@@ -5,6 +5,9 @@ import { assetPlacementRig } from '../../helpers/assetPlacement';
 import { settle, settleUntil } from '../../helpers/editor';
 import { useAssetShapeStore } from '../../../src/presentation/stores/AssetShapeStore';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
+import { ObsidianAssetGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
+import { toiletShape } from '../../helpers/assetShapes';
+import { expectOk } from '../../helpers/domain';
 
 const mounted: Awaited<ReturnType<typeof assetPlacementRig>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -25,4 +28,17 @@ it('draws a placed asset and a placeholder on the asset layer, and hides both wi
 	expect(layer?.find('.asset-footprint')[0]?.getAttr('strokeWidth')).toBeGreaterThan(resting);
 	useWorkspaceStore(rig.pinia).toggleLayer('asset'); await settle();
 	expect(layer?.visible()).toBe(false);
+});
+
+it('restrokes a placed symbol’s outline after its details, so a solid detail cannot hide the edge', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const asset = await rig.saveAsset('Toilet', false);
+	expectOk(await new ObsidianAssetGeometrySidecar(rig.stack.assetGeometry).write(asset.id, { calibration: null, shape: toiletShape() }));
+	await rig.place(asset.id, { x: 1000, y: 1000 });
+	await settleUntil(() => useAssetShapeStore(rig.pinia).answers.size === 1, 'asset shapes'); await settle();
+
+	const names = rig.stage.findOne<Konva.Group>('.element-asset')?.getChildren().map((node) => node.name()) ?? [];
+	expect(names.filter((name) => name === 'asset-footprint-edge')).toHaveLength(1);
+	expect(names.lastIndexOf('asset-detail')).toBeGreaterThan(-1);
+	expect(names.indexOf('asset-footprint-edge')).toBeGreaterThan(names.lastIndexOf('asset-detail'));
 });

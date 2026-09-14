@@ -640,11 +640,12 @@ describe('the tool framework this leaf builds', () => {
 	/**
 	 * `writesBlocked` on the designer's own `EditorContext` — design spec §2.9 has no
 	 * counterpart on this surface (no `ProjectStore`, no stale re-read a write could race), so
-	 * every context this leaf builds answers `false` and no registered tool ever asks: the five
-	 * in `registerDesignerTools` have no `select` tool (its own header says so), and only
-	 * `SelectTool` reads `context.writesBlocked()`. A probe tool registered under the unused
-	 * `'select'` id is what reaches the REAL context `buildRuntime` builds — the same object a
-	 * real tool would have received — without reaching past `ToolManager`'s own public door.
+	 * every context this leaf builds answers `false` and no registered tool ever asks: only the Plan
+	 * Editor's `SelectTool` reads `context.writesBlocked()`, and the designer's own
+	 * `DesignerSelectTool` does not. A probe tool registered under `'measure'` — an id this surface
+	 * does not register; it was `'select'` until the designer registered a Select tool, when
+	 * `ToolManager.register` began refusing the duplicate — is what reaches the REAL context
+	 * `buildRuntime` builds, without reaching past `ToolManager`'s own public door.
 	 */
 	it('answers false for writesBlocked, which this surface builds but never asks', async () => {
 		const { runtime } = harness();
@@ -656,7 +657,7 @@ describe('the tool framework this leaf builds', () => {
 		// identical narrowing the same way.
 		const captured: { current: EditorContext | null } = { current: null };
 		const probe: EditorTool = {
-			id: 'select',
+			id: 'measure',
 			activate: (context) => {
 				captured.current = context;
 			},
@@ -670,7 +671,7 @@ describe('the tool framework this leaf builds', () => {
 		};
 		runtime.toolManager.register(probe);
 
-		runtime.toolManager.setActiveTool('select');
+		runtime.toolManager.setActiveTool('measure');
 
 		expect(captured.current).not.toBeNull();
 		expect(captured.current?.writesBlocked()).toBe(false);

@@ -53,7 +53,8 @@ function namedParams(error: AppError): Readonly<Record<string, string>> | undefi
 	return names ? { names: names.join(', ') } : undefined;
 }
 
-function hasLocaleKey(key: string): key is StringKey {
+/** Is this string a key the English table holds? Exported for a name that may or may not have a label (`DesignerSelectionInspector`). */
+export function hasLocaleKey(key: string): key is StringKey {
 	return key in en;
 }
 

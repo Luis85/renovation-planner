@@ -1,11 +1,20 @@
-import type { AppError } from '../../../core/errors/AppError';
+import type { AppError, ValidationError } from '../../../core/errors/AppError';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
+import { createPolygon } from '../../../core/geometry/Polygon';
+import { err, ok, type Result } from '../../../core/result/Result';
 import type { AssetId } from '../../../domain/asset/AssetId';
+import type { AssetShape } from '../../../domain/asset/AssetShape';
+import { addDetail, nextDetailId } from '../../../domain/asset/detailEdits';
+import { requireShape } from '../../../application/commands/asset/updateAssetShape';
 import type { ReversibleAssetDesignCommands } from '../../../application/editor/asset/ReversibleAssetDesignCommands';
 import type { StringKey } from '../../i18n/locales/en';
 import { CalibrateTool, type KnownDistanceSupplier } from '../../editor/tools/calibrate-tool';
 import { DrawPolygonTool } from '../../editor/tools/draw-polygon-tool';
 import type { EditorTool } from '../../editor/tools/editor-tool';
 import type { ToolManager } from '../../editor/tools/tool-manager';
+import type { UndoableCommand } from '../../editor/tools/undoable-command';
+import { DesignerSelectTool, type DesignerSelectToolDeps } from './designer-select-tool';
+import { circleOutline, DrawDetailTool, rectOutline } from './draw-detail-tool';
 import { SetAnchorTool } from './set-anchor-tool';
 import { SetFacingTool } from './set-facing-tool';
 
@@ -57,16 +66,20 @@ import { SetFacingTool } from './set-facing-tool';
  */
 
 /**
- * FIVE tools and no Select. The designer shipped a `SelectTool` over an empty candidate set
- * with a move factory that threw, under a docblock saying Task B8 would give the surface a
- * selection; B8 shipped an inspector that reads the design and no selection, and the button
- * stayed — a live control that did nothing but stop a primary-button pan, which slice 14's
- * amendment refuses. Selection returns with the first thing on this canvas that can be
- * selected and moved, and it returns with its candidates and its gesture together.
+ * Select is FIRST, and it is back on the condition this note used to set for it. The designer once
+ * shipped a `SelectTool` over an empty candidate set with a move factory that threw — a live control
+ * that did nothing but stop a primary-button pan, which slice 14's amendment refuses — and it was
+ * withdrawn until selection could return "with its candidates and its gesture together". The symbols
+ * spec's Decision 10 is that return: `hitDesign` is its candidates (footprint, clearance, details,
+ * anchor, facing, in a stated order) and `DesignerSelectTool` its gesture.
  */
 export const DESIGNER_TOOL_LABELS = {
+	select: 'designer.toolbar.select',
 	'trace-footprint': 'designer.toolbar.trace-footprint',
 	'trace-clearance': 'designer.toolbar.trace-clearance',
+	'draw-rect': 'designer.toolbar.draw-rect',
+	'draw-circle': 'designer.toolbar.draw-circle',
+	'trace-detail': 'designer.toolbar.trace-detail',
 	'set-anchor': 'designer.toolbar.set-anchor',
 	'set-facing': 'designer.toolbar.set-facing',
 	calibrate: 'designer.toolbar.calibrate',
@@ -124,22 +137,94 @@ export interface DesignerToolDeps {
 	/** Asks the user to accept that rescale; `true` proceeds. Never called when the above is false. */
 	readonly confirmRecalibration: () => Promise<boolean>;
 	/**
-	 * Where a completed trace hands control back to (Task 10). This surface registers no
-	 * `select` tool — see this file's own FIVE-tools note above `DESIGNER_TOOL_LABELS` — so
-	 * `runtime.ts` binds this to camera mode (`setTool(null)`) rather than to Select.
+	 * Whether a detail added to `shape` right now awaits a scale — `captureAwaitsScale` over the
+	 * leaf's calibration and background, which `selectTool.design()` does not carry (Decision 11:
+	 * "by the rule tracing already follows").
 	 */
-	readonly returnToCamera: () => void;
+	readonly detailPending: (shape: AssetShape) => boolean;
+	/** Where a completed trace or drawn detail hands control back to: Select, as on a plan. */
+	readonly returnToSelect: () => void;
+	/** The Select tool's own deps — the leaf's design store and one conditional shape write. */
+	readonly selectTool: DesignerSelectToolDeps;
+}
+
+type DetailWriteValue = { readonly command: UndoableCommand; readonly detailId: string };
+type DetailWrite = Result<DetailWriteValue, ValidationError>;
+
+/**
+ * The ONE write all three detail tools build: `addDetail` over the design the leaf read, pending by
+ * the capture rule, conditional on that design's version. The id is computed with the command so
+ * the tool can select the detail the write will create.
+ *
+ * A shapeless asset refuses THROUGH `requireShape` (`updateAssetShape.ts`), the one function that owns
+ * that code and its sentence, rather than a second spelling of them here: a detail, like a clearance,
+ * is drawn relative to a footprint.
+ *
+ * **A draw does not join `runtime.editShape`'s serialised chain** (`selection/editShape.ts`). It
+ * reads `selectTool.design()` at release, so a draw released while an inspector commit or a nudge
+ * is still being read back builds on the version before that write and is refused as a version
+ * conflict. That is safe — the condition refuses, nothing is overwritten, and the user draws again
+ * — and it is closed by routing this write through that chain instead of `commandDispatcher.run`.
+ */
+function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): DetailWrite {
+	const design = deps.selectTool.design();
+	// A null shape only ever gets `requireShape`'s refusal, which is all the cast states.
+	if (design === null) return requireShape(null) as Result<never, ValidationError>;
+	const detailId = nextDetailId(design.shape);
+	const added = addDetail(design.shape, { name, outline, line: 'solid', pending: deps.detailPending(design.shape) });
+	if (!added.ok) return err(added.error);
+	return ok({ command: deps.selectTool.createCommand(added.value, design.geometryVersion), detailId });
+}
+
+/** A drawn detail is selected once written, and every draw returns to Select (Amendment 1). */
+function completeDetail(deps: DesignerToolDeps, detailId: string): void {
+	deps.returnToSelect();
+	deps.selectTool.select({ kind: 'detail', id: detailId });
+}
+
+/**
+ * Trace detail is `DrawPolygonTool`. Every refusal a traced detail can meet — the polygon rules, no
+ * footprint, `addDetail`'s own — is asked in `validateOutline`, which runs before any command is
+ * built, so it reaches `reportInvalidInput` and dispatches NOTHING (the one-gesture constraint: a
+ * domain refusal is never dispatched). The write that check built is held for `commandFor`, which
+ * `closePolygon` calls straight after it with no await between, so the two cannot see different
+ * designs.
+ */
+function traceDetailTool(deps: DesignerToolDeps): DrawPolygonTool {
+	// Assigned by the successful `validateOutline` that always precedes `commandFor` and `onCompleted`.
+	let traced!: DetailWriteValue;
+	return new DrawPolygonTool({
+		id: 'trace-detail',
+		validateOutline: (points) => {
+			const polygon = createPolygon(points);
+			if (!polygon.ok) return polygon;
+			const write = detailWrite(deps, 'outline', polygon.value);
+			if (!write.ok) return write;
+			traced = write.value;
+			return polygon;
+		},
+		completion: {
+			commandFor: () => {
+				const { command } = traced;
+				return { execute: () => command.execute(), undo: () => command.undo(), createdId: null };
+			},
+		},
+		reportRejected: deps.reportRejected,
+		reportInvalidInput: deps.reportInvalidInput,
+		onCompleted: () => completeDetail(deps, traced.detailId),
+	});
 }
 
 export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDeps): void {
-	const { assetId, edits, returnToCamera } = deps;
+	const { assetId, edits, returnToSelect } = deps;
 	/**
 	 * TOTAL over `DesignerToolId`, which is what makes the toolbar's table and this function
 	 * one fact rather than two. Registered by iterating the record's own values, so there is no
 	 * second list of "the ones to register".
 	 */
 	const tools: Readonly<Record<DesignerToolId, EditorTool>> = {
-		// `createdId` is `null` for both traces, which is the second of the two states
+		select: new DesignerSelectTool(deps.selectTool),
+		// `createdId` is `null` for the footprint and clearance traces, which is the second of the two states
 		// `PolygonCommand.createdId` declares and the one that interface predicted: tracing an
 		// Asset's outline REPLACES a field of the asset already open, so there is no new entity
 		// to select and the tool leaves the selection exactly as the user had it.
@@ -153,9 +238,7 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 			},
 			reportRejected: deps.reportRejected,
 			reportInvalidInput: deps.reportInvalidInput,
-			// The designer registers no `select` tool (see the FIVE-tools note above), so a
-			// completed trace returns to camera mode rather than to a tool that does not exist.
-			onCompleted: returnToCamera,
+			onCompleted: returnToSelect,
 		}),
 		'trace-clearance': new DrawPolygonTool({
 			id: 'trace-clearance',
@@ -167,10 +250,25 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 			},
 			reportRejected: deps.reportRejected,
 			reportInvalidInput: deps.reportInvalidInput,
-			// Same reason as `trace-footprint` above: no Select tool here, so completing a
-			// clearance trace hands control back to camera mode.
-			onCompleted: returnToCamera,
+			onCompleted: returnToSelect,
 		}),
+		'draw-rect': new DrawDetailTool({
+			id: 'draw-rect',
+			outlineFor: rectOutline,
+			commandFor: (outline) => detailWrite(deps, 'rectangle', outline),
+			reportRejected: deps.reportRejected,
+			reportInvalidInput: deps.reportInvalidInput,
+			onCompleted: (detailId) => completeDetail(deps, detailId),
+		}),
+		'draw-circle': new DrawDetailTool({
+			id: 'draw-circle',
+			outlineFor: circleOutline,
+			commandFor: (outline) => detailWrite(deps, 'circle', outline),
+			reportRejected: deps.reportRejected,
+			reportInvalidInput: deps.reportInvalidInput,
+			onCompleted: (detailId) => completeDetail(deps, detailId),
+		}),
+		'trace-detail': traceDetailTool(deps),
 		'set-anchor': new SetAnchorTool({
 			createCommand: (anchor) => edits.setAnchor({ assetId, anchor }),
 			reportRejected: deps.reportRejected,

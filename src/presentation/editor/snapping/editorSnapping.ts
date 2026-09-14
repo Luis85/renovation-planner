@@ -78,6 +78,7 @@ const CONSTRAINING_TOOLS: readonly ToolId[] = [
 	'calibrate',
 	'trace-footprint',
 	'trace-clearance',
+	'trace-detail',
 	'set-facing',
 ];
 

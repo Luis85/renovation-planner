@@ -431,7 +431,7 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Ein eingegebener Umriss ist bereits in Millimetern und wartet daher auf keinen Maßstab.',
 	'asset.absent-clearance-cannot-be-pending': 'Es gibt keinen Freiraum, der auf einen Maßstab warten könnte.',
 	'asset.no-footprint':
-		'Geben Sie diesem Objekt zuerst einen Umriss; Freiraum, Ankerpunkt und Ausrichtung beziehen sich jeweils darauf.',
+		'Geben Sie diesem Objekt zuerst einen Umriss; Freiraum, Ankerpunkt, Ausrichtung und Details beziehen sich jeweils darauf.',
 	'asset.not-found': 'Dieses Objekt existiert nicht mehr.',
 	'asset.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Datenblatt.',
 	'plan-geometry.write-failed': 'Der Referenzmaßstab konnte nicht gespeichert werden. Ihr Entwurf bleibt erhalten; versuchen Sie es erneut.',

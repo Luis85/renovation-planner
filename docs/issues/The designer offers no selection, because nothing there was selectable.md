@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Select part of an object's shape]]"
 order: 10
-status: New
-started: ""
-finished: ""
+status: Done
+started: "2026-09-13"
+finished: "2026-09-14"
 start: ""
 due: ""
 risk: ""
@@ -87,3 +87,19 @@ not settle — whether the first version edits whole parts or individual vertice
 they want to nudge, an anchor a calibration moved, a facing a degree out. Until one of those is
 reported, redrawing is a real answer rather than a workaround, and that is the honest reason this
 is an open item rather than a defect.
+
+## Outcome
+
+Selection came back on 2026-09-13, with its candidates and its gesture together — the condition
+this note set. The candidates are `hitDesign` (`src/presentation/designer/selection/hitTest.ts`), a
+stated six-step hit order over the footprint, the clearance, each detail, the anchor and the
+facing; the gesture is `DesignerSelectTool`
+(`src/presentation/designer/tools/designer-select-tool.ts`), whose every drag is one conditional
+`SetAssetShape` write. The inspector reads the selection, and the toolbar's exact-list test was
+changed deliberately in the same pull request to offer Select again.
+
+The trigger this note named — a correction a renovator cannot make by redrawing — was not waited
+for: a preset gives an asset a tank and a bowl that nothing else can nudge, which is that trigger
+arriving by construction. The design is `docs/superpowers/specs/2026-09-13-asset-designer-symbols-design.md`
+(Decisions 9–11 and Amendment 1); the plan is
+`docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr2.md`.

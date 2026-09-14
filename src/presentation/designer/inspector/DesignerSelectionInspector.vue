@@ -28,7 +28,7 @@
  * A part the shape lacks renders nothing (PBI extension 2a). The store prunes such a selection on
  * its next read; this guard covers the frame between the two.
  */
-import { computed, nextTick, onBeforeUnmount, ref, useId } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { AppError } from '../../../core/errors/AppError';
@@ -52,6 +52,8 @@ import { duplicateAndSelect } from '../designerKeys';
 import type { ShapeEdit } from '../selection/editShape';
 import { selectionExists, type DesignerSelection } from '../selection/designerSelection';
 import { partBox, resizeToExtent, withPartBox } from '../selection/partExtent';
+import DesignerFieldRow from './DesignerFieldRow.vue';
+import DesignerActionButton from './DesignerActionButton.vue';
 
 const props = defineProps<{
 	design: AssetDesignDto;
@@ -110,9 +112,6 @@ onBeforeUnmount(() => {
 	const aside = section !== null && section.contains(document.activeElement) ? section.closest<HTMLElement>('aside') : null;
 	if (aside !== null) void nextTick(() => aside.focus());
 });
-
-/** The facing angle's hint paragraph, which its field names by `aria-describedby`; `useId` is unique per leaf's app. */
-const hintId = useId();
 
 /** One write's outcome: the refusal it answers is shown, and a write that lands clears the last one. */
 async function show(written: Promise<DispatchResult>): Promise<boolean> {
@@ -288,46 +287,27 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 				</select>
 			</label>
 		</template>
-		<template
+		<DesignerFieldRow
 			v-for="field in fields"
 			:key="field.name"
-		>
-			<label class="rp-designer-field">
-				{{ tr(field.label) }}
-				<input
-					type="number"
-					:name="field.name"
-					step="any"
-					inputmode="decimal"
-					:value="Math.round(field.value)"
-					:aria-describedby="field.hint === undefined ? undefined : hintId"
-					@change="(event: Event) => void onNumber(field, event)"
-				>
-			</label>
-			<!-- Outside the label, so the hint is the field's DESCRIPTION and never part of its name. -->
-			<p
-				v-if="field.hint !== undefined"
-				:id="hintId"
-				class="rp-designer-field-hint"
-			>
-				{{ tr(field.hint) }}
-			</p>
-		</template>
+			:name="field.name"
+			:label="field.label"
+			:value="field.value"
+			:hint="field.hint"
+			:on-change="(event: Event) => void onNumber(field, event)"
+		/>
 		<div
 			v-if="actions.length > 0"
 			class="rp-designer-selection-actions"
 		>
-			<button
+			<DesignerActionButton
 				v-for="action in actions"
 				:key="action.name"
-				type="button"
-				class="rp-designer-selection-button"
 				:name="action.name"
-				:aria-disabled="action.disabled ? 'true' : undefined"
-				@click="action.disabled ? undefined : action.run()"
-			>
-				{{ tr(action.label) }}
-			</button>
+				:label="action.label"
+				:disabled="action.disabled"
+				:on-run="action.run"
+			/>
 		</div>
 		<p
 			v-if="refusal !== null"

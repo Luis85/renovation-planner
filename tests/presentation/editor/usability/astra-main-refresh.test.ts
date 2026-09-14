@@ -28,6 +28,7 @@ it('refuses every captured drafting entry and runtime start outside Plan, preser
 	const history = [rig.runtime.canUndo.value, rig.runtime.canRedo.value];
 	await rig.runtime.renovation.perspective('renovate'); await settle();
 	expect(rig.wrapper.get('[data-rp-context-action="drafting-menu"]').attributes('aria-disabled')).toBe('true');
+	expect(rig.wrapper.get('[data-rp-context-action="delete"]').attributes('aria-disabled')).toBe('true');
 	expect(rig.wrapper.get('[data-rp-context-action="drafting-menu"]').attributes('title')).toBe('Edit geometry in plan');
 	for (const mode of ['renovate', 'review'] as const) {
 		await rig.runtime.renovation.perspective(mode); await settle();

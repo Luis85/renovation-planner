@@ -10,6 +10,8 @@ export const draftingEn = {
 	'editor.drafting.banner.section': 'Click both ends of the section line.',
 	'editor.drafting.banner.view': 'Click the marker, then the direction it looks.',
 	'editor.drafting.banner.hatch': 'Click the corners of the area, then finish.',
+	'editor.drafting.banner.hatch-rectangle': 'Drag on the plan to size the area, or enter its position and size in details.',
+	'editor.drafting.hatch.mode': 'Area shape',
 	'editor.drafting.banner.text': 'Click where the text goes, type it, then finish.',
 	'editor.drafting.banner.boundary': 'Click the points of the boundary line, then finish.',
 	'editor.drafting.banner.grid': 'Click to place a grid point. The tool stays on for the next one.',

@@ -32,7 +32,7 @@ export const objectDe: Record<keyof typeof objectEn, string> = {
 	'editor.object.mode': 'Form des Gegenstands',
 	'editor.object.mode.rectangle': 'Rechteck',
 	'editor.object.mode.free': 'Freie Form',
-	'editor.object.rectangle-hint': 'Position der linken oberen Ecke und Größe in Metern ab dem Planursprung (0, 0) eingeben: X verläuft nach rechts, Y nach unten. Übernehmen ersetzt den aktuellen Umriss. Fertig speichert den Gegenstand.',
+	'editor.object.rectangle-hint': 'Position der linken oberen Ecke und Größe in Metern ab dem Planursprung (0, 0) eingeben: X verläuft nach rechts, Y nach unten. Übernehmen ersetzt den aktuellen Umriss. Mit Fertig wird gespeichert.',
 	'editor.object.apply-rectangle': 'Rechteck übernehmen',
 	'editor.object.discard-rectangle': 'Rechteckeingabe verwerfen',
 	'editor.object.pending-rectangle': 'Rechteckeingabe übernehmen oder verwerfen, bevor Sie den Umriss fortsetzen oder fertigstellen.',

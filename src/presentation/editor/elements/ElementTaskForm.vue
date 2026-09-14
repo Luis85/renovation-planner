@@ -7,7 +7,8 @@ import ObjectRectangleFields from './ObjectRectangleFields.vue';
 import ObjectShapeSwitch from './ObjectShapeSwitch.vue';
 import StairDraftFields from './StairDraftFields.vue';
 import StructuralDraftFields from './StructuralDraftFields.vue';
-import { maxDraftPoints } from './elementDraft';
+import { maxDraftPoints, shapedKind } from './elementDraft';
+import { rectangleInstruction } from './objectShape';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
@@ -23,10 +24,11 @@ onBeforeUnmount(() => {
 	const root = taskRoot.value, editor = root?.closest<HTMLElement>('.renovation-plan-editor');
 	if (root?.contains(document.activeElement)) void nextTick(() => { if (editor?.isConnected) editor.querySelector<HTMLElement>('.rp-plan-canvas')?.focus(); });
 });
-/** A rectangle item is entered through its rectangle fields alone; per-point entry is free-form's (2026-09-13 item modes spec §A). */
-const pointEntry = computed(() => draft.kind !== 'object' || draft.shape === 'free');
+/** A rectangle item or hatched area is entered through its rectangle fields alone; per-point entry is free-form's (2026-09-13 item modes spec §A). */
+const shaped = computed(() => shapedKind(draft.kind));
+const pointEntry = computed(() => !shaped.value || draft.shape === 'free');
 /** The create-hint key ternary, out of the template and behind fallow's cognitive-complexity threshold. */
-const createHint = computed(() => tr(pointEntry.value ? 'editor.element.create-hint' : 'editor.element.banner.object-rectangle'));
+const createHint = computed(() => tr(pointEntry.value ? 'editor.element.create-hint' : rectangleInstruction(draft.kind)));
 /** Out of the template for the same threshold, once posts and beams joined the draft kinds (structural posts and beams). */
 const structural = computed(() => draft.kind === 'post' || draft.kind === 'beam');
 /** The remaining compound conditions and ternaries below, out of the template for the same threshold. */
@@ -97,7 +99,7 @@ async function add(): Promise<void> {
 				@input="input('name', $event)"
 			></label>
 		</FieldError>
-		<template v-if="draft.kind === 'object'">
+		<template v-if="shaped">
 			<ObjectShapeSwitch />
 			<ObjectRectangleFields
 				:task="task"

@@ -11,6 +11,8 @@ export const draftingDe: Record<keyof typeof draftingEn, string> = {
 	'editor.drafting.banner.section': 'Beide Enden der Schnittlinie anklicken.',
 	'editor.drafting.banner.view': 'Den Pfeil setzen, dann die Blickrichtung anklicken.',
 	'editor.drafting.banner.hatch': 'Die Ecken der Fläche anklicken, dann abschließen.',
+	'editor.drafting.banner.hatch-rectangle': 'Im Plan ziehen, um die Größe der Fläche festzulegen, oder Position und Größe unter Details eingeben.',
+	'editor.drafting.hatch.mode': 'Form der Fläche',
 	'editor.drafting.banner.text': 'Die Stelle anklicken, den Text eingeben, dann abschließen.',
 	'editor.drafting.banner.boundary': 'Die Punkte der Grenzlinie anklicken, dann abschließen.',
 	'editor.drafting.banner.grid': 'Klicken, um einen Achspunkt zu setzen. Das Werkzeug bleibt für den nächsten aktiv.',

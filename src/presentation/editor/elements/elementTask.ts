@@ -140,7 +140,8 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		if (runtime.activeToolId.value !== tool) return;
 		const ticket = reads.ticket();
 		await reads.ready();
-		if (reads.current(ticket)) addPoint(point);
+		// A point to start from is a first corner, so a hatched area started here is drawn free-form.
+		if (reads.current(ticket)) { draft.shape = 'free'; addPoint(point); }
 	}
 	for (const id of Object.keys(ELEMENT_TOOLS) as ElementToolId[]) runtime.toolManager.register(new ElementTool(id, {
 		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, setPoints, finish: () => { void finish(); },

@@ -60,6 +60,27 @@
 	gap: 2px var(--size-4-2);
 }
 
+/*
+ * The snap hint RESERVES its width whether it shows or not. It comes and goes with the pointer's
+ * snap, and leaving the canvas for Finish drops the snap — so a hint that took space only while
+ * shown resized the bar and moved Finish out from under the pointer on its way there. The reserved
+ * copy is generated content under `visibility: hidden`, neither drawn nor read; the live text shares
+ * its grid cell.
+ */
+.rp-task-banner__snap {
+	display: inline-grid;
+}
+
+.rp-task-banner__snap::before,
+.rp-task-banner__snap > span {
+	grid-area: 1 / 1;
+}
+
+.rp-task-banner__snap::before {
+	content: attr(data-reserve);
+	visibility: hidden;
+}
+
 /* The actions close the bar: pushed to its trailing edge, and onto a line of their own when wrapped. */
 .rp-task-banner__actions {
 	display: flex;

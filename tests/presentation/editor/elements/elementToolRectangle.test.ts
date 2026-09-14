@@ -61,6 +61,14 @@ describe('ElementTool, an item in rectangle mode', () => {
 		expect(draft.points).toEqual(after);
 	});
 
+	it('draws a hatched area the same one drag, a room\'s gesture, and undoes it whole', () => {
+		const { tool, draft } = armed('draw-hatch');
+		tool.pointerDown(pointerAt(5000, 4000)); tool.pointerMove({ ...pointerAt(3000, 4500), modifiers: { ...pointerAt(0, 0).modifiers, shift: true } }); tool.pointerUp(pointerAt(800, 200));
+		expect(draft.points).toEqual(RECT);
+		expect(tool.editCorner(-1, null)).toBe(true);
+		expect(draft.points).toEqual([]);
+	});
+
 	it('keeps the shape mode through cancel — Escape clears the outline, not the choice of how to draw it', () => {
 		const { tool, draft } = armed('place-object', 'free');
 		tool.pointerDown(pointerAt(0, 0)); tool.pointerUp(pointerAt(0, 0));

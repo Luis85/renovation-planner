@@ -451,7 +451,7 @@ refreshing. The first bullet refines Amendment 1's condition:
   calibration and height writes, the arrow keys and the inspector.
 - A press that arrives while that chain is busy is held and replayed once it drains. A drag
   therefore still reads, and is conditional on, the design the user pressed on.
-- A peer write during the hold still refuses the drag.
+- A peer write the replayed press has not read refuses the drag. One it has already read, because the chain's read-back brought it in before the replay, is built on, never overwritten.
 - Escape abandons a held press.
 
 ## Docs this changes

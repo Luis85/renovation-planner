@@ -153,11 +153,40 @@ describe('a press held behind a queued write', () => {
 	});
 
 	/**
-	 * Green before the chain existed too, for the refusal's own reason. What it pins is Amendment 1's
-	 * press-read version surviving the replay: a release made conditional on the version the store
-	 * holds AT RELEASE — the peer's, once its refresh has landed — writes over the peer's facing.
+	 * The ordering Amendment 2's peer bullet builds on: a peer write that lands WHILE the second press is
+	 * held — after that press was made, and before the chain has drained. Measured, it lands ahead of the
+	 * first drag's own write, which refuses that write (its press never read the peer's). The chain's
+	 * read-back then brings the peer's change in before the replay, so the replayed press reads the
+	 * peer's version and its drag lands on top of the peer's change: the peer's facing is kept, the
+	 * held drag's 100 mm is applied, and its write is saved. The case below is the other ordering, a
+	 * peer write during the LIVE (replayed) drag.
 	 */
-	it('stays conditional on the design it was replayed on, so a peer write before its release refuses it', async () => {
+	it('builds a drag held behind a write on a peer write that landed during the hold', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		await toolbar(rig, 'designer.toolbar.select');
+
+		drag(rig, IN_BOWL, IN_MOVED_BOWL);
+		// Held, release included, behind the first drag's queued write.
+		drag(rig, IN_MOVED_BOWL, FURTHER);
+		expectOk(await rig.peer.setFacing.execute({ assetId: rig.assetId, facing: 0 }));
+		// The peer's write has landed and neither drag has written yet.
+		await expectBowlMoved(rig, 0);
+		await settle();
+
+		expect((await rig.document()).shape?.facing).toBe(0);
+		await expectBowlMoved(rig, 100);
+		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
+		rig.unmount();
+	});
+
+	/**
+	 * A peer write during a LIVE drag — the held press has already been replayed, so the peer's write
+	 * is one that press never read. Green before the chain existed too, for the refusal's own reason.
+	 * What it pins is Amendment 1's press-read version surviving the replay: mutant M2, a release made
+	 * conditional on the version the store holds AT RELEASE — the peer's, once its refresh has landed —
+	 * writes over the peer's facing.
+	 */
+	it('stays conditional on the design it was replayed on, so a peer write during the live replayed drag refuses it', async () => {
 		const rig = await designerRig({ shape: TOILET });
 		await toolbar(rig, 'designer.toolbar.select');
 

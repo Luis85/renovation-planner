@@ -111,7 +111,8 @@ export class DesignerSelectTool implements EditorTool {
 	private context: EditorContext | null = null;
 	private drag: Drag | null = null;
 	private bend: Bend | null = null;
-	private held: Held | null = null;
+	/** Presses held behind a queued write, in arrival order; every one but the last has its release (`hold`). */
+	private held: Held[] = [];
 	private previewGeneration = 0;
 	/**
 	 * Its actions are asked only while a bend exists — `pointerDown` forwards to it only on an edge
@@ -148,6 +149,34 @@ export class DesignerSelectTool implements EditorTool {
 	}
 
 	pointerDown(event: EditorPointerEvent): void {
+		this.press(event, true);
+	}
+
+	/** While a press is held, its latest move and its release are recorded on it rather than acted on. */
+	pointerMove(event: EditorPointerEvent): void {
+		const last: Held | undefined = this.held[this.held.length - 1];
+		if (last !== undefined) {
+			last.move = event;
+			return;
+		}
+		this.movePointer(event);
+	}
+
+	pointerUp(event: EditorPointerEvent): void {
+		if (event.button !== 'primary') return;
+		const last: Held | undefined = this.held[this.held.length - 1];
+		if (last !== undefined) {
+			last.up = event;
+			return;
+		}
+		this.lift(event);
+	}
+
+	/**
+	 * `mayHold` is false only for a replay (`replayWhenSettled`), which must act on the press rather than
+	 * queue it again behind the presses held with it.
+	 */
+	private press(event: EditorPointerEvent, mayHold: boolean): void {
 		const context = this.context;
 		const design = this.deps.design();
 		if (context === null || design === null || event.button !== 'primary') return;
@@ -156,7 +185,7 @@ export class DesignerSelectTool implements EditorTool {
 		// would ask a bend that is gone — while a drag is only forgotten, so a plain press clears no preview.
 		if (this.bend !== null) this.abandonGesture();
 		this.drag = null;
-		if (this.deps.writing()) {
+		if (mayHold && (this.held.length > 0 || this.deps.writing())) {
 			this.hold(event);
 			return;
 		}
@@ -186,11 +215,7 @@ export class DesignerSelectTool implements EditorTool {
 		this.begin(context, design, selection as DesignerSelection, hit.role, event.worldPoint);
 	}
 
-	pointerMove(event: EditorPointerEvent): void {
-		if (this.held !== null) {
-			this.held.move = event;
-			return;
-		}
+	private movePointer(event: EditorPointerEvent): void {
 		if (this.bend !== null) {
 			this.curve.pointerMove(event);
 			return;
@@ -200,12 +225,7 @@ export class DesignerSelectTool implements EditorTool {
 		this.preview(this.shapeAt(drag, event));
 	}
 
-	pointerUp(event: EditorPointerEvent): void {
-		if (event.button !== 'primary') return;
-		if (this.held !== null) {
-			this.held.up = event;
-			return;
-		}
+	private lift(event: EditorPointerEvent): void {
 		if (this.bend !== null) {
 			// `CurveTool` takes the release's own bulge and drops its drag; `finish` then commits.
 			this.curve.pointerUp(event);
@@ -236,7 +256,7 @@ export class DesignerSelectTool implements EditorTool {
 
 	/** A press with no release yet, or one held behind a write — so Escape abandons it before it clears the selection. */
 	hasDraft(): boolean {
-		return this.drag !== null || this.bend !== null || this.held !== null;
+		return this.drag !== null || this.bend !== null || this.held.length > 0;
 	}
 
 	/** Both gestures compute from the event's world point, so edge scrolling may carry them. */
@@ -320,30 +340,44 @@ export class DesignerSelectTool implements EditorTool {
 	private dropGesture(): void {
 		this.drag = null;
 		this.bend = null;
-		this.held = null;
+		this.held = [];
 		this.deps.setPreview(null);
 	}
 
 	/**
 	 * A press made while a write is still queued is HELD, with its latest move and its release, and
 	 * replayed once every write queued so far has settled — so it reads, and a drag is conditional on,
-	 * the design those writes left (spec Amendments 1 and 2). Replayed through the public doors, so a
-	 * press that finds another write queued by then is simply held again with what it carried.
+	 * the design those writes left (spec Amendments 1 and 2).
+	 *
+	 * A press arriving while others are held is held behind them, so gestures replay in the order they
+	 * were made. It REPLACES the last one only when that one's release never came — the rule a live press
+	 * follows — and never a gesture whose release was recorded, which is a whole drag the user finished.
 	 */
 	private hold(down: EditorPointerEvent): void {
-		const held: Held = { down, move: null, up: null };
-		this.held = held;
-		void this.replayWhenSettled(held);
+		const idle = this.held.length === 0;
+		const last: Held | undefined = this.held[this.held.length - 1];
+		if (last?.up === null) this.held.pop();
+		this.held.push({ down, move: null, up: null });
+		if (idle) void this.replayWhenSettled(this.held);
 	}
 
-	private async replayWhenSettled(held: Held): Promise<void> {
-		await this.deps.settled();
-		// Escape, an interruption or a tool switch dropped it, or a later press replaced it.
-		if (this.held !== held) return;
-		this.held = null;
-		this.pointerDown(held.down);
-		if (held.move !== null) this.pointerMove(held.move);
-		if (held.up !== null) this.pointerUp(held.up);
+	/**
+	 * Replays the held presses in order, each through the private doors so its move and release cannot
+	 * land on a press still held behind it. It stops whenever a write is queued — the one a replayed
+	 * release just dispatched, or one queued while they waited — so the next press reads what that write
+	 * left. A new list (`dropGesture`: Escape, an interruption, a tool switch) ends it.
+	 */
+	private async replayWhenSettled(queue: Held[]): Promise<void> {
+		while (queue === this.held && queue.length > 0) {
+			await this.deps.settled();
+			while (queue === this.held && !this.deps.writing()) {
+				const next = queue.shift();
+				if (next === undefined) return;
+				this.press(next.down, false);
+				if (next.move !== null) this.movePointer(next.move);
+				if (next.up !== null) this.lift(next.up);
+			}
+		}
 	}
 
 	/**

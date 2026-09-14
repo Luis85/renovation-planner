@@ -59,6 +59,10 @@ const VIEWPORT = { width: 1280, height: 800 };
 // out on a page that had rendered perfectly.
 const PROJECT_VIEW = '.renovation-planner-view';
 const ASSET_DESIGNER_VIEW = '.renovation-asset-designer-view';
+// The mark `tests/harness/assetDesigner.ts`'s `driveHarness` sets once a `?preset=` capture's knobs have
+// landed — the fit, the selection, the held draw. The view element above is attached at MOUNT, before any
+// of that, so a shot waiting on it alone could photograph the unframed designer (selection polish, A5).
+const DESIGNER_READY = '[data-rp-harness-ready]';
 // The harness's own picker. Present from the first paint and with nothing async under it — the
 // index at `?index` opens no entry — so unlike the surfaces above there is no "has it really
 // drawn" question to answer here beyond the element existing.
@@ -683,10 +687,10 @@ const SHOTS = [
 	{ name: 'asset-designer-narrow', query: '?view=asset-designer', selector: ASSET_DESIGNER_VIEW, width: 460 },
 	// The symbols spec's presets, one per group, seeded through the designer harness's `?preset=` knob so
 	// the canvas draws curves and details rather than the empty state.
-	{ name: 'asset-designer-preset-curved-table', query: '?view=asset-designer&preset=curved-table', selector: ASSET_DESIGNER_VIEW },
-	{ name: 'asset-designer-preset-sofa', query: '?view=asset-designer&preset=sofa', selector: ASSET_DESIGNER_VIEW },
-	{ name: 'asset-designer-preset-toilet', query: '?view=asset-designer&preset=toilet', selector: ASSET_DESIGNER_VIEW },
-	{ name: 'asset-designer-preset-tree', query: '?view=asset-designer&preset=tree', selector: ASSET_DESIGNER_VIEW },
+	{ name: 'asset-designer-preset-curved-table', query: '?view=asset-designer&preset=curved-table', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
+	{ name: 'asset-designer-preset-sofa', query: '?view=asset-designer&preset=sofa', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
+	{ name: 'asset-designer-preset-toilet', query: '?view=asset-designer&preset=toilet', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
+	{ name: 'asset-designer-preset-tree', query: '?view=asset-designer&preset=tree', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
 	// The selection (symbols spec, Decision 10): one capture per mode and one of the anchor, through the
 	// designer harness's `&select=`/`&mode=` knobs. Each waits on marks that exist only once the knob
 	// has landed — the pressed mode and that part's inspector section — so a capture cannot be taken of
@@ -696,23 +700,55 @@ const SHOTS = [
 	{
 		name: 'asset-designer-select-transform',
 		query: '?view=asset-designer&preset=toilet&select=detail-2',
-		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="detail"]'],
+		selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="detail"]'],
 	},
 	{
 		name: 'asset-designer-select-points',
 		query: '?view=asset-designer&preset=toilet&select=footprint&mode=points',
-		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'],
+		selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'],
 	},
 	{
 		name: 'asset-designer-select-bend',
 		query: '?view=asset-designer&preset=curved-table&select=footprint&mode=bend&theme=light',
-		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'],
+		selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'],
 	},
 	{
 		name: 'asset-designer-select-anchor',
 		query: '?view=asset-designer&preset=toilet&select=anchor',
-		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection[data-kind="anchor"]'],
+		selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="anchor"]'],
 	},
+	// The capture-and-critique pass (selection polish, Task 1): each mode in the scheme its shot above does
+	// not take, and the three parts those four leave out — the footprint in Transform, the clearance, the
+	// facing — in both, because whether a handle reads against the ground is a contrast question and one
+	// scheme is half an answer.
+	{ name: 'asset-designer-select-transform-light', query: '?view=asset-designer&preset=toilet&select=detail-2&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="detail"]'] },
+	{ name: 'asset-designer-select-points-light', query: '?view=asset-designer&preset=toilet&select=footprint&mode=points&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'] },
+	{ name: 'asset-designer-select-bend-dark', query: '?view=asset-designer&preset=curved-table&select=footprint&mode=bend', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'] },
+	{ name: 'asset-designer-select-anchor-light', query: '?view=asset-designer&preset=toilet&select=anchor&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="anchor"]'] },
+	{ name: 'asset-designer-select-footprint', query: '?view=asset-designer&preset=toilet&select=footprint', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'] },
+	{ name: 'asset-designer-select-footprint-light', query: '?view=asset-designer&preset=toilet&select=footprint&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'] },
+	{ name: 'asset-designer-select-clearance', query: '?view=asset-designer&preset=toilet&select=clearance', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="clearance"]'] },
+	{ name: 'asset-designer-select-clearance-light', query: '?view=asset-designer&preset=toilet&select=clearance&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="clearance"]'] },
+	{ name: 'asset-designer-select-facing', query: '?view=asset-designer&preset=toilet&select=facing', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="facing"]'] },
+	{ name: 'asset-designer-select-facing-light', query: '?view=asset-designer&preset=toilet&select=facing&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="facing"]'] },
+	// A detail's inspector section at a sidebar leaf's width, in English and in German — the longest labels
+	// (`Anzuwendende Drehung in Grad`, `Eine Ebene nach vorne`) are what wraps or overflows first.
+	{ name: 'asset-designer-select-narrow', query: '?view=asset-designer&preset=toilet&select=detail-2', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="detail"]'], width: 460 },
+	{ name: 'asset-designer-select-narrow-de', query: '?view=asset-designer&preset=toilet&select=detail-2&lang=de', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="detail"]'], width: 460 },
+	// The same Transform selection at the default camera (`&camera=default`, a user zoomed out), where the toilet
+	// is a few dozen pixels across — the other end of the handle-legibility question from the framed shots.
+	{ name: 'asset-designer-select-transform-unframed', query: '?view=asset-designer&preset=toilet&select=detail-2&camera=default', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="detail"]'] },
+	// A design captured before a scale existed (`&pending`): the inspector's unscaled warnings. The spec sheet
+	// itself is not drawn — the harness refuses a background document (`tests/harness/planEditor.ts`, §55).
+	{ name: 'asset-designer-pending', query: '?view=asset-designer&preset=toilet&pending&select=detail-2', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="detail"]', '.rp-designer-unscaled'] },
+	{ name: 'asset-designer-pending-anchor-light', query: '?view=asset-designer&preset=toilet&pending&select=anchor&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="anchor"]', '.rp-designer-unscaled'] },
+	// Each draw tool mid-gesture (`&draw=`): a box and a circle held mid-drag, a detail traced three vertices
+	// in. Nothing on the DOM marks a Konva preview, so these wait on the ready mark alone, which is set only
+	// after the pointers have been dispatched.
+	{ name: 'asset-designer-draw-rect', query: '?view=asset-designer&preset=toilet&draw=draw-rect', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
+	{ name: 'asset-designer-draw-rect-light', query: '?view=asset-designer&preset=toilet&draw=draw-rect&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
+	{ name: 'asset-designer-draw-circle', query: '?view=asset-designer&preset=toilet&draw=draw-circle', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
+	{ name: 'asset-designer-draw-trace-detail', query: '?view=asset-designer&preset=toilet&draw=trace-detail', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
 	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
 	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
 	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every

@@ -23,9 +23,8 @@ import { computed } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { Logger } from '../../../application/ports/Logger';
-import { ok, type Result } from '../../../core/result/Result';
-import type { ValidationError } from '../../../core/errors/AppError';
-import type { AssetShape } from '../../../domain/asset/AssetShape';
+import { ok } from '../../../core/result/Result';
+import type { ShapeEdit } from '../selection/editShape';
 import { partKey, type DesignerSelection } from '../selection/designerSelection';
 import DesignerSelectionInspector from './DesignerSelectionInspector.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
@@ -43,7 +42,7 @@ const props = defineProps<{
 	logger: Logger;
 	/** The part the canvas has selected, `null` for none; its section is keyed by part, so choosing another starts it fresh. */
 	selection: DesignerSelection | null;
-	editShape: (edit: (shape: AssetShape) => Result<AssetShape, ValidationError>) => Promise<DispatchResult>;
+	editShape: (edit: ShapeEdit) => Promise<DispatchResult>;
 	select: (next: DesignerSelection | null) => void;
 }>();
 
@@ -85,17 +84,6 @@ const height = useFieldCommit<string, { height: number | null }>({
 		raw.trim() === '' || Number.isFinite(Number(raw.trim())) ? null : tr('designer.inspector.height.unparseable'),
 });
 
-function onHeightInput(raw: string): void {
-	height.onInput(raw);
-}
-
-/**
- * `null` exactly when the asset has no footprint — the same field `GetAssetDesign`'s own
- * docblock says is "never `{ width: 0, depth: 0 }`" — so the block and its warning disappear
- * together rather than showing a rectangle of zeroes.
- */
-const dimensions = computed(() => props.design.dimensions);
-
 /**
  * **The button stays, and only its NAME moves with the state.** It used to disappear with the
  * block above, on the reasoning that the empty state's own action was the hand-off while this
@@ -108,7 +96,7 @@ const dimensions = computed(() => props.design.dimensions);
  * With no shape there is nothing to EDIT, so the label says what the gesture does instead.
  */
 const dimensionsLabel = computed(() =>
-	dimensions.value === null ? tr('designer.inspector.set-dimensions') : tr('designer.inspector.edit-dimensions'),
+	props.design.dimensions === null ? tr('designer.inspector.set-dimensions') : tr('designer.inspector.edit-dimensions'),
 );
 </script>
 
@@ -119,8 +107,15 @@ const dimensionsLabel = computed(() =>
 		sibling this element needs to stand out from), so an own class would style nothing and
 		the widened `libraryComponentStyles.test.ts` scan would keep flagging it undeclared. Kept
 		as a landmark for its `aria-label`, dropped as a class.
+
+		`tabindex="-1"` makes it a surviving focus TARGET and not a Tab stop (spec Amendment 2):
+		`DesignerSelectionInspector` hands focus here when Delete or Duplicate unmounts the button
+		that had it — the plan editor's `EntityInspector` aside, for the same reason.
 	-->
-	<aside :aria-label="tr('designer.inspector')">
+	<aside
+		tabindex="-1"
+		:aria-label="tr('designer.inspector')"
+	>
 		<h2 class="rp-designer-panel-title">
 			{{ tr('designer.inspector') }}
 		</h2>
@@ -132,16 +127,28 @@ const dimensionsLabel = computed(() =>
 			:edit-shape="editShape"
 			:select="select"
 		/>
+		<!--
+			The asset's own block gets a heading of its own, so its Dimensions never read as the size of the
+			part whose section sits right above them (selection polish critique, finding 4).
+		-->
+		<h3 class="rp-designer-panel-title rp-designer-section-title">
+			{{ tr('designer.inspector.asset') }}
+		</h3>
+		<!--
+			`design.dimensions` is `null` exactly when the asset has no footprint — the same field
+			`GetAssetDesign`'s own docblock says is "never `{ width: 0, depth: 0 }`" — so the block
+			and its warning disappear together rather than showing a rectangle of zeroes.
+		-->
 		<dl
-			v-if="dimensions !== null"
+			v-if="design.dimensions !== null"
 			class="rp-designer-inspector-fields"
 		>
 			<dt>{{ tr('designer.inspector.dimensions') }}</dt>
 			<!-- Whole millimetres: a curve's box is irrational, and no drawing is read finer than that. -->
-			<dd>{{ Math.round(dimensions.width) }} × {{ Math.round(dimensions.depth) }} mm</dd>
+			<dd>{{ Math.round(design.dimensions.width) }} × {{ Math.round(design.dimensions.depth) }} mm</dd>
 		</dl>
 		<p
-			v-if="dimensions !== null && design.dimensionsUnscaled"
+			v-if="design.dimensions !== null && design.dimensionsUnscaled"
 			class="rp-designer-unscaled"
 		>
 			{{ tr('designer.inspector.dimensions.unscaled') }}
@@ -179,7 +186,7 @@ const dimensionsLabel = computed(() =>
 					step="any"
 					:aria-busy="height.pending.value"
 					:value="height.draft.value"
-					@input="onHeightInput(($event.target as HTMLInputElement).value)"
+					@input="height.onInput(($event.target as HTMLInputElement).value)"
 					@blur="height.onCommit()"
 					@keydown.enter="height.onCommit()"
 					@keydown.esc.stop="height.onCancel()"

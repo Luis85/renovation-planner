@@ -26,8 +26,7 @@ import { validateAssetShape, type AssetShape } from './AssetShape';
  *
  * **Pending flags are carried, never re-decided**: an edit to a group captured in background pixels
  * leaves it in pixel space, and only the calibration that converts it clears the flag.
- * `removeClearance` is the one edit that writes a flag, because validation refuses a pending flag on
- * an absent clearance.
+ * `removeClearance` writes one, because validation refuses a pending flag on an absent clearance.
  */
 
 /** Which outline an edit names: the footprint, the clearance, or a detail by id. */
@@ -45,8 +44,7 @@ export function outlineOf(shape: AssetShape, part: OutlinePart): CurvedPolygon |
 
 /**
  * "The part an edit names is not there" — a clearance the shape has not got, or a detail id it does
- * not carry. Exported because the detail edits and the designer's drag arithmetic ask the same
- * question, and one spelling keeps the count of the places it is asked knowable.
+ * not carry. Exported so every place that asks this has one spelling.
  */
 export function partNotFound(part: OutlinePart): ValidationError {
 	return assetError('part-not-found', `This design has no such part: ${JSON.stringify(part)}.`);

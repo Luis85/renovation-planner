@@ -19,10 +19,15 @@ import { ARC_TOLERANCE_PX, flatPoints, type OutlineConfig } from './footprintLay
  * line at any zoom that made the shape small enough to see whole, which is exactly when the
  * distinction is needed.
  */
-const CLEARANCE_DASH_PX = [8, 6];
+export const CLEARANCE_DASH_PX: readonly number[] = [8, 6];
 
-/** Thinner than the footprint: the outline of record is the heavier of the two marks. */
-const CLEARANCE_STROKE_PX = 1;
+/**
+ * The footprint's own weight: the DASH, not the stroke, tells the two apart. It was 1 px, and a 1 px
+ * accent dash measured about 2.98:1 against the light theme's white canvas, under WCAG 1.4.11's 3:1 for
+ * a non-text mark; a thicker line renders closer to the token's own colour (selection polish critique,
+ * finding 19). `selectionLayer.ts` restrokes a selected clearance in the dash above.
+ */
+const CLEARANCE_STROKE_PX = 1.5;
 
 /**
  * `null` twice over, and the two absences are different facts a caller does not have to tell

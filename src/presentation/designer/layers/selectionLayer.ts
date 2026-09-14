@@ -2,22 +2,28 @@ import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { Point } from '../../../core/geometry/Point';
 import { polygonPolyline } from '../../../core/geometry/curvePolyline';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
-import { outlineOf } from '../../../domain/asset/shapeEdits';
+import { outlineOf, type OutlinePart } from '../../../domain/asset/shapeEdits';
 import { VERTEX_GRAB_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../../editor/handleMetrics';
 import type { ThemeTokens } from '../../editor/theme/themeTokens';
 import { boundsOfZones } from '../../editor/viewport/zoneExtent';
 import { isOutlineSelection, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
-import { selectionHandles } from '../selection/handles';
+import { selectionHandles, type HandleRole } from '../selection/handles';
 import { facingTip } from './anchorLayer';
+import { CLEARANCE_DASH_PX } from './clearanceLayer';
+import { DETAIL_DASH_PX } from './detailsLayer';
 import { ARC_TOLERANCE_PX, flatPoints, type OutlineConfig } from './footprintLayer';
 
 /**
  * What the designer draws for its selection (symbols spec, Decision 10): the selected outline
- * restroked in the accent, a mark per handle the active mode offers, and a ring on the anchor or the
- * facing tip. Every mark is sized in SCREEN pixels on a world-space layer, like `anchorLayer.ts`.
+ * restroked in the accent, in its part's own dash; a mark per handle the active mode offers; and a
+ * ring, over a halo, on the anchor or the facing tip. Every mark is sized in SCREEN pixels on a
+ * world-space layer, like `anchorLayer.ts`.
  *
- * **One Konva `Rect` per mark**, square or round by `cornerRadius`, so the canvas renders a single
- * `v-for` and never a `<template>` fragment inside its `VLayer`.
+ * **One Konva `Rect` per mark**, so the canvas renders a single `v-for` and never a `<template>`
+ * fragment inside its `VLayer`: square with no `cornerRadius`, a diamond with `rotation`, round with
+ * its radius as `cornerRadius`. vue-konva UNSETS a key a later config omits (`applyNodeProps`), so
+ * `rotation` and `dash` are present only where they apply and a node reused across a mode or
+ * selection change sheds them.
  */
 export interface HandleMarkConfig {
 	readonly x: number;
@@ -26,9 +32,11 @@ export interface HandleMarkConfig {
 	readonly height: number;
 	readonly offsetX: number;
 	readonly offsetY: number;
-	/** `0` for a box handle; the radius for a round one, which makes the rect a circle. */
+	/** `0` for a box or bend handle; the radius for a round one, which makes the rect a circle. */
 	readonly cornerRadius: number;
-	/** Absent on the anchor/facing ring, which must not hide the mark it surrounds. */
+	/** `45` on a Bend edges handle, which turns its square into a diamond; absent on every other mark. */
+	readonly rotation?: number;
+	/** Absent on the anchor/facing ring and its halo, which must not hide the mark they surround. */
 	readonly fill?: string;
 	readonly stroke: string;
 	readonly strokeWidth: number;
@@ -38,10 +46,30 @@ export interface HandleMarkConfig {
 }
 
 const SELECTED_STROKE_PX = 2;
-const HANDLE_STROKE_PX = 1.5;
+
+/**
+ * 2, not 1.5: a 1.5 px accent handle measured about 3.35:1 against the light theme's white canvas, on
+ * WCAG 1.4.11's 3:1 floor, and a thicker stroke renders closer to the token's own colour (selection
+ * polish critique, finding 19).
+ */
+const HANDLE_STROKE_PX = 2;
 
 /** The ring is drawn at the GRAB radius, so it shows exactly the region a press will take. */
 const RING_RADIUS_PX = VERTEX_GRAB_RADIUS_PX;
+
+/**
+ * A canvas-coloured band drawn BEFORE the ring, from 5 to 8 px out. The ring's 2 px stroke covers 7 to 9
+ * px over it, so what reads is the 6 px anchor dot out to 5 px, then 2 px of canvas, then the ring — and
+ * the facing's arrowhead stops short of the ring rather than tangling with it. A selected anchor read as a
+ * slightly fatter dot without it (critique finding 8). The ring itself stays at the grab radius.
+ */
+const HALO_RADIUS_PX = 6.5;
+const HALO_STROKE_PX = 3;
+
+/** Which mark a handle wears: a box handle square, a bend handle a diamond (critique finding 17), a vertex and the rotate handle round. */
+const HANDLE_STYLE: Record<HandleRole['kind'], 'square' | 'diamond' | 'round'> = { box: 'square', edge: 'diamond', vertex: 'round', rotate: 'round' };
+
+type MarkStyle = 'square' | 'diamond' | 'round' | 'ring' | 'halo';
 
 type PointSelection = Exclude<DesignerSelection, { readonly kind: 'footprint' | 'clearance' | 'detail' }>;
 
@@ -49,7 +77,7 @@ function pointOf(shape: AssetShape, selection: PointSelection, worldPerPixel: nu
 	return selection.kind === 'anchor' ? shape.anchor : facingTip(shape, worldPerPixel);
 }
 
-function mark(at: Point, radius: number, style: 'square' | 'round' | 'ring', tokens: ThemeTokens): HandleMarkConfig {
+function mark(at: Point, radius: number, style: MarkStyle, tokens: ThemeTokens): HandleMarkConfig {
 	return {
 		x: at.x,
 		y: at.y,
@@ -57,14 +85,24 @@ function mark(at: Point, radius: number, style: 'square' | 'round' | 'ring', tok
 		height: radius * 2,
 		offsetX: radius,
 		offsetY: radius,
-		cornerRadius: style === 'square' ? 0 : radius,
-		...(style === 'ring' ? {} : { fill: tokens.canvasBackground }),
-		stroke: tokens.accent,
-		strokeWidth: HANDLE_STROKE_PX,
+		cornerRadius: style === 'square' || style === 'diamond' ? 0 : radius,
+		...(style === 'diamond' ? { rotation: 45 } : {}),
+		...(style === 'ring' || style === 'halo' ? {} : { fill: tokens.canvasBackground }),
+		stroke: style === 'halo' ? tokens.canvasBackground : tokens.accent,
+		strokeWidth: style === 'halo' ? HALO_STROKE_PX : HANDLE_STROKE_PX,
 		strokeScaleEnabled: false,
 		listening: false,
 		perfectDrawEnabled: false,
 	};
+}
+
+/**
+ * The selected part's own dash — the clearance's, or a `line: 'dashed'` detail's — so dashed keeps meaning
+ * overhead or provisional while the part is edited (critique finding 7). `null` for a solid outline.
+ */
+function outlineDash(shape: AssetShape, part: OutlinePart): readonly number[] | null {
+	if (part.kind === 'clearance') return CLEARANCE_DASH_PX;
+	return part.kind === 'detail' && shape.details.some((detail) => detail.id === part.id && detail.line === 'dashed') ? DETAIL_DASH_PX : null;
 }
 
 export function selectionMarks(
@@ -76,9 +114,11 @@ export function selectionMarks(
 ): { readonly outline: OutlineConfig | null; readonly handles: readonly HandleMarkConfig[] } {
 	if (shape === null || selection === null) return { outline: null, handles: [] };
 	if (!isOutlineSelection(selection)) {
-		return { outline: null, handles: [mark(pointOf(shape, selection, worldPerPixel), RING_RADIUS_PX * worldPerPixel, 'ring', tokens)] };
+		const at = pointOf(shape, selection, worldPerPixel);
+		return { outline: null, handles: [mark(at, HALO_RADIUS_PX * worldPerPixel, 'halo', tokens), mark(at, RING_RADIUS_PX * worldPerPixel, 'ring', tokens)] };
 	}
 	const outline = outlineOf(shape, selection);
+	const dash = outlineDash(shape, selection);
 	return {
 		outline: outline === null
 			? null
@@ -90,9 +130,10 @@ export function selectionMarks(
 				strokeScaleEnabled: false,
 				listening: false,
 				perfectDrawEnabled: false,
+				...(dash === null ? {} : { dash: [...dash] }),
 			},
 		handles: selectionHandles(shape, selection, mode, worldPerPixel).map((handle) =>
-			mark(handle.at, VERTEX_HANDLE_RADIUS_PX * worldPerPixel, handle.role.kind === 'box' ? 'square' : 'round', tokens),
+			mark(handle.at, VERTEX_HANDLE_RADIUS_PX * worldPerPixel, HANDLE_STYLE[handle.role.kind], tokens),
 		),
 	};
 }

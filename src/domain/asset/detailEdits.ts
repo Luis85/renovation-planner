@@ -1,8 +1,9 @@
 import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
+import type { Point } from '../../core/geometry/Point';
 import type { Vector } from '../../core/geometry/Vector';
 import { boundingBoxOf, translate } from '../../core/geometry/operations';
 import type { ValidationError } from '../../core/errors/AppError';
-import { err, isErr, ok, type Result } from '../../core/result/Result';
+import { err, isErr, ok, unwrap, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
 import type { DetailLine } from './AssetDetail';
 import { validateAssetShape, type AssetShape } from './AssetShape';
@@ -57,8 +58,7 @@ export function duplicateDetail(shape: AssetShape, id: string, offset: Vector): 
 	if (isErr(found)) return found;
 	const original = shape.details[found.value];
 	const copy = { ...original, id: nextDetailId(shape), outline: translate(original.outline, offset) };
-	const details = [...shape.details.slice(0, found.value + 1), copy, ...shape.details.slice(found.value + 1)];
-	return validateAssetShape({ ...shape, details });
+	return validateAssetShape({ ...shape, details: shape.details.toSpliced(found.value + 1, 0, copy) });
 }
 
 export function deleteDetail(shape: AssetShape, id: string): Result<AssetShape, ValidationError> {
@@ -75,9 +75,7 @@ export function reorderDetail(shape: AssetShape, id: string, direction: 'forward
 	if (to < 0 || to >= shape.details.length) {
 		return err(assetError('detail-at-limit', `Detail "${id}" cannot move ${direction}; it is already at that end of the drawing order.`));
 	}
-	const details = [...shape.details];
-	details[found.value] = shape.details[to];
-	details[to] = shape.details[found.value];
+	const details = shape.details.with(found.value, shape.details[to]).with(to, shape.details[found.value]);
 	return validateAssetShape({ ...shape, details });
 }
 
@@ -117,21 +115,16 @@ export function fitFootprintToDetails(shape: AssetShape): Result<AssetShape, Val
 	if (shape.details.some((detail) => detail.pending)) {
 		return err(assetError('details-await-scale', 'A detail is still in background pixels, so no footprint in millimetres can be fitted to it.'));
 	}
-	let minX = Infinity;
-	let minY = Infinity;
-	let maxX = -Infinity;
-	let maxY = -Infinity;
+	const corners: Point[] = [];
 	for (const detail of shape.details) {
 		const box = boundingBoxOf(detail.outline);
 		if (isErr(box)) return err(assetError('invalid-detail', box.error.message));
-		minX = Math.min(minX, box.value.min.x);
-		minY = Math.min(minY, box.value.min.y);
-		maxX = Math.max(maxX, box.value.max.x);
-		maxY = Math.max(maxY, box.value.max.y);
+		corners.push(box.value.min, box.value.max);
 	}
+	const { min, max } = unwrap(boundingBoxOf({ points: corners }));
 	return validateAssetShape({
 		...shape,
-		footprint: { points: [{ x: minX, y: minY }, { x: maxX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }] },
+		footprint: { points: [{ x: min.x, y: min.y }, { x: max.x, y: min.y }, { x: max.x, y: max.y }, { x: min.x, y: max.y }] },
 		footprintOrigin: 'typed',
 		footprintPending: false,
 	});

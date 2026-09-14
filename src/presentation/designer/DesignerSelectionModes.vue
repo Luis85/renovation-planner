@@ -14,7 +14,12 @@
  * **Its buttons ARE `.rp-designer-tool-button`s**, inside the toolbar's `.rp-designer-tools`, so the
  * flat-button rules and the active-state rule that already win Obsidian's
  * `button:not(.clickable-icon)` contest (`buttonSpecificity.test.ts`) style them — no second button
- * rule to argue. `styles/designer.css` adds only the group's own rule.
+ * rule to argue. `styles/designer-selection.css` adds only the group's border and the pressed mode's
+ * plain border, which is what sets a mode apart from a pressed tool.
+ *
+ * **Each button's `title` names the gesture its mode offers** — which handles a mode draws says nothing
+ * about what dragging them does — using the `title` tooltip both designer toolbars already use. The button's
+ * TEXT stays its accessible name; a `title` beside visible text is read as its description.
  */
 import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
@@ -23,10 +28,10 @@ import { useAssetDesignStore } from './stores/assetDesignStore';
 
 const store = useAssetDesignStore();
 
-const MODES: readonly { readonly id: SelectionMode; readonly label: StringKey }[] = [
-	{ id: 'transform', label: 'designer.selection.mode.transform' },
-	{ id: 'points', label: 'designer.selection.mode.points' },
-	{ id: 'bend', label: 'designer.selection.mode.bend' },
+const MODES: readonly { readonly id: SelectionMode; readonly label: StringKey; readonly tip: StringKey }[] = [
+	{ id: 'transform', label: 'designer.selection.mode.transform', tip: 'designer.selection.mode.transform.tip' },
+	{ id: 'points', label: 'designer.selection.mode.points', tip: 'designer.selection.mode.points.tip' },
+	{ id: 'bend', label: 'designer.selection.mode.bend', tip: 'designer.selection.mode.bend.tip' },
 ];
 </script>
 
@@ -43,7 +48,7 @@ const MODES: readonly { readonly id: SelectionMode; readonly label: StringKey }[
 			class="rp-designer-tool-button"
 			:class="{ 'rp-designer-tool-active': store.mode === mode.id }"
 			:aria-pressed="store.mode === mode.id"
-			:title="tr(mode.label)"
+			:title="tr(mode.tip)"
 			@click="store.setMode(mode.id)"
 		>
 			{{ tr(mode.label) }}

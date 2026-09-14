@@ -8,6 +8,8 @@
 import { describe, expect, it } from 'vitest';
 import { resolveThemeTokens } from '../../../src/presentation/editor/theme/themeTokens';
 import { facingTip } from '../../../src/presentation/designer/layers/anchorLayer';
+import { clearanceOutline } from '../../../src/presentation/designer/layers/clearanceLayer';
+import { detailOutlines } from '../../../src/presentation/designer/layers/detailsLayer';
 import { selectionFrame, selectionMarks } from '../../../src/presentation/designer/layers/selectionLayer';
 import { TOILET, detailOutline } from '../../helpers/designerSelection';
 
@@ -33,6 +35,7 @@ describe('selectionMarks', () => {
 		expect(marks.handles.filter((handle) => handle.cornerRadius === 4)).toHaveLength(1);
 		const topLeft = marks.handles.find((handle) => handle.x === TANK.points[0].x && handle.y === TANK.points[0].y);
 		expect(topLeft).toMatchObject({ width: 8, height: 8, offsetX: 4, offsetY: 4, cornerRadius: 0, fill: TOKENS.canvasBackground, stroke: TOKENS.accent, listening: false });
+		expect(marks.handles.every((handle) => handle.strokeWidth === 2)).toBe(true);
 	});
 
 	it('draws one round handle per vertex in Edit points', () => {
@@ -52,16 +55,53 @@ describe('selectionMarks', () => {
 		expect(selectionMarks(NO_CLEARANCE, { kind: 'clearance' }, 'transform', TOKENS, 1)).toEqual({ outline: null, handles: [] });
 	});
 
-	it('rings the anchor, or the facing tip, at the grab radius and leaves it unfilled', () => {
+	/**
+	 * The ring stays at the GRAB radius — it shows the region a press takes — over a canvas-coloured halo
+	 * drawn first, which parts it from the anchor dot and cuts the facing's arrowhead short of it (critique
+	 * finding 8). Both unfilled, so neither hides the mark it surrounds.
+	 */
+	it('rings the anchor, or the facing tip, at the grab radius over a canvas-coloured halo, both unfilled', () => {
 		const anchor = selectionMarks(TOILET, { kind: 'anchor' }, 'transform', TOKENS, 1);
 		const facing = selectionMarks(TOILET, { kind: 'facing' }, 'transform', TOKENS, 1);
 		const tip = facingTip(TOILET, 1);
+		const [halo, ring] = anchor.handles;
 
 		expect(anchor.outline).toBeNull();
-		expect(anchor.handles).toHaveLength(1);
-		expect(anchor.handles[0]).toMatchObject({ x: TOILET.anchor.x, y: TOILET.anchor.y, width: 16, cornerRadius: 8, stroke: TOKENS.accent });
-		expect(anchor.handles[0]).not.toHaveProperty('fill');
-		expect(facing.handles[0]).toMatchObject({ x: tip.x, y: tip.y });
+		expect(anchor.handles).toHaveLength(2);
+		expect(halo).toMatchObject({ x: TOILET.anchor.x, y: TOILET.anchor.y, width: 13, cornerRadius: 6.5, stroke: TOKENS.canvasBackground, strokeWidth: 3 });
+		expect(ring).toMatchObject({ x: TOILET.anchor.x, y: TOILET.anchor.y, width: 16, cornerRadius: 8, stroke: TOKENS.accent, strokeWidth: 2 });
+		expect(halo).not.toHaveProperty('fill');
+		expect(ring).not.toHaveProperty('fill');
+		expect(facing.handles.map((handle) => ({ x: handle.x, y: handle.y }))).toEqual([tip, tip]);
+	});
+
+	/**
+	 * Dashed means overhead or provisional (`clearanceLayer.ts`, `detailsLayer.ts`), so a selected clearance
+	 * or dashed detail keeps its dash in the accent restroke rather than turning solid while it is edited
+	 * (critique finding 7). Compared against each layer's own config, never retyped.
+	 */
+	it('keeps the part’s own dash on the selected outline, and draws a solid one solid', () => {
+		const dashedTank = { ...TOILET, details: TOILET.details.map((detail) => (detail.id === 'detail-1' ? { ...detail, line: 'dashed' as const } : detail)) };
+
+		expect(clearanceOutline(TOILET, TOKENS, 1)?.dash).toBeDefined();
+		expect(selectionMarks(TOILET, { kind: 'clearance' }, 'transform', TOKENS, 1).outline?.dash).toEqual(clearanceOutline(TOILET, TOKENS, 1)?.dash);
+		expect(selectionMarks(dashedTank, TANK_SELECTED, 'transform', TOKENS, 1).outline?.dash).toEqual(detailOutlines(dashedTank, TOKENS, 1)[0]?.dash);
+		expect(selectionMarks(TOILET, TANK_SELECTED, 'transform', TOKENS, 1).outline).not.toHaveProperty('dash');
+		expect(selectionMarks(TOILET, { kind: 'footprint' }, 'transform', TOKENS, 1).outline).not.toHaveProperty('dash');
+	});
+
+	/** A bend handle is a diamond, so Bend edges and Edit points no longer draw the same glyph (critique finding 17). */
+	it('draws a Bend edges handle as a diamond, and rotates no other handle', () => {
+		const bend = selectionMarks(TOILET, TANK_SELECTED, 'bend', TOKENS, 1).handles;
+		const others = [
+			...selectionMarks(TOILET, TANK_SELECTED, 'points', TOKENS, 1).handles,
+			...selectionMarks(TOILET, TANK_SELECTED, 'transform', TOKENS, 1).handles,
+			...selectionMarks(TOILET, { kind: 'anchor' }, 'transform', TOKENS, 1).handles,
+		];
+
+		expect(bend.length).toBeGreaterThan(0);
+		expect(bend.every((handle) => handle.cornerRadius === 0 && handle.rotation === 45)).toBe(true);
+		expect(others.filter((handle) => 'rotation' in handle)).toEqual([]);
 	});
 });
 

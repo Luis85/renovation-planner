@@ -70,10 +70,7 @@ export class SetAnchorTool implements EditorTool {
 	pointerDown(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null || event.button !== 'primary') return;
-		// Through the snap service like every other placed point, so the day it is handed
-		// candidate geometry this tool snaps with the rest rather than being the one that
-		// does not. With an empty candidate set it is provably the identity.
-		void this.place(context, context.snapService.snapPoint(event.worldPoint, {}));
+		void this.place(context, event.worldPoint);
 	}
 
 	/**

@@ -1,0 +1,39 @@
+{
+  "date": "2026-09-14",
+  "implementation": "9afbe262507a8bfe1f8485668c7bc973617db105",
+  "command": "npm run check",
+  "started": "2026-09-14T02:06:40.3259818+02:00",
+  "finished": "2026-09-14T02:30:04.3984035+02:00",
+  "exitCode": 0,
+  "sourceChangedDuringOrAfterRun": false,
+  "subsequentChanges": "Evidence and documentation only; link, hash, and staged-diff checks apply.",
+  "runtime": { "os": "Windows", "node": "24.20.0", "npm": "11.18.0" },
+  "build": { "passed": true, "modules": 1383 },
+  "lint": { "oxlint": "passed", "eslint": "passed" },
+  "tests": { "filesPassed": 936, "testsPassed": 10225, "testsSkipped": 1, "totalTests": 10226, "durationSeconds": 1205.34 },
+  "coverage": {
+    "statements": { "percent": 99.23, "covered": 25822, "total": 26020 },
+    "branches": { "percent": 98.10, "covered": 19056, "total": 19425 },
+    "functions": { "percent": 99.29, "covered": 7463, "total": 7516 },
+    "lines": { "percent": 99.67, "covered": 19098, "total": 19160 }
+  },
+  "analysis": { "passed": true, "filesAnalyzed": 1072, "deadFiles": 0, "deadExports": 0, "aboveThreshold": 0, "maintainability": 86.9, "existingCaptureHelperCloneGroups": 1, "existingHiddenDirectoryAdvisory": true },
+  "focused": { "filesPassed": 5, "testsPassed": 35, "durationSeconds": 91.73, "targetedEslint": "passed" },
+  "impeccable": { "contextRuns": 1, "finalDetectorRuns": 1, "findings": [] },
+  "native": {
+    "obsidian": "1.13.7",
+    "vaultType": "existing disposable synthetic test vault",
+    "vaultPath": "C:/Users/lum/.codex/tmp/renovation-planner-finalization-vault",
+    "screenshots": 25,
+    "reproducedDefects": 2,
+    "correctedDefectsConfirmed": 2,
+    "contentFilesUnchangedAfterFinalReloadAndConfirmation": 4,
+    "originalFilesChecked": 11,
+    "changedOriginalFiles": 1,
+    "changedOriginalFileReason": "The exercised synthetic plan geometry sidecar contains the newly created room, walls, Door, and history revisions.",
+    "browserEvidenceUsedAsNative": false,
+    "transientStateSurvivedReload": false
+  },
+  "evidenceChecks": { "markdownDocuments": 3, "localLinks": 57, "screenshotHashes": 25, "sourceHashes": 3, "stagedDiffCheck": "passed" },
+  "limits": ["I18 deferred", "No screen reader or AT", "No participants", "No German host-language execution", "No arbitrary community themes or host zoom", "No native in-flight drag interrupted by mode handoff", "No native failed-save, readback, or conflict recovery acceptance"]
+}

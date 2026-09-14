@@ -87,4 +87,6 @@ Only one session holds the heavy-verification slot at a time on this machine. Ot
 
 Use [receipts/TEMPLATE.md](receipts/TEMPLATE.md). A packet is complete only when its owned outcome is implemented, relevant checks are recorded, its PR is open/pushed, and remaining risks are explicit. The integrator records merge state separately. A selected mockup, generated screenshot, passing unit test or closed packet alone is not evidence of successful novice/native use.
 
+The final stacked Astra pass records its real Windows Obsidian journeys, bounded corrections, and remaining acceptance limits in the [native receipt](receipts/ASTRA-NATIVE.md).
+
 The original 24–40 person-day range remains an initial effort estimate, not a smaller calendar duration promised by parallelism. Integration, queues, iteration and human validation add scheduling uncertainty; measure the first wave before estimating throughput.

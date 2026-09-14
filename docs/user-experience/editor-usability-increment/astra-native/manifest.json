@@ -1,0 +1,324 @@
+{
+  "date": "2026-09-14",
+  "tool": "node_repl / @oai/sky (Windows Computer Use)",
+  "obsidian": "1.13.7",
+  "plugin": "renovation-planner 0.1.0",
+  "vaultType": "existing disposable synthetic test vault",
+  "vaultPath": "C:/Users/lum/.codex/tmp/renovation-planner-finalization-vault",
+  "base": "144382e674b5c47199fb1aa0935b900b7b2c48e8",
+  "implementation": "9afbe262507a8bfe1f8485668c7bc973617db105",
+  "initialBuild": [
+    {
+      "File": "main.js",
+      "SHA256": "2F22C050A2D4CEC852295AD5F381C8D082167751753712B2C40FA25D2EA86D63",
+      "Bytes": 1819791
+    },
+    {
+      "File": "styles.css",
+      "SHA256": "E20898AD55E37A2BD44DDEF7CE3A0826048F2D674331816E74807EEC3A58D6D1",
+      "Bytes": 163972
+    },
+    {
+      "File": "manifest.json",
+      "SHA256": "68E014814C9CF740EC8484B62B6E8740DB3EE10343A4676EBDE42B2FCD37D5F3",
+      "Bytes": 323
+    }
+  ],
+  "finalBuild": [
+    {
+      "File": "main.js",
+      "SHA256": "d7aff2def036eac88302df4ca52cb82d6e4c971e9270616305cac6be46fc663c",
+      "Bytes": 1819903
+    },
+    {
+      "File": "styles.css",
+      "SHA256": "e20898ad55e37a2bd44ddef7ce3a0826048f2d674331816e74807eec3a58d6d1",
+      "Bytes": 163972
+    },
+    {
+      "File": "manifest.json",
+      "SHA256": "68e014814c9cf740ec8484b62b6e8740db3ee10343a4676ebde42b2fcd37d5f3",
+      "Bytes": 323
+    }
+  ],
+  "finalNativeContentCheck": {
+    "FilesChecked": 4,
+    "ChangedFiles": 0,
+    "After": "Final native confirmation"
+  },
+  "originalContentCheck": {
+    "OriginalFilesChecked": 11,
+    "ChangedOriginalFiles": [
+      "/Renovation/Reference Scale Acceptance 2026-09-09/Geometry/plan-01M22TJPDH8XDN4R4AV5Z3BHG2.rpgeo"
+    ]
+  },
+  "nativeReadback": {
+    "schemaVersion": 6,
+    "revision": 7,
+    "unit": "mm",
+    "rooms": 1,
+    "roomDimensionsMm": [
+      4000,
+      3000
+    ],
+    "walls": 4,
+    "doors": 1,
+    "doorDimensionsMm": [
+      900,
+      2100
+    ],
+    "doorOffsetMm": 1330,
+    "explicitGroupMembers": 5,
+    "result": "passed"
+  },
+  "sourceFiles": [
+    {
+      "file": "src/presentation/editor/structure/StructureBulkEditAction.vue",
+      "sha256": "d366b469126252c2c25de83e806d28d508b4e55ee70aa785b3f27a1c00a2bd8c"
+    },
+    {
+      "file": "src/presentation/editor/renovation/TransformationStage.vue",
+      "sha256": "abd9f2c762be216d1213d385f478f4902c5734c2ef83515d9fbd945575a991dc"
+    },
+    {
+      "file": "tests/presentation/editor/usability/astra-native-polish.test.ts",
+      "sha256": "b5cd21cafd8a8d070d5851bc38994c5e2f7052c86513e43d2c76c955bc7e9a7f"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "evidence/00-preflight-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1024,
+      "height": 800,
+      "bytes": 78218,
+      "sha256": "782f05fff926acf6b753c64ce82882882f7c03ec0dc627a99f0622ff7a0b39c5",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/01-plan-loaded-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1024,
+      "height": 800,
+      "bytes": 83745,
+      "sha256": "45b70969fcbf1b16723cacd2c37fa28d6d6059a331d72a277be69b1eb104b61b",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/02-room-saved-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1024,
+      "height": 800,
+      "bytes": 102445,
+      "sha256": "eb898818e2fdf5fbf8686418a62c31227c4dbbb8b58714aaa5818025272dbb29",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/03-renovate-group-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1024,
+      "height": 800,
+      "bytes": 105017,
+      "sha256": "dc8fa070284b02902640b1cba510df72b4c45392e906e901ae9abdd6df703851",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/04-renovate-room-menu-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1024,
+      "height": 800,
+      "bytes": 98164,
+      "sha256": "583074b7b480e9ce495d1769864e63154cba1b4ab211245173cba7d299733561",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/05-keyboard-room-handoff-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1024,
+      "height": 800,
+      "bytes": 104367,
+      "sha256": "58e3415e1fa515fbfb7c8f038668506194195c75d769f472096becab46e81a89",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/06-renovate-keyboard-continuity-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1024,
+      "height": 800,
+      "bytes": 105922,
+      "sha256": "795078f7c6bc264eb43b90443af50a45f739195a38d3de3a07d05bad11be2cee",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/07-plan-keyboard-continuity-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1024,
+      "height": 800,
+      "bytes": 104630,
+      "sha256": "1654694bf321c943f9835d0e2077a9180fdd7d76cc82a6fbb415e56728c1592c",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/08-narrow-462px-plan-1.jpg",
+      "mime": "image/jpeg",
+      "width": 805,
+      "height": 800,
+      "bytes": 81772,
+      "sha256": "cb3f94dbf6e5d1105e4466ee79de44bc942f86b403c1e8cfad8d8679aac0f996",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/09-narrow-popover-expanded-1.jpg",
+      "mime": "image/jpeg",
+      "width": 805,
+      "height": 800,
+      "bytes": 84326,
+      "sha256": "a9d5318a415531573d11585b5ac7cc9cf744839547cc945e73b06c46b56aad50",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/10-narrow-review-reflow-1.jpg",
+      "mime": "image/jpeg",
+      "width": 805,
+      "height": 800,
+      "bytes": 99081,
+      "sha256": "90666bb4d353149b1dae029957cf882378ee1572b9eff9e30f8b49409d460517",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/11-dark-narrow-renovate-1.jpg",
+      "mime": "image/jpeg",
+      "width": 805,
+      "height": 800,
+      "bytes": 77393,
+      "sha256": "23fb4b4fe966914b10c3d317ddb6b9c60143e6b04e0f3a759fbe15ddd044db95",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/12-dark-narrow-popover-1.jpg",
+      "mime": "image/jpeg",
+      "width": 805,
+      "height": 800,
+      "bytes": 78801,
+      "sha256": "475eac89858b70772f445a6ec599770ca5d791f2afa300fbee1808e5315717ce",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/13-door-saved-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 124099,
+      "sha256": "fe56a58b58e4377b3bbf12ed1b1dcee8752ca9d7a6b3020e26f29f0b90039d18",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/14-door-renovate-focus-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 134026,
+      "sha256": "f8727eaa1ef00d99b9cc3315073ec9d2fe1d03e2c2f6f24c5d378962e3302a40",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/15-door-renovate-menu-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 132148,
+      "sha256": "e9e200547f6f37f9c25138ca531b336c439be891da2d06d2af16b5c79c5bc0fd",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/16-door-plan-focus-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 125688,
+      "sha256": "d2679e32e74f72b283a6e8c61059afbc492b1338c68f5d54ebd45965bcd6e670",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/17-pdf-loaded-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 102029,
+      "sha256": "00870ec4c3fad4330d3c75a1a6bb1359c878589cf98632fee26291003c7039e0",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/18-two-leaf-isolation-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 122120,
+      "sha256": "1b9ebe22685805da1c2db2d8cd1263380ef49f69b0cf457de350cf5ea8318b1e",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/19-two-leaf-pan-isolation-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 124706,
+      "sha256": "1d70f31917b33ff026fe586bb2ca2b5a3673afcfecd3a2f629d3667a759a5056",
+      "phase": "initial-native-review"
+    },
+    {
+      "file": "evidence/20-final-reload-persistence-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 127552,
+      "sha256": "fd4ef112f2be50691302617eadf78f7e2c6ead072bffa822b32a986a7342f48d",
+      "phase": "final-confirmation"
+    },
+    {
+      "file": "evidence/21-final-disabled-dimensions-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 143643,
+      "sha256": "5350df372bdabaecb70b566dfd5696c451cb8cbd71f85ee147f9118a25dc5f86",
+      "phase": "final-confirmation"
+    },
+    {
+      "file": "evidence/22-final-plan-dimensions-form-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 128675,
+      "sha256": "885957d3ba3dc8443ef5f80272954bccb2170b9f0fe66a3cf180b4456be42c92",
+      "phase": "final-confirmation"
+    },
+    {
+      "file": "evidence/23-final-narrow-review-dark-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 162303,
+      "sha256": "ed8363fe5792134f01c953207ef4a2c582a6c8acd098e0033eed60768c366e62",
+      "phase": "final-confirmation"
+    },
+    {
+      "file": "evidence/24-final-narrow-review-light-1.jpg",
+      "mime": "image/jpeg",
+      "width": 1440,
+      "height": 912,
+      "bytes": 168034,
+      "sha256": "fdd4091bb6c8d350738ef77ec6294c8b1c274a823896ccf2efe2039fbc59f15d",
+      "phase": "final-confirmation"
+    }
+  ],
+  "limits": [
+    "No browser evidence substituted",
+    "No AT or participants",
+    "No German host execution",
+    "No arbitrary community themes",
+    "I18 deferred",
+    "No native in-flight pointer-down/mode-change/pointer-up injection",
+    "No native failed-save/conflict recovery acceptance"
+  ]
+}

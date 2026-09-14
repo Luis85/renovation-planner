@@ -3,7 +3,8 @@
  * `assetDesigner.ts` and `IndexPage.vue`, each of which a test can drive.
  *
  * `?view=plan-editor` opens the Plan Editor instead of the project surface, `?view=asset-designer`
- * (Task B10) opens the asset designer the same way, `?view=asset-library` (Task 17) opens the
+ * (Task B10) opens the asset designer the same way — `&preset=<id>` seeding a preset and, beside
+ * it, `&select=<part>` and `&mode=<mode>` selecting one part in one mode — `?view=asset-library` (Task 17) opens the
  * asset library — with `&asset=<id>` seeding a selection, which is what §7's narrow composition
  * needs to draw at all — `?project=<id>` opens the Renovation Project view's DETAIL state on a
  * seeded project of that id rather than its list — with `&plans=<n>` seeding that many plans
@@ -243,7 +244,11 @@ if (wantsIndex) {
 				tree: wantsTree,
 			}).view
 		: wantsAssetDesigner
-			? mountAssetDesignerHarness(document.body, params.get('preset')).view
+			? mountAssetDesignerHarness(
+				document.body,
+				params.get('preset'),
+				params.has('select') ? { select: params.get('select') ?? '', mode: params.get('mode') ?? 'transform' } : null,
+			).view
 			: wantsAssetLibrary
 				? mountAssetLibraryHarness(document.body, params.get('asset'), params.get('assets') === '0').view
 				: mountHarness(document.body, {

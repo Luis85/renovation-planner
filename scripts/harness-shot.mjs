@@ -661,6 +661,32 @@ const SHOTS = [
 	{ name: 'asset-designer-preset-sofa', query: '?view=asset-designer&preset=sofa', selector: ASSET_DESIGNER_VIEW },
 	{ name: 'asset-designer-preset-toilet', query: '?view=asset-designer&preset=toilet', selector: ASSET_DESIGNER_VIEW },
 	{ name: 'asset-designer-preset-tree', query: '?view=asset-designer&preset=tree', selector: ASSET_DESIGNER_VIEW },
+	// The selection (symbols spec, Decision 10): one capture per mode and one of the anchor, through the
+	// designer harness's `&select=`/`&mode=` knobs. Each waits on marks that exist only once the knob
+	// has landed — the pressed mode and that part's inspector section — so a capture cannot be taken of
+	// the designer before its selection. Transform on the toilet's bowl (a detail over the footprint);
+	// Edit points on the toilet's footprint; Bend edges on the curved table's footprint, light, because
+	// that is the shot whose accent edge handles sit on arcs; the anchor has no mode control at all.
+	{
+		name: 'asset-designer-select-transform',
+		query: '?view=asset-designer&preset=toilet&select=detail-2',
+		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="detail"]'],
+	},
+	{
+		name: 'asset-designer-select-points',
+		query: '?view=asset-designer&preset=toilet&select=footprint&mode=points',
+		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'],
+	},
+	{
+		name: 'asset-designer-select-bend',
+		query: '?view=asset-designer&preset=curved-table&select=footprint&mode=bend&theme=light',
+		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="footprint"]'],
+	},
+	{
+		name: 'asset-designer-select-anchor',
+		query: '?view=asset-designer&preset=toilet&select=anchor',
+		selector: [ASSET_DESIGNER_VIEW, '.rp-designer-selection[data-kind="anchor"]'],
+	},
 	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
 	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
 	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every

@@ -57,7 +57,7 @@ the five values and what they do not claim.
 | 2 | `suite` | Open the Renovation project view (ribbon or command) with no projects in the vault | Below the "No renovation projects yet" empty state, a sibling "New asset" button appears | The catalogue's own creation door sitting BESIDE the project empty state rather than inside it — an Asset carries no project id since design slice 19, so the project empty state's one-action registry could not have grown a second action for it |
 | 3 | `suite` | Click "New asset", fill in a Name and a Unit cost, leave Width and Depth blank, and Save | The dialog closes and the asset designer opens automatically on the asset just created | Task B9's `onCreateAsset` → `context.openAsset` wiring. There is no catalogue list on this surface for the new row to appear in, so this is the only way a click here is seen to have bought anything |
 | 4 | `browser` | Look at the shell | Four regions are present: a toolbar along the top, a canvas in the centre, an Inspector panel on the right, and a status bar along the bottom | Layout collapse — `regionsReachable.test.ts` proves every region is reachable BY IMPORT, never that it is drawn at a usable size |
-| 5 | `browser` | Look at the toolbar | Six tool buttons on one line — Pan, Trace footprint, Trace clearance, Set anchor, Set facing, Calibrate — plus Undo/Redo dimmed at the right | Task B6's `CalibrateTool` registered where a tool CAN fail by being absent from a list with every one of its own tests green — the exact shape slice 7 shipped once |
+| 5 | `browser` | Look at the toolbar | Ten tool buttons — Pan, Select, Trace footprint, Trace clearance, Draw rectangle, Draw circle, Trace detail, Set anchor, Set facing, Calibrate — plus Undo/Redo dimmed at the right, wrapping onto a second row where the pane is too narrow for one | Task B6's `CalibrateTool` registered where a tool CAN fail by being absent from a list with every one of its own tests green — the exact shape slice 7 shipped once |
 | 6 | `browser` | Look at the canvas | A centred card reads "No spec sheet yet" with a "Choose a background" button — not "No footprint yet" | `selectAssetDesignerEmptyState`'s precedence: this asset has neither a background nor a shape, and Task B7's Decision 3 puts the background nag first |
 | 7 | `obsidian` | Click "Choose a background" and pick `editor-background-png-test.png` from the picker | The picker lists it, and every other PNG/JPEG/PDF in the vault, by full path; choosing it closes the picker and the sheet appears under the canvas, right way up, with its 1000mm scale bar readable | `ObsidianBackgroundPicker` wrapping a real `FuzzySuggestModal`, where `backgroundPicker.test.ts` drives a hand-built fake one — and `SetAssetBackgroundCommand`'s write actually landing |
 | 8 | `obsidian` | Look in the file explorer, inside your library folder's `Geometry/` subfolder (`Renovation/Library/Geometry/` by default) | A file named after the asset's id, with a `.rpgeo` extension, is listed | ADR-0014: the shape lives beside the shared library rather than in any Plan's own `Geometry/` folder. Setting a background already wrote it — clearing a calibration that was already null still writes the document (Task B7's own no-write guard is keyed on the BACKGROUND, not on the calibration) |
@@ -82,6 +82,49 @@ the five values and what they do not claim.
 | 26 | `suite` | Press Undo | The traced footprint returns and the tank and bowl are gone | The whole-document inverse restoring a shape the preset replaced, details included |
 | 27 | `obsidian` | Place that toilet on a plan by snapping it to a wall | The tank sits against the wall, the bowl points into the room, and the plan draws the tank and bowl inside the outline | The +y front convention meeting `backDepth` on a curved footprint, and `assetShapeConfig`'s details in a real Konva stage — no harness capture covers a placed symbol |
 | 28 | `browser` | Start from preset → Curved table, set Sweep to 180, apply, and zoom the designer in on one end of the arc | The arc stays smooth, with no visible facets | The zoom-aware arc tolerance (`ARC_TOLERANCE_PX`) rather than a fixed world tolerance |
+
+## Steps — a preset adjusted by selection
+
+Preconditions: a THIRD asset, created from the Renovation project view with no width or depth,
+its designer open with no background, and **Start from preset → Toilet** applied at its defaults
+(Dimensions read 380 × 700 mm). It is a fresh asset so nothing on it is pending and nothing was
+calibrated. The toilet's details: the **tank**, the straight one across the back, and the **bowl**,
+the rounded one in front of it; the anchor dot sits inside the bowl. The Inspector's number fields
+are labelled "Horizontal centre in millimetres", "Width in millimetres" and so on; the steps below
+shorten them.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 29 | `suite` | Click Select, then click inside the bowl away from the anchor dot | The bowl is outlined in the accent colour with eight square handles and one round rotate handle above it; a mode control reads Transform, Edit points, Bend edges with Transform pressed; the Inspector shows a "Detail" section reading Name Bowl, Line Solid, Horizontal centre 0, Vertical centre 100, Width 304, Depth 450; Undo stays dimmed | Decision 10's hit order — a detail over the footprint is the detail — and "a selection writes nothing" |
+| 30 | `suite` | Press Right arrow twice, then Shift+Down once | The bowl moves right, then further down; the Inspector reads Horizontal centre 20, then Vertical centre 200 | Arrows nudging 10 mm and Shift 100 mm through `moveOutline`, one write per press |
+| 31 | `suite` | Press Undo three times | The bowl is back at Horizontal centre 0, Vertical centre 100 | Each nudge being exactly one undo entry |
+| 32 | `suite` | Drag the bowl's bottom-right handle outward and release, then press Undo | While dragging, the bowl grows and keeps its rounded ends; on release Width and Depth have grown; Undo restores 304 × 450 | `resizeBox` keeping bulges, and the drag's preview committing as one write |
+| 33 | `suite` | Click the tank, choose Bend edges, drag the tank's front edge handle toward the bowl and release; then press Undo | That one edge bows toward the bowl while the other three stay straight; Undo straightens it | The plan editor's `CurveTool` bound to a detail outline through `CurveToolActions` |
+| 34 | `obsidian` | With the tank selected, press Ctrl+D (Cmd+D on macOS) | A copy of the tank appears 100 mm right and 100 mm down, drawn above the original, and it is the selection; its Name reads Tank | Ctrl+D reaching the canvas region rather than an Obsidian hotkey, and `duplicateDetail` inserting above the original and selecting `nextDetailId` |
+| 35 | `obsidian` | Press Delete | The copy disappears and the Inspector shows no Detail section | Delete reaching the canvas region rather than Obsidian's keymap, and the selection clearing once the part no longer exists |
+| 36 | `suite` | Click inside the footprint below the tank and beside the bowl's rounded back end (between the bowl's side and the footprint's side), then press "Fit to details" | The Inspector showed a "Footprint" section with Fit to details; afterwards the round front is gone and Dimensions read 380 × 675 mm | `fitFootprintToDetails` writing the box of the tank and the bowl as a typed rectangle |
+| 37 | `suite` | Press Undo | The round-fronted footprint returns and Dimensions read 380 × 700 mm | The fit being one undo entry |
+| 38 | `suite` | With the footprint selected, choose Edit points, drag its back-left corner about 100 mm further left and release, then press Undo | A round handle sits on each of the four corners; the dragged corner follows the pointer and the round front stays round; Undo restores it | Vertex handles through the snap service, and `moveVertex` keeping the curves of the edges it does not touch |
+| 39 | `suite` | Click exactly on the anchor dot, type 50 into "Horizontal position in millimetres" and press Enter; then press Undo | The Inspector shows an "Anchor" section and no mode control; the dot moves 50 mm right; Undo puts it back | The anchor winning over the bowl beneath it (hit order step 2) and the Inspector's commit on Enter |
+| 40 | `suite` | Click Draw rectangle and drag a box inside the footprint, clear of every corner; then press Undo | A solid rectangle detail appears, is the selection, and the toolbar shows Select pressed again; Undo removes it | `draw-rect` → `addDetail`, the new detail selected, and every draw returning to Select |
+| 41 | `browser` | Select the bowl again and narrow the pane to about 460 px | The toolbar and the mode control wrap rather than truncate, and every field of the Detail section stays readable without scrolling sideways | The mode control and the inspector section at a sidebar leaf's real width, which no fixed capture takes |
+| 42 | `suite` | Click on empty canvas outside the clearance | The selection clears and the mode control disappears | PBI extension 1a — a click on nothing clears rather than keeping the previous selection |
+| 43 | `suite` | Click "Edit dimensions", type width 760 and depth 1400, and save; then press Undo | The whole symbol doubles about the anchor — footprint, round front, tank and bowl — and Dimensions read 760 × 1400 mm; Undo restores 380 × 700 | Set dimensions taking `scaleDesign` on a design with details, where a plain rectangle would have replaced the drawing |
+
+## Steps — a plain item promoted to the library
+
+Preconditions: a project with a floor that has walls and one Room, open in the Plan Editor —
+[[Add an item to the asset library]]'s own.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 44 | `obsidian` | Follow [[Add an item to the asset library]] steps 1 to 8 with a rectangle item named `Cabinet` | The item redraws as a placement with exactly the outline it had, and its Inspector offers Open in designer | Promotion storing an item's outline exactly (`centredFootprint` → `SetAssetFootprint`) |
+| 45 | `obsidian` | Choose Open in designer | A designer tab opens on `Cabinet` with its footprint drawn, no details, and no unscaled warning | The promoted asset reaching the designer as a measured footprint |
+| 46 | `suite` | Click Select, then click inside the footprint | A "Footprint" section shows Width and Depth equal to the Dimensions line, and no Fit to details button | PBI extension 2a — no control for details the asset does not carry |
+
+There is deliberately no step promoting a CURVED item: a plan item carries no curve today, so
+promotion has nothing to lose (the symbols spec's Amendment 1, "Plan items carry no curves"). That
+step belongs to the commit that adds `bulges` to `SpatialElement`.
 
 ## Deliberately NOT checked
 

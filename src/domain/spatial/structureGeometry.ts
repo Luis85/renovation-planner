@@ -60,8 +60,8 @@ function validWall(wall: Wall): boolean {
 }
 
 function wallValidationError(walls: readonly Wall[]): ValidationError | null {
-	if (!walls.every(validWall)) return spatialError('wall-dimensions');
-	if (!walls.every(validWallSides)) return spatialError('wall-side-extents');
+	if (!walls.every(wall => validWall(wall))) return spatialError('wall-dimensions');
+	if (!walls.every(wall => validWallSides(wall))) return spatialError('wall-side-extents');
 	for (let i = 0; i < walls.length; i++) {
 		if (walls.slice(i + 1).some(other => wallsConflict(walls[i], other))) return spatialError('intersection');
 	}

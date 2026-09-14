@@ -11,7 +11,7 @@ it('unions opposite windings without holes and drops empty/degenerate join wedge
 	const wrapper = shallowMount(WallPolygonPaint, { props: { polygons: [polygon, polygon.toReversed(), [], [polygon[0], polygon[0], polygon[1]]], color: 'white', edge: false, zoom: 1 },
 		global: { stubs: { VShape: { name: 'VShape', props: ['config'], template: '<div />' } } } });
 	const config = wrapper.getComponent({ name: 'VShape' }).props('config') as Konva.ShapeConfig;
-	const paths: Point[][] = [], fill = vi.fn();
+	const paths: Point[][] = [], fill = vi.fn<(shape: Konva.Shape) => void>();
 	const context = { beginPath: () => undefined, moveTo: (x: number, y: number) => paths.push([{ x, y }]), lineTo: (x: number, y: number) => paths[paths.length - 1].push({ x, y }), closePath: () => undefined, fillStrokeShape: fill };
 	const shape = {} as Konva.Shape;
 	expectDefined(config.sceneFunc, 'paint').call(shape, context as unknown as Konva.Context, shape);

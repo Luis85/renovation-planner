@@ -28,6 +28,7 @@ Plan provides compact exact entry, separate face-positioned 10 mm controls, hove
 - Preliminary coverage diagnostics: 25 files / 225 tests passed. The subset intentionally failed unchanged global coverage floors; it is not the full gate. Its isolated coverage report was used to inspect new geometry paths and complexity, without replacing the configured final report.
 - Final focused preflight: type-check exit 0 and 8 files / 70 tests passed. Covers independent edits, history and callback retirement, drawing/menu/Details routes, precise input, bounds, reversed geometry, curved refusals, fill winding, asset snapping and opening movement.
 - Static analysis diagnostics: 0 dead-code issues, 0 cyclomatic/cognitive breaches, and the same 3 inherited capture-script clone groups. Definitive coverage-weighted health belongs to the full gate.
+- First full gate at `b01d431b84d3e5555bb94c3e3c2fcfb0e17d8f10`: production build passed; lint stopped on two callback wrappers in the extracted wall validator and one missing test mock type. Corrected those annotations without changing behavior; no coverage run from that attempt is claimed.
 - Full one-worker `npm run check`, publication identity and CI: **pending**. This receipt does not yet claim publication readiness.
 
 ## Limits

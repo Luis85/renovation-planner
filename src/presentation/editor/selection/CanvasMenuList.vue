@@ -10,6 +10,7 @@ defineOptions({ name: 'CanvasMenuList' });
 const props = defineProps<{ items: readonly CanvasMenuItem[]; label: string; title?: string | null; host: HTMLElement | null; nested?: boolean; position?: { left: string; top: string } }>();
 const emit = defineEmits<{ run: [action: CanvasMenuAction]; close: [restore: boolean]; back: [] }>();
 const menu = ref<HTMLElement | null>(null), open = ref<string | null>(null);
+let openedByHover = false;
 /** Where THIS list's own open child submenu sits — computed here, in the parent, because only the parent knows the opening button's rect; handed down as the child's `position` prop rather than kept for this list's own style, which always uses the incoming `position` prop instead (design spec §5.4). */
 const childPosition = ref({ left: '0px', top: '0px' });
 const LEVEL = ':scope > [role="menuitem"], :scope > [role="none"] > [role="menuitem"]';
@@ -37,10 +38,16 @@ function collapse(): void {
 	if (id) menu.value?.querySelector<HTMLElement>(`[data-rp-context-action="${id}"]`)?.focus();
 }
 function activate(item: CanvasMenuItem, event: Event, focusFirst: boolean): void {
-	if (isSubmenu(item)) { if (open.value === item.id && !focusFirst) open.value = null; else void expand(item, event.currentTarget as HTMLElement, focusFirst); return; }
+	if (isSubmenu(item)) {
+		// A pointer enters before its click: that first click must retain the submenu it just opened.
+		if (open.value === item.id && !focusFirst && !openedByHover) open.value = null;
+		else void expand(item, event.currentTarget as HTMLElement, focusFirst);
+		openedByHover = false; return;
+	}
 	if (!item.disabled) emit('run', item);
 }
 function hover(item: CanvasMenuItem, event: Event): void {
+	openedByHover = isSubmenu(item);
 	if (isSubmenu(item)) void expand(item, event.currentTarget as HTMLElement, false); else open.value = null;
 }
 function navigate(event: KeyboardEvent): boolean {

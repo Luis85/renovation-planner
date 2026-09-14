@@ -1,6 +1,7 @@
 import { createDraftRetry } from '../forms/createDraftRetry';
 import { recordNavigationContext, type NavigationRecords } from './recordNavigationContext';
 import { usePlanningReadState } from '../planning/planningReadState';
+import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
@@ -50,12 +51,17 @@ function currentContext(roomId: string, targetId: EntityId<string> | undefined, 
 function structureNames(structure: Structure | undefined): readonly string[] {
 	return structure ? [...structure.walls, ...structure.openings, ...structure.elements ?? []].map(item => item.id) : [];
 }
+/** Drafting marks describe the plan; they cannot own renovation records, even with a Room context. */
+function draftingTarget(id: string, project: ReturnType<typeof useProjectStore>): boolean {
+	return [...project.structure.elements ?? [], ...project.intended?.elements ?? []].some(item => item.id === id && draftingKind(item.kind));
+}
 /**
  * Any present zone; or no room while the session target is a wall, opening or element, in
  * either the current structure or the intended one — a planned wall not yet built has no
  * room to bound either (ADR-0030).
  */
 function editableContext(roomId: string, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>): boolean {
+	if (draftingTarget(session.targetId, project)) return false;
 	if (roomId) return project.zones.has(roomId);
 	const target = session.targetId;
 	return structureNames(project.structure).includes(target) || structureNames(project.intended).includes(target);
@@ -161,7 +167,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		finally { loading.value = false; }
 	}
 	async function batch(kind: BatchKind, targets: readonly BatchTarget[]): Promise<void> {
-		if (blocked.value || dialogs.current || targets.length < 2) return;
+		if (blocked.value || dialogs.current || targets.length < 2 || targets.some(target => draftingTarget(target.targetId, project))) return;
 		loading.value = true;
 		const selected = selection.selectedIds.join('|');
 		try {

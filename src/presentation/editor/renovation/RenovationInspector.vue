@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
+import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from './renovationSession';
@@ -23,6 +24,7 @@ const selectedZone = computed(() => project.zones.get(selection.selectedIds[0]))
 const element = computed(() => project.structure.walls.some(item => item.id === session.targetId) || project.structure.openings.some(item => item.id === session.targetId));
 const generic = computed(() => project.structure.elements?.some(item => item.id === session.targetId));
 const selectedElement = computed(() => project.structure.elements?.find(item => item.id === session.targetId));
+const showRenovation = computed(() => !draftingKind(selectedElement.value?.kind ?? '') && (room.value || element.value || generic.value));
 const selectedWall = computed(() => project.structure.walls.find(item => item.id === session.targetId));
 const selectedOpening = computed(() => project.structure.openings.find(item => item.id === session.targetId));
 const headingVisible = computed(() => session.mode === 'overview' || !room.value);
@@ -85,7 +87,7 @@ watch(() => [session.focusedId, session.mode], async () => {
 			<ObjectRotationControls :id="standaloneZoneId" />
 		</details>
 		<RenovationDetails
-			v-if="room || element || generic"
+			v-if="showRenovation"
 			:room="room"
 		/>
 	</div>

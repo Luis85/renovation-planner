@@ -42,7 +42,7 @@ const GEOMETRY_ACTIONS = new Set(['add-point', 'edit', 'move-opening', 'rotate',
 /** A captured menu action must obey the current perspective when invoked later. */
 function guardGeometryActions(actions: readonly CanvasMenuAction[], canEdit: () => boolean, elementSelected: boolean, planOnly: boolean): CanvasMenuAction[] {
 	return actions.map(action => {
-		if (!GEOMETRY_ACTIONS.has(action.id) && !(action.id === 'rename' && elementSelected)) return action;
+		if (!GEOMETRY_ACTIONS.has(action.id) && !action.id.startsWith('draft-') && !(action.id === 'rename' && elementSelected)) return action;
 		return { ...action, disabled: action.disabled === true || !canEdit(), reason: planOnly ? 'editor.element.plan-geometry' : action.reason, run: () => { if (canEdit()) return action.run(); } };
 	});
 }

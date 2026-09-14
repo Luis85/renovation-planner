@@ -20,6 +20,7 @@ import type { DispatchResult } from '../../../src/application/commands/DispatchO
 import { recorder } from '../../helpers/logger';
 import { assetDesign } from '../../helpers/assetDesign';
 import { t } from '../../../src/presentation/i18n/strings';
+import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
 
 let setHeight: ReturnType<typeof vi.fn<(height: number | null) => Promise<DispatchResult>>>;
 let editDimensions: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -57,7 +58,7 @@ function buildDesign(options: {
 	};
 }
 
-function mountInspector(options: Parameters<typeof buildDesign>[0] = {}) {
+function mountInspector(options: Parameters<typeof buildDesign>[0] = {}, selection: DesignerSelection | null = null) {
 	return mount(DesignerInspector, {
 		props: {
 			design: buildDesign(options),
@@ -65,6 +66,10 @@ function mountInspector(options: Parameters<typeof buildDesign>[0] = {}) {
 			editDimensions,
 			startFromPreset,
 			logger: recorder,
+			selection,
+			// Never called by these cases: `designerSelectionInspector.test.ts` owns what a selection commits.
+			editShape: vi.fn<() => Promise<DispatchResult>>().mockResolvedValue(ok('no-write')),
+			select: vi.fn<(next: DesignerSelection | null) => void>(),
 		},
 	});
 }
@@ -94,6 +99,11 @@ describe('the designer’s inspector', () => {
 		const wrapper = mountInspector({ dimensionsUnscaled: false, origin: 'typed' });
 
 		expect(wrapper.find('.rp-designer-unscaled').exists()).toBe(false);
+	});
+
+	it('draws a section for the selected part only while something is selected', () => {
+		expect(mountInspector().find('.rp-designer-selection').exists()).toBe(false);
+		expect(mountInspector({}, { kind: 'footprint' }).find('.rp-designer-selection').exists()).toBe(true);
 	});
 
 	it('draws no dimensions block at all for a shapeless asset', () => {

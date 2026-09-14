@@ -65,7 +65,7 @@ const dialogs = useDialogStore();
  */
 const runtime = provideDesignerRuntime(context);
 const designStore = useAssetDesignStore();
-const { design, error, status, stale } = storeToRefs(designStore);
+const { design, error, status, stale, selection } = storeToRefs(designStore);
 
 /**
  * The canvas is drawing a design it can no longer confirm.
@@ -437,6 +437,9 @@ onMounted(() => {
 					:edit-dimensions="editDimensions"
 					:start-from-preset="startFromPreset"
 					:logger="context.logger"
+					:selection="selection"
+					:edit-shape="runtime.editShape"
+					:select="designStore.select"
 				/>
 			</div>
 		</div>

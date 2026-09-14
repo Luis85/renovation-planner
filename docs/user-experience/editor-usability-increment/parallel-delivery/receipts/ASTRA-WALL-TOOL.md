@@ -89,4 +89,6 @@ The final ancestry fetch found newer main `9ef607030` ([PR #211](https://github.
 
 ## Remaining limits
 
+Publication: [PR #212](https://github.com/Luis85/renovation-planner/pull/212), base `codex/usability-astra-main-refresh-polish`, directly above #209. Exactly one wall-tool PR was opened. The PR's checks are the authoritative CI state for its published documentation/evidence head. Application and tests remain the tree verified at `6f871008b4ea2018f1a20f37f437ab4113cfc7b3`; later commits contain receipt bookkeeping only. Nothing was merged by this task.
+
 Per-side wall offsets require a different geometry contract and are not implemented. Direct opening resize/swing affordances were explicitly sent as a bounded follow-up packet to the adoption coordinator, with shared-file ownership identified; no partial opening UI was added. I18 remains open. Native Obsidian, real assistive technology and arbitrary community themes retain the evidence limits above.

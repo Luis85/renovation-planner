@@ -1,5 +1,8 @@
 {
   "verifiedCodeCommit": "6f871008b4ea2018f1a20f37f437ab4113cfc7b3",
+  "pullRequest": "https://github.com/Luis85/renovation-planner/pull/212",
+  "pullRequestBase": "codex/usability-astra-main-refresh-polish",
+  "ciRecord": "Published-head checks on PR #212; application/test code is unchanged after the clean local gate.",
   "verifiedAtUtc": "2026-09-14T17:56:46Z",
   "command": "npm run check",
   "environment": {

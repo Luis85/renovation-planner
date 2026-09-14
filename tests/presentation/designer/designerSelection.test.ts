@@ -14,6 +14,9 @@ import type { Point } from '../../../src/core/geometry/Point';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
+import { activateNotices } from '../../../src/presentation/notices/notify';
+import { Notice } from '../../helpers/obsidian-mock';
 import { expectOk } from '../../helpers/domain';
 import { settle } from '../../helpers/editor';
 import { click, designerRig, drag, type DesignerRig } from '../../helpers/designerRig';
@@ -98,6 +101,26 @@ describe('dragging a selected part', () => {
 	});
 
 	/**
+	 * A click made while a drag's write is still in flight must not clear the drag's preview: the design
+	 * is still the pre-write one, so the canvas would draw the bowl back where it started until the
+	 * refresh lands. The drag's own commit clears the preview once its write has settled.
+	 */
+	it('leaves a drag’s preview standing when a click lands before its write does', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		await press(rig, 'designer.toolbar.select');
+		const moved = { x: IN_BOWL.x + 100, y: IN_BOWL.y };
+
+		drag(rig, IN_BOWL, moved);
+		click(rig, moved);
+		expect(useAssetDesignStore(rig.pinia).preview).not.toBeNull();
+
+		await settle();
+		expect(useAssetDesignStore(rig.pinia).preview).toBeNull();
+		expectNear(await detailPoints(rig, 'detail-2'), BOWL.points.map((point) => ({ x: point.x + 100, y: point.y })));
+		rig.unmount();
+	});
+
+	/**
 	 * PBI extension 4b: a drag made against a design a peer has since rewritten is REFUSED rather than
 	 * overwriting the peer. The peer's write lands between the press — which read the old version — and
 	 * the release, so the refusal is the version check's and not a race's.
@@ -107,6 +130,9 @@ describe('dragging a selected part', () => {
 		await press(rig, 'designer.toolbar.select');
 		click(rig, IN_BOWL);
 		await settle();
+		// After the mount, which installs the DOM the notice queue draws into.
+		activateNotices();
+		const notices = Notice.shown.length;
 
 		const peerWrite = rig.peer.setFacing.execute({ assetId: rig.assetId, facing: 0 });
 		pointer(rig, 'pointerdown', IN_BOWL);
@@ -119,6 +145,11 @@ describe('dragging a selected part', () => {
 		const shape = (await rig.document()).shape;
 		expect(shape?.facing).toBe(0);
 		expectNear(await detailPoints(rig, 'detail-2'), BOWL.points);
+		// What the user is shown: a write-boundary refusal goes to the save indicator and to no notice
+		// beside it (`reportDispatchFailure`). That the tool REPORTED it is `designerSelectTool.test.ts`'s
+		// `rig.rejected` case — this reporter shows nothing for this code, so no DOM assertion can see it.
+		expect(useSaveStateStore(rig.pinia).state).toBe('save-error');
+		expect(Notice.shown).toHaveLength(notices);
 		rig.unmount();
 	});
 

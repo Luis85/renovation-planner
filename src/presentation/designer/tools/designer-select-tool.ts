@@ -83,9 +83,10 @@ interface Bend {
  * canvas back to the old shape before the refresh lands. That is what `previewGeneration` guards: an
  * earlier gesture's write settling must not clear a preview a LATER gesture has drawn since. It is
  * bumped when a preview is WRITTEN, not at a press — a later click on a handle writes none, and bumping
- * at its press would strand the earlier preview on the canvas. The guard covers `commit` alone: the
- * store's `select` (a press on a part or on empty canvas) and a press abandoning a leftover bend both
- * clear the preview too, and a write still in flight then shows the stored shape until its refresh.
+ * at its press would strand the earlier preview on the canvas. The guard covers `commit` alone: a
+ * press abandoning a leftover bend, `cancel` and a tool switch clear the preview too, and a write still
+ * in flight then shows the stored shape until its refresh. Selecting does not: the store's `select`
+ * leaves a preview it did not draw.
  * The refusal itself is reported whatever happened since (`SetFacingTool`'s rule: a generation guards
  * gesture-owned state, never the report of a write that really was attempted).
  *
@@ -191,7 +192,11 @@ export class DesignerSelectTool implements EditorTool {
 		if (drag === null) return;
 		this.drag = null;
 		if (!this.passedEpsilon(drag, event.worldPoint)) return;
-		this.release(drag.context, this.shapeAt(drag, event), drag.version);
+		// The release point is previewed before it is committed, as `CurveTool.pointerUp` does, so the
+		// canvas shows the shape being written rather than the last move's.
+		const next = this.shapeAt(drag, event);
+		this.preview(next);
+		this.release(drag.context, next, drag.version);
 	}
 
 	cancel(): void {

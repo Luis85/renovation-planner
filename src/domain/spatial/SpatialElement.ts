@@ -61,13 +61,13 @@ function validStructuralFields(element: SpatialElement): boolean {
 	return element.width !== undefined && Number.isFinite(element.width) && element.width > 0 && element.width <= 1e6 && element.points.length === 2;
 }
 
-/** `offset` belongs to a dimension chain and `flipped` to a section line; the one-point and two-point kinds hold exactly that many. */
+/** `offset` belongs to a dimension chain and `flipped` to a section line; the one-point kinds and a view marker hold exactly one and two points, a section line two or more. */
 function validDraftingFields(element: SpatialElement): boolean {
 	if ((element.kind === 'dimension') !== (element.offset !== undefined)) return false;
 	if ((element.kind === 'section') !== (typeof element.flipped === 'boolean')) return false;
 	if (element.offset !== undefined && !(Number.isFinite(element.offset) && Math.abs(element.offset) <= 1e6)) return false;
 	if (pointKind(element.kind)) return element.points.length === 1;
-	if (element.kind === 'section' || element.kind === 'view') return element.points.length === 2;
+	if (element.kind === 'view') return element.points.length === 2;
 	const first = element.points[0], last = element.points.at(-1);
 	return element.kind !== 'dimension' || (!!first && !!last && (first.x !== last.x || first.y !== last.y));
 }

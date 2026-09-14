@@ -4,6 +4,10 @@ import { polygonForRect } from '../add/room-draft-store';
 
 /** How an item's outline is drawn (2026-09-13 item modes spec §A): one rectangle drag, or corner by corner. */
 export type ObjectShapeMode = 'rectangle' | 'free';
+/** What the task bar and details say while an item or a hatched area is drawn as one rectangle drag. */
+export function rectangleInstruction(kind: string): 'editor.drafting.banner.hatch-rectangle' | 'editor.element.banner.object-rectangle' {
+	return kind === 'hatch' ? 'editor.drafting.banner.hatch-rectangle' : 'editor.element.banner.object-rectangle';
+}
 
 /**
  * The rectangle two opposite corners span, clockwise from the top-left; `null` when it

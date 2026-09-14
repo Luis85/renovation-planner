@@ -51,15 +51,16 @@ import type { ToolId } from '../tools/editor-tool';
 import { useEditorRuntime } from '../runtime';
 import TaskDrawingControls from './TaskDrawingControls.vue';
 import { isStructureTool } from '../structure/structureDraft';
-import { isElementTool } from '../elements/elementDraft';
+import { isElementTool, isShapedTool } from '../elements/elementDraft';
+import { rectangleInstruction } from '../elements/objectShape';
 import { useTaskbarClearance } from './useTaskbarClearance';
 
 const runtime = useEditorRuntime();
 const isCurves = computed(() => runtime.activeToolId.value === 'edit-curves');
 const isStructure = computed(() => isStructureTool(runtime.activeToolId.value));
 const isElement = computed(() => isElementTool(runtime.activeToolId.value));
-/** An item's instruction follows how it is being drawn (2026-09-13 item modes spec §A). */
-const isRectangleItem = computed(() => runtime.activeToolId.value === 'place-object' && runtime.elementTask.draft.shape === 'rectangle');
+/** An item's or hatched area's instruction follows how it is being drawn (2026-09-13 item modes spec §A). */
+const isRectangleItem = computed(() => isShapedTool(runtime.activeToolId.value) && runtime.elementTask.draft.shape === 'rectangle');
 const cancelBlocked = computed(() => !runtime.toolManager.canDeactivateActiveTool() || (isStructure.value && runtime.structureTask.draft.busy) || (isElement.value && runtime.elementTask.draft.busy));
 function cancel(): void { if (!cancelBlocked.value) runtime.cancelActiveTask(); }
 
@@ -74,7 +75,7 @@ const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKe
 	'place-post': { nameKey: 'editor.add.post.label', instructionKey: 'editor.post.banner' },
 	'draw-beam': { nameKey: 'editor.add.beam.label', instructionKey: 'editor.beam.banner' },
 	'draw-dimension': { nameKey: 'editor.add.dimension.label', instructionKey: 'editor.drafting.banner.dimension', finish: true },
-	'draw-section': { nameKey: 'editor.add.section.label', instructionKey: 'editor.drafting.banner.section' },
+	'draw-section': { nameKey: 'editor.add.section.label', instructionKey: 'editor.drafting.banner.section', finish: true },
 	'place-view': { nameKey: 'editor.add.view.label', instructionKey: 'editor.drafting.banner.view' },
 	'draw-hatch': { nameKey: 'editor.add.hatch.label', instructionKey: 'editor.drafting.banner.hatch', finish: true },
 	'place-text': { nameKey: 'editor.add.text.label', instructionKey: 'editor.drafting.banner.text', finish: true },
@@ -107,7 +108,8 @@ const finishLabel = computed(() => tr(isCurves.value ? 'editor.curves.save' : is
 	? runtime.activeToolId.value === 'draw-wall' ? 'editor.creation.finish-walls' : 'editor.creation.finish-opening'
 	: isElement.value ? 'editor.element.finish' : isArea.value ? 'editor.area.finish' : 'editor.task.finish'));
 const canFinish = computed(() => isCurves.value ? !runtime.curveTask.blocked.value && runtime.curveTask.target.value !== null && runtime.curveTask.validation.value === null && runtime.curveTask.state.invalidField === null : isStructure.value ? !runtime.structureTask.blocked.value : isElement.value ? runtime.elementTask.canFinish.value : isOutline.value ? runtime.canFinishArea.value : runtime.canCreateRoom.value);
-const showSnapHint = computed(() => runtime.renderState.snapGuides.length > 0);
+/** Empty rather than absent while nothing snaps: the hint's slot keeps its width (`.rp-task-banner__snap`), so Finish never moves under the pointer. */
+const snapHint = computed(() => runtime.renderState.snapGuides.length > 0 ? tr('editor.room.snapped') : '');
 /**
  * The instruction key ternary, out of the template and behind fallow's cognitive-complexity
  * threshold (increment history, 2026-09-13 item modes) — a function over the ALREADY-NARROWED
@@ -116,7 +118,7 @@ const showSnapHint = computed(() => runtime.renderState.snapGuides.length > 0);
  * reach.
  */
 function instruction(current: NonNullable<typeof task.value>): string {
-	return tr(isRectangleItem.value ? 'editor.element.banner.object-rectangle' : current.instructionKey);
+	return tr(isRectangleItem.value ? rectangleInstruction(runtime.elementTask.draft.kind) : current.instructionKey);
 }
 const finishBlocked = computed(() => !canFinish.value || runtime.writesBlocked.value);
 const finishDescription = computed(() => [instructionId, runtime.writesBlocked.value ? runtime.pausedReasonId : null].filter(Boolean).join(' '));
@@ -190,9 +192,9 @@ watch(task, (next) => {
 		<div class="rp-task-banner__text">
 			<strong role="status">{{ tr(task.nameKey) }}</strong>
 			<span
-				v-if="showSnapHint"
-				role="status"
-			>{{ tr('editor.room.snapped') }}</span>
+				class="rp-task-banner__snap"
+				:data-reserve="tr('editor.room.snapped')"
+			><span role="status">{{ snapHint }}</span></span>
 			<span
 				:id="instructionId"
 			>{{ instruction(task) }}</span>

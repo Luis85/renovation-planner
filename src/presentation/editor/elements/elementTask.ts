@@ -55,9 +55,9 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		if (blocked.value) return false;
 		draft.points = points.map(point => ({ ...point })); draft.error = null; return true;
 	}
-	/** A beam, a section line and a view marker are exactly their two points, so the second one saves them. */
+	/** A beam and a view marker are exactly their two points, so the second one saves them; a section line takes points until Finish. */
 	function finishIfComplete(): void {
-		if (['beam', 'section', 'view'].includes(draft.kind) && draft.points.length === 2) void finish();
+		if (['beam', 'view'].includes(draft.kind) && draft.points.length === 2) void finish();
 	}
 	function addPoint(point: Point): boolean {
 		if (draft.kind === 'post') return placePost(point);
@@ -140,7 +140,8 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		if (runtime.activeToolId.value !== tool) return;
 		const ticket = reads.ticket();
 		await reads.ready();
-		if (reads.current(ticket)) addPoint(point);
+		// A point to start from is a first corner, so a hatched area started here is drawn free-form.
+		if (reads.current(ticket)) { draft.shape = 'free'; addPoint(point); }
 	}
 	for (const id of Object.keys(ELEMENT_TOOLS) as ElementToolId[]) runtime.toolManager.register(new ElementTool(id, {
 		draft, start, stop, blocked: () => blocked.value || draft.pendingInput || !!draft.text.x || !!draft.text.y, addPoint, setPoints, finish: () => { void finish(); },

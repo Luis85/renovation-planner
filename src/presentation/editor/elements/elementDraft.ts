@@ -21,6 +21,9 @@ export const ELEMENT_TOOLS: Readonly<Record<ElementToolId, Exclude<SpatialElemen
 	'place-text': 'text', 'draw-boundary': 'boundary', 'place-grid': 'grid',
 };
 export function isElementTool(id: ToolId | null): id is ElementToolId { return id !== null && id in ELEMENT_TOOLS; }
+/** The kinds drawn as one rectangle drag or corner by corner (2026-09-13 item modes spec §A): an item, and a hatched area, the way a room is drawn. */
+export function shapedKind(kind: string): boolean { return kind === 'object' || kind === 'hatch'; }
+export function isShapedTool(id: ToolId | null): boolean { return isElementTool(id) && shapedKind(ELEMENT_TOOLS[id]); }
 export interface ElementDraft {
 	kind: Exclude<SpatialElementKind, 'asset'>; name: string; points: Point[]; cursor: Point | null;
 	text: { x: string; y: string };
@@ -59,7 +62,7 @@ function structuralFields(draft: ElementDraft): Pick<SpatialElement, 'width' | '
 /** How many points a kind's draft holds at most: one for a text or grid point, two for the two-point kinds, unbounded otherwise. */
 export function maxDraftPoints(kind: ElementDraft['kind']): number | null {
 	if (kind === 'text' || kind === 'grid') return 1;
-	return ['measurement', 'stair', 'beam', 'section', 'view'].includes(kind) ? 2 : null;
+	return ['measurement', 'stair', 'beam', 'view'].includes(kind) ? 2 : null;
 }
 /**
  * A new dimension chain carries the offset its preview draws — the pointer's, in whole millimetres, while its line is being
@@ -88,7 +91,7 @@ export function draftElement(draft: ElementDraft, id = 'element-draft'): NamedSp
  * mode check lives here once rather than in both doors.
  */
 export function pointsAfterUndo(draft: ElementDraft): Point[] {
-	return draft.kind === 'object' && draft.shape === 'rectangle' ? [] : draft.points.slice(0, -1);
+	return shapedKind(draft.kind) && draft.shape === 'rectangle' ? [] : draft.points.slice(0, -1);
 }
 /**
  * The canvas preview's vertex list (StructureLayer.vue's `elementDraft`): every other draft
@@ -98,7 +101,7 @@ export function pointsAfterUndo(draft: ElementDraft): Point[] {
  * rectangle (vault defect, caught by no gate). Same mode check as `pointsAfterUndo` above.
  */
 export function elementPreviewPoints(draft: ElementDraft): readonly Point[] {
-	if (draft.kind === 'object' && draft.shape === 'rectangle') return draft.points;
+	if (shapedKind(draft.kind) && draft.shape === 'rectangle') return draft.points;
 	// No cursor once the kind holds all its points, nor while a dimension chain's line is being placed (plan drafting tools design §5).
 	const full = draft.points.length >= (maxDraftPoints(draft.kind) ?? Number.POSITIVE_INFINITY) || (draft.kind === 'dimension' && draft.dimensionPhase === 'offset');
 	return draft.cursor && !full ? [...draft.points, draft.cursor] : draft.points;

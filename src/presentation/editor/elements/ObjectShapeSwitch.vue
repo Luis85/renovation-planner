@@ -20,7 +20,7 @@ const MODES: readonly { readonly shape: ObjectShapeMode; readonly label: StringK
 	<div
 		class="rp-object-shape"
 		role="group"
-		:aria-label="tr('editor.object.mode')"
+		:aria-label="tr(draft.kind === 'hatch' ? 'editor.drafting.hatch.mode' : 'editor.object.mode')"
 	>
 		<button
 			v-for="mode in MODES"

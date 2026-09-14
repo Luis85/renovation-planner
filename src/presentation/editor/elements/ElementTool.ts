@@ -1,15 +1,15 @@
 import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent, EditorTool } from '../tools/editor-tool';
 import type { ElementDraft, ElementToolId } from './elementDraft';
-import { discardElementGeometry, pointsAfterUndo } from './elementDraft';
+import { discardElementGeometry, ELEMENT_TOOLS, pointsAfterUndo, shapedKind } from './elementDraft';
 import type { Point } from '../../../core/geometry/Point';
 import { SNAP_TOLERANCE_PX } from '../handleMetrics';
 import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 import { rectangleCorners } from './objectShape';
 
 /**
- * Multi-click linear drafts share the standard tool lifecycle and require explicit Finish. An item in
- * rectangle mode is the one drag (2026-09-13 item modes spec §A): the press anchors a corner, every move
+ * Multi-click linear drafts share the standard tool lifecycle and require explicit Finish. An item or a
+ * hatched area in rectangle mode is the one drag (2026-09-13 item modes spec §A): the press anchors a corner, every move
  * rewrites the four corners, and the release names the rectangle — `DrawRoomTool`'s rule, since a fast
  * flick is a legal pointer stream with no move at all. A click encloses no area and changes nothing.
  */
@@ -23,6 +23,7 @@ export class ElementTool implements EditorTool {
 	activate(context: EditorContext): void { this.context = context; this.deps.start(this.id); }
 	deactivate(): void { if (this.context) this.context.renderState.snapGuides = []; this.context = null; this.dragAnchor = null; this.deps.stop(); }
 	private inputContext(): EditorContext | null { return this.context && !this.deps.blocked() ? this.context : null; }
+	private shaped(): boolean { return shapedKind(ELEMENT_TOOLS[this.id]); }
 	pointerDown(event: EditorPointerEvent): void {
 		if (event.button !== 'primary' || !this.inputContext()) return;
 		this.pointerMove(event);
@@ -30,13 +31,15 @@ export class ElementTool implements EditorTool {
 		// the two reads leaves `draft.cursor` unset — nothing to anchor or add.
 		const cursor = this.deps.draft.cursor;
 		if (!cursor) return;
-		if (this.id === 'place-object' && this.deps.draft.shape === 'rectangle') this.dragAnchor = cursor;
+		if (this.shaped() && this.deps.draft.shape === 'rectangle') this.dragAnchor = cursor;
 		else this.deps.addPoint(cursor);
 	}
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.inputContext();
 		if (!context) return;
-		const constrained = constrainDrawingPoint(this.deps.draft.points.at(-1), event.worldPoint, event.modifiers.shift && this.id !== 'place-object', context.snapService);
+		// Shift squares a corner-by-corner segment; a drag is already axis-aligned, and an item never constrained.
+		const square = event.modifiers.shift && this.id !== 'place-object' && !this.dragAnchor;
+		const constrained = constrainDrawingPoint(this.deps.draft.points.at(-1), event.worldPoint, square, context.snapService);
 		const snap = context.snapService.snapPointWithGuides(constrained, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
 		this.deps.draft.cursor = snap.point;
 		context.renderState.snapGuides = snap.guides;
@@ -61,7 +64,7 @@ export class ElementTool implements EditorTool {
 		// "Undo the last point" on a rectangle-mode item removes the whole outline rather than one
 		// corner (PR #182 follow-up F-B) — the mode check itself lives in `pointsAfterUndo`, the
 		// same helper `elementTask.ts`'s `undoPoint()` reaches for the other door.
-		if (index === -1 && point === null && this.id === 'place-object') return this.deps.setPoints(pointsAfterUndo(this.deps.draft));
+		if (index === -1 && point === null && this.shaped()) return this.deps.setPoints(pointsAfterUndo(this.deps.draft));
 		if (point) points.splice(resolved, 1, point); else points.splice(resolved, 1);
 		return true;
 	}

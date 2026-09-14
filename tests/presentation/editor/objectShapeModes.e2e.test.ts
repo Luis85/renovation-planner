@@ -11,9 +11,9 @@ import type { Point } from '../../../src/core/geometry/Point';
 const mounted: Awaited<ReturnType<typeof structureEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 
-async function setup() {
+async function setup(tool: 'place-object' | 'draw-hatch' = 'place-object') {
 	const rig = await structureEditor(true); mounted.push(rig);
-	rig.runtime.setTool('place-object');
+	rig.runtime.setTool(tool);
 	await settleUntil(() => !rig.runtime.elementTask.draft.loading, 'item baseline');
 	return { ...rig, task: rig.runtime.elementTask };
 }
@@ -38,6 +38,18 @@ it('starts an item as a rectangle drag and saves the dragged outline', async () 
 	await banner.get('.rp-task-banner__finish').trigger('click');
 	await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'saved item');
 	expect(expectDefined(rig.project.structure.elements?.[0], 'saved item')).toMatchObject({ kind: 'object', points: RECTANGLE });
+});
+
+it('draws a hatched area as one rectangle drag, the way a room is drawn, and saves the dragged outline', async () => {
+	const rig = await setup('draw-hatch'), banner = rig.wrapper.get('.rp-task-banner');
+	expect(banner.text()).toContain(tr('editor.drafting.banner.hatch-rectangle'));
+	expect(banner.get('[data-rp-object-shape="rectangle"]').attributes('aria-pressed')).toBe('true');
+	expect(rig.wrapper.get<HTMLDetailsElement>('.rp-object-rectangle').element.open).toBe(true);
+	await drag(rig, { x: 3000, y: 2000 }, { x: 1000, y: 500 });
+	expect(rig.task.draft.points).toEqual(RECTANGLE);
+	await banner.get('.rp-task-banner__finish').trigger('click');
+	await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'saved hatch');
+	expect(expectDefined(rig.project.structure.elements?.[0], 'saved hatch')).toMatchObject({ kind: 'hatch', points: RECTANGLE });
 });
 
 it('carries the outline across both switches, from the task bar and from details', async () => {

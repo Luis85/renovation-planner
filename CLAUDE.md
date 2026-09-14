@@ -1036,17 +1036,27 @@ that was fixing the previous instance.
   newest and not to a range over it, so the compiler refuses an API `minAppVersion` does not
   promise. `tests/release/manifest.test.ts` holds that pairing. Raise both or neither.
 - **`lib` and `target` are two different claims and deliberately disagree.** `lib` is
-  ES2021 — what the type system says EXISTS at runtime — while `target` stays at ES2020 in
-  BOTH `tsconfig.json` and `vite.config.ts`, which is the SYNTAX the bundle emits. Raising
-  `lib` alone widens what `src/` may reach for (`String.replaceAll`, `Promise.any`,
-  `AggregateError`, `WeakRef`) and changes not one byte of emitted syntax, because a method
-  call is not downlevelled and esbuild polyfills nothing. So it rests on a RUNTIME claim,
-  and only half of that claim is checked: all four shipped in Node 15, below every range
-  `engines.node` declares and therefore inside what `tests/build/engines.test.ts` already
-  compares — while the Electron an Obsidian at `minAppVersion` 1.13.0 ships is checked by
-  nothing here, and is the half to argue at the next raise. `Object.hasOwn` is still out,
-  measured rather than remembered: a probe compiled under ES2021 reports exactly that one
-  missing and the other four present, because it is ES2022.
+  `["DOM", "ES2021", "ES2023.Array"]` — what the type system says EXISTS at runtime — while
+  `target` stays at ES2020 in BOTH `tsconfig.json` and `vite.config.ts`, which is the SYNTAX
+  the bundle emits. Widening `lib` widens what `src/` may reach for and changes not one byte
+  of emitted syntax, because a method call is not downlevelled and the build polyfills
+  nothing — measured, `dist/main.js` calls `toSorted` and `findLast` by name. `ES2021` admits
+  `String.replaceAll`, `Promise.any`, `AggregateError` and `WeakRef` (all Node 15);
+  `ES2023.Array` admits `findLast`/`findLastIndex` (Chrome 97, Node 18) and
+  `toSorted`/`toReversed`/`toSpliced`/`with` (Chrome 110, Node 20). That half is not
+  hypothetical: `src/` already calls `toSorted`, `toReversed` and `findLast`. Grep the six
+  names for the current sites and read each hit, since `Requirement.ts`'s `this.with(` is
+  its own private method and not `Array.prototype.with`.
+
+  So `lib` rests on a RUNTIME claim, and only half of that claim is checked. The Node half:
+  `engines.node`'s floor, 22.22.2, is above Node 20, and that declared range is what
+  `tests/build/engines.test.ts` checks against every installed package — but nothing reads
+  `lib` against the range, so the comparison is this sentence's and is redone by hand when
+  either moves. The Electron an Obsidian at `minAppVersion` 1.13.0 ships is checked by
+  NOTHING here: Chrome 110 is the floor this `lib` asserts without a check under it, and the
+  half to argue at the next raise. `Object.hasOwn` is still out, measured rather than
+  remembered: a probe compiled under ES2021 reports exactly that one missing and the other
+  four present, because it is ES2022 — and `ES2023.Array` does not reach it.
 - **`engines.node` is a RANGE, and a measurement rather than a decision.** Every dependency
   renegotiates it silently. `>=22` was already false before oxlint arrived, and the obvious
   repair — raise the floor — was still wrong at the other end: eighteen installed packages

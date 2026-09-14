@@ -875,16 +875,10 @@ describe('the headless harness capture script', () => {
 		expect(shot('plan-editor-narrow').selector).toEqual(['.rp-plan-canvas', '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail']);
 	});
 
-	it('takes the structural shots through the ?structural knob, one of them at a sidebar width', () => {
-		for (const name of ['plan-editor-structural', 'plan-editor-structural-dark', 'plan-editor-structural-narrow']) expect(planEditorQuery(name).has('structural')).toBe(true);
-		expect(planEditorQuery('plan-editor-structural-dark').has('theme')).toBe(false);
-		expect(shot('plan-editor-structural-narrow').width).toBe(460);
-	});
-
-	it('takes the drafting shots through the ?drafting knob, one of them at a sidebar width', () => {
-		for (const name of ['plan-editor-drafting', 'plan-editor-drafting-dark', 'plan-editor-drafting-narrow']) expect(planEditorQuery(name).has('drafting')).toBe(true);
-		expect(planEditorQuery('plan-editor-drafting-dark').has('theme')).toBe(false);
-		expect(shot('plan-editor-drafting-narrow').width).toBe(460);
+	it.each(['structural', 'drafting'])('takes the %s shots through their own knob, one of them at a sidebar width', knob => {
+		for (const name of [`plan-editor-${knob}`, `plan-editor-${knob}-dark`, `plan-editor-${knob}-narrow`]) expect(planEditorQuery(name).has(knob)).toBe(true);
+		expect(planEditorQuery(`plan-editor-${knob}-dark`).has('theme')).toBe(false);
+		expect(shot(`plan-editor-${knob}-narrow`).width).toBe(460);
 	});
 
 	/**

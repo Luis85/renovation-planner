@@ -130,7 +130,8 @@ describe('drawing a rectangle detail', () => {
 		drag(rig, { x: 200, y: 200 }, { x: 600, y: 500 });
 		await settle();
 
-		expect(Notice.shown).toHaveLength(1);
+		expect(Notice.shown).toEqual([t('en', 'asset.no-footprint')]);
+		expect(Notice.shown[0]).toContain('detail');
 		expect((await rig.document()).shape).toBeNull();
 		rig.unmount();
 	});
@@ -181,7 +182,7 @@ describe('tracing a detail', () => {
 		tracePolygon(rig, [{ x: 200, y: 200 }, { x: 400, y: 200 }, { x: 600, y: 200 }]);
 		await settle();
 
-		expect(Notice.shown).toHaveLength(1);
+		expect(Notice.shown).toEqual([t('en', 'asset.degenerate-detail')]);
 		expect(await details(rig)).toEqual([]);
 		rig.unmount();
 	});

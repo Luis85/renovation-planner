@@ -73,6 +73,9 @@ export class DrawDetailTool implements EditorTool {
 	pointerDown(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null || event.button !== 'primary') return;
+		// A new press is a new gesture: a write still in flight from the last one must not select
+		// its detail and switch to Select in the middle of this drag.
+		this.generation += 1;
 		this.start = this.snapped(context, event.worldPoint);
 	}
 

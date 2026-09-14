@@ -286,7 +286,7 @@ export function requireShape(current: AssetShape | null): Result<AssetShape, Val
 		return err(
 			assetError(
 				'no-footprint',
-				'This asset has no footprint; a clearance, an anchor and a facing are each relative to one.',
+				'This asset has no footprint; a clearance, an anchor, a facing and a detail are each relative to one.',
 			),
 		);
 	}

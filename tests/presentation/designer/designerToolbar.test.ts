@@ -89,6 +89,16 @@ describe('every tool the toolbar offers', () => {
 		rig.unmount();
 	});
 
+	/** The detail tools make the same promise: a traced vertex, a box's corner and a circle's centre land where pressed. */
+	it.each(['draw-rect', 'draw-circle', 'trace-detail'] as const)('gives %s the precise cursor too', async (id) => {
+		const rig = await designerRig();
+
+		await press(rig, DESIGNER_TOOL_LABELS[id]);
+
+		expect(rig.canvasEl.classList.contains('rp-plan-canvas-precise')).toBe(true);
+		rig.unmount();
+	});
+
 	/** ...and nothing else is. One active tool, one marked button. */
 	it('marks exactly one mode at a time', async () => {
 		const rig = await designerRig();

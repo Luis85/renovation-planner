@@ -1,5 +1,6 @@
 import type { AppError, ValidationError } from '../../../core/errors/AppError';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
+import { createPolygon } from '../../../core/geometry/Polygon';
 import { err, ok, type Result } from '../../../core/result/Result';
 import { assetError } from '../../../domain/asset/Asset.errors';
 import type { AssetId } from '../../../domain/asset/AssetId';
@@ -147,7 +148,8 @@ export interface DesignerToolDeps {
 	readonly selectTool: DesignerSelectToolDeps;
 }
 
-type DetailWrite = Result<{ readonly command: UndoableCommand; readonly detailId: string }, ValidationError>;
+type DetailWriteValue = { readonly command: UndoableCommand; readonly detailId: string };
+type DetailWrite = Result<DetailWriteValue, ValidationError>;
 
 /**
  * The ONE write all three detail tools build: `addDetail` over the design the leaf read, pending by
@@ -156,6 +158,12 @@ type DetailWrite = Result<{ readonly command: UndoableCommand; readonly detailId
  *
  * A shapeless asset refuses with `requireShape`'s code (`updateAssetShape.ts`), whose sentence the
  * locale already carries: a detail, like a clearance, is drawn relative to a footprint.
+ *
+ * **A draw does not join `runtime.editShape`'s serialised chain** (`selection/editShape.ts`). It
+ * reads `selectTool.design()` at release, so a draw released while an inspector commit or a nudge
+ * is still being read back builds on the version before that write and is refused as a version
+ * conflict. That is safe — the condition refuses, nothing is overwritten, and the user draws again
+ * — and it is closed by routing this write through that chain instead of `commandDispatcher.run`.
  */
 function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): DetailWrite {
 	const design = deps.selectTool.design();
@@ -173,31 +181,35 @@ function completeDetail(deps: DesignerToolDeps, detailId: string): void {
 }
 
 /**
- * Trace detail is `DrawPolygonTool`, whose completion must answer a command. A domain refusal
- * therefore becomes a command that resolves that refusal — `DrawPolygonTool` reports it through
- * `reportRejected` and keeps the user's vertices. One function serves as both halves, because a
- * refused command is never recorded and so its `undo` is never reached.
+ * Trace detail is `DrawPolygonTool`. Every refusal a traced detail can meet — the polygon rules, no
+ * footprint, `addDetail`'s own — is asked in `validateOutline`, which runs before any command is
+ * built, so it reaches `reportInvalidInput` and dispatches NOTHING (the one-gesture constraint: a
+ * domain refusal is never dispatched). The write that check built is held for `commandFor`, which
+ * `closePolygon` calls straight after it with no await between, so the two cannot see different
+ * designs.
  */
 function traceDetailTool(deps: DesignerToolDeps): DrawPolygonTool {
-	let tracedId = '';
+	// Assigned by the successful `validateOutline` that always precedes `commandFor` and `onCompleted`.
+	let traced!: DetailWriteValue;
 	return new DrawPolygonTool({
 		id: 'trace-detail',
+		validateOutline: (points) => {
+			const polygon = createPolygon(points);
+			if (!polygon.ok) return polygon;
+			const write = detailWrite(deps, 'outline', polygon.value);
+			if (!write.ok) return write;
+			traced = write.value;
+			return polygon;
+		},
 		completion: {
-			commandFor: (geometry) => {
-				const write = detailWrite(deps, 'outline', geometry);
-				if (!write.ok) {
-					const refuse = () => Promise.resolve(err(write.error));
-					return { execute: refuse, undo: refuse, createdId: null };
-				}
-				tracedId = write.value.detailId;
-				const { command } = write.value;
+			commandFor: () => {
+				const { command } = traced;
 				return { execute: () => command.execute(), undo: () => command.undo(), createdId: null };
 			},
 		},
 		reportRejected: deps.reportRejected,
 		reportInvalidInput: deps.reportInvalidInput,
-		// Reached only after a successful close, which is the only path that set `tracedId`.
-		onCompleted: () => completeDetail(deps, tracedId),
+		onCompleted: () => completeDetail(deps, traced.detailId),
 	});
 }
 

@@ -447,11 +447,16 @@ alert, because its control sits beside a part that is still drawn.
 refreshing. The first bullet refines Amendment 1's condition:
 
 - Every write dispatched through a tool — the select tool's release, every draw and trace tool, and
-  the anchor, facing, calibration and height writes — or through `editShape` — the arrow keys and
-  the selection inspector — runs on one serialised chain, each step reading the design when it runs.
-- Five writes dispatch directly and do NOT join that chain: undo, redo, set background, Edit
-  dimensions (`setFootprintFromDimensions`) and Start from preset (`applyShape`). A press or key made
-  while one of those five is still awaiting its read-back reads the OLD version and is refused as a
+  the anchor, facing and calibration writes — runs on one serialised chain, each step reading the
+  design when it runs. So does `commitHeight`, which borrows that same queued dispatcher rather than
+  being a tool itself, and so does every `editShape` call: the arrow keys, the canvas's own Delete and
+  Ctrl+D, the selection inspector, and Edit dimensions' SCALING path (`scaleDesign`, taken when the
+  design has a detail or a curved footprint or clearance edge).
+- Four writes dispatch directly and never join that chain: undo, redo, set background and Start from
+  preset (`applyShape`). Edit dimensions' REPLACE-WITH-RECTANGLE path
+  (`setFootprintFromDimensions`, taken for an unscaled drawing or one with nothing curved or detailed
+  to scale) dispatches directly too, unlike its scaling path above. A press or key made while one of
+  these bypassing writes is still awaiting its read-back reads the OLD version and is refused as a
   version conflict rather than composing with it. Nothing is overwritten.
 - A press that arrives while the chain is busy is held and replayed once it drains. A drag
   therefore still reads, and is conditional on, the design the user pressed on.

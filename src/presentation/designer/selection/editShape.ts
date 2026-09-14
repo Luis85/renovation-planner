@@ -29,11 +29,16 @@ export type EditShape = (edit: (shape: AssetShape) => ReturnType<ShapeEdit> | nu
  * write left, and two gestures made before the first refresh lands compose rather than the second
  * being refused as a version conflict against the user's own first.
  *
- * The joiners are every tool's dispatch (through the runtime's queued dispatcher), `commitHeight` and
- * `editShape` (the arrow keys and the selection inspector). Five writes dispatch directly instead and do
- * NOT join this chain: undo, redo, set background, Edit dimensions (`setFootprintFromDimensions`) and
- * Start from preset (`applyShape`). A press or key made while one of those five is still awaiting its
- * read-back reads the OLD version and is refused as a version conflict; nothing is overwritten.
+ * The joiners: every tool's dispatch (through the runtime's queued dispatcher); `commitHeight`, which
+ * borrows that same queued dispatcher rather than being a tool itself; and every `editShape` call —
+ * the arrow keys, the canvas's own Delete and Ctrl+D, the selection inspector, and Edit dimensions'
+ * SCALING path (`scaleDesign`, taken when the design has a detail or a curved footprint or clearance
+ * edge). Four writes dispatch directly and never join this chain: undo, redo, set background and
+ * Start from preset (`applyShape`). Edit dimensions' REPLACE-WITH-RECTANGLE path
+ * (`setFootprintFromDimensions`, taken for an unscaled drawing or one with nothing curved or detailed
+ * to scale) dispatches directly too, unlike its scaling path above. A press or key made while one of
+ * these bypassing writes is still awaiting its read-back reads the OLD version and is refused as a
+ * version conflict; nothing is overwritten.
  *
  * `writing` and `settled` are the Select tool's two questions for a press (`DesignerSelectTool`'s
  * `hold`): is a write still queued, and when will every write queued so far have landed. `settled`

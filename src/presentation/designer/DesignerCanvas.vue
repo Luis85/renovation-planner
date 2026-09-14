@@ -177,11 +177,13 @@ function framedBounds(all: boolean): BoundingBox | null {
  * there: a footprint traced afterwards is drawn at the camera the user traced it at, never jumped to.
  * Nothing restores a camera to defer to: `AssetDesignerView.getState` persists the asset id alone.
  *
- * **Not the same watch `PlanCanvas` runs.** `PlanCanvas` re-registers its watch whenever it is not yet
- * ready, so it re-frames on every fall back to zero as well as the first rise; this one fires once, on
- * the stage's first measured change, and does not read the value it fired on. So a canvas REMOUNTED
- * inside the same app — `AssetDesignerRoot`'s `v-if` can swap it out and back without resetting
- * `EditorStore.stageSize` — never frames a second time if the stage was already measured when it
+ * **Not the same watch `PlanCanvas` runs.** `PlanCanvas` registers its watch only once, and only if
+ * the stage is not yet ready when it mounts; the watch itself returns on a fall and stops itself
+ * after the first rise — its own comment says "Only the rise counts". This one registers
+ * unconditionally with `{ once: true }` and does not read the value it fired on, so it can spend its
+ * one callback on a FALL just as easily as on a rise. That is what makes a canvas REMOUNTED inside the
+ * same app — `AssetDesignerRoot`'s `v-if` can swap it out and back without resetting
+ * `EditorStore.stageSize` — never frame a second time if the stage was already measured when it
  * remounted: the watch spends its one callback on the fall to zero instead. Harmless today, because
  * `fitTo` ignores a zero stage and the very first mount always rises from zero; a canvas that reaches
  * that remount case opens unframed.

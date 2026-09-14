@@ -29,6 +29,14 @@ describe('drafting mark layout', () => {
 		expect(marks.texts.map(item => item.text)).toEqual(['S-01', 'S-01']);
 	});
 
+	it('draws a stepped section line through every point, with each end\'s arrow and name turned to that end\'s own segment', () => {
+		const stepped = { ...SECTION_A, points: [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 3000 }] };
+		const marks = draftingMarks(stepped, 1), arrows = marks.lines.filter(line => line.name === 'drafting-section-arrow');
+		expect(marks.lines[0].points).toEqual([0, 0, 4000, 0, 4000, 3000]);
+		expect(arrows.map(line => line.points.slice(4))).toEqual([[0, 10], [3990, 3000]]);
+		expect(marks.texts.map(item => [item.x, item.y])).toEqual([[0, 21], [3979, 3000]]);
+	});
+
 	it('draws a view marker as a hollow triangle pointing where it looks, and every other mark by its kind', () => {
 		const view = draftingMarks(VIEW_A, 1).lines[0];
 		expect(view).toMatchObject({ name: 'drafting-view-arrow', closed: true });
@@ -60,8 +68,10 @@ describe('drafting mark layout', () => {
 		draft.dimensionPhase = 'offset';
 		expect(elementPreviewPoints(draft)).toEqual(ends);
 		expect(draftPreviewFields(draft)).toEqual({ offset: -800 });
-		Object.assign(draft, { kind: 'section', dimensionPhase: 'points' });
+		Object.assign(draft, { kind: 'view', dimensionPhase: 'points' });
 		expect(elementPreviewPoints(draft)).toEqual(ends);
+		draft.kind = 'section';
+		expect(elementPreviewPoints(draft)).toEqual([...ends, { x: 2000, y: -800 }]);
 		expect(draftPreviewFields(draft)).toEqual({ flipped: false });
 		Object.assign(draft, { kind: 'text', points: [{ x: 0, y: 0 }] });
 		expect(elementPreviewPoints(draft)).toEqual([{ x: 0, y: 0 }]);

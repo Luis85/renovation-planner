@@ -4,6 +4,8 @@ import { settle, settleUntil } from '../../helpers/editor';
 import { editorWith, type EditorRig } from '../../helpers/structural';
 import { SECTION_A } from '../../helpers/drafting';
 import { registerEditorIcons } from '../../../src/plugin/editorIconRegistration';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { worldToScreen, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
 
 const mounted: EditorRig[] = [];
 let unregister: () => void;
@@ -45,6 +47,16 @@ it('greys the Drafting submenu with its reason while the floor is stale', async 
 	rig.project.stale = true; rig.selection.clear(); await menu(rig);
 	expect(item(rig, 'drafting-menu').attributes('aria-disabled')).toBe('true');
 	expect(item(rig, 'drafting-menu').attributes('title')).toBe('Editing is paused until the floor is re-read.');
+});
+
+it('right-clicks a section line a few pixels off its line and offers its Delete', async () => {
+	const rig = await editorWith(mounted, SECTION_A), editorStore = useEditorStore(rig.pinia);
+	rig.selection.clear(); await settle();
+	const at = worldToScreen({ x: 3000, y: 2000 }, editorStore.viewport, STAGE_PIXELS), box = rig.canvasEl.getBoundingClientRect();
+	rig.canvasEl.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: box.left + at.x, clientY: box.top + at.y + 3 }));
+	await settle();
+	expect(rig.selection.selectedIds).toEqual([SECTION_A.id]);
+	expect(item(rig, 'delete').attributes('aria-disabled')).not.toBe('true');
 });
 
 it('flips a selected section line from its menu, and offers it no record creations', async () => {

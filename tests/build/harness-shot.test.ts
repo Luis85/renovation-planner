@@ -676,6 +676,9 @@ describe('the headless harness capture script', () => {
 			'plan-editor-detail',
 			'plan-editor-detail-dark',
 			'plan-editor-detail-narrow-de',
+			'plan-editor-drafting',
+			'plan-editor-drafting-dark',
+			'plan-editor-drafting-narrow',
 			'plan-editor-light',
 			'plan-editor-locked',
 			'plan-editor-locked-dark',
@@ -872,6 +875,12 @@ describe('the headless harness capture script', () => {
 		for (const name of ['plan-editor-structural', 'plan-editor-structural-dark', 'plan-editor-structural-narrow']) expect(planEditorQuery(name).has('structural')).toBe(true);
 		expect(planEditorQuery('plan-editor-structural-dark').has('theme')).toBe(false);
 		expect(shot('plan-editor-structural-narrow').width).toBe(460);
+	});
+
+	it('takes the drafting shots through the ?drafting knob, one of them at a sidebar width', () => {
+		for (const name of ['plan-editor-drafting', 'plan-editor-drafting-dark', 'plan-editor-drafting-narrow']) expect(planEditorQuery(name).has('drafting')).toBe(true);
+		expect(planEditorQuery('plan-editor-drafting-dark').has('theme')).toBe(false);
+		expect(shot('plan-editor-drafting-narrow').width).toBe(460);
 	});
 
 	/**

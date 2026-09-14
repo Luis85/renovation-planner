@@ -7,6 +7,7 @@ import { GetAssetDesignQuery } from '../../src/application/queries/GetAssetDesig
 import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { readAssetShapes } from '../../src/presentation/read-models/assetShapes';
 import { planningWorkspace } from './planningWorkspace';
+import { seedDraftingPlan } from './draftingWorkspace';
 import { createRepositoryStack } from '../helpers/vault';
 import { makeAsset, makePlan, makeProject } from '../helpers/entities';
 import { expectDefined, expectOk } from '../helpers/domain';
@@ -65,6 +66,7 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			const names = ['Post 1', 'Post 2', 'Post 3', 'Free post', 'Ceiling beam'];
 			expectOk(await stack.plans.save(expectOk(withPlanSpatialElements(loaded.entity, elements.map((item, index) => ({ id: item.id, name: names[index] })))), loaded.version));
 		}
+		if (new URLSearchParams(location.search).has('drafting')) await seedDraftingPlan(stack, geometry, plan.id);
 		stack.vault.entries.set('scan.png', 'PNG fixture'); stack.vault.entries.set('scan.pdf', 'PDF fixture');
 	})();
 	const reviewNotes = new ObsidianReviewNotes(stack.deps.vault, stack.index);

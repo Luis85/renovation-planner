@@ -503,6 +503,11 @@ const SHOTS = [
 	{ name: 'plan-editor-structural', query: '?view=plan-editor&reference&planning&structural&theme=light', selector: FLOOR_STATE },
 	{ name: 'plan-editor-structural-dark', query: '?view=plan-editor&reference&planning&structural', selector: FLOOR_STATE },
 	{ name: 'plan-editor-structural-narrow', query: '?view=plan-editor&reference&planning&structural&theme=light', selector: PLAN_CANVAS, width: 460 },
+	// Drafting marks around a walled floor: a dimension chain along its north wall, a section line across it, a view
+	// marker, a hatched area to the south, a text, a boundary line and a grid point, from the `?drafting` knob.
+	{ name: 'plan-editor-drafting', query: '?view=plan-editor&reference&planning&drafting&theme=light', selector: FLOOR_STATE },
+	{ name: 'plan-editor-drafting-dark', query: '?view=plan-editor&reference&planning&drafting', selector: FLOOR_STATE },
+	{ name: 'plan-editor-drafting-narrow', query: '?view=plan-editor&reference&planning&drafting&theme=light', selector: PLAN_CANVAS, width: 460 },
 	// The 2026-09-12 side panels: both collapsed to strips, in both schemes, driven through the real
 	// header buttons (`?panels`); the full layout at its 900px edge, where the canvas floor shrinks
 	// both panels; a selected room in dark; and the German constrained rail.

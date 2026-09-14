@@ -74,7 +74,11 @@ The new removal request receives one bounded confirmation batch using the update
 - Earlier full-gate attempts are not passes: one stopped on conditional-expect lint in the new test; one on a scratch capture script within ESLint's scan. It was moved outside the checkout. Subsequent coverage attempts were canceled for reproduced visual findings, the later user removal request, or capture-driver correction. No gate/threshold was weakened.
 - Read-only npm audit --json: two high development findings, fast-uri and js-yaml. npm run audit (production, high threshold) passed with zero vulnerabilities. No audit fix applied.
 
-**Definitive full gate, ancestry/link verification, publication and CI: pending.**
+Completed intermediate full gate: build/lint passed; 969 files passed and one file failed, with 10,608 tests passed, three failed and one intentional skip (970 files / 10,612 tests), coverage duration 1,267.38 s. Coverage cleared thresholds: statements 99.22% (26,854/27,063), branches 98.05% (19,697/20,088), functions 99.32% (7,813/7,866), lines 99.67% (19,871/19,936). The three failures were downstreamActions fixtures starting Area drawing in Renovate. They now mount the reusable departure control against the real editor runtime in Plan; all six downstream tests pass (36.55 s) and targeted ESLint passes. No production guard was weakened. Fallow then passed separately: no dead code and zero above-threshold complexity findings. An earlier concurrent Fallow attempt lacked the still-pending coverage output; that is not a code defect or passing analysis claim.
+
+Evidence integrity: 33 image hashes verified; all 211 changed text files decoded as UTF-8; four changed documents / 47 local links resolved. Main was re-fetched at acfb7c7d and is an ancestor; the main checkout was clean. Final publication checks repeat the relevant identities.
+
+**Definitive rerun on the corrected tip, publication and CI: pending.**
 
 ## Remaining limits
 

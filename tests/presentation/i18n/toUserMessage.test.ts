@@ -436,9 +436,9 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['asset.detail-at-limit', 'Validation', 'error.category.validation', 'domain/asset/detailEdits.ts'],
 	['asset.no-details', 'Validation', 'error.category.validation', 'domain/asset/detailEdits.ts'],
 	['asset.details-await-scale', 'Validation', 'error.category.validation', 'domain/asset/detailEdits.ts'],
-	// The one `assetError` call outside the domain: every other row above is minted somewhere
-	// under `domain/asset/`, which `grep -rl "assetError(" src/domain/asset src/application/commands/asset`
-	// confirms rather than a remembered count.
+	// Minted by `requireShape` in the application layer rather than under `domain/asset/`, which is
+	// why this row's module column names that file. The column is where each row says where its code
+	// is raised, and rows further down name other modules outside the domain too.
 	['asset.no-footprint', 'Validation', 'error.category.validation', 'application/commands/asset/updateAssetShape.ts'],
 	// `assetNotFound` rather than `assetError`, which is why a grep for the latter misses it
 	// and why it is a `Reference` refusal: nothing about the input is wrong, the thing it

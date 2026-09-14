@@ -2,10 +2,10 @@ import type { AppError, ValidationError } from '../../../core/errors/AppError';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import { createPolygon } from '../../../core/geometry/Polygon';
 import { err, ok, type Result } from '../../../core/result/Result';
-import { assetError } from '../../../domain/asset/Asset.errors';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { addDetail, nextDetailId } from '../../../domain/asset/detailEdits';
+import { requireShape } from '../../../application/commands/asset/updateAssetShape';
 import type { ReversibleAssetDesignCommands } from '../../../application/editor/asset/ReversibleAssetDesignCommands';
 import type { StringKey } from '../../i18n/locales/en';
 import { CalibrateTool, type KnownDistanceSupplier } from '../../editor/tools/calibrate-tool';
@@ -156,8 +156,9 @@ type DetailWrite = Result<DetailWriteValue, ValidationError>;
  * the capture rule, conditional on that design's version. The id is computed with the command so
  * the tool can select the detail the write will create.
  *
- * A shapeless asset refuses with `requireShape`'s code (`updateAssetShape.ts`), whose sentence the
- * locale already carries: a detail, like a clearance, is drawn relative to a footprint.
+ * A shapeless asset refuses THROUGH `requireShape` (`updateAssetShape.ts`), the one function that owns
+ * that code and its sentence, rather than a second spelling of them here: a detail, like a clearance,
+ * is drawn relative to a footprint.
  *
  * **A draw does not join `runtime.editShape`'s serialised chain** (`selection/editShape.ts`). It
  * reads `selectTool.design()` at release, so a draw released while an inspector commit or a nudge
@@ -167,7 +168,8 @@ type DetailWrite = Result<DetailWriteValue, ValidationError>;
  */
 function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): DetailWrite {
 	const design = deps.selectTool.design();
-	if (design === null) return err(assetError('no-footprint', 'This asset has no footprint; a detail is drawn inside one.'));
+	// A null shape only ever gets `requireShape`'s refusal, which is all the cast states.
+	if (design === null) return requireShape(null) as Result<never, ValidationError>;
 	const detailId = nextDetailId(design.shape);
 	const added = addDetail(design.shape, { name, outline, line: 'solid', pending: deps.detailPending(design.shape) });
 	if (!added.ok) return err(added.error);

@@ -181,14 +181,10 @@ describe('tracing an outline', () => {
 /**
  * Camera mode, and the click it takes without writing anything.
  *
- * This used to be the Select tool's case: Select hit-tested an EMPTY candidate list, because
- * nothing on this canvas was selectable until Task B8, so a click through it wrote nothing and
- * selected nothing. The review-fixes plan's Task 6 withdrew that tool — a live control that did
- * nothing but stop a primary-button pan, which slice 14's amendment refuses — so this canvas now
- * rests in camera mode whenever no design tool is active, which is the state Select's own click
- * used to reach anyway for everything except the pan it blocked. The claim that survives the
- * tool's removal is the one this case pins: a click on this canvas, with nothing active to
- * receive it, writes nothing.
+ * The designer OPENS in camera mode: Select is registered (symbols spec, Decision 10) but, like
+ * every other tool here, is active only once its toolbar button is pressed. So a click on a freshly
+ * opened canvas has no tool to receive it, and this case pins that it writes nothing.
+ * `designerSelection.test.ts` is where a click under Select selects a part — still writing nothing.
  */
 describe('camera mode', () => {
 	it('writes nothing for a click, because no tool is active to receive it', async () => {

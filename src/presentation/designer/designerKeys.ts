@@ -1,0 +1,108 @@
+import type { Vector } from '../../core/geometry/Vector';
+import { DUPLICATE_OFFSET_MM, deleteDetail, duplicateDetail, nextDetailId } from '../../domain/asset/detailEdits';
+import { moveAnchor, moveOutline, removeClearance } from '../../domain/asset/shapeEdits';
+import { notifyIfRefused } from '../editor/report-failure';
+import { plainPress } from '../editor/surface/keyboard';
+import type { DesignerSelection } from './selection/designerSelection';
+import type { EditShape } from './selection/editShape';
+
+/**
+ * The asset designer's selection keys (symbols spec, Decision 10). Delete and Ctrl+D are decided HERE
+ * and bound on the canvas REGION by `AssetDesignerRoot`, because `EditorSurface` routes neither and
+ * lets both bubble; the arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
+ * `selectionKeyActions(...).nudgeSelection`. Every edit is one `editShape`, so one conditional write
+ * and one undo entry, and every refusal goes through `notifyIfRefused`.
+ */
+
+/** What `designerShortcut` reads of a key event — a real `KeyboardEvent` satisfies it structurally. */
+export interface DesignerKeyPress {
+	readonly key: string;
+	readonly ctrlKey: boolean;
+	readonly metaKey: boolean;
+	readonly altKey: boolean;
+	readonly shiftKey: boolean;
+	readonly repeat: boolean;
+	readonly isComposing: boolean;
+	preventDefault(): void;
+}
+
+export interface DesignerKeyDoors {
+	readonly selection: DesignerSelection | null;
+	deleteSelection(): void;
+	duplicateSelection(): void;
+}
+
+/**
+ * A bare Delete or Backspace on a part that can go: a detail, or the clearance. The footprint cannot
+ * be deleted (spec Decision 9), and the anchor and the facing are not parts one removes. An autorepeat
+ * is refused too — a held key would dispatch a second, stale delete before the first refresh landed.
+ */
+function deletes(event: DesignerKeyPress, kind: DesignerSelection['kind'] | undefined): boolean {
+	return plainPress(event) && !event.shiftKey && (event.key === 'Delete' || event.key === 'Backspace') && (kind === 'detail' || kind === 'clearance');
+}
+
+/** Ctrl+D, or Cmd+D, on a detail. The character rather than the physical key, so Caps Lock still reads as `d`. */
+function duplicates(event: DesignerKeyPress, kind: DesignerSelection['kind'] | undefined): boolean {
+	return (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && !event.repeat && !event.isComposing && event.key.toLowerCase() === 'd' && kind === 'detail';
+}
+
+/** true when the press was one of these shortcuts (and was handled). Delete/Backspace with no modifiers on a detail or clearance → deleteSelection; Ctrl/Meta+D (no Alt, no Shift, not repeat) on a detail → duplicateSelection and preventDefault. Everything else → false. */
+export function designerShortcut(event: DesignerKeyPress, doors: DesignerKeyDoors): boolean {
+	const kind = doors.selection?.kind;
+	if (deletes(event, kind)) {
+		doors.deleteSelection();
+		return true;
+	}
+	if (!duplicates(event, kind)) return false;
+	event.preventDefault();
+	doors.duplicateSelection();
+	return true;
+}
+
+/**
+ * The three edits a selection key dispatches, over the leaf's store and its `editShape`. Arrow-function
+ * properties, so a component may destructure one without an unbound `this`.
+ *
+ * `deleteSelection` and `duplicateSelection` are reached only through `designerShortcut`, which offers
+ * them for a detail or a clearance and for a detail respectively — so neither re-asks what it was
+ * offered for. The selection clears itself after a delete: the refresh re-reads a shape without the
+ * part, and the store prunes a selection that names nothing.
+ */
+export function selectionKeyActions(
+	store: { readonly selection: DesignerSelection | null; select(next: DesignerSelection | null): void },
+	editShape: EditShape,
+): {
+	readonly deleteSelection: () => Promise<void>;
+	readonly duplicateSelection: () => Promise<void>;
+	readonly nudgeSelection: (by: Vector) => Promise<void>;
+} {
+	return {
+		deleteSelection: () => {
+			const selection = store.selection;
+			return notifyIfRefused(editShape((shape) => (selection?.kind === 'detail' ? deleteDetail(shape, selection.id) : removeClearance(shape))));
+		},
+		duplicateSelection: async () => {
+			const { id } = store.selection as Extract<DesignerSelection, { readonly kind: 'detail' }>;
+			let copy = '';
+			const result = await editShape((shape) => {
+				copy = nextDetailId(shape);
+				return duplicateDetail(shape, id, { dx: DUPLICATE_OFFSET_MM, dy: DUPLICATE_OFFSET_MM });
+			});
+			// The refresh has landed by the time a dispatch resolves, so the copy exists to be selected.
+			if (result.ok) store.select({ kind: 'detail', id: copy });
+			await notifyIfRefused(Promise.resolve(result));
+		},
+		nudgeSelection: (by) => {
+			const selection = store.selection;
+			// A facing is a direction: a nudge has no meaning for it, and nothing is written.
+			if (selection === null || selection.kind === 'facing') return Promise.resolve();
+			return notifyIfRefused(
+				editShape((shape) =>
+					selection.kind === 'anchor'
+						? moveAnchor(shape, { x: shape.anchor.x + by.dx, y: shape.anchor.y + by.dy })
+						: moveOutline(shape, selection, by),
+				),
+			);
+		},
+	};
+}

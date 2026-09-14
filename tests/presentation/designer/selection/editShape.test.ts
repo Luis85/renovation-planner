@@ -24,6 +24,10 @@ function writes(): { readonly calls: { shape: AssetShape; expected: EntityVersio
 
 const shifted = (shape: AssetShape) => ok({ ...shape, anchor: { x: 10, y: 0 } });
 
+const faulting = (): never => {
+	throw new Error('the edit faulted');
+};
+
 describe('createEditShape', () => {
 	it('writes nothing, and resolves no-write, when nothing has been read or nothing drawn', async () => {
 		const recorder = writes();
@@ -61,5 +65,15 @@ describe('createEditShape', () => {
 		expect(recorder.calls).toHaveLength(1);
 		expect(recorder.calls[0]?.shape.anchor).toEqual({ x: 10, y: 0 });
 		expect(recorder.calls[0]?.expected).toBe(DESIGN_VERSION);
+	});
+
+	it('rejects, rather than throwing at the call, when the edit faults', async () => {
+		const recorder = writes();
+
+		// Taken without awaiting: a synchronous throw would fail HERE, which is the defect this case pins.
+		const outcome = createEditShape(() => ({ shape: TOILET, geometryVersion: DESIGN_VERSION }), recorder.write)(faulting);
+
+		await expect(outcome).rejects.toThrow('the edit faulted');
+		expect(recorder.calls).toEqual([]);
 	});
 });

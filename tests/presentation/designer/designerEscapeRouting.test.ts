@@ -52,14 +52,14 @@ describe('Escape on the asset designer surface', () => {
 });
 
 /**
- * `DesignerCanvas.vue:113`'s `nudgeSelection` is the inert half of E8/Task 14: this surface's
- * own `selection` never holds anything (see that file's header), so `EditorSurface`'s arrow-key
- * routing still calls the prop — there is nothing here for it to move, and the case is that
- * calling it does nothing rather than throwing or writing.
+ * An arrow key reaches `DesignerCanvas`'s `nudgeSelection` whatever is selected — `EditorSurface` does
+ * not ask. Updated deliberately from "the inert nudge" when the designer gained a selection (symbols
+ * spec, Decision 10): with NOTHING selected it still writes nothing. `designerKeyboard.test.ts` is
+ * where a selected part moves.
  */
 describe('an arrow key on the asset designer surface', () => {
-	it('reaches the inert nudgeSelection without throwing or writing to the sidecar', async () => {
-		const rig = await designerRig();
+	it('writes nothing with nothing selected', async () => {
+		const rig = await designerRig({ shape: TOILET });
 		const before = await rig.document();
 
 		expect(() => key(rig.canvasEl, { key: 'ArrowRight' })).not.toThrow();

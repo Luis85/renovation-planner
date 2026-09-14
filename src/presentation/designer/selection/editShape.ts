@@ -18,16 +18,20 @@ export type EditShape = (edit: (shape: AssetShape) => Result<AssetShape, Validat
 /**
  * `design` is read PER CALL — a designer leaf edits and re-reads without remounting. Nothing read yet,
  * or nothing drawn, is `no-write`: there is no shape for an edit to act on, which is not a refusal.
+ *
+ * `async`, so a fault in `design()`, the edit or `write` REJECTS the promise rather than throwing at
+ * the call: a key binding discards the promise after `notifyIfRefused`, and a synchronous throw would
+ * escape past every caller that only knows how to handle a promise.
  */
 export function createEditShape(
 	design: () => { readonly shape: AssetShape | null; readonly geometryVersion: EntityVersion } | null,
 	write: (shape: AssetShape, expected: EntityVersion) => Promise<DispatchResult>,
 ): EditShape {
-	return (edit) => {
+	return async (edit) => {
 		const current = design();
-		if (current === null || current.shape === null) return Promise.resolve<DispatchResult>(ok('no-write'));
+		if (current === null || current.shape === null) return ok('no-write');
 		const next = edit(current.shape);
-		if (!next.ok) return Promise.resolve<DispatchResult>(err(next.error));
-		return write(next.value, current.geometryVersion);
+		if (!next.ok) return err(next.error);
+		return await write(next.value, current.geometryVersion);
 	};
 }

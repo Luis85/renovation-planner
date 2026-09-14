@@ -48,6 +48,7 @@ import type { BackgroundStatus } from '../editor/layers/background/BackgroundRen
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
 import { isMissingAsset, useAssetDesignStore } from './stores/assetDesignStore';
+import { designerShortcut, selectionKeyActions } from './designerKeys';
 import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
@@ -63,7 +64,8 @@ const dialogs = useDialogStore();
  * one routine rather than three spellings of it.
  */
 const runtime = provideDesignerRuntime(context);
-const { design, error, status, stale } = storeToRefs(useAssetDesignStore());
+const designStore = useAssetDesignStore();
+const { design, error, status, stale } = storeToRefs(designStore);
 
 /**
  * The canvas is drawing a design it can no longer confirm.
@@ -330,6 +332,29 @@ function onFailureAction(): void {
 	void runtime.hydrate();
 }
 
+/**
+ * Delete and Ctrl+D for the designer's selection (symbols spec, Decision 10), on the CANVAS region:
+ * `EditorSurface` routes neither and lets both bubble from the canvas, while the inspector is a
+ * sibling region, so a Backspace typed in one of its fields never reaches this listener.
+ *
+ * Only under a RESTING Select, which is `EditorSurface`'s arrow door asked of the tool: another tool
+ * keeps the selection drawn but owns the keys — Backspace mid-trace must not delete the part still
+ * selected — and a press still held on the selection (`hasDraft`) is about to write that very part.
+ */
+const keyActions = selectionKeyActions(designStore, runtime.editShape);
+function onCanvasKeyDown(event: KeyboardEvent): void {
+	if (runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
+	designerShortcut(event, {
+		selection: designStore.selection,
+		deleteSelection: () => {
+			void keyActions.deleteSelection();
+		},
+		duplicateSelection: () => {
+			void keyActions.duplicateSelection();
+		},
+	});
+}
+
 onMounted(() => {
 	void runtime.hydrate();
 });
@@ -368,7 +393,10 @@ onMounted(() => {
 				that refused has nothing to draw, and a canvas beneath the panel would be a
 				stage bound to a design nobody has.
 			-->
-			<div class="rp-designer-canvas">
+			<div
+				class="rp-designer-canvas"
+				@keydown="onCanvasKeyDown"
+			>
 				<ViewFailure
 					v-if="failure !== null"
 					v-bind="failure"

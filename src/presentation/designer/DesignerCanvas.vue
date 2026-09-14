@@ -63,6 +63,7 @@ import { detailOutlines, footprintEdge } from './layers/detailsLayer';
 import { anchorMark, facingArrow } from './layers/anchorLayer';
 import { selectionFrame, selectionMarks } from './layers/selectionLayer';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
+import { selectionKeyActions } from './designerKeys';
 
 /**
  * What a screen reader calls this surface. `EditorSurface` requires it rather than defaulting
@@ -96,14 +97,13 @@ const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.
-const { toolManager, renderState, setTool } = useDesignerRuntime();
+const { toolManager, renderState, setTool, editShape } = useDesignerRuntime();
 /**
- * E8's fix is scoped to the Plan Editor's Zones (Task 14) — no arrow key moves anything on this
- * surface yet, so there is nothing for the nudge to do.
- * A named function rather than an inline template arrow: a bare `() => Promise.resolve()`
- * in the template reads `Promise` off the render context instead of the module scope.
+ * An arrow key nudges the designer's selection (symbols spec, Decision 10) by `EditorSurface`'s own
+ * `arrowVector` — 10 mm a press, 100 mm with Shift — as one conditional shape write per press: an
+ * outline moves, the anchor moves, and a facing or no selection writes nothing.
  */
-const nudgeSelection = (): Promise<void> => Promise.resolve();
+const { nudgeSelection } = selectionKeyActions(designStore, editShape);
 /** No area task exists in this surface, so Enter on its canvas finishes nothing. */
 const noArea = (): void => undefined;
 

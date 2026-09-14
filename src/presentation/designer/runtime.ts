@@ -438,7 +438,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		await notifyIfRefused(Promise.resolve(result));
 		// A preset is centred on the origin at whatever size was typed, so it can land wholly outside
 		// the view it was applied from. A WRITTEN shape is framed as `Shift+1` frames it — the same
-		// `fitTo` the plan editor's `selectAndFrame` takes; an asset merely opened keeps its view.
+		// `fitTo` the plan editor's `selectAndFrame` takes. An OPENED asset is framed once by `DesignerCanvas`.
 		const bounds = designFrame(shape);
 		if (result?.ok === true && bounds !== null) editor.fitTo(bounds, editor.stageSize);
 	}

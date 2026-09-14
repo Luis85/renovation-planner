@@ -41,7 +41,7 @@
  * is therefore not read here; closing that means hoisting the tokens to `AssetDesignerRoot`,
  * which owns `.renovation-asset-designer`, and handing them down as a prop.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import type Konva from 'konva';
 import { followPixelRatio } from '../editor/scene/followPixelRatio';
@@ -160,14 +160,32 @@ const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPix
  * to frame does nothing, which is `boundsOfZones`' own rule: a jump to nowhere costs the user the view
  * they had and says nothing about why.
  *
- * The whole-design box is `designFrame` (`runtime.ts`), which Apply preset fits to as well, so the two
- * cannot frame the same design differently.
+ * The whole-design box is `designFrame` (`runtime.ts`), which Apply preset fits to as well, and the fit an
+ * opened design takes below asks this very function — so none of the three frames a design differently.
  */
 function framedBounds(all: boolean): BoundingBox | null {
 	const current = shape.value;
 	if (current === null) return null;
 	return all ? designFrame(current) : selectionFrame(current, selection.value, worldPerPixel.value);
 }
+
+/**
+ * An asset OPENS framed, as `Shift+1` frames it (selection polish critique, finding 1): opened at the default
+ * camera, a toilet was a few dozen pixels in the corner with its handles piled on it. Once, the first time
+ * the stage has an area — the canvas mounts only over a design already read, so what is drawn then is the
+ * design as opened. A design with no shape at that moment keeps its camera, and `once` ends the question
+ * there: a footprint traced afterwards is drawn at the camera the user traced it at, never jumped to.
+ * Nothing restores a camera to defer to: `AssetDesignerView.getState` persists the asset id alone. The plan
+ * editor's `PlanCanvas` opens a plan the same way.
+ */
+watch(
+	() => editor.stageSize.width > 0 && editor.stageSize.height > 0,
+	() => {
+		const bounds = framedBounds(true);
+		if (bounds !== null) editor.fitTo(bounds, editor.stageSize);
+	},
+	{ once: true },
+);
 
 /**
  * vue-konva's `VStage` exposes `getStage()`; the layers follow the monitor's pixel ratio through

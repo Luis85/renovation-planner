@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  *
  * The asset designer harness's knobs (`tests/harness/assetDesigner.ts`, read from the URL by `page.ts`):
- * `&select=` and `&mode=`, `&pending`, `&draw=` and `&camera=default` beside `&preset=`, and the Shift+1
- * fit every preset takes. Every preset-bearing fixed shot in `scripts/harness-shot.mjs` waits on the
+ * `&select=` and `&mode=`, `&pending`, `&draw=` and `&camera=default` beside `&preset=`, and the fit an
+ * opened design takes. Every preset-bearing fixed shot in `scripts/harness-shot.mjs` waits on the
  * `data-rp-harness-ready` mark `driveHarness` sets last, so this file is what makes that mark mean the
  * knobs landed rather than merely that a timer ran.
  *
@@ -17,6 +17,7 @@ import { mountAssetDesignerHarness } from './assetDesigner';
 import { useAssetDesignStore } from '../../src/presentation/designer/stores/assetDesignStore';
 import { useSaveStateStore } from '../../src/presentation/editor/save-state/save-state-store';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
+import { DEFAULT_VIEWPORT } from '../../src/presentation/editor/viewport/Viewport';
 import { tr } from '../../src/presentation/i18n/strings';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver, placeAt, resizeTo } from '../helpers/layout';
@@ -84,19 +85,21 @@ it('honours no knob without a preset: nothing is selected and the view is never 
 });
 
 /**
- * A second Shift+1 is the instrument: a fit that already ran against the measured canvas leaves the
- * camera where it is, while a fit that never ran — or ran into 0 × 0 — would move it now.
+ * A second Shift+1 is the instrument: the fit the designer took on opening, against the measured canvas,
+ * leaves nothing for the press to move — while a fit that never ran, or ran into 0 × 0, would move it now.
+ * The harness presses no fit of its own, so this is the product's.
  */
-it('frames a preset exactly as Shift+1 does, and &camera=default keeps the view it opened with', async () => {
+it('opens a preset framed exactly as Shift+1 frames it, and &camera=default puts the default camera back', async () => {
 	const framed = await mountKnobs('curved-table');
 	await landed(framed.view);
 	const fitted = framed.editor.viewport;
 	framed.canvas.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit1', shiftKey: true, bubbles: true, cancelable: true }));
 	expect(framed.editor.viewport).toEqual(fitted);
+	expect(fitted).not.toEqual(DEFAULT_VIEWPORT);
 
 	const opened = await mountKnobs('curved-table', { camera: 'default' });
 	await landed(opened.view);
-	expect(opened.editor.viewport).not.toEqual(fitted);
+	expect(opened.editor.viewport).toEqual(DEFAULT_VIEWPORT);
 });
 
 it('&pending marks every part of the preset as captured before a scale existed', async () => {

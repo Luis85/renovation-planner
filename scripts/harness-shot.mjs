@@ -735,7 +735,7 @@ const SHOTS = [
 	// (`Anzuwendende Drehung in Grad`, `Eine Ebene nach vorne`) are what wraps or overflows first.
 	{ name: 'asset-designer-select-narrow', query: '?view=asset-designer&preset=toilet&select=detail-2', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="detail"]'], width: 460 },
 	{ name: 'asset-designer-select-narrow-de', query: '?view=asset-designer&preset=toilet&select=detail-2&lang=de', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="detail"]'], width: 460 },
-	// The same Transform selection at the camera an opened asset keeps (`&camera=default`), where the toilet
+	// The same Transform selection at the default camera (`&camera=default`, a user zoomed out), where the toilet
 	// is a few dozen pixels across — the other end of the handle-legibility question from the framed shots.
 	{ name: 'asset-designer-select-transform-unframed', query: '?view=asset-designer&preset=toilet&select=detail-2&camera=default', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="detail"]'] },
 	// A design captured before a scale existed (`&pending`): the inspector's unscaled warnings. The spec sheet

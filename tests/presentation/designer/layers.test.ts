@@ -32,7 +32,7 @@ import {
 	type AssetDesignerContext,
 } from '../../../src/presentation/designer/AssetDesignerContext';
 import { resolveThemeTokens } from '../../../src/presentation/editor/theme/themeTokens';
-import { fitViewport } from '../../../src/presentation/editor/viewport/Viewport';
+import { DEFAULT_VIEWPORT, fitViewport } from '../../../src/presentation/editor/viewport/Viewport';
 import { boundingBoxOf } from '../../../src/core/geometry/operations';
 import { ringSector } from '../../../src/domain/asset/presets/presetGeometry';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
@@ -306,6 +306,8 @@ describe('what the designer’s fit shortcuts frame', () => {
 	it('frames the footprint and the clearance around it, never the outline alone', async () => {
 		const designer = await mountDesigner(assetDesign({ shape: WITH_CLEARANCE }));
 		const store = useEditorStore(designer.pinia);
+		// The design opened framed (`DesignerCanvas`); start from the default camera so the press has a fit to make.
+		store.viewport = DEFAULT_VIEWPORT;
 		const before = store.viewport;
 
 		pressOnCanvas(designer.canvasEl as HTMLElement, 'Digit1');

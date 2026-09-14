@@ -17,6 +17,7 @@ import type { StringKey } from '../../src/presentation/i18n/locales/en';
 import { useAssetDesignStore } from '../../src/presentation/designer/stores/assetDesignStore';
 import { DESIGNER_TOOL_LABELS } from '../../src/presentation/designer/tools/registerDesignerTools';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
+import { DEFAULT_VIEWPORT } from '../../src/presentation/editor/viewport/Viewport';
 import type { DesignerSelection, SelectionMode } from '../../src/presentation/designer/selection/designerSelection';
 import { installObsidianDom } from '../helpers/dom';
 // `../helpers/settle` and not `../helpers/editor`, for the reason `itemKnob.ts` gives: this reaches a real browser.
@@ -205,16 +206,16 @@ function drawInHarness(view: AssetDesignerView, canvas: HTMLElement, draw: strin
 
 /**
  * What every `?preset=` capture waits on. It waits first for the leaf's mount, then for TWO things before
- * touching anything: the design, which the leaf reads after it mounts, and the canvas's first measured
- * size (`EditorStore.stageSize`), without which `Shift+1` fits into 0 × 0 and frames nothing a capture can
- * use. A bare `setTimeout(0)` promised neither.
+ * touching anything: the design, which the leaf reads after it mounts, and the canvas's first measured size
+ * (`EditorStore.stageSize`) — the moment `DesignerCanvas` frames an opened design, so a capture taken before
+ * it would photograph the unframed camera. A bare `setTimeout(0)` promised neither.
  *
  * Then, in order:
  * - `&select=`/`&mode=`, through the REAL Select button and the leaf's own store;
- * - `Shift+1` on the canvas, the user's own fit — an opened asset keeps its origin-centred view, which
- *   clips a curved table and draws a toilet a few pixels wide — unless `&camera=default` asks for exactly
- *   that view;
- * - `&draw=`, LAST, because a gesture in flight refuses a fit (`keyDoors.ts`).
+ * - `&camera=default`, which puts `DEFAULT_VIEWPORT` back — the camera a user zoomed out to, where the toilet
+ *   is a few dozen pixels across. No fit is pressed otherwise: a capture shows the opening fit the product
+ *   took, so a regression in that fit is photographed rather than repaired by this page;
+ * - `&draw=`, LAST, so the preview it leaves is drawn at the camera the capture keeps.
  *
  * Last of all it sets `data-rp-harness-ready` on the view: the mark `scripts/harness-shot.mjs`'s preset
  * shots wait on, since the view element itself is attached at mount, before any of this. The leaf's Pinia
@@ -237,11 +238,8 @@ async function driveHarness(
 		const mode: SelectionMode = knobs.mode === 'points' || knobs.mode === 'bend' ? knobs.mode : 'transform';
 		store.setMode(mode);
 	}
-	const canvas = view.contentEl.querySelector('.rp-plan-canvas') as HTMLElement;
-	if (knobs.camera !== 'default') {
-		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: '!', code: 'Digit1', shiftKey: true, bubbles: true }));
-	}
-	if (knobs.draw !== undefined) drawInHarness(view, canvas, knobs.draw);
+	if (knobs.camera === 'default') editor.viewport = DEFAULT_VIEWPORT;
+	if (knobs.draw !== undefined) drawInHarness(view, view.contentEl.querySelector('.rp-plan-canvas') as HTMLElement, knobs.draw);
 	view.contentEl.dataset.rpHarnessReady = '';
 }
 

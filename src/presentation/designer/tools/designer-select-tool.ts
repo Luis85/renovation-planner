@@ -43,7 +43,7 @@ interface Drag {
 	moved: boolean;
 }
 
-/** `CurveToolActions` members this tool has no use for: nothing blocks a bend, and `dropGesture` does the rest. */
+/** `CurveToolActions` members this tool has no use for: nothing blocks a bend, `hitDesign` already chose its edge, and `dropGesture` does the rest. */
 const never = (): boolean => false;
 const nothing = (): void => undefined;
 
@@ -71,13 +71,23 @@ interface Bend {
  * press and passed as `expected`, so a peer's write during the drag refuses this one rather than
  * being overwritten by a shape computed from the older design.
  *
- * **The preview is cleared only after the write settles**, so the canvas never flashes back to the
- * old shape before the refresh lands. That is what `previewGeneration` guards: an earlier gesture's
- * write settling must not clear a preview a LATER gesture has drawn since. It is bumped when a preview
- * is WRITTEN, not at a press — a later click on a handle writes none, and bumping at its press would
- * strand the earlier preview on the canvas. The refusal itself is reported whatever happened since
- * (`SetFacingTool`'s rule: a generation guards gesture-owned state, never the report of a write that
- * really was attempted).
+ * **A release does not join `runtime.editShape`'s serialised chain** (`selection/editShape.ts`), any
+ * more than a draw does (`registerDesignerTools.ts`'s `detailWrite`). So a second gesture begun before
+ * the first write's refresh lands — another drag or bend, an arrow key, an inspector field — reads the
+ * design from before that write, and its own write is refused as a version conflict and reported as if
+ * a peer had written. That is safe: the condition refuses and nothing is overwritten. Routing the
+ * release through the chain is not the fix, because the version the press read is the right condition
+ * for a drag.
+ *
+ * **`commit` clears its preview only after its write settles**, so a release does not flash the
+ * canvas back to the old shape before the refresh lands. That is what `previewGeneration` guards: an
+ * earlier gesture's write settling must not clear a preview a LATER gesture has drawn since. It is
+ * bumped when a preview is WRITTEN, not at a press — a later click on a handle writes none, and bumping
+ * at its press would strand the earlier preview on the canvas. The guard covers `commit` alone: the
+ * store's `select` (a press on a part or on empty canvas) and a press abandoning a leftover bend both
+ * clear the preview too, and a write still in flight then shows the stored shape until its refresh.
+ * The refusal itself is reported whatever happened since (`SetFacingTool`'s rule: a generation guards
+ * gesture-owned state, never the report of a write that really was attempted).
  *
  * **Bend edges is the plan editor's `CurveTool`, not a copy of it**: an edge-handle press in `bend`
  * mode is forwarded to one `CurveTool` built over this tool's own `CurveToolActions`, whose `set`
@@ -93,9 +103,10 @@ export class DesignerSelectTool implements EditorTool {
 	/**
 	 * Its actions are asked only while a bend exists — `pointerDown` forwards to it only on an edge
 	 * handle, and its `hasDraft` (true for any target) is never asked — so `target` and `set` read
-	 * `bend` without a null arm. `blocked` and `busy` share one never-true function; `choose`, `stop`
-	 * and `cancel` have nothing to do, because `dropGesture` clears the preview beside every call that
-	 * reaches them.
+	 * `bend` without a null arm. `blocked` and `busy` share one never-true function. `choose` has
+	 * nothing to add, because `hitDesign` already chose the edge (`bend.edge`) before `CurveTool` is
+	 * asked; `stop` and `cancel` have nothing to do, because `dropGesture` clears the preview beside
+	 * the `deactivate` and `cancel` that reach them.
 	 */
 	private readonly curve: CurveTool;
 

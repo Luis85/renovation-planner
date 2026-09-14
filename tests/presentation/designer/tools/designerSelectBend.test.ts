@@ -108,5 +108,7 @@ describe('bending an edge', () => {
 
 		expect(rig.written).toEqual([]);
 		expect(rig.previews.at(-1)).toBeNull();
+		// The leftover bend's curve drag went with it: a cancel now must not ask a bend that is gone.
+		expect(() => rig.tool.cancel()).not.toThrow();
 	});
 });

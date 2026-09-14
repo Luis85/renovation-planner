@@ -116,8 +116,7 @@ export interface DesignerRuntime {
 	readonly toolManager: ToolManager;
 	/**
 	 * The reactive proxy over `RenderState` (SDD §19's transient visuals). Tools write plain
-	 * fields; a layer reading them reactively is what would DRAW them — and this canvas has no
-	 * such layer yet, which `registerDesignerTools` records where the tools are.
+	 * fields, and `DesignerGestureLayer` reads them reactively to draw the gesture in progress.
 	 */
 	readonly renderState: RenderState;
 	/** The active tool id, `null` for camera mode; mirrors `ToolManager` reactively. */
@@ -314,7 +313,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const renderState = reactive(new RenderState());
 	/**
 	 * TWO ledgers, because an asset is two resources under one id — see `DesignWriteLedgers`.
-	 * Only the geometry one is reachable from this slice's tools, all four of which write the
+	 * Only the geometry one is reachable from this surface's tools, every one of which writes the
 	 * sidecar; the note ledger exists because the adapters take both and Task B8's height field
 	 * writes through the other.
 	 */

@@ -16,7 +16,7 @@ import type { EditorTool } from '../../editor/tools/editor-tool';
 import type { ToolManager } from '../../editor/tools/tool-manager';
 import type { UndoableCommand } from '../../editor/tools/undoable-command';
 import { DesignerSelectTool, type DesignerSelectToolDeps } from './designer-select-tool';
-import { circleOutline, DrawDetailTool, rectOutline } from './draw-detail-tool';
+import { circleOutline, DrawDetailTool, rectOutline, type DetailWrite } from './draw-detail-tool';
 import { SetAnchorTool } from './set-anchor-tool';
 import { SetFacingTool } from './set-facing-tool';
 
@@ -59,15 +59,12 @@ import { SetFacingTool } from './set-facing-tool';
  * function then has to construct, and camera mode is not one.
  *
  * `calibrate` shares the Plan Editor's `CalibrateTool` rather than a designer copy of it (Task
- * B6): that tool's two-click gesture, its generation counter, its buffered second point and its
- * `abandonGesture` asymmetry are two hundred lines of subtle state a second implementation would
- * have to get right twice. What it does NOT share is a label key — the Plan Editor's own
- * calibrate label lives in its own table (Task 13 retired its toolbar; Task 14 gives the gesture
- * a new door there) and says "Calibrate" about a plan's background, while this table is what the
- * designer's own toolbar builds its buttons from.
- */
-
-/**
+ * B6): a two-click gesture, a generation counter, a buffered second point and an
+ * `abandonGesture` asymmetry a second implementation would have to get right twice. What it does
+ * NOT share is a label key — the Plan Editor's own calibrate label lives in its own table and
+ * says "Calibrate" about a plan's background, while this table is what the designer's own
+ * toolbar builds its buttons from.
+ *
  * Select is FIRST, and it is back on the condition this note used to set for it. The designer once
  * shipped a `SelectTool` over an empty candidate set with a move factory that threw — a live control
  * that did nothing but stop a primary-button pan, which slice 14's amendment refuses — and it was
@@ -150,9 +147,6 @@ export interface DesignerToolDeps {
 	readonly selectTool: DesignerSelectToolDeps;
 }
 
-type DetailWriteValue = { readonly command: UndoableCommand; readonly detailId: string };
-type DetailWrite = Result<DetailWriteValue, ValidationError>;
-
 /**
  * `addDetail` over the design `selectTool.design()` answers NOW, pending by the capture rule, with the
  * version a write of it is conditional on and the id the new detail will have.
@@ -183,7 +177,7 @@ function detailOn(deps: DesignerToolDeps, name: string, outline: CurvedPolygon):
  *
  * The command is built ONCE: a redo re-executes the same write rather than reading the design again.
  */
-function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): DetailWrite {
+function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): Result<DetailWrite, ValidationError> {
 	const released = detailOn(deps, name, outline);
 	if (!released.ok) return err(released.error);
 	let command: UndoableCommand | null = null;
@@ -222,7 +216,7 @@ function completeDetail(deps: DesignerToolDeps, detailId: string): void {
  */
 function traceDetailTool(deps: DesignerToolDeps): DrawPolygonTool {
 	// Assigned by the successful `validateOutline` that always precedes `commandFor` and `onCompleted`.
-	let traced!: DetailWriteValue;
+	let traced!: DetailWrite;
 	return new DrawPolygonTool({
 		id: 'trace-detail',
 		validateOutline: (points) => {
@@ -234,10 +228,7 @@ function traceDetailTool(deps: DesignerToolDeps): DrawPolygonTool {
 			return polygon;
 		},
 		completion: {
-			commandFor: () => {
-				const { command } = traced;
-				return { execute: () => command.execute(), undo: () => command.undo(), createdId: null };
-			},
+			commandFor: () => ({ ...traced.command, createdId: null }),
 		},
 		reportRejected: deps.reportRejected,
 		reportInvalidInput: deps.reportInvalidInput,

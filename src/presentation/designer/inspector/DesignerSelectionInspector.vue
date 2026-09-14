@@ -31,9 +31,8 @@
 import { computed, nextTick, onBeforeUnmount, ref, useId } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
-import type { AppError, ValidationError } from '../../../core/errors/AppError';
+import type { AppError } from '../../../core/errors/AppError';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
-import type { Result } from '../../../core/result/Result';
 import type { DetailLine } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { deleteDetail, fitFootprintToDetails, reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
@@ -50,10 +49,9 @@ import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 import { hasLocaleKey, trError } from '../../i18n/toUserMessage';
 import { duplicateAndSelect } from '../designerKeys';
+import type { ShapeEdit } from '../selection/editShape';
 import { selectionExists, type DesignerSelection } from '../selection/designerSelection';
 import { partBox, resizeToExtent, withPartBox } from '../selection/partExtent';
-
-type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
 
 const props = defineProps<{
 	design: AssetDesignDto;
@@ -236,10 +234,10 @@ function onLine(id: string, event: Event): void {
 	void commit((current) => updateDetail(current, id, { line }));
 }
 
-/** An emptied field commits nothing; `Number('')` would otherwise write a zero nobody typed. */
+/** An emptied field commits nothing; `valueAsNumber` is already `NaN` for `''` on a `type="number"` input. */
 async function onNumber(field: NumberField, event: Event): Promise<void> {
 	const input = event.target as HTMLInputElement;
-	const value = input.value.trim() === '' ? Number.NaN : Number(input.value);
+	const value = input.valueAsNumber;
 	if (!Number.isFinite(value)) return;
 	if ((await commit(field.edit(value))) && field.resets === true) input.value = '0';
 }

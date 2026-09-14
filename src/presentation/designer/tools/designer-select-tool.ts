@@ -54,7 +54,12 @@ interface Drag {
 	moved: boolean;
 }
 
-/** `CurveToolActions` members this tool has no use for: nothing blocks a bend, `hitDesign` already chose its edge, and `dropGesture` does the rest. */
+/**
+ * `CurveToolActions` members this tool has no use for: nothing blocks a bend, `hitDesign`
+ * already chose its edge, and `dropGesture` does the rest. Its actions are asked only while a
+ * bend exists — `press` forwards to it only on an edge handle — so `target` and `set` read
+ * `bend` without a null arm.
+ */
 const never = (): boolean => false;
 const nothing = (): void => undefined;
 
@@ -114,14 +119,6 @@ export class DesignerSelectTool implements EditorTool {
 	/** Presses held behind a queued write, in arrival order; every one but the last has its release (`hold`). */
 	private held: Held[] = [];
 	private previewGeneration = 0;
-	/**
-	 * Its actions are asked only while a bend exists — `pointerDown` forwards to it only on an edge
-	 * handle, and its `hasDraft` (true for any target) is never asked — so `target` and `set` read
-	 * `bend` without a null arm. `blocked` and `busy` share one never-true function. `choose` has
-	 * nothing to add, because `hitDesign` already chose the edge (`bend.edge`) before `CurveTool` is
-	 * asked; `stop` and `cancel` have nothing to do, because `dropGesture` clears the preview beside
-	 * the `deactivate` and `cancel` that reach them.
-	 */
 	private readonly curve: CurveTool;
 
 	constructor(private readonly deps: DesignerSelectToolDeps) {
@@ -244,8 +241,7 @@ export class DesignerSelectTool implements EditorTool {
 	}
 
 	cancel(): void {
-		this.curve.cancel();
-		this.dropGesture(); // no command dispatched
+		this.abandonGesture();
 	}
 
 	/** Every gesture here is press-to-release, so an interruption abandons exactly what `cancel()` does. */

@@ -28,11 +28,12 @@ describe('drafting marks in the domain', () => {
 	});
 
 	it('holds every drafting kind to its own points and fields, and every other kind to neither field', () => {
-		for (const value of [dimension, section, view, hatch, text, boundary, grid]) expect(validSpatialElement(value)).toBe(true);
+		const stepped = { ...section, points: [...section.points, { x: 5000, y: 5000 }, { x: 8000, y: 5000 }] };
+		for (const value of [dimension, section, stepped, view, hatch, text, boundary, grid]) expect(validSpatialElement(value)).toBe(true);
 		const refused: SpatialElement[] = [
 			{ ...dimension, offset: undefined }, { ...dimension, offset: Number.NaN }, { ...dimension, offset: 2e6 },
 			{ ...dimension, points: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 0, y: 0 }] },
-			{ ...section, flipped: undefined }, { ...section, points: [...section.points, { x: 6000, y: 2000 }] },
+			{ ...section, flipped: undefined }, { ...section, points: section.points.slice(0, 1) }, { ...section, points: [...section.points, section.points[1]] },
 			{ ...view, points: [...view.points, { x: 0, y: 1000 }] },
 			{ ...hatch, points: hatch.points.slice(0, 2) },
 			{ ...text, points: [] }, { ...text, points: [...text.points, { x: 0, y: 0 }] }, { ...grid, points: [...grid.points, { x: 0, y: 0 }] },

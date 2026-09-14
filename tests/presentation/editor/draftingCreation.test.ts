@@ -19,13 +19,16 @@ const saved = (rig: Rig, count: number) => settleUntil(() => (rig.project.struct
 const nameOf = (rig: Rig, id: string) => rig.project.plan?.spatialElements?.find(item => item.id === id)?.name;
 function add(rig: Rig, ...points: Point[]): void { for (const point of points) rig.runtime.elementTask.addPoint(point); }
 
-it('saves a section line on its second point as S-01 looking the default way, as schema 12, and names the next one S-02', async () => {
+it('saves a stepped section line of every clicked point on Finish as S-01 looking the default way, as schema 12, and names the next one S-02', async () => {
 	const rig = await mount(); await use(rig, 'draw-section');
 	expect(rig.runtime.elementTask.draft.name).toBe('S-01');
-	add(rig, { x: 0, y: 2000 }, { x: 5000, y: 2000 });
-	await saved(rig, 1);
+	const points = [{ x: 0, y: 2000 }, { x: 5000, y: 2000 }, { x: 5000, y: 6000 }, { x: 9000, y: 6000 }];
+	add(rig, ...points);
+	await settle();
+	expect(rig.project.structure.elements ?? []).toHaveLength(0);
+	await rig.runtime.elementTask.finish(); await saved(rig, 1);
 	const section = expectDefined(rig.project.structure.elements?.[0], 'section');
-	expect(section).toMatchObject({ kind: 'section', flipped: false, points: [{ x: 0, y: 2000 }, { x: 5000, y: 2000 }] });
+	expect(section).toMatchObject({ kind: 'section', flipped: false, points });
 	expect(nameOf(rig, section.id)).toBe('S-01');
 	expect(rig.runtime.activeToolId.value).toBe('select');
 	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(12);

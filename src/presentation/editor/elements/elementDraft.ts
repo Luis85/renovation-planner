@@ -62,7 +62,7 @@ function structuralFields(draft: ElementDraft): Pick<SpatialElement, 'width' | '
 /** How many points a kind's draft holds at most: one for a text or grid point, two for the two-point kinds, unbounded otherwise. */
 export function maxDraftPoints(kind: ElementDraft['kind']): number | null {
 	if (kind === 'text' || kind === 'grid') return 1;
-	return ['measurement', 'stair', 'beam', 'section', 'view'].includes(kind) ? 2 : null;
+	return ['measurement', 'stair', 'beam', 'view'].includes(kind) ? 2 : null;
 }
 /**
  * A new dimension chain carries the offset its preview draws — the pointer's, in whole millimetres, while its line is being

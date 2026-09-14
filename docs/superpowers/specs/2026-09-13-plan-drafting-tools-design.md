@@ -119,7 +119,7 @@ as an `ElementTool`. No new tool class.
 | Tool id | Kind | Gesture | Saves |
 | --- | --- | --- | --- |
 | `draw-dimension` | `dimension` | Click the chain points; **Finish** (Enter, banner, form) enters **phase 2**, where the pointer's perpendicular distance from the baseline sets `offset` live; a click saves. The task form carries a numeric **Offset** field with a Save for keyboard use. | on the phase-2 click, or form Save |
-| `draw-section` | `section` | Two clicks, the cut line | on the second click (as `draw-beam`) |
+| `draw-section` | `section` | Click the cut line's points — two, or more for a stepped cut — then Finish | on Finish (as `draw-boundary`) |
 | `place-view` | `view` | Click the anchor, click the facing direction | on the second click |
 | `draw-hatch` | `hatch` | Click the outline points, Finish | on Finish |
 | `draw-boundary` | `boundary` | Click the polyline points, Finish | on Finish |
@@ -165,7 +165,7 @@ screen size (`/ zoom`), as the measurement ruler is.
 | Kind | Drawn as |
 | --- | --- |
 | `dimension` | New `elements/DimensionChainShape.vue` over `dimensionSegments`: the dimension line at `offset`, parallel to first→last; an extension line from every point to it, starting a small screen gap from the point; a 45° oblique tick at every projected position; each segment's length centred over it, rotated with the line and kept upright, formatted by `formatMetres` without a unit (`2,62`). A 0-length segment has no text. |
-| `section` | A dash-dot line between the ends; a filled triangle at each end on the look side (`flipped` chooses the side); the name beside each triangle. |
+| `section` | A dash-dot line through every point; a filled triangle at each end on the look side of that end's segment (`flipped` chooses the side); the name beside each triangle. |
 | `view` | A hollow triangle at the anchor pointing at the facing point; the name beside it, unrotated. |
 | `hatch` | The closed outline, filled with `patternTile('stone', tokens.zoneStroke, tokens.canvasBackground)` at `fillPatternScale 1 / zoom`, as `wall-pattern` is. |
 | `text` | The name as a `VText` at the point, 14 px. |

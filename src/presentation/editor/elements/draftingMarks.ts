@@ -58,15 +58,19 @@ function dimensionMarks(element: NamedSpatialElement, zoom: number): DraftMarks 
 	return { lines: [{ name: 'drafting-dimension-line', points: flat([ordered[0], ordered[ordered.length - 1]]), strokeWidth: px }, ...extensions, ...ticks], texts, circles: [] };
 }
 
-/** A dash-dot cut line, a filled triangle at each end on the side it looks at, and its name beside each triangle. */
+/** A dash-dot cut line through every point, a filled triangle at each end on the side its end segment looks at, and its name beside each triangle. */
 function sectionMarks(element: NamedSpatialElement, zoom: number): DraftMarks {
-	if (element.points.length !== 2) return NONE;
-	const [start, end] = element.points, direction = unit(start, end);
-	if (!direction) return NONE;
-	const px = 1 / zoom, size = MARKER_PX * px, look = element.flipped ? -1 : 1, normal = { x: -direction.y * look, y: direction.x * look };
-	const arrow = (at: Point): DraftLine => ({ name: 'drafting-section-arrow', points: flat([step(at, direction, -size / 2), step(at, direction, size / 2), step(at, normal, size)]), closed: true, fill: 'solid', strokeWidth: px });
-	const label = (at: Point): DraftText => text('drafting-section-label', element.name, step(at, normal, size + (LABEL_GAP_PX + DRAFTING_TEXT_PX / 2) * px), zoom, { fontPx: DRAFTING_TEXT_PX });
-	return { lines: [{ name: 'drafting-section-line', points: flat([start, end]), dash: [12 * px, 3 * px, 2 * px, 3 * px], strokeWidth: px }, arrow(start), arrow(end)], texts: [label(start), label(end)], circles: [] };
+	const { points } = element, last = points.length - 1;
+	const first = last > 0 ? unit(points[0], points[1]) : null, final = last > 0 ? unit(points[last - 1], points[last]) : null;
+	if (!first || !final) return NONE;
+	const px = 1 / zoom, size = MARKER_PX * px, look = element.flipped ? -1 : 1;
+	const normal = (direction: Point): Point => ({ x: -direction.y * look, y: direction.x * look });
+	const arrow = (at: Point, direction: Point): DraftLine => ({ name: 'drafting-section-arrow', points: flat([step(at, direction, -size / 2), step(at, direction, size / 2), step(at, normal(direction), size)]), closed: true, fill: 'solid', strokeWidth: px });
+	const label = (at: Point, direction: Point): DraftText => text('drafting-section-label', element.name, step(at, normal(direction), size + (LABEL_GAP_PX + DRAFTING_TEXT_PX / 2) * px), zoom, { fontPx: DRAFTING_TEXT_PX });
+	return {
+		lines: [{ name: 'drafting-section-line', points: flat(points), dash: [12 * px, 3 * px, 2 * px, 3 * px], strokeWidth: px }, arrow(points[0], first), arrow(points[last], final)],
+		texts: [label(points[0], first), label(points[last], final)], circles: [],
+	};
 }
 
 /** A hollow triangle at the anchor pointing the way the view looks, and the marker's name behind it. */

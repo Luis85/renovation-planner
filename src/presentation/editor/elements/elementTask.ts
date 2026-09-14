@@ -55,9 +55,9 @@ export function createElementTask(context: PlanEditorContext, runtime: Pick<Edit
 		if (blocked.value) return false;
 		draft.points = points.map(point => ({ ...point })); draft.error = null; return true;
 	}
-	/** A beam, a section line and a view marker are exactly their two points, so the second one saves them. */
+	/** A beam and a view marker are exactly their two points, so the second one saves them; a section line takes points until Finish. */
 	function finishIfComplete(): void {
-		if (['beam', 'section', 'view'].includes(draft.kind) && draft.points.length === 2) void finish();
+		if (['beam', 'view'].includes(draft.kind) && draft.points.length === 2) void finish();
 	}
 	function addPoint(point: Point): boolean {
 		if (draft.kind === 'post') return placePost(point);

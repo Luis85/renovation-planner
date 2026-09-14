@@ -75,7 +75,7 @@ const TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKe
 	'place-post': { nameKey: 'editor.add.post.label', instructionKey: 'editor.post.banner' },
 	'draw-beam': { nameKey: 'editor.add.beam.label', instructionKey: 'editor.beam.banner' },
 	'draw-dimension': { nameKey: 'editor.add.dimension.label', instructionKey: 'editor.drafting.banner.dimension', finish: true },
-	'draw-section': { nameKey: 'editor.add.section.label', instructionKey: 'editor.drafting.banner.section' },
+	'draw-section': { nameKey: 'editor.add.section.label', instructionKey: 'editor.drafting.banner.section', finish: true },
 	'place-view': { nameKey: 'editor.add.view.label', instructionKey: 'editor.drafting.banner.view' },
 	'draw-hatch': { nameKey: 'editor.add.hatch.label', instructionKey: 'editor.drafting.banner.hatch', finish: true },
 	'place-text': { nameKey: 'editor.add.text.label', instructionKey: 'editor.drafting.banner.text', finish: true },

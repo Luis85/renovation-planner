@@ -134,6 +134,34 @@ describe('the selection keys outside a resting Select', () => {
 		expect((await rig.document()).shape?.details).toHaveLength(2);
 		rig.unmount();
 	});
+
+	it('moves nothing for an arrow under another tool, even with nothing drawn yet', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		await selectAt(rig, justInsideBottom(BOWL));
+		await press(rig, 'designer.toolbar.trace-footprint');
+		const before = await rig.document();
+
+		key(rig.canvasEl, { key: 'ArrowRight' });
+		await settle();
+
+		expect(await rig.document()).toEqual(before);
+		rig.unmount();
+	});
+
+	it('deletes nothing for a Delete from a control inside the canvas, which that control owns', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		await selectAt(rig, justInsideBottom(BOWL));
+		// Planted in the surface's overlay, where the empty state's action button lives: a descendant of
+		// the canvas element that is not the canvas element.
+		const control = document.createElement('button');
+		rig.canvasEl.querySelector('.rp-plan-overlay')?.append(control);
+
+		key(control, { key: 'Delete' });
+		await settle();
+
+		expect((await rig.document()).shape?.details).toHaveLength(2);
+		rig.unmount();
+	});
 });
 
 describe('Ctrl+D', () => {
@@ -171,6 +199,22 @@ describe('the arrow keys', () => {
 		await press(rig, 'designer.toolbar.undo');
 		expect(await bowlPoints(rig)).toEqual(BOWL.points);
 		expect(rig.toolbarButton(t('en', 'designer.toolbar.undo')).disabled).toBe(true);
+		rig.unmount();
+	});
+
+	it('compose two taps pressed before the first write lands: 20 mm, and two undo entries', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		await selectAt(rig, justInsideBottom(BOWL));
+
+		key(rig.canvasEl, { key: 'ArrowRight' });
+		key(rig.canvasEl, { key: 'ArrowRight' });
+		await settle();
+		expect(await bowlPoints(rig)).toEqual(BOWL.points.map((point) => ({ x: point.x + 20, y: point.y })));
+
+		await press(rig, 'designer.toolbar.undo');
+		expect(await bowlPoints(rig)).toEqual(BOWL.points.map((point) => ({ x: point.x + 10, y: point.y })));
+		await press(rig, 'designer.toolbar.undo');
+		expect(await bowlPoints(rig)).toEqual(BOWL.points);
 		rig.unmount();
 	});
 

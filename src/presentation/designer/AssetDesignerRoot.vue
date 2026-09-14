@@ -333,17 +333,21 @@ function onFailureAction(): void {
 }
 
 /**
- * Delete and Ctrl+D for the designer's selection (symbols spec, Decision 10), on the CANVAS region:
- * `EditorSurface` routes neither and lets both bubble from the canvas, while the inspector is a
- * sibling region, so a Backspace typed in one of its fields never reaches this listener.
+ * Delete and Ctrl+D for the designer's selection (symbols spec, Decision 10), bound on the canvas
+ * ELEMENT — `<DesignerCanvas @keydown>` falls through to `EditorSurface`'s focusable root — because
+ * `EditorSurface` routes neither key. The inspector is a sibling region, so a Backspace typed in one
+ * of its fields never reaches this listener.
  *
- * Only under a RESTING Select, which is `EditorSurface`'s arrow door asked of the tool: another tool
- * keeps the selection drawn but owns the keys — Backspace mid-trace must not delete the part still
- * selected — and a press still held on the selection (`hasDraft`) is about to write that very part.
+ * Three refusals, each someone else's key:
+ * - a key whose target is not that element itself — `keyDoors.ts`'s `isCanvasKey` rule, so a
+ *   control inside the canvas (the overlay's action button, a later field) keeps its own Backspace;
+ * - any tool but Select — the plan editor's `nudge.ts` rule, since every other tool owns the keyboard
+ *   for its own gesture, and Backspace mid-trace must not delete the part still selected;
+ * - a press still held on the selection (`hasDraft`), whose release is about to write that very part.
  */
-const keyActions = selectionKeyActions(designStore, runtime.editShape);
+const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime.activeToolId);
 function onCanvasKeyDown(event: KeyboardEvent): void {
-	if (runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
+	if (event.target !== event.currentTarget || runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
 	designerShortcut(event, {
 		selection: designStore.selection,
 		deleteSelection: () => {
@@ -393,10 +397,7 @@ onMounted(() => {
 				that refused has nothing to draw, and a canvas beneath the panel would be a
 				stage bound to a design nobody has.
 			-->
-			<div
-				class="rp-designer-canvas"
-				@keydown="onCanvasKeyDown"
-			>
+			<div class="rp-designer-canvas">
 				<ViewFailure
 					v-if="failure !== null"
 					v-bind="failure"
@@ -411,6 +412,7 @@ onMounted(() => {
 				<DesignerCanvas
 					v-else
 					@background-status="(next) => (backgroundStatus = next)"
+					@keydown="onCanvasKeyDown"
 				>
 					<EmptyState
 						v-if="overlay !== null"

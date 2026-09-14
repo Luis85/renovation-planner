@@ -11,6 +11,7 @@ import type { AppError, ValidationError } from '../../../src/core/errors/AppErro
 import { ok, type Result } from '../../../src/core/result/Result';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
+import type { ToolId } from '../../../src/presentation/editor/tools/editor-tool';
 import { designerShortcut, selectionKeyActions, type DesignerKeyPress } from '../../../src/presentation/designer/designerKeys';
 import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
 import { activateNotices } from '../../../src/presentation/notices/notify';
@@ -104,7 +105,7 @@ describe('designerShortcut', () => {
 
 const REFUSED: DispatchResult = { ok: false, error: { category: 'Validation', code: 'asset.part-not-found', message: 'x' } as AppError };
 
-function actionsOver(selection: DesignerSelection | null, answer: DispatchResult = ok('wrote')) {
+function actionsOver(selection: DesignerSelection | null, answer: DispatchResult = ok('wrote'), tool: ToolId | null = 'select') {
 	const selected: (DesignerSelection | null)[] = [];
 	const edited: Result<AssetShape, ValidationError>[] = [];
 	const actions = selectionKeyActions(
@@ -118,6 +119,7 @@ function actionsOver(selection: DesignerSelection | null, answer: DispatchResult
 			edited.push(edit(TOILET));
 			return Promise.resolve(answer);
 		},
+		{ value: tool },
 	);
 	return { actions, selected, edited };
 }
@@ -154,6 +156,33 @@ describe('selectionKeyActions', () => {
 		expect(shapeOf(anchor.edited[0])?.anchor).toEqual({ x: TOILET.anchor.x, y: TOILET.anchor.y + 100 });
 		expect(facing.edited).toEqual([]);
 		expect(nothing.edited).toEqual([]);
+	});
+
+	it('nudges nothing unless Select is the active tool, which every other tool leaves the keys to', async () => {
+		const tracing = actionsOver(DETAIL, ok('wrote'), 'trace-footprint');
+		const camera = actionsOver(DETAIL, ok('wrote'), null);
+
+		await tracing.actions.nudgeSelection({ dx: 10, dy: 0 });
+		await camera.actions.nudgeSelection({ dx: 10, dy: 0 });
+
+		expect(tracing.edited).toEqual([]);
+		expect(camera.edited).toEqual([]);
+	});
+
+	it('deletes and duplicates only a part each can act on, whoever calls it', async () => {
+		const footprint = actionsOver({ kind: 'footprint' });
+		const nothing = actionsOver(null);
+		const clearance = actionsOver({ kind: 'clearance' });
+
+		await footprint.actions.deleteSelection();
+		await nothing.actions.deleteSelection();
+		await clearance.actions.duplicateSelection();
+		await nothing.actions.duplicateSelection();
+
+		expect(footprint.edited).toEqual([]);
+		expect(clearance.edited).toEqual([]);
+		expect(nothing.edited).toEqual([]);
+		expect([...clearance.selected, ...nothing.selected]).toEqual([]);
 	});
 
 	it('duplicates a detail and selects the copy it wrote', async () => {

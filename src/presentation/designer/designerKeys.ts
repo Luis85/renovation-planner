@@ -3,13 +3,14 @@ import { DUPLICATE_OFFSET_MM, deleteDetail, duplicateDetail, nextDetailId } from
 import { moveAnchor, moveOutline, removeClearance } from '../../domain/asset/shapeEdits';
 import { notifyIfRefused } from '../editor/report-failure';
 import { plainPress } from '../editor/surface/keyboard';
+import type { ToolId } from '../editor/tools/editor-tool';
 import type { DesignerSelection } from './selection/designerSelection';
 import type { EditShape } from './selection/editShape';
 
 /**
  * The asset designer's selection keys (symbols spec, Decision 10). Delete and Ctrl+D are decided HERE
- * and bound on the canvas REGION by `AssetDesignerRoot`, because `EditorSurface` routes neither and
- * lets both bubble; the arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
+ * and bound on the canvas element itself by `AssetDesignerRoot`, because `EditorSurface` routes neither
+ * and leaves both to other listeners; the arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
  * `selectionKeyActions(...).nudgeSelection`. Every edit is one `editShape`, so one conditional write
  * and one undo entry, and every refusal goes through `notifyIfRefused`.
  */
@@ -60,17 +61,18 @@ export function designerShortcut(event: DesignerKeyPress, doors: DesignerKeyDoor
 }
 
 /**
- * The three edits a selection key dispatches, over the leaf's store and its `editShape`. Arrow-function
- * properties, so a component may destructure one without an unbound `this`.
+ * The three edits a selection key dispatches, over the leaf's store, its `editShape` and its active
+ * tool. Arrow-function properties, so a component may destructure one without an unbound `this`.
  *
- * `deleteSelection` and `duplicateSelection` are reached only through `designerShortcut`, which offers
- * them for a detail or a clearance and for a detail respectively — so neither re-asks what it was
- * offered for. The selection clears itself after a delete: the refresh re-reads a shape without the
- * part, and the store prunes a selection that names nothing.
+ * Each action reads the selection at the CALL and answers for itself what it can act on — a detail or
+ * the clearance to delete, a detail to duplicate — rather than trusting `designerShortcut` to have
+ * asked, because the inspector's buttons call them too. The selection clears itself after a delete: the
+ * refresh re-reads a shape without the part, and the store prunes a selection that names nothing.
  */
 export function selectionKeyActions(
 	store: { readonly selection: DesignerSelection | null; select(next: DesignerSelection | null): void },
 	editShape: EditShape,
+	activeToolId: { readonly value: ToolId | null },
 ): {
 	readonly deleteSelection: () => Promise<void>;
 	readonly duplicateSelection: () => Promise<void>;
@@ -79,21 +81,26 @@ export function selectionKeyActions(
 	return {
 		deleteSelection: () => {
 			const selection = store.selection;
-			return notifyIfRefused(editShape((shape) => (selection?.kind === 'detail' ? deleteDetail(shape, selection.id) : removeClearance(shape))));
+			if (selection?.kind === 'detail') return notifyIfRefused(editShape((shape) => deleteDetail(shape, selection.id)));
+			if (selection?.kind === 'clearance') return notifyIfRefused(editShape(removeClearance));
+			return Promise.resolve();
 		},
 		duplicateSelection: async () => {
-			const { id } = store.selection as Extract<DesignerSelection, { readonly kind: 'detail' }>;
+			const selection = store.selection;
+			if (selection?.kind !== 'detail') return;
 			let copy = '';
 			const result = await editShape((shape) => {
 				copy = nextDetailId(shape);
-				return duplicateDetail(shape, id, { dx: DUPLICATE_OFFSET_MM, dy: DUPLICATE_OFFSET_MM });
+				return duplicateDetail(shape, selection.id, { dx: DUPLICATE_OFFSET_MM, dy: DUPLICATE_OFFSET_MM });
 			});
 			// The refresh has landed by the time a dispatch resolves, so the copy exists to be selected.
 			if (result.ok) store.select({ kind: 'detail', id: copy });
 			await notifyIfRefused(Promise.resolve(result));
 		},
 		nudgeSelection: (by) => {
-			const selection = store.selection;
+			// The plan editor's `nudge.ts` rule: an arrow moves the selection only under Select, since every
+			// other tool owns the keyboard for its own gesture. Read at the press, before `editShape` chains.
+			const selection = activeToolId.value === 'select' ? store.selection : null;
 			// A facing is a direction: a nudge has no meaning for it, and nothing is written.
 			if (selection === null || selection.kind === 'facing') return Promise.resolve();
 			return notifyIfRefused(

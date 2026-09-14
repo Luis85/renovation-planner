@@ -97,13 +97,13 @@ const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.
-const { toolManager, renderState, setTool, editShape } = useDesignerRuntime();
+const { toolManager, renderState, setTool, editShape, activeToolId } = useDesignerRuntime();
 /**
  * An arrow key nudges the designer's selection (symbols spec, Decision 10) by `EditorSurface`'s own
- * `arrowVector` — 10 mm a press, 100 mm with Shift — as one conditional shape write per press: an
- * outline moves, the anchor moves, and a facing or no selection writes nothing.
+ * `arrowVector` — 10 mm a press, 100 mm with Shift — as one conditional shape write per press, under
+ * Select only: an outline moves, the anchor moves, and a facing or no selection writes nothing.
  */
-const { nudgeSelection } = selectionKeyActions(designStore, editShape);
+const { nudgeSelection } = selectionKeyActions(designStore, editShape, activeToolId);
 /** No area task exists in this surface, so Enter on its canvas finishes nothing. */
 const noArea = (): void => undefined;
 

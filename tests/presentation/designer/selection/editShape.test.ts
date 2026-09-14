@@ -10,6 +10,7 @@ import { assetError } from '../../../../src/domain/asset/Asset.errors';
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import { createEditShape } from '../../../../src/presentation/designer/selection/editShape';
 import { DESIGN_VERSION, TOILET } from '../../../helpers/designerSelection';
+import { settle } from '../../../helpers/settle';
 
 function writes(): { readonly calls: { shape: AssetShape; expected: EntityVersion }[]; write: (shape: AssetShape, expected: EntityVersion) => Promise<DispatchResult> } {
 	const calls: { shape: AssetShape; expected: EntityVersion }[] = [];
@@ -75,5 +76,44 @@ describe('createEditShape', () => {
 
 		await expect(outcome).rejects.toThrow('the edit faulted');
 		expect(recorder.calls).toEqual([]);
+	});
+
+	it('reads the design for a second edit only once the first write has settled, so two quick taps compose', async () => {
+		let reads = 0;
+		let written = 0;
+		let settleFirst!: (result: DispatchResult) => void;
+		const editShape = createEditShape(
+			() => {
+				reads += 1;
+				return { shape: TOILET, geometryVersion: DESIGN_VERSION };
+			},
+			() => {
+				written += 1;
+				return written === 1 ? new Promise<DispatchResult>((resolve) => { settleFirst = resolve; }) : Promise.resolve(ok('wrote'));
+			},
+		);
+
+		const first = editShape(shifted);
+		const second = editShape(shifted);
+		await settle();
+		expect(reads).toBe(1);
+
+		settleFirst(ok('wrote'));
+		await expect(first).resolves.toEqual(ok('wrote'));
+		await expect(second).resolves.toEqual(ok('wrote'));
+		expect(reads).toBe(2);
+		expect(written).toBe(2);
+	});
+
+	it('runs a later edit after an earlier one faulted, rather than wedging behind it', async () => {
+		const recorder = writes();
+		const editShape = createEditShape(() => ({ shape: TOILET, geometryVersion: DESIGN_VERSION }), recorder.write);
+
+		const faulted = editShape(faulting);
+		const later = editShape(shifted);
+
+		await expect(faulted).rejects.toThrow('the edit faulted');
+		await expect(later).resolves.toEqual(ok('wrote'));
+		expect(recorder.calls).toHaveLength(1);
 	});
 });

@@ -1300,6 +1300,11 @@ describe('the browser harness', () => {
 	 * mounts — so a stylesheet a specific ENTRY inserts programmatically is still the
 	 * `indexRealEntries.test.ts` check's job, not this one's; this closes `page.ts`'s OWN
 	 * route, the one no other check executes at all.
+	 *
+	 * Resetting the module cache makes this a whole-page import, including cold Vite coverage
+	 * transforms. Measured on Windows/Node 24 on 2026-09-15: 7.1s to import, then 7ms to settle;
+	 * the 5s unit-case default expires before the stylesheet assertion runs. Use the existing
+	 * whole-tree budget, with the fresh import and assertion unchanged.
 	 */
 	it('adds no stylesheet to the document when page.ts itself runs', async () => {
 		installEditorEnvironment();
@@ -1310,7 +1315,7 @@ describe('the browser harness', () => {
 		await flushAsync();
 
 		expect(document.querySelectorAll('link[rel~=stylesheet i], style').length).toBe(0);
-	});
+	}, WHOLE_TREE_SCAN_MS);
 
 	/**
 	 * A stylesheet can import a stylesheet, and that is a fourth route. `@import

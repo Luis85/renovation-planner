@@ -28,3 +28,5 @@ Exact DOM measurements are in [browser-metrics.json](browser-metrics.json); firs
 The temporary browser tabs and preview server were closed before coverage work. Native Obsidian/Windows interaction was not available through the enabled native computer APIs; these captures establish browser-harness behavior, not a native-vault smoke test.
 
 Subsequent verification cleanup moved conditional bindings into computed values, grouped identical heading conditions, extracted the existing face-cue nodes into a component, and separated the same card-spacing arithmetic into a helper. It changed no displayed text, style values, node order, control dimensions or layout rules. Geometry/layout and lifecycle tests cover those extractions; no third visual-polish round was performed.
+
+Later integration regressions corrected opening masks and frame strokes on a symmetric T-stem within an asymmetric network, and total resizing when restoring a planned wall. Those corner cases are covered by automated geometry/runtime tests; the screenshots do not claim a separate visual confirmation of them. The single detector result predates those functional corrections and was not rerun.

@@ -5,7 +5,7 @@ import { defer } from '../../helpers/async';
 import { structureEditor } from '../../helpers/structureEditor';
 import { settle, settleUntil, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
 import { expectDefined, expectFound, expectOk, injectedPersistenceError } from '../../helpers/domain';
-import { WALL_LOOP } from '../../helpers/structure';
+import { WALL_LOOP_WITH_SIDES as WALL_LOOP } from '../../helpers/structure';
 import { rotateWallStructure, wallRotationPivot } from '../../../src/domain/spatial/rotateWall';
 import { err, ok } from '../../../src/core/result/Result';
 import { useRenovationSession } from '../../../src/presentation/editor/renovation/renovationSession';

@@ -1,12 +1,13 @@
 import { expect, it } from 'vitest';
 import { renovationStack } from '../../helpers/renovation';
 import { expectDefined, expectOk } from '../../helpers/domain';
+import { resizeWallTotal } from '../../../src/domain/spatial/wallSides';
 
 it.each([false, true])('preserves peer generation gaps across a Planned apply/undo between structure edits; peer=%s', async peer => {
  const rig = await renovationStack(), first = expectOk(await rig.geometry.read(rig.plan.id));
  const structure = expectDefined(first.document.structure, 'structure');
  const before = rig.services.command({ planId: rig.plan.id, baseline: first, ledger: rig.ledger,
-  structure: { ...structure, walls: structure.walls.map((wall, index) => index === 0 ? { ...wall, thickness: 175 } : wall) } });
+  structure: { ...structure, walls: structure.walls.map((wall, index) => index === 0 ? expectDefined(resizeWallTotal(wall, 175), 'resized wall') : wall) } });
  expectOk(await before.execute());
  const current = expectOk(await rig.geometry.read(rig.plan.id));
  if (peer) expectOk(await rig.geometry.write(rig.plan.id, current.document, current.version));

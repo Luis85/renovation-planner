@@ -8,6 +8,7 @@ import type { RenovationSubject } from '../../../domain/renovation/Renovation';
 import type { SpatialElement } from '../../../domain/spatial/SpatialElement';
 import type { CoordinateEdits } from '../resize/outlineProposal';
 import { plannedElementGeometry } from '../elements/plannedElementGeometry';
+import { resizeWallTotal } from '../../../domain/spatial/wallSides';
 
 export interface PlannedGeometryDraft {
 	kind: 'none' | 'wall' | 'opening' | 'element';
@@ -50,7 +51,8 @@ function changeGeometry(current: Structure, before: Structure, draft: PlannedGeo
 	if (draft.kind === 'wall') {
 		const original = current.walls.find(item => item.id === id);
 		const existing = before.walls.find(item => item.id === id) ?? original;
-		const wall = change === 'unchanged' && original ? original : { ...existing, id, start: { x: values.x, y: values.y }, end: { x: values.endX, y: values.endY }, height: values.height, thickness: values.thickness };
+		const dimensions = existing ? resizeWallTotal(existing, values.thickness) : null;
+		const wall = change === 'unchanged' && original ? original : { ...existing, ...dimensions, id, start: { x: values.x, y: values.y }, end: { x: values.endX, y: values.endY }, height: values.height, thickness: values.thickness };
 		return before.walls.some(item => item.id === id) ? editWall(before, wall) : { ...before, walls: [...before.walls, wall] };
 	}
 	{

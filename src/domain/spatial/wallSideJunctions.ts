@@ -62,7 +62,36 @@ export function wallHostClips(wall: Wall, junctions: readonly WallJunction[]): r
 	});
 }
 
-export const wallClipDistance = (point: Point, clip: WallClip): number => dot({ x: point.x - clip.point.x, y: point.y - clip.point.y }, clip.normal) + clip.distance;
+const wallClipDistance = (point: Point, clip: WallClip): number => dot({ x: point.x - clip.point.x, y: point.y - clip.point.y }, clip.normal) + clip.distance;
+
+/** Clip a face or jamb segment without moving the reference or inventing a closing edge. */
+export function clipWallSegment(start: Point, end: Point, clips: readonly WallClip[]): readonly Point[] {
+	let a = start, b = end;
+	for (const clip of clips) {
+		const da = wallClipDistance(a, clip), db = wallClipDistance(b, clip);
+		if (da < 0 && db < 0) return [];
+		if ((da < 0) !== (db < 0)) {
+			const fraction = da / (da - db), crossing = { x: a.x + (b.x - a.x) * fraction, y: a.y + (b.y - a.y) * fraction };
+			if (da < 0) a = crossing; else b = crossing;
+		}
+	}
+	return [a, b];
+}
+
+/** Keep continuous frame strokes continuous, and never bridge a clipped-out portion. */
+export function clipWallPolyline(points: readonly Point[], clips: readonly WallClip[]): readonly (readonly Point[])[] {
+	if (points.length < 2) return [];
+	if (!clips.length) return [points];
+	const runs: Point[][] = [];
+	for (let index = 1; index < points.length; index++) {
+		const segment = clipWallSegment(points[index - 1], points[index], clips);
+		if (!segment.length || samePoint(segment[0], segment[1])) continue;
+		const previous = runs.at(-1);
+		if (previous && samePoint(previous[previous.length - 1], segment[0])) previous.push(segment[1]);
+		else runs.push([...segment]);
+	}
+	return runs;
+}
 
 /** Analytic bounds in the host-normal frame keep refusal independent of camera zoom/tessellation. */
 export function wallCrossesHostClip(wall: Wall, clip: WallClip): boolean {

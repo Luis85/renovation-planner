@@ -404,7 +404,8 @@ rule moves to `src/domain/asset/captureAwaitsScale.ts` and both callers ask it.
 - The inspector's detail rotation is a "rotate by" field that applies and resets to 0: a detail
   stores no rotation to show.
 - "Set dimensions" uses `scaleDesign` when the shape has details or any curved footprint or
-  clearance edge; otherwise it keeps today's replace-with-rectangle.
+  clearance edge, and its footprint is already in millimetres (not pending); otherwise it keeps
+  today's replace-with-rectangle.
 
 ## Docs this changes
 

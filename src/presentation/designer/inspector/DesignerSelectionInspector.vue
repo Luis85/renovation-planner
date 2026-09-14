@@ -2,8 +2,9 @@
 /**
  * The inspector for ONE selected part (asset designer symbols spec, "Inspector for the selection",
  * and Amendment 1): a detail's name, line, centre, size and a rotate-by field, with ordering,
- * duplicate and delete; the footprint's size and Fit to details; the clearance's delete; the
- * anchor's position; the facing's angle.
+ * duplicate and delete; the footprint's size (withheld while it is pending, whose numbers are
+ * placeholder pixels) and Fit to details; the clearance's delete; the anchor's position; the facing's
+ * angle.
  *
  * **Every control is one `editShape` call over a pure domain edit**, so a field, a button and a
  * canvas gesture reach the vault through the same `SetAssetShape` door with the same `expected`
@@ -131,7 +132,8 @@ const fields = computed((): readonly NumberField[] => {
 		case 'detail':
 			return detailFields(selection);
 		case 'footprint':
-			return sizeFields(selection);
+			// A pending footprint's numbers are placeholder pixels; the Dimensions block below says so.
+			return props.design.dimensionsUnscaled ? [] : sizeFields(selection);
 		case 'clearance':
 			return [];
 		case 'anchor':

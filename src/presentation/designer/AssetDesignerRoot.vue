@@ -174,9 +174,13 @@ const overlay = computed<EmptyStateProps | null>(() => {
 });
 
 /**
- * Does Set dimensions SCALE this design rather than replace it (symbols spec, Decision 9 and
- * Amendment 1)? A shape with details, or with a curved footprint or clearance edge, is scaled about
- * its anchor so the drawing survives; a plain polygon keeps the replace-with-rectangle it always had.
+ * Does this shape carry a DRAWING that Set dimensions would scale rather than replace (symbols spec,
+ * Decision 9 and Amendment 1)? A shape with details, or with a curved footprint or clearance edge,
+ * does; a plain polygon keeps the replace-with-rectangle it always had.
+ *
+ * Asked only of a footprint already in millimetres: `editDimensions` takes the replace path for a
+ * PENDING one first, because scaling placeholder pixels by typed millimetres would leave the result
+ * flagged pending — still warned about as unscaled, and multiplied again by a later calibration.
  */
 function scalesDrawing(shape: AssetShape | null): shape is AssetShape {
 	return (
@@ -226,7 +230,7 @@ async function editDimensions(): Promise<void> {
 		...(unscaled ? { warning: tr('designer.dimensions.unscaled') } : {}),
 	});
 	if (result === null) return;
-	if (!scalesDrawing(current?.shape ?? null)) {
+	if (unscaled || !scalesDrawing(current?.shape ?? null)) {
 		await runtime.setFootprintFromDimensions(result.width, result.depth);
 		return;
 	}

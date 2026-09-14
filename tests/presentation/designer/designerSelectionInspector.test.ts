@@ -137,6 +137,17 @@ describe('what the inspector offers for each kind of part', () => {
 		expect(buttons(wrapper)).toEqual([]);
 	});
 
+	/** A pending footprint's numbers are placeholder pixels, which Width and Depth would label millimetres. */
+	it('offers no Width or Depth for a footprint whose numbers are not measurements yet', () => {
+		const mountWith = (dimensionsUnscaled: boolean) =>
+			mount(DesignerSelectionInspector, {
+				props: { design: assetDesign({ shape: TOILET, dimensionsUnscaled }), selection: { kind: 'footprint' }, editShape: vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>(), select: vi.fn<(next: DesignerSelection | null) => void>() },
+			});
+
+		expect(numberFields(mountWith(true))).toEqual({});
+		expect(numberFields(mountWith(false))).toEqual({ width: '380', depth: '700' });
+	});
+
 	it('draws only Delete for the clearance', () => {
 		const { wrapper } = mountFor({ kind: 'clearance' });
 

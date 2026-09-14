@@ -307,6 +307,28 @@ describe('the designer’s dimensions dialog', () => {
 		expect(footprint?.bulges).toEqual([quarter, quarter, quarter, quarter]);
 	});
 
+	/**
+	 * …but not while the footprint is still PENDING (Amendment 1): its coordinates are placeholder
+	 * pixels, so a scale would write the typed millimetres into a footprint that goes on reading as
+	 * unscaled, and a later calibration would multiply them. The typed rectangle replaces it instead.
+	 */
+	it('replaces a PENDING curved footprint with a typed rectangle rather than scaling its placeholder pixels', async () => {
+		const harness = await seeded();
+		await harness.seed({ ...drawn(), footprint: circle(1000), clearance: null, footprintPending: true });
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 2000, depth: 1000 });
+		const setShape = vi.spyOn(harness.bundle.setShape, 'executeWithVersion');
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(setShape).not.toHaveBeenCalled();
+		const shape = (await harness.document()).shape;
+		expect(shape?.footprintOrigin).toBe('typed');
+		expect(shape?.footprintPending).toBe(false);
+		expect(shape?.footprint.bulges).toBeUndefined();
+	});
+
 	/** A scale the domain refuses is REPORTED, and dispatches nothing — never swallowed as a silent no-op. */
 	it('reports a scale the domain refuses and writes nothing', async () => {
 		activateNotices();

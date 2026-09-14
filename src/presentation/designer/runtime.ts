@@ -4,6 +4,8 @@ import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { AssetShape } from '../../domain/asset/AssetShape';
+import { captureAwaitsScale } from '../../domain/asset/captureAwaitsScale';
+import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
 import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import { boundsOfZones } from '../editor/viewport/zoneExtent';
 import { useEditorStore } from '../stores/EditorStore';
@@ -214,6 +216,20 @@ function selectToolDeps(
 	};
 }
 
+/**
+ * Whether a drawn detail awaits a scale, built here for `calibrationDeps`' reason. It reads
+ * `store.design` PER CALL, and is asked only after `selectTool.design()` answered a design, so
+ * `store.design` is set by then.
+ */
+function detailDeps(store: ReturnType<typeof useAssetDesignStore>): Pick<DesignerToolDeps, 'detailPending'> {
+	return {
+		detailPending: (shape) => {
+			const { calibration, background } = store.design as AssetDesignDto;
+			return captureAwaitsScale(calibration !== null, background !== null, shape);
+		},
+	};
+}
+
 function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const store = useAssetDesignStore();
 	const history = new CommandHistory();
@@ -345,9 +361,9 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * `EditorSurface`. The manager stays framework-pure (no Vue), so ONE mirror at this seam is
 	 * what a Vue consumer reads, and `setTool` is the one writer of both.
 	 *
-	 * Hoisted above `registerDesignerTools` (Task 10) so `setTool` exists in time to be threaded
-	 * into the two trace tools' `onCompleted` below — `toolManager` is already built at this point,
-	 * which is all `createToolSwitch` needs.
+	 * Hoisted above `registerDesignerTools` so `setTool` exists in time to be threaded into every
+	 * creating tool's `onCompleted` below — `toolManager` is already built at this point, which is
+	 * all `createToolSwitch` needs.
 	 */
 	const { activeToolId } = storeToRefs(editor);
 	const setTool = createToolSwitch(toolManager, activeToolId);
@@ -357,10 +373,11 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		edits,
 		reportRejected: reportDispatchFailure,
 		reportInvalidInput: notifyOperationFailure,
-		// A completed trace returns to Select, which this surface registers since Decision 10.
+		// A completed trace or drawn detail returns to Select, which this surface registers since Decision 10.
 		returnToSelect: () => setTool('select'),
 		selectTool: selectToolDeps(store, edits, assetId),
 		...calibrationDeps(useDialogStore(), store),
+		...detailDeps(store),
 	});
 
 	// Both halves of SDD §65 — a THROWN fault and a RESOLVED refusal — bound straight to

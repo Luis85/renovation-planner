@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * The asset designer's transient layer: the footprint or clearance being traced, and the
- * calibration tape being measured, read from the leaf's `RenderState` and drawn in SCREEN
- * space over every world-space layer.
+ * The asset designer's transient layer: the outline being traced, the calibration tape being
+ * measured, and a box or circle detail being dragged out, read from the leaf's `RenderState` and
+ * drawn in SCREEN space over every world-space layer.
  *
  * Every projection and the close-target rule come from `editor/layers/gestureGeometry.ts`,
  * and the drawing itself is `GestureSketch.vue` (finding E9) — the same component
@@ -14,6 +14,7 @@
  * It takes the `RenderState` as a PROP rather than injecting the runtime, so it can be mounted
  * standalone in the harness against a fixture and drawn there.
  */
+import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import type { Point } from '../../../core/geometry/Point';
 import { useEditorStore } from '../../stores/EditorStore';
@@ -30,6 +31,14 @@ const { viewport } = storeToRefs(useEditorStore());
 function toScreen(point: Point) {
 	return worldToScreen(point, viewport.value, STAGE_PIXELS);
 }
+
+/** A draw tool's in-flight detail (`DrawDetailTool`), already flattened in world space; projected here. */
+const previewFlat = computed(
+	() => props.renderState.previewPolygon?.flatMap((point) => {
+		const at = toScreen(point);
+		return [at.x, at.y];
+	}) ?? null,
+);
 </script>
 
 <template>
@@ -39,6 +48,19 @@ function toScreen(point: Point) {
 			:to-screen="toScreen"
 			:sketch="props.renderState.polygonSketch"
 			:measurement="props.renderState.measurement"
+		/>
+		<VLine
+			v-if="previewFlat !== null"
+			:config="{
+				name: 'detail-preview',
+				points: previewFlat,
+				closed: true,
+				dash: [4, 4],
+				stroke: props.tokens.accent,
+				strokeWidth: 1.5,
+				strokeScaleEnabled: false,
+				listening: false,
+			}"
 		/>
 	</VLayer>
 </template>

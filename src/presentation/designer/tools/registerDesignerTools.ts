@@ -1,12 +1,19 @@
-import type { AppError } from '../../../core/errors/AppError';
+import type { AppError, ValidationError } from '../../../core/errors/AppError';
+import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
+import { err, ok, type Result } from '../../../core/result/Result';
+import { assetError } from '../../../domain/asset/Asset.errors';
 import type { AssetId } from '../../../domain/asset/AssetId';
+import type { AssetShape } from '../../../domain/asset/AssetShape';
+import { addDetail, nextDetailId } from '../../../domain/asset/detailEdits';
 import type { ReversibleAssetDesignCommands } from '../../../application/editor/asset/ReversibleAssetDesignCommands';
 import type { StringKey } from '../../i18n/locales/en';
 import { CalibrateTool, type KnownDistanceSupplier } from '../../editor/tools/calibrate-tool';
 import { DrawPolygonTool } from '../../editor/tools/draw-polygon-tool';
 import type { EditorTool } from '../../editor/tools/editor-tool';
 import type { ToolManager } from '../../editor/tools/tool-manager';
+import type { UndoableCommand } from '../../editor/tools/undoable-command';
 import { DesignerSelectTool, type DesignerSelectToolDeps } from './designer-select-tool';
+import { circleOutline, DrawDetailTool, rectOutline } from './draw-detail-tool';
 import { SetAnchorTool } from './set-anchor-tool';
 import { SetFacingTool } from './set-facing-tool';
 
@@ -69,6 +76,9 @@ export const DESIGNER_TOOL_LABELS = {
 	select: 'designer.toolbar.select',
 	'trace-footprint': 'designer.toolbar.trace-footprint',
 	'trace-clearance': 'designer.toolbar.trace-clearance',
+	'draw-rect': 'designer.toolbar.draw-rect',
+	'draw-circle': 'designer.toolbar.draw-circle',
+	'trace-detail': 'designer.toolbar.trace-detail',
 	'set-anchor': 'designer.toolbar.set-anchor',
 	'set-facing': 'designer.toolbar.set-facing',
 	calibrate: 'designer.toolbar.calibrate',
@@ -125,10 +135,70 @@ export interface DesignerToolDeps {
 	readonly hasGeometryToRescale: () => boolean;
 	/** Asks the user to accept that rescale; `true` proceeds. Never called when the above is false. */
 	readonly confirmRecalibration: () => Promise<boolean>;
-	/** Where a completed trace hands control back to (Task 10): Select, as on a plan. */
+	/**
+	 * Whether a detail added to `shape` right now awaits a scale — `captureAwaitsScale` over the
+	 * leaf's calibration and background, which `selectTool.design()` does not carry (Decision 11:
+	 * "by the rule tracing already follows").
+	 */
+	readonly detailPending: (shape: AssetShape) => boolean;
+	/** Where a completed trace or drawn detail hands control back to: Select, as on a plan. */
 	readonly returnToSelect: () => void;
 	/** The Select tool's own deps — the leaf's design store and one conditional shape write. */
 	readonly selectTool: DesignerSelectToolDeps;
+}
+
+type DetailWrite = Result<{ readonly command: UndoableCommand; readonly detailId: string }, ValidationError>;
+
+/**
+ * The ONE write all three detail tools build: `addDetail` over the design the leaf read, pending by
+ * the capture rule, conditional on that design's version. The id is computed with the command so
+ * the tool can select the detail the write will create.
+ *
+ * A shapeless asset refuses with `requireShape`'s code (`updateAssetShape.ts`), whose sentence the
+ * locale already carries: a detail, like a clearance, is drawn relative to a footprint.
+ */
+function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): DetailWrite {
+	const design = deps.selectTool.design();
+	if (design === null) return err(assetError('no-footprint', 'This asset has no footprint; a detail is drawn inside one.'));
+	const detailId = nextDetailId(design.shape);
+	const added = addDetail(design.shape, { name, outline, line: 'solid', pending: deps.detailPending(design.shape) });
+	if (!added.ok) return err(added.error);
+	return ok({ command: deps.selectTool.createCommand(added.value, design.geometryVersion), detailId });
+}
+
+/** A drawn detail is selected once written, and every draw returns to Select (Amendment 1). */
+function completeDetail(deps: DesignerToolDeps, detailId: string): void {
+	deps.returnToSelect();
+	deps.selectTool.select({ kind: 'detail', id: detailId });
+}
+
+/**
+ * Trace detail is `DrawPolygonTool`, whose completion must answer a command. A domain refusal
+ * therefore becomes a command that resolves that refusal — `DrawPolygonTool` reports it through
+ * `reportRejected` and keeps the user's vertices. One function serves as both halves, because a
+ * refused command is never recorded and so its `undo` is never reached.
+ */
+function traceDetailTool(deps: DesignerToolDeps): DrawPolygonTool {
+	let tracedId = '';
+	return new DrawPolygonTool({
+		id: 'trace-detail',
+		completion: {
+			commandFor: (geometry) => {
+				const write = detailWrite(deps, 'outline', geometry);
+				if (!write.ok) {
+					const refuse = () => Promise.resolve(err(write.error));
+					return { execute: refuse, undo: refuse, createdId: null };
+				}
+				tracedId = write.value.detailId;
+				const { command } = write.value;
+				return { execute: () => command.execute(), undo: () => command.undo(), createdId: null };
+			},
+		},
+		reportRejected: deps.reportRejected,
+		reportInvalidInput: deps.reportInvalidInput,
+		// Reached only after a successful close, which is the only path that set `tracedId`.
+		onCompleted: () => completeDetail(deps, tracedId),
+	});
 }
 
 export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDeps): void {
@@ -140,7 +210,7 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 	 */
 	const tools: Readonly<Record<DesignerToolId, EditorTool>> = {
 		select: new DesignerSelectTool(deps.selectTool),
-		// `createdId` is `null` for both traces, which is the second of the two states
+		// `createdId` is `null` for the footprint and clearance traces, which is the second of the two states
 		// `PolygonCommand.createdId` declares and the one that interface predicted: tracing an
 		// Asset's outline REPLACES a field of the asset already open, so there is no new entity
 		// to select and the tool leaves the selection exactly as the user had it.
@@ -168,6 +238,23 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 			reportInvalidInput: deps.reportInvalidInput,
 			onCompleted: returnToSelect,
 		}),
+		'draw-rect': new DrawDetailTool({
+			id: 'draw-rect',
+			outlineFor: rectOutline,
+			commandFor: (outline) => detailWrite(deps, 'rectangle', outline),
+			reportRejected: deps.reportRejected,
+			reportInvalidInput: deps.reportInvalidInput,
+			onCompleted: (detailId) => completeDetail(deps, detailId),
+		}),
+		'draw-circle': new DrawDetailTool({
+			id: 'draw-circle',
+			outlineFor: circleOutline,
+			commandFor: (outline) => detailWrite(deps, 'circle', outline),
+			reportRejected: deps.reportRejected,
+			reportInvalidInput: deps.reportInvalidInput,
+			onCompleted: (detailId) => completeDetail(deps, detailId),
+		}),
+		'trace-detail': traceDetailTool(deps),
 		'set-anchor': new SetAnchorTool({
 			createCommand: (anchor) => edits.setAnchor({ assetId, anchor }),
 			reportRejected: deps.reportRejected,

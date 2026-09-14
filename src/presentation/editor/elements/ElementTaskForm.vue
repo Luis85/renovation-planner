@@ -29,6 +29,12 @@ const pointEntry = computed(() => draft.kind !== 'object' || draft.shape === 'fr
 const createHint = computed(() => tr(pointEntry.value ? 'editor.element.create-hint' : 'editor.element.banner.object-rectangle'));
 /** Out of the template for the same threshold, once posts and beams joined the draft kinds (structural posts and beams). */
 const structural = computed(() => draft.kind === 'post' || draft.kind === 'beam');
+/** The remaining compound conditions and ternaries below, out of the template for the same threshold. */
+const nameLabel = computed(() => tr(draft.kind === 'text' ? 'editor.drafting.text' : 'editor.room.name'));
+const nameError = computed(() => draft.name.trim() ? null : tr('editor.element.name-required'));
+const showDimensionOffset = computed(() => draft.kind === 'dimension' && draft.dimensionPhase === 'offset');
+const showRecovery = computed(() => task.needsRead.value || runtime.writesBlocked.value);
+const axisLabel = computed<Record<'x' | 'y', string>>(() => ({ x: tr('editor.area.x'), y: tr('editor.area.y') }));
 const pointForm = ref<HTMLElement | null>(null), attemptedPoint = ref(false);
 const coordinates = computed(() => ({ x: parseCoordinateMetres(draft.text.x), y: parseCoordinateMetres(draft.text.y) }));
 const point = computed(() => {
@@ -75,12 +81,12 @@ async function add(): Promise<void> {
 		</p>
 		<FieldError
 			v-slot="{ inputId, aria }"
-			:message="draft.name.trim() ? null : tr('editor.element.name-required')"
+			:message="nameError"
 		>
 			<label
 				:for="inputId"
 				class="rp-dialog-field"
-			>{{ tr(draft.kind === 'text' ? 'editor.drafting.text' : 'editor.room.name') }}<input
+			>{{ nameLabel }}<input
 				:id="inputId"
 				ref="nameInput"
 				v-bind="aria"
@@ -108,11 +114,11 @@ async function add(): Promise<void> {
 			:task="task"
 		/>
 		<DraftingDraftFields
-			v-if="draft.kind === 'dimension' && draft.dimensionPhase === 'offset'"
+			v-if="showDimensionOffset"
 			:task="task"
 		/>
 		<DraftRecovery
-			v-if="task.needsRead.value || runtime.writesBlocked.value"
+			v-if="showRecovery"
 			:retry="task.retry"
 			:open-source="runtime.openPlanNote"
 		/>
@@ -131,7 +137,7 @@ async function add(): Promise<void> {
 					<label
 						:for="inputId"
 						class="rp-dialog-field"
-					>{{ tr(axis === 'x' ? 'editor.area.x' : 'editor.area.y') }}<input
+					>{{ axisLabel[axis] }}<input
 						:id="inputId"
 						v-bind="aria"
 						:name="'element-' + axis"

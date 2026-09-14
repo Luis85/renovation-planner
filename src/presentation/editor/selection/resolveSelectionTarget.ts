@@ -16,7 +16,14 @@ export type SelectionTarget =
 	| null;
 
 /** A hatch is drawn under walls and every other mark over its area (plan drafting tools design §6), so it ranks just above a room or area. */
-const priority = (candidate: SpatialObjectCandidate): number => candidate.kind === 'hatch' ? 0.5 : outlineKind(candidate.kind) || candidate.kind === 'stair' || candidate.kind === 'asset' ? 4 : candidate.kind === 'opening' ? 3 : candidate.kind === 'wall' ? 2 : candidate.kind ? 1 : 0;
+function priority(candidate: SpatialObjectCandidate): number {
+	if (candidate.kind === 'hatch') return 0.5;
+	if (outlineKind(candidate.kind) || candidate.kind === 'stair' || candidate.kind === 'asset') return 4;
+	if (candidate.kind === 'opening') return 3;
+	if (candidate.kind === 'wall') return 2;
+	if (candidate.kind) return 1;
+	return 0;
+}
 
 function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
 	return candidate.points.slice(1).some((b, index) => {

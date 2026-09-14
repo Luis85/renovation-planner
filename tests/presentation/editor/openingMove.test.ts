@@ -33,6 +33,16 @@ async function arm(rig: Awaited<ReturnType<typeof setup>>): Promise<void> {
 	await settleUntil(() => !rig.runtime.openingMove.loading.value, 'opening baseline');
 }
 
+it('moves along the fixed reference from within a deep face without accepting the shallow opposite exterior', async () => {
+	const structure = { ...WALL_LOOP, walls: WALL_LOOP.walls.map((wall, index) => index === 0 ? { ...wall, thickness: 450, sideExtents: { a: 400, b: 50 } } : wall) };
+	const rig = await setup([door], structure), before = expectOk(await rig.geometry.read(rig.plan.id)).document;
+	await arm(rig); rig.runtime.toolManager.pointerMove(pointerAt(2000, 200)); expect(rig.runtime.structureActions.preview.value).toBeNull();
+	rig.runtime.toolManager.pointerMove(pointerAt(2000, -350)); expect(rig.runtime.structureActions.preview.value?.openings).toEqual([{ ...door, offset: 1550 }]);
+	click(rig, 2000, -350); await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'deep-face opening move');
+	expect(rig.project.structure.walls).toEqual(before.structure?.walls); expect(rig.project.structure.openings).toEqual([{ ...door, offset: 1550 }]);
+	await rig.runtime.undo(); expect(expectOk(await rig.geometry.read(rig.plan.id)).document).toEqual(before);
+});
+
 it('admits Inspector Move, previews without writes, commits the literal centre and reverses all opening metadata', async () => {
 	const rig = await setup(), workspace = useWorkspaceStore(rig.pinia);
 	workspace.setLayoutMode('constrained'); workspace.openOverlay('inspector'); await settle();
@@ -134,12 +144,12 @@ it('ignores invalid pointer coordinates and exits an unchanged centre without hi
 it('moves on the frozen curved host by along-arc distance and preserves its bulge and opening swing', async () => {
 	const wall = { ...WALL_LOOP.walls[0], bulge: 0.25 };
 	const structure = { ...WALL_LOOP, walls: [wall, ...WALL_LOOP.walls.slice(1)] };
-	const rig = await setup([door], structure); await arm(rig);
+	const rig = await setup([door], structure), beforeWalls = rig.project.structure.walls; await arm(rig);
 	const centre = wallLength(wall) * 0.65, point = alongWall(wall, centre);
 	click(rig, point.x, point.y); await settleUntil(() => rig.runtime.activeToolId.value === 'select', 'curved host move');
 	expect(rig.project.structure.openings[0].offset).toBeCloseTo(centre - door.width / 2, 8);
 	expect(rig.project.structure.openings[0].swing).toEqual(door.swing);
-	expect(rig.project.structure.walls).toEqual(structure.walls);
+	expect(rig.project.structure.walls).toEqual(beforeWalls);
 	await rig.runtime.undo(); expect(rig.project.structure).toMatchObject({ ...structure, openings: [door] });
 });
 

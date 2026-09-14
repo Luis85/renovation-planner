@@ -107,8 +107,8 @@ const hoverClosed = computed(() => {
 	// Both readers — the outline's `:config`, inside `v-if="hoverOutlineFlat !== null"`, and the
 	// fill's `v-if="hoverOutlineFlat !== null && hoverClosed"` — gate on `hoverOutlineFlat !== null`
 	// first, which answers null for a null `hoveredObjectId`: the id is set whenever this evaluates.
-	const kind = candidates.value.get(runtime.renderState.hoveredObjectId as string)?.kind;
-	return kind === undefined || closedFootprintKind(kind);
+	const candidate = candidates.value.get(runtime.renderState.hoveredObjectId as string);
+	return !!candidate?.hitPoints || candidate?.kind === undefined || closedFootprintKind(candidate.kind);
 });
 
 /**
@@ -134,7 +134,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 	const zone = candidates.value.get(id);
 	return zone === undefined ? [] : [{
 		id,
-		closed: zone.kind === undefined || closedFootprintKind(zone.kind),
+		closed: !!zone.hitPoints || zone.kind === undefined || closedFootprintKind(zone.kind),
 		number: selectedIds.value.indexOf(id) + 1,
 		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
 		strokeWidth: focusedId.value === id ? 3 : 2,

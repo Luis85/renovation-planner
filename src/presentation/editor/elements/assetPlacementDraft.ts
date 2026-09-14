@@ -3,6 +3,7 @@ import type { AppError } from '../../../core/errors/AppError';
 import type { Point } from '../../../core/geometry/Point';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { backDepth, placementPoints } from '../../../domain/spatial/assetPlacement';
+import { wallSideAt, wallSideExtents } from '../../../domain/spatial/wallSides';
 import { projectOntoWall, wallTangent, type Wall } from '../../../domain/spatial/Structure';
 
 export interface AssetPlacementDraft {
@@ -22,11 +23,11 @@ export function createAssetPlacementDraft(): AssetPlacementDraft {
  * pointer is with the asset's own facing. `null` tolerance is snapping switched off.
  */
 export function placementAt(point: Point, shape: AssetShape, walls: readonly Wall[], tolerance: number | null): readonly [Point, Point] {
-	const hits = tolerance === null ? [] : walls.map(wall => ({ wall, ...projectOntoWall(wall, point) })).filter(hit => hit.distance <= hit.wall.thickness / 2 + tolerance);
+	const hits = tolerance === null ? [] : walls.map(wall => ({ wall, ...projectOntoWall(wall, point) })).filter(hit => hit.distance <= wallSideExtents(hit.wall)[wallSideAt(hit.wall, point, hit)] + tolerance);
 	const hit = hits.reduce<(typeof hits)[number] | undefined>((best, candidate) => !best || candidate.distance < best.distance ? candidate : best, undefined);
 	if (!hit) return placementPoints(point, shape.facing);
 	const tangent = wallTangent(hit.wall, hit.offset), across = { x: tangent.y, y: -tangent.x };
 	const side = Math.sign((point.x - hit.point.x) * across.x + (point.y - hit.point.y) * across.y) || 1;
-	const normal = { x: across.x * side, y: across.y * side }, reach = hit.wall.thickness / 2 + backDepth(shape);
+	const normal = { x: across.x * side, y: across.y * side }, reach = wallSideExtents(hit.wall)[side > 0 ? 'a' : 'b'] + backDepth(shape);
 	return placementPoints({ x: hit.point.x + normal.x * reach, y: hit.point.y + normal.y * reach }, Math.atan2(normal.y, normal.x));
 }

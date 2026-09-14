@@ -2,14 +2,20 @@
 import { computed } from 'vue';
 import type { Opening, Wall } from '../../../domain/spatial/Structure';
 import type { ThemeTokens } from '../theme/themeTokens';
-import { openingSymbol } from '../../../domain/spatial/openingGeometry';
+import { openingCutPolygon, openingSymbol } from '../../../domain/spatial/openingGeometry';
+import { asymmetricWall } from '../../../domain/spatial/wallSides';
+import { wallHostClips, wallJunctions } from '../../../domain/spatial/wallSideJunctions';
 const props = defineProps<{ openings: readonly Opening[]; walls: readonly Wall[]; selectedIds: readonly string[]; tokens: ThemeTokens; zoom: number }>();
+const junctions = computed(() => wallJunctions(props.walls));
 const symbols = computed(() => props.openings.flatMap(opening => {
 	const host = props.walls.find(wall => wall.id === opening.hostId);
 	if (!host) return [];
 	const symbol = openingSymbol(opening, host, 0.25 / props.zoom), stroke = props.selectedIds.includes(opening.id) ? props.tokens.accent : props.tokens.zoneStroke;
 	const line = (points: readonly { x: number; y: number }[], width: number) => ({ points: points.flatMap(point => [point.x, point.y]), stroke, strokeWidth: width / props.zoom, lineCap: 'butt' });
-	return [{ id: opening.id, cut: { ...line(symbol.cut, 1), stroke: props.tokens.canvasBackground, strokeWidth: host.thickness + 2 / props.zoom },
+	const cut = asymmetricWall(host)
+		? { points: openingCutPolygon(opening, host, 0.25 / props.zoom, 1 / props.zoom, wallHostClips(host, junctions.value)).flatMap(point => [point.x, point.y]), closed: true, fill: props.tokens.canvasBackground, strokeEnabled: false }
+		: { ...line(symbol.cut, 1), stroke: props.tokens.canvasBackground, strokeWidth: host.thickness + 2 / props.zoom };
+	return [{ id: opening.id, cut,
 		frame: symbol.frame.map(points => line(points, 1.5)), leaf: line(symbol.leaf, 2), arc: line(symbol.arc, 1) }];
 }));
 </script>

@@ -49,7 +49,8 @@ function changeGeometry(current: Structure, before: Structure, draft: PlannedGeo
 	}
 	if (draft.kind === 'wall') {
 		const original = current.walls.find(item => item.id === id);
-		const wall = change === 'unchanged' && original ? original : { id, start: { x: values.x, y: values.y }, end: { x: values.endX, y: values.endY }, height: values.height, thickness: values.thickness };
+		const existing = before.walls.find(item => item.id === id) ?? original;
+		const wall = change === 'unchanged' && original ? original : { ...existing, id, start: { x: values.x, y: values.y }, end: { x: values.endX, y: values.endY }, height: values.height, thickness: values.thickness };
 		return before.walls.some(item => item.id === id) ? editWall(before, wall) : { ...before, walls: [...before.walls, wall] };
 	}
 	{

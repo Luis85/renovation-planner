@@ -50,6 +50,9 @@ function impact(next: Structure): string {
 		@keydown="keydown"
 	>
 		<p>{{ tr('editor.structure.bulk.hint') }}</p>
+		<p v-if="targets.wall.length">
+			{{ tr('editor.wall-side.bulk-total') }}
+		</p>
 		<StructureReviewNotices
 			:error="error"
 			:invalid="invalid"

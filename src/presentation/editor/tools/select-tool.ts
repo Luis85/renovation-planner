@@ -37,6 +37,8 @@ export interface SpatialObjectCandidate {
 	readonly bulges?: readonly number[];
 	/** A derived hit/framing projection; gestures always retain the canonical points. */
 	readonly hitPoints?: readonly Point[];
+	/** Compound derived bodies, such as an asymmetric wall and its outer join wedges. */
+	readonly hitRegions?: readonly (readonly Point[])[];
 	readonly stair?: StairOptions;
 	readonly assetId?: string;
 }

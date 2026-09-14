@@ -4,6 +4,7 @@
  * replaces both in one edit. A decimal COMMA is accepted on input because this plugin ships a
  * German locale and a German keyboard's numeric pad types one.
  */
+import { Decimal } from 'decimal.js';
 export type LengthRefusal = 'not-a-number' | 'not-positive' | 'too-large';
 
 /** A Floor has no extent (ADR-0017), so "out of bounds" is numeric sanity: a kilometre. */
@@ -95,12 +96,17 @@ export function formatMetres(mm: number): string {
  */
 const NUMERIC = /^(?:-?(?:\d+(?:\.\d+)?|\.\d+)|Infinity)$/;
 
-function parseMetresInput(text: string, coordinate: boolean): { ok: true; mm: number } | { ok: false; reason: LengthRefusal } {
+function metresValue(text: string): { ok: true; metres: number } | { ok: false; reason: LengthRefusal } {
 	const normalised = text.trim().replace(',', '.');
 	if (normalised === '' || !NUMERIC.test(normalised)) {
 		return { ok: false, reason: 'not-a-number' };
 	}
-	const metres = Number(normalised);
+	return { ok: true, metres: Number(normalised) };
+}
+
+function parseMetresInput(text: string, coordinate: boolean): { ok: true; mm: number } | { ok: false; reason: LengthRefusal } {
+	const parsed = metresValue(text); if (!parsed.ok) return parsed;
+	const { metres } = parsed;
 	if (!coordinate && metres <= 0) return { ok: false, reason: 'not-positive' };
 	const mm = Math.round(metres * 1000);
 	if (coordinate) return Number.isSafeInteger(mm) ? { ok: true, mm } : { ok: false, reason: 'too-large' };
@@ -123,4 +129,12 @@ export function parseMetres(text: string): { ok: true; mm: number } | { ok: fals
 /** Absolute plan coordinates allow zero and negatives; they are not room side lengths. */
 export function parseCoordinateMetres(text: string): { ok: true; mm: number } | { ok: false; reason: LengthRefusal } {
 	return parseMetresInput(text, true);
+}
+
+/** Face distances allow zero and retain sub-mm precision, including halved legacy dimensions. */
+export function parseExtentMetres(text: string): { ok: true; mm: number } | { ok: false; reason: LengthRefusal } {
+	const parsed = metresValue(text); if (!parsed.ok) return parsed;
+	if (parsed.metres < 0) return { ok: false, reason: 'not-positive' };
+	const mm = new Decimal(parsed.metres).times(1000).toNumber();
+	return Number.isFinite(mm) && mm <= MAX_ROOM_SIDE_MM ? { ok: true, mm: mm === 0 ? 0 : mm } : { ok: false, reason: 'too-large' };
 }

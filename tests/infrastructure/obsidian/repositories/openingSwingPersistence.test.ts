@@ -7,6 +7,7 @@ import { sameGeometryDocument } from '../../../../src/application/commands/spati
 import { PlanGeometrySchemaV4 } from '../../../../src/infrastructure/persistence/dto/planGeometry';
 
 const door: Opening = { id: 'opening-door', kind: 'door', hostId: 'wall-a', offset: 800, width: 900, height: 2100, sill: 0 };
+const walls = WALL_LOOP.walls.map(wall => ({ ...wall, sideExtents: { a: 75, b: 75 } }));
 
 it('keeps legacy defaults implicit and round-trips swing through schema5 with exact undo', async () => {
 	const rig = await structureStack();
@@ -18,7 +19,7 @@ it('keeps legacy defaults implicit and round-trips swing through schema5 with ex
 	expect(openingSwing({ ...door, kind: 'window' })?.angle).toBe(0);
 	expect(openingSwing({ ...door, kind: 'opening' })).toBeNull();
 	expect([...rig.stack.vault.entries]).toEqual(before);
-	const next = { ...structure, openings: [{ ...door, swing: { hinge: 'end' as const, side: 'right' as const, angle: 35 } }] };
+	const next = { ...structure, walls, openings: [{ ...door, swing: { hinge: 'end' as const, side: 'right' as const, angle: 35 } }] };
 	const command = rig.services.command({ planId: rig.plan.id, baseline, structure: next, ledger: rig.ledger });
 	expectOk(await command.execute());
 	const path = expectDefined(rig.stack.index.getGeometrySidecarPath(rig.plan.id), 'geometry path');
@@ -36,7 +37,7 @@ it('keeps legacy defaults implicit and round-trips swing through schema5 with ex
 
 it('preserves intended swing and refuses invalid or plain-opening swing without a write', async () => {
 	const rig = await structureStack();
-	const intended = { ...WALL_LOOP, openings: [{ ...door, swing: { hinge: 'start' as const, side: 'left' as const, angle: 0 } }] };
+	const intended = { ...WALL_LOOP, walls, openings: [{ ...door, swing: { hinge: 'start' as const, side: 'left' as const, angle: 0 } }] };
 	expectOk(await rig.geometry.write(rig.plan.id, { ...rig.baseline.document, intended }, rig.baseline.version));
 	const read = expectOk(await rig.geometry.read(rig.plan.id));
 	expect(read.document.intended).toEqual(intended);

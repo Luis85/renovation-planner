@@ -19,7 +19,7 @@ import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { outlineProposal, type CoordinateEdits } from './outlineProposal';
 import type { StringKey } from '../../i18n/locales/en';
 const props = defineProps<{ points: readonly Point[]; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
-	name?: string; hint: StringKey; inputBlocked?: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; accepts?: (points: readonly Point[]) => boolean;
+	name?: string; nameLabel?: StringKey; hint: StringKey; inputBlocked?: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; accepts?: (points: readonly Point[]) => boolean;
 	logger: Logger; dispatch: (polygon: Polygon, name?: string) => Promise<DispatchResult>; preview: (polygon: Polygon | null) => void }>();
 const emit = defineEmits<{ submit: [] }>();
 let alive = true; onBeforeUnmount(() => { alive = false; props.preview(null); });
@@ -64,6 +64,7 @@ async function submit(): Promise<void> {
 		<GeometryNameField
 			v-if="name !== undefined"
 			:value="form.values.value.name"
+			:label="nameLabel"
 			:readonly="paused"
 			:invalid="invalidName"
 			@input="nameInput"

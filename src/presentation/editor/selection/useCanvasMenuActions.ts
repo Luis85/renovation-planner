@@ -25,6 +25,7 @@ import { wallStartRefused } from '../structure/structureDraft';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../viewport/Viewport';
 import { structureCandidates } from '../structure/structureCandidates';
 import { useRecordMenuActions } from './recordMenuActions';
+import { useDraftingMenuActions } from './draftingMenuActions';
 
 /**
  * Menu order is the group order, and `CanvasContextMenu` draws a separator between groups: the plans a
@@ -51,7 +52,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
 	const moveOpening = useOpeningMoveAction(), clipboard = useClipboardActions();
 	const frame = usePlanFrame(), groups = useCanvasGroupActions(), session = useRenovationSession();
-	const detailPlans = useDetailPlanActions(), records = useRecordMenuActions();
+	const detailPlans = useDetailPlanActions(), records = useRecordMenuActions(), drafting = useDraftingMenuActions(opened);
 	function fit(all: boolean): void { const bounds = frame(all); if (bounds) editor.fitTo(bounds, editor.stageSize); }
 	/** Why a greyed item is greyed: a stale floor first, since that one blocks everything, else whatever tool or edit is in flight. */
 	function reason(disabled: boolean): StringKey | undefined { return !disabled ? undefined : runtime.writesBlocked.value ? 'editor.stale-write-refused' : 'editor.input.unavailable'; }
@@ -113,10 +114,10 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 			{ id: 'new-wall', label: 'editor.input.add.wall-here', group: 'create', icon: 'brick-wall', disabled: disabled || refused, reason: refused ? 'editor.structure.error.opening-split' : undefined, run: () => task.drawFrom(id, at, tolerance) },
 		];
 	}
-	/** The Add submenu for a single selection outside Review: a wall's geometry creations plus every target's record creations, joined and grouped. Nothing for several items, and nothing where neither applies. */
+	/** The Add submenu for a single selection outside Review: a wall's geometry creations plus every target's record creations but a drafting mark's, joined and grouped. Nothing for several items, and nothing where neither applies. */
 	function addSubmenu(id: string, blocked: boolean): CanvasMenuSubmenu[] {
 		if (!project.zones.has(id) && !structureCandidates(project.structure).some(item => item.id === id)) return [];
-		const children = [...wallActions(id, blocked), ...records(id, blocked)];
+		const children = [...wallActions(id, blocked), ...(drafting.isMark(id) ? [] : records(id, blocked))];
 		return children.length ? [{ id: 'add-menu', label: 'editor.input.add', group: 'create', icon: 'plus', children }] : [];
 	}
 	function singleActions(id: string, blocked: boolean): CanvasMenuAction[] {
@@ -150,10 +151,10 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		result.push(panning ? { id: 'select', label: 'editor.input.switch-to-select', group: 'view', icon: 'mouse-pointer-2', run: () => runtime.setTool('select') } : { id: 'pan', label: 'editor.input.switch-to-pan', group: 'view', icon: 'hand', run: () => runtime.setTool('pan') });
 		if (!ids.length) result.push({ id: 'add', label: 'editor.primary.add', group: 'create', icon: 'plus', disabled: blocked, run: add });
 		if (clipboard?.hasClipboard.value) result.push({ id: 'paste', label: 'editor.input.paste', group: 'clipboard', icon: 'clipboard-paste', disabled: !clipboard.canPaste.value, run: () => clipboard.paste(opened()) });
-		if (ids.length === 1) result.push(...singleActions(id, blocked), ...promoteActions(runtime, project, id), ...addSubmenu(id, blocked));
+		if (ids.length === 1) result.push(...singleActions(id, blocked), ...drafting.flip(id, blocked), ...promoteActions(runtime, project, id), ...addSubmenu(id, blocked));
 		// Only where the composite removal has its services, as the batch panel already requires: an item that would do nothing is worse than none.
 		else if (ids.length && runtime.renovation.available) result.push({ id: 'delete', label: runtime.groupActions.saved.value ? 'editor.group.delete' : 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: multiDeleteBlocked(runtime), run: () => deleteItems(runtime, project.structure, ids) });
-		result.push({ id: 'measure', label: 'editor.input.measure-here', group: 'create', icon: 'ruler', disabled: blocked || !runtime.elementTask.available, run: () => runtime.elementTask.measureFrom(opened()) });
+		result.push({ id: 'measure', label: 'editor.input.measure-here', group: 'create', icon: 'ruler', disabled: blocked || !runtime.elementTask.available, run: () => runtime.elementTask.startAt('measure', opened()) }, drafting.submenu(blocked));
 		const rotation = runtime.rotationActions.target.value;
 		if (rotation) result.push({ id: 'rotate', label: 'editor.input.rotate', group: 'edit', icon: 'rotate-cw', disabled: blocked || runtime.rotationActions.blocked.value, run: () => runtime.rotationActions.rotate(rotation.id) });
 		result.push(...groups.actions(ids).map(action => ({ ...action, group: 'arrange' as const })));

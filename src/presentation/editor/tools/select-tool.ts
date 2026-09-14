@@ -30,6 +30,8 @@ export interface SpatialObjectCandidate {
 	readonly kind?: 'wall' | 'opening' | SpatialElementKind;
 	readonly width?: number;
 	readonly loadBearing?: boolean;
+	readonly offset?: number;
+	readonly flipped?: boolean;
 	readonly id: string;
 	readonly points: readonly Point[];
 	readonly bulges?: readonly number[];

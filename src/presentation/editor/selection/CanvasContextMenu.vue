@@ -15,6 +15,7 @@ import { screenPoint, screenToWorld, stageCentreWorld, STAGE_PIXELS } from '../v
 import { useCanvasGroupActions } from './canvasGroupActions';
 import { useCanvasMenuActions, isSubmenu, type CanvasMenuAction } from './useCanvasMenuActions';
 import { canvasCandidates } from './canvasCandidates';
+import { draftingHitContext } from '../elements/draftingMarks';
 import { structureRecords } from '../structure/structureRecords';
 import { plainPress } from '../surface/keyboard';
 import { pointerOutside } from './menuKeyboard';
@@ -42,7 +43,7 @@ function contextTarget(event: MouseEvent | KeyboardEvent, x: number, y: number):
 	const rowId = target.closest<HTMLElement>('[data-rp-id]')?.dataset.rpId;
 	if (rowId && (project.zones.has(rowId) || structureCandidates(project.structure).some(item => item.id === rowId))) return rowId;
 	if (keyboard) return undefined;
-	const candidates = canvasCandidates(project.zones.values(), project.structure, workspace.layerVisibility, assetShapes.shapeOf);
+	const candidates = canvasCandidates(project.zones.values(), project.structure, workspace.layerVisibility, assetShapes.shapeOf, draftingHitContext(editor.viewport.zoom, project.plan?.spatialElements));
 	return resolveSelectionTarget({ candidates, selectedIds: selection.selectedIds, worldPoint: screenToWorld(screenPoint(x, y), editor.viewport, STAGE_PIXELS), handleToleranceWorld: 0, cycle: event.altKey })?.id;
 }
 function selectContext(hit: string | undefined, keyboard: boolean, event: MouseEvent | KeyboardEvent): void {

@@ -7,8 +7,13 @@ import type { SpatialObjectCandidate } from '../tools/select-tool';
 import { CLICK_EPSILON_PX, SNAP_TOLERANCE_PX } from '../handleMetrics';
 import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 
-/** Elements whose individual points drag; a stair, a post and an asset move only as a body. */
-export const hasPointHandles = (kind: string | undefined): boolean => kind === 'arrow' || kind === 'path' || kind === 'fence' || kind === 'measurement' || kind === 'object' || kind === 'beam';
+/** Elements whose individual points drag; a stair, a post, an asset, a text and a grid point move only as a body. */
+export const hasPointHandles = (kind: string | undefined): boolean => ['arrow', 'path', 'fence', 'measurement', 'object', 'beam', 'dimension', 'section', 'view', 'hatch', 'boundary'].includes(kind ?? '');
+/** A beam's width, a post's or beam's load-bearing flag, a chain's offset and a section's look side are required: without them `acceptsElementPoints` refuses every endpoint drag. */
+function elementFacts(hit: SpatialObjectCandidate): Pick<SpatialElement, 'width' | 'loadBearing' | 'offset' | 'flipped'> {
+	return { ...(hit.width === undefined ? {} : { width: hit.width }), ...(hit.loadBearing === undefined ? {} : { loadBearing: hit.loadBearing }),
+		...(hit.offset === undefined ? {} : { offset: hit.offset }), ...(hit.flipped === undefined ? {} : { flipped: hit.flipped }) };
+}
 export interface ElementMoveDeps {
 	previewElement?: (id: string | null, points?: readonly Point[]) => void;
 	moveElement?: (id: string, points: readonly Point[], original: SpatialElement) => void;
@@ -24,9 +29,7 @@ export class ElementMove {
 		if (!hit.kind || hit.kind === 'wall' || hit.kind === 'opening') return;
 		if (context.writesBlocked() || this.deps.elementWritesBlocked?.() === true || event.modifiers.shift || event.modifiers.alt || !this.deps.moveElement) return;
 		if (vertexIndex !== undefined && (!hasPointHandles(hit.kind) || !hit.points[vertexIndex])) return;
-		// A beam's width and a post's or beam's load-bearing flag are required: without them `acceptsElementPoints` refuses every endpoint drag.
-		const structural = { ...(hit.width === undefined ? {} : { width: hit.width }), ...(hit.loadBearing === undefined ? {} : { loadBearing: hit.loadBearing }) };
-		this.gesture = { element: { id: hit.id, kind: hit.kind, points: hit.points, ...(hit.stair ? { stair: hit.stair } : {}), ...structural }, start: event.worldPoint, points: hit.points, vertexIndex, context };
+		this.gesture = { element: { id: hit.id, kind: hit.kind, points: hit.points, ...(hit.stair ? { stair: hit.stair } : {}), ...elementFacts(hit) }, start: event.worldPoint, points: hit.points, vertexIndex, context };
 	}
 	private points(event: EditorPointerEvent): Point[] {
 		const gesture = this.gesture;

@@ -20,6 +20,7 @@ export interface SpatialRecordDto {
 	readonly points: readonly Point[];
 	readonly bulges?: readonly number[];
 	readonly hitPoints?: readonly Point[];
+	readonly hitRegions?: readonly (readonly Point[])[];
 	readonly areaMm2: number;
 	/** Copied from `ZoneDto.locked`; present only while locked. */
 	readonly locked?: true;

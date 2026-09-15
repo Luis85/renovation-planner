@@ -4,12 +4,16 @@ import { wallLength } from '../../../domain/spatial/Structure';
 import type { Wall } from '../../../domain/spatial/Structure';
 import { tr } from '../../i18n/strings';
 import StructureMaterialFacts from './StructureMaterialFacts.vue';
+import { wallSideExtents } from '../../../domain/spatial/wallSides';
+import { formatWallExtent } from './wallExtentInput';
 defineProps<{ wall: Wall; rooms: readonly string[]; materials?: { existing?: string; planned?: string } | null }>();
 </script>
 <template>
 	<dl class="rp-editor-inspector-fields">
 		<dt>{{ tr('editor.structure.length') }}</dt><dd>{{ formatMetres(wallLength(wall)) }} m</dd>
 		<dt>{{ tr('editor.structure.thickness') }}</dt><dd>{{ formatMetres(wall.thickness) }} m</dd>
+		<dt>{{ tr('editor.wall-side.label', { side: 'A' }) }}</dt><dd>{{ formatWallExtent(wallSideExtents(wall).a) }}</dd>
+		<dt>{{ tr('editor.wall-side.label', { side: 'B' }) }}</dt><dd>{{ formatWallExtent(wallSideExtents(wall).b) }}</dd>
 		<dt>{{ tr('editor.structure.height') }}</dt><dd>{{ formatMetres(wall.height) }} m</dd>
 		<dt>{{ tr('editor.structure.rooms') }}</dt><dd>{{ rooms.length ? rooms.join(', ') : tr('editor.structure.no-rooms') }}</dd>
 		<StructureMaterialFacts

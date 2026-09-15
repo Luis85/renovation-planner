@@ -32,7 +32,7 @@ import {
 	type AssetDesignerContext,
 } from '../../../src/presentation/designer/AssetDesignerContext';
 import { resolveThemeTokens } from '../../../src/presentation/editor/theme/themeTokens';
-import { fitViewport } from '../../../src/presentation/editor/viewport/Viewport';
+import { DEFAULT_VIEWPORT, fitViewport } from '../../../src/presentation/editor/viewport/Viewport';
 import { boundingBoxOf } from '../../../src/core/geometry/operations';
 import { ringSector } from '../../../src/domain/asset/presets/presetGeometry';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
@@ -106,6 +106,8 @@ describe('the designer’s drawing vocabulary', () => {
 
 		expect(drawn.footprint?.dash).toBeUndefined();
 		expect(drawn.clearance?.dash).not.toBeUndefined();
+		// 1.5, not 1: a 1 px accent dash measured about 2.98:1 on the light canvas (critique finding 19).
+		expect(drawn.clearance?.strokeWidth).toBe(1.5);
 	});
 
 	/**
@@ -306,6 +308,8 @@ describe('what the designer’s fit shortcuts frame', () => {
 	it('frames the footprint and the clearance around it, never the outline alone', async () => {
 		const designer = await mountDesigner(assetDesign({ shape: WITH_CLEARANCE }));
 		const store = useEditorStore(designer.pinia);
+		// The design opened framed (`DesignerCanvas`); start from the default camera so the press has a fit to make.
+		store.viewport = DEFAULT_VIEWPORT;
 		const before = store.viewport;
 
 		pressOnCanvas(designer.canvasEl as HTMLElement, 'Digit1');
@@ -501,6 +505,26 @@ describe('the designer canvas, mounted', () => {
 
 		expect(designer.stage.findOne('.asset-selection-outline')).toBeDefined();
 		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(0);
+		designer.unmount();
+	});
+
+	/**
+	 * The anchor's and the facing's ring, over its halo, is that selection's ONLY mark — neither has an outline to restroke
+	 * - so it stays under every tool, as an outline selection accent restroke does (follow-up A1).
+	 */
+	it.each([['anchor'], ['facing']] as const)('keeps the %s ring under Draw rectangle, its only selection mark', async (kind) => {
+		const designer = await designerRig({ shape: WITH_DETAILS });
+		designer.toolbarButton(t('en', 'designer.toolbar.select')).click();
+		useAssetDesignStore(designer.pinia).select({ kind });
+		await settle();
+
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(2);
+		expect(designer.stage.findOne('.asset-selection-outline')).toBeUndefined();
+
+		designer.toolbarButton(t('en', 'designer.toolbar.draw-rect')).click();
+		await settle();
+
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(2);
 		designer.unmount();
 	});
 

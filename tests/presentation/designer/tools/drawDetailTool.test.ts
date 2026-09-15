@@ -288,6 +288,8 @@ function traceRig(shape: AssetShape | null) {
 			createCommand: () => COMMAND,
 			reportRejected: (error) => rejected.push(error),
 			reportInvalidInput: (error) => invalid.push(error),
+			writing: () => false,
+			settled: () => Promise.resolve(),
 		},
 	});
 	manager.setActiveTool('trace-detail');

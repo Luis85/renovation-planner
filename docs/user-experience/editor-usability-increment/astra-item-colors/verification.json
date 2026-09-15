@@ -1,0 +1,119 @@
+{
+  "branch": "codex/usability-astra-item-colors",
+  "pullRequest": "https://github.com/Luis85/renovation-planner/pull/214",
+  "basePullRequest": "https://github.com/Luis85/renovation-planner/pull/213",
+  "baseCommit": "20f2b699a6db52ffd2ef1309ce5116f551a3ad75",
+  "integratedMain": "9ef607030",
+  "verifiedCodeCommit": "b6a9ce3606f01ad8183bad3e96d2b78476ab785b",
+  "codeTreeHashes": {
+    "src": "19cd3a29b073a53f28c0bcfafb71b9775527fe71",
+    "tests": "d5890ddc9cefdac18e5d5a78a6ed72f88836e5e7",
+    "styles": "72aae9a269e13dc13beff7adca8496c8309128e1",
+    "scripts": "ffa7b771cc82bbb8cd4d27fd20b7dc9a4cbc5954",
+    ".github": "f572ed11ad5931d9e553df180f5ec870c1ebc380"
+  },
+  "fullGate": {
+    "command": "npm run check",
+    "environment": {
+      "VITEST_MAX_WORKERS": "1"
+    },
+    "exitCode": 0,
+    "startedAt": "2026-09-15T06:54:42.4610961Z",
+    "endedAt": "2026-09-15T07:39:46.5283882Z",
+    "node": "24.20.0",
+    "npm": "11.18.0",
+    "testFilesPassed": 988,
+    "testsPassed": 10800,
+    "testsSkipped": 1,
+    "testsFailed": 0,
+    "logSha256": "f785f2d13d1e9c471ec427a2d423edbe8f4302f9913806d0c6d8f60ca5d8ab41"
+  },
+  "coverage": {
+    "statements": {
+      "total": 28029,
+      "covered": 27818,
+      "percent": 99.24
+    },
+    "branches": {
+      "total": 20885,
+      "covered": 20484,
+      "percent": 98.07
+    },
+    "functions": {
+      "total": 8148,
+      "covered": 8090,
+      "percent": 99.28
+    },
+    "lines": {
+      "total": 20483,
+      "covered": 20418,
+      "percent": 99.68
+    }
+  },
+  "analysis": {
+    "exitCode": 0,
+    "analyzedUnits": 7516,
+    "aboveThreshold": 0,
+    "maintainability": 86.7,
+    "issues": 0,
+    "inheritedCloneGroups": 3
+  },
+  "priorFullAttempt": {
+    "failures": [
+      "Historical wall reader advanced through slice(0,-1); pinned explicitly to schema 12.",
+      "Undeclared host opacity token; replaced by a declared component-owned token."
+    ],
+    "testsPassed": 10798,
+    "testsSkipped": 1,
+    "exitCode": 1,
+    "commit": "26348d9d33714640310a3cfc5ba15348f0f20c40",
+    "testsFailed": 2,
+    "startedAt": "2026-09-15T06:05:13.3836778Z",
+    "endedAt": "2026-09-15T06:49:18.4777068Z",
+    "logSha256": "51ff14a449509143551f1aef72939bec4596d6464ea0a3dcaba43ada3a98c8b8",
+    "allCoverageFloorsPassed": true
+  },
+  "focused": {
+    "expandedSuite": {
+      "passed": true,
+      "files": 5,
+      "tests": 58
+    },
+    "newModulesCoverage": {
+      "functions": "16/16",
+      "tests": 21,
+      "lines": "35/35",
+      "branches": "55/55",
+      "files": 2,
+      "statements": "54/54"
+    },
+    "correctionSuite": {
+      "passed": true,
+      "files": 4,
+      "tests": 94
+    }
+  },
+  "browser": {
+    "narrowTargets": "44x44",
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "screenshots": "screenshots.json",
+    "locales": [
+      "en",
+      "de"
+    ],
+    "detectorExitCode": 0,
+    "nativeObsidianAcceptance": false,
+    "rounds": 2,
+    "detector": "impeccable.json",
+    "metrics": "browser-metrics.json",
+    "widths": [
+      1280,
+      460,
+      400
+    ]
+  },
+  "ci": "Current final-head platform, audit and security checks are tracked on PR #214."
+}

@@ -17,6 +17,8 @@ export const WALL_LOOP: Structure = {
 		{ id: 'wall-d', start: { x: 0, y: 3000 }, end: { x: 0, y: 0 }, height: 2400, thickness: 150 },
 	], openings: [], boundaries: [],
 };
+/** Current persisted form of the 150 mm fixture; WALL_LOOP remains a legacy input for migration coverage. */
+export const WALL_LOOP_WITH_SIDES: Structure = { ...WALL_LOOP, walls: WALL_LOOP.walls.map(wall => ({ ...wall, sideExtents: { a: 75, b: 75 } })) };
 export async function structureStack() {
 	const stack = createRepositoryStack(), project = makeProject(), plan = makePlan({ projectId: project.id });
 	expectOk(await stack.projects.save(project, 'absent'));

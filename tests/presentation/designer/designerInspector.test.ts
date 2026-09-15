@@ -106,6 +106,17 @@ describe('the designer’s inspector', () => {
 		expect(mountInspector({}, { kind: 'footprint' }).find('.rp-designer-selection').exists()).toBe(true);
 	});
 
+	/**
+	 * Critique finding 4: under a selected detail's section, the asset's "Dimensions 380 × 700 mm" read as
+	 * that detail's size. The asset's own block now opens with its own heading, after the part's section.
+	 */
+	it('heads the asset’s own block, after the selected part’s section when there is one', () => {
+		const headings = (selection: DesignerSelection | null) => mountInspector({}, selection).findAll('h3').map((heading) => heading.text());
+
+		expect(headings(null)).toEqual([t('en', 'designer.inspector.asset')]);
+		expect(headings({ kind: 'footprint' })).toEqual([t('en', 'designer.selection.footprint'), t('en', 'designer.inspector.asset')]);
+	});
+
 	it('draws no dimensions block at all for a shapeless asset', () => {
 		const wrapper = mountInspector({ dimensions: null });
 

@@ -1,19 +1,21 @@
 import type { Vector } from '../../core/geometry/Vector';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
+import type { AssetShape } from '../../domain/asset/AssetShape';
 import { DUPLICATE_OFFSET_MM, deleteDetail, duplicateDetail, nextDetailId } from '../../domain/asset/detailEdits';
 import { moveAnchor, moveOutline, removeClearance } from '../../domain/asset/shapeEdits';
 import { notifyIfRefused } from '../editor/report-failure';
 import { plainPress } from '../editor/surface/keyboard';
 import type { ToolId } from '../editor/tools/editor-tool';
-import type { DesignerSelection } from './selection/designerSelection';
-import type { EditShape } from './selection/editShape';
+import { selectionExists, type DesignerSelection } from './selection/designerSelection';
+import type { EditShape, ShapeEdit } from './selection/editShape';
 
 /**
  * The asset designer's selection keys (symbols spec, Decision 10). Delete and Ctrl+D are decided HERE
  * and bound on the canvas element itself by `AssetDesignerRoot`, because `EditorSurface` routes neither
  * and leaves both to other listeners; the arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
  * `selectionKeyActions(...).nudgeSelection`. Every edit is one `editShape`, so one conditional write
- * and one undo entry, and every refusal goes through `notifyIfRefused`.
+ * and one undo entry, and every refusal goes through `notifyIfRefused` — except a nudge or a Delete whose
+ * part is already gone when its step runs, which is skipped and says nothing (`whileItExists`).
  */
 
 /** What `designerShortcut` reads of a key event — a real `KeyboardEvent` satisfies it structurally. */
@@ -68,7 +70,7 @@ export function designerShortcut(event: DesignerKeyPress, doors: DesignerKeyDoor
  * it in its own alert: the one step both doors share.
  */
 export async function duplicateAndSelect(
-	editShape: EditShape,
+	editShape: (edit: ShapeEdit) => Promise<DispatchResult>,
 	id: string,
 	select: (next: DesignerSelection) => void,
 ): Promise<DispatchResult> {
@@ -80,6 +82,16 @@ export async function duplicateAndSelect(
 	// The refresh has landed by the time a dispatch resolves, so the copy exists to be selected.
 	if (result.ok) select({ kind: 'detail', id: copy });
 	return result;
+}
+
+/**
+ * A key's edit, skipped when the part it captured at the press is gone by the time its step runs — a
+ * Delete or an undo queued ahead of it removed it. `null` is `editShape`'s "nothing to do": the press
+ * was right when made and the canvas already shows the part gone, so there is nothing to say (the plan
+ * editor's `nudge.ts` rule). The inspector does not take this door; its alert sits beside a part still drawn.
+ */
+function whileItExists(selection: DesignerSelection, edit: ShapeEdit): (shape: AssetShape) => ReturnType<ShapeEdit> | null {
+	return (shape) => (selectionExists(shape, selection) ? edit(shape) : null);
 }
 
 /**
@@ -105,8 +117,8 @@ export function selectionKeyActions(
 	return {
 		deleteSelection: () => {
 			const selection = store.selection;
-			if (selection?.kind === 'detail') return notifyIfRefused(editShape((shape) => deleteDetail(shape, selection.id)));
-			if (selection?.kind === 'clearance') return notifyIfRefused(editShape(removeClearance));
+			if (selection?.kind === 'detail') return notifyIfRefused(editShape(whileItExists(selection, (shape) => deleteDetail(shape, selection.id))));
+			if (selection?.kind === 'clearance') return notifyIfRefused(editShape(whileItExists(selection, removeClearance)));
 			return Promise.resolve();
 		},
 		duplicateSelection: async () => {
@@ -121,10 +133,12 @@ export function selectionKeyActions(
 			// A facing is a direction: a nudge has no meaning for it, and nothing is written.
 			if (selection === null || selection.kind === 'facing') return Promise.resolve();
 			return notifyIfRefused(
-				editShape((shape) =>
-					selection.kind === 'anchor'
-						? moveAnchor(shape, { x: shape.anchor.x + by.dx, y: shape.anchor.y + by.dy })
-						: moveOutline(shape, selection, by),
+				editShape(
+					whileItExists(selection, (shape) =>
+						selection.kind === 'anchor'
+							? moveAnchor(shape, { x: shape.anchor.x + by.dx, y: shape.anchor.y + by.dy })
+							: moveOutline(shape, selection, by),
+					),
 				),
 			);
 		},

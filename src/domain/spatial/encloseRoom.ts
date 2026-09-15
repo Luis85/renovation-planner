@@ -4,8 +4,9 @@ import { curveTolerance } from '../../core/geometry/circularIntersections';
 import { edgeSupports, offsetOutline, outwardDistance, outwardNormal, type EdgeSupport } from '../../core/geometry/offsetOutline';
 import type { Point } from '../../core/geometry/Point';
 import { err, ok } from '../../core/result/Result';
-import { alongWall, samePoint, wallLength, projectOntoWall, type Structure, type Wall } from './Structure';
+import { alongWall, samePoint, wallLength, wallTangent, projectOntoWall, type Structure, type Wall } from './Structure';
 import { spatialError, validateStructure } from './structureGeometry';
+import { wallSideExtents, wallSideNormal } from './wallSides';
 
 /** The wall running exactly along one room edge, in either direction; a reversed wall carries the negated bulge. */
 export function wallOnEdge(walls: readonly Wall[], start: Point, end: Point, bulge: number): Wall | undefined {
@@ -32,7 +33,11 @@ function runsAlong(wall: Wall, edge: EdgeProbe, distance: number): boolean {
 }
 
 /** A wall centred on the edge (a shared wall, or one enclosed before walls moved outside) or with its inner face on it. */
-const wallAlongEdge = (walls: readonly Wall[], edge: EdgeProbe): Wall | undefined => walls.find(wall => runsAlong(wall, edge, 0) || runsAlong(wall, edge, wall.thickness / 2));
+function innerExtent(wall: Wall, edge: EdgeProbe): number {
+	const normal = outwardNormal(edge.support, edge.middle), a = wallSideNormal(wallTangent(wall, projectOntoWall(wall, edge.middle).offset), 'a');
+	return wallSideExtents(wall)[normal.x * a.x + normal.y * a.y > 0 ? 'b' : 'a'];
+}
+const wallAlongEdge = (walls: readonly Wall[], edge: EdgeProbe): Wall | undefined => walls.find(wall => runsAlong(wall, edge, 0) || runsAlong(wall, edge, innerExtent(wall, edge)));
 
 /**
  * Whether every edge of the room still runs along a wall its boundary lists, by `wallAlongEdge`'s
@@ -55,7 +60,8 @@ function sharesEdge(rooms: readonly CurvedPolygon[], start: Point, end: Point, b
 /** The Room of a closed wall loop, listed in loop order: its outline on the walls' inner faces. */
 export function roomInsideWalls(walls: readonly Wall[]) {
 	const loop = { points: walls.map(wall => wall.start), ...(walls.some(wall => wall.bulge) ? { bulges: walls.map(wall => wall.bulge ?? 0) } : {}) };
-	const inside = offsetOutline(loop, walls.map(wall => -wall.thickness / 2));
+	const probes = edgeProbes(loop);
+	const inside = offsetOutline(loop, walls.map((wall, index) => -innerExtent(wall, probes[index])));
 	return inside.ok ? inside : err(spatialError('wall-offset'));
 }
 

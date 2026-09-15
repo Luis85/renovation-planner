@@ -1,4 +1,5 @@
 import { enProjectNavigation } from './en/projectNavigation';
+import { itemColorEn } from './en/itemColor';
 import { projectWorkEn } from './en/projectWork';
 import { planningEn } from './en/planning';
 import { planEn } from './en/plan';
@@ -36,6 +37,7 @@ import { newAssetFootprintEn } from './en/newAssetFootprint';
  * typeof en` stays exact and no consumer of a key changes.
  */
 export const en = {
+	...itemColorEn,
 	...projectWorkEn,
 	...enProjectNavigation,
 	...renovationEn,

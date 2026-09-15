@@ -1,4 +1,5 @@
 import { deProjectNavigation } from './de/projectNavigation';
+import { itemColorDe } from './de/itemColor';
 import { projectWorkDe } from './de/projectWork';
 import { deSaveState } from './de/saveState';
 import { planningDe } from './de/planning';
@@ -30,6 +31,7 @@ import { deMobile } from './de/mobile';
 import { newAssetFootprintDe } from './de/newAssetFootprint';
 
 export const de: Partial<Record<StringKey, string>> = {
+	...itemColorDe,
 	...projectWorkDe,
 	...deProjectNavigation,
 	...renovationDe,

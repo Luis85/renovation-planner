@@ -24,7 +24,7 @@ import { knownDistanceSupplier } from '../editor/shell/knownDistance';
 import { registerDesignerTools, type DesignerToolDeps } from './tools/registerDesignerTools';
 import type { DesignerSelectToolDeps } from './tools/designer-select-tool';
 import { designerSnapCandidates } from './selection/snapCandidates';
-import { createEditShape, type EditShape } from './selection/editShape';
+import { createEditShape, createWriteChain, type EditShape } from './selection/editShape';
 import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-state-refresh';
 import { wrapDispatcher } from '../editor/tools/wrap-dispatcher';
 import { useSaveStateStore } from '../editor/save-state/save-state-store';
@@ -123,10 +123,11 @@ export interface DesignerRuntime {
 	readonly activeToolId: Ref<ToolId | null>;
 	readonly setTool: (id: ToolId | null) => void;
 	/**
-	 * One whole-shape edit of the design this leaf read, dispatched through `toolDispatcher` as ONE
-	 * `SetAssetShape` conditional on that read's `geometryVersion` — or not at all when the edit
-	 * refuses or nothing is drawn (`selection/editShape.ts`). RESOLVES, like `commitHeight`, so a field
-	 * can place a refusal beside itself; a key binding hands the result to `notifyIfRefused`.
+	 * One whole-shape edit of the design this leaf holds, queued on the leaf's one write chain behind
+	 * every gesture's write and read-back, and dispatched as ONE `SetAssetShape` conditional on the
+	 * version its step reads — or not at all when the edit refuses, has nothing to do, or nothing is
+	 * drawn (`selection/editShape.ts`). RESOLVES, like `commitHeight`, so a field can place a refusal
+	 * beside itself; a key binding hands the result to `notifyIfRefused`.
 	 */
 	readonly editShape: EditShape;
 }
@@ -199,6 +200,7 @@ function selectToolDeps(
 	store: ReturnType<typeof useAssetDesignStore>,
 	edits: ReversibleAssetDesignCommands,
 	assetId: AssetId,
+	chain: Pick<ReturnType<typeof createWriteChain>, 'writing' | 'settled'>,
 ): DesignerSelectToolDeps {
 	return {
 		design: () => {
@@ -212,6 +214,41 @@ function selectToolDeps(
 		createCommand: (shape, expected) => edits.setShape({ assetId, shape, expected }),
 		reportRejected: reportDispatchFailure,
 		reportInvalidInput: notifyOperationFailure,
+		writing: chain.writing,
+		settled: chain.settled,
+	};
+}
+
+/**
+ * This leaf's ONE write chain (symbols spec, Amendment 2) and the two doors onto it, built here for
+ * `calibrationDeps`' reason: `buildRuntime` sits at its 100-line budget.
+ *
+ * - `toolDispatcher` is the tools' door, handed to every `EditorContext`: the leaf's dispatcher QUEUED on
+ *   the chain, then mapped so `run` RESOLVES a coded refusal instead of rejecting. A tool dispatches
+ *   detached, so an unmapped rejection was an unhandled one and the gesture said nothing;
+ *   `EditorContextDeps` requires the mapped form, which is what stops this surface — or a third — from
+ *   composing a context without it.
+ * - `editShape` queues a step of its own that reads the design when it runs, and writes through a
+ *   SECOND mapping of the same dispatcher that is NOT queued: a step dispatching through the queued door
+ *   would wait behind itself for ever.
+ *
+ * `withStateRefresh`'s own queue is not the chain, measured rather than assumed: a step that finds
+ * nothing to do would have to answer from inside a command's `execute`, and `CommandHistory` pushes an
+ * undo entry for any ok result, `no-write` included; and the Select tool's hold needs to ask whether a
+ * write is queued, which that decorator — shared with the plan editor — does not say.
+ */
+function designWrites(
+	dispatcher: RefreshedHistory,
+	logger: AssetDesignerContext['logger'],
+	store: ReturnType<typeof useAssetDesignStore>,
+	setShape: DesignerSelectToolDeps['createCommand'],
+) {
+	const chain = createWriteChain();
+	const unqueued = mapDispatchFaults(dispatcher, logger, DISPATCH_FAULT_EVENT);
+	return {
+		chain,
+		toolDispatcher: mapDispatchFaults({ run: (command) => chain.enqueue(() => dispatcher.run(command)) }, logger, DISPATCH_FAULT_EVENT),
+		editShape: createEditShape(chain.enqueue, () => store.design, (shape, expected) => unqueued.run(setShape(shape, expected))),
 	};
 }
 
@@ -281,12 +318,6 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 
 	const { dispatcher, canUndo, canRedo } = wrapDispatcher(history, tracked);
 
-	// The tools' own door: the same dispatcher, with `run` mapped so it RESOLVES a coded refusal
-	// instead of rejecting. A tool dispatches detached, so an unmapped rejection was an unhandled
-	// one and the gesture said nothing. `EditorContextDeps` requires the mapped form, which is
-	// what stops this surface — or a third — from composing a context without it.
-	const toolDispatcher = mapDispatchFaults(dispatcher, context.logger, DISPATCH_FAULT_EVENT);
-
 	/**
 	 * The ONE cast in this file, and the shape `presentation/editor/runtime.ts` already draws
 	 * for a plan. Obsidian persists an asset id in its per-leaf view state as an opaque string,
@@ -320,6 +351,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const noteLedger = new SessionWriteLedger();
 	const geometryLedger = new SessionWriteLedger();
 	const edits: ReversibleAssetDesignCommands = context.commands.designEdits({ noteLedger, geometryLedger });
+	const { chain, toolDispatcher, editShape } = designWrites(dispatcher, context.logger, store, (shape, expected) => edits.setShape({ assetId, shape, expected }));
 
 	/**
 	 * A FRESH context per activation, through the same assembler the Plan Editor uses — which
@@ -374,7 +406,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		reportInvalidInput: notifyOperationFailure,
 		// A completed trace or drawn detail returns to Select, which this surface registers since Decision 10.
 		returnToSelect: () => setTool('select'),
-		selectTool: selectToolDeps(store, edits, assetId),
+		selectTool: selectToolDeps(store, edits, assetId, chain),
 		...calibrationDeps(useDialogStore(), store),
 		...detailDeps(store),
 	});
@@ -406,7 +438,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		await notifyIfRefused(Promise.resolve(result));
 		// A preset is centred on the origin at whatever size was typed, so it can land wholly outside
 		// the view it was applied from. A WRITTEN shape is framed as `Shift+1` frames it — the same
-		// `fitTo` the plan editor's `selectAndFrame` takes; an asset merely opened keeps its view.
+		// `fitTo` the plan editor's `selectAndFrame` takes. An OPENED asset is framed once by `DesignerCanvas`.
 		const bounds = designFrame(shape);
 		if (result?.ok === true && bounds !== null) editor.fitTo(bounds, editor.stageSize);
 	}
@@ -447,7 +479,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		renderState,
 		activeToolId,
 		setTool,
-		editShape: createEditShape(() => store.design, (shape, expected) => toolDispatcher.run(edits.setShape({ assetId, shape, expected }))),
+		editShape,
 	};
 }
 

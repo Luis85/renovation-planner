@@ -3,7 +3,7 @@ import type { AppError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { Structure } from '../../../domain/spatial/Structure';
-import { validateStructure } from '../../../domain/spatial/structureGeometry';
+import { spatialError, validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { PlanGeometryDocument, PlanGeometrySidecar, PlanGeometrySnapshot } from '../../ports/PlanGeometrySidecar';
 import { checkExpectedVersion } from '../../ports/versioning';
 import { undoSuperseded, type WriteLedger } from '../../editor/WriteLedger';
@@ -23,7 +23,7 @@ export interface SpatialRoomCommand {
 export interface StructureServices {
 	roomHistory(): RoomBoundaryHistory;
 	read(id: PlanId): Promise<Result<PlanGeometrySnapshot, AppError>>;
-	command(input: { planId: PlanId; baseline: PlanGeometrySnapshot; structure: Structure; ledger: WriteLedger; room?: SpatialRoomCommand }): { execute(): Promise<DispatchResult>; undo(): Promise<DispatchResult> };
+	command(input: { planId: PlanId; baseline: PlanGeometrySnapshot; structure: Structure; ledger: WriteLedger; room?: SpatialRoomCommand; admit?: () => boolean }): { execute(): Promise<DispatchResult>; undo(): Promise<DispatchResult> };
 }
 type CommandInput = Parameters<StructureServices['command']>[0];
 
@@ -32,6 +32,7 @@ class StructureCommand {
 	private readonly state: SpatialCommandState = { applied: false, busy: false, retired: false };
 	private current: PlanGeometrySnapshot;
 	private generation: number | null = null;
+	private admitted = false;
 	constructor(private readonly deps: { geometry: PlanGeometrySidecar; events: EventBus }, private readonly input: CommandInput) {
 		this.current = input.baseline;
 	}
@@ -40,10 +41,14 @@ class StructureCommand {
 	undo(): Promise<DispatchResult> { return this.run(false); }
 	private run(forward: boolean): Promise<DispatchResult> {
 		return runSpatialCommand(this.state, forward, async () => {
+			if (!this.admitted && this.input.admit?.() === false) return err(spatialError('cancelled'));
 			const checked = await this.check();
 			if (!checked.ok) return checked;
+			// A preview can be cancelled while the version read is in flight. Redo belongs to history after the first successful write.
+			if (!this.admitted && this.input.admit?.() === false) return err(spatialError('cancelled'));
 			const result = forward ? await this.apply() : await this.revert();
 			if (!result.ok) return result;
+			this.admitted = true;
 			this.state.applied = forward;
 			await this.deps.events.publish({ type: 'PlanStructureChanged', payload: { planId: this.input.planId } });
 			return result;

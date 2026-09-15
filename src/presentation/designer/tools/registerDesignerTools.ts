@@ -2,6 +2,8 @@ import type { AppError, ValidationError } from '../../../core/errors/AppError';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import { createPolygon } from '../../../core/geometry/Polygon';
 import { err, ok, type Result } from '../../../core/result/Result';
+import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
+import type { EntityVersion } from '../../../application/ports/versioning';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { addDetail, nextDetailId } from '../../../domain/asset/detailEdits';
@@ -14,7 +16,7 @@ import type { EditorTool } from '../../editor/tools/editor-tool';
 import type { ToolManager } from '../../editor/tools/tool-manager';
 import type { UndoableCommand } from '../../editor/tools/undoable-command';
 import { DesignerSelectTool, type DesignerSelectToolDeps } from './designer-select-tool';
-import { circleOutline, DrawDetailTool, rectOutline } from './draw-detail-tool';
+import { circleOutline, DrawDetailTool, rectOutline, type DetailWrite } from './draw-detail-tool';
 import { SetAnchorTool } from './set-anchor-tool';
 import { SetFacingTool } from './set-facing-tool';
 
@@ -57,15 +59,12 @@ import { SetFacingTool } from './set-facing-tool';
  * function then has to construct, and camera mode is not one.
  *
  * `calibrate` shares the Plan Editor's `CalibrateTool` rather than a designer copy of it (Task
- * B6): that tool's two-click gesture, its generation counter, its buffered second point and its
- * `abandonGesture` asymmetry are two hundred lines of subtle state a second implementation would
- * have to get right twice. What it does NOT share is a label key — the Plan Editor's own
- * calibrate label lives in its own table (Task 13 retired its toolbar; Task 14 gives the gesture
- * a new door there) and says "Calibrate" about a plan's background, while this table is what the
- * designer's own toolbar builds its buttons from.
- */
-
-/**
+ * B6): a two-click gesture, a generation counter, a buffered second point and an
+ * `abandonGesture` asymmetry a second implementation would have to get right twice. What it does
+ * NOT share is a label key — the Plan Editor's own calibrate label lives in its own table and
+ * says "Calibrate" about a plan's background, while this table is what the designer's own
+ * toolbar builds its buttons from.
+ *
  * Select is FIRST, and it is back on the condition this note used to set for it. The designer once
  * shipped a `SelectTool` over an empty candidate set with a move factory that threw — a live control
  * that did nothing but stop a primary-button pan, which slice 14's amendment refuses — and it was
@@ -148,32 +147,57 @@ export interface DesignerToolDeps {
 	readonly selectTool: DesignerSelectToolDeps;
 }
 
-type DetailWriteValue = { readonly command: UndoableCommand; readonly detailId: string };
-type DetailWrite = Result<DetailWriteValue, ValidationError>;
-
 /**
- * The ONE write all three detail tools build: `addDetail` over the design the leaf read, pending by
- * the capture rule, conditional on that design's version. The id is computed with the command so
- * the tool can select the detail the write will create.
+ * `addDetail` over the design `selectTool.design()` answers NOW, pending by the capture rule, with the
+ * version a write of it is conditional on and the id the new detail will have.
  *
  * A shapeless asset refuses THROUGH `requireShape` (`updateAssetShape.ts`), the one function that owns
  * that code and its sentence, rather than a second spelling of them here: a detail, like a clearance,
  * is drawn relative to a footprint.
- *
- * **A draw does not join `runtime.editShape`'s serialised chain** (`selection/editShape.ts`). It
- * reads `selectTool.design()` at release, so a draw released while an inspector commit or a nudge
- * is still being read back builds on the version before that write and is refused as a version
- * conflict. That is safe — the condition refuses, nothing is overwritten, and the user draws again
- * — and it is closed by routing this write through that chain instead of `commandDispatcher.run`.
  */
-function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): DetailWrite {
+function detailOn(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): Result<{ readonly shape: AssetShape; readonly expected: EntityVersion; readonly detailId: string }, ValidationError> {
 	const design = deps.selectTool.design();
 	// A null shape only ever gets `requireShape`'s refusal, which is all the cast states.
 	if (design === null) return requireShape(null) as Result<never, ValidationError>;
-	const detailId = nextDetailId(design.shape);
 	const added = addDetail(design.shape, { name, outline, line: 'solid', pending: deps.detailPending(design.shape) });
 	if (!added.ok) return err(added.error);
-	return ok({ command: deps.selectTool.createCommand(added.value, design.geometryVersion), detailId });
+	return ok({ shape: added.value, expected: design.geometryVersion, detailId: nextDetailId(design.shape) });
+}
+
+/**
+ * The ONE write all three detail tools build, and it asks `detailOn` TWICE, for two reasons.
+ *
+ * - **At release**, so a domain refusal is the tool's own: it reaches `reportInvalidInput` and
+ *   dispatches nothing (the one-gesture constraint).
+ * - **When its step runs**, inside `execute`: the leaf's dispatcher queues this write behind every
+ *   earlier write and its read-back (`createWriteChain`, spec Amendment 2), so a draw released before a
+ *   drag's or a nudge's refresh landed builds on what that write left rather than being refused as a
+ *   version conflict. `detailId` is re-pointed at the id that read gives, and the tool reads it only
+ *   once the dispatch has resolved. A refusal here is the dispatcher's answer, reported as one.
+ *
+ * The command is built ONCE: a redo re-executes the same write rather than reading the design again.
+ */
+function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): Result<DetailWrite, ValidationError> {
+	const released = detailOn(deps, name, outline);
+	if (!released.ok) return err(released.error);
+	let command: UndoableCommand | null = null;
+	const write = {
+		detailId: released.value.detailId,
+		command: {
+			execute: async (): Promise<DispatchResult> => {
+				if (command === null) {
+					const step = detailOn(deps, name, outline);
+					if (!step.ok) return err(step.error);
+					command = deps.selectTool.createCommand(step.value.shape, step.value.expected);
+					write.detailId = step.value.detailId;
+				}
+				return await command.execute();
+			},
+			// Undo is only ever asked of a write whose `execute` succeeded, which built the command.
+			undo: () => (command as UndoableCommand).undo(),
+		},
+	};
+	return ok(write);
 }
 
 /** A drawn detail is selected once written, and every draw returns to Select (Amendment 1). */
@@ -192,7 +216,7 @@ function completeDetail(deps: DesignerToolDeps, detailId: string): void {
  */
 function traceDetailTool(deps: DesignerToolDeps): DrawPolygonTool {
 	// Assigned by the successful `validateOutline` that always precedes `commandFor` and `onCompleted`.
-	let traced!: DetailWriteValue;
+	let traced!: DetailWrite;
 	return new DrawPolygonTool({
 		id: 'trace-detail',
 		validateOutline: (points) => {
@@ -204,10 +228,7 @@ function traceDetailTool(deps: DesignerToolDeps): DrawPolygonTool {
 			return polygon;
 		},
 		completion: {
-			commandFor: () => {
-				const { command } = traced;
-				return { execute: () => command.execute(), undo: () => command.undo(), createdId: null };
-			},
+			commandFor: () => ({ ...traced.command, createdId: null }),
 		},
 		reportRejected: deps.reportRejected,
 		reportInvalidInput: deps.reportInvalidInput,

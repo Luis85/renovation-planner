@@ -1,6 +1,7 @@
 import type { Point } from '../../core/geometry/Point';
 import { circularEdgeIntersections } from '../../core/geometry/circularIntersections';
 import { alongWall, projectOntoWall, wallLength, wallTangent, type Wall } from './Structure';
+import { wallSnapReach } from './wallSides';
 
 /** A point on a wall's BODY where a new wall may join it, cutting the host there when saved. */
 export interface WallJoin { readonly wallId: string; readonly offset: number; readonly point: Point; readonly perpendicular: boolean }
@@ -48,7 +49,7 @@ function freeJoin(wall: Wall, query: JoinQuery): WallJoin | null {
 		}
 	}
 	const nearest = projectOntoWall(wall, query.point);
-	return nearest.distance <= query.tolerance ? joinAt(wall, nearest.offset, query.tolerance, false) : null;
+	return nearest.distance <= wallSnapReach(wall, query.point, query.tolerance, nearest) ? joinAt(wall, nearest.offset, query.tolerance, false) : null;
 }
 
 /** The wall body the cursor lands on, or null. A perpendicular foot beats a nearer plain point, so a right angle is not lost to a closer wall. */

@@ -1,4 +1,5 @@
 import type { Migration } from '../../MigrationRunner';
+import { migrateWallSides } from './wallSidesMigration';
 
 /**
  * Plan geometry sidecar migrations, oldest first. Empty at schema version 1.
@@ -36,4 +37,9 @@ export const PLAN_GEOMETRY_MIGRATIONS: Migration[] = [{
 }, {
 	fromVersion: 11, toVersion: 12,
 	migrate: input => typeof input === 'object' && input !== null ? { ...input, schemaVersion: 12 } : input,
+}, {
+	fromVersion: 12, toVersion: 13, migrate: migrateWallSides,
+}, {
+	fromVersion: 13, toVersion: 14,
+	migrate: input => typeof input === 'object' && input !== null ? { ...input, schemaVersion: 14 } : input,
 }];

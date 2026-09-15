@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
  * The inspector for ONE selected part (asset designer symbols spec, "Inspector for the selection",
- * and Amendment 1): a detail's name, line, centre, size and a rotate-by field, with ordering,
- * duplicate and delete; the footprint's size (withheld while it is pending, whose numbers are
- * placeholder pixels) and Fit to details; the clearance's delete; the anchor's position; the facing's
- * angle.
+ * and Amendments 1 and 2): a detail's name, line, centre, size and a rotate-by field, with ordering,
+ * duplicate and delete; the footprint's size and Fit to details; the clearance's delete; the anchor's
+ * position; the facing's angle. A PENDING part's lengths — a footprint's size, a detail's centre and size,
+ * the anchor's position — are placeholder pixels, so they are withheld.
  *
  * **Every control is one `editShape` call over a pure domain edit**, so a field, a button and a
  * canvas gesture reach the vault through the same `SetAssetShape` door with the same `expected`
@@ -28,12 +28,11 @@
  * A part the shape lacks renders nothing (PBI extension 2a). The store prunes such a selection on
  * its next read; this guard covers the frame between the two.
  */
-import { computed, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
-import type { AppError, ValidationError } from '../../../core/errors/AppError';
+import type { AppError } from '../../../core/errors/AppError';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
-import type { Result } from '../../../core/result/Result';
 import type { DetailLine } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { deleteDetail, fitFootprintToDetails, reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
@@ -50,10 +49,11 @@ import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 import { hasLocaleKey, trError } from '../../i18n/toUserMessage';
 import { duplicateAndSelect } from '../designerKeys';
+import type { ShapeEdit } from '../selection/editShape';
 import { selectionExists, type DesignerSelection } from '../selection/designerSelection';
 import { partBox, resizeToExtent, withPartBox } from '../selection/partExtent';
-
-type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
+import DesignerFieldRow from './DesignerFieldRow.vue';
+import DesignerActionButton from './DesignerActionButton.vue';
 
 const props = defineProps<{
 	design: AssetDesignDto;
@@ -68,8 +68,17 @@ interface NumberField {
 	readonly value: number;
 	readonly edit: (value: number) => ShapeEdit;
 	readonly resets?: true;
+	/** A one-line description drawn under the field and linked by `aria-describedby`; only the facing's angle has one. */
+	readonly hint?: StringKey;
 }
 
+/**
+ * `disabled` marks an action with nothing to do here — Bring forward on the topmost detail, Send backward on
+ * the bottom one. It is drawn `aria-disabled` and its press runs nothing, never `:disabled`: pressing Send
+ * backward until the detail is last would otherwise disable the very button that has focus, and Chromium
+ * drops focus to `<body>` (selection polish critique, finding 11). `NewAssetForm.vue`'s paused controls take
+ * the same split, and `EmptyState.vue`'s action the same no-op press.
+ */
 interface Action {
 	readonly name: string;
 	readonly label: StringKey;
@@ -83,6 +92,26 @@ const exists = computed(() => selectionExists(props.design.shape, props.selectio
 /** Read only inside the `exists` guard, which answers false for a shapeless design — hence the cast. */
 const shape = computed(() => props.design.shape as AssetShape);
 const refusal = ref<AppError | null>(null);
+
+/** The section's own element; `null` only while `exists` is false and the section renders nothing. */
+const root = ref<HTMLElement | null>(null);
+
+/**
+ * **A browser drops focus to `<body>` when the focused control unmounts** (spec Amendment 2), and both
+ * inspector actions that change the selection unmount this section under the button that was pressed:
+ * Delete's write prunes the selection, and Duplicate selects the copy, which re-keys the section. So focus
+ * goes to the inspector's `<aside>` — `tabindex="-1"`, a surviving target and not a Tab stop — and the next
+ * Tab continues from the inspector rather than from the top of the pane. `NewRoomInspector`'s hand-off on
+ * the plan editor, on the next tick for the same reason: the aside outlives this section.
+ *
+ * `closest` answers `null` for a section mounted outside the inspector, and focus elsewhere leaves focus
+ * alone; a section that drew nothing (`root` is `null`) has nothing to ask.
+ */
+onBeforeUnmount(() => {
+	const section = root.value;
+	const aside = section !== null && section.contains(document.activeElement) ? section.closest<HTMLElement>('aside') : null;
+	if (aside !== null) void nextTick(() => aside.focus());
+});
 
 /** One write's outcome: the refusal it answers is shown, and a write that lands clears the last one. */
 async function show(written: Promise<DispatchResult>): Promise<boolean> {
@@ -126,30 +155,43 @@ function anchorFields(): NumberField[] {
 	];
 }
 
+/** The selected detail as a one-item list, so the template's closures see it without a narrowing to lose. */
+const selectedDetails = computed(() =>
+	shape.value.details.filter((item) => props.selection.kind === 'detail' && item.id === props.selection.id),
+);
+
+/**
+ * A detail or the anchor captured before a scale existed (spec Amendment 2): its numbers are placeholder
+ * pixels that calibration later multiplies, so a millimetre typed beside them would be rescaled too. Its
+ * length fields are withheld as a pending footprint's are, and one line says why. Rotation stays — it
+ * commutes with calibration's uniform scale — and so do the name, the line and every action.
+ *
+ * The footprint is not asked here: its warning is `DesignerInspector`'s Dimensions block. The facing has
+ * no pending flag, and `selectedDetails` is empty for every kind but a detail.
+ */
+const pendingPart = computed(() =>
+	props.selection.kind === 'anchor' ? shape.value.anchorPending : selectedDetails.value.some((item) => item.pending),
+);
+
 const fields = computed((): readonly NumberField[] => {
 	const selection = props.selection;
 	switch (selection.kind) {
 		case 'detail':
-			return detailFields(selection);
+			return pendingPart.value ? detailFields(selection).filter((field) => field.name === 'rotate-by') : detailFields(selection);
 		case 'footprint':
 			// A pending footprint's numbers are placeholder pixels; the Dimensions block below says so.
 			return props.design.dimensionsUnscaled ? [] : sizeFields(selection);
 		case 'clearance':
 			return [];
 		case 'anchor':
-			return anchorFields();
+			return pendingPart.value ? [] : anchorFields();
 		default: {
 			// Exhaustive at compile time: a new kind of selection reaches this line and fails to narrow.
 			const _facing: 'facing' = selection.kind;
-			return [{ name: 'angle', label: 'designer.selection.angle', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
+			return [{ name: 'angle', label: 'designer.selection.angle', hint: 'designer.selection.angle.hint', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
 		}
 	}
 });
-
-/** The selected detail as a one-item list, so the template's closures see it without a narrowing to lose. */
-const selectedDetails = computed(() =>
-	shape.value.details.filter((item) => props.selection.kind === 'detail' && item.id === props.selection.id),
-);
 
 function detailLabel(name: string): string {
 	const key = `designer.detail.${name}`;
@@ -191,10 +233,10 @@ function onLine(id: string, event: Event): void {
 	void commit((current) => updateDetail(current, id, { line }));
 }
 
-/** An emptied field commits nothing; `Number('')` would otherwise write a zero nobody typed. */
+/** An emptied field commits nothing; `valueAsNumber` is already `NaN` for `''` on a `type="number"` input. */
 async function onNumber(field: NumberField, event: Event): Promise<void> {
 	const input = event.target as HTMLInputElement;
-	const value = input.value.trim() === '' ? Number.NaN : Number(input.value);
+	const value = input.valueAsNumber;
 	if (!Number.isFinite(value)) return;
 	if ((await commit(field.edit(value))) && field.resets === true) input.value = '0';
 }
@@ -203,12 +245,19 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 <template>
 	<section
 		v-if="exists"
+		ref="root"
 		class="rp-designer-selection"
 		:data-kind="selection.kind"
 	>
-		<h3 class="rp-designer-panel-title">
+		<h3 class="rp-designer-panel-title rp-designer-section-title">
 			{{ tr(`designer.selection.${selection.kind}`) }}
 		</h3>
+		<p
+			v-if="pendingPart"
+			class="rp-designer-unscaled"
+		>
+			{{ tr('designer.selection.unscaled') }}
+		</p>
 		<template
 			v-for="item in selectedDetails"
 			:key="item.id"
@@ -238,36 +287,27 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 				</select>
 			</label>
 		</template>
-		<label
+		<DesignerFieldRow
 			v-for="field in fields"
 			:key="field.name"
-			class="rp-designer-field"
-		>
-			{{ tr(field.label) }}
-			<input
-				type="number"
-				:name="field.name"
-				step="any"
-				inputmode="decimal"
-				:value="Math.round(field.value)"
-				@change="(event: Event) => void onNumber(field, event)"
-			>
-		</label>
+			:name="field.name"
+			:label="field.label"
+			:value="field.value"
+			:hint="field.hint"
+			:on-change="(event: Event) => void onNumber(field, event)"
+		/>
 		<div
 			v-if="actions.length > 0"
 			class="rp-designer-selection-actions"
 		>
-			<button
+			<DesignerActionButton
 				v-for="action in actions"
 				:key="action.name"
-				type="button"
-				class="rp-designer-selection-button"
 				:name="action.name"
+				:label="action.label"
 				:disabled="action.disabled"
-				@click="action.run()"
-			>
-				{{ tr(action.label) }}
-			</button>
+				:on-run="action.run"
+			/>
 		</div>
 		<p
 			v-if="refusal !== null"

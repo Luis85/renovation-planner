@@ -23,7 +23,9 @@ import { ASSET_PRESETS } from '../../../src/domain/asset/presets/catalogue';
 import { defaultValues } from '../../../src/domain/asset/presets/presetGeometry';
 import { t } from '../../../src/presentation/i18n/strings';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
-import { designerRig, type DesignerRig } from '../../helpers/designerRig';
+import { DEFAULT_VIEWPORT } from '../../../src/presentation/editor/viewport/Viewport';
+import { toiletShape } from '../../helpers/assetShapes';
+import { designerRig, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
 import { settle } from '../../helpers/editor';
 
 installCanvas();
@@ -178,6 +180,45 @@ describe('the camera after a preset', () => {
 		await applyTree(rig);
 
 		expect(editor.viewport).toEqual(before);
+		rig.unmount();
+	});
+});
+
+/**
+ * An asset OPENS framed (selection polish critique, finding 1): once, at the canvas's first measured size,
+ * exactly as `Shift+1` frames it — and only a design that HAS a shape then. `designerRig`'s
+ * `camera: 'opened'` keeps what opening did; every other rig case gets the default camera back.
+ */
+describe('the camera an asset opens with', () => {
+	it('frames an opened design exactly as Shift+1 does', async () => {
+		const rig = await designerRig({ shape: toiletShape(), camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		const opened = editor.viewport;
+
+		pressFitAll(rig.canvasEl);
+
+		expect(opened).not.toEqual(DEFAULT_VIEWPORT);
+		expect(editor.viewport).toEqual(opened);
+		rig.unmount();
+	});
+
+	/**
+	 * A GUARD, green before and after: the fit is asked once, at the first measure. A fit that waited for a
+	 * shape instead would jump the camera the moment the user's first trace lands, away from the sheet they
+	 * were tracing at.
+	 */
+	it('leaves a shapeless asset where it opened, and does not jump when its first outline is traced', async () => {
+		const rig = await designerRig({ shape: null, camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		expect(editor.viewport).toEqual(DEFAULT_VIEWPORT);
+
+		rig.toolbarButton(t('en', 'designer.toolbar.trace-footprint')).click();
+		await settle();
+		tracePolygon(rig, [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }]);
+		await settle();
+
+		expect((await rig.document()).shape).not.toBeNull();
+		expect(editor.viewport).toEqual(DEFAULT_VIEWPORT);
 		rig.unmount();
 	});
 });

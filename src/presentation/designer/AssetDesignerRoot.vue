@@ -49,6 +49,8 @@ import { resolveEmptyState, type EmptyStateProps } from '../emptyStates/resolve'
 import { selectAssetDesignerEmptyState } from '../emptyStates/selectors';
 import { constrainsAngle } from '../editor/snapping/editorSnapping';
 import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
+import type { StringKey } from '../i18n/locales/en';
+import { isOutlineSelection } from './selection/designerSelection';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
 import { isMissingAsset, useAssetDesignStore } from './stores/assetDesignStore';
@@ -125,20 +127,32 @@ const backgroundStatus = ref<BackgroundStatus>('none');
  * below, and `EMPTY_STATE_CONTENT.assetDesigner.noShape`'s own docblock for the history.
  */
 /**
- * The Shift constraint, advertised while a tool that takes it is active — asked of the ONE list
- * that holds that question (`editor/snapping/editorSnapping.ts`), which `StatusBar` asks for the
- * plan editor.
+ * What Shift does right now, or `null` when it does nothing. A tool that takes the angle constraint is
+ * asked of the ONE list that holds that question (`editor/snapping/editorSnapping.ts`), which `StatusBar`
+ * asks for the plan editor.
+ *
+ * **Select is answered HERE and never added to that list** (spec Amendment 2): `select` is the plan
+ * editor's id too, and its status bar pins no constrain hint under Select. Under the designer's Select,
+ * Shift is read only by `draggedShape`: a Transform box handle keeps proportions and its rotate handle
+ * snaps, and a facing drag snaps its bearing in any mode. A body, vertex, bend or anchor drag ignores it, so
+ * Edit points, Bend edges, the anchor and no selection say nothing — the modes' own gestures are named in
+ * their buttons' tooltips (`DesignerSelectionModes.vue`), not here.
  *
  * A modifier is invisible: no control shows it and no menu lists it, which is the standing cost
  * of the convention every drawing tool in the field uses. This is the cheapest honest
- * mitigation — present while the gesture it applies to is available, gone the moment it is not
- * — and most of this surface's tools take it, so its absence would leave the constraint
- * mentioned nowhere on this surface at all.
+ * mitigation — present while the gesture it applies to is available, gone the moment it is not.
  *
  * It sits in the status region rather than in the toolbar for `StatusBar`'s reason: the toolbar
  * says what you can DO, and this says what is true of the thing you are doing.
  */
-const showsConstraintHint = computed(() => constrainsAngle(runtime.activeToolId.value));
+const hintKey = computed<StringKey | null>(() => {
+	const id = runtime.activeToolId.value;
+	if (constrainsAngle(id)) return 'editor.hint.constrain-angle';
+	if (id !== 'select') return null;
+	const selected = selection.value;
+	if (selected?.kind === 'facing') return 'editor.hint.constrain-angle';
+	return isOutlineSelection(selected) && designStore.mode === 'transform' ? 'designer.hint.shift-transform' : null;
+});
 
 /**
  * The KEY, held separately from its resolved props so `onEmptyStateAction` below can ask
@@ -505,9 +519,9 @@ onMounted(() => {
 		-->
 		<div class="rp-designer-status">
 			<span
-				v-if="showsConstraintHint"
+				v-if="hintKey !== null"
 				class="rp-designer-hint"
-			>{{ tr('editor.hint.constrain-angle') }}</span>
+			>{{ tr(hintKey) }}</span>
 			<SaveStateIndicator />
 		</div>
 		<!--

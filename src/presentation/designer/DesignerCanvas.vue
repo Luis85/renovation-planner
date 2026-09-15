@@ -41,7 +41,7 @@
  * is therefore not read here; closing that means hoisting the tokens to `AssetDesignerRoot`,
  * which owns `.renovation-asset-designer`, and handing them down as a prop.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import type Konva from 'konva';
 import { followPixelRatio } from '../editor/scene/followPixelRatio';
@@ -62,6 +62,7 @@ import { clearanceOutline } from './layers/clearanceLayer';
 import { detailOutlines, footprintEdge } from './layers/detailsLayer';
 import { anchorMark, facingArrow } from './layers/anchorLayer';
 import { selectionFrame, selectionMarks } from './layers/selectionLayer';
+import { isOutlineSelection } from './selection/designerSelection';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
 import { selectionKeyActions } from './designerKeys';
 
@@ -137,13 +138,14 @@ const footprint = computed(() => footprintOutline(shape.value, tokens.value, wor
 const details = computed(() => detailOutlines(shape.value, tokens.value, worldPerPixel.value));
 const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value, worldPerPixel.value));
 /**
- * Handles and the anchor/facing ring only under Select, the one tool that grabs them: under another
- * tool a drawn handle is a control that does nothing. The accent outline stays, so a user drawing
- * still sees what is selected.
+ * An outline's handles only under Select, the one tool that grabs them: under another tool a drawn handle
+ * is a control that does nothing. What stays is what SHOWS the selection — an outline's accent restroke,
+ * and the anchor's or the facing's ring, which is that selection's only mark (follow-up A1). With nothing
+ * selected `selectionMarks` draws nothing, so that case needs no arm here.
  */
 const marks = computed(() => {
 	const drawn = selectionMarks(shape.value, selection.value, mode.value, tokens.value, worldPerPixel.value);
-	return activeToolId.value === 'select' ? drawn : { outline: drawn.outline, handles: [] };
+	return activeToolId.value === 'select' || !isOutlineSelection(selection.value) ? drawn : { outline: drawn.outline, handles: [] };
 });
 const clearance = computed(() => clearanceOutline(shape.value, tokens.value, worldPerPixel.value));
 const anchor = computed(() => anchorMark(shape.value, tokens.value, worldPerPixel.value));
@@ -158,14 +160,42 @@ const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPix
  * to frame does nothing, which is `boundsOfZones`' own rule: a jump to nowhere costs the user the view
  * they had and says nothing about why.
  *
- * The whole-design box is `designFrame` (`runtime.ts`), which Apply preset fits to as well, so the two
- * cannot frame the same design differently.
+ * The whole-design box is `designFrame` (`runtime.ts`), which Apply preset fits to as well, and the fit an
+ * opened design takes below asks this very function — so none of the three frames a design differently.
  */
 function framedBounds(all: boolean): BoundingBox | null {
 	const current = shape.value;
 	if (current === null) return null;
 	return all ? designFrame(current) : selectionFrame(current, selection.value, worldPerPixel.value);
 }
+
+/**
+ * An asset OPENS framed, as `Shift+1` frames it (selection polish critique, finding 1): opened at the default
+ * camera, a toilet was a few dozen pixels in the corner with its handles piled on it. Once, the first time
+ * the stage has an area — the canvas mounts only over a design already read, so what is drawn then is the
+ * design as opened. A design with no shape at that moment keeps its camera, and `once` ends the question
+ * there: a footprint traced afterwards is drawn at the camera the user traced it at, never jumped to.
+ * Nothing restores a camera to defer to: `AssetDesignerView.getState` persists the asset id alone.
+ *
+ * **Not the same watch `PlanCanvas` runs.** `PlanCanvas` registers its watch only once, and only if
+ * the stage is not yet ready when it mounts; the watch itself returns on a fall and stops itself
+ * after the first rise — its own comment says "Only the rise counts". This one registers
+ * unconditionally with `{ once: true }` and does not read the value it fired on, so it can spend its
+ * one callback on a FALL just as easily as on a rise. That is what makes a canvas REMOUNTED inside the
+ * same app — `AssetDesignerRoot`'s `v-if` can swap it out and back without resetting
+ * `EditorStore.stageSize` — never frame a second time if the stage was already measured when it
+ * remounted: the watch spends its one callback on the fall to zero instead. Harmless today, because
+ * `fitTo` ignores a zero stage and the very first mount always rises from zero; a canvas that reaches
+ * that remount case opens unframed.
+ */
+watch(
+	() => editor.stageSize.width > 0 && editor.stageSize.height > 0,
+	() => {
+		const bounds = framedBounds(true);
+		if (bounds !== null) editor.fitTo(bounds, editor.stageSize);
+	},
+	{ once: true },
+);
 
 /**
  * vue-konva's `VStage` exposes `getStage()`; the layers follow the monitor's pixel ratio through

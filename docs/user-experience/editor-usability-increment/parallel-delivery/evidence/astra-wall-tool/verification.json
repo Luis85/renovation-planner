@@ -1,0 +1,73 @@
+{
+  "verifiedCodeCommit": "6f871008b4ea2018f1a20f37f437ab4113cfc7b3",
+  "pullRequest": "https://github.com/Luis85/renovation-planner/pull/212",
+  "pullRequestBase": "codex/usability-astra-main-refresh-polish",
+  "ciRecord": "Published-head checks on PR #212; application/test code is unchanged after the clean local gate.",
+  "verifiedAtUtc": "2026-09-14T17:56:46Z",
+  "command": "npm run check",
+  "environment": {
+    "os": "Windows",
+    "node": "24.20.0",
+    "npm": "11.18.0",
+    "VITEST_MAX_WORKERS": "1"
+  },
+  "exitCode": 0,
+  "buildModules": 1420,
+  "fullLint": "passed",
+  "tests": {
+    "filesPassed": 973,
+    "passed": 10637,
+    "skipped": 1,
+    "failed": 0,
+    "coverageRunSeconds": 2533.21
+  },
+  "coverage": {
+    "statements": { "covered": 27055, "total": 27263, "percent": 99.23 },
+    "branches": { "covered": 19880, "total": 20273, "percent": 98.06 },
+    "functions": { "covered": 7860, "total": 7916, "percent": 99.29 },
+    "lines": { "covered": 19964, "total": 20029, "percent": 99.67 }
+  },
+  "fallow": {
+    "exitCode": 0,
+    "files": 1104,
+    "deadFiles": 0,
+    "deadExports": 0,
+    "aboveThreshold": 0,
+    "analyzedUnits": 7295,
+    "maintainability": 86.8,
+    "inheritedNonblockingCloneGroups": 3
+  },
+  "audit": {
+    "readOnly": true,
+    "fullTreeHigh": ["fast-uri", "js-yaml"],
+    "productionVulnerabilities": 0,
+    "fixesApplied": false
+  },
+  "ancestry": {
+    "baseBranch": "codex/usability-astra-main-refresh-polish",
+    "baseCommit": "836399775e91ccf05e44959b6bea9960605defbb",
+    "baseIsAncestor": true,
+    "requestedMainBaseline": "acfb7c7d11268eed7c6a39dbd52cdeab7bc961e7",
+    "requestedMainIsAncestor": true,
+    "reviewedMainSnapshot": "e04f5ba76",
+    "reviewedMainIsAncestor": true,
+    "latestMainAtFinalFetch": "9ef6070302cdd92a867668236a434c02d613f2fb",
+    "latestMainIsAncestor": false,
+    "latestMainScope": "PR #211 asset-designer selection polish; separate coordinator integration"
+  },
+  "browser": {
+    "surface": "Codex in-app Browser over the production FakeVault harness",
+    "acceptedImages": 17,
+    "visualRounds": 2,
+    "narrowPanes": ["400x800 EN/light", "460x800 DE/dark"],
+    "measuredPanelTargetsAtLeast44px": true,
+    "measuredPanelTargetsUnobscured": true,
+    "taskbarClearancePx": 16,
+    "nativeObsidianRun": false
+  },
+  "impeccable": {
+    "manualDetectorRuns": 1,
+    "findings": [],
+    "note": "Visual-pass scan precedes later gate-required focus/type/status cleanup; no detector rerun."
+  }
+}

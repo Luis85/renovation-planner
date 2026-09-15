@@ -23,6 +23,8 @@ import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { DESIGNER_TOOL_LABELS } from '../../../src/presentation/designer/tools/registerDesignerTools';
 import { settle } from '../../helpers/editor';
 import { designerRig, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
+import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import { toiletShape } from '../../helpers/assetShapes';
 
 /**
  * Every tool the toolbar offers, as `(id, label)` pairs read from the table the toolbar itself
@@ -234,6 +236,96 @@ describe('the shift hint', () => {
 		const rig = await designerRig();
 
 		expect(rig.wrapper.find('.rp-designer-hint').exists()).toBe(false);
+		rig.unmount();
+	});
+
+	/**
+	 * Under Select the hint says what Shift does to the gesture the selection offers (spec Amendment 2),
+	 * decided in `AssetDesignerRoot` and never by adding `select` to the shared constrain list — `select` is
+	 * the plan editor's id too, and its status bar pins no constrain hint under Select. Transform on an
+	 * outline: Shift keeps proportions and snaps the rotation. The facing: Shift constrains its angle.
+	 * Edit points, Bend edges, the anchor and no selection: Shift does nothing, so nothing is said.
+	 */
+	it('says what Shift does under Select, for the part and the mode selected', async () => {
+		const rig = await designerRig({ shape: toiletShape() });
+		const hint = () => rig.wrapper.find('.rp-designer-hint');
+		const store = useAssetDesignStore(rig.pinia);
+
+		await press(rig, 'designer.toolbar.select');
+		expect(hint().exists()).toBe(false);
+
+		store.select({ kind: 'detail', id: 'detail-2' });
+		await settle();
+		expect(hint().text()).toBe(t('en', 'designer.hint.shift-transform'));
+
+		store.setMode('points');
+		await settle();
+		expect(hint().exists()).toBe(false);
+
+		store.setMode('bend');
+		await settle();
+		expect(hint().exists()).toBe(false);
+
+		store.select({ kind: 'facing' });
+		await settle();
+		expect(hint().text()).toBe(t('en', 'editor.hint.constrain-angle'));
+
+		store.select({ kind: 'anchor' });
+		await settle();
+		expect(hint().exists()).toBe(false);
+		rig.unmount();
+	});
+
+	it('gives no Select hint under another tool, whatever is selected', async () => {
+		const rig = await designerRig({ shape: toiletShape() });
+		const hint = () => rig.wrapper.find('.rp-designer-hint');
+		useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-2' });
+
+		await press(rig, 'designer.toolbar.set-anchor');
+		expect(hint().exists()).toBe(false);
+		await press(rig, 'designer.toolbar.trace-detail');
+		expect(hint().text()).toBe(t('en', 'editor.hint.constrain-angle'));
+		await press(rig, 'designer.toolbar.pan');
+		expect(hint().exists()).toBe(false);
+		rig.unmount();
+	});
+});
+
+/**
+ * A mode's gesture is invisible until tried: which handles a mode draws says nothing about what dragging
+ * them does. Each mode button's tooltip names it — the `title` both designer toolbars already use — while
+ * its text stays the accessible name the exact-list cases above read.
+ */
+describe('the selection mode buttons', () => {
+	it('name the gesture each mode offers in a tooltip, and keep the mode as their accessible name', async () => {
+		const rig = await designerRig({ shape: toiletShape() });
+		await press(rig, 'designer.toolbar.select');
+		useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-2' });
+		await settle();
+
+		const modes = rig.wrapper.findAll('.rp-designer-selection-modes button').map((button) => [button.text(), button.attributes('title')]);
+		expect(modes).toEqual([
+			[t('en', 'designer.selection.mode.transform'), t('en', 'designer.selection.mode.transform.tip')],
+			[t('en', 'designer.selection.mode.points'), t('en', 'designer.selection.mode.points.tip')],
+			[t('en', 'designer.selection.mode.bend'), t('en', 'designer.selection.mode.bend.tip')],
+		]);
+		rig.unmount();
+	});
+});
+
+/**
+ * Undo and Redo sit in ONE trailing group, which `designer.css` ends on whichever row it wraps to (critique
+ * finding 5), and no toolbar button repeats its label as a tooltip (finding 24): a button's text is its
+ * name. The mode buttons keep their describing tooltips, pinned in `the selection mode buttons` above.
+ */
+describe('the toolbar’s own markup', () => {
+	it('groups Undo and Redo last, and gives no button a tooltip repeating its label', async () => {
+		const rig = await designerRig();
+		const history = rig.wrapper.find('.rp-designer-tools > .rp-designer-history');
+
+		expect(history.findAll('button').map((button) => button.text())).toEqual([t('en', 'designer.toolbar.undo'), t('en', 'designer.toolbar.redo')]);
+		expect(rig.wrapper.find('.rp-designer-tools').element.lastElementChild).toBe(history.element);
+		expect(rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.attributes('title')).filter((title) => title !== undefined)).toEqual([]);
 		rig.unmount();
 	});
 });

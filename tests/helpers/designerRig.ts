@@ -38,9 +38,10 @@
  * asserts is the one production applies.
  *
  * Geometry note: `DEFAULT_ZOOM` is 0.1 with a 48 px margin, so world = 10 × screen − 480 per
- * axis at the default camera. `at()` below derives the screen point from the LIVE viewport
- * through the same `worldToScreen` the surface uses in reverse, so a case names world
- * millimetres and never a pixel.
+ * axis at the default camera — which an opened asset does NOT keep (`DesignerCanvas` frames it), so
+ * `options.camera` puts it back unless a case asks otherwise. `at()` below derives the screen point
+ * from the LIVE viewport through the same `worldToScreen` the surface uses in reverse, so a case
+ * names world millimetres and never a pixel.
  */
 import Konva from 'konva';
 import { createPinia, type Pinia } from 'pinia';
@@ -78,7 +79,7 @@ import { createEventBus } from '../../src/core/events/EventBus';
 import type { Point } from '../../src/core/geometry/Point';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { AssetShape } from '../../src/domain/asset/AssetShape';
-import { STAGE_PIXELS, worldToScreen } from '../../src/presentation/editor/viewport/Viewport';
+import { DEFAULT_VIEWPORT, STAGE_PIXELS, worldToScreen } from '../../src/presentation/editor/viewport/Viewport';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
 import { createRepositoryStack } from './vault';
 import { makeAsset } from './entities';
@@ -191,6 +192,14 @@ export interface DesignerRigOptions {
 	 * session REFUSES rather than throwing through a tool that assumed a working vault.
 	 */
 	readonly unrecoveredSettings?: boolean;
+	/**
+	 * The camera a case starts at. An asset OPENS framed (`DesignerCanvas`), which moves the camera the
+	 * moment the canvas is sized; `'default'` — the default — puts `DEFAULT_VIEWPORT` back after that,
+	 * because the geometry every case here reasons in (10 mm per pixel, an 80 mm grab radius, the header's
+	 * `world = 10 × screen − 480`) is arithmetic at that camera, and a user reaches it by zooming out.
+	 * `'opened'` keeps what opening did, for the cases about the opening fit itself.
+	 */
+	readonly camera?: 'default' | 'opened';
 }
 
 /**
@@ -332,6 +341,7 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 	await settle();
 
 	const editor = useEditorStore(pinia);
+	if (options.camera !== 'opened') editor.viewport = DEFAULT_VIEWPORT;
 
 	return {
 		wrapper,

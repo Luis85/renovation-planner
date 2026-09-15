@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { structureStack, WALL_LOOP } from '../../helpers/structure';
+import { structureStack, WALL_LOOP_WITH_SIDES as WALL_LOOP } from '../../helpers/structure';
 import { expectOk } from '../../helpers/domain';
 import { ObsidianPlanGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { MigrationRunner } from '../../../src/infrastructure/persistence/migration/MigrationRunner';

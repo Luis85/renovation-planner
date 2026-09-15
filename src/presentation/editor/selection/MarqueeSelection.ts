@@ -22,6 +22,7 @@ function intersects(a: Point, b: Point, box: BoundingBox): boolean {
 	return true;
 }
 function hit(candidate: SpatialObjectCandidate, box: BoundingBox): boolean {
+	if (candidate.hitRegions) return candidate.hitRegions.some(points => hit({ ...candidate, hitRegions: undefined, hitPoints: points }, box));
 	if (!candidate.hitPoints && candidate.bulges?.some(value => value !== 0)) return curvedCandidateIntersection(candidate, box);
 	const points = candidate.hitPoints ?? candidate.points;
 	if (!points.length) return false;

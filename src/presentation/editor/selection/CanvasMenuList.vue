@@ -13,7 +13,7 @@ const menu = ref<HTMLElement | null>(null), open = ref<string | null>(null);
 let openedByHover = false;
 /** Where THIS list's own open child submenu sits — computed here, in the parent, because only the parent knows the opening button's rect; handed down as the child's `position` prop rather than kept for this list's own style, which always uses the incoming `position` prop instead (design spec §5.4). */
 const childPosition = ref({ left: '0px', top: '0px' });
-const LEVEL = ':scope > [role="menuitem"], :scope > [role="none"] > [role="menuitem"]';
+const LEVEL = ':scope > [role="menuitem"], :scope > [role="none"] > [role="menuitem"], :scope > .rp-item-color [role="menuitemradio"]';
 defineExpose({ menu });
 watch(() => props.items, () => { open.value = null; });
 function separated(item: CanvasMenuItem, previous: CanvasMenuItem | undefined): boolean { return !!previous && item.group !== previous.group; }
@@ -88,6 +88,7 @@ function keydown(event: KeyboardEvent, item?: CanvasMenuItem): void {
 		>
 			{{ title }}
 		</div>
+		<slot name="appearance" />
 		<template
 			v-for="(item, index) in items"
 			:key="item.id"

@@ -75,6 +75,7 @@
 @import "./project-prices.css";
 @import "./designer.css";
 @import "./designer-selection.css";
+@import "./designer-narrow.css";
 @import "./diagnostics.css";
 @import "./asset-library.css";
 @import "./asset-mark.css";
@@ -123,3 +124,5 @@
 @import "./editor-task-bar.css";
 @import "./editor-context-menu.css";
 @import "./editor-groups.css";
+@import "./editor-wall-thickness.css";
+@import "./editor-item-color.css";

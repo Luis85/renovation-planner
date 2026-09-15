@@ -1,0 +1,87 @@
+[
+  {
+    "file": "01-remplanner-faq.jpg",
+    "bytes": 101910,
+    "sha256": "ca7c1a6a73b918cdf01b727fc32faa1cea68ac9c3631331e1d28bd58dfdc8c7e"
+  },
+  {
+    "file": "02-remplanner-drawn.jpg",
+    "bytes": 92482,
+    "sha256": "f574da6a947fb3908762249ccfc9252a5f79a9755bdd2db70318ec49b2e17325"
+  },
+  {
+    "file": "03-remplanner-popup.jpg",
+    "bytes": 94404,
+    "sha256": "d8ab7629d5557b092f8d907cf399342ec97ef7089b22e1a1d0de16c51207a3e6"
+  },
+  {
+    "file": "04-remplanner-adjust.jpg",
+    "bytes": 91018,
+    "sha256": "aba9e609063f1ac86a157fd5d1710c6dfcdbd6d9f83d5374723b3f85c4292601"
+  },
+  {
+    "file": "05-before-wall-drawing.jpg",
+    "bytes": 64090,
+    "sha256": "fcde5d027146ef5979d1f275e5a1484f64f5e719d8bcf80882fece29be15ff38"
+  },
+  {
+    "file": "06-before-wall-menu.jpg",
+    "bytes": 68528,
+    "sha256": "8a6f86220ce8cd69d0c017b0d4bd51441e033e4743c24a1558a86c57257c74c5"
+  },
+  {
+    "file": "07-after-drawing-en-light.jpg",
+    "bytes": 68314,
+    "sha256": "b2201b5fb90f1596cad46eb74aeae9c48036a364dcf65b8efc11f68cfe391225"
+  },
+  {
+    "file": "08-after-menu-en-light.jpg",
+    "bytes": 67064,
+    "sha256": "ba61ee1f884a5e5a4706d08cbdee324eed289abbd5a7831c0ce7af3e84b9e3de"
+  },
+  {
+    "file": "09-after-entry-en-light.jpg",
+    "bytes": 64315,
+    "sha256": "d68513063feeb79d48532893f453ab77f10ec0fc8e880c974196bda16091aaa9"
+  },
+  {
+    "file": "10-after-adjust-en-light.jpg",
+    "bytes": 65438,
+    "sha256": "6d29f6957e132fed5b70052b20c36f761af4b1a76c5cd4a729bd947a2d961fcd"
+  },
+  {
+    "file": "13-first-drawing-de-dark-narrow.jpg",
+    "bytes": 35191,
+    "sha256": "d60034c14907073181dbb3ff758039e2e9bb513ee3af60e0f543a50c49328d42"
+  },
+  {
+    "file": "14-first-adjust-narrow-en-de.jpg",
+    "bytes": 35550,
+    "sha256": "89e9062490b60741875f45e08a3c61a243c5bda111b33edb011596341e0eda19"
+  },
+  {
+    "file": "15-final-drawing-narrow-en-de.jpg",
+    "bytes": 33698,
+    "sha256": "55f09afa3dc971983e9777818f001b04963a8adccb785ec42b85b4df5c760a3f"
+  },
+  {
+    "file": "16-final-entry-narrow-en-de.jpg",
+    "bytes": 30193,
+    "sha256": "92451e26f6964db5d1e955dc265cb3a57b7eb0b07d253eb514eae5e86ee301a3"
+  },
+  {
+    "file": "17-final-adjust-narrow-en-de.jpg",
+    "bytes": 31980,
+    "sha256": "b2e6359b608002efe91fbdcd67b3f83a310925c0fc1e206cb8a01ad466dce793"
+  },
+  {
+    "file": "18-final-drawing-de-dark-wide.jpg",
+    "bytes": 72928,
+    "sha256": "9f58d07e66a6bfd593616b9a93c5208d61e469aefc4a0079b14cffed9d425c77"
+  },
+  {
+    "file": "19-final-adjust-de-dark-wide.jpg",
+    "bytes": 70694,
+    "sha256": "a6efa8a652882117a572b5ad8e431f6a677a6a272a49a4d7cf0f03e9906f5aca"
+  }
+]

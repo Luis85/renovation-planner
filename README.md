@@ -29,6 +29,8 @@ turn off Restricted Mode in Settings → Community plugins.
 
 For recovery, retained drafts, source-note inspection and backup/migration behavior, see
 [Working with saved data](docs/using-planning-recovery.md).
+For the Plan editor's placement palette and keyboard route, see
+[Item colors / Objektfarben](docs/using-item-colors.md).
 
 ```bash
 npm run check        # the definition of done: build + lint + coverage-thresholded tests + dead code

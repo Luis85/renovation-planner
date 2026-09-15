@@ -6,9 +6,16 @@ import type { Point } from '../../../core/geometry/Point';
 import type { Result } from '../../../core/result/Result';
 import { circle, rect } from '../../../domain/asset/presets/presetGeometry';
 import { SNAP_TOLERANCE_PX } from '../../editor/handleMetrics';
+import { ARC_TOLERANCE_PX } from '../layers/footprintLayer';
 import type { EditorContext } from '../../editor/tools/editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from '../../editor/tools/editor-tool';
 import type { UndoableCommand } from '../../editor/tools/undoable-command';
+
+/** What one completed detail write hands back: the reversible command and the id the new detail will have. */
+export interface DetailWrite {
+	readonly command: UndoableCommand;
+	readonly detailId: string;
+}
 
 export interface DrawDetailToolDeps {
 	/** `'draw-rect'` or `'draw-circle'`: one class, two registered tools, as `DrawPolygonTool` is. */
@@ -16,7 +23,7 @@ export interface DrawDetailToolDeps {
 	/** The outline a drag from `from` to `to` describes; `null` when it encloses no area. */
 	readonly outlineFor: (from: Point, to: Point) => CurvedPolygon | null;
 	/** Build the write for a completed outline: a domain refusal, or the command plus the id the new detail will have. */
-	readonly commandFor: (outline: CurvedPolygon) => Result<{ readonly command: UndoableCommand; readonly detailId: string }, ValidationError>;
+	readonly commandFor: (outline: CurvedPolygon) => Result<DetailWrite, ValidationError>;
 	/** A DISPATCHED refusal. */
 	readonly reportRejected: (error: AppError) => void;
 	/** A refusal made before anything was dispatched — slice 17's split. */
@@ -24,9 +31,6 @@ export interface DrawDetailToolDeps {
 	/** After a successful write: select the new detail and return to Select. */
 	readonly onCompleted: (detailId: string) => void;
 }
-
-/** The in-flight preview's arcs are flattened to a quarter of a screen pixel — the designer layers' own figure. */
-const PREVIEW_TOLERANCE_PX = 0.25;
 
 /** The axis-aligned box of two corners, wound from the top-left; `null` with no width or no depth. */
 export const rectOutline = (from: Point, to: Point): CurvedPolygon | null =>
@@ -85,7 +89,7 @@ export class DrawDetailTool implements EditorTool {
 		if (context === null || start === null) return;
 		const outline = this.deps.outlineFor(start, this.snapped(context, event.worldPoint));
 		context.renderState.previewPolygon =
-			outline === null ? null : polygonPolyline(outline, PREVIEW_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
+			outline === null ? null : polygonPolyline(outline, ARC_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
 	}
 
 	pointerUp(event: EditorPointerEvent): void {
@@ -132,7 +136,7 @@ export class DrawDetailTool implements EditorTool {
 		context.renderState.previewPolygon = null;
 	}
 
-	private async dispatch(context: EditorContext, write: { readonly command: UndoableCommand; readonly detailId: string }): Promise<void> {
+	private async dispatch(context: EditorContext, write: DetailWrite): Promise<void> {
 		const generation = this.generation;
 		const result = await context.commandDispatcher.run(write.command);
 		if (!result.ok) {

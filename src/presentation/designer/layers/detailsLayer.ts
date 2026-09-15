@@ -16,7 +16,8 @@ export interface DetailOutlineConfig extends OutlineConfig {
 }
 
 const DETAIL_STROKE_PX = 1;
-const DETAIL_DASH_PX = [4, 3];
+/** Also the dash `selectionLayer.ts` restrokes a selected dashed detail in, so it stays dashed while edited. */
+export const DETAIL_DASH_PX: readonly number[] = [4, 3];
 
 export function detailOutlines(shape: AssetShape | null, tokens: ThemeTokens, worldPerPixel: number): DetailOutlineConfig[] {
 	if (shape === null) return [];

@@ -1,4 +1,5 @@
 import type { Opening, Structure, Wall } from './Structure';
+import { resizeWallTotal } from './wallSides';
 
 /**
  * The sizes one edit can set across several walls, windows and doors at once. Position is
@@ -40,7 +41,11 @@ function applied<T extends Wall | Opening>(item: T, kind: DimensionKind, changes
 export function editDimensions(structure: Structure, ids: readonly string[], changes: DimensionChanges): Structure {
 	const chosen = new Set(ids);
 	return { ...structure,
-		walls: structure.walls.map(wall => chosen.has(wall.id) ? applied(wall, 'wall', changes) : wall),
+		walls: structure.walls.map(wall => {
+			if (!chosen.has(wall.id)) return wall;
+			const total = changes.wall?.thickness, next = total === undefined ? wall : resizeWallTotal(wall, total) ?? { ...wall, thickness: total };
+			return applied(next, 'wall', { wall: { height: changes.wall?.height } });
+		}),
 		openings: structure.openings.map(opening => chosen.has(opening.id) && opening.kind !== 'opening' ? applied(opening, opening.kind, changes) : opening),
 	};
 }

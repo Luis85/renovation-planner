@@ -3,14 +3,7 @@ import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 import { overflowFinding, shellMetrics } from './captureMeasures.mjs';
-import {
-	describeFailure,
-	entryHasDrawn,
-	readFailureKind,
-	reportIfNoLongerDrawn,
-	UNKNOWN_ENTRY,
-	waitUntilReady,
-} from './captureReadiness.mjs';
+import { describeFailure, entryHasDrawn, readFailureKind, reportIfNoLongerDrawn, UNKNOWN_ENTRY, waitUntilReady } from './captureReadiness.mjs';
 import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 import { writeContactSheet } from './harnessContactSheet.mjs';
@@ -520,6 +513,10 @@ const SHOTS = [
 	{ name: 'plan-editor-drafting', query: '?view=plan-editor&reference&planning&drafting&theme=light', selector: FLOOR_STATE },
 	{ name: 'plan-editor-drafting-dark', query: '?view=plan-editor&reference&planning&drafting', selector: FLOOR_STATE },
 	{ name: 'plan-editor-drafting-narrow', query: '?view=plan-editor&reference&planning&drafting&theme=light', selector: PLAN_CANVAS, width: 460 },
+	// Plan colours (2026-09-15): a room wash, tinted walls and fills, inked lines and drafting marks, from `?colors` over `?drafting`.
+	{ name: 'plan-editor-colors', query: '?view=plan-editor&reference&planning&drafting&colors&theme=light', selector: FLOOR_STATE },
+	{ name: 'plan-editor-colors-dark', query: '?view=plan-editor&reference&planning&drafting&colors', selector: FLOOR_STATE },
+	{ name: 'plan-editor-colors-narrow', query: '?view=plan-editor&reference&planning&drafting&colors&theme=light', selector: PLAN_CANVAS, width: 460 },
 	// Item modes and Add to asset library (2026-09-14), through `&item=` over the reference workspace — the one floor with
 	// renovation and asset-creation services (`tests/harness/itemKnob.ts` seeds a room, a Cabinet and the vault-shaped
 	// item). `rectangle` drags and releases; `drag` never releases, so its PNG is the preview mid-drag. `promote` waits on

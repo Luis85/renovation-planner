@@ -33,6 +33,7 @@ defineProps<{ shape: ElementShapeItem; tokens: ThemeTokens; zoom: number }>();
 		:points="shape.element.points"
 		:options="shape.stair"
 		:selected="shape.selected"
+		:color="shape.element.color"
 		:tokens="tokens"
 		:zoom="zoom"
 	/>
@@ -41,6 +42,7 @@ defineProps<{ shape: ElementShapeItem; tokens: ThemeTokens; zoom: number }>();
 		:points="shape.element.points"
 		:selected="shape.selected"
 		:editable="shape.single"
+		:color="shape.element.color"
 		:tokens="tokens"
 		:zoom="zoom"
 	/>

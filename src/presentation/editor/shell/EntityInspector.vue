@@ -53,6 +53,7 @@ import { useRenovationSession } from '../renovation/renovationSession';
 import { structureRecords } from '../structure/structureRecords';
 import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import ElementInspector from '../elements/ElementInspector.vue';
+import ItemColorControl from '../elements/ItemColorControl.vue';
 import ElementTaskForm from '../elements/ElementTaskForm.vue';
 import AssetPlacementForm from '../elements/AssetPlacementForm.vue';
 import { isElementTool } from '../elements/elementDraft';
@@ -113,6 +114,7 @@ const groupsShown = computed(() => activeToolId.value === 'select' && renovation
 			:selection="selection"
 		>
 			<template #actions>
+				<ItemColorControl />
 				<GroupControls />
 				<StructureBulkEditAction :ids="selection.ids" />
 			</template>

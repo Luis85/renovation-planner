@@ -3,6 +3,7 @@ import type { ValidationError } from '../../core/errors/AppError';
 import { err, ok, type Result } from '../../core/result/Result';
 import { samePoint, wallLength, type Opening, type Structure, type Wall } from './Structure';
 import { validSpatialElement } from './SpatialElement';
+import { isItemColor } from './ItemColor';
 import { validOpeningSwing } from './openingSwing';
 import { arcExtrema, arcRadius } from '../../core/geometry/circularArc';
 import { circularEdgeIntersections, curveTolerance } from '../../core/geometry/circularIntersections';
@@ -59,6 +60,10 @@ function validWall(wall: Wall): boolean {
 	return wall.id.startsWith('wall-') && validSpatialPoint(wall.start) && validSpatialPoint(wall.end) && validWallCurve(wall) && [wallLength(wall), wall.height, wall.thickness].every(n => dimension(n));
 }
 
+/** A wall's or opening's colour is a preset or a lowercase `#rrggbb`, or absent. */
+function colorError(structure: Structure): ValidationError | null {
+	return [...structure.walls, ...structure.openings].every(item => item.color === undefined || isItemColor(item.color)) ? null : spatialError('color-invalid');
+}
 function wallValidationError(walls: readonly Wall[]): ValidationError | null {
 	if (!walls.every(wall => validWall(wall))) return spatialError('wall-dimensions');
 	if (!walls.every(wall => validWallSides(wall))) return spatialError('wall-side-extents');
@@ -72,7 +77,7 @@ export function validateStructure(structure: Structure, roomIds: readonly string
 	const ids = [...structure.walls, ...structure.openings, ...structure.elements ?? []].map(item => item.id);
 	if (new Set(ids).size !== ids.length || ids.some(id => !id || roomIds.includes(id))) return err(spatialError('duplicate-id'));
 	if (!structure.elements?.every(validSpatialElement) && structure.elements !== undefined) return err(spatialError('element-invalid'));
-	const wallError = wallValidationError(structure.walls); if (wallError) return err(wallError);
+	const wallError = colorError(structure) ?? wallValidationError(structure.walls); if (wallError) return err(wallError);
 	for (const opening of structure.openings) {
 		const failure = openingValidationError(opening, structure);
 		if (failure) return err(failure);

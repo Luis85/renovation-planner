@@ -14,10 +14,18 @@ export interface GroupSnapshot {
 	readonly generation: number;
 	readonly document: PlanGeometryDocument;
 }
+/**
+ * Every sidecar field a shown room owns, as document `objects`. The ONE projection the group, renovation and planning
+ * baselines compare against a read, so a new room field cannot be missed at one of them — a colour once was, and every
+ * Renovate and planning edit on a coloured room's plan was refused as changed elsewhere.
+ */
+export function projectedRoomObjects(zones: ReturnType<typeof useProjectStore>['zones']): PlanGeometryDocument['objects'] {
+	return [...zones.values()].map(zone => ({ id: zone.id, points: zone.points, ...(zone.bulges ? { bulges: zone.bulges } : {}), ...(zone.labelOffset ? { labelOffset: zone.labelOffset } : {}), ...(zone.color ? { color: zone.color } : {}) }));
+}
 export function projectedGroupGeometry(project: ReturnType<typeof useProjectStore>): PlanGeometryDocument {
 	// Clone plain, serializable geometry rather than retaining a Vue proxy across a gesture.
 	return JSON.parse(JSON.stringify({ calibration: project.plan?.calibration ?? null,
-		objects: [...project.zones.values()].map(zone => ({ id: zone.id, points: zone.points, ...(zone.bulges ? { bulges: zone.bulges } : {}), ...(zone.labelOffset ? { labelOffset: zone.labelOffset } : {}) })),
+		objects: projectedRoomObjects(project.zones),
 		structure: project.structure, intended: project.intended, groups: project.groups.length ? project.groups : undefined,
 	})) as PlanGeometryDocument;
 }

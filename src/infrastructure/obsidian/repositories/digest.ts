@@ -4,7 +4,7 @@ import type { ObservationToken } from '../../../application/ports/versioning';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../persistence/dto/assetFrontmatter';
 import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../persistence/dto/assetPriceFrontmatter';
 import { PLAN_TYPE, PlanFrontmatterSchemaV12 } from '../../persistence/dto/planFrontmatter';
-import { SpatialObjectGeometrySchemaV10, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
+import { SpatialObjectGeometrySchemaV16, type SpatialObjectGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
 import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV5 } from '../../persistence/dto/requirementFrontmatter';
 import { ZONE_TYPE, ZoneFrontmatterSchemaV2 } from '../../persistence/dto/zoneFrontmatter';
@@ -125,7 +125,7 @@ export function observeSidecar(rawText: string): ObservationToken {
  * allowlist so the order a writer or a parser happens to produce is not part of the token.
  * `JSON.stringify`'s key list filters NESTED objects too, so the offset's own keys are listed or it digests as `{}`.
  */
-const ENTRY_KEYS = [...Object.keys(SpatialObjectGeometrySchemaV10.shape), 'dx', 'dy'];
+const ENTRY_KEYS = [...Object.keys(SpatialObjectGeometrySchemaV16.shape), 'dx', 'dy'];
 
 /**
  * The token for a ZONE, which spans two files (SDD §42): its note's owned keys AND its own

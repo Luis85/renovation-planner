@@ -4,9 +4,10 @@ import type { Point } from '../../../core/geometry/Point';
 import type { SpatialElement } from '../../../domain/spatial/SpatialElement';
 import { beamOutline } from '../../../domain/spatial/structuralElement';
 import type { ThemeTokens } from '../theme/themeTokens';
+import { itemColorInk } from './itemColorAppearance';
 const props = defineProps<{ element: SpatialElement; selected: boolean; tokens: ThemeTokens; zoom: number }>();
 const flat = (points: readonly Point[]) => points.flatMap(point => [point.x, point.y]);
-const stroke = computed(() => props.selected ? props.tokens.accent : props.tokens.zoneStroke);
+const stroke = computed(() => props.selected ? props.tokens.accent : itemColorInk(props.element.color, props.tokens.zoneStroke));
 /** Load-bearing reads heavier; a selection heavier again (structural posts and beams design §6). */
 const weight = computed(() => (props.element.loadBearing ? 2 : 1) * (props.selected ? 1.5 : 1) / props.zoom);
 /** A post: its outline, filled when load-bearing, with both diagonals — the plan symbol for a column. */

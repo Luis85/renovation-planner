@@ -31,6 +31,11 @@ function commandLevelSpatialCodes(): ReadonlySet<string> {
 }
 
 describe('spatialMessage', () => {
+	it('answers a wall or opening colour this build cannot read with its own sentence in both locales', () => {
+		const refusal = { category: 'Validation', code: 'spatial.color-invalid', message: 'Invalid spatial structure: color-invalid.' } as AppError;
+		expect(spatialMessage(refusal)).toBe(t('en', 'editor.structure.error.color-invalid'));
+		expect(t('de', 'editor.structure.error.color-invalid')).not.toBe(t('en', 'editor.structure.error.color-invalid'));
+	});
 	it('answers every command-level spatial code with its own sentence in both locales', () => {
 		const codes = commandLevelSpatialCodes();
 		// An instrument that reaches nothing looks exactly like a clean tree.

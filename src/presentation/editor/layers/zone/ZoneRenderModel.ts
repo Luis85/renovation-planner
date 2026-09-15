@@ -3,6 +3,7 @@ import type { Vector } from '../../../../core/geometry/Vector';
 import type { ZoneDto } from '../../../read-models/PlanDto';
 import type { StringKey } from '../../../i18n/locales/en';
 import type { ThemeTokenName } from '../../theme/themeTokens';
+import type { ItemColor } from '../../../../domain/spatial/ItemColor';
 import { centroid, contains } from '../../../../core/geometry/operations';
 import { toSpatialRecordDto } from '../../../read-models/spatialRecords';
 
@@ -34,6 +35,8 @@ export interface ZoneRenderModel {
 	readonly locked?: true;
 	/** A dragged caption's offset from its automatic anchor (ADR-0029). */
 	readonly labelOffset?: Vector;
+	/** User appearance (plan colours design §2): a wash at rest instead of M01's empty fill. */
+	readonly color?: ItemColor;
 }
 
 export function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel {
@@ -51,6 +54,7 @@ export function toZoneRenderModel(zone: ZoneDto): ZoneRenderModel {
 		bulges: zone.bulges,
 		...(zone.locked ? { locked: true as const } : {}),
 		...(zone.labelOffset ? { labelOffset: zone.labelOffset } : {}),
+		...(zone.color ? { color: zone.color } : {}),
 	};
 }
 

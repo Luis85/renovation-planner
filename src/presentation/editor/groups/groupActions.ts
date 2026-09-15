@@ -22,6 +22,8 @@ import { GroupMoveGesture, type GroupMoveDependencies } from './GroupMoveGesture
 import { translatedGroup } from './groupTransforms';
 import type { RotationShape } from '../elements/objectRotation';
 import { useRenovationSession } from '../renovation/renovationSession';
+import { isItemColor, type ItemColor } from '../../../domain/spatial/ItemColor';
+import { recoloredDocument } from './recoloredDocument';
 
 /** Persist group membership separately from selection, with implicit hosted openings. */
 export function createGroupActions(context: PlanEditorContext, runtime: GroupOperationRuntime) {
@@ -98,12 +100,18 @@ export function createGroupActions(context: PlanEditorContext, runtime: GroupOpe
 		if (session.perspective !== 'plan') return;
 		const snapshot = operations.capture(selection.selectedIds); if (snapshot) await operations.commit(snapshot, translatedGroup(snapshot, delta));
 	}
+	/** One colour on every id, as one conditional sidecar write and one undo step; Plan only (plan colours design §3). */
+	async function setColor(ids: readonly string[], color: ItemColor | undefined): Promise<void> {
+		if (session.perspective !== 'plan' || (color !== undefined && !isItemColor(color))) return;
+		const snapshot = operations.capture(ids, ids.length === 1); if (!snapshot) return;
+		await operations.commit(snapshot, recoloredDocument(snapshot.document, snapshot.selectionIds, color));
+	}
 	async function rotate(id: string, degrees?: number): Promise<void> {
 		const shape = editableTarget.value; if (shape?.id === id) await rotation.rotate(shape.group, degrees);
 	}
 	return { active: operations.working, blocked: operations.blocked, disabled, preview: operations.preview, saved, target: editableTarget,
 		canRotateShape: (shape: RotationShape) => session.perspective === 'plan' && Boolean(shape.group && operations.current(shape.group)),
-		groupRotationTarget: (id: string) => session.perspective === 'plan' ? target(id) : null, expandSelection, selectionMove, actions, moveBy, rotate, moveRotation: rotation.move,
+		groupRotationTarget: (id: string) => session.perspective === 'plan' ? target(id) : null, expandSelection, selectionMove, actions, moveBy, setColor, rotate, moveRotation: rotation.move,
 		previewRotation: (id: string | null, points?: readonly Point[]) => rotation.preview(id && editableTarget.value?.id === id ? editableTarget.value.group : null, points),
 	};
 }

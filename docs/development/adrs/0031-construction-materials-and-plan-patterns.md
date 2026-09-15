@@ -62,6 +62,8 @@ no room (ADR-0030) with no way to carry one.
 - A wall's pattern is lost if an older build saves its asset.
 - A construction entry's quantity override survives a change of material only while the unit stays
   the same.
+- Amended by [ADR-0033](0033-a-colour-is-user-content-on-every-plan-family.md): a user colour on a wall is the ground
+  under its hatch; the hatch itself stays in theme colours.
 
 ## Revisit when
 

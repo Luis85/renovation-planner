@@ -10,9 +10,9 @@ const point = (p: Point): readonly number[] => [p.x, p.y];
 const offset = (v: Vector | undefined): readonly number[] | null => v ? [v.dx, v.dy] : null;
 const curves = (values: readonly number[] | undefined, count: number): readonly number[] | null => values === undefined || (values.length === count && values.every(value => value === 0)) ? null : values;
 function structureContent(s: Structure | undefined): unknown {
-	return s ? [s.walls.map(wall => [wall.id, point(wall.start), point(wall.end), wall.height, wall.thickness, wall.bulge ?? 0, wallSideExtents(wall).a, wallSideExtents(wall).b]),
+	return s ? [s.walls.map(wall => [wall.id, point(wall.start), point(wall.end), wall.height, wall.thickness, wall.bulge ?? 0, wallSideExtents(wall).a, wallSideExtents(wall).b, wall.color ?? null]),
 			s.openings.map(opening => [opening.id, opening.kind, opening.hostId, opening.offset, opening.width, opening.height, opening.sill,
-				opening.swing ? [opening.swing.hinge, opening.swing.side, opening.swing.angle] : null]),
+				opening.swing ? [opening.swing.hinge, opening.swing.side, opening.swing.angle] : null, opening.color ?? null]),
 			s.boundaries.map(boundary => [boundary.roomId, boundary.wallIds]),
 			(s.elements ?? []).toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(element => [element.id, element.kind, element.points.map(point),
 				element.stair ? [element.stair.width, element.stair.treads, element.stair.direction] : null,
@@ -23,7 +23,7 @@ function structureContent(s: Structure | undefined): unknown {
 function content(document: PlanGeometryDocument): unknown {
 	const c = document.calibration;
 	return [c ? [point(c.pointA), point(c.pointB), c.knownDistance, c.pixelsPerWorldUnit] : null,
-		document.objects.toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(object => [object.id, object.points.map(point), curves(object.bulges, object.points.length), offset(object.labelOffset)]),
+		document.objects.toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(object => [object.id, object.points.map(point), curves(object.bulges, object.points.length), offset(object.labelOffset), object.color ?? null]),
 		structureContent(document.structure), structureContent(document.intended),
 		(document.groups ?? []).toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(group => [group.id, group.name, group.memberIds.toSorted()])];
 }

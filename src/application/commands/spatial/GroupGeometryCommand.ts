@@ -34,7 +34,7 @@ async function zoneReceipts(deps: Dependencies, planId: PlanId, before: PlanGeom
 	const receipts: ZoneReceipt[] = [];
 	for (const object of before.objects) {
 		const next = after.objects.find(item => item.id === object.id);
-		if (!next || JSON.stringify({ points: object.points, bulges: object.bulges }) === JSON.stringify({ points: next.points, bulges: next.bulges })) continue;
+		if (!next || JSON.stringify({ points: object.points, bulges: object.bulges, color: object.color }) === JSON.stringify({ points: next.points, bulges: next.bulges, color: next.color })) continue;
 		const source = await deps.zones.prepareGeometryVersions?.(object.id as ZoneId, object);
 		if (!source?.ok) return source ?? err(undoSuperseded(planId));
 		if (!source.value || source.value.zone.entity.planId !== planId) return err(undoSuperseded(planId));

@@ -7,6 +7,7 @@ import type { PlanId } from '../../domain/plan/PlanId';
 import type { EntityVersion } from './versioning';
 import type { Structure } from '../../domain/spatial/Structure';
 import type { SpatialGroup } from '../../domain/spatial/SpatialGroup';
+import type { ItemColor } from '../../domain/spatial/ItemColor';
 
 /**
  * One geometry entry of the plan sidecar (ADR-002/ADR-011), raised to domain shapes: the
@@ -19,6 +20,8 @@ export interface SpatialObjectGeometry {
 	readonly points: readonly Point[];
 	/** A dragged caption's offset from its automatic anchor, world mm (ADR-0029); absent while automatic. */
 	readonly labelOffset?: Vector;
+	/** User appearance (plan colours design §1); absent while Default. */
+	readonly color?: ItemColor;
 }
 
 /** The whole editable content of one plan's sidecar, calibration included. */

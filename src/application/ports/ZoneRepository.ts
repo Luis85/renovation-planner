@@ -8,11 +8,12 @@ import type { RepositoryError } from './repositoryErrors';
 import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import type { Vector } from '../../core/geometry/Vector';
 import type { GeometryError } from '../../core/errors/AppError';
+import type { ItemColor } from '../../domain/spatial/ItemColor';
 
 /** Opaque versions for a sidecar-only geometry write, derived before the write from one note snapshot. */
 export interface ZoneGeometryVersions {
 	readonly zone: Loaded<Zone>;
-	versionFor(geometry: CurvedPolygon): Result<EntityVersion, GeometryError>;
+	versionFor(geometry: CurvedPolygon & { readonly color?: ItemColor }): Result<EntityVersion, GeometryError>;
 }
 
 /**
@@ -38,7 +39,7 @@ export interface ZoneListing {
 }
 
 export interface ZoneRepository {
-	prepareGeometryVersions?(id: ZoneId, geometry: CurvedPolygon & { readonly labelOffset?: Vector }): Promise<Result<ZoneGeometryVersions | null, RepositoryError>>;
+	prepareGeometryVersions?(id: ZoneId, geometry: CurvedPolygon & { readonly labelOffset?: Vector; readonly color?: ItemColor }): Promise<Result<ZoneGeometryVersions | null, RepositoryError>>;
 	getById(id: ZoneId): Promise<Result<Loaded<Zone> | null, RepositoryError>>;
 	save(
 		zone: Zone,

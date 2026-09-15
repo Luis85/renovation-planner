@@ -76,6 +76,7 @@ export const structureEn = {
 	'editor.structure.error.boundary': 'Close a simple boundary and give the room a name before creating it.',
 	'editor.structure.error.room-missing': 'A room boundary refers to missing walls or a missing room. Reopen the floor after repairing the reference.',
 	'editor.structure.error.duplicate-id': 'The structure contains repeated identities. Reopen the floor before editing.',
+	'editor.structure.error.color-invalid': 'A wall or opening has a color this build cannot read. Reopen the floor after repairing it.',
 	'editor.structure.error.unavailable': 'Wall editing is unavailable in this view.',
 	// Spatial command refusals (`spatial.*` codes, not draft refusals), every one of which reaches a user: the task
 	// form's error line falls through `spatialMessage` to `trError` for any code that is not a

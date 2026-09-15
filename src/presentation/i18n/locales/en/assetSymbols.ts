@@ -93,4 +93,17 @@ export const assetSymbolsEn = {
 	'designer.selection.mode.transform': 'Transform',
 	'designer.selection.mode.points': 'Edit points',
 	'designer.selection.mode.bend': 'Bend edges',
+	// A pending detail's or anchor's millimetre fields are withheld (spec Amendment 2); this says why, under the section heading.
+	'designer.selection.unscaled': 'This part was captured before a scale existed, so its measurements are hidden until the asset is calibrated.',
+	// Under Select with an outline in Transform: a box handle keeps proportions and the rotate handle snaps (`selectionDrag.ts`).
+	// Key first, as `editor.hint.constrain-angle` is: `sentence-case-locale-module` refuses a capitalised `Shift` mid-sentence.
+	'designer.hint.shift-transform': 'Shift keeps proportions and snaps the rotation',
+	// The mode buttons' tooltips name the gesture each mode offers; the button text stays the accessible name.
+	'designer.selection.mode.transform.tip': 'Drag the part to move it, a square handle to resize it or the round handle to rotate it',
+	'designer.selection.mode.points.tip': 'Drag a corner to move it; it snaps to the corners of the other parts and to the anchor',
+	'designer.selection.mode.bend.tip': 'Drag the handle in the middle of an edge to curve that edge',
+	// The asset-level block's own heading, so its Dimensions never read as the selected part's (critique finding 4).
+	'designer.inspector.asset': 'Asset',
+	// Under the facing's angle field, as its description: `facingTip` adds the sine to y, and y grows DOWN the screen.
+	'designer.selection.angle.hint': 'An angle of 0 points right, and 90 points down',
 } as const;

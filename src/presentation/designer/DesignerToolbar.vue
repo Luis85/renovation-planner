@@ -23,6 +23,12 @@
  * Camera mode (`null`) is a toolbar STATE rather than one more `EditorTool`, exactly as it is on
  * a plan: the camera is ephemeral UI (SDD §15) and never a command, so "no active tool" is what
  * pans and zooms here.
+ *
+ * **No button here carries a `title`.** Each one's text IS its accessible name, so a tooltip repeating
+ * it shows a sighted user nothing new and may be announced twice (selection polish critique, finding 24).
+ * The mode buttons' `title`s describe a gesture, which is why `DesignerSelectionModes` keeps them. Undo and
+ * Redo are ONE group, `.rp-designer-history`, which `designer.css` ends on whichever row it wraps to — the
+ * `flex: 1` spacer it replaces stopped pushing once the toolbar wrapped (finding 5).
  */
 import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
@@ -69,30 +75,28 @@ const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[
 			class="rp-designer-tool-button"
 			:class="{ 'rp-designer-tool-active': runtime.activeToolId.value === mode.id }"
 			:aria-pressed="runtime.activeToolId.value === mode.id"
-			:title="tr(mode.label)"
 			@click="runtime.setTool(mode.id)"
 		>
 			{{ tr(mode.label) }}
 		</button>
 		<DesignerSelectionModes v-if="runtime.activeToolId.value === 'select' && isOutlineSelection(designStore.selection)" />
-		<span class="rp-designer-toolbar-spacer" />
-		<button
-			type="button"
-			class="rp-designer-tool-button"
-			:disabled="!runtime.canUndo.value"
-			:title="tr('designer.toolbar.undo')"
-			@click="runtime.undo()"
-		>
-			{{ tr('designer.toolbar.undo') }}
-		</button>
-		<button
-			type="button"
-			class="rp-designer-tool-button"
-			:disabled="!runtime.canRedo.value"
-			:title="tr('designer.toolbar.redo')"
-			@click="runtime.redo()"
-		>
-			{{ tr('designer.toolbar.redo') }}
-		</button>
+		<div class="rp-designer-history">
+			<button
+				type="button"
+				class="rp-designer-tool-button"
+				:disabled="!runtime.canUndo.value"
+				@click="runtime.undo()"
+			>
+				{{ tr('designer.toolbar.undo') }}
+			</button>
+			<button
+				type="button"
+				class="rp-designer-tool-button"
+				:disabled="!runtime.canRedo.value"
+				@click="runtime.redo()"
+			>
+				{{ tr('designer.toolbar.redo') }}
+			</button>
+		</div>
 	</div>
 </template>

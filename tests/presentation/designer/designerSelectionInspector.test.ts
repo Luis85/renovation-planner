@@ -27,13 +27,13 @@ import {
 	updateDetail,
 } from '../../../src/domain/asset/detailEdits';
 import { moveAnchor, removeClearance, setFacing } from '../../../src/domain/asset/shapeEdits';
-import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
+import { sameSelection, type DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
 import { toiletShape } from '../../helpers/assetShapes';
 import { expectOk } from '../../helpers/domain';
-import { settle } from '../../helpers/editor';
+import { settle, settleUntil } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
 
 type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
@@ -83,6 +83,12 @@ function numberFields(wrapper: VueWrapper): Record<string, string> {
 
 function buttons(wrapper: VueWrapper): (string | undefined)[] {
 	return wrapper.findAll('button').map((button) => button.attributes('name'));
+}
+
+/** An action button's `aria-disabled` and `disabled`, together: an unavailable reorder sets the first, never the second. */
+function actionState(wrapper: VueWrapper, name: string): [string | undefined, boolean] {
+	const button = wrapper.find(`[name="${name}"]`);
+	return [button.attributes('aria-disabled'), (button.element as HTMLButtonElement).disabled];
 }
 
 function nameField(wrapper: VueWrapper): string {
@@ -165,6 +171,79 @@ describe('what the inspector offers for each kind of part', () => {
 		expect(mountFor({ kind: 'detail', id: 'detail-9' }).wrapper.find('.rp-designer-selection').exists()).toBe(false);
 		expect(mountFor({ kind: 'clearance' }, { ...TOILET, clearance: null }).wrapper.find('.rp-designer-selection').exists()).toBe(false);
 		expect(mountFor({ kind: 'footprint' }, null).wrapper.find('.rp-designer-selection').exists()).toBe(false);
+	});
+
+	/** The section draws nothing for a part the shape lacks, so its unmount has no element to ask about focus. */
+	it('unmounts a section drawn for a part the shape lacks without reaching for focus', () => {
+		const { wrapper } = mountFor({ kind: 'detail', id: 'detail-9' });
+
+		expect(() => wrapper.unmount()).not.toThrow();
+	});
+
+	/**
+	 * Critique finding 25: "Angle in degrees" did not say which way 0 points or which way the angle grows.
+	 * `facingTip` adds the sine to y and y grows DOWN the screen, so 0 points right and 90 points down; the
+	 * field names that sentence as its description. No other field carries one.
+	 */
+	it('describes the facing’s angle by where 0 and 90 point, and no other field', () => {
+		const facing = mountFor({ kind: 'facing' }).wrapper;
+		const describedBy = facing.find('[name="angle"]').attributes('aria-describedby');
+
+		expect(describedBy).toBeDefined();
+		expect(facing.find(`[id="${String(describedBy)}"]`).text()).toBe(t('en', 'designer.selection.angle.hint'));
+		expect(mountFor(BOWL).wrapper.findAll('input[aria-describedby]')).toHaveLength(0);
+	});
+
+	/**
+	 * A pending detail's or anchor's numbers are placeholder pixels too, which calibration later multiplies
+	 * (spec Amendment 2) — so its millimetre fields are withheld as a pending footprint's are, one line says
+	 * why, and everything that is not a length stays.
+	 */
+	it('offers only Rotation for a pending detail, keeps its name, line and actions, and says why', () => {
+		const pendingBowl = { ...TOILET, details: TOILET.details.map((detail) => (detail.id === 'detail-2' ? { ...detail, pending: true } : detail)) };
+		const { wrapper } = mountFor(BOWL, pendingBowl);
+
+		expect(numberFields(wrapper)).toEqual({ 'rotate-by': '0' });
+		expect(buttons(wrapper)).toEqual(['bring-forward', 'send-backward', 'duplicate', 'delete']);
+		expect(nameField(wrapper)).toBe(t('en', 'designer.detail.bowl'));
+		expect(wrapper.find('[name="detail-line"]').exists()).toBe(true);
+		expect(wrapper.find('.rp-designer-unscaled').text()).toBe(t('en', 'designer.selection.unscaled'));
+	});
+
+	it('offers no position for a pending anchor, and says why', () => {
+		const { wrapper } = mountFor({ kind: 'anchor' }, { ...TOILET, anchorPending: true });
+
+		expect(numberFields(wrapper)).toEqual({});
+		expect(wrapper.find('.rp-designer-unscaled').text()).toBe(t('en', 'designer.selection.unscaled'));
+	});
+
+	/** Every arm that is NOT pending: the flag read is the SELECTED part's, never a neighbour's. */
+	it.each([
+		['a detail', BOWL, TOILET],
+		['a detail beside a pending one', BOWL, { ...TOILET, details: TOILET.details.map((detail) => (detail.id === 'detail-1' ? { ...detail, pending: true } : detail)) }],
+		['the anchor', { kind: 'anchor' }, TOILET],
+		['the facing of a design whose anchor is pending', { kind: 'facing' }, { ...TOILET, anchorPending: true }],
+	] as const)('keeps every field and draws no unscaled line for %s', (_name, selection, shape) => {
+		const { wrapper } = mountFor(selection, shape);
+
+		expect(Object.keys(numberFields(wrapper)).length).toBeGreaterThan(selection.kind === 'detail' ? 1 : 0);
+		expect(wrapper.find('.rp-designer-unscaled').exists()).toBe(false);
+	});
+
+	/** The footprint arm is unchanged: its warning is `DesignerInspector`'s Dimensions block, not a second line here. */
+	it('leaves the pending footprint as it was: no size fields and no unscaled line in the section', () => {
+		const wrapper = mount(DesignerSelectionInspector, {
+			props: {
+				design: assetDesign({ shape: { ...TOILET, footprintOrigin: 'traced', footprintPending: true }, dimensionsUnscaled: true }),
+				selection: { kind: 'footprint' },
+				editShape: vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>(),
+				select: vi.fn<(next: DesignerSelection | null) => void>(),
+			},
+		});
+
+		expect(numberFields(wrapper)).toEqual({});
+		expect(buttons(wrapper)).toEqual(['fit-to-details']);
+		expect(wrapper.find('.rp-designer-unscaled').exists()).toBe(false);
 	});
 });
 
@@ -297,14 +376,29 @@ describe('fields committed before the refresh lands', () => {
 });
 
 describe('what an action commits', () => {
-	it('disables Bring forward on the topmost detail and Send backward on the bottom one', () => {
+	/**
+	 * Critique finding 11: an unavailable reorder is `aria-disabled`, never `disabled` — pressing Send backward
+	 * until the detail is last would otherwise disable the button that has focus, and Chromium drops focus to
+	 * the page. `NewAssetForm.vue`'s paused controls take the same split.
+	 */
+	it('marks Bring forward unavailable on the topmost detail and Send backward on the bottom one, disabling neither', () => {
 		const top = mountFor(BOWL).wrapper;
 		const bottom = mountFor({ kind: 'detail', id: 'detail-1' }).wrapper;
 
-		expect((top.find('[name="bring-forward"]').element as HTMLButtonElement).disabled).toBe(true);
-		expect((top.find('[name="send-backward"]').element as HTMLButtonElement).disabled).toBe(false);
-		expect((bottom.find('[name="bring-forward"]').element as HTMLButtonElement).disabled).toBe(false);
-		expect((bottom.find('[name="send-backward"]').element as HTMLButtonElement).disabled).toBe(true);
+		expect(actionState(top, 'bring-forward')).toEqual(['true', false]);
+		expect(actionState(top, 'send-backward')).toEqual([undefined, false]);
+		expect(actionState(bottom, 'bring-forward')).toEqual([undefined, false]);
+		expect(actionState(bottom, 'send-backward')).toEqual(['true', false]);
+	});
+
+	/** A GUARD, green before and after: a press on an unavailable reorder reaches no edit. */
+	it('commits nothing for a press on an unavailable reorder', async () => {
+		const { wrapper, applied } = mountFor(BOWL);
+
+		await wrapper.find('[name="bring-forward"]').trigger('click');
+		await flushPromises();
+
+		expect(applied).toEqual([]);
 	});
 
 	it.each([
@@ -359,6 +453,61 @@ describe('the inspector in the mounted designer', () => {
 			const bowl = (await rig.document()).shape?.details.find((detail) => detail.id === 'detail-2');
 			expectNear(bowl?.outline.points ?? [], [[-304, 27], [304, 27], [304, 173], [-304, 173]]);
 			expect(rig.toolbarButton(t('en', 'designer.toolbar.undo')).disabled).toBe(false);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * Spec Amendment 2: Delete prunes the selection and Duplicate selects the copy, and either unmounts the
+	 * section under the very button that was pressed — so focus goes to the inspector rather than to the
+	 * page, and the next Tab continues from there. Clearance Delete is the other Delete in the section.
+	 */
+	it.each([
+		['delete', BOWL],
+		['delete', { kind: 'clearance' }],
+		['duplicate', BOWL],
+	] as const)('hands focus to the inspector after %s on %o', async (name, selection) => {
+		const rig = await designerRig({ shape: TOILET });
+		try {
+			const store = useAssetDesignStore(rig.pinia);
+			store.select(selection);
+			await settle();
+			const button = rig.wrapper.find(`.rp-designer-selection [name="${name}"]`).element as HTMLButtonElement;
+			button.focus();
+			button.click();
+			await settleUntil(() => !sameSelection(store.selection, selection), `${name} to land`);
+			await settle();
+
+			expect(document.activeElement).toBe(rig.wrapper.find('.rp-designer-inspector aside').element);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * Critique finding 11, mounted: the reorder lands, the button turns unavailable under the focus it still
+	 * holds, and a second press writes nothing. jsdom is not known to blur a control that turns disabled, so
+	 * the `activeElement` line is a guard; the attribute lines are what fail before the fix.
+	 */
+	it('keeps focus on Send backward once the detail is last, and a second press writes nothing', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		try {
+			useAssetDesignStore(rig.pinia).select(BOWL);
+			await settle();
+			const button = rig.wrapper.find('.rp-designer-selection [name="send-backward"]').element as HTMLButtonElement;
+			button.focus();
+			button.click();
+			await settleUntil(async () => (await rig.document()).shape?.details[0]?.id === 'detail-2', 'the reorder to land');
+			await settle();
+
+			expect(button.getAttribute('aria-disabled')).toBe('true');
+			expect(button.disabled).toBe(false);
+			expect(document.activeElement).toBe(button);
+
+			button.click();
+			await settle();
+			expect((await rig.document()).shape?.details.map((detail) => detail.id)).toEqual(['detail-2', 'detail-1']);
 		} finally {
 			rig.unmount();
 		}

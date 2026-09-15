@@ -46,6 +46,9 @@ export interface SelectToolRigOptions {
 	readonly selection?: DesignerSelection | null;
 	readonly mode?: SelectionMode;
 	readonly context?: ToolContextOptions;
+	/** The leaf's write chain as the tool asks it (`createWriteChain`). Default: nothing ever queued. */
+	readonly writing?: () => boolean;
+	readonly settled?: () => Promise<void>;
 }
 
 export interface SelectToolRig {
@@ -103,6 +106,8 @@ export function selectToolRig(options: SelectToolRigOptions = {}): SelectToolRig
 		reportInvalidInput: (error) => {
 			invalid.push(error);
 		},
+		writing: options.writing ?? (() => false),
+		settled: options.settled ?? (() => Promise.resolve()),
 	});
 	return { tool, harness, selected, previews, written, rejected, invalid };
 }

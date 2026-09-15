@@ -173,8 +173,14 @@
 	font-weight: var(--bold-weight);
 }
 
-.rp-designer-toolbar-spacer {
-	flex: 1;
+/*
+ * Undo and Redo as ONE trailing group: `margin-inline-start: auto` ends it on the row it shares with the
+ * tools and on whichever row it wraps to, where a `flex: 1` spacer stopped pushing (critique finding 5).
+ */
+.rp-designer-history {
+	display: flex;
+	gap: var(--size-4-2);
+	margin-inline-start: auto;
 }
 
 .rp-designer-body {
@@ -240,13 +246,18 @@
 }
 
 /*
- * The unscaled warning. `--text-warning`, not `--text-error`: a traced-but-uncalibrated
- * footprint is an expected, recoverable state on the way to being designed, never a fault.
+ * The unscaled warning. The SENTENCE is `--text-normal`, and the warning colour is a rule on its leading
+ * edge: `--text-warning` as text measured about 2.73:1 on `--background-secondary` in the light theme, under
+ * the 4.5:1 AA floor for text this size (selection polish critique, finding 2). The words carry the meaning,
+ * so the rule is decoration. `--text-warning`, not `--text-error`: a traced-but-uncalibrated footprint is an
+ * expected, recoverable state on the way to being designed, never a fault.
  */
 .rp-designer-unscaled {
 	margin: 0 0 var(--size-4-2);
+	padding-inline-start: var(--size-4-2);
 	font-size: var(--font-ui-smaller);
-	color: var(--text-warning);
+	color: var(--text-normal);
+	border-inline-start: 2px solid var(--text-warning);
 }
 
 /*
@@ -363,18 +374,4 @@
 .rp-designer-hint {
 	margin-inline-end: auto;
 	color: var(--text-muted);
-}
-
-/*
- * The selection's mode control (asset designer symbols spec, Decision 10), in the toolbar only while
- * Select holds an outline. Its buttons are `.rp-designer-tool-button`s, so the flat-button and
- * active-state rules above already style them; this only groups the three and sets them off from the
- * tools with a rule on the leading edge.
- */
-.rp-designer-selection-modes {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--size-4-1);
-	padding-inline-start: var(--size-4-2);
-	border-inline-start: 1px solid var(--background-modifier-border);
 }

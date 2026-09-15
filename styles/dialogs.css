@@ -53,16 +53,19 @@
 }
 
 /*
- * A descriptor's `warning` — a sentence about the values a form is asking for, not a refusal.
- * `--text-warning` rather than `--text-muted`, which is what tells it from `.rp-dialog-message`
- * beside it: the message says what the dialog is about, and this says something is not right
- * about the data behind it. The same variable `.rp-designer-unscaled` uses on the inspector,
- * because it is the same claim reaching the user on a second surface.
+ * A descriptor's `warning` — a sentence about the values a form is asking for, not a refusal. The words
+ * are `--text-normal` and `--text-warning` is a rule on the leading edge, which is what tells it from
+ * `.rp-dialog-message` beside it: the message says what the dialog is about, and this says something is
+ * not right about the data behind it. Not `--text-warning` as TEXT: that measured about 2.73:1 in the light
+ * theme, under the 4.5:1 AA floor (selection polish critique, finding 2). The same treatment
+ * `.rp-designer-unscaled` takes on the inspector, because it is the same claim on a second surface.
  */
 .rp-dialog-warning {
 	margin: 0;
+	padding-inline-start: var(--size-4-2);
 	font-size: var(--font-ui-smaller);
-	color: var(--text-warning);
+	color: var(--text-normal);
+	border-inline-start: 2px solid var(--text-warning);
 }
 
 .rp-dialog-references,

@@ -116,10 +116,26 @@ describe('moving a part', () => {
 		const bowl = rig.written[0]?.shape.details.find((detail) => detail.id === 'detail-2')?.outline;
 		expect(bowl?.points).toEqual(BOWL.points.map((point) => ({ x: point.x + 100, y: point.y })));
 		expect(bowl?.bulges).toEqual(BOWL.bulges);
-		// Previewed while it ran, and the preview cleared only once the write had settled.
-		expect(rig.previews).toHaveLength(3);
+		// Previewed while it ran — the release point too, before it was committed (ruling B7) — and the
+		// preview cleared only once the write had settled.
+		expect(rig.previews).toHaveLength(4);
 		expect(rig.previews[1]).not.toBeNull();
-		expect(rig.previews[2]).toBeNull();
+		expect(rig.previews[3]).toBeNull();
+	});
+
+	/** `CurveTool.pointerUp`'s rule: the release point is previewed before it is committed, so the canvas shows what is written. */
+	it('previews the release point before committing it', async () => {
+		const rig = selectToolRig();
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(IN_BOWL.x, IN_BOWL.y));
+		rig.tool.pointerMove(pointerAt(IN_BOWL.x + 50, IN_BOWL.y));
+		rig.tool.pointerUp(pointerAt(IN_BOWL.x + 100, IN_BOWL.y));
+		await flushGesture();
+
+		expect(rig.written).toHaveLength(1);
+		expect(rig.previews.filter((preview) => preview !== null).at(-1)).toEqual(rig.written[0]?.shape);
+		expect(rig.previews.at(-1)).toBeNull();
 	});
 
 	it('writes nothing, and previews nothing, for a press that never travels past the click epsilon', async () => {

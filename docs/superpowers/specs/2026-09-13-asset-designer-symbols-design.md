@@ -3,7 +3,8 @@
 **Status:** design approved in conversation 2026-09-13; planned. PR 1 (steps 1–2: curved outlines,
 detail linework and presets) is implemented on branch `claude/asset-editor-modeling-58c8d3`;
 steps 3a and 3b (selection and part editing, draw tools) ship together as PR 2 on
-`claude/asset-designer-part-editing` — see Amendment 1.
+`claude/asset-designer-part-editing` — see Amendment 1. Its follow-ups and polish are planned on
+`claude/asset-designer-selection-polish` — see Amendment 2.
 **Builds on:** [`2026-08-30-asset-designer-first-increment-design.md`](./2026-08-30-asset-designer-first-increment-design.md)
 (its Decisions 1, 3 and 6 are load-bearing here), ADR-0014, ADR-0015,
 [`2026-09-10-plan-editor-asset-placement-design.md`](./2026-09-10-plan-editor-asset-placement-design.md).
@@ -406,6 +407,63 @@ rule moves to `src/domain/asset/captureAwaitsScale.ts` and both callers ask it.
 - "Set dimensions" uses `scaleDesign` when the shape has details or any curved footprint or
   clearance edge, and its footprint is already in millimetres (not pending); otherwise it keeps
   today's replace-with-rectangle.
+
+### Amendment 2 — 2026-09-14, the selection follow-ups and polish
+
+The plan is [`../plans/2026-09-14-asset-designer-selection-polish.md`](../plans/2026-09-14-asset-designer-selection-polish.md).
+It is stacked on PR #205 and changes five behaviours this spec had left unsaid or stated wrongly.
+
+**A part that awaits a scale offers no millimetre fields.** The inspector already withheld a pending
+footprint's width and depth. The same rule now covers every part kind. A pending detail shows no
+centre, width or depth, and a pending anchor shows no position. One line in the section says why.
+Rotate by, the facing angle, the name, the line style, ordering, Duplicate and Delete stay, because
+none of them reads or writes a length. A field shown beside a warning was rejected: it still invites
+the user to type millimetres that calibration would later multiply.
+
+**Select has its own Shift hint.** The designer's status hint is chosen in the designer. It is never
+chosen by adding `select` to the shared `CONSTRAINING_TOOLS`, because both surfaces use the id
+`select` and the plan editor's Select must not advertise a constrained angle. The hint under Select
+depends on what is selected:
+
+- Transform, with an outline selected: what Shift does there, which is keeping proportions and
+  snapping rotation.
+- A selected facing: the existing constrained-angle hint.
+- Edit points and Bend edges: no status hint. Neither mode reads a modifier, and every status hint on both surfaces names a modifier or a standing state rather than a gesture. The gesture each mode takes is named in its mode button's tooltip instead.
+
+Every hint is en and de.
+
+**Focus survives an inspector write that removes its control.** Delete removes the selection's
+section and Duplicate re-keys it. In both cases the section hands focus to the inspector itself
+before it unmounts. The inspector is a focus target (`tabindex="-1"`), not a new Tab stop. This is
+the plan editor's inspector rule.
+
+**A queued key on a part that no longer exists does nothing.** A nudge or a Delete is captured at
+the key press and runs after earlier writes. If its part has gone by then (a Delete before it, or a
+peer's delete), it skips silently, as the plan editor's nudge does. The inspector keeps its refusal
+alert, because its control sits beside a part that is still drawn.
+
+**One write chain per leaf, and a press waits for it.** Decision 10's "every gesture is one
+`SetAssetShape` dispatch" held, but only for a gesture made against a design that had finished
+refreshing. The first bullet refines Amendment 1's condition:
+
+- Every write dispatched through a tool — the select tool's release, every draw and trace tool, and
+  the anchor, facing and calibration writes — runs on one serialised chain, each step reading the
+  design when it runs. So does `commitHeight`, which borrows that same queued dispatcher rather than
+  being a tool itself, and so does every `editShape` call: the arrow keys, the canvas's own Delete and
+  Ctrl+D, the selection inspector, and Edit dimensions' SCALING path (`scaleDesign`, taken when the
+  design has a detail or a curved footprint or clearance edge).
+- Four writes dispatch directly and never join that chain: undo, redo, set background and Start from
+  preset (`applyShape`). Edit dimensions' REPLACE-WITH-RECTANGLE path
+  (`setFootprintFromDimensions`, taken for an unscaled drawing or one with nothing curved or detailed
+  to scale) dispatches directly too, unlike its scaling path above. A press or key made while one of
+  these bypassing writes is still awaiting its read-back reads the OLD version and is refused as a
+  version conflict rather than composing with it. Nothing is overwritten.
+- A press that arrives while the chain is busy is held and replayed once it drains. A drag
+  therefore still reads, and is conditional on, the design the user pressed on.
+- A peer write the replayed press has not read refuses the drag. One it has already read, because the chain's read-back brought it in before the replay, is built on, never overwritten.
+- Escape abandons a held press. While a released gesture waits to replay, Delete and Ctrl+D are
+  ignored rather than queued behind it: both would act on the selection from before the click, which
+  the replay has not made current yet.
 
 ## Docs this changes
 

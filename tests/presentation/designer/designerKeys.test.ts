@@ -105,9 +105,9 @@ describe('designerShortcut', () => {
 
 const REFUSED: DispatchResult = { ok: false, error: { category: 'Validation', code: 'asset.part-not-found', message: 'x' } as AppError };
 
-function actionsOver(selection: DesignerSelection | null, answer: DispatchResult = ok('wrote'), tool: ToolId | null = 'select') {
+function actionsOver(selection: DesignerSelection | null, answer: DispatchResult = ok('wrote'), tool: ToolId | null = 'select', shape: AssetShape = TOILET) {
 	const selected: (DesignerSelection | null)[] = [];
-	const edited: Result<AssetShape, ValidationError>[] = [];
+	const edited: (Result<AssetShape, ValidationError> | null)[] = [];
 	const actions = selectionKeyActions(
 		{
 			selection,
@@ -116,7 +116,7 @@ function actionsOver(selection: DesignerSelection | null, answer: DispatchResult
 			},
 		},
 		(edit) => {
-			edited.push(edit(TOILET));
+			edited.push(edit(shape));
 			return Promise.resolve(answer);
 		},
 		{ value: tool },
@@ -124,7 +124,7 @@ function actionsOver(selection: DesignerSelection | null, answer: DispatchResult
 	return { actions, selected, edited };
 }
 
-function shapeOf(result: Result<AssetShape, ValidationError> | undefined): AssetShape | undefined {
+function shapeOf(result: Result<AssetShape, ValidationError> | null | undefined): AssetShape | undefined {
 	return result?.ok === true ? result.value : undefined;
 }
 
@@ -204,5 +204,23 @@ describe('selectionKeyActions', () => {
 
 		expect(harness.selected).toEqual([]);
 		expect(Notice.shown).toHaveLength(1);
+	});
+
+	/**
+	 * Amendment 2: a key captures its part at the press, and a Delete or an undo queued ahead of it can
+	 * remove that part before its step runs. The edit then answers `null` — nothing to do — which
+	 * `editShape` resolves as `no-write` without dispatching, so nothing is said and nothing is written.
+	 * The anchor is never gone, which `nudges an outline or the anchor…` above already drives.
+	 */
+	it('skips a nudge or a delete whose part is gone by the time its step runs', async () => {
+		const detail = actionsOver({ kind: 'detail', id: 'detail-9' });
+		const clearance = actionsOver({ kind: 'clearance' }, ok('wrote'), 'select', { ...TOILET, clearance: null });
+
+		await detail.actions.nudgeSelection({ dx: 10, dy: 0 });
+		await detail.actions.deleteSelection();
+		await clearance.actions.deleteSelection();
+		await clearance.actions.nudgeSelection({ dx: 10, dy: 0 });
+
+		expect([...detail.edited, ...clearance.edited]).toEqual([null, null, null, null]);
 	});
 });

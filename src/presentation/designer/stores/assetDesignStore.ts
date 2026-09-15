@@ -89,11 +89,13 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 	 */
 	const preview = shallowRef<AssetShape | null>(null);
 
-	/** Choosing a DIFFERENT part resets the mode to Transform; re-choosing the selected part keeps it (Amendment 1). */
+	/**
+	 * Choosing a DIFFERENT part resets the mode to Transform; re-choosing the selected part keeps it (Amendment 1).
+	 * `preview` is left alone: it belongs to the gesture that drew it, which clears it itself.
+	 */
 	function select(next: DesignerSelection | null): void {
 		if (!sameSelection(selection.value, next)) mode.value = 'transform';
 		selection.value = next;
-		preview.value = null;
 	}
 
 	function setMode(next: SelectionMode): void {

@@ -41,12 +41,17 @@ describe('the designer selection in the design store', () => {
 		expect([store.selection, store.mode]).toEqual([BOWL, 'transform']);
 	});
 
-	it('drops an in-flight preview whenever a selection is chosen', () => {
+	/**
+	 * A preview belongs to the gesture that drew it, which clears it itself — a drag's commit once its
+	 * write has settled. A click landing while that write is in flight must not wipe it, or the canvas
+	 * jumps back to the stored shape until the refresh lands.
+	 */
+	it('leaves a preview it did not draw when a selection is chosen', () => {
 		const store = useAssetDesignStore();
-		store.setPreview(toiletShape());
-		expect(store.preview).not.toBeNull();
+		const drawn = toiletShape();
+		store.setPreview(drawn);
 		store.select(null);
-		expect(store.preview).toBeNull();
+		expect(store.preview).toBe(drawn);
 	});
 
 	it('keeps a selection whose part the next read still has', async () => {

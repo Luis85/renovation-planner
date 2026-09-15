@@ -1,0 +1,39 @@
+/*
+ * The asset designer at a sidebar leaf's width (selection polish critique, finding 6). Below 35rem —
+ * about 560px at Obsidian's 16px root — the inspector keeping its 14rem left the canvas about 236px wide
+ * at a 460px leaf, with the selected part a small figure under its handles. There the inspector stacks
+ * UNDER the canvas. No drawer: that is the plan editor's constrained answer (`editor-layout.css`), and a
+ * second mechanism this surface does not need.
+ *
+ * **The canvas keeps a MEASURED height, and the split is why.** Both regions take a zero flex basis, so
+ * their heights are fixed shares of `.rp-designer-body` — three to two — whatever the inspector holds. A
+ * content-sized inspector would take the whole column once a detail is selected, and `EditorSurface`'s
+ * resize observer would then measure a canvas of nothing. The inspector already scrolls (`designer.css`),
+ * now inside its share.
+ *
+ * The container is the Vue root, the nearest element spanning the leaf that is not inside the body it
+ * rearranges; `inline-size` only, so the height chain `designer.css` calls load-bearing is untouched.
+ * Every override names `.renovation-asset-designer` too, so it outranks `designer.css`'s single-class rules
+ * without depending on which partial `styles/index.css` imports last. Obsidian variables only (SDD §84).
+ */
+.renovation-asset-designer {
+	container-type: inline-size;
+	container-name: rp-designer;
+}
+
+@container rp-designer (width < 35rem) {
+	.renovation-asset-designer .rp-designer-body {
+		flex-direction: column;
+	}
+
+	.renovation-asset-designer .rp-designer-canvas {
+		flex: 3 1 0;
+	}
+
+	.renovation-asset-designer .rp-designer-inspector {
+		flex: 2 1 0;
+		width: auto;
+		border-left: none;
+		border-top: 1px solid var(--background-modifier-border);
+	}
+}

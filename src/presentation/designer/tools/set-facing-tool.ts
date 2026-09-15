@@ -2,6 +2,7 @@ import type { AppError } from '../../../core/errors/AppError';
 import type { Point } from '../../../core/geometry/Point';
 import { distance } from '../../../core/geometry/operations';
 import { assetError } from '../../../domain/asset/Asset.errors';
+import { CLICK_EPSILON_PX } from '../../editor/handleMetrics';
 import type { EditorContext } from '../../editor/tools/editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from '../../editor/tools/editor-tool';
 import type { UndoableCommand } from '../../editor/tools/undoable-command';
@@ -29,21 +30,6 @@ export interface SetFacingToolDeps {
 	 */
 	readonly reportInvalidInput: (error: AppError) => void;
 }
-
-/**
- * How far the pointer must travel, in SCREEN pixels, before a drag names a direction.
- *
- * The same number and the same reason as `SelectTool`'s `CLICK_EPSILON_PX`: ordinary hand
- * jitter during a click is a real displacement, and a world-fixed threshold is half a pixel at
- * one zoom and eighty millimetres at another. Measured through the CURRENT camera on every
- * release, so the gesture behaves the same however far the user has zoomed.
- *
- * What it buys HERE is different from what it buys there, which is why it is not merely
- * copied: a near-zero move gives `Math.atan2(0, 0)` a perfectly finite answer of `0` — due
- * east — a direction the user never indicated, dispatched as a real facing with a real
- * revision behind it. This threshold is the only thing between a stray click and that.
- */
-const DIRECTION_EPSILON_PX = 4;
 
 /**
  * The facing tool (design slice B5, PRD §88): drag from anywhere on the canvas in the
@@ -95,14 +81,11 @@ export class SetFacingTool implements EditorTool {
 
 	activate(context: EditorContext): void {
 		this.context = context;
-		this.origin = null;
-		this.clearPreview(context);
+		this.cancel();
 	}
 
 	deactivate(): void {
-		const context = this.context;
-		this.origin = null;
-		if (context !== null) this.clearPreview(context);
+		this.cancel();
 		this.context = null;
 	}
 
@@ -126,12 +109,14 @@ export class SetFacingTool implements EditorTool {
 		const origin = this.origin;
 		if (context === null || origin === null || event.button !== 'primary') return;
 		this.origin = null;
-		this.clearPreview(context);
+		context.renderState.measurement = null;
 		const head = this.headPoint(context, origin, event);
-		// Measured in SCREEN pixels through the camera as it stands right now — see
-		// `DIRECTION_EPSILON_PX`. The comparison is made in world units because that is what
-		// both points are in; the threshold is what crosses the camera, not the points.
-		if (distance(origin, head) < DIRECTION_EPSILON_PX * context.viewport.worldPerScreenPixel()) {
+		// Measured in SCREEN pixels through the camera as it stands right now, using `SelectTool`'s
+		// own `CLICK_EPSILON_PX`. The comparison is made in world units because that is what both
+		// points are in; the threshold is what crosses the camera, not the points. A zero-length
+		// drag would otherwise give `Math.atan2(0, 0)` a perfectly finite answer of `0` — due east
+		// — a direction the user never indicated.
+		if (distance(origin, head) < CLICK_EPSILON_PX * context.viewport.worldPerScreenPixel()) {
 			// Pre-dispatch: nothing was built, so no indicator is carrying this and the notice
 			// door is the only place it can be said. Silence here is what a first draft did,
 			// and it leaves a user clicking at a canvas that answers nothing.
@@ -146,7 +131,7 @@ export class SetFacingTool implements EditorTool {
 	cancel(): void {
 		const context = this.context;
 		this.origin = null;
-		if (context !== null) this.clearPreview(context); // no command dispatched
+		if (context !== null) context.renderState.measurement = null; // no command dispatched
 	}
 
 	/**
@@ -188,10 +173,6 @@ export class SetFacingTool implements EditorTool {
 		// A whole new object each time rather than a mutation: the field is read through a
 		// `reactive()` proxy, and one assignment is one re-render of the layer that draws it.
 		context.renderState.measurement = { start, end };
-	}
-
-	private clearPreview(context: EditorContext): void {
-		context.renderState.measurement = null;
 	}
 
 	/**

@@ -3,7 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
-import struct
+from PIL import Image
 from urllib.parse import unquote, urlsplit
 
 
@@ -21,11 +21,11 @@ def main():
         errors.append('Manifest top-level keys differ from schema')
     if manifest.get('schemaVersion') != 1 or manifest.get('maxConcurrentCodingTasks') != 3:
         errors.append('Unexpected schema version or concurrency limit')
-    schema_result = 'not run: optional jsonschema module unavailable'
+    schema_result = 'not run: jsonschema module unavailable'
     try:
         import jsonschema
     except ImportError:
-        pass
+        errors.append('Install jsonschema in the isolated validation environment')
     else:
         try:
             jsonschema.Draft202012Validator.check_schema(schema)
@@ -88,15 +88,27 @@ def main():
             if not target.exists():
                 errors.append(f'{doc.relative_to(ROOT)}: missing link {raw}')
     images = []
-    for path in sorted((PACKAGE / 'evidence').glob('*.png')):
+    for path in sorted(p for p in (PACKAGE / 'evidence').iterdir() if p.suffix.lower() in {'.png', '.jpg', '.jpeg'}):
         data = path.read_bytes()
-        if data[:8] != b'\x89PNG\r\n\x1a\n' or len(data) < 24:
-            errors.append(f'Invalid PNG header: {path.name}')
+        try:
+            with Image.open(path) as image:
+                width, height = image.size
+                expected = 'PNG' if path.suffix.lower() == '.png' else 'JPEG'
+                if image.format != expected:
+                    errors.append(f'Image format/extension mismatch: {path.name}')
+                image.verify()
+        except (OSError, ValueError) as exc:
+            errors.append(f'Invalid image: {path.name}: {exc}')
             continue
-        width, height = struct.unpack('>II', data[16:24])
         images.append({'path': str(path.relative_to(PACKAGE)).replace('\\', '/'), 'width': width, 'height': height, 'sha256': hashlib.sha256(data).hexdigest()})
     if len(images) < 10:
-        errors.append('Expected five current-run and five user-reference PNGs')
+        errors.append('Expected five current-run and five user-reference images')
+    ledger = HERE / 'evidence-hashes.json'
+    if ledger.exists():
+        expected_hashes = json.loads(ledger.read_text(encoding='utf-8'))
+        actual_hashes = {image['path']: image['sha256'] for image in images}
+        if actual_hashes != expected_hashes:
+            errors.append('Evidence image hashes differ from committed ledger')
     print(json.dumps({'structuralChecks': 'failed' if errors else 'passed', 'jsonSchema': schema_result, 'packetCount': len(packets), 'pathsChecked': len(paths), 'localLinksChecked': links, 'images': images, 'errors': errors}, indent=2))
     return 1 if errors else 0
 

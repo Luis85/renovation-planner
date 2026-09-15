@@ -1,6 +1,6 @@
 # Session and delivery contract
 
-The parent owns stack placement, coding admission and verification. Current instruction: **no dispatch and no npm/Node/build/test/preview while wall verification owns the machine**. Static research, documents and Git publication may continue. JSON/link validation waits for release.
+The parent owns stack placement, coding admission and verification. The parent released the prior wall lease on 2026-09-15 and authorized autonomous completion. This task now owns the exclusive heavy lease. Validate/open the plan PR above #214 and wait for green CI before dispatch; then admit packets in dependency order.
 
 | Owner | Task ID / branch | Reservation |
 |---|---|---|
@@ -9,7 +9,7 @@ The parent owns stack placement, coding admission and verification. Current inst
 | Color | `01a0a060-b9d8-70c2-892f-ce30ba026b08` / `codex/usability-astra-item-colors` | Item/asset color, palette, persistence, menus/Inspector, styles/locales. |
 | Plan | `01a0a064-04e7-7252-becf-c54cdc07819d` / `codex/remplanner-adoption-plan` | This package; zero new coding workers. |
 
-Wall's 2026-09-14 message explicitly left compact opening UI to follow-up and identified the action-level Renovate gap. This confirms the gap but does not release shared files. Parent separately forbids dispatch until later instruction. Broad manifest prefixes are conservative locks, not permission to modify everything inside. Exact packet paths are future allowlists after release. New helper paths need an ownership amendment. `targetedTests` are read/run regression targets; workers edit their new test files by default and obtain coordinator ownership before changing an existing test.
+Wall's 2026-09-14 message explicitly left compact opening UI to follow-up and identified the action-level Renovate gap. This confirms the gap but does not release shared files. The parent resume now authorizes dispatch after the validated plan PR is green. Broad manifest prefixes are conservative locks, not permission to modify everything inside. Exact packet paths are future allowlists after release. New helper paths need an ownership amendment. `targetedTests` are read/run regression targets; workers edit their new test files by default and obtain coordinator ownership before changing an existing test.
 
 ## Launch and supervise
 

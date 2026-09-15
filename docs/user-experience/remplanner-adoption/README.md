@@ -14,9 +14,9 @@ The useful next increment is small: make existing drawing routes easier to learn
 
 ## Current disposition
 
-No new coding task is dispatched. Two coding reservations are active: wall/opening work and item colors. Although one numerical slot remains, every useful immediate packet needs reserved locales, shared editor UI or final opening behavior. A speculative test-only worker would test an unsettled contract and is not justified. Queue the wave until the parent coordinator supplies the final wall-to-color stacked tip and releases ownership. The manifest is the authoritative snapshot for this package; parent task `01a09aba-b390-7650-a5d0-8d62f3066d29` owns the actual stack and program-wide leases.
+The coordinator resumed autonomous delivery on 2026-09-15. Final color tip `b5c4ccda08d98e0e966941250de90544948d2e62` (#214) was merged normally into this branch; it includes wall #212, independent A/B #213 and current `origin/main` at `9ef6070302cdd92a867668236a434c02d613f2fb`. No lower branch or main was changed. R00 reconciliation is complete; coding dispatch waits for this planning PR's green CI, then runs R01 → R02 → R03 → R04. The [manifest](parallel-delivery/dispatch.json) records live task/base/lease state.
 
-This planning branch is `codex/remplanner-adoption-plan`. Push it without a PR until the coordinator supplies its strict-stack parent. Never merge to main, change lower PR bases, or rewrite another task's branch. Explicit assigned-worktree instructions take precedence over the generic `.worktrees/` convention; this task uses the clean assigned `D:/codex-worktrees/1638/renovation-planner` checkout.
+This branch's PR is based directly on `codex/usability-astra-item-colors`. Future PRs remain a strict chain. R04 includes final Astra/high UI fidelity, code review/improvement, top-only main refresh/merge polish and real Obsidian-vault review where native computer access is available. No merges to main. R05 remains a separately selected later study.
 
 ## Binding product constraints
 

@@ -1,0 +1,70 @@
+{
+  "structuralChecks": "passed",
+  "jsonSchema": "passed",
+  "packetCount": 6,
+  "pathsChecked": 66,
+  "localLinksChecked": 41,
+  "images": [
+    {
+      "path": "evidence/01-official-guide.jpg",
+      "width": 1265,
+      "height": 712,
+      "sha256": "314928d70a9fd1a38511568e608db08bde21dd0f3d8a31c09b4d17ddc95c9f8e"
+    },
+    {
+      "path": "evidence/02-official-faq-thickness.jpg",
+      "width": 1265,
+      "height": 712,
+      "sha256": "86c5d05b6a41b29276383b47513f9b22f49375e88aebeb2fefdff14823b37dfa"
+    },
+    {
+      "path": "evidence/03-official-print.jpg",
+      "width": 1265,
+      "height": 712,
+      "sha256": "82e3f3c1fa4f71538b8507e3eb97c73539586d4af40ec43b595a9747684b8484"
+    },
+    {
+      "path": "evidence/04-anonymous-planner.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "04469d9e06d44d3bc48553dfd46f7347e0ffdb554f15717891fb9afb95bedbc6"
+    },
+    {
+      "path": "evidence/05-shortcuts.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "933ad2e946210ffeeff56c0d6953f84d3a80df25ca8cfd4bbf8a364f66340b2d"
+    },
+    {
+      "path": "evidence/user-item-color.png",
+      "width": 402,
+      "height": 386,
+      "sha256": "8fdadcfcf98d10653700301f7e6824e6a9deabee0e6efd6ca4b6bd72df4d99b5"
+    },
+    {
+      "path": "evidence/user-opening-handles.png",
+      "width": 908,
+      "height": 784,
+      "sha256": "302c6adcf93c847a6b2201e597e78b077073a5f865f8cabbed2d99675135cd00"
+    },
+    {
+      "path": "evidence/user-wall-drawing.png",
+      "width": 1082,
+      "height": 578,
+      "sha256": "af17659e8d998fd62d6ec96586cf0e96b2c185f92cd97dfc09a9c0be095caecd"
+    },
+    {
+      "path": "evidence/user-wall-menu.png",
+      "width": 1030,
+      "height": 502,
+      "sha256": "4d6a91054f7b7aff87a849de3e182c83ad3f006a00073d2423cfafaea8596560"
+    },
+    {
+      "path": "evidence/user-wall-thickness.png",
+      "width": 1040,
+      "height": 492,
+      "sha256": "7725c29eb99e1a384282317e9060e6d5116b2ef999d7df9a01fc6f09a071af8b"
+    }
+  ],
+  "errors": []
+}

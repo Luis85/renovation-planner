@@ -1,6 +1,6 @@
 # Copy-ready packet prompts
 
-Prefix each packet with the common envelope. Fill angle-bracket fields from R00's admitted state; **never launch unresolved fields**. Set the app model/reasoning explicitly. Current status: no task creation permitted.
+Prefix each packet with the common envelope. Fill angle-bracket fields from R00's admitted state; **never launch unresolved fields**. Set the app model/reasoning explicitly. Current status: task creation is authorized after the plan PR is green and R00 has filled immutable dependencies.
 
 ## Common envelope
 
@@ -39,7 +39,7 @@ Implement Selection measurements in View, default on, for passive selected Room/
 ## R04 — gpt-6-astra/high — codex/remplanner-r04
 
 ```text
-Review completed R01–R03 strict chain and wall/color integration. Confirm receipts and fix concrete defects through owning branches. Acquire one heavy lease, run npm run check unchanged, then validation matrix in real harness and Obsidian where available. Use Impeccable detector, one batched visual inspection and at most one confirmation pass. Record source identities, captures/hashes, persistence/recovery and keyboard evidence; native/AT/human checks remain unperformed if unavailable and I18 unsupported. Update docs/manifest/receipt, push and coordinate PR placement; never merge.
+Review completed R01–R03 strict chain and wall/color integration. Confirm receipts and fix concrete defects through owning branches. Acquire one heavy lease, run npm run check unchanged, then explicit UI fidelity, code review/improvement, top-only current-main refresh/merge-polish and real Obsidian-vault computer-use review/polish phases from R04. Run the validation matrix in real harness and Obsidian where available. Use Impeccable detector, one batched visual inspection and at most one confirmation pass. Record source identities, captures/hashes, persistence/recovery and keyboard evidence; native/AT/human checks remain unperformed if unavailable and I18 unsupported. Update docs/manifest/receipt, push and coordinate PR placement; never merge.
 ```
 
 ## R05 — gpt-6-astra/high — codex/remplanner-r05

@@ -1,31 +1,31 @@
 {
   "schemaVersion": 1,
-  "updated": "2026-09-14",
+  "updated": "2026-09-15",
   "coordinatorThreadId": "01a09aba-b390-7650-a5d0-8d62f3066d29",
   "planningThreadId": "01a0a064-04e7-7252-becf-c54cdc07819d",
   "planningBranch": "codex/remplanner-adoption-plan",
   "baselineSha": "836399775e91ccf05e44959b6bea9960605defbb",
   "baselinePr": 209,
   "integrationBranch": "main",
-  "finalStackTip": null,
+  "finalStackTip": "b5c4ccda08d98e0e966941250de90544948d2e62",
   "planningPr": null,
   "dispatchAllowed": false,
-  "dispatchBlocker": "Parent instruction: no coding dispatch; wall verification owns machine. Validate JSON/links only after lease release.",
+  "dispatchBlocker": "Await adoption-plan PR green CI, then dispatch in dependency order.",
   "maxConcurrentCodingTasks": 3,
-  "verificationOwner": "01a0a05e-1ed9-7541-969c-4d71e6ee7cee",
-  "machineLease": "wall-exclusive",
+  "verificationOwner": "01a0a064-04e7-7252-becf-c54cdc07819d",
+  "machineLease": "adoption-coordinator-exclusive",
   "reservedTasks": [
     {
       "threadId": "01a0a05e-1ed9-7541-969c-4d71e6ee7cee",
       "branch": "codex/usability-astra-wall-tool-polish",
-      "status": "active",
-      "scope": "Wall drawing/thickness, structure command admission/cancellation, shared opening seams; opening inventory completed, direct opening UI explicitly deferred to follow-up."
+      "status": "delivered",
+      "scope": "Delivered #212 and #213: wall drawing/thickness, independent A/B depths, initial-write admission and opening host/frame clipping. Opening direct controls remain R01."
     },
     {
       "threadId": "01a0a060-b9d8-70c2-892f-ce30ba026b08",
       "branch": "codex/usability-astra-item-colors",
-      "status": "active",
-      "scope": "Plain Item and asset appearance, palette, persistence/schema, menu and Inspector actions."
+      "status": "delivered",
+      "scope": "Delivered #214 at b5c4ccda: single Item/asset color via schema 14; default plus six presets, shared menu/Inspector command."
     }
   ],
   "reservedPathPrefixes": [
@@ -50,11 +50,11 @@
       "kind": "coordination",
       "model": "gpt-6-astra",
       "reasoning": "high",
-      "status": "queued",
+      "status": "accepted",
       "dependsOn": [],
-      "baseSha": null,
-      "branch": "codex/remplanner-r00",
-      "threadId": null,
+      "baseSha": "b5c4ccda08d98e0e966941250de90544948d2e62",
+      "branch": "codex/remplanner-adoption-plan",
+      "threadId": "01a0a064-04e7-7252-becf-c54cdc07819d",
       "ownedExistingPaths": [
         "docs/user-experience/remplanner-adoption/parallel-delivery/dispatch.json",
         "docs/user-experience/remplanner-adoption/implementation-plan.md",
@@ -64,10 +64,7 @@
         "docs/user-experience/remplanner-adoption/parallel-delivery/receipts/R00.md"
       ],
       "targetedTests": [],
-      "blockers": [
-        "final-wall-color-tip",
-        "ownership-release"
-      ]
+      "blockers": []
     },
     {
       "id": "R01",
@@ -94,7 +91,13 @@
         "src/presentation/editor/structure/OpeningDetails.vue",
         "src/presentation/i18n/locales/en/structure.ts",
         "src/presentation/i18n/locales/de/structure.ts",
-        "styles/index.css"
+        "styles/index.css",
+        "src/presentation/editor/selection/CanvasContextMenu.vue",
+        "src/presentation/editor/selection/CanvasMenuList.vue",
+        "src/presentation/editor/structure/StructureEditForm.vue",
+        "src/presentation/editor/tools/editor-tool.ts",
+        "src/presentation/editor/tools/registerEditorTools.ts",
+        "docs/using-plan-editor.md"
       ],
       "ownedNewPaths": [
         "src/presentation/editor/structure/openingDirectActions.ts",
@@ -110,12 +113,12 @@
         "tests/presentation/editor/openingFreshPersistence.test.ts",
         "tests/presentation/editor/structureActions.test.ts",
         "tests/presentation/editor/usability/i11-opening-details.test.ts",
-        "tests/presentation/editor/usability/i14-mode-input-guard.test.ts"
+        "tests/presentation/editor/usability/i14-mode-input-guard.test.ts",
+        "tests/presentation/editor/wallSideIntegration.test.ts",
+        "tests/presentation/editor/itemColors.test.ts"
       ],
       "blockers": [
-        "final-wall-color-tip",
-        "wall-opening-shared-seams",
-        "no-dispatch-machine-lease"
+        "adoption-plan-green-ci"
       ]
     },
     {
@@ -151,9 +154,7 @@
         "tests/presentation/editor/usability/i14-mode-input-guard.test.ts"
       ],
       "blockers": [
-        "final-wall-color-tip",
-        "shared-locales-styles",
-        "no-dispatch-machine-lease"
+        "predecessor-green-ci"
       ]
     },
     {
@@ -194,14 +195,12 @@
         "tests/presentation/editor/shell/editorViewMenuPopOut.test.ts"
       ],
       "blockers": [
-        "final-wall-color-tip",
-        "wall-label-final-contract",
-        "no-dispatch-machine-lease"
+        "predecessor-green-ci"
       ]
     },
     {
       "id": "R04",
-      "title": "Integrate and verify adoption wave",
+      "title": "Astra integration, UI fidelity, code, main-refresh and native review",
       "kind": "integration",
       "model": "gpt-6-astra",
       "reasoning": "high",
@@ -224,8 +223,7 @@
       "targetedTests": [],
       "blockers": [
         "all-coding-receipts",
-        "full-verification-lease",
-        "native-human-evidence"
+        "exclusive-heavy-lease"
       ]
     },
     {

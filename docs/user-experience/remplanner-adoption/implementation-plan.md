@@ -2,7 +2,7 @@
 
 ## Admission and ordering
 
-All new coding packets are queued. The planning baseline is a known SHA, not an implementation dependency waiver. The coordinator must supply an immutable final wall→color stacked tip, inspect both receipts and confirm released files. R00 reconciles this package against that tip. Strict sequence: wall/color → planning branch placement → R00 → R01 → R02 → R03 → R04. R05 is a later contract study, not required for this wave. R01 and R03 share editor/runtime/locale seams; R02 and R03 share View. Serial delivery is intentional even if slots are available.
+R00 reconciled final color tip `b5c4ccda08d98e0e966941250de90544948d2e62`, including #212/#213/#214 and current main `9ef6070302cdd92a867668236a434c02d613f2fb`. Coding packets are queued only until the planning PR is green; each later launch uses its green predecessor's immutable SHA. Lower ownership is released by the parent resume. Strict sequence: wall/color → planning branch placement → R00 → R01 → R02 → R03 → R04. R05 is a later contract study, not required for this wave. R01 and R03 share editor/runtime/locale seams; R02 and R03 share View. Serial delivery is intentional even if slots are available.
 
 Use the [manifest](parallel-delivery/dispatch.json) for exact existing/new paths and targeted tests. Those paths were checked against baseline; every launch repeats existence/ownership checks after stacking. A file outside the allowlist needs coordinator reassignment before editing. Each packet owns its own receipt and supporting evidence.
 
@@ -19,7 +19,7 @@ Assignments are complexity judgments, not measured model-performance claims. Eve
 
 ## R00 — reconcile and admit
 
-Read final wall/color receipts; verify ancestry, changed-file sets, schema version and command admission changes. Wall owner's 2026-09-14 message explicitly leaves compact opening UI to a follow-up; it adds optional initial-write admission to `StructureCommand`. Color expects schema 13, but use its final receipt, never this expectation as a migration authority.
+Read final wall/color receipts; verify ancestry, changed-file sets, schema version and command admission changes. Wall owner's 2026-09-14 message explicitly leaves compact opening UI to a follow-up; it adds optional initial-write admission to `StructureCommand`. Delivered wall A/B uses schema 13; delivered item/asset colors use schema 14. See [wall receipt](../editor-usability-increment/parallel-delivery/receipts/ASTRA-WALL-SIDES.md) and [color contract](../../development/item-colors.md). Preserve both on every opening write.
 
 Update package state, resolve shared-file ownership, replace null dependency SHA only with the coordinator-supplied integrated commit, and record changed contracts. Confirm all related open PRs still form one chain. Revalidate R01's gap; remove any work already completed upstream. No production change unless a separately recorded integration conflict requires it. Acceptance: one explicit parent SHA per launch, zero unresolved ownership intersections, known verification lease, and copy-ready prompts containing real SHAs. I18 stays open.
 
@@ -47,7 +47,7 @@ Do not implement endpoint drag resizing in this packet. It would need a separate
 - Focus follows a logical DOM order and returns to the invoking control, or its surviving Inspector/menu equivalent, after close. Selection alone reveals the applicable actions; hover is not required. Keep overlays inside the leaf and clear of the edited opening, active fields and taskbar. At narrow widths or zoom, reposition or collect buttons into the compact menu without reducing action coverage or 44px targets. Verify parity and focus restoration across responsive changes.
 - EN/DE and both themes; validate door, window, straight/curved host, near-end refusal and existing host rotation. I18 remains a separate unresolved criterion.
 
-No geometry schema migration is intended. If final upstream APIs cannot express this interaction, stop the dependent implementation and report the concrete conflict; do not invent a sidecar field. Focused tests are in the manifest plus a new `remplanner-opening-direct.test.ts`. R04 owns full gate/native acceptance.
+Preserve `Wall.sideExtents`, legacy resolution through `wallSideExtents`, host-face reach and the clipped opening masks/frame polylines introduced by #213. `openingSymbol` accepts optional fourth `clips`; door leaf/swing remains untrimmed. Do not revert these seams to symmetric geometry. No geometry schema migration is intended. If final upstream APIs cannot express this interaction, stop the dependent implementation and report the concrete conflict; do not invent a sidecar field. Focused tests are in the manifest plus a new `remplanner-opening-direct.test.ts`. R04 owns full gate/native acceptance.
 
 ## R02 — keyboard and drawing help
 
@@ -72,6 +72,10 @@ Render policy must distinguish passive selection from an active dimension/curve/
 ## R04 — integrate, validate and polish
 
 Read every receipt and diff, run focused regressions after stacking, then acquire the full lease and run `npm run check` once on the combined source. Keep thresholds unchanged. Fix concrete findings in the responsible existing packet branch where safe; push before marking addressed. Coordinate strict-chain PR creation with the parent. Run the [validation matrix](validation-plan.md), Impeccable detector because UI has now changed, one batched visual inspection and at most one confirmation pass after fixes. Record native/AT/human checks as unperformed if unavailable. No release-ready or AA claim while I18/native/human criteria remain unresolved.
+
+### Required final Astra review phases
+
+R04 performs and records four explicit phases on the combined tip: (1) UI fidelity to the approved task-button/compact-menu reference in EN/DE/themes/narrow leaves; (2) code review and focused improvements to commands, cancellation, persistence and tests; (3) fetch current main and, only if absent, merge it normally at the top, fix conflicts and rerun affected/full verification; (4) computer-use review/polish in a designated disposable real Obsidian vault, followed by relevant regression confirmation. Use GPT-6 Astra/high. One exclusive local heavy-verification lease spans these phases. Create a stacked R04 PR and await green CI; report unavailable native/AT access as an external limitation, never as passed. Do not merge any PR to main.
 
 ## R05 — later print/handoff contract
 

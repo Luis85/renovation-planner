@@ -2,7 +2,7 @@
 type: Issue
 parent: "[[Errors, diagnostics and the test harness]]"
 order: 130
-status: New
+status: Done
 started: ""
 finished: ""
 horizon: Next

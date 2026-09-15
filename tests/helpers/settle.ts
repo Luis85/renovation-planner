@@ -91,6 +91,8 @@ export async function settleUntil(
 	condition: () => boolean | Promise<boolean>,
 	what: string,
 ): Promise<void> {
+	const startedAt = Date.now();
+	let rounds = 0;
 	// The predicate may be ASYNC: the slice-8 e2e rig waits on vault reads, and it grew its
 	// own second copy of this loop — with a different budget and different failure
 	// text — because the signature did not allow one. A flake fixed by raising the budget
@@ -102,8 +104,9 @@ export async function settleUntil(
 		// re-check the round-bounded version made after its loop.
 		if (await condition()) return;
 		if (Date.now() >= deadline) {
-			throw new Error(`Timed out after ${SETTLE_BUDGET_MS}ms waiting for: ${what}`);
+			throw new Error(`Timed out after ${rounds} settle rounds and ${Date.now() - startedAt}ms elapsed waiting for: ${what}`);
 		}
+		rounds += 1;
 		await settle();
 	}
 }

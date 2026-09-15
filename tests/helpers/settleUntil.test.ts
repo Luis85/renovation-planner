@@ -59,7 +59,7 @@ describe('settleUntil', () => {
 			.mockReturnValue(start + 4_000);
 
 		await expect(settleUntil(() => false, 'something that never happens')).rejects.toThrow(
-			/Timed out after \d+ms waiting for: something that never happens/,
+			/Timed out after \d+ settle rounds and \d+ms elapsed waiting for: something that never happens/,
 		);
 	});
 

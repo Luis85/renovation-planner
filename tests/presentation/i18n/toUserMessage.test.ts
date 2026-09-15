@@ -93,6 +93,8 @@ function perKindSuffixes(): ReadonlySet<string> {
 const APPLICATION_CODE_PATTERN =
 	/(?:code:\s*|referenceError\(\s*|calculationError\(\s*|persistenceError\(\s*)'([a-z][a-z-]*(?:\.[a-z][a-z-]*)+)'/gu;
 
+const DOMAIN_FACTORY_PATTERN = /(?:planError|assetError)\(\s*'([a-z][a-z-]*)'/gu;
+
 function applicationMintedCodes(): ReadonlySet<string> {
 	const found = new Set<string>();
 	const walk = (dir: string): void => {
@@ -102,6 +104,20 @@ function applicationMintedCodes(): ReadonlySet<string> {
 			else if (entry.name.endsWith('.ts'))
 				for (const match of readFileSync(full, 'utf8').matchAll(APPLICATION_CODE_PATTERN))
 					found.add(match[1]);
+		}
+	};
+	walk(join('src', 'application'));
+	return found;
+}
+
+function applicationReachableDomainCodes(): ReadonlySet<string> {
+	const found = new Set<string>();
+	const walk = (dir: string): void => {
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			const full = join(dir, entry.name);
+			if (entry.isDirectory()) walk(full);
+			else if (entry.name.endsWith('.ts'))
+				for (const match of readFileSync(full, 'utf8').matchAll(DOMAIN_FACTORY_PATTERN)) found.add(match[1]);
 		}
 	};
 	walk(join('src', 'application'));
@@ -255,6 +271,15 @@ describe('toUserMessage', () => {
 			const refusal = error({ category: 'Persistence', code });
 			expect(toUserMessage('en', refusal)).not.toBe(t('en', 'error.category.persistence'));
 			expect(toUserMessage('de', refusal)).not.toBe(t('de', 'error.category.persistence'));
+		}
+	});
+
+	it('resolves application-reachable domain factory codes too', () => {
+		const codes = applicationReachableDomainCodes();
+		expect(codes).toContain('nothing-to-undo');
+		for (const suffix of codes) {
+			const refusal = error({ category: 'Validation', code: `plan.${suffix}` });
+			expect(toUserMessage('en', refusal)).not.toBe(t('en', 'error.category.validation'));
 		}
 	});
 

@@ -7,9 +7,10 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV14 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV15 } from '../../persistence/dto/planGeometry';
 import { hasIndependentWallSides, withWallSideDefaults } from './wallSidePersistence';
 import { draftingKind } from '../../../domain/spatial/SpatialElement';
+import { isItemColorPreset } from '../../../domain/spatial/ItemColor';
 import { validateSpatialGroups } from '../../../domain/spatial/SpatialGroup';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
@@ -51,13 +52,17 @@ function hasDraftingElement(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>
 	return [dto.structure, dto.intended].some(structure => structure?.elements?.some(element => draftingKind(element.kind)) === true);
 }
 
-/** Explicit user content requires a reader that understands placement colors. */
-function hasItemColor(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): boolean {
-	return [dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.color !== undefined));
+/** Colours need a reader that understands them: 14 for presets on items and placements, 15 for a hex or any other family (plan colours design §1). */
+function colorSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended'>): 14 | 15 | null {
+	const structures = [dto.structure, dto.intended].filter((structure): structure is NonNullable<typeof structure> => structure !== undefined);
+	const elements = structures.flatMap(structure => structure.elements ?? []).filter(element => element.color !== undefined);
+	const others = [...dto.objects, ...structures.flatMap(structure => [...structure.walls, ...structure.openings])];
+	if (others.some(item => item.color !== undefined) || elements.some(element => !isItemColorPreset(element.color) || (element.kind !== 'object' && element.kind !== 'asset'))) return 15;
+	return elements.length ? 14 : null;
 }
 
 function writtenSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended' | 'groups'>): PlanGeometryDTO['schemaVersion'] {
-	if (hasItemColor(dto)) return 14;
+	const colored = colorSchema(dto); if (colored) return colored;
 	if (hasIndependentWallSides(dto)) return 13;
 	if (hasDraftingElement(dto)) return 12;
 	if (hasStructuralElement(dto)) return 11;
@@ -311,7 +316,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV14.safeParse(migrated);
+		const validated = PlanGeometrySchemaV15.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

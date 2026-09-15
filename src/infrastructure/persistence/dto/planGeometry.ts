@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ITEM_COLORS } from '../../../domain/spatial/ItemColor';
+import { isItemColor, type ItemColor, ITEM_COLORS } from '../../../domain/spatial/ItemColor';
 
 /**
  * The plan geometry sidecar (SDD §40, ADR-011), schema version 1. One file per plan,
@@ -90,7 +90,6 @@ const PlanGeometrySchemaV9 = PlanGeometrySchemaV8.extend({ schemaVersion: z.lite
 /** Schema 10: a dragged canvas caption, as a world-millimetre offset from its automatic anchor (ADR-0029). */
 const LabelOffsetSchema = z.object({ dx: z.number(), dy: z.number() });
 export const SpatialObjectGeometrySchemaV10 = SpatialObjectShapeV7.extend({ labelOffset: LabelOffsetSchema.optional() }).refine(oneBulgePerEdge, BULGE_MESSAGE);
-export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV10>;
 const SpatialElementSchemaV10 = SpatialElementShapeV9.extend({ labelOffset: LabelOffsetSchema.optional() }).refine(stairRule).refine(assetRule, ASSET_MESSAGE);
 const StructureSchemaV10 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV10).optional() });
 const PlanGeometrySchemaV10 = PlanGeometrySchemaV9.extend({ schemaVersion: z.literal(10), objects: z.array(SpatialObjectGeometrySchemaV10), structure: StructureSchemaV10.optional(), intended: StructureSchemaV10.optional() });
@@ -129,5 +128,21 @@ const SpatialElementSchemaV14 = SpatialElementShapeV12.extend({ color: z.enum(IT
 	.refine(element => element.color === undefined || element.kind === 'object' || element.kind === 'asset', { message: 'Only an item or asset placement can carry a color.' });
 const StructureSchemaV14 = StructureSchemaV13.extend({ elements: z.array(SpatialElementSchemaV14).optional() });
 export const PlanGeometrySchemaV14 = PlanGeometrySchemaV13.extend({ schemaVersion: z.literal(14), structure: StructureSchemaV14.optional(), intended: StructureSchemaV14.optional() });
-export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9, PlanGeometrySchemaV10, PlanGeometrySchemaV11, PlanGeometrySchemaV12, PlanGeometrySchemaV13, PlanGeometrySchemaV14]);
-export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV14>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 };
+/** Schema 15: a preset or a lowercase `#rrggbb` on every element kind, wall, opening and room entry (plan colours design §1). */
+const ItemColorSchema = z.custom<ItemColor>(isItemColor, { message: 'A color is a preset id or a lowercase #rrggbb.' });
+const SpatialElementSchemaV15 = SpatialElementShapeV12.extend({ color: ItemColorSchema.optional() })
+	.refine(stairRule).refine(assetRule, ASSET_MESSAGE).refine(structuralRule, STRUCTURAL_MESSAGE).refine(draftingRule, DRAFTING_MESSAGE);
+const WallSchemaV15 = StructureSchemaV7.shape.walls.element.extend({ sideExtents: WallSidesSchema.optional(), color: ItemColorSchema.optional() })
+	.refine(wall => wall.sideExtents !== undefined, { message: 'A schema-13 wall needs both face extents.' });
+const OpeningSchemaV15 = StructureSchemaV5.shape.openings.element.extend({ color: ItemColorSchema.optional() });
+const StructureSchemaV15 = StructureSchemaV14.extend({ walls: z.array(WallSchemaV15), openings: z.array(OpeningSchemaV15), elements: z.array(SpatialElementSchemaV15).optional() });
+// zoneMapper.ts, digest.ts and ObsidianZoneRepository.ts still parse a room entry against
+// SpatialObjectGeometrySchemaV10; a later task in this increment moves them onto this one so a
+// room's colour round-trips. Suppressed rather than deleted: deleting it is how a declared
+// capability rots.
+// fallow-ignore-next-line unused-export
+export const SpatialObjectGeometrySchemaV15 = SpatialObjectShapeV7.extend({ labelOffset: LabelOffsetSchema.optional(), color: ItemColorSchema.optional() }).refine(oneBulgePerEdge, BULGE_MESSAGE);
+export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV15>;
+export const PlanGeometrySchemaV15 = PlanGeometrySchemaV14.extend({ schemaVersion: z.literal(15), objects: z.array(SpatialObjectGeometrySchemaV15), structure: StructureSchemaV15.optional(), intended: StructureSchemaV15.optional() });
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9, PlanGeometrySchemaV10, PlanGeometrySchemaV11, PlanGeometrySchemaV12, PlanGeometrySchemaV13, PlanGeometrySchemaV14, PlanGeometrySchemaV15]);
+export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV15>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 };

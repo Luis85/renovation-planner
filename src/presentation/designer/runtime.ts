@@ -16,14 +16,15 @@ import type { ToolId } from '../editor/tools/editor-tool';
 import { RenderState } from '../editor/tools/render-state';
 import { ToolManager } from '../editor/tools/tool-manager';
 import { createToolSwitch } from '../editor/tools/tool-switch';
-import { EDITOR_SNAP_SERVICE } from '../editor/snapping/editorSnapping';
+import { createEditorSnapService } from '../editor/snapping/editorSnapping';
 import { editorViewportAdapter } from '../editor/viewport/editorViewportAdapter';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { knownDistanceSupplier } from '../editor/shell/knownDistance';
 import { registerDesignerTools, type DesignerToolDeps } from './tools/registerDesignerTools';
 import type { DesignerSelectToolDeps } from './tools/designer-select-tool';
-import { designerSnapCandidates } from './selection/snapCandidates';
+import { useWorkspaceStore } from '../stores/WorkspaceStore';
+import { designerCandidateSupply } from './grid/designerGrid';
 import { createEditShape, createWriteChain, type EditShape } from './selection/editShape';
 import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-state-refresh';
 import { wrapDispatcher } from '../editor/tools/wrap-dispatcher';
@@ -341,6 +342,12 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	// members. It closes over this leaf's live camera ref.
 	const viewportAdapter = editorViewportAdapter(editor);
 
+	/**
+	 * Per leaf, like the Plan Editor's: the View menu's Snap choice is this leaf's `EditorStore.snappingEnabled`,
+	 * read at every call. The grid is supplied to snapping only while this leaf's grid is SHOWN (snapping spec §2.4).
+	 */
+	const snapService = createEditorSnapService(() => editor.snappingEnabled), workspace = useWorkspaceStore();
+
 	const renderState = reactive(new RenderState());
 	/**
 	 * TWO ledgers, because an asset is two resources under one id — see `DesignWriteLedgers`.
@@ -372,10 +379,12 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		createEditorContext({
 			bindViewport: () => viewportAdapter,
 			selection,
-			snapService: EDITOR_SNAP_SERVICE,
-			// The footprint's and every detail's vertices and the anchor, minus the part being dragged
-			// (symbols spec, Decision 10). Read PER CALL, like `subject.calibration` below.
-			snapCandidates: (exclude) => designerSnapCandidates(store.design?.shape ?? null, exclude ?? []),
+			snapService,
+			// The footprint's and every detail's vertices, edges and alignments and the anchor, minus the
+			// part being dragged (snapping spec §2.2), and the grid while it is shown. `designerCandidateSupply`
+			// lives beside `designerGrid` (spec §4.3) — the closure it replaces pushed this function over its
+			// own line budget.
+			snapCandidates: designerCandidateSupply(() => store.design?.shape ?? null, () => workspace.gridVisible, () => viewportAdapter.worldPerScreenPixel()),
 			commandDispatcher: toolDispatcher,
 			writeLedger: geometryLedger,
 			renderState,

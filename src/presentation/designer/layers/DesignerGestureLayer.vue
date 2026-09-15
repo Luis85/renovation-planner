@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
  * The asset designer's transient layer: the outline being traced, the calibration tape being
- * measured, and a box or circle detail being dragged out, read from the leaf's `RenderState` and
- * drawn in SCREEN space over every world-space layer.
+ * measured, a box or circle detail being dragged out, and the guides a snapping gesture
+ * publishes, read from the leaf's `RenderState` and drawn in SCREEN space over every
+ * world-space layer.
  *
  * Every projection and the close-target rule come from `editor/layers/gestureGeometry.ts`,
  * and the drawing itself is `GestureSketch.vue` (finding E9) — the same component
@@ -22,6 +23,7 @@ import type { ThemeTokens } from '../../editor/theme/themeTokens';
 import type { RenderState } from '../../editor/tools/render-state';
 import { STAGE_PIXELS, worldToScreen } from '../../editor/viewport/Viewport';
 import GestureSketch from '../../editor/layers/GestureSketch.vue';
+import SnapGuides from '../../editor/layers/SnapGuides.vue';
 import { GESTURE_LAYER } from './backgroundLayer';
 
 const props = defineProps<{ renderState: RenderState; tokens: ThemeTokens }>();
@@ -61,6 +63,11 @@ const previewFlat = computed(
 				strokeScaleEnabled: false,
 				listening: false,
 			}"
+		/>
+		<SnapGuides
+			:guides="props.renderState.snapGuides"
+			:to-screen="toScreen"
+			:tokens="props.tokens"
 		/>
 	</VLayer>
 </template>

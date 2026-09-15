@@ -32,9 +32,9 @@
  *   designerToolUnits.test.ts` is where a move is load-bearing today.
  *
  * **The `SnapService` is the REAL one**, not a stand-in: this rig mounts the real designer,
- * which builds its context from `EDITOR_SNAP_SERVICE` — the same instance and the same 15
- * degree step the Plan Editor's tools take. A subclass would only be needed where a case has
- * to observe a snap call, and nothing here does; what matters is that the constraint a case
+ * which builds its context through `createEditorSnapService` — the same configuration and the
+ * same 15 degree step the Plan Editor's tools take. A subclass would only be needed where a case
+ * has to observe a snap call, and nothing here does; what matters is that the constraint a case
  * asserts is the one production applies.
  *
  * Geometry note: `DEFAULT_ZOOM` is 0.1 with a 48 px margin, so world = 10 × screen − 480 per

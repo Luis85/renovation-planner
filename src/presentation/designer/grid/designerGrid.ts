@@ -1,7 +1,8 @@
 import { boundingBoxOf } from '../../../core/geometry/operations';
 import { unwrap } from '../../../core/result/Result';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
-import type { SnapGrid } from '../../editor/snapping/snap-service';
+import type { SnapCandidates, SnapGrid } from '../../editor/snapping/snap-service';
+import { designerSnapCandidates } from '../selection/snapCandidates';
 
 /** The steps a designer grid takes, in millimetres. `MIN_ZOOM`'s 100 mm per pixel still finds 5000. */
 const STEPS_MM = [1, 5, 10, 50, 100, 500, 1000, 5000] as const;
@@ -18,4 +19,23 @@ const MIN_STEP_PX = 12;
 export function designerGrid(shape: AssetShape | null, worldPerPixel: number): SnapGrid {
 	const step = STEPS_MM.find((candidate) => candidate / worldPerPixel >= MIN_STEP_PX) ?? STEPS_MM[STEPS_MM.length - 1];
 	return { step, origin: shape === null ? { x: 0, y: 0 } : unwrap(boundingBoxOf(shape.footprint)).min };
+}
+
+/**
+ * The runtime's own `snapCandidates` seam (asset designer snapping spec §4.3): `designerSnapCandidates`
+ * over the design as it stands, plus the grid — only while `gridVisible` answers true. Moved out of
+ * `runtime.ts`'s `buildRuntime`, beside the step function it composes with, because that closure pushed
+ * `buildRuntime` past its own 100-line function budget; the spec's own §4.3 names this as the fallback
+ * rather than moving the budget. Every accessor is read PER CALL, like `designerGrid` itself.
+ */
+export function designerCandidateSupply(
+	design: () => AssetShape | null,
+	gridVisible: () => boolean,
+	worldPerScreenPixel: () => number,
+): (exclude?: Iterable<string>) => SnapCandidates {
+	return (exclude) => {
+		const shape = design();
+		const found = designerSnapCandidates(shape, exclude ?? []);
+		return gridVisible() ? { ...found, grid: designerGrid(shape, worldPerScreenPixel()) } : found;
+	};
 }

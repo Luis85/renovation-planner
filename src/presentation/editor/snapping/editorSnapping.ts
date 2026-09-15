@@ -11,8 +11,8 @@ import type { ToolId } from '../tools/editor-tool';
  * to what "constrained" means: two 15 degree steps that could drift into 15 and 22.5 with
  * nothing failing, because each surface's own tests would go on passing about its own number.
  *
- * The designer retains the shared config-only instance. Each Plan Editor uses the same
- * configuration with its own live automatic-snapping preference.
+ * Each surface composes its own instance through `createEditorSnapService`, over ONE configuration,
+ * with its own leaf's live automatic-snapping preference.
  */
 
 /** Room creation supplies existing zone boundaries, wall centre lines and opening endpoints,
@@ -27,7 +27,7 @@ const SNAP_TOLERANCE_MM = 8;
  * one that does — it subclasses the real `SnapService` and reads this constant rather than a
  * `Math.PI / 12` copied beside it, so a fake cannot be constrained differently from the thing
  * it stands for. (`tests/helpers/designerRig.ts` needs no such stand-in: it mounts the real
- * designer, which composes `EDITOR_SNAP_SERVICE` below.)
+ * designer, which composes its service through `createEditorSnapService` below.)
  *
  * 15 degrees, researched rather than invented: CAD polar tracking's step is configurable with
  * 15 among its presets, which is finer than Figma's and Illustrator's 45 and is the right
@@ -41,9 +41,7 @@ const EDITOR_SNAP_CONFIG = {
 	angleStepRadians: ANGLE_STEP_RADIANS,
 };
 
-export const EDITOR_SNAP_SERVICE = new SnapService(EDITOR_SNAP_CONFIG);
-
-/** The Plan Editor owns its preference per leaf; the designer retains its existing defaults. */
+/** One editing leaf's service: the shared configuration, and that leaf's own Snap choice. */
 export function createEditorSnapService(enabled: () => boolean): SnapService {
 	return new SnapService(EDITOR_SNAP_CONFIG, enabled);
 }

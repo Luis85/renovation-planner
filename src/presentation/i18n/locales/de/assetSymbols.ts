@@ -97,4 +97,5 @@ export const assetSymbolsDe: Record<keyof typeof assetSymbolsEn, string> = {
 	'designer.selection.mode.bend.tip': 'Den Griff in der Mitte einer Kante ziehen, um diese Kante zu biegen',
 	'designer.inspector.asset': 'Objekt',
 	'designer.selection.angle.hint': 'Ein Winkel von 0 zeigt nach rechts, 90 nach unten',
+	'designer.status.grid': 'Raster {step} mm',
 };

@@ -317,14 +317,18 @@ describe('the selection mode buttons', () => {
  * Undo and Redo sit in ONE trailing group, which `designer.css` ends on whichever row it wraps to (critique
  * finding 5), and no toolbar button repeats its label as a tooltip (finding 24): a button's text is its
  * name. The mode buttons keep their describing tooltips, pinned in `the selection mode buttons` above.
+ *
+ * The View menu (snapping spec §5) mounts AFTER that group now, so it — not the history group — is the
+ * toolbar's own last child; the history group's own position, right before it, is what is pinned here.
  */
 describe('the toolbar’s own markup', () => {
-	it('groups Undo and Redo last, and gives no button a tooltip repeating its label', async () => {
+	it('groups Undo and Redo last before the View menu, and gives no button a tooltip repeating its label', async () => {
 		const rig = await designerRig();
 		const history = rig.wrapper.find('.rp-designer-tools > .rp-designer-history');
 
 		expect(history.findAll('button').map((button) => button.text())).toEqual([t('en', 'designer.toolbar.undo'), t('en', 'designer.toolbar.redo')]);
-		expect(rig.wrapper.find('.rp-designer-tools').element.lastElementChild).toBe(history.element);
+		expect(rig.wrapper.find('.rp-designer-tools').element.lastElementChild).toBe(rig.wrapper.find('.rp-designer-tools > .rp-view-menu').element);
+		expect(history.element.nextElementSibling).toBe(rig.wrapper.find('.rp-designer-tools > .rp-view-menu').element);
 		expect(rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.attributes('title')).filter((title) => title !== undefined)).toEqual([]);
 		rig.unmount();
 	});

@@ -1,6 +1,7 @@
 import { inject, type InjectionKey } from 'vue';
 import type { Logger } from '../../application/ports/Logger';
 import type { BackgroundVault } from '../editor/layers/background/BackgroundRenderModel';
+import type { EditorViewPreferences } from '../editor/PlanEditorContext';
 import type { AssetDesignerQueryServices } from '../read-models/assetDesignerQueries';
 import type { AssetDesignerCommandServices } from './designerCommands';
 import type { BackgroundPicker } from './ports';
@@ -102,6 +103,12 @@ export interface AssetDesignerDeps {
 	 * and the subscriber compares the path against the one it is drawing.
 	 */
 	readonly onVaultFileChanged: (listener: (path: string) => void) => () => void;
+	/**
+	 * The View menu's Grid and Snap choices on this device (snapping spec 2026-09-15, §5) — the Plan Editor's store
+	 * shape under the designer's OWN key, because an asset is worked at a different scale from a plan. Optional for
+	 * `PlanEditorDeps.viewPreferences`'s reason: a surface with no slot bound keeps the defaults.
+	 */
+	readonly viewPreferences?: EditorViewPreferences;
 }
 
 /**

@@ -106,4 +106,6 @@ export const assetSymbolsEn = {
 	'designer.inspector.asset': 'Asset',
 	// Under the facing's angle field, as its description: `facingTip` adds the sine to y, and y grows DOWN the screen.
 	'designer.selection.angle.hint': 'An angle of 0 points right, and 90 points down',
+	// The status row while the grid is shown (snapping spec 2026-09-15 §2.6); withheld while the footprint is unscaled.
+	'designer.status.grid': 'Grid {step} mm',
 } as const;

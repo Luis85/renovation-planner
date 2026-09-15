@@ -200,6 +200,8 @@ export interface DesignerRigOptions {
 	 * `'opened'` keeps what opening did, for the cases about the opening fit itself.
 	 */
 	readonly camera?: 'default' | 'opened';
+	/** The device slot the View menu's choices are seeded from and written to. Default: none bound. */
+	readonly viewPreferences?: AssetDesignerContext['viewPreferences'];
 }
 
 /**
@@ -317,6 +319,7 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		// is where the tree is asked whether it CALLS this, and `assetDesignerView.test.ts` whether
 		// calling it detaches the leaf.
 		closeLeaf: () => undefined,
+		viewPreferences: options.viewPreferences,
 	};
 
 	// Attached to the document, because Konva measures its container and `getComputedStyle`

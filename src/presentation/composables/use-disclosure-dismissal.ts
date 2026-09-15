@@ -6,6 +6,10 @@ import { listenOnOwner } from './use-owner-listener';
  * summary — the Plan Editor's View menu and the asset designer's. The press is heard in CAPTURE, so a canvas's own
  * `.stop` cannot hide it, on the document that OWNS the menu, which in a pop-out leaf is not the plugin's
  * `document`. Answers the keydown handler the template binds on the `<details>`.
+ *
+ * **Precondition: the `<details>` this ref names must be rendered for the whole life of the mounted
+ * component** — never behind a `v-if`/`v-show` on it or a wrapper around it. `onMounted` and the
+ * outside-press handler both cast `disclosure.value` to non-null, which is safe only under that.
  */
 export function useDisclosureDismissal(disclosure: Readonly<Ref<HTMLDetailsElement | null>>): (event: KeyboardEvent) => void {
 	function outside(event: Event): void {

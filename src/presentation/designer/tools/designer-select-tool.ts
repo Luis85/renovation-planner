@@ -317,8 +317,15 @@ export class DesignerSelectTool implements EditorTool {
 		if (!result.ok) this.deps.reportRejected(result.error);
 	}
 
+	/**
+	 * Reached only from `deactivate()`, before it clears `this.context`, and from `abandonGesture()` —
+	 * itself reached only from `press()` past its own `context === null` return, or as `EditorTool.cancel()`/
+	 * `abandonGesture()` through `ToolManager`, which never calls either on a tool that is not its
+	 * `activeTool` — and a tool becomes `activeTool` only once `activate()` has set `this.context`. No
+	 * caller reaches this on a never-activated tool, so the cast hides no null.
+	 */
 	private dropGesture(): void {
-		if (this.context !== null) this.context.renderState.snapGuides = [];
+		(this.context as EditorContext).renderState.snapGuides = [];
 		this.drag = null;
 		this.bend = null;
 		this.held = [];

@@ -80,13 +80,16 @@ export function dragTarget(context: EditorContext, start: DragStart, event: Edit
 		tolerance: SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel(),
 		travel: { x: raw.x - from.x, y: raw.y - from.y },
 	};
-	// A vertex handle is only drawn on an outline the pressed shape has, so no cast below hides a null.
+	// A vertex handle is only drawn on an outline the pressed shape has, so this cast hides no null.
 	if (role.kind === 'vertex') return snapFeature(snap, (outlineOf(shape, selection as OutlinePart) as CurvedPolygon).points[role.index]);
 	if (selection.kind === 'anchor') {
 		const moved = snapFeature(snap, shape.anchor);
 		return { to: { x: from.x + moved.to.x - shape.anchor.x, y: from.y + moved.to.y - shape.anchor.y }, guides: moved.guides };
 	}
 	if (!isOutlineSelection(selection)) return { to: raw, guides: [] };
+	// Likewise: a body drag or a box handle is only reachable on the outline part that was hit on, or that
+	// part's handles drawn around, the pressed `shape` — captured together with `selection` at press — so this
+	// lookup cannot miss either.
 	const outline = outlineOf(shape, selection) as CurvedPolygon;
 	if (role.kind === 'body') return snapBody(snap, outline, raw);
 	if (role.kind === 'box' && !event.modifiers.shift) return snapBoxHandle(snap, outline, role.index);

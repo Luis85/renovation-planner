@@ -113,6 +113,33 @@ describe('resizing from a box handle', () => {
 		expect([midDrag[0]?.start.x, midDrag[0]?.end.x]).toEqual([150, 150]);
 	});
 
+	/**
+	 * A COVERAGE pin for `snapBoxHandle`'s `alongX === false` arm (final review, F4) — every case above this
+	 * one presses a corner or a right/left (`alongX === true`) side handle. A's bottom-middle handle
+	 * (index 5, `boxHandlePoint`'s (mid.x, max.y)) is (-300, -100); its opposite (index 1, top-middle) is
+	 * (-300, -200), sharing the handle's x, so this is the vertical side case. Dropped at (-300, 47): x
+	 * unchanged (no candidate x — B's are 150/200/250 — is anywhere near it), y 3 mm from B's top edge at
+	 * y = 50, which both of B's top corners share as an alignment. Passes today; it is not tautological
+	 * because the `alongX ? … : { x: moved.x, y: result.point.y }` arm under test is what puts y = 50 (not
+	 * the raw 47) into `to`, and the parallel `guides` filter is what keeps only the HORIZONTAL guide —
+	 * reasoned rather than probed: swap either ternary's false branch for its true one and this drop no
+	 * longer lands on B's edge, and the guide's axis flips.
+	 */
+	it('snaps a top/bottom side handle along y, the alongX === false arm, onto a neighbour’s alignment', async () => {
+		const rig = selectToolRig({ shape: SHAPE, selection: A_SELECTED });
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(-300, -100));
+		rig.tool.pointerMove(pointerAt(-300, 47));
+		const midDrag = rig.harness.context.renderState.snapGuides;
+		rig.tool.pointerUp(pointerAt(-300, 47));
+		await flushGesture();
+
+		expect(written(rig, 'detail-1')).toEqual([{ x: -350, y: -200 }, { x: -250, y: -200 }, { x: -250, y: 50 }, { x: -350, y: 50 }]);
+		expect(midDrag).toHaveLength(1);
+		expect([midDrag[0]?.start.y, midDrag[0]?.end.y]).toEqual([50, 50]);
+	});
+
 	/** Passes before this task too: it pins that proportional resize stays unsnapped (spec §2.5). */
 	it('takes the raw point and draws no guide while Shift keeps proportions', async () => {
 		const rig = selectToolRig({ shape: SHAPE, selection: A_SELECTED });

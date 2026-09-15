@@ -10,6 +10,7 @@ import axe from 'axe-core';
 import { describe, expect, it } from 'vitest';
 import { HARNESS_SCAN_MS, runOptions } from './axeOptions';
 import { useAssetDesignStore } from '../../src/presentation/designer/stores/assetDesignStore';
+import { useWorkspaceStore } from '../../src/presentation/stores/WorkspaceStore';
 import { toiletShape } from '../helpers/assetShapes';
 import { settle, settleUntil } from '../helpers/editor';
 import { designerRig } from '../helpers/designerRig';
@@ -49,6 +50,22 @@ it('reports no violations once Delete has handed focus to the inspector', { time
 		await settle();
 
 		expect(document.activeElement).toBe(rig.wrapper.find('.rp-designer-inspector aside').element);
+		const results = await axe.run(rig.wrapper.element as HTMLElement, runOptions);
+
+		expect(results.violations).toEqual([]);
+	} finally {
+		rig.unmount();
+	}
+});
+
+/** The View menu open and the grid readout drawn (snapping spec §5): a `<details>` inside the toolbar, and a status line. */
+it('reports no violations with the View menu open and the grid shown', { timeout: HARNESS_SCAN_MS }, async () => {
+	const rig = await designerRig({ shape: toiletShape() });
+	try {
+		(rig.wrapper.get('.rp-designer-tools .rp-view-menu').element as HTMLDetailsElement).open = true;
+		useWorkspaceStore(rig.pinia).gridVisible = true;
+		await settle();
+
 		const results = await axe.run(rig.wrapper.element as HTMLElement, runOptions);
 
 		expect(results.violations).toEqual([]);

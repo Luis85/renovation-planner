@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * The asset designer's toolbar (design slice B5): camera mode, one button per registered
- * designer tool, and undo/redo.
+ * designer tool, undo/redo and the View menu.
  *
  * **It is the only thing that makes any of those tools reachable**, which is why the plan for
  * this increment carries a section called *Mounting is not optional* and why this component
@@ -38,6 +38,7 @@ import { useDesignerRuntime } from './runtime';
 import { isOutlineSelection } from './selection/designerSelection';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import DesignerSelectionModes from './DesignerSelectionModes.vue';
+import DesignerViewMenu from './DesignerViewMenu.vue';
 
 const runtime = useDesignerRuntime();
 const designStore = useAssetDesignStore();
@@ -98,5 +99,6 @@ const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[
 				{{ tr('designer.toolbar.redo') }}
 			</button>
 		</div>
+		<DesignerViewMenu />
 	</div>
 </template>

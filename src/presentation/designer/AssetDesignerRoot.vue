@@ -59,9 +59,16 @@ import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
 import AssetPresetForm from './presets/AssetPresetForm.vue';
+import { useViewPreferences } from '../editor/shell/useViewPreferences';
+import { STAGE_PIXELS, worldPerScreenPixel } from '../editor/viewport/Viewport';
+import { useEditorStore } from '../stores/EditorStore';
+import { useWorkspaceStore } from '../stores/WorkspaceStore';
+import { designerGrid } from './grid/designerGrid';
 
 const context = useAssetDesignerContext();
 const dialogs = useDialogStore();
+useViewPreferences(context.viewPreferences);
+const workspace = useWorkspaceStore(), editorStore = useEditorStore();
 
 /**
  * The leaf's live machinery (Task B3a), provided here so the regions later tasks mount can
@@ -152,6 +159,17 @@ const hintKey = computed<StringKey | null>(() => {
 	const selected = selection.value;
 	if (selected?.kind === 'facing') return 'editor.hint.constrain-angle';
 	return isOutlineSelection(selected) && designStore.mode === 'transform' ? 'designer.hint.shift-transform' : null;
+});
+
+/**
+ * The grid's step for the status row while the grid is shown (snapping spec §2.6), from the SAME `designerGrid` the
+ * canvas draws and snaps with. Nothing while the footprint is unscaled: a step there is not a measurement, and a
+ * number that is not one is not given a unit ("Read and correct an object's dimensions", criterion 6).
+ */
+const gridStep = computed<number | null>(() => {
+	const current = design.value;
+	if (!workspace.gridVisible || current === null || current.dimensionsUnscaled) return null;
+	return designerGrid(current.shape, worldPerScreenPixel(editorStore.viewport, STAGE_PIXELS)).step;
 });
 
 /**
@@ -522,6 +540,10 @@ onMounted(() => {
 				v-if="hintKey !== null"
 				class="rp-designer-hint"
 			>{{ tr(hintKey) }}</span>
+			<span
+				v-if="gridStep !== null"
+				class="rp-designer-grid-step"
+			>{{ tr('designer.status.grid', { step: String(gridStep) }) }}</span>
 			<SaveStateIndicator />
 		</div>
 		<!--

@@ -158,6 +158,26 @@ describe('DrawDetailTool', () => {
 		expect(r.outlines).toEqual([rectOutline({ x: 0, y: 0 }, { x: 100, y: 50 })]);
 	});
 
+	it('draws the guide that decided a landing, and clears it when the drag ends or is cancelled', async () => {
+		const r = rig({ snapCandidates: () => ({ alignments: [{ x: 100, y: 900 }] }) });
+		r.tool.activate(r.harness.context);
+
+		r.tool.pointerDown(pointerAt(5, 5));
+		r.tool.pointerMove(pointerAt(103, 400));
+		const midDrag = r.harness.context.renderState.snapGuides;
+		r.tool.pointerUp(pointerAt(103, 400));
+		await flushGesture();
+
+		expect(midDrag).toEqual([{ start: { x: 100, y: 400 }, end: { x: 100, y: 900 } }]);
+		expect(r.outlines).toEqual([rectOutline({ x: 5, y: 5 }, { x: 100, y: 400 })]);
+		expect(r.harness.context.renderState.snapGuides).toEqual([]);
+
+		r.tool.pointerDown(pointerAt(103, 5));
+		expect(r.harness.context.renderState.snapGuides).toHaveLength(1);
+		r.tool.cancel();
+		expect(r.harness.context.renderState.snapGuides).toEqual([]);
+	});
+
 	it('reports a refusal of its own and dispatches nothing', async () => {
 		const r = rig({}, { commandFor: () => err(REFUSAL) });
 		r.tool.activate(r.harness.context);

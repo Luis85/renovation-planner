@@ -55,6 +55,7 @@
 
 @container (max-width: 899px) {
 	.renovation-plan-editor .rp-context-bar { position: relative; }
+	.renovation-asset-designer .rp-designer-tools { position: relative; }
 	.rp-view-menu { position: static; }
 	.rp-view-menu__content { right: 8px; width: min(280px, calc(100% - 16px)); }
 }

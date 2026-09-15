@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { DrawRoomTool } from '../../../../src/presentation/editor/tools/draw-room-tool';
 import { useRoomDraftStore } from '../../../../src/presentation/editor/add/room-draft-store';
-import { EDITOR_SNAP_SERVICE } from '../../../../src/presentation/editor/snapping/editorSnapping';
+import { createEditorSnapService } from '../../../../src/presentation/editor/snapping/editorSnapping';
 import { roomSnapCandidates } from '../../../../src/presentation/editor/snapping/roomSnapCandidates';
 import { WALL_LOOP } from '../../../helpers/structure';
 import { pointerAt, toolContext } from '../../../helpers/tool-context';
@@ -11,7 +11,7 @@ function armed() {
  const draft = useRoomDraftStore();
  const tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1' });
  const { context } = toolContext({ worldPerScreenPixel: 10, snapCandidates: () => ({ vertices: [{ x: 0, y: 0 }, { x: 4000, y: 3000 }], edges: [{ start: { x: 0, y: 3000 }, end: { x: 4000, y: 3000 } }] }) });
- const actual = { ...context, snapService: EDITOR_SNAP_SERVICE }; tool.activate(actual);
+ const actual = { ...context, snapService: createEditorSnapService(() => true) }; tool.activate(actual);
  return { draft, tool, context: actual };
 }
 it('closes Object edges for snapping while keeping paths and fence segments open', () => {
@@ -64,7 +64,7 @@ describe('Room snapping uses current geometry and screen-sized tolerance', () =>
  it('draws an axis guide when a corner lines up with a neighbour and nothing is within point tolerance', () => {
   const draft = useRoomDraftStore(), tool = new DrawRoomTool({ draft, defaultName: () => 'Room 1' });
   const { context } = toolContext({ worldPerScreenPixel: 10, snapCandidates: () => ({ alignments: [{ x: 6000, y: 9000 }] }) });
-  const actual = { ...context, snapService: EDITOR_SNAP_SERVICE }; tool.activate(actual);
+  const actual = { ...context, snapService: createEditorSnapService(() => true) }; tool.activate(actual);
   tool.pointerDown(pointerAt(1000, 1000)); tool.pointerMove(pointerAt(5950, 2000));
   expect(draft.rect).toEqual({ x: 1000, y: 1000, width: 5000, depth: 1000 });
   expect(actual.renderState.snapGuides).toEqual([{ start: { x: 6000, y: 2000 }, end: { x: 6000, y: 9000 } }]);

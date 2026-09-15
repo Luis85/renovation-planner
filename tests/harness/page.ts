@@ -5,7 +5,9 @@
  * `?view=plan-editor` opens the Plan Editor instead of the project surface, `?view=asset-designer`
  * (Task B10) opens the asset designer the same way — `&preset=<id>` seeding a preset and, beside
  * it, `&select=<part>` and `&mode=<mode>` selecting one part in one mode, `&draw=<tool>` holding a draw
- * tool mid-gesture, `&camera=default` putting the default camera back after the opening fit and `&pending`
+ * tool mid-gesture, `&camera=default` putting the default camera back after the opening fit, `&grid`
+ * showing the designer's grid (snapping spec 2026-09-15), `&view-menu` opening its View menu (F1's fix
+ * instrument) and `&pending`
  * marking the design unscaled — `?view=asset-library` (Task 17) opens the
  * asset library — with `&asset=<id>` seeding a selection, which is what §7's narrow composition
  * needs to draw at all — `?project=<id>` opens the Renovation Project view's DETAIL state on a
@@ -255,6 +257,8 @@ if (wantsIndex) {
 					draw: params.get('draw') ?? undefined,
 					camera: params.get('camera') ?? undefined,
 					pending: params.has('pending'),
+					grid: params.has('grid'),
+					viewMenu: params.has('view-menu'),
 				}).view
 			: wantsAssetLibrary
 				? mountAssetLibraryHarness(document.body, params.get('asset'), params.get('assets') === '0').view

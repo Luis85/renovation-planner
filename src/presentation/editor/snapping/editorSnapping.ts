@@ -2,17 +2,18 @@ import { SnapService } from './snap-service';
 import type { ToolId } from '../tools/editor-tool';
 
 /**
- * The editor's snapping configuration and the ONE service both editing surfaces snap through
- * — the Plan Editor's tools and the asset designer's alike.
+ * The editor's snapping configuration, and the ONE factory each editing surface composes its own
+ * service from — the Plan Editor's tools and the asset designer's alike.
  *
  * It lived in `presentation/editor/runtime.ts` while the Plan Editor was the only surface with
- * tools. The asset designer's own runtime needs the SAME service composed with the SAME step
- * (design slice B5), and a second `new SnapService({...})` beside it would be a second answer
- * to what "constrained" means: two 15 degree steps that could drift into 15 and 22.5 with
- * nothing failing, because each surface's own tests would go on passing about its own number.
+ * tools. The asset designer's own runtime needs a service composed with the SAME step (design
+ * slice B5), and a second `new SnapService({...})` beside it would be a second answer to what
+ * "constrained" means: two 15 degree steps that could drift into 15 and 22.5 with nothing
+ * failing, because each surface's own tests would go on passing about its own number.
  *
- * The designer retains the shared config-only instance. Each Plan Editor uses the same
- * configuration with its own live automatic-snapping preference.
+ * Each surface composes its own INSTANCE through `createEditorSnapService`, over this ONE
+ * configuration, with its own leaf's live automatic-snapping preference — so the two surfaces
+ * never share a `SnapService` object, only the numbers it is built from.
  */
 
 /** Room creation supplies existing zone boundaries, wall centre lines and opening endpoints,
@@ -27,7 +28,7 @@ const SNAP_TOLERANCE_MM = 8;
  * one that does — it subclasses the real `SnapService` and reads this constant rather than a
  * `Math.PI / 12` copied beside it, so a fake cannot be constrained differently from the thing
  * it stands for. (`tests/helpers/designerRig.ts` needs no such stand-in: it mounts the real
- * designer, which composes `EDITOR_SNAP_SERVICE` below.)
+ * designer, which composes its service through `createEditorSnapService` below.)
  *
  * 15 degrees, researched rather than invented: CAD polar tracking's step is configurable with
  * 15 among its presets, which is finer than Figma's and Illustrator's 45 and is the right
@@ -41,9 +42,7 @@ const EDITOR_SNAP_CONFIG = {
 	angleStepRadians: ANGLE_STEP_RADIANS,
 };
 
-export const EDITOR_SNAP_SERVICE = new SnapService(EDITOR_SNAP_CONFIG);
-
-/** The Plan Editor owns its preference per leaf; the designer retains its existing defaults. */
+/** One editing leaf's service: the shared configuration, and that leaf's own Snap choice. */
 export function createEditorSnapService(enabled: () => boolean): SnapService {
 	return new SnapService(EDITOR_SNAP_CONFIG, enabled);
 }

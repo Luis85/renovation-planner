@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEditorSnapService, EDITOR_SNAP_SERVICE } from '../../../../src/presentation/editor/snapping/editorSnapping';
+import { createEditorSnapService } from '../../../../src/presentation/editor/snapping/editorSnapping';
 import { StructureTool } from '../../../../src/presentation/editor/structure/StructureTool';
 import { createStructureDraft } from '../../../../src/presentation/editor/structure/structureDraft';
 import { pointerAt, toolContext } from '../../../helpers/tool-context';
@@ -17,7 +17,7 @@ describe('per-leaf automatic snapping', () => {
 		expect(service.snapToVertex(point, [vertex])).toBeNull();
 		expect(service.snapToEdge(point, [edge])).toBeNull();
 		expect(service.snapDirection(vertex, { x: 100, y: 1 })).toEqual({ x: 100, y: 0 });
-		expect(EDITOR_SNAP_SERVICE.snapPoint(point, { vertices: [vertex] })).toBe(vertex);
+		expect(createEditorSnapService(() => true).snapPoint(point, { vertices: [vertex] })).toBe(vertex);
 		enabled = true;
 		expect(service.snapToEdge(point, [edge])).toEqual({ x: 4, y: 0 });
 	});

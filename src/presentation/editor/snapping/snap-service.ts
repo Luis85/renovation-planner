@@ -34,6 +34,12 @@ function requirePositiveFinite(value: number, field: string): void {
 	}
 }
 
+/** A grid of `step` millimetres counted from `origin`. */
+export interface SnapGrid {
+	readonly step: number;
+	readonly origin: Point;
+}
+
 /**
  * Candidate geometry a calling tool supplies, sourced from `EditorContext.snapCandidates`
  * (the active plan's zones, structure and elements minus what is being dragged).
@@ -47,6 +53,12 @@ export interface SnapCandidates {
 	 * centres. Read by the axis-alignment stage only, after vertex and edge have declined.
 	 */
 	readonly alignments?: readonly Point[];
+	/**
+	 * A grid every position may round onto, AFTER vertex, edge and axis alignment have declined — and, unlike
+	 * them, whether or not automatic snapping is enabled: a grid is shown by its own choice and snapped to only
+	 * while shown, which is the caller's to decide by supplying it. The Plan Editor supplies none.
+	 */
+	readonly grid?: SnapGrid;
 }
 
 /** A snapped point and the guide segments that say why it landed there. */
@@ -91,6 +103,16 @@ function nearestAxisMatch(features: readonly Point[], alignments: readonly Point
 
 function roundToStep(value: number, step: number): number {
 	return Math.round(value / step) * step;
+}
+
+/** `value` on `grid` along `axis`, or `value` itself with no grid. */
+function toGrid(value: number, grid: SnapGrid | undefined, axis: 'x' | 'y'): number {
+	return grid === undefined ? value : grid.origin[axis] + roundToStep(value - grid.origin[axis], grid.step);
+}
+
+/** `alignments` when automatic snapping is enabled, else none — the grid stays available either way. */
+function activeAlignments(enabled: boolean, alignments: readonly Point[] | undefined): readonly Point[] {
+	return enabled ? alignments ?? [] : [];
 }
 
 /**
@@ -195,7 +217,7 @@ export class SnapService {
 		requirePositiveFinite(config.angleStepRadians, 'angleStepRadians');
 	}
 
-	/** Per-surface automatic object alignment; explicit Shift constraints remain available. */
+	/** Per-surface automatic object snapping — vertex, edge and alignment. A supplied grid is honoured either way; explicit Shift constraints remain available. */
 	get enabled(): boolean { return this.isEnabled(); }
 
 	snapToVertex(point: Point, candidates: readonly Point[], toleranceMm = this.config.toleranceMm): Point | null {
@@ -231,9 +253,9 @@ export class SnapService {
 	 * `snapPoint` with the reason attached. Precedence, NOT nearest-wins: a vertex within
 	 * tolerance always wins over an edge within tolerance, even one strictly closer to `point`
 	 * than the vertex is, and either wins over an axis alignment. The order is vertex > edge >
-	 * axis alignment > the original point (spec §3.2) — a reader expecting "whichever
-	 * candidate is closest overall" would be wrong, and tests pin the precedence cases where
-	 * the later stage is nearer and still loses.
+	 * axis alignment > grid step > the original point (spec §3.2; asset designer snapping spec
+	 * §3) — a reader expecting "whichever candidate is closest overall" would be wrong, and
+	 * tests pin the precedence cases where the later stage is nearer and still loses.
 	 *
 	 * The first two answer one guide from the pointer to where it landed; the axis stage
 	 * decides x and y independently and answers one guide PER AXIS that fired, from the landed
@@ -245,16 +267,16 @@ export class SnapService {
 	 * turned them red — measured, not guessed.
 	 */
 	snapPointWithGuides(point: Point, candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): SnapResult {
-		if (!this.enabled) return { point, guides: [] };
 		const vertex = this.snapToVertex(point, candidates.vertices ?? [], toleranceMm);
 		if (vertex !== null) return { point: vertex, guides: [{ start: point, end: vertex }] };
 		const edge = this.snapToEdge(point, candidates.edges ?? [], toleranceMm);
 		if (edge !== null) return { point: edge, guides: [{ start: point, end: edge }] };
-		const alignments = candidates.alignments ?? [];
+		const alignments = activeAlignments(this.enabled, candidates.alignments);
 		const alongX = nearestAlignment(point.x, alignments, 'x', toleranceMm);
 		const alongY = nearestAlignment(point.y, alignments, 'y', toleranceMm);
-		if (alongX === null && alongY === null) return { point, guides: [] };
-		const landed = { x: alongX?.x ?? point.x, y: alongY?.y ?? point.y };
+		const grid = candidates.grid;
+		if (alongX === null && alongY === null && grid === undefined) return { point, guides: [] };
+		const landed = { x: alongX?.x ?? toGrid(point.x, grid, 'x'), y: alongY?.y ?? toGrid(point.y, grid, 'y') };
 		const guides: LineSegment[] = [];
 		if (alongX !== null) guides.push({ start: landed, end: alongX });
 		if (alongY !== null) guides.push({ start: landed, end: alongY });
@@ -272,26 +294,29 @@ export class SnapService {
 	 * vertex to a candidate vertex; the nearest moving vertex to an edge; then per axis, the
 	 * smallest delta between any moving FEATURE (its vertices plus the box centre — a box's
 	 * min and max on an axis are already some vertex's coordinate) and any alignment
-	 * coordinate. Guides: the point stages draw pre-correction vertex → landing; the axis
-	 * stage draws the corrected feature → alignment, which is a straight axis-aligned line.
+	 * coordinate; then, per axis no alignment decided, the grid stage lands the moving set's
+	 * minimum on `candidates.grid`. Guides: the point stages draw pre-correction vertex →
+	 * landing; the axis stage draws the corrected feature → alignment, which is a straight
+	 * axis-aligned line.
 	 *
 	 * The no-snap answer is a FRESH object per call, never a shared constant: the drag tools
 	 * hand `guides` straight to render state, which draw-room pushes into, so a shared array
 	 * would carry one call's push into every later no-snap answer. Pinned by a test.
 	 */
 	snapTranslation(moving: readonly Point[], candidates: SnapCandidates, toleranceMm = this.config.toleranceMm): TranslationSnap {
-		if (!this.enabled || moving.length === 0) return { correction: { dx: 0, dy: 0 }, guides: [] };
+		const grid = candidates.grid;
+		if (moving.length === 0 || (!this.enabled && grid === undefined)) return { correction: { dx: 0, dy: 0 }, guides: [] };
 		const pair = nearestPair(moving, (from) => this.snapToVertex(from, candidates.vertices ?? [], toleranceMm))
 			?? nearestPair(moving, (from) => this.snapToEdge(from, candidates.edges ?? [], toleranceMm));
 		if (pair !== null) {
 			return { correction: { dx: pair.to.x - pair.from.x, dy: pair.to.y - pair.from.y }, guides: [{ start: pair.from, end: pair.to }] };
 		}
-		const alignments = candidates.alignments ?? [];
+		const alignments = activeAlignments(this.enabled, candidates.alignments);
 		const { minX, maxX, minY, maxY } = extentOf(moving);
 		const features = [...moving, { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }];
 		const alongX = nearestAxisMatch(features, alignments, 'x', toleranceMm);
 		const alongY = nearestAxisMatch(features, alignments, 'y', toleranceMm);
-		const correction: Vector = { dx: alongX?.delta ?? 0, dy: alongY?.delta ?? 0 };
+		const correction: Vector = { dx: alongX?.delta ?? toGrid(minX, grid, 'x') - minX, dy: alongY?.delta ?? toGrid(minY, grid, 'y') - minY };
 		const guides: LineSegment[] = [];
 		if (alongX !== null) guides.push({ start: { x: alongX.feature.x + correction.dx, y: alongX.feature.y + correction.dy }, end: alongX.to });
 		if (alongY !== null) guides.push({ start: { x: alongY.feature.x + correction.dx, y: alongY.feature.y + correction.dy }, end: alongY.to });

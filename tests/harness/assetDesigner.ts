@@ -23,6 +23,7 @@ import { installObsidianDom } from '../helpers/dom';
 // `../helpers/settle` and not `../helpers/editor`, for the reason `itemKnob.ts` gives: this reaches a real browser.
 import { settleUntil } from '../helpers/settle';
 import { FakeLeaf } from '../helpers/workspace';
+import { useWorkspaceStore } from '../../src/presentation/stores/WorkspaceStore';
 import { pointer } from './itemKnob';
 
 /**
@@ -215,6 +216,9 @@ function drawInHarness(view: AssetDesignerView, canvas: HTMLElement, draw: strin
  * - `&camera=default`, which puts `DEFAULT_VIEWPORT` back — the camera a user zoomed out to, where the toilet
  *   is a few dozen pixels across. No fit is pressed otherwise: a capture shows the opening fit the product
  *   took, so a regression in that fit is photographed rather than repaired by this page;
+ * - `&grid`, which shows the designer's own grid through the leaf's `WorkspaceStore`;
+ * - `&view-menu`, which opens the View menu through the real summary click (F1's fix instrument:
+ *   below 900px container width the menu used to open off-screen, and this is what a capture proves);
  * - `&draw=`, LAST, so the preview it leaves is drawn at the camera the capture keeps.
  *
  * Last of all it sets `data-rp-harness-ready` on the view: the mark `scripts/harness-shot.mjs`'s preset
@@ -224,7 +228,7 @@ function drawInHarness(view: AssetDesignerView, canvas: HTMLElement, draw: strin
  */
 async function driveHarness(
 	view: AssetDesignerView,
-	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string },
+	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly grid?: boolean; readonly viewMenu?: boolean },
 ): Promise<void> {
 	const host = (): (HTMLElement & { __vue_app__: App }) | null => view.contentEl.querySelector('.renovation-asset-designer-view');
 	await settleUntil(() => host() !== null, 'the designer mount');
@@ -239,19 +243,21 @@ async function driveHarness(
 		store.setMode(mode);
 	}
 	if (knobs.camera === 'default') editor.viewport = DEFAULT_VIEWPORT;
+	if (knobs.grid === true) useWorkspaceStore(pinia).gridVisible = true;
+	if (knobs.viewMenu === true) view.contentEl.querySelector<HTMLElement>('.rp-designer-tools .rp-view-menu > summary')?.click();
 	if (knobs.draw !== undefined) drawInHarness(view, view.contentEl.querySelector('.rp-plan-canvas') as HTMLElement, knobs.draw);
 	view.contentEl.dataset.rpHarnessReady = '';
 }
 
 /**
- * `knobs` are `page.ts`'s `&select=`, `&mode=`, `&draw=`, `&camera=` and `&pending`, honoured only beside a
- * preset: a shapeless fixture has no part to select or draw beside, and a capture of one would photograph
- * a state nobody could reach.
+ * `knobs` are `page.ts`'s `&select=`, `&mode=`, `&draw=`, `&camera=`, `&grid`, `&view-menu` and
+ * `&pending`, honoured only beside a preset: a shapeless fixture has no part to select or draw beside,
+ * and a capture of one would photograph a state nobody could reach.
  */
 export function mountAssetDesignerHarness(
 	root: HTMLElement,
 	presetId: string | null = null,
-	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly pending?: boolean } = {},
+	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly grid?: boolean; readonly viewMenu?: boolean; readonly pending?: boolean } = {},
 ): MountedAssetDesigner {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();

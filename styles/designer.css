@@ -375,3 +375,8 @@
 	margin-inline-end: auto;
 	color: var(--text-muted);
 }
+
+/* The grid step: a standing fact about the view, muted like the hint beside it. */
+.rp-designer-grid-step {
+	color: var(--text-muted);
+}

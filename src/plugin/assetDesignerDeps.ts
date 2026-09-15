@@ -3,6 +3,9 @@ import { ObsidianBackgroundPicker } from './assetBackgroundPicker';
 import { createAssetDesignChangeSource } from '../application/events/assetDesignChangeSource';
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
 import { createVaultFileChangeSource } from '../infrastructure/obsidian/vault/vaultFileChanges';
+import type { Logger } from '../application/ports/Logger';
+import { editorViewPreferencesStore } from '../infrastructure/obsidian/plugin-data/editorViewPreferencesStore';
+import type { LocalStorageAdapter } from '../infrastructure/obsidian/plugin-data/continueContextStore';
 import {
 	createAssetDesignerQueries,
 	unavailableAssetDesignerQueries,
@@ -96,4 +99,12 @@ export function assetDesignerDeps(
 		onVaultFileChanged: createVaultFileChangeSource(app.vault),
 		indexScanCompleted: options.indexScanCompleted,
 	};
+}
+
+/**
+ * The asset designer's per-device slot: the View menu's choices, under `designer-view` rather than the Plan Editor's
+ * `editor-view`. Built per call, for `planEditorDeviceSlots`' reason: it holds nothing past its adapter and key.
+ */
+export function assetDesignerDeviceSlots(adapter: LocalStorageAdapter, pluginId: string, logger: Logger) {
+	return { viewPreferences: editorViewPreferencesStore(adapter, `${pluginId}:designer-view`, logger) };
 }

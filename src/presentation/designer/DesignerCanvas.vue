@@ -52,10 +52,12 @@ import EditorSurface from '../editor/surface/EditorSurface.vue';
 import BackgroundLayer from '../editor/layers/background/BackgroundLayer.vue';
 import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
 import { useThemeTokens } from '../editor/theme/useThemeTokens';
+import CanvasGrid from '../editor/layers/CanvasGrid.vue';
 import { STAGE_PIXELS, viewportTransform, worldPerScreenPixel } from '../editor/viewport/Viewport';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import { designFrame, useDesignerRuntime } from './runtime';
+import { designerGrid } from './grid/designerGrid';
 import { BACKGROUND_LAYER, designerLayerConfig } from './layers/backgroundLayer';
 import { footprintOutline } from './layers/footprintLayer';
 import { clearanceOutline } from './layers/clearanceLayer';
@@ -115,6 +117,9 @@ const transform = computed(() => viewportTransform(viewport.value));
  * layer divides by this rather than deriving it; see `layers/anchorLayer.ts`.
  */
 const worldPerPixel = computed(() => worldPerScreenPixel(viewport.value, STAGE_PIXELS));
+
+/** The grid as drawn — the COMMITTED design's, so dragging the footprint does not slide the grid under the drag. */
+const grid = computed(() => designerGrid(design.value?.shape ?? null, worldPerPixel.value));
 
 /**
  * What every world layer draws: a gesture's in-flight PREVIEW while one is live, else the committed
@@ -233,7 +238,8 @@ onBeforeUnmount(() => stopPixelRatio());
 					The asset's spec sheet, drawn by the SAME component the plan editor mounts.
 					Its position among its siblings is the contract — see `layers/backgroundLayer.ts`
 					— and `visible` is a literal because this surface has no layer-visibility
-					control to bind: the plan editor's `WorkspaceStore` is a Plan Editor concern.
+					control to bind: layer visibility in the plan editor's `WorkspaceStore` is a
+					Plan Editor concern (its `gridVisible` is shared).
 				-->
 				<BackgroundLayer
 					:name="BACKGROUND_LAYER"
@@ -305,6 +311,14 @@ onBeforeUnmount(() => stopPixelRatio());
 					:tokens="tokens"
 				/>
 			</VStage>
+			<!--
+				ABOVE the stage, where the Plan Editor mounts its grid below: a design is usually traced over an opaque
+				spec sheet, and a grid under it would snap to lines nobody can see (snapping spec §5).
+			-->
+			<CanvasGrid
+				:step-mm="grid.step"
+				:origin="grid.origin"
+			/>
 		</template>
 		<template #overlay>
 			<slot />

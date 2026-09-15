@@ -332,8 +332,8 @@ describe('setting the facing', () => {
 	 *
 	 * The case above cannot tell 15 degrees from 45: a 4 degree drag lands on zero under either.
 	 * A drag at about 20 degrees discriminates them — 15 under this editor's step, 0 under a
-	 * coarser one — which is what makes this a case about `EDITOR_SNAP_SERVICE` being the SAME
-	 * instance the Plan Editor's tools take rather than a second service composed beside it.
+	 * coarser one — which is what makes this a case about the designer's service being composed
+	 * from the SAME configuration the Plan Editor's tools take rather than a second one beside it.
 	 */
 	it('snaps to the editor’s own 15 degree step, not to some other whole angle', async () => {
 		const rig = await designerRig({ shape: TYPED });

@@ -19,6 +19,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
+import { assetDesignerDeviceSlots } from '../../src/plugin/assetDesignerDeps';
 import { assetDesignChanged } from '../../src/domain/asset/Asset.events';
 import { createAssetId, type AssetId } from '../../src/domain/asset/AssetId';
 import { t } from '../../src/presentation/i18n/strings';
@@ -31,6 +32,7 @@ import { expectOk } from '../helpers/domain';
 import { makeAsset } from '../helpers/entities';
 import { settle } from '../helpers/async';
 import { FakeLeaf } from '../helpers/workspace';
+import { recorder } from '../helpers/logger';
 
 installObsidianDom();
 /**
@@ -174,5 +176,18 @@ describe('a designer leaf restored by the composed plugin', () => {
 		expect(view.contentEl.textContent).toContain(t('en', 'designer.background-missing'));
 
 		await view.onClose();
+	});
+});
+
+/** A key is persisted data like a command id: renaming one strands what every device remembered. */
+describe('the asset designer device slot', () => {
+	it('keys the View menu choices under the plugin id, apart from the Plan Editor’s', () => {
+		const keys: string[] = [];
+		const adapter = {
+			loadLocalStorage: (key: string): unknown => { keys.push(key); return null; },
+			saveLocalStorage: (key: string): void => { keys.push(key); },
+		};
+		assetDesignerDeviceSlots(adapter, 'plugin-id', recorder).viewPreferences.write({ gridVisible: true });
+		expect(keys).toEqual(['plugin-id:designer-view', 'plugin-id:designer-view']);
 	});
 });

@@ -28,7 +28,7 @@ import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import { activateNotices, disposeNotices, noticeOnlySinks, notifyFault } from '../presentation/notices/notify';
 import { surfaceError } from '../presentation/errors/surfaceError';
-import { assetDesignerDeps } from './assetDesignerDeps';
+import { assetDesignerDeps, assetDesignerDeviceSlots } from './assetDesignerDeps';
 import { planEditorDeps, planEditorDeviceSlots } from './planEditorDeps';
 import { assetLibraryDeps } from './assetLibraryDeps';
 import {
@@ -766,7 +766,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */
 	private assetDesignerViewDeps(): AssetDesignerDeps {
-		return assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted });
+		return { ...assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted }), ...assetDesignerDeviceSlots(this.app, this.manifest.id, this.root.logger) };
 	}
 
 	/** ONE spelling of the Asset library's bundle, for the factory and the rebind. */

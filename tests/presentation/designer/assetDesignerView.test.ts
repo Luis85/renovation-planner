@@ -412,3 +412,11 @@ describe('what the designer mounts', () => {
 		expect(leaf.detached).toBe(1);
 	});
 });
+
+describe('the View menu’s remembered choices', () => {
+	it('reach the leaf from the bundle the composition root hands the view', async () => {
+		const view = await opened(deps({ viewPreferences: { read: () => ({ gridVisible: true }), write: () => undefined } }));
+
+		expect((view.contentEl.querySelector('[data-rp-view="grid"]') as HTMLInputElement | null)?.checked).toBe(true);
+	});
+});

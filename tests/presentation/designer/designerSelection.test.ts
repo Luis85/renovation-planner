@@ -26,6 +26,13 @@ const TANK = detailOutline('detail-1');
 const BOWL = detailOutline('detail-2');
 const IN_BOWL = justInsideBottom(BOWL);
 const IN_TANK = justInsideBottom(TANK);
+/**
+ * A pure +100 mm move of the bowl lands its corners within the mounted rig's 80 mm snap tolerance of the
+ * footprint's vertices, edges and axis alignments (asset designer snapping spec 2026-09-15, §2.1-2.2) —
+ * a body move applies ONE correction to every corner, so the whole outline lands snapped rather than at
+ * the raw +100 mm. This offset clears all of them (checked against the toilet's footprint, tank and anchor).
+ */
+const BOWL_MOVE = { x: 500, y: 300 };
 
 async function press(rig: DesignerRig, label: StringKey): Promise<void> {
 	rig.toolbarButton(t('en', label)).click();
@@ -88,9 +95,9 @@ describe('dragging a selected part', () => {
 		const rig = await designerRig({ shape: TOILET });
 		await press(rig, 'designer.toolbar.select');
 
-		drag(rig, IN_BOWL, { x: IN_BOWL.x + 100, y: IN_BOWL.y });
+		drag(rig, IN_BOWL, { x: IN_BOWL.x + BOWL_MOVE.x, y: IN_BOWL.y + BOWL_MOVE.y });
 		await settle();
-		expectNear(await detailPoints(rig, 'detail-2'), BOWL.points.map((point) => ({ x: point.x + 100, y: point.y })));
+		expectNear(await detailPoints(rig, 'detail-2'), BOWL.points.map((point) => ({ x: point.x + BOWL_MOVE.x, y: point.y + BOWL_MOVE.y })));
 
 		await press(rig, 'designer.toolbar.undo');
 
@@ -108,7 +115,7 @@ describe('dragging a selected part', () => {
 	it('leaves a drag’s preview standing when a click lands before its write does', async () => {
 		const rig = await designerRig({ shape: TOILET });
 		await press(rig, 'designer.toolbar.select');
-		const moved = { x: IN_BOWL.x + 100, y: IN_BOWL.y };
+		const moved = { x: IN_BOWL.x + BOWL_MOVE.x, y: IN_BOWL.y + BOWL_MOVE.y };
 
 		drag(rig, IN_BOWL, moved);
 		click(rig, moved);
@@ -116,7 +123,7 @@ describe('dragging a selected part', () => {
 
 		await settle();
 		expect(useAssetDesignStore(rig.pinia).preview).toBeNull();
-		expectNear(await detailPoints(rig, 'detail-2'), BOWL.points.map((point) => ({ x: point.x + 100, y: point.y })));
+		expectNear(await detailPoints(rig, 'detail-2'), BOWL.points.map((point) => ({ x: point.x + BOWL_MOVE.x, y: point.y + BOWL_MOVE.y })));
 		rig.unmount();
 	});
 

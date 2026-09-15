@@ -749,6 +749,18 @@ const SHOTS = [
 	{ name: 'asset-designer-draw-rect-light', query: '?view=asset-designer&preset=toilet&draw=draw-rect&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
 	{ name: 'asset-designer-draw-circle', query: '?view=asset-designer&preset=toilet&draw=draw-circle', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
 	{ name: 'asset-designer-draw-trace-detail', query: '?view=asset-designer&preset=toilet&draw=trace-detail', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY] },
+	// The grid (`&grid`, snapping spec 2026-09-15): drawn above the parts from the footprint's corner, with its step in
+	// the status row — light at a sidebar's width, where that readout shares the row with the save state. A spec
+	// sheet under it is not capturable (the harness refuses a background document); `Design an Asset` step 51 is.
+	{ name: 'asset-designer-grid', query: '?view=asset-designer&preset=toilet&grid', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-canvas-grid', '.rp-designer-grid-step'] },
+	{ name: 'asset-designer-grid-light', query: '?view=asset-designer&preset=toilet&grid&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-canvas-grid', '.rp-designer-grid-step'], width: 460 },
+	// The View menu open at a sidebar's width (F1's fix): below 900px container width the menu used to open
+	// off-screen against the whole designer's height rather than the toolbar, and this is the instrument
+	// that proves it — `&view-menu` opens it through the real summary click. `.rp-view-menu__content` is a
+	// child of the `<details>` and is attached to the DOM whether or not it is open, so waiting on it alone
+	// cannot prove the menu opened; `.rp-view-menu[open] .rp-view-menu__content` can only match once the
+	// native `open` attribute is set.
+	{ name: 'asset-designer-view-menu-narrow', query: '?view=asset-designer&preset=toilet&view-menu', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-view-menu[open] .rp-view-menu__content', '[data-rp-view="grid"]', '[data-rp-view="snap"]'], width: 460 },
 	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
 	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
 	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every

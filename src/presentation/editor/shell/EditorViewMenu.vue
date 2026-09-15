@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { listenOnOwner } from '../../composables/use-owner-listener';
+import { computed, ref } from 'vue';
+import { useDisclosureDismissal } from '../../composables/use-disclosure-dismissal';
 import { tr } from '../../i18n/strings';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
@@ -12,6 +12,7 @@ const editor = useEditorStore(), workspace = useWorkspaceStore();
 const runtime = useEditorRuntime();
 const framedBounds = usePlanFrame();
 const disclosure = ref<HTMLDetailsElement | null>(null);
+const escape = useDisclosureDismissal(disclosure);
 const hasFloor = computed(() => framedBounds(true) !== null);
 const hasSelection = computed(() => framedBounds(false) !== null);
 function blocked(): boolean { return runtime.toolManager.gestureInFlight || editor.dragState !== null; }
@@ -28,23 +29,6 @@ function toggleSnap(event: Event): void {
 	const input = event.target as HTMLInputElement;
 	if (!blocked()) editor.snappingEnabled = input.checked;
 	input.checked = editor.snappingEnabled;
-}
-/** A press anywhere else closes the menu, in CAPTURE so the canvas's own `.stop` cannot hide it (as `AddMenu` does). */
-function outside(event: Event): void {
-	const menu = disclosure.value as HTMLDetailsElement;
-	if (menu.open && !menu.contains(event.target as Node)) menu.open = false;
-}
-// On the document that OWNS the menu, which in a pop-out leaf is not the plugin's `document`.
-let stopOutside: (() => void) | null = null;
-onMounted(() => { stopOutside = listenOnOwner(disclosure.value as HTMLDetailsElement, 'document', 'pointerdown', outside, { capture: true }); });
-onBeforeUnmount(() => { stopOutside?.(); stopOutside = null; });
-function escape(event: KeyboardEvent): void {
-	if (event.key !== 'Escape') return;
-	event.stopPropagation();
-	if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !disclosure.value) return;
-	event.preventDefault();
-	disclosure.value.open = false;
-	disclosure.value.querySelector('summary')?.focus();
 }
 </script>
 

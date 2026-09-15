@@ -126,7 +126,9 @@ export class DrawDetailTool implements EditorTool {
 	}
 
 	private snapped(context: EditorContext, point: Point): Point {
-		return context.snapService.snapPoint(point, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
+		const snap = context.snapService.snapPointWithGuides(point, context.snapCandidates(), SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel());
+		context.renderState.snapGuides = snap.guides;
+		return snap.point;
 	}
 
 	/** Ends the gesture: no start, no preview, and a write still in flight no longer owns what follows it. */
@@ -134,6 +136,7 @@ export class DrawDetailTool implements EditorTool {
 		this.start = null;
 		this.generation += 1;
 		context.renderState.previewPolygon = null;
+		context.renderState.snapGuides = [];
 	}
 
 	private async dispatch(context: EditorContext, write: DetailWrite): Promise<void> {

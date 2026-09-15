@@ -72,7 +72,7 @@
       "kind": "coding",
       "model": "gpt-5.6-terra",
       "reasoning": "high",
-      "status": "active",
+      "status": "pushed",
       "dependsOn": [
         "R00"
       ],

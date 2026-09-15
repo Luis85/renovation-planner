@@ -8,6 +8,7 @@ import * as notices from '../../../src/presentation/notices/notify';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { formatMetres } from '../../../src/presentation/editor/shell/formatLength';
 import { useAssetShapeStore } from '../../../src/presentation/stores/AssetShapeStore';
+import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
 
 const mounted: Awaited<ReturnType<typeof assetPlacementRig>>[] = [];
 afterEach(() => { vi.restoreAllMocks(); for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -109,4 +110,49 @@ it('rotates a placement about its anchor and keeps its asset', async () => {
 	expect(rotated.assetId).toBe(radiator.id);
 	expect(rotated.points[0]).toEqual({ x: 1000, y: 1000 });
 	expect(Math.round(rotated.points[1].y)).toBe(2000);
+});
+
+it('sizes a placement from the Inspector about its centre and resets it to the library size', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+	const inspector = await selectPlaced(rig, id, 1);
+	expect(inspector.find('[data-rp-action="reset-asset-size"]').exists()).toBe(false);
+	expect(inspector.get<HTMLInputElement>('input[name="asset-width"]').element.value).toBe(formatMetres(800));
+	await inspector.get('input[name="asset-width"]').setValue(formatMetres(1200));
+	await inspector.get('input[name="asset-width"]').trigger('change');
+	await settleUntil(() => rig.project.structure.elements?.[0]?.size !== undefined, 'sized placement');
+	expect(rig.project.structure.elements?.[0]?.size).toEqual({ width: 1200, depth: 600 });
+	expect(rig.project.structure.elements?.[0]?.points[0]).toEqual({ x: 1000, y: 1000 });
+	const sized = rig.wrapper.get('.rp-element-inspector');
+	expect(sized.text()).toContain(tr('editor.asset.dimensions', { width: formatMetres(1200), depth: formatMetres(600) }));
+	for (const [field, text] of [['asset-depth', 'not a length'], ['asset-width', 'not a length'], ['asset-depth', '0.0004']] as const) {
+		await sized.get(`input[name="${field}"]`).setValue(text); await sized.get(`input[name="${field}"]`).trigger('change'); await settle();
+		expect(rig.project.structure.elements?.[0]?.size).toEqual({ width: 1200, depth: 600 });
+	}
+	expect(sized.get<HTMLInputElement>('input[name="asset-depth"]').element.value).toBe(formatMetres(600));
+	await sized.get('[data-rp-action="reset-asset-size"]').trigger('click');
+	await settleUntil(() => rig.project.structure.elements?.[0]?.size === undefined, 'reset placement');
+	expect(rig.wrapper.get('.rp-element-inspector').find('[data-rp-action="reset-asset-size"]').exists()).toBe(false);
+});
+
+it('holds the size fields read-only while a save is in flight, and offers none outside Plan or for a missing asset', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+	await selectPlaced(rig, id, 1);
+	const save = useSaveStateStore(rig.pinia);
+	save.beginSaving(); await settle();
+	const width = rig.wrapper.get('.rp-element-inspector input[name="asset-width"]');
+	expect(width.attributes('readonly')).toBeDefined(); expect(width.attributes('aria-disabled')).toBe('true');
+	const command = vi.spyOn(rig.renovation, 'command');
+	await width.setValue(formatMetres(1500)); await width.trigger('change'); await settle();
+	expect(command).not.toHaveBeenCalled();
+	save.resolveNeutral();
+	rig.session.perspective = 'renovate'; await settle();
+	expect(rig.wrapper.find('.rp-element-inspector input[name="asset-width"]').exists()).toBe(false);
+	rig.session.perspective = 'plan';
+	const gone = await rig.place('asset-gone', { x: 3000, y: 2000 }, 0, 'Old boiler');
+	rig.selection.select([gone as never]); await settle();
+	expect(rig.wrapper.find('.rp-element-inspector input[name="asset-width"]').exists()).toBe(false);
 });

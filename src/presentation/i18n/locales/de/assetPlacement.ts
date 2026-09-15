@@ -18,4 +18,7 @@ export const assetPlacementDe: Record<keyof typeof assetPlacementEn, string> = {
 	'editor.asset.replace': 'Objekt ersetzen…',
 	'editor.asset.replace-title': 'Objekt ersetzen',
 	'editor.asset.add-material': 'Als Baustoff hinzufügen',
+	'editor.asset.width': 'Breite (m)',
+	'editor.asset.depth': 'Tiefe (m)',
+	'editor.asset.reset-size': 'Auf Bibliotheksgröße zurücksetzen',
 };

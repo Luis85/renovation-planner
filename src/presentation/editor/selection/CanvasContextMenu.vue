@@ -130,7 +130,10 @@ onBeforeUnmount(() => { root?.removeEventListener('contextmenu', context); root?
 				@close="close"
 			>
 				<template #appearance>
-					<ItemColorControl menu @picked="close()" />
+					<ItemColorControl
+						menu
+						@picked="close()"
+					/>
 				</template>
 			</CanvasMenuList>
 		</Teleport>

@@ -34,9 +34,9 @@ it('shares the Inspector/menu action, persists, undoes/redoes, and resets withou
 	expect(setColor).toHaveBeenCalledWith(item.id, 'blue');
 	const saved = expectOk(await rig.geometry.read(rig.plan.id));
 	expect(saved.document.structure?.elements?.[0].color).toBe('blue');
-	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(13);
+	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(14);
 	await rig.runtime.elementActions.setColor(item.id, 'blue');
-	expect(expectOk(await rig.geometry.read(rig.plan.id)).version).toBe(saved.version);
+	expect(expectOk(await rig.geometry.read(rig.plan.id)).version).toEqual(saved.version);
 	await rig.runtime.undo(); await settle(); expect(colorOf(rig)).toBeUndefined();
 	await rig.runtime.redo(); await settle(); expect(colorOf(rig)).toBe('blue');
 	await menu(rig);
@@ -53,7 +53,12 @@ it('offers named, selected swatches with menu arrow navigation and keyboard appl
 	const rig = await setup(); await menu(rig);
 	const palette = rig.wrapper.get('.rp-canvas-context-menu .rp-item-color');
 	expect(palette.findAll('[role="menuitemradio"]')).toHaveLength(7);
+	await palette.trigger('keydown', { key: 'Home' });
 	const reset = palette.get<HTMLButtonElement>('[data-rp-item-color="default"]'); reset.element.focus();
+	await reset.trigger('keydown', { key: 'ArrowLeft' });
+	expect(document.activeElement).toBe(palette.get('[data-rp-item-color="violet"]').element);
+	await palette.get('[data-rp-item-color="violet"]').trigger('keydown', { key: 'ArrowRight' });
+	expect(document.activeElement).toBe(reset.element);
 	await reset.trigger('keydown', { key: 'ArrowRight' });
 	expect(document.activeElement).toBe(palette.get('[data-rp-item-color="slate"]').element);
 	// Native buttons deliver click for Enter/Space; keydown must not be swallowed by the parent menu.
@@ -104,8 +109,11 @@ it('refuses saving/stale states and compensates a failed color write without cha
 	await rig.runtime.elementActions.setColor(item.id, 'unknown' as never); expect(colorOf(rig)).toBeUndefined();
 	rig.project.stale = true; await rig.runtime.elementActions.setColor(item.id, 'blue'); expect(colorOf(rig)).toBeUndefined();
 	rig.project.stale = false;
-	save.state = 'saving'; await rig.runtime.elementActions.setColor(item.id, 'rose'); expect(colorOf(rig)).toBeUndefined();
-	save.state = 'saved';
+	save.beginSaving(); await settle();
+	expect(rig.wrapper.get('[data-rp-item-color="rose"]').attributes('aria-disabled')).toBe('true');
+	await rig.wrapper.get('[data-rp-item-color="rose"]').trigger('click');
+	await rig.runtime.elementActions.setColor(item.id, 'rose'); expect(colorOf(rig)).toBeUndefined();
+	save.resolveNeutral();
 	vi.spyOn(rig.geometry, 'write').mockResolvedValueOnce(err(injectedPersistenceError()));
 	await rig.runtime.elementActions.setColor(item.id, 'rose'); await settle();
 	const after = expectOk(await rig.renovation.read(rig.plan.id));
@@ -179,4 +187,18 @@ it('refuses to undo over a peer sidecar-only color change', async () => {
 	const result = await rig.runtime.dispatcher.undo();
 	expect(result).toMatchObject({ ok: false, error: { code: 'undo.superseded' } });
 	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.structure?.elements?.[0].color).toBe('rose');
+});
+
+it('round-trips color with independent A/B wall depths and resets to the wall-only schema without altering them', async () => {
+	const rig = await setup(), baseline = expectOk(await rig.geometry.read(rig.plan.id)), current = baseline.document.structure;
+	if (!current) throw new Error('Expected a structure');
+	const walls = current.walls.map((wall, index) => index === 0 ? { ...wall, sideExtents: { a: 1, b: wall.thickness - 1 } } : wall);
+	expectOk(await rig.geometry.write(rig.plan.id, { ...baseline.document, structure: { ...current, walls } }, baseline.version));
+	await rig.runtime.refreshProjection();
+	await rig.runtime.elementActions.setColor(item.id, 'blue');
+	const colored = expectOk(await rig.stack.store.read(rig.plan.id)).dto;
+	expect(colored.schemaVersion).toBe(14); expect(colored.structure?.walls).toEqual(walls);
+	await rig.runtime.elementActions.setColor(item.id, undefined);
+	const reset = expectOk(await rig.stack.store.read(rig.plan.id)).dto;
+	expect(reset.schemaVersion).toBe(13); expect(reset.structure?.walls).toEqual(walls);
 });

@@ -1,0 +1,77 @@
+[
+  {
+    "file": "after-dark-blue-inspector.png",
+    "bytes": 54201,
+    "sha256": "e9c775d053bc35c1a3c5832253fdf7774152e0e182532e54c97f352bdbe48a88"
+  },
+  {
+    "file": "after-dark-blue-menu.png",
+    "bytes": 64745,
+    "sha256": "41bbac8b37658c1dff2d4dbafa3d4536f48453f8b4b0c3f1fa87ecdf5811fda7"
+  },
+  {
+    "file": "before-dark-inspector.png",
+    "bytes": 51761,
+    "sha256": "89636c920fadd8d7ed5aeb78117ec0aab18be6482ca4153a403419c9e4b58307"
+  },
+  {
+    "file": "before-dark-menu.png",
+    "bytes": 60835,
+    "sha256": "2fbcb232391a8ffe2ff58e231cfe784ee655761149f8435ef89739a28935575d"
+  },
+  {
+    "file": "final-01-en-light-default.png",
+    "bytes": 55837,
+    "sha256": "4a164514bb56674c5abe11cbafd423186b6ead1473b04ac9c9e8182d08b04c52"
+  },
+  {
+    "file": "final-02-en-light-blue-inspector.png",
+    "bytes": 55914,
+    "sha256": "4f73580c98382f8fd38c00c85a5201aa9c321c82ea82c4f9a8f76968473ad7f2"
+  },
+  {
+    "file": "final-03-en-light-blue-menu-focus.png",
+    "bytes": 65698,
+    "sha256": "722cf7e514f7fb3887d7585f70a1a80fd0ce49c13a393f75400d924f76cad3aa"
+  },
+  {
+    "file": "final-04-en-dark-asset-default.png",
+    "bytes": 55626,
+    "sha256": "f345d67ba4b03dc39b061801294985452a93c73c7a9e091285bdd9500d512373"
+  },
+  {
+    "file": "final-05-en-dark-asset-violet.png",
+    "bytes": 55064,
+    "sha256": "53609c6d0d721eb13c5065d7086b26027a3c823ad6777237382a181269fd081a"
+  },
+  {
+    "file": "final-06-de-dark-460-default.png",
+    "bytes": 22473,
+    "sha256": "ffcdb8a051f4db89ac40fd7194bf5322caa06900081a2edb30ef4d216edcc7e9"
+  },
+  {
+    "file": "final-07-de-dark-460-green-inspector.png",
+    "bytes": 29771,
+    "sha256": "eb0ab6d437e28c8313e08768288e73750fdac308f61a82e6a87ff80d44c08385"
+  },
+  {
+    "file": "final-08-de-dark-460-green-menu.png",
+    "bytes": 35475,
+    "sha256": "e96f35cf4c7946fa23a4d9b5a7006eacfc6f51ba64ec01e92fdb3dea20cab0ae"
+  },
+  {
+    "file": "final-09-de-light-400-default.png",
+    "bytes": 29846,
+    "sha256": "8c001a34f7c9d7002a8ad308e50d4f93a86a29bafe0216c8b985462e85b55fb4"
+  },
+  {
+    "file": "final-10-de-light-400-amber-inspector.png",
+    "bytes": 30250,
+    "sha256": "1e0734e8b7f308609a2628c5d742e784e1f5f4d9595294ac9f5b9883c3025a3b"
+  },
+  {
+    "file": "final-11-de-light-400-amber-rightclick.png",
+    "bytes": 36717,
+    "sha256": "a64a1a521996a8396d98ea12e8c28b803851b711f5dab1c5195e9f35b9ac3996"
+  }
+]

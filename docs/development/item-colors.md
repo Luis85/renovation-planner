@@ -13,12 +13,12 @@ The geometry sidecar's `structure.elements[]` owns the property, beside the plac
 geometry. Plan Markdown still owns only the element id/name metadata. No Asset definition,
 material, requirement, renovation record, Zone, or reference appearance field changes.
 
-Schema 13 adds the optional field to the element shape in current and intended structures.
-The 12→13 migration changes only the schema discriminator. All earlier migrations compose
-normally; existing elements acquire no color. The writer selects schema 13 if either
+Schema 14 adds the optional field to the element shape in current and intended structures.
+The 13→14 migration changes only the schema discriminator. All earlier migrations compose
+normally; existing elements acquire no color. The writer selects schema 14 if either
 structure contains an override and otherwise keeps its existing lowest-content-version
 policy. Reset physically removes the field, allowing the normal downgrade when no other
-content requires 13. Older readers reject version 13 rather than stripping an unknown field.
+content requires 14. Older readers reject version 14 rather than stripping an unknown field.
 
 The editor edits the current placement in Plan. Intended geometry remains the independently
 owned proposal and is not rewritten by this action. Its DTO can preserve a color carried

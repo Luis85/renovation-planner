@@ -35,7 +35,7 @@ nothing else can:
 ## Identity and persistence
 
 Plain Items and asset placements may carry an optional preset color in the geometry sidecar
-(schema 13). See [Item placement appearance contract](../development/item-colors.md) for
+(schema 14). See [Item placement appearance contract](../development/item-colors.md) for
 eligibility, Default/reset, compatibility and the command boundary. This does not color Rooms,
 Areas, Walls, Openings or the reference plan.
 

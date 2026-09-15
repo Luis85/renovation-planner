@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { isItemColor, itemColorKind, ITEM_COLORS } from '../../../src/domain/spatial/ItemColor';
 import { validSpatialElement, type SpatialElement } from '../../../src/domain/spatial/SpatialElement';
-import { PlanGeometrySchemaV13 } from '../../../src/infrastructure/persistence/dto/planGeometry';
+import { PlanGeometrySchemaV14 } from '../../../src/infrastructure/persistence/dto/planGeometry';
 import { PLAN_GEOMETRY_MIGRATIONS } from '../../../src/infrastructure/persistence/migration/geometry/plan/plan-geometry.migrations';
 import { MigrationRunner } from '../../../src/infrastructure/persistence/migration/MigrationRunner';
 import { itemColorFill } from '../../../src/presentation/editor/elements/itemColorAppearance';
@@ -22,9 +22,10 @@ it('includes placement color in document equality for current and intended histo
 });
 
 it('limits durable ids to six presets and eligible identities to objects and asset placements', () => {
-	expect(ITEM_COLORS.every(isItemColor)).toBe(true); expect(isItemColor('default')).toBe(false); expect(isItemColor('#ffffff')).toBe(false);
+	expect(ITEM_COLORS.every(color => isItemColor(color))).toBe(true); expect(isItemColor('default')).toBe(false); expect(isItemColor('#ffffff')).toBe(false);
+	expect(isItemColor(null)).toBe(false);
 	const kinds = ['object', 'asset', 'path', 'fence', 'measurement', 'stair', 'arrow', 'post', 'beam', 'dimension', 'section', 'view', 'hatch', 'text', 'boundary', 'grid', 'Room', 'Area', 'wall', 'opening', 'reference'];
-	expect(kinds.filter(itemColorKind)).toEqual(['object', 'asset']);
+	expect(kinds.filter(kind => itemColorKind(kind))).toEqual(['object', 'asset']);
 	expect(validSpatialElement({ ...item, color: 'blue' })).toBe(true);
 	expect(validSpatialElement({ ...item, color: 'unknown' as never })).toBe(false);
 	expect(validSpatialElement({ ...item, kind: 'path', color: 'blue' })).toBe(false);
@@ -33,15 +34,15 @@ it('limits durable ids to six presets and eligible identities to objects and ass
 it('migrates old sidecars without inventing colors and refuses unknown colors and ineligible kinds', () => {
 	const migrations = new MigrationRunner(); migrations.registerAll('plan-geometry', PLAN_GEOMETRY_MIGRATIONS);
 	const migrated = migrations.migrateToLatest('plan-geometry', old, 12);
-	expect(PlanGeometrySchemaV13.parse(migrated).structure?.elements?.[0]).not.toHaveProperty('color');
+	expect(PlanGeometrySchemaV14.parse(migrated).structure?.elements?.[0]).not.toHaveProperty('color');
 	expect(old.schemaVersion).toBe(12);
-	const colored = { ...old, schemaVersion: 13, structure: { ...structure, elements: [{ ...item, color: 'rose' }] } };
-	expect(PlanGeometrySchemaV13.parse(colored).structure?.elements?.[0].color).toBe('rose');
+	const colored = { ...old, schemaVersion: 14, structure: { ...structure, elements: [{ ...item, color: 'rose' }] } };
+	expect(PlanGeometrySchemaV14.parse(colored).structure?.elements?.[0].color).toBe('rose');
 	for (const invalid of [{ ...item, color: 'pink' }, { ...item, color: null }, { ...item, kind: 'path', color: 'rose' }]) {
-		expect(PlanGeometrySchemaV13.safeParse({ ...colored, structure: { ...structure, elements: [invalid] } }).success).toBe(false);
+		expect(PlanGeometrySchemaV14.safeParse({ ...colored, structure: { ...structure, elements: [invalid] } }).success).toBe(false);
 	}
-	const previous = new MigrationRunner(); previous.registerAll('plan-geometry', PLAN_GEOMETRY_MIGRATIONS.filter(migration => migration.toVersion <= 12));
-	expect(() => previous.migrateToLatest('plan-geometry', colored, 13)).toThrow('newer than this build supports');
+	const previous = new MigrationRunner(); previous.registerAll('plan-geometry', PLAN_GEOMETRY_MIGRATIONS.filter(migration => migration.toVersion <= 13));
+	expect(() => previous.migrateToLatest('plan-geometry', colored, 14)).toThrow('newer than this build supports');
 });
 
 it('tints against light, dark and custom host backgrounds, preserving Default and unrelated kinds', () => {

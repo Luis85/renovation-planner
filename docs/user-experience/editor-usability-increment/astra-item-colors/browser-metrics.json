@@ -1,0 +1,278 @@
+{
+  "capturedAt": "2026-09-15T06:02:50.724Z",
+  "measurements": [
+    {
+      "buttons": [
+        {
+          "checked": "false",
+          "height": 40,
+          "name": "Default",
+          "width": 36
+        },
+        {
+          "checked": "false",
+          "height": 40,
+          "name": "Slate",
+          "width": 36
+        },
+        {
+          "checked": "false",
+          "height": 40,
+          "name": "Rose",
+          "width": 36
+        },
+        {
+          "checked": "false",
+          "height": 40,
+          "name": "Amber",
+          "width": 36
+        },
+        {
+          "checked": "false",
+          "height": 40,
+          "name": "Green",
+          "width": 36
+        },
+        {
+          "checked": "true",
+          "height": 40,
+          "name": "Blue",
+          "width": 36
+        },
+        {
+          "checked": "false",
+          "height": 40,
+          "name": "Violet",
+          "width": 36
+        }
+      ],
+      "focus": "Blue",
+      "height": 720,
+      "overflow": false,
+      "route": "http://127.0.0.1:5198/?view=plan-editor&reference&item=promote&theme=light",
+      "width": 1280
+    },
+    {
+      "buttons": [
+        {
+          "height": 44,
+          "name": "Standard",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Schiefergrau",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Rosé",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Bernstein",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Grün",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Blau",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Violett",
+          "width": 44
+        }
+      ],
+      "focus": "Grün",
+      "height": 820,
+      "overflow": false,
+      "route": "http://127.0.0.1:5198/?view=plan-editor&reference&item=saved&theme=dark&lang=de",
+      "width": 460
+    },
+    {
+      "buttons": [
+        {
+          "height": 44,
+          "name": "Standard",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Schiefergrau",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Rosé",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Bernstein",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Grün",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Blau",
+          "width": 44
+        },
+        {
+          "height": 44,
+          "name": "Violett",
+          "width": 44
+        }
+      ],
+      "height": 820,
+      "menu": [
+        {
+          "clientWidth": 247,
+          "height": 513.4375,
+          "scrollWidth": 247,
+          "width": 249,
+          "x": 211,
+          "y": 299
+        }
+      ],
+      "route": "http://127.0.0.1:5198/?view=plan-editor&reference&item=saved&theme=dark&lang=de",
+      "width": 460
+    },
+    {
+      "buttons": [
+        {
+          "height": 44,
+          "name": "Standard",
+          "width": 44,
+          "x": 77,
+          "y": 346.21875
+        },
+        {
+          "height": 44,
+          "name": "Schiefergrau",
+          "width": 44,
+          "x": 123,
+          "y": 346.21875
+        },
+        {
+          "height": 44,
+          "name": "Rosé",
+          "width": 44,
+          "x": 169,
+          "y": 346.21875
+        },
+        {
+          "height": 44,
+          "name": "Bernstein",
+          "width": 44,
+          "x": 215,
+          "y": 346.21875
+        },
+        {
+          "height": 44,
+          "name": "Grün",
+          "width": 44,
+          "x": 261,
+          "y": 346.21875
+        },
+        {
+          "height": 44,
+          "name": "Blau",
+          "width": 44,
+          "x": 307,
+          "y": 346.21875
+        },
+        {
+          "height": 44,
+          "name": "Violett",
+          "width": 44,
+          "x": 77,
+          "y": 392.21875
+        }
+      ],
+      "focus": "Bernstein",
+      "height": 820,
+      "overflow": false,
+      "route": "http://127.0.0.1:5198/?view=plan-editor&reference&item=promote&theme=light&lang=de",
+      "width": 400
+    },
+    {
+      "buttons": [
+        {
+          "checked": "false",
+          "height": 44,
+          "name": "Standard",
+          "width": 44
+        },
+        {
+          "checked": "false",
+          "height": 44,
+          "name": "Schiefergrau",
+          "width": 44
+        },
+        {
+          "checked": "false",
+          "height": 44,
+          "name": "Rosé",
+          "width": 44
+        },
+        {
+          "checked": "true",
+          "height": 44,
+          "name": "Bernstein",
+          "width": 44
+        },
+        {
+          "checked": "false",
+          "height": 44,
+          "name": "Grün",
+          "width": 44
+        },
+        {
+          "checked": "false",
+          "height": 44,
+          "name": "Blau",
+          "width": 44
+        },
+        {
+          "checked": "false",
+          "height": 44,
+          "name": "Violett",
+          "width": 44
+        }
+      ],
+      "height": 820,
+      "menu": [
+        {
+          "clientWidth": 247,
+          "height": 530.5390625,
+          "scrollWidth": 247,
+          "width": 249,
+          "x": 151,
+          "y": 281
+        }
+      ],
+      "overflow": false,
+      "route": "http://127.0.0.1:5198/?view=plan-editor&reference&item=promote&theme=light&lang=de",
+      "width": 400
+    }
+  ],
+  "smoke": {
+    "pointerRightClick": true,
+    "defaultReset": true,
+    "undoChecked": "true",
+    "renovateColors": 0,
+    "reviewColors": 0
+  },
+  "consoleErrors": []
+}

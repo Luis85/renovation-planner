@@ -37,9 +37,16 @@ function applySize(size: Dimensions): void {
 	const resized = sizedTransformBox(frame.value, size);
 	if (resized && !busy.value) void runtime.elementActions.resize(props.element.id, resized, props.element);
 }
+// Both fields show a 3-decimal-metre ROUND of the drawn size, so re-parsing an axis whose text
+// the user never touched would silently write that rounding back (a drag can leave a sub-mm
+// depth `formatMetres` only ever shows to the nearest millimetre). An axis whose text still
+// equals its own formatted current value keeps the exact current millimetres instead of being
+// reparsed; only when at least one axis actually changed is a write sent at all.
 function commitSize(): void {
-	const width = parseMetres(text.value.width), depth = parseMetres(text.value.depth);
-	if (width.ok && depth.ok) applySize({ width: width.mm, depth: depth.mm });
+	const current = transformBoxSize(frame.value);
+	const width = text.value.width === formatMetres(current.width) ? { ok: true as const, mm: current.width } : parseMetres(text.value.width);
+	const depth = text.value.depth === formatMetres(current.depth) ? { ok: true as const, mm: current.depth } : parseMetres(text.value.depth);
+	if (width.ok && depth.ok && (width.mm !== current.width || depth.mm !== current.depth)) applySize({ width: width.mm, depth: depth.mm });
 	showSize();
 }
 </script>

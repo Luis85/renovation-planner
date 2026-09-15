@@ -9,6 +9,7 @@ import { tr } from '../../../src/presentation/i18n/strings';
 import { formatMetres } from '../../../src/presentation/editor/shell/formatLength';
 import { useAssetShapeStore } from '../../../src/presentation/stores/AssetShapeStore';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
+import { sizedTransformBox } from '../../../src/presentation/editor/elements/transformBox';
 
 const mounted: Awaited<ReturnType<typeof assetPlacementRig>>[] = [];
 afterEach(() => { vi.restoreAllMocks(); for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -155,6 +156,36 @@ it('holds the size fields read-only while a save is in flight, and offers none o
 	const gone = await rig.place('asset-gone', { x: 3000, y: 2000 }, 0, 'Old boiler');
 	rig.selection.select([gone as never]); await settle();
 	expect(rig.wrapper.find('.rp-element-inspector input[name="asset-width"]').exists()).toBe(false);
+});
+
+it('does not round an unedited axis when the other axis is typed (Finding B)', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+	const inspector = await selectPlaced(rig, id, 1);
+	// A drag can leave a sub-mm depth the field only ever SHOWS to 3 decimals of a metre.
+	const frame = expectDefined(rig.runtime.elementActions.transformBox.value, 'placement box');
+	await rig.runtime.elementActions.resize(id, expectDefined(sizedTransformBox(frame, { width: 800, depth: 1001.2 }), 'sized'), frame.element);
+	await settleUntil(() => rig.project.structure.elements?.[0]?.size !== undefined, 'sized placement');
+	expect(rig.project.structure.elements?.[0]?.size?.depth).toBeCloseTo(1001.2, 6);
+	await inspector.get('input[name="asset-width"]').setValue(formatMetres(1500));
+	await inspector.get('input[name="asset-width"]').trigger('change');
+	await settleUntil(() => rig.project.structure.elements?.[0]?.size?.width === 1500, 'width committed');
+	// The untouched depth field still read the 3-decimal-rounded text ("1.001"); re-parsing it
+	// would silently write 1001 mm instead of the unrounded 1001.2 mm the drag actually left.
+	expect(rig.project.structure.elements?.[0]?.size?.depth).toBeCloseTo(1001.2, 6);
+});
+
+it('sends no write when neither size field actually changed', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+	const inspector = await selectPlaced(rig, id, 1);
+	const command = vi.spyOn(rig.renovation, 'command');
+	await inspector.get('input[name="asset-width"]').setValue(formatMetres(800));
+	await inspector.get('input[name="asset-width"]').trigger('change');
+	await settle();
+	expect(command).not.toHaveBeenCalled();
 });
 
 it('keeps typed but uncommitted size text through an unrelated committed write in the same plan', async () => {

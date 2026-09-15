@@ -27,8 +27,9 @@ const error = (code: string): AppError => ({
 	category: 'Validation', code, message: 'internal',
 });
 
-// `en.ts` deliberately documents this refusal through the generic category sentence.
-const GENERIC = new Set(['asset.unsupported-background']);
+// The existing `toUserMessage` exclusion ledger documents both guards as unreachable through
+// their forms, so their generic category sentence is deliberate rather than missing copy.
+const GENERIC = new Set(['asset.unsupported-background', 'plan.unsupported-background']);
 
 describe('application-reachable domain error factories', () => {
 	it('keeps every discovered domain factory code out of the generic category message', () => {
@@ -36,6 +37,7 @@ describe('application-reachable domain error factories', () => {
 		expect(codes).toContain('plan.nothing-to-undo');
 		expect(codes).toContain('plan.invalid-spatial-elements');
 		expect(codes).toContain('asset.unsupported-background');
+		for (const code of GENERIC) expect(codes).toContain(code);
 		for (const code of codes) {
 			if (GENERIC.has(code)) continue;
 			expect(toUserMessage('en', error(code))).not.toBe(t('en', 'error.category.validation'));

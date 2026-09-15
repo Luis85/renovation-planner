@@ -21,7 +21,17 @@ function showSize(): void {
 	const size = transformBoxSize(frame.value);
 	text.value = { width: formatMetres(size.width), depth: formatMetres(size.depth) };
 }
-watch(frame, showSize, { immediate: true });
+// Keyed on the drawn size's own VALUE, not on `frame`'s identity: an unrelated committed write
+// elsewhere in the plan (e.g. `projectStore.hydrate()` re-reading the sidecar) gives `element` a
+// new object reference with the same width/depth, which recomputed `frame` and refired an
+// identity-keyed watch — overwriting typed-but-uncommitted text with the unchanged formatted
+// value. This getter answers a primitive, so the watch fires only when the formatted size
+// actually differs.
+const sizeKey = computed(() => {
+	const size = transformBoxSize(frame.value);
+	return `${formatMetres(size.width)}|${formatMetres(size.depth)}`;
+});
+watch(sizeKey, showSize, { immediate: true });
 const busy = computed(() => runtime.elementActions.blocked.value || runtime.elementActions.active.value);
 function applySize(size: Dimensions): void {
 	const resized = sizedTransformBox(frame.value, size);

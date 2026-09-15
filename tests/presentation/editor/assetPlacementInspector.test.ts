@@ -156,3 +156,20 @@ it('holds the size fields read-only while a save is in flight, and offers none o
 	rig.selection.select([gone as never]); await settle();
 	expect(rig.wrapper.find('.rp-element-inspector input[name="asset-width"]').exists()).toBe(false);
 });
+
+it('keeps typed but uncommitted size text through an unrelated committed write in the same plan', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place(radiator.id, { x: 1000, y: 1000 });
+	const inspector = await selectPlaced(rig, id, 1);
+	// `setValue` (vue-test-utils) triggers BOTH `input` and `change` — see its source — so it
+	// would commit the resize itself. Setting the DOM value and dispatching only `input` is
+	// what leaves the text typed but uncommitted, matching a real keystroke before blur.
+	const width = inspector.get<HTMLInputElement>('input[name="asset-width"]');
+	width.element.value = '1.30';
+	await width.trigger('input');
+	await settle();
+	await rig.place(radiator.id, { x: 2000, y: 2000 });
+	await settle();
+	expect(rig.wrapper.get<HTMLInputElement>('.rp-element-inspector input[name="asset-width"]').element.value).toBe('1.30');
+});

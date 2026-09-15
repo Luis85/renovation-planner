@@ -233,6 +233,22 @@ it('commits a custom colour from Details on change, never on input, and names th
 	await menu(rig); expect(rig.wrapper.find('.rp-canvas-context-menu input[type="color"]').exists()).toBe(false);
 });
 
+it('shows Mixed for an item, a wall and a room with different colours, and one choice sets all three as one undo step', async () => {
+	const rig = await setup(), wall = rig.project.structure.walls[0].id;
+	await rig.runtime.groupActions.setColor([item.id], 'blue');
+	rig.selection.select([item.id, wall, rig.room.id] as never); await settleUntil(() => rig.wrapper.find('.rp-multi-selection .rp-item-color').exists(), 'multi palette');
+	const palette = rig.wrapper.get('.rp-multi-selection .rp-item-color');
+	expect(palette.text()).toContain('Color · Mixed');
+	expect(palette.findAll('[aria-pressed="true"]')).toHaveLength(0);
+	await palette.get('[data-rp-item-color="violet"]').trigger('click');
+	await settleUntil(() => rig.project.zones.get(rig.room.id)?.color === 'violet', 'violet selection');
+	expect([colorOf(rig), rig.project.structure.walls[0].color]).toEqual(['violet', 'violet']);
+	await rig.runtime.undo(); await settle();
+	expect([colorOf(rig), rig.project.structure.walls[0].color, rig.project.zones.get(rig.room.id)?.color]).toEqual(['blue', undefined, undefined]);
+	await menu(rig);
+	expect(rig.wrapper.get('.rp-canvas-context-menu .rp-item-color').text()).toContain('Color · Mixed');
+});
+
 it('offers the palette for a wall in its Details and for a room in its Details', async () => {
 	const rig = await setup(), wall = rig.project.structure.walls[0].id;
 	rig.selection.select([wall as never]); await settleUntil(() => rig.wrapper.find('.rp-structure-inspector .rp-item-color').exists(), 'wall palette');

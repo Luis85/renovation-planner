@@ -8,7 +8,7 @@ import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import ItemColorSwatch from './ItemColorSwatch.vue';
 import ItemColorCustom from './ItemColorCustom.vue';
-import { colorTargets, itemColorLabel } from './itemColorTargets';
+import { colorTargets, itemColorLabel, sharedColor } from './itemColorTargets';
 
 defineProps<{ menu?: boolean }>();
 const emit = defineEmits<{ picked: [] }>();
@@ -16,7 +16,7 @@ const project = useProjectStore(), selection = useSelectionStore(), session = us
 const targets = computed(() => colorTargets(project, selection.selectedIds));
 const visible = computed(() => session.perspective === 'plan' && targets.value.length > 0);
 const disabled = computed(() => runtime.groupActions.blocked.value || runtime.groupActions.active.value);
-const current = computed(() => targets.value[0]?.color);
+const current = computed(() => sharedColor(targets.value));
 const presets: readonly (ItemColorPreset | undefined)[] = [undefined, ...ITEM_COLORS];
 function choose(color: ItemColor | undefined): void {
 	if (!visible.value || disabled.value) return;
@@ -61,7 +61,7 @@ function key(event: KeyboardEvent): void {
 			/>
 			<ItemColorCustom
 				v-if="!menu"
-				:color="current"
+				:color="current === 'mixed' ? undefined : current"
 				:disabled="disabled"
 				@choose="choose"
 			/>

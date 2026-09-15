@@ -2,6 +2,7 @@ import type { StringKey } from '../en';
 export const itemColorDe: Partial<Record<StringKey, string>> = {
 	'editor.item-color.label': 'Farbe',
 	'editor.item-color.default': 'Standard',
+	'editor.item-color.mixed': 'Gemischt',
 	'editor.item-color.slate': 'Schiefergrau',
 	'editor.item-color.rose': 'Rosé',
 	'editor.item-color.amber': 'Bernstein',

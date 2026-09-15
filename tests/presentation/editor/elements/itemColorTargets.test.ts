@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { colorTargets, itemColorLabel } from '../../../../src/presentation/editor/elements/itemColorTargets';
+import { colorTargets, itemColorLabel, sharedColor } from '../../../../src/presentation/editor/elements/itemColorTargets';
 import { WALL_LOOP } from '../../../helpers/structure';
 
 const door = { id: 'opening-door', kind: 'door' as const, hostId: 'wall-a', offset: 500, width: 800, height: 2100, sill: 0 };
@@ -14,4 +14,14 @@ it('finds one room, wall, opening or element of any kind, and nothing for an id 
 
 it('labels a preset by name, a hex as saved and absence as Default', () => {
 	expect(itemColorLabel('blue')).toBe('Blue'); expect(itemColorLabel('#3a7bd5')).toBe('#3a7bd5'); expect(itemColorLabel(undefined)).toBe('Default');
+});
+
+it('answers every selected id, or nothing when one cannot be coloured, and shares or mixes their colour', () => {
+	const all = colorTargets({ zones, structure }, ['zone-a', 'wall-a', 'element-path']);
+	expect(all.map(target => target.id)).toEqual(['zone-a', 'wall-a', 'element-path']);
+	expect(colorTargets({ zones, structure }, ['wall-a', 'reference-x'])).toEqual([]);
+	expect(sharedColor(all)).toBe('mixed');
+	expect(sharedColor(colorTargets({ zones, structure }, ['wall-a', 'opening-door']))).toBeUndefined();
+	expect(sharedColor([{ id: 'a', color: 'rose' }, { id: 'b', color: 'rose' }])).toBe('rose');
+	expect(itemColorLabel('mixed')).toBe('Mixed');
 });

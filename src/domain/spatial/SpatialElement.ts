@@ -1,5 +1,6 @@
 import type { Point } from '../../core/geometry/Point';
 import type { Vector } from '../../core/geometry/Vector';
+import type { Dimensions } from '../asset/AssetShape';
 import { isItemColor, type ItemColor } from './ItemColor';
 import { stairPlanGeometry, type StairOptions } from './stairGeometry';
 
@@ -26,6 +27,8 @@ export interface SpatialElement {
 	readonly offset?: number;
 	/** Which side a section line looks at. Only a `'section'` carries one, and it always does. */
 	readonly flipped?: boolean;
+	/** An asset placement's own width and depth along its library shape's axes, world mm; absent while it keeps the library's size. Only an `'asset'` carries one. */
+	readonly size?: Dimensions;
 }
 export interface SpatialElementMetadata { readonly id: string; readonly name: string }
 export type NamedSpatialElement = SpatialElement & SpatialElementMetadata;
@@ -80,8 +83,18 @@ export function elementLength(element: SpatialElement): number {
 	return element.points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - element.points[index].x, point.y - element.points[index].y), 0);
 }
 
-export function validSpatialElement(element: SpatialElement): boolean {
+/** A placement's own size may not exceed a kilometre, the bound every other element measure takes. */
+const MAX_PLACEMENT_MM = 1e6;
+
+/** A color from its vocabulary on any kind (plan colours design §1); a size only on a placement, both sides finite, positive and in bound. */
+function validPlacementFacts(element: SpatialElement): boolean {
 	if (element.color !== undefined && !isItemColor(element.color)) return false;
+	return element.size === undefined || (element.kind === 'asset'
+		&& [element.size.width, element.size.depth].every(side => Number.isFinite(side) && side > 0 && side <= MAX_PLACEMENT_MM));
+}
+
+export function validSpatialElement(element: SpatialElement): boolean {
+	if (!validPlacementFacts(element)) return false;
 	if (!element.id.startsWith('element-') || !SPATIAL_ELEMENT_KINDS.includes(element.kind)) return false;
 	if (!element.points.every(point => [point.x, point.y].every(n => Number.isFinite(n) && Math.abs(n) <= 1e9))) return false;
 	if ((element.kind === 'asset') !== (element.assetId !== undefined)) return false;

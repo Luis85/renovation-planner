@@ -62,3 +62,10 @@ cleanup rather than a defect.
 - `src/presentation/views/ViewRoot.vue` — the docblock explaining why the ref is read and
   written by two places at once.
 - `docs/superpowers/specs/2026-09-05-whole-tree-review-findings.md` — finding V11.
+
+## Evidence
+
+No code change: the three call sites are not independent duplicates—`newAssetDialog.ts` owns the
+shared helper path, while the other two forms have distinct descriptors and nearby explanatory
+context. A helper would obscure the required pairing rather than materially reduce repetition,
+so the behavior remains as-is and this optional cleanup stays open.

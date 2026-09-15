@@ -17,4 +17,7 @@ export const assetPlacementEn = {
 	'editor.asset.replace': 'Replace asset…',
 	'editor.asset.replace-title': 'Replace asset',
 	'editor.asset.add-material': 'Add as material',
+	'editor.asset.width': 'Width (m)',
+	'editor.asset.depth': 'Depth (m)',
+	'editor.asset.reset-size': 'Reset to library size',
 };

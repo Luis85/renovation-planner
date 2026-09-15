@@ -17,5 +17,5 @@ it('keeps a room colour through rename, lock and a whole-document sidecar write'
 	expect(read.document.objects.find(object => object.id === zone.id)?.color).toBe('#3a7bd5');
 	expectOk(await sidecar.write(plan.id, read.document, read.version));
 	expect(expectFound(await stack.zones.getById(zone.id)).entity.color).toBe('#3a7bd5');
-	expect(expectOk(await stack.store.read(plan.id)).dto.schemaVersion).toBe(15);
+	expect(expectOk(await stack.store.read(plan.id)).dto.schemaVersion).toBe(16);
 });

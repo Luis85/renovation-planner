@@ -7,7 +7,7 @@ import {
 	ZONE_TYPE,
 } from '../dto/zoneFrontmatter';
 import {
-	SpatialObjectGeometrySchemaV15,
+	SpatialObjectGeometrySchemaV16,
 	type SpatialObjectGeometryDTO,
 } from '../dto/planGeometry';
 import { toKebab } from '../dto/kebab';
@@ -59,7 +59,7 @@ export function zoneFromPersistence(
 	);
 	if (!frontmatter.ok) return frontmatter;
 	const geometry = parsePersisted(
-		SpatialObjectGeometrySchemaV15,
+		SpatialObjectGeometrySchemaV16,
 		rawGeometry,
 		'zone.geometry-invalid',
 		'Zone geometry entry',

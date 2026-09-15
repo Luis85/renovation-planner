@@ -13,7 +13,6 @@ export interface RotationGestureDeps {
 	requestRotation?: (id: string) => void;
 	rotationTarget?: () => RotationShape | null;
 	rotationControl?: () => RotationControlGeometry | null;
-	rotationDisplayTarget?: () => RotationShape | null;
 	rotationControls?: () => readonly RotationControlGeometry[];
 }
 interface Gesture {
@@ -100,7 +99,6 @@ export class ElementRotation {
 			this.gesture.context.renderState.rotationInteraction = null;
 			this.gesture.context.renderState.hoveredTargetKind = null;
 			this.gesture.context.renderState.hoveredObjectId = null;
-			this.gesture.context.renderState.rotationHoverId = null;
 		}
 		this.gesture = null;
 	}

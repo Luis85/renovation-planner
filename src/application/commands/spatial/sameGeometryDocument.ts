@@ -16,7 +16,8 @@ function structureContent(s: Structure | undefined): unknown {
 			s.boundaries.map(boundary => [boundary.roomId, boundary.wallIds]),
 			(s.elements ?? []).toSorted((a, b) => a.id.localeCompare(b.id, 'en')).map(element => [element.id, element.kind, element.points.map(point),
 				element.stair ? [element.stair.width, element.stair.treads, element.stair.direction] : null,
-				element.assetId ?? null, offset(element.labelOffset), element.width ?? null, element.loadBearing ?? null, element.offset ?? null, element.flipped ?? null, element.color ?? null])] : null;
+				element.assetId ?? null, offset(element.labelOffset), element.width ?? null, element.loadBearing ?? null, element.offset ?? null,
+				element.flipped ?? null, element.color ?? null, element.size ? [element.size.width, element.size.depth] : null])] : null;
 }
 
 function content(document: PlanGeometryDocument): unknown {

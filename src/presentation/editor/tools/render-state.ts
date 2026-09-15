@@ -74,8 +74,6 @@ export class RenderState {
 	rotationDegrees: number | null = null;
 	rotationInteraction: RotationInteraction | null = null;
 	rotationHoverSuppressed = false;
-	/** Affordance ownership may bridge edge-to-arrow travel; ordinary hover still predicts body selection. */
-	rotationHoverId: string | null = null;
 	/**
 	 * WHAT the hovered target is, beside WHICH one it is (spec §6.2: a body promises a
 	 * selection and a vertex handle promises a drag of that vertex, and the cursor has to say
@@ -90,7 +88,7 @@ export class RenderState {
 	 * every site, which is stated here because nothing in any gate can enforce it: an id with a
 	 * stale kind beside it renders the wrong cursor over the right target.
 	 */
-	hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | null = null;
+	hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | 'resize' | null = null;
 	previewPolygon: readonly Point[] | null = null;
 	marquee: BoundingBox | null = null;
 	snapGuides: LineSegment[] = [];
@@ -119,7 +117,6 @@ export class RenderState {
 		this.rotationDegrees = null;
 		this.rotationInteraction = null;
 		this.rotationHoverSuppressed = false;
-		this.rotationHoverId = null;
 		this.hoveredTargetKind = null;
 		this.previewPolygon = null;
 		this.marquee = null;

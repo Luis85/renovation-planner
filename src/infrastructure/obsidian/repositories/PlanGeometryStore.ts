@@ -7,7 +7,7 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV15 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV16 } from '../../persistence/dto/planGeometry';
 import { hasIndependentWallSides, withWallSideDefaults } from './wallSidePersistence';
 import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import { isItemColorPreset } from '../../../domain/spatial/ItemColor';
@@ -52,17 +52,21 @@ function hasDraftingElement(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>
 	return [dto.structure, dto.intended].some(structure => structure?.elements?.some(element => draftingKind(element.kind)) === true);
 }
 
-/** Colours need a reader that understands them: 14 for presets on items and placements, 15 for a hex or any other family (plan colours design §1). */
-function colorSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended'>): 14 | 15 | null {
+/**
+ * Colours and a placement's own size need a reader that understands them, and the highest requirement wins: 16 for a hex or a
+ * colour on any family but items and placements (plan colours design §1), 15 for a placement's own size, 14 for a preset on an item or placement.
+ */
+function explicitFactsSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended'>): 16 | 15 | 14 | null {
 	const structures = [dto.structure, dto.intended].filter((structure): structure is NonNullable<typeof structure> => structure !== undefined);
-	const elements = structures.flatMap(structure => structure.elements ?? []).filter(element => element.color !== undefined);
+	const elements = structures.flatMap(structure => structure.elements ?? []), colored = elements.filter(element => element.color !== undefined);
 	const others = [...dto.objects, ...structures.flatMap(structure => [...structure.walls, ...structure.openings])];
-	if (others.some(item => item.color !== undefined) || elements.some(element => !isItemColorPreset(element.color) || (element.kind !== 'object' && element.kind !== 'asset'))) return 15;
-	return elements.length ? 14 : null;
+	if (others.some(item => item.color !== undefined) || colored.some(element => !isItemColorPreset(element.color) || (element.kind !== 'object' && element.kind !== 'asset'))) return 16;
+	if (elements.some(element => element.size !== undefined)) return 15;
+	return colored.length ? 14 : null;
 }
 
 function writtenSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended' | 'groups'>): PlanGeometryDTO['schemaVersion'] {
-	const colored = colorSchema(dto); if (colored) return colored;
+	const explicit = explicitFactsSchema(dto); if (explicit) return explicit;
 	if (hasIndependentWallSides(dto)) return 13;
 	if (hasDraftingElement(dto)) return 12;
 	if (hasStructuralElement(dto)) return 11;
@@ -316,7 +320,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV15.safeParse(migrated);
+		const validated = PlanGeometrySchemaV16.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

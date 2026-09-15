@@ -20,7 +20,7 @@ import {
 	zoneToPersistence,
 } from '../../persistence/mappers/zoneMapper';
 import { ZoneFrontmatterSchema } from '../../persistence/dto/zoneFrontmatter';
-import { SpatialObjectGeometrySchemaV15 } from '../../persistence/dto/planGeometry';
+import { SpatialObjectGeometrySchemaV16 } from '../../persistence/dto/planGeometry';
 import { parsePersisted } from '../../persistence/mappers/parse';
 import {
 	ensureFolder,
@@ -262,7 +262,7 @@ export class ObsidianZoneRepository implements ZoneRepository {
 		const dto: Record<string, unknown> = { ...zoneToPersistence(zone, nextRevision) };
 		const geometryEntry = zoneToGeometryEntry(zone);
 		const frontmatterOk = ZoneFrontmatterSchema.safeParse(dto).success;
-		const geometryOk = SpatialObjectGeometrySchemaV15.safeParse(geometryEntry).success;
+		const geometryOk = SpatialObjectGeometrySchemaV16.safeParse(geometryEntry).success;
 		if (!frontmatterOk || !geometryOk) {
 			return err(validationFailure('The zone failed pre-write validation.'));
 		}

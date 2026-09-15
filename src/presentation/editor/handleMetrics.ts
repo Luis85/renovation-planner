@@ -105,12 +105,29 @@ export const SELECTION_BADGE_RADIUS_PX = 12;
 /** Invisible screen-pixel margin around a selected item's caption, so a small name tag stays grabbable at any zoom (ADR-0029). */
 export const LABEL_GRAB_PADDING_PX = 4;
 
-/** Small edge arrows retain generous invisible rectangular pointer targets. */
+/**
+ * The curved-arrow rotate handle both editors draw the way Konva's Transformer draws its rotater:
+ * beyond the middle of a side of the selection's box, on a stem. The arrow is drawn at the radius
+ * and the plan editor grabs it by a square target of the size. The offset runs from the box side to
+ * the arrow's centre and exceeds half that target plus a vertex's grab radius and the clearance, so
+ * the target never reaches a handle grabbed on that side — `handleMetrics.test.ts` holds it.
+ */
 export const ROTATION_HANDLE_RADIUS_PX = 8;
-export const ROTATION_CONTROL_WIDTH_PX = 44;
-export const ROTATION_CONTROL_TOP_PX = 22;
-export const ROTATION_CONTROL_BOTTOM_PX = 22;
-export const ROTATION_HANDLE_OFFSET_PX = 18;
+export const ROTATION_CONTROL_SIZE_PX = 32;
+export const ROTATION_HANDLE_OFFSET_PX = 30;
+/**
+ * How far out the plan editor may push that arrow past a native control covering the middle of a
+ * side — a selected Room's dimension label sits on all four — before it gives the side up.
+ */
+export const ROTATION_HANDLE_REACH_PX = 90;
 export const ROTATION_VIEW_MARGIN_PX = 4;
 export const ROTATION_HANDLE_CLEARANCE_PX = 4;
 export const ROTATION_PIVOT_DEADZONE_PX = 8;
+
+/**
+ * How far outside an item's or placement's outline its transform box and handles are drawn, so the
+ * item's own vertex dots stay grabbable beside the corner handles (plan editor transform box design, Decision 3).
+ */
+export const TRANSFORM_BOX_PADDING_PX = 12;
+/** The drawn side of a transform box handle square; the grab reach is `VERTEX_GRAB_RADIUS_PX`, like a vertex. */
+export const TRANSFORM_HANDLE_SIZE_PX = 8;

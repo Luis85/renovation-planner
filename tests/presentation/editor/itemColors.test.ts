@@ -229,7 +229,7 @@ it('commits a custom colour from Details on change, never on input, and names th
 	await picker.trigger('change'); await settleUntil(() => colorOf(rig) === '#3a7bd5', 'custom colour');
 	expect(rig.wrapper.get('.rp-element-inspector .rp-item-color').text()).toContain('Color · #3a7bd5');
 	expect(rig.wrapper.get('.rp-element-inspector input[type="color"]').attributes('aria-label')).toBe('Custom color #3a7bd5');
-	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(15);
+	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(16);
 	await menu(rig); expect(rig.wrapper.find('.rp-canvas-context-menu input[type="color"]').exists()).toBe(false);
 });
 

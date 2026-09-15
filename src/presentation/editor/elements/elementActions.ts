@@ -1,16 +1,18 @@
 import { createDraftRetry } from '../forms/createDraftRetry';
 import { createSpatialRemoval } from './spatialRemoval';
+import { createElementReshape } from './elementReshape';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import type { Point } from '../../../core/geometry/Point';
 import type { PlanId } from '../../../domain/plan/PlanId';
-import type { NamedSpatialElement, SpatialElement } from '../../../domain/spatial/SpatialElement';
+import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
+import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { useSelectionStore } from '../selection/selection-store';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { renovationReferents } from '../../../domain/renovation/renovationTargets';
 import { removalSources } from '../planning/removalSources';
@@ -22,6 +24,7 @@ import { elementEditPresentation } from './elementEditPresentation';
 import { err } from '../../../core/result/Result';
 import { staleWriteRefusal } from '../tools/with-stale-gate';
 import type { RenovationBaseline } from '../../../application/commands/renovation/RenovationCommand';
+import { assetTransformBox, itemTransformBox, type TransformBox } from './transformBox';
 
 function elementFrom(baseline: RenovationBaseline, id: string): NamedSpatialElement | null {
  const geometry = baseline.geometry.document.structure?.elements?.find(item => item.id === id);
@@ -33,6 +36,14 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 	const removal = createSpatialRemoval(context, runtime);
 	const active = ref(false), preview = ref<NamedSpatialElement | null>(null);
 	const blocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective !== 'plan' || runtime.activeToolId.value !== 'select');
+	const shapes = useAssetShapeStore(), workspace = useWorkspaceStore();
+	/** The one selected item's or placeable placement's transform box, while a geometry write could start (plan editor transform box design, Interaction). */
+	const transformBox = computed<TransformBox | null>(() => {
+		const element = selection.selectedIds.length === 1 && !blocked.value && !active.value ? project.structure.elements?.find(item => item.id === String(selection.selectedIds[0])) : undefined;
+		if (element?.kind === 'object') return workspace.layerVisibility.architecture ? itemTransformBox(element) : null;
+		const shape = element?.kind === 'asset' && element.assetId && workspace.layerVisibility.asset ? shapes.shapeOf(element.assetId) : null;
+		return shape && element ? assetTransformBox(element, shape) : null;
+	});
 	let alive = true, rotationEpoch = 0;
 	// An operation in flight owns its preview and clears it when its write has been read back; clearing it here drew the saved geometry meanwhile, so the element jumped back and forward.
 	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { rotationEpoch += 1; if (!active.value) preview.value = null; }, { flush: 'sync' });
@@ -105,24 +116,6 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 			if (alive && !result.ok) notifyOperationFailure(result.error);
 		});
 	}
-	async function move(id: string, points: readonly Point[], original: SpatialElement): Promise<void> {
-		const epoch = rotationEpoch;
-		try {
-			await operate(id, async ({ baseline, element }) => {
-				if (epoch !== rotationEpoch) return;
-				if (element.kind !== original.kind || JSON.stringify(element.points) !== JSON.stringify(original.points) || JSON.stringify(element.stair) !== JSON.stringify(original.stair)) { notifyOperationFailure(staleWriteRefusal()); return; }
-				if (!context.commands.renovation) return;
-				const result = await runtime.dispatcher.run(context.commands.renovation.command(baseline, elementInput(baseline, { ...element, points }), runtime.structureTask.ledger));
-				if (alive && !result.ok) notifyOperationFailure(result.error);
-			});
-		} finally {
-			// A pointer drop leaves its preview up until here; `operate` refusing before its own `finally` must not strand it.
-			if (preview.value?.id === id) preview.value = null;
-		}
-	}
-	function previewElement(id: string | null, points?: readonly Point[]): void {
-		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
-		preview.value = alive && !blocked.value && element && name && points ? { ...element, name, points } : null;
-	}
-	return { edit, remove, setLoadBearing, flip, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
+	const { move, resize, previewElement, previewResize } = createElementReshape(context, runtime, { operate, preview, blocked, alive: () => alive, rotationEpoch: () => rotationEpoch });
+	return { edit, remove, setLoadBearing, flip, removeMany: removal.remove, removeManyActive: removal.active, move, resize, active, blocked, preview, previewElement, previewResize, transformBox };
 }

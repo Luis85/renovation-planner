@@ -44,6 +44,7 @@ import { draftingHitContext } from '../elements/draftingMarks';
 import type { SpatialObjectCandidate } from '../tools/select-tool';
 import GestureSketch from './GestureSketch.vue';
 import ObjectRotationHandle from '../elements/ObjectRotationHandle.vue';
+import TransformBoxHandles from '../elements/TransformBoxHandles.vue';
 import SnapGuides from './SnapGuides.vue';
 import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
 import { polygonPolyline } from '../../../core/geometry/curvePolyline';
@@ -281,6 +282,7 @@ const editableVertices = computed(() => {
 				/>
 			</template>
 		</template>
+		<TransformBoxHandles :tokens="props.tokens" />
 		<VGroup :config="{ name: 'rotation-handle-viewport', ...viewportTransform(editorStore.viewport) }">
 			<CurveHandles
 				v-if="runtime.curveTask.target.value"

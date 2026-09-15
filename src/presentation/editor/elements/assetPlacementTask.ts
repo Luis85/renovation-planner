@@ -3,6 +3,7 @@ import type { Point } from '../../../core/geometry/Point';
 import { createEntityId } from '../../../core/identity/generateId';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
+import { withPlacementSize } from '../../../domain/spatial/assetPlacement';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import type { AssetShapeAnswer } from '../../read-models/assetShapes';
 import type { StringKey } from '../../i18n/locales/en';
@@ -79,7 +80,8 @@ export function createAssetPlacementTask(context: PlanEditorContext, runtime: Pi
 		const name = project.plan?.spatialElements?.find(item => item.id === elementId)?.name;
 		if (!picked || !name) return;
 		draft.error = null; draft.conflict = false;
-		if (!(await write({ ...current, assetId: picked.id, name })) && draft.error) notifyOperationFailure(draft.error);
+		// A different asset starts at its own library size (plan editor transform box design, Geometry).
+		if (!(await write(withPlacementSize({ ...current, assetId: picked.id, name }, undefined))) && draft.error) notifyOperationFailure(draft.error);
 	}
 
 	runtime.toolManager.register(new AssetPlacementTool({ draft, walls: () => project.structure.walls, blocked: () => blocked.value, place: points => { void place(points); } }));

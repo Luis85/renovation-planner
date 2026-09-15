@@ -111,6 +111,16 @@ onBeforeUnmount(() => {
 /** The input element, so `ProjectList` can move focus into it (Task 8's keyboard entry). */
 const input = ref<HTMLInputElement | null>(null);
 
+/** The visible field is one control, so every pointer target inside its chrome enters the input. */
+function onFieldPointerdown(): void {
+	input.value?.focus();
+}
+
+function clearQuery(): void {
+	emit('update:query', '');
+	input.value?.focus();
+}
+
 /**
  * Re-emits every keydown, and — on `Escape` — ALSO fires `cancel`. §7's table has the arrows
  * work from "filter or list", so `ProjectList` needs the keys this field does not consume
@@ -154,7 +164,10 @@ defineExpose({ focus: (): void => input.value?.focus() });
 			focus ring lights the whole box. That much is Task D's and is unchanged; what left
 			is the count, which P00 draws outside.
 		-->
-		<div class="rp-project-filter__field">
+		<div
+			class="rp-project-filter__field"
+			@pointerdown="onFieldPointerdown"
+		>
 			<!-- P00's search glyph, `aria-hidden` at HostIcon's own root: the visually-hidden
 			     `<label>` above is the field's name and a decorative icon must not become a
 			     second one. -->
@@ -172,6 +185,15 @@ defineExpose({ focus: (): void => input.value?.focus() });
 				@input="$emit('update:query', ($event.target as HTMLInputElement).value)"
 				@keydown="onInputKeydown"
 			>
+			<button
+				v-if="query.length > 0"
+				type="button"
+				class="rp-project-filter__clear"
+				:aria-label="tr('view.project.filter.clear')"
+				@click.stop="clearQuery"
+			>
+				{{ tr('view.project.filter.clear') }}
+			</button>
 		</div>
 		<!--
 			THE VISIBLE COUNT, immediate, beside the field at P00's width and wrapped under it at

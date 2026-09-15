@@ -5,7 +5,7 @@ import { STAGE_PIXELS, worldToScreen } from '../../src/presentation/editor/viewp
 import { pointerAt } from './tool-context';
 import { settle } from './editor';
 
-/** Runtime tests explicitly establish the new pointer-hover precondition before taking a handle. */
+/** Moves the pointer over `point` through the tool, as a user would before taking a handle. */
 export async function hoverRotation(runtime: EditorRuntime, editor: ReturnType<typeof useEditorStore>, point: Point): Promise<void> {
 	editor.setPointer(worldToScreen(point, editor.viewport, STAGE_PIXELS));
 	runtime.toolManager.pointerMove(pointerAt(point.x, point.y));

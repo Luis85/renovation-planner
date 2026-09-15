@@ -14,11 +14,9 @@ import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
  * disabling the Inspector's own rotate buttons. `zoneLockCanvas.test.ts` proves the sibling
  * case for vertex handles (`editableVertices`); this proves the rotation handle the same way.
  *
- * The room is selected and hovered WHILE still unlocked — hovering a zone `canvasCandidates`
- * already excludes from the canvas hit list (Z3) never sets `rotationHoverId` to it in the
- * first place, so that path alone cannot demonstrate the gap. Locking it AFTER the handle is
- * already showing is what `permitted()`'s missing lock check actually leaves open: nothing
- * re-evaluates the STALE hover state when a lock lands.
+ * The room is selected WHILE still unlocked, so its handle is already showing. Locking it
+ * AFTER that is what `permitted()`'s missing lock check actually leaves open: a selection that
+ * outlives the lock would otherwise keep offering a handle nothing may grab.
  */
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });

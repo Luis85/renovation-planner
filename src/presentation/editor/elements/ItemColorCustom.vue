@@ -17,7 +17,7 @@ function change(event: Event): void {
 }
 </script>
 <template>
-	<span
+	<label
 		class="rp-item-color__custom"
 		:title="disabled ? tr('editor.input.unavailable') : label"
 	>
@@ -34,5 +34,5 @@ function change(event: Event): void {
 			class="rp-item-color__check"
 			name="circle-check"
 		/>
-	</span>
+	</label>
 </template>

@@ -180,6 +180,14 @@ it('keeps a peer color change and refuses the stale projection before making a c
 	expect(command).not.toHaveBeenCalled(); expect(colorOf(rig)).toBe('rose');
 });
 
+it('refuses a recolour while a drawing tool is active', async () => {
+	const rig = await setup(), before = [...rig.stack.vault.entries];
+	rig.runtime.setTool('draw-polygon'); await settle();
+	await rig.runtime.groupActions.setColor([item.id], 'blue');
+	expect(colorOf(rig)).toBeUndefined();
+	expect([...rig.stack.vault.entries]).toEqual(before);
+});
+
 it('has valid accessible names and roles in the Inspector and context-menu routes', { timeout: 30_000 }, async () => {
 	const rig = await setup();
 	expect((await axe.run(rig.wrapper.get('.rp-item-color').element as HTMLElement, runOptions)).violations).toEqual([]);
@@ -213,6 +221,9 @@ it('round-trips color with independent A/B wall depths and resets to the wall-on
 
 it('commits a custom colour from Details on change, never on input, and names the hex', async () => {
 	const rig = await setup(), picker = rig.wrapper.get<HTMLInputElement>('.rp-element-inspector input[type="color"]');
+	const wrapper = rig.wrapper.get('.rp-element-inspector .rp-item-color__custom');
+	expect(wrapper.element.tagName).toBe('LABEL');
+	expect(wrapper.element.contains(picker.element)).toBe(true);
 	picker.element.value = '#3a7bd5'; await picker.trigger('input'); await settle();
 	expect(colorOf(rig)).toBeUndefined();
 	await picker.trigger('change'); await settleUntil(() => colorOf(rig) === '#3a7bd5', 'custom colour');

@@ -6,6 +6,8 @@ Date: 2026-09-14. Scope: the explicitly requested second wall PR, stacked direct
 
 - Worktree: `D:/Projects/renovation-planner/.worktrees/wall-side-thickness`.
 - Branch: `codex/usability-astra-wall-side-thickness`.
+- Pull request: [#213 — Support independent wall face depths](https://github.com/Luis85/renovation-planner/pull/213).
+- Verified code/test commit: `34859eee79d07051a3b6040468f1843ed8353ec6`. Later receipt-only commits retain this source/test tree.
 - Base: [PR #212](https://github.com/Luis85/renovation-planner/pull/212), `codex/usability-astra-wall-tool-polish`, `aeb75f6067cd771cd97facc9eda1f1fc2ab7a599`.
 - The foundation PR and main checkout remain unchanged. Neither wall PR is to be merged by this task. This concern does not implement the separately queued opening resize/swing controls or close I18.
 
@@ -34,7 +36,9 @@ Plan provides compact exact entry, separate face-positioned 10 mm controls, hove
 - Two additional integration regressions were reproduced before fixing them: restoring a wall absent from intended geometry with a changed total, and opening masks/frames on a symmetric T-stem inside an asymmetric network. The former now normalizes depths before append or update. The latter uses network membership and clips frame strokes to the same host planes as the wall body, preserving door leaf/swing geometry and opening records. Type-checking and 101 tests across 16 files passed after these fixes.
 - The harness timeout reproduced both with the whole harness file and with that case alone. A temporary timing diagnostic measured 7.1 seconds for the cold page import and 7 ms to settle, with zero injected stylesheets. That diagnostic was removed. The single whole-page case now uses the repository's existing 30-second `WHOLE_TREE_SCAN_MS` budget instead of the 5-second default; its fresh module reset/import and stylesheet assertion are unchanged. Global timeouts and coverage floors are unchanged. The complete harness file then passed all 33 tests under coverage. Its isolated coverage percentages are not a full-gate result. An unsuccessful lazy-import experiment was reverted.
 - These post-scan changes are compatibility, geometry and verification corrections. No third visual-polish round or second design-detector run is claimed.
-- Full one-worker `npm run check`, publication identity and CI: **pending**. This receipt does not yet claim publication readiness.
+- Definitive full gate: one-worker `npm run check` **exited 0** on `34859eee79d07051a3b6040468f1843ed8353ec6`, from `2026-09-14T23:05:27.6736450Z` to `2026-09-15T00:13:05.4509971Z`. Build and lint passed; **981 files passed, 10,679 tests passed and 1 intentional skip**. Coverage: statements **99.23% (27648/27861)**, branches **98.04% (20302/20706)**, functions **99.28% (8039/8097)**, lines **99.68% (20295/20360)**. Fallow returned **0 issues, 0 above threshold, 7467 analyzed units, MI 86.7**, with the same 3 inherited capture-script clone groups.
+- Read-only audit: **0 production vulnerabilities**; the unchanged 2 high development findings are `fast-uri` and `js-yaml`. No audit fix or dependency change was applied.
+- Machine-readable evidence: [verification.json](../evidence/astra-wall-sides/verification.json). Current CI and its final completion are tracked on [PR #213](https://github.com/Luis85/renovation-planner/pull/213); its description records the final head checks without requiring another code commit.
 
 ## Limits
 

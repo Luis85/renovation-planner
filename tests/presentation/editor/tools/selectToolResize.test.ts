@@ -51,3 +51,18 @@ it('abandons a resize on cancel and offers no handles when the facade answers no
 	none.tool.pointerMove(pointerAt(1012, 512));
 	expect(none.context.renderState.hoveredTargetKind).toBeNull();
 });
+
+it('drags a sized placement by its body, keeping the original candidate’s size (regression: a resized placement must stay draggable)', () => {
+	// `hitPoints` mirrors what `structureCandidates.ts` derives for a real asset candidate
+	// (`elementFootprint`, via `derivedFootprintKind`) — an asset hit-tests by its derived
+	// footprint, not its raw `points`, so a body click needs one here too.
+	const placement: SpatialElement & { hitPoints: typeof item.points } = { id: 'element-sofa', kind: 'asset', assetId: 'asset-sofa', points: item.points, hitPoints: item.points, size: { width: 1600, depth: 900 } };
+	const { tool, moveElement } = rig({ spatialObjects: () => [placement] });
+	// Body centre, away from every transform-box handle: a body drag, not a resize.
+	tool.pointerDown(pointerAt(500, 250));
+	tool.pointerMove(pointerAt(600, 350));
+	tool.pointerUp(pointerAt(600, 350));
+	expect(moveElement).toHaveBeenCalledOnce();
+	const original = moveElement.mock.calls[0]?.[2];
+	expect(original).toMatchObject({ size: { width: 1600, depth: 900 } });
+});

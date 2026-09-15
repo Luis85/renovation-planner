@@ -1,5 +1,6 @@
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import type { StairOptions } from '../../../domain/spatial/stairGeometry';
+import type { Dimensions } from '../../../domain/asset/AssetShape';
 import { MarqueeSelection } from '../selection/MarqueeSelection';
 import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { translate } from '../../../core/geometry/operations';
@@ -43,6 +44,7 @@ export interface SpatialObjectCandidate {
 	readonly hitRegions?: readonly (readonly Point[])[];
 	readonly stair?: StairOptions;
 	readonly assetId?: string;
+	readonly size?: Dimensions;
 }
 
 /**

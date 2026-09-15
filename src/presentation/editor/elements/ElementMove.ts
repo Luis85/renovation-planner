@@ -9,10 +9,15 @@ import { constrainDrawingPoint } from '../snapping/constrainDrawingPoint';
 
 /** Elements whose individual points drag; a stair, a post, an asset, a text and a grid point move only as a body. */
 export const hasPointHandles = (kind: string | undefined): boolean => ['arrow', 'path', 'fence', 'measurement', 'object', 'beam', 'dimension', 'section', 'view', 'hatch', 'boundary'].includes(kind ?? '');
-/** A beam's width, a post's or beam's load-bearing flag, a chain's offset and a section's look side are required: without them `acceptsElementPoints` refuses every endpoint drag. */
-function elementFacts(hit: SpatialObjectCandidate): Pick<SpatialElement, 'width' | 'loadBearing' | 'offset' | 'flipped'> {
+/**
+ * A beam's width, a post's or beam's load-bearing flag, a chain's offset and a section's look
+ * side are required: without them `acceptsElementPoints` refuses every endpoint drag. A
+ * placement's own `size` is required too: `elementReshape.ts`'s `unchanged()` compares it, so a
+ * body move built without it is refused as stale the moment a placement has one (Finding A).
+ */
+function elementFacts(hit: SpatialObjectCandidate): Pick<SpatialElement, 'width' | 'loadBearing' | 'offset' | 'flipped' | 'size'> {
 	return { ...(hit.width === undefined ? {} : { width: hit.width }), ...(hit.loadBearing === undefined ? {} : { loadBearing: hit.loadBearing }),
-		...(hit.offset === undefined ? {} : { offset: hit.offset }), ...(hit.flipped === undefined ? {} : { flipped: hit.flipped }) };
+		...(hit.offset === undefined ? {} : { offset: hit.offset }), ...(hit.flipped === undefined ? {} : { flipped: hit.flipped }), ...(hit.size === undefined ? {} : { size: hit.size }) };
 }
 export interface ElementMoveDeps {
 	previewElement?: (id: string | null, points?: readonly Point[]) => void;

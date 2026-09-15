@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ITEM_COLORS, itemColorKind, type ItemColor } from '../../../domain/spatial/ItemColor';
+import { isItemColorPreset, ITEM_COLORS, type ItemColorPreset } from '../../../domain/spatial/ItemColor';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from '../renovation/renovationSession';
@@ -11,12 +11,14 @@ import ItemColorSwatch from './ItemColorSwatch.vue';
 defineProps<{ menu?: boolean }>();
 const emit = defineEmits<{ picked: [] }>();
 const project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession(), runtime = useEditorRuntime();
-const element = computed(() => selection.selectedIds.length === 1 ? project.structure.elements?.find(item => item.id === selection.selectedIds[0] && itemColorKind(item.kind)) : undefined);
+const element = computed(() => selection.selectedIds.length === 1 ? project.structure.elements?.find(item => item.id === selection.selectedIds[0] && (item.kind === 'object' || item.kind === 'asset')) : undefined);
 const visible = computed(() => session.perspective === 'plan' && element.value !== undefined);
 const disabled = computed(() => !runtime.elementTask.available || runtime.elementActions.blocked.value || runtime.elementActions.active.value);
-const colors: readonly (ItemColor | undefined)[] = [undefined, ...ITEM_COLORS];
-const label = (color: ItemColor | undefined) => tr(`editor.item-color.${color ?? 'default'}`);
-function choose(color: ItemColor | undefined): void {
+const colors: readonly (ItemColorPreset | undefined)[] = [undefined, ...ITEM_COLORS];
+// A custom hex has no preset label yet (plan colours design §1); this palette still shows only the six presets.
+const label = (color: ItemColorPreset | undefined) => tr(`editor.item-color.${color ?? 'default'}`);
+const presetColor = (color: string | undefined): ItemColorPreset | undefined => color !== undefined && isItemColorPreset(color) ? color : undefined;
+function choose(color: ItemColorPreset | undefined): void {
 	if (!visible.value || disabled.value || !element.value) return;
 	void runtime.elementActions.setColor(element.value.id, color);
 	emit('picked');
@@ -42,7 +44,7 @@ function key(event: KeyboardEvent): void {
 		@keydown="key"
 	>
 		<p class="rp-item-color__value">
-			{{ tr('editor.item-color.label') }} · {{ label(element?.color) }}
+			{{ tr('editor.item-color.label') }} · {{ label(presetColor(element?.color)) }}
 		</p>
 		<div
 			class="rp-item-color__choices"

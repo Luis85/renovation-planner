@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { ItemColor } from '../../../domain/spatial/ItemColor';
+import type { ItemColorPreset } from '../../../domain/spatial/ItemColor';
 import { tr } from '../../i18n/strings';
 import HostIcon from '../../components/HostIcon.vue';
 import { ITEM_COLOR_RGB } from './itemColorAppearance';
-const props = defineProps<{ color?: ItemColor; selected: boolean; disabled: boolean; menu?: boolean }>();
+const props = defineProps<{ color?: ItemColorPreset; selected: boolean; disabled: boolean; menu?: boolean }>();
 const emit = defineEmits<{ choose: [] }>();
 const label = computed(() => tr(`editor.item-color.${props.color ?? 'default'}`));
 const pigment = computed(() => props.color ? { backgroundColor: ITEM_COLOR_RGB[props.color] } : undefined);

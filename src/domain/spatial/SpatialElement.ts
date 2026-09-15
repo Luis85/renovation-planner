@@ -1,6 +1,6 @@
 import type { Point } from '../../core/geometry/Point';
 import type { Vector } from '../../core/geometry/Vector';
-import { isItemColor, itemColorKind, type ItemColor } from './ItemColor';
+import { isItemColor, type ItemColor } from './ItemColor';
 import { stairPlanGeometry, type StairOptions } from './stairGeometry';
 
 /** Generic floor facts; richer asset specializations are independent of these identities. */
@@ -9,7 +9,7 @@ export type SpatialElementKind = 'object' | 'path' | 'fence' | 'measurement' | '
 export interface SpatialElement {
 	readonly id: string;
 	readonly kind: SpatialElementKind;
-	/** Placement appearance, only for object/asset. Absent means the host's default canvas fill. */
+	/** User appearance on any kind (plan colours design §1). Absent means the host's default drawing. */
 	readonly color?: ItemColor;
 	/** Object and post outlines close implicitly; linear elements keep ordered open points; an asset is `[anchor, facingPoint]`; a beam is its two-point axis. */
 	readonly points: readonly Point[];
@@ -81,7 +81,7 @@ export function elementLength(element: SpatialElement): number {
 }
 
 export function validSpatialElement(element: SpatialElement): boolean {
-	if (element.color !== undefined && (!itemColorKind(element.kind) || !isItemColor(element.color))) return false;
+	if (element.color !== undefined && !isItemColor(element.color)) return false;
 	if (!element.id.startsWith('element-') || !SPATIAL_ELEMENT_KINDS.includes(element.kind)) return false;
 	if (!element.points.every(point => [point.x, point.y].every(n => Number.isFinite(n) && Math.abs(n) <= 1e9))) return false;
 	if ((element.kind === 'asset') !== (element.assetId !== undefined)) return false;

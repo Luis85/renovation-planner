@@ -21,12 +21,16 @@ function toTuples(points: readonly { x: number; y: number }[]): [number, number]
 	return points.map((point) => [point.x, point.y]);
 }
 function toStructure(structure: Structure | undefined): PlanGeometryDTO['structure'] {
+	// Domain walls/openings/elements may now carry a custom hex (plan colours design §1); schema 14 still
+	// accepts a preset only on an item or asset element, and the write-side `PlanGeometrySchemaV14.safeParse`
+	// (PlanGeometryStore.ts) is the real boundary that enforces that — this cast only matches the wider domain
+	// shape past the DTO type until a later task's schema extends the wire format to carry the rest.
 	return structure ? {
 		...(structure.elements?.length ? { elements: structure.elements.map(element => ({ ...element, points: element.points.map(point => ({ ...point })) })) } : {}),
 		walls: structure.walls.map(wall => ({ ...wall, start: { ...wall.start }, end: { ...wall.end } })),
 		openings: structure.openings.map(opening => ({ ...opening })),
 		boundaries: structure.boundaries.map(boundary => ({ ...boundary, wallIds: [...boundary.wallIds] })),
-	} : undefined;
+	} as PlanGeometryDTO['structure'] : undefined;
 }
 
 /**

@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { NamedSpatialElement, SpatialElement } from '../../../domain/spatial/SpatialElement';
-import { isItemColor, itemColorKind, type ItemColor } from '../../../domain/spatial/ItemColor';
+import { isItemColorPreset, type ItemColorPreset } from '../../../domain/spatial/ItemColor';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -30,8 +30,8 @@ function elementFrom(baseline: RenovationBaseline, id: string): NamedSpatialElem
  return geometry && label ? { ...geometry, name: label.name } : null;
 }
 /** Preserve every placement fact and physically remove the override on reset. */
-function recolored(element: NamedSpatialElement, color: ItemColor | undefined): NamedSpatialElement | null {
-	if (!itemColorKind(element.kind) || element.color === color) return null;
+function recolored(element: NamedSpatialElement, color: ItemColorPreset | undefined): NamedSpatialElement | null {
+	if ((element.kind !== 'object' && element.kind !== 'asset') || element.color === color) return null;
 	const { color: previous, ...plain } = element;
 	void previous;
 	return color === undefined ? plain : { ...plain, color };
@@ -97,9 +97,9 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		return rewrite(id, element => (element.kind === 'post' || element.kind === 'beam') && element.loadBearing !== loadBearing ? { ...element, loadBearing } : null);
 	}
 	/** A single selected placement only. Recheck the selection epoch after the baseline read, including away-and-back changes. */
-	function setColor(id: string, color: ItemColor | undefined): Promise<void> {
+	function setColor(id: string, color: ItemColorPreset | undefined): Promise<void> {
 		const epoch = rotationEpoch;
-		if (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== id || (color !== undefined && !isItemColor(color))) return Promise.resolve();
+		if (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== id || (color !== undefined && !isItemColorPreset(color))) return Promise.resolve();
 		return rewrite(id, element => epoch === rotationEpoch ? recolored(element, color) : null);
 	}
 	/** Turns a section line to look at its other side (plan drafting tools design §7). */

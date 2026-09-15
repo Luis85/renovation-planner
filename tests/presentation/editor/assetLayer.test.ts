@@ -30,6 +30,18 @@ it('draws a placed asset and a placeholder on the asset layer, and hides both wi
 	expect(layer?.visible()).toBe(false);
 });
 
+it('hides and shows a placed asset’s label from the View menu', async () => {
+	const rig = await assetPlacementRig(); mounted.push(rig);
+	await rig.place((await rig.saveAsset('Radiator')).id, { x: 1000, y: 1000 });
+	await settleUntil(() => useAssetShapeStore(rig.pinia).answers.size === 1, 'asset shapes'); await settle();
+	const labels = () => rig.stage.findOne<Konva.Group>('.element-asset')?.find('Text').length;
+	expect(labels()).toBe(1);
+	await rig.wrapper.get('[data-rp-view="labels"]').setValue(false);
+	expect(labels()).toBe(0);
+	await rig.wrapper.get('[data-rp-view="labels"]').setValue(true);
+	expect(labels()).toBe(1);
+});
+
 it('restrokes a placed symbol’s outline after its details, so a solid detail cannot hide the edge', async () => {
 	const rig = await assetPlacementRig(); mounted.push(rig);
 	const asset = await rig.saveAsset('Toilet', false);

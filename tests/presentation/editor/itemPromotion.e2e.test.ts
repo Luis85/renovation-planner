@@ -49,6 +49,7 @@ async function submitDialog(rig: Rig) {
 
 it('turns an item into a placement of a new asset with the same id, name and outline, undone in one step', async () => {
 	const { rig, item } = await withItem();
+	await rig.runtime.elementActions.setColor(item.id, 'violet');
 	await promoteFromMenu(rig);
 	const form = rig.wrapper.get('.rp-dialog-form');
 	expect(form.get<HTMLInputElement>('[data-field="name"]').element.value).toBe('Cabinet');
@@ -58,6 +59,7 @@ it('turns an item into a placement of a new asset with the same id, name and out
 
 	const placed = expectDefined(rig.project.structure.elements?.[0], 'placement');
 	expect(placed.id).toBe(item.id);
+	expect(placed.color).toBe('violet');
 	expect(rig.project.plan?.spatialElements).toEqual([{ id: item.id, name: 'Cabinet' }]);
 	const assetId = expectDefined(placed.assetId, 'asset id');
 	expect(expectDefined(expectOk(await rig.stack.assets.getById(assetId as never)), 'asset').entity.name).toBe('Cabinet');
@@ -67,7 +69,7 @@ it('turns an item into a placement of a new asset with the same id, name and out
 	expect(rig.wrapper.find('.rp-dialog-form').exists()).toBe(false);
 
 	expectOk(await rig.runtime.dispatcher.undo()); await settle();
-	expect(rig.project.structure.elements?.[0]).toMatchObject({ id: item.id, kind: 'object', points: CABINET });
+	expect(rig.project.structure.elements?.[0]).toMatchObject({ id: item.id, kind: 'object', points: CABINET, color: 'violet' });
 });
 
 it('promotes the item a live vault refused: fractional, large, and a building element', async () => {

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { structureStack, WALL_LOOP } from '../../helpers/structure';
+import { structureStack, WALL_LOOP_WITH_SIDES as WALL_LOOP } from '../../helpers/structure';
 import { expectDefined, expectFound, expectOk } from '../../helpers/domain';
 import { groupGeometryServices } from '../../../src/application/commands/spatial/GroupGeometryCommand';
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';

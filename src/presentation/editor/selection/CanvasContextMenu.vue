@@ -21,6 +21,7 @@ import { structureRecords } from '../structure/structureRecords';
 import { plainPress } from '../surface/keyboard';
 import { pointerOutside } from './menuKeyboard';
 import CanvasMenuList from './CanvasMenuList.vue';
+import ItemColorControl from '../elements/ItemColorControl.vue';
 import type { Point } from '../../../core/geometry/Point';
 const emit = defineEmits<{ openAdd: [] }>();
 const anchor = ref<HTMLElement | null>(null), list = ref<InstanceType<typeof CanvasMenuList> | null>(null), open = ref(false), position = ref({ left: '0px', top: '0px' });
@@ -32,6 +33,8 @@ const actions = useCanvasMenuActions(() => emit('openAdd'), () => openedAt.value
 const workspace = useWorkspaceStore(), assetShapes = useAssetShapeStore();
 /** The one object the menu acts on, named the way the rest of the editor names it; nothing for an empty or multiple selection. */
 const title = computed(() => { if (selection.selectedIds.length !== 1) return null; const id = selection.selectedIds[0]; return project.zones.get(id)?.name ?? structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements).find(item => item.id === id)?.name ?? null; });
+/** The conditional I00 chooser decision stays deferred: name the target that the existing resolver chose and the existing Alt route instead. */
+const targetGuidance = computed(() => title.value === null ? null : `${tr('editor.input.current-target', { target: title.value })} ${tr('editor.input.overlap-cycle-guidance')}`);
 let menuIds: readonly string[] = [];
 let root: HTMLElement | null = null, canvas: HTMLElement | null = null, opener: HTMLElement | null = null;
 function editing(target: EventTarget | null): boolean { return target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !== null; }
@@ -120,12 +123,19 @@ onBeforeUnmount(() => { root?.removeEventListener('contextmenu', context); root?
 				ref="list"
 				:items="actions"
 				:label="tr('editor.input.context')"
-				:title="title"
+				:title="targetGuidance"
 				:host="root"
 				:position="position"
 				@run="run"
 				@close="close"
-			/>
+			>
+				<template #appearance>
+					<ItemColorControl
+						menu
+						@picked="close()"
+					/>
+				</template>
+			</CanvasMenuList>
 		</Teleport>
 	</div>
 </template>

@@ -5,7 +5,7 @@ import { defer } from '../../helpers/async';
 import { structureEditor } from '../../helpers/structureEditor';
 import { settle, settleUntil, mountPlanEditorCanvas, runtimeOf } from '../../helpers/editor';
 import { expectDefined, expectFound, expectOk, injectedPersistenceError } from '../../helpers/domain';
-import { WALL_LOOP } from '../../helpers/structure';
+import { WALL_LOOP_WITH_SIDES as WALL_LOOP } from '../../helpers/structure';
 import { rotateWallStructure, wallRotationPivot } from '../../../src/domain/spatial/rotateWall';
 import { err, ok } from '../../../src/core/result/Result';
 import { useRenovationSession } from '../../../src/presentation/editor/renovation/renovationSession';
@@ -162,10 +162,11 @@ describe('reviewed wall rotation and hosted opening runtime', () => {
 		const pending = rig.runtime.structureActions.rotateWall('wall-a', 90); rig.selection.clear(); rig.selection.select(['wall-a' as never]); release(); await pending;
 		expect(rig.dialogs.current).toBeNull(); expect(write).not.toHaveBeenCalled();
 	});
-	it('allows Renovate and rejects Review or saving, while successful-write readback recovery never replays', async () => {
+	it('rejects Renovate, Review and saving, while successful-write readback recovery never replays', async () => {
 		const { rig, structure } = await setup(), session = useRenovationSession(rig.pinia), save = useSaveStateStore(rig.pinia);
 		session.perspective = 'review'; await rig.runtime.structureActions.rotateWall('wall-a', 90); expect(rig.dialogs.current).toBeNull();
-		session.perspective = 'renovate'; save.beginSaving(); await rig.runtime.structureActions.rotateWall('wall-a', 90); expect(rig.dialogs.current).toBeNull(); save.resolveNeutral();
+		session.perspective = 'renovate'; await rig.runtime.structureActions.rotateWall('wall-a', 90); expect(rig.dialogs.current).toBeNull();
+		session.perspective = 'plan'; save.beginSaving(); await rig.runtime.structureActions.rotateWall('wall-a', 90); expect(rig.dialogs.current).toBeNull(); save.resolveNeutral();
 		const operation = rig.runtime.structureActions.rotateWall('wall-a', 90), form = await formReady(rig);
 		const write = vi.spyOn(rig.geometry, 'write'), read = vi.spyOn(rig.deps.queries, 'findZonesByPlan').mockResolvedValue(err(injectedPersistenceError()));
 		await form.trigger('submit'); await operation; expect(write).toHaveBeenCalledTimes(1); expect(rig.project.stale).toBe(true);

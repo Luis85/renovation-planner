@@ -6,6 +6,8 @@ import { validSpatialElement } from './SpatialElement';
 import { validOpeningSwing } from './openingSwing';
 import { arcExtrema, arcRadius } from '../../core/geometry/circularArc';
 import { circularEdgeIntersections, curveTolerance } from '../../core/geometry/circularIntersections';
+import { resizeWallTotal, scaleWallSides, validWallSides, wallSideExtents } from './wallSides';
+import { wallSideGeometryIssue } from './wallSideNetwork';
 
 export function spatialError(detail: string): ValidationError {
 	return { category: 'Validation', code: `spatial.${detail}`, message: `Invalid spatial structure: ${detail}.` };
@@ -57,14 +59,20 @@ function validWall(wall: Wall): boolean {
 	return wall.id.startsWith('wall-') && validSpatialPoint(wall.start) && validSpatialPoint(wall.end) && validWallCurve(wall) && [wallLength(wall), wall.height, wall.thickness].every(n => dimension(n));
 }
 
+function wallValidationError(walls: readonly Wall[]): ValidationError | null {
+	if (!walls.every(wall => validWall(wall))) return spatialError('wall-dimensions');
+	if (!walls.every(wall => validWallSides(wall))) return spatialError('wall-side-extents');
+	for (let i = 0; i < walls.length; i++) {
+		if (walls.slice(i + 1).some(other => wallsConflict(walls[i], other))) return spatialError('intersection');
+	}
+	const faceIssue = wallSideGeometryIssue(walls);
+	return faceIssue ? spatialError(`wall-side-${faceIssue.kind}`) : null;
+}
 export function validateStructure(structure: Structure, roomIds: readonly string[]): Result<Structure, ValidationError> {
 	const ids = [...structure.walls, ...structure.openings, ...structure.elements ?? []].map(item => item.id);
 	if (new Set(ids).size !== ids.length || ids.some(id => !id || roomIds.includes(id))) return err(spatialError('duplicate-id'));
 	if (!structure.elements?.every(validSpatialElement) && structure.elements !== undefined) return err(spatialError('element-invalid'));
-	if (!structure.walls.every(validWall)) return err(spatialError('wall-dimensions'));
-	for (let i = 0; i < structure.walls.length; i++) {
-		if (structure.walls.slice(i + 1).some(other => wallsConflict(structure.walls[i], other))) return err(spatialError('intersection'));
-	}
+	const wallError = wallValidationError(structure.walls); if (wallError) return err(wallError);
 	for (const opening of structure.openings) {
 		const failure = openingValidationError(opening, structure);
 		if (failure) return err(failure);
@@ -82,9 +90,11 @@ export function closedChain(points: readonly Point[]): boolean {
 export function editWall(structure: Structure, edited: Wall): Structure {
 	const old = structure.walls.find(wall => wall.id === edited.id);
 	if (!old) return structure;
-	return { ...structure, walls: structure.walls.map(wall => wall.id === edited.id ? edited : ({ ...wall,
-		start: samePoint(wall.start, old.end) ? edited.end : wall.start,
-		end: samePoint(wall.end, old.end) ? edited.end : wall.end,
+	const beforeSides = wallSideExtents(old), afterSides = wallSideExtents(edited);
+	const next = old.thickness !== edited.thickness && beforeSides.a === afterSides.a && beforeSides.b === afterSides.b ? resizeWallTotal({ ...edited, thickness: old.thickness }, edited.thickness) ?? edited : edited;
+	return { ...structure, walls: structure.walls.map(wall => wall.id === next.id ? next : ({ ...wall,
+		start: samePoint(wall.start, old.end) ? next.end : wall.start,
+		end: samePoint(wall.end, old.end) ? next.end : wall.end,
 	})) };
 }
 
@@ -92,7 +102,7 @@ export function scaleStructure(structure: Structure, factor: number): Structure 
 	const point = (p: Point): Point => ({ x: p.x * factor, y: p.y * factor });
 	return { ...structure,
 		...(structure.elements ? { elements: structure.elements.map(element => ({ ...element, points: element.points.map(point), ...(element.stair ? { stair: { ...element.stair, width: element.stair.width * factor } } : {}), ...(element.width !== undefined ? { width: element.width * factor } : {}), ...(element.offset !== undefined ? { offset: element.offset * factor } : {}), ...(element.labelOffset ? { labelOffset: { dx: element.labelOffset.dx * factor, dy: element.labelOffset.dy * factor } } : {}) })) } : {}),
-		walls: structure.walls.map(wall => ({ ...wall, start: point(wall.start), end: point(wall.end), height: wall.height * factor, thickness: wall.thickness * factor })),
+		walls: structure.walls.map(wall => ({ ...wall, start: point(wall.start), end: point(wall.end), height: wall.height * factor, ...scaleWallSides(wall, factor) })),
 		openings: structure.openings.map(opening => ({ ...opening, offset: opening.offset * factor, width: opening.width * factor, height: opening.height * factor, sill: opening.sill * factor })),
 	};
 }

@@ -27,7 +27,6 @@ import { usePlanHierarchyStore } from '../../stores/PlanHierarchyStore';
 import { guideSource } from '../hierarchy/parentZoneGuide';
 import { renovationSummary } from '../renovation/renovationSummary';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
-import HostIcon from '../../components/HostIcon.vue';
 import { computed } from 'vue';
 // The Kind select is its own SFC (ADR-0029) — this template had crossed the complexity budget with it inline.
 import PlanKindSelect from './PlanKindSelect.vue';
@@ -104,12 +103,7 @@ const count = (value: number): string => String(value);
 			class="rp-floor-setup"
 		>
 			<p>{{ tr('editor.creation.nothing-added') }}</p>
-			<h4>{{ tr('editor.creation.get-started') }}</h4>
-			<ul>
-				<li><HostIcon name="square-dashed" />{{ tr('editor.creation.reference') }}</li>
-				<li><HostIcon name="square-dashed" />{{ tr('editor.inspector.floor.rooms') }}</li>
-				<li><HostIcon name="square-dashed" />{{ tr('editor.creation.scale') }}</li>
-			</ul>
+			<p>{{ tr('editor.creation.start-guidance') }}</p>
 		</section>
 		<dl
 			v-if="!starting"

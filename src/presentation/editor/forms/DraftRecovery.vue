@@ -24,6 +24,8 @@ async function tryAgain(): Promise<void> {
 		ref="root"
 		class="rp-draft-recovery"
 		aria-live="polite"
+		aria-atomic="false"
+		:data-rp-recovery-state="save.unrecoveredWrite ? 'unconfirmed' : 'read-failed'"
 	>
 		<p>{{ tr(save.unrecoveredWrite ? 'planning.recovery.unrecovered' : 'planning.recovery.draft') }}</p>
 		<button

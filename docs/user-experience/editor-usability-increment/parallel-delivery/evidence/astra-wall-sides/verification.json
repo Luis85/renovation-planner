@@ -1,0 +1,98 @@
+{
+  "branch": "codex/usability-astra-wall-side-thickness",
+  "pullRequest": "https://github.com/Luis85/renovation-planner/pull/213",
+  "basePullRequest": "https://github.com/Luis85/renovation-planner/pull/212",
+  "baseCommit": "aeb75f6067cd771cd97facc9eda1f1fc2ab7a599",
+  "verifiedCodeCommit": "34859eee79d07051a3b6040468f1843ed8353ec6",
+  "codeTreeHashes": {
+    "src": "e66bb271e609b88c85115d01e8c4c798d96b1340",
+    "tests": "25417f3c9a3f69ab4016ee1bb63dd684b8f8199a",
+    "styles": "c8f26798b1749dcf2ea1ef64c4bb003d96a79a4b",
+    "scripts": "a79a2cdb242076fb0917b8763e0161816bcfc40c",
+    ".github": "f572ed11ad5931d9e553df180f5ec870c1ebc380"
+  },
+  "fullGate": {
+    "command": "npm run check",
+    "environment": {
+      "VITEST_MAX_WORKERS": "1"
+    },
+    "exitCode": 0,
+    "startedAt": "2026-09-14T23:05:27.673645Z",
+    "endedAt": "2026-09-15T00:13:05.4509971Z",
+    "node": "24.20.0",
+    "npm": "11.18.0",
+    "testFilesPassed": 981,
+    "testsPassed": 10679,
+    "testsSkipped": 1,
+    "testsFailed": 0,
+    "logSha256": "f41edd19cbdd73c70d7a7cca470f1986437b07858823b923ba5cfb3dd71ebda1"
+  },
+  "coverage": {
+    "statements": {
+      "percent": 99.23,
+      "covered": 27648,
+      "total": 27861
+    },
+    "branches": {
+      "percent": 98.04,
+      "covered": 20302,
+      "total": 20706
+    },
+    "functions": {
+      "percent": 99.28,
+      "covered": 8039,
+      "total": 8097
+    },
+    "lines": {
+      "percent": 99.68,
+      "covered": 20295,
+      "total": 20360
+    }
+  },
+  "analysis": {
+    "exitCode": 0,
+    "aboveThreshold": 0,
+    "deadCodeIssues": 0,
+    "maintainability": 86.7,
+    "analyzedUnits": 7467,
+    "inheritedCloneGroups": 3
+  },
+  "audit": {
+    "developmentHigh": [
+      "fast-uri",
+      "js-yaml"
+    ],
+    "productionVulnerabilities": 0,
+    "dependencyChanges": false
+  },
+  "visual": {
+    "detectorFindings": 0,
+    "errorContrastLight": 5.22,
+    "laterGeometryCorrections": "Automated regression tests cover planned-wall restoration and symmetric T-stem opening clipping after the recorded scan; no third visual round or detector rerun.",
+    "errorContrastDark": 5.38,
+    "narrowTaskbarGapPx": 16,
+    "detectorRuns": 1,
+    "minimumControlHeightPx": 44,
+    "rounds": 2,
+    "detectorExitCode": 0
+  },
+  "harnessBudget": {
+    "globalTimeoutUnchanged": true,
+    "measuredSettleMs": 7,
+    "explicitWholeTreeBudgetMs": 30000,
+    "test": "adds no stylesheet to the document when page.ts itself runs",
+    "oldDefaultMs": 5000,
+    "globalCoverageFloorsUnchanged": true,
+    "measuredColdImportMs": 7113,
+    "assertionsUnchanged": true
+  },
+  "ci": {
+    "source": "Current head checks and completion recorded on PR #213",
+    "url": "https://github.com/Luis85/renovation-planner/pull/213"
+  },
+  "limitations": [
+    "Native Obsidian/Windows smoke unavailable through enabled native computer APIs",
+    "Curved T clipping and tangent curved joins refused for independent networks",
+    "Inside faces reaching a curve centre refused"
+  ]
+}

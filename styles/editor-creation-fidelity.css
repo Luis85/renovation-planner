@@ -15,6 +15,7 @@
 .renovation-plan-editor .rp-draft-dimensions button { pointer-events: auto; }
 .renovation-plan-editor .rp-new-room__actions { display: grid; grid-template-columns: 1fr auto; }
 .renovation-plan-editor .rp-new-room__create { min-height: 42px; }
+.renovation-plan-editor .rp-new-room__cancel { min-height: 42px; }
 .renovation-plan-editor .rp-new-room__area { grid-template-columns: 1fr auto; padding-block: 8px; }
 .renovation-plan-editor .rp-new-room__keep { justify-content: space-between; }
 .renovation-plan-editor .rp-floor-start {
@@ -29,11 +30,24 @@
 .renovation-plan-editor .rp-floor-start > button { min-height: 172px; padding: 24px 12px; background: var(--background-primary); }
 .renovation-plan-editor .rp-floor-start > button:first-of-type { border: 2px solid var(--interactive-accent); }
 .renovation-plan-editor .rp-floor-start__recommended { font-size: var(--font-ui-smaller); color: var(--interactive-accent); }
+.renovation-plan-editor .rp-floor-start__option[aria-disabled='true'] { cursor: not-allowed; opacity: 0.7; }
 .renovation-plan-editor .rp-floor-start > button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 3px; }
-.renovation-plan-editor .rp-floor-setup { margin-top: 36px; }
-.renovation-plan-editor .rp-floor-setup > p { padding-block: 36px; color: var(--text-muted); }
-.renovation-plan-editor .rp-floor-setup ul { list-style: none; margin: 0; padding: 0; }
-.renovation-plan-editor .rp-floor-setup li { display: flex; align-items: center; gap: 10px; padding-block: 14px; border-bottom: 1px solid var(--background-modifier-border); color: var(--text-muted); }
+.renovation-plan-editor .rp-new-room__preview[data-rp-preview-state='last-valid'] { border-color: var(--text-warning); }
+.renovation-plan-editor .rp-new-room__advanced > button { min-height: 34px; }
+.renovation-plan-editor .rp-floor-setup { display: grid; gap: var(--size-4-2); margin-top: var(--size-4-3); }
+.renovation-plan-editor .rp-floor-setup > p { margin: 0; color: var(--text-muted); }
+.renovation-plan-editor .rp-new-room__save-state { margin: 0; color: var(--text-muted); font-size: var(--font-ui-small); }
+.renovation-plan-editor .rp-new-room { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--size-4-2) var(--size-4-3); }
+.renovation-plan-editor .rp-new-room > * { grid-column: 1 / -1; min-width: 0; }
+.renovation-plan-editor .rp-new-room > .rp-field-error { grid-column: auto; }
+.renovation-plan-editor .rp-new-room__field input { width: 100%; min-width: 0; }
+.renovation-plan-editor .rp-new-room .rp-new-room__create:not([aria-disabled='true']) {
+	background: color-mix(in srgb, var(--interactive-accent) 70%, var(--text-normal));
+	color: var(--background-primary);
+}
+.renovation-plan-editor .rp-new-room .rp-new-room__create:not([aria-disabled='true']):hover {
+	background: color-mix(in srgb, var(--interactive-accent) 55%, var(--text-normal));
+}
 @container (max-width: 899px) {
 	.renovation-plan-editor .rp-floor-start { top: 8%; padding: 8px; gap: 8px; }
 	.renovation-plan-editor .rp-floor-start__helper { margin: 0 0 8px; }

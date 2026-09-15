@@ -1,5 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
+import { mount, type VueWrapper } from '@vue/test-utils';
+import DownstreamAction from '../../../src/presentation/editor/renovation/DownstreamAction.vue';
+import { EDITOR_RUNTIME } from '../../../src/presentation/editor/runtime';
+import { PLAN_EDITOR_CONTEXT } from '../../../src/presentation/editor/PlanEditorContext';
 import { renovationEditor } from '../../helpers/renovationEditor';
 import { settle } from '../../helpers/editor';
 import { click } from '../../helpers/planEditorRig';
@@ -12,7 +16,8 @@ import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import type { EditorNavigation } from '../../../src/presentation/editor/PlanEditorContext';
 import * as notices from '../../../src/presentation/notices/notify';
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
-afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
+const departures: VueWrapper[] = [];
+afterEach(() => { for (const action of departures.splice(0)) action.unmount(); for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
 async function setup(available = true) {
  const downstream = vi.fn<NonNullable<EditorNavigation['downstream']>>().mockResolvedValue(undefined);
  const navigation: EditorNavigation = { project: vi.fn<EditorNavigation['project']>().mockResolvedValue(undefined), library: vi.fn<EditorNavigation['library']>(), ...(available ? { downstream } : {}) };
@@ -23,6 +28,16 @@ async function setup(available = true) {
  expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(baseline, { renovation: { subjects: [], work: [work], decisions: [], depth: { ...EMPTY_DEPTH, costs: [cost] } }, intended: undefined }, rig.runtime.structureTask.ledger)));
  rig.runtime.renovation.focus(rig.room.id, 'work', work.id); await settle();
  return { ...rig, navigation, downstream, work, cost };
+}
+/** Exercise the reusable departure guard against an allowed Plan draft; Renovate can no longer start geometry tools. */
+async function planDeparture(rig: Awaited<ReturnType<typeof setup>>) {
+ await rig.runtime.renovation.perspective('plan'); await settle();
+ const provides = (rig.wrapper.vm as unknown as { $: { provides: Record<symbol, unknown> } }).$.provides;
+ const host = mount(DownstreamAction, { props: { section: 'schedule' }, global: { plugins: [rig.pinia], provide: {
+  [EDITOR_RUNTIME as symbol]: rig.runtime, [PLAN_EDITOR_CONTEXT as symbol]: provides[PLAN_EDITOR_CONTEXT as symbol],
+ } } });
+ departures.push(host);
+ return { action: host.get('[data-rp-downstream="schedule"]'), dispose: () => { departures.splice(departures.indexOf(host), 1); host.unmount(); } };
 }
 it('carries the focused Work and Cost identities without changing the retained canvas or persisted plan', async () => {
  const rig = await setup(), editor = useEditorStore(rig.pinia), viewport = { ...editor.viewport }, bytes = [...rig.stack.vault.entries];
@@ -43,7 +58,7 @@ it('refuses unavailable navigation, active saving and a second activation while 
  pending.resolve(); await settle(); expect(action.attributes('aria-disabled')).toBe('false');
 });
 it('keeps a real canvas draft after Cancel and discards it only after confirming departure', async () => {
- const rig = await setup(), action = rig.wrapper.get('[data-rp-downstream="schedule"]'), bytes = [...rig.stack.vault.entries];
+ const rig = await setup(), { action } = await planDeparture(rig), bytes = [...rig.stack.vault.entries];
  rig.runtime.setTool('draw-area'); await settle(); click(rig.canvasEl, 100, 200); await settle();
  expect(rig.runtime.toolManager.activeToolHasDraft()).toBe(true);
  await action.trigger('click'); await settle(); expect(rig.dialogs.current?.kind).toBe('confirm');
@@ -59,7 +74,7 @@ it('reports a host opening failure once and suppresses a late failure after disp
  mounted.splice(mounted.indexOf(rig), 1); rig.unmount(); pending.resolve(); await settle(); expect(report).toHaveBeenCalledOnce();
 });
 it('does not leave over another dialog or when saving starts during a draft confirmation', async () => {
- const rig = await setup(), action = rig.wrapper.get('[data-rp-downstream="schedule"]');
+ const rig = await setup(), { action } = await planDeparture(rig);
  const other = rig.dialogs.openDialog({ kind: 'confirm', title: 'Another operation', message: 'Retain this dialog' });
  await settle(); await action.trigger('click'); expect(rig.downstream).not.toHaveBeenCalled();
  rig.dialogs.resolve('cancel'); await other; await settle();
@@ -69,8 +84,8 @@ it('does not leave over another dialog or when saving starts during a draft conf
  expect(rig.downstream).not.toHaveBeenCalled(); expect(rig.runtime.toolManager.activeToolHasDraft()).toBe(true); saving.resolveOk();
 });
 it('retires a pending departure confirmation when the editor closes', async () => {
- const rig = await setup(), action = rig.wrapper.get('[data-rp-downstream="schedule"]');
+ const rig = await setup(), { action, dispose } = await planDeparture(rig);
  rig.runtime.setTool('draw-area'); await settle(); click(rig.canvasEl, 130, 230); await settle();
  await action.trigger('click'); await settle(); expect(rig.dialogs.current?.kind).toBe('confirm');
- mounted.splice(mounted.indexOf(rig), 1); rig.unmount(); rig.dialogs.resolve('confirm'); await settle(); expect(rig.downstream).not.toHaveBeenCalled();
+ dispose(); mounted.splice(mounted.indexOf(rig), 1); rig.unmount(); rig.dialogs.resolve('confirm'); await settle(); expect(rig.downstream).not.toHaveBeenCalled();
 });

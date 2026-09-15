@@ -1,21 +1,40 @@
 # Plan a renovation from the floor
 
-Open a floor from its Project. An empty floor offers three starting points: add a Room,
-prepare a reference plan, or keep an empty canvas. A reference image or PDF can be cropped,
+> **Current-route amendments — 2026-09-13.** This guide follows the current Plan Editor
+> routes. **Plan** is the geometry-editing perspective. **Renovate** keeps Select and Pan
+> available, offers **Add work item** for eligible targets, and exposes Existing, Planned, Work and related planning content;
+> choose **Edit geometry in plan** when a geometry change is needed. **Review** is read-only.
+> Switching perspectives does not write a saved change. In German these visible modes are
+> **Plan**, **Renovieren** and **Prüfen**.
+
+> The current editor supports dragging an existing Room or Area corner in Plan, but it has
+> no approved non-drag or keyboard route for changing one arbitrary existing vertex. Numeric
+> coordinates remain available for supported creation/detail forms and reference calibration;
+> they are not a substitute for existing-corner editing. This limitation is intentionally
+> retained for validation and release decisions.
+
+Open a floor from its Project. An empty floor offers three starting points: **Add rooms**,
+**Upload a floor plan**, or **Start empty**. A reference image or PDF can be cropped,
 rotated and scaled before it becomes the locked background. Reopen its settings to change
 its appearance or measurements. The large preview has Zoom in, Zoom out, Pan and Fit controls.
 Drag the image to pan or use the wheel to zoom around the pointer. Calibration points A and B
 stay attached to the image while the view changes. With the preview focused, arrow keys pan,
 + and − zoom, and F fits the image.
 
-Room outlines and current wall measurements can be adjusted with the same geometry history in Plan and Renovate. Wall edits retain their Preview → Apply confirmation. Renovate keeps Select and Add available; Review remains read-only. Changes to intended structure use the Planned forms and their separate geometry.
+Room outlines and current wall measurements are adjusted in Plan with the existing geometry
+history. Wall edits retain their Preview → Apply confirmation. Renovate keeps Select and Pan
+available, with **Add work item** for eligible targets. Its Details routes focus on Existing, Planned, Work and related information;
+**Edit geometry in plan** returns to the geometry perspective. Review remains read-only.
+Changes to intended structure use the Planned forms and their separate geometry.
 
 ## Shape and select the space
 
 Use **Add** to choose a Room, Area, wall, hosted opening or another supported element.
 Temporary tools show Finish and Cancel. Finish validates the draft and saves one change;
 Cancel discards it. Room creation supports a rectangle and a free-shape outline. Numeric
-controls let you enter exact dimensions or corner coordinates without drawing on the canvas.
+controls let you enter exact dimensions or corner coordinates when the active creation/detail
+form supports them; they do not provide a non-drag route for changing one arbitrary corner of
+an existing Room or Area.
 With canvas focus, Enter finishes an Object, Path, Fence, Measurement, Stair or Direction arrow; Backspace removes
 its last draft point. Pending numeric input must be applied or discarded first. Enter in a
 numeric field applies that field’s form and does not finish the element.
@@ -49,11 +68,12 @@ does not add history.
 While saving, Select, Add and Cancel retain the pending edit. Switching tools deliberately
 abandons an unsaved entry; changing perspective first asks about the draft.
 
-A Room’s shape is edited by dragging its corner points on the plan. To add a corner, right-click
+A Room’s shape is edited by dragging its corner points on the plan. There is currently no
+keyboard or other approved non-drag route for editing one arbitrary existing corner. To add a corner, right-click
 a Room, Area, wall, path or fence and choose **Add point**: it lands on the nearest edge where you
 clicked, ready to drag, and one Undo removes it. A wall is cut there into two, so the new junction
-drags like any wall end; a cut through an opening is refused. The nearby **Add detail**
-action opens the contextual Existing, Planned, Work, Materials, Costs or Evidence form. A selected
+drags like any wall end; a cut through an opening is refused. Use **Details** to open the
+selected item’s Existing, Planned, Work, Materials, Costs or Evidence routes. A selected
 wall shows its length label and, when it has a Room context, **Mark change**. Activate the label,
 or right-click the wall and choose **Edit**, to change its length; that still requires Preview
 and Apply. Mark change uses the separate Planned record. Openings, paths and objects are edited

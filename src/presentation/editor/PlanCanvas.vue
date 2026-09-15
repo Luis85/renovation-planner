@@ -47,7 +47,8 @@ import { guideFramePoints } from './hierarchy/parentZoneGuide';
 import CanvasGrid from './layers/CanvasGrid.vue';
 import NorthArrow from './layers/NorthArrow.vue';
 import RoomDimensionLabels from './resize/RoomDimensionLabels.vue';
-import DirectActionPopover from './selection/DirectActionPopover.vue';
+import WallCanvasActions from './selection/WallCanvasActions.vue';
+import WallThicknessPanel from './structure/WallThicknessPanel.vue';
 
 /** This surface's own subject, which `EditorSurface` requires rather than assuming. */
 const CANVAS_LABEL: StringKey = 'editor.canvas';
@@ -216,7 +217,8 @@ onBeforeUnmount(() => stopPixelRatio());
 				@obstacles="layout => { dimensionLayout = layout; }"
 				@rotation-obstacles="runtime.rotationActions.setObstacles"
 			/>
-			<DirectActionPopover v-if="!existingPhotos.length" />
+			<WallThicknessPanel />
+			<WallCanvasActions v-if="!existingPhotos.length" />
 			<ExistingPhotoStrip
 				v-else
 				:rows="existingPhotos"

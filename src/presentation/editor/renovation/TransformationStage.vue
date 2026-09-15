@@ -10,11 +10,14 @@ function description(): string { return props.items.slice(0, 3).map(item => item
 			{{ tr(`renovation.summary.${kind}`) }}<HostIcon
 				v-if="kind !== 'planned'"
 				name="arrow-right"
-			/><span
-				v-if="compact && kind === 'work'"
-				class="rp-transformation-progress"
-			>{{ progress }}</span>
+			/>
 		</h4>
+		<p
+			v-if="compact && kind === 'work'"
+			class="rp-transformation-progress"
+		>
+			{{ progress }}
+		</p>
 		<ul v-if="!compact && items.length">
 			<li
 				v-for="item in items"

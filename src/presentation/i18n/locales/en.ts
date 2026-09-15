@@ -1,4 +1,5 @@
 import { enProjectNavigation } from './en/projectNavigation';
+import { itemColorEn } from './en/itemColor';
 import { projectWorkEn } from './en/projectWork';
 import { planningEn } from './en/planning';
 import { planEn } from './en/plan';
@@ -36,6 +37,7 @@ import { newAssetFootprintEn } from './en/newAssetFootprint';
  * typeof en` stays exact and no consumer of a key changes.
  */
 export const en = {
+	...itemColorEn,
 	...projectWorkEn,
 	...enProjectNavigation,
 	...renovationEn,
@@ -861,6 +863,9 @@ export const en = {
 	// Derived, not a fifth state: `saved` AND `ProjectStore.stale`. The middle dot is the
 	// component library's own spelling of this label.
 	'save-state.saved-refresh-needed': 'Saved · refresh needed',
+	// I00 reserves the captions consumed by the mode-header packet. The existing
+	// `renovation.plan`/`.renovate`/`.review` keys remain the short radio labels.
+	'editor.perspective.plan.caption': 'Draw and adjust', 'editor.perspective.renovate.caption': 'Plan the work', 'editor.perspective.review.caption': 'Check the plan', 'editor.room.last-valid-preview': 'Last valid preview', 'editor.reference.point-a-ready': 'First point selected', 'editor.reference.point-b-ready': 'Second point selected', 'editor.reference.point-a-pending': 'Select the first point', 'editor.reference.point-b-pending': 'Select the second point', 'editor.reference.exact-points': 'Exact point coordinates', 'editor.reference.preview-only': 'These choices are previewed until you use the reference plan.', 'editor.reference.rescale-impact': 'Existing geometry will be rescaled',
 	...enAssetLibrary,
 } as const;
 

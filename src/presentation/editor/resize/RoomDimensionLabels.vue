@@ -7,10 +7,10 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { STAGE_PIXELS, worldToScreen } from '../viewport/Viewport';
 import { dimensionTexts, roomDimensions, type DimensionsText } from './roomDimensions';
-import RoomDimensionButton from './RoomDimensionButton.vue';
-import InlineRoomDimension from './InlineRoomDimension.vue';
+import { formatArea } from '../shell/formatArea';
 import DraftRoomDimensions from './DraftRoomDimensions.vue';
 import RoomEdgeMeasurements from './RoomEdgeMeasurements.vue';
+import RoomDimensionControls from './RoomDimensionControls.vue';
 import { roomSketchPoints } from './roomEdgeMeasurements';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
@@ -21,7 +21,7 @@ import type { PlanGeometryDocument } from '../../../application/ports/PlanGeomet
 const props = defineProps<{ preview?: PlanGeometryDocument | null }>();
 const emit = defineEmits<{ obstacles: [layout: DimensionObstacleLayout]; rotationObstacles: [bounds: readonly BoundingBox[]] }>();
 const runtime = useEditorRuntime(), editor = useEditorStore(), project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession();
-const root = ref<HTMLElement | null>(null), axes = ['width', 'depth'] as const;
+const root = ref<HTMLElement | null>(null);
 const workspace = useWorkspaceStore();
 useDimensionObstacles(root, () => editor.viewport, bounds => emit('obstacles', bounds), {
 	publish: bounds => emit('rotationObstacles', bounds),
@@ -37,7 +37,7 @@ const box = computed(() => {
 	const geometry = props.preview?.objects.find(item => item.id === selectedRoom.id) ?? selectedRoom;
 	return roomDimensions(geometry.points, geometry.bulges);
 });
-const visible = computed(() => box.value !== null && (draft.value !== null || runtime.renderState.previewPolygon === null) && session.perspective !== 'review' && (workspace.layerVisibility.zone || draft.value !== null)
+const visible = computed(() => box.value !== null && (draft.value !== null || runtime.renderState.previewPolygon === null) && session.perspective === 'plan' && (workspace.layerVisibility.zone || draft.value !== null)
 	&& (runtime.activeToolId.value === 'select' || runtime.activeToolId.value === 'edit-room-dimension'));
 const measured = computed(() => {
 	const tool = runtime.activeToolId.value;
@@ -57,7 +57,9 @@ function anchor(axis: keyof DimensionsText, bounds: BoundingBox) {
 	const point = worldToScreen({ x: axis === 'width' ? (bounds.min.x + bounds.max.x) / 2 : bounds.min.x,
 		y: axis === 'width' ? bounds.min.y : (bounds.min.y + bounds.max.y) / 2 }, editor.viewport, STAGE_PIXELS);
 	const editing = draft.value?.axis === axis;
-	const top = Math.max(48, Math.min(editor.stageSize.height - (editing ? 250 : 88), point.y - (axis === 'width' ? 44 : 14)));
+	// An active scalar entry includes its preview/impact receipt, so reserve its full screen-space
+	// footprint above the taskbar instead of letting that feedback cover the bottom controls.
+	const top = Math.max(48, Math.min(editor.stageSize.height - (editing ? 372 : 88), point.y - (axis === 'width' ? 44 : 14)));
 	return { left: Math.max(editing ? 124 : 40, Math.min(editor.stageSize.width - (editing ? 124 : 40), point.x - (axis === 'depth' ? 28 : 0))),
 		top, maxHeight: Math.max(100, editor.stageSize.height - top - 88) };
 }
@@ -71,6 +73,15 @@ function guides(bounds: BoundingBox) {
 		depth: { left: `${anchor('depth', bounds).left}px`, top: `${min.y}px`, height: `${max.y - min.y}px` } };
 }
 function open(axis: keyof DimensionsText): void { if (room.value) void runtime.roomDimension.open(room.value.id as ZoneId, axis); }
+/** The draft preview is screen-only; this receipt makes its pending status and scope legible. */
+const inlinePreview = computed(() => {
+	const activeDraft = draft.value;
+	if (activeDraft === null) return null;
+	const proposed = runtime.renderState.previewPolygon === null ? activeDraft.box : roomDimensions(runtime.renderState.previewPolygon);
+	if (proposed === null) return null;
+	const dimensions = dimensionTexts(proposed);
+	return { ...dimensions, area: formatArea((proposed.max.x - proposed.min.x) * (proposed.max.y - proposed.min.y)) };
+});
 // Capture ownership before the inline form disappears; never steal focus from another region.
 watch(draft, (next, previous) => {
 	if (next || !previous || !root.value?.contains(root.value.ownerDocument.activeElement)) return;
@@ -103,38 +114,16 @@ watch(draft, (next, previous) => {
 			:closed="true"
 			:omit-axis-controls="false"
 		/>
-		<template v-if="visible && box">
-			<template v-if="draft === null">
-				<span
-					class="rp-dimension-guide rp-dimension-guide--width"
-					:style="guides(box).width"
-					aria-hidden="true"
-				/>
-				<span
-					class="rp-dimension-guide rp-dimension-guide--depth"
-					:style="guides(box).depth"
-					aria-hidden="true"
-				/>
-			</template>
-			<div
-				v-for="axis in axes"
-				:key="axis"
-				class="rp-dimension-anchor"
-				:style="position(axis, box)"
-			>
-				<InlineRoomDimension
-					v-if="draft?.axis === axis"
-					:draft="draft"
-					:cancel="runtime.roomDimension.cancel"
-				/>
-				<RoomDimensionButton
-					v-else
-					:axis="axis"
-					:text="dimensionTexts(box)[axis]"
-					:disabled="runtime.resizeRoomBlocked.value || draft !== null"
-					@click="open(axis)"
-				/>
-			</div>
-		</template>
+		<RoomDimensionControls
+			v-if="visible && box"
+			:box="box"
+			:draft="draft"
+			:inline-preview="inlinePreview"
+			:blocked="runtime.resizeRoomBlocked.value"
+			:position="position"
+			:guides="guides"
+			:open="open"
+			:cancel="runtime.roomDimension.cancel"
+		/>
 	</div>
 </template>

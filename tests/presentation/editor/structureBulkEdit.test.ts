@@ -25,7 +25,7 @@ async function setup() {
 	const rig = await renovationEditor(); mounted.push(rig);
 	await rig.runtime.renovation.perspective('plan');
 	const before = expectOk(await rig.geometry.read(rig.plan.id)), structure = expectDefined(before.document.structure, 'structure');
-	const walls = structure.walls.map(wall => wall.id === 'wall-b' ? { ...wall, thickness: 200 } : wall);
+	const walls = structure.walls.map(wall => wall.id === 'wall-b' ? { ...wall, thickness: 200, sideExtents: { a: 100, b: 100 } } : wall);
 	const boundaries = [{ roomId: rig.room.id, wallIds: walls.map(wall => wall.id) }];
 	expectOk(await rig.geometry.write(rig.plan.id, { ...before.document, structure: { ...structure, walls, openings: OPENINGS, boundaries } }, before.version));
 	await rig.runtime.refreshProjection();

@@ -18,6 +18,8 @@ const navigationVisible = computed(() => session.mode === 'overview' || semantic
 function detailTitle(): string { return semantic.value ? tr(`renovation.title.${session.mode as 'existing' | 'planned' | 'work'}`, { name: roomName.value }) : tr(`renovation.${session.mode}`); }
 const expanded = ref(false), opener = ref<HTMLButtonElement | null>(null);
 const relatedIcon = computed(() => expanded.value ? 'chevron-up' : 'chevron-down');
+const focusedRenovationOverview = computed(() => session.perspective === 'renovate' && session.mode === 'overview');
+const workEligible = computed(() => runtime.renovation.canAddWork(props.roomId));
 const modes = computed(() => session.mode === 'overview' && session.perspective === 'plan'
 	? context.commands.planning ? ['existing', 'planned', 'work', 'materials', 'costs', 'documents', 'photos', 'notes'] as const : ['existing', 'planned', 'work'] as const
 	: session.mode === 'overview' ? ['existing', 'planned', 'work'] as const
@@ -32,6 +34,17 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 	if (!inspector?.isConnected) return;
 	if (button.isConnected && button.classList.contains('rp-room-navigation__button')) button.focus();
 	else (opener.value ?? inspector).focus();
+}
+async function addWork(): Promise<void> {
+	const roomId = props.roomId || session.roomId;
+	await runtime.renovation.addWork(roomId);
+}
+async function editLayout(event: Event): Promise<void> {
+	const button = event.currentTarget as HTMLElement;
+	const inspector = button.closest<HTMLElement>('[data-rp-region="inspector"]');
+	await runtime.renovation.perspective('plan');
+	await nextTick();
+	if (!button.isConnected && inspector?.isConnected) inspector.focus();
 }
 </script>
 <template>
@@ -66,6 +79,30 @@ async function navigate(mode: RenovationMode, event: Event): Promise<void> {
 			@navigate="navigate"
 		/>
 	</nav>
+	<section
+		v-if="focusedRenovationOverview"
+		class="rp-renovation-overview-actions"
+		:aria-label="tr('renovation.work')"
+	>
+		<button
+			v-if="workEligible"
+			type="button"
+			class="mod-cta"
+			data-rp-action="add-work"
+			:disabled="runtime.renovation.blocked.value"
+			@click="addWork"
+		>
+			<HostIcon name="plus" />{{ tr('renovation.add.work') }}
+		</button>
+		<button
+			type="button"
+			class="rp-renovation-layout-route"
+			data-rp-action="edit-layout"
+			@click="editLayout"
+		>
+			{{ tr('editor.element.plan-geometry') }}<HostIcon name="arrow-right" />
+		</button>
+	</section>
 	<template v-if="detailVisible">
 		<button
 			v-if="context.commands.planning"

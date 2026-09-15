@@ -5,7 +5,9 @@ import type { ThemeTokens } from '../theme/themeTokens';
 import { closedChain } from '../../../domain/spatial/structureGeometry';
 import { formatMetres } from '../shell/formatLength';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
-export interface WallCut { readonly point: Point; readonly tangent: Point; readonly thickness: number }
+import type { WallSideExtents } from '../../../domain/spatial/Structure';
+import { wallSideExtents } from '../../../domain/spatial/wallSides';
+export interface WallCut { readonly point: Point; readonly tangent: Point; readonly thickness: number; readonly sideExtents?: WallSideExtents }
 const props = defineProps<{ points: readonly Point[]; cursor: Point | null; tokens: ThemeTokens; zoom: number; viewport: BoundingBox; cuts: readonly WallCut[] }>();
 /**
  * Two ticks across the host, 8 px either side of each cut, a little longer than the wall is thick, in world units. Never one
@@ -13,10 +15,10 @@ const props = defineProps<{ points: readonly Point[]; cursor: Point | null; toke
  * could not be told from it. `tangent` is `wallTangent`'s, a unit vector.
  */
 const cutTicks = computed(() => props.cuts.flatMap(cut => {
-	const half = (cut.thickness + 16 / props.zoom) / 2, nx = -cut.tangent.y * half, ny = cut.tangent.x * half;
+	const sides = wallSideExtents(cut), a = sides.a + 8 / props.zoom, b = sides.b + 8 / props.zoom;
 	return [-8 / props.zoom, 8 / props.zoom].map(along => {
 		const x = cut.point.x + cut.tangent.x * along, y = cut.point.y + cut.tangent.y * along;
-		return [x - nx, y - ny, x + nx, y + ny];
+		return [x + cut.tangent.y * a, y - cut.tangent.x * a, x - cut.tangent.y * b, y + cut.tangent.x * b];
 	});
 }));
 const corners = computed(() => closedChain(props.points) ? props.points.slice(0, -1) : props.points);

@@ -50,6 +50,34 @@
 	color: var(--text-muted);
 }
 
+/* A retained Room draft has a visible task outcome as well as the field-level explanation in
+ * Details. Busy is deliberately neutral: it gates the two completion/cancel doors without
+ * claiming the in-flight write can be cancelled. */
+.rp-task-banner--invalid {
+	border-color: var(--text-error);
+}
+
+.rp-task-banner--invalid [data-rp-task-state-message='invalid'] {
+	color: var(--text-error);
+}
+
+.rp-task-banner--busy [data-rp-task-state-message='busy'] {
+	color: var(--text-accent);
+}
+
+/* Renovate's taskbar keeps the shared navigation tools but promotes the existing work route.
+ * Text, icon and border carry the distinction independently of the mode's green accent. */
+.rp-primary-actions--renovate .rp-primary-actions__work {
+	color: var(--text-normal);
+	background: color-mix(in srgb, var(--text-success) 16%, transparent);
+	border-color: var(--text-success);
+	font-weight: var(--bold-weight);
+}
+
+.rp-primary-actions--renovate .rp-primary-actions__work:hover {
+	background: color-mix(in srgb, var(--text-success) 24%, transparent);
+}
+
 /* Title and instruction read as one line where the width allows, and wrap as one block where not. */
 .rp-task-banner__text {
 	flex: 1 1 14rem;
@@ -148,6 +176,11 @@
 	cursor: not-allowed;
 }
 
+.rp-task-banner .rp-task-banner__cancel[aria-disabled='true'] {
+	color: var(--text-muted);
+	cursor: not-allowed;
+}
+
 /* Flattening a button takes its focus ring with it (`tests/build/buttonFocusRing.test.ts`). */
 .rp-task-banner .rp-task-banner__cancel:focus-visible,
 .rp-task-banner .rp-task-banner__finish:focus-visible {
@@ -176,5 +209,40 @@
 	.rp-task-banner {
 		gap: 6px var(--size-4-2);
 		padding: 8px 10px;
+	}
+}
+
+/* The canvas can be much narrower than its leaf: account for both side panels and the
+ * constrained rail. Wrap labeled actions within the canvas instead of clipping the end actions. */
+.renovation-plan-editor .rp-primary-actions {
+	width: max-content;
+	max-width: calc(100% - 16px);
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.renovation-plan-editor .rp-primary-actions__button {
+	min-height: 44px;
+	height: auto;
+	white-space: normal;
+}
+
+/* At the supported 400px floor the constrained rail leaves less canvas width than four
+ * labelled Renovate actions need. Keep every action visible as a named 44px icon button;
+ * 460px and wider retain labels, and the 399px shell still uses its unsupported-width state. */
+@container (max-width: 439px) {
+	.renovation-plan-editor .rp-primary-actions {
+		gap: var(--size-4-1);
+		max-width: calc(100% - 16px);
+	}
+
+	.renovation-plan-editor .rp-primary-actions__button {
+		min-width: 44px;
+		width: 44px;
+		padding-inline: 8px;
+	}
+
+	.renovation-plan-editor .rp-primary-actions__label {
+		display: none;
 	}
 }

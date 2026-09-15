@@ -4,9 +4,7 @@ import type { SpatialRecordDto } from '../../read-models/spatialRecords';
 import { watch } from 'vue';
 import AreaDetailsAction from '../metadata/AreaDetailsAction.vue';
 import RoomSizeAction from '../resize/RoomSizeAction.vue';
-import RenovationEntry from '../renovation/RenovationEntry.vue';
 import RoomNameAction from '../naming/RoomNameAction.vue';
-import CurveAction from '../curves/CurveAction.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { contextSource, defaultRenovationContext } from '../renovation/defaultRenovationContext';
@@ -32,17 +30,12 @@ watch(() => props.record?.kind === 'area' ? props.zoneId : null, id => {
 </script>
 <template>
 	<template v-if="record?.kind === 'room'">
-		<CurveAction :id="zoneId" />
 		<RoomNameAction :zone-id="zoneId" />
 		<RoomSizeAction
 			:zone-id="zoneId"
 			:points="record.points"
 		/>
 	</template>
-	<RenovationEntry
-		v-if="record?.kind === 'room' || record?.kind === 'area'"
-		:room-id="zoneId"
-	/>
 	<AreaDetailsAction
 		v-if="record?.kind === 'area'"
 		:zone-id="zoneId"

@@ -1,5 +1,7 @@
 # Selected geometry canvas actions
 
+**2026-09-14 user decision:** remove selected-item Add detail. Details retains its navigation and creation routes; wall length and Mark change remain in `WallCanvasActions.vue`. The Add detail implementation and screenshot descriptions below are historical, superseded by the [current refresh receipt](../../editor-usability-increment/parallel-delivery/receipts/ASTRA-MAIN-REFRESH.md).
+
 This implementation closes the M00/M07 canvas-action gap: native Room width/depth
 labels, an inline scalar form, nearby Edit shape/Add detail actions, and selected-wall
 length/Mark change actions. It builds on the joined `63173897` checkpoint. Its full

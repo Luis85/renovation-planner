@@ -43,7 +43,7 @@ const comparisons = computed(() => value.value.subjects.flatMap(item => {
 	const element = structure.elements?.find(candidate => candidate.id === item.targetId);
 	const candidate = structureCandidates(structure, assetShapes.shapeOf).find(shape => shape.id === item.targetId);
 	const points = candidate ? spatialOutlinePoints(candidate, 0.25 / props.zoom) : [];
-	return points.length ? [{ id: item.id, closed: closedFootprintKind(element?.kind), points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
+	return points.length ? [{ id: item.id, closed: !!candidate?.hitPoints || closedFootprintKind(element?.kind), points: points.flatMap(point => [point.x, point.y]), x: points[0].x, y: points[0].y, label: tr(`renovation.change.${item.planned.change}`), remove: item.planned.change === 'remove' }] : [];
 }));
 function focus(roomId: string, id: string): void {
 	runtime.renovation.focus(roomId, session.mode, id);

@@ -81,6 +81,25 @@
 	cursor: not-allowed;
 }
 
+/* Plan's primary exact edit keeps the existing command and focus ring. */
+.renovation-plan-editor .rp-inspector-actions > .rp-inspector-action[data-rp-action='resize-room'] {
+	min-height: 44px;
+	justify-content: center;
+	font-weight: var(--font-semibold);
+	border-color: var(--background-modifier-border);
+}
+.renovation-plan-editor .rp-inspector-actions > .rp-inspector-action[data-rp-action='resize-room']:not([aria-disabled='true']) {
+	background-color: color-mix(in srgb, var(--interactive-accent) 70%, var(--text-normal));
+	color: var(--background-primary);
+}
+.renovation-plan-editor .rp-inspector-actions > .rp-inspector-action[data-rp-action='resize-room']:not([aria-disabled='true']):hover {
+	background-color: color-mix(in srgb, var(--interactive-accent) 55%, var(--text-normal));
+}
+.renovation-plan-editor .rp-inspector-actions > .rp-inspector-action[data-rp-action='resize-room']:focus-visible {
+	outline-color: var(--text-normal);
+	outline-offset: 2px;
+}
+
 .renovation-plan-editor .rp-inspector-actions > p {
 	margin: 0;
 	padding: var(--size-4-1) var(--size-4-2);

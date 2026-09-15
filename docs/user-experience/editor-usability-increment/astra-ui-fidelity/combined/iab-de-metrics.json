@@ -1,0 +1,23 @@
+{
+  "gap": 16.3125,
+  "popover": {
+    "bottom": 619.6875,
+    "height": 66,
+    "left": 184,
+    "right": 356,
+    "top": 553.6875,
+    "width": 172,
+    "x": 184,
+    "y": 553.6875
+  },
+  "taskbar": {
+    "bottom": 740,
+    "height": 104,
+    "left": 88,
+    "right": 452,
+    "top": 636,
+    "width": 364,
+    "x": 88,
+    "y": 636
+  }
+}

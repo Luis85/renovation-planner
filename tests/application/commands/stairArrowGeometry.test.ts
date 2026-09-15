@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { structureStack, WALL_LOOP } from '../../helpers/structure';
+import { structureStack, WALL_LOOP_WITH_SIDES as WALL_LOOP } from '../../helpers/structure';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { DEFAULT_STAIR } from '../../../src/domain/spatial/stairGeometry';
 import { scaleStructure } from '../../../src/domain/spatial/structureGeometry';

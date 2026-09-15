@@ -13,6 +13,7 @@ import { prepareValid, setupMeasurement } from './referenceSetup';
 import ReferencePreview from './ReferencePreview.vue';
 import ReferenceReview from './ReferenceReview.vue';
 import ReferencePrepare from './ReferencePrepare.vue';
+import ReferenceMeasure from './ReferenceMeasure.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { notifyFault } from '../../notices/notify';
@@ -47,6 +48,14 @@ const previewPoints = computed(() => ([['ax', 'ay'], ['bx', 'by']] as const).map
 	return String(a).trim() !== '' && String(b).trim() !== '' && Number.isFinite(Number(a)) && Number.isFinite(Number(b)) ? { x: Number(a), y: Number(b) } : null;
 }));
 const prepared = computed(() => raster.value !== null && prepareValid(appearance, raster.value.width, raster.value.height));
+const pointStates = computed(() => previewPoints.value.map((point, index) => ({
+	label: index === 0 ? 'A' : 'B',
+	selected: point !== null,
+	coordinates: point === null ? '—' : `${point.x}, ${point.y}`,
+	state: tr(point === null
+		? index === 0 ? 'editor.reference.point-a-pending' : 'editor.reference.point-b-pending'
+		: index === 0 ? 'editor.reference.point-a-ready' : 'editor.reference.point-b-ready'),
+})));
 const scale = computed(() => {
 	const [a, b] = points.value, c = appearance.crop;
 	if (!prepared.value || !a || !b || !raster.value || ![a, b].every(p => p.x >= c.x && p.x <= c.x + c.width && p.y >= c.y && p.y <= c.y + c.height)) return null;
@@ -176,37 +185,17 @@ onMounted(() => { if (path.value) void load(); });
 					:has-raster="raster !== null"
 					@load="load"
 				/>
-				<section v-if="step === 2">
-					<p>{{ tr('editor.reference.measure-help') }}</p>
-					<div class="rp-reference-grid">
-						<label
-							v-for="key in (['ax', 'ay', 'bx', 'by'] as const)"
-							:key="key"
-							class="rp-dialog-field"
-						>{{ tr(`editor.reference.${key}`) }}<input
-							v-model="coordinates[key]"
-							:name="key"
-							type="number"
-							step="any"
-							:readonly="paused"
-						></label>
-					</div>
-					<label class="rp-dialog-field">{{ tr('editor.reference.length') }}<input
-						v-model="length"
-						name="length"
-						type="text"
-						inputmode="decimal"
-						:readonly="paused"
-					></label>
-					<button
-						type="button"
-						:aria-disabled="paused"
-						data-rp-reference-action="another-distance"
-						@click="!paused && anotherDistance()"
-					>
-						{{ tr('editor.reference.another') }}
-					</button>
-				</section>
+				<ReferenceMeasure
+					v-if="step === 2"
+					v-model:ax="coordinates.ax"
+					v-model:ay="coordinates.ay"
+					v-model:bx="coordinates.bx"
+					v-model:by="coordinates.by"
+					v-model:length="length"
+					:points="pointStates"
+					:paused="paused"
+					@another="anotherDistance"
+				/>
 				<ReferenceReview
 					v-if="step === 3"
 					v-model:opacity="appearance.opacity"

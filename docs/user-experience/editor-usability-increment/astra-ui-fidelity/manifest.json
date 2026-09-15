@@ -1,0 +1,339 @@
+{
+  "sourceCommit": "5d694bfff8400465c34bff46af645b1d354cf4a4",
+  "images": [
+    {
+      "sha256": "a5aff3e7a86d0a2787471261f362d333b8354b5eae5ca18222a1bddc063d1fa3",
+      "accepted": true,
+      "bytes": 69932,
+      "modifiedUtc": "2026-09-13T22:12:26.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/01-plan-start.png"
+    },
+    {
+      "sha256": "f87cc9a4212b2fb6350d99621ac85eefaf8fcb635ba5f2c43c649332040541a6",
+      "accepted": true,
+      "bytes": 74877,
+      "modifiedUtc": "2026-09-13T22:12:30.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/02-room-draft.png"
+    },
+    {
+      "sha256": "ce255532c7930fdfa1c964acedcd6f8d06c1053349251eb69cdaef3dc25deefb",
+      "accepted": true,
+      "bytes": 76710,
+      "modifiedUtc": "2026-09-13T22:12:30.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/03-plan-selection.png"
+    },
+    {
+      "sha256": "acefff3fb8710df76c19390092dd04891a34eafbe5fad0c0b2956b52ca78146a",
+      "accepted": true,
+      "bytes": 81205,
+      "modifiedUtc": "2026-09-13T22:12:30.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/04-renovate-selection.png"
+    },
+    {
+      "sha256": "3fd1526df59c6e3ee59a87b9485832d46c2ab898a8f70a3eb70717fd730c5a89",
+      "accepted": true,
+      "bytes": 73006,
+      "modifiedUtc": "2026-09-13T22:12:30.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/05-renovate-work.png"
+    },
+    {
+      "sha256": "eb470a5787b76c7b39e25d84c7558a506c3ab3547416f6b1727f67bb8bcbf28c",
+      "accepted": true,
+      "bytes": 36953,
+      "modifiedUtc": "2026-09-13T22:12:30.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/06-narrow-work.png"
+    },
+    {
+      "sha256": "2a3406d5f70807117b537d7669b8117145f815c94a1cc386234639f6e15947ae",
+      "accepted": true,
+      "bytes": 30508,
+      "modifiedUtc": "2026-09-13T22:16:46.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/07-narrow-canvas.png"
+    },
+    {
+      "sha256": "7d45c5de4a3f585de4c076bcfef2e256fc474d3e19bcb3ea7a39e2db024661a4",
+      "accepted": true,
+      "bytes": 40112,
+      "modifiedUtc": "2026-09-13T22:15:10.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/08-de-dark-draft.png"
+    },
+    {
+      "sha256": "c75788a4dec1a2f3c513f0e4b5f63c7f44477ff2b26eca7f4b5fc92769ed229c",
+      "accepted": true,
+      "bytes": 54664,
+      "modifiedUtc": "2026-09-13T22:12:26.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/09-renovate-default.png"
+    },
+    {
+      "sha256": "7ab322f8191568784a34f2c92948532994f045e65f9b402c486496acf478b9bf",
+      "accepted": true,
+      "bytes": 41072,
+      "modifiedUtc": "2026-09-13T22:15:10.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/10-de-invalid-draft.png"
+    },
+    {
+      "sha256": "a471fe9f52195dbf0837e4508dbe6ceed4f2968c6a71be009f0d931aa12a3698",
+      "accepted": true,
+      "bytes": 33285,
+      "modifiedUtc": "2026-09-13T22:16:48.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/11-de-renovate-canvas.png"
+    },
+    {
+      "sha256": "5c5f3ccf06531eed9ccc7812a316e2b0895187b33cf3cf378fa10c2a65b0bb5d",
+      "accepted": true,
+      "bytes": 75324,
+      "modifiedUtc": "2026-09-13T22:15:12.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/12-dark-plan.png"
+    },
+    {
+      "sha256": "54373d3c59b86cd1719e75a0aa4b96fa64abd8a02fc39d1151d5615d1a5bfa6d",
+      "accepted": true,
+      "bytes": 80642,
+      "modifiedUtc": "2026-09-13T22:15:14.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/13-dark-renovate.png"
+    },
+    {
+      "sha256": "7f1857d384064604ea30f25dc698f27857b80d4e0749bb2050b5d7316c81dd9a",
+      "accepted": true,
+      "bytes": 79542,
+      "modifiedUtc": "2026-09-13T22:15:16.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/14-custom-plan.png"
+    },
+    {
+      "sha256": "f77278a6cdee4cdbaa54c15d38b0b70073804de37eebd846a461a73291c74b05",
+      "accepted": true,
+      "bytes": 85372,
+      "modifiedUtc": "2026-09-13T22:15:16.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/after/15-custom-renovate.png"
+    },
+    {
+      "sha256": "5e11e92aa85c08645220345f7c0a83b543f35f8fa8182119596cc33c6b96b163",
+      "accepted": true,
+      "bytes": 65753,
+      "modifiedUtc": "2026-09-13T22:01:28.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/before/01-plan-start.png"
+    },
+    {
+      "sha256": "dbc89aceaaf270235aae96fcf781094b971de2b51a0ed18d95e8e20878ea382f",
+      "accepted": true,
+      "bytes": 70177,
+      "modifiedUtc": "2026-09-13T21:58:38.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/before/02-room-draft.png"
+    },
+    {
+      "sha256": "217720738c28f21de7c152445f661cb6f3c0472b81bb01eb13ed762ab4d103bf",
+      "accepted": true,
+      "bytes": 66819,
+      "modifiedUtc": "2026-09-13T21:58:44.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/before/03-plan-selection.png"
+    },
+    {
+      "sha256": "35f99867bc97ea849ff0132176d9efc924d4daada7e79028417ba67065d25666",
+      "accepted": true,
+      "bytes": 72238,
+      "modifiedUtc": "2026-09-13T21:58:46.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/before/04-renovate-selection.png"
+    },
+    {
+      "sha256": "3c0798e1cd47fe1cb4e1fb7cd7e55d2dff8c3ab5c574458e4d69855c010cb79c",
+      "accepted": true,
+      "bytes": 65831,
+      "modifiedUtc": "2026-09-13T21:59:12.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/before/05-renovate-work.png"
+    },
+    {
+      "sha256": "9084b04c23768ae35fca7867d38ce177ccb1afba4dac699cb23d1d465085c354",
+      "accepted": true,
+      "bytes": 32470,
+      "modifiedUtc": "2026-09-13T21:59:22.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/before/06-narrow-work.png"
+    },
+    {
+      "sha256": "4b11114e6bdaae9901d5cc1efa48eddfaeec43bb6dcca9613fc57d90fd5c3d26",
+      "accepted": true,
+      "bytes": 23612,
+      "modifiedUtc": "2026-09-13T21:59:22.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/before/07-narrow-canvas.png"
+    },
+    {
+      "sha256": "70584fa883b5622b5d3c9357b1a287265fdf2b77e12eba506f3b6333885f3ec4",
+      "accepted": true,
+      "bytes": 35645,
+      "modifiedUtc": "2026-09-13T21:59:30.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/before/08-de-dark-draft.png"
+    },
+    {
+      "sha256": "54c1fcf280bd4f6b2a2560b6a36e5b27c45d8a87d9b7d517343f6846abae977d",
+      "accepted": true,
+      "bytes": 49863,
+      "modifiedUtc": "2026-09-13T22:01:34.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/before/09-renovate-default.png"
+    },
+    {
+      "sha256": "c4375a29934ee329126d1dcba56ecf3f5a5d0de5a67cb203085300c0431afe5d",
+      "accepted": true,
+      "bytes": 1131429,
+      "modifiedUtc": "2026-09-13T22:23:38.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/comparisons/dark.png"
+    },
+    {
+      "sha256": "2179d4134bba0654acdf97a4944ab4555a67b27c92f11b959d17bcbb53e3bc15",
+      "accepted": true,
+      "bytes": 1033069,
+      "modifiedUtc": "2026-09-13T22:23:38.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/comparisons/modes.png"
+    },
+    {
+      "sha256": "e78908ba86b72f6e08bb4dbb7513baed7fd13a8b3fc3ba51f4a938cae4746db7",
+      "accepted": true,
+      "bytes": 1695500,
+      "modifiedUtc": "2026-09-13T22:23:40.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/comparisons/narrow.png"
+    },
+    {
+      "sha256": "8a6dacdde7891f6aca7328b3a3a5464e30c7666496304a9b74b3dbde9e7b9789",
+      "accepted": false,
+      "bytes": 69103,
+      "modifiedUtc": "2026-09-13T22:08:08.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/01-plan-start.png"
+    },
+    {
+      "sha256": "f87cc9a4212b2fb6350d99621ac85eefaf8fcb635ba5f2c43c649332040541a6",
+      "accepted": false,
+      "bytes": 74877,
+      "modifiedUtc": "2026-09-13T22:08:14.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/02-room-draft.png"
+    },
+    {
+      "sha256": "657e13fa00461230fb23f738d869584d62f46c9247a8e90b6803b1af054492f5",
+      "accepted": false,
+      "bytes": 76264,
+      "modifiedUtc": "2026-09-13T22:08:16.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/03-plan-selection.png"
+    },
+    {
+      "sha256": "b9fbac4f95f9320a73f6def2dd62f9f19ac6a19689f062ad8cd06680bc400719",
+      "accepted": false,
+      "bytes": 81209,
+      "modifiedUtc": "2026-09-13T22:08:16.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/04-renovate-selection.png"
+    },
+    {
+      "sha256": "694d02e79b90b0b74750acb4fccedd73e348ae7b4030a6858b14a8aa7d30bb70",
+      "accepted": false,
+      "bytes": 73020,
+      "modifiedUtc": "2026-09-13T22:09:34.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/05-renovate-work.png"
+    },
+    {
+      "sha256": "ef76c61ac51c81e5d96482dcee8cdf564d52babc2689dfa80ba440066fa8447d",
+      "accepted": false,
+      "bytes": 37262,
+      "modifiedUtc": "2026-09-13T22:09:34.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/06-narrow-work.png"
+    },
+    {
+      "sha256": "8f51b7356478cc35c6bebef565a2bbfc06362df6b603f76b9855d357150f56b7",
+      "accepted": false,
+      "bytes": 37290,
+      "modifiedUtc": "2026-09-13T22:09:36.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/07-narrow-canvas.png"
+    },
+    {
+      "sha256": "36cfb8d997d4a9f7f7ec386f4d826aa18f97f0f0fb4b20fd7d319fef78515e77",
+      "accepted": false,
+      "bytes": 40757,
+      "modifiedUtc": "2026-09-13T22:09:38.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/08-de-dark-draft.png"
+    },
+    {
+      "sha256": "60200161c5e9c38a34ac431108c9a80a3bc6a16b30eb7ce5ae4209d073aec664",
+      "accepted": false,
+      "bytes": 53832,
+      "modifiedUtc": "2026-09-13T22:08:08.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/09-renovate-default.png"
+    },
+    {
+      "sha256": "524327ac0703dbba409f103ba9dee4d6329f1feb314d1caa8acd1dc5b5c2d05a",
+      "accepted": false,
+      "bytes": 41381,
+      "modifiedUtc": "2026-09-13T22:09:38.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/10-de-invalid-draft.png"
+    },
+    {
+      "sha256": "6f40e0becbe6be3facc4bf8051f65a28f363e3481bd2a32638dd8d72dea5043c",
+      "accepted": false,
+      "bytes": 33007,
+      "modifiedUtc": "2026-09-13T22:09:38.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/11-de-renovate-canvas.png"
+    },
+    {
+      "sha256": "5c5f3ccf06531eed9ccc7812a316e2b0895187b33cf3cf378fa10c2a65b0bb5d",
+      "accepted": false,
+      "bytes": 75324,
+      "modifiedUtc": "2026-09-13T22:09:44.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/12-dark-plan.png"
+    },
+    {
+      "sha256": "661e2f9d19eb60aa04091af35d675ece2f7a2d219c7f4c038c9b322ca8ed93a6",
+      "accepted": false,
+      "bytes": 80552,
+      "modifiedUtc": "2026-09-13T22:09:44.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/13-dark-renovate.png"
+    },
+    {
+      "sha256": "7f1857d384064604ea30f25dc698f27857b80d4e0749bb2050b5d7316c81dd9a",
+      "accepted": false,
+      "bytes": 79542,
+      "modifiedUtc": "2026-09-13T22:09:50.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/14-custom-plan.png"
+    },
+    {
+      "sha256": "bfeecfe4471689386b7376cb6afce8c1fb501ab1114e243cab2952d5505ebecc",
+      "accepted": false,
+      "bytes": 85377,
+      "modifiedUtc": "2026-09-13T22:09:50.0000000Z",
+      "path": "docs/user-experience/editor-usability-increment/astra-ui-fidelity/round1/15-custom-renovate.png"
+    }
+  ],
+  "generatedUtc": "2026-09-13T22:22:55.9029016Z",
+  "baseCommit": "d211d75ee444",
+  "sourceFiles": [
+    {
+      "sha256": "bc8f89162ecc4eadffd32c422e486273e5f5e666b23b1c692a513638af84e3ab",
+      "path": "src/presentation/editor/shell/FloorInspector.vue"
+    },
+    {
+      "sha256": "071ae941643d130ae8151791134346784d0d92e1b47d13634f56924d7fe110b4",
+      "path": "src/presentation/editor/shell/NewRoomInspector.vue"
+    },
+    {
+      "sha256": "8faac7b30cb3d9e7064572e9af50b1b15effad11fa6f3f82ca9d54a3e3dd3a43",
+      "path": "src/presentation/i18n/locales/de/creation.ts"
+    },
+    {
+      "sha256": "052e1a3e0870214fb98d405910096e48c142c81a6723c5a2da192e299fe42bd6",
+      "path": "src/presentation/i18n/locales/en/creation.ts"
+    },
+    {
+      "sha256": "d240f4493266688ced3eb5aeeb971001c586ef69ecfc464f6871b44639574215",
+      "path": "styles/editor-creation-fidelity.css"
+    },
+    {
+      "sha256": "a755753de084ddcf76971cefe1a4403accc6f3b8b51f97444ba03075f24c9cc2",
+      "path": "styles/editor-inspector-skeleton.css"
+    },
+    {
+      "sha256": "1609d4c819d3b7ebb45963f63cd39c5aa606944e3f9703fe62b74c5f94d63de4",
+      "path": "styles/editor-task-bar.css"
+    },
+    {
+      "sha256": "a8ba6a303e1f10ba09094351062c03cbc8da90c8c2e8cd734107b21d6169d99f",
+      "path": "styles/editor-visual-records.css"
+    },
+    {
+      "sha256": "8e34ac812bdbed3bb7b5e3a2bf8491f9a760c446c82e843ead565ffc6460aa12",
+      "path": "styles/editor-visual-shell.css"
+    }
+  ]
+}

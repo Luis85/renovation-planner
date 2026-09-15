@@ -18,6 +18,10 @@ import { withElementPreviews } from '../elements/elementPreviews';
 import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import WallDraftOverlay, { type WallCut } from './WallDraftOverlay.vue';
 import { wallPasses } from './wallPasses';
+import { wallSideNetworkGeometry } from '../../../domain/spatial/wallSideNetwork';
+import WallPolygonPaint from './WallPolygonPaint.vue';
+import { wallFaceCue } from './wallFaceCue';
+import WallFaceCue from './WallFaceCue.vue';
 import { useEditorStore } from '../../stores/EditorStore';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { wallPatterns } from './wallPatterns';
@@ -31,9 +35,12 @@ const draftViewport = computed(() => ({ min: { x: -props.transform.x / props.zoo
 	max: { x: (editor.stageSize.width - props.transform.x) / props.zoom, y: (editor.stageSize.height - props.transform.y) / props.zoom } }));
 const task = runtime.structureTask;
 const structure = useDrawnStructure();
+const faceCue = computed(() => { const cue = runtime.structureActions.faceHighlight.target.value; return cue ? wallFaceCue(structure.value, cue.wallId, cue.side, props.zoom) : null; });
 const points = (value: readonly Point[]): number[] => value.flatMap(p => [p.x, p.y]);
 const wallPoints = (wall: Wall): number[] => points(arcPolyline({ ...wall, bulge: wall.bulge ?? 0 }, 0.25 / props.zoom));
-const runs = computed(() => wallPasses(structure.value.walls, props.zoom));
+const sideNetwork = computed(() => wallSideNetworkGeometry(structure.value.walls, 0.25 / props.zoom));
+const sidePolygons = computed(() => [...sideNetwork.value.bodies.map(body => body.points), ...sideNetwork.value.joins.map(join => join.points)]);
+const runs = computed(() => wallPasses(structure.value.walls.filter(wall => !sideNetwork.value.ids.has(wall.id)), props.zoom));
 const selected = (id: string): boolean => selection.selectedIds.some(candidate => candidate === id);
 const previewPoints = computed(() => task.draft.points.length && task.draft.cursor ? points([task.draft.points[task.draft.points.length - 1], task.draft.cursor]) : []);
 const noDraftPoints: readonly Point[] = [];
@@ -42,7 +49,8 @@ const patterns = computed(() => wallPatterns(project.plan?.renovation ?? EMPTY_R
 const tiles = computed(() => new Map([...new Set(patterns.value.values())].map((pattern): [PlanPattern, HTMLCanvasElement | null] => [pattern, patternTile(pattern, props.tokens.wallPattern, props.tokens.wallFill)])));
 const patterned = computed(() => structure.value.walls.flatMap(wall => {
 	const pattern = patterns.value.get(wall.id), tile = pattern ? tiles.value.get(pattern) : null;
-	return tile ? [{ id: wall.id, tile, points: wallBodyPolygon(wall, 0.25 / props.zoom).flatMap(point => [point.x, point.y]) }] : [];
+	const body = sideNetwork.value.bodies.find(item => item.id === wall.id)?.points ?? wallBodyPolygon(wall, 0.25 / props.zoom);
+	return tile ? [{ id: wall.id, tile, points: body.flatMap(point => [point.x, point.y]) }] : [];
 }));
 /**
  * Every cut the chain would make — its start and end joins and the join under the cursor — one
@@ -55,10 +63,11 @@ const cuts = computed<readonly WallCut[]>(() => {
 	const hosts = [...project.structure.walls, ...structure.value.walls];
 	const marks = [task.draft.joins.start, task.draft.joins.end, task.draft.pending].filter((mark): mark is NonNullable<typeof mark> => mark !== null);
 	return marks.flatMap(mark => hosts.filter(item => item.id === mark.wallId).slice(0, 1)
-		.map(wall => ({ point: mark.point, tangent: wallTangent(wall, mark.offset), thickness: wall.thickness })))
+		.map(wall => ({ point: mark.point, tangent: wallTangent(wall, mark.offset), thickness: wall.thickness, ...(wall.sideExtents ? { sideExtents: wall.sideExtents } : {}) })))
 		.filter((cut, index, all) => all.findIndex(other => samePoint(other.point, cut.point)) === index);
 });
-function handles(wall: Wall): readonly Point[] { return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
+/** Renovate retains a selected wall's identity but never presents endpoints as editable. */
+function handles(wall: Wall): readonly Point[] { return renovationSession.perspective === 'plan' && runtime.activeToolId.value !== 'edit-curves' && selected(wall.id) && selection.selectedIds.length === 1 ? [wall.start, wall.end] : []; }
 const elementNames = computed(() => new Map(project.plan?.spatialElements?.map(item => [item.id, item.name])));
 /** Posts, beams and every drafting mark but a hatch draw above the wall paint (see the elements block below); every other kind, a hatch included, draws below it. */
 const drawsAboveWalls = (kind: string): boolean => kind === 'post' || kind === 'beam' || (draftingKind(kind) && kind !== 'hatch');
@@ -76,6 +85,7 @@ const nonStructuralElementDraft = computed(() => elementDraft.value.filter(eleme
 <template>
 	<VLayer :config="{ name: 'architecture', listening: false, visible, ...transform }">
 		<!--
+			Centred wall networks retain the following legacy paint path without visual migration.
 			Walls are drawn TWICE, and the two passes run over ALL runs rather than per run:
 			every `wall-edge` (`zoneStroke`, `thickness + 2 / zoom`), then every `wall-body`
 			(`wallFill`, `thickness`) over them, all opaque, so no joint doubles an alpha. What
@@ -100,6 +110,9 @@ const nonStructuralElementDraft = computed(() => elementDraft.value.filter(eleme
 			(ADR-0031). Per wall rather than per run, so the mitre wedge where two differently
 			patterned walls meet stays plain — the spec's named gap.
 		-->
+		<!-- A network with independent face depths uses true offset body polygons and outer join
+			wedges. One nonzero fill unions these pieces; the body pass masks internal edge strokes.
+			Straight T stems are clipped to their host's far face. The reference line stays fixed. -->
 		<!-- Every non-structural element (and its draft preview) draws before the wall paint, at
 			the top of the layer, exactly as on `main` — an opaque object or stair fill would
 			otherwise blank out any wall it overlaps, the common case since wall centre lines are
@@ -123,10 +136,24 @@ const nonStructuralElementDraft = computed(() => elementDraft.value.filter(eleme
 			:key="'edge-' + run.id"
 			:config="{ name: 'wall-edge', points: run.edge, closed: run.closed, stroke: tokens.zoneStroke, strokeWidth: run.thickness + 2 / zoom, lineCap: 'butt', lineJoin: 'miter' }"
 		/>
+		<WallPolygonPaint
+			v-if="sidePolygons.length"
+			:polygons="sidePolygons"
+			:color="tokens.zoneStroke"
+			:edge="true"
+			:zoom="zoom"
+		/>
 		<VLine
 			v-for="run in runs"
 			:key="'body-' + run.id"
 			:config="{ name: 'wall-body', points: run.body, closed: run.closed, stroke: tokens.wallFill, strokeWidth: run.thickness, lineCap: 'butt', lineJoin: 'miter' }"
+		/>
+		<WallPolygonPaint
+			v-if="sidePolygons.length"
+			:polygons="sidePolygons"
+			:color="tokens.wallFill"
+			:edge="false"
+			:zoom="zoom"
 		/>
 		<VLine
 			v-for="item in patterned"
@@ -172,6 +199,11 @@ const nonStructuralElementDraft = computed(() => elementDraft.value.filter(eleme
 			:openings="structure.openings"
 			:walls="structure.walls"
 			:selected-ids="selection.selectedIds"
+			:tokens="tokens"
+			:zoom="zoom"
+		/>
+		<WallFaceCue
+			:cue="faceCue"
 			:tokens="tokens"
 			:zoom="zoom"
 		/>

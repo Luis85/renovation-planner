@@ -33,7 +33,8 @@ async function journey(page, scenario, out) {
 	const dimension = await verifyRoomDimension(page, scenario, out);
 	await verifyEditorView(page, scenario, out);
 	await activate(page, '[data-rp-action="add"]'); await page.locator('.rp-add-menu').waitFor(); await recordShot(page, scenario, out, 'M02-connected-add'); await page.keyboard.press('Escape');
-	await activate(page, '[data-rp-canvas-detail]'); await activate(page, '[data-rp-canvas-detail-mode="existing"]');
+	await panel(page, 'details'); await activate(page, '[data-rp-action="renovate-room"]');
+	await activate(page, '[data-rp-mode="existing"]'); await activate(page, '[data-rp-action="new-record"]');
 	await recordText(page, form, 'description', german ? 'Abgenutzte Dielen' : 'Worn timber boards'); await recordApply(page, form, true);
 	await panel(page, 'details');
 	await activate(page, '[data-rp-action="plan-record"]'); await recordText(page, form, 'description', german ? 'Dielen reparieren und ölen' : 'Repair and oil the boards'); await recordApply(page, form, true);

@@ -52,7 +52,8 @@ it('distinguishes blocked Work sources that share the same dependency explanatio
 it.each([false, true])('shows unavailable linked sections only without connected planning (%s)', async planning => {
 	const rig = await setup(planning); await rig.runtime.renovation.perspective('plan'); await settle();
 	expect(rig.wrapper.find('.rp-coming-later').exists()).toBe(!planning);
-	expect(rig.wrapper.find('[data-rp-mode="costs"]').exists()).toBe(planning);
+	expect(rig.wrapper.find('[data-rp-mode="costs"]').exists()).toBe(false);
+	expect(rig.wrapper.find('[data-rp-action="renovate-room"]').exists()).toBe(true);
 });
 it('keeps semantic navigation available without exposing an empty planning disclosure', async () => {
 	const rig = await setup(false); rig.runtime.renovation.focus(rig.room.id, 'existing'); await settle();
@@ -61,12 +62,19 @@ it('keeps semantic navigation available without exposing an empty planning discl
 });
 it('opens connected Costs from Plan while retaining the Room', async () => {
 	const rig = await setup(); await rig.runtime.renovation.perspective('plan'); await settle();
-	await rig.wrapper.get('[data-rp-mode="costs"]').trigger('click'); await settle();
+	await rig.wrapper.get('[data-rp-action="renovate-room"]').trigger('click'); await settle();
+	await rig.wrapper.get('[data-rp-linked="costs"]').trigger('click');
+	await settle();
+	expect(rig.session.perspective).toBe('renovate');
 	expect(rig.session.mode).toBe('costs'); expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 });
 
-it('opens Room name editing from Overview while retaining the selected Room', async () => {
+it('keeps Room name editing in Plan while retaining the selected Room', async () => {
 	const rig = await setup(); await rig.runtime.renovation.perspective('renovate'); await settle();
+	expect(rig.wrapper.find('[data-rp-action="rename-room"]').exists()).toBe(false);
+	await rig.wrapper.get('[data-rp-action="edit-layout"]').trigger('click'); await settle();
+	expect(rig.session.perspective).toBe('plan');
+	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
 	await rig.wrapper.get('[data-rp-action="rename-room"]').trigger('click'); await settle();
 	expect(rig.dialogs.current?.kind).toBe('form'); rig.dialogs.resolve('cancel'); await settle();
 	expect(rig.selection.selectedIds).toEqual([rig.room.id]);
@@ -115,6 +123,7 @@ it('uses the Room selected in Plan when entering renovation instead of the last 
 	await rig.runtime.renovation.perspective('plan'); await settle();
 	await rig.runtime.selectAndFrame(rig.room.id); await settle();
 	expect(rig.session.targetId).toBe('wall-a');
+	await rig.wrapper.get('[data-rp-action="renovate-room"]').trigger('click'); await settle();
 	await rig.wrapper.get('[data-rp-mode="existing"]').trigger('click'); await settle();
 	expect(rig.selection.selectedIds).toEqual([rig.room.id]); expect(rig.session.targetId).toBe(rig.room.id); expect(rig.session.roomId).toBe(rig.room.id);
 });

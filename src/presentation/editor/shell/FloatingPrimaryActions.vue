@@ -13,11 +13,24 @@
  */
 import { tr } from '../../i18n/strings';
 import { useEditorRuntime } from '../runtime';
-import { computed } from 'vue';
+import { computed, nextTick } from 'vue';
 import HostIcon from '../../components/HostIcon.vue';
+import { useRenovationSession } from '../renovation/renovationSession';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 
 const runtime = useEditorRuntime();
+const session = useRenovationSession();
+const workspace = useWorkspaceStore();
 const canSwitch = computed(() => runtime.activeToolId.value === null || runtime.toolManager.canDeactivateActiveTool());
+const layoutAddAvailable = computed(() => session.perspective === 'plan');
+const renovationContextAvailable = computed(() => session.perspective === 'renovate' && (session.roomId !== '' || session.targetId !== ''));
+const workAvailable = computed(() => session.perspective === 'renovate' && runtime.renovation.canAddWork(session.roomId));
+async function addWork(): Promise<void> { await runtime.renovation.addWork(session.roomId); }
+function revealDetails(event: Event): void {
+	const root = (event.currentTarget as HTMLElement).closest<HTMLElement>('.renovation-plan-editor');
+	workspace.revealInspector();
+	void nextTick(() => root?.querySelector<HTMLElement>('[data-rp-region="inspector"]')?.focus());
+}
 const props = defineProps<{ addOpen: boolean }>();
 const emit = defineEmits<{ openAdd: [] }>();
 </script>
@@ -25,6 +38,7 @@ const emit = defineEmits<{ openAdd: [] }>();
 <template>
 	<div
 		class="rp-primary-actions"
+		:class="{ 'rp-primary-actions--renovate': session.perspective === 'renovate' }"
 		role="group"
 		:aria-label="tr('editor.primary-actions')"
 	>
@@ -32,32 +46,57 @@ const emit = defineEmits<{ openAdd: [] }>();
 			type="button"
 			class="rp-primary-actions__button"
 			data-rp-action="select"
+			:aria-label="tr('editor.primary.select')"
 			:aria-pressed="runtime.activeToolId.value === 'select'"
 			:aria-disabled="!canSwitch"
 			@click="runtime.setTool('select')"
 		>
-			<HostIcon name="mouse-pointer-2" />{{ tr('editor.primary.select') }}
+			<HostIcon name="mouse-pointer-2" /><span class="rp-primary-actions__label">{{ tr('editor.primary.select') }}</span>
 		</button>
 		<button
 			type="button"
 			class="rp-primary-actions__button"
 			data-rp-action="pan"
+			:aria-label="tr('editor.input.pan')"
 			:aria-pressed="runtime.activeToolId.value === 'pan'"
 			:aria-disabled="!canSwitch"
 			@click="runtime.setTool('pan')"
 		>
-			<HostIcon name="hand" />{{ tr('editor.input.pan') }}
+			<HostIcon name="hand" /><span class="rp-primary-actions__label">{{ tr('editor.input.pan') }}</span>
 		</button>
 		<button
+			v-if="layoutAddAvailable"
 			type="button"
 			class="rp-primary-actions__button"
 			data-rp-action="add"
+			:aria-label="tr('editor.primary.add')"
 			aria-haspopup="menu"
 			:aria-expanded="props.addOpen"
 			:aria-disabled="!canSwitch"
 			@click="canSwitch && emit('openAdd')"
 		>
-			<HostIcon name="plus" />{{ tr('editor.primary.add') }}
+			<HostIcon name="plus" /><span class="rp-primary-actions__label">{{ tr('editor.primary.add') }}</span>
+		</button>
+		<button
+			v-if="workAvailable"
+			type="button"
+			class="rp-primary-actions__button rp-primary-actions__work"
+			data-rp-action="add-work"
+			:aria-label="tr('renovation.add.work')"
+			:aria-disabled="runtime.renovation.blocked.value"
+			@click="addWork"
+		>
+			<HostIcon name="plus" /><span class="rp-primary-actions__label">{{ tr('renovation.add.work') }}</span>
+		</button>
+		<button
+			v-if="renovationContextAvailable"
+			type="button"
+			class="rp-primary-actions__button"
+			data-rp-action="renovation-more"
+			:aria-label="tr('editor.structure.more')"
+			@click="revealDetails"
+		>
+			<HostIcon name="panels-top-left" /><span class="rp-primary-actions__label">{{ tr('editor.structure.more') }}</span>
 		</button>
 	</div>
 </template>

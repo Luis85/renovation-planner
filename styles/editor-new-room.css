@@ -92,6 +92,32 @@
 	margin: 0;
 }
 
+.rp-new-room__preview {
+	margin: 0;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.rp-new-room__preview-label {
+	display: block;
+	margin-block-end: var(--size-4-1);
+	color: var(--text-normal);
+}
+
+.rp-new-room__advanced {
+	display: grid;
+	gap: var(--size-4-1);
+	padding-block: var(--size-4-2);
+	border-block: 1px solid var(--background-modifier-border);
+}
+
+.rp-new-room__advanced > button {
+	justify-self: start;
+}
+
 .rp-new-room__keep {
 	display: flex;
 	align-items: center;
@@ -101,6 +127,7 @@
 
 .rp-new-room__actions {
 	display: flex;
+	align-items: stretch;
 	gap: var(--size-4-2);
 }
 

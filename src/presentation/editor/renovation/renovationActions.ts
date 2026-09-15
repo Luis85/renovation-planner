@@ -1,6 +1,7 @@
 import { createDraftRetry } from '../forms/createDraftRetry';
 import { recordNavigationContext, type NavigationRecords } from './recordNavigationContext';
 import { usePlanningReadState } from '../planning/planningReadState';
+import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
@@ -50,12 +51,17 @@ function currentContext(roomId: string, targetId: EntityId<string> | undefined, 
 function structureNames(structure: Structure | undefined): readonly string[] {
 	return structure ? [...structure.walls, ...structure.openings, ...structure.elements ?? []].map(item => item.id) : [];
 }
+/** Drafting marks describe the plan; they cannot own renovation records, even with a Room context. */
+function draftingTarget(id: string, project: ReturnType<typeof useProjectStore>): boolean {
+	return [...project.structure.elements ?? [], ...project.intended?.elements ?? []].some(item => item.id === id && draftingKind(item.kind));
+}
 /**
  * Any present zone; or no room while the session target is a wall, opening or element, in
  * either the current structure or the intended one — a planned wall not yet built has no
  * room to bound either (ADR-0030).
  */
 function editableContext(roomId: string, project: ReturnType<typeof useProjectStore>, session: ReturnType<typeof useRenovationSession>): boolean {
+	if (draftingTarget(session.targetId, project)) return false;
 	if (roomId) return project.zones.has(roomId);
 	const target = session.targetId;
 	return structureNames(project.structure).includes(target) || structureNames(project.intended).includes(target);
@@ -63,6 +69,17 @@ function editableContext(roomId: string, project: ReturnType<typeof useProjectSt
 /** The catalogue the Material/Product select offers, from the current planning read. */
 function catalogueChoices(planning: ReturnType<typeof usePlanningReadState>): MaterialChoice[] {
 	return planning.baseline?.catalogue.map(({ asset }) => ({ id: asset.id, name: asset.name, category: asset.category, unit: asset.unit })) ?? [];
+}
+
+function createWorkActions(available: boolean, blocked: () => boolean, editable: (roomId: string) => boolean,
+	focus: (roomId: string, mode: RenovationMode) => void, edit: (kind: RenovationEditKind, roomId: string) => Promise<void>) {
+	function canAddWork(roomId: string): boolean { return available && editable(roomId); }
+	async function addWork(roomId: string): Promise<void> {
+		if (!canAddWork(roomId) || blocked()) return;
+		focus(roomId, 'work');
+		await edit('work', roomId);
+	}
+	return { addWork, canAddWork };
 }
 
 export function createRenovationActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'returnToSelect' | 'dispatcher' | 'refreshProjection' | 'structureTask' | 'writesBlocked' | 'openPlanNote'>) {
@@ -150,7 +167,7 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		finally { loading.value = false; }
 	}
 	async function batch(kind: BatchKind, targets: readonly BatchTarget[]): Promise<void> {
-		if (blocked.value || dialogs.current || targets.length < 2) return;
+		if (blocked.value || dialogs.current || targets.length < 2 || targets.some(target => draftingTarget(target.targetId, project))) return;
 		loading.value = true;
 		const selected = selection.selectedIds.join('|');
 		try {
@@ -163,5 +180,6 @@ export function createRenovationActions(context: PlanEditorContext, runtime: Pic
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'renovation.batch.failed'); }
 		finally { loading.value = false; }
 	}
-	return { perspective, focus, edit, batch, change, blocked, available: context.commands.renovation !== undefined };
+	const work = createWorkActions(context.commands.renovation !== undefined, () => blocked.value, roomId => editableContext(roomId, project, session), focus, edit);
+	return { perspective, focus, edit, ...work, batch, change, blocked, available: context.commands.renovation !== undefined };
 }

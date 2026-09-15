@@ -5,7 +5,7 @@ import { settle, settleUntil } from '../../helpers/editor';
 import { err, ok } from '../../../src/core/result/Result';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { makeZone } from '../../helpers/entities';
-import { WALL_LOOP } from '../../helpers/structure';
+import { WALL_LOOP_WITH_SIDES as WALL_LOOP } from '../../helpers/structure';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import { pointerAt } from '../../helpers/tool-context';

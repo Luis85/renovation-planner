@@ -34,24 +34,25 @@ const CALIBRATION = {
 	knownDistance: 1000,
 	pixelsPerWorldUnit: 1,
 };
+const REFERENCE_BACKGROUND = { path: 'Plans/g.png', kind: 'image' as const };
 
 describe('StatusBar', () => {
 	it('says the scale is not set for an uncalibrated plan', async () => {
-		const harness = await mountPlanEditorCanvas();
+		const harness = await mountPlanEditorCanvas({ plan: { ...FIXTURE_PLAN, background: REFERENCE_BACKGROUND } });
 
 		expect(harness.wrapper.find('.rp-editor-scale').text()).toBe(t('en', 'editor.status.scale.uncalibrated'));
 		harness.wrapper.unmount();
 	});
 
 	it('says the scale is set for a plan carrying a calibration', async () => {
-		const harness = await mountPlanEditorCanvas({ plan: { ...FIXTURE_PLAN, calibration: CALIBRATION } });
+		const harness = await mountPlanEditorCanvas({ plan: { ...FIXTURE_PLAN, background: REFERENCE_BACKGROUND, calibration: CALIBRATION } });
 
 		expect(harness.wrapper.find('.rp-editor-scale').text()).toBe(t('en', 'editor.status.scale.calibrated'));
 		harness.wrapper.unmount();
 	});
 
 	it('withdraws the pointer readout under the constrained layout, and keeps zoom, scale and save state', async () => {
-		const harness = await mountPlanEditorCanvas();
+		const harness = await mountPlanEditorCanvas({ plan: { ...FIXTURE_PLAN, background: REFERENCE_BACKGROUND } });
 		useWorkspaceStore(harness.pinia).layoutMode = 'constrained';
 		await settle();
 
@@ -59,6 +60,12 @@ describe('StatusBar', () => {
 		expect(harness.wrapper.find('.rp-editor-scale').exists()).toBe(true);
 		expect(harness.wrapper.find('.rp-editor-measurements').text()).toContain(t('en', 'editor.zoom'));
 		expect(harness.wrapper.find('.rp-editor-save-state').exists()).toBe(true);
+		harness.wrapper.unmount();
+	});
+
+	it('withholds a generic scale warning when the floor has no reference plan', async () => {
+		const harness = await mountPlanEditorCanvas();
+		expect(harness.wrapper.find('.rp-editor-scale').exists()).toBe(false);
 		harness.wrapper.unmount();
 	});
 

@@ -39,7 +39,7 @@ async function exposePoint(page, id, point) {
 	await page.keyboard.down('Space'); await page.mouse.move(centre.x, centre.y); await page.mouse.down();
 	await page.mouse.move(centre.x + centre.x - current.x, centre.y + centre.y - current.y, { steps: 5 }); await page.mouse.up(); await page.keyboard.up('Space'); await frame(page);
 	const exposed = screenPoint(await scene(page, id), point);
-	assert.equal(await page.evaluate(p => { const hit = document.elementFromPoint(p.x, p.y); return !!hit?.closest('.rp-plan-canvas') && !hit.closest('.rp-task-banner, .rp-direct-actions'); }, exposed), true, 'opening click is on the exposed canvas');
+	assert.equal(await page.evaluate(p => { const hit = document.elementFromPoint(p.x, p.y); return !!hit?.closest('.rp-plan-canvas') && !hit.closest('.rp-task-banner, .rp-wall-canvas-actions'); }, exposed), true, 'opening click is on the exposed canvas');
 	return exposed;
 }
 async function contextMove(page, id) {

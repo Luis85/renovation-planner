@@ -37,6 +37,8 @@ export interface SpatialObjectCandidate {
 	readonly bulges?: readonly number[];
 	/** A derived hit/framing projection; gestures always retain the canonical points. */
 	readonly hitPoints?: readonly Point[];
+	/** Compound derived bodies, such as an asymmetric wall and its outer join wedges. */
+	readonly hitRegions?: readonly (readonly Point[])[];
 	readonly stair?: StairOptions;
 	readonly assetId?: string;
 }
@@ -47,6 +49,8 @@ export interface SpatialObjectCandidate {
  * pair.
  */
 export interface SelectToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps {
+	/** Selection remains available when false; only geometry gestures are withheld. */
+	readonly canMutateGeometry?: () => boolean;
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly spatialObjects: () => readonly SpatialObjectCandidate[];
@@ -130,6 +134,7 @@ export class SelectTool implements EditorTool {
 	private readonly elementRotation: ElementRotation;
 	private readonly labelMove: LabelMove;
 	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); this.elementRotation = new ElementRotation(deps); this.labelMove = new LabelMove(deps); }
+	private canMutateGeometry(): boolean { return this.deps.canMutateGeometry?.() !== false; }
 
 	activate(context: EditorContext): void {
 		this.context = context;
@@ -158,6 +163,7 @@ export class SelectTool implements EditorTool {
 		context.renderState.rotationHoverSuppressed = this.rotationSuppressed(event);
 
 		const { candidates, target, rotationControl } = this.targetAt(context, event);
+		const canMutate = this.canMutateGeometry();
 		// A press is exactly when the predicted hover stops meaning anything, on every path
 		// out of this method — a body hit, a handle hit and a miss that clears the
 		// selection: the pointer is about to act rather than
@@ -170,8 +176,7 @@ export class SelectTool implements EditorTool {
 			this.marquee.start(context, event);
 			return;
 		}
-		if (target.kind === 'rotation') { this.startRotation(context, event, target.id, rotationControl); return; }
-		if (target.kind === 'label') { this.labelMove.start(context, event, target.id); return; }
+		if (this.startDirectGesture(context, event, target, rotationControl)) return;
 		// `resolveSelectionTarget` was handed this same `candidates` array, and every non-rotation
 		// id it answers comes out of it: `handleAt` and `badgeAt` find the id there first, and
 		// `bodyAt` iterates it. A rotation target has already returned above.
@@ -184,7 +189,7 @@ export class SelectTool implements EditorTool {
 			// release cannot keep is a promise, so no gesture begins — the vertex handle stays
 			// on an already-selected zone, but grabbing it starts no drag (design spec §2.9,
 			// trust path).
-			if (context.writesBlocked()) return;
+			if (context.writesBlocked() || !canMutate) return;
 			this.gesture = {
 				kind: 'vertex',
 				zoneId: hit.id as ZoneId,
@@ -196,7 +201,7 @@ export class SelectTool implements EditorTool {
 		}
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);
 		// Modified clicks choose records only; they never start an accidental edit.
-		if (event.modifiers.shift || event.modifiers.alt) return;
+		if (event.modifiers.shift || event.modifiers.alt || !canMutate) return;
 		// While the canvas is stale the gate would refuse the commit anyway; a ghost the release
 		// cannot keep is a promise, so no gesture begins. Selection still happens — inspecting
 		// stays available (design spec §2.9).
@@ -228,7 +233,7 @@ export class SelectTool implements EditorTool {
 	}
 	private focusSelectedMember(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
 		if (event.modifiers.shift || event.modifiers.alt || context.selection.selectedIds.length < 2 || !context.selection.isSelected(id as EntityId<string>)) return false;
-		if (!context.writesBlocked()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
+		if (!context.writesBlocked() && this.canMutateGeometry()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
 		context.selection.focus(id as EntityId<string>); return true;
 	}
 	private selectGroup(context: EditorContext, event: EditorPointerEvent, id: string): boolean {
@@ -239,11 +244,12 @@ export class SelectTool implements EditorTool {
 			? ids.every(member => selected.some(value => value === member)) ? selected.filter(value => !ids.includes(value)) : [...selected, ...ids]
 			: ids;
 		context.selection.select(result.map(value => value as EntityId<string>));
-		if (!event.modifiers.shift && !event.modifiers.alt && !context.writesBlocked()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
+		if (!event.modifiers.shift && !event.modifiers.alt && !context.writesBlocked() && this.canMutateGeometry()) this.deps.selectionMove?.start(context.selection.selectedIds, event);
 		return true;
 	}
 	private selectStructure(context: EditorContext, event: EditorPointerEvent, hit: SpatialObjectCandidate, target: Exclude<SelectionTarget, null>): void {
 		selectSpatial(context.selection, hit.id, event.modifiers.shift);
+		if (!this.canMutateGeometry()) return;
 		if (hit.kind !== 'wall' && hit.kind !== 'opening') this.elementMove.start(context, event, hit, target.kind === 'handle' ? target.vertexIndex : undefined);
 		if (hit.kind === 'wall' && target.kind === 'handle' && target.vertexIndex === 1 && !context.writesBlocked()) this.wallGesture = { id: hit.id, start: event.worldPoint };
 	}
@@ -288,6 +294,7 @@ export class SelectTool implements EditorTool {
 	pointerMove(event: EditorPointerEvent): void {
 		const context = this.context;
 		if (context === null) return;
+		if (!this.canMutateGeometry() || context.writesBlocked()) this.cancelGeometryGesture();
 		if (this.deps.selectionMove?.active) { this.deps.selectionMove.move(event); return; }
 		if (this.labelMove.move(event)) return;
 		if (this.marquee.active) { this.marquee.move(context, event); return; }
@@ -305,9 +312,17 @@ export class SelectTool implements EditorTool {
 		// Ordinary hover predicts the same body/handle as a click; affordance approach stays separate.
 		context.renderState.rotationHoverSuppressed = this.rotationSuppressed(event);
 		const { target } = this.targetAt(context, this.withMode(event));
-		context.renderState.rotationHoverId = target?.kind === 'rotation' ? target.id : this.approachingRotation(context, event) ?? target?.id ?? null;
+		const canMutate = this.canMutateGeometry();
+		context.renderState.rotationHoverId = canMutate ? target?.kind === 'rotation' ? target.id : this.approachingRotation(context, event) ?? target?.id ?? null : null;
 		context.renderState.hoveredObjectId = target === null ? null : target.id;
-		context.renderState.hoveredTargetKind = target === null ? null : target.kind;
+		context.renderState.hoveredTargetKind = target === null ? null : canMutate ? target.kind : 'body';
+	}
+	private startDirectGesture(context: EditorContext, event: EditorPointerEvent, target: Exclude<SelectionTarget, null>, control: RotationControlGeometry | null | undefined): boolean {
+		if (target.kind !== 'rotation' && target.kind !== 'label') return false;
+		if (!this.canMutateGeometry()) { selectSpatial(context.selection, target.id, event.modifiers.shift); return true; }
+		if (target.kind === 'rotation') this.startRotation(context, event, target.id, control);
+		else this.labelMove.start(context, event, target.id);
+		return true;
 	}
 
 	private finishSelectionGesture(event: EditorPointerEvent): boolean {
@@ -328,6 +343,7 @@ export class SelectTool implements EditorTool {
 		return true;
 	}
 	pointerUp(event: EditorPointerEvent): void {
+		if (!this.canMutateGeometry() || this.context?.writesBlocked()) this.cancelGeometryGesture();
 		if (this.finishSelectionGesture(event)) return;
 		if (this.labelMove.finish(event)) return;
 		if (this.elementRotation.active && this.context) { this.elementRotation.finish(this.context, event); return; }
@@ -356,13 +372,22 @@ export class SelectTool implements EditorTool {
 		void this.commit(context, gesture.zoneId, gesture.original, forwardPoints);
 	}
 
-	private discardGesture(): EditorContext | null {
+	/** Retire only undispatched geometry. Selection marquees and pending writes keep their owner. */
+	cancelGeometryGesture(): boolean {
+		if (!this.gesture && !this.wallGesture && !this.elementMove.active && !this.elementRotation.active && !this.labelMove.active && !this.deps.selectionMove?.active) return false;
 		this.deps.selectionMove?.cancel();
 		this.elementMove.cancel(); this.elementRotation.cancel(); this.labelMove.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
 		this.gesture = null;
+		if (context !== null) { context.renderState.previewPolygon = null; context.renderState.snapGuides = []; }
+		return true;
+	}
+
+	private discardGesture(): EditorContext | null {
+		this.cancelGeometryGesture();
+		const context = this.context;
 		if (context !== null) { this.marquee.cancel(context); context.renderState.previewPolygon = null; context.renderState.snapGuides = []; }
 		return context;
 	}

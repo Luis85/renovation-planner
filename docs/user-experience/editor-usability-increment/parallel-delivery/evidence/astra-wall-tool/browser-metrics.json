@@ -1,0 +1,214 @@
+[
+  {
+    "lang": "en",
+    "bar": {
+      "bottom": 740,
+      "height": 56,
+      "left": 164,
+      "right": 316,
+      "top": 684,
+      "width": 152,
+      "x": 164,
+      "y": 684
+    },
+    "canvas": {
+      "bottom": 764,
+      "height": 625.3125,
+      "left": 80,
+      "right": 400,
+      "top": 138.6875,
+      "width": 320,
+      "x": 80,
+      "y": 138.6875
+    },
+    "missingIcons": 0,
+    "panel": {
+      "bottom": 668,
+      "height": 331.71875,
+      "left": 96,
+      "right": 384,
+      "top": 336.28125,
+      "width": 288,
+      "x": 96,
+      "y": 336.28125
+    },
+    "targets": [
+      {
+        "bounds": {
+          "bottom": 493.3125,
+          "height": 44,
+          "left": 113,
+          "right": 367,
+          "top": 449.3125,
+          "width": 254,
+          "x": 113,
+          "y": 449.3125
+        },
+        "name": "wall-thickness",
+        "unobscured": true
+      },
+      {
+        "bounds": {
+          "bottom": 549.3125,
+          "height": 44,
+          "left": 113,
+          "right": 157,
+          "top": 505.3125,
+          "width": 44,
+          "x": 113,
+          "y": 505.3125
+        },
+        "name": "Decrease whole-wall thickness by 0.01 m",
+        "unobscured": true
+      },
+      {
+        "bounds": {
+          "bottom": 549.3125,
+          "height": 44,
+          "left": 323,
+          "right": 367,
+          "top": 505.3125,
+          "width": 44,
+          "x": 323,
+          "y": 505.3125
+        },
+        "name": "Increase whole-wall thickness by 0.01 m",
+        "unobscured": true
+      },
+      {
+        "bounds": {
+          "bottom": 651,
+          "height": 44,
+          "left": 113,
+          "right": 174.9765625,
+          "top": 607,
+          "width": 61.9765625,
+          "x": 113,
+          "y": 607
+        },
+        "name": "Cancel",
+        "unobscured": true
+      },
+      {
+        "bounds": {
+          "bottom": 651,
+          "height": 44,
+          "left": 309.890625,
+          "right": 367,
+          "top": 607,
+          "width": 57.109375,
+          "x": 309.890625,
+          "y": 607
+        },
+        "name": "Apply",
+        "unobscured": true
+      }
+    ]
+  },
+  {
+    "lang": "de",
+    "bar": {
+      "bottom": 740,
+      "height": 56,
+      "left": 91.30078125,
+      "right": 448.69921875,
+      "top": 684,
+      "width": 357.3984375,
+      "x": 91.30078125,
+      "y": 684
+    },
+    "canvas": {
+      "bottom": 764,
+      "height": 589.3125,
+      "left": 80,
+      "right": 460,
+      "top": 174.6875,
+      "width": 380,
+      "x": 80,
+      "y": 174.6875
+    },
+    "missingIcons": 0,
+    "panel": {
+      "bottom": 668,
+      "height": 331.71875,
+      "left": 144,
+      "right": 444,
+      "top": 336.28125,
+      "width": 300,
+      "x": 144,
+      "y": 336.28125
+    },
+    "targets": [
+      {
+        "bounds": {
+          "bottom": 493.3125,
+          "height": 44,
+          "left": 161,
+          "right": 427,
+          "top": 449.3125,
+          "width": 266,
+          "x": 161,
+          "y": 449.3125
+        },
+        "name": "wall-thickness",
+        "unobscured": true
+      },
+      {
+        "bounds": {
+          "bottom": 549.3125,
+          "height": 44,
+          "left": 161,
+          "right": 205,
+          "top": 505.3125,
+          "width": 44,
+          "x": 161,
+          "y": 505.3125
+        },
+        "name": "Gesamte Wanddicke um 0,01 m verringern",
+        "unobscured": true
+      },
+      {
+        "bounds": {
+          "bottom": 549.3125,
+          "height": 44,
+          "left": 383,
+          "right": 427,
+          "top": 505.3125,
+          "width": 44,
+          "x": 383,
+          "y": 505.3125
+        },
+        "name": "Gesamte Wanddicke um 0,01 m erhöhen",
+        "unobscured": true
+      },
+      {
+        "bounds": {
+          "bottom": 651,
+          "height": 44,
+          "left": 161,
+          "right": 247.5078125,
+          "top": 607,
+          "width": 86.5078125,
+          "x": 161,
+          "y": 607
+        },
+        "name": "Abbrechen",
+        "unobscured": true
+      },
+      {
+        "bounds": {
+          "bottom": 651,
+          "height": 44,
+          "left": 341.890625,
+          "right": 427,
+          "top": 607,
+          "width": 85.109375,
+          "x": 341.890625,
+          "y": 607
+        },
+        "name": "Anwenden",
+        "unobscured": true
+      }
+    ]
+  }
+]

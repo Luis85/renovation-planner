@@ -10,6 +10,7 @@ import { err, ok, type Result } from '../../../core/result/Result';
 import { splitWall } from '../../../domain/spatial/splitWall';
 import type { WallJoin } from '../../../domain/spatial/wallJoin';
 import { formatMetres, parseCoordinateMetres, parseMetres } from '../shell/formatLength';
+import { wallSnapReach } from '../../../domain/spatial/wallSides';
 
 export type StructureToolId = 'draw-wall' | 'place-door' | 'place-window' | 'place-opening';
 export const isStructureTool = (id: string | null): id is StructureToolId => id === 'draw-wall' || id === 'place-door' || id === 'place-window' || id === 'place-opening';
@@ -155,7 +156,7 @@ export function mintStructure(structure: Structure): Structure {
 }
 
 export function pickHost(draft: StructureDraft, point: Point, walls: readonly Wall[], tolerance: number): void {
-	const hits = walls.map(wall => ({ wall, ...projectOntoWall(wall, point), length: wallLength(wall) })).filter(hit => hit.distance <= tolerance);
+	const hits = walls.map(wall => ({ wall, ...projectOntoWall(wall, point), length: wallLength(wall) })).filter(hit => hit.distance <= wallSnapReach(hit.wall, point, tolerance, hit));
 	const hit = hits.reduce<(typeof hits)[number] | undefined>((best, candidate) => !best || candidate.distance < best.distance ? candidate : best, undefined);
 	draft.snapped = hit !== undefined;
 	if (hit) {

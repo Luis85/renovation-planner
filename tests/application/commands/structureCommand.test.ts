@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { WALL_LOOP, structureStack } from '../../helpers/structure';
+import { WALL_LOOP_WITH_SIDES as WALL_LOOP, structureStack } from '../../helpers/structure';
 import { expectOk, expectErr } from '../../helpers/domain';
 import { err, ok } from '../../../src/core/result/Result';
 import { leftWritesBehind, type DispatchResult } from '../../../src/application/commands/DispatchOutcome';

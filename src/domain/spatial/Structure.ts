@@ -4,6 +4,8 @@ import { arcLength, arcPoint, arcProjection, arcTangent } from '../../core/geome
 
 /** Centre-line walls with optional circular curvature; all measurements are world millimetres. */
 export interface Wall {
+	/** A is left and B right looking along start → end; distances from the fixed reference line, in mm. */
+	readonly sideExtents?: WallSideExtents;
 	readonly bulge?: number;
 	readonly id: string;
 	readonly start: Point;
@@ -11,6 +13,8 @@ export interface Wall {
 	readonly thickness: number;
 	readonly height: number;
 }
+export interface WallSideExtents { readonly a: number; readonly b: number }
+export type WallSide = keyof WallSideExtents;
 export interface Opening {
 	readonly id: string;
 	readonly kind: 'door' | 'window' | 'opening';

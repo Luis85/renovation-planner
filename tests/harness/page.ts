@@ -255,8 +255,8 @@ if (wantsIndex) {
 					mode: params.get('mode') ?? undefined,
 					draw: params.get('draw') ?? undefined,
 					camera: params.get('camera') ?? undefined,
-					grid: params.has('grid'),
 					pending: params.has('pending'),
+					grid: params.has('grid'),
 				}).view
 			: wantsAssetLibrary
 				? mountAssetLibraryHarness(document.body, params.get('asset'), params.get('assets') === '0').view

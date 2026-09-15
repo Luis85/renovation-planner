@@ -93,6 +93,7 @@ function perKindSuffixes(): ReadonlySet<string> {
 const APPLICATION_CODE_PATTERN =
 	/(?:code:\s*|referenceError\(\s*|calculationError\(\s*|persistenceError\(\s*)'([a-z][a-z-]*(?:\.[a-z][a-z-]*)+)'/gu;
 
+
 function applicationMintedCodes(): ReadonlySet<string> {
 	const found = new Set<string>();
 	const walk = (dir: string): void => {
@@ -107,6 +108,7 @@ function applicationMintedCodes(): ReadonlySet<string> {
 	walk(join('src', 'application'));
 	return found;
 }
+
 
 /**
  * Codes `applicationMintedCodes` finds that are deliberately left on the category sentence —
@@ -257,6 +259,7 @@ describe('toUserMessage', () => {
 			expect(toUserMessage('de', refusal)).not.toBe(t('de', 'error.category.persistence'));
 		}
 	});
+
 
 	/**
 	 * **A direct code key BEATS a matching suffix**, because `hasLocaleKey(error.code)` is asked

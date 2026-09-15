@@ -2,7 +2,7 @@
 type: Issue
 parent: "[[Layers]]"
 order: 20
-status: New
+status: Done
 started: ""
 finished: ""
 horizon: Now
@@ -79,3 +79,10 @@ the two `it.each` blocks above that resizes 460 → 320 with each overlay open i
 - `tests/presentation/editor/shell/responsiveShell.test.ts:191-209,224-252` — the two existing
   focus `it.each` blocks, neither of which drives this transition.
 - Reviewed at commit `bc6ca060`.
+
+## Evidence
+
+Done without production changes: the parameterized regression in
+`tests/presentation/editor/shell/responsiveShell.test.ts` drives both Layers and Inspector from
+460px to 320px, settles, and asserts the overlay/canvas are gone and focus is on
+`.rp-unsupported-width__action`, not `document.body`.

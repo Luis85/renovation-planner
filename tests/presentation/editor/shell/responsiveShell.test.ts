@@ -252,6 +252,25 @@ describe('the responsive shell', () => {
 		expect(harness.wrapper.find(panel).exists()).toBe(true);
 	});
 
+	it.each([
+		['the layers overlay', 'layers', '.rp-overlay-panel'],
+		['the inspector drawer', 'details', '.rp-inspector-drawer'],
+	])('moves focus to the unsupported notice when %s is open during a shrink below the floor', async (_name, rail, panel) => {
+		const harness = await mountPlanEditorCanvas();
+		open = harness;
+		resizeTo(harness.rootEl, 460, 800);
+		await settle();
+		await harness.wrapper.find(`button[data-rp-rail="${rail}"]`).trigger('click');
+		await settle();
+		expect(harness.wrapper.find(panel).element.contains(document.activeElement)).toBe(true);
+		resizeTo(harness.rootEl, 320, 800);
+		await settle();
+		expect(harness.wrapper.find(panel).exists()).toBe(false);
+		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(false);
+		expect(document.activeElement).toBe(harness.wrapper.find('.rp-unsupported-width__action').element);
+		expect(document.activeElement).not.toBe(document.body);
+	});
+
 	it('below the floor width replaces the canvas with a summary and a Focus this tab action that asks the leaf', async () => {
 		const harness = await mountPlanEditorCanvas();
 		open = harness;

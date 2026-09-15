@@ -6,6 +6,7 @@ import { mount } from '@vue/test-utils';
 import ProjectFilter from '../../../src/presentation/views/ProjectFilter.vue';
 import HostIcon from '../../../src/presentation/components/HostIcon.vue';
 import ProjectList from '../../../src/presentation/views/ProjectList.vue';
+import { tr } from '../../../src/presentation/i18n/strings';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
 function line(props: { query?: string; shown?: number; total?: number } = {}) {
@@ -137,6 +138,43 @@ describe('ProjectFilter', () => {
 
 		expect(wrapper.find('input').attributes('autofocus')).toBeUndefined();
 		expect(document.activeElement?.tagName).not.toBe('INPUT');
+		wrapper.unmount();
+	});
+
+	it('focuses the input when pointerdown lands on the field chrome', async () => {
+		const wrapper = mount(ProjectFilter, {
+			props: { query: '', shown: 4, total: 4 },
+			attachTo: document.body,
+		});
+		const field = wrapper.get('.rp-project-filter__field');
+
+		await field.trigger('pointerdown');
+
+		expect(document.activeElement).toBe(wrapper.find('input').element);
+		wrapper.unmount();
+	});
+
+	it('focuses the input when pointerdown lands on the search glyph', async () => {
+		const wrapper = mount(ProjectFilter, {
+			props: { query: '', shown: 4, total: 4 },
+			attachTo: document.body,
+		});
+
+		await wrapper.findComponent(HostIcon).trigger('pointerdown');
+
+		expect(document.activeElement).toBe(wrapper.find('input').element);
+		wrapper.unmount();
+	});
+
+	it('shows a named clear button only for a non-empty query and returns focus after clearing', async () => {
+		const wrapper = mount(ProjectFilter, { props: { query: 'kit', shown: 1, total: 4 }, attachTo: document.body });
+		const clear = wrapper.get('.rp-project-filter__clear');
+		expect(clear.attributes('aria-label')).toBe(tr('view.project.filter.clear'));
+		await clear.trigger('click');
+		expect(wrapper.emitted('update:query')).toEqual([['']]);
+		expect(document.activeElement).toBe(wrapper.find('input').element);
+		await wrapper.setProps({ query: '' });
+		expect(wrapper.find('.rp-project-filter__clear').exists()).toBe(false);
 		wrapper.unmount();
 	});
 

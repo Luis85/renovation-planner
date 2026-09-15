@@ -120,6 +120,15 @@ describe('project-filter.css', () => {
 		expect(bodyOf('.rp-project-filter .rp-project-filter__input')).toContain('border: none');
 	});
 
+	it('advertises the whole field as a text hit target', () => {
+		expect(bodyOf('.rp-project-filter__field')).toContain('cursor: text');
+	});
+
+	it('keeps the clear affordance compact and visibly focused', () => {
+		expect(bodyOf('.rp-project-filter .rp-project-filter__clear')).toContain('min-height: 24px');
+		expect(bodyOf('.rp-project-filter .rp-project-filter__clear:focus-visible')).toContain('outline: 2px solid var(--interactive-accent)');
+	});
+
 	/**
 	 * THE FIELD IS PADDED INLINE ONLY, and `var(--input-padding)` is the tempting wrong answer:
 	 * it reads as "what an input is padded by", so wearing it whole looks like faithfully

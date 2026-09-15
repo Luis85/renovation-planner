@@ -2,7 +2,7 @@
 type: Issue
 parent: "[[Prototype a screen in the harness before it is built]]"
 order: 90
-status: New
+status: Done
 started: ""
 finished: ""
 horizon: Now

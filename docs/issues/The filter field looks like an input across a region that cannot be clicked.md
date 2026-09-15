@@ -2,7 +2,7 @@
 type: Issue
 parent: "[[The project surface]]"
 order: 10
-status: New
+status: Done
 started: ""
 finished: ""
 horizon: Now
@@ -79,3 +79,11 @@ The cost that deferred it is real and should be planned for rather than discover
 is a new function, and functions coverage sits at **one** covered unit of headroom
 (`vitest.config.ts`'s ledger). An untested callback fails the gate outright, so the test is part
 of the change rather than a follow-up to it.
+
+## Evidence
+
+Done: the field wrapper now focuses the inner input on `pointerdown` from its chrome, including
+the search glyph, and declares `cursor: text`. `projectFilterLine.test.ts` covers mounted wrapper
+and glyph pointer interaction; `projectFilterStyles.test.ts` covers the field declaration.
+`git diff --check` passes; the requested type-check, targeted lint, and focused test commands
+could not run because dependencies are not installed and `npm ci` stalled in the environment.

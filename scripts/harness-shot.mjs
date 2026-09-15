@@ -13,6 +13,7 @@ import {
 } from './captureReadiness.mjs';
 import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
+import { writeContactSheet } from './harnessContactSheet.mjs';
 
 /**
  * Headless capture of the browser harness — either the fixed surfaces (the project view's list
@@ -1068,6 +1069,7 @@ async function run() {
 
 		try {
 			reportErrors(await captureAll(browser, baseUrl, shots));
+			writeContactSheet(OUT_DIR, shots);
 		} finally {
 			await browser.close();
 		}

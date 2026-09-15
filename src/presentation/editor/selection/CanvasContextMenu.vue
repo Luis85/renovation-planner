@@ -101,7 +101,11 @@ function deleteKey(event: KeyboardEvent): void {
 }
 function outside(event: PointerEvent): void { if (open.value && pointerOutside(menu.value, event)) close(false); }
 function leave(event: FocusEvent): void { if (open.value && (!event.relatedTarget || !root?.contains(event.relatedTarget as Node))) close(false); }
-function run(action: CanvasMenuAction): void { if (action.disabled) return; close(); void action.run(); }
+function run(action: CanvasMenuAction): void {
+	if (action.disabled) return;
+	const source = menu.value?.ownerDocument.activeElement;
+	close(); void action.run(source instanceof HTMLElement ? source : undefined);
+}
 watch(() => selection.selectedIds, ids => { if (open.value && (ids.length !== menuIds.length || ids.some((id, index) => id !== menuIds[index]))) close(false); });
 watch(() => dialogs.current, dialog => { if (dialog && open.value) close(false); });
 onMounted(() => {

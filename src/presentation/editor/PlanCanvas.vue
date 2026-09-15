@@ -49,6 +49,7 @@ import NorthArrow from './layers/NorthArrow.vue';
 import RoomDimensionLabels from './resize/RoomDimensionLabels.vue';
 import WallCanvasActions from './selection/WallCanvasActions.vue';
 import WallThicknessPanel from './structure/WallThicknessPanel.vue';
+import OpeningDirectPanel from './structure/OpeningDirectPanel.vue';
 
 /** This surface's own subject, which `EditorSurface` requires rather than assuming. */
 const CANVAS_LABEL: StringKey = 'editor.canvas';
@@ -218,6 +219,7 @@ onBeforeUnmount(() => stopPixelRatio());
 				@rotation-obstacles="runtime.rotationActions.setObstacles"
 			/>
 			<WallThicknessPanel />
+			<OpeningDirectPanel />
 			<WallCanvasActions v-if="!existingPhotos.length" />
 			<ExistingPhotoStrip
 				v-else

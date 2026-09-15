@@ -28,6 +28,7 @@ import { createStructureBulkEdit, type StructureReviewState, type StructureServi
 import { createWallPointAction } from './wallPointAction';
 import { createWallThicknessActions } from './wallThicknessActions';
 import { createWallFaceHighlight } from './wallFaceHighlight';
+import { createOpeningDirectActions } from './openingDirectActions';
 function removalIds(id: string | readonly string[]): readonly string[] { return typeof id === 'string' ? [id] : [...new Set(id)]; }
 function removalSummary(structure: Structure, selected: readonly string[], openings: number, rooms: number): string {
 	const names = selected.map(target => {
@@ -56,11 +57,10 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	const preview = ref<Structure | null>(null), active = ref(false);
 	const session = useRenovationSession(), save = useSaveStateStore(), removalBlocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
 	const blocked = computed(() => removalBlocked.value || session.perspective !== 'plan');
-	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked });
-	const bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
+	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked }), bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
 	const wallPoint = createWallPointAction(context, { active, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
-	const faceHighlight = createWallFaceHighlight();
-	const thickness = createWallThicknessActions(context, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite }, faceHighlight.show);
+	const faceHighlight = createWallFaceHighlight(), thickness = createWallThicknessActions(context, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite }, faceHighlight.show);
+	const openingDirect = createOpeningDirectActions(context, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
 	let alive = true, editGeneration = 0, editing = false;
 	watch([() => session.perspective, () => selection.selectedIds.join(), () => editor.activeToolId], () => { editGeneration++; if (editing) preview.value = null; }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
@@ -75,7 +75,6 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	}
 	function unavailable(): boolean { return !alive || active.value || removalBlocked.value || !!dialogs.current; }
 	function geometryUnavailable(): boolean { return unavailable() || blocked.value; }
-	/** The preview and write a structure dialog hands its form; both retire with the leaf. */
 	function reviewedWrite(services: StructureServices, snapshot: PlanGeometrySnapshot) {
 		return {
 			preview: (value: Structure | null) => { preview.value = alive ? value : null; },
@@ -83,7 +82,6 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		};
 	}
 	async function edit(id: string, end?: Point, openingPoint?: Point): Promise<void> {
-		// A refused wall-end drop must not strand the preview its release left up.
 		if (geometryUnavailable() || !context.commands.structure) { if (end) preview.value = null; return; }
 		active.value = true;
 		editing = true; const ticket = ++editGeneration;
@@ -125,7 +123,6 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			message: removalSummary(structure, selected, openings, rooms) });
 		return answer === 'confirm';
 	}
-
 	async function remove(id: string | readonly string[]): Promise<void> {
 		if (unavailable() || !context.commands.structure) return;
 		const selected = removalIds(id);
@@ -152,5 +149,5 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		const wall = project.structure.walls.find(item => item.id === id);
 		preview.value = alive && wall && end ? editWall(project.structure, { ...wall, end }) : null;
 	}
-	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, thickness, faceHighlight, ...rotation, ...bulk, ...wallPoint };
+	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, thickness, openingDirect, faceHighlight, ...rotation, ...bulk, ...wallPoint };
 }

@@ -34,7 +34,9 @@ export function createOpeningMove(context: PlanEditorContext,
 	let target = '', generation = 0, alive = true;
 	let armed: PlanGeometryDocument | null = null;
 	let pending: { point: Point; tolerance: number } | null = null;
-	const permitted = computed(() => !runtime.writesBlocked.value && session.perspective !== 'review' && workspace.layerVisibility.architecture && !dialogs.current);
+	// A direct opening move is a current-geometry action. Renovate keeps its own intended route;
+	// history replay does not call this admission action, so Plan-only admission cannot block it.
+	const permitted = computed(() => !runtime.writesBlocked.value && session.perspective === 'plan' && workspace.layerVisibility.architecture && !dialogs.current);
 	const available = computed(() => !!context.commands.structure && permitted.value && !state.active.value && save.state !== 'saving' && runtime.activeToolId.value === 'select' && !runtime.toolManager.gestureInFlight);
 	function clear(): void { pending = null; state.preview.value = null; message.value = ''; }
 	function stop(): void { generation++; clear(); baseline.value = null; armed = null; loading.value = false; hostId.value = null; target = ''; state.active.value = false; }

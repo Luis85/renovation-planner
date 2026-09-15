@@ -33,12 +33,12 @@ import { useDraftingMenuActions } from './draftingMenuActions';
  * selection and grouping, the view, and last what destroys the object.
  */
 export type CanvasMenuGroup = 'plans' | 'edit' | 'create' | 'records' | 'clipboard' | 'arrange' | 'view' | 'destructive';
-export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly params?: Readonly<Record<string, string>>; readonly disabled?: boolean; readonly reason?: StringKey; run(): void | Promise<void> }
+export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly params?: Readonly<Record<string, string>>; readonly disabled?: boolean; readonly reason?: StringKey; run(source?: HTMLElement): void | Promise<void> }
 export interface CanvasMenuSubmenu { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly children: readonly CanvasMenuAction[]; readonly disabled?: boolean; readonly reason?: StringKey }
 export type CanvasMenuItem = CanvasMenuAction | CanvasMenuSubmenu;
 export function isSubmenu(item: CanvasMenuItem): item is CanvasMenuSubmenu { return 'children' in item; }
 const GROUP_ORDER: readonly CanvasMenuGroup[] = ['plans', 'edit', 'create', 'records', 'clipboard', 'arrange', 'view', 'destructive'];
-const GEOMETRY_ACTIONS = new Set(['wall-thickness', 'adjust-thickness', 'add-point', 'edit', 'move-opening', 'rotate', 'add', 'measure', 'add-door', 'add-window', 'add-opening', 'new-wall', 'enclose']);
+const GEOMETRY_ACTIONS = new Set(['wall-thickness', 'adjust-thickness', 'add-point', 'edit', 'opening-width', 'opening-offset', 'opening-swing', 'move-opening', 'rotate', 'add', 'measure', 'add-door', 'add-window', 'add-opening', 'new-wall', 'enclose']);
 /** A captured menu action must obey the current perspective when invoked later. */
 function guardGeometryActions(actions: readonly CanvasMenuAction[], canEdit: () => boolean, elementSelected: boolean, planOnly: boolean): CanvasMenuAction[] {
 	return actions.map(action => {
@@ -64,13 +64,20 @@ function thicknessActions(runtime: ReturnType<typeof useEditorRuntime>, id: stri
 		{ id: 'adjust-thickness', label: 'editor.wall-thickness.adjust', group: 'edit', icon: 'move-horizontal', disabled, run: () => thickness.begin(id, 'adjust') },
 	];
 }
+function structureEditActions(runtime: ReturnType<typeof useEditorRuntime>, project: ReturnType<typeof useProjectStore>, id: string, disabled: boolean): readonly CanvasMenuAction[] {
+	const opening = project.structure.openings.find(item => item.id === id);
+	if (opening?.kind === 'door' || opening?.kind === 'window') return [
+		{ id: 'opening-width', label: 'editor.opening.direct.width', group: 'edit', icon: 'move-horizontal', disabled, run: source => runtime.structureActions.openingDirect.begin(id, source, 'width') },
+		{ id: 'opening-offset', label: 'editor.opening.direct.offset', group: 'edit', icon: 'ruler', disabled, run: source => runtime.structureActions.openingDirect.begin(id, source, 'offset') },
+		{ id: 'opening-swing', label: 'editor.opening.direct.swing', group: 'edit', icon: 'door-open', disabled, run: source => runtime.structureActions.openingDirect.begin(id, source, 'swing') },
+	];
+	return [{ id: 'edit', label: 'editor.input.edit', group: 'edit', icon: 'pencil', disabled, run: () => runtime.structureActions.edit(id) }];
+}
 export function useCanvasMenuActions(add: () => void, opened: () => Point) {
-	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
-	const moveOpening = useOpeningMoveAction(), clipboard = useClipboardActions();
+	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), moveOpening = useOpeningMoveAction(), clipboard = useClipboardActions();
 	const frame = usePlanFrame(), groups = useCanvasGroupActions(), session = useRenovationSession();
 	const detailPlans = useDetailPlanActions(), records = useRecordMenuActions(), drafting = useDraftingMenuActions(opened);
 	function fit(all: boolean): void { const bounds = frame(all); if (bounds) editor.fitTo(bounds, editor.stageSize); }
-	/** Why a greyed item is greyed: a stale floor first, since that one blocks everything, else whatever tool or edit is in flight. */
 	function reason(disabled: boolean): StringKey | undefined { return !disabled ? undefined : runtime.writesBlocked.value ? 'editor.stale-write-refused' : 'editor.input.unavailable'; }
 	function orderActions(result: readonly CanvasMenuAction[]): CanvasMenuAction[] {
 		const guarded = guardGeometryActions(result, () => session.perspective === 'plan' && !runtime.writesBlocked.value, project.structure.elements?.some(item => item.id === selection.selectedIds[0]) === true, session.perspective !== 'plan');
@@ -131,7 +138,6 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 			{ id: 'new-wall', label: 'editor.input.add.wall-here', group: 'create', icon: 'brick-wall', disabled: disabled || refused, reason: refused ? 'editor.structure.error.opening-split' : undefined, run: () => task.drawFrom(id, at, tolerance) },
 		];
 	}
-
 	/** The Add submenu for a single selection outside Review: a wall's geometry creations plus every target's record creations but a drafting mark's, joined and grouped. Nothing for several items, and nothing where neither applies. */
 	function addSubmenu(id: string, blocked: boolean): CanvasMenuSubmenu[] {
 		if (!project.zones.has(id) && !structureCandidates(project.structure).some(item => item.id === id)) return [];
@@ -151,8 +157,10 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 			result.push(...detailPlans(id, zone.name, blocked));
 		} else if (structure || element) {
 			const actions = structure ? runtime.structureActions : runtime.elementActions;
-			result.push({ id: 'edit', label: 'editor.input.edit', group: 'edit', icon: 'pencil', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
-			if (project.structure.openings.some(item => item.id === id)) result.push({ id: 'move-opening', label: 'editor.opening-move.action', group: 'edit', icon: 'move-horizontal', disabled: !runtime.openingMove.available.value, run: () => moveOpening(id) });
+			const opening = project.structure.openings.find(item => item.id === id);
+			const editAction: CanvasMenuAction = { id: 'edit', label: 'editor.input.edit', group: 'edit', icon: 'pencil', disabled: blocked || actions.active.value, run: () => actions.edit(id) };
+			result.push(...(structure ? structureEditActions(runtime, project, id, blocked || actions.active.value) : [editAction]));
+			if (opening) result.push({ id: 'move-opening', label: 'editor.opening-move.action', group: 'edit', icon: 'move-horizontal', disabled: !runtime.openingMove.available.value, run: () => moveOpening(id) });
 			if (element) result.push({ id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked || actions.active.value, run: () => actions.edit(id) });
 			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked || actions.active.value, run: () => actions.remove(id) });
 		}

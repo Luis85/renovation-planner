@@ -61,6 +61,14 @@ describe('NewAssetForm with an item outline', () => {
 		expect(wrapper.emitted('submit')).toEqual([[{ assetId: asset.id, created: true }]]);
 	});
 
+	it('creates the asset at a zero cost when the cost is left empty', async () => {
+		const { wrapper, asset, createAsset } = mountWithOutline();
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+		expect(createAsset.mock.calls[0][0]).toMatchObject({ unitCostAmount: '0', currency: 'EUR' });
+		expect(wrapper.emitted('submit')).toEqual([[{ assetId: asset.id, created: true }]]);
+	});
+
 	it('retries only the outline after a refused write, never creating a second asset', async () => {
 		const refused = err({ category: 'Persistence', code: 'asset-geometry.write-failed', message: 'x' } as AppError);
 		const write = vi.fn<Write>().mockResolvedValueOnce(refused).mockResolvedValue(ok('wrote'));

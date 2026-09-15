@@ -157,6 +157,15 @@ describe('NewAssetForm', () => {
 		expect(wrapper.emitted('submit')).toHaveLength(1);
 	});
 
+	it('creates the asset at a zero cost when the cost is left empty', async () => {
+		const createAsset = createOk();
+
+		const wrapper = await mountAndSubmit({ createAsset, setFootprintFromDimensions: footprintOk() }, { unitCostAmount: '' });
+
+		expect(createAsset.mock.calls[0][0]).toMatchObject({ unitCostAmount: '0', currency: 'EUR' });
+		expect(wrapper.emitted('submit')).toHaveLength(1);
+	});
+
 	/**
 	 * Plan Step 3, rule 1: the dimensions are validated with NOTHING yet written.
 	 * `footprintFromDimensions` is pure, so the common failure — a zero, a negative — is

@@ -2,17 +2,18 @@ import { SnapService } from './snap-service';
 import type { ToolId } from '../tools/editor-tool';
 
 /**
- * The editor's snapping configuration and the ONE service both editing surfaces snap through
- * — the Plan Editor's tools and the asset designer's alike.
+ * The editor's snapping configuration, and the ONE factory each editing surface composes its own
+ * service from — the Plan Editor's tools and the asset designer's alike.
  *
  * It lived in `presentation/editor/runtime.ts` while the Plan Editor was the only surface with
- * tools. The asset designer's own runtime needs the SAME service composed with the SAME step
- * (design slice B5), and a second `new SnapService({...})` beside it would be a second answer
- * to what "constrained" means: two 15 degree steps that could drift into 15 and 22.5 with
- * nothing failing, because each surface's own tests would go on passing about its own number.
+ * tools. The asset designer's own runtime needs a service composed with the SAME step (design
+ * slice B5), and a second `new SnapService({...})` beside it would be a second answer to what
+ * "constrained" means: two 15 degree steps that could drift into 15 and 22.5 with nothing
+ * failing, because each surface's own tests would go on passing about its own number.
  *
- * Each surface composes its own instance through `createEditorSnapService`, over ONE configuration,
- * with its own leaf's live automatic-snapping preference.
+ * Each surface composes its own INSTANCE through `createEditorSnapService`, over this ONE
+ * configuration, with its own leaf's live automatic-snapping preference — so the two surfaces
+ * never share a `SnapService` object, only the numbers it is built from.
  */
 
 /** Room creation supplies existing zone boundaries, wall centre lines and opening endpoints,

@@ -100,7 +100,7 @@ export const assetSymbolsEn = {
 	'designer.hint.shift-transform': 'Shift keeps proportions and snaps the rotation',
 	// The mode buttons' tooltips name the gesture each mode offers; the button text stays the accessible name.
 	'designer.selection.mode.transform.tip': 'Drag the part to move it, a square handle to resize it or the round handle to rotate it',
-	'designer.selection.mode.points.tip': 'Drag a corner to move it; it snaps to the corners of the other parts and to the anchor',
+	'designer.selection.mode.points.tip': 'Drag a corner to move it; it snaps to the corners, edges and alignments of the other parts, to the anchor, and to the grid while shown',
 	'designer.selection.mode.bend.tip': 'Drag the handle in the middle of an edge to curve that edge',
 	// The asset-level block's own heading, so its Dimensions never read as the selected part's (critique finding 4).
 	'designer.inspector.asset': 'Asset',

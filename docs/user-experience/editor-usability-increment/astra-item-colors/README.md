@@ -108,7 +108,22 @@ canvas capture during asynchronous fixture settling and is labelled as such abov
 - Targeted ESLint and oxlint: exit 0. Static structural complexity: zero findings after
   extracting the swatch component; coverage-weighted whole-project health belongs to the full gate.
 - Impeccable context ran once. The one final [detector run](impeccable.json) returned `[]`, exit 0.
-- Definitive one-worker `npm run check`: pending on the following clean committed tree.
+- First full one-worker `npm run check`, on clean commit `26348d9d33714640310a3cfc5ba15348f0f20c40`:
+  build/lint passed; 986 files passed and 2 failed; **10,798 tests passed, 2 failed, 1 skipped**.
+  All global floors passed: statements **99.24% (27818/28029)**, branches **98.07% (20484/20885)**,
+  functions **99.28% (8090/8148)**, lines **99.68% (20418/20483)**. This was a failed gate.
+  The wall compatibility fixture defined a schema-12 reader by dropping the last migration,
+  which now produced a schema-13 reader. It is pinned to `toVersion <= 12`, retaining the
+  exact old-reader refusal assertion. The stylesheet check caught undeclared `--opacity-50`;
+  disabled swatches now read the palette's declared `--rp-item-color-disabled-opacity`
+  token (default `0.5`), following the existing component-owned token pattern.
+  These are compatibility-fixture and disabled-state corrections, with no third visual
+  polish round or second detector run. Enabled-state captures remain representative.
+- Correction preflight on the final declared-token form: **4 files / 94 tests passed**
+  (wall persistence, stylesheet variables, color domain/DTO and editor integration).
+  Fallow on the complete first-run coverage report returned **0 issues, 0 above threshold**,
+  7516 analyzed units and maintainability index 86.7.
+- Definitive one-worker `npm run check`: pending on the corrected clean committed tree.
 
 ## Integration seams
 

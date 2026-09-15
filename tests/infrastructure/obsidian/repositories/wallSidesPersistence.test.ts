@@ -32,7 +32,7 @@ it('persists both structures at schema 13, refuses the old reader, and reopens w
 	const saved = expectOk(await rig.geometry.read(rig.plan.id)), path = expectDefined(rig.stack.index.getGeometrySidecarPath(rig.plan.id), 'path');
 	const raw = JSON.parse(expectDefined(rig.stack.vault.entries.get(path), 'bytes'));
 	expect(raw.schemaVersion).toBe(13); expect(PlanGeometrySchemaV12.safeParse(raw).success).toBe(false); expect(PlanGeometrySchemaV13.safeParse(raw).success).toBe(true);
-	const old = new MigrationRunner(); old.registerAll('plan-geometry', PLAN_GEOMETRY_MIGRATIONS.slice(0, -1));
+	const old = new MigrationRunner(); old.registerAll('plan-geometry', PLAN_GEOMETRY_MIGRATIONS.filter(step => step.toVersion <= 12));
 	expect(() => old.migrateToLatest('plan-geometry', raw, raw.schemaVersion)).toThrow('newer than this build supports');
 	expect(saved.document.structure?.walls[0]).toEqual(structure.walls[0]); expect(saved.document.structure?.openings).toEqual(structure.openings); expect(saved.document.structure?.boundaries).toEqual(structure.boundaries);
 	expect(saved.document.objects).toEqual(baseline.document.objects);

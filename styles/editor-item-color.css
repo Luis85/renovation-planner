@@ -1,5 +1,6 @@
 /* Content colors stay inside the chips; all controls and selection marks use the host's UI tokens. */
-.renovation-plan-editor .rp-item-color { margin-block: var(--size-4-2); }
+/* The disabled-state token is owned by this control, not assumed to exist in the host. */
+.renovation-plan-editor .rp-item-color { --rp-item-color-disabled-opacity: 0.5; margin-block: var(--size-4-2); }
 .renovation-plan-editor .rp-item-color__value { margin: 0 0 var(--size-4-1); font-size: var(--font-ui-small); color: var(--text-muted); }
 .renovation-plan-editor .rp-item-color__choices { display: flex; flex-wrap: wrap; gap: var(--size-2-1); }
 .renovation-plan-editor .rp-item-color button.rp-item-color__choice {
@@ -23,7 +24,7 @@
 .renovation-plan-editor .rp-item-color button[aria-pressed='true'],
 .renovation-plan-editor .rp-item-color button[aria-checked='true'] { border-color: var(--text-muted); }
 .renovation-plan-editor .rp-item-color button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
-.renovation-plan-editor .rp-item-color button[aria-disabled='true'] { opacity: var(--opacity-50); cursor: not-allowed; }
+.renovation-plan-editor .rp-item-color button[aria-disabled='true'] { opacity: var(--rp-item-color-disabled-opacity); cursor: not-allowed; }
 @container (max-width: 899px) {
 	.renovation-plan-editor .rp-item-color button.rp-item-color__choice { width: 44px; min-width: 44px; height: 44px; }
 }

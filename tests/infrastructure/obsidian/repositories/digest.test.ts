@@ -56,6 +56,13 @@ describe('observation tokens', () => {
 		expect(observeZone({ ...base, name: 'Kitchen' }, entry)).not.toBe(token);
 		expect(observeZone(base, undefined)).not.toBe(token);
 	});
+
+	it('changes a zone token with its colour and not for an uncoloured entry', () => {
+		const entry = { id: 'zone-x', type: 'polygon' as const, points: [[0, 0], [10, 0], [10, 10]] as [number, number][] };
+		const token = observeZone(base, entry);
+		expect(observeZone(base, { ...entry, color: 'blue' as const })).not.toBe(token);
+		expect(observeZone(base, { ...entry })).toBe(token);
+	});
 });
 
 /**

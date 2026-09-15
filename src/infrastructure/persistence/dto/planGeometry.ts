@@ -89,7 +89,7 @@ const StructureSchemaV9 = StructureSchemaV7.extend({ elements: z.array(SpatialEl
 const PlanGeometrySchemaV9 = PlanGeometrySchemaV8.extend({ schemaVersion: z.literal(9), structure: StructureSchemaV9.optional(), intended: StructureSchemaV9.optional() });
 /** Schema 10: a dragged canvas caption, as a world-millimetre offset from its automatic anchor (ADR-0029). */
 const LabelOffsetSchema = z.object({ dx: z.number(), dy: z.number() });
-export const SpatialObjectGeometrySchemaV10 = SpatialObjectShapeV7.extend({ labelOffset: LabelOffsetSchema.optional() }).refine(oneBulgePerEdge, BULGE_MESSAGE);
+const SpatialObjectGeometrySchemaV10 = SpatialObjectShapeV7.extend({ labelOffset: LabelOffsetSchema.optional() }).refine(oneBulgePerEdge, BULGE_MESSAGE);
 const SpatialElementSchemaV10 = SpatialElementShapeV9.extend({ labelOffset: LabelOffsetSchema.optional() }).refine(stairRule).refine(assetRule, ASSET_MESSAGE);
 const StructureSchemaV10 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV10).optional() });
 const PlanGeometrySchemaV10 = PlanGeometrySchemaV9.extend({ schemaVersion: z.literal(10), objects: z.array(SpatialObjectGeometrySchemaV10), structure: StructureSchemaV10.optional(), intended: StructureSchemaV10.optional() });
@@ -136,11 +136,6 @@ const WallSchemaV15 = StructureSchemaV7.shape.walls.element.extend({ sideExtents
 	.refine(wall => wall.sideExtents !== undefined, { message: 'A schema-13 wall needs both face extents.' });
 const OpeningSchemaV15 = StructureSchemaV5.shape.openings.element.extend({ color: ItemColorSchema.optional() });
 const StructureSchemaV15 = StructureSchemaV14.extend({ walls: z.array(WallSchemaV15), openings: z.array(OpeningSchemaV15), elements: z.array(SpatialElementSchemaV15).optional() });
-// zoneMapper.ts, digest.ts and ObsidianZoneRepository.ts still parse a room entry against
-// SpatialObjectGeometrySchemaV10; a later task in this increment moves them onto this one so a
-// room's colour round-trips. Suppressed rather than deleted: deleting it is how a declared
-// capability rots.
-// fallow-ignore-next-line unused-export
 export const SpatialObjectGeometrySchemaV15 = SpatialObjectShapeV7.extend({ labelOffset: LabelOffsetSchema.optional(), color: ItemColorSchema.optional() }).refine(oneBulgePerEdge, BULGE_MESSAGE);
 export type SpatialObjectGeometryDTO = z.infer<typeof SpatialObjectGeometrySchemaV15>;
 export const PlanGeometrySchemaV15 = PlanGeometrySchemaV14.extend({ schemaVersion: z.literal(15), objects: z.array(SpatialObjectGeometrySchemaV15), structure: StructureSchemaV15.optional(), intended: StructureSchemaV15.optional() });

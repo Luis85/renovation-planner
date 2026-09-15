@@ -1,5 +1,6 @@
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { Point } from '../../../core/geometry/Point';
+import { boxResize } from '../../../core/geometry/boxHandles';
 import { boundingBoxOf } from '../../../core/geometry/operations';
 import type { ValidationError } from '../../../core/errors/AppError';
 import { err, isErr, ok, unwrap, type Result } from '../../../core/result/Result';
@@ -16,7 +17,7 @@ import {
 	type OutlinePart,
 } from '../../../domain/asset/shapeEdits';
 import { isOutlineSelection, type DesignerSelection } from './designerSelection';
-import { boxHandlePoint, type HandleRole } from './handles';
+import type { HandleRole } from './handles';
 
 /** A body drag, or a handle. An `edge` handle is Bend edges', which `CurveTool` drives, so it is not a role here. */
 export type DragRole = { readonly kind: 'body' } | Exclude<HandleRole, { readonly kind: 'edge' }>;
@@ -39,30 +40,6 @@ export interface DragOptions {
 function boxOf(shape: AssetShape, part: OutlinePart): Result<BoundingBox, ValidationError> {
 	const outline = outlineOf(shape, part);
 	return outline === null ? err(partNotFound(part)) : ok(unwrap(boundingBoxOf(outline)));
-}
-
-/**
- * The factors and fixed point of a box-handle resize. The moved handle follows `to`, and the handle
- * opposite it holds still, so a factor is the new span over the old one along each axis the handle
- * moves — a side handle's other axis is exactly 1, because both midpoints are computed identically.
- * Dragged past the fixed side, a factor goes non-positive and `resizeBox` refuses it.
- *
- * Shift keeps proportions: both factors become whichever strays further from 1, for a side handle
- * as for a corner.
- */
-function boxResize(
-	box: BoundingBox,
-	index: number,
-	to: Point,
-	shift: boolean,
-): { readonly factors: { readonly sx: number; readonly sy: number }; readonly origin: Point } {
-	const handle = boxHandlePoint(box, index);
-	const origin = boxHandlePoint(box, (index + 4) % 8);
-	const sx = handle.x === origin.x ? 1 : (to.x - origin.x) / (handle.x - origin.x);
-	const sy = handle.y === origin.y ? 1 : (to.y - origin.y) / (handle.y - origin.y);
-	if (!shift) return { factors: { sx, sy }, origin };
-	const uniform = Math.abs(sx - 1) >= Math.abs(sy - 1) ? sx : sy;
-	return { factors: { sx: uniform, sy: uniform }, origin };
 }
 
 /**

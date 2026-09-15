@@ -1,3 +1,4 @@
+import { boxHandlePoint } from '../../../core/geometry/boxHandles';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { LineSegment } from '../../../core/geometry/LineSegment';
 import { boundingBoxOf } from '../../../core/geometry/operations';
@@ -9,7 +10,6 @@ import type { SnapCandidates } from '../../editor/snapping/snap-service';
 import type { EditorContext } from '../../editor/tools/editor-context';
 import type { EditorPointerEvent } from '../../editor/tools/editor-tool';
 import { isOutlineSelection, partKey } from './designerSelection';
-import { boxHandlePoint } from './handles';
 import type { DragStart } from './selectionDrag';
 
 /** Where a drag lands — the `to` `draggedShape` is handed — and the guides that say why. */

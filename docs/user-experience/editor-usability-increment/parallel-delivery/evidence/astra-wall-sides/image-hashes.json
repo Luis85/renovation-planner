@@ -1,0 +1,52 @@
+[
+  {
+    "file": "01-round1-wide-adjust-en-light.jpg",
+    "sha256": "8345cad1dff678d553b7fcc50d793963440690145a2204609195c36411d755eb",
+    "bytes": 69138
+  },
+  {
+    "file": "02-round1-wide-entry-en-light.jpg",
+    "sha256": "af684effc54882484e253b30ce95854556574dd44c921a2cdda24d637610e8fa",
+    "bytes": 65378
+  },
+  {
+    "file": "03-round1-narrow-en-de.jpg",
+    "sha256": "f914260dd0c3824be39810f36a41b5b3efa265162ae36c3bbfe54f17a600fa5b",
+    "bytes": 62372
+  },
+  {
+    "file": "04-round1-details-en-light.jpg",
+    "sha256": "47ed9f866b5b2f7bdf76af73e5eace2bddd76e75715c9453359feb67ba59a46d",
+    "bytes": 64291
+  },
+  {
+    "file": "05-round1-invalid-narrow-en-de.jpg",
+    "sha256": "af79dbbd7939311c8601661f6374a64c39042b617244f185e9fbe12155ee7105",
+    "bytes": 64863
+  },
+  {
+    "file": "06-final-details-en-light.jpg",
+    "sha256": "0f2dd410d6a740aeb0d5b3a1b818c99a3b7904541cc5fd980d300b68075fb2eb",
+    "bytes": 65322
+  },
+  {
+    "file": "07-final-wide-adjust-en-light.jpg",
+    "sha256": "0b9e06c0296ef669f9a2f0390196400c33d9eac24c219d611887222d0df78bf0",
+    "bytes": 69573
+  },
+  {
+    "file": "08-final-wide-entry-en-light.jpg",
+    "sha256": "3a6d9e37a5ab31c92afb0b6b46a35995c55beeabd3b8d46e13a99df100b9af5d",
+    "bytes": 65751
+  },
+  {
+    "file": "09-final-narrow-en-de.jpg",
+    "sha256": "4dba47db0e966f50bc7cd06dd5fc6fcefcb1d52459bd3e7a3e0f14d6398bf5d2",
+    "bytes": 61071
+  },
+  {
+    "file": "10-final-invalid-narrow-en-de.jpg",
+    "sha256": "37fae593904a230e4bbd82aeb0b1cc76b9e53f5cc8a56b899f5feb5ebff373f5",
+    "bytes": 66539
+  }
+]

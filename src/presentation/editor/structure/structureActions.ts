@@ -5,9 +5,9 @@ import { sameGeometryDocument } from '../../../application/commands/spatial/same
 import { renovationReferents } from '../../../domain/renovation/renovationTargets';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { useRenovationSession } from '../renovation/renovationSession';
-import { computed, markRaw, onBeforeUnmount, ref } from 'vue';
+import { computed, markRaw, onBeforeUnmount, ref, watch } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
-import type { Structure } from '../../../domain/spatial/Structure';
+import type { Structure, WallSide } from '../../../domain/spatial/Structure';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import type { PlanEditorContext } from '../PlanEditorContext';
@@ -24,8 +24,10 @@ import { staleWriteRefusal } from '../tools/with-stale-gate';
 import { useSaveStateStore } from '../save-state/save-state-store';
 import { editWall, validSpatialPoint } from '../../../domain/spatial/structureGeometry';
 import { createWallRotationActions } from './wallRotationActions';
-import { createStructureBulkEdit, type StructureServices } from './structureBulkEdit';
+import { createStructureBulkEdit, type StructureReviewState, type StructureServices } from './structureBulkEdit';
 import { createWallPointAction } from './wallPointAction';
+import { createWallThicknessActions } from './wallThicknessActions';
+import { createWallFaceHighlight } from './wallFaceHighlight';
 function removalIds(id: string | readonly string[]): readonly string[] { return typeof id === 'string' ? [id] : [...new Set(id)]; }
 function removalSummary(structure: Structure, selected: readonly string[], openings: number, rooms: number): string {
 	const names = selected.map(target => {
@@ -33,6 +35,20 @@ function removalSummary(structure: Structure, selected: readonly string[], openi
 		return wallIndex >= 0 ? tr('editor.structure.wall-number', { n: String(wallIndex + 1) }) : tr('renovation.geometry.opening');
 	});
 	return (selected.length > 1 ? tr('renovation.batch.scope', { count: String(selected.length) }) + ' ' + names.join(', ') + '. ' : '') + tr('editor.structure.delete-impact', { openings: String(openings), rooms: String(rooms) });
+}
+
+function matchesProjection(project: ReturnType<typeof useProjectStore>, document: PlanGeometryDocument): boolean {
+	return sameGeometryDocument({ objects: [], structure: project.structure, calibration: project.plan?.calibration ?? null },
+		{ objects: [], structure: document.structure, calibration: document.calibration });
+}
+
+/** Details owns the same initial-write lifetime boundary as the compact side editor. */
+function editReview(admit: () => boolean, write: ReturnType<StructureReviewState['reviewedWrite']>, highlight: (side: WallSide | null) => void) {
+	return {
+		highlight: (side: WallSide | null) => { if (admit()) highlight(side); },
+		preview: (value: Structure | null) => { if (admit()) write.preview(value); },
+		dispatch: (next: Structure) => write.dispatch(next, admit),
+	};
 }
 
 export function createStructureActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'refreshProjection'>, ledger: WriteLedger) {
@@ -43,18 +59,17 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked });
 	const bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
 	const wallPoint = createWallPointAction(context, { active, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
-	let alive = true;
+	const faceHighlight = createWallFaceHighlight();
+	const thickness = createWallThicknessActions(context, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite }, faceHighlight.show);
+	let alive = true, editGeneration = 0, editing = false;
+	watch([() => session.perspective, () => selection.selectedIds.join(), () => editor.activeToolId], () => { editGeneration++; if (editing) preview.value = null; }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; preview.value = null; });
-	function matchesProjection(document: PlanGeometryDocument): boolean {
-		return sameGeometryDocument({ objects: [], structure: project.structure, calibration: project.plan?.calibration ?? null },
-			{ objects: [], structure: document.structure, calibration: document.calibration });
-	}
 	function prepareBaseline(result: Result<PlanGeometrySnapshot, AppError>): { snapshot: PlanGeometrySnapshot | null; recovery: Promise<void> | null } {
 		if (!result.ok) {
 			notifyOperationFailure(result.error);
 			return { snapshot: null, recovery: null };
 		}
-		if (matchesProjection(result.value.document)) return { snapshot: result.value, recovery: null };
+		if (matchesProjection(project, result.value.document)) return { snapshot: result.value, recovery: null };
 		notifyOperationFailure(staleWriteRefusal());
 		return { snapshot: null, recovery: runtime.refreshProjection() };
 	}
@@ -64,17 +79,18 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	function reviewedWrite(services: StructureServices, snapshot: PlanGeometrySnapshot) {
 		return {
 			preview: (value: Structure | null) => { preview.value = alive ? value : null; },
-			dispatch: (next: Structure) => !alive || blocked.value ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger })),
+			dispatch: (next: Structure, admit?: () => boolean) => !alive || blocked.value ? Promise.resolve(err(staleWriteRefusal())) : runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger, admit })),
 		};
 	}
 	async function edit(id: string, end?: Point, openingPoint?: Point): Promise<void> {
 		// A refused wall-end drop must not strand the preview its release left up.
 		if (geometryUnavailable() || !context.commands.structure) { if (end) preview.value = null; return; }
 		active.value = true;
+		editing = true; const ticket = ++editGeneration;
 		const selected = selection.selectedIds.join();
 		try {
 			const baseline = await context.commands.structure.read(context.planId as PlanId);
-			if (!alive || selection.selectedIds.join() !== selected || blocked.value) return;
+			if (!alive || ticket !== editGeneration || selection.selectedIds.join() !== selected || blocked.value) return;
 			const { snapshot, recovery } = prepareBaseline(baseline);
 			if (!snapshot) { await recovery; return; }
 			const structure = snapshot.document.structure;
@@ -83,10 +99,10 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 			await dialogs.openDialog({ kind: 'form', title: tr('editor.structure.edit'), component: markRaw(StructureEditForm), busy, props: {
 				structure, id, end, openingPoint, busy, blocked,
 				roomNames: structure.boundaries.filter(boundary => boundary.wallIds.includes(id)).map(boundary => project.zones.get(boundary.roomId)?.name ?? boundary.roomId),
-				...reviewedWrite(services, snapshot),
+				...editReview(() => alive && ticket === editGeneration && dialogs.current?.kind === 'form' && dialogs.current.props?.id === id, reviewedWrite(services, snapshot), side => faceHighlight.show(id, side)),
 			} });
 		} catch (cause) { if (alive) notifyFault(cause, context.commands.logger, 'editor.structure.edit-failed'); }
-		finally { active.value = false; preview.value = null; }
+		finally { editGeneration++; editing = false; active.value = false; preview.value = null; faceHighlight.clear(); }
 	}
 	function moveOpeningToPoint(id: string, point: Point): Promise<void> {
 		if (editor.activeToolId !== 'select' || !validSpatialPoint(point) || selection.selectedIds.length !== 1 || selection.selectedIds[0] !== id || !project.structure.openings.some(opening => opening.id === id)) return Promise.resolve();
@@ -136,5 +152,5 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		const wall = project.structure.walls.find(item => item.id === id);
 		preview.value = alive && wall && end ? editWall(project.structure, { ...wall, end }) : null;
 	}
-	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, ...rotation, ...bulk, ...wallPoint };
+	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, thickness, faceHighlight, ...rotation, ...bulk, ...wallPoint };
 }

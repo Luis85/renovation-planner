@@ -16,17 +16,20 @@ import StructureBulkEditForm from './StructureBulkEditForm.vue';
 
 export type StructureServices = NonNullable<PlanEditorContext['commands']['structure']>;
 
+/** Admission, baseline review and command dispatch shared by bulk and focused structure edits. */
+export interface StructureReviewState {
+	readonly active: Ref<boolean>; readonly preview: Ref<Structure | null>; readonly blocked: Readonly<Ref<boolean>>;
+	readonly unavailable: () => boolean;
+	readonly prepareBaseline: (result: Result<PlanGeometrySnapshot, AppError>) => { snapshot: PlanGeometrySnapshot | null; recovery: Promise<void> | null };
+	readonly reviewedWrite: (services: StructureServices, snapshot: PlanGeometrySnapshot) => { preview: (value: Structure | null) => void; dispatch: (next: Structure, admit?: () => boolean) => Promise<DispatchResult> };
+}
+
 /**
  * Several walls, windows and doors resized through ONE reviewed StructureCommand write, so one
  * undo reverts the whole set. It takes the single edit's admission, stale-baseline check and
  * write rather than restating them.
  */
-export function createStructureBulkEdit(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'writesBlocked'>, state: {
-	readonly active: Ref<boolean>; readonly preview: Ref<Structure | null>; readonly blocked: Readonly<Ref<boolean>>;
-	readonly unavailable: () => boolean;
-	readonly prepareBaseline: (result: Result<PlanGeometrySnapshot, AppError>) => { snapshot: PlanGeometrySnapshot | null; recovery: Promise<void> | null };
-	readonly reviewedWrite: (services: StructureServices, snapshot: PlanGeometrySnapshot) => { preview: (value: Structure | null) => void; dispatch: (next: Structure) => Promise<DispatchResult> };
-}) {
+export function createStructureBulkEdit(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'writesBlocked'>, state: StructureReviewState) {
 	const dialogs = useDialogStore(), selection = useSelectionStore();
 	let alive = true;
 	onBeforeUnmount(() => { alive = false; });

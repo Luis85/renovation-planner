@@ -116,11 +116,17 @@ const DRAFTING_MESSAGE = { message: 'A dimension chain, and only a dimension cha
 const SpatialElementSchemaV12 = SpatialElementShapeV12.refine(stairRule).refine(assetRule, ASSET_MESSAGE).refine(structuralRule, STRUCTURAL_MESSAGE).refine(draftingRule, DRAFTING_MESSAGE);
 const StructureSchemaV12 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV12).optional() });
 export const PlanGeometrySchemaV12 = PlanGeometrySchemaV11.extend({ schemaVersion: z.literal(12), structure: StructureSchemaV12.optional(), intended: StructureSchemaV12.optional() });
-/** Schema 13: optional placement color. Older readers refuse this version instead of silently stripping user content. */
-const SpatialElementSchemaV13 = SpatialElementShapeV12.extend({ color: z.enum(ITEM_COLORS).optional() })
+/** Schema 13 owns both directed face distances. Optional at the type seam for legacy command inputs; mandatory on the wire at v13. */
+const WallSidesSchema = z.object({ a: z.number().min(0).max(1e6), b: z.number().min(0).max(1e6) });
+const WallSchemaV13 = StructureSchemaV7.shape.walls.element.extend({ sideExtents: WallSidesSchema.optional() })
+	.refine(wall => wall.sideExtents !== undefined, { message: 'A schema-13 wall needs both face extents.' });
+const StructureSchemaV13 = StructureSchemaV12.extend({ walls: z.array(WallSchemaV13) });
+export const PlanGeometrySchemaV13 = PlanGeometrySchemaV12.extend({ schemaVersion: z.literal(13), structure: StructureSchemaV13.optional(), intended: StructureSchemaV13.optional() });
+/** Schema 14 adds placement colors without letting schema-13 readers silently strip them. */
+const SpatialElementSchemaV14 = SpatialElementShapeV12.extend({ color: z.enum(ITEM_COLORS).optional() })
 	.refine(stairRule).refine(assetRule, ASSET_MESSAGE).refine(structuralRule, STRUCTURAL_MESSAGE).refine(draftingRule, DRAFTING_MESSAGE)
 	.refine(element => element.color === undefined || itemColorKind(element.kind), { message: 'Only an item or asset placement can carry a color.' });
-const StructureSchemaV13 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV13).optional() });
-export const PlanGeometrySchemaV13 = PlanGeometrySchemaV12.extend({ schemaVersion: z.literal(13), structure: StructureSchemaV13.optional(), intended: StructureSchemaV13.optional() });
-export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9, PlanGeometrySchemaV10, PlanGeometrySchemaV11, PlanGeometrySchemaV12, PlanGeometrySchemaV13]);
-export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV13>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 };
+const StructureSchemaV14 = StructureSchemaV13.extend({ elements: z.array(SpatialElementSchemaV14).optional() });
+export const PlanGeometrySchemaV14 = PlanGeometrySchemaV13.extend({ schemaVersion: z.literal(14), structure: StructureSchemaV14.optional(), intended: StructureSchemaV14.optional() });
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9, PlanGeometrySchemaV10, PlanGeometrySchemaV11, PlanGeometrySchemaV12, PlanGeometrySchemaV13, PlanGeometrySchemaV14]);
+export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV14>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 };

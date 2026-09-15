@@ -35,6 +35,10 @@ function nearLine(candidate: SpatialObjectCandidate, point: Point, tolerance: nu
 }
 
 function containsCandidate(candidate: SpatialObjectCandidate, point: Point, tolerance: number): boolean {
+	if (candidate.hitRegions) return candidate.hitRegions.some(points => {
+		const inside = contains({ points }, point);
+		return inside.ok && inside.value || points.length > 0 && nearLine({ ...candidate, points: [...points, points[0]], bulges: undefined, width: 0 }, point, tolerance);
+	});
 	if (candidate.hitPoints) { const inside = contains({ points: candidate.hitPoints }, point); return inside.ok && inside.value; }
 	if (candidate.kind && !outlineKind(candidate.kind)) return nearLine(candidate, point, tolerance);
 	const inside = contains(candidate, point);

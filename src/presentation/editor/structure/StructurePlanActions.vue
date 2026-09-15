@@ -24,6 +24,15 @@ async function edit(event: Event): Promise<void> {
 	<template v-if="session.perspective === 'plan'">
 		<div class="rp-inspector-actions">
 			<button
+				v-if="wall"
+				type="button"
+				data-rp-action="wall-thickness"
+				:aria-disabled="paused"
+				@click="runtime.structureActions.thickness.begin(id, 'adjust')"
+			>
+				{{ tr('editor.wall-thickness.adjust') }}
+			</button>
+			<button
 				type="button"
 				class="rp-inspector-action"
 				:aria-disabled="paused"

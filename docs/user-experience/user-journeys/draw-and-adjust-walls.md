@@ -6,7 +6,7 @@ status: documented
 source_maturity: specified
 version: 1
 language: en
-updated: 2026-09-05
+updated: 2026-09-14
 area: editor
 actor: private-renovator
 sources:
@@ -58,6 +58,8 @@ This journey extracts the source design intent. It is not a claim of shipped fun
 - [M07: inspection, precision and deletion](<../renovation-planner-editor-specs/screens/M07-wall-selected.md>)
 
 ## Related journeys
+
+Implementation help for the wall-thickness interaction: [English / Deutsch](../editor-usability-increment/wall-thickness-help.md). Research and exact symmetric geometry semantics: [wall tool research](../editor-usability-increment/parallel-delivery/evidence/astra-wall-tool/research.md).
 
 - [UJ-E01 — Start a plan and prepare a reference](prepare-first-plan.md)
 - [UJ-E12 — Apply a shared change to multiple entities](apply-shared-spatial-change.md)

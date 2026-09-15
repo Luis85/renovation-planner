@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { structureStack, WALL_LOOP } from '../../helpers/structure';
+import { structureStack, WALL_LOOP_WITH_SIDES as WALL_LOOP } from '../../helpers/structure';
 import { expectDefined, expectOk } from '../../helpers/domain';
 import { DIMENSION_A, DRAFTING_MARKS, HATCH_A, SECTION_A, TEXT_A } from '../../helpers/drafting';
 import type { SpatialElement } from '../../../src/domain/spatial/SpatialElement';

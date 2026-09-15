@@ -7,7 +7,8 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV13 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV14 } from '../../persistence/dto/planGeometry';
+import { hasIndependentWallSides, withWallSideDefaults } from './wallSidePersistence';
 import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import { validateSpatialGroups } from '../../../domain/spatial/SpatialGroup';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
@@ -56,7 +57,8 @@ function hasItemColor(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): boo
 }
 
 function writtenSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended' | 'groups'>): PlanGeometryDTO['schemaVersion'] {
-	if (hasItemColor(dto)) return 13;
+	if (hasItemColor(dto)) return 14;
+	if (hasIndependentWallSides(dto)) return 13;
 	if (hasDraftingElement(dto)) return 12;
 	if (hasStructuralElement(dto)) return 11;
 	if (hasMovedCaption(dto)) return 10;
@@ -210,7 +212,7 @@ export class PlanGeometryStore {
 				: null;
 			if (conflict) return err(conflict);
 
-			const nextDto = change(current.value.dto);
+			const nextDto = withWallSideDefaults(change(current.value.dto));
 			const curves = validateCurveEntries(nextDto); if (!curves.ok) return curves;
 			const groups = validateSpatialGroups(nextDto.groups ?? [], { zoneIds: nextDto.objects.map(object => object.id), structure: nextDto.structure ?? EMPTY_STRUCTURE });
 			if (!groups.ok) return groups;
@@ -309,7 +311,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV13.safeParse(migrated);
+		const validated = PlanGeometrySchemaV14.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

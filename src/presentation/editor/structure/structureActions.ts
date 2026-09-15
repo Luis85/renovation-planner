@@ -52,7 +52,7 @@ function editReview(admit: () => boolean, write: ReturnType<StructureReviewState
 	};
 }
 
-export function createStructureActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'refreshProjection'>, ledger: WriteLedger) {
+export function createStructureActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'toolManager'>, ledger: WriteLedger) {
 	const editor = useEditorStore(), dialogs = useDialogStore(), project = useProjectStore(), selection = useSelectionStore();
 	const preview = ref<Structure | null>(null), active = ref(false);
 	const session = useRenovationSession(), save = useSaveStateStore(), removalBlocked = computed(() => runtime.writesBlocked.value || save.state === 'saving' || session.perspective === 'review');
@@ -60,7 +60,7 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked }), bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
 	const wallPoint = createWallPointAction(context, { active, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
 	const faceHighlight = createWallFaceHighlight(), thickness = createWallThicknessActions(context, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite }, faceHighlight.show);
-	const openingDirect = createOpeningDirectActions(context, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
+	const openingDirect = createOpeningDirectActions(context, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite }, () => runtime.toolManager.gestureInFlight);
 	let alive = true, editGeneration = 0, editing = false;
 	watch([() => session.perspective, () => selection.selectedIds.join(), () => editor.activeToolId], () => { editGeneration++; if (editing) preview.value = null; }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; preview.value = null; });

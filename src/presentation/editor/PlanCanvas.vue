@@ -62,6 +62,7 @@ const workspace = useWorkspaceStore();
 const project = useProjectStore();
 const selection = useSelectionStore();
 const runtime = useEditorRuntime();
+const openingDock = ref<HTMLElement | null>(null), openingDocked = ref(false);
 // Pins and caption obstacles use the same retained evidence facts as the Inspector.
 const allEvidencePins = useEvidencePins(() => runtime.planning.baseline.value?.plan.entity.renovation?.depth?.evidence ?? []);
 /** The Layers panel's Notes and photos row: one gate over the pins the annotation layer draws and the zone layer clears captions around (sidebar polish, 2026-09-10). */
@@ -136,96 +137,106 @@ onBeforeUnmount(() => stopPixelRatio());
 </script>
 
 <template>
-	<EditorSurface
-		:tool-manager="runtime.toolManager"
-		:active-tool-id="runtime.activeToolId"
-		:render-state="runtime.renderState"
-		:editor="editor"
-		:framed-bounds="framedBounds"
-		:canvas-label="CANVAS_LABEL"
-		:set-tool="runtime.setTool"
-		:has-selection="() => selection.selectedIds.length > 0"
-		:clear-selection="() => selection.clear()"
-		:nudge-selection="runtime.nudgeSelection"
-		:finish-area="runtime.finishArea"
-	>
-		<template #default="{ size }">
-			<CanvasGrid />
-			<VStage
-				ref="stageRef"
-				:config="size"
-			>
-				<BackgroundLayer
-					name="background"
-					:reference="background"
-					:vault="context.vault"
-					:transform="transform"
-					:visible="layerVisibility.background"
-					:pixels-per-world-unit="pixelsPerWorldUnit"
-					:file-changes="context.onVaultFileChanged"
-					@status="(status) => emit('backgroundStatus', status)"
-					@reference-points="onReferencePoints"
+	<div class="rp-opening-editor-surface">
+		<EditorSurface
+			:tool-manager="runtime.toolManager"
+			:active-tool-id="runtime.activeToolId"
+			:render-state="runtime.renderState"
+			:editor="editor"
+			:framed-bounds="framedBounds"
+			:canvas-label="CANVAS_LABEL"
+			:set-tool="runtime.setTool"
+			:has-selection="() => selection.selectedIds.length > 0"
+			:clear-selection="() => selection.clear()"
+			:nudge-selection="runtime.nudgeSelection"
+			:finish-area="runtime.finishArea"
+		>
+			<template #default="{ size }">
+				<CanvasGrid />
+				<VStage
+					ref="stageRef"
+					:config="size"
 				>
-					<ParentZoneGuide
+					<BackgroundLayer
+						name="background"
+						:reference="background"
+						:vault="context.vault"
+						:transform="transform"
+						:visible="layerVisibility.background"
+						:pixels-per-world-unit="pixelsPerWorldUnit"
+						:file-changes="context.onVaultFileChanged"
+						@status="(status) => emit('backgroundStatus', status)"
+						@reference-points="onReferencePoints"
+					>
+						<ParentZoneGuide
+							:tokens="props.tokens"
+							:zoom="viewport.zoom"
+						/>
+					</BackgroundLayer>
+					<StructureLayer
+						:transform="transform"
 						:tokens="props.tokens"
 						:zoom="viewport.zoom"
+						:visible="layerVisibility.architecture"
 					/>
-				</BackgroundLayer>
-				<StructureLayer
-					:transform="transform"
-					:tokens="props.tokens"
-					:zoom="viewport.zoom"
-					:visible="layerVisibility.architecture"
+					<ZoneLayer
+						:preview="(runtime.curveTask.preview.value ?? runtime.groupActions.preview.value)?.objects"
+						:pins="evidencePins"
+						:dimension-obstacles="dimensionLayout.bounds"
+						:caption-viewport="dimensionLayout.viewport"
+						:label-preview="runtime.renderState.labelPreview"
+						:transform="transform"
+						:tokens="props.tokens"
+						:visible="layerVisibility.zone"
+						:zoom="viewport.zoom"
+					/>
+					<EmptyLayer
+						layer-id="construction"
+						:transform="transform"
+						:visible="layerVisibility.construction"
+					/>
+					<AssetLayer
+						:transform="transform"
+						:tokens="props.tokens"
+						:zoom="viewport.zoom"
+						:visible="layerVisibility.asset"
+					/>
+					<RenovationLayer
+						:pins="evidencePins"
+						:tokens="props.tokens"
+						:transform="transform"
+						:zoom="viewport.zoom"
+						:visible="layerVisibility.annotation"
+					/>
+					<InteractionLayer
+						:tokens="props.tokens"
+					/>
+				</VStage>
+			</template>
+			<template #overlay>
+				<NorthArrow />
+				<RoomDimensionLabels
+					:preview="runtime.curveTask.preview.value ?? runtime.groupActions.preview.value"
+					@obstacles="layout => { dimensionLayout = layout; }"
+					@rotation-obstacles="runtime.rotationActions.setObstacles"
 				/>
-				<ZoneLayer
-					:preview="(runtime.curveTask.preview.value ?? runtime.groupActions.preview.value)?.objects"
-					:pins="evidencePins"
-					:dimension-obstacles="dimensionLayout.bounds"
-					:caption-viewport="dimensionLayout.viewport"
-					:label-preview="runtime.renderState.labelPreview"
-					:transform="transform"
-					:tokens="props.tokens"
-					:visible="layerVisibility.zone"
-					:zoom="viewport.zoom"
+				<WallThicknessPanel />
+				<OpeningDirectPanel
+					:dock="openingDock"
+					@docked="openingDocked = $event"
 				/>
-				<EmptyLayer
-					layer-id="construction"
-					:transform="transform"
-					:visible="layerVisibility.construction"
+				<WallCanvasActions v-if="!existingPhotos.length" />
+				<ExistingPhotoStrip
+					v-else
+					:rows="existingPhotos"
 				/>
-				<AssetLayer
-					:transform="transform"
-					:tokens="props.tokens"
-					:zoom="viewport.zoom"
-					:visible="layerVisibility.asset"
-				/>
-				<RenovationLayer
-					:pins="evidencePins"
-					:tokens="props.tokens"
-					:transform="transform"
-					:zoom="viewport.zoom"
-					:visible="layerVisibility.annotation"
-				/>
-				<InteractionLayer
-					:tokens="props.tokens"
-				/>
-			</VStage>
-		</template>
-		<template #overlay>
-			<NorthArrow />
-			<RoomDimensionLabels
-				:preview="runtime.curveTask.preview.value ?? runtime.groupActions.preview.value"
-				@obstacles="layout => { dimensionLayout = layout; }"
-				@rotation-obstacles="runtime.rotationActions.setObstacles"
-			/>
-			<WallThicknessPanel />
-			<OpeningDirectPanel />
-			<WallCanvasActions v-if="!existingPhotos.length" />
-			<ExistingPhotoStrip
-				v-else
-				:rows="existingPhotos"
-			/>
-			<slot />
-		</template>
-	</EditorSurface>
+				<slot />
+			</template>
+		</EditorSurface>
+		<div
+			v-show="runtime.structureActions.openingDirect.target.value && openingDocked"
+			ref="openingDock"
+			class="rp-opening-direct-dock"
+		/>
+	</div>
 </template>

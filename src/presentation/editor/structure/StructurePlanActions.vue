@@ -34,17 +34,16 @@ function openDirect(event: Event): void { void runtime.structureActions.openingD
 				{{ tr('editor.wall-thickness.adjust') }}
 			</button>
 			<button
-				v-if="opening"
+				v-if="opening && opening.kind !== 'opening'"
 				type="button"
 				class="rp-inspector-action"
-				:aria-disabled="paused || opening.kind === 'opening'"
+				:aria-disabled="paused"
 				data-rp-action="opening-size-swing"
 				@click="openDirect"
 			>
 				{{ tr('editor.opening.direct.action') }}
 			</button>
 			<button
-				v-else
 				type="button"
 				class="rp-inspector-action"
 				:aria-disabled="paused"

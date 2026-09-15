@@ -1,0 +1,163 @@
+[
+  {
+    "canvas": {
+      "bottom": 530.359375,
+      "height": 391.671875,
+      "left": 80,
+      "right": 400,
+      "top": 138.6875,
+      "width": 320,
+      "x": 80,
+      "y": 138.6875
+    },
+    "dock": {
+      "bottom": 864,
+      "height": 333.640625,
+      "left": 80,
+      "right": 400,
+      "top": 530.359375,
+      "width": 320,
+      "x": 80,
+      "y": 530.359375
+    },
+    "focus": "Decrease width by 10 mm",
+    "overflow": false,
+    "taskbar": {
+      "bottom": 506.359375,
+      "height": 56,
+      "left": 164,
+      "right": 316,
+      "top": 450.359375,
+      "width": 152,
+      "x": 164,
+      "y": 450.359375
+    },
+    "viewport": 400
+  },
+  {
+    "canvas": {
+      "bottom": 260.36328125,
+      "height": 121.66796875,
+      "left": 80,
+      "right": 460,
+      "top": 138.6953125,
+      "width": 380,
+      "x": 80,
+      "y": 138.6953125
+    },
+    "controls": [
+      {
+        "h": 44,
+        "name": "width",
+        "w": 348.5
+      },
+      {
+        "h": 44,
+        "name": "Decrease width by 10 mm",
+        "w": 170.25
+      },
+      {
+        "h": 44,
+        "name": "Increase width by 10 mm",
+        "w": 170.25
+      },
+      {
+        "h": 44,
+        "name": "offset",
+        "w": 348.5
+      },
+      {
+        "h": 44,
+        "name": "Move toward wall start by 10 mm",
+        "w": 170.25
+      },
+      {
+        "h": 44,
+        "name": "Move toward wall end by 10 mm",
+        "w": 170.25
+      },
+      {
+        "h": 44,
+        "name": "opening-hinge",
+        "w": 156.5
+      },
+      {
+        "h": 44,
+        "name": "opening-side",
+        "w": 156.5
+      },
+      {
+        "h": 44,
+        "name": "opening-angle",
+        "w": 156.5
+      },
+      {
+        "h": 44,
+        "name": "Cancel",
+        "w": 61.97265625
+      },
+      {
+        "h": 44,
+        "name": "Apply measurements",
+        "w": 144.74609375
+      }
+    ],
+    "dock": {
+      "bottom": 364,
+      "height": 103.63671875,
+      "left": 80,
+      "right": 460,
+      "top": 260.36328125,
+      "width": 380,
+      "x": 80,
+      "y": 260.36328125
+    },
+    "mode": "200% CSS zoom",
+    "taskbar": {
+      "bottom": 236.36328125,
+      "height": 56,
+      "left": 143.451171875,
+      "right": 396.548828125,
+      "top": 180.36328125,
+      "width": 253.09765625,
+      "x": 143.451171875,
+      "y": 180.36328125
+    },
+    "viewport": 460
+  },
+  {
+    "canvas": {
+      "bottom": 530.359375,
+      "height": 391.671875,
+      "left": 80,
+      "right": 400,
+      "top": 138.6875,
+      "width": 320,
+      "x": 80,
+      "y": 138.6875
+    },
+    "dock": {
+      "bottom": 864,
+      "height": 333.640625,
+      "left": 80,
+      "right": 400,
+      "top": 530.359375,
+      "width": 320,
+      "x": 80,
+      "y": 530.359375
+    },
+    "mode": "400-en",
+    "overflow": false,
+    "taskbar": {
+      "bottom": 506.359375,
+      "height": 56,
+      "left": 164,
+      "right": 316,
+      "top": 450.359375,
+      "width": 152,
+      "x": 164,
+      "y": 450.359375
+    },
+    "viewport": 400
+  }
+]

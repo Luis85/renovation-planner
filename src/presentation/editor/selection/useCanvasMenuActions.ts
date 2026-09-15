@@ -43,7 +43,7 @@ const GEOMETRY_ACTIONS = new Set(['wall-thickness', 'adjust-thickness', 'add-poi
 function guardGeometryActions(actions: readonly CanvasMenuAction[], canEdit: () => boolean, elementSelected: boolean, planOnly: boolean): CanvasMenuAction[] {
 	return actions.map(action => {
 		if (!GEOMETRY_ACTIONS.has(action.id) && !action.id.startsWith('draft-') && !(elementSelected && ['rename', 'delete'].includes(action.id))) return action;
-		return { ...action, disabled: action.disabled === true || !canEdit(), reason: planOnly ? 'editor.element.plan-geometry' : action.reason, run: () => { if (canEdit()) return action.run(); } };
+		return { ...action, disabled: action.disabled === true || !canEdit(), reason: planOnly ? 'editor.element.plan-geometry' : action.reason, run: source => { if (canEdit()) return action.run(source); } };
 	});
 }
 /**
@@ -157,8 +157,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 			result.push(...detailPlans(id, zone.name, blocked));
 		} else if (structure || element) {
 			const actions = structure ? runtime.structureActions : runtime.elementActions;
-			const opening = project.structure.openings.find(item => item.id === id);
-			const editAction: CanvasMenuAction = { id: 'edit', label: 'editor.input.edit', group: 'edit', icon: 'pencil', disabled: blocked || actions.active.value, run: () => actions.edit(id) };
+			const opening = project.structure.openings.find(item => item.id === id), editAction: CanvasMenuAction = { id: 'edit', label: 'editor.input.edit', group: 'edit', icon: 'pencil', disabled: blocked || actions.active.value, run: () => actions.edit(id) };
 			result.push(...(structure ? structureEditActions(runtime, project, id, blocked || actions.active.value) : [editAction]));
 			if (opening) result.push({ id: 'move-opening', label: 'editor.opening-move.action', group: 'edit', icon: 'move-horizontal', disabled: !runtime.openingMove.available.value, run: () => moveOpening(id) });
 			if (element) result.push({ id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked || actions.active.value, run: () => actions.edit(id) });

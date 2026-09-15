@@ -143,6 +143,13 @@ the opening’s centre should be. **Move along wall** lets you preview a new pos
 existing straight or curved host and click to place it; Escape cancels. The opening stays within
 the host’s available span.
 
+If the opening leaves less than 420 px of clear height for the floating form, the form docks
+below the canvas. The complete opening is framed above the taskbar. At leaf widths below
+400 px the canvas remains unavailable; an already-selected door or window keeps its numeric
+controls below the widen-pane guidance. Crossing this canvas boundary cancels the draft without
+saving; the selection and camera are retained. This fallback is numeric editing, not mobile
+canvas support.
+
 ## Rotate a spatial item
 
 Select a Room, Area, Object, Path, Fence, Measurement, Stair, Direction arrow, wall or group.

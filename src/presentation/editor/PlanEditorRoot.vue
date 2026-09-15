@@ -41,6 +41,7 @@ import EntityInspector from './shell/EntityInspector.vue';
 import PersistentWarningStrip from './shell/PersistentWarningStrip.vue';
 import PropertyLayerPanel from './shell/PropertyLayerPanel.vue';
 import ResponsiveEditorShell from './shell/ResponsiveEditorShell.vue';
+import OpeningDirectNarrow from './structure/OpeningDirectNarrow.vue';
 import SelectionGuidance from './shell/SelectionGuidance.vue';
 import StatusBar from './shell/StatusBar.vue';
 import { editorWarnings } from './shell/warnings';
@@ -409,6 +410,9 @@ watch(() => renovationSession.perspective, perspective => { if (perspective !== 
 			enough for one at all.
 		-->
 		<ResponsiveEditorShell>
+			<template #narrow-selection>
+				<OpeningDirectNarrow />
+			</template>
 			<template #context-bar>
 				<EditorContextBar />
 			</template>

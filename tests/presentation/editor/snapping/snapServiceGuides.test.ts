@@ -136,3 +136,55 @@ describe('SnapService.snapTranslation', () => {
 		expect(disabled().snapTranslation(square, {}).guides).not.toBe(disabled().snapTranslation(square, {}).guides);
 	});
 });
+
+describe('the grid stage', () => {
+	const grid = { step: 50, origin: { x: 10, y: 0 } };
+	const square = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+	const shifted = (dx: number, dy: number) => square.map((point) => ({ x: point.x + dx, y: point.y + dy }));
+
+	it('rounds a point onto the grid counted from its origin, and draws no guide for it', () => {
+		// x: 10 + round(113 / 50) * 50 = 110; y: round(77 / 50) * 50 = 100.
+		expect(service().snapPointWithGuides({ x: 123, y: 77 }, { grid })).toEqual({ point: { x: 110, y: 100 }, guides: [] });
+	});
+
+	it('rounds only the axis an alignment left undecided', () => {
+		expect(service().snapPointWithGuides({ x: 103, y: 77 }, { alignments: [{ x: 100, y: 900 }], grid })).toEqual({
+			point: { x: 100, y: 100 },
+			guides: [{ start: { x: 100, y: 100 }, end: { x: 100, y: 900 } }],
+		});
+	});
+
+	it('a vertex within tolerance wins over a nearer grid line', () => {
+		// The grid line at x = 60 is 2 away; the vertex is 8 away and still wins.
+		expect(service().snapPointWithGuides({ x: 58, y: 0 }, { vertices: [{ x: 66, y: 0 }], grid }).point).toEqual({ x: 66, y: 0 });
+	});
+
+	it('still rounds onto the grid with automatic snapping off, and onto nothing else', () => {
+		expect(disabled().snapPointWithGuides({ x: 123, y: 77 }, { vertices: [{ x: 123, y: 77 }], alignments: [{ x: 120, y: 80 }], grid }))
+			.toEqual({ point: { x: 110, y: 100 }, guides: [] });
+	});
+
+	it('answers the input object itself with automatic snapping off and no grid', () => {
+		const point = { x: 123, y: 77 };
+		expect(disabled().snapPointWithGuides(point, { vertices: [point] }).point).toBe(point);
+	});
+
+	it('lands a moving set’s minimum corner on the grid with one correction for every point', () => {
+		// Minimum (23, 38): x → 10, the origin, nearer than 60; y → 50.
+		expect(service().snapTranslation(shifted(23, 38), { grid })).toEqual({ correction: { dx: -13, dy: 12 }, guides: [] });
+	});
+
+	it('corrects x by an alignment and y by the grid', () => {
+		const result = service().snapTranslation(shifted(3, 38), { alignments: [{ x: 0, y: 900 }], grid });
+		expect(result.correction).toEqual({ dx: -3, dy: 12 });
+		expect(result.guides).toHaveLength(1);
+	});
+
+	it('still lands a moving set on the grid with automatic snapping off', () => {
+		expect(disabled().snapTranslation(shifted(23, 38), { vertices: [{ x: 23, y: 38 }], grid }).correction).toEqual({ dx: -13, dy: 12 });
+	});
+
+	it('moves nothing for an empty moving set, grid or not', () => {
+		expect(service().snapTranslation([], { grid })).toEqual({ correction: { dx: 0, dy: 0 }, guides: [] });
+	});
+});

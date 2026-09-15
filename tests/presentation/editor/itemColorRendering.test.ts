@@ -2,6 +2,7 @@
 import { afterEach, expect, it } from 'vitest';
 import { defineComponent, type PropType } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import Konva from 'konva';
 import ElementShapes from '../../../src/presentation/editor/elements/ElementShapes.vue';
@@ -28,7 +29,7 @@ function draw(elements: readonly NamedSpatialElement[], selectedIds: readonly st
 		setup: () => ({ tokens }),
 		template: '<v-stage :config="{width:600,height:600}"><v-layer><ElementShapes :elements="elements" :selected-ids="selectedIds" :tokens="tokens" :zoom="1" /></v-layer></v-stage>',
 	});
-	mounted.push(mount(host, { props: { elements, selectedIds }, global: { plugins: [VueKonva] } }));
+	mounted.push(mount(host, { props: { elements, selectedIds }, global: { plugins: [createPinia(), VueKonva] } }));
 	return expectDefined(Konva.stages.at(-1), 'element stage');
 }
 const node = <T extends Konva.Node>(stage: Konva.Stage, selector: string): T => expectDefined(stage.findOne<T>(selector), selector);

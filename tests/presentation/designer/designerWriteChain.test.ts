@@ -24,13 +24,23 @@ import { TOILET, detailOutline, justInsideBottom } from '../../helpers/designerS
 const BOWL = detailOutline('detail-2');
 /** (0, 163): inside the bowl, 162 mm above its box's bottom-middle handle. */
 const IN_BOWL = justInsideBottom(BOWL);
-/** The same point on the bowl once it has moved 100 mm right — still 162 mm or more from every handle of it. */
-const IN_MOVED_BOWL = { x: IN_BOWL.x + 100, y: IN_BOWL.y };
-const FURTHER = { x: IN_BOWL.x + 200, y: IN_BOWL.y };
-const YET_FURTHER = { x: IN_BOWL.x + 300, y: IN_BOWL.y };
+/**
+ * A pure +100 mm move of the bowl used to land the test's arithmetic exactly; it now lands every one of
+ * the bowl's corners within the mounted rig's 80 mm snap tolerance of the footprint's vertices, edges and
+ * axis alignments (asset designer snapping spec 2026-09-15, Β§2.1-2.2), so the write no longer lands at the
+ * raw offset. This step (checked against the toilet's footprint, tank and anchor) clears all of them, at
+ * one, two and three steps alike, so the composed-drag arithmetic below stays exact.
+ */
+const STEP = { x: 500, y: 300 };
+/** The same point on the bowl once it has moved one `STEP` — still 162 mm or more from every handle of it. */
+const IN_MOVED_BOWL = { x: IN_BOWL.x + STEP.x, y: IN_BOWL.y + STEP.y };
+const FURTHER = { x: IN_BOWL.x + 2 * STEP.x, y: IN_BOWL.y + 2 * STEP.y };
+const YET_FURTHER = { x: IN_BOWL.x + 3 * STEP.x, y: IN_BOWL.y + 3 * STEP.y };
 /** Two corners outside the footprint, more than the 80 mm snap tolerance from every vertex the toilet has. */
 const RECT_FROM = { x: -300, y: 600 };
 const RECT_TO = { x: -200, y: 800 };
+/** The nudge `keyboard.ts`'s `NUDGE_STEP_MM` applies on an ArrowRight tap — a fixed vector, never snapped. */
+const NUDGE = { x: 10, y: 0 };
 
 async function toolbar(rig: DesignerRig, label: StringKey): Promise<void> {
 	rig.toolbarButton(t('en', label)).click();
@@ -55,13 +65,17 @@ function tap(rig: DesignerRig, key: string): void {
 	rig.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
 }
 
-/** The bowl as written, `dx` mm right of the preset's — within a micrometre, since a rig point crosses the camera twice. */
-async function expectBowlMoved(rig: DesignerRig, dx: number): Promise<void> {
+/**
+ * The bowl as written, `steps` `STEP`s from the preset's plus an optional `extra` (the nudge) — within a
+ * micrometre, since a rig point crosses the camera twice.
+ */
+async function expectBowlMoved(rig: DesignerRig, steps: number, extra: Point = { x: 0, y: 0 }): Promise<void> {
 	const points = (await rig.document()).shape?.details.find((detail) => detail.id === 'detail-2')?.outline.points;
+	const by = { x: steps * STEP.x + extra.x, y: steps * STEP.y + extra.y };
 	expect(points).toHaveLength(BOWL.points.length);
 	BOWL.points.forEach((point, index) => {
-		expect(points?.[index]?.x).toBeCloseTo(point.x + dx, 6);
-		expect(points?.[index]?.y).toBeCloseTo(point.y, 6);
+		expect(points?.[index]?.x).toBeCloseTo(point.x + by.x, 6);
+		expect(points?.[index]?.y).toBeCloseTo(point.y + by.y, 6);
 	});
 }
 
@@ -70,7 +84,7 @@ async function detailIds(rig: DesignerRig): Promise<string[] | undefined> {
 }
 
 describe('gestures made before the last write lands', () => {
-	it('compose a second drag with the first: the bowl ends 200 mm right, and nothing is refused', async () => {
+	it('compose a second drag with the first: the bowl ends two STEPs over, and nothing is refused', async () => {
 		const rig = await designerRig({ shape: TOILET });
 		await toolbar(rig, 'designer.toolbar.select');
 
@@ -78,7 +92,7 @@ describe('gestures made before the last write lands', () => {
 		drag(rig, IN_MOVED_BOWL, FURTHER);
 		await settle();
 
-		await expectBowlMoved(rig, 200);
+		await expectBowlMoved(rig, 2);
 		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
 		rig.unmount();
 	});
@@ -88,7 +102,7 @@ describe('gestures made before the last write lands', () => {
 	 * generalised past two gestures: a third quick press must wait for the second's write exactly as the
 	 * second waited for the first's, or it lands on a design the second's write has not yet applied.
 	 */
-	it('compose three drags with no settle between any of them: the bowl ends 300 mm right, and nothing is refused', async () => {
+	it('compose three drags with no settle between any of them: the bowl ends three STEPs over, and nothing is refused', async () => {
 		const rig = await designerRig({ shape: TOILET });
 		await toolbar(rig, 'designer.toolbar.select');
 
@@ -97,22 +111,22 @@ describe('gestures made before the last write lands', () => {
 		drag(rig, FURTHER, YET_FURTHER);
 		await settle();
 
-		await expectBowlMoved(rig, 300);
+		await expectBowlMoved(rig, 3);
 		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
 		rig.unmount();
 	});
 
-	it('compose an arrow tap with a drag: 110 mm, and two undo entries', async () => {
+	it('compose an arrow tap with a drag: one STEP plus the nudge, and two undo entries', async () => {
 		const rig = await designerRig({ shape: TOILET });
 		await toolbar(rig, 'designer.toolbar.select');
 
 		drag(rig, IN_BOWL, IN_MOVED_BOWL);
 		tap(rig, 'ArrowRight');
 		await settle();
-		await expectBowlMoved(rig, 110);
+		await expectBowlMoved(rig, 1, NUDGE);
 
 		await toolbar(rig, 'designer.toolbar.undo');
-		await expectBowlMoved(rig, 100);
+		await expectBowlMoved(rig, 1);
 		await toolbar(rig, 'designer.toolbar.undo');
 		await expectBowlMoved(rig, 0);
 		expect(rig.toolbarButton(t('en', 'designer.toolbar.undo')).disabled).toBe(true);
@@ -130,7 +144,7 @@ describe('gestures made before the last write lands', () => {
 		await settle();
 
 		expect(await detailIds(rig)).toEqual(['detail-1', 'detail-2', 'detail-3']);
-		await expectBowlMoved(rig, 100);
+		await expectBowlMoved(rig, 1);
 		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
 		rig.unmount();
 	});
@@ -145,7 +159,7 @@ describe('gestures made before the last write lands', () => {
 		await settle();
 
 		expect(await detailIds(rig)).toEqual(['detail-1', 'detail-2', 'detail-3']);
-		await expectBowlMoved(rig, 100);
+		await expectBowlMoved(rig, 1);
 		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
 		rig.unmount();
 	});
@@ -155,7 +169,7 @@ describe('a press held behind a queued write', () => {
 	/**
 	 * Green before the chain existed too — Escape cancelled the live drag then. What it pins is that
 	 * `cancel` drops a HELD press, so nothing replays it once the write lands: drop that and the bowl
-	 * ends 200 mm right.
+	 * ends one STEP over.
 	 */
 	it('is abandoned by Escape, and never replayed', async () => {
 		const rig = await designerRig({ shape: TOILET });
@@ -167,7 +181,7 @@ describe('a press held behind a queued write', () => {
 		release(rig, FURTHER);
 		await settle();
 
-		await expectBowlMoved(rig, 100);
+		await expectBowlMoved(rig, 1);
 		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
 		rig.unmount();
 	});
@@ -178,7 +192,7 @@ describe('a press held behind a queued write', () => {
 	 * first drag's own write, which refuses that write (its press never read the peer's). The chain's
 	 * read-back then brings the peer's change in before the replay, so the replayed press reads the
 	 * peer's version and its drag lands on top of the peer's change: the peer's facing is kept, the
-	 * held drag's 100 mm is applied, and its write is saved. The case below is the other ordering, a
+	 * held drag's one STEP is applied, and its write is saved. The case below is the other ordering, a
 	 * peer write during the LIVE (replayed) drag.
 	 */
 	it('builds a drag held behind a write on a peer write that landed during the hold', async () => {
@@ -186,15 +200,17 @@ describe('a press held behind a queued write', () => {
 		await toolbar(rig, 'designer.toolbar.select');
 
 		drag(rig, IN_BOWL, IN_MOVED_BOWL);
-		// Held, release included, behind the first drag's queued write.
-		drag(rig, IN_MOVED_BOWL, FURTHER);
+		// Held, release included, behind the first drag's queued write. Pressed at IN_BOWL again, not
+		// IN_MOVED_BOWL: the first drag is refused below, so the bowl never actually moves, and a press at
+		// IN_MOVED_BOWL would land outside its (still unmoved) outline.
+		drag(rig, IN_BOWL, IN_MOVED_BOWL);
 		expectOk(await rig.peer.setFacing.execute({ assetId: rig.assetId, facing: 0 }));
 		// The peer's write has landed and neither drag has written yet.
 		await expectBowlMoved(rig, 0);
 		await settle();
 
 		expect((await rig.document()).shape?.facing).toBe(0);
-		await expectBowlMoved(rig, 100);
+		await expectBowlMoved(rig, 1);
 		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
 		rig.unmount();
 	});
@@ -222,7 +238,7 @@ describe('a press held behind a queued write', () => {
 		await settle();
 
 		expect((await rig.document()).shape?.facing).toBe(0);
-		await expectBowlMoved(rig, 100);
+		await expectBowlMoved(rig, 1);
 		expect(useSaveStateStore(rig.pinia).state).toBe('save-error');
 		rig.unmount();
 	});

@@ -8,11 +8,12 @@ import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { outlineOf, setBulge, type OutlinePart } from '../../../domain/asset/shapeEdits';
 import { CurveTool } from '../../editor/curves/CurveTool';
 import type { CurveTarget } from '../../editor/curves/curveDraft';
-import { CLICK_EPSILON_PX, SNAP_TOLERANCE_PX } from '../../editor/handleMetrics';
+import { CLICK_EPSILON_PX } from '../../editor/handleMetrics';
 import type { EditorContext } from '../../editor/tools/editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from '../../editor/tools/editor-tool';
 import type { UndoableCommand } from '../../editor/tools/undoable-command';
 import { partKey, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
+import { dragTarget } from '../selection/dragSnap';
 import { hitDesign } from '../selection/hitTest';
 import { draggedShape, type DragRole, type DragStart } from '../selection/selectionDrag';
 
@@ -187,6 +188,7 @@ export class DesignerSelectTool implements EditorTool {
 		// would ask a bend that is gone — while a drag is only forgotten, so a plain press clears no preview.
 		if (this.bend !== null) this.abandonGesture();
 		this.drag = null;
+		context.renderState.snapGuides = [];
 		if (mayHold && (this.held.length > 0 || this.deps.writing())) {
 			this.hold(event);
 			return;
@@ -241,6 +243,8 @@ export class DesignerSelectTool implements EditorTool {
 		// The release point is previewed before it is committed, as `CurveTool.pointerUp` does, so the
 		// canvas shows the shape being written rather than the last move's.
 		const next = this.shapeAt(drag, event);
+		// A guide says why a drag in flight is landing where it is; the release ends the drag it explained.
+		drag.context.renderState.snapGuides = [];
 		this.preview(next);
 		this.release(drag.context, next, drag.version);
 	}
@@ -275,43 +279,18 @@ export class DesignerSelectTool implements EditorTool {
 		return drag.moved;
 	}
 
-	/** The shape a release here would write — ONE function for the preview and the commit, so the two cannot differ. */
+	/**
+	 * The shape a release here would write — ONE function for the preview and the commit, so the two cannot differ.
+	 * It publishes the guides that decided the landing (`selection/dragSnap.ts`) on the way.
+	 */
 	private shapeAt(drag: Drag, event: EditorPointerEvent): Result<AssetShape, ValidationError> {
 		const { context, start } = drag;
-		return draggedShape(start, this.dragTarget(drag, event.worldPoint), {
+		const target = dragTarget(context, start, event);
+		context.renderState.snapGuides = target.guides;
+		return draggedShape(start, target.to, {
 			shift: event.modifiers.shift,
 			snapRotation: (radians) => context.snapService.snapRotation(radians),
 		});
-	}
-
-	/**
-	 * The `to` `draggedShape` is handed. A vertex and the anchor snap to the other parts' vertices (never
-	 * to themselves: `partKey` excludes the dragged part), at the screen tolerance `DrawPolygonTool` snaps
-	 * with; a body move, a box handle and the facing take the raw point.
-	 *
-	 * **What snaps is the MOVED feature, not the pointer** — the feature where the pointer's travel since
-	 * the press has carried it. A press a few millimetres off the anchor would otherwise snap the POINTER
-	 * and land the anchor those millimetres off the vertex it visibly snapped to, or not snap at all.
-	 * The two features are then handed over differently because `draggedShape` reads them differently:
-	 * a vertex's `to` is its new POSITION, so it is the snapped vertex itself, while the anchor moves by
-	 * `to − from`, so its `to` is `from` carried by the snapped anchor's travel.
-	 */
-	private dragTarget(drag: Drag, raw: Point): Point {
-		const { context, start } = drag;
-		const snapMoved = (feature: Point): Point =>
-			context.snapService.snapPoint(
-				{ x: feature.x + raw.x - start.from.x, y: feature.y + raw.y - start.from.y },
-				context.snapCandidates([partKey(start.selection)]),
-				SNAP_TOLERANCE_PX * context.viewport.worldPerScreenPixel(),
-			);
-		if (start.role.kind === 'vertex') {
-			// A vertex handle is only drawn on an outline the pressed shape has, so neither cast hides a null.
-			return snapMoved((outlineOf(start.shape, start.selection as OutlinePart) as CurvedPolygon).points[start.role.index]);
-		}
-		if (start.role.kind !== 'body' || start.selection.kind !== 'anchor') return raw;
-		const { anchor } = start.shape;
-		const snapped = snapMoved(anchor);
-		return { x: start.from.x + snapped.x - anchor.x, y: start.from.y + snapped.y - anchor.y };
 	}
 
 	/** A refused intermediate position keeps the last valid preview rather than drawing nothing. */
@@ -339,6 +318,7 @@ export class DesignerSelectTool implements EditorTool {
 	}
 
 	private dropGesture(): void {
+		if (this.context !== null) this.context.renderState.snapGuides = [];
 		this.drag = null;
 		this.bend = null;
 		this.held = [];

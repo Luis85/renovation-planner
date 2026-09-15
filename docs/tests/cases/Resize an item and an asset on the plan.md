@@ -1,5 +1,7 @@
 ---
 type: Test case
+parent: "[[Smoke Test the Editor]]"
+order: 205
 sources:
   - docs/superpowers/specs/2026-09-15-plan-editor-transform-box-design.md (Interaction)
   - docs/superpowers/specs/2026-09-15-plan-editor-transform-box-design.md (Geometry)

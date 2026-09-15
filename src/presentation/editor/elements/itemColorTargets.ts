@@ -4,7 +4,7 @@ import { tr } from '../../i18n/strings';
 
 export interface ColorTarget { readonly id: string; readonly color?: ItemColor }
 export interface ColorSources { readonly zones: ReadonlyMap<string, ColorTarget>; readonly structure: Structure }
-/** What the palette recolours: every selected room, wall, opening and element — or nothing, never a silent subset. */
+/** What the palette recolours: every selected room, area, wall, opening and element — or nothing, never a silent subset. */
 export function colorTargets(sources: ColorSources, ids: readonly string[]): readonly ColorTarget[] {
 	const { structure } = sources;
 	const found = ids.map(id => sources.zones.get(id) ?? structure.walls.find(item => item.id === id) ?? structure.openings.find(item => item.id === id) ?? structure.elements?.find(item => item.id === id));

@@ -48,6 +48,13 @@ it('parses schema 16 colours on every family, refuses malformed values, and keep
 	expect(PlanGeometrySchemaV15.safeParse({ ...hexItem14, schemaVersion: 15, structure: { ...hexItem14.structure, elements: [{ ...path, color: 'blue' }] } }).success).toBe(false);
 });
 
+it('keeps refusing a schema-16 size on anything but a placement', () => {
+	const size = { width: 400, depth: 300 }, placement = { id: 'element-sofa', kind: 'asset', assetId: 'asset-sofa', points: [{ x: 0, y: 0 }, { x: 900, y: 0 }], size };
+	const v16 = { ...old, schemaVersion: 16, structure: { ...structure, elements: [{ ...item, size }] } };
+	expect(PlanGeometrySchemaV16.safeParse(v16).success).toBe(false);
+	expect(PlanGeometrySchemaV16.safeParse({ ...v16, structure: { ...structure, elements: [placement] } }).success).toBe(true);
+});
+
 it('migrates 14 to 16 without changing content, and a schema-15 reader refuses 16', () => {
 	const runner = new MigrationRunner(); runner.registerAll('plan-geometry', PLAN_GEOMETRY_MIGRATIONS);
 	const colored14 = { ...old, schemaVersion: 14, structure: { ...structure, elements: [{ ...item, color: 'rose' }] } };

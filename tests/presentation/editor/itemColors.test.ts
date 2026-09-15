@@ -93,14 +93,17 @@ it('recolours every selected member as one undo step and keeps the saved group',
 	await rig.runtime.undo(); await settle(); expect(colors()).toEqual([undefined, undefined]);
 });
 
-it('recolours a path, a room and a wall at the action, and a wall without its hosted door', async () => {
-	const rig = await setup({ id: 'element-path', kind: 'path', name: 'Path', points: item.points.slice(0, 2) });
-	const wall = rig.project.structure.walls[0].id, room = rig.room.id;
-	const read = expectOk(await rig.geometry.read(rig.plan.id)), current = read.document.structure;
-	if (!current) throw new Error('Expected a structure');
+/** A door on the first wall, written to the sidecar and projected. */
+async function addDoor(rig: Awaited<ReturnType<typeof setup>>) {
+	const wall = rig.project.structure.walls[0].id, read = expectOk(await rig.geometry.read(rig.plan.id)), current = expectDefined(read.document.structure, 'structure');
 	const door = { id: 'opening-door', kind: 'door' as const, hostId: wall, offset: 500, width: 800, height: 2100, sill: 0 };
 	expectOk(await rig.geometry.write(rig.plan.id, { ...read.document, structure: { ...current, openings: [door] } }, read.version));
-	await rig.runtime.refreshProjection();
+	await rig.runtime.refreshProjection(); return { wall, door: door.id };
+}
+
+it('recolours a path, a room and a wall at the action, and a wall without its hosted door', async () => {
+	const rig = await setup({ id: 'element-path', kind: 'path', name: 'Path', points: item.points.slice(0, 2) });
+	const room = rig.room.id, { wall } = await addDoor(rig);
 	// The room goes second, so the wall's write proves the projection carries the room's colour (no stale refusal).
 	for (const id of ['element-path', room, wall]) { rig.selection.select([id as never]); await settle(); await rig.runtime.groupActions.setColor([id], '#3a7bd5'); }
 	const saved = expectOk(await rig.geometry.read(rig.plan.id)).document;
@@ -109,6 +112,15 @@ it('recolours a path, a room and a wall at the action, and a wall without its ho
 	expect(saved.structure?.walls.find(candidate => candidate.id === wall)?.color).toBe('#3a7bd5');
 	expect(saved.structure?.openings[0]).not.toHaveProperty('color');
 	expect(rig.project.zones.get(room)?.color).toBe('#3a7bd5');
+});
+
+it('colours a selected door from its Details on the opening, never on its host wall', async () => {
+	const rig = await setup(), { wall, door } = await addDoor(rig);
+	rig.selection.select([door as never]); await settleUntil(() => rig.wrapper.find('.rp-structure-inspector .rp-item-color').exists(), 'door palette');
+	await rig.wrapper.get('.rp-structure-inspector [data-rp-item-color="rose"]').trigger('click');
+	await settleUntil(() => rig.project.structure.openings[0]?.color === 'rose', 'rose door');
+	const saved = expectOk(await rig.geometry.read(rig.plan.id)).document.structure;
+	expect(saved?.openings[0].color).toBe('rose'); expect(saved?.walls.find(candidate => candidate.id === wall)).not.toHaveProperty('color');
 });
 
 it('refuses saving/stale states and compensates a failed color write without changing the shown color', async () => {

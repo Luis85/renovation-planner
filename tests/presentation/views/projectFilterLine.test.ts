@@ -6,6 +6,7 @@ import { mount } from '@vue/test-utils';
 import ProjectFilter from '../../../src/presentation/views/ProjectFilter.vue';
 import HostIcon from '../../../src/presentation/components/HostIcon.vue';
 import ProjectList from '../../../src/presentation/views/ProjectList.vue';
+import { tr } from '../../../src/presentation/i18n/strings';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
 function line(props: { query?: string; shown?: number; total?: number } = {}) {

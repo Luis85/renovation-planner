@@ -13,7 +13,7 @@ area: domain
 Item colours gave plain items and placed assets six named presets on the plan's geometry sidecar (schema 14).
 Renovators asked to colour everything they draw — paths, marks, posts, walls, openings and rooms — in any colour,
 several things at once. ADR-0031 had refused custom colours for walls ("theme clashes"), and ADR-0021 gave the
-sidecar coordinates only.
+sidecar coordinates and measurements.
 
 ## Decision
 
@@ -37,7 +37,7 @@ sidecar coordinates only.
 
 ## Consequences
 
-- Amends ADR-0031's refused "custom colours" alternative and ADR-0021's "the sidecar owns coordinates only": the
+- Amends ADR-0031's refused "custom colours" alternative and ADR-0021's "the sidecar owns coordinates and measurements": the
   sidecar also owns user appearance.
 - Nothing enforces contrast for a custom colour used as ink; Default resets it.
 - A plan holding a custom colour, or a colour on anything but an item or placement, is refused by an older build as

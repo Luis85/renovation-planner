@@ -42,6 +42,8 @@ property on the room note.
 > - The palette's targets are every selected id or none: a selection that includes anything that cannot be coloured
 >   (e.g. a reference plan) hides the palette rather than colouring a subset — narrower than §3's "at least one
 >   colourable id".
+> - A pasted room starts uncoloured: the clipboard copies a room's outline, not its sidecar appearance. Walls,
+>   openings and elements keep theirs.
 
 ### Value
 

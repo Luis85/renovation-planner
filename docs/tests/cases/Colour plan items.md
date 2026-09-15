@@ -34,8 +34,9 @@ node by node in `itemColorRendering.test.ts`, `zoneColorWash.test.ts` and `struc
 | 5 | Select the room, the wall and the path together. | Details and the menu read "Color · Mixed" with nothing checked. |
 | 6 | Choose Green. Undo. | All three turn green; one Undo restores all three previous colours. |
 | 7 | Switch to Renovate. | No palette anywhere; colours stay visible. |
-| 8 | Switch theme between light and dark. | Every colour stays legible; name any that is not. |
-| 9 | Open the plan's geometry sidecar in a text editor. | `"schemaVersion": 16`, with `"color"` on the room entry, the wall and the path. |
+| 8 | Still in Renovate, open a renovation record on the coloured room, enter a description and save. | It saves, with no "changed elsewhere" refusal. |
+| 9 | Switch theme between light and dark. | Every colour stays legible; name any that is not. |
+| 10 | Open the plan's geometry sidecar in a text editor. | `"schemaVersion": 16`, with `"color"` on the room entry, the wall and the path. |
 
 ## Runs
 

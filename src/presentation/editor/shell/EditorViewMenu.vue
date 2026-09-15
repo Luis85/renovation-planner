@@ -88,6 +88,11 @@ function toggleSnap(event: Event): void {
 				data-rp-view="north"
 			>{{ tr('editor.view.north') }}</label>
 			<label><input
+				v-model="workspace.labelsVisible"
+				type="checkbox"
+				data-rp-view="labels"
+			>{{ tr('editor.view.labels') }}</label>
+			<label><input
 				:checked="editor.snappingEnabled"
 				type="checkbox"
 				data-rp-view="snap"

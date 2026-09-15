@@ -11,6 +11,8 @@ import { itemColorInk, itemColorTint } from './itemColorAppearance';
 import { hasPointHandles } from './ElementMove';
 import { draftingKind, outlineKind } from '../../../domain/spatial/SpatialElement';
 import { VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
+const workspace = useWorkspaceStore();
 const props = defineProps<{ elements: readonly NamedSpatialElement[]; selectedIds: readonly string[]; tokens: ThemeTokens; zoom: number; editable?: boolean }>();
 /**
  * A measurement is drawn as the set-scale tape (`GestureSketch.vue`): a 2 px spine with end bars
@@ -34,7 +36,7 @@ const shapes = computed(() => props.elements.map(element => {
 	return { id: element.id, name: 'element-' + element.kind, element, selected, single, structural: element.kind === 'post' || element.kind === 'beam', drafting: draftingKind(element.kind), stair: element.kind === 'stair' ? element.stair : undefined, handles: pointHandles(element, single, zoom, tokens), marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
 		line: { points: element.points.flatMap(vertex => [vertex.x, vertex.y]), closed, stroke, strokeWidth: (selected && !ruler ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: closed ? itemColorTint(element.color, tokens.canvasBackground) : undefined},
 		// A drafting mark draws its own name where the name IS the mark, and shows none elsewhere (plan drafting tools design §6).
-		label: draftingKind(element.kind) ? null : { ...label, fontSize: ELEMENT_LABEL_FONT_PX / zoom, fill: tokens.zoneLabel, listening: false } };
+		label: draftingKind(element.kind) || !workspace.labelsVisible ? null : { ...label, fontSize: ELEMENT_LABEL_FONT_PX / zoom, fill: tokens.zoneLabel, listening: false } };
 }));
 </script>
 <template>

@@ -38,6 +38,22 @@ it('shows dimensions, opens the designer and hides the outline editor', async ()
 	expect(asset).toHaveBeenCalledWith(radiator.id);
 });
 
+it('opens a placement in its designer from the canvas menu, in Review too, and not for a missing asset', async () => {
+	const asset = vi.fn<(assetId: string) => Promise<void>>(async () => {});
+	const rig = await assetPlacementRig({ project: async () => {}, library: () => {}, asset }); mounted.push(rig);
+	const radiator = await rig.saveAsset('Radiator');
+	const id = await rig.place(radiator.id, { x: 1000, y: 1000 }), gone = await rig.place('asset-gone', { x: 2500, y: 1000 }, 0, 'Old boiler');
+	const action = () => rig.wrapper.find('[data-rp-context-action="open-asset-designer"]');
+	const openMenu = async () => { rig.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle(); };
+	await settleUntil(() => useAssetShapeStore(rig.pinia).answers.size === 2, 'asset shapes');
+	await rig.runtime.renovation.perspective('review'); rig.selection.select([id as never]); await settle();
+	await openMenu(); await action().trigger('click');
+	expect(asset).toHaveBeenCalledExactlyOnceWith(radiator.id);
+	await rig.runtime.renovation.perspective('plan'); rig.selection.select([gone as never]); await settle();
+	await openMenu();
+	expect(action().exists()).toBe(false);
+});
+
 it('explains a missing asset and replaces it in one undoable step', async () => {
 	const rig = await assetPlacementRig(); mounted.push(rig);
 	const radiator = await rig.saveAsset('Radiator');

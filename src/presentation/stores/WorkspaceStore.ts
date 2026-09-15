@@ -28,6 +28,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	const gridVisible = ref(false);
 	/** The View menu's north arrow; the bearing it shows is the plan's own and IS saved. */
 	const northVisible = ref(false);
+	/** The View menu's asset and item captions; hidden captions draw nothing and cannot be dragged. Room names stay. */
+	const labelsVisible = ref(true);
 
 	/**
 	 * Whether evidence pins — notes and photos — are drawn. The Layers panel's "Notes and
@@ -114,6 +116,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	function reset(): void {
 		gridVisible.value = false;
 		northVisible.value = false;
+		labelsVisible.value = true;
 		layerVisibility.value = defaultLayerVisibility();
 		layoutMode.value = 'full';
 		overlay.value = 'none';
@@ -124,6 +127,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	return {
 		gridVisible,
 		northVisible,
+		labelsVisible,
 		layerVisibility,
 		toggleLayer,
 		notesVisible,

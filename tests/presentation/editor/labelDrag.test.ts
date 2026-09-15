@@ -24,6 +24,7 @@ import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { useRenovationSession } from '../../../src/presentation/editor/renovation/renovationSession';
 import type { NamedSpatialElement } from '../../../src/domain/spatial/SpatialElement';
 import type { BoundingBox } from '../../../src/core/geometry/BoundingBox';
+import type Konva from 'konva';
 
 const rigs: { unmount(): void }[] = [];
 afterEach(() => { rigs.splice(0).forEach(rig => rig.unmount()); disposeNotices(); });
@@ -152,6 +153,19 @@ it('saves a dragged element caption through the element write path, and grabs it
 	await settleUntil(() => rig.project.structure.elements?.find(item => item.id === element.id)?.labelOffset !== undefined && rig.runtime.renderState.labelPreview === null, 'element caption save');
 	expect(rig.project.structure.elements?.find(item => item.id === element.id)).toMatchObject({ points: element.points, labelOffset: { dx: 400, dy: -200 } });
 	expect(rig.runtime.labelActions.hits.value.find(item => item.id === element.id)?.offset).toEqual({ dx: 400, dy: -200 });
+});
+
+it('hides item captions from the View menu, offers none to drag, and keeps the room caption', async () => {
+	const rig = await elementRig();
+	rig.selection.select([rig.room.id, element.id as never]); await settle();
+	const texts = (name: string) => rig.stage.findOne<Konva.Layer>(name)?.find('Text').length;
+	const roomTexts = texts('.zone'), itemTexts = () => rig.stage.findOne<Konva.Group>('.element-path')?.find('Text').length;
+	expect(itemTexts()).toBe(1);
+	expect(rig.runtime.labelActions.hits.value.map(hit => hit.id)).toEqual([rig.room.id, element.id]);
+	await rig.wrapper.get('[data-rp-view="labels"]').setValue(false);
+	expect(itemTexts()).toBe(0);
+	expect(texts('.zone')).toBe(roomTexts);
+	expect(rig.runtime.labelActions.hits.value.map(hit => hit.id)).toEqual([rig.room.id]);
 });
 
 it.each(['refuse', 'throw', 'fail'] as const)('writes nothing and drops the preview when the caption save will %s', async failure => {

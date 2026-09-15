@@ -12,6 +12,7 @@ import type { StringKey } from '../../i18n/locales/en';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useEditorStore } from '../../stores/EditorStore';
+import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import { DISPATCH_FAULT_EVENT, useEditorRuntime } from '../runtime';
 import { useSelectionStore } from './selection-store';
 import { usePlanFrame } from '../viewport/usePlanFrame';
@@ -28,8 +29,8 @@ import { useRecordMenuActions } from './recordMenuActions';
 import { useDraftingMenuActions } from './draftingMenuActions';
 
 /**
- * Menu order is the group order, and `CanvasContextMenu` draws a separator between groups: the plans a
- * zone links to first, then the object's own edits, what can be created at that point, the clipboard,
+ * Menu order is the group order, and `CanvasContextMenu` draws a separator between groups: what the
+ * object links to first (a zone's plans, a placement's asset), then the object's own edits, what can be created at that point, the clipboard,
  * selection and grouping, the view, and last what destroys the object.
  */
 export type CanvasMenuGroup = 'plans' | 'edit' | 'create' | 'records' | 'clipboard' | 'arrange' | 'view' | 'destructive';
@@ -56,6 +57,13 @@ function promoteActions(runtime: ReturnType<typeof useEditorRuntime>, project: R
 	if (!promotion.available() || !project.structure.elements?.some(item => item.id === id && item.kind === 'object')) return [];
 	return [{ id: 'add-to-library', label: 'editor.input.add-to-library', group: 'records', icon: 'square-dashed-mouse-pointer', disabled: promotion.refused(), run: () => promotion.promote(id) }];
 }
+/** A placement's asset in its designer, as the placement Inspector's own button; a navigation rather than an edit, so offered in Review too, and hidden for a missing asset as there. */
+function designerActions(context: PlanEditorContext | undefined, project: ReturnType<typeof useProjectStore>, shapes: ReturnType<typeof useAssetShapeStore>, ids: readonly string[]): CanvasMenuAction[] {
+	const assetId = ids.length === 1 ? project.structure.elements?.find(item => item.id === ids[0])?.assetId : undefined;
+	const navigation = context?.navigation, open = navigation?.asset?.bind(navigation);
+	if (!assetId || !open || shapes.answerFor(assetId)?.kind === 'missing') return [];
+	return [{ id: 'open-asset-designer', label: 'editor.asset.open-designer', group: 'plans', icon: 'square-dashed-mouse-pointer', run: () => open(assetId) }];
+}
 function thicknessActions(runtime: ReturnType<typeof useEditorRuntime>, id: string, wall: boolean, blocked: boolean): CanvasMenuAction[] {
 	if (!wall) return [];
 	const thickness = runtime.structureActions.thickness, disabled = blocked || runtime.structureActions.active.value || !runtime.structureTask.available;
@@ -65,7 +73,7 @@ function thicknessActions(runtime: ReturnType<typeof useEditorRuntime>, id: stri
 	];
 }
 export function useCanvasMenuActions(add: () => void, opened: () => Point) {
-	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore();
+	const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), shapes = useAssetShapeStore();
 	const moveOpening = useOpeningMoveAction(), clipboard = useClipboardActions();
 	const frame = usePlanFrame(), groups = useCanvasGroupActions(), session = useRenovationSession();
 	const detailPlans = useDetailPlanActions(), records = useRecordMenuActions(), drafting = useDraftingMenuActions(opened);
@@ -162,7 +170,7 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 	return computed<readonly CanvasMenuItem[]>(() => {
 		const ids = selection.selectedIds, id = ids[0];
 		const blocked = runtime.writesBlocked.value, review = session.perspective === 'review', panning = runtime.activeToolId.value === 'pan';
-		const result: CanvasMenuItem[] = [fitAction(ids)];
+		const result: CanvasMenuItem[] = [fitAction(ids), ...designerActions(context, project, shapes, ids)];
 		// Hidden rather than greyed when nothing selected is copyable: every disabled reason here names an edit, and Copy is not one.
 		if (clipboard?.canCopy.value) result.push({ id: 'copy', label: 'editor.input.copy', group: 'clipboard', icon: 'copy', run: () => { clipboard.copy(); } });
 		if (review) return ordered(result);

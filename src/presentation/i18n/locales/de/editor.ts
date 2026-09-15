@@ -352,6 +352,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.view.zoom-out': 'Verkleinern',
 	'editor.view.grid': 'Raster anzeigen',
 	'editor.view.north': 'Nordpfeil anzeigen',
+	'editor.view.labels': 'Beschriftungen von Objekten und Elementen anzeigen',
 	'editor.north': 'Nordrichtung',
 	'editor.north.value': '{degrees}° im Uhrzeigersinn vom oberen Planrand',
 	'editor.north.letter': 'N',

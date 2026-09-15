@@ -78,6 +78,7 @@
 	align-items: center;
 	gap: var(--size-4-2);
 	min-width: 0;
+	cursor: text;
 	padding: 0 var(--size-4-2);
 	border: var(--input-border-width) solid var(--background-modifier-border);
 	border-radius: var(--input-radius);

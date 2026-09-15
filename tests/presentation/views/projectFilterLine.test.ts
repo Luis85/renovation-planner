@@ -140,6 +140,31 @@ describe('ProjectFilter', () => {
 		wrapper.unmount();
 	});
 
+	it('focuses the input when pointerdown lands on the field chrome', async () => {
+		const wrapper = mount(ProjectFilter, {
+			props: { query: '', shown: 4, total: 4 },
+			attachTo: document.body,
+		});
+		const field = wrapper.get('.rp-project-filter__field');
+
+		await field.trigger('pointerdown');
+
+		expect(document.activeElement).toBe(wrapper.find('input').element);
+		wrapper.unmount();
+	});
+
+	it('focuses the input when pointerdown lands on the search glyph', async () => {
+		const wrapper = mount(ProjectFilter, {
+			props: { query: '', shown: 4, total: 4 },
+			attachTo: document.body,
+		});
+
+		await wrapper.findComponent(HostIcon).trigger('pointerdown');
+
+		expect(document.activeElement).toBe(wrapper.find('input').element);
+		wrapper.unmount();
+	});
+
 	it('emits every keystroke', async () => {
 		const wrapper = line();
 

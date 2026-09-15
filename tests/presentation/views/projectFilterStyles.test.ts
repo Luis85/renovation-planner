@@ -120,6 +120,10 @@ describe('project-filter.css', () => {
 		expect(bodyOf('.rp-project-filter .rp-project-filter__input')).toContain('border: none');
 	});
 
+	it('advertises the whole field as a text hit target', () => {
+		expect(bodyOf('.rp-project-filter__field')).toContain('cursor: text');
+	});
+
 	/**
 	 * THE FIELD IS PADDED INLINE ONLY, and `var(--input-padding)` is the tempting wrong answer:
 	 * it reads as "what an input is padded by", so wearing it whole looks like faithfully

@@ -21,6 +21,7 @@ import { structureRecords } from '../structure/structureRecords';
 import { plainPress } from '../surface/keyboard';
 import { pointerOutside } from './menuKeyboard';
 import CanvasMenuList from './CanvasMenuList.vue';
+import ItemColorControl from '../elements/ItemColorControl.vue';
 import type { Point } from '../../../core/geometry/Point';
 const emit = defineEmits<{ openAdd: [] }>();
 const anchor = ref<HTMLElement | null>(null), list = ref<InstanceType<typeof CanvasMenuList> | null>(null), open = ref(false), position = ref({ left: '0px', top: '0px' });
@@ -127,7 +128,11 @@ onBeforeUnmount(() => { root?.removeEventListener('contextmenu', context); root?
 				:position="position"
 				@run="run"
 				@close="close"
-			/>
+			>
+				<template #appearance>
+					<ItemColorControl menu @picked="close()" />
+				</template>
+			</CanvasMenuList>
 		</Teleport>
 	</div>
 </template>

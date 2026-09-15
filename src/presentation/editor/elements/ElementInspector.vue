@@ -11,6 +11,7 @@ import LoadBearingSwitch from './LoadBearingSwitch.vue';
 import StructureRenovationEntry from '../structure/StructureRenovationEntry.vue';
 import HostIcon from '../../components/HostIcon.vue';
 import ElementGeometryActions from './ElementGeometryActions.vue';
+import ItemColorControl from './ItemColorControl.vue';
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const element = computed(() => project.structure.elements?.find(item => item.id === selection.selectedIds[0]));
 const name = computed(() => project.plan?.spatialElements?.find(item => item.id === element.value?.id)?.name ?? element.value?.id ?? '');
@@ -26,6 +27,7 @@ const name = computed(() => project.plan?.spatialElements?.find(item => item.id 
 			{{ tr(zoneTypeLabel(element.kind)) }}
 		</p>
 		<ElementSummaryLine :element="element" />
+		<ItemColorControl />
 		<LoadBearingSwitch :element="element" />
 		<StructureRenovationEntry v-if="!draftingKind(element.kind)" />
 		<ElementGeometryActions />

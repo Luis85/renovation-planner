@@ -34,6 +34,11 @@ nothing else can:
 
 ## Identity and persistence
 
+Plain Items and asset placements may carry an optional preset color in the geometry sidecar
+(schema 13). See [Item placement appearance contract](../development/item-colors.md) for
+eligibility, Default/reset, compatibility and the command boundary. This does not color Rooms,
+Areas, Walls, Openings or the reference plan.
+
 Split across two files, which is ADR-002 and SDD §39: a **note** carrying name, the
 background reference, the layer names, the owning project and the stable `id`, plus a
 **geometry sidecar** (SDD §40) holding the [[Spatial object]] points. Geometry is verbose,

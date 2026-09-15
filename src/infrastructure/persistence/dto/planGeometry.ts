@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ITEM_COLORS, itemColorKind } from '../../../domain/spatial/ItemColor';
 
 /**
  * The plan geometry sidecar (SDD §40, ADR-011), schema version 1. One file per plan,
@@ -115,5 +116,11 @@ const DRAFTING_MESSAGE = { message: 'A dimension chain, and only a dimension cha
 const SpatialElementSchemaV12 = SpatialElementShapeV12.refine(stairRule).refine(assetRule, ASSET_MESSAGE).refine(structuralRule, STRUCTURAL_MESSAGE).refine(draftingRule, DRAFTING_MESSAGE);
 const StructureSchemaV12 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV12).optional() });
 export const PlanGeometrySchemaV12 = PlanGeometrySchemaV11.extend({ schemaVersion: z.literal(12), structure: StructureSchemaV12.optional(), intended: StructureSchemaV12.optional() });
-export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9, PlanGeometrySchemaV10, PlanGeometrySchemaV11, PlanGeometrySchemaV12]);
-export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV12>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 };
+/** Schema 13: optional placement color. Older readers refuse this version instead of silently stripping user content. */
+const SpatialElementSchemaV13 = SpatialElementShapeV12.extend({ color: z.enum(ITEM_COLORS).optional() })
+	.refine(stairRule).refine(assetRule, ASSET_MESSAGE).refine(structuralRule, STRUCTURAL_MESSAGE).refine(draftingRule, DRAFTING_MESSAGE)
+	.refine(element => element.color === undefined || itemColorKind(element.kind), { message: 'Only an item or asset placement can carry a color.' });
+const StructureSchemaV13 = StructureSchemaV7.extend({ elements: z.array(SpatialElementSchemaV13).optional() });
+export const PlanGeometrySchemaV13 = PlanGeometrySchemaV12.extend({ schemaVersion: z.literal(13), structure: StructureSchemaV13.optional(), intended: StructureSchemaV13.optional() });
+export const PlanGeometrySchema = z.union([PlanGeometrySchemaV1, PlanGeometrySchemaV2, PlanGeometrySchemaV3, PlanGeometrySchemaV4, PlanGeometrySchemaV5, PlanGeometrySchemaV6, PlanGeometrySchemaV7, PlanGeometrySchemaV8, PlanGeometrySchemaV9, PlanGeometrySchemaV10, PlanGeometrySchemaV11, PlanGeometrySchemaV12, PlanGeometrySchemaV13]);
+export type PlanGeometryDTO = Omit<z.infer<typeof PlanGeometrySchemaV13>, 'schemaVersion'> & { schemaVersion: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 };

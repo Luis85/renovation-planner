@@ -1,0 +1,32 @@
+/* Content colors stay inside the chips; all controls and selection marks use the host's UI tokens. */
+.renovation-plan-editor .rp-item-color { margin-block: var(--size-4-2); }
+.renovation-plan-editor .rp-item-color__value { margin: 0 0 var(--size-4-1); font-size: var(--font-ui-small); color: var(--text-muted); }
+.renovation-plan-editor .rp-item-color__choices { display: flex; flex-wrap: wrap; gap: var(--size-2-1); }
+.renovation-plan-editor .rp-item-color button.rp-item-color__choice {
+	position: relative;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	width: 36px;
+	min-width: 36px;
+	height: 40px;
+	padding: var(--size-2-1);
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	box-shadow: none;
+	color: var(--text-normal);
+}
+.renovation-plan-editor .rp-item-color__chip { display: flex; align-items: center; justify-content: center; width: 24px; height: 20px; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); }
+.renovation-plan-editor .rp-item-color .rp-item-color__check { position: absolute; inset-block-end: -1px; inset-inline-end: 0; width: 12px; height: 12px; background: var(--background-primary); color: var(--text-normal); }
+.renovation-plan-editor .rp-item-color button:hover { background: var(--background-modifier-hover); }
+.renovation-plan-editor .rp-item-color button[aria-pressed='true'],
+.renovation-plan-editor .rp-item-color button[aria-checked='true'] { border-color: var(--text-muted); }
+.renovation-plan-editor .rp-item-color button:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.renovation-plan-editor .rp-item-color button[aria-disabled='true'] { opacity: var(--opacity-50); cursor: not-allowed; }
+@container (max-width: 899px) {
+	.renovation-plan-editor .rp-item-color button.rp-item-color__choice { width: 44px; min-width: 44px; height: 44px; }
+}
+@media (pointer: coarse) {
+	.renovation-plan-editor .rp-item-color button.rp-item-color__choice { width: 44px; min-width: 44px; height: 44px; }
+}

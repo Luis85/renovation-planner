@@ -36,7 +36,7 @@ export function useDimensionObstacles(root: Ref<HTMLElement | null>, viewport: (
 		const container = root.value, origin = container.getBoundingClientRect();
 		const anchors = [...container.querySelectorAll<HTMLElement>('.rp-dimension-anchor')];
 		const scope = container.closest('.renovation-plan-editor') ?? container;
-		const otherControls = rotation ? [...scope.querySelectorAll<HTMLElement>('.rp-direct-actions, .rp-primary-actions, .rp-add-menu, .rp-overlay-panel, .rp-inspector-drawer, .rp-focus-leaf-notice')] : [];
+		const otherControls = rotation ? [...scope.querySelectorAll<HTMLElement>('.rp-wall-canvas-actions, .rp-primary-actions, .rp-add-menu, .rp-overlay-panel, .rp-inspector-drawer, .rp-focus-leaf-notice')] : [];
 		const targets = new Set<Element>([container, ...anchors, ...otherControls]);
 		for (const element of observed) if (!targets.has(element)) { observer?.unobserve(element); observed.delete(element); }
 		for (const element of targets) if (!observed.has(element)) { observer?.observe(element); observed.add(element); }

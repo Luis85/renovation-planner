@@ -5,6 +5,7 @@ import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { pointerAt } from '../../helpers/tool-context';
 import { defer } from '../../helpers/async';
+import { resizeWallTotal } from '../../../src/domain/spatial/wallSides';
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 async function setup() { const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle(); return rig; }
@@ -28,7 +29,7 @@ it('creates a measurement with canvas clicks and Enter, refusing duplicate and e
 });
 it('refuses a stale creation baseline and never rebases that conflict through read-only retry', async () => {
  const rig = await setup(), before = expectOk(await rig.geometry.read(rig.plan.id)), structure = expectDefined(before.document.structure, 'structure');
- const walls = structure.walls.map((wall, index) => index === 0 ? { ...wall, thickness: wall.thickness + 10 } : wall);
+ const walls = structure.walls.map((wall, index) => index === 0 ? expectDefined(resizeWallTotal(wall, wall.thickness + 10), 'peer wall') : wall);
  expectOk(await rig.geometry.write(rig.plan.id, { ...before.document, structure: { ...structure, walls } }, before.version));
  rig.runtime.setTool('draw-fence'); const task = rig.runtime.elementTask; await settleUntil(() => !task.draft.loading, 'stale baseline refusal');
  expect(task.draft.conflict).toBe(true); expect(task.canFinish.value).toBe(false); expect(rig.project.structure.walls).toEqual(walls);
@@ -59,7 +60,7 @@ it('retains a named creation draft when a peer changes geometry after the baseli
  rig.runtime.setTool('draw-fence'); await settleUntil(() => !task.draft.loading, 'fence baseline');
  task.draft.name = 'My fence'; task.setPoints([{ x: 500, y: 500 }, { x: 3000, y: 500 }]);
  const read = expectOk(await rig.geometry.read(rig.plan.id)), structure = expectDefined(read.document.structure, 'structure');
- const walls = structure.walls.map((wall, index) => index === 0 ? { ...wall, thickness: wall.thickness + 10 } : wall);
+ const walls = structure.walls.map((wall, index) => index === 0 ? expectDefined(resizeWallTotal(wall, wall.thickness + 10), 'peer wall') : wall);
  expectOk(await rig.geometry.write(rig.plan.id, { ...read.document, structure: { ...structure, walls } }, read.version));
  await task.finish(); await settle();
  expect(task.draft.conflict).toBe(true); expect(task.draft.name).toBe('My fence'); expect(task.draft.points).toEqual([{ x: 500, y: 500 }, { x: 3000, y: 500 }]);

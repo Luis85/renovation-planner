@@ -12,8 +12,10 @@ const marks = computed(() => props.guides.map(guide => ({ start: props.toScreen(
 			v-for="(mark, index) in marks"
 			:key="index"
 		>
-			<VLine :config="{ name: 'snap-guide', points: [mark.start.x, mark.start.y, mark.end.x, mark.end.y], stroke: tokens.accent, strokeWidth: 1, dash: [3, 3], listening: false }" />
-			<VCircle :config="{ name: 'snap-target', x: mark.end.x, y: mark.end.y, radius: 5, stroke: tokens.accent, strokeWidth: 1.5, fill: tokens.canvasBackground, listening: false }" />
+			<!-- This only renders after the existing snapping service acquired a real candidate;
+				 the status bar's persistent Snap on/off preference remains a separate state. -->
+			<VLine :config="{ name: 'snap-guide', points: [mark.start.x, mark.start.y, mark.end.x, mark.end.y], stroke: tokens.accent, strokeWidth: 1.5, dash: [3, 3], listening: false }" />
+			<VCircle :config="{ name: 'snap-target', x: mark.end.x, y: mark.end.y, radius: 6, stroke: tokens.accent, strokeWidth: 2, fill: tokens.canvasBackground, listening: false }" />
 		</template>
 	</VGroup>
 </template>

@@ -1,0 +1,194 @@
+{
+  "source": "6b2280948d29d2b1f02cf4890cb51504c7bcd643",
+  "browser": "153.0.4234.32",
+  "capturedAt": "2026-09-13T23:01:17.771Z",
+  "errors": [],
+  "results": [
+    {
+      "language": "en",
+      "viewport": {
+        "width": 460,
+        "height": 800
+      },
+      "collapsed": {
+        "popover": {
+          "x": 280,
+          "y": 553.6875,
+          "width": 172,
+          "height": 66,
+          "top": 553.6875,
+          "right": 452,
+          "bottom": 619.6875,
+          "left": 280
+        },
+        "taskbar": {
+          "x": 88,
+          "y": 636,
+          "width": 364,
+          "height": 104,
+          "top": 636,
+          "right": 452,
+          "bottom": 740,
+          "left": 88
+        },
+        "canvas": {
+          "x": 80,
+          "y": 138.6875,
+          "width": 380,
+          "height": 625.3125,
+          "top": 138.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "gap": 16.3125,
+        "expanded": null,
+        "focused": true,
+        "focusVisible": true,
+        "unobscured": true
+      },
+      "expanded": {
+        "popover": {
+          "x": 280,
+          "y": 553.6875,
+          "width": 172,
+          "height": 66,
+          "top": 553.6875,
+          "right": 452,
+          "bottom": 619.6875,
+          "left": 280
+        },
+        "taskbar": {
+          "x": 88,
+          "y": 636,
+          "width": 364,
+          "height": 104,
+          "top": 636,
+          "right": 452,
+          "bottom": 740,
+          "left": 88
+        },
+        "canvas": {
+          "x": 80,
+          "y": 138.6875,
+          "width": 380,
+          "height": 625.3125,
+          "top": 138.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "gap": 16.3125,
+        "expanded": {
+          "x": 280,
+          "y": 307.6875,
+          "width": 172,
+          "height": 240,
+          "top": 307.6875,
+          "right": 452,
+          "bottom": 547.6875,
+          "left": 280
+        },
+        "focused": true,
+        "focusVisible": true,
+        "unobscured": true
+      },
+      "preservedStateHash": "e6dcb11cff72e16a9faf184ff267f475f26d172c23eac6ae98e91f6d1e0a1506",
+      "noWriteCameraOrSelectionChange": true,
+      "escapeRestoresOpener": true
+    },
+    {
+      "language": "de",
+      "viewport": {
+        "width": 460,
+        "height": 800
+      },
+      "collapsed": {
+        "popover": {
+          "x": 184,
+          "y": 553.6875,
+          "width": 172,
+          "height": 66,
+          "top": 553.6875,
+          "right": 356,
+          "bottom": 619.6875,
+          "left": 184
+        },
+        "taskbar": {
+          "x": 88,
+          "y": 636,
+          "width": 364,
+          "height": 104,
+          "top": 636,
+          "right": 452,
+          "bottom": 740,
+          "left": 88
+        },
+        "canvas": {
+          "x": 80,
+          "y": 174.6875,
+          "width": 380,
+          "height": 589.3125,
+          "top": 174.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "gap": 16.3125,
+        "expanded": null,
+        "focused": true,
+        "focusVisible": true,
+        "unobscured": true
+      },
+      "expanded": {
+        "popover": {
+          "x": 184,
+          "y": 553.6875,
+          "width": 172,
+          "height": 66,
+          "top": 553.6875,
+          "right": 356,
+          "bottom": 619.6875,
+          "left": 184
+        },
+        "taskbar": {
+          "x": 88,
+          "y": 636,
+          "width": 364,
+          "height": 104,
+          "top": 636,
+          "right": 452,
+          "bottom": 740,
+          "left": 88
+        },
+        "canvas": {
+          "x": 80,
+          "y": 174.6875,
+          "width": 380,
+          "height": 589.3125,
+          "top": 174.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "gap": 16.3125,
+        "expanded": {
+          "x": 184,
+          "y": 307.6875,
+          "width": 172,
+          "height": 240,
+          "top": 307.6875,
+          "right": 356,
+          "bottom": 547.6875,
+          "left": 184
+        },
+        "focused": true,
+        "focusVisible": true,
+        "unobscured": true
+      },
+      "preservedStateHash": "45041804e6af8cfd5a074aab3a07641df7a0f066f8b0875c5af3a9f446b14cb0",
+      "noWriteCameraOrSelectionChange": true,
+      "escapeRestoresOpener": true
+    }
+  ]
+}

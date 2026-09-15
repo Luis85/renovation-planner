@@ -66,14 +66,16 @@ const { layoutMode, gridVisible } = storeToRefs(useWorkspaceStore());
 const showsConstraintHint = computed(() => constrainsAngle(props.activeToolId ?? null));
 
 /**
- * Task 20's scale state, WITHHELD unless a plan is loaded (R9, 2026-09-04). "Not set" is a fact
- * about a loaded plan; while the read is in flight the system does not know, and after a
- * missing or failed read there is no plan whose scale could be reported — so `null` here means
- * the span is not drawn, never that `null` was relabelled "uncalibrated".
+ * The scale state is a fact about an AVAILABLE REFERENCE, not a generic warning about a plan.
+ * A floor can be authored from typed dimensions with no background at all, so saying "Scale not
+ * set" there falsely makes the optional reference plan sound like a prerequisite. While the
+ * read is in flight, after a missing or failed read, or without a reference background, there is
+ * no reference scale to report — so `null` means the span is not drawn, never that an unrelated
+ * plan was relabelled "uncalibrated".
  */
 const scaleText = computed(() => {
 	const loaded = status.value === 'ready' ? plan.value : null;
-	if (loaded === null) return null;
+	if (loaded === null || loaded.background === null) return null;
 	return tr(loaded.calibration ? 'editor.status.scale.calibrated' : 'editor.status.scale.uncalibrated');
 });
 

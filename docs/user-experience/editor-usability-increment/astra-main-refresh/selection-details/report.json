@@ -1,0 +1,382 @@
+{
+  "source": "0b43fa553120c8164fe101b90acbc3c00aa58153",
+  "browser": "153.0.4234.32",
+  "capturedAt": "2026-09-14T10:51:16.429Z",
+  "errors": [],
+  "results": [
+    {
+      "language": "en",
+      "plan": {
+        "canvas": {
+          "x": 256,
+          "y": 55,
+          "width": 672,
+          "height": 709,
+          "top": 55,
+          "right": 928,
+          "bottom": 764,
+          "left": 256
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 471.4453125,
+              "y": 690,
+              "width": 81.109375,
+              "height": 44,
+              "top": 690,
+              "right": 552.5546875,
+              "bottom": 734,
+              "left": 471.4453125
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 556.5546875,
+              "y": 690,
+              "width": 76,
+              "height": 44,
+              "top": 690,
+              "right": 632.5546875,
+              "bottom": 734,
+              "left": 556.5546875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add",
+            "rect": {
+              "x": 636.5546875,
+              "y": 690,
+              "width": 76,
+              "height": 44,
+              "top": 690,
+              "right": 712.5546875,
+              "bottom": 734,
+              "left": 636.5546875
+            },
+            "unobscured": true
+          }
+        ]
+      },
+      "narrow": {
+        "canvas": {
+          "x": 80,
+          "y": 138.6875,
+          "width": 380,
+          "height": 625.3125,
+          "top": 138.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 149.4453125,
+              "y": 690,
+              "width": 81.109375,
+              "height": 44,
+              "top": 690,
+              "right": 230.5546875,
+              "bottom": 734,
+              "left": 149.4453125
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 234.5546875,
+              "y": 690,
+              "width": 76,
+              "height": 44,
+              "top": 690,
+              "right": 310.5546875,
+              "bottom": 734,
+              "left": 234.5546875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add",
+            "rect": {
+              "x": 314.5546875,
+              "y": 690,
+              "width": 76,
+              "height": 44,
+              "top": 690,
+              "right": 390.5546875,
+              "bottom": 734,
+              "left": 314.5546875
+            },
+            "unobscured": true
+          }
+        ]
+      },
+      "renovate": {
+        "canvas": {
+          "x": 80,
+          "y": 138.6875,
+          "width": 380,
+          "height": 625.3125,
+          "top": 138.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 120.859375,
+              "y": 642,
+              "width": 81.109375,
+              "height": 44,
+              "top": 642,
+              "right": 201.96875,
+              "bottom": 686,
+              "left": 120.859375
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 205.96875,
+              "y": 642,
+              "width": 76,
+              "height": 44,
+              "top": 642,
+              "right": 281.96875,
+              "bottom": 686,
+              "left": 205.96875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add work item",
+            "rect": {
+              "x": 285.96875,
+              "y": 642,
+              "width": 133.171875,
+              "height": 44,
+              "top": 642,
+              "right": 419.140625,
+              "bottom": 686,
+              "left": 285.96875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "More actions",
+            "rect": {
+              "x": 209.578125,
+              "y": 690,
+              "width": 120.84375,
+              "height": 44,
+              "top": 690,
+              "right": 330.421875,
+              "bottom": 734,
+              "left": 209.578125
+            },
+            "unobscured": true
+          }
+        ]
+      },
+      "keyboardDetailsAndCreation": true,
+      "preservedStateHash": "bab71853c8abe9235232911a7e242d7006c12df7f4279415d34b34314a94a57f"
+    },
+    {
+      "language": "de",
+      "plan": {
+        "canvas": {
+          "x": 80,
+          "y": 174.6875,
+          "width": 380,
+          "height": 589.3125,
+          "top": 174.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "buttons": [
+          {
+            "label": "Auswählen",
+            "rect": {
+              "x": 97.2890625,
+              "y": 690,
+              "width": 110,
+              "height": 44,
+              "top": 690,
+              "right": 207.2890625,
+              "bottom": 734,
+              "left": 97.2890625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Verschieben",
+            "rect": {
+              "x": 211.2890625,
+              "y": 690,
+              "width": 115.203125,
+              "height": 44,
+              "top": 690,
+              "right": 326.4921875,
+              "bottom": 734,
+              "left": 211.2890625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Hinzufügen",
+            "rect": {
+              "x": 330.4921875,
+              "y": 690,
+              "width": 112.21875,
+              "height": 44,
+              "top": 690,
+              "right": 442.7109375,
+              "bottom": 734,
+              "left": 330.4921875
+            },
+            "unobscured": true
+          }
+        ]
+      },
+      "narrow": {
+        "canvas": {
+          "x": 80,
+          "y": 174.6875,
+          "width": 380,
+          "height": 589.3125,
+          "top": 174.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "buttons": [
+          {
+            "label": "Auswählen",
+            "rect": {
+              "x": 97.2890625,
+              "y": 690,
+              "width": 110,
+              "height": 44,
+              "top": 690,
+              "right": 207.2890625,
+              "bottom": 734,
+              "left": 97.2890625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Verschieben",
+            "rect": {
+              "x": 211.2890625,
+              "y": 690,
+              "width": 115.203125,
+              "height": 44,
+              "top": 690,
+              "right": 326.4921875,
+              "bottom": 734,
+              "left": 211.2890625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Hinzufügen",
+            "rect": {
+              "x": 330.4921875,
+              "y": 690,
+              "width": 112.21875,
+              "height": 44,
+              "top": 690,
+              "right": 442.7109375,
+              "bottom": 734,
+              "left": 330.4921875
+            },
+            "unobscured": true
+          }
+        ]
+      },
+      "renovate": {
+        "canvas": {
+          "x": 80,
+          "y": 174.6875,
+          "width": 380,
+          "height": 589.3125,
+          "top": 174.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "buttons": [
+          {
+            "label": "Auswählen",
+            "rect": {
+              "x": 155.390625,
+              "y": 642,
+              "width": 110,
+              "height": 44,
+              "top": 642,
+              "right": 265.390625,
+              "bottom": 686,
+              "left": 155.390625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Verschieben",
+            "rect": {
+              "x": 269.390625,
+              "y": 642,
+              "width": 115.203125,
+              "height": 44,
+              "top": 642,
+              "right": 384.59375,
+              "bottom": 686,
+              "left": 269.390625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Arbeit hinzufügen",
+            "rect": {
+              "x": 119.140625,
+              "y": 690,
+              "width": 152.515625,
+              "height": 44,
+              "top": 690,
+              "right": 271.65625,
+              "bottom": 734,
+              "left": 119.140625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Weitere Aktionen",
+            "rect": {
+              "x": 275.65625,
+              "y": 690,
+              "width": 145.203125,
+              "height": 44,
+              "top": 690,
+              "right": 420.859375,
+              "bottom": 734,
+              "left": 275.65625
+            },
+            "unobscured": true
+          }
+        ]
+      },
+      "keyboardDetailsAndCreation": true,
+      "preservedStateHash": "e97de74f026fff57707ab27f6206e9f3c8d651ce655fb4d6d3ea26d6c8c2c0c8"
+    }
+  ]
+}

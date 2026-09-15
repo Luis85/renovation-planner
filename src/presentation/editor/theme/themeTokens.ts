@@ -5,8 +5,8 @@
  * var(--text-normal)` means nothing to a 2D context, which wants a resolved colour
  * string. So this module is the bridge — it reads the CURRENT computed value of each
  * variable off the view's own root element, and the components consume the resolved
- * object. Nothing in the render path holds a literal colour, which is what keeps a themed
- * vault themed.
+ * object. UI ink and selection chrome stay host-derived. Explicit Item color presets are
+ * user content: their render path blends the chosen pigment with this host background.
  *
  * Re-resolved on Obsidian's `css-change` event rather than cached for the life of the
  * view: switching theme or toggling dark mode changes every one of these, and a canvas

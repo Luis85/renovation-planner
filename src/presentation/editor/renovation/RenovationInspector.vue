@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
+import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from './renovationSession';
@@ -22,9 +23,20 @@ const room = computed(() => project.zones.get(session.roomId));
 const selectedZone = computed(() => project.zones.get(selection.selectedIds[0]));
 const element = computed(() => project.structure.walls.some(item => item.id === session.targetId) || project.structure.openings.some(item => item.id === session.targetId));
 const generic = computed(() => project.structure.elements?.some(item => item.id === session.targetId));
+const selectedElement = computed(() => project.structure.elements?.find(item => item.id === session.targetId));
+const showRenovation = computed(() => !draftingKind(selectedElement.value?.kind ?? '') && (room.value || element.value || generic.value));
+const selectedWall = computed(() => project.structure.walls.find(item => item.id === session.targetId));
+const selectedOpening = computed(() => project.structure.openings.find(item => item.id === session.targetId));
 const headingVisible = computed(() => session.mode === 'overview' || !room.value);
-function heading(): string { return selectedZone.value?.name || room.value?.name || tr('renovation.select-room'); }
+function heading(): string {
+	if (selectedElement.value) return project.plan?.spatialElements?.find(item => item.id === selectedElement.value?.id)?.name ?? selectedElement.value.id;
+	if (selectedWall.value) return tr('editor.add.wall.label');
+	if (selectedOpening.value) return tr(`editor.add.${selectedOpening.value.kind}.label`);
+	return selectedZone.value?.name || room.value?.name || tr('renovation.select-room');
+}
 const standaloneZone = computed(() => selectedZone.value?.zoneType !== 'Room' ? selectedZone.value : undefined);
+const showStandaloneZone = computed(() => session.perspective === 'plan' && standaloneZone.value !== undefined);
+const standaloneZoneId = computed(() => standaloneZone.value?.id ?? '');
 /**
  * The frame's group controls arrive through the `actions` slot. A wall, opening or element body
  * takes them above its own Delete, so Delete stays the foot of the Inspector region (side panels
@@ -68,14 +80,14 @@ watch(() => [session.focusedId, session.mode], async () => {
 			{{ heading() }}
 		</h3>
 		<details
-			v-if="standaloneZone"
+			v-if="showStandaloneZone"
 			class="rp-room-more-actions"
 		>
 			<summary>{{ tr('editor.structure.more') }}</summary>
-			<ObjectRotationControls :id="standaloneZone.id" />
+			<ObjectRotationControls :id="standaloneZoneId" />
 		</details>
 		<RenovationDetails
-			v-if="room || element || generic"
+			v-if="showRenovation"
 			:room="room"
 		/>
 	</div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import StructurePlacementFields from './StructurePlacementFields.vue';
 import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
-import { computed, useId } from 'vue';
+import { computed, nextTick, useId } from 'vue';
 import { useInvalidFieldFocus } from '../../composables/use-invalid-field-focus';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
@@ -37,7 +37,7 @@ const measurements = computed(() => {
 	return a && b ? `${formatMetres(Math.hypot(b.x - a.x, b.y - a.y))} m · ${Math.round(Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI)}°` : '';
 });
 function add(): void {
-	if (task.addNumeric()) root.value?.querySelector<HTMLInputElement>('input')?.focus();
+	if (task.addNumeric()) void nextTick(() => root.value?.querySelector<HTMLInputElement>('[name="length"]')?.focus());
 	else void focusFirstInvalidControl();
 }
 function submit(): void { if (wall.value) add(); else void task.finish(); }
@@ -52,6 +52,34 @@ function submit(): void { if (wall.value) add(); else void task.finish(); }
 	>
 		<h3>{{ title }}</h3>
 		<p>{{ instructions }}</p>
+		<div
+			v-if="wall"
+			class="rp-wall-drawing-thickness"
+		>
+			<label class="rp-dialog-field">{{ tr('editor.structure.thickness') }}<input
+				v-model="draft.text.thickness"
+				name="thickness"
+				type="text"
+				inputmode="decimal"
+				:readonly="task.blocked.value"
+			></label>
+			<div
+				class="rp-wall-thickness-presets"
+				role="group"
+				:aria-label="tr('editor.wall-thickness.presets')"
+			>
+				<button
+					v-for="mm in [100, 150, 200]"
+					:key="mm"
+					type="button"
+					:aria-pressed="draft.text.thickness === formatMetres(mm)"
+					:aria-disabled="task.blocked.value"
+					@click="!task.blocked.value && (draft.text.thickness = formatMetres(mm))"
+				>
+					{{ formatMetres(mm) }} m
+				</button>
+			</div>
+		</div>
 		<p
 			v-for="notice in notices"
 			:id="notice.id"
@@ -71,7 +99,7 @@ function submit(): void { if (wall.value) add(); else void task.finish(); }
 		<details v-if="wall">
 			<summary>{{ tr('editor.structure.dimensions') }}</summary>
 			<label
-				v-for="field in (['height', 'thickness'] as const)"
+				v-for="field in (['height'] as const)"
 				:key="field"
 				class="rp-dialog-field"
 			>{{ tr(`editor.structure.${field}`) }}

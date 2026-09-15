@@ -21,6 +21,7 @@ import { staleWriteRefusal } from '../tools/with-stale-gate';
 import { spatialMessage } from './spatialMessage';
 import { tr } from '../../i18n/strings';
 import { OpeningMoveTool } from './OpeningMoveTool';
+import { wallSideAt, wallSideExtents } from '../../../domain/spatial/wallSides';
 
 /** Temporary direct manipulation over the existing guarded StructureCommand boundary. */
 export function createOpeningMove(context: PlanEditorContext,
@@ -60,7 +61,8 @@ export function createOpeningMove(context: PlanEditorContext,
 		const structure = baseline.value?.document.structure;
 		const opening = structure?.openings.find(item => item.id === target), host = structure?.walls.find(item => item.id === hostId.value);
 		if (!structure || !opening || !host) return null;
-		if (projectOntoWall(host, point).distance > Math.max(host.thickness / 2, tolerance)) { message.value = tr('editor.opening-move.off-host'); return null; }
+		const projected = projectOntoWall(host, point);
+		if (projected.distance > Math.max(wallSideExtents(host)[wallSideAt(host, point, projected)], tolerance)) { message.value = tr('editor.opening-move.off-host'); return null; }
 		const offset = openingOffsetAt(host, point, opening.width);
 		if (offset === null) return null;
 		const moved = { ...opening, offset };

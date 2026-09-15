@@ -707,8 +707,8 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 			// The trust path (design spec §2.2, §2.9): threaded from the SAME computed
 			// `writesBlocked` above rather than re-read from the store, to the one tool
 			// (`SelectTool`) that is not itself inside the Vue tree.
-			// Room/Area outlines and reviewed wall measurements remain editable in Renovate.
-			// Generic current-element gestures stay in Plan; proposals use Planned commands.
+			// Geometry gestures stay in Plan; renovation proposals use Planned commands.
+			// The selection tool additionally checks the perspective before every continuation.
 			writesBlocked: () => writesBlocked.value || session.perspective === 'review' || (session.perspective === 'renovate' && selection.selectedIds.some(id => projectStore.structure.elements?.some(element => element.id === id))),
 		}),
 	);
@@ -725,7 +725,8 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	// `createToolSwitch` needs.
 	const { activeToolId } = storeToRefs(editor);
 	const switchTool = createToolSwitch(toolManager, activeToolId);
-	const setTool = (id: ToolId | null): void => { if (session.perspective !== 'review' || id === 'select') switchTool(id); };
+	// Every geometry tool, including context-menu drafting, enters through the Plan boundary.
+	const setTool = (id: ToolId | null): void => { if (session.perspective === 'plan' || id === 'select' || (session.perspective === 'renovate' && (id === 'pan' || id === null))) switchTool(id); };
 	const returnToSelect = (): void => setTool('select');
 	const cancelActiveTask = createCancelActiveTask(toolManager, activeToolId, setTool), multiSelectionMode = ref(false);
 
@@ -799,7 +800,8 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
-	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore, moveElement: elementActions.move });
+	const nudgeSelection = createNudgeSelectionAction({ context, ledger, dispatcher: toolDispatcher, activeToolId, selection, projectStore,
+		canMutateGeometry: () => session.perspective === 'plan', moveElement: elementActions.move });
 
 	// The assign picker's options and the Inspector's rows, hydrated at mount and re-read on the
 	// three doors that carry what they draw — the catalogue's, the price's and the recalculation

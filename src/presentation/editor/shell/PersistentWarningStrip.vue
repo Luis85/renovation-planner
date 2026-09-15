@@ -11,8 +11,9 @@
  * warning does, which is what `docs/components/Toast.md`'s "explicitly not on a container
  * that appears" asks for and what a `role="status"` created together with its own text is
  * not: a live region and its first content landing in the DOM in the same tick often does not
- * announce. Each `<p class="rp-warning-strip__item">` therefore carries no role of its own —
- * the whole strip announces once, through the one region that was already there.
+ * announce. Each `<p class="rp-warning-strip__item">` therefore carries no role of its own.
+ * The container explicitly opts out of `status`'s atomic default so a newly added retry state
+ * speaks that row, not every unrelated warning already retained beside it.
  *
  * `:key="w.id"` still matters, and for a narrower reason than "identity". Every warning here
  * already carries a stable id; what keying on it buys is that a warning which STAYS keeps its
@@ -91,6 +92,8 @@ onUpdated(() => {
 		ref="strip"
 		class="rp-warning-strip"
 		role="status"
+		aria-atomic="false"
+		aria-relevant="additions text"
 		tabindex="-1"
 	>
 		<p

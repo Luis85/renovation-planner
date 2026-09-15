@@ -13,13 +13,28 @@
  * mounted in every supported layout, so it always is. `EntityInspector` keeps only visible
  * Inspector content now.
  */
-import { nextTick, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { useSelectionStore } from '../selection/selection-store';
+import { useProjectStore } from '../../stores/ProjectStore';
+import { structureRecords } from '../structure/structureRecords';
 
 const { selectedIds } = storeToRefs(useSelectionStore());
+const project = useProjectStore();
 const guidance = ref('');
+let clearGuidance: ReturnType<typeof setTimeout> | undefined;
+
+function selectedTargetName(ids: readonly string[]): string | null {
+	if (ids.length !== 1) return null;
+	const id = ids[0];
+	return project.zones.get(id)?.name ?? structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements).find(item => item.id === id)?.name ?? null;
+}
+
+function selectionGuidance(ids: readonly string[]): string | null {
+	const target = selectedTargetName(ids);
+	return target === null ? null : `${tr('editor.input.current-target', { target })} ${tr('editor.input.overlap-cycle-guidance')}`;
+}
 
 /**
  * Set SYNCHRONOUSLY, so the very next render paints it, and cleared on a real
@@ -35,14 +50,20 @@ const guidance = ref('');
  * anything, since nothing was ever selected to clear.
  */
 watch(selectedIds, async (ids, previous) => {
-	if (ids.length === 0 && previous.length > 0) {
-		guidance.value = tr('editor.inspector.floor.guidance');
-		await nextTick();
-		setTimeout(() => {
-			guidance.value = '';
-		}, 0);
-	}
+	clearTimeout(clearGuidance);
+	const message = ids.length === 0 && previous.length > 0
+		? tr('editor.inspector.floor.guidance')
+		: ids.length === 1 && (previous.length !== 1 || previous[0] !== ids[0])
+			? selectionGuidance(ids)
+			: null;
+	if (message === null) return;
+	guidance.value = message;
+	await nextTick();
+	clearGuidance = setTimeout(() => {
+		guidance.value = '';
+	}, 0);
 });
+onBeforeUnmount(() => { clearTimeout(clearGuidance); });
 </script>
 
 <template>

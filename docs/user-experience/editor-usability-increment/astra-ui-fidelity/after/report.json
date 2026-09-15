@@ -1,0 +1,663 @@
+{
+  "source": "d211d75ee44402486f99561e895395ea9decc981",
+  "browser": "153.0.4234.32",
+  "capturedAt": "2026-09-13T22:16:50.271Z",
+  "errors": [],
+  "findings": [],
+  "records": [
+    {
+      "selector": "[data-rp-action=\"resize-room\"]",
+      "theme": "theme-light",
+      "contrast": {
+        "color": "rgb(255, 255, 255)",
+        "background": "color(srgb 0.45833 0.355913 0.717387)",
+        "ratio": 5.334559145741097
+      }
+    },
+    {
+      "selector": ".rp-renovation-overview-actions .mod-cta",
+      "theme": "theme-light",
+      "contrast": {
+        "color": "rgb(255, 255, 255)",
+        "background": "color(srgb 0.0772549 0.45902 0.228235)",
+        "ratio": 5.7765974174874355
+      }
+    },
+    {
+      "width": 1280,
+      "taskbar": {
+        "canvas": {
+          "x": 256,
+          "y": 55,
+          "width": 672,
+          "height": 709,
+          "top": 55,
+          "right": 928,
+          "bottom": 764,
+          "left": 256
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 380.4375,
+              "y": 690,
+              "width": 81.109375,
+              "height": 44,
+              "top": 690,
+              "right": 461.546875,
+              "bottom": 734,
+              "left": 380.4375
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 465.546875,
+              "y": 690,
+              "width": 76,
+              "height": 44,
+              "top": 690,
+              "right": 541.546875,
+              "bottom": 734,
+              "left": 465.546875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add work item",
+            "rect": {
+              "x": 545.546875,
+              "y": 690,
+              "width": 133.171875,
+              "height": 44,
+              "top": 690,
+              "right": 678.71875,
+              "bottom": 734,
+              "left": 545.546875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "More actions",
+            "rect": {
+              "x": 682.71875,
+              "y": 690,
+              "width": 120.84375,
+              "height": 44,
+              "top": 690,
+              "right": 803.5625,
+              "bottom": 734,
+              "left": 682.71875
+            },
+            "unobscured": true
+          }
+        ]
+      }
+    },
+    {
+      "width": 1024,
+      "taskbar": {
+        "canvas": {
+          "x": 256,
+          "y": 55,
+          "width": 416,
+          "height": 709,
+          "top": 55,
+          "right": 672,
+          "bottom": 764,
+          "left": 256
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 314.859375,
+              "y": 642,
+              "width": 81.109375,
+              "height": 44,
+              "top": 642,
+              "right": 395.96875,
+              "bottom": 686,
+              "left": 314.859375
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 399.96875,
+              "y": 642,
+              "width": 76,
+              "height": 44,
+              "top": 642,
+              "right": 475.96875,
+              "bottom": 686,
+              "left": 399.96875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add work item",
+            "rect": {
+              "x": 479.96875,
+              "y": 642,
+              "width": 133.171875,
+              "height": 44,
+              "top": 642,
+              "right": 613.140625,
+              "bottom": 686,
+              "left": 479.96875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "More actions",
+            "rect": {
+              "x": 403.578125,
+              "y": 690,
+              "width": 120.84375,
+              "height": 44,
+              "top": 690,
+              "right": 524.421875,
+              "bottom": 734,
+              "left": 403.578125
+            },
+            "unobscured": true
+          }
+        ]
+      }
+    },
+    {
+      "width": 900,
+      "taskbar": {
+        "canvas": {
+          "x": 244,
+          "y": 55,
+          "width": 321,
+          "height": 709,
+          "top": 55,
+          "right": 565,
+          "bottom": 764,
+          "left": 244
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 323.9375,
+              "y": 642,
+              "width": 81.109375,
+              "height": 44,
+              "top": 642,
+              "right": 405.046875,
+              "bottom": 686,
+              "left": 323.9375
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 409.046875,
+              "y": 642,
+              "width": 76,
+              "height": 44,
+              "top": 642,
+              "right": 485.046875,
+              "bottom": 686,
+              "left": 409.046875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add work item",
+            "rect": {
+              "x": 275.484375,
+              "y": 690,
+              "width": 133.171875,
+              "height": 44,
+              "top": 690,
+              "right": 408.65625,
+              "bottom": 734,
+              "left": 275.484375
+            },
+            "unobscured": true
+          },
+          {
+            "label": "More actions",
+            "rect": {
+              "x": 412.65625,
+              "y": 690,
+              "width": 120.84375,
+              "height": 44,
+              "top": 690,
+              "right": 533.5,
+              "bottom": 734,
+              "left": 412.65625
+            },
+            "unobscured": true
+          }
+        ]
+      }
+    },
+    {
+      "width": 899,
+      "taskbar": {
+        "canvas": {
+          "x": 112,
+          "y": 81.84375,
+          "width": 787,
+          "height": 682.15625,
+          "top": 81.84375,
+          "right": 899,
+          "bottom": 764,
+          "left": 112
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 293.9375,
+              "y": 690,
+              "width": 81.109375,
+              "height": 44,
+              "top": 690,
+              "right": 375.046875,
+              "bottom": 734,
+              "left": 293.9375
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 379.046875,
+              "y": 690,
+              "width": 76,
+              "height": 44,
+              "top": 690,
+              "right": 455.046875,
+              "bottom": 734,
+              "left": 379.046875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add work item",
+            "rect": {
+              "x": 459.046875,
+              "y": 690,
+              "width": 133.171875,
+              "height": 44,
+              "top": 690,
+              "right": 592.21875,
+              "bottom": 734,
+              "left": 459.046875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "More actions",
+            "rect": {
+              "x": 596.21875,
+              "y": 690,
+              "width": 120.84375,
+              "height": 44,
+              "top": 690,
+              "right": 717.0625,
+              "bottom": 734,
+              "left": 596.21875
+            },
+            "unobscured": true
+          }
+        ]
+      }
+    },
+    {
+      "width": 640,
+      "taskbar": {
+        "canvas": {
+          "x": 112,
+          "y": 119.84375,
+          "width": 528,
+          "height": 644.15625,
+          "top": 119.84375,
+          "right": 640,
+          "bottom": 764,
+          "left": 112
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 164.4375,
+              "y": 690,
+              "width": 81.109375,
+              "height": 44,
+              "top": 690,
+              "right": 245.546875,
+              "bottom": 734,
+              "left": 164.4375
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 249.546875,
+              "y": 690,
+              "width": 76,
+              "height": 44,
+              "top": 690,
+              "right": 325.546875,
+              "bottom": 734,
+              "left": 249.546875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add work item",
+            "rect": {
+              "x": 329.546875,
+              "y": 690,
+              "width": 133.171875,
+              "height": 44,
+              "top": 690,
+              "right": 462.71875,
+              "bottom": 734,
+              "left": 329.546875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "More actions",
+            "rect": {
+              "x": 466.71875,
+              "y": 690,
+              "width": 120.84375,
+              "height": 44,
+              "top": 690,
+              "right": 587.5625,
+              "bottom": 734,
+              "left": 466.71875
+            },
+            "unobscured": true
+          }
+        ]
+      }
+    },
+    {
+      "width": 460,
+      "taskbar": {
+        "canvas": {
+          "x": 80,
+          "y": 138.6875,
+          "width": 380,
+          "height": 625.3125,
+          "top": 138.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 120.859375,
+              "y": 642,
+              "width": 81.109375,
+              "height": 44,
+              "top": 642,
+              "right": 201.96875,
+              "bottom": 686,
+              "left": 120.859375
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 205.96875,
+              "y": 642,
+              "width": 76,
+              "height": 44,
+              "top": 642,
+              "right": 281.96875,
+              "bottom": 686,
+              "left": 205.96875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add work item",
+            "rect": {
+              "x": 285.96875,
+              "y": 642,
+              "width": 133.171875,
+              "height": 44,
+              "top": 642,
+              "right": 419.140625,
+              "bottom": 686,
+              "left": 285.96875
+            },
+            "unobscured": true
+          },
+          {
+            "label": "More actions",
+            "rect": {
+              "x": 209.578125,
+              "y": 690,
+              "width": 120.84375,
+              "height": 44,
+              "top": 690,
+              "right": 330.421875,
+              "bottom": 734,
+              "left": 209.578125
+            },
+            "unobscured": true
+          }
+        ]
+      }
+    },
+    {
+      "width": 400,
+      "taskbar": {
+        "canvas": {
+          "x": 80,
+          "y": 138.6875,
+          "width": 320,
+          "height": 625.3125,
+          "top": 138.6875,
+          "right": 400,
+          "bottom": 764,
+          "left": 80
+        },
+        "buttons": [
+          {
+            "label": "Select",
+            "rect": {
+              "x": 146,
+              "y": 690,
+              "width": 44,
+              "height": 44,
+              "top": 690,
+              "right": 190,
+              "bottom": 734,
+              "left": 146
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Pan",
+            "rect": {
+              "x": 194,
+              "y": 690,
+              "width": 44,
+              "height": 44,
+              "top": 690,
+              "right": 238,
+              "bottom": 734,
+              "left": 194
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Add work item",
+            "rect": {
+              "x": 242,
+              "y": 690,
+              "width": 44,
+              "height": 44,
+              "top": 690,
+              "right": 286,
+              "bottom": 734,
+              "left": 242
+            },
+            "unobscured": true
+          },
+          {
+            "label": "More actions",
+            "rect": {
+              "x": 290,
+              "y": 690,
+              "width": 44,
+              "height": 44,
+              "top": 690,
+              "right": 334,
+              "bottom": 734,
+              "left": 290
+            },
+            "unobscured": true
+          }
+        ]
+      }
+    },
+    {
+      "image": "07-narrow-canvas.png",
+      "url": "http://127.0.0.1:5181/?view=plan-editor&bare&reference&planning&fidelity&theme=light&room=4000x3000",
+      "viewport": {
+        "width": 460,
+        "height": 800
+      }
+    },
+    {
+      "width": 460,
+      "taskbar": {
+        "canvas": {
+          "x": 80,
+          "y": 174.6875,
+          "width": 380,
+          "height": 589.3125,
+          "top": 174.6875,
+          "right": 460,
+          "bottom": 764,
+          "left": 80
+        },
+        "buttons": [
+          {
+            "label": "Auswählen",
+            "rect": {
+              "x": 155.390625,
+              "y": 642,
+              "width": 110,
+              "height": 44,
+              "top": 642,
+              "right": 265.390625,
+              "bottom": 686,
+              "left": 155.390625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Verschieben",
+            "rect": {
+              "x": 269.390625,
+              "y": 642,
+              "width": 115.203125,
+              "height": 44,
+              "top": 642,
+              "right": 384.59375,
+              "bottom": 686,
+              "left": 269.390625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Arbeit hinzufügen",
+            "rect": {
+              "x": 119.140625,
+              "y": 690,
+              "width": 152.515625,
+              "height": 44,
+              "top": 690,
+              "right": 271.65625,
+              "bottom": 734,
+              "left": 119.140625
+            },
+            "unobscured": true
+          },
+          {
+            "label": "Weitere Aktionen",
+            "rect": {
+              "x": 275.65625,
+              "y": 690,
+              "width": 145.203125,
+              "height": 44,
+              "top": 690,
+              "right": 420.859375,
+              "bottom": 734,
+              "left": 275.65625
+            },
+            "unobscured": true
+          }
+        ]
+      }
+    },
+    {
+      "image": "11-de-renovate-canvas.png",
+      "url": "http://127.0.0.1:5181/?view=plan-editor&bare&reference&planning&fidelity&theme=dark&room=4000x3000&lang=de",
+      "viewport": {
+        "width": 460,
+        "height": 800
+      }
+    },
+    {
+      "selector": "[data-rp-action=\"resize-room\"]",
+      "theme": "theme-dark",
+      "contrast": {
+        "color": "rgb(28, 28, 28)",
+        "background": "color(srgb 0.634695 0.509031 0.927911)",
+        "ratio": 5.64190937622657
+      }
+    },
+    {
+      "selector": ".rp-renovation-overview-actions .mod-cta",
+      "theme": "theme-dark",
+      "contrast": {
+        "color": "rgb(28, 28, 28)",
+        "background": "color(srgb 0.531373 0.831176 0.621961)",
+        "ratio": 9.709824767785994
+      }
+    },
+    {
+      "selector": "[data-rp-action=\"resize-room\"]",
+      "theme": "theme-light",
+      "contrast": {
+        "color": "rgb(255, 248, 237)",
+        "background": "color(srgb 0.380392 0.138824 0.333725)",
+        "ratio": 10.58684533206744
+      }
+    },
+    {
+      "selector": ".rp-renovation-overview-actions .mod-cta",
+      "theme": "theme-light",
+      "contrast": {
+        "color": "rgb(255, 248, 237)",
+        "background": "color(srgb 0.0772549 0.45902 0.228235)",
+        "ratio": 5.474521425323252
+      }
+    }
+  ]
+}

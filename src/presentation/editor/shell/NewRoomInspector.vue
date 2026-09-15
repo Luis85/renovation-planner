@@ -44,7 +44,7 @@ import { useEditorRuntime } from '../runtime';
 import { useEditorStore } from '../../stores/EditorStore';
 import { screenPoint, screenToWorld, STAGE_PIXELS } from '../viewport/Viewport';
 import type { DimensionAxis } from '../add/room-draft-store';
-import type { LengthRefusal } from './formatLength';
+import { formatMetres, type LengthRefusal } from './formatLength';
 import { formatArea } from './formatArea';
 import FieldError from '../../components/FieldError.vue';
 import FreeShapeRoomAction from '../add/FreeShapeRoomAction.vue';
@@ -89,6 +89,7 @@ const NO_FIGURE = '–';
 const runtime = useEditorRuntime();
 const editor = useEditorStore();
 const draft = runtime.roomDraft;
+const roomBusy = computed(() => draft.submitting);
 
 const root = ref<HTMLElement | null>(null);
 const nameId = useId();
@@ -197,7 +198,31 @@ function onCreate(): void {
 	void runtime.createRoom();
 }
 
+function onCancel(): void {
+	if (roomBusy.value) return;
+	runtime.cancelActiveTask();
+}
+
 const areaText = computed<string>(() => (draft.areaMm2 === null ? NO_FIGURE : formatArea(draft.areaMm2)));
+
+/**
+ * A refused dimension keeps the last accepted side in the draft store, so the outline remains
+ * useful while the user corrects the field. The explicit state marker and localized label keep
+ * that outline from being mistaken for saved geometry; the dimensions reuse the existing editor
+ * preview vocabulary.
+ */
+const lastValidPreview = computed(() => {
+	const rect = draft.rect;
+	if (rect === null || (draft.widthError === null && draft.depthError === null)) return null;
+	return {
+		label: tr('editor.room.last-valid-preview'),
+		values: tr('editor.resize.preview', {
+			width: formatMetres(rect.width),
+			depth: formatMetres(rect.depth),
+			area: formatArea(rect.width * rect.depth),
+		}),
+	};
+});
 
 /**
  * **A browser drops focus to `<body>` when the focused control unmounts**, and this whole
@@ -230,10 +255,11 @@ onBeforeUnmount(() => {
 		<h3 class="rp-editor-panel-title">
 			{{ tr('editor.room.new.heading') }}
 		</h3>
-
-		<FreeShapeRoomAction />
-		<p class="rp-new-room__hint">
-			{{ tr('editor.room.free-shape-hint') }}
+		<p
+			class="rp-new-room__save-state"
+			role="status"
+		>
+			{{ tr(roomBusy ? 'save-state.saving' : 'editor.creation.draft-unsaved') }}
 		</p>
 
 		<div class="rp-new-room__field">
@@ -311,6 +337,23 @@ onBeforeUnmount(() => {
 			<dd>{{ areaText }}</dd>
 		</dl>
 
+		<p
+			v-if="lastValidPreview !== null"
+			class="rp-new-room__preview"
+			data-rp-preview-state="last-valid"
+			role="status"
+		>
+			<strong class="rp-new-room__preview-label">{{ lastValidPreview.label }}</strong>
+			<span>{{ lastValidPreview.values }}</span>
+		</p>
+
+		<div class="rp-new-room__advanced">
+			<FreeShapeRoomAction />
+			<p class="rp-new-room__hint">
+				{{ tr('editor.room.free-shape-hint') }}
+			</p>
+		</div>
+
 		<label class="rp-new-room__keep">
 			<input
 				type="checkbox"
@@ -336,7 +379,8 @@ onBeforeUnmount(() => {
 			<button
 				type="button"
 				class="rp-new-room__cancel"
-				@click="runtime.cancelActiveTask()"
+				:aria-disabled="roomBusy"
+				@click="onCancel"
 			>
 				{{ tr('editor.room.cancel') }}
 			</button>

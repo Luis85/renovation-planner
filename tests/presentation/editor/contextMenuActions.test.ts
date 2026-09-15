@@ -10,6 +10,7 @@ import { elementInput } from '../../../src/presentation/editor/elements/elementI
 import { EMPTY_STRUCTURE } from '../../../src/domain/spatial/Structure';
 import { err } from '../../../src/core/result/Result';
 import { worldToScreen, STAGE_PIXELS } from '../../../src/presentation/editor/viewport/Viewport';
+import { t } from '../../../src/presentation/i18n/strings';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -145,7 +146,7 @@ it('routes Area metadata to its existing form and persists it through real histo
 	const area = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden', geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
 	await rig.runtime.refreshProjection(); rig.selection.select([area.id]); await settle();
 	// An Area has no detail route and its shape is edited on the canvas, so nothing floats beside it.
-	expect(rig.wrapper.find('.rp-direct-actions').exists()).toBe(false);
+	expect(rig.wrapper.find('.rp-wall-canvas-actions').exists()).toBe(false);
 	await menu(rig); expect(rig.wrapper.find('[data-rp-context-action="edit"]').exists()).toBe(false);
 	expect(rig.wrapper.get('[data-rp-context-action="rename"]').text()).toBe('Edit area details');
 	await action(rig, 'rename'); const form = rig.wrapper.get('[data-rp-form="area-details"]');
@@ -211,12 +212,12 @@ it('orders the menu by group with a separator between groups, draws one known ic
 	await empty.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select([rig.room.id]); await menu(rig);
 	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
-	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(rig.room.name);
+	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(`${t('en', 'editor.input.current-target', { target: rig.room.name })} ${t('en', 'editor.input.overlap-cycle-guidance')}`);
 	expect(groupedIds(menuEl)).toEqual(['rename', 'add-point', 'rotate', '|', 'add-menu', 'measure', 'drafting-menu', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
 	for (const item of menuEl.findAll('[data-rp-context-action]')) { expect(item.find('.rp-host-icon[data-icon]').exists()).toBe(true); expect(item.find('[data-icon-missing]').exists()).toBe(false); }
 	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select(['wall-a' as never]); await menu(rig);
-	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe('Wall 1');
+	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe(`${t('en', 'editor.input.current-target', { target: 'Wall 1' })} ${t('en', 'editor.input.overlap-cycle-guidance')}`);
 	for (const item of rig.wrapper.findAll('[data-rp-context-action]')) expect(item.find('[data-icon-missing]').exists()).toBe(false);
 });
 

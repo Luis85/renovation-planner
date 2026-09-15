@@ -107,8 +107,8 @@ const hoverClosed = computed(() => {
 	// Both readers — the outline's `:config`, inside `v-if="hoverOutlineFlat !== null"`, and the
 	// fill's `v-if="hoverOutlineFlat !== null && hoverClosed"` — gate on `hoverOutlineFlat !== null`
 	// first, which answers null for a null `hoveredObjectId`: the id is set whenever this evaluates.
-	const kind = candidates.value.get(runtime.renderState.hoveredObjectId as string)?.kind;
-	return kind === undefined || closedFootprintKind(kind);
+	const candidate = candidates.value.get(runtime.renderState.hoveredObjectId as string);
+	return !!candidate?.hitPoints || candidate?.kind === undefined || closedFootprintKind(candidate.kind);
 });
 
 /**
@@ -134,7 +134,7 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 	const zone = candidates.value.get(id);
 	return zone === undefined ? [] : [{
 		id,
-		closed: zone.kind === undefined || closedFootprintKind(zone.kind),
+		closed: !!zone.hitPoints || zone.kind === undefined || closedFootprintKind(zone.kind),
 		number: selectedIds.value.indexOf(id) + 1,
 		anchor: zone.points.length > 0 ? toScreen(zone.points[0]) : null,
 		strokeWidth: focusedId.value === id ? 3 : 2,
@@ -147,12 +147,14 @@ const multiOutlines = computed(() => selectedIds.value.length < 2 ? [] : selecte
 }));
 
 /**
- * Room outlines stay editable in Plan and Renovate; Review draws no editing handles. A LOCKED
- * zone draws none either: it is not a hit candidate, so its handles could never be grabbed.
+ * Room outlines are editable only in Plan. Renovate keeps the selected outline for context but
+ * deliberately withholds vertex affordances, so work planning cannot look like a geometry
+ * edit. Review draws no editing handles either. A LOCKED zone draws none: it is not a hit
+ * candidate, so its handles could never be grabbed.
  */
 const editableVertices = computed(() => {
 	const lockedSelection = zones.value.get(String(selectedIds.value[0]))?.locked === true;
-	return renovationSession.perspective !== 'review' && runtime.activeToolId.value !== 'edit-curves' && !lockedSelection ? selectedScreenPoints.value : [];
+	return renovationSession.perspective === 'plan' && runtime.activeToolId.value !== 'edit-curves' && !lockedSelection ? selectedScreenPoints.value : [];
 });
 </script>
 

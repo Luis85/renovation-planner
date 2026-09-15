@@ -22,6 +22,97 @@
 .rp-reference-preview { display: block; width: 100%; height: auto; background: var(--background-secondary); }
 .rp-reference-setup section { display: grid; gap: var(--size-4-2); }
 .rp-reference-setup p { overflow-wrap: anywhere; }
+.rp-reference-measure { align-content: start; }
+.rp-reference-measure__help { margin: 0; }
+.rp-reference-point-progress {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--size-4-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.rp-reference-point-progress li {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: var(--size-4-2);
+	align-items: center;
+	min-height: 2.5rem;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+}
+.rp-reference-point-progress li.is-selected {
+	border-style: solid;
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}
+.rp-reference-point-progress strong {
+	display: grid;
+	place-items: center;
+	width: 1.5rem;
+	height: 1.5rem;
+	border: 1px solid currentColor;
+	border-radius: 50%;
+	font-variant-numeric: tabular-nums;
+}
+.rp-reference-point-progress output {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	font-variant-numeric: tabular-nums;
+}
+.rp-reference-point-progress li:not(.is-selected) output { font-size: 0; }
+.rp-reference-point-progress li:not(.is-selected) output::after { content: "—"; font-size: var(--font-ui-small); }
+.rp-reference-measure__length { margin-top: var(--size-4-1); }
+.rp-reference-review__summary { display: grid; gap: var(--size-4-1); }
+.rp-reference-review__summary p { margin: 0; }
+.rp-reference-review__summary p:first-child { font-weight: var(--font-semibold); }
+.rp-reference-review__preview { color: var(--text-muted); }
+.rp-reference-rescale-impact {
+	padding: var(--size-4-2);
+	border: 1px solid var(--text-warning);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+}
+.rp-reference-rescale-impact p { margin: 0; }
+.rp-reference-rescale-impact h4 { margin: 0; }
+.rp-reference-source-picker { display: grid; gap: var(--size-4-1); }
+.rp-reference-source-list {
+	display: grid;
+	gap: 2px;
+	max-height: 11rem;
+	overflow-y: auto;
+	padding: 4px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+}
+.rp-reference-source-option {
+	display: grid;
+	grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+	gap: var(--size-4-2);
+	align-items: baseline;
+	width: 100%;
+	min-height: 2.25rem;
+	padding: var(--size-4-1) var(--size-4-2);
+	text-align: start;
+	white-space: normal;
+}
+.rp-reference-source-option:hover,
+.rp-reference-source-option:focus-visible,
+.rp-reference-source-option.is-selected { background: var(--background-modifier-hover); }
+.rp-reference-source-option:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+.rp-reference-source-option.is-selected { box-shadow: inset 3px 0 var(--interactive-accent); }
+.rp-reference-source-option__filename { font-weight: var(--font-semibold); overflow-wrap: anywhere; }
+.rp-reference-source-option__path { color: var(--text-muted); font-size: var(--font-ui-small); overflow-wrap: anywhere; }
+.rp-reference-source-list__empty { margin: var(--size-4-1); color: var(--text-muted); }
+.rp-reference-source-context { display: grid; gap: 2px; margin: 0; padding: var(--size-4-2); border-inline-start: 3px solid var(--interactive-accent); background: var(--background-secondary); }
+.rp-reference-source-context span { color: var(--text-muted); font-size: var(--font-ui-small); overflow-wrap: anywhere; }
+.rp-reference-disclosure { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); padding: 0 var(--size-4-2); }
+.rp-reference-disclosure summary { cursor: pointer; padding: var(--size-4-2) 0; font-weight: var(--font-medium); }
+.rp-reference-disclosure[open] summary { margin-bottom: var(--size-4-2); border-bottom: 1px solid var(--background-modifier-border); }
+.rp-reference-disclosure .rp-reference-grid { padding-bottom: var(--size-4-2); }
 
 .rp-reference-setup input[type="range"],
 .rp-reference-setup input[type="checkbox"] { accent-color: var(--interactive-accent); }
@@ -41,4 +132,8 @@
 	font-weight: var(--font-normal);
 	color: var(--text-muted);
 	overflow-wrap: anywhere;
+}
+
+@media (max-width: 36rem) {
+	.rp-reference-source-option { grid-template-columns: 1fr; gap: 0; }
 }

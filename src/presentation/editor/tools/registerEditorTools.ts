@@ -25,11 +25,13 @@ import { canvasCandidates } from '../selection/canvasCandidates';
 import { draftingHitContext } from '../elements/draftingMarks';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { useAssetShapeStore } from '../../stores/AssetShapeStore';
+import { useRenovationSession } from '../renovation/renovationSession';
 import { useEditorStore } from '../../stores/EditorStore';
 import type { Point } from '../../../core/geometry/Point';
 import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
 import type { LabelMoveDeps } from '../labels/LabelMove';
+import { watch } from 'vue';
 
 /**
  * One reversible command per drag OR per keyboard nudge — `SelectTool`'s pointer gesture and
@@ -80,11 +82,12 @@ export interface EditorToolDeps extends ElementMoveDeps, RotationGestureDeps, Se
 export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
 	const workspace = useWorkspaceStore();
 	const assetShapes = useAssetShapeStore();
+	const renovation = useRenovationSession();
 	const editor = useEditorStore();
 	toolManager.register(new PanTool());
 	const { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName } = deps;
-	toolManager.register(
-		new SelectTool({
+	const select = new SelectTool({
+			canMutateGeometry: () => renovation.perspective === 'plan',
 			expandSelection: deps.expandSelection, selectionMove: deps.selectionMove, multiSelectionMode: deps.multiSelectionMode,
 			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, rotationDisplayTarget: deps.rotationDisplayTarget, rotationControls: deps.rotationControls, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
 			previewElement: deps.previewElement,
@@ -100,8 +103,12 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			createMoveGesture: moveGesture(context, ledger),
 			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
-		}),
-	);
+		});
+	toolManager.register(select);
+	// Select remains active across perspectives; its normal switch lifecycle is a no-op.
+	watch(() => renovation.perspective, next => {
+		if (next !== 'plan' && select.cancelGeometryGesture()) toolManager.cancelInterruptedGesture();
+	}, { flush: 'sync' });
 	// Preserve the legacy free-shape Room completion; Area has its own semantic identity.
 	const polygonEntries = [
 		{ id: 'draw-polygon', zoneType: 'Room', defaultName: () => roomDraft.name, onCompleted: returnToSelect, validateOutline: areaOutline },

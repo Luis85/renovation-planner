@@ -14,6 +14,38 @@
 
 .renovation-plan-editor .rp-context-bar__crumbs { flex: 1; }
 .renovation-plan-editor .rp-context-bar__spacer { flex: 1; }
+.renovation-plan-editor .rp-perspective-controls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+.renovation-plan-editor .rp-perspective-context {
+	--rp-perspective-accent: var(--interactive-accent);
+	display: grid;
+	gap: 1px;
+	min-width: 9rem;
+	max-width: 13rem;
+	padding-inline-start: 10px;
+	border-inline-start: 2px solid var(--rp-perspective-accent);
+	color: var(--text-normal);
+}
+.renovation-plan-editor .rp-perspective-context[data-rp-perspective-context='renovate'] { --rp-perspective-accent: var(--text-success); }
+.renovation-plan-editor .rp-perspective-context[data-rp-perspective-context='review'] { --rp-perspective-accent: var(--text-accent); }
+.renovation-plan-editor .rp-perspective-context__mode {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-weight: var(--font-semibold);
+	color: var(--rp-perspective-accent);
+}
+.renovation-plan-editor .rp-perspective-context__caption {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
 .renovation-plan-editor .rp-context-bar .rp-renovation-switch {
 	flex-wrap: nowrap;
 	gap: 2px;
@@ -33,10 +65,14 @@
 }
 
 .renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button[aria-checked='true'] {
+	--rp-perspective-accent: var(--interactive-accent);
 	background: var(--background-primary);
-	border-color: var(--background-modifier-border);
-	box-shadow: var(--shadow-s);
+	border-color: var(--rp-perspective-accent);
+	box-shadow: inset 0 -2px 0 var(--rp-perspective-accent), var(--shadow-s);
+	font-weight: var(--font-semibold);
 }
+.renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button[data-rp-perspective='renovate'][aria-checked='true'] { --rp-perspective-accent: var(--text-success); }
+.renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button[data-rp-perspective='review'][aria-checked='true'] { --rp-perspective-accent: var(--text-accent); }
 
 .renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button:focus-visible,
 .renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button[aria-checked='true']:focus-visible,
@@ -155,6 +191,15 @@
 @container (max-width: 899px) {
 	.renovation-plan-editor .rp-context-bar { flex-wrap: wrap; gap: 8px; padding: 8px; }
 	.renovation-plan-editor .rp-context-bar__crumbs { flex-basis: 100%; }
+	.renovation-plan-editor .rp-perspective-controls { flex: 1 1 auto; min-width: 0; }
+	.renovation-plan-editor .rp-perspective-context { min-width: 7rem; }
 	.renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button { padding-inline: 10px; }
 	.renovation-plan-editor .rp-editor-status-bar { padding: 8px; gap: 6px 12px; }
+}
+
+@container (max-width: 599px) {
+	.renovation-plan-editor .rp-perspective-controls { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--size-4-1); }
+	.renovation-plan-editor .rp-perspective-context { min-width: 0; max-width: none; display: flex; align-items: center; gap: var(--size-4-2); }
+	.renovation-plan-editor .rp-context-bar .rp-renovation-switch { justify-content: space-between; }
+	.renovation-plan-editor .rp-context-bar .rp-renovation-switch .rp-perspective-button { padding-inline: 8px; }
 }

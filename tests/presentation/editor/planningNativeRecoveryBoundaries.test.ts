@@ -7,6 +7,7 @@ import { defer } from '../../helpers/async';
 import { EMPTY_DEPTH, type Evidence } from '../../../src/domain/renovation/PlanningDepth';
 import { tr } from '../../../src/presentation/i18n/strings';
 import * as notices from '../../../src/presentation/notices/notify';
+import { resizeWallTotal } from '../../../src/domain/spatial/wallSides';
 
 const mounted: Awaited<ReturnType<typeof renovationEditor>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); vi.restoreAllMocks(); });
@@ -28,7 +29,7 @@ it('refuses Add Cost when two successful refresh reads straddle a real peer geom
 	try {
 		await Promise.all([planningEntered.promise, spatialEntered.promise]);
 		const before = expectOk(await rig.geometry.read(rig.plan.id)), structure = expectDefined(before.document.structure, 'current walls');
-		const peer = { ...structure, walls: structure.walls.map(wall => wall.id === 'wall-a' ? { ...wall, thickness: 225 } : wall) };
+		const peer = { ...structure, walls: structure.walls.map(wall => wall.id === 'wall-a' ? expectDefined(resizeWallTotal(wall, 225), 'peer wall') : wall) };
 		// Independent sidecar writes can become visible between the two repository snapshots.
 		expectOk(await rig.geometry.write(rig.plan.id, { ...before.document, structure: peer }, before.version));
 		releaseSpatial.resolve();

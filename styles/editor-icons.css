@@ -4,9 +4,7 @@
 .rp-icon-label { display: inline-flex; align-items: center; gap: 8px; }
 .renovation-plan-editor .rp-primary-actions__button, .renovation-plan-editor .rp-perspective-button, .renovation-plan-editor .rp-context-bar__button { gap: 8px; }
 .renovation-plan-editor .rp-primary-actions__button .rp-host-icon { --icon-size: 20px; }
-.renovation-plan-editor .rp-direct-actions__buttons button, .renovation-plan-editor .rp-direct-actions__details button { display: flex; align-items: center; gap: 8px; }
-.renovation-plan-editor .rp-direct-actions--zone .rp-direct-actions__buttons button { flex-direction: column; gap: 5px; }
-.renovation-plan-editor .rp-direct-actions__details .rp-host-icon { --icon-size: 16px; }
+.renovation-plan-editor .rp-wall-canvas-actions__change button { display: flex; align-items: center; gap: 8px; }
 .renovation-plan-editor .rp-room-navigation__button { display: flex; align-items: center; gap: 10px; text-align: start; }
 .renovation-plan-editor .rp-room-navigation__text { display: grid; gap: 2px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .renovation-plan-editor .rp-room-navigation__text small { font-size: var(--font-ui-smaller); font-weight: var(--font-normal); color: var(--text-muted); }

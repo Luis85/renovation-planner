@@ -1,0 +1,238 @@
+{
+  "details": {
+    "controls": [
+      {
+        "height": 44,
+        "name": "length",
+        "width": 414
+      },
+      {
+        "height": 44,
+        "name": "height",
+        "width": 414
+      },
+      {
+        "height": 44,
+        "name": "sideA",
+        "width": 414
+      },
+      {
+        "height": 44,
+        "name": "sideB",
+        "width": 414
+      },
+      {
+        "height": 44,
+        "name": "Preview impact",
+        "width": 414
+      },
+      {
+        "height": 44,
+        "name": "Cancel",
+        "width": 63.9765625
+      }
+    ],
+    "height": 637.59375,
+    "scrollable": false
+  },
+  "narrow": {
+    "en": {
+      "canvas": {
+        "height": 625.3125,
+        "width": 320,
+        "x": 80,
+        "y": 138.6875
+      },
+      "cards": [
+        {
+          "height": 132.84375,
+          "width": 144,
+          "x": 181,
+          "y": 197.125
+        },
+        {
+          "height": 132.84375,
+          "width": 144,
+          "x": 181,
+          "y": 337.96875
+        }
+      ],
+      "controls": [
+        {
+          "height": 44,
+          "name": "wall-side-a",
+          "width": 126,
+          "x": 190,
+          "y": 228.96875
+        },
+        {
+          "height": 44,
+          "name": "Decrease side A by 10 mm",
+          "width": 44,
+          "x": 190,
+          "y": 276.96875
+        },
+        {
+          "height": 44,
+          "name": "Increase side A by 10 mm",
+          "width": 44,
+          "x": 274.8984375,
+          "y": 276.96875
+        },
+        {
+          "height": 44,
+          "name": "wall-side-b",
+          "width": 126,
+          "x": 190,
+          "y": 369.8125
+        },
+        {
+          "height": 44,
+          "name": "Decrease side B by 10 mm",
+          "width": 44,
+          "x": 190,
+          "y": 417.8125
+        },
+        {
+          "height": 44,
+          "name": "Increase side B by 10 mm",
+          "width": 44,
+          "x": 274.8984375,
+          "y": 417.8125
+        },
+        {
+          "height": 44,
+          "name": "Cancel",
+          "width": 61.9765625,
+          "x": 105,
+          "y": 615
+        },
+        {
+          "height": 44,
+          "name": "Apply",
+          "width": 57.109375,
+          "x": 317.890625,
+          "y": 615
+        }
+      ],
+      "footer": {
+        "height": 184.875,
+        "width": 288,
+        "x": 96,
+        "y": 483.125
+      },
+      "horizontalOverflow": false,
+      "taskbar": {
+        "height": 56,
+        "width": 152,
+        "x": 164,
+        "y": 684
+      }
+    },
+    "de": {
+      "canvas": {
+        "height": 589.3125,
+        "width": 380,
+        "x": 80,
+        "y": 174.6875
+      },
+      "cards": [
+        {
+          "height": 132.84375,
+          "width": 144,
+          "x": 96.5,
+          "y": 331.265625
+        },
+        {
+          "height": 132.84375,
+          "width": 144,
+          "x": 306.5,
+          "y": 331.265625
+        }
+      ],
+      "controls": [
+        {
+          "height": 44,
+          "name": "wall-side-a",
+          "width": 126,
+          "x": 105.5,
+          "y": 363.109375
+        },
+        {
+          "height": 44,
+          "name": "Seite A um 10 mm verringern",
+          "width": 44,
+          "x": 105.5,
+          "y": 411.109375
+        },
+        {
+          "height": 44,
+          "name": "Seite A um 10 mm vergrößern",
+          "width": 44,
+          "x": 190.3984375,
+          "y": 411.109375
+        },
+        {
+          "height": 44,
+          "name": "wall-side-b",
+          "width": 126,
+          "x": 315.5,
+          "y": 363.109375
+        },
+        {
+          "height": 44,
+          "name": "Seite B um 10 mm verringern",
+          "width": 44,
+          "x": 315.5,
+          "y": 411.109375
+        },
+        {
+          "height": 44,
+          "name": "Seite B um 10 mm vergrößern",
+          "width": 44,
+          "x": 400.3984375,
+          "y": 411.109375
+        },
+        {
+          "height": 44,
+          "name": "Abbrechen",
+          "width": 86.5078125,
+          "x": 133,
+          "y": 615
+        },
+        {
+          "height": 44,
+          "name": "Anwenden",
+          "width": 85.109375,
+          "x": 349.890625,
+          "y": 615
+        }
+      ],
+      "footer": {
+        "height": 184.875,
+        "width": 320,
+        "x": 124,
+        "y": 483.125
+      },
+      "horizontalOverflow": false,
+      "taskbar": {
+        "height": 56,
+        "width": 357.3984375,
+        "x": 91.30078125,
+        "y": 684
+      }
+    }
+  },
+  "errors": {
+    "en": {
+      "background": "rgb(255, 255, 255)",
+      "color": "color(srgb 0.796667 0.183333 0.256667)",
+      "fontSize": "13px"
+    },
+    "de": {
+      "background": "rgb(28, 28, 28)",
+      "color": "color(srgb 0.964902 0.361569 0.381569)",
+      "fontSize": "13px"
+    }
+  }
+}

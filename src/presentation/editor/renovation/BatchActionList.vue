@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import RoomContextSelect from './RoomContextSelect.vue';
 import { computed, ref } from 'vue';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -16,7 +17,7 @@ const targets = computed(() => props.selection.records.flatMap(record => {
 	const host = project.structure.openings.find(item => item.id === record.id)?.hostId ?? record.id;
 	const owner = record.kind === 'room' ? record.id : project.plan?.renovation?.subjects.find(item => item.targetId === record.id)?.roomId
 		?? project.structure.boundaries.find(item => item.wallIds.includes(host))?.roomId ?? roomId.value;
-	if (!owner || record.kind === 'area') return [];
+	if (!owner || record.kind === 'area' || draftingKind(record.kind)) return [];
 	return [{ roomId: owner, targetId: record.id, name: record.name, kind: targetKind(record) } satisfies BatchTarget];
 }));
 /** Walls and openings are named; every other kind — rooms and each element kind, present or future — is not a wall. */

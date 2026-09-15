@@ -1,4 +1,5 @@
 import { deProjectNavigation } from './de/projectNavigation';
+import { itemColorDe } from './de/itemColor';
 import { projectWorkDe } from './de/projectWork';
 import { deSaveState } from './de/saveState';
 import { planningDe } from './de/planning';
@@ -30,6 +31,7 @@ import { deMobile } from './de/mobile';
 import { newAssetFootprintDe } from './de/newAssetFootprint';
 
 export const de: Partial<Record<StringKey, string>> = {
+	...itemColorDe,
 	...projectWorkDe,
 	...deProjectNavigation,
 	...renovationDe,
@@ -514,6 +516,9 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Diese Änderung wurde nach diesem Schritt an anderer Stelle bearbeitet; ein Rückgängigmachen würde diese Bearbeitung verwerfen. Laden Sie neu und machen Sie es erneut rückgängig, wenn Sie es weiterhin möchten.',
 	'zone.nothing-to-undo': 'Noch nichts rückgängig zu machen.',
 	'undo.before-execute': 'Noch nichts rückgängig zu machen.',
+	// I00 reserves the captions consumed by the mode-header packet. The existing
+	// `renovation.plan`/`.renovate`/`.review` keys remain the short radio labels.
+	'editor.perspective.plan.caption': 'Zeichnen und anpassen', 'editor.perspective.renovate.caption': 'Die Arbeiten planen', 'editor.perspective.review.caption': 'Den Plan prüfen', 'editor.room.last-valid-preview': 'Letzte gültige Vorschau', 'editor.reference.point-a-ready': 'Erster Punkt ausgewählt', 'editor.reference.point-b-ready': 'Zweiter Punkt ausgewählt', 'editor.reference.point-a-pending': 'Ersten Punkt auswählen', 'editor.reference.point-b-pending': 'Zweiten Punkt auswählen', 'editor.reference.exact-points': 'Exakte Punktkoordinaten', 'editor.reference.preview-only': 'Diese Einstellungen sind nur eine Vorschau, bis Sie den Referenzplan verwenden.', 'editor.reference.rescale-impact': 'Bestehende Geometrie wird skaliert',
 	...deSaveState,
 	...deAssetLibrary,
 };

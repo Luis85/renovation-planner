@@ -29,9 +29,17 @@ business-value-model: ""
 
 # Vertex editing has no keyboard path
 
-## Current finalization status — 2026-09-07
+## Current increment decision — 2026-09-13
 
-An explicit Inspector corner-coordinate form now reaches the existing reversible geometry command for Room and Area outlines. Two production component cases and seven parser/proposal cases pass, including native comma input, preview, focus retention across reflow, cancellation and Undo/Redo. Direct arrow-key vertex-handle gestures have not been added; the accessible numeric form provides the non-pointer editing route. Full integrated gates and live-host keyboard acceptance remain outstanding, so this issue is not marked complete.
+I18 is explicitly deferred. I00 found no approved, understandable keyboard or non-drag interaction for choosing and moving one arbitrary Room/Area vertex, and the editor-usability increment forbids treating the rejected coordinate form as the answer. Whole-selection arrow nudging remains available in Plan, and pointer vertex dragging remains available in Plan; neither is a vertex-scoped non-drag route.
+
+The unsupported task is: select one arbitrary corner of a Room or Area, change only that corner without dragging, review the same geometry impact, and commit through the existing reversible geometry command. No production control, selector, shortcut or schema is introduced until a concrete interaction is approved and verified with keyboard/native users.
+
+Release consequence: the increment cannot claim the applicable non-drag/keyboard corner-editing criterion, WCAG conformance for that operation, or completion of this issue. I15/I17 must carry this limitation into accessibility and user-validation reports; I16 must not relabel automated pointer coverage as human or assistive-technology evidence.
+
+## Historical finalization status — 2026-09-07
+
+An explicit Inspector corner-coordinate form reached the existing reversible geometry command for Room and Area outlines. That route was subsequently rejected as the interaction for this increment and must not be cited as closing the non-drag gap. Direct arrow-key vertex-handle gestures were not added, and full live-host keyboard acceptance was never established.
 
 ## Original finding
 

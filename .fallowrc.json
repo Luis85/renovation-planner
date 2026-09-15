@@ -106,6 +106,10 @@
 		"scripts/editor-recovery-check.mjs",
 		"scripts/editor-modal-busy-check.mjs",
 		"scripts/editor-visual-final-check.mjs",
+		// Manual usability evidence drivers and their comparison-board entry point.
+		"scripts/editor-usability-fidelity-check.mjs",
+		"scripts/editor-usability-fidelity-comparisons.mjs",
+		"scripts/editor-usability-combined-check.mjs",
 		"scripts/editor-object-check.mjs",
 		"scripts/editor-object-rotation-check.mjs",
 		"scripts/editor-group-check.mjs",

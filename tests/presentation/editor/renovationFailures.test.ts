@@ -55,6 +55,13 @@ describe('renovation UI failure boundaries', () => {
 		expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(before.plan.entity, { subjects: [], work: [{ id: 'work-peer', roomId: rig.room.id, targetId: rig.room.id, title: 'Peer work', description: '', progress: 'pending', responsibility: 'unassigned', order: 0, outcomes: [], dependencies: [] }], decisions: [] })), before.plan.version));
 		await rig.runtime.renovation.edit('existing', rig.room.id); expect(rig.dialogs.current).toBeNull(); expect(rig.project.plan?.renovation?.work[0].title).toBe('Peer work');
 	});
+	it('saves a record on a coloured room rather than refusing the room as changed elsewhere', async () => {
+		const rig = await renovationEditor(); mounted.push(rig);
+		await rig.runtime.groupActions.setColor([rig.room.id], 'blue'); expect(rig.project.zones.get(rig.room.id)?.color).toBe('blue');
+		rig.runtime.renovation.focus(rig.room.id, 'existing'); await settle();
+		const editing = await draft(rig); await editing.form.trigger('submit'); await editing.pending;
+		expect(expectOk(await rig.renovation.read(rig.plan.id)).plan.entity.renovation?.subjects[0].existing?.description).toBe('Timber');
+	});
 	it('does not resurrect a pending read or write after leaf disposal', async () => {
 		const rig = await setup(); let resolve!: (value: Awaited<ReturnType<typeof rig.renovation.read>>) => void;
 		const baseline = expectOk(await rig.renovation.read(rig.plan.id)); vi.spyOn(rig.renovation, 'read').mockImplementationOnce(() => new Promise(_resolve => { resolve = _resolve; }));

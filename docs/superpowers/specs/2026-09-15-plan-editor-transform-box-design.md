@@ -44,7 +44,8 @@ The box is the min/max of the element's footprint projected onto those two axes.
 **Handles** — eight squares (corners and side midpoints), constant screen size, drawn in
 `InteractionLayer` in screen space exactly as the vertex dots are, plus a thin box outline; stroke
 `tokens.accent`, fill `tokens.canvasBackground`. Hovering one highlights it (filled with
-`tokens.accent`). No cursor change: the editor sets none for any other handle either.
+`tokens.accent`). The grab cursor shows over a handle, as it does over every other handle
+(`surface/cursor.ts`, which gains the `resize` target kind).
 
 **Hit priority** in `resolveSelectionTarget`: rotation control → vertex handle → **box handle**
 (new target `{ kind: 'resize', id, handleIndex }`, grab radius `VERTEX_GRAB_RADIUS_PX`) → label →
@@ -60,7 +61,10 @@ body. Alt bypasses box handles as it bypasses the other decorations.
   cancels.
 - Preview through the existing `previewElement`; release commits once; Escape or a stale target
   cancels, the same as a move.
-- The rotation arrow's layout treats the box handles as obstacles, so the two never overlap.
+- Where the rotation arrow overlaps a box handle, the arrow wins: it is hit tested first and
+  painted above. **Amendment (planning):** feeding the handles to the arrow's layout as
+  obstacles was refused — at far zoom every arrow position on an item collides with a padded
+  handle, so the arrow would disappear and rotation with it.
 
 ## Geometry
 
@@ -103,11 +107,13 @@ size changed since the press.
 
 ## Inspector
 
-`AssetPlacementDetails.vue`'s "W × D" line becomes two length fields (width, depth; the
-`formatLength` parsers and `commitField` pattern) committing through the same resize write about
-the placement's centre, plus a **Reset to library size** button shown only while `size` is set.
-Not shown for a non-placeable shape (the reason text stays). New strings in en and de, sentence
-case.
+`AssetPlacementDetails.vue`'s "W × D" line reports the placement's drawn size (its own, or the
+library's), and below it a new `AssetSizeFields.vue` offers two length fields (width, depth; the
+`formatLength` parsers, committed on change) writing through the same resize about the
+placement's centre, plus a **Reset to library size** button shown only while `size` is set. The
+fields are a child component so every prop they take is non-null. Shown only in Plan and only
+for a placeable shape (the reason text stays otherwise); read-only while a write is in flight.
+New strings in en and de, sentence case.
 
 ## Out of scope
 
@@ -116,7 +122,8 @@ multi-selection; a rotate knob on the box; per-placement size for items (they ha
 
 ## Testing
 
-- `core/geometry/boxHandles` — handle points and `boxResize` (moved tests from the designer).
+- `core/geometry/boxHandles` — handle points and `boxResize`; the designer's own handle and drag
+  tests stay as they are and keep passing against the shared code.
 - `transformBox` — oriented box for an axis-aligned and a rotated item; corner, side and Shift
   resize; refusal below 1 mm and past the fixed side.
 - `assetPlacement` — `placedOutline` with and without `size` (identity when absent);

@@ -81,6 +81,8 @@ describe('the asset designer shots', () => {
 		['asset-designer-draw-rect-light', { draw: 'draw-rect', select: null, theme: 'light' }],
 		['asset-designer-draw-circle', { draw: 'draw-circle', select: null }],
 		['asset-designer-draw-trace-detail', { draw: 'trace-detail', select: null }],
+		['asset-designer-grid', { grid: '', theme: null }],
+		['asset-designer-grid-light', { grid: '', theme: 'light' }],
 	] as const)('reaches %s through the knobs %o', (name, knobs) => {
 		const asked = query(name);
 		expect(asked.get('view')).toBe('asset-designer');
@@ -90,5 +92,11 @@ describe('the asset designer shots', () => {
 
 	it('takes exactly the two selected-inspector shots at a sidebar width', () => {
 		expect(designerShots().filter((name) => name.startsWith('asset-designer-select') && shot(name).width === 460)).toEqual(['asset-designer-select-narrow', 'asset-designer-select-narrow-de']);
+	});
+
+	/** The readout shares the status row with the save state, which a sidebar's width is what can crowd. */
+	it('takes the light grid shot at a sidebar width and the dark one at the default', () => {
+		expect(shot('asset-designer-grid-light').width).toBe(460);
+		expect(shot('asset-designer-grid').width).toBeUndefined();
 	});
 });

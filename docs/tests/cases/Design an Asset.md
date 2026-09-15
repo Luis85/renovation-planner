@@ -138,6 +138,19 @@ There is deliberately no step promoting a CURVED item: a plan item carries no cu
 promotion has nothing to lose (the symbols spec's Amendment 1, "Plan items carry no curves"). That
 step belongs to the commit that adds `bulges` to `SpatialElement`.
 
+## Steps — snapping, guides and the grid
+
+Preconditions: an asset started from the Toilet preset, open in its designer; step 51 needs an asset with a
+calibrated spec sheet.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 47 | `browser` | Click Select, click the bowl and drag it slowly until its left edge nears the tank's left edge | A dashed guide appears as the edges line up, the bowl jumps onto the line, and the guide disappears on release | The guides `DesignerGestureLayer` draws and clears at release — no fixed capture holds a live pointer |
+| 48 | `suite` | Open View, tick Show grid, then drag the bowl into open space | The status row reads `Grid … mm`, and the bowl's top-left corner lands on a grid line counted from the footprint's top-left corner | The grid supplied to snapping only while shown, from the footprint's corner (`designerGrid`) |
+| 49 | `obsidian` | Untick Snap to objects, close the designer, open another asset's designer, then a Plan Editor | The second designer opens with the grid shown and Snap to objects unticked; the Plan Editor's View menu is unchanged | The designer's own device slot (`designer-view`), apart from the Plan Editor's |
+| 50 | `suite` | With the bowl selected in Transform, hold Shift and drag a corner handle past the tank's edge | The bowl keeps its proportions, nothing snaps and no guide is drawn | Proportional resize taking the raw point |
+| 51 | `obsidian` | On an asset with a calibrated spec sheet, tick Show grid | The grid lines are visible over the drawing, not hidden behind it | The grid mounted above the stage — the harness refuses a background document, so no capture can show it |
+
 ## Deliberately NOT checked
 
 - **Replacing an already-set background.** The "Choose a background" button vanishes the
@@ -163,4 +176,4 @@ step belongs to the commit that adds `bulges` to `SpatialElement`.
 
 | Date | Build | Outcome |
 | --- | --- | --- |
-| — | — | Not yet run in a vault. Every row above is an expectation derived from the design, the plans and task reports and the code, rather than from a walk: step 5's tool list and steps 29 to 46 from the asset designer symbols PR 2 (`docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr2.md` and `.superpowers/sdd/2026-09-13-asset-designer-symbols-pr2/task-1…12-report.md`), steps 25 to 28 from PR 1 (`docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr1.md`), and the rest from the first increment's task reports (`.superpowers/sdd/2026-08-30-asset-designer-first-increment/task-B6…B10-report.md`) and the commits that have corrected those rows since. |
+| — | — | Not yet run in a vault. Every row above is an expectation derived from the design, the plans and task reports and the code, rather than from a walk: step 5's tool list and steps 29 to 46 from the asset designer symbols PR 2 (`docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr2.md` and `.superpowers/sdd/2026-09-13-asset-designer-symbols-pr2/task-1…12-report.md`), steps 25 to 28 from PR 1 (`docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr1.md`), and the rest from the first increment's task reports (`.superpowers/sdd/2026-08-30-asset-designer-first-increment/task-B6…B10-report.md`) and the commits that have corrected those rows since. Steps 47 to 51 from the snapping spec (`docs/superpowers/specs/2026-09-15-asset-designer-snapping-and-guides-design.md`) and its plan. |

@@ -278,3 +278,26 @@ summary line.
 - The clearance as a snap target.
 - The curve-aware grid corner (§4.6).
 - `AddMenu` and `PropertyTreeMenu` onto the shared dismissal composable.
+
+## Amendments (implementation plan, 2026-09-15)
+
+1. `gridStepMm` and `gridOrigin` are one function, `designer/grid/designerGrid.ts`'s
+   `designerGrid(shape, worldPerPixel): SnapGrid`, so the drawn grid, the snapped grid and the
+   readout cannot disagree; its series ends at 5000 mm, which `MIN_ZOOM` still reaches.
+2. §4.4's side handle snaps its moving coordinate to **alignments and the grid only** — a side
+   handle is an edge's midpoint, not a feature a vertex or an edge could land on — and keeps only
+   that axis's guide (vertical for x, horizontal for y).
+3. Drag snapping lives in `designer/selection/dragSnap.ts` (`dragTarget`), not inside
+   `designer-select-tool.ts`, which keeps the tool under its budget and the arithmetic testable
+   beside it.
+4. `EDITOR_SNAP_SERVICE` is deleted: with the designer on `createEditorSnapService`, nothing in
+   `src/` used it.
+5. §6's tests landed in new files beside the named ones, which are at or near their line caps:
+   `designerSelectSnapping.test.ts`, `designerSnapGrid.test.ts`, `designerViewMenu.test.ts`, and
+   `tests/presentation/designer/grid/designerGrid.test.ts`.
+6. The grid capture cannot show a spec sheet under the grid (the harness refuses a background
+   document); `Design an Asset` step 51 carries that check, and the light grid shot is taken at
+   460 px for the readout.
+7. §4.3's fallback was taken: the candidate supply lives in `designer/grid/designerGrid.ts` as
+   `designerCandidateSupply`, because the closure pushed `runtime.ts`'s `buildRuntime` over its
+   100-line function budget (not the file's 400-line budget).

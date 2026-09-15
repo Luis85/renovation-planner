@@ -547,6 +547,8 @@ describe('the headless harness capture script', () => {
 			'asset-designer-draw-rect',
 			'asset-designer-draw-rect-light',
 			'asset-designer-draw-trace-detail',
+			'asset-designer-grid',
+			'asset-designer-grid-light',
 			'asset-designer-light',
 			'asset-designer-narrow',
 			'asset-designer-pending',

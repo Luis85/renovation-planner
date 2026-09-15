@@ -31,6 +31,18 @@ property on the room note.
 
 ## 1. Data and file format
 
+> **Names as implemented:** `PlanColor`, `planColorAppearance`, `PlanColorControl`/`PlanColorSwatch` and
+> `createPlanColorActions` below shipped as `ItemColor`, `itemColorAppearance`, `ItemColorControl`/`ItemColorSwatch`/`ItemColorCustom`
+> and `groupActions.setColor` + `recoloredDocument` — the existing names, since renovators call every plan thing an item.
+> The room wash is node opacity rather than a `planColorWash` function, and a coloured wall is painted over its chained
+> run rather than taken out of it. The Room Details palette sits beside the facts, not inside More.
+>
+> - The colour schema shipped as **16**, not 15: main released schema 15 for a placed asset's own size first, so
+>   colours sit one version above it and the writer picks the highest requirement.
+> - The palette's targets are every selected id or none: a selection that includes anything that cannot be coloured
+>   (e.g. a reference plan) hides the palette rather than colouring a subset — narrower than §3's "at least one
+>   colourable id".
+
 ### Value
 
 `ItemColor` (`src/domain/spatial/ItemColor.ts`) becomes `PlanColor = PresetColor | HexColor`:

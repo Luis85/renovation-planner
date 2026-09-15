@@ -1,67 +1,48 @@
-# Item placement appearance contract
+# Plan colour contract
 
-`SpatialElement.color?: ItemColor` is optional user content on `object` and `asset` only.
-Its stable ids are `slate`, `rose`, `amber`, `green`, `blue`, `violet`. Absence means Default;
-neither `null`, `default`, arbitrary CSS, nor unknown ids are valid persisted values.
-`validSpatialElement` and the DTO enforce eligibility. Plain Items are called Objects in
-German. Other SpatialElement kinds are structural facts or drafting/measurement marks and
-are excluded, as are Zone-based Rooms/Areas, Walls/Openings and reference-plan appearance.
+`ItemColor` (`src/domain/spatial/ItemColor.ts`) is a preset id — `slate`, `rose`, `amber`, `green`, `blue`,
+`violet` — or a lowercase `#rrggbb`. Absence means Default; `null`, `default`, uppercase or 3-digit hex, other CSS
+forms and unknown ids are invalid. It is optional on every `SpatialElement` kind, `Wall`, `Opening` and `Zone`.
+The name keeps "item" because renovators call every plan thing an item. [ADR-0033](adrs/0033-a-colour-is-user-content-on-every-plan-family.md) records why.
 
-## Persistence and compatibility
+## Persistence
 
-The geometry sidecar's `structure.elements[]` owns the property, beside the placement
-geometry. Plan Markdown still owns only the element id/name metadata. No Asset definition,
-material, requirement, renovation record, Zone, or reference appearance field changes.
+The geometry sidecar owns it: `structure.elements[]`, `structure.walls[]`, `structure.openings[]` and the room's
+`objects[]` entry. A room's note never carries it. `Zone.color` round-trips through `zoneMapper` exactly as
+`labelOffset` does, so a rename, move or lock keeps it, and `observeZone` includes it, so a peer's recolour changes
+the zone's version.
 
-Schema 14 adds the optional field to the element shape in current and intended structures.
-The 13→14 migration changes only the schema discriminator. All earlier migrations compose
-normally; existing elements acquire no color. The writer selects schema 14 if either
-structure contains an override and otherwise keeps its existing lowest-content-version
-policy. Reset physically removes the field, allowing the normal downgrade when no other
-content requires 14. Older readers reject version 14 rather than stripping an unknown field.
-
-The editor edits the current placement in Plan. Intended geometry remains the independently
-owned proposal and is not rewritten by this action. Its DTO can preserve a color carried
-through the existing spread-based proposal pipeline. This feature introduces no editing
-route for intended-only objects in Renovate/Review.
+Schema 16 adds the field to every family; 15→16 changes only the discriminator. The writer picks 16 when any hex
+colour exists or a wall, opening, room or non-item element carries a colour; a placement's own size still writes 15,
+and presets on items and placements 14, and a reset downgrades normally. Older readers refuse 16 rather than strip
+it. The proposed (intended) structure can hold a colour carried through the proposal pipeline; nothing here
+recolours it.
 
 ## Commands and selection
 
-Both controls invoke `elementActions.setColor`. It uses the existing guarded `rewrite` →
-`elementInput` → `RenovationCommand` → dispatcher route, including baseline comparison,
-conditional Plan/sidecar writes, compensation, projection refresh and history. It admits
-exactly one currently selected eligible element. Selection or mode changes during the read
-(even away and back), unsupported ids, stale data, saving, active element operations, dialogs
-and non-Select tools refuse the operation. A same-color request performs no write or history
-push. Undo restores the previous element; redo reapplies the override.
-Document content equality includes the color in both current and intended structures,
-so undo/redo refuses a peer's appearance change even when the Plan note version is unchanged.
+`groupActions.setColor(ids, color)` is the one door. It captures the selection through group operations, sets or
+physically removes `color` on exactly the selected ids with `recoloredDocument` — never a wall's hosted opening
+unless it is selected too — and commits one conditional sidecar write through `GroupGeometryCommand`: one history
+entry, the displayed-document stale check, busy and saving refusals, Plan only. The same colour writes nothing.
+`sameGeometryDocument` compares the colour on every family, so undo refuses over a peer's recolour, and the
+command records a zone receipt for a colour-only change, so the zone edits around it still undo.
 
-Groups and multiple selections have no palette and no batch color command. The action
-also refuses direct single-id calls while multiple ids are selected. Existing Details member
-focus plus Select focused item supplies a complete keyboard route without dissolving a saved group.
-No mixed state is advertised and no eligible subset is silently changed.
+`colorTargets` admits every selected room, wall, opening and element, or nothing when any id cannot be coloured —
+never a silent subset. Values that differ read **Mixed**, with no swatch checked; any choice sets them all.
 
-Clipboard capture/translation and paste clone the element's fields, preserving the color
-while minting a new identity. Placement replacement already spreads the current element.
-Item promotion explicitly copies its color and rejects a concurrent change to that color.
+Copy/paste and item promotion carry an element's colour. A pasted room starts uncoloured.
 
 ## Rendering and accessibility
 
-Content RGB values: slate `#778899`, rose `#ce6682`, amber `#d69b32`, green `#54976d`,
-blue `#518cce`, violet `#956bc4`. Canvas fills blend 28% of the preset with 72% of the
-resolved host canvas background, yielding an opaque fill. Asset solid details use that same
-fill; dashed overhead detail and clearance semantics remain unchanged. The selected outline,
-handles and labels continue using host tokens. The actual named value, pressed/checked state,
-outline and check icon supplement color. These values are user content, never plugin chrome.
+Preset samples: slate `#778899`, rose `#ce6682`, amber `#d69b32`, green `#54976d`, blue `#518cce`, violet `#956bc4`.
+A filled area (item, placement and its solid details, stair outline, hatch-mark tile ground, wall body or its tile
+ground) takes an opaque blend of 28% colour over the resolved host background; an unparseable host background keeps
+the host fill. A line, mark or text (path, fence, measurement, arrow, beam, post and its load-bearing fill, dimension,
+section, view, grid, boundary, text, opening frame, leaf and arc) takes the colour at full strength, and the accent
+while selected. A room takes a translucent wash: opacity 0.18 at rest, 0.28 selected. Outlines of closed shapes,
+labels, selection marks and handles keep host tokens. Nothing enforces contrast for a custom colour.
 
-Konva's color parser supports the host's hex/rgb/named background forms. If a custom theme
-supplies an unparseable color expression, the canvas keeps the host's original fill; Details
-still exposes the saved name. This bounded fallback is preferable to choosing the wrong
-contrast world. Swatch colors remain the fixed content samples under every host.
-
-The shared control renders named pressed buttons in Details and `menuitemradio` buttons in
-the context menu. Native Enter/Space activation is retained; Left/Right moves among colors;
-menu Up/Down/Home/End includes all swatches. Disabled state is discoverable and callbacks
-recheck admission. Targets are 36×40 px on wide desktop, 44×44 px under 900 px or coarse
-pointer, with wrapping and host-token focus rings. Host control chrome is never recolored.
+`ItemColorControl` renders Default and the presets as named pressed buttons in Details and `menuitemradio` buttons in
+the context menu, with Left/Right between swatches and the menu's Up/Down/Home/End. Details adds a labelled native
+colour input that commits on `change`, never `input`; the menu has none. It mounts in the element, structure, room and
+multi-selection Details and in the context menu, and hides outside Plan.

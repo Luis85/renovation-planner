@@ -27,9 +27,10 @@ const IN_BOWL = justInsideBottom(BOWL);
 /**
  * A pure +100 mm move of the bowl used to land the test's arithmetic exactly; it now lands every one of
  * the bowl's corners within the mounted rig's 80 mm snap tolerance of the footprint's vertices, edges and
- * axis alignments (asset designer snapping spec 2026-09-15, Β§2.1-2.2), so the write no longer lands at the
- * raw offset. This step (checked against the toilet's footprint, tank and anchor) clears all of them, at
- * one, two and three steps alike, so the composed-drag arithmetic below stays exact.
+ * axis alignments (asset designer snapping spec 2026-09-15, §2.1-2.2) — a body move applies ONE correction
+ * to every corner, so the write no longer lands at the raw offset. This step (checked against the toilet's
+ * footprint, tank and anchor) clears all of them, at one, two and three steps alike, so the composed-drag
+ * arithmetic below stays exact.
  */
 const STEP = { x: 500, y: 300 };
 /** The same point on the bowl once it has moved one `STEP` — still 162 mm or more from every handle of it. */
@@ -211,6 +212,12 @@ describe('a press held behind a queued write', () => {
 
 		expect((await rig.document()).shape?.facing).toBe(0);
 		await expectBowlMoved(rig, 1);
+		// The distinction "first drag refused, held drag applied" carries: a first drag that had wrongly
+		// gone through would have moved the bowl to IN_MOVED_BOWL, and the held press — replayed at the
+		// fixed IN_BOWL point above — would then have landed on the FOOTPRINT instead and moved IT by one
+		// STEP too. Both orderings leave the bowl one STEP over, which `expectBowlMoved` alone cannot tell
+		// apart; the footprint staying exactly the preset's is what only the intended ordering produces.
+		expect((await rig.document()).shape?.footprint).toEqual(TOILET.footprint);
 		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
 		rig.unmount();
 	});

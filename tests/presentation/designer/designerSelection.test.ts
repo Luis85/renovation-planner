@@ -28,9 +28,9 @@ const IN_BOWL = justInsideBottom(BOWL);
 const IN_TANK = justInsideBottom(TANK);
 /**
  * A pure +100 mm move of the bowl lands its corners within the mounted rig's 80 mm snap tolerance of the
- * footprint's vertices, edges and axis alignments (asset designer snapping spec 2026-09-15, Β§2.1-2.2) —
- * every corner ends up snapped rather than landing at the raw +100 mm. This offset clears all of them
- * (checked against the toilet's footprint, tank and anchor).
+ * footprint's vertices, edges and axis alignments (asset designer snapping spec 2026-09-15, §2.1-2.2) —
+ * a body move applies ONE correction to every corner, so the whole outline lands snapped rather than at
+ * the raw +100 mm. This offset clears all of them (checked against the toilet's footprint, tank and anchor).
  */
 const BOWL_MOVE = { x: 500, y: 300 };
 

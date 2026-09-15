@@ -33,7 +33,7 @@ const GENERIC = new Set(['asset.unsupported-background']);
 describe('application-reachable domain error factories', () => {
 	it('keeps every discovered domain factory code out of the generic category message', () => {
 		const codes = applicationReachableDomainCodes();
-		expect(codes).toContain('nothing-to-undo');
+		expect(codes).toContain('plan.nothing-to-undo');
 		expect(codes).toContain('plan.invalid-spatial-elements');
 		expect(codes).toContain('asset.unsupported-background');
 		for (const code of codes) {

@@ -8,9 +8,9 @@
   "baselinePr": 209,
   "integrationBranch": "main",
   "finalStackTip": "b5c4ccda08d98e0e966941250de90544948d2e62",
-  "planningPr": null,
-  "dispatchAllowed": false,
-  "dispatchBlocker": "Await adoption-plan PR green CI, then dispatch in dependency order.",
+  "planningPr": "https://github.com/Luis85/renovation-planner/pull/215",
+  "dispatchAllowed": true,
+  "dispatchBlocker": "",
   "maxConcurrentCodingTasks": 3,
   "verificationOwner": "01a0a064-04e7-7252-becf-c54cdc07819d",
   "machineLease": "adoption-coordinator-exclusive",
@@ -72,13 +72,13 @@
       "kind": "coding",
       "model": "gpt-5.6-terra",
       "reasoning": "high",
-      "status": "queued",
+      "status": "pushed",
       "dependsOn": [
         "R00"
       ],
-      "baseSha": null,
+      "baseSha": "bb149cd4a2f38936be9718d511b7d90164cb1847",
       "branch": "codex/remplanner-r01",
-      "threadId": null,
+      "threadId": "01a0a433-a8e1-7213-8054-25c806b53729",
       "ownedExistingPaths": [
         "src/presentation/editor/PlanCanvas.vue",
         "src/presentation/editor/runtime.ts",
@@ -97,10 +97,19 @@
         "src/presentation/editor/structure/StructureEditForm.vue",
         "src/presentation/editor/tools/editor-tool.ts",
         "src/presentation/editor/tools/registerEditorTools.ts",
-        "docs/using-plan-editor.md"
+        "docs/using-plan-editor.md",
+        "tests/harness/referenceWorkspace.ts",
+        "src/presentation/editor/PlanEditorRoot.vue",
+        "src/presentation/editor/shell/ResponsiveEditorShell.vue"
       ],
       "ownedNewPaths": [
         "src/presentation/editor/structure/openingDirectActions.ts",
+        "src/presentation/editor/structure/openingDirectDraft.ts",
+        "src/presentation/editor/structure/openingDirectLayout.ts",
+        "src/presentation/editor/structure/openingDirectCamera.ts",
+        "src/presentation/editor/structure/OpeningDirectNarrow.vue",
+        "tests/harness/openingDirectWorkspace.ts",
+        "tests/harness/opening-direct-responsive.html",
         "src/presentation/editor/structure/OpeningDirectPanel.vue",
         "styles/editor-opening-direct.css",
         "tests/presentation/editor/remplanner-opening-direct.test.ts",
@@ -117,9 +126,7 @@
         "tests/presentation/editor/wallSideIntegration.test.ts",
         "tests/presentation/editor/itemColors.test.ts"
       ],
-      "blockers": [
-        "adoption-plan-green-ci"
-      ]
+      "blockers": []
     },
     {
       "id": "R02",

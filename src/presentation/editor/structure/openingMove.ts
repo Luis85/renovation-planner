@@ -31,10 +31,13 @@ export function createOpeningMove(context: PlanEditorContext,
 	const save = useSaveStateStore(), session = useRenovationSession(), dialogs = useDialogStore();
 	const loading = ref(false), saving = ref(false), message = ref(''), hostId = ref<string | null>(null);
 	const baseline = shallowRef<PlanGeometrySnapshot | null>(null);
-	let target = '', generation = 0, alive = true;
+	let target = '', generation = 0, alive = true, admission = 0;
+	watch(() => [session.perspective, selection.selectedIds.join(), project.structure, runtime.activeToolId.value], () => { admission++; }, { flush: 'sync' });
 	let armed: PlanGeometryDocument | null = null;
 	let pending: { point: Point; tolerance: number } | null = null;
-	const permitted = computed(() => !runtime.writesBlocked.value && session.perspective !== 'review' && workspace.layerVisibility.architecture && !dialogs.current);
+	// A direct opening move is a current-geometry action. Renovate keeps its own intended route;
+	// history replay does not call this admission action, so Plan-only admission cannot block it.
+	const permitted = computed(() => !runtime.writesBlocked.value && session.perspective === 'plan' && workspace.layerVisibility.architecture && !dialogs.current);
 	const available = computed(() => !!context.commands.structure && permitted.value && !state.active.value && save.state !== 'saving' && runtime.activeToolId.value === 'select' && !runtime.toolManager.gestureInFlight);
 	function clear(): void { pending = null; state.preview.value = null; message.value = ''; }
 	function stop(): void { generation++; clear(); baseline.value = null; armed = null; loading.value = false; hostId.value = null; target = ''; state.active.value = false; }
@@ -44,11 +47,11 @@ export function createOpeningMove(context: PlanEditorContext,
 	}
 	function current(ticket: number): boolean { return alive && generation === ticket && selected() && permitted.value; }
 	async function commit(next: Structure, snapshot: PlanGeometrySnapshot): Promise<void> {
-		const services = context.commands.structure, ticket = generation;
+		const services = context.commands.structure, ticket = generation, epoch = admission;
 		if (!services || !current(ticket) || !matches(snapshot) || saving.value) return;
 		saving.value = true;
 		try {
-			const result = await runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger }));
+			const result = await runtime.dispatcher.run(services.command({ planId: context.planId as PlanId, baseline: snapshot, structure: next, ledger, admit: () => epoch === admission && current(ticket) && matches(snapshot) }));
 			if (!alive || ticket !== generation) return;
 			if (!result.ok) notifyOperationFailure(result.error);
 			saving.value = false; runtime.returnToSelect();

@@ -7,7 +7,7 @@ import { submenuPlacement } from './submenuPlacement';
 import { focusStep } from './menuKeyboard';
 
 defineOptions({ name: 'CanvasMenuList' });
-const props = defineProps<{ items: readonly CanvasMenuItem[]; label: string; title?: string | null; host: HTMLElement | null; nested?: boolean; position?: { left: string; top: string } }>();
+const props = defineProps<{ items: readonly CanvasMenuItem[]; label: string; title?: string | null; host: HTMLElement | null; nested?: boolean; position?: { left: string; top: string; maxHeight?: string } }>();
 const emit = defineEmits<{ run: [action: CanvasMenuAction]; close: [restore: boolean]; back: [] }>();
 const menu = ref<HTMLElement | null>(null), open = ref<string | null>(null);
 let openedByHover = false;

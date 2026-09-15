@@ -19,6 +19,7 @@ async function edit(event: Event): Promise<void> {
 	const target = root.querySelector<HTMLElement>('[data-rp-action="edit-structure"], [data-rp-rail="details"]') ?? root.querySelector<HTMLElement>('[data-rp-region="inspector"]');
 	target?.focus();
 }
+function openDirect(event: Event): void { void runtime.structureActions.openingDirect.begin(id.value, event.currentTarget as HTMLElement); }
 </script>
 <template>
 	<template v-if="session.perspective === 'plan'">
@@ -31,6 +32,16 @@ async function edit(event: Event): Promise<void> {
 				@click="runtime.structureActions.thickness.begin(id, 'adjust')"
 			>
 				{{ tr('editor.wall-thickness.adjust') }}
+			</button>
+			<button
+				v-if="opening && opening.kind !== 'opening'"
+				type="button"
+				class="rp-inspector-action"
+				:aria-disabled="paused"
+				data-rp-action="opening-size-swing"
+				@click="openDirect"
+			>
+				{{ tr('editor.opening.direct.action') }}
 			</button>
 			<button
 				type="button"

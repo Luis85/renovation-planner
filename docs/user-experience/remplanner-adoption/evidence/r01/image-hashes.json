@@ -1,0 +1,135 @@
+[
+  {
+    "path": "01-wide-en-entry.jpg",
+    "format": "JPEG",
+    "width": 1280,
+    "height": 720,
+    "sha256": "497f07bf40df8238f03ce905694bcb645b9546d97c7f5903e74ea3e6d7074d79"
+  },
+  {
+    "path": "02-wide-en-panel.jpg",
+    "format": "JPEG",
+    "width": 1280,
+    "height": 720,
+    "sha256": "0416becee9675989377b7e43abc60327ac33fea402ba8158a756a5e66f97e9da"
+  },
+  {
+    "path": "03-narrow-en-dock.jpg",
+    "format": "JPEG",
+    "width": 460,
+    "height": 900,
+    "sha256": "46612e6c5d807c0e8bcf0f1176a10b7ef8a342086768383a0c71bfca888291ce"
+  },
+  {
+    "path": "04-confirm-460-en-dock.jpg",
+    "format": "JPEG",
+    "width": 460,
+    "height": 900,
+    "sha256": "07c88a16187442d37d201a80884b66bfbf432c62a3feb0f27f6c1614d219f7b1"
+  },
+  {
+    "path": "05-confirm-400-en-dock.jpg",
+    "format": "JPEG",
+    "width": 400,
+    "height": 900,
+    "sha256": "b479eeef59cb7de4918e0c74940d67c9c9ec096278017418b752487075165862"
+  },
+  {
+    "path": "06-confirm-400-nonspatial.jpg",
+    "format": "JPEG",
+    "width": 320,
+    "height": 900,
+    "sha256": "199f6402da03fb5c1fae37d64091ae3b33cdb94f470cc43089722f3ba5bd4ffa"
+  },
+  {
+    "path": "07-final-wide-de-menu.jpg",
+    "format": "JPEG",
+    "width": 1280,
+    "height": 900,
+    "sha256": "224de2f0ab5f4aaad16d7edc3504fc7709995439808c0bd2e266bcf68b89609f"
+  },
+  {
+    "path": "08-final-460-de-swing.jpg",
+    "format": "JPEG",
+    "width": 460,
+    "height": 900,
+    "sha256": "ff404aecb1484a96e17ec5bcd7ce9e567f4daf5bc6aebe0dfe1169c9debf4b41"
+  },
+  {
+    "path": "09-final-320-de-refusal.jpg",
+    "format": "JPEG",
+    "width": 320,
+    "height": 900,
+    "sha256": "56e94d0d382b9f0b53ab0ad138f6e231e6685cae6c371f09f41c54771b41e660"
+  },
+  {
+    "path": "10-confirm-320-de-fallback.jpg",
+    "format": "JPEG",
+    "width": 320,
+    "height": 900,
+    "sha256": "1b0be9847393b28269c1a22764a1761dac0389c806f8b6515b6ac797e39063f9"
+  },
+  {
+    "path": "11-confirm-320-de-refusal-footer.jpg",
+    "format": "JPEG",
+    "width": 320,
+    "height": 900,
+    "sha256": "eecb9fdb4d9c87acf15c68c34e3002fe38826a0292840bc12f79cf8416c0a6ae"
+  },
+  {
+    "path": "12-final-200-percent.jpg",
+    "format": "JPEG",
+    "width": 1280,
+    "height": 900,
+    "sha256": "48c6c6a132e1d6101bfa1a8f50cbbfdc3d5c74ad025d200d520915ab1c91113d"
+  },
+  {
+    "path": "13-confirm-200-percent.jpg",
+    "format": "JPEG",
+    "width": 1280,
+    "height": 900,
+    "sha256": "eac0b3bce017f287e3ca7648bf6b983c52b10223094e0b45c94311bce4bffafa"
+  },
+  {
+    "path": "14-final-wide-en-floating.jpg",
+    "format": "JPEG",
+    "width": 1280,
+    "height": 900,
+    "sha256": "f5800320fecdecd5eb39d7f29c3e9c8be9568423e9cb39daae9021c690fe43dd"
+  },
+  {
+    "path": "15-final-keyboard-menu.jpg",
+    "format": "JPEG",
+    "width": 1280,
+    "height": 900,
+    "sha256": "d9865a961e963bd6691222bfdb95e9326ce980bf8b2749d1c6d5227fb29ec17f"
+  },
+  {
+    "path": "16-confirm-keyboard-menu-targets.jpg",
+    "format": "JPEG",
+    "width": 1280,
+    "height": 900,
+    "sha256": "29443ddcf1e6c546f1b66967df71f616106e63377dd8fb43a6118395d222d1ca"
+  },
+  {
+    "path": "17-final-400-en-dock.jpg",
+    "format": "JPEG",
+    "width": 400,
+    "height": 900,
+    "sha256": "ee86a1ebc5f0c88ac3b76bc7d9ce1864e7a1f76225f91b3e241db1098c404db6"
+  },
+  {
+    "path": "18-final-460-de-light.jpg",
+    "format": "JPEG",
+    "width": 460,
+    "height": 900,
+    "sha256": "f67aa01d7b440a91915d779c3df6d8b662cc6928bc2ab081ac4839d413c35159"
+  },
+  {
+    "path": "19-final-460-en-dark.jpg",
+    "format": "JPEG",
+    "width": 460,
+    "height": 900,
+    "sha256": "6a94c9b7a1451e5c92ef35ac0583f9c0a776788ba4336c47c7e29839be04d137"
+  }
+]

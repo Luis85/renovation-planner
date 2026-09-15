@@ -24,7 +24,7 @@ import CanvasMenuList from './CanvasMenuList.vue';
 import ItemColorControl from '../elements/ItemColorControl.vue';
 import type { Point } from '../../../core/geometry/Point';
 const emit = defineEmits<{ openAdd: [] }>();
-const anchor = ref<HTMLElement | null>(null), list = ref<InstanceType<typeof CanvasMenuList> | null>(null), open = ref(false), position = ref({ left: '0px', top: '0px' });
+const anchor = ref<HTMLElement | null>(null), list = ref<InstanceType<typeof CanvasMenuList> | null>(null), open = ref(false), position = ref<{ left: string; top: string; maxHeight?: string }>({ left: '0px', top: '0px' });
 const menu = computed(() => list.value?.menu ?? null);
 const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEditorStore(), selection = useSelectionStore(), dialogs = useDialogStore(), groups = useCanvasGroupActions();
 /** Where the menu was opened, in world millimetres — where its Paste lands (design spec §4), and where a wall's actions and Measure start. A ref, so those items are rebuilt for every opening. */
@@ -71,6 +71,11 @@ function allowedTarget(target: HTMLElement, keyboard: boolean, surface: HTMLElem
 	if (keyboard || target.closest('[data-rp-id]')) return true;
 	return surface.contains(target) && target.closest('button, a, [role="menu"]') === null;
 }
+function openingMenuBottom(host: DOMRect): number {
+	const opening = selection.selectedIds.length === 1 && project.structure.openings.some(item => item.id === selection.selectedIds[0]);
+	const taskbar = opening ? root?.querySelector<HTMLElement>('.rp-primary-actions') : null;
+	return taskbar ? Math.max(60, taskbar.getBoundingClientRect().top - host.top - 16) : host.height;
+}
 async function show(event: MouseEvent | KeyboardEvent): Promise<void> {
 	if (!canvas || !root || unavailable(event)) return;
 	const target = event.target as HTMLElement, keyboard = event instanceof KeyboardEvent;
@@ -82,10 +87,11 @@ async function show(event: MouseEvent | KeyboardEvent): Promise<void> {
 	const host = root.getBoundingClientRect(), menuX = x + bounds.left - host.left, menuY = y + bounds.top - host.top;
 	selectContext(contextTarget(event, x, y), keyboard, event);
 	opener = keyboard && target instanceof HTMLElement ? target : canvas;
-	position.value = { left: `${Math.max(8, menuX)}px`, top: `${Math.max(8, menuY)}px` }; open.value = true;
+	const bottom = openingMenuBottom(host);
+	position.value = { left: `${Math.max(8, menuX)}px`, top: `${Math.max(8, menuY)}px`, maxHeight: `${bottom - 16}px` }; open.value = true;
 	await nextTick();
 	if (!menu.value) return;
-	position.value = { left: `${Math.max(8, Math.min(menuX, host.width - menu.value.offsetWidth - 8))}px`, top: `${Math.max(8, Math.min(menuY, host.height - menu.value.offsetHeight - 8))}px` };
+	position.value = { ...position.value, left: `${Math.max(8, Math.min(menuX, host.width - menu.value.offsetWidth - 8))}px`, top: `${Math.max(8, Math.min(menuY, bottom - menu.value.offsetHeight - 8))}px` };
 	menu.value.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
 }
 function context(event: MouseEvent): void { void show(event); }
@@ -101,7 +107,10 @@ function deleteKey(event: KeyboardEvent): void {
 }
 function outside(event: PointerEvent): void { if (open.value && pointerOutside(menu.value, event)) close(false); }
 function leave(event: FocusEvent): void { if (open.value && (!event.relatedTarget || !root?.contains(event.relatedTarget as Node))) close(false); }
-function run(action: CanvasMenuAction): void { if (action.disabled) return; close(); void action.run(); }
+function run(action: CanvasMenuAction): void {
+	if (action.disabled) return;
+	close(); void action.run(opener ?? canvas ?? undefined);
+}
 watch(() => selection.selectedIds, ids => { if (open.value && (ids.length !== menuIds.length || ids.some((id, index) => id !== menuIds[index]))) close(false); });
 watch(() => dialogs.current, dialog => { if (dialog && open.value) close(false); });
 onMounted(() => {

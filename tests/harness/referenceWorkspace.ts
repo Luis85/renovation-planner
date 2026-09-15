@@ -33,6 +33,7 @@ import type { PlanEditorDeps } from '../../src/presentation/views/PlanEditorView
 import { ok } from '../../src/core/result/Result';
 import { evidenceGalleryFixtures } from './evidenceGalleryFixtures';
 import { seedItems } from './itemKnob';
+import { seedOpeningDirectWorkspace } from './openingDirectWorkspace';
 
 /** Real repositories over FakeVault; only the two binary sources are served as static fixtures. */
 export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning = false) {
@@ -72,6 +73,7 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 		}
 		if (new URLSearchParams(location.search).has('drafting')) await seedDraftingPlan(stack, geometry, plan.id);
 		if (new URLSearchParams(location.search).has('item')) await seedItems(stack, geometry, plan);
+		if (new URLSearchParams(location.search).has('opening-direct')) await seedOpeningDirectWorkspace(geometry, plan.id);
 		stack.vault.entries.set('scan.png', 'PNG fixture'); stack.vault.entries.set('scan.pdf', 'PDF fixture');
 	})();
 	const reviewNotes = new ObsidianReviewNotes(stack.deps.vault, stack.index);

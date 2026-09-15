@@ -181,7 +181,13 @@ onBeforeUnmount(() => observer.disconnect());
 			>
 				<slot name="inspector" />
 			</EditorSidePanel>
-			<UnsupportedWidthNotice v-if="layoutMode === 'unsupported'" />
+			<div
+				v-if="layoutMode === 'unsupported'"
+				class="rp-unsupported-content"
+			>
+				<UnsupportedWidthNotice />
+				<slot name="narrow-selection" />
+			</div>
 		</div>
 		<slot name="status" />
 	</div>

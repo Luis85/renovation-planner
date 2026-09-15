@@ -1,0 +1,36 @@
+.rp-opening-direct-anchor { position: absolute; inset: 0; pointer-events: none; }
+.rp-opening-editor-surface { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.rp-opening-direct-dock { flex: 0 1 46%; min-height: 0; overflow: auto; border-top: 1px solid var(--background-modifier-border); background: var(--background-primary); }
+.rp-opening-direct-action { position: absolute; z-index: 13; pointer-events: auto; }
+.rp-opening-direct-action { display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; overflow: auto; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s); color: var(--text-normal); background: var(--background-primary); box-sizing: border-box; }
+.rp-opening-direct-action button { min-width: 44px; min-height: 44px; padding: var(--size-4-1) var(--size-4-2); border: 0; border-radius: var(--radius-s); color: var(--text-normal); background: transparent; font-size: var(--font-ui-small); font-weight: var(--font-semibold); }
+.rp-opening-direct-panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--size-4-1) var(--size-4-3); padding: var(--size-4-3); color: var(--text-normal); box-sizing: border-box; }
+.rp-opening-direct-panel.is-floating { position: absolute; z-index: 13; pointer-events: auto; overflow: auto; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
+.rp-opening-direct-panel > header, .rp-opening-direct-panel > p, .rp-opening-direct-panel > fieldset, .rp-opening-direct-panel > .rp-opening-direct-footer { grid-column: 1 / -1; }
+.rp-opening-direct-panel > .rp-dialog-field, .rp-opening-direct-panel > .rp-opening-direct-stepper { grid-column: 1 / -1; }
+.rp-opening-direct-panel .rp-opening-swing { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--size-4-2); }
+.rp-opening-direct-panel .rp-opening-swing > p { grid-column: 1 / -1; }
+.rp-opening-direct-panel h3 { margin: 0; font-size: var(--font-ui-medium); }
+.rp-opening-direct-panel p { margin: var(--size-4-1) 0; font-size: var(--font-ui-small); }
+.rp-opening-direct-panel input, .rp-opening-direct-panel select { width: 100%; min-width: 0; min-height: 44px; font-variant-numeric: tabular-nums; }
+.rp-opening-direct-stepper, .rp-opening-direct-footer { display: flex; gap: var(--size-4-2); margin: var(--size-4-1) 0 var(--size-4-3); }
+.rp-opening-direct-stepper button, .rp-opening-direct-footer button { min-width: 44px; min-height: 44px; }
+.rp-opening-direct-stepper button { flex: 1 1 0; }
+.rp-opening-direct-footer { justify-content: flex-end; margin-bottom: 0; }
+.rp-opening-direct-panel [role='alert'] { color: color-mix(in srgb, var(--text-error) 85%, var(--text-normal)); }
+.rp-opening-direct-action button:focus-visible, .rp-opening-direct-panel :focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.rp-opening-direct-action summary { display: flex; align-items: center; min-height: 44px; min-width: 44px; padding-inline: var(--size-4-2); cursor: pointer; }
+.rp-opening-direct-action summary:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+.rp-opening-direct-menu { display: flex; flex-wrap: wrap; }
+.rp-opening-direct-action button:hover, .rp-opening-direct-action summary:hover { background: var(--background-modifier-hover); }
+.rp-opening-direct-panel .rp-opening-swing { min-width: 0; }
+.rp-opening-direct-panel .rp-dialog-field { margin-block: var(--size-4-2); }
+.renovation-plan-editor .rp-inspector-actions > .rp-inspector-action[data-rp-action="opening-size-swing"],
+.renovation-plan-editor .rp-canvas-context-menu button[data-rp-context-action^="opening-"] { min-height: 44px; min-width: 44px; }
+.renovation-plan-editor .rp-unsupported-content { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; max-height: 100%; overflow: auto; }
+.renovation-plan-editor .rp-unsupported-content:has(.rp-opening-direct-narrow) { height: 100%; align-self: stretch; }
+.rp-unsupported-content:has(.rp-opening-direct-narrow) .rp-unsupported-width { flex: none; }
+.rp-opening-direct-narrow { flex: none; padding: var(--size-4-3); }
+.rp-opening-direct-narrow h3 { font-size: var(--font-ui-medium); }
+.rp-opening-direct-anchor.is-nonspatial, .is-nonspatial .rp-opening-direct-action { position: static; }
+.rp-opening-direct-narrow .rp-opening-direct-panel { padding-inline: 0; }

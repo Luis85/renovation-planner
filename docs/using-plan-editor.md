@@ -132,10 +132,23 @@ or wall opens numbered edge controls: drag a bend handle or enter a bend depth o
 then Apply. Curved lengths and material quantities use the actual arcs. The rectangular
 width/depth form is available for straight, axis-aligned Rooms.
 
-Doors and windows show their opening leaves and angles. Edit the hinge, side and angle in
-the opening’s controls. During placement, click the wall where the opening’s centre should
-be. **Move along wall** lets you preview a new position on its existing straight or curved
-host and click to place it; Escape cancels. The opening stays within the host’s available span.
+Doors and windows show their opening leaves and angles. Select one to reveal **Width**,
+**Along wall** and **Swing** task buttons; the same choices are in the right-click menu and
+the Inspector. They open one panel with exact width and start-offset fields, 10 mm step
+buttons, and the applicable hinge, side and angle controls. Width changes retain the current
+opening centre; along-wall changes retain its width. Apply saves one change, while Cancel or
+Escape discards the preview. An opening that would extend past its host or overlap another
+opening is refused instead of being resized or shifted. During placement, click the wall where
+the opening’s centre should be. **Move along wall** lets you preview a new position on its
+existing straight or curved host and click to place it; Escape cancels. The opening stays within
+the host’s available span.
+
+If the opening leaves less than 420 px of clear height for the floating form, the form docks
+below the canvas. The complete opening is framed above the taskbar. At leaf widths below
+400 px the canvas remains unavailable; an already-selected door or window keeps its numeric
+controls below the widen-pane guidance. Crossing this canvas boundary cancels the draft without
+saving; the selection and camera are retained. This fallback is numeric editing, not mobile
+canvas support.
 
 ## Rotate a spatial item
 

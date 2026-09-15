@@ -47,6 +47,14 @@ Do not implement endpoint drag resizing in this packet. It would need a separate
 - Focus follows a logical DOM order and returns to the invoking control, or its surviving Inspector/menu equivalent, after close. Selection alone reveals the applicable actions; hover is not required. Keep overlays inside the leaf and clear of the edited opening, active fields and taskbar. At narrow widths or zoom, reposition or collect buttons into the compact menu without reducing action coverage or 44px targets. Verify parity and focus restoration across responsive changes.
 - EN/DE and both themes; validate door, window, straight/curved host, near-end refusal and existing host rotation. I18 remains a separate unresolved criterion.
 
+**Coordinator-approved responsive clarification (2026-09-15):** the existing canvas floor is
+400 CSS px. Keep that global threshold and its widen guidance. Below it, an already-selected
+door/window gets a nonspatial instance of the shared numeric editor. Crossing the boundary
+retires the previous panel/delayed reads, preserving selection/camera; no duplicate live editor
+or implicit Apply. Within supported widths, the form floats when at least 420 px of clear
+height remains beside the complete opening symbol; otherwise it docks below the canvas,
+which frames the opening above its taskbar.
+
 Preserve `Wall.sideExtents`, legacy resolution through `wallSideExtents`, host-face reach and the clipped opening masks/frame polylines introduced by #213. `openingSymbol` accepts optional fourth `clips`; door leaf/swing remains untrimmed. Do not revert these seams to symmetric geometry. No geometry schema migration is intended. If final upstream APIs cannot express this interaction, stop the dependent implementation and report the concrete conflict; do not invent a sidecar field. Focused tests are in the manifest plus a new `remplanner-opening-direct.test.ts`. R04 owns full gate/native acceptance.
 
 ## R02 — keyboard and drawing help

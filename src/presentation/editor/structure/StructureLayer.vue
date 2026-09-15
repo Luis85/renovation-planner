@@ -27,6 +27,7 @@ import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { wallPatterns } from './wallPatterns';
 import { wallBodyPolygon } from './wallBody';
 import { patternTile } from './patternTile';
+import type { PlanPattern } from '../../../domain/asset/PlanPattern';
 import { itemColorTint } from '../elements/itemColorAppearance';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
@@ -48,18 +49,21 @@ const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall
 const patterns = computed(() => wallPatterns(project.plan?.renovation ?? EMPTY_RENOVATION, runtime.planning.baseline.value?.catalogue ?? [], renovationSession.perspective === 'renovate' && renovationSession.mode === 'planned'));
 /** A wall's own ground: its colour tinted over the wall fill, or the wall fill (plan colours design §2). */
 const grounds = computed(() => new Map(structure.value.walls.map(wall => [wall.id, itemColorTint(wall.color, props.tokens.wallFill)])));
-/** One tile per pattern AND ground, so a coloured patterned wall keeps its hatch on its own tint. */
-const tiles = computed(() => {
-	const cache = new Map<string, HTMLCanvasElement | null>();
-	for (const wall of structure.value.walls) {
-		const pattern = patterns.value.get(wall.id), ground = grounds.value.get(wall.id) ?? props.tokens.wallFill;
-		if (pattern && !cache.has(`${pattern}|${ground}`)) cache.set(`${pattern}|${ground}`, patternTile(pattern, props.tokens.wallPattern, ground));
-	}
-	return cache;
-});
+/**
+ * One tile per pattern AND ground, so a coloured patterned wall keeps its hatch on its own tint. Kept outside every
+ * computed so a drag frame, which redraws the structure, reuses each tile instead of building a canvas and resetting
+ * the fill; a change of either theme ink starts it again.
+ */
+let tileCache = new Map<string, HTMLCanvasElement | null>(), tileInks = '';
+function tileFor(pattern: PlanPattern, ground: string): HTMLCanvasElement | null {
+	const inks = `${props.tokens.wallPattern}|${props.tokens.wallFill}`, key = `${pattern}|${ground}`;
+	if (inks !== tileInks) { tileCache = new Map(); tileInks = inks; }
+	if (!tileCache.has(key)) tileCache.set(key, patternTile(pattern, props.tokens.wallPattern, ground));
+	return tileCache.get(key) ?? null;
+}
 const patterned = computed(() => structure.value.walls.flatMap(wall => {
 	const pattern = patterns.value.get(wall.id), ground = grounds.value.get(wall.id) ?? props.tokens.wallFill;
-	const tile = pattern ? tiles.value.get(`${pattern}|${ground}`) ?? null : null;
+	const tile = pattern ? tileFor(pattern, ground) : null;
 	if (!tile && wall.color === undefined) return [];
 	const body = sideNetwork.value.bodies.find(item => item.id === wall.id)?.points ?? wallBodyPolygon(wall, 0.25 / props.zoom);
 	const outline = body.flatMap(point => [point.x, point.y]);

@@ -17,7 +17,7 @@ afterEach(() => {
 });
 const pixelsOf = (canvas: HTMLCanvasElement) => [...(backingCanvas(canvas)?.getContext('2d').getImageData(0, 0, TILE_PX, TILE_PX).data ?? [])];
 
-it('draws a patterned wall after every wall body, at a constant screen density, and re-resolves its tile on a theme change', async () => {
+it('draws a patterned wall after every wall body, at a constant screen density, reuses its tile across a structure change, and re-resolves it on a theme change', async () => {
 	const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle();
 	const brick = expectOk(await rig.stack.assets.save(makeAsset({ name: 'Brick', unit: 'm2', planPattern: 'brick' }), 'absent')).entity;
 	const subjects = [{ id: 'detail-wall', targetId: 'wall-a', kind: 'wall' as const, existing: { description: 'Brick', condition: 'good' as const, assetId: brick.id }, planned: { change: 'remove' as const, description: '' } }];
@@ -30,6 +30,15 @@ it('draws a patterned wall after every wall body, at a constant screen density, 
 	expect(lines.indexOf(pattern)).toBeGreaterThan(Math.max(...layer.find('.wall-body').map(node => lines.indexOf(node as Konva.Shape))));
 	expect(pattern.fillPatternScaleX()).toBeCloseTo(1 / useEditorStore(rig.pinia).viewport.zoom);
 
+	// A structure change that leaves this wall's pattern and ground alone — another wall recoloured here, a drag
+	// preview on every frame — hands back the same tile rather than building a canvas and resetting the fill.
+	const tile = pattern.fillPatternImage();
+	const read = expectOk(await rig.geometry.read(rig.plan.id)), current = expectDefined(read.document.structure, 'structure');
+	expectOk(await rig.geometry.write(rig.plan.id, { ...read.document, structure: { ...current, walls: current.walls.map(wall => wall.id === 'wall-b' ? { ...wall, color: 'rose' as const } : wall) } }, read.version));
+	await rig.runtime.refreshProjection();
+	await settleUntil(() => layer.find('.wall-color').length === 1, 'another wall recoloured');
+	expect(expectDefined(layer.findOne<Konva.Line>('.wall-pattern'), 'pattern after another wall changed').fillPatternImage()).toBe(tile);
+
 	// Spec §8's Canvas row: "tile cache re-resolves on theme change". A cache keyed on the
 	// pattern alone, ignorant of the resolved ThemeTokens, would keep handing back this same
 	// tile forever; feeding the layer a different `wallPattern` ink is what tells them apart.
@@ -38,6 +47,7 @@ it('draws a patterned wall after every wall body, at a constant screen density, 
 	rig.changeTheme(); await settle();
 	const repatterned = expectDefined(layer.findOne<Konva.Line>('.wall-pattern'), 'pattern after theme change');
 	expect(pixelsOf(repatterned.fillPatternImage() as HTMLCanvasElement)).not.toEqual(tileBefore);
+	expect(repatterned.fillPatternImage()).not.toBe(tile);
 
 	rig.runtime.renovation.focus('', 'planned'); await settle();
 	expect(layer.find('.wall-pattern')).toHaveLength(0);

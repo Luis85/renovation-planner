@@ -14,15 +14,15 @@ import { rotationControlBounds } from '../../../src/presentation/editor/elements
 const mounted: VueWrapper[] = [];
 afterEach(() => { for (const wrapper of mounted.splice(0)) wrapper.unmount(); });
 
-it('keeps the native rotation icon screen-sized and moves feedback from its immutable handle and pivot', async () => {
+it('keeps the native rotation icon screen-sized on its stem and moves feedback from its immutable handle and pivot', async () => {
 	installCanvas();
-	const geometry = { handle: { x: 100, y: 80 }, anchor: { x: 80, y: 90 }, edge: [{ x: 40, y: 90 }, { x: 120, y: 90 }], pivot: { x: 50, y: 100 }, bounds: rotationControlBounds({ x: 100, y: 80 }, 44, 1), widthPx: 44, hostWall: false };
+	const geometry = { handle: { x: 100, y: 80 }, anchor: { x: 80, y: 90 }, pivot: { x: 50, y: 100 }, bounds: rotationControlBounds({ x: 100, y: 80 }, 1), hostWall: false };
 	const tokens = Object.fromEntries(Object.keys(THEME_TOKENS).map(key => [key, '#223344'])) as unknown as ThemeTokens;
 	const host = defineComponent({
 		components: { RotationHandleGlyph },
 		props: { zoom: { type: Number, required: true }, angle: { type: Number as PropType<number | null>, default: null }, highlighted: Boolean },
 		setup: () => ({ geometry, tokens }),
-		template: '<v-stage :config="{width:600,height:600}"><v-layer :config="{scaleX:zoom,scaleY:zoom}"><RotationHandleGlyph :geometry="geometry" :tokens="tokens" :zoom="zoom" :angle="angle" :radius-px="8" :dragging="angle !== null" :highlighted="highlighted" :snap-degrees="angle !== null ? 15 : null" :obstacles="[]" :visible-bounds="{min:{x:0,y:0},max:{x:500,y:500}}" /></v-layer></v-stage>',
+		template: '<v-stage :config="{width:600,height:600}"><v-layer :config="{scaleX:zoom,scaleY:zoom}"><RotationHandleGlyph :geometry="geometry" :tokens="tokens" :zoom="zoom" :angle="angle" :dragging="angle !== null" :highlighted="highlighted" :snap-degrees="angle !== null ? 15 : null" :obstacles="[]" :visible-bounds="{min:{x:0,y:0},max:{x:500,y:500}}" /></v-layer></v-stage>',
 	});
 	const wrapper = mount(host, { props: { zoom: 1 }, global: { plugins: [VueKonva] } }); mounted.push(wrapper);
 	const stage = expectDefined(Konva.stages.at(-1), 'glyph stage');
@@ -30,13 +30,15 @@ it('keeps the native rotation icon screen-sized and moves feedback from its immu
 	const centre = () => ({ x: handle.x() + handle.width() / 2, y: handle.y() + handle.height() / 2 });
 	const icon = expectDefined(stage.findOne<Konva.Group>('.rotation-handle-icon'), 'native icon');
 	expect(stage.find('.rotation-control-label')).toHaveLength(0);
+	// Konva's rotater stem: drawn at rest, not only while the handle is hovered or dragged.
+	expect(stage.findOne<Konva.Line>('.rotation-handle-stem')?.points()).toEqual([geometry.anchor.x, geometry.anchor.y, geometry.handle.x, geometry.handle.y]);
 	expect(icon.find<Konva.Path>('Path').map(path => path.data())).toEqual(editorIconNodes['rotate-cw'].map(node => node.attributes.d));
 	for (const zoom of [0.2, 1.7]) {
 		await wrapper.setProps({ zoom });
 		expect(handle.width() * zoom).toBeCloseTo(20);
 		expect(centre()).toEqual(geometry.handle);
-		const target = expectDefined(stage.findOne<Konva.Rect>('.rotation-control-target'), '44px target');
-		expect(target.width() * zoom).toBe(44); expect(target.height() * zoom).toBe(44);
+		const target = expectDefined(stage.findOne<Konva.Rect>('.rotation-control-target'), '32px target');
+		expect(target.width() * zoom).toBeCloseTo(32); expect(target.height() * zoom).toBeCloseTo(32);
 		const buttonBounds = handle.getClientRect(), iconBounds = icon.getClientRect();
 		expect(iconBounds.x).toBeGreaterThan(buttonBounds.x);
 		expect(iconBounds.x + iconBounds.width).toBeLessThan(buttonBounds.x + buttonBounds.width);

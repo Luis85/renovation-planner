@@ -9,7 +9,6 @@ import { STAGE_PIXELS, worldPerScreenPixel, worldToScreen } from '../../../../sr
 import { boundsOfZones } from '../../../../src/presentation/editor/viewport/zoneExtent';
 import { elementFootprint } from '../../../../src/presentation/editor/elements/elementFootprint';
 import { expectDefined } from '../../../helpers/domain';
-import { ROTATION_CONTROL_BOTTOM_PX, ROTATION_CONTROL_TOP_PX, ROTATION_CONTROL_WIDTH_PX, ROTATION_HANDLE_OFFSET_PX } from '../../../../src/presentation/editor/handleMetrics';
 
 const mounted: Awaited<ReturnType<typeof assetPlacementRig>>[] = [];
 afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
@@ -17,8 +16,8 @@ afterEach(() => { for (const rig of mounted.splice(0)) rig.unmount(); });
 /**
  * F3: `rotationActions.ts`'s `sourceVisible` gained `if (shape.kind === 'asset') return
  * layers.asset;` and nothing failed without it. `handle` is the smallest signal that arm
- * gates — `handleGeometry` reads only the selected `target` and `sourceVisible`, with no
- * hover precondition, unlike `displayControls`/`displayTarget`.
+ * gates — `handleGeometry` reads only the selected `target` and `sourceVisible`, without the
+ * permission, lock and Alt checks `displayControls` adds.
  */
 /**
  * G3 (2026-09-11 integration fix, ADR-0027): `lockAllowsCanvas` only looks up a `room`/`area`
@@ -63,10 +62,9 @@ it('offers a rotation handle for a selected placement while the Assets layer is 
  * The anchor→facing-point pair a placement stores is not an outline anyone sees; the handle has
  * to stand off the DERIVED footprint, at every zoom.
  *
- * "Off" is the shared layout's own guarantee and no more: every kind's control rectangle spans
- * 22 px either side of a centre laid 18 px beyond its edge, so each one reaches 4 px across the
- * edge it stands beside — a Room's and an Object's exactly as a placement's. The unfixed layout
- * reached 12 px into the footprint at 10 mm/px, with its centre inside it at closer zooms.
+ * The handle stands beyond a side of the footprint's box, 30 px out with a 32 px target, so no part
+ * of its rectangle reaches the footprint at all. An earlier edge layout reached 12 px into it at
+ * 10 mm/px, with its centre inside it at closer zooms.
  */
 it('lays a selected placement\'s rotation handle off its derived footprint, at two zoom levels', async () => {
 	const rig = await assetPlacementRig(); mounted.push(rig);
@@ -83,8 +81,7 @@ it('lays a selected placement\'s rotation handle off its derived footprint, at t
 		const { bounds, handle } = expectDefined(rig.runtime.rotationActions.handleGeometry.value, `handle at ${scale} mm/px`);
 		const inside = handle.x > footprint.min.x && handle.x < footprint.max.x && handle.y > footprint.min.y && handle.y < footprint.max.y;
 		const depth = Math.max(0, Math.min(Math.min(bounds.max.x, footprint.max.x) - Math.max(bounds.min.x, footprint.min.x), Math.min(bounds.max.y, footprint.max.y) - Math.max(bounds.min.y, footprint.min.y)));
-		const sharedReach = (Math.max(ROTATION_CONTROL_TOP_PX, ROTATION_CONTROL_BOTTOM_PX, ROTATION_CONTROL_WIDTH_PX / 2) - ROTATION_HANDLE_OFFSET_PX) * scale;
 		const at = `handle ${JSON.stringify(bounds)} at ${scale} mm/px, ${depth} mm into footprint ${JSON.stringify(footprint)}`;
-		expect({ centreInside: inside, withinSharedReach: depth <= sharedReach + 1e-6, at }).toEqual({ centreInside: false, withinSharedReach: true, at });
+		expect({ centreInside: inside, depth, at }).toEqual({ centreInside: false, depth: 0, at });
 	}
 });

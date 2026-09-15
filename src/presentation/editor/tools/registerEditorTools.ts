@@ -89,7 +89,7 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 	const select = new SelectTool({
 			canMutateGeometry: () => renovation.perspective === 'plan',
 			expandSelection: deps.expandSelection, selectionMove: deps.selectionMove, multiSelectionMode: deps.multiSelectionMode,
-			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, rotationDisplayTarget: deps.rotationDisplayTarget, rotationControls: deps.rotationControls, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
+			canRotateShape: deps.canRotateShape, rotationTarget: deps.rotationTarget, rotationControl: deps.rotationControl, rotationControls: deps.rotationControls, requestRotation: deps.requestRotation, previewRotation: deps.previewRotation, commitRotation: deps.commitRotation,
 			previewElement: deps.previewElement,
 			moveElement: deps.moveElement, elementWritesBlocked: deps.elementWritesBlocked,
 			labelHits: deps.labelHits, moveLabel: deps.moveLabel,

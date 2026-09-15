@@ -20,19 +20,22 @@ const NO_CLEARANCE = { ...TOILET, clearance: null };
 
 describe('selectionMarks', () => {
 	it('draws nothing without a shape or without a selection', () => {
-		expect(selectionMarks(null, TANK_SELECTED, 'transform', TOKENS, 1)).toEqual({ outline: null, handles: [] });
-		expect(selectionMarks(TOILET, null, 'transform', TOKENS, 1)).toEqual({ outline: null, handles: [] });
+		expect(selectionMarks(null, TANK_SELECTED, 'transform', TOKENS, 1)).toEqual({ outline: null, handles: [], rotate: null });
+		expect(selectionMarks(TOILET, null, 'transform', TOKENS, 1)).toEqual({ outline: null, handles: [], rotate: null });
 	});
 
-	it('restrokes a selected outline in the accent and draws eight square box handles and a round rotate handle', () => {
+	it('restrokes a selected outline in the accent and draws eight square box handles and a rotate arrow on a stem', () => {
 		const marks = selectionMarks(TOILET, TANK_SELECTED, 'transform', TOKENS, 1);
+		const top = TANK.points[0].y, middle = (TANK.points[0].x + TANK.points[2].x) / 2;
 
 		expect(marks.outline?.points).toEqual(TANK.points.flatMap((point) => [point.x, point.y]));
 		expect(marks.outline?.stroke).toBe(TOKENS.accent);
 		expect(marks.outline?.strokeWidth).toBe(2);
 		expect(marks.outline?.listening).toBe(false);
-		expect(marks.handles.filter((handle) => handle.cornerRadius === 0)).toHaveLength(8);
-		expect(marks.handles.filter((handle) => handle.cornerRadius === 4)).toHaveLength(1);
+		expect(marks.handles).toHaveLength(8);
+		expect(marks.handles.every((handle) => handle.cornerRadius === 0)).toBe(true);
+		expect(marks.rotate?.at).toEqual({ x: middle, y: top - 30 });
+		expect(marks.rotate?.stem).toMatchObject({ points: [middle, top, middle, top - 30], stroke: TOKENS.accent, listening: false });
 		const topLeft = marks.handles.find((handle) => handle.x === TANK.points[0].x && handle.y === TANK.points[0].y);
 		expect(topLeft).toMatchObject({ width: 8, height: 8, offsetX: 4, offsetY: 4, cornerRadius: 0, fill: TOKENS.canvasBackground, stroke: TOKENS.accent, listening: false });
 		expect(marks.handles.every((handle) => handle.strokeWidth === 2)).toBe(true);
@@ -52,7 +55,7 @@ describe('selectionMarks', () => {
 	});
 
 	it('draws nothing for a selected part the shape does not have', () => {
-		expect(selectionMarks(NO_CLEARANCE, { kind: 'clearance' }, 'transform', TOKENS, 1)).toEqual({ outline: null, handles: [] });
+		expect(selectionMarks(NO_CLEARANCE, { kind: 'clearance' }, 'transform', TOKENS, 1)).toEqual({ outline: null, handles: [], rotate: null });
 	});
 
 	/**

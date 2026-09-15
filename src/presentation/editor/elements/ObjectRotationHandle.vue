@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import { useEditorRuntime } from '../runtime';
 import type { ThemeTokens } from '../theme/themeTokens';
-import { ROTATION_HANDLE_RADIUS_PX } from '../handleMetrics';
 import RotationHandleGlyph from './RotationHandleGlyph.vue';
 import { useEditorStore } from '../../stores/EditorStore';
 import { rotationControlContains, type RotationControlGeometry } from './rotationControl';
@@ -30,7 +29,6 @@ function highlighted(control: RotationControlGeometry): boolean {
 			:geometry="geometry"
 			:tokens="tokens"
 			:zoom="zoom"
-			:radius-px="ROTATION_HANDLE_RADIUS_PX"
 			:angle="angle"
 			:highlighted="highlighted(geometry)"
 			:dragging="interaction?.dragging ?? false"

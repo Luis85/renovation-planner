@@ -28,7 +28,6 @@ export function createSpatialEditing(context: PlanEditorContext, runtime: Parame
 		expandSelection: groupActions.expandSelection, selectionMove: groupActions.selectionMove,
 		canRotateShape: rotationActions.canRotateId,
 		rotationTarget: () => rotationActions.target.value,
-		rotationDisplayTarget: () => rotationActions.displayTarget.value,
 		rotationControls: () => rotationActions.displayControls.value,
 		requestRotation: id => { void rotationActions.rotate(id); },
 		previewRotation: rotationActions.previewShape,

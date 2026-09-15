@@ -4,9 +4,23 @@ import {
 	POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX,
 	POLYGON_CLOSE_TARGET_RADIUS_PX,
 	POLYGON_VERTEX_RADIUS_PX,
+	ROTATION_CONTROL_SIZE_PX,
+	ROTATION_HANDLE_CLEARANCE_PX,
+	ROTATION_HANDLE_OFFSET_PX,
+	ROTATION_HANDLE_REACH_PX,
 	VERTEX_GRAB_RADIUS_PX,
 	VERTEX_HANDLE_RADIUS_PX,
 } from '../../../src/presentation/editor/handleMetrics';
+
+describe('rotate handle metrics', () => {
+	it('stands the rotate target far enough off a side that it never reaches a handle grabbed on that side', () => {
+		expect(ROTATION_HANDLE_OFFSET_PX).toBeGreaterThan(ROTATION_CONTROL_SIZE_PX / 2 + VERTEX_GRAB_RADIUS_PX + ROTATION_HANDLE_CLEARANCE_PX);
+	});
+
+	it('lets a covered arrow be pushed further out than it starts, or no push could ever succeed', () => {
+		expect(ROTATION_HANDLE_REACH_PX).toBeGreaterThan(ROTATION_HANDLE_OFFSET_PX);
+	});
+});
 
 /**
  * The relationship between the handle a user SEES and the region that GRABS it.

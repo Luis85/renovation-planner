@@ -574,6 +574,7 @@ describe('the headless harness capture script', () => {
 			'asset-designer-select-transform',
 			'asset-designer-select-transform-light',
 			'asset-designer-select-transform-unframed',
+			'asset-designer-view-menu-narrow',
 			'asset-library-actions',
 			'asset-library-dark',
 			'asset-library-light',

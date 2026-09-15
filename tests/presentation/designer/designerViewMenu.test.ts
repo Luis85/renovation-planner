@@ -71,6 +71,28 @@ describe('the designer’s View menu', () => {
 		}
 	});
 
+	/**
+	 * `useDisclosureDismissal`'s outside-press half, shared with `EditorViewMenu`
+	 * (`editorViewMenuPopOut.test.ts` proves the pop-out-document case there) — never exercised on the
+	 * designer's own menu before this (final review, F1). `designerRig` attaches to the real `document`,
+	 * so a plain document-level `pointerdown` is already "outside": nothing in this rig runs in a pop-out
+	 * leaf's own document.
+	 */
+	it('closes on a pointerdown outside the menu', async () => {
+		const rig = await designerRig({ shape: toiletShape() });
+		try {
+			const menu = rig.wrapper.get('.rp-designer-tools .rp-view-menu');
+			const details = menu.element as HTMLDetailsElement;
+			details.open = true;
+
+			document.dispatchEvent(new Event('pointerdown'));
+
+			expect(details.open).toBe(false);
+		} finally {
+			rig.unmount();
+		}
+	});
+
 	it('opens with this device’s remembered choices and writes a change back', async () => {
 		let stored: unknown = { gridVisible: true, snappingEnabled: false };
 		const viewPreferences = editorViewPreferencesStore(

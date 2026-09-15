@@ -5,6 +5,7 @@ import type { ThemeTokens } from '../theme/themeTokens';
 import { openingCutPolygon, openingSymbol } from '../../../domain/spatial/openingGeometry';
 import { independentWallNetwork } from '../../../domain/spatial/wallSideNetwork';
 import { wallHostClips, wallJunctions } from '../../../domain/spatial/wallSideJunctions';
+import { itemColorInk } from '../elements/itemColorAppearance';
 const props = defineProps<{ openings: readonly Opening[]; walls: readonly Wall[]; selectedIds: readonly string[]; tokens: ThemeTokens; zoom: number }>();
 const junctions = computed(() => wallJunctions(props.walls));
 const independent = computed(() => independentWallNetwork(props.walls));
@@ -12,7 +13,7 @@ const symbols = computed(() => props.openings.flatMap(opening => {
 	const host = props.walls.find(wall => wall.id === opening.hostId);
 	if (!host) return [];
 	const clips = independent.value.has(host.id) ? wallHostClips(host, junctions.value) : [];
-	const symbol = openingSymbol(opening, host, 0.25 / props.zoom, clips), stroke = props.selectedIds.includes(opening.id) ? props.tokens.accent : props.tokens.zoneStroke;
+	const symbol = openingSymbol(opening, host, 0.25 / props.zoom, clips), stroke = props.selectedIds.includes(opening.id) ? props.tokens.accent : itemColorInk(opening.color, props.tokens.zoneStroke);
 	const line = (points: readonly { x: number; y: number }[], width: number) => ({ points: points.flatMap(point => [point.x, point.y]), stroke, strokeWidth: width / props.zoom, lineCap: 'butt' });
 	const cut = independent.value.has(host.id)
 		? { points: openingCutPolygon(opening, host, 0.25 / props.zoom, 1 / props.zoom, clips).flatMap(point => [point.x, point.y]), closed: true, fill: props.tokens.canvasBackground, strokeEnabled: false }

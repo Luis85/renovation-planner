@@ -27,7 +27,7 @@ import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { wallPatterns } from './wallPatterns';
 import { wallBodyPolygon } from './wallBody';
 import { patternTile } from './patternTile';
-import type { PlanPattern } from '../../../domain/asset/PlanPattern';
+import { itemColorTint } from '../elements/itemColorAppearance';
 const props = defineProps<{ transform: NodeTransform; tokens: ThemeTokens; visible: boolean; zoom: number }>();
 const project = useProjectStore(), selection = useSelectionStore(), runtime = useEditorRuntime();
 const editor = useEditorStore();
@@ -46,11 +46,26 @@ const previewPoints = computed(() => task.draft.points.length && task.draft.curs
 const noDraftPoints: readonly Point[] = [];
 const wallDraftPoints = computed(() => runtime.activeToolId.value === 'draw-wall' ? task.draft.points : noDraftPoints);
 const patterns = computed(() => wallPatterns(project.plan?.renovation ?? EMPTY_RENOVATION, runtime.planning.baseline.value?.catalogue ?? [], renovationSession.perspective === 'renovate' && renovationSession.mode === 'planned'));
-const tiles = computed(() => new Map([...new Set(patterns.value.values())].map((pattern): [PlanPattern, HTMLCanvasElement | null] => [pattern, patternTile(pattern, props.tokens.wallPattern, props.tokens.wallFill)])));
+/** A wall's own ground: its colour tinted over the wall fill, or the wall fill (plan colours design §2). */
+const grounds = computed(() => new Map(structure.value.walls.map(wall => [wall.id, itemColorTint(wall.color, props.tokens.wallFill)])));
+/** One tile per pattern AND ground, so a coloured patterned wall keeps its hatch on its own tint. */
+const tiles = computed(() => {
+	const cache = new Map<string, HTMLCanvasElement | null>();
+	for (const wall of structure.value.walls) {
+		const pattern = patterns.value.get(wall.id), ground = grounds.value.get(wall.id) ?? props.tokens.wallFill;
+		if (pattern && !cache.has(`${pattern}|${ground}`)) cache.set(`${pattern}|${ground}`, patternTile(pattern, props.tokens.wallPattern, ground));
+	}
+	return cache;
+});
 const patterned = computed(() => structure.value.walls.flatMap(wall => {
-	const pattern = patterns.value.get(wall.id), tile = pattern ? tiles.value.get(pattern) : null;
+	const pattern = patterns.value.get(wall.id), ground = grounds.value.get(wall.id) ?? props.tokens.wallFill;
+	const tile = pattern ? tiles.value.get(`${pattern}|${ground}`) ?? null : null;
+	if (!tile && wall.color === undefined) return [];
 	const body = sideNetwork.value.bodies.find(item => item.id === wall.id)?.points ?? wallBodyPolygon(wall, 0.25 / props.zoom);
-	return tile ? [{ id: wall.id, tile, points: body.flatMap(point => [point.x, point.y]) }] : [];
+	const outline = body.flatMap(point => [point.x, point.y]);
+	return [tile
+		? { id: wall.id, name: 'wall-pattern', points: outline, paint: { fillPatternImage: tile, fillPatternRepeat: 'repeat', fillPatternScale: { x: 1 / props.zoom, y: 1 / props.zoom } } }
+		: { id: wall.id, name: 'wall-color', points: outline, paint: { fill: ground } }];
 }));
 /**
  * Every cut the chain would make — its start and end joins and the join under the cursor — one
@@ -107,8 +122,10 @@ const nonStructuralElementDraft = computed(() => elementDraft.value.filter(eleme
 			`OpeningSymbols` cuts both passes at the edge pass's width.
 
 			A third, per-WALL pass fills a patterned wall's body with its material's hatch
-			(ADR-0031). Per wall rather than per run, so the mitre wedge where two differently
-			patterned walls meet stays plain — the spec's named gap.
+			(ADR-0031) on the wall's own ground — its colour's tint when it has one — and an
+			unpatterned coloured wall with that tint (ADR-0033). Per wall rather than per run, so
+			the mitre wedge where two differently painted walls meet stays plain — the spec's
+			named gap.
 		-->
 		<!-- A network with independent face depths uses true offset body polygons and outer join
 			wedges. One nonzero fill unions these pieces; the body pass masks internal edge strokes.
@@ -157,8 +174,8 @@ const nonStructuralElementDraft = computed(() => elementDraft.value.filter(eleme
 		/>
 		<VLine
 			v-for="item in patterned"
-			:key="'pattern-' + item.id"
-			:config="{ name: 'wall-pattern', points: item.points, closed: true, listening: false, fillPatternImage: item.tile, fillPatternRepeat: 'repeat', fillPatternScale: { x: 1 / zoom, y: 1 / zoom } }"
+			:key="item.name + '-' + item.id"
+			:config="{ name: item.name, points: item.points, closed: true, listening: false, ...item.paint }"
 		/>
 		<!-- Only posts, beams and drafting marks other than a hatch draw here, directly after the wall
 			paint passes above (edge, body, pattern) and before the wall selection dash, endpoint

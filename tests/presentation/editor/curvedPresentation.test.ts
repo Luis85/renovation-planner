@@ -53,11 +53,10 @@ it('hits curved Room interiors and hosted opening arcs with the same analytic so
 	expect(spatialOutlinePoints(candidate, 0.1).length).toBeGreaterThan(2);
 });
 
-it('places hover rotation anchors on actual curved edges, retaining generous hit rectangles', () => {
+it('stands the rotate handle above a curved edge’s arc, not its chord, with a 32px hit square', () => {
 	const shape = { ...room, kind: 'room' as const }, pivot = expectDefined(rotationPivot(shape), 'pivot');
 	const top = expectDefined(layoutRotationControl(shape, pivot, 1), 'curve control');
-	expect(top.edgeIndex).toBe(0);
-	expect(top.anchor.y).toBeLessThan(0); expect(top.bounds.max.x - top.bounds.min.x).toBe(44);
+	expect(top.anchor.y).toBeLessThan(0); expect(top.bounds.max.x - top.bounds.min.x).toBe(32);
 	const straight = spatialOutlinePoints({ points }, 0.1); expect(straight).toBe(points);
 });
 

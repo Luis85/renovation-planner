@@ -202,7 +202,7 @@ it('refuses a peer-modified Room baseline at numeric Apply without replacing its
 
 it('paints Room rotation in the top interaction layer and hides only its pointer handle with the source layer', async () => {
 	const rig = await setup(); rig.runtime.selectAndFrame(rig.room.id); await settle(); await hoverRotation(rig.runtime, useEditorStore(rig.pinia), rig.room.geometry.points[0]);
-	expect(rig.runtime.renderState.rotationHoverId).toBe(rig.room.id);
+	expect(rig.runtime.rotationActions.displayControls.value).toHaveLength(1);
 	const handle = expectDefined(expectDefined(rig.stage, 'stage').findOne('.object-rotation-handle'), 'Room handle'); expect(handle.getLayer()?.name()).toBe('interaction');
 	const workspace = useWorkspaceStore(rig.pinia); workspace.toggleLayer('zone'); await settle();
 	expect(rig.runtime.rotationActions.handle.value).toBeNull(); expect(rig.runtime.rotationActions.available.value).toBe(true);

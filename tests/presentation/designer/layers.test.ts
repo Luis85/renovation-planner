@@ -491,20 +491,24 @@ describe('the designer canvas, mounted', () => {
 	 * Handles only under Select — under another tool a drawn handle is one nothing grabs — while the
 	 * accent outline stays, so a user drawing still sees what is selected.
 	 */
-	it('draws a selected detail’s outline and its nine Transform handles under Select, and only the outline under another tool', async () => {
+	it('draws a selected detail’s outline, its eight box handles and its rotate arrow under Select, and only the outline under another tool', async () => {
 		const designer = await designerRig({ shape: WITH_DETAILS });
 		designer.toolbarButton(t('en', 'designer.toolbar.select')).click();
 		useAssetDesignStore(designer.pinia).select({ kind: 'detail', id: 'd2' });
 		await settle();
 
 		expect(designer.stage.findOne('.asset-selection-outline')).toBeDefined();
-		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(9);
+		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(8);
+		expect(designer.stage.find('.asset-rotate-stem')).toHaveLength(1);
+		expect(designer.stage.find('.rotation-handle-icon')).toHaveLength(1);
 
 		designer.toolbarButton(t('en', 'designer.toolbar.draw-rect')).click();
 		await settle();
 
 		expect(designer.stage.findOne('.asset-selection-outline')).toBeDefined();
 		expect(designer.stage.find('.asset-selection-handle')).toHaveLength(0);
+		expect(designer.stage.find('.asset-rotate-stem')).toHaveLength(0);
+		expect(designer.stage.find('.rotation-handle-icon')).toHaveLength(0);
 		designer.unmount();
 	});
 

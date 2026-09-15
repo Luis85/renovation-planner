@@ -66,6 +66,7 @@ import { anchorMark, facingArrow } from './layers/anchorLayer';
 import { selectionFrame, selectionMarks } from './layers/selectionLayer';
 import { isOutlineSelection } from './selection/designerSelection';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
+import RotateArrowIcon from '../editor/elements/RotateArrowIcon.vue';
 import { selectionKeyActions } from './designerKeys';
 
 /**
@@ -143,14 +144,14 @@ const footprint = computed(() => footprintOutline(shape.value, tokens.value, wor
 const details = computed(() => detailOutlines(shape.value, tokens.value, worldPerPixel.value));
 const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value, worldPerPixel.value));
 /**
- * An outline's handles only under Select, the one tool that grabs them: under another tool a drawn handle
+ * An outline's handles and rotate arrow only under Select, the one tool that grabs them: under another tool a drawn handle
  * is a control that does nothing. What stays is what SHOWS the selection — an outline's accent restroke,
  * and the anchor's or the facing's ring, which is that selection's only mark (follow-up A1). With nothing
  * selected `selectionMarks` draws nothing, so that case needs no arm here.
  */
 const marks = computed(() => {
 	const drawn = selectionMarks(shape.value, selection.value, mode.value, tokens.value, worldPerPixel.value);
-	return activeToolId.value === 'select' || !isOutlineSelection(selection.value) ? drawn : { outline: drawn.outline, handles: [] };
+	return activeToolId.value === 'select' || !isOutlineSelection(selection.value) ? drawn : { outline: drawn.outline, handles: [], rotate: null };
 });
 const clearance = computed(() => clearanceOutline(shape.value, tokens.value, worldPerPixel.value));
 const anchor = computed(() => anchorMark(shape.value, tokens.value, worldPerPixel.value));
@@ -296,10 +297,21 @@ onBeforeUnmount(() => stopPixelRatio());
 						v-if="marks.outline !== null"
 						:config="{ ...marks.outline, name: 'asset-selection-outline' }"
 					/>
+					<VLine
+						v-if="marks.rotate !== null"
+						:config="{ ...marks.rotate.stem, name: 'asset-rotate-stem' }"
+					/>
 					<VRect
 						v-for="(handle, index) in marks.handles"
 						:key="index"
 						:config="{ ...handle, name: 'asset-selection-handle' }"
+					/>
+					<RotateArrowIcon
+						v-if="marks.rotate !== null"
+						:at="marks.rotate.at"
+						:world-per-pixel="worldPerPixel"
+						:tokens="tokens"
+						direction="clockwise"
 					/>
 				</VLayer>
 				<!--

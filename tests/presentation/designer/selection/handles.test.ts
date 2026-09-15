@@ -35,8 +35,8 @@ describe('selectionHandles', () => {
 			{ role: { kind: 'box', index: 5 }, at: { x: -200, y: 100 } },
 			{ role: { kind: 'box', index: 6 }, at: { x: -400, y: 100 } },
 			{ role: { kind: 'box', index: 7 }, at: { x: -400, y: 0 } },
-			// 18 screen pixels above the box at two millimetres per pixel.
-			{ role: { kind: 'rotate' }, at: { x: -200, y: -136 } },
+			// 30 screen pixels above the box at two millimetres per pixel.
+			{ role: { kind: 'rotate' }, at: { x: -200, y: -160 } },
 		]);
 	});
 

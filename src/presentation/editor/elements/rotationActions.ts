@@ -75,16 +75,7 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 			&& (shape.kind !== 'group' || runtime.groups?.canRotateShape(shape) === true);
 	}
 	const blocked = computed(() => !permitted(target.value));
-	const displayTarget = computed(() => {
-		const id = runtime.renderState.rotationHoverId;
-		if (!id || editor.pointerWorld === null || runtime.renderState.rotationHoverSuppressed) return null;
-		if (selection.selectedIds.length > 1 && selection.selectedIds.some(selectedId => selectedId === id)) return runtime.groupRotationTarget?.(id) ?? null;
-		if (target.value?.id === id) return target.value;
-		const group = runtime.groupRotationTarget?.(id); if (group) return group;
-		const shape = projectedRotationTarget(project, id, Boolean(runtime.wall));
-		return shape && rotationPivot(shape) ? { ...shape, generation: generation.value } : null;
-	});
-	function clear(): void { preview.value = null; runtime.renderState.previewPolygon = null; runtime.renderState.rotationDegrees = null; runtime.renderState.rotationInteraction = null; runtime.renderState.rotationHoverId = null; runtime.wall?.previewRotation(null); runtime.groups?.previewRotation(null); }
+	function clear(): void { preview.value = null; runtime.renderState.previewPolygon = null; runtime.renderState.rotationDegrees = null; runtime.renderState.rotationInteraction = null; runtime.wall?.previewRotation(null); runtime.groups?.previewRotation(null); }
 	watch(() => [runtime.activeToolId.value, session.perspective, selection.selectedIds.join('|')], () => { generation.value++; clear(); }, { flush: 'sync' });
 	onBeforeUnmount(() => { alive = false; generation.value++; clear(); });
 	const retry = createDraftRetry(runtime.refreshProjection, () => alive, context.commands.logger);
@@ -93,12 +84,8 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 		const shape = target.value; if (!shape || !sourceVisible(shape, workspace.layerVisibility)) return null;
 		return rotationHandleGeometry(laidOut(shape, project, shapes.shapeOf), worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value);
 	});
-	const displayControls = computed(() => {
-		const shape = displayTarget.value;
-		if (!shape || !permitted(shape) || !lockAllowsCanvas(shape, project.zones) || active.value || !sourceVisible(shape, workspace.layerVisibility)) return [];
-		const control = rotationHandleGeometry(laidOut(shape, project, shapes.shapeOf), worldPerScreenPixel(editor.viewport, STAGE_PIXELS), visibleBounds.value, obstacles.value);
-		return control ? [control] : [];
-	});
+	/** What the canvas draws and hit-tests: the selected target's one arrow, Konva-style, while it may rotate there and Alt or "select multiple" is not bypassing it. */
+	const displayControls = computed(() => handleGeometry.value && canRotateId() && !runtime.renderState.rotationHoverSuppressed ? [handleGeometry.value] : []);
 	function previewShape(id: string | null, points?: readonly Point[]): void {
 		if (id === null) { clear(); return; }
 		const shape = target.value;
@@ -152,9 +139,9 @@ export function createRotationActions(context: PlanEditorContext, runtime: Rotat
 		});
 	}
 	function canRotateId(id?: string): boolean {
-		const shape = id !== undefined && target.value?.id !== id ? displayTarget.value : target.value;
-		return (id === undefined || shape?.id === id) && !active.value && shape !== null && permitted(shape) && lockAllowsCanvas(shape, project.zones);
+		const shape = target.value;
+		return shape !== null && (id === undefined || shape.id === id) && !active.value && permitted(shape) && lockAllowsCanvas(shape, project.zones);
 	}
-	return { setObstacles: (bounds: readonly BoundingBox[]) => { obstacles.value = bounds; }, obstacles: computed(() => obstacles.value), target, displayTarget, displayControls, canRotateId,
+	return { setObstacles: (bounds: readonly BoundingBox[]) => { obstacles.value = bounds; }, obstacles: computed(() => obstacles.value), target, displayControls, canRotateId,
 		active, blocked, preview, previewShape, handleGeometry, visibleBounds, handle: computed(() => handleGeometry.value?.handle ?? null), available: computed(() => target.value !== null), rotate, move };
 }

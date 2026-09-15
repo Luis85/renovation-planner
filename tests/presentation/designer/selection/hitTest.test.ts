@@ -33,8 +33,8 @@ const part = (selection: DesignerSelection): DesignerHit => ({ kind: 'part', sel
 describe('hitDesign', () => {
 	it.each<readonly [string, AssetShape, Point, DesignerSelection | null, SelectionMode, DesignerHit]>([
 		['1: a box handle of the selection, outside every part', TOILET, { x: 190, y: 352 }, FOOTPRINT, 'transform', { kind: 'handle', role: { kind: 'box', index: 4 } }],
-		// The bowl's rotate handle sits 18 px above its box, at (0, -143); this point is also inside the tank.
-		['1: a handle drawn over a detail is the handle', TOILET, { x: 0, y: -150.5 }, BOWL, 'transform', { kind: 'handle', role: { kind: 'rotate' } }],
+		// The bowl's rotate handle sits 30 px above its box, at (0, -155); this point is also inside the tank.
+		['1: a handle drawn over a detail is the handle', TOILET, { x: 0, y: -160.5 }, BOWL, 'transform', { kind: 'handle', role: { kind: 'rotate' } }],
 		['1: a vertex handle in Edit points', TOILET, { x: 192, y: -148 }, TANK, 'points', { kind: 'handle', role: { kind: 'vertex', index: 2 } }],
 		['1: an edge handle in Bend edges', TOILET, { x: 193, y: -95 }, FOOTPRINT, 'bend', { kind: 'handle', role: { kind: 'edge', index: 1 } }],
 		['2: the anchor, over the bowl it sits in', TOILET, { x: 3, y: 0 }, null, 'transform', part(ANCHOR)],

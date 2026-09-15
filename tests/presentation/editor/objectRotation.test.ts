@@ -89,8 +89,8 @@ it('weights an open path by segment length and keeps the labelled control inside
 	const shape = { id: 'path', kind: 'path' as const, points: [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 100 }] };
 	expect(rotationPivot(shape)).toEqual({ x: 187.5, y: 12.5 });
 	const placed = expectDefined(rotationHandleGeometry(shape, 2, { min: { x: 0, y: 0 }, max: { x: 400, y: 400 } }), 'placed control');
-	expect(placed.bounds.min.x).toBeGreaterThanOrEqual(0); expect(placed.bounds.max.x).toBeLessThanOrEqual(400);
-	expect((placed.bounds.max.x - placed.bounds.min.x) / 2).toBeGreaterThanOrEqual(44);
+	expect(placed.bounds.min.y).toBeGreaterThanOrEqual(0); expect(placed.bounds.max.y).toBeLessThanOrEqual(400);
+	expect(placed.anchor).toEqual({ x: 150, y: 100 }); expect((placed.bounds.max.x - placed.bounds.min.x) / 2).toBe(32);
 });
 it('unwraps the atan2 seam without a spurious reverse turn while keeping previews rigid', () => {
 	const context = toolContext().context, commitRotation = vi.fn<NonNullable<RotationGestureDeps['commitRotation']>>(), gesture = new ElementRotation({ commitRotation });
@@ -101,21 +101,20 @@ it('unwraps the atan2 seam without a spurious reverse turn while keeping preview
 });
 
 
-it.each([0.2, 1, 4])('keeps a clamped rotation target clear of Room vertex handles at %s world units per pixel', scale => {
+it.each([0.2, 1, 4])('keeps the rotation target clear of Room vertex handles at %s world units per pixel', scale => {
 	const point = (x: number, y: number) => ({ x: 1000 + x * scale, y: -500 + y * scale });
 	const shape = { id: 'room-clamped', kind: 'room' as const, points: [point(100, 60), point(472, 60), point(472, 300), point(100, 300)] };
 	const placement = expectDefined(rotationHandleGeometry(shape, scale, { min: point(0, 0), max: point(500, 400) }), 'clear placement');
-	expect(placement.handle).toEqual(point(193, 42)); expect(placement.anchor).toEqual(point(193, 60));
-	for (const vertex of shape.points) expect(distance(placement.handle, vertex) / scale).toBeGreaterThanOrEqual(34);
+	expect(placement.handle.x).toBeCloseTo(point(286, 30).x, 9); expect(placement.handle.y).toBeCloseTo(point(286, 30).y, 9); expect(placement.anchor.y).toBeCloseTo(point(286, 60).y, 9);
+	for (const vertex of shape.points) expect(distance(placement.handle, vertex) / scale).toBeGreaterThanOrEqual(30);
 	expect(resolveSelectionTarget({ candidates: [{ id: shape.id, points: shape.points }], selectedIds: [shape.id], worldPoint: shape.points[1], handleToleranceWorld: 8 * scale, rotationHandle: { id: shape.id, bounds: placement.bounds } })).toEqual({ id: shape.id, kind: 'handle', vertexIndex: 1 });
 });
-it('slides a viewport-filling Room handle away from clipped corners and avoids measured native controls', () => {
-	const visible = { min: { x: 0, y: 0 }, max: { x: 500, y: 400 } };
+it('moves a viewport-filling Room handle to a side the view shows, around measured native controls', () => {
+	const visible = { min: { x: 0, y: 0 }, max: { x: 500, y: 450 } };
 	const shape = { id: 'room-full', kind: 'room' as const, points: [{ x: 28, y: 60 }, { x: 472, y: 60 }, { x: 472, y: 372 }, { x: 28, y: 372 }] };
-	const placement = expectDefined(rotationHandleGeometry(shape, 1, visible), 'slid placement'); expect(placement.handle).toEqual({ x: 139, y: 42 });
-	const obstruction = { min: { x: 110, y: 10 }, max: { x: 165, y: 70 } };
-	const shifted = expectDefined(rotationHandleGeometry(shape, 1, visible, [obstruction]), 'native-control clearance'); expect(shifted.handle).not.toEqual(placement.handle);
-	for (const vertex of shape.points) expect(distance(shifted.handle, vertex)).toBeGreaterThanOrEqual(34);
+	const placement = expectDefined(rotationHandleGeometry(shape, 1, visible), 'top placement'); expect(placement.handle).toEqual({ x: 250, y: 30 });
+	const obstruction = { min: { x: 230, y: 10 }, max: { x: 270, y: 50 } };
+	expect(rotationHandleGeometry(shape, 1, visible, [obstruction])?.handle).toEqual({ x: 250, y: 402 });
 	expect(rotationHandleGeometry(shape, 1, visible, [visible])).toBeNull();
 	expect(rotationHandleGeometry(shape, 1, { min: { x: 0, y: 0 }, max: { x: 40, y: 70 } })).toBeNull();
 });

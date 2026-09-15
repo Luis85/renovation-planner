@@ -5,7 +5,8 @@ import { MarqueeSelection } from '../selection/MarqueeSelection';
 import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { translate } from '../../../core/geometry/operations';
 import { ElementRotation, type RotationGestureDeps } from '../elements/ElementRotation';
-import { rotationControlApproachContains, rotationControlContains, type RotationControlGeometry } from '../elements/rotationControl';
+import { rotationControlContains, type RotationControlGeometry } from '../elements/rotationControl';
+import type { RotationShape } from '../elements/objectRotation';
 import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
 import { ElementResize, type ElementResizeDeps } from '../elements/ElementResize';
 import { transformHandlePoints } from '../elements/transformBox';
@@ -23,6 +24,12 @@ import type { SnapCandidates } from '../snapping/snap-service';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
+
+/** The selected target's own rotate arrow under the pointer, and the shape it turns. */
+interface RotationGrip {
+	readonly shape: RotationShape;
+	readonly control: RotationControlGeometry;
+}
 
 /**
  * What SelectTool hit-tests: a generic "spatial object on the active plan" shape so
@@ -147,7 +154,6 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = null;
 		context.renderState.hoveredObjectId = null;
 		context.renderState.hoveredTargetKind = null;
-		context.renderState.rotationHoverId = null;
 		context.renderState.rotationHoverSuppressed = false;
 	}
 
@@ -156,7 +162,6 @@ export class SelectTool implements EditorTool {
 		if (context !== null) {
 			context.renderState.hoveredObjectId = null;
 			context.renderState.hoveredTargetKind = null;
-			context.renderState.rotationHoverId = null;
 			context.renderState.rotationHoverSuppressed = false;
 		}
 		this.context = null;
@@ -167,7 +172,7 @@ export class SelectTool implements EditorTool {
 		if (context === null || event.button !== 'primary') return;
 		context.renderState.rotationHoverSuppressed = this.rotationSuppressed(event);
 
-		const { candidates, target, rotationControl } = this.targetAt(context, event);
+		const { candidates, target, grip } = this.targetAt(context, event);
 		const canMutate = this.canMutateGeometry();
 		// A press is exactly when the predicted hover stops meaning anything, on every path
 		// out of this method — a body hit, a handle hit and a miss that clears the
@@ -176,12 +181,11 @@ export class SelectTool implements EditorTool {
 		// goes with the id: they are one fact in two fields (see `RenderState`).
 		context.renderState.hoveredObjectId = null;
 		context.renderState.hoveredTargetKind = null;
-		context.renderState.rotationHoverId = null;
 		if (target === null) {
 			this.marquee.start(context, event);
 			return;
 		}
-		if (this.startDirectGesture(context, event, target, rotationControl)) return;
+		if (this.startDirectGesture(context, event, target, grip)) return;
 		// `resolveSelectionTarget` was handed this same `candidates` array, and every non-rotation
 		// id it answers comes out of it: `handleAt` and `badgeAt` find the id there first, and
 		// `bodyAt` iterates it. A rotation target has already returned above.
@@ -315,18 +319,18 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = this.moved(context, this.gesture, event, candidates);
 	}
 	private updateHover(context: EditorContext, event: EditorPointerEvent): void {
-		// Ordinary hover predicts the same body/handle as a click; affordance approach stays separate.
+		// Ordinary hover predicts the same body/handle as a click.
 		context.renderState.rotationHoverSuppressed = this.rotationSuppressed(event);
 		const { target } = this.targetAt(context, this.withMode(event));
 		const canMutate = this.canMutateGeometry();
-		context.renderState.rotationHoverId = canMutate ? target?.kind === 'rotation' ? target.id : this.approachingRotation(context, event) ?? target?.id ?? null : null;
 		context.renderState.hoveredObjectId = target === null ? null : target.id;
 		context.renderState.hoveredTargetKind = target === null ? null : canMutate ? target.kind : 'body';
 	}
-	private startDirectGesture(context: EditorContext, event: EditorPointerEvent, target: Exclude<SelectionTarget, null>, control: RotationControlGeometry | null | undefined): boolean {
+	private startDirectGesture(context: EditorContext, event: EditorPointerEvent, target: Exclude<SelectionTarget, null>, grip: RotationGrip | undefined): boolean {
 		if (target.kind !== 'rotation' && target.kind !== 'label' && target.kind !== 'resize') return false;
 		if (!this.canMutateGeometry()) { selectSpatial(context.selection, target.id, event.modifiers.shift); return true; }
-		if (target.kind === 'rotation') this.startRotation(context, event, target.id, control);
+		// A `rotation` target is only ever resolved from `grip`: the selected target's own arrow.
+		if (target.kind === 'rotation') { const { shape, control } = grip as RotationGrip; this.elementRotation.start(context, event, shape, control); }
 		else if (target.kind === 'resize') this.startResize(context, event, target.handleIndex);
 		else this.labelMove.start(context, event, target.id);
 		return true;
@@ -442,6 +446,13 @@ export class SelectTool implements EditorTool {
 		return !this.elementRotation.active && this.hasDraft();
 	}
 
+	/** The selected target's arrow under the pointer, while it may be grabbed: never for an item that is not the rotation target. */
+	private rotationAt(context: EditorContext, event: EditorPointerEvent): { readonly grip: RotationGrip | undefined; readonly hit: boolean } {
+		const shape = this.deps.rotationTarget?.();
+		const control = this.deps.rotationControls ? this.deps.rotationControls().find(candidate => rotationControlContains(candidate.bounds, event.worldPoint)) : this.deps.rotationControl?.();
+		const grip = control && shape && this.deps.canRotateShape?.(shape.id) !== false && !context.writesBlocked() && !this.rotationSuppressed(event) ? { shape, control } : undefined;
+		return { grip, hit: grip !== undefined && rotationControlContains(grip.control.bounds, event.worldPoint) };
+	}
 	/**
 	 * `resolveSelectionTarget`'s input, built ONCE — `pointerDown` and `pointerMove`'s hover
 	 * arm ask the identical question of the identical state, and a second hand-built copy of
@@ -450,41 +461,15 @@ export class SelectTool implements EditorTool {
 	 * `.find` afterwards, and re-calling `spatialObjects()` there would be the two-calls-per-
 	 * gesture cost this method already exists to avoid.
 	 */
-	private approachingRotation(context: EditorContext, event: EditorPointerEvent): string | null {
-		if (this.rotationSuppressed(event) || !this.deps.rotationControls) return null;
-		const target = this.deps.rotationDisplayTarget?.();
-		return target && this.deps.rotationControls().some(control => rotationControlApproachContains(control, event.worldPoint, context.viewport.worldPerScreenPixel())) ? target.id : null;
-	}
-	private selectRotationTarget(context: EditorContext, id: string): boolean {
-		const current = this.deps.rotationTarget?.();
-		const member = context.selection.selectedIds.some(selectedId => selectedId === id);
-		if (member) return context.selection.selectedIds.length < 2 || current?.id === id;
-		if (current?.id === id) return true;
-		const ids = this.deps.expandSelection?.(id, false) ?? [id];
-		if (!ids.length) return false;
-		context.selection.select(ids.map(value => value as EntityId<string>));
-		return true;
-	}
-	private startRotation(context: EditorContext, event: EditorPointerEvent, id: string, control: RotationControlGeometry | null | undefined): void {
-		if (!control || context.writesBlocked() || !this.selectRotationTarget(context, id)) return;
-		const shape = this.deps.rotationTarget?.();
-		if (shape?.id === id) this.elementRotation.start(context, event, shape, control);
-	}
-	private rotationAt(context: EditorContext, event: EditorPointerEvent) {
-		const selected = this.deps.rotationDisplayTarget ? this.deps.rotationDisplayTarget() : this.deps.rotationTarget?.();
-		const control = this.deps.rotationControls ? this.deps.rotationControls().find(candidate => rotationControlContains(candidate.bounds, event.worldPoint)) : this.deps.rotationControl?.();
-		const decoration = control && selected && this.deps.canRotateShape?.(selected.id) !== false && !context.writesBlocked() && !this.rotationSuppressed(event) ? { id: selected.id, bounds: control.bounds } : undefined;
-		return { decoration, control, hit: decoration !== undefined && rotationControlContains(decoration.bounds, event.worldPoint) };
-	}
 	private targetAt(
 		context: EditorContext,
 		event: EditorPointerEvent,
-	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget; readonly rotationControl: RotationControlGeometry | null | undefined } {
+	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget; readonly grip: RotationGrip | undefined } {
 		const candidates = this.deps.spatialObjects();
 		const rotation = this.rotationAt(context, event);
 		const frame = this.deps.transformBox?.() ?? null;
 		const target = resolveSelectionTarget({
-			rotationHandle: rotation.decoration,
+			rotationHandle: rotation.grip && { id: rotation.grip.shape.id, bounds: rotation.grip.control.bounds },
 			resizeHandles: frame ? { id: frame.element.id, points: transformHandlePoints(frame, context.viewport.worldPerScreenPixel()) } : undefined,
 			candidates,
 			selectedIds: event.modifiers.shift && !rotation.hit ? [] : context.selection.selectedIds.map(String),
@@ -495,7 +480,7 @@ export class SelectTool implements EditorTool {
 			labels: this.deps.labelHits?.(),
 			labelToleranceWorld: LABEL_GRAB_PADDING_PX * context.viewport.worldPerScreenPixel(),
 		});
-		return { candidates, target, rotationControl: rotation.control };
+		return { candidates, target, grip: rotation.grip };
 	}
 
 	private async commit(

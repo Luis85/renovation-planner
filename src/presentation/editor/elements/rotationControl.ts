@@ -1,20 +1,16 @@
 import type { Point } from '../../../core/geometry/Point';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
-import { boundingBoxOf, distance } from '../../../core/geometry/operations';
-import { arcLength, arcPoint, arcTangent } from '../../../core/geometry/circularArc';
+import { boundingBoxOf } from '../../../core/geometry/operations';
 import { spatialElementFootprint, type StairOptions } from '../../../domain/spatial/stairGeometry';
-import { ROTATION_CONTROL_WIDTH_PX, ROTATION_CONTROL_TOP_PX, ROTATION_CONTROL_BOTTOM_PX, ROTATION_HANDLE_OFFSET_PX, ROTATION_VIEW_MARGIN_PX, ROTATION_HANDLE_CLEARANCE_PX, ROTATION_PIVOT_DEADZONE_PX, VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
+import { ROTATION_CONTROL_SIZE_PX, ROTATION_HANDLE_CLEARANCE_PX, ROTATION_HANDLE_OFFSET_PX, ROTATION_HANDLE_REACH_PX, ROTATION_VIEW_MARGIN_PX } from '../handleMetrics';
 
 export interface RotationControlGeometry {
 	readonly handle: Point;
+	/** Where the stem meets the item's box, on the side the arrow stands beyond. */
 	readonly anchor: Point;
-	/** The endpoints of the edge the arrow sits beside; hover reach spans from it to the arrow. */
-	readonly edge: readonly [Point, Point];
 	readonly pivot: Point;
 	readonly bounds: BoundingBox;
-	readonly widthPx: number;
 	readonly hostWall: boolean;
-	readonly edgeIndex?: number;
 }
 export interface RotationInteraction {
 	readonly control: RotationControlGeometry;
@@ -22,45 +18,19 @@ export interface RotationInteraction {
 	readonly snapDegrees: number | null;
 }
 
-export function rotationControlBounds(handle: Point, widthPx: number, worldPerPixel: number): BoundingBox {
-	return { min: { x: handle.x - widthPx / 2 * worldPerPixel, y: handle.y - ROTATION_CONTROL_TOP_PX * worldPerPixel },
-		max: { x: handle.x + widthPx / 2 * worldPerPixel, y: handle.y + ROTATION_CONTROL_BOTTOM_PX * worldPerPixel } };
+/** The square pointer target centred on the arrow, `ROTATION_CONTROL_SIZE_PX` across at any zoom. */
+export function rotationControlBounds(handle: Point, worldPerPixel: number): BoundingBox {
+	const half = ROTATION_CONTROL_SIZE_PX / 2 * worldPerPixel;
+	return { min: { x: handle.x - half, y: handle.y - half }, max: { x: handle.x + half, y: handle.y + half } };
 }
 export function rotationControlContains(bounds: BoundingBox, point: Point): boolean {
 	return point.x >= bounds.min.x && point.x <= bounds.max.x && point.y >= bounds.min.y && point.y <= bounds.max.y;
 }
-function cross(o: Point, a: Point, b: Point): number { return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x); }
-/** Monotone-chain convex hull, counter-clockwise, so a point is inside when it is left of every edge. */
-function convexHull(points: readonly Point[]): readonly Point[] {
-	const sorted = points.toSorted((a, b) => a.x - b.x || a.y - b.y);
-	const half = (list: readonly Point[]) => list.reduce<Point[]>((hull, point) => {
-		while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], point) <= 0) hull.pop();
-		hull.push(point); return hull;
-	}, []).slice(0, -1);
-	return [...half(sorted), ...half(sorted.toReversed())];
-}
-/**
- * Hover reach from anywhere along the arrow's edge to the arrow: the convex hull of that edge, its
- * anchor and the target rectangle, padded by the grab radius. Convex, so every straight path from
- * the edge to the arrow stays inside it even where another item lies beneath. Never a click target.
- */
-export function rotationControlApproachContains(control: RotationControlGeometry, point: Point, scale: number): boolean {
-	const m = VERTEX_GRAB_RADIUS_PX * scale, { min, max } = control.bounds;
-	const hull = convexHull([...control.edge, control.anchor, min, max, { x: min.x, y: max.y }, { x: max.x, y: min.y }]
-		.flatMap(({ x, y }) => [{ x: x - m, y: y - m }, { x: x + m, y: y - m }, { x: x + m, y: y + m }, { x: x - m, y: y + m }]));
-	return hull.every((a, index) => cross(a, hull[(index + 1) % hull.length], point) >= 0);
-}
 function overlaps(a: BoundingBox, b: BoundingBox, gap: number): boolean {
 	return a.min.x - gap <= b.max.x && a.max.x + gap >= b.min.x && a.min.y - gap <= b.max.y && a.max.y + gap >= b.min.y;
 }
-function pointBox(point: Point, radius: number): BoundingBox {
-	return { min: { x: point.x - radius, y: point.y - radius }, max: { x: point.x + radius, y: point.y + radius } };
-}
-function clampControl(point: Point, width: number, scale: number, visible?: BoundingBox): Point {
-	if (!visible) return point;
-	const margin = ROTATION_VIEW_MARGIN_PX * scale;
-	return { x: Math.max(visible.min.x + width / 2 * scale + margin, Math.min(visible.max.x - width / 2 * scale - margin, point.x)),
-		y: Math.max(visible.min.y + ROTATION_CONTROL_TOP_PX * scale + margin, Math.min(visible.max.y - ROTATION_CONTROL_BOTTOM_PX * scale - margin, point.y)) };
+function clamp(value: number, low: number, high: number): number {
+	return Math.max(low, Math.min(high, value));
 }
 
 export interface RotationControlShape {
@@ -73,39 +43,74 @@ export interface RotationControlShape {
 	/** A closed outline the caller derived and the domain cannot (an asset's footprint needs its shape); the handle stands off it instead of `points`. */
 	readonly hitPoints?: readonly Point[];
 }
-const EDGE_POSITIONS = [1, 2].flatMap(multiplier => [[0.25, 1], [0.75, 1], [0.5, 1], [0.25, -1], [0.75, -1], [0.5, -1]].map(([fraction, side]) => [fraction, side, multiplier]));
-function edgePoints(shape: RotationControlShape): readonly Point[] {
-	if (shape.hitPoints) return shape.hitPoints;
-	if (shape.kind === 'stair') return spatialElementFootprint(shape);
-	if (shape.kind !== 'group') return shape.points;
-	const bounds = boundingBoxOf(shape); if (!bounds.ok) return [];
-	const { min, max } = bounds.value;
-	return [min, { x: max.x, y: min.y }, max, { x: min.x, y: max.y }];
+/** The drawn outline's curve-aware box: a placement's derived footprint, a stair's, a wall's own arc, else the shape as stored. */
+function outlineBox(shape: RotationControlShape): BoundingBox | null {
+	const outline = shape.hitPoints ? { points: shape.hitPoints }
+		: shape.kind === 'stair' ? { points: spatialElementFootprint(shape) }
+			: shape.wall?.id === shape.id ? { points: shape.points, bulges: [shape.wall.bulge ?? 0, 0] }
+				: shape;
+	const box = boundingBoxOf(outline);
+	return box.ok ? box.value : null;
 }
-function edgesOf(shape: RotationControlShape) {
-	const points = edgePoints(shape), closed = shape.hitPoints !== undefined || ['room', 'area', 'object', 'post', 'hatch', 'group', 'stair'].includes(shape.kind);
-	const winding = points.reduce((sum, a, index) => { const b = points[(index + 1) % points.length]; return sum + a.x * b.y - b.x * a.y; }, 0);
-	return points.slice(0, closed ? points.length : -1).map((a, index) => {
-		const b = points[(index + 1) % points.length], bulge = shape.kind === 'group' ? 0 : shape.wall?.bulge ?? shape.bulges?.[index] ?? 0, curve = { start: a, end: b, bulge }, length = arcLength(curve), sign = winding < 0 ? -1 : 1;
-		return { curve, index, length, sign };
-	}).filter(edge => Number.isFinite(edge.length) && edge.length > 0).toSorted((a, b) => b.length - a.length);
+
+/** An outward direction, as the x and y steps of a unit move away from the box. */
+type Side = readonly [dx: -1 | 0 | 1, dy: -1 | 0 | 1];
+/** Top first, where Konva's Transformer puts its rotater, then bottom, left and right. World y grows downward, so the top is `min.y`. */
+const SIDES: readonly Side[] = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+interface Placement {
+	readonly box: BoundingBox;
+	readonly scale: number;
+	readonly visible: BoundingBox | undefined;
+	readonly obstacles: readonly BoundingBox[];
 }
-/** One edge affordance per item, on the first unobstructed rectangle hit testing also uses. */
+/** How far inside the view an arrow's centre must stay: half its target plus the margin. */
+function insetOf(scale: number): number {
+	return (ROTATION_CONTROL_SIZE_PX / 2 + ROTATION_VIEW_MARGIN_PX) * scale;
+}
+function shown(point: Point, { visible, scale }: Placement): boolean {
+	if (!visible) return true;
+	const inset = insetOf(scale);
+	return point.x >= visible.min.x + inset && point.x <= visible.max.x - inset && point.y >= visible.min.y + inset && point.y <= visible.max.y - inset;
+}
+/** The middle of `side`, slid into view along it but never past the box, so the stem always meets the box. */
+function anchorOn([dx, dy]: Side, { box, scale, visible }: Placement): Point {
+	const along = (axis: 'x' | 'y'): number => {
+		const middle = (box.min[axis] + box.max[axis]) / 2, inset = insetOf(scale);
+		return clamp(visible ? clamp(middle, visible.min[axis] + inset, visible.max[axis] - inset) : middle, box.min[axis], box.max[axis]);
+	};
+	const edge = (axis: 'x' | 'y', step: number): number => (step < 0 ? box.min[axis] : box.max[axis]);
+	return { x: dx === 0 ? along('x') : edge('x', dx), y: dy === 0 ? along('y') : edge('y', dy) };
+}
+/**
+ * The arrow's centre beyond `anchor`, pushed further out on the same side past each measured control
+ * covering it — a selected Room's dimension labels sit at all four middles — so its stem runs beneath.
+ * `null` once it leaves the view or passes `ROTATION_HANDLE_REACH_PX`.
+ */
+function handleOn([dx, dy]: Side, anchor: Point, placement: Placement): Point | null {
+	const { scale, obstacles } = placement, gap = ROTATION_HANDLE_CLEARANCE_PX * scale;
+	let distance = ROTATION_HANDLE_OFFSET_PX * scale;
+	while (distance <= ROTATION_HANDLE_REACH_PX * scale) {
+		const handle = { x: anchor.x + dx * distance, y: anchor.y + dy * distance }, bounds = rotationControlBounds(handle, scale);
+		if (!shown(handle, placement)) return null;
+		const covering = obstacles.find(obstacle => overlaps(bounds, obstacle, gap));
+		if (!covering) return handle;
+		// Clear of its far edge by the gap and a pixel, so every pass moves strictly outward.
+		const far = { x: dx < 0 ? covering.min.x : covering.max.x, y: dy < 0 ? covering.min.y : covering.max.y };
+		distance = dx * (far.x - anchor.x) + dy * (far.y - anchor.y) + ROTATION_CONTROL_SIZE_PX / 2 * scale + gap + scale;
+	}
+	return null;
+}
+/**
+ * One arrow per item, beyond the middle of a side of its axis-aligned box: the top, then the bottom,
+ * left and right in turn, each tried as `anchorOn` and `handleOn` describe. `null` when no side has room.
+ */
 export function layoutRotationControl(shape: RotationControlShape, pivot: Point, scale: number, visible?: BoundingBox, obstacles: readonly BoundingBox[] = []): RotationControlGeometry | null {
-	const hostWall = shape.wall !== undefined && shape.id !== shape.wall.id;
-	const widthPx = ROTATION_CONTROL_WIDTH_PX;
-	const margin = ROTATION_VIEW_MARGIN_PX * scale;
-	if (visible && (visible.max.x - visible.min.x < widthPx * scale + 2 * margin || visible.max.y - visible.min.y < (ROTATION_CONTROL_TOP_PX + ROTATION_CONTROL_BOTTOM_PX) * scale + 2 * margin)) return null;
-	const offset = ROTATION_HANDLE_OFFSET_PX * scale, gap = ROTATION_HANDLE_CLEARANCE_PX * scale;
-	const vertices = shape.points.map(point => pointBox(point, VERTEX_GRAB_RADIUS_PX * scale));
-	const excluded = [...obstacles, ...vertices, pointBox(pivot, ROTATION_PIVOT_DEADZONE_PX * scale)];
-	for (const edge of edgesOf(shape)) {
-		for (const [fraction, side, multiplier] of EDGE_POSITIONS) {
-			const anchor = arcPoint(edge.curve, fraction), tangent = arcTangent(edge.curve, fraction);
-			const handle = clampControl({ x: anchor.x + edge.sign * tangent.y * offset * side * multiplier, y: anchor.y - edge.sign * tangent.x * offset * side * multiplier }, widthPx, scale, visible), bounds = rotationControlBounds(handle, widthPx, scale);
-			if (distance(handle, anchor) > 2 * offset || excluded.some(box => overlaps(bounds, box, gap))) continue;
-			return { handle, anchor, edge: [edge.curve.start, edge.curve.end], bounds, pivot, widthPx, hostWall, edgeIndex: edge.index };
-		}
+	const box = outlineBox(shape);
+	if (!box) return null;
+	const placement: Placement = { box, scale, visible, obstacles };
+	for (const side of SIDES) {
+		const anchor = anchorOn(side, placement), handle = handleOn(side, anchor, placement);
+		if (handle) return { handle, anchor, pivot, bounds: rotationControlBounds(handle, scale), hostWall: shape.wall !== undefined && shape.id !== shape.wall.id };
 	}
 	return null;
 }

@@ -123,3 +123,11 @@ export const ROTATION_HANDLE_REACH_PX = 90;
 export const ROTATION_VIEW_MARGIN_PX = 4;
 export const ROTATION_HANDLE_CLEARANCE_PX = 4;
 export const ROTATION_PIVOT_DEADZONE_PX = 8;
+
+/**
+ * How far outside an item's or placement's outline its transform box and handles are drawn, so the
+ * item's own vertex dots stay grabbable beside the corner handles (plan editor transform box design, Decision 3).
+ */
+export const TRANSFORM_BOX_PADDING_PX = 12;
+/** The drawn side of a transform box handle square; the grab reach is `VERTEX_GRAB_RADIUS_PX`, like a vertex. */
+export const TRANSFORM_HANDLE_SIZE_PX = 8;

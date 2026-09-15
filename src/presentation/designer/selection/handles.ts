@@ -1,6 +1,6 @@
-import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { Point } from '../../../core/geometry/Point';
 import { arcPoint } from '../../../core/geometry/circularArc';
+import { BOX_HANDLE_COUNT, boxHandlePoint } from '../../../core/geometry/boxHandles';
 import { boundingBoxOf } from '../../../core/geometry/operations';
 import { unwrap } from '../../../core/result/Result';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
@@ -17,21 +17,6 @@ export type HandleRole =
 export interface SelectionHandle {
 	readonly role: HandleRole;
 	readonly at: Point;
-}
-
-/** Per box handle, clockwise from the top-left: which of min, middle, max it takes on each axis. */
-const BOX_COLUMN = [0, 1, 2, 2, 2, 1, 0, 0] as const;
-const BOX_ROW = [0, 0, 0, 1, 2, 2, 2, 1] as const;
-
-/**
- * Where box handle `index` sits — and, asked for `(index + 4) % 8`, the corner or side midpoint a
- * resize from `index` holds still, which is why the drag arithmetic asks this rather than a copy.
- */
-export function boxHandlePoint(box: BoundingBox, index: number): Point {
-	return {
-		x: [box.min.x, (box.min.x + box.max.x) / 2, box.max.x][BOX_COLUMN[index]],
-		y: [box.min.y, (box.min.y + box.max.y) / 2, box.max.y][BOX_ROW[index]],
-	};
 }
 
 /**
@@ -61,7 +46,7 @@ export function selectionHandles(
 	}
 	const box = unwrap(boundingBoxOf(outline));
 	return [
-		...BOX_COLUMN.map((_, index): SelectionHandle => ({ role: { kind: 'box', index }, at: boxHandlePoint(box, index) })),
+		...Array.from({ length: BOX_HANDLE_COUNT }, (_, index): SelectionHandle => ({ role: { kind: 'box', index }, at: boxHandlePoint(box, index) })),
 		{ role: { kind: 'rotate' }, at: { x: boxHandlePoint(box, 1).x, y: box.min.y - ROTATION_HANDLE_OFFSET_PX * worldPerPixel } },
 	];
 }

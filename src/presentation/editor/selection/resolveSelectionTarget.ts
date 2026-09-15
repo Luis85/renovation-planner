@@ -11,6 +11,7 @@ import type { LabelHit } from '../labels/labelLayout';
 export type SelectionTarget =
 	| { readonly kind: 'handle'; readonly id: string; readonly vertexIndex: number }
 	| { readonly kind: 'rotation'; readonly id: string }
+	| { readonly kind: 'resize'; readonly id: string; readonly handleIndex: number }
 	| { readonly kind: 'label'; readonly id: string }
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
@@ -59,6 +60,19 @@ function handleAt(input: {
 	return vertexIndex < 0 ? null : { kind: 'handle', id, vertexIndex };
 }
 
+/** A transform box handle of the one selected element (plan editor transform box design, Interaction). */
+function resizeAt(input: {
+	readonly selectedIds: readonly string[];
+	readonly worldPoint: Point;
+	readonly handleToleranceWorld: number;
+	readonly resizeHandles?: { readonly id: string; readonly points: readonly Point[] };
+}): SelectionTarget {
+	const handles = input.resizeHandles;
+	if (!handles || input.selectedIds.length !== 1 || input.selectedIds[0] !== handles.id) return null;
+	const handleIndex = handles.points.findIndex(point => distance(point, input.worldPoint) <= input.handleToleranceWorld);
+	return handleIndex < 0 ? null : { kind: 'resize', id: handles.id, handleIndex };
+}
+
 function labelAt(input: {
 	readonly candidates: readonly SpatialObjectCandidate[];
 	readonly selectedIds: readonly string[];
@@ -98,8 +112,8 @@ function badgeAt(input: {
 /**
  * The ONE answer to "what would a click here select" (design spec §6.1). Hover asks it to
  * predict, the click asks it to act, so the two cannot disagree. Priority: a single selection's
- * vertex handle or a multi-selection badge, then a selected item's caption, then the topmost
- * containing body, then nothing.
+ * vertex handle, then its transform box handle, or a multi-selection badge, then a selected
+ * item's caption, then the topmost containing body, then nothing.
  * Bodies rank Object → Opening → Wall → other elements → Hatch → Room/Area. Candidates arrive
  * bottom-first; stable sorting preserves paint order within a kind, scanned top-first.
  * Alt bypasses handles and cycles bodies from the current selection, wrapping.
@@ -110,6 +124,8 @@ export function resolveSelectionTarget(input: {
 	readonly worldPoint: Point;
 	readonly handleToleranceWorld: number;
 	readonly rotationHandle?: { readonly id: string; readonly bounds: BoundingBox };
+	/** The selected element's padded transform box handles, world points in handle order. */
+	readonly resizeHandles?: { readonly id: string; readonly points: readonly Point[] };
 	/** Alt selects the next overlapping body, bypassing handles. */
 	readonly cycle?: boolean;
 	readonly badgeToleranceWorld?: number;
@@ -120,7 +136,7 @@ export function resolveSelectionTarget(input: {
 	if (!input.cycle) {
 		// The facade supplies only a visible, permitted hover handle; pressing it owns selection.
 		if (input.rotationHandle && rotationControlContains(input.rotationHandle.bounds, input.worldPoint)) return { kind: 'rotation', id: input.rotationHandle.id };
-		const decoration = input.selectedIds.length > 1 ? badgeAt(input) : handleAt(input);
+		const decoration = input.selectedIds.length > 1 ? badgeAt(input) : handleAt(input) ?? resizeAt(input);
 		if (decoration !== null) return decoration;
 		const label = labelAt(input);
 		if (label !== null) return label;

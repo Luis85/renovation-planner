@@ -732,3 +732,8 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   only a vault shows is whether the marks read as a plan on a themed vault, whether the host
   renders the seven registered `rp-` icons, and whether a chain's points land on a room's corners
   under a real hand. Its steps carry no `Reachable by` verdicts yet (see the head of this file).
+- [[Resize an item and an asset on the plan]] — the transform box on one selected Item (`object`)
+  and one placed library asset, in Plan. The dashed box stands just outside the outline with eight
+  square handles; dragging any handle resizes about the opposite corner; Shift keeps proportions;
+  a placement's own size in the Inspector overwrites its library default, and Reset removes that
+  override. Its steps carry no `Reachable by` verdicts yet (see the head of this file).

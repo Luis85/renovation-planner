@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { isItemColor, itemColorKind, ITEM_COLORS } from '../../../src/domain/spatial/ItemColor';
 import { validSpatialElement, type SpatialElement } from '../../../src/domain/spatial/SpatialElement';
-import { PlanGeometrySchemaV14 } from '../../../src/infrastructure/persistence/dto/planGeometry';
+import { PlanGeometrySchemaV14, PlanGeometrySchemaV15 } from '../../../src/infrastructure/persistence/dto/planGeometry';
 import { PLAN_GEOMETRY_MIGRATIONS } from '../../../src/infrastructure/persistence/migration/geometry/plan/plan-geometry.migrations';
 import { MigrationRunner } from '../../../src/infrastructure/persistence/migration/MigrationRunner';
 import { itemColorFill } from '../../../src/presentation/editor/elements/itemColorAppearance';
@@ -34,7 +34,7 @@ it('limits durable ids to six presets and eligible identities to objects and ass
 it('migrates old sidecars without inventing colors and refuses unknown colors and ineligible kinds', () => {
 	const migrations = new MigrationRunner(); migrations.registerAll('plan-geometry', PLAN_GEOMETRY_MIGRATIONS);
 	const migrated = migrations.migrateToLatest('plan-geometry', old, 12);
-	expect(PlanGeometrySchemaV14.parse(migrated).structure?.elements?.[0]).not.toHaveProperty('color');
+	expect(PlanGeometrySchemaV15.parse(migrated).structure?.elements?.[0]).not.toHaveProperty('color');
 	expect(old.schemaVersion).toBe(12);
 	const colored = { ...old, schemaVersion: 14, structure: { ...structure, elements: [{ ...item, color: 'rose' }] } };
 	expect(PlanGeometrySchemaV14.parse(colored).structure?.elements?.[0].color).toBe('rose');

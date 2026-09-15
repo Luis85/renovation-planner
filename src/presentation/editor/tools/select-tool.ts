@@ -1,5 +1,6 @@
 import type { SpatialElementKind } from '../../../domain/spatial/SpatialElement';
 import type { StairOptions } from '../../../domain/spatial/stairGeometry';
+import type { Dimensions } from '../../../domain/asset/AssetShape';
 import { MarqueeSelection } from '../selection/MarqueeSelection';
 import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { translate } from '../../../core/geometry/operations';
@@ -7,6 +8,8 @@ import { ElementRotation, type RotationGestureDeps } from '../elements/ElementRo
 import { rotationControlContains, type RotationControlGeometry } from '../elements/rotationControl';
 import type { RotationShape } from '../elements/objectRotation';
 import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
+import { ElementResize, type ElementResizeDeps } from '../elements/ElementResize';
+import { transformHandlePoints } from '../elements/transformBox';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
@@ -48,6 +51,7 @@ export interface SpatialObjectCandidate {
 	readonly hitRegions?: readonly (readonly Point[])[];
 	readonly stair?: StairOptions;
 	readonly assetId?: string;
+	readonly size?: Dimensions;
 }
 
 /**
@@ -55,7 +59,7 @@ export interface SpatialObjectCandidate {
  * like every adapter in this slice, one instance carries one transaction's forward/inverse
  * pair.
  */
-export interface SelectToolDeps extends ElementMoveDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps {
+export interface SelectToolDeps extends ElementMoveDeps, ElementResizeDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps {
 	/** Selection remains available when false; only geometry gestures are withheld. */
 	readonly canMutateGeometry?: () => boolean;
 	readonly previewWall?: (id: string | null, end?: Point) => void;
@@ -139,8 +143,9 @@ export class SelectTool implements EditorTool {
 
 	private readonly elementMove: ElementMove;
 	private readonly elementRotation: ElementRotation;
+	private readonly elementResize: ElementResize;
 	private readonly labelMove: LabelMove;
-	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); this.elementRotation = new ElementRotation(deps); this.labelMove = new LabelMove(deps); }
+	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); this.elementRotation = new ElementRotation(deps); this.elementResize = new ElementResize(deps); this.labelMove = new LabelMove(deps); }
 	private canMutateGeometry(): boolean { return this.deps.canMutateGeometry?.() !== false; }
 
 	activate(context: EditorContext): void {
@@ -303,6 +308,7 @@ export class SelectTool implements EditorTool {
 		if (this.labelMove.move(event)) return;
 		if (this.marquee.active) { this.marquee.move(context, event); return; }
 		if (this.elementRotation.active) { this.elementRotation.move(context, event); return; }
+		if (this.elementResize.active) { this.elementResize.move(context, event); return; }
 		if (this.elementMove.active) { this.elementMove.move(event); return; }
 		if (this.wallGesture) { this.deps.previewWall?.(this.wallGesture.id, event.worldPoint); return; }
 		if (this.gesture === null) {
@@ -321,12 +327,17 @@ export class SelectTool implements EditorTool {
 		context.renderState.hoveredTargetKind = target === null ? null : canMutate ? target.kind : 'body';
 	}
 	private startDirectGesture(context: EditorContext, event: EditorPointerEvent, target: Exclude<SelectionTarget, null>, grip: RotationGrip | undefined): boolean {
-		if (target.kind !== 'rotation' && target.kind !== 'label') return false;
+		if (target.kind !== 'rotation' && target.kind !== 'label' && target.kind !== 'resize') return false;
 		if (!this.canMutateGeometry()) { selectSpatial(context.selection, target.id, event.modifiers.shift); return true; }
 		// A `rotation` target is only ever resolved from `grip`: the selected target's own arrow.
 		if (target.kind === 'rotation') { const { shape, control } = grip as RotationGrip; this.elementRotation.start(context, event, shape, control); }
+		else if (target.kind === 'resize') this.startResize(context, event, target.handleIndex);
 		else this.labelMove.start(context, event, target.id);
 		return true;
+	}
+	private startResize(context: EditorContext, event: EditorPointerEvent, index: number): void {
+		const frame = this.deps.transformBox?.();
+		if (frame) this.elementResize.start(context, event, frame, index);
 	}
 
 	private finishSelectionGesture(event: EditorPointerEvent): boolean {
@@ -346,12 +357,18 @@ export class SelectTool implements EditorTool {
 		this.deps.editWall?.(gesture.id, event.worldPoint);
 		return true;
 	}
+	/** Rotation, resize and move each own a drag the same way; whichever is active finishes it and nothing else does. */
+	private finishElementGesture(context: EditorContext, event: EditorPointerEvent): boolean {
+		if (this.elementRotation.active) { this.elementRotation.finish(context, event); return true; }
+		if (this.elementResize.active) { this.elementResize.finish(context, event); return true; }
+		if (this.elementMove.active) { this.elementMove.finish(context, event); return true; }
+		return false;
+	}
 	pointerUp(event: EditorPointerEvent): void {
 		if (!this.canMutateGeometry() || this.context?.writesBlocked()) this.cancelGeometryGesture();
 		if (this.finishSelectionGesture(event)) return;
 		if (this.labelMove.finish(event)) return;
-		if (this.elementRotation.active && this.context) { this.elementRotation.finish(this.context, event); return; }
-		if (this.elementMove.active && this.context) { this.elementMove.finish(this.context, event); return; }
+		if (this.context && this.finishElementGesture(this.context, event)) return;
 		if (this.finishWallGesture(event)) return;
 		const context = this.context;
 		const gesture = this.gesture;
@@ -378,9 +395,9 @@ export class SelectTool implements EditorTool {
 
 	/** Retire only undispatched geometry. Selection marquees and pending writes keep their owner. */
 	cancelGeometryGesture(): boolean {
-		if (!this.gesture && !this.wallGesture && !this.elementMove.active && !this.elementRotation.active && !this.labelMove.active && !this.deps.selectionMove?.active) return false;
+		if (!this.gesture && !this.wallGesture && !this.elementMove.active && !this.elementRotation.active && !this.elementResize.active && !this.labelMove.active && !this.deps.selectionMove?.active) return false;
 		this.deps.selectionMove?.cancel();
-		this.elementMove.cancel(); this.elementRotation.cancel(); this.labelMove.cancel();
+		this.elementMove.cancel(); this.elementRotation.cancel(); this.elementResize.cancel(); this.labelMove.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
@@ -416,7 +433,7 @@ export class SelectTool implements EditorTool {
 
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
-		return this.deps.selectionMove?.active === true || this.marquee.active || this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active || this.labelMove.active;
+		return this.deps.selectionMove?.active === true || this.marquee.active || this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active || this.elementResize.active || this.labelMove.active;
 	}
 
 	/**
@@ -450,8 +467,10 @@ export class SelectTool implements EditorTool {
 	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget; readonly grip: RotationGrip | undefined } {
 		const candidates = this.deps.spatialObjects();
 		const rotation = this.rotationAt(context, event);
+		const frame = this.deps.transformBox?.() ?? null;
 		const target = resolveSelectionTarget({
 			rotationHandle: rotation.grip && { id: rotation.grip.shape.id, bounds: rotation.grip.control.bounds },
+			resizeHandles: frame ? { id: frame.element.id, points: transformHandlePoints(frame, context.viewport.worldPerScreenPixel()) } : undefined,
 			candidates,
 			selectedIds: event.modifiers.shift && !rotation.hit ? [] : context.selection.selectedIds.map(String),
 			worldPoint: event.worldPoint,

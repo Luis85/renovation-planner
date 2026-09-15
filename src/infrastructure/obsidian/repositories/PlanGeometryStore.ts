@@ -7,7 +7,7 @@ import { checkExpectedVersion, externalModification } from '../../../application
 import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
-import { PlanGeometrySchema, PlanGeometrySchemaV14 } from '../../persistence/dto/planGeometry';
+import { PlanGeometrySchema, PlanGeometrySchemaV15 } from '../../persistence/dto/planGeometry';
 import { hasIndependentWallSides, withWallSideDefaults } from './wallSidePersistence';
 import { draftingKind } from '../../../domain/spatial/SpatialElement';
 import { validateSpatialGroups } from '../../../domain/spatial/SpatialGroup';
@@ -51,13 +51,16 @@ function hasDraftingElement(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>
 	return [dto.structure, dto.intended].some(structure => structure?.elements?.some(element => draftingKind(element.kind)) === true);
 }
 
-/** Explicit user content requires a reader that understands placement colors. */
-function hasItemColor(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): boolean {
-	return [dto.structure, dto.intended].some(structure => structure?.elements?.some(element => element.color !== undefined));
+/** Explicit placement facts require a reader that understands them: a placement's own size needs schema 15, a color 14. */
+function placementSchema(dto: Pick<PlanGeometryDTO, 'structure' | 'intended'>): 15 | 14 | null {
+	const elements = [dto.structure, dto.intended].flatMap(structure => structure?.elements ?? []);
+	if (elements.some(element => element.size !== undefined)) return 15;
+	return elements.some(element => element.color !== undefined) ? 14 : null;
 }
 
 function writtenSchema(dto: Pick<PlanGeometryDTO, 'objects' | 'structure' | 'intended' | 'groups'>): PlanGeometryDTO['schemaVersion'] {
-	if (hasItemColor(dto)) return 14;
+	const placement = placementSchema(dto);
+	if (placement !== null) return placement;
 	if (hasIndependentWallSides(dto)) return 13;
 	if (hasDraftingElement(dto)) return 12;
 	if (hasStructuralElement(dto)) return 11;
@@ -311,7 +314,7 @@ export class PlanGeometryStore {
 			return err(mappedMigrationFailure('plan-geometry', cause));
 		}
 
-		const validated = PlanGeometrySchemaV14.safeParse(migrated);
+		const validated = PlanGeometrySchemaV15.safeParse(migrated);
 		if (!validated.success) {
 			return err({
 				category: 'Validation',

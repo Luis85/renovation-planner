@@ -145,10 +145,10 @@ calibrated spec sheet.
 
 | # | Reachable by | Do this | It passes when | It exists to catch |
 | --- | --- | --- | --- | --- |
-| 47 | `browser` | Click Select, click the bowl and drag it slowly until its left edge nears the tank's left edge | A dashed guide appears as the edges line up, the bowl jumps onto the line, and the guide disappears on release | The guides `DesignerGestureLayer` draws and clears at release — no fixed capture holds a live pointer |
-| 48 | `suite` | Open View, tick Show grid, then drag the bowl into open space | The status row reads `Grid … mm`, and the bowl's top-left corner lands on a grid line counted from the footprint's top-left corner | The grid supplied to snapping only while shown, from the footprint's corner (`designerGrid`) |
+| 47 | `browser` | Click Select, click the bowl and drag it slowly until its left edge nears the tank's left edge | A short dashed guide appears as the edges line up, the bowl jumps onto the line, and the guide disappears on release — the bowl's left side sits on the same line as the tank's, so edge snapping wins before an alignment would, and the guide it draws is only as long as the last bit of travel | The guides `DesignerGestureLayer` draws and clears at release — no fixed capture holds a live pointer |
+| 48 | `suite` | Open View, tick Show grid, then drag the tank into open space | The status row reads `Grid … mm`, and the tank's top-left corner lands on a grid line counted from the footprint's top-left corner | The grid supplied to snapping only while shown, from the footprint's corner (`designerGrid`) |
 | 49 | `obsidian` | Untick Snap to objects, close the designer, open another asset's designer, then a Plan Editor | The second designer opens with the grid shown and Snap to objects unticked; the Plan Editor's View menu is unchanged | The designer's own device slot (`designer-view`), apart from the Plan Editor's |
-| 50 | `suite` | With the bowl selected in Transform, hold Shift and drag a corner handle past the tank's edge | The bowl keeps its proportions, nothing snaps and no guide is drawn | Proportional resize taking the raw point |
+| 50 | `suite` | With the bowl selected in Transform, hold Shift and drag a side handle past the tank's edge | The bowl keeps its proportions, nothing snaps and no guide is drawn | Proportional resize taking the raw point |
 | 51 | `obsidian` | On an asset with a calibrated spec sheet, tick Show grid | The grid lines are visible over the drawing, not hidden behind it | The grid mounted above the stage — the harness refuses a background document, so no capture can show it |
 
 ## Deliberately NOT checked

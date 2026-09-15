@@ -1,6 +1,8 @@
 # Item colors — implementation receipt
 
-Status: verification in progress. Branch: `codex/usability-astra-item-colors`.
+Status: implementation and local verification complete. Branch: `codex/usability-astra-item-colors`.
+Pull request: [#214](https://github.com/Luis85/renovation-planner/pull/214), directly above #213.
+Live platform/audit/security CI status is tracked on the pull request.
 Initial base: `836399775e91ccf05e44959b6bea9960605defbb` (#209).
 Stack base: `20f2b699a6db52ffd2ef1309ce5116f551a3ad75`, wall-face PR #213.
 The wall branch was merged normally in `e396eeb72`; current main `9ef607030` was merged
@@ -123,7 +125,15 @@ canvas capture during asynchronous fixture settling and is labelled as such abov
   (wall persistence, stylesheet variables, color domain/DTO and editor integration).
   Fallow on the complete first-run coverage report returned **0 issues, 0 above threshold**,
   7516 analyzed units and maintainability index 86.7.
-- Definitive one-worker `npm run check`: pending on the corrected clean committed tree.
+- Definitive one-worker `npm run check`: **exit 0** on clean commit
+  `b6a9ce3606f01ad8183bad3e96d2b78476ab785b`, from `2026-09-15T06:54:42Z` to
+  `2026-09-15T07:39:46Z`. **988 files passed; 10,800 tests passed, 1 intentional skip**.
+  Coverage: statements **99.24% (27818/28029)**, branches **98.07% (20484/20885)**,
+  functions **99.28% (8090/8148)**, lines **99.68% (20418/20483)**. Fallow returned
+  **0 issues, 0 above threshold**, 7516 analyzed units, MI 86.7 and the same 3 inherited
+  capture-script clone groups. No thresholds or scan exclusions were changed.
+  [Machine-readable verification](verification.json) preserves the run timestamps, log hashes,
+  verified code-tree hashes and focused/browser evidence. Subsequent receipt updates are documentation only.
 
 ## Integration seams
 

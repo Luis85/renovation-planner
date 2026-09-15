@@ -199,6 +199,7 @@ entries are added by the pull request that earns them, never invented at release
 
 - Plan editor: keep renovation state and evidence type switches visible, show contextual room headings and compact expandable records, and place creation and continuation actions after the relevant content. Expanded cost groups retain all reconciled stages.
 - Plan editor: adding an item to the asset library no longer requires a cost; a blank cost saves the asset at zero.
+- Asset library: creating a new asset no longer requires a cost either; a blank cost saves the asset at zero.
 - Spatial rotation uses a recognizable circular-arrow handle with a larger grab area, pivot and angle feedback, and localized numeric and quarter-turn controls in each eligible Inspector. Openings explicitly rotate with their host wall.
 
 - Build with Vite instead of esbuild, per the SDD's stack: single CJS bundle into `dist/`,

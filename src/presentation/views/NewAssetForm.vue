@@ -364,9 +364,8 @@ async function createAssetAndFootprint(
 ): Promise<Result<{ readonly assetId: AssetId }, AppError>> {
 	const dimensions = parseDimensions(values);
 	if (isErr(dimensions)) return dimensions;
-	// From a plan item the cost is optional: blank saves as zero, so an item converts without a price to hand.
-	const typedCost = normalizeDecimalInput(values.unitCostAmount);
-	const unitCostAmount = props.outline && typedCost === '' ? '0' : typedCost;
+	// The cost is optional: blank saves as zero, so an asset is created without a price to hand.
+	const unitCostAmount = normalizeDecimalInput(values.unitCostAmount) || '0';
 	const money = createMoney(unitCostAmount, values.currency);
 	if (isErr(money)) return money;
 	const preflight = footprintPreflight(dimensions.value);

@@ -7,7 +7,7 @@ import { paintRulerMarks, rulerMarks } from '../layers/rulerGeometry';
 import { screenPoint } from '../viewport/Viewport';
 import type { Point } from '../../../core/geometry/Point';
 import ElementShape from './ElementShape.vue';
-import { itemColorTint } from './itemColorAppearance';
+import { itemColorInk, itemColorTint } from './itemColorAppearance';
 import { hasPointHandles } from './ElementMove';
 import { draftingKind, outlineKind } from '../../../domain/spatial/SpatialElement';
 import { VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
@@ -29,7 +29,7 @@ function pointHandles(element: NamedSpatialElement, single: boolean, zoom: numbe
 }
 const shapes = computed(() => props.elements.map(element => {
 	const selected = props.selectedIds.includes(element.id), closed = outlineKind(element.kind), ruler = element.kind === 'measurement' && element.points.length === 2;
-	const zoom = props.zoom, tokens = props.tokens, stroke = selected ? tokens.accent : tokens.zoneStroke, label = elementLabelLayout(element, zoom);
+	const zoom = props.zoom, tokens = props.tokens, ink = closed ? undefined : element.color, stroke = selected ? tokens.accent : itemColorInk(ink, tokens.zoneStroke), label = elementLabelLayout(element, zoom);
 	const single = props.editable === true && selected && props.selectedIds.length === 1;
 	return { id: element.id, name: 'element-' + element.kind, element, selected, single, structural: element.kind === 'post' || element.kind === 'beam', drafting: draftingKind(element.kind), stair: element.kind === 'stair' ? element.stair : undefined, handles: pointHandles(element, single, zoom, tokens), marks: ruler ? rulerConfig(element.points, stroke, zoom) : null,
 		line: { points: element.points.flatMap(vertex => [vertex.x, vertex.y]), closed, stroke, strokeWidth: (selected && !ruler ? 3 : 2) / zoom, dash: element.kind === 'fence' ? [4 / zoom, 4 / zoom] : [], fill: closed ? itemColorTint(element.color, tokens.canvasBackground) : undefined},

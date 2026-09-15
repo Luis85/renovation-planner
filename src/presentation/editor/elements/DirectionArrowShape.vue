@@ -3,8 +3,10 @@ import type { Point } from '../../../core/geometry/Point';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { computed } from 'vue';
 import { VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
-const props = defineProps<{ points: readonly Point[]; selected: boolean; tokens: ThemeTokens; zoom: number; editable?: boolean }>();
-const stroke = computed(() => props.selected ? props.tokens.accent : props.tokens.zoneStroke);
+import type { ItemColor } from '../../../domain/spatial/ItemColor';
+import { itemColorInk } from './itemColorAppearance';
+const props = defineProps<{ points: readonly Point[]; selected: boolean; color?: ItemColor; tokens: ThemeTokens; zoom: number; editable?: boolean }>();
+const stroke = computed(() => props.selected ? props.tokens.accent : itemColorInk(props.color, props.tokens.zoneStroke));
 </script>
 <template>
 	<VGroup :config="{ name: 'direction-arrow-native-shape', listening: false }">

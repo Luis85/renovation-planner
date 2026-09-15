@@ -32,4 +32,6 @@ Browser automation and the jsdom suite are supplemental; this case has not been 
 
 ## Runs
 
-Not yet run in a vault.
+| Date | Build | Outcome |
+| --- | --- | --- |
+| — | — | Not run. Written with the increment; nobody has walked it in a vault yet. |

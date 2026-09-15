@@ -27,7 +27,7 @@ entry, the displayed-document stale check, busy and saving refusals, Plan only. 
 `sameGeometryDocument` compares the colour on every family, so undo refuses over a peer's recolour, and the
 command records a zone receipt for a colour-only change, so the zone edits around it still undo.
 
-`colorTargets` admits every selected room, wall, opening and element, or nothing when any id cannot be coloured —
+`colorTargets` admits every selected room, area, wall, opening and element, or nothing when any id cannot be coloured —
 never a silent subset. Values that differ read **Mixed**, with no swatch checked; any choice sets them all.
 
 Copy/paste and item promotion carry an element's colour. A pasted room starts uncoloured.
@@ -35,7 +35,7 @@ Copy/paste and item promotion carry an element's colour. A pasted room starts un
 ## Rendering and accessibility
 
 Preset samples: slate `#778899`, rose `#ce6682`, amber `#d69b32`, green `#54976d`, blue `#518cce`, violet `#956bc4`.
-A filled area (item, placement and its solid details, stair outline, hatch-mark tile ground, wall body or its tile
+A filled area (item, placement and its solid details, stair footprint, hatch-mark tile ground, wall body or its tile
 ground) takes an opaque blend of 28% colour over the resolved host background; an unparseable host background keeps
 the host fill. A line, mark or text (path, fence, measurement, arrow, beam, post and its load-bearing fill, dimension,
 section, view, grid, boundary, text, opening frame, leaf and arc) takes the colour at full strength, and the accent

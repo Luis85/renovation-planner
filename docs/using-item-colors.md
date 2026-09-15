@@ -3,7 +3,7 @@
 ## English
 
 In **Plan**, select anything on the floor — an item, a placed asset, a path, a measurement, a stair, a post, a beam,
-a drafting mark, a wall, a door or window, or a room — or several of them. Choose **Color** in the right-click menu,
+a drafting mark, a wall, a door or window, a room or an area — or several of them. Choose **Color** in the right-click menu,
 or use the same swatches in **Details**. **Default** restores the normal drawing. Slate, Rose, Amber, Green, Blue and
 Violet are appearance choices; they do not represent renovation status or materials. In Details, **Custom color**
 opens your system's colour picker for any other colour.
@@ -23,8 +23,8 @@ geometry. While an edit is saving or the displayed data is stale, the palette is
 ## Deutsch
 
 Wähle in **Plan** etwas auf dem Grundriss aus — ein Objekt, ein platziertes Bibliothekselement, einen Weg, eine
-Messung, eine Treppe, eine Stütze, einen Träger, eine Zeichenmarke, eine Wand, eine Tür oder ein Fenster oder einen
-Raum — oder mehrere davon. Unter **Farbe** im Kontextmenü oder in **Details** stehen dieselben Farbfelder bereit.
+Messung, eine Treppe, eine Stütze, einen Träger, eine Zeichenmarke, eine Wand, eine Tür oder ein Fenster, einen
+Raum oder eine Fläche — oder mehrere davon. Unter **Farbe** im Kontextmenü oder in **Details** stehen dieselben Farbfelder bereit.
 **Standard** stellt die normale Darstellung wieder her. Schiefergrau, Rosé, Bernstein, Grün, Blau und Violett dienen nur
 der Darstellung. In Details öffnet **Eigene Farbe** die Farbauswahl deines Systems für jede andere Farbe.
 
@@ -36,5 +36,6 @@ Bei Mehrfachauswahl färbt eine Wahl alle in einem Rückgängig-Schritt. Haben s
 **Gemischt**. Rückgängig und Wiederholen berücksichtigen Farbänderungen; kopierte Elemente behalten ihre Farbe, ein
 eingefügter Raum hat keine. Eine eigene Farbe wird nicht auf Kontrast geprüft — wird etwas schwer lesbar, wähle Standard.
 
-Farben sind nur in Plan bearbeitbar, nicht in Umbau oder Prüfung. Sie ändern keine Mengen, Preise, Raumzuordnung oder
-Geometrie. Während des Speicherns oder bei veralteten Daten ist die Palette gesperrt.
+Farben sind nur in Plan bearbeitbar, nicht in Renovieren oder Prüfen. Sie ändern keine Mengen, Preise, Raumzuordnung
+oder Geometrie. Während des Speicherns oder bei veralteten Daten ist die Palette gesperrt; siehe
+[Arbeiten mit gespeicherten Daten](using-planning-recovery.md).

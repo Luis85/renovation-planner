@@ -167,7 +167,7 @@ screen size (`/ zoom`), as the measurement ruler is.
 | `dimension` | New `elements/DimensionChainShape.vue` over `dimensionSegments`: the dimension line at `offset`, parallel to first→last; an extension line from every point to it, starting a small screen gap from the point; a 45° oblique tick at every projected position; each segment's length centred over it, rotated with the line and kept upright, formatted by `formatMetres` without a unit (`2,62`). A 0-length segment has no text. |
 | `section` | A dash-dot line through every point; a filled triangle at each end on the look side of that end's segment (`flipped` chooses the side); the name beside each triangle. |
 | `view` | A hollow triangle at the anchor pointing at the facing point; the name beside it, unrotated. |
-| `hatch` | The closed outline, filled with `patternTile('stone', tokens.zoneStroke, tokens.canvasBackground)` at `fillPatternScale 1 / zoom`, as `wall-pattern` is. A colour, when set, is the tile's ground instead (ADR-0033). |
+| `hatch` | The closed outline, filled with `patternTile('stone', tokens.zoneStroke, tokens.canvasBackground)` at `fillPatternScale 1 / zoom`, as `wall-pattern` is. A tint of the colour, when set, is the tile's ground instead (ADR-0033). |
 | `text` | The name as a `VText` at the point, 14 px. |
 | `boundary` | A long-dash polyline, `16 / 8` px — unlike a fence's `4 / 4`. |
 | `grid` | A 10 px circle with the name centred inside. |

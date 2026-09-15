@@ -18,8 +18,8 @@ sidecar coordinates only.
 ## Decision
 
 - A colour is a preset id or a lowercase `#rrggbb`, optional on every element kind, wall, opening and room entry of
-  the sidecar; absence is the host's default drawing. Written at schema 16; a plan whose only colours are presets on
-  items and placements keeps writing 14.
+  the sidecar; absence is the host's default drawing. Written at schema 16; presets on items and placements need no
+  schema higher than 14 on their own account, though the plan's other facts can still require 15.
 - It is appearance the user chose — not plugin chrome and not a material. A wall's material stays a theme-drawn
   hatch; the wall's colour is the ground under it. Filled areas take an opaque 28% tint over the host background,
   lines and text the colour at full strength (the accent while selected), and a room a translucent wash (0.18 at

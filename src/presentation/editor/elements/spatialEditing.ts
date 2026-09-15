@@ -3,6 +3,7 @@ import { createElementTask } from './elementTask';
 import { createElementActions } from './elementActions';
 import { createRotationActions, type RotationRuntime } from './rotationActions';
 import type { ElementMoveDeps } from './ElementMove';
+import type { ElementResizeDeps } from './ElementResize';
 import type { RotationGestureDeps } from './ElementRotation';
 import { createCurveTask, type CurveTaskRuntime } from '../curves/curveTask';
 import { createGroupActions } from '../groups/groupActions';
@@ -24,7 +25,7 @@ export function createSpatialEditing(context: PlanEditorContext, runtime: Parame
 	const rotationActions = createRotationActions(context, { ...runtime, elementActions, groups: groupActions, groupRotationTarget: groupActions.groupRotationTarget });
 	const labelActions = createLabelActions(context, runtime);
 	const curveTask = createCurveTask(context, runtime);
-	const toolBindings: ElementMoveDeps & RotationGestureDeps & SelectionInteractions & LabelMoveDeps = {
+	const toolBindings: ElementMoveDeps & ElementResizeDeps & RotationGestureDeps & SelectionInteractions & LabelMoveDeps = {
 		expandSelection: groupActions.expandSelection, selectionMove: groupActions.selectionMove,
 		canRotateShape: rotationActions.canRotateId,
 		rotationTarget: () => rotationActions.target.value,
@@ -36,6 +37,9 @@ export function createSpatialEditing(context: PlanEditorContext, runtime: Parame
 		previewElement: elementActions.previewElement,
 		moveElement: (id, points, original) => { void elementActions.move(id, points, original); },
 		elementWritesBlocked: () => elementActions.blocked.value || elementActions.active.value,
+		transformBox: () => elementActions.transformBox.value,
+		previewResize: elementActions.previewResize,
+		commitResize: (id, next, original) => { void elementActions.resize(id, next, original); },
 		labelHits: () => labelActions.hits.value,
 		moveLabel: (id, offset) => { void labelActions.move(id, offset); },
 	};

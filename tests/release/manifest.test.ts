@@ -12,6 +12,7 @@ const read = (file: string) => JSON.parse(readFileSync(file, 'utf8'));
 const manifest = read('manifest.json');
 const pkg = read('package.json');
 const versions = read('versions.json');
+const obsidianCss = readFileSync('tests/harness/obsidian.css', 'utf8');
 
 describe('the release files agree', () => {
 	// `npm version` runs scripts/version-bump.mjs, which writes the other two. A drift
@@ -39,6 +40,10 @@ describe('the release files agree', () => {
 	 */
 	it('pins the obsidian typings to minAppVersion exactly', () => {
 		expect(pkg.devDependencies.obsidian).toBe(manifest.minAppVersion);
+	});
+
+	it('keeps the reduced harness CSS compatibility floor aligned with the manifest', () => {
+		expect(obsidianCss).toContain(`rp-obsidian-compatibility-floor: ${manifest.minAppVersion}`);
 	});
 });
 

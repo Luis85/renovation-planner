@@ -93,3 +93,11 @@ The vendored sheet is the same kind of stand-in and the only one with no mechani
 behind it — not a test, not a lint rule, not a version. **The measurement above is the argument:**
 the header's own version correlate went stale without anybody noticing, in a repository that
 gates the same pairing everywhere else.
+
+## Evidence
+
+Done for the drift-trigger half: `tests/harness/obsidian.css` now carries the machine-readable
+compatibility floor `1.13.0`, and `tests/release/manifest.test.ts` requires it to match
+`manifest.minAppVersion`. The exact source Obsidian build remains unknowable because the original
+local install was not committed; this gate makes future floor changes require reconsideration but
+does not prove byte-for-byte provenance.

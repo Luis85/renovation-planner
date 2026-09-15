@@ -2,13 +2,12 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { structureEditor } from '../../helpers/structureEditor';
 import { settle, settleUntil } from '../../helpers/editor';
-import { expectOk } from '../../helpers/domain';
+import { expectDefined, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { WALL_LOOP } from '../../helpers/structure';
 import type { Opening } from '../../../src/domain/spatial/Structure';
 import { useRenovationSession } from '../../../src/presentation/editor/renovation/renovationSession';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import { err } from '../../../src/core/result/Result';
-import { injectedPersistenceError } from '../../helpers/domain';
 import { defer } from '../../helpers/async';
 import { seedOpeningDirectWorkspace } from '../../harness/openingDirectWorkspace';
 import { pointerAt } from '../../helpers/tool-context';
@@ -144,7 +143,7 @@ it('preserves curved asymmetric hosts and unrelated current/intended geometry th
 	const rig = await setup(); await seedOpeningDirectWorkspace(rig.geometry, rig.plan.id);
 	const seed = expectOk(await rig.geometry.read(rig.plan.id));
 	const colored = { id: 'element-r01-color', kind: 'object' as const, points: [{ x: 0, y: 500 }, { x: 500, y: 500 }, { x: 500, y: 1000 }], color: 'blue' as const };
-	expectOk(await rig.geometry.write(rig.plan.id, { ...seed.document, structure: { ...seed.document.structure!, elements: [colored] }, intended: seed.document.structure }, seed.version));
+	expectOk(await rig.geometry.write(rig.plan.id, { ...seed.document, structure: { ...expectDefined(seed.document.structure, 'seeded structure'), elements: [colored] }, intended: seed.document.structure }, seed.version));
 	await rig.runtime.refreshProjection(); rig.selection.select(['opening-r01-window' as never]);
 	const before = expectOk(await rig.geometry.read(rig.plan.id)).document, control = rig.runtime.structureActions.openingDirect;
 	await control.begin('opening-r01-window'); control.step('width', 1); control.updateSwing({ hinge: 'end', side: 'right', angle: '30' }); await control.apply();

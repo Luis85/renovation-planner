@@ -23,6 +23,10 @@ Product Design audit/reference guidance and Impeccable Operate guided this revie
    vertical space remains. Keyboard context 15 found 24 px rows; 16 confirms 44 px opening
    actions and a 24 px gap above the taskbar. The same context offset action focuses offset;
    Escape returns to the invoking canvas. Inspector Escape returns to Size and swing.
+6. Cross-theme confirmation: 18 shows the curved window offset in German/light; 19 shows
+   door hinge focus in English/dark. Together with 14 and 08 these cover both languages in
+   both host themes. The final 400 px capture is 17; earlier 05/06 represent intermediate
+   viewport timing/layout states and are not final acceptance evidence.
 
 The bounded review captured actual defects, applied the corresponding fixes, and confirmed
 them. Intermediate rejected/superseded captures are retained for audit, not acceptance.

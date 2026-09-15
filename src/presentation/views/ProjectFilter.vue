@@ -116,6 +116,11 @@ function onFieldPointerdown(): void {
 	input.value?.focus();
 }
 
+function clearQuery(): void {
+	emit('update:query', '');
+	input.value?.focus();
+}
+
 /**
  * Re-emits every keydown, and — on `Escape` — ALSO fires `cancel`. §7's table has the arrows
  * work from "filter or list", so `ProjectList` needs the keys this field does not consume
@@ -180,6 +185,15 @@ defineExpose({ focus: (): void => input.value?.focus() });
 				@input="$emit('update:query', ($event.target as HTMLInputElement).value)"
 				@keydown="onInputKeydown"
 			>
+			<button
+				v-if="query.length > 0"
+				type="button"
+				class="rp-project-filter__clear"
+				:aria-label="tr('view.project.filter.clear')"
+				@click.stop="clearQuery"
+			>
+				{{ tr('view.project.filter.clear') }}
+			</button>
 		</div>
 		<!--
 			THE VISIBLE COUNT, immediate, beside the field at P00's width and wrapped under it at

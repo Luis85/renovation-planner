@@ -154,6 +154,21 @@
 	box-shadow: none;
 }
 
+.rp-project-filter .rp-project-filter__clear {
+	flex: 0 0 auto;
+	min-height: 24px;
+	padding: 0 var(--size-2-2);
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.rp-project-filter .rp-project-filter__clear:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
 /* P00's search glyph, at the field's leading edge and quieter than the text beside it. The
    `--icon-size` override is what keeps it from being the same size as the input's own line
    box, where it would read as a control rather than as a hint. */

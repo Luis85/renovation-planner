@@ -165,6 +165,18 @@ describe('ProjectFilter', () => {
 		wrapper.unmount();
 	});
 
+	it('shows a named clear button only for a non-empty query and returns focus after clearing', async () => {
+		const wrapper = mount(ProjectFilter, { props: { query: 'kit', shown: 1, total: 4 }, attachTo: document.body });
+		const clear = wrapper.get('.rp-project-filter__clear');
+		expect(clear.attributes('aria-label')).toBe(tr('view.project.filter.clear'));
+		await clear.trigger('click');
+		expect(wrapper.emitted('update:query')).toEqual([['']]);
+		expect(document.activeElement).toBe(wrapper.find('input').element);
+		await wrapper.setProps({ query: '' });
+		expect(wrapper.find('.rp-project-filter__clear').exists()).toBe(false);
+		wrapper.unmount();
+	});
+
 	it('emits every keystroke', async () => {
 		const wrapper = line();
 

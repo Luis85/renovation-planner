@@ -100,15 +100,10 @@ it('shows grouped numeric rotation preview and cancels without persisting', asyn
 	rig.dialogs.resolve('cancel'); await operation;
 	expect(rig.runtime.groupActions.preview.value).toBeNull(); expect(write).not.toHaveBeenCalled();
 });
-it('expands hovered saved membership only when its edge rotation control is pressed', async () => {
-	const { rig, room } = await setup(), ids = [...rig.selection.selectedIds]; rig.selection.clear();
+it('offers a saved group no rotation arrow until it is selected', async () => {
+	const { rig } = await setup(); rig.selection.clear();
 	await hoverRotation(rig.runtime, useEditorStore(rig.pinia), { x: 1500, y: 1200 });
-	expect(rig.selection.selectedIds).toEqual([]);
-	const handle = expectDefined(rig.runtime.rotationActions.displayControls.value[0], 'hover group control');
-	rig.runtime.toolManager.pointerDown(pointerAt(handle.handle.x, handle.handle.y));
-	expect(rig.selection.selectedIds).toEqual(ids); expect(rig.runtime.rotationActions.target.value?.kind).toBe('group');
-	rig.runtime.toolManager.cancelGesture(); expect(rig.runtime.groupActions.preview.value).toBeNull();
-	expect(rig.runtime.groupActions.expandSelection(room.id, true)).toEqual([room.id]);
+	expect(rig.runtime.rotationActions.displayControls.value).toEqual([]); expect(rig.selection.selectedIds).toEqual([]);
 });
 it('retires a pending gesture after peer member edits even when the group bounding box stays the same', async () => {
 	const { rig } = await setup(), gesture = rig.runtime.groupActions.selectionMove;

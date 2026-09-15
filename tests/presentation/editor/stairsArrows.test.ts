@@ -51,8 +51,9 @@ it('creates, renders, edits and rotates a stair with one geometry/metadata histo
 	const candidates = structureCandidates(rig.project.structure), candidate = expectDefined(candidates.find(value => value.id === saved.id), 'stair candidate');
 	expect(candidate.points).toHaveLength(2); expect(candidate.hitPoints).toHaveLength(4);
 	expect(spatialOutlinePoints(candidate, 0.25)).toEqual(candidate.hitPoints);
-	const control = expectDefined(rotationHandleGeometry(saved, 1), 'stair edge control');
-	expect(Math.abs(control.anchor.x)).toBe(450);
+	// With the top and bottom clipped the arrow takes the left side of the full-width footprint, not of the 2-point run line.
+	const control = expectDefined(rotationHandleGeometry(saved, 1, { min: { x: -1000, y: -2990 }, max: { x: 1000, y: -10 } }), 'stair side control');
+	expect(control.anchor).toEqual({ x: -450, y: -1500 });
 	expect(boundsOfZones([candidate])).toEqual({ min: { x: -450, y: -3000 }, max: { x: 450, y: 0 } });
 	expect(resolveSelectionTarget({ candidates, selectedIds: [], worldPoint: { x: 400, y: -1500 }, handleToleranceWorld: 8 })).toEqual({ kind: 'body', id: saved.id });
 	const editing = rig.runtime.elementActions.edit(saved.id); await settle();

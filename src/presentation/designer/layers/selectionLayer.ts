@@ -3,7 +3,7 @@ import type { Point } from '../../../core/geometry/Point';
 import { polygonPolyline } from '../../../core/geometry/curvePolyline';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { outlineOf, type OutlinePart } from '../../../domain/asset/shapeEdits';
-import { VERTEX_GRAB_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../../editor/handleMetrics';
+import { ROTATION_HANDLE_OFFSET_PX, VERTEX_GRAB_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../../editor/handleMetrics';
 import type { ThemeTokens } from '../../editor/theme/themeTokens';
 import { boundsOfZones } from '../../editor/viewport/zoneExtent';
 import { isOutlineSelection, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
@@ -15,8 +15,9 @@ import { ARC_TOLERANCE_PX, flatPoints, type OutlineConfig } from './footprintLay
 
 /**
  * What the designer draws for its selection (symbols spec, Decision 10): the selected outline
- * restroked in the accent, in its part's own dash; a mark per handle the active mode offers; and a
- * ring, over a halo, on the anchor or the facing tip. Every mark is sized in SCREEN pixels on a
+ * restroked in the accent, in its part's own dash; a mark per handle the active mode offers, with
+ * Transform's rotate handle drawn as the plan editor's curved arrow on a stem, the way Konva's
+ * Transformer draws its rotater; and a ring, over a halo, on the anchor or the facing tip. Every mark is sized in SCREEN pixels on a
  * world-space layer, like `anchorLayer.ts`.
  *
  * **One Konva `Rect` per mark**, so the canvas renders a single `v-for` and never a `<template>`
@@ -66,8 +67,14 @@ const RING_RADIUS_PX = VERTEX_GRAB_RADIUS_PX;
 const HALO_RADIUS_PX = 6.5;
 const HALO_STROKE_PX = 3;
 
-/** Which mark a handle wears: a box handle square, a bend handle a diamond (critique finding 17), a vertex and the rotate handle round. */
-const HANDLE_STYLE: Record<HandleRole['kind'], 'square' | 'diamond' | 'round'> = { box: 'square', edge: 'diamond', vertex: 'round', rotate: 'round' };
+/** Which mark a handle wears: a box handle square, a bend handle a diamond (critique finding 17), a vertex round. The rotate handle is no mark but a `RotateMark`. */
+const HANDLE_STYLE: Record<Exclude<HandleRole['kind'], 'rotate'>, 'square' | 'diamond' | 'round'> = { box: 'square', edge: 'diamond', vertex: 'round' };
+
+/** Where the rotate arrow is drawn, and its stem down to the box's top-middle. */
+export interface RotateMark {
+	readonly at: Point;
+	readonly stem: Omit<OutlineConfig, 'closed'>;
+}
 
 type MarkStyle = 'square' | 'diamond' | 'round' | 'ring' | 'halo';
 
@@ -111,14 +118,16 @@ export function selectionMarks(
 	mode: SelectionMode,
 	tokens: ThemeTokens,
 	worldPerPixel: number,
-): { readonly outline: OutlineConfig | null; readonly handles: readonly HandleMarkConfig[] } {
-	if (shape === null || selection === null) return { outline: null, handles: [] };
+): { readonly outline: OutlineConfig | null; readonly handles: readonly HandleMarkConfig[]; readonly rotate: RotateMark | null } {
+	if (shape === null || selection === null) return { outline: null, handles: [], rotate: null };
 	if (!isOutlineSelection(selection)) {
 		const at = pointOf(shape, selection, worldPerPixel);
-		return { outline: null, handles: [mark(at, HALO_RADIUS_PX * worldPerPixel, 'halo', tokens), mark(at, RING_RADIUS_PX * worldPerPixel, 'ring', tokens)] };
+		return { outline: null, handles: [mark(at, HALO_RADIUS_PX * worldPerPixel, 'halo', tokens), mark(at, RING_RADIUS_PX * worldPerPixel, 'ring', tokens)], rotate: null };
 	}
 	const outline = outlineOf(shape, selection);
 	const dash = outlineDash(shape, selection);
+	const handles = selectionHandles(shape, selection, mode, worldPerPixel);
+	const rotate = handles.find((handle) => handle.role.kind === 'rotate');
 	return {
 		outline: outline === null
 			? null
@@ -132,9 +141,22 @@ export function selectionMarks(
 				perfectDrawEnabled: false,
 				...(dash === null ? {} : { dash: [...dash] }),
 			},
-		handles: selectionHandles(shape, selection, mode, worldPerPixel).map((handle) =>
-			mark(handle.at, VERTEX_HANDLE_RADIUS_PX * worldPerPixel, HANDLE_STYLE[handle.role.kind], tokens),
+		handles: handles.flatMap((handle) =>
+			handle.role.kind === 'rotate' ? [] : [mark(handle.at, VERTEX_HANDLE_RADIUS_PX * worldPerPixel, HANDLE_STYLE[handle.role.kind], tokens)],
 		),
+		rotate: rotate === undefined
+			? null
+			: {
+				at: rotate.at,
+				stem: {
+					points: [rotate.at.x, rotate.at.y + ROTATION_HANDLE_OFFSET_PX * worldPerPixel, rotate.at.x, rotate.at.y],
+					stroke: tokens.accent,
+					strokeWidth: 1,
+					strokeScaleEnabled: false,
+					listening: false,
+					perfectDrawEnabled: false,
+				},
+			},
 	};
 }
 

@@ -22,57 +22,39 @@ async function setup() {
 	const hover = async (point: Point) => { const screen = at(point); pointer(canvas, 'pointermove', screen.x, screen.y, 0, 1, 0); await settle(); };
 	return { ...rig, editor, canvas, at, hover };
 }
-it('shows small edge arrows on unselected-object hover and selects only when its arrow is pressed', async () => {
+it('draws the arrow on a stem above the selected object only, and opens the precise angle when it is clicked', async () => {
 	const rig = await setup(), bytes = [...rig.stack.vault.entries];
-	expect(rig.stage.find('.object-rotation-handle')).toHaveLength(0);
 	await rig.hover({ x: 1500, y: 1000 });
-	expect(rig.selection.selectedIds).toEqual([]);
-	const controls = rig.runtime.rotationActions.displayControls.value;
-	expect(controls).toHaveLength(1);
-	expect(rig.stage.find('.rotation-control-label')).toHaveLength(0);
-	const control = expectDefined(controls[0], 'hovered edge control'); await rig.hover(control.handle);
+	expect(rig.runtime.rotationActions.displayControls.value).toEqual([]);
+	expect(rig.stage.find('.object-rotation-handle')).toHaveLength(0);
+	rig.selection.select([object.id as never]); await settle();
+	const control = expectDefined(rig.runtime.rotationActions.displayControls.value[0], 'selected object control');
+	expect(control.anchor).toEqual({ x: 1500, y: 500 }); expect(control.handle.x).toBe(1500); expect(control.handle.y).toBeLessThan(500);
+	expect(rig.stage.find('.rotation-handle-stem')).toHaveLength(1);
+	await rig.hover(control.handle);
 	expect(rig.runtime.renderState.hoveredTargetKind).toBe('rotation');
 	expect(rig.stage.find('.rotation-pivot')).toHaveLength(1);
 	const start = rig.at(control.handle); pointer(rig.canvas, 'pointerdown', start.x, start.y); await settle();
-	expect(rig.selection.selectedIds).toEqual([object.id]);
 	expect(rig.runtime.renderState.rotationInteraction?.dragging).toBe(false);
 	pointer(rig.canvas, 'pointerup', start.x + 3, start.y);
 	await settleUntil(() => rig.wrapper.find('[data-rp-form="object-rotation"]').exists(), 'precise angle after arrow click');
 	expect([...rig.stack.vault.entries]).toEqual(bytes);
 	await rig.wrapper.get('[data-rp-form="object-rotation"] [name="angle"]').trigger('keydown', { key: 'Escape' }); await settle();
 	pointer(rig.canvas, 'pointerleave', start.x, start.y, 0, 1, 0); await settle();
-	expect(rig.stage.find('.object-rotation-handle')).toHaveLength(0);
+	expect(rig.stage.find('.object-rotation-handle')).toHaveLength(1);
 	expect(rig.selection.selectedIds).toEqual([object.id]); expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
-it('keeps the one arrow reachable from the far end of its edge, across the room beneath', async () => {
-	const rig = await setup();
-	await rig.hover({ x: 1500, y: 1000 });
-	const control = expectDefined(rig.runtime.rotationActions.displayControls.value[0], 'hovered edge control');
-	const onEdge = object.points.filter(point => Math.abs(point.x - control.anchor.x) < 1 || Math.abs(point.y - control.anchor.y) < 1);
-	const far = expectDefined(onEdge.toSorted((a, b) => Math.hypot(b.x - control.anchor.x, b.y - control.anchor.y) - Math.hypot(a.x - control.anchor.x, a.y - control.anchor.y))[0], 'far edge corner');
-	const start = { x: far.x + (1500 - far.x) * 0.05, y: far.y + (1000 - far.y) * 0.05 };
-	for (let step = 0; step <= 12; step++) {
-		await rig.hover({ x: start.x + (control.handle.x - start.x) * step / 12, y: start.y + (control.handle.y - start.y) * step / 12 });
-		expect(rig.runtime.rotationActions.displayTarget.value?.id, `step ${step}`).toBe(object.id);
-		expect(rig.runtime.rotationActions.displayControls.value, `step ${step}`).toHaveLength(1);
-	}
-	expect(rig.runtime.renderState.hoveredTargetKind).toBe('rotation');
-});
-it('preserves an existing multi-selection on member hover and suppresses arrows during Alt cycling', async () => {
+it('offers one arrow for a multi-selection and hides it while Alt bypasses rotation', async () => {
 	const rig = await setup(); rig.selection.select([rig.room.id, object.id as never]); await settle();
 	const bytes = [...rig.stack.vault.entries];
-	await rig.hover({ x: 1500, y: 1000 });
-	expect(rig.selection.selectedIds).toEqual([rig.room.id, object.id]);
-	const group = expectDefined(rig.runtime.rotationActions.displayTarget.value, 'selected group hover target');
-	expect(group.kind).toBe('group'); expect(group.id).toBe('selection-group');
-	expect(group.group?.selectionIds).toEqual([rig.room.id, object.id]);
+	const group = expectDefined(rig.runtime.rotationActions.target.value, 'selected group target');
+	expect(group.kind).toBe('group'); expect(group.group?.selectionIds).toEqual([rig.room.id, object.id]);
 	expect(rig.runtime.rotationActions.displayControls.value).toHaveLength(1);
 	expect(rig.stage.find('.rotation-control-target')).toHaveLength(1);
-	expect([...rig.stack.vault.entries]).toEqual(bytes);
-	rig.selection.clear(); await rig.hover({ x: 1500, y: 1000 });
 	const point = rig.at({ x: 1500, y: 1000 });
 	rig.canvas.dispatchEvent(new PointerEvent('pointermove', { clientX: point.x, clientY: point.y, button: 0, buttons: 0, pointerId: 1, altKey: true, bubbles: true })); await settle();
 	expect(rig.stage.find('.object-rotation-handle')).toHaveLength(0);
-	expect(rig.selection.selectedIds).toEqual([]);
-	expect([...rig.stack.vault.entries]).toEqual(bytes);
+	await rig.hover({ x: 1500, y: 1000 });
+	expect(rig.stage.find('.object-rotation-handle')).toHaveLength(1);
+	expect(rig.selection.selectedIds).toEqual([rig.room.id, object.id]); expect([...rig.stack.vault.entries]).toEqual(bytes);
 });

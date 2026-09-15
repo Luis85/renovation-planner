@@ -7,4 +7,6 @@ export const itemColorEn = {
 	'editor.item-color.green': 'Green',
 	'editor.item-color.blue': 'Blue',
 	'editor.item-color.violet': 'Violet',
+	'editor.item-color.custom': 'Custom color',
+	'editor.item-color.custom-value': 'Custom color {value}',
 } as const;

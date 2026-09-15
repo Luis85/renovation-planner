@@ -1,26 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { isItemColorPreset, ITEM_COLORS, type ItemColorPreset } from '../../../domain/spatial/ItemColor';
+import { ITEM_COLORS, type ItemColor, type ItemColorPreset } from '../../../domain/spatial/ItemColor';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { useSelectionStore } from '../selection/selection-store';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { useEditorRuntime } from '../runtime';
 import { tr } from '../../i18n/strings';
 import ItemColorSwatch from './ItemColorSwatch.vue';
+import ItemColorCustom from './ItemColorCustom.vue';
+import { colorTargets, itemColorLabel } from './itemColorTargets';
 
 defineProps<{ menu?: boolean }>();
 const emit = defineEmits<{ picked: [] }>();
 const project = useProjectStore(), selection = useSelectionStore(), session = useRenovationSession(), runtime = useEditorRuntime();
-const element = computed(() => selection.selectedIds.length === 1 ? project.structure.elements?.find(item => item.id === selection.selectedIds[0] && (item.kind === 'object' || item.kind === 'asset')) : undefined);
-const visible = computed(() => session.perspective === 'plan' && element.value !== undefined);
-const disabled = computed(() => !runtime.elementTask.available || runtime.elementActions.blocked.value || runtime.elementActions.active.value);
-const colors: readonly (ItemColorPreset | undefined)[] = [undefined, ...ITEM_COLORS];
-// A custom hex has no preset label yet (plan colours design §1); this palette still shows only the six presets.
-const label = (color: ItemColorPreset | undefined) => tr(`editor.item-color.${color ?? 'default'}`);
-const presetColor = (color: string | undefined): ItemColorPreset | undefined => color !== undefined && isItemColorPreset(color) ? color : undefined;
-function choose(color: ItemColorPreset | undefined): void {
-	if (!visible.value || disabled.value || !element.value) return;
-	void runtime.elementActions.setColor(element.value.id, color);
+const targets = computed(() => colorTargets(project, selection.selectedIds));
+const visible = computed(() => session.perspective === 'plan' && targets.value.length > 0);
+const disabled = computed(() => runtime.groupActions.blocked.value || runtime.groupActions.active.value);
+const current = computed(() => targets.value[0]?.color);
+const presets: readonly (ItemColorPreset | undefined)[] = [undefined, ...ITEM_COLORS];
+function choose(color: ItemColor | undefined): void {
+	if (!visible.value || disabled.value) return;
+	void runtime.groupActions.setColor(targets.value.map(target => target.id), color);
 	emit('picked');
 }
 /** Left/right move within the palette; Up/down remain the enclosing menu's row navigation. Enter/Space apply. */
@@ -40,24 +40,30 @@ function key(event: KeyboardEvent): void {
 		class="rp-item-color"
 		role="group"
 		:aria-label="tr('editor.item-color.label')"
-		:aria-busy="runtime.elementActions.active.value"
+		:aria-busy="runtime.groupActions.active.value"
 		@keydown="key"
 	>
 		<p class="rp-item-color__value">
-			{{ tr('editor.item-color.label') }} · {{ label(presetColor(element?.color)) }}
+			{{ tr('editor.item-color.label') }} · {{ itemColorLabel(current) }}
 		</p>
 		<div
 			class="rp-item-color__choices"
 			role="none"
 		>
 			<ItemColorSwatch
-				v-for="color in colors"
+				v-for="color in presets"
 				:key="color ?? 'default'"
 				:color="color"
-				:selected="element?.color === color"
+				:selected="current === color"
 				:menu="menu"
 				:disabled="disabled"
 				@choose="choose(color)"
+			/>
+			<ItemColorCustom
+				v-if="!menu"
+				:color="current"
+				:disabled="disabled"
+				@choose="choose"
 			/>
 		</div>
 	</div>

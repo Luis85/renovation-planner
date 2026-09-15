@@ -4,7 +4,6 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { NamedSpatialElement, SpatialElement } from '../../../domain/spatial/SpatialElement';
-import { isItemColorPreset, type ItemColorPreset } from '../../../domain/spatial/ItemColor';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -28,13 +27,6 @@ function elementFrom(baseline: RenovationBaseline, id: string): NamedSpatialElem
  const geometry = baseline.geometry.document.structure?.elements?.find(item => item.id === id);
  const label = baseline.plan.entity.spatialElements?.find(item => item.id === id);
  return geometry && label ? { ...geometry, name: label.name } : null;
-}
-/** Preserve every placement fact and physically remove the override on reset. */
-function recolored(element: NamedSpatialElement, color: ItemColorPreset | undefined): NamedSpatialElement | null {
-	if ((element.kind !== 'object' && element.kind !== 'asset') || element.color === color) return null;
-	const { color: previous, ...plain } = element;
-	void previous;
-	return color === undefined ? plain : { ...plain, color };
 }
 export function createElementActions(context: PlanEditorContext, runtime: Pick<EditorRuntime, 'activeToolId' | 'dispatcher' | 'writesBlocked' | 'refreshProjection' | 'structureTask' | 'openPlanNote'>) {
 	const project = useProjectStore(), dialogs = useDialogStore(), save = useSaveStateStore(), session = useRenovationSession(), selection = useSelectionStore();
@@ -96,12 +88,6 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 	function setLoadBearing(id: string, loadBearing: boolean): Promise<void> {
 		return rewrite(id, element => (element.kind === 'post' || element.kind === 'beam') && element.loadBearing !== loadBearing ? { ...element, loadBearing } : null);
 	}
-	/** A single selected placement only. Recheck the selection epoch after the baseline read, including away-and-back changes. */
-	function setColor(id: string, color: ItemColorPreset | undefined): Promise<void> {
-		const epoch = rotationEpoch;
-		if (selection.selectedIds.length !== 1 || selection.selectedIds[0] !== id || (color !== undefined && !isItemColorPreset(color))) return Promise.resolve();
-		return rewrite(id, element => epoch === rotationEpoch ? recolored(element, color) : null);
-	}
 	/** Turns a section line to look at its other side (plan drafting tools design §7). */
 	function flip(id: string): Promise<void> {
 		return rewrite(id, element => element.kind === 'section' ? { ...element, flipped: element.flipped !== true } : null);
@@ -138,5 +124,5 @@ export function createElementActions(context: PlanEditorContext, runtime: Pick<E
 		const element = project.structure.elements?.find(item => item.id === id), name = project.plan?.spatialElements?.find(item => item.id === id)?.name;
 		preview.value = alive && !blocked.value && element && name && points ? { ...element, name, points } : null;
 	}
-	return { edit, remove, setLoadBearing, setColor, flip, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
+	return { edit, remove, setLoadBearing, flip, removeMany: removal.remove, removeManyActive: removal.active, move, active, blocked, preview, previewElement };
 }

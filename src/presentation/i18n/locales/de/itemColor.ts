@@ -8,4 +8,6 @@ export const itemColorDe: Partial<Record<StringKey, string>> = {
 	'editor.item-color.green': 'Grün',
 	'editor.item-color.blue': 'Blau',
 	'editor.item-color.violet': 'Violett',
+	'editor.item-color.custom': 'Eigene Farbe',
+	'editor.item-color.custom-value': 'Eigene Farbe {value}',
 };

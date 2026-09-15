@@ -17,7 +17,7 @@ export interface GroupSnapshot {
 export function projectedGroupGeometry(project: ReturnType<typeof useProjectStore>): PlanGeometryDocument {
 	// Clone plain, serializable geometry rather than retaining a Vue proxy across a gesture.
 	return JSON.parse(JSON.stringify({ calibration: project.plan?.calibration ?? null,
-		objects: [...project.zones.values()].map(zone => ({ id: zone.id, points: zone.points, ...(zone.bulges ? { bulges: zone.bulges } : {}), ...(zone.labelOffset ? { labelOffset: zone.labelOffset } : {}) })),
+		objects: [...project.zones.values()].map(zone => ({ id: zone.id, points: zone.points, ...(zone.bulges ? { bulges: zone.bulges } : {}), ...(zone.labelOffset ? { labelOffset: zone.labelOffset } : {}), ...(zone.color ? { color: zone.color } : {}) })),
 		structure: project.structure, intended: project.intended, groups: project.groups.length ? project.groups : undefined,
 	})) as PlanGeometryDocument;
 }

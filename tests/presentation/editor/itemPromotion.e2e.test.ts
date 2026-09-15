@@ -49,7 +49,7 @@ async function submitDialog(rig: Rig) {
 
 it('turns an item into a placement of a new asset with the same id, name and outline, undone in one step', async () => {
 	const { rig, item } = await withItem();
-	await rig.runtime.elementActions.setColor(item.id, 'violet');
+	await rig.runtime.groupActions.setColor([item.id], 'violet');
 	await promoteFromMenu(rig);
 	const form = rig.wrapper.get('.rp-dialog-form');
 	expect(form.get<HTMLInputElement>('[data-field="name"]').element.value).toBe('Cabinet');

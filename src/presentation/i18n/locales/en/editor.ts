@@ -442,6 +442,7 @@ export const editorEn = {
 	'editor.view.zoom-out': 'Zoom out',
 	'editor.view.grid': 'Show grid',
 	'editor.view.north': 'Show north arrow',
+	'editor.view.labels': 'Show asset and item labels',
 	'editor.north': 'North direction',
 	'editor.north.value': '{degrees}° clockwise from the top of the plan',
 	'editor.north.letter': 'N',

@@ -46,7 +46,7 @@ export function createLabelActions(context: PlanEditorContext, runtime: Pick<Edi
 			return { id, bounds: roomCaptionBounds(drawn, zoom, { label: model.label, areaMm2: model.areaMm2, detail }), offset: { dx: drawn.x - automatic.x, dy: drawn.y - automatic.y } };
 		}
 		const element = projectedElement(project, id);
-		if (!element || draftingKind(element.kind)) return null;
+		if (!element || draftingKind(element.kind) || !workspace.labelsVisible) return null;
 		return { id, bounds: textLabelBounds(elementCaptionLayout(element, shapes.shapeOf, zoom), zoom), offset: element.labelOffset ?? { dx: 0, dy: 0 } };
 	}
 	const hits = computed<readonly LabelHit[]>(() => blocked.value ? [] : selection.selectedIds.flatMap(id => hitFor(String(id), editor.viewport.zoom) ?? []));

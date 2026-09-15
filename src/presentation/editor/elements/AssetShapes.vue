@@ -4,6 +4,8 @@ import type { NamedSpatialElement } from '../../../domain/spatial/SpatialElement
 import type { ThemeTokens } from '../theme/themeTokens';
 import type { ShapeLookup } from './elementFootprint';
 import { assetShapeConfig } from './assetShapeConfig';
+import { useWorkspaceStore } from '../../stores/WorkspaceStore';
+const workspace = useWorkspaceStore();
 const props = defineProps<{ placements: readonly NamedSpatialElement[]; shapeOf: ShapeLookup; selectedIds: readonly string[]; hoveredId: string | null; tokens: ThemeTokens; zoom: number }>();
 const shapes = computed(() => props.placements.map(element => assetShapeConfig(element, props.shapeOf,
 	{ selected: props.selectedIds.includes(element.id), hovered: props.hoveredId === element.id, tokens: props.tokens, zoom: props.zoom })));
@@ -37,7 +39,10 @@ const shapes = computed(() => props.placements.map(element => assetShapeConfig(e
 				/>
 			</template>
 			<VLine :config="shape.tick" />
-			<VText :config="shape.label" />
+			<VText
+				v-if="workspace.labelsVisible"
+				:config="shape.label"
+			/>
 		</VGroup>
 	</VGroup>
 </template>

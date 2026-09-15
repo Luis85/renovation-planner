@@ -35,6 +35,7 @@
 import { computed } from 'vue';
 import type { ThemeTokens } from '../../theme/themeTokens';
 import { labelAnchor, zoneFillToken, type ZoneRenderModel } from './ZoneRenderModel';
+import { itemColorRgb } from '../../elements/itemColorAppearance';
 import { formatArea } from '../../shell/formatArea';
 import { captionBottom, ROOM_CAPTION_TEXT, roomCaptionAnchor, ZONE_CAPTION, type NumberedPin } from './captionPlacement';
 import type { BoundingBox } from '../../../../core/geometry/BoundingBox';
@@ -72,7 +73,7 @@ const flatPoints = computed(() => {
 	return points.flatMap((point) => [point.x, point.y]);
 });
 
-const fill = computed(() => props.tokens[zoneFillToken(props.model.zoneType)]);
+const fill = computed(() => props.model.color === undefined ? props.tokens[zoneFillToken(props.model.zoneType)] : itemColorRgb(props.model.color));
 
 /**
  * Captions are sized in SCREEN pixels but positioned in world millimetres, so each caption node
@@ -112,11 +113,13 @@ const captionLayout = computed(() => ({ name: ZONE_CAPTION, x: captionX.value, y
 /** A locked zone stays readable but recedes, so what can still be clicked stands out (ADR-0027). */
 const LOCKED_OPACITY = 0.5;
 const groupConfig = computed(() => ({ name: props.model.id, listening: false, opacity: props.model.locked ? LOCKED_OPACITY : 1 }));
-// Invisible at rest and translucent when selected: M01 draws no resting fill, and the node
-// stays MOUNTED at zero opacity because `ZoneLayer`'s paint order and `scene.test.ts`'s
-// `flatPoints` identity case both rest on this group's child list keeping its shape.
+// Invisible at rest and translucent when selected: M01 draws no resting fill. A coloured room keeps a
+// light wash at rest so the colour is visible over an imported plan (plan colours design §2). The node
+// stays MOUNTED at zero opacity because `ZoneLayer`'s paint order and `scene.test.ts`'s `flatPoints`
+// identity case both rest on this group's child list keeping its shape.
+const FILL_OPACITY = { plain: { rest: 0, selected: 0.12 }, colored: { rest: 0.18, selected: 0.28 } } as const;
 const fillConfig = computed(() => ({ points: flatPoints.value, closed: true, fill: fill.value,
-	opacity: props.selected ? 0.12 : 0, listening: false, perfectDrawEnabled: false }));
+	opacity: FILL_OPACITY[props.model.color === undefined ? 'plain' : 'colored'][props.selected ? 'selected' : 'rest'], listening: false, perfectDrawEnabled: false }));
 // Hidden while the room's walls enclose it: they are its edge, and this layer paints ABOVE
 // theirs (SDD §17), so a drawn outline would run down each wall body and across a door cut.
 // Hidden rather than unmounted, for the same child-list reason as the fill.

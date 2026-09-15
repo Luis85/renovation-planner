@@ -31,8 +31,9 @@ it('changes pointer context from a selected Room to empty canvas and back withou
 it('navigates and wraps every menu item, leaves unrelated keys alone, and restores the keyboard opener on Tab', async () => {
 	const rig = await setup(), opener = rig.wrapper.get('[data-rp-action="select"]').element as HTMLElement;
 	// No selection: this test is the menu's own keyboard mechanics, decoupled from the item-color
-	// palette's swatch count (a room is now a valid colour target too, and keyboard navigation
-	// through its swatches is covered by itemColors.test.ts's own menu-arrow-navigation case).
+	// palette's swatch count (a room is now a valid colour target too, and the roving order that
+	// crosses into its swatches and wraps at both ends is the next case below, with a room selected
+	// — the rig's realistic default).
 	rig.selection.clear(); await settle();
 	opener.focus(); const menu = await open(rig, opener), items = menu.findAll('[role="menuitem"]');
 	expect(document.activeElement).toBe(items[0].element);
@@ -49,6 +50,21 @@ it('navigates and wraps every menu item, leaves unrelated keys alone, and restor
 	key(menu.element, 'ArrowDown'); expect(document.activeElement).toBe(items[1].element);
 	expect(key(menu.element, 'Tab').defaultPrevented).toBe(true); await settle();
 	expect(rig.wrapper.find('.rp-canvas-context-menu').exists()).toBe(false); expect(document.activeElement).toBe(opener);
+});
+
+it("the context menu's keyboard order crosses into the colour palette and wraps", async () => {
+	// The rig's default selection is a room (a valid colour target since Task 9), so the palette
+	// embeds in the menu: CanvasMenuList's `appearance` slot renders BEFORE its `v-for` of `items`,
+	// so the palette's seven `role="menuitemradio"` swatches sit ahead of the ordinary
+	// `role="menuitem"` actions in the roving `LEVEL` set, not after them.
+	const rig = await setup(), opener = rig.wrapper.get('[data-rp-action="select"]').element as HTMLElement;
+	opener.focus(); const menu = await open(rig, opener);
+	const items = menu.findAll('[role="menuitem"]'), swatches = menu.findAll('[role="menuitemradio"]');
+	expect(swatches).toHaveLength(7);
+	key(menu.element, 'End'); expect(document.activeElement).toBe(items.at(-1)?.element);
+	key(menu.element, 'ArrowDown'); expect(document.activeElement).toBe(swatches[0].element);
+	key(menu.element, 'ArrowUp'); expect(document.activeElement).toBe(items.at(-1)?.element);
+	key(menu.element, 'Home'); expect(document.activeElement).toBe(swatches[0].element);
 });
 
 it('keeps an in-menu press local and dismisses on outside presses or focus leaving the editor', async () => {

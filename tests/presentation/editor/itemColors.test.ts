@@ -232,3 +232,14 @@ it('commits a custom colour from Details on change, never on input, and names th
 	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(15);
 	await menu(rig); expect(rig.wrapper.find('.rp-canvas-context-menu input[type="color"]').exists()).toBe(false);
 });
+
+it('offers the palette for a wall in its Details and for a room in its Details', async () => {
+	const rig = await setup(), wall = rig.project.structure.walls[0].id;
+	rig.selection.select([wall as never]); await settleUntil(() => rig.wrapper.find('.rp-structure-inspector .rp-item-color').exists(), 'wall palette');
+	await rig.wrapper.get('.rp-structure-inspector [data-rp-item-color="rose"]').trigger('click');
+	await settleUntil(() => rig.project.structure.walls[0].color === 'rose', 'rose wall');
+	rig.selection.select([rig.room.id as never]); await settleUntil(() => rig.wrapper.find('.rp-room-inspector .rp-item-color').exists(), 'room palette');
+	await rig.wrapper.get('.rp-room-inspector [data-rp-item-color="amber"]').trigger('click');
+	await settleUntil(() => rig.project.zones.get(rig.room.id)?.color === 'amber', 'amber room');
+	expect(rig.wrapper.get('.rp-room-inspector .rp-item-color').text()).toContain('Color · Amber');
+});

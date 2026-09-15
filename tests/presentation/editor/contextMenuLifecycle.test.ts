@@ -30,6 +30,10 @@ it('changes pointer context from a selected Room to empty canvas and back withou
 
 it('navigates and wraps every menu item, leaves unrelated keys alone, and restores the keyboard opener on Tab', async () => {
 	const rig = await setup(), opener = rig.wrapper.get('[data-rp-action="select"]').element as HTMLElement;
+	// No selection: this test is the menu's own keyboard mechanics, decoupled from the item-color
+	// palette's swatch count (a room is now a valid colour target too, and keyboard navigation
+	// through its swatches is covered by itemColors.test.ts's own menu-arrow-navigation case).
+	rig.selection.clear(); await settle();
 	opener.focus(); const menu = await open(rig, opener), items = menu.findAll('[role="menuitem"]');
 	expect(document.activeElement).toBe(items[0].element);
 	expect(key(document.activeElement as Element, 'a').defaultPrevented).toBe(false);

@@ -7,6 +7,7 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 | Field | Value |
 |---|---|
 | Handoff baseline | `d77e7c5eba5e6518b93a5be4606532ceab3a77eb` |
+| Upstream reconciled | `main` advanced 14 commits to `f3a8864a9` (asset-designer consolidation, plan deletion) and was **merged** into this branch, not rebased — every review and ledger entry references this work by commit SHA. Zero file overlap; no conflict resolved by hand. |
 | Current working revision / branch | `d77e7c5eb` (identical to the handoff baseline) on branch `renovation-planner-beta-handoff-e80bb5`; session work commits on top |
 | Worktree and dirty files | Worktree `.claude/worktrees/renovation-planner-beta-handoff-e80bb5`. Clean at session start. 95 other worktrees exist under `.worktrees/` and `D:/codex-worktrees/`; none was touched, reset, cleaned, or stashed. |
 | Responsible integrator | Unassigned — no human integrator has accepted this work. |
@@ -27,7 +28,7 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 |---|---|---|---|---|---|---|---|
 | BP-00 | Reconcile baseline and ownership | P0 | None | Discovery | **Complete** | This session / unmapped | Five discovery lanes; every finding classified below. Scoped baseline green. |
 | BP-01 | Preserve recovery incidents across remounts | P0 | BP-00 | Confirmed defect | **Complete** | This session / increment-history ruling R1 | Fixed at `67f5acf9c`, narrowed at `41d803611` and `2af92f8fd`; task review clean. Second-pane gating deferred to BP-02 — limitation L-01 — so BP-01's own acceptance set is not met in full. |
-| BP-02 | Durable incident detection and recovery | P0 | BP-01 | Safety hardening | Not started | Unassigned / unmapped | — |
+| BP-02 | Durable incident detection and recovery | P0 | BP-01 | Safety hardening | **In progress — slice 1 of 4 complete** | This session / ADR-0019 requires a decision record for slice 2 | Discovery resolved the package's opening conflict: durable detection is **outside** the recorded refusal. Slice 1 (silent compensation paths now stamp) is at `81f627b53..beda98597`. Slices 2–4 below. |
 | BP-03 | Protect drafts and in-flight commands | P0/P1 | BP-01; final after BP-02 | Verification | Not started | Unassigned / unmapped | — |
 | BP-04 | Precise non-drag corner editing | P1 | BP-00; integrate after BP-03 | Interaction addition | Not started | Unassigned / unmapped | — |
 | BP-05 | Selection, transform, cancel and history | P1 | BP-03; coordinate BP-04 | Verification/polish | Not started | Unassigned / unmapped | — |
@@ -56,6 +57,50 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 | *(new, found this session)* A second Plan Editor leaf on the same plan is not gated at all | Not in the handoff | **Pre-existing hole, newly identified** | Each leaf owns its own Pinia store and its own `writesBlocked`, so a second pane bypasses the incident with or without a rebind. | Deferred to BP-02 — see limitation L-01. |
 | *(new, found this session)* Asset Library delete and the Project work section run compensated deletes with no shared incident gate | Not in the handoff | **Pre-existing, newly identified** | `DeleteAsset` runs the same compensated-delete machinery with no incident gate; the Renovation Project view's work section carries a separate, unrelated incident flag. | BP-02, whose scope already covers affected entity identities |
 
+## BP-02 — what discovery established, and the slices it produced
+
+The package opened on a conflict worth recording, because it resolved the opposite way from
+what the handoff feared. The plan asks for a durable pending-operation marker written before a
+destructive multi-file mutation. This repository has declined durable crash-recovery metadata
+**nine times** — but every one of those declinations names a *generic automatic replay-rollback
+journal*, which BP-02 also refuses. Seven are "out of scope for now"; the two architectural ones
+object to automatic repair and a plugin-decided all-clear. **None is a never-do-this product
+rule, and nothing anywhere declines a bare pending-operation marker.** ADR-0019's own refusal
+says the sequence-marker mechanism "is not silently repurposed" — it preserves the mechanism and
+asks only for a decision record before extending it, which is exactly what BP-02 action 1
+specifies. The refusal names its own remedy.
+
+More usefully: `SequenceMarkerFileStore` already **is** the shape BP-02 asks for, built for one
+command family. It writes a versioned JSON file under the plugin directory before the first
+mutation, refuses the whole operation if that write fails, marks finished only after the last
+mutation, and is read cold at load. That is BP-02 actions 2, 3 and 4, shipped. So the package is
+mostly wiring and widening rather than invention.
+
+The census then found the thing that reordered everything: **five of six repository compensation
+paths never stamped an incident at all.** A half-write on any of them was recorded nowhere, so
+even the correctly-wired Plan editor never heard about it. A gate protects against incidents that
+are *raised*; widening the gate first would have been fitting a better lock to a door nobody
+rings.
+
+| Slice | What it does | State |
+|---|---|---|
+| 1 | The silent compensation paths stamp | **Complete** — `81f627b53..beda98597` |
+| 2 | Affected-entity-id identity on the stamp, a durable store, and the gate widening | Not started; needs the decision record ADR-0019 asks for |
+| 3 | A future-version recovery marker must read as *unknown*, not as healthy absence | Not started; a bug against SDD §87 rule 8, not a new design claim |
+| 4 | L-01's second pane, and the designer's hard-coded `writesBlocked: () => false` | Not started; falls out of slice 2 |
+
+Slice 1 found all five census entries real and a sixth the census missed. It deliberately did
+**not** add a gate, and did not widen the stamp to carry entity ids — both are slice 2. Its
+accepted consequence is recorded honestly: on four of the six paths the stamp is now raised into
+nothing, because those dispatching surfaces do not call `withSaveStateTracking`. That is a
+visible inconsistency rather than a silent loss, and strictly better than the prior state, where
+the loss was silent everywhere.
+
+Two things slice 1 surfaced that belong to later work: `relocateEvidence` is a genuine
+partial-write path with **no compensation at all**, outside slice 1's shape and unaddressed; and
+`project.write-uncompensated` is the weakest stamp of the six, since its residue is an empty
+folder rather than inconsistent data, so a future gate would pause writes over coherent data.
+
 ## Decisions and explicit limitations
 
 Record the decision-maker, date, affected scope, evidence, consequence, and review trigger. Do not encode a deferral as a pass.
@@ -68,6 +113,10 @@ Record the decision-maker, date, affected scope, evidence, consequence, and revi
 | D-04 | BP-01 carries incident ownership as per-leaf view-owned state through Obsidian's `getState`/`setState`, not as a session service keyed by plan id | Decided this session against the repository's recorded ruling R1 | 2026-09-16 | Increment history ruling R1, plus the same shape stated in the PBI and two task documents. The handoff's BP-01 action 3 asks for a session service; plan section 9 makes repository decisions the authority over the handoff, so R1 wins. | Consequence: BP-01's acceptance line "a new pane shows the same incident" is not met by this shape. Recorded as L-01 rather than dropped. Revisit at BP-02. |
 | D-05 | An unrecovered-write flag that survives an application restart via Obsidian's persisted workspace layout is preserved, never stripped | Decided this session | 2026-09-16 | Plan section 7 names a false all-clear after incomplete writes as a no-go condition; dropping a surviving flag manufactures exactly that. | No release effect. Revisit if BP-02's durable detection supersedes the incidental persistence. |
 | L-01 | **Limitation.** A second Plan Editor pane on the same plan is not gated by an open incident, before or after BP-01 | Deferred by this session | 2026-09-16 | Found during BP-00 lane A. Closing it needs the affected-identity model that BP-02 action 2 already owns. | Blocks the full BP-01 acceptance set. Must be closed or explicitly accepted by an owner before gate G1 passes. |
+| D-06 | An incident, once session-scoped, is cleared only by a plugin reload — not by closing and reopening the tab | Decided this session; **owner-reviewable, it has a real UX cost** | 2026-09-16 | Today's close-and-reopen reset is an accident of view-object lifetime, not a signal that anything was repaired, and it stops existing the moment the flag is session-scoped. The alternatives were an explicit user acknowledgement (contradicts recorded ruling R1) and an integrity-check signal (nothing here has one). | A user who has genuinely repaired their vault must restart to clear the warning. Conservative direction, and plan section 7 names the opposite — a false all-clear — as a no-go. **Revisit if slice 2 produces a real integrity signal.** Not yet implemented; it binds slice 4. |
+| D-07 | BP-02's durable marker is inside, not outside, this repository's recorded refusals | Established by discovery, not chosen | 2026-09-16 | Nine declinations, all naming an automatic replay-rollback journal; ADR-0019 preserves the sequence-marker mechanism and asks only for a decision record before extending it. | Unblocks slices 2–4. A decision record is still required before slice 2 integrates. |
+| L-02 | **Limitation.** Four of the six newly-stamped compensation paths raise an incident no surface reads | Accepted for slice 1 | 2026-09-16 | Plan create/delete and project create dispatch from views that do not call `withSaveStateTracking`; the Asset Library imports no save-state store at all. | Closed by slice 2. Until then a user may see a warning in the editor and none in the library for the same class of fault. |
+| L-03 | **Limitation.** Neither gesture that produces two editor panes on one plan is simulable in this repository's test fakes | Established this session | 2026-09-16 | Two panes arise only from Obsidian's native `duplicateLeaf` (split, drag-to-split) and from restoring a saved layout — both bypass the plugin's own reveal logic, which dedupes by plan id. | Slice 4 cannot be driven end to end by the suite and needs a manual case, exactly as BP-01's restart claim did. |
 | Q-01 | **Open question.** Zone outline units are pinned to millimetres (ADR-009 / `WorldUnit`) but no origin convention for a zone outline is written in code or in the SDD | Raised this session | 2026-09-16 | BP-00 lane B. BP-04 action 2 requires the numeric form to state its coordinate system explicitly, which cannot be done until the origin is decided. | Blocks BP-04 from starting. Needs a recorded decision, not an inference from a form. |
 
 ## Native / hardware availability
@@ -167,13 +216,70 @@ package. It sits in the branch's FIRST commit, so every review range of the form
 defect was still open and had the watched-red counts backwards, in a document merged into the
 repository as a record. A review range keyed from a branch's first commit cannot see that commit.
 
-**One next executable action:** BP-00 finding 4's two confirmed documentation defects were closed
-this session at `cec109688`, so the next action is **BP-02**. It owns the second-pane
-gate (L-01), the ungated `DeleteAsset` compensated delete, and one thing this session found that
-no earlier document records: `src/presentation/designer/runtime.ts:318` wires the Asset Designer to
-the same `withSaveStateTracking`, so a designer write **can** raise an incident, while `:395`
-hard-codes `writesBlocked: () => false`. A half-written asset is raised and read by nobody. Take
-BP-02's brief from the acceptance matrix's A16–A18 rather than from the finding list alone.
+### Session 2 — 2026-09-16 — upstream merge and BP-02 slice 1
+
+**Revision and branch:** merged `origin/main` (14 commits, to `f3a8864a9`) into the branch at
+`e63fd94c9`. Zero file overlap with this branch's work; no conflict was resolved by hand. Merged
+rather than rebased because every review record and this tracker reference the work by commit SHA.
+
+**Package:** BP-02, bounded to its first slice. Discovery resolved the package's opening conflict
+in the plan's favour; the census then reordered the package's own slices.
+
+**Files changed:** `src/application/commands/DispatchOutcome.ts`,
+`src/application/reference/undoDeleteResolution.ts`, three `ObsidianRepository` files,
+`noteEntityWrite.ts`, `toUserMessage.ts`, both locale tables plus four locale submodules, and six
+test files including the new `tests/presentation/editor/saveState/uncompensatedIncident.test.ts`.
+Commits `81f627b53`, `31cf6bd44`, `0903525be`, `beda98597`, `92f8f1d31`.
+
+| Command / test | Source | Exit / outcome | Evidence |
+|---|---|---|---|
+| `npm run check:fast -- tests/infrastructure tests/application` | `81f627b53` | 0 — 222 files / 2581 tests | reproduced independently by the task reviewer |
+| `npm run check:fast` (whole tree) | `81f627b53` | 0 — 1017 files / 10982 tests, 1 skipped | implementer |
+| `npx vitest run tests/presentation/editor/saveState tests/infrastructure/obsidian` | `31cf6bd44` | 0 — 60 files / 1196 tests | scoped re-review |
+| `npx eslint .` | `beda98597` | **0, no output** | run by me after a prior round's equivalent claim proved wrong |
+| `npm run check:fast -- tests/presentation/i18n tests/infrastructure tests/application tests/presentation/editor/saveState` | `beda98597` | 0 — 233 files / 2808 tests | me |
+
+**A defect this branch caused and caught late.** Slice 1's added error copy pushed both locale
+tables over their 400-line `max-lines` budget — `en.ts` to 402, `de.ts` to 401, against a base
+that sat at 399 with one line of headroom. That is an ESLint error, so CI's lint leg would have
+refused the branch, and it rode five commits unnoticed because `npm run check:fast` omits
+`eslint .` by design. A fix round reported it as pre-existing, having compared against a later
+commit on this same branch rather than against the base; measuring across revisions showed
+otherwise. Closed by extraction into the locale submodule pattern both tables already use, not by
+widening the budget — `en.ts`'s own docblock had already recorded that rule from a previous
+increment that hit the same wall.
+
+**Actually observed behaviour:** a half-written vault on any of six repository compensation paths
+now stamps an incident. On the one path that reaches a live gate — zone delete, dispatched through
+the Plan editor — an integration test drives the real repository failure through the real command,
+the real history and the real tracking wrapper and confirms the incident is raised. It was watched
+red by mutating the compensation to rebuild the error field by field, which is the re-wrap hazard
+that would have made the slice a no-op where it matters.
+
+**Implemented but not verified:** nothing in this slice was exercised in a real vault. Every
+failure arm is driven through injected-failure keys on the in-memory fakes, and whether the real
+Obsidian API produces those failure shapes in these sequences is unchecked. The German copy was
+checked against its English rows by reading, not by a native speaker.
+
+**Native/device checks not performed:** all of them, again. No Obsidian was launched and no
+production bundle was built.
+
+**New limitations:** L-02 and L-03, with decisions D-06 and D-07, all in the table above.
+
+**One next executable action:** BP-02 slice 2 — affected-entity-id identity on the stamp, a
+durable store, and the gate widening. It is the slice that needs the decision record ADR-0019's
+own refusal asks for, and it closes L-02. Take its scope from the lane reports, and note that
+`relocateEvidence` (a partial-write path with no compensation at all) belongs in it.
+
+---
+
+**One next executable action (as recorded at the close of session 1, superseded by session 2's
+entry above):** BP-00 finding 4's two confirmed documentation defects were closed at `cec109688`,
+so the next action is **BP-02**. It owns the second-pane gate (L-01), the ungated `DeleteAsset`
+compensated delete, and one thing session 1 found that no earlier document records:
+`src/presentation/designer/runtime.ts:318` wires the Asset Designer to the same
+`withSaveStateTracking`, so a designer write **can** raise an incident, while `:395` hard-codes
+`writesBlocked: () => false`. A half-written asset is raised and read by nobody.
 
 ## Candidate identity record
 

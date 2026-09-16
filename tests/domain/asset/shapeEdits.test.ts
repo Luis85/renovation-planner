@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { boundingBoxOf } from '../../../src/core/geometry/operations';
 import { circle } from '../../../src/domain/asset/presets/presetGeometry';
+import type { AssetShape } from '../../../src/domain/asset/AssetShape';
 import {
 	moveAnchor,
 	moveOutline,
@@ -263,5 +264,22 @@ describe('scaleDesignToDimensions', () => {
 
 	it('refuses a size that is not a finite positive number', () => {
 		expect(expectErr(scaleDesignToDimensions(editableShape(), 0, 300)).code).toBe('asset.invalid-scale');
+	});
+
+	it('refuses a footprint whose extent overflows rather than solving against Infinity', () => {
+		// The AssetShape.dimensionsOf fixture: every coordinate is finite on its own, but the
+		// bounding box's x-span (1e308 - (-1e308)) is not a representable double.
+		const huge: AssetShape = {
+			footprint: { points: [{ x: -1e308, y: 0 }, { x: 1e308, y: 0 }, { x: 1e308, y: 10 }] },
+			footprintOrigin: 'typed',
+			footprintPending: false,
+			clearancePending: false,
+			anchorPending: false,
+			clearance: null,
+			anchor: { x: 0, y: 0 },
+			facing: 0,
+			details: [],
+		};
+		expect(expectErr(scaleDesignToDimensions(huge, 1000, 500)).code).toBe('asset.invalid-footprint');
 	});
 });

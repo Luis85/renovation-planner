@@ -174,6 +174,14 @@ interface Sized {
 	readonly dimensions: Dimensions;
 }
 
+/**
+ * Maps `dimensionsOf`'s own overflow guard onto a design edit's refusal shape. Called both on the
+ * shape a caller hands in AND, inside `scaleDesignToDimensions`'s loop, on every candidate a secant
+ * step produces — `solveScale` clamps a factor only away from non-positive, never away from large,
+ * so an internally-computed factor can stretch a footprint past what a double can represent, the
+ * same `-1e308`-to-`1e308` overflow `AssetShape.dimensionsOf` already refuses as `dimensions-overflow`.
+ * Refused here rather than solved against, since `Infinity` is not a measurement a secant can use.
+ */
 function sized(shape: AssetShape): Result<Sized, ValidationError> {
 	const dimensions = dimensionsOf(shape.footprint);
 	if (isErr(dimensions)) return err(assetError('invalid-footprint', dimensions.error.message));
@@ -189,9 +197,11 @@ function sized(shape: AssetShape): Result<Sized, ValidationError> {
  *
  * **One axis at a time, three passes, because the axes are COUPLED.** Scaling y changes the chord of
  * an arc that bows in x, so its x-extent moves with it: x, then y, then x again, each solved on the
- * result of the last, and the answer is the pass whose combined miss is smallest rather than the last
- * one tried. A straight-sided design lands both axes exactly on the first pass and the later ones
- * change nothing.
+ * result of the last. The answer is whatever the LAST pass lands — measured across circles, a
+ * scalloped ring, `roundFront` and the toilet preset at a spread of targets including ones past
+ * `solveScale`'s reachable floor, the third pass never landed worse than the second; where a target
+ * was unreachable, the third pass matched the second exactly rather than overshooting past it. A
+ * straight-sided design lands both axes exactly on the first pass and the later ones change nothing.
  *
  * Its ceiling is `solveScale`'s: an unreachable extent lands near the typed value rather than on it.
  */
@@ -204,8 +214,6 @@ export function scaleDesignToDimensions(shape: AssetShape, width: number, depth:
 		{ axis: 'width', target: width },
 	] as const;
 	let current = start.value;
-	let best = current;
-	let bestMiss = Infinity;
 	for (const pass of passes) {
 		const solved = solveScale<Sized>({
 			start: current.dimensions[pass.axis],
@@ -218,11 +226,6 @@ export function scaleDesignToDimensions(shape: AssetShape, width: number, depth:
 		});
 		if (isErr(solved)) return solved;
 		current = solved.value;
-		const miss = Math.abs(current.dimensions.width - width) + Math.abs(current.dimensions.depth - depth);
-		if (miss < bestMiss) {
-			best = current;
-			bestMiss = miss;
-		}
 	}
-	return ok(best.shape);
+	return ok(current.shape);
 }

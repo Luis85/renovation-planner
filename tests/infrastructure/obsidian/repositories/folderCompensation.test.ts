@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { leftWritesBehind } from '../../../../src/application/commands/DispatchOutcome';
 import { createRepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makeProject as makeProjectEntity } from '../../../helpers/entities';
@@ -41,6 +42,8 @@ describe('a failed project insert leaves no folder behind', () => {
 		// mutation that fires the guard, and with this line it takes the case red.
 		const error = expectErr(await stack.projects.save(project, 'absent'));
 		expect(error.code).toBe('project.write-failed');
+		// The folders this call made are gone, so nothing is left standing and nothing is stamped.
+		expect(leftWritesBehind(error)).toBe(false);
 
 		expect(stack.vault.getAbstractFileByPath(`${stack.projectFolder}/Collision`)).toBeNull();
 		expect(stack.vault.getAbstractFileByPath(stack.projectFolder)).toBeNull();
@@ -108,7 +111,8 @@ describe('a failed project insert leaves no folder behind', () => {
 
 		const error = expectErr(await stack.projects.save(makeProjectEntity({ name: 'Collision' }), 'absent'));
 
-		expect(error.code).toBe('project.write-failed');
+		expect(error.code).toBe('project.write-uncompensated');
+		expect(leftWritesBehind(error)).toBe(true);
 		expect(stack.logged.filter((line) => line.event === 'project.insert-compensation-failed')).toHaveLength(1);
 		// One line, not two: the folder that refused is still the root's child, so the emptiness
 		// rule ends the walk on the next iteration and the root survives untouched.

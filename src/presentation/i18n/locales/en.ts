@@ -284,6 +284,11 @@ export const en = {
 	// to do about it as well as the wrong cause.
 	'error.suffix.note-id-mismatch':
 		'This note belongs to a different entry, so it was not opened. Reload the vault to rebuild the index.',
+	// Every refusal whose code ends in `-uncompensated`: a write landed, the undo for it also
+	// refused, and the vault is knowingly inconsistent. Names the manual action, because this
+	// is the one family where nothing in the plugin can put it right.
+	'error.suffix.uncompensated':
+		'A change was written but could not be undone again, so some files are inconsistent. Inspect the affected notes by hand before editing further.',
 	'error.category.domain': 'Something about the project data is invalid.',
 	'error.category.validation': 'This data is not in the expected form.',
 	'error.category.persistence': 'The vault could not be read or written.',

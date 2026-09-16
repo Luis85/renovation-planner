@@ -149,21 +149,32 @@ export async function plainDispatch(versioned: Promise<VersionedDispatchResult>)
  * every consumer that reads them reads exactly what it read before, and the one consumer that
  * asks about persistence gets an answer nothing had to infer.
  *
- * **Five producers in four files, dated rather than trusted, because this count has already
- * gone stale once.** `grep -rn "markUncompensated(" src/`, EXCLUDING this docblock's own line
+ * **23 producers in 17 files, dated rather than trusted, because this count has already gone
+ * stale twice.** `grep -rn "markUncompensated(" src/`, EXCLUDING this docblock's own line
  * above (its quoted grep pattern contains the literal substring it searches for, so the
- * instrument counts itself — this repository's own recurring shape), printed on 2026-09-05:
- * `deleteResolution.ts`'s `compensate` and its `markStalePersisted` re-read,
- * `SetAssetBackground.ts`'s failed calibration restore, `ReversibleAssetDesignCommands.ts`'s
- * failed sidecar restore on a background undo, and `ObsidianZoneRepository`'s
- * `compensateFailedSidecarWrite` (the failed-insert AND failed-update restore, one call site
- * covering both — the trust-path increment's fourth file). This sentence said "four producers
- * in three files" from the moment that fourth file's call site landed until this edit; a count
- * kept as prose is a count nothing re-runs, so re-run the grep rather than trusting either
- * number. Each producer is at a moment the vault is KNOWN to be half-written. A compensation
- * that succeeds leaves the vault at its pre-state and is deliberately NOT marked with this:
- * neutral is the true answer for the indicator, and `CompensatedWrite` below is how the LEDGER
- * still hears of it.
+ * instrument counts itself — this repository's own recurring shape), printed 24 lines on
+ * 2026-09-16, of which that one is the self-count. An `import` of this function carries no
+ * `(` and is therefore not in the number; six files spell two calls each.
+ *
+ * **No list of them is kept here**, and that is the correction rather than laziness. This
+ * sentence said "four producers in three files" while five existed, then "five in four" while
+ * seventeen did — off by more than 3x — and both times the ENUMERATION is what rotted first,
+ * because a producer added in another file cannot edit a list that lives in this one. What is
+ * durable is the RULE: each producer sits at a moment the vault is KNOWN to be half-written,
+ * and the grep above is the census. Run it.
+ *
+ * The 2026-09-16 pass is the second stale-count repair and it moved the number itself: a sweep
+ * of the repository layer found that five of its six compensation paths raised nothing at all
+ * — `ObsidianZoneRepository.delete`, `ObsidianPlanRepository`'s `delete` and `insertNew`,
+ * `trashNoteBackedEntity` and `ObsidianProjectRepository`'s insert — so a half-written vault
+ * on any of them was recorded in a log line and nowhere a surface could see. A sixth turned up
+ * beside them in `undoDeleteResolution.rollBack`, which is `deleteResolution.compensate`'s own
+ * mirror and had been the one of that pair not stamping.
+ *
+ * A compensation that succeeds leaves the vault at its pre-state and is deliberately NOT
+ * marked with this: neutral is the true answer for the indicator, and `CompensatedWrite` below
+ * is how the LEDGER still hears of it. Every one of the six paths above carries a test for
+ * that arm too, watched red against a build that stamped unconditionally.
  */
 export interface UncompensatedWrite {
 	readonly uncompensatedWrite: true;

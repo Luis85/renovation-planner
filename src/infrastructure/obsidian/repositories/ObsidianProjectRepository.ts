@@ -28,6 +28,7 @@ import { foldersOverlap } from './foldersOverlap';
 import { KeyedQueues } from './KeyedQueues';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import { fileAt } from './NoteVaultDeps';
+import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
 /**
  * The Obsidian-backed ProjectRepository (SDD §36–38): one Markdown note per Project
@@ -35,7 +36,11 @@ import { fileAt } from './NoteVaultDeps';
  * note-backed repositories — ONE file per entity, and no sidecar.
  *
  * **Its failure story is "the write failed, nothing was written" — but only since design
- * slice 16, and this header spent two slices recording why it was not.** The insert path
+ * slice 16, only while the rollback itself succeeds, and this header spent two slices
+ * recording why the first half was not true either.** A rollback that cannot remove a folder
+ * this call created answers `project.write-uncompensated`, stamped with `markUncompensated`,
+ * because something IS written; `undoEnsureFolder` reporting a folder it deliberately left
+ * alone is not that case and is not stamped. The insert path
  * calls `ensureFolder` before `vault.create`, and the `catch` around the pair used to
  * compensate nothing, so a create that failed after the folder was made left an EMPTY FOLDER
  * behind. No note is written, reads resolve by id, and a folder name reaches no UI (filename
@@ -160,6 +165,24 @@ export class ObsidianProjectRepository {
 				const stranded = await undoEnsureFolder(this.deps.vault, this.deps.fileManager, createdFolders);
 				for (const failure of stranded) {
 					this.deps.logger.error('project.insert-compensation-failed', { id: project.id, path: failure.path, cause: failure.cause });
+				}
+				if (stranded.length > 0) {
+					// A folder this call created and could not take away again: something was
+					// written and the undo refused, which is this family's whole subject even
+					// where the residue is an empty folder. Keyed on `stranded` rather than on
+					// "a folder survives", because `undoEnsureFolder` deliberately LEAVES a
+					// folder something else has filled and reports that as working rather than
+					// failing — so what this cannot see is exactly what that function declines
+					// to report, and it is narrow on purpose.
+					return err(
+						markUncompensated(
+							persistenceError(
+								'project.write-uncompensated',
+								`Could not create the note for project ${project.id}, and ${stranded.length} folder(s) created for it could NOT be removed again; inspect them by hand.`,
+								cause,
+							),
+						),
+					);
 				}
 				return err(persistenceError('project.write-failed', `Could not create the note for project ${project.id}.`, cause));
 			}

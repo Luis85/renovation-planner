@@ -31,6 +31,7 @@ import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import type { PlanGeometryStore } from './PlanGeometryStore';
+import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
 /**
  * Which refusals a plan listing may swallow: the ones that are about ONE note.
@@ -107,6 +108,14 @@ function isSkippablePlanRefusal(error: RepositoryError): boolean {
  * - DELETE removes the note first, snapshotting BOTH files beforehand: a failed sidecar
  *   removal restores the note byte-for-byte, so a caller's failed `Result` never means
  *   "partly done".
+ *
+ * **"Never" is true of a compensation that RUNS, and both compensations can themselves
+ * refuse** — which is the case the rest of that sentence used to cover with a log line and
+ * nothing else. Each now answers under its own code (`plan.write-uncompensated`,
+ * `plan.delete-uncompensated`) and carries `markUncompensated`, so a surface reading the
+ * stamp learns what the vault is in rather than inferring it from a code that says the
+ * opposite. `ObsidianZoneRepository.compensateFailedSidecarWrite` is the pattern and carries
+ * the argument for a separate code per arm.
  */
 export class ObsidianPlanRepository {
 	private readonly queues = new KeyedQueues();
@@ -216,6 +225,19 @@ export class ObsidianPlanRepository {
 			const undone = await this.geometry.delete(plan.id, sidecarPath);
 			if (!undone.ok) {
 				this.deps.logger.error('plan.insert-compensation-failed', { id: plan.id, cause: undone.error });
+				// The sidecar this call created is still on disk with no note to own it, and
+				// the rollback could not take it away either. Stamped, so the save-state strip
+				// hears about a standing write rather than inferring one from a code — the
+				// mildest residue of this family and the same fact about it.
+				return err(
+					markUncompensated(
+						persistenceError(
+							'plan.write-uncompensated',
+							`Could not create the note for plan ${plan.id}, and the geometry sidecar created for it could NOT be removed again; inspect ${sidecarPath} by hand.`,
+							cause,
+						),
+					),
+				);
 			}
 			return err(persistenceError('plan.write-failed', `Could not create the note for plan ${plan.id}.`, cause));
 		}
@@ -324,6 +346,19 @@ export class ObsidianPlanRepository {
 				const restored = await restoreNoteText(this.deps.vault, 'plan', file.path, noteText);
 				if (!restored.ok) {
 					this.deps.logger.error('plan.delete-compensation-failed', { id, cause: restored.error });
+					// The note is trashed, its sidecar is still there, and the restore that
+					// should have made "nothing was deleted" true refused as well. A DIFFERENT
+					// code carrying the stamp, for the reason `ObsidianZoneRepository`'s twin
+					// states: only the code that performed the write can report one.
+					return err(
+						markUncompensated(
+							persistenceError(
+								'plan.delete-uncompensated',
+								`Could not remove the sidecar for plan ${id}, and the note could NOT be restored; inspect it by hand.`,
+								removedSidecar.error,
+							),
+						),
+					);
 				}
 				return err(persistenceError('plan.delete-failed', `Could not remove the sidecar for plan ${id}.`, removedSidecar.error));
 			}

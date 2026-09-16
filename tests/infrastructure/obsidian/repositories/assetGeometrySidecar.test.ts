@@ -9,6 +9,7 @@
  * visible from here.
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import { leftWritesBehind } from '../../../../src/application/commands/DispatchOutcome';
 import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
 import { openFixtureVault, type FixtureStack } from '../../../helpers/fixtureVault';
 import { expectErr, expectOk } from '../../../helpers/domain';
@@ -731,6 +732,8 @@ describe('deleting an asset takes its geometry sidecar with it', () => {
 		const refusal = expectErr(await stack.assets.delete(asset.id, version));
 
 		expect(refusal.code).toBe('asset.delete-failed');
+		// The note restore WORKED, so nothing is stamped — the twin below is the stamped arm.
+		expect(leftWritesBehind(refusal)).toBe(false);
 		// Neither the note gone with the file behind, nor the file gone with the note behind.
 		expect(stack.vault.entries.get(notePath)).toBe(before);
 		expect(stack.vault.entries.has(path)).toBe(true);
@@ -748,15 +751,20 @@ describe('deleting an asset takes its geometry sidecar with it', () => {
 		expect(stack.vault.entries.has(path)).toBe(true);
 	});
 
-	it('reports the original failure and logs when the compensation refuses too', async () => {
+	it('reports itself as uncompensated and logs when the compensation refuses too', async () => {
 		const { stack, asset, version, notePath, path, sidecar } = await savedAsset();
 		expectOk(await sidecar.write(asset.id, { calibration: null, shape: rectangle() }));
 		stack.vault.failures.add(`delete:${path}`);
 		stack.vault.failures.add(`create:${notePath}`);
 
-		expect(expectErr(await stack.assets.delete(asset.id, version)).code).toBe('asset.delete-failed');
+		const refusal = expectErr(await stack.assets.delete(asset.id, version));
 
+		expect(refusal.code).toBe('asset.delete-uncompensated');
+		expect(leftWritesBehind(refusal)).toBe(true);
 		expect(stack.logged.some((line) => line.event === 'asset.delete-compensation-failed')).toBe(true);
+		// The note is gone and its sidecar is still there.
+		expect(stack.vault.entries.has(notePath)).toBe(false);
+		expect(stack.vault.entries.has(path)).toBe(true);
 	});
 
 	/**

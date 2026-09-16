@@ -6,6 +6,7 @@ import type { Logger } from '../ports/Logger';
 import type { RequirementRepository } from '../ports/RequirementRepository';
 import type { EventBus } from '../../core/events/EventBus';
 import { requirementCreated, requirementRestored } from '../../domain/requirement/Requirement.events';
+import { markUncompensated } from '../commands/DispatchOutcome';
 import type { ReferenceLocks } from './ReferenceLocks';
 import type { ResolvedSequence, SequenceProgress } from './deleteResolution';
 
@@ -26,8 +27,11 @@ import type { ResolvedSequence, SequenceProgress } from './deleteResolution';
  * - **Every write hands back its own inverse**, taken from what was actually there before
  *   it (`getById` before the save, `'absent'` versus a version from `affectedAfter`), so a
  *   failure part-way leaves the Vault exactly as the delete left it rather than
- *   half-restored. Undo is where a partial failure is easiest to miss: the command returns
- *   an error and stays on `undoStack` as if nothing had happened.
+ *   half-restored — while every inverse RUNS. An inverse that refuses leaves it in neither
+ *   place, and `rollBack` stamps the refusal with `markUncompensated` for that reason, as
+ *   `deleteResolution.compensate` has since the trust-path increment. Undo is where a partial
+ *   failure is easiest to miss: the command returns an error and stays on `undoStack` as if
+ *   nothing had happened.
  *
  * What it deliberately does NOT do is write a durable `delete-undo` marker. The forward
  * engine's marker exists so a COLD process can finish what a crash interrupted, and its
@@ -101,9 +105,11 @@ async function rollBack(
 	done: readonly Compensation[],
 	cause: UndoSequenceErrors,
 ): Promise<Result<never, UndoSequenceErrors>> {
+	let uncompensated = false;
 	for (const compensation of [...done].toReversed()) {
 		const undone = await compensation();
 		if (isErr(undone)) {
+			uncompensated = true;
 			// The original failure is what the caller is told about; a compensation that
 			// also failed is a second fault and belongs in the log, not in the return.
 			ops.logger.error('sequence.undo-compensation.failed', {
@@ -112,7 +118,17 @@ async function rollBack(
 			});
 		}
 	}
-	return err(cause);
+	// ...and in the STAMP, which is a different thing from the return: `category`, `code` and
+	// `message` are untouched, so the caller is still told about the original fault, while
+	// `leftWritesBehind` can see that this undo left the vault neither where the delete left
+	// it nor where the undo was taking it. `deleteResolution.compensate` — this function's
+	// forward twin, with the identical loop — has stamped since the trust-path increment and
+	// this one did not, which is the whole of why this line is here.
+	//
+	// Only when a compensation actually REFUSED. A rollback that put everything back has
+	// returned the vault to the post-resolution state the docblock's third bullet promises,
+	// and stamping that would badge data as safe as it was before the gesture.
+	return err(uncompensated ? markUncompensated(cause) : cause);
 }
 
 export async function undoDeleteResolution(

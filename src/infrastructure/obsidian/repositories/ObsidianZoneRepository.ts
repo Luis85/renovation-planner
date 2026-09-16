@@ -432,11 +432,28 @@ export class ObsidianZoneRepository implements ZoneRepository {
 				}));
 
 			// Compensate so a failed delete leaves NOTHING deleted — a caller's failed
-			// Result must never mean "gone, and no undo entry for it".
+			// Result must never mean "gone, and no undo entry for it". When the restore
+			// ITSELF refuses that is exactly what the vault is in, and the arm below says so
+			// under its own code rather than repeating the compensated one's message.
 			if (!mutated.ok) {
 				const restored = await restoreNoteText(this.deps.vault, 'zone', file.path, snapshotText);
 				if (!restored.ok) {
 					this.deps.logger.error('zone.delete-compensation-failed', { id, cause: restored.error });
+					// The note is TRASHED and its geometry entry is still in the sidecar, and
+					// nothing here could put the note back — the delete twin of
+					// `compensateFailedSidecarWrite`'s uncompensated arm, with the same reason
+					// for a different CODE: the message below says "the note was restored" and
+					// that would be false here, and `affectsSaveState` and the save-state strip
+					// read the STAMP rather than inferring a standing write from a code.
+					return err(
+						markUncompensated(
+							persistenceError(
+								'zone.sidecar-remove-uncompensated',
+								`The geometry entry for zone ${id} could not be removed, and the note could NOT be restored; inspect the plan by hand.`,
+								mutated.error,
+							),
+						),
+					);
 				}
 				return err(
 					persistenceError('zone.sidecar-remove-failed', `The geometry entry for zone ${id} could not be removed; the note was restored.`, mutated.error),

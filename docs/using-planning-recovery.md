@@ -35,10 +35,13 @@ An incomplete-write warning means a multi-file operation could neither finish no
 partial writes. Inspect the Plan note and related geometry against your backup before making
 further changes. This pauses writing everywhere in the vault, not only in the tab that raised
 it — most of what the plugin offers as a command or form is refused until the incident is
-resolved. A couple of Plan editor actions — editing a zone's details and renaming a zone — are
-not covered by this pause, so do not read any single action still working as proof the
-incident has cleared: stop making changes anywhere in the vault and inspect the affected files
-against your backup instead. Reading, navigating and inspecting still work: that is deliberate,
+resolved. A few actions are outside this pause — editing a zone's details, renaming a zone, and
+undoing a zone deletion among them — and for those the plugin may neither pause nor remember:
+if one of them leaves files half-written, it can fail without ever recording an incident, and
+the warning you are reading now would not appear for it at all. So do not read any single
+action still working as proof the incident has cleared, and do not treat a quiet failure in one
+of those actions as nothing having happened. Stop making changes anywhere in the vault and
+inspect the affected files against your backup instead. Reading, navigating and inspecting still work: that is deliberate,
 because comparing the affected files against your backup is the recovery, and a plugin that
 also blocked reading would take away the one tool you have for it.
 
@@ -52,7 +55,13 @@ Ending an incident is therefore something you do, not something the plugin decid
 "I have repaired this" control, because nothing here can tell a write that mended the affected
 files from any other write that happened to land. Once you have checked the affected files
 against your backup, remove `write-incidents.json` from the plugin's folder — it is the
-plugin's own bookkeeping file, not vault content, and deleting it is how you resume writing.
+plugin's own bookkeeping file, not vault content — and then reload the plugin, or restart
+Obsidian. Both steps are needed: the plugin reads that file once, when it loads, so until it
+loads again it goes on refusing writes from what it read at startup, and a retry before the
+reload simply repeats the same message. Do not keep working in between — deleting the file and
+carrying on without reloading leaves the plugin blocking on a record that is no longer on disk,
+and anything recorded after that point is written to a fresh file that no longer mentions the
+incident you just removed.
 Clearing it that way proves **nothing** about the vault; your own inspection is what does. If
 that file is edited by hand into something the plugin cannot read, that counts as an open
 incident too, on purpose, so a corrupted record can never be mistaken for an all-clear —

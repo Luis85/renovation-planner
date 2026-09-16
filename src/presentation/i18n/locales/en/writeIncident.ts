@@ -19,6 +19,13 @@
  * vault against a backup, then remove the file. The register is `settings.unrecovered`'s,
  * which already names a plugin-folder file by name for exactly this kind of dead end.
  *
+ * **The remedy names the RELOAD, and that is a correction rather than a flourish.** The
+ * registry's `open` list is append-only, `seed()` is one-shot, and nothing re-reads the
+ * incidents file after load (`WriteIncidentRegistry`) — so deleting the file resumes nothing
+ * until the plugin loads again. Copy that stopped at "remove the file" sent a blocked user
+ * round a loop that answered with this same sentence and named no way out. Not exercised in a
+ * vault on this branch: the claim is read off the registry's own lifecycle, not off a run.
+ *
  * Unannotated, like its sibling partials and for the same circular-type reason: `StringKey`
  * is `keyof typeof en` and `en` is assembled by spreading this module. `de/writeIncident.ts`
  * carries the parity type instead, so a key added here with no German counterpart is a
@@ -26,7 +33,7 @@
  */
 export const writeIncidentEn = {
 	'write-incident.writes-paused':
-		'Writing is paused. An earlier change was written and could not be undone, so files in this vault may be left half-written. Check them against a backup, then remove write-incidents.json from the plugin folder to resume writing.',
+		'Writing is paused. An earlier change was written and could not be undone, so files in this vault may be left half-written. Check them against a backup, then remove write-incidents.json from the plugin folder and reload the plugin, or restart Obsidian, to resume writing.',
 	'diagnostics.incidents': 'Open write incidents',
 	'diagnostics.incidents.none': 'No write incident is open.',
 	// The retirement gesture, and the ONE place in the diagnostics report a path appears. It
@@ -36,7 +43,7 @@ export const writeIncidentEn = {
 	// with a button on it. One key with a `{path}` hole rather than a sentence concatenated
 	// around a path — word order and the punctuation around it are the translator's.
 	'diagnostics.incidents.remove':
-		'Nothing here clears these. Check the affected files against a backup, then remove {path} to resume writing.',
+		'Nothing here clears these. Check the affected files against a backup, then remove {path} and reload the plugin, or restart Obsidian, to resume writing.',
 	// The `unreadableWriteIncident` pair — a record written by a version whose shape this build
 	// does not know. It is the incident a user most needs named and the one with the least to
 	// say, so it gets a sentence instead of a blank row: the id and timestamp columns really

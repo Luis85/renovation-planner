@@ -46,6 +46,22 @@ export const NO_WRITE_INCIDENTS: WriteIncidentReport = { path: '', open: [] };
  * the durable store is read once at load and mirrored here. The mirror is append-only for
  * the same reason the port has no removal door (ADR-0034): nothing in the plugin retires an
  * incident.
+ *
+ * **Read once means exactly once: nothing re-reads the file after `seed()`.** So the only way
+ * out of the gate is deleting the file AND loading the plugin again — which is what the user
+ * copy now says in both locales (`locales/en/writeIncident.ts` and its German twin) and what
+ * `docs/using-planning-recovery.md` now tells the user to do. A user who deletes the file and
+ * keeps working instead opens a window where memory and disk disagree for the rest of the
+ * session: this list still holds the deleted incidents and still refuses every guarded write,
+ * and the next `record()` writes a FRESH envelope — `WriteIncidentFileStore.add` reads the
+ * file, finds none, and appends to an empty list — holding only the new incident. That
+ * divergence is real and reachable; the copy is the whole of what keeps it rare.
+ *
+ * **The RECORD is vault-scoped; this GATE is process-scoped, and ADR-0034's title word covers
+ * only the first.** Two Obsidian windows open on one vault are two plugin instances, each with
+ * its own registry seeded once at its own load, so an incident recorded in one closes only that
+ * one's gate until the other reloads. `WriteIncidentFileStore`'s docblock carries the matching
+ * fact about its queue.
  */
 export class WriteIncidentRegistry {
 	private readonly open: WriteIncident[] = [];
@@ -131,6 +147,15 @@ export class WriteIncidentRegistry {
 	 * refuses. So the incident stays open for this session either way and the failure is
 	 * logged. The gate closes on the in-memory list, which is already appended to by the time
 	 * the store is asked.
+	 *
+	 * **But the incident is then SESSION-scoped only, and that is the limit of this
+	 * mechanism's durability.** Nothing beyond the `incident.write-failed` log line survives:
+	 * the next load asks a store whose file was never created, `readRecords` answers `ok([])`
+	 * for a file that does not exist, and the gate opens — the manufactured all-clear ADR-0034
+	 * exists to refuse, reached from the one direction it cannot cover. Durability rests on the
+	 * plugin folder being writable; where it is not, this class is exactly the per-session flag
+	 * it replaced. Stated rather than fixed: there is no second place to put the record that is
+	 * not also a file in a folder that may refuse a write.
 	 *
 	 * Resolves rather than rejects for every fault, including a store that throws instead of
 	 * answering a `Result`: callers `void` this, and an unhandled rejection at load is a

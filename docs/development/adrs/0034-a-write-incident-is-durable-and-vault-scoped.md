@@ -99,8 +99,12 @@ answer rule 7 already gives an unsupported schema version.
 successful write anywhere. **R1 — the flag is set, and this decision adds no path that unsets
 it.** That mirrors `PlanEditorView.ts:336`'s own "set, never unset" for the session-scoped flag
 this replaces, extended to survive a restart. Retirement is the user removing the incidents file
-after checking their vault against a backup — an action outside the plugin's UI that no stray
-click performs. The existing content-free diagnostics query, `GetDiagnosticsSnapshotQuery`
+after checking their vault against a backup, and then loading the plugin again — an action
+outside the plugin's UI that no stray click performs. **The reload is part of the gesture, not a
+convenience** (D-06): the registry reads the file once at `seed()` and nothing re-reads it, so
+the deletion alone resumes nothing. The user copy in both locales and
+`docs/using-planning-recovery.md` say so; earlier drafts of both stopped at the deletion and sent
+a blocked user round a loop with no stated way out. The existing content-free diagnostics query, `GetDiagnosticsSnapshotQuery`
 (reached from a settings ACTION row and a palette command), is required by this decision to name
 each open incident and the incidents file's path, so the removal gesture is discoverable without
 becoming a control the plugin offers. `docs/using-planning-recovery.md` already states the user
@@ -229,16 +233,56 @@ could name, not about whether the vault is safe.
   this package's user-facing outcome and the reason for the change.
 - An open incident pauses every guarded write in the vault until the user removes the incidents
   file, including on projects unrelated to the fault that raised it.
+- **"Vault-scoped" is true of the FILE and not of the GATE, and this record's own title
+  overstates it.** The record lives in one file per vault; the gate that reads it is a
+  per-process in-memory mirror, seeded once per plugin load
+  (`WriteIncidentRegistry.seed`). Two Obsidian windows open on one vault are two plugin
+  instances with two registries, so an incident recorded in one does not close the other's gate
+  until that other one loads again. Related and from the same cause:
+  `WriteIncidentFileStore.add` is a read-modify-write serialised by a `KeyedQueues` lane that is
+  per process, so two processes can each read the same envelope and each write it back, losing
+  whichever record landed first. Both are stated rather than fixed here; a cross-process lock
+  and a re-reading gate are each their own increment, and the losing side still holds its
+  incident in memory for its own session.
+- **Durability rests on the plugin folder being writable, and where it is not the incident is
+  session-scoped only.** A failed envelope write logs `incident.write-failed` and nothing more
+  — correctly, since un-raising the incident would be the all-clear this decision refuses — but
+  the NEXT load then finds no file, reads it as zero open incidents, and opens the gate.
+  Separately, once the file exists and is unreadable, `add` refuses at its own read step, so no
+  incident raised after that point is ever persisted either. Both are holes in the durability
+  half of this decision, not in the fail-closed half: within the session that raised it, the
+  gate is shut in every one of these cases.
 - This deepens an existing recorded limitation rather than introducing a new one:
   `unrecoveredWrite` used to clear on a plugin reload because it lived in a per-mount Pinia store;
   after this it does not, because the record outlives the process.
-- Four locations' compensation paths — `ObsidianZoneRepository.delete`, `ObsidianPlanRepository`
-  (its `delete` and `insertNew`, two raise sites in one class), `trashNoteBackedEntity`, and
-  `undoDeleteResolution.rollBack` — that `DispatchOutcome.ts`'s own docblock records as having
-  raised nothing at all until the 2026-09-16 sweep now reach a reader that survives the tab that
-  raised them, rather than a per-mount flag nobody read past that session. A fifth site the same
-  sweep found, `ObsidianProjectRepository`'s insert (`project.write-uncompensated`), is the one
-  this decision narrows away under the id-set ruling above and does not gain a durable reader.
+- **What now reaches a durable reader is a CATEGORY, not a list: a stamp raised inside a
+  `guardCommand` call stack becomes a durable incident, and a stamp raised outside one never
+  does.** `guardCommand` is the single observation point (above), so where a stamp is raised
+  decides whether anything records it — nothing about the repository method, the entity, or the
+  operation's name. Compensation paths reached through a guarded dispatch —
+  `ObsidianZoneRepository.delete`, `ObsidianPlanRepository` (its `delete` and `insertNew`),
+  `trashNoteBackedEntity`, `undoDeleteResolution.rollBack` — are EXAMPLES of the covered half,
+  and this list is not a claim of completeness. A fifth site the 2026-09-16 sweep found,
+  `ObsidianProjectRepository`'s insert (`project.write-uncompensated`), is the one this decision
+  narrows away under the id-set ruling above and does not gain a durable reader.
+- **Correction, 2026-09-16 (final review-fix pass): an earlier version of the bullet above named
+  `ObsidianZoneRepository.delete` flatly, and that was half true.** Its guarded FORWARD door is
+  covered; the UNDO door of the reversible adapter over it is not.
+  `ReversibleDeleteZoneCommand.undo()` stamps `markUncompensated` inside its `restoreEntity`
+  callback (`src/application/commands/zone/reversible-delete-zone-command.ts:201`, verified
+  2026-09-16), and that adapter is constructed by `deleteZoneHistory`
+  (`src/presentation/editor/add/createZoneHistory.ts`) from `inspector-wiring.ts` and dispatched
+  by `CommandHistory` against the raw `commands.zones` port — never through `guardCommand`. The
+  stamp is produced, mapped into the leaf's own session flag, and never becomes a durable
+  incident. `undo()` and `redo()` on every reversible adapter are outside the chokepoint the
+  same way, for the same reason; the three bypass paths named above under Coverage are further
+  examples of the same category.
+- **Nothing currently checks that category, and building a check is deferred.** CLAUDE.md's rule
+  is that a category invariant is checked at the forbidden thing rather than by listing the
+  places — here, a check would have to refuse (or account for) a `markUncompensated` call whose
+  dispatch cannot reach `guardCommand`, which is a reachability question over the composition
+  graph rather than a text scan. Until such a check exists, this record is the only instrument,
+  and it is prose: a raise site added outside a guarded stack will not turn anything red.
 
 ## Revisit when
 

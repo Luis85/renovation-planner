@@ -46,7 +46,25 @@ const LANE = 'write-incidents';
  * What this store does NOT validate: the envelope's own `schemaVersion`. It is written on
  * every rewrite and never branched on, because the records inside carry their own and are
  * preserved regardless — an envelope whose shape is foreign enough to lose the `incidents`
- * array refuses as unreadable, which is the same fail-closed answer.
+ * array refuses as unreadable.
+ *
+ * **"Fail closed" is `list`'s property and NOT `add`'s, and the difference is a real hole.**
+ * A refused `list` seeds an open incident and shuts the gate (`WriteIncidentRegistry.seed`).
+ * A refused READ inside `add` refuses the whole `add`: once this file is unreadable, no
+ * further incident is ever persisted, so the session's own gate stays shut on the unreadable
+ * record while every incident raised after it exists only in memory. That is fail-closed for
+ * THIS session and silently non-durable for the next one.
+ *
+ * **The same shape, from the write end**: a plugin folder that refuses a write leaves no file
+ * at all, so the next load reads "no incidents" and the gate opens — see
+ * `WriteIncidentRegistry.record`'s own docblock, which carries that limit where the failure is
+ * swallowed. Durability rests on the plugin folder being writable.
+ *
+ * **The `KeyedQueues` lane is PER PROCESS, so `add`'s read-modify-write is serialised only
+ * against this instance.** Two Obsidian windows on one vault are two processes holding two
+ * lanes over one file: interleaved `add` calls can each read the same envelope and each write
+ * it back, losing whichever record landed first. Stated, not fixed — a cross-process lock is
+ * its own increment, and the losing side still has the incident in memory for its own session.
  */
 export class WriteIncidentFileStore implements WriteIncidentStore {
 	private readonly queues = new KeyedQueues();

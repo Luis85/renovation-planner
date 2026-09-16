@@ -45,7 +45,7 @@ import { footprintFromDimensions, type AssetShape } from '../../../src/domain/as
 import type { AssetDesignDto } from '../../../src/application/queries/GetAssetDesign';
 import { ok } from '../../../src/core/result/Result';
 import { assetDesign } from '../../helpers/assetDesign';
-import { expectOk } from '../../helpers/domain';
+import { expectDefined, expectOk } from '../../helpers/domain';
 import { recorder } from '../../helpers/logger';
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { installCanvas } from '../../helpers/canvas';
@@ -55,6 +55,7 @@ import { settle } from '../../helpers/editor';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { click, designerRig, move } from '../../helpers/designerRig';
 import { t } from '../../../src/presentation/i18n/strings';
+import { OPEN_POINTS, closedOutlineOf, shapeWithOpenGraphic } from '../../helpers/assetShapes';
 
 /** A palette resolved the way the designer resolves its own — never a literal colour. */
 const TOKENS = resolveThemeTokens(document.documentElement);
@@ -206,7 +207,7 @@ describe('the designer’s drawing vocabulary', () => {
 	});
 
 	it('draws curved outlines as their arcs rather than their corners', () => {
-		const circular = { ...BASE, footprint: WITH_DETAILS.details[0].outline };
+		const circular = { ...BASE, footprint: closedOutlineOf(WITH_DETAILS.details[0]) };
 		expect(detailOutlines(WITH_DETAILS, TOKENS, UNIT_SCALE)[0].points.length).toBeGreaterThan(8);
 		expect(footprintOutline(circular, TOKENS, UNIT_SCALE)?.points.length).toBeGreaterThan(8);
 	});
@@ -621,5 +622,27 @@ describe('the designer canvas, mounted', () => {
 		expect(designer.wrapper.find('.rp-designer-canvas .rp-plan-canvas').exists()).toBe(true);
 		expect(designer.wrapper.find('.rp-designer-canvas .rp-empty-state').exists()).toBe(true);
 		designer.unmount();
+	});
+});
+
+/**
+ * AD05: the authoring canvas draws an open graphic as what it is. Both halves matter and they fail
+ * differently — `closed: false` is what stops Konva adding a closing edge, and the absent `fill` is
+ * what stops a SOLID open graphic being filled with an interior it has not got (C10).
+ */
+describe('an open graphic on the designer canvas', () => {
+	it('draws unclosed, unfilled, and keeps its last point', () => {
+		const configs = detailOutlines(shapeWithOpenGraphic(), TOKENS, UNIT_SCALE);
+		const open = expectDefined(configs.find((config) => config.id === 'detail-3'), 'the open graphic');
+		expect(open.closed).toBe(false);
+		expect(open.fill).toBeUndefined();
+		expect(open.points).toEqual(OPEN_POINTS.flatMap((point) => [point.x, point.y]));
+	});
+
+	it('still fills a solid CLOSED graphic, which is what makes the rule above a distinction', () => {
+		const configs = detailOutlines(shapeWithOpenGraphic(), TOKENS, UNIT_SCALE);
+		const closed = expectDefined(configs.find((config) => config.id === 'detail-1'), 'the closed graphic');
+		expect(closed.closed).toBe(true);
+		expect(closed.fill).toBe(TOKENS.canvasBackground);
 	});
 });

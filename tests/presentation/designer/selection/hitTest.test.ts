@@ -5,7 +5,7 @@ import { rect } from '../../../../src/domain/asset/presets/presetGeometry';
 import { facingTip } from '../../../../src/presentation/designer/layers/anchorLayer';
 import type { DesignerSelection, SelectionMode } from '../../../../src/presentation/designer/selection/designerSelection';
 import { hitDesign, type DesignerHit } from '../../../../src/presentation/designer/selection/hitTest';
-import { toiletShape } from '../../../helpers/assetShapes';
+import { shapeWithOpenGraphic, toiletShape } from '../../../helpers/assetShapes';
 
 /**
  * Spec 2026-09-13 Decision 10's hit order, as a table over one toilet at one millimetre per screen
@@ -57,5 +57,45 @@ describe('hitDesign', () => {
 
 	it('finds the facing tip where the arrow draws it', () => {
 		expect(facingTip(TOILET, 2)).toEqual({ x: expect.closeTo(0, 9), y: expect.closeTo(88, 9) });
+	});
+});
+
+/**
+ * AD05: an open graphic has no interior, so it is hit by its STROKE. Asking `curvedContains` of one
+ * answers about a ring the object has not got — nothing selectable where the user clicked, and the
+ * occasional hit inside an implied area that is not drawn.
+ *
+ * `shapeWithOpenGraphic` puts a two-segment line at (-300,-200)→(0,-200)→(0,100), well clear of
+ * `editableShape`'s other parts, at one millimetre per screen pixel — an 8 mm grab radius.
+ */
+describe('hitting an open graphic', () => {
+	const shape = shapeWithOpenGraphic();
+	const hit = (point: Point): DesignerHit => hitDesign(shape, point, { selection: null, mode: 'transform', worldPerPixel: 1 });
+
+	it('takes a press on the line itself', () => {
+		expect(hit({ x: -150, y: -200 })).toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-3' } });
+	});
+
+	it('takes a press just beside the line, within the grab radius', () => {
+		expect(hit({ x: -150, y: -195 })).toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-3' } });
+	});
+
+	/** On the second segment and clear of the anchor at the origin, which is asked before any graphic. */
+	it('takes a press on the far segment too, not only the first', () => {
+		expect(hit({ x: 0, y: 80 })).toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-3' } });
+	});
+
+	/**
+	 * The point that decides it. (-100, -150) is INSIDE the triangle the three vertices would
+	 * enclose if anything closed them — checked by hand: the hypotenuse runs (-300,-200)→(0,100),
+	 * which is at y = 0 where x = -100, and the interior is below it — and it is 50 mm, 100 mm and
+	 * 106 mm from the three segments, so far outside the 8 mm grab radius. A closed reading selects
+	 * the graphic here; the open reading must not.
+	 *
+	 * Its first version used (-250, -100), which is OUTSIDE that triangle, so it passed under both
+	 * readings and proved nothing. The revert check is what caught it.
+	 */
+	it('does not take a press inside the area its points would enclose if it closed', () => {
+		expect(hit({ x: -100, y: -150 })).not.toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-3' } });
 	});
 });

@@ -1,7 +1,9 @@
 import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import { createCurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import type { CurvedPath } from '../../core/geometry/CurvedPath';
-import { createCurvedPath } from '../../core/geometry/CurvedPath';
+import { createCurvedPath, pathPolyline } from '../../core/geometry/CurvedPath';
+import { polygonPolyline } from '../../core/geometry/curvePolyline';
+import type { Point } from '../../core/geometry/Point';
 import { enclosesArea } from '../../core/geometry/operations';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
@@ -94,6 +96,27 @@ export type AssetDetail = ClosedDetail | OpenDetail;
 export function mapDetailOutline(detail: AssetDetail, map: <T extends CurvedPolygon | CurvedPath>(outline: T) => T): AssetDetail {
 	return detail.kind === 'open' ? { ...detail, outline: map(detail.outline) } : { ...detail, outline: map(detail.outline) };
 }
+
+/**
+ * The drawable approximation of a graphic, arcs flattened: a closed RING for a closed one, an open
+ * RUN for a path. The difference is not cosmetic — `polygonPolyline` drops each segment's last
+ * point because the next segment starts there and the ring closes, so using it on a path loses the
+ * path's final vertex.
+ *
+ * Every surface that draws a symbol goes through this rather than reaching for one of the two
+ * polyline functions directly, which is what makes "the canvas, the preview and the plan agree
+ * about what this graphic is" a property of one function instead of three habits.
+ */
+export function detailPolyline(detail: AssetDetail, tolerance = 1): readonly Point[] {
+	return detail.kind === 'open' ? pathPolyline(detail.outline, tolerance) : polygonPolyline(detail.outline, tolerance);
+}
+
+/**
+ * Whether this graphic's geometry closes — asked before filling anything, before testing a point
+ * for being INSIDE it, and before emitting an SVG `Z`. An open graphic is a stroke whatever its
+ * `line` says (C10), so `solid` on one is a dash pattern and never a fill.
+ */
+export const detailIsClosed = (detail: AssetDetail): detail is ClosedDetail => detail.kind !== 'open';
 
 /**
  * Every graphic valid for its own kind, every id present and unique. Answers COPIES, for the

@@ -1,4 +1,5 @@
 import type { Point } from './Point';
+import type { OPEN_PATH } from './openPathBrand';
 import type { Polygon } from './Polygon';
 import { createPolygon } from './Polygon';
 import type { GeometryError } from '../errors/AppError';
@@ -6,8 +7,19 @@ import { err, ok, type Result } from '../result/Result';
 import { arcRadius, type CircularEdge } from './circularArc';
 import { circularEdgeIntersections, curveTolerance } from './circularIntersections';
 
-/** Closed boundary: bulge i describes edge i→i+1, with implicit last→first closure. */
-export interface CurvedPolygon extends Polygon { readonly bulges?: readonly number[] }
+/**
+ * Closed boundary: bulge i describes edge i→i+1, with implicit last→first closure.
+ *
+ * `[OPEN_PATH]?: undefined` is the half of the open/closed discriminant that lives HERE, and it is
+ * load-bearing rather than decorative: a brand only `CurvedPath` declared left that type assignable
+ * to this one, since an extra property never blocks assignability. Optional and `undefined`, so
+ * every `{ points }` literal stays a valid polygon and nothing has to mention it — `Point.__brand`'s
+ * idiom, and `openPathBrand.ts` carries the whole account.
+ */
+export interface CurvedPolygon extends Polygon {
+	readonly bulges?: readonly number[];
+	readonly [OPEN_PATH]?: undefined;
+}
 export const hasCurves = (shape: CurvedPolygon): boolean => shape.bulges?.some(value => value !== 0) ?? false;
 /**
  * One curved edge's own rules: within a semicircle, and over a chord with a representable

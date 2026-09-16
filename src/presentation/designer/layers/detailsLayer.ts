@@ -1,4 +1,4 @@
-import { polygonPolyline } from '../../../core/geometry/curvePolyline';
+import { detailIsClosed, detailPolyline } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { ThemeTokens } from '../../editor/theme/themeTokens';
 import { ARC_TOLERANCE_PX, flatPoints, footprintOutline, type OutlineConfig } from './footprintLayer';
@@ -9,9 +9,15 @@ import { ARC_TOLERANCE_PX, flatPoints, footprintOutline, type OutlineConfig } fr
  * a DASHED one is unfilled, because dashed means overhead or hidden. Thinner than the footprint,
  * which stays the heavier mark of record.
  */
-export interface DetailOutlineConfig extends OutlineConfig {
+export interface DetailOutlineConfig extends Omit<OutlineConfig, 'closed'> {
 	/** The detail's own id — what the canvas keys its node by, so a reorder moves nodes rather than repainting them. */
 	readonly id: string;
+	/**
+	 * `false` for an OPEN graphic (AD04/AD05), which is why this widens `OutlineConfig`'s literal
+	 * `true` rather than inheriting it: a footprint or a clearance always closes, and a detail is
+	 * now the one outline on this surface that may not.
+	 */
+	readonly closed: boolean;
 	readonly fill?: string;
 }
 
@@ -21,17 +27,24 @@ export const DETAIL_DASH_PX: readonly number[] = [4, 3];
 
 export function detailOutlines(shape: AssetShape | null, tokens: ThemeTokens, worldPerPixel: number): DetailOutlineConfig[] {
 	if (shape === null) return [];
-	return shape.details.map((detail) => ({
-		id: detail.id,
-		points: flatPoints(polygonPolyline(detail.outline, ARC_TOLERANCE_PX * worldPerPixel)),
-		closed: true,
-		stroke: tokens.zoneStroke,
-		strokeWidth: DETAIL_STROKE_PX,
-		strokeScaleEnabled: false,
-		listening: false,
-		perfectDrawEnabled: false,
-		...(detail.line === 'solid' ? { fill: tokens.canvasBackground } : { dash: [...DETAIL_DASH_PX] }),
-	}));
+	return shape.details.map((detail) => {
+		const closed = detailIsClosed(detail);
+		return {
+			id: detail.id,
+			points: flatPoints(detailPolyline(detail, ARC_TOLERANCE_PX * worldPerPixel)),
+			closed,
+			stroke: tokens.zoneStroke,
+			strokeWidth: DETAIL_STROKE_PX,
+			strokeScaleEnabled: false,
+			listening: false,
+			perfectDrawEnabled: false,
+			// **An OPEN graphic is never filled, whatever its line says** (C10): a fill needs an
+			// interior and a path has none, so a `solid` open one would be handed a fill colour and a
+			// closing edge Konva draws for it — the wrong picture rather than a missing one. Solid on
+			// an open graphic means an unbroken stroke; dashed still means dashed.
+			...(detail.line === 'solid' ? (closed ? { fill: tokens.canvasBackground } : {}) : { dash: [...DETAIL_DASH_PX] }),
+		};
+	});
 }
 
 /**

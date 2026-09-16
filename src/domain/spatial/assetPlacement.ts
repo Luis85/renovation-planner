@@ -4,7 +4,7 @@ import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import { polygonPolyline } from '../../core/geometry/curvePolyline';
 import { boundingBoxOf } from '../../core/geometry/operations';
 import { unwrap } from '../../core/result/Result';
-import type { DetailLine } from '../asset/AssetDetail';
+import { detailIsClosed, detailPolyline, type AssetDetail, type DetailLine } from '../asset/AssetDetail';
 import { dimensionsOf, type AssetShape, type Dimensions } from '../asset/AssetShape';
 import type { SpatialElement } from './SpatialElement';
 
@@ -38,6 +38,12 @@ const flattened = (outline: CurvedPolygon): readonly Point[] => polygonPolyline(
 export interface PlacedDetail {
 	readonly points: readonly Point[];
 	readonly line: DetailLine;
+	/**
+	 * Whether the graphic closes (AD05). A plan renderer needs it because `points` alone cannot say:
+	 * an open path and a closed ring are both a run of coordinates, and drawing the open one closed
+	 * adds an edge the object has not got and fills an interior it does not have.
+	 */
+	readonly closed: boolean;
 }
 
 export interface PlacedOutline {
@@ -73,10 +79,14 @@ function place(points: readonly Point[], shape: AssetShape, heading: number, at:
 export function placedOutline(element: Pick<SpatialElement, 'points' | 'size'>, shape: AssetShape): PlacedOutline {
 	const heading = placementHeading(element), anchor = element.points[0], scale = placementScale(element, shape);
 	const onPlan = (outline: CurvedPolygon): Point[] => place(flattened(outline), shape, heading, anchor, scale);
+	// A graphic is flattened by its OWN kind — `detailPolyline` keeps an open path's last point,
+	// which `polygonPolyline` drops because a ring closes over it — and then placed by the same
+	// transform as everything else.
+	const graphicOnPlan = (detail: AssetDetail): Point[] => place(detailPolyline(detail, PLAN_ARC_TOLERANCE_MM), shape, heading, anchor, scale);
 	return {
 		footprint: onPlan(shape.footprint),
 		clearance: shape.clearance ? onPlan(shape.clearance) : null,
-		details: shape.details.map(detail => ({ points: onPlan(detail.outline), line: detail.line })),
+		details: shape.details.map(detail => ({ points: graphicOnPlan(detail), line: detail.line, closed: detailIsClosed(detail) })),
 	};
 }
 

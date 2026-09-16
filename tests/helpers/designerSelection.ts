@@ -16,7 +16,7 @@ import type { DesignerSelection, SelectionMode } from '../../src/presentation/de
 import { designerSnapCandidates } from '../../src/presentation/designer/selection/snapCandidates';
 import { DesignerSelectTool } from '../../src/presentation/designer/tools/designer-select-tool';
 import { expectDefined, observationToken } from './domain';
-import { toiletShape } from './assetShapes';
+import { closedOutlineOf, toiletShape } from './assetShapes';
 import { toolContext, type ToolContextHarness, type ToolContextOptions } from './tool-context';
 
 /** The toilet at its default size: a round-fronted footprint, a front clearance, `detail-1` the tank, `detail-2` the bowl. */
@@ -24,7 +24,7 @@ export const TOILET: AssetShape = toiletShape(); // Task 3's fixture, one defini
 
 /** A detail of `TOILET`'s outline by id, so a case names the part rather than an array index. */
 export function detailOutline(id: string): CurvedPolygon {
-	return expectDefined(TOILET.details.find((detail) => detail.id === id), `detail ${id}`).outline;
+	return closedOutlineOf(expectDefined(TOILET.details.find((detail) => detail.id === id), `detail ${id}`));
 }
 
 /**

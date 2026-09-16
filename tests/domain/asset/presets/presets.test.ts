@@ -4,6 +4,7 @@ import { dimensionsOf, validateAssetShape } from '../../../../src/domain/asset/A
 import { ASSET_PRESETS } from '../../../../src/domain/asset/presets/catalogue';
 import { defaultValues, type AssetPreset, type PresetValues } from '../../../../src/domain/asset/presets/presetGeometry';
 import { expectErr, expectOk } from '../../../helpers/domain';
+import { closedOutlineOf } from '../../../helpers/assetShapes';
 
 /** Spec 2026-09-13 Decision 8's table-driven check, over every preset the catalogue holds. */
 const EPSILON = 1e-6;
@@ -41,7 +42,7 @@ describe.each(ASSET_PRESETS.map((preset) => [preset.id, preset] as const))('pres
 		expect(depth).toBeCloseTo(expectedDepth, 6);
 		const outer = expectOk(boundingBoxOf(shape.footprint));
 		for (const detail of shape.details) {
-			const box = expectOk(boundingBoxOf(detail.outline));
+			const box = expectOk(boundingBoxOf(closedOutlineOf(detail)));
 			expect(box.min.x).toBeGreaterThanOrEqual(outer.min.x - EPSILON);
 			expect(box.min.y).toBeGreaterThanOrEqual(outer.min.y - EPSILON);
 			expect(box.max.x).toBeLessThanOrEqual(outer.max.x + EPSILON);

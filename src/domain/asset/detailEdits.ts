@@ -117,7 +117,10 @@ export function fitFootprintToDetails(shape: AssetShape): Result<AssetShape, Val
 	}
 	const corners: Point[] = [];
 	for (const detail of shape.details) {
-		const box = boundingBoxOf(detail.outline);
+		// Over the graphic's POINTS rather than the graphic: an open path has no interior, but its
+		// box is the same question and the same answer. Arcs are read at their extrema either way,
+		// which `boundingBoxOf` does for a bulge array it is given.
+		const box = boundingBoxOf({ points: detail.outline.points, ...(detail.outline.bulges === undefined ? {} : { bulges: detail.outline.bulges }) });
 		if (isErr(box)) return err(assetError('invalid-detail', box.error.message));
 		corners.push(box.value.min, box.value.max);
 	}

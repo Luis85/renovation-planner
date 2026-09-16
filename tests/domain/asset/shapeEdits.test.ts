@@ -17,7 +17,7 @@ import {
 	setFacing,
 	type OutlinePart,
 } from '../../../src/domain/asset/shapeEdits';
-import { editableShape, QUARTER } from '../../helpers/assetShapes';
+import { closedOutlineOf, editableShape, QUARTER } from '../../helpers/assetShapes';
 import { expectDefined, expectErr, expectOk } from '../../helpers/domain';
 
 /**
@@ -143,7 +143,7 @@ describe('resizeBox', () => {
 		const bowl = resized.details[1];
 		expect(bowl.outline.bulges).toEqual(ALL_QUARTERS);
 		expect([bowl.id, bowl.line, bowl.pending]).toEqual(['detail-2', 'dashed', true]);
-		const box = expectOk(boundingBoxOf(bowl.outline));
+		const box = expectOk(boundingBoxOf(closedOutlineOf(bowl)));
 		expect(box.max.x - box.min.x).toBeCloseTo(400, 6);
 		expect(box.max.y - box.min.y).toBeCloseTo(100 * Math.sqrt(10) - 100, 6);
 	});

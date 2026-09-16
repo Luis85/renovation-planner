@@ -1,10 +1,9 @@
 import { firstNonFinitePoint, type Point } from './Point';
+import type { OPEN_PATH } from './openPathBrand';
 import type { GeometryError } from '../errors/AppError';
 import { err, ok, type Result } from '../result/Result';
 import { validateBulgeEdge } from './CurvedPolygon';
 import { arcPolyline } from './curvePolyline';
-
-declare const OPEN_PATH: unique symbol;
 
 /**
  * An OPEN curved polyline as a caller proposes it: two or more points, each consecutive pair one
@@ -36,9 +35,10 @@ export interface CurvedPathInput {
  * union of the two: a consumer that wants VERTICES needs no narrowing, and a consumer that wants
  * an interior cannot get one by accident.
  *
- * The symbol is declared and never exported, so the only way to hold one of these is to have gone
- * through `createCurvedPath` — the access lock `presentation/errors/errorSurfacePolicy.ts`'s
- * `Routed` uses, for the same reason: a hand-built value would carry no validation.
+ * The symbol lives in `openPathBrand.ts` because the CLOSED side has to declare it too — a brand
+ * only this type mentions is an extra property, and an extra property never blocks assignability,
+ * so the first version of this refused nothing at all. That was measured with a probe rather than
+ * reasoned about, and `tests/core/geometry/geometryBrands.test-d.ts` is what keeps it measured.
  */
 export interface CurvedPath extends CurvedPathInput {
 	readonly [OPEN_PATH]: true;

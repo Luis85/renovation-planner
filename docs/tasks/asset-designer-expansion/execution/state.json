@@ -55,25 +55,26 @@
       "blocker": null
     },
     "AD04": {
-      "status": "in_review",
+      "status": "integrated",
       "base_sha": "fa51ae88d",
-      "candidate_sha": null,
-      "integrated_sha": null,
+      "candidate_sha": "2b296d938",
+      "integrated_sha": "2b296d938",
       "evidence": [
-        "core/geometry/CurvedPath.ts, branded, 16 cases",
-        "AssetDetail closed/open union with an optional label",
-        "shallow groups on AssetShape with six refusals, watched red",
-        "asset geometry schema v3: reads v1/v2/v3, emits 3, refuses 4",
-        "analyze exit 0, oxlint exit 0, vue-tsc exit 0"
+        "CurvedPath (branded), AssetDetail union, groups, schema v3",
+        "reports/AD04-model-and-schema.md"
       ],
       "blocker": null
     },
     "AD05": {
-      "status": "planned",
-      "base_sha": null,
+      "status": "in_review",
+      "base_sha": "2b296d938",
       "candidate_sha": null,
       "integrated_sha": null,
-      "evidence": [],
+      "evidence": [
+        "the brand now actually refuses a path where a polygon is expected \u2014 geometryBrands.test-d.ts, five directives",
+        "canvas, hit test, snapping, preset preview and plan placement each kind-aware, every case watched red",
+        "vue-tsc 0, oxlint 0, analyze 0, 140 files / 1566 cases green"
+      ],
       "blocker": null
     },
     "AD06": {

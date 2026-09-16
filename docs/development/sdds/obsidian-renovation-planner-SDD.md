@@ -711,7 +711,7 @@ Four kinds of presentation state, and who owns each:
 | State | Owner | Survives |
 |---|---|---|
 | Which project / plan / asset a leaf shows | **Obsidian view state** (`getState`/`setState`) | rebind, restart, layout restore |
-| A Plan Editor leaf's open unrecovered-write incident | **Obsidian view state**, on `PlanEditorView` beside `planId` | rebind, restart, layout restore — for THAT leaf only, and only for an incident already raised before the save |
+| A Plan Editor leaf's open unrecovered-write incident | **Obsidian view state**, on `PlanEditorView` beside `planId` | rebind, unconditionally; restart and layout restore — for THAT leaf only, and only if a layout save runs after the incident is raised, since this view never publishes its state and what persists is whatever `getState` answered at the last one |
 | Entities hydrated for display, selection, tool, history, the save INDICATOR | Pinia stores (`ProjectStore`, `EditorStore`, selection, save-state, inspector, `AssetLibraryStore`, `AssetSelectionStore`, `RenovationProjectStore`, `ProjectDetailStore`, `WorkspaceStore`) | one Vue mount: a settings rebind remounts the tree and builds these again |
 | Search text, group expansion, scroll, focus target, guidance visibility | a leaf-local UI snapshot | Vue remounts; never written to a note |
 | An unsaved field draft and its field errors | form state bound to ONE entity id and ONE baseline version | selection change only through the draft guard (§101) |

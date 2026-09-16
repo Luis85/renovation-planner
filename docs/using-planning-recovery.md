@@ -45,11 +45,15 @@ Ending an incident is therefore something you do, not something the plugin decid
 files from any other write that happened to land. Once you have checked the Plan note and its
 geometry against your backup, close that Plan editor tab and open the plan again: the plugin
 opens a new tab carrying the plan and no warning. Clearing it that way proves **nothing** about
-the vault — your inspection is what does. Two things can bring the warning back, both of them
-Obsidian restoring the tab's saved state rather than the plugin re-raising anything: reopening
-the closed tab with Obsidian's own undo-close gesture instead of opening the plan afresh, and
-restarting Obsidian onto a layout that still held the tab. The existing specialized
-requirement-sequence recovery mechanism remains separate.
+the vault — your inspection is what does. Two situations could bring the warning back by
+restoring the tab's saved state rather than the plugin re-raising anything: reopening the
+closed tab with Obsidian's own undo-close gesture instead of opening the plan afresh, and
+restarting Obsidian onto a layout that still held the tab. Whether either one actually does is
+not confirmed. Treat a returned warning exactly as before — it is not a fresh incident to
+diagnose, but it is also not a reason to trust the tab any less than you already did. Treat its
+absence the same way you treat clearing the tab in the first place: it proves nothing about the
+vault either way, only your own inspection does. The existing specialized requirement-sequence
+recovery mechanism remains separate.
 
 An open draft in this state offers source-note inspection and Cancel. It does not offer a
 read retry or promise that reading will resume Apply. You can copy its retained text before

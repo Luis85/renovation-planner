@@ -94,19 +94,31 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 131 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 59 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 180 |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 14 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 133 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 60 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 185 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 15 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
+
+**406 steps — 388 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-16
+by running both greps below rather than trusted from the 397 recorded beneath this paragraph.**
+That figure had gone nine rows stale with no re-tiering edit to blame — the same drift this
+file's own triage-column note above already names as a hazard of prose beside a grep nobody
+re-ran. Per tier: `suite` 133, `browser` 60, `obsidian` 185, `desktop` 15, `judgement` 13. No
+attempt is made here to trace which edits added the nine rows or which tiers they landed in;
+that provenance is not recoverable from the two greps alone, only the count is. Read this as a
+dated snapshot, not a total that holds until the next edit says otherwise — run the greps before
+citing either number again.
+
+**The previous measurement's own account follows, kept as history.**
 
 **397 steps, unchanged, re-tiered rather than re-counted in the edit that closed the final
 selection-polish review's M5: [[Design an Asset]] row 24a moves from `browser` to `obsidian`**,
 since closing a tab and reopening it from the Renovation project view or the library needs a real
 Obsidian workspace rather than a headless browser. No row was added or removed, so the total holds
 at 397; only that one row's own tier moved, taking `browser` 60 → 59 and `obsidian` 179 → 180 with
-it. The other three tiers are unchanged, and both greps below print 379 + 18 against the current
-tree.
+it. The other three tiers are unchanged, and both greps below printed 379 + 18 against the tree it
+was taken from.
 
 **The previous measurement's own account follows, kept as history.**
 

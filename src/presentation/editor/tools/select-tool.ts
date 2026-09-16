@@ -9,6 +9,9 @@ import { rotationControlContains, type RotationControlGeometry } from '../elemen
 import type { RotationShape } from '../elements/objectRotation';
 import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
 import { ElementResize, type ElementResizeDeps } from '../elements/ElementResize';
+import { OpeningResize, type OpeningResizeDeps } from '../structure/OpeningResize';
+import type { OpeningGrip, OpeningHandle } from '../structure/openingHandles';
+import { NUDGE_STEP_MM, NUDGE_STEP_SHIFT_MM } from '../surface/keyboard';
 import { transformHandlePoints } from '../elements/transformBox';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
@@ -19,7 +22,7 @@ import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { LabelMove, type LabelMoveDeps } from '../labels/LabelMove';
 import { CLICK_EPSILON_PX, VERTEX_GRAB_RADIUS_PX, SELECTION_BADGE_RADIUS_PX, LABEL_GRAB_PADDING_PX, SNAP_TOLERANCE_PX } from '../handleMetrics';
-import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
+import { openingHandleAt, resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
 import type { SnapCandidates } from '../snapping/snap-service';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
@@ -59,9 +62,13 @@ export interface SpatialObjectCandidate {
  * like every adapter in this slice, one instance carries one transaction's forward/inverse
  * pair.
  */
-export interface SelectToolDeps extends ElementMoveDeps, ElementResizeDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps {
+export interface SelectToolDeps extends ElementMoveDeps, ElementResizeDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps, OpeningResizeDeps {
 	/** Selection remains available when false; only geometry gestures are withheld. */
 	readonly canMutateGeometry?: () => boolean;
+	/** The selected opening's handles, or `null` where none are offered; the same points that are drawn. */
+	readonly openingHandles?: () => { readonly id: string; readonly handles: readonly OpeningHandle[] } | null;
+	readonly stepOpening?: (id: string, deltaMm: number) => void;
+	readonly flipOpening?: (id: string, side: 'left' | 'right') => void;
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly spatialObjects: () => readonly SpatialObjectCandidate[];
@@ -145,7 +152,8 @@ export class SelectTool implements EditorTool {
 	private readonly elementRotation: ElementRotation;
 	private readonly elementResize: ElementResize;
 	private readonly labelMove: LabelMove;
-	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); this.elementRotation = new ElementRotation(deps); this.elementResize = new ElementResize(deps); this.labelMove = new LabelMove(deps); }
+	private readonly openingResize: OpeningResize;
+	constructor(private readonly deps: SelectToolDeps) { this.elementMove = new ElementMove(deps); this.elementRotation = new ElementRotation(deps); this.elementResize = new ElementResize(deps); this.labelMove = new LabelMove(deps); this.openingResize = new OpeningResize(deps); }
 	private canMutateGeometry(): boolean { return this.deps.canMutateGeometry?.() !== false; }
 
 	activate(context: EditorContext): void {
@@ -309,6 +317,7 @@ export class SelectTool implements EditorTool {
 		if (this.marquee.active) { this.marquee.move(context, event); return; }
 		if (this.elementRotation.active) { this.elementRotation.move(context, event); return; }
 		if (this.elementResize.active) { this.elementResize.move(context, event); return; }
+		if (this.openingResize.active) { this.openingResize.move(context, event); return; }
 		if (this.elementMove.active) { this.elementMove.move(event); return; }
 		if (this.wallGesture) { this.deps.previewWall?.(this.wallGesture.id, event.worldPoint); return; }
 		if (this.gesture === null) {
@@ -327,17 +336,35 @@ export class SelectTool implements EditorTool {
 		context.renderState.hoveredTargetKind = target === null ? null : canMutate ? target.kind : 'body';
 	}
 	private startDirectGesture(context: EditorContext, event: EditorPointerEvent, target: Exclude<SelectionTarget, null>, grip: RotationGrip | undefined): boolean {
-		if (target.kind !== 'rotation' && target.kind !== 'label' && target.kind !== 'resize') return false;
+		if (target.kind !== 'rotation' && target.kind !== 'label' && target.kind !== 'resize' && target.kind !== 'opening-handle') return false;
 		if (!this.canMutateGeometry()) { selectSpatial(context.selection, target.id, event.modifiers.shift); return true; }
 		// A `rotation` target is only ever resolved from `grip`: the selected target's own arrow.
 		if (target.kind === 'rotation') { const { shape, control } = grip as RotationGrip; this.elementRotation.start(context, event, shape, control); }
 		else if (target.kind === 'resize') this.startResize(context, event, target.handleIndex);
+		else if (target.kind === 'opening-handle') this.startOpeningGrip(context, event, target);
 		else this.labelMove.start(context, event, target.id);
 		return true;
 	}
 	private startResize(context: EditorContext, event: EditorPointerEvent, index: number): void {
 		const frame = this.deps.transformBox?.();
 		if (frame) this.elementResize.start(context, event, frame, index);
+	}
+	/**
+	 * The arrows are TAPS — they write on the press and start no gesture, because there is nothing
+	 * to preview between a press and a release. The circles are drags. Shift takes the larger step,
+	 * the same one Shift takes on an arrow key.
+	 */
+	private startOpeningGrip(context: EditorContext, event: EditorPointerEvent, target: { readonly id: string; readonly grip: OpeningGrip }): void {
+		if (target.grip === 'step-back' || target.grip === 'step-forward') {
+			const step = event.modifiers.shift ? NUDGE_STEP_SHIFT_MM : NUDGE_STEP_MM;
+			this.deps.stepOpening?.(target.id, target.grip === 'step-back' ? -step : step);
+			return;
+		}
+		if (target.grip === 'side-left' || target.grip === 'side-right') {
+			this.deps.flipOpening?.(target.id, target.grip === 'side-left' ? 'left' : 'right');
+			return;
+		}
+		this.openingResize.start(context, event, target.id, target.grip);
 	}
 
 	private finishSelectionGesture(event: EditorPointerEvent): boolean {
@@ -361,6 +388,7 @@ export class SelectTool implements EditorTool {
 	private finishElementGesture(context: EditorContext, event: EditorPointerEvent): boolean {
 		if (this.elementRotation.active) { this.elementRotation.finish(context, event); return true; }
 		if (this.elementResize.active) { this.elementResize.finish(context, event); return true; }
+		if (this.openingResize.active) { this.openingResize.finish(context, event); return true; }
 		if (this.elementMove.active) { this.elementMove.finish(context, event); return true; }
 		return false;
 	}
@@ -395,9 +423,9 @@ export class SelectTool implements EditorTool {
 
 	/** Retire only undispatched geometry. Selection marquees and pending writes keep their owner. */
 	cancelGeometryGesture(): boolean {
-		if (!this.gesture && !this.wallGesture && !this.elementMove.active && !this.elementRotation.active && !this.elementResize.active && !this.labelMove.active && !this.deps.selectionMove?.active) return false;
+		if (!this.gesture && !this.wallGesture && !this.elementMove.active && !this.elementRotation.active && !this.elementResize.active && !this.openingResize.active && !this.labelMove.active && !this.deps.selectionMove?.active) return false;
 		this.deps.selectionMove?.cancel();
-		this.elementMove.cancel(); this.elementRotation.cancel(); this.elementResize.cancel(); this.labelMove.cancel();
+		this.elementMove.cancel(); this.elementRotation.cancel(); this.elementResize.cancel(); this.openingResize.cancel(); this.labelMove.cancel();
 		this.wallGesture = null;
 		this.deps.previewWall?.(null);
 		const context = this.context;
@@ -433,7 +461,7 @@ export class SelectTool implements EditorTool {
 
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
-		return this.deps.selectionMove?.active === true || this.marquee.active || this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active || this.elementResize.active || this.labelMove.active;
+		return this.deps.selectionMove?.active === true || this.marquee.active || this.gesture !== null || this.wallGesture !== null || this.elementMove.active || this.elementRotation.active || this.elementResize.active || this.openingResize.active || this.labelMove.active;
 	}
 
 	/**
@@ -468,13 +496,24 @@ export class SelectTool implements EditorTool {
 		const candidates = this.deps.spatialObjects();
 		const rotation = this.rotationAt(context, event);
 		const frame = this.deps.transformBox?.() ?? null;
+		const selectedIds = context.selection.selectedIds.map(String);
+		const openings = this.deps.openingHandles?.() ?? undefined;
+		const handleToleranceWorld = VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel();
+		// Shift over one of the selected opening's own handles is the BIGGER STEP, the same one
+		// Shift takes on an arrow key — not a multi-select press. That is the exemption
+		// `rotation.hit` already takes beside it, for the identical reason: a decoration whose own
+		// gesture reads Shift cannot also be the selection modifier. Without it the blanked
+		// `selectedIds` make `openingHandleAt` decline every handle, so `startOpeningGrip`'s
+		// `NUDGE_STEP_SHIFT_MM` arm is unreachable from the pointer.
+		const openingGrip = openingHandleAt({ selectedIds, worldPoint: event.worldPoint, handleToleranceWorld, openingHandles: openings }) !== null;
 		const target = resolveSelectionTarget({
 			rotationHandle: rotation.grip && { id: rotation.grip.shape.id, bounds: rotation.grip.control.bounds },
 			resizeHandles: frame ? { id: frame.element.id, points: transformHandlePoints(frame, context.viewport.worldPerScreenPixel()) } : undefined,
+			openingHandles: openings,
 			candidates,
-			selectedIds: event.modifiers.shift && !rotation.hit ? [] : context.selection.selectedIds.map(String),
+			selectedIds: event.modifiers.shift && !rotation.hit && !openingGrip ? [] : selectedIds,
 			worldPoint: event.worldPoint,
-			handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
+			handleToleranceWorld,
 			cycle: event.modifiers.alt,
 			badgeToleranceWorld: SELECTION_BADGE_RADIUS_PX * context.viewport.worldPerScreenPixel(),
 			labels: this.deps.labelHits?.(),

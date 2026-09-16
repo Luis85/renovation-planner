@@ -31,6 +31,8 @@ import type { Point } from '../../../core/geometry/Point';
 import type { RotationGestureDeps } from '../elements/ElementRotation';
 import type { ElementMoveDeps } from '../elements/ElementMove';
 import type { ElementResizeDeps } from '../elements/ElementResize';
+import type { OpeningResizeDeps } from '../structure/OpeningResize';
+import type { OpeningHandle } from '../structure/openingHandles';
 import type { LabelMoveDeps } from '../labels/LabelMove';
 import { watch } from 'vue';
 
@@ -57,7 +59,11 @@ export function moveGesture(
  * so the one cast that turns Obsidian's opaque per-leaf string into a branded id stays a
  * single site — see `subject` below, which is built from the same value.
  */
-export interface EditorToolDeps extends ElementMoveDeps, ElementResizeDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps {
+export interface EditorToolDeps extends ElementMoveDeps, ElementResizeDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps, OpeningResizeDeps {
+	/** The selected opening's handles, or `null` where none are offered; the same points that are drawn. */
+	readonly openingHandles?: () => { readonly id: string; readonly handles: readonly OpeningHandle[] } | null;
+	readonly stepOpening?: (id: string, deltaMm: number) => void;
+	readonly flipOpening?: (id: string, side: 'left' | 'right') => void;
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
 	readonly canFinishArea: () => boolean;
@@ -95,6 +101,8 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 			transformBox: deps.transformBox, previewResize: deps.previewResize, commitResize: deps.commitResize,
 			moveElement: deps.moveElement, elementWritesBlocked: deps.elementWritesBlocked,
 			labelHits: deps.labelHits, moveLabel: deps.moveLabel,
+			openingHandles: deps.openingHandles, stepOpening: deps.stepOpening, flipOpening: deps.flipOpening,
+			openingTarget: deps.openingTarget, previewOpening: deps.previewOpening, commitOpening: deps.commitOpening,
 			previewWall: deps.previewWall,
 			editWall: deps.editWall,
 			spatialObjects: () => canvasCandidates(projectStore.zones.values(), projectStore.structure, workspace.layerVisibility, assetShapes.shapeOf,

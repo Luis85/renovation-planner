@@ -75,8 +75,15 @@ function resizeAt(input: {
 	return handleIndex < 0 ? null : { kind: 'resize', id: handles.id, handleIndex };
 }
 
-/** A handle of the one selected opening — its width grips, its move grip, its step arrows and its side chevrons. */
-function openingHandleAt(input: {
+/**
+ * A handle of the one selected opening — its width grips, its move grip, its step arrows and its
+ * side chevrons.
+ *
+ * Exported because `SelectTool.targetAt` has to ask the SAME question before it decides whether a
+ * Shift press is a multi-select or a coarse step, and a second predicate spelled beside this one is
+ * a second place for "what would a press here grab" to disagree with itself.
+ */
+export function openingHandleAt(input: {
 	readonly selectedIds: readonly string[];
 	readonly worldPoint: Point;
 	readonly handleToleranceWorld: number;

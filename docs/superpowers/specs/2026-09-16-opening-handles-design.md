@@ -60,7 +60,8 @@ readouts as their own increment once the handles feel right.
    100 mm movement, and snapping a one-dimensional along-wall drag to arbitrary world candidates
    fights the constraint more than it helps. Adding it later is a change at the offset level only.
 
-6. **The guarded write cycle is extracted, and that is the riskiest edit here.** See *Write path*.
+6. **The handles are a FIFTH collaborator of `createStructureActions`, not an extraction.** See
+   *Write path*. This decision replaces a wrong one — see *Amendment 1*.
 
 ## Domain transforms
 
@@ -123,10 +124,13 @@ for an arrow key.
 
 ## Interaction
 
-**When handles show** — the same gates `openingMove.ts`'s `available` already computes, reused
-rather than restated: exactly one selected element and it is an opening; Plan perspective; the
-`select` tool active; the architecture layer visible; no dialog open; writes not blocked; no gesture
-in flight; the save state is not `saving`.
+**When handles show** — exactly one selected element and it is an opening; Plan perspective; the
+`select` tool active. **When a handle WRITES** is a second, stricter question, and it is
+`createStructureActions`'s own `geometryUnavailable` that answers it — no other structure edit in
+flight, writes not blocked, the save state not `saving`, no dialog open, Plan perspective — reused
+rather than restated, exactly as the other four collaborators reuse it. The two questions are
+deliberately separate: a handle stays drawn while a write is landing, so the user is not shown the
+selection losing its affordances for the length of a save.
 
 **Taps and drags split at the press.** The four arrow grips (`step-*`, `side-*`) commit on
 pointer-down and start no gesture. The three circle grips (`width-*`, `move`) start a drag in
@@ -147,23 +151,40 @@ no gain.
 
 ## Write path
 
-`openingMove.ts` today welds two things together: a guarded write cycle — arm the structure, read a
-baseline, `matches`, a generation ticket, the staleness watch, `commit` — and one specific proposal,
-"move to the clicked point". The cycle is extracted to `structure/openingEdit.ts`, which takes the
-proposed `Opening` as a parameter; `openingMove.ts` becomes its first caller and `OpeningResize` and
-the tap handles its second.
+`createStructureActions` already owns a guarded-write kit and already SHARES it:
+`prepareBaseline` (which refuses a snapshot the projection has moved past, through
+`staleWriteRefusal`), `reviewedWrite` (preview plus a dispatch that refuses once blocked), and
+`unavailable` / `geometryUnavailable`. Four collaborators take that bundle today —
+`createWallRotationActions`, `createStructureBulkEdit`, `createWallPointAction` and
+`createWallThicknessActions` — and one of its own methods, `moveOpeningToPoint`, is already an
+opening write gated on the `select` tool and a single selection.
 
-The alternative — a second hand-written copy of the ticket-and-staleness protocol beside it — is
-refused. A protocol duplicated by hand is one whose copies drift, and the drift shows up as a write
-that lands on a structure it was not read against, which is the failure this project has already
-paid for elsewhere.
+The handles are a **fifth collaborator**, `structure/openingHandleActions.ts`, taking the same
+bundle. `createWallPointAction` is the template to copy: ~40 lines, `active` set around the await,
+`prepareBaseline` on the read, the transform against the BASELINE's structure rather than the
+store's, `reviewedWrite(...).dispatch(next)`, `notifyOperationFailure` on a refusal,
+`notifyFault` on a throw, `active` cleared in `finally`.
 
-**Evidence the extraction preserved behaviour:** the existing `openingMove` tests stay green across
-it, unmodified. If a test has to change to accommodate the extraction, the extraction changed
-behaviour and the change is wrong.
+`openingMove.ts` and its `move-opening` tool are **not touched by this increment**.
 
 Validation failures keep flowing `openingValidationError` → `spatialMessage`, so this increment adds
 no user-facing string and no new locale key.
+
+## Amendment 1 — the write path was designed twice
+
+The first version of Decision 6 and this section called for extracting `openingMove.ts`'s guarded
+cycle into a new `structure/openingEdit.ts`, with `openingMove.ts` rewritten as its first caller,
+and named that the riskiest edit in the increment. It was written from `openingMove.ts` alone.
+
+It was wrong, and wrong in the expensive direction: `createStructureActions` already had the
+extraction, already had four collaborators using it, and already had an opening write among its own
+methods. The proposed work would have built a second sharing mechanism beside an existing one and
+rewritten a working module to reach it.
+
+Recorded rather than quietly replaced, because the failure is reusable: the module the task names
+is not the boundary the answer lives at, and reading only that module is how you end up extracting
+something the codebase had already extracted. The cost of the mistake here was zero because it was
+caught while writing the plan; the note is so the next reader spends the search instead.
 
 ## Files
 
@@ -171,7 +192,7 @@ New:
 
 - `src/presentation/editor/structure/openingHandles.ts` — layout and crowding.
 - `src/presentation/editor/structure/OpeningResize.ts` — the drag gesture.
-- `src/presentation/editor/structure/openingEdit.ts` — the extracted guarded write cycle.
+- `src/presentation/editor/structure/openingHandleActions.ts` — the fifth `createStructureActions` collaborator.
 - `src/presentation/editor/structure/OpeningHandles.vue` — drawing, screen pixels, `listening: false`.
 
 Edited:
@@ -182,7 +203,7 @@ Edited:
 - `src/presentation/editor/tools/select-tool.ts` — one branch dispatching taps and drags.
 - `src/presentation/editor/surface/cursor.ts` — the cursor for the new kind.
 - `src/presentation/editor/layers/InteractionLayer.vue` — mount `OpeningHandles`.
-- `src/presentation/editor/structure/openingMove.ts` — becomes a caller of `openingEdit`.
+- `src/presentation/editor/structure/structureActions.ts` — construct and return the fifth collaborator.
 
 `select-tool.ts` is near its 400-line budget (`max-lines`, blanks and comments skipped). If the new
 branch crosses it, the branch moves to its own module rather than the budget moving.
@@ -206,7 +227,8 @@ Then:
 - `OpeningHandles.vue` (jsdom): a door draws seven marks (two width, one move, two step, two
   chevrons), a `kind: 'opening'` five (no chevrons), and a crowded door three — the move grip plus
   its two chevrons, since crowding drops only centre-line marks;
-- the existing `openingMove` tests, unmodified, across the extraction.
+- `openingHandleActions`: a refused transform dispatches nothing, a stale baseline refuses through
+  `prepareBaseline`, and `active` is cleared after a throw.
 
 **What no automated gate here can see.** `?view=plan-editor` in the browser harness runs without
 renovation services, so `npm run harness-shot` can show the handles DRAWN and positioned at a real

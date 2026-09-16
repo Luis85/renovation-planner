@@ -22,6 +22,14 @@ const SIZE_MATCH_MM = 0.5;
 /**
  * Arcs are flattened BEFORE placement, so every plan consumer keeps reading `Point[]` (symbols spec,
  * Rendering). 1 mm of sagitta is below a pixel at any zoom a plan is drawn at.
+ *
+ * Flattening first also makes a placement's own `size` a TRUE stretch, where the designer's
+ * `scaleDesignToDimensions` keeps each bulge and leaves every arc circular through its new chord. The
+ * same nominal size therefore measures the same on both surfaces and draws a slightly different
+ * silhouette — deliberately, and pinned by `tests/domain/asset/stretchParity.test.ts`. The designer
+ * cannot do what this does because it has to STORE its curves and a bulge cannot express an ellipse;
+ * the trigger for closing the gap is native ellipse or path geometry in `CurvedPolygon`, which would
+ * have to arrive for validation, bounds, hit testing, persistence and export at once.
  * ponytail: fixed world tolerance; pass the zoom in if a close-up ever shows facets.
  */
 const PLAN_ARC_TOLERANCE_MM = 1;

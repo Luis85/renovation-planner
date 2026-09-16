@@ -79,9 +79,12 @@ An item beneath this epic is done when:
   redraw, reorient or re-export a drawing somebody had already approved, which is exactly the
   failure that epic exists to prevent. The attributes are named one by one on purpose: an
   obligation written about *the geometry* reads as the outline, and the other four move the
-  rendering and the export just as surely. Whether the answer is a version pin or a snapshot taken
-  at approval is **that epic's to decide**; the obligation here is only that the state a placement
-  used is recoverable rather than overwritten in place.
+  rendering and the export just as surely. Whether the answer was a version pin or a snapshot taken at approval was
+  **that epic's to decide**,
+  and it has been decided: the snapshot, taken at approval, carrying all five attributes named above
+  (`docs/superpowers/specs/2026-09-16-asset-designer-consolidate-design.md` §2). The obligation here
+  is unchanged — the state a placement used is recoverable rather than overwritten in place — and it
+  is now owed where it is enforced, beneath [[Plan revisions]].
 - The calibration a designer surface takes belongs to **that object** and never reaches a plan's.
   The act itself stays [[Calibration and measurement]]'s, and this epic inherits **every rule
   stated by that Feature**, with exactly one replaced: *calibration belongs to the plan* becomes

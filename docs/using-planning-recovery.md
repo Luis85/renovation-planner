@@ -34,10 +34,13 @@ whose read-back failed.
 An incomplete-write warning means a multi-file operation could neither finish nor undo its
 partial writes. Inspect the Plan note and related geometry against your backup before making
 further changes. This pauses writing everywhere in the vault, not only in the tab that raised
-it — every write the plugin offers as a command or form is refused until the incident is
-resolved. Reading, navigating and inspecting still work: that is deliberate, because comparing
-the affected files against your backup is the recovery, and a plugin that also blocked reading
-would take away the one tool you have for it.
+it — most of what the plugin offers as a command or form is refused until the incident is
+resolved. A couple of Plan editor actions — editing a zone's details and renaming a zone — are
+not covered by this pause, so do not read any single action still working as proof the
+incident has cleared: stop making changes anywhere in the vault and inspect the affected files
+against your backup instead. Reading, navigating and inspecting still work: that is deliberate,
+because comparing the affected files against your backup is the recovery, and a plugin that
+also blocked reading would take away the one tool you have for it.
 
 Nothing clears this on its own. A successful read does not repair those files, a later
 successful write elsewhere is not evidence that the affected ones were mended, and saving
@@ -60,10 +63,9 @@ everything they touched, so an incident's list may under-report; inspect around 
 rather than treating it as exhaustive. The diagnostics report, reached from settings and from
 the command palette, lists every open incident and names the file to remove.
 
-Writing is refused for the plugin's own commands and forms; that is the boundary this pauses,
-not every possible write to the vault. Nothing here repairs anything, replays the interrupted
-operation, or rolls it back automatically — a restart never re-runs what was interrupted. There
-is no general durable crash-recovery journal for these planning operations: this is a durable
+Nothing here repairs anything, replays the interrupted operation, or rolls it back
+automatically — a restart never re-runs what was interrupted. There is no general durable
+crash-recovery journal for these planning operations: this is a durable
 *record* that a half-write happened, not a journal that could undo one. The existing
 specialized requirement-sequence recovery mechanism remains separate — it exists to roll back
 an interrupted delete and carries the deleted content to do it, where this record carries no

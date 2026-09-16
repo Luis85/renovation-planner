@@ -5242,6 +5242,18 @@ kept, because the next reviewer will find them again."
   carrying a pointer rather than a rewrite,
   `docs/superpowers/specs/2026-09-04-plan-editor-trust-path-design.md` and
   `docs/superpowers/plans/2026-09-04-plan-editor-trust-path.md`.
+
+  **2026-09-16: that window is CLOSED, and this bullet is left standing as the record of what
+  was true then** — the same shape ADR-0015 and its rejected note take, a pointer on the stale
+  side rather than a rewrite. The flag is now `PlanEditorView`'s own field, carried in
+  Obsidian's view state beside `planId` and seeded into each fresh store by `mount`, so it is
+  sticky for the LEAF (`67f5acf9c`, `41d803611`, `2af92f8fd`). The pinned case flipped with it
+  and is named "keeps a leaf’s unrecovered-write flag across a rebind, re-seeded into the fresh
+  Pinia"; `tests/presentation/views/planEditorIncident.test.ts` is the rest. Three limits were
+  NOT closed and are recorded at `PlanEditorView.rebind` and in
+  [`docs/issues/A settings save clears the unrecovered-write warning without repairing the vault.md`](../issues/A%20settings%20save%20clears%20the%20unrecovered-write%20warning%20without%20repairing%20the%20vault.md):
+  a second leaf on the same plan, an incident raised by a write still in flight when the save
+  lands, and the restart half, which is Obsidian's behaviour rather than a checked claim.
 - **E8**: only the "moves a zone" half shipped (an arrow-key nudge dispatching the same move
   gesture `select-tool` builds); the "or edits a vertex" half stays open, by the task's own
   scoping rather than by a defect found against it.

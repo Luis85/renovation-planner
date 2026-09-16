@@ -66,7 +66,7 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * checked claim — either way nothing manufactures an all-clear: a leaf that comes back
 	 * without the state comes back clean, exactly as one does today.
 	 *
-	 * Two things it does NOT reach. A SECOND Plan Editor leaf on the same plan — that leaf has
+	 * Three things it does NOT reach. A SECOND Plan Editor leaf on the same plan — that leaf has
 	 * its own view, its own Pinia and its own gate — and neither Asset Designer nor the project
 	 * view's work section is seeded at all; each of those still holds a mount-local flag of its
 	 * own. And a write already IN FLIGHT when the settings are saved, whose compensation refuses

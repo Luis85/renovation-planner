@@ -33,11 +33,23 @@ whose read-back failed.
 
 An incomplete-write warning means a multi-file operation could neither finish nor undo its
 partial writes. Inspect the Plan note and related geometry against your backup before making
-further changes. A successful read does not repair those files and does not clear that warning
-within the current editor mount. There is no general durable crash-recovery journal for
-these planning operations. Closing the editor or saving plugin settings currently remounts
-the editor and loses this in-memory warning; that does **not** prove the vault was repaired.
-The existing specialized requirement-sequence recovery mechanism remains separate.
+further changes. Edits through that editor tab stay blocked while the warning stands. Nothing
+clears it: a successful read does not repair those files, a later successful write is not
+evidence that the affected ones were the ones mended, and saving plugin settings no longer
+loses it either. The warning belongs to the editor tab that raised it, so it is still there
+after a settings save and still there when you return to that tab. There is no general durable
+crash-recovery journal for these planning operations.
+
+Ending an incident is therefore something you do, not something the plugin decides. There is no
+"I have repaired this" control, because nothing here can tell a write that mended the affected
+files from any other write that happened to land. Once you have checked the Plan note and its
+geometry against your backup, close that Plan editor tab and open the plan again: the plugin
+opens a new tab carrying the plan and no warning. Clearing it that way proves **nothing** about
+the vault — your inspection is what does. Two things can bring the warning back, both of them
+Obsidian restoring the tab's saved state rather than the plugin re-raising anything: reopening
+the closed tab with Obsidian's own undo-close gesture instead of opening the plan afresh, and
+restarting Obsidian onto a layout that still held the tab. The existing specialized
+requirement-sequence recovery mechanism remains separate.
 
 An open draft in this state offers source-note inspection and Cancel. It does not offer a
 read retry or promise that reading will resume Apply. You can copy its retained text before

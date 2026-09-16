@@ -228,9 +228,19 @@ export class PlanEditorView extends ItemView {
 	 * `unrecoveredWrite` takes the OPPOSITE spelling — present only when there is an incident
 	 * — because `false` is the absence of one and every reader of this state is already
 	 * written to that: `revealPlanEditor`'s `{ planId }`, `planEditorCommands`' `getState()
-	 * ['planId']`, and the cases that assert the whole object. It is what Obsidian persists,
-	 * so an incident outlives a restart; that is the conservative direction and is deliberate
-	 * (a dropped one would be an all-clear over a vault nobody repaired), and it is still not
+	 * ['planId']`, and the cases that assert the whole object.
+	 *
+	 * **Obsidian is what persists this state, so an incident outlives a restart if and only if
+	 * Obsidian hands that state back to the new leaf** — it does not run here and `FakeLeaf`
+	 * records asks rather than performing them, so that half is Obsidian's behaviour and not a
+	 * checked claim; `save-state-store.ts` and
+	 * `tests/presentation/views/planEditorIncident.test.ts` hedge the identical claim and this
+	 * sentence matches them rather than out-promising them. Narrower still: this view never
+	 * PUBLISHES its state — `AssetLibraryView.publishViewState` issues a `setViewState` of its
+	 * own whenever its state changes, and nothing here does that when the watcher below flips
+	 * the flag — so what is persisted is whatever this method answered at the last layout
+	 * save. Keeping the flag is the conservative direction either way and is deliberate (a
+	 * dropped one would be an all-clear over a vault nobody repaired), and it is still not
 	 * crash recovery — nothing here knows WHAT was left half-written.
 	 */
 	getState(): Record<string, unknown> {
@@ -315,6 +325,13 @@ export class PlanEditorView extends ItemView {
 	 * Editor leaf on the same plan, which has its own view, its own Pinia and its own gate, and
 	 * is not gated by this one with or without a rebind. That is a pre-existing hole needing an
 	 * affected-identity model, not this field.
+	 *
+	 * And the same never-unset that makes a stale warning cheap makes it WRONG on a leaf
+	 * re-pointed at another plan: `sync()` remounts on a planId change and seeds the new plan's
+	 * store from plan A's incident, blocking writes the user is entitled to make. Unreachable
+	 * today — `revealPlanEditor` filters candidates by `planIdOf` and the arrival queue re-sets
+	 * the same id, so no caller changes a mounted leaf's plan — and named here for the reason
+	 * `setState` names its own sibling gap: it would stay wrong quietly.
 	 */
 	private unrecoveredWrite = false;
 
@@ -415,11 +432,16 @@ export class PlanEditorView extends ItemView {
 		// RAISES an incident, and it runs inside this app, so the store is where the view has to
 		// hear about it — a callback on the context would be a second seam for one boolean. The
 		// call just below is the other caller, seeding a fresh store from what this leaf already
-		// carried; see `mount`'s own doc comment on `rebind` above and
+		// carried; see `rebind`'s own doc comment above and
 		// `tests/presentation/views/planEditorIncident.test.ts` for the full account.
 		//
 		// `flush: 'sync'` because a rebind is not required to give Vue a tick first, and a
-		// watcher that had not run yet would seed the next mount from a stale field.
+		// watcher that had not run yet would seed the next mount from a stale field: under the
+		// default `pre` flush the queued job is DISPOSED by `unmount`'s `stopIncidentWatch()`
+		// and never runs at all. `planEditorIncident.test.ts`'s 'learns an incident raised in
+		// the same tick as the rebind' is the case that fails without this argument — every
+		// other case there awaits between the raise and the save, which is exactly why it
+		// needed writing.
 		const saveState = useSaveStateStore(pinia);
 		if (this.unrecoveredWrite) saveState.markUnrecovered();
 		this.stopIncidentWatch = watch(() => saveState.unrecoveredWrite, () => { this.unrecoveredWrite = true; }, { flush: 'sync' });

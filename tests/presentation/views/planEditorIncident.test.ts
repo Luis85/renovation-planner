@@ -147,6 +147,32 @@ describe('an unrecovered-write incident belongs to the leaf, not to the mount', 
 		expect(runtimeOfView(view).writesBlocked.value).toBe(true);
 	});
 
+	/**
+	 * **The `flush: 'sync'` argument on `mount`'s watcher, which every other case here is too
+	 * slow to discriminate.** They all `await` between the raise and the save, by which point a
+	 * `pre`-flush job would have run anyway; under the default flush a raise in the SAME tick as
+	 * the rebind leaves the job queued, `unmount`'s `stopIncidentWatch()` disposes it, and the
+	 * fresh store seeds `false` over a half-written vault. Watched failing with the flush option
+	 * removed.
+	 *
+	 * The one case in this file that pokes `markUnrecovered` rather than dispatching a stamped
+	 * refusal, and the exception is the subject: the real path cannot raise an incident without
+	 * an `await` first, which is precisely the tick this case must not spend. What that costs is
+	 * the wiring to the production raiser, which every case above already holds.
+	 */
+	it('learns an incident raised in the same tick as the rebind', async () => {
+		const view = await opened();
+
+		useSaveStateStore(piniaOf(view)).markUnrecovered();
+		view.rebind(deps());
+
+		await settle();
+		sizedShellRoot(view.contentEl);
+		await settle();
+		expect(useSaveStateStore(piniaOf(view)).unrecoveredWrite).toBe(true);
+		expect(runtimeOfView(view).writesBlocked.value).toBe(true);
+	});
+
 	it('keeps the incident across two settings saves in a row', async () => {
 		// Two rebinds, because the second one seeds from a field the FIRST one had to have
 		// written back: a fix that seeded the new store and forgot to re-learn from it would

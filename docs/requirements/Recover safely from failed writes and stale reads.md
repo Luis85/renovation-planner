@@ -145,7 +145,10 @@ checkpoint C3. Which test holds each criterion:
    the retired store — lost before this change too, and not closable without deferring the
    rebind, which is refused.
    `tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
-   dispatch path and walks that lifecycle; the rebind case named above asserts survival now.
+   dispatch path and walks that lifecycle; the rebind case the amendment above named has been
+   renamed with the behaviour it now asserts, to
+   `tests/plugin/rootSwapRebind.test.ts`'s "keeps a leaf’s unrecovered-write flag across a
+   rebind, re-seeded into the fresh Pinia" — the 2026-09-06 title is gone from `tests/`.
 
    **What the stamp cannot see, stated here because it is where a reader of this PBI stands.** The
    row fires for a refusal that was STAMPED at the site that wrote. CLAUDE.md's own

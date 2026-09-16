@@ -246,6 +246,7 @@ export class ObsidianPlanRepository {
 							`Could not create the note for plan ${plan.id}, and the geometry sidecar created for it could NOT be removed again; inspect ${sidecarPath} by hand.`,
 							cause,
 						),
+						[{ entityKind: 'plan', entityId: plan.id }],
 					),
 				);
 			}
@@ -367,6 +368,7 @@ export class ObsidianPlanRepository {
 								`Could not remove the sidecar for plan ${id}, and the note could NOT be restored; inspect it by hand.`,
 								removedSidecar.error,
 							),
+							[{ entityKind: 'plan', entityId: id }],
 						),
 					);
 				}

@@ -219,7 +219,9 @@ export function requirementResolutionSteps(
 			// indicator reads as "wrote nothing". Stamping at the loop alone would have closed
 			// the multi-referent case and left this single-call one open, which is a partial
 			// fix that reads exactly like a complete one.
-			if (isErr(reread)) return err(markUncompensated(reread.error));
+			if (isErr(reread)) {
+				return err(markUncompensated(reread.error, [{ entityKind: 'requirement', entityId: snapshot.entity.id }]));
+			}
 			return ok(reread.value.version);
 		},
 		removeRequirement: (snapshot) => requirements.delete(snapshot.entity.id, snapshot.version),
@@ -447,16 +449,21 @@ async function compensate<TEntity>(
 	markers: SequenceMarkerStore,
 ): Promise<Result<never, DeleteResolutionErrors>> {
 	let uncompensated = false;
+	// Bound as the loop runs — `markUncompensated` below is a statement OUTSIDE this loop, and
+	// the per-entry ids it needs were logged (`sequence.compensation.failed`) but never kept.
+	const notRestored: RequirementId[] = [];
 	for (const entry of [...marker.progress].toReversed()) {
 		const snapshot = marker.affectedBefore.find((r) => r.entity.id === entry.id);
 		if (!snapshot) {
 			uncompensated = true;
+			notRestored.push(entry.id);
 			continue;
 		}
 		const expected: Expected = entry.outcome === 'written' ? entry.version : 'absent';
 		const restored = await ops.restoreRequirement(snapshot, expected);
 		if (isErr(restored)) {
 			uncompensated = true;
+			notRestored.push(entry.id);
 			ops.logger.error('sequence.compensation.failed', {
 				entityId: ops.entityId,
 				entityKind: ops.entityKind,
@@ -496,7 +503,11 @@ async function compensate<TEntity>(
 			});
 		}
 	}
-	return err(uncompensated ? markUncompensated(cause) : cause);
+	return err(
+		uncompensated
+			? markUncompensated(cause, notRestored.map((id) => ({ entityKind: 'requirement' as const, entityId: id })))
+			: cause,
+	);
 }
 
 export async function runDeleteResolution<TEntity>(

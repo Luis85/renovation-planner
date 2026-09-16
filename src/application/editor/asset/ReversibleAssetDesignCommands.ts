@@ -534,7 +534,7 @@ class ReversibleAssetBackgroundEdit
 			// including the one that pressed undo goes on drawing the background this undo
 			// really did remove, with nothing else coming to correct it.
 			await events.publish(assetDesignChanged({ assetId }));
-			return err(markUncompensated(savedGeometry.error));
+			return err(markUncompensated(savedGeometry.error, [{ entityKind: 'asset', entityId: assetId }]));
 		}
 		geometryLedger.record(assetId, savedGeometry.value);
 

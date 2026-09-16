@@ -84,7 +84,12 @@ class RenovationCommand {
 		finally { this.busy = false; }
 	}
 	private refusal(forward: boolean): DispatchResult | null {
-		if (this.retired) return err(markUncompensated(persistenceError('renovation.recovery-required', 'Reopen the floor before editing.')));
+		if (this.retired) {
+			return err(markUncompensated(
+				persistenceError('renovation.recovery-required', 'Reopen the floor before editing.'),
+				[{ entityKind: 'plan', entityId: this.baseline.plan.entity.id }],
+			));
+		}
 		if (this.applied === forward) return ok('no-write');
 		if (this.busy) return ok('no-write');
 		return null;
@@ -166,7 +171,10 @@ class RenovationCommand {
 			catch (cause) { restored = err(persistenceError('renovation.restore-failed', 'Metadata could not be restored.', cause)); }
 			if (!restored.ok) {
 				this.retired = true;
-				return err(markUncompensated(persistenceError('renovation.compensation-failed', 'Renovation recovery failed.', restored.error)));
+				return err(markUncompensated(
+					persistenceError('renovation.compensation-failed', 'Renovation recovery failed.', restored.error),
+					[{ entityKind: 'plan', entityId: plan.id }],
+				));
 			}
 			this.remember(restored.value, this.current.geometry);
 			return written;

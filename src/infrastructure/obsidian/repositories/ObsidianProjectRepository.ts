@@ -28,7 +28,6 @@ import { foldersOverlap } from './foldersOverlap';
 import { KeyedQueues } from './KeyedQueues';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import { fileAt } from './NoteVaultDeps';
-import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
 /**
  * The Obsidian-backed ProjectRepository (SDD §36–38): one Markdown note per Project
@@ -167,20 +166,20 @@ export class ObsidianProjectRepository {
 					this.deps.logger.error('project.insert-compensation-failed', { id: project.id, path: failure.path, cause: failure.cause });
 				}
 				if (stranded.length > 0) {
-					// A folder this call created and could not take away again: something was
-					// written and the undo refused, which is this family's whole subject even
-					// where the residue is an empty folder. Keyed on `stranded` rather than on
-					// "a folder survives", because `undoEnsureFolder` deliberately LEAVES a
-					// folder something else has filled and reports that as working rather than
-					// failing — so what this cannot see is exactly what that function declines
-					// to report, and it is narrow on purpose.
+					// A folder this call created and could not take away again — but NOT stamped
+					// with `markUncompensated` (ADR-0034, narrowing `DispatchOutcome.ts`'s own
+					// "one member stretches that word" paragraph into a decision): the note was
+					// never written, so the vault's DATA is coherent and "half-written" is true
+					// only of the folder tree. A later slice's incident record pauses every
+					// guarded write in the vault while it holds a record — blocking every other
+					// project's and plan's writes over a stray empty folder nothing else depends
+					// on is the wrong trade. The log line above (one per stranded folder, via
+					// `this.deps.logger.error`) survives untouched; only the stamp goes.
 					return err(
-						markUncompensated(
-							persistenceError(
-								'project.write-uncompensated',
-								`Could not create the note for project ${project.id}, and ${stranded.length} folder(s) created for it could NOT be removed again; inspect them by hand.`,
-								cause,
-							),
+						persistenceError(
+							'project.write-uncompensated',
+							`Could not create the note for project ${project.id}, and ${stranded.length} folder(s) created for it could NOT be removed again; inspect them by hand.`,
+							cause,
 						),
 					);
 				}

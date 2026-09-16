@@ -437,6 +437,11 @@ describe('compensation', () => {
 		// property that kept this out of slice 17's error-to-surface territory.
 		expect(result.error.code).toBe('test.injected-failure');
 		expect(result.error.category).toBe('Persistence');
+		// BP-02 slice 2 task 2: `compensate`'s stamp now NAMES the requirement it could not
+		// restore, bound from inside the loop rather than left at the bare `true` this case
+		// asserted before. `requirement-1` is the one whose forward write landed (`markStale`
+		// succeeded for it) and whose restore then refused.
+		expect(result).toMatchObject({ error: { uncompensatedWrite: [{ entityKind: 'requirement', entityId: 'requirement-1' }] } });
 	});
 
 	/**
@@ -451,7 +456,7 @@ describe('compensation', () => {
 		const ops = makeOps();
 		ops.markStaleResults = [
 			ok({ ...V2 }),
-			err(markUncompensated(injectedPersistenceError())),
+			err(markUncompensated(injectedPersistenceError(), [{ entityKind: 'requirement', entityId: 'requirement-2' }])),
 		];
 
 		const result = await runDeleteResolution(

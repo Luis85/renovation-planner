@@ -518,6 +518,9 @@ describe('zone repository failure branches', () => {
 		// and the geometry entry the mutation could not remove is still in the sidecar.
 		expect(stack.vault.entries.has(notePath)).toBe(false);
 		expect(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId))).toContain(zoneId);
+		expect(result).toMatchObject({
+			error: { uncompensatedWrite: [{ entityKind: 'zone', entityId: zoneId }, { entityKind: 'plan', entityId: planId }] },
+		});
 	});
 
 	/**
@@ -554,6 +557,13 @@ describe('zone repository failure branches', () => {
 		expect(saved.error.message).not.toContain('was compensated');
 		// The note is still on disk: the whole reason the code has to say so.
 		expect(stack.vault.getAbstractFileByPath(notePath)).not.toBeNull();
+		// BP-02 slice 2 task 2: `compensateFailedSidecarWrite`'s caller now threads the plan id
+		// through (`saveQueued`'s own `zone.planId`), so the stamp names BOTH inconsistent
+		// files rather than only the zone — matching what `delete()`'s sibling stamp already
+		// named inline.
+		expect(saved).toMatchObject({
+			error: { uncompensatedWrite: [{ entityKind: 'zone', entityId: zone.id }, { entityKind: 'plan', entityId: planId }] },
+		});
 	});
 
 	it('an INSERT whose sidecar write fails but whose note trash succeeds keeps the compensated code and no stamp', async () => {

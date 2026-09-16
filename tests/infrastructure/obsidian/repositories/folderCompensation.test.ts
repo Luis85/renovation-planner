@@ -103,8 +103,15 @@ describe('a failed project insert leaves no folder behind', () => {
 	 * `ObsidianPlanRepository`'s sidecar compensation has carried the same log line since slice
 	 * 5 — and the refusal the caller gets is still the write's own, never the rollback's: the
 	 * user asked to create a project, and `project.write-failed` is what happened to that.
+	 *
+	 * **NOT stamped with `markUncompensated` (ADR-0034), and that is the property this case now
+	 * asserts.** The code and the log line are unchanged from before this decision — a folder
+	 * really was left behind and the compensation really did refuse — but the note itself was
+	 * never written, so the vault's DATA stays coherent and a later slice's vault-wide gate
+	 * would be the wrong trade for a stray empty folder. `DispatchOutcome.ts`'s own docblock
+	 * carries the reasoning; this is the one call site the decision changes.
 	 */
-	it('logs a compensation that cannot remove what it created, and still reports the write', async () => {
+	it('logs a compensation that cannot remove what it created, reports the write, and does not stamp an incident', async () => {
 		const stack = createRepositoryStack();
 		stack.vault.failures.add(`create:${stack.projectFolder}/Collision/Collision.md`);
 		stack.vault.failures.add(`delete:${stack.projectFolder}/Collision`);
@@ -112,7 +119,9 @@ describe('a failed project insert leaves no folder behind', () => {
 		const error = expectErr(await stack.projects.save(makeProjectEntity({ name: 'Collision' }), 'absent'));
 
 		expect(error.code).toBe('project.write-uncompensated');
-		expect(leftWritesBehind(error)).toBe(true);
+		// Narrowed by ADR-0034: an empty folder is not a half-written vault, so this path keeps
+		// its code and its log line but no longer stamps `uncompensatedWrite`.
+		expect(leftWritesBehind(error)).toBe(false);
 		expect(stack.logged.filter((line) => line.event === 'project.insert-compensation-failed')).toHaveLength(1);
 		// One line, not two: the folder that refused is still the root's child, so the emptiness
 		// rule ends the walk on the next iteration and the root survives untouched.

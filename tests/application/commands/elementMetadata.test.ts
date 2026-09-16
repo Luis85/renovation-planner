@@ -19,7 +19,7 @@ describe('element labels and geometry commit together through the existing trans
 			return err(injectedPersistenceError());
 		});
 		const result = await r.renovation.command(baseline, elementInput(baseline, { ...element, name: 'Local label' }), r.ledger).execute();
-		expect(result).toMatchObject({ ok: false, error: { uncompensatedWrite: true } });
+		expect(result).toMatchObject({ ok: false, error: { uncompensatedWrite: [{ entityKind: 'plan', entityId: baseline.plan.entity.id }] } });
 		const current = expectOk(await r.read()); expect(current.plan.entity.spatialElements?.[0].name).toBe('Peer label'); expect(current.geometry.document).toEqual(baseline.geometry.document);
 	});
 	it('leaves a plan with no renovation without one after adding an element, its undo and its redo', async () => {

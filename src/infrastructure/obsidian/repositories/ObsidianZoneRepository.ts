@@ -307,7 +307,14 @@ export class ObsidianZoneRepository implements ZoneRepository {
 
 		// Step 5.
 		if (!mutated.ok) {
-			return this.compensateFailedSidecarWrite(zone.id, existing !== null, notePath, snapshotText ?? '', mutated.error);
+			return this.compensateFailedSidecarWrite({
+				zoneId: zone.id,
+				planId: zone.planId,
+				wasUpdate: existing !== null,
+				notePath,
+				snapshotText: snapshotText ?? '',
+				cause: mutated.error,
+			});
 		}
 
 		// Step 6.
@@ -347,13 +354,15 @@ export class ObsidianZoneRepository implements ZoneRepository {
 	 * order, with nothing else touching that key in between), which is what lets a test fail
 	 * the restore alone.
 	 */
-	private async compensateFailedSidecarWrite(
-		zoneId: ZoneId,
-		wasUpdate: boolean,
-		notePath: string,
-		snapshotText: string,
-		cause: RepositoryError,
-	): Promise<Result<Loaded<Zone>, RepositoryError>> {
+	private async compensateFailedSidecarWrite(write: {
+		readonly zoneId: ZoneId;
+		readonly planId: PlanId;
+		readonly wasUpdate: boolean;
+		readonly notePath: string;
+		readonly snapshotText: string;
+		readonly cause: RepositoryError;
+	}): Promise<Result<Loaded<Zone>, RepositoryError>> {
+		const { zoneId, planId, wasUpdate, notePath, snapshotText, cause } = write;
 		const compensated = wasUpdate
 			? await restoreNoteText(this.deps.vault, 'zone', notePath, snapshotText)
 			: await this.deleteCreatedNote(notePath);
@@ -375,6 +384,10 @@ export class ObsidianZoneRepository implements ZoneRepository {
 							: `The geometry entry for zone ${zoneId} could not be written, and the note could NOT be removed again; inspect it by hand.`,
 						cause,
 					),
+					[
+						{ entityKind: 'zone', entityId: zoneId },
+						{ entityKind: 'plan', entityId: planId },
+					],
 				),
 			);
 		}
@@ -452,6 +465,10 @@ export class ObsidianZoneRepository implements ZoneRepository {
 								`The geometry entry for zone ${id} could not be removed, and the note could NOT be restored; inspect the plan by hand.`,
 								mutated.error,
 							),
+							[
+								{ entityKind: 'zone', entityId: id },
+								{ entityKind: 'plan', entityId: cachedPlan },
+							],
 						),
 					);
 				}

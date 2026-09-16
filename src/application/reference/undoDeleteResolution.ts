@@ -128,7 +128,16 @@ async function rollBack(
 	// Only when a compensation actually REFUSED. A rollback that put everything back has
 	// returned the vault to the post-resolution state the docblock's third bullet promises,
 	// and stamping that would badge data as safe as it was before the gesture.
-	return err(uncompensated ? markUncompensated(cause) : cause);
+	//
+	// **Empty, and genuinely so — not merely unbound.** `done` is `readonly Compensation[]`,
+	// zero-argument closures with no id exposed at all, so nothing inside this loop can be
+	// named. `ops.entityId` names the restored entity but `UndoSequenceOps` carries no
+	// `entityKind` beside it — unlike `ResolutionOps`, its forward twin, which does — so even
+	// the one id in scope cannot be paired into an `AffectedEntity` without inventing a kind
+	// this function does not actually know. Threading one in is a larger change than this task
+	// (ADR-0034 already records this set as deliberately incomplete); the empty array is this
+	// site's honest answer under the shape this task adds.
+	return err(uncompensated ? markUncompensated(cause, []) : cause);
 }
 
 export async function undoDeleteResolution(

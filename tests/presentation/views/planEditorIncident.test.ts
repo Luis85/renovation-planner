@@ -117,7 +117,7 @@ function piniaOf(view: PlanEditorView): Pinia {
  */
 async function failHalfWritten(view: PlanEditorView): Promise<void> {
 	const result = await runtimeOfView(view).dispatcher.run({
-		execute: () => Promise.resolve(err(markUncompensated(injectedPersistenceError()))),
+		execute: () => Promise.resolve(err(markUncompensated(injectedPersistenceError(), []))),
 		undo: () => Promise.resolve(ok('wrote')),
 	});
 	expect(isErr(result)).toBe(true);

@@ -87,7 +87,13 @@ class GroupGeometryCommand {
 		try {
 			for (const receipt of receipts.value) await this.deps.events.publish(zoneGeometryChanged({ zoneId: receipt.id, planId, projectId: receipt.source.zone.entity.projectId }));
 			await this.deps.events.publish({ type: 'PlanStructureChanged', payload: { planId } });
-		} catch (cause) { this.state.retired = true; return err(markUncompensated(persistenceError('spatial-group.publish-failed', 'The group was saved, but the editor must be reopened.', cause))); }
+		} catch (cause) {
+			this.state.retired = true;
+			return err(markUncompensated(
+				persistenceError('spatial-group.publish-failed', 'The group was saved, but the editor must be reopened.', cause),
+				[{ entityKind: 'plan', entityId: planId }],
+			));
+		}
 		return ok('wrote');
 	}
 }

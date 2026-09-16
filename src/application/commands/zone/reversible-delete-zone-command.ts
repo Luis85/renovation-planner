@@ -192,7 +192,16 @@ export class ReversibleDeleteZoneCommand {
 					const boundary = await this.undoDeps.boundary?.restore(written.value.entity);
 					if (boundary && !boundary.ok) {
 						const removed = await this.removeAgain(written.value.version)();
-						return removed.ok ? boundary : err(markUncompensated(removed.error));
+						// The zone id is this class's own input; the plan id is genuinely in scope
+						// here too — `written` is the successful restore this callback just produced,
+						// so `written.value.entity.planId` is real rather than reached through a value
+						// that might be absent on this path.
+						return removed.ok
+							? boundary
+							: err(markUncompensated(removed.error, [
+								{ entityKind: 'zone', entityId: this.input.zoneId },
+								{ entityKind: 'plan', entityId: written.value.entity.planId },
+							]));
 					}
 					if (boundary?.ok) recordRelatedWrite(this.ledger, boundary.value);
 					restored.value = written.value;

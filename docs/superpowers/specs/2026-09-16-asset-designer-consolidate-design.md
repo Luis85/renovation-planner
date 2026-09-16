@@ -94,6 +94,21 @@ The pending path still replaces a traced outline, and now says so.
 warning already occupies exactly that state and a second key would be two sentences about one
 thing. English: the traced outline is replaced by a rectangle at the size typed here.
 
+## 3a. Amendment (implementation plan, 2026-09-16): provenance follows the path
+
+Found while planning Task 3, not while writing §3. `SetAssetFootprintFromDimensions` retypes what it
+replaces — `withFootprint(current, footprint, 'typed', false)` — and a case in
+`assetDimensions.test.ts` asserts exactly that for a TRACED, measured square, which is a shape the
+new branch scales instead.
+
+**A scaled trace stays `'traced'`.** Its coordinates came from the drawing and only their scale
+changed, so retyping would claim an authorship the outline does not have. Nothing is put at risk by
+keeping it: `CalibrateAsset` already states that provenance and the pending flag have no conjunction,
+and a calibration converts pending groups alone, so a measured traced footprint is never rescaled by
+a later one. Retyping stays where the outline really is replaced — the rectangle path.
+
+That case is rewritten in Task 3 rather than bent: its expectation was the defect.
+
 ## 4. A typed size lands on curved geometry
 
 `resizeToExtent` (`src/presentation/designer/selection/partExtent.ts`) already knows that a kept

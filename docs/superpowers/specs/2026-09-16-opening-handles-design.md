@@ -186,6 +186,57 @@ is not the boundary the answer lives at, and reading only that module is how you
 something the codebase had already extracted. The cost of the mistake here was zero because it was
 caught while writing the plan; the note is so the next reader spends the search instead.
 
+## Amendment 2 — what the final review found false
+
+A whole-branch review, run once every task had landed, found premises above that the code does
+not bear out, and gaps the design never named. Each is recorded here rather than edited into the
+text it corrects, for Amendment 1's reason.
+
+**Where the no-op guard lives.** *Interaction* says a chevron press on the side already held is
+refused "through `sameGeometryDocument`" by the write path. The write path does no such thing:
+`StructureCommand` writes whatever document it is handed. The guard is on the CALLER side, in
+`openingHandleActions.ts`'s `applyOpening`, which compares the proposal against its own baseline
+before dispatch. It compares the two structures *as drawn*: an opening that stored no `swing` reads
+as the default `openingSwing` gives it. Without that, a chevron press on the side a legacy door
+already shows filled the default in, which `sameGeometryDocument` alone reads as a change: an undo
+entry that changed nothing visible, and a note migrated for it.
+
+**Arrow keys do not nudge openings.** *Handle layout* says exporting `NUDGE_STEP_MM` and
+`NUDGE_STEP_SHIFT_MM` makes "a step arrow and an arrow key move an opening by the same amount". The
+constants are shared, and a step dot with Shift does take the 100 mm step. But no arrow key moves an
+opening: `nudge.ts` resolves only zones and elements. What is shared is the distance, not the key
+behaviour.
+
+**The crowding tiers are each gated on their own spacing.** *Crowding* drops everything but the
+move grip "when the two EDGE marks are that close". The middle tier draws the two edges AND the
+move grip, so its adjacent marks sit `width / 2` apart, not `width`. Gated on the whole width, the
+drawn circles overlapped for openings 16–28 px wide on screen, and a press aimed at the centre
+could start a resize, because the hit test finds `width-start` before `move`. The middle tier is
+now kept only while `width / 2` clears the floor.
+
+**Shift is exempt only as a physical Shift over a step dot.** *Interaction* never said how a Shift
+press over a handle reaches the step size, given that a Shift press blanks the selection the handles
+hang off. The first implementation exempted every handle from that blanking, for any Shift. That
+was wider than the one requirement it served in two ways. The "select multiple" mode fakes a held
+Shift, so a touch user tapping a step dot got an unrequested 100 mm write. And Shift over the move
+grip, a width grip or a chevron started a gesture instead of toggling the opening out of the
+selection. The exemption is now a PHYSICAL Shift (the mode is told apart the way the rotation
+control already tells it apart) over one of the two step dots, the only grips that read Shift.
+
+**The handles hide while a structure preview is up.** A drag's ghost draws from the structure
+preview; the handles drew from the store. So during a width drag, and after a drop until the write
+was read back, a grip sat at the old edge beside the ghost's new one. `TransformBoxHandles.vue` had
+always hidden for exactly this reason, and was the named template.
+
+**A drop is refused when its starting opening is stale.** *A drag previews from
+`projectStore.structure`* said a stale baseline "refuses the write exactly as it does today". It did
+not refuse this case. `prepareBaseline` refuses drift between disk and projection, not a DRAG that is
+stale against the baseline: a drag started before an earlier write landed would write its dragged
+copy over that write and silently revert it. `commitOpening` now carries the opening the drag
+started from. Its transform refuses the drop, as it refuses any illegal proposal, when the
+baseline's opening is not that one by the no-op guard's own equality. A refused TAP also no longer
+clears the shared preview; only a refused drop does, whose ghost would otherwise be stranded.
+
 ## Files
 
 New:

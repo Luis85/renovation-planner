@@ -186,6 +186,13 @@ size fields that shipped in #224 their exactness, or require the solver to run o
 - **Any change to the placement `size` override.** An instance keeps the absolute size it was given
   when the definition is corrected. Trigger: a user reporting that a corrected definition should
   have moved a resized instance.
+- **A pending clearance on a measured footprint is scaled with everything else.** Found by the final
+  review of this branch. The state is reachable — calibrate, swap in an uncalibrated background, trace
+  a clearance — and the replace path used to leave such a clearance alone where the scaling path
+  multiplies its placeholder pixels by a millimetre-derived factor that a later calibration multiplies
+  again. Scaling a pending group is `scaleDesign`'s own pre-existing behaviour, which this branch
+  widens rather than introduces. Trigger: the increment that decides whether a pending group is exempt
+  from every scale, which is calibration's question and needs its own spec.
 - **Multi-selection, groups, open linework, a preset gallery.** The concept's later increments; each
   keeps the trigger its own spec already recorded.
 

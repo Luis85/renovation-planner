@@ -14,7 +14,8 @@ Its traceability separates automated/FakeVault and browser evidence from still-u
 host/screenreader acceptance. It is a supplemental journey, outside the historical 344-step
 census below; that dated census is not a claim that the new journey was accepted in Obsidian.
 [[Copy and paste across floors]], [[Delete a selection or group]],
-[[Alignment guides while dragging]], [[Draw posts and beams]] and [[Draw drafting marks]] are outside that census too:
+[[Alignment guides while dragging]], [[Draw posts and beams]], [[Draw drafting marks]] and
+[[Adjust an opening with its canvas handles]] are outside that census too:
 their steps carry no `Reachable by` verdicts yet, so neither the triage column's "every step"
 nor its step counts include them.
 
@@ -737,3 +738,9 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   square handles; dragging any handle resizes about the opposite corner; Shift keeps proportions;
   a placement's own size in the Inspector overwrites its library default, and Reset removes that
   override. Its steps carry no `Reachable by` verdicts yet (see the head of this file).
+- [[Adjust an opening with its canvas handles]] — a selected door or window's own seven on-canvas
+  handles: two end-drag circles, a centre slide grip, two step arrows and two swing chevrons. What
+  only a vault shows is a handle WRITE — `?view=plan-editor` runs without renovation services, so a
+  handle press there fails with a save error — and what the handles look like drawn: the jsdom
+  suite only checks that drawing and hit-testing agree, never that a human can see them. Its steps
+  carry no `Reachable by` verdicts yet (see the head of this file).

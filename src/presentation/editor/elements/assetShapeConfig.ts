@@ -4,7 +4,7 @@ import { placedOutline, placementHeading } from '../../../domain/spatial/assetPl
 import type { ThemeTokens } from '../theme/themeTokens';
 import { assetLabelLayout, ELEMENT_LABEL_FONT_PX } from '../labels/labelLayout';
 import { elementFootprint, type ShapeLookup } from './elementFootprint';
-import { itemColorFill } from './itemColorAppearance';
+import { itemColorTint } from './itemColorAppearance';
 
 const flat = (points: readonly Point[]): number[] => points.flatMap(point => [point.x, point.y]);
 
@@ -16,7 +16,7 @@ export function assetShapeConfig(element: NamedSpatialElement, shapeOf: ShapeLoo
 	const footprint = placed ? placed.footprint : elementFootprint(element, shapeOf), anchor = element.points[0], heading = placementHeading(element);
 	const clearance = placed && (selected || state.hovered) ? placed.clearance : null, details = placed?.details ?? [];
 	const ink = selected ? tokens.accent : tokens.zoneStroke;
-	const fill = itemColorFill(element, tokens.canvasBackground);
+	const fill = itemColorTint(element.color, tokens.canvasBackground);
 	const outline = { points: flat(footprint), closed: true, stroke: ink, strokeWidth: (selected ? 3 : 2) / zoom };
 	return {
 		id: element.id,

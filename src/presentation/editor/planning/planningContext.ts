@@ -6,6 +6,7 @@ import type { PlanId } from '../../../domain/plan/PlanId';
 import type { PlanningBaseline } from '../../../application/commands/renovation/PlanningServices';
 import type { RequirementSource } from '../../../domain/requirement/RequirementSource';
 import { sameGeometryDocument } from '../../../application/commands/spatial/sameGeometryDocument';
+import { projectedRoomObjects } from '../groups/groupSnapshot';
 import { EMPTY_STRUCTURE } from '../../../domain/spatial/Structure';
 import { undoSuperseded } from '../../../application/editor/WriteLedger';
 import { err } from '../../../core/result/Result';
@@ -36,7 +37,7 @@ export function providePlanningContext(context: PlanEditorContext, runtime: Edit
 	const blocked = computed(() => loading.value || runtime.writesBlocked.value || runtime.renovation.blocked.value);
 	function matches(read: PlanningBaseline): boolean {
 		return sameRenovation(project.plan?.renovation, read.plan.entity.renovation) && sameGeometryDocument(
-			{ calibration: project.plan?.calibration ?? null, groups: project.groups, structure: project.structure, intended: project.intended, objects: [...project.zones.values()].map(item => ({ id: item.id, points: item.points, bulges: item.bulges, ...(item.labelOffset ? { labelOffset: item.labelOffset } : {}) })) },
+			{ calibration: project.plan?.calibration ?? null, groups: project.groups, structure: project.structure, intended: project.intended, objects: projectedRoomObjects(project.zones) },
 			{ ...read.geometry.document, structure: read.geometry.document.structure ?? EMPTY_STRUCTURE });
 	}
 	async function edit(kind: PlanningKind, id = '', seed?: { readonly assetId?: string; readonly rule?: RequirementSource['rule'] }): Promise<void> {

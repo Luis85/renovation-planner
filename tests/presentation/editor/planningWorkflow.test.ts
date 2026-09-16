@@ -38,6 +38,12 @@ function evidenceSelected(rig: Awaited<ReturnType<typeof setup>>, id: string, se
  expect(title.text().includes('Selected')).toBe(selected);
 }
 describe('connected planning editor', () => {
+ it('adds a material to a coloured room rather than refusing the room as changed elsewhere', async () => {
+ const rig = await renovationEditor(true); mounted.push(rig); rig.changePlan(); await settle();
+ await rig.runtime.groupActions.setColor([rig.room.id], 'blue'); expect(rig.project.zones.get(rig.room.id)?.color).toBe('blue');
+ rig.changePlan(); await settle(); rig.runtime.renovation.focus(rig.room.id, 'materials'); await settle();
+ expect(await material(rig)).toBeDefined();
+ });
  it('groups scoped cost obligations by Work and reveals a collapsed exact source before returning focus', async () => {
  const rig = await setup(), requirement = await material(rig), before = expectDefined(expectOk(await rig.stack.plans.getById(rig.plan.id)), 'Plan');
  const roomId = rig.room.id;

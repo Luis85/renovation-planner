@@ -123,3 +123,15 @@ describe('zone caption offset mapping', () => {
 		expect(expectOkOf(zoneFromPersistence(zoneToPersistence(moved, 1), entry)).labelOffset).toEqual({ dx: 30, dy: -10 });
 	});
 });
+
+describe('zone colour mapping', () => {
+	it('writes color only while set, reads it back, and refuses an invalid one', () => {
+		const zone = makeZoneEntity({ projectId: createProjectId(), planId: createPlanId() });
+		expect('color' in zoneToGeometryEntry(zone)).toBe(false);
+		expect(expectOkOf(zoneFromPersistence(zoneToPersistence(zone, 1), zoneToGeometryEntry(zone))).color).toBeNull();
+		const colored = zone.withColor('#3a7bd5');
+		expect(zoneToGeometryEntry(colored).color).toBe('#3a7bd5');
+		expect(expectOkOf(zoneFromPersistence(zoneToPersistence(colored, 1), zoneToGeometryEntry(colored))).color).toBe('#3a7bd5');
+		expect(zoneFromPersistence(zoneToPersistence(zone, 1), { ...zoneToGeometryEntry(zone), color: 'pink' as never }).ok).toBe(false);
+	});
+});

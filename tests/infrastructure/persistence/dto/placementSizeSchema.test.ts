@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import type { SpatialElement } from '../../../../src/domain/spatial/SpatialElement';
-import { PlanGeometrySchemaV15 } from '../../../../src/infrastructure/persistence/dto/planGeometry';
+import { PlanGeometrySchemaV15, PlanGeometrySchemaV16 } from '../../../../src/infrastructure/persistence/dto/planGeometry';
 import { PLAN_GEOMETRY_MIGRATIONS } from '../../../../src/infrastructure/persistence/migration/geometry/plan/plan-geometry.migrations';
 import { MigrationRunner } from '../../../../src/infrastructure/persistence/migration/MigrationRunner';
 import { sameGeometryDocument } from '../../../../src/application/commands/spatial/sameGeometryDocument';
@@ -19,7 +19,7 @@ it('includes a placement’s own size in document equality', () => {
 
 it('migrates schema 14 without inventing a size and reads a size at 15', () => {
 	const migrations = new MigrationRunner(); migrations.registerAll('plan-geometry', PLAN_GEOMETRY_MIGRATIONS);
-	expect(PlanGeometrySchemaV15.parse(migrations.migrateToLatest('plan-geometry', old, 14)).structure?.elements?.[0]).not.toHaveProperty('size');
+	expect(PlanGeometrySchemaV16.parse(migrations.migrateToLatest('plan-geometry', old, 14)).structure?.elements?.[0]).not.toHaveProperty('size');
 	expect(old.schemaVersion).toBe(14);
 	expect(PlanGeometrySchemaV15.parse(sized).structure?.elements?.[0].size).toEqual({ width: 1800, depth: 900 });
 });

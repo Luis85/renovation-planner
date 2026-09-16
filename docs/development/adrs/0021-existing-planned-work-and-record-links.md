@@ -142,3 +142,8 @@ changes only the discriminator; it does not invent links or rewrite a note. Olde
 refuse v5 instead of stripping unknown links and later overwriting the record. Plans without
 shared links retain the existing feature-dependent v1–v4 writer behavior, and geometry does
 not need a new schema. Repository round-trip and undo tests cover both Work and Evidence.
+
+## Amendments
+
+- Amended by [ADR-0033](0033-a-colour-is-user-content-on-every-plan-family.md): the sidecar also holds user
+  appearance — a colour on every plan family.

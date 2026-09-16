@@ -5,6 +5,7 @@ import StructureFacts from './StructureFacts.vue';
 import OpeningDetails from './OpeningDetails.vue';
 import StructureRenovationEntry from './StructureRenovationEntry.vue';
 import StructurePlanActions from './StructurePlanActions.vue';
+import ItemColorControl from '../elements/ItemColorControl.vue';
 import HostIcon from '../../components/HostIcon.vue';
 import { useStructureInspectorTarget } from './useStructureInspectorTarget';
 const { project, runtime, session, id, wall, opening, paused } = useStructureInspectorTarget();
@@ -61,6 +62,7 @@ async function openRenovation(event: Event): Promise<void> {
 		</template>
 		<StructureRenovationEntry v-if="session.perspective === 'renovate'" />
 		<StructurePlanActions />
+		<ItemColorControl />
 		<div
 			v-if="opening && session.perspective === 'plan' && runtime.renovation.available"
 			class="rp-inspector-primary rp-structure-renovate-route"

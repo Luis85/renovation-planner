@@ -1,9 +1,12 @@
 import type { Point } from '../../core/geometry/Point';
 import type { SpatialElement } from './SpatialElement';
+import type { ItemColor } from './ItemColor';
 import { arcLength, arcPoint, arcProjection, arcTangent } from '../../core/geometry/circularArc';
 
 /** Centre-line walls with optional circular curvature; all measurements are world millimetres. */
 export interface Wall {
+	/** User appearance (plan colours design §1); absent means the host's default drawing. */
+	readonly color?: ItemColor;
 	/** A is left and B right looking along start → end; distances from the fixed reference line, in mm. */
 	readonly sideExtents?: WallSideExtents;
 	readonly bulge?: number;
@@ -16,6 +19,8 @@ export interface Wall {
 export interface WallSideExtents { readonly a: number; readonly b: number }
 export type WallSide = keyof WallSideExtents;
 export interface Opening {
+	/** User appearance (plan colours design §1); absent means the host's default drawing. */
+	readonly color?: ItemColor;
 	readonly id: string;
 	readonly kind: 'door' | 'window' | 'opening';
 	readonly hostId: string;

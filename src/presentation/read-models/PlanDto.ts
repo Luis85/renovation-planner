@@ -7,6 +7,7 @@ import type { Plan } from '../../domain/plan/Plan';
 import type { PlanKind } from '../../domain/plan/PlanKind';
 import type { Project } from '../../domain/project/Project';
 import type { Zone } from '../../domain/zone/Zone';
+import type { ItemColor } from '../../domain/spatial/ItemColor';
 
 /**
  * The presentation-facing read models (SDD §35): flat, serializable, no domain methods,
@@ -62,6 +63,8 @@ export interface ZoneDto {
 	readonly locked?: true;
 	/** A dragged caption's offset from its automatic anchor, world mm (ADR-0029); present only while moved. */
 	readonly labelOffset?: Vector;
+	/** User appearance (plan colours design §1); present only while set. */
+	readonly color?: ItemColor;
 	/** World millimetres, straight from `Zone.geometry` — never screen coordinates. */
 	readonly points: readonly Point[];
 }
@@ -163,6 +166,7 @@ export function toZoneDto(zone: Zone): ZoneDto {
 		status: zone.status,
 		...(zone.locked ? { locked: true as const } : {}),
 		...(zone.labelOffset ? { labelOffset: { ...zone.labelOffset } } : {}),
+		...(zone.color ? { color: zone.color } : {}),
 		// Copied, not aliased. The entity's own array is frozen only by convention, and a
 		// render model handed the same reference would let a later slice's edit reach back
 		// into a loaded entity — the one direction the read pipeline must not have.

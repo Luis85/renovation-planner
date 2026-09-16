@@ -10,6 +10,7 @@ import type { PlanId } from '../plan/PlanId';
 import type { ZoneId } from './ZoneId';
 import { zoneError } from './Zone.errors';
 import { zoneName } from './ZoneName';
+import { isItemColor, type ItemColor } from '../spatial/ItemColor';
 
 export interface CreateZoneProps {
 	readonly id: ZoneId;
@@ -25,6 +26,8 @@ export interface CreateZoneProps {
 	readonly locked?: boolean;
 	/** Where its canvas caption was dragged, from the automatic anchor, world mm (ADR-0029). Absent or null is automatic. */
 	readonly labelOffset?: Vector | null;
+	/** User appearance on the canvas (plan colours design §1). Absent or null is the host's default. */
+	readonly color?: ItemColor | null;
 }
 
 interface ZoneFields {
@@ -38,6 +41,7 @@ interface ZoneFields {
 	readonly domainNoteLink: string | null;
 	readonly locked: boolean;
 	readonly labelOffset: Vector | null;
+	readonly color: ItemColor | null;
 }
 
 /**
@@ -57,6 +61,7 @@ export class Zone {
 	readonly domainNoteLink: string | null;
 	readonly locked: boolean;
 	readonly labelOffset: Vector | null;
+	readonly color: ItemColor | null;
 
 	private constructor(fields: ZoneFields) {
 		this.id = fields.id;
@@ -69,6 +74,7 @@ export class Zone {
 		this.domainNoteLink = fields.domainNoteLink;
 		this.locked = fields.locked;
 		this.labelOffset = fields.labelOffset;
+		this.color = fields.color;
 	}
 
 	static create(props: CreateZoneProps): Result<Zone, ValidationError | GeometryError> {
@@ -79,6 +85,9 @@ export class Zone {
 		}
 		if (!isZoneStatus(props.status ?? 'Planned')) {
 			return err(zoneError('unknown-status', `"${String(props.status)}" is not a zone status.`));
+		}
+		if (props.color !== undefined && props.color !== null && !isItemColor(props.color)) {
+			return err(zoneError('unknown-color', `"${String(props.color)}" is not a color.`));
 		}
 		// Copy both points and curve parameters so a caller cannot mutate the validated boundary.
 		const geometry = createCurvedPolygon(props.geometry);
@@ -95,6 +104,7 @@ export class Zone {
 					domainNoteLink: props.domainNoteLink ?? null,
 					locked: props.locked ?? false,
 					labelOffset: props.labelOffset ?? null,
+					color: props.color ?? null,
 				}),
 			);
 		}
@@ -133,6 +143,11 @@ export class Zone {
 		return new Zone({ ...this.fields(), labelOffset: offset });
 	}
 
+	/** Recolour, or `null` for the host's default drawing; the type admits only a valid colour. */
+	withColor(color: ItemColor | null): Zone {
+		return new Zone({ ...this.fields(), color });
+	}
+
 	private fields(): ZoneFields {
 		return {
 			id: this.id,
@@ -145,6 +160,7 @@ export class Zone {
 			domainNoteLink: this.domainNoteLink,
 			locked: this.locked,
 			labelOffset: this.labelOffset,
+			color: this.color,
 		};
 	}
 

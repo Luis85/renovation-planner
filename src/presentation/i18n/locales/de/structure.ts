@@ -77,6 +77,7 @@ export const structureDe: Record<keyof typeof structureEn, string> = {
 	'editor.structure.error.boundary': 'Eine einfache Grenze schließen und einen Raumnamen eingeben.',
 	'editor.structure.error.room-missing': 'Eine Raumgrenze verweist auf fehlende Wände oder einen fehlenden Raum. Verweis reparieren und Plan erneut öffnen.',
 	'editor.structure.error.duplicate-id': 'Die Struktur enthält wiederholte Kennungen. Plan vor dem Bearbeiten erneut öffnen.',
+	'editor.structure.error.color-invalid': 'Eine Wand oder Öffnung hat eine Farbe, die diese Version nicht lesen kann. Plan nach der Reparatur erneut öffnen.',
 	'editor.structure.error.unavailable': 'Wandbearbeitung ist in dieser Ansicht nicht verfügbar.',
 	'spatial.intersection': 'Wände kreuzen oder überlappen sich. Platzieren Sie sie so, dass Wände sich nur an ihren Enden treffen, und versuchen Sie es erneut.',
 	'spatial.read-failed': 'Die Raumgrenze konnte nicht gelesen werden.',

@@ -72,6 +72,7 @@ import ComingLaterLine from './ComingLaterLine.vue';
 import ZoneLockRow from './ZoneLockRow.vue';
 import AssetAssignControl from './AssetAssignControl.vue';
 import HostIcon from '../../components/HostIcon.vue';
+import ItemColorControl from '../elements/ItemColorControl.vue';
 
 const runtime = useEditorRuntime();
 const projectStore = useProjectStore();
@@ -215,6 +216,8 @@ async function openRenovation(event: Event): Promise<void> {
 			<dt>{{ tr('editor.inspector.status') }}</dt>
 			<dd>{{ tr(overview.status.captionKey) }}</dd>
 		</dl>
+
+		<ItemColorControl />
 
 		<div class="rp-inspector-actions">
 			<SpatialInspectorActions

@@ -1,7 +1,7 @@
 import type { Point } from '../../core/geometry/Point';
 import type { Vector } from '../../core/geometry/Vector';
 import type { Dimensions } from '../asset/AssetShape';
-import { isItemColor, itemColorKind, type ItemColor } from './ItemColor';
+import { isItemColor, type ItemColor } from './ItemColor';
 import { stairPlanGeometry, type StairOptions } from './stairGeometry';
 
 /** Generic floor facts; richer asset specializations are independent of these identities. */
@@ -10,7 +10,7 @@ export type SpatialElementKind = 'object' | 'path' | 'fence' | 'measurement' | '
 export interface SpatialElement {
 	readonly id: string;
 	readonly kind: SpatialElementKind;
-	/** Placement appearance, only for object/asset. Absent means the host's default canvas fill. */
+	/** User appearance on any kind (plan colours design §1). Absent means the host's default drawing. */
 	readonly color?: ItemColor;
 	/** Object and post outlines close implicitly; linear elements keep ordered open points; an asset is `[anchor, facingPoint]`; a beam is its two-point axis. */
 	readonly points: readonly Point[];
@@ -86,9 +86,9 @@ export function elementLength(element: SpatialElement): number {
 /** A placement's own size may not exceed a kilometre, the bound every other element measure takes. */
 const MAX_PLACEMENT_MM = 1e6;
 
-/** A color only on an item or placement, from its vocabulary; a size only on a placement, both sides finite, positive and in bound. */
+/** A color from its vocabulary on any kind (plan colours design §1); a size only on a placement, both sides finite, positive and in bound. */
 function validPlacementFacts(element: SpatialElement): boolean {
-	if (element.color !== undefined && (!itemColorKind(element.kind) || !isItemColor(element.color))) return false;
+	if (element.color !== undefined && !isItemColor(element.color)) return false;
 	return element.size === undefined || (element.kind === 'asset'
 		&& [element.size.width, element.size.depth].every(side => Number.isFinite(side) && side > 0 && side <= MAX_PLACEMENT_MM));
 }

@@ -64,9 +64,19 @@ user to read, and never a predicate a gate evaluates.**
 
 **The application layer raises and observes it, through the single chokepoint already there.**
 `guardCommand` (`src/application/errors/guardAgainstThrowing.ts`) is the one place a command's
-`Result` is inspected after every dispatch — 69 call sites in 14 files, all under `src/plugin/`,
-already pass through it, and `PersistenceError` is already part of every guarded door's declared
-error union, so recognising an incident there widens no signature.
+`Result` is inspected after every dispatch — **44 call sites in 13 files**, all under
+`src/plugin/`, measured by `grep -rnE "guardCommand[<(]" src/plugin/`, already pass through it, and
+`PersistenceError` is already part of every guarded door's declared error union, so recognising an
+incident there widens no signature. The sibling door, `guardQuery`, adds 16 call sites in 3 files
+(`grep -rnE "guardQuery[<(]" src/plugin/`); the union of both is 60 call sites in 14 files, but a
+write incident can only be raised at a write, so `guardCommand` alone is the number that governs
+raising it. Two things that grep cannot see: it matches the literal text `guardCommand(` or
+`guardCommand<`, so a call reached through an alias, a re-export, or a reference held in a
+variable is invisible to it; and a call SITE is not a guarded DOOR — `guardBothDoors`
+(`src/plugin/guardedServices.ts:365`) has 11 call sites of its own, each wrapping two doors
+(`execute` and `executeWithVersion`) through two `guardCommand` calls inside its body, both
+already counted in the 44. "44 call sites" and "44 doors" are therefore different claims, and
+this ADR uses only the former.
 
 **It is stored in its own plugin-local JSON file beside `sequence-markers.json`, not inside it.**
 Same narrow `TextFileAdapter` port, same single `KeyedQueues` lane, same versioned whole-envelope
@@ -92,7 +102,7 @@ becoming a control the plugin offers. `docs/using-planning-recovery.md` already 
 half of this: "There is no 'I have repaired this' control, because nothing here can tell a write
 that mended the affected files from any other write that happened to land."
 
-**Coverage is exactly the 69 `guardCommand` doors, and this ADR names what is outside it.** Three
+**Coverage is exactly the 44 `guardCommand` call sites above, and this ADR names what is outside it.** Three
 paths bypass the chokepoint entirely and are not reached by an incident raised here:
 `context.commands.zones`, the raw `ZoneRepository` port handed to presentation
 (`composition-root.ts:212` into `presentation/editor/planEditorCommands.ts:126`), against which
@@ -107,7 +117,7 @@ editor's own `writesBlocked` gate — a different, existing mechanism this ADR d
 **The gate is coarse, and that is a decision, not an omission.** While any incident file holds a
 record, every guarded COMMAND is refused; guarded QUERIES are not, so the vault stays inspectable
 — which is what `docs/using-planning-recovery.md` already tells the user to do. Two measured
-reasons an intersection gate (refuse only writes touching the recorded ids) was rejected: ten
+reasons an intersection gate (refuse only writes touching the recorded ids) was rejected: eleven
 sampled command inputs use five different id field names (`CreateAssetInput` and
 `CreateProjectInput` carry none at all; `SetAssetFootprintInput`/`SetAssetFootprintFromDimensionsInput`/
 `SetAssetAnchorInput` carry `assetId`; `DeleteAssetInput` carries `assetId` plus an optional
@@ -116,8 +126,8 @@ parent `projectId`; `UpdatePlanDetailsInput`/`DeletePlanInput` carry `planId`; `
 carries `zoneId` and `assetId`; `DeleteRequirementInput` carries `requirementId`) — an affected
 set cannot be derived structurally at the wrapper, since `Command<I, R>`'s `I` carries no
 constraint and `withBoundary` passes `input` through unread, so intersection gating would need a
-declaration added at all 69 sites, relocating the forgetting this ADR exists to close rather than
-closing it; and the recorded id set is knowingly incomplete per the identity ruling above, so an
+declaration added at all 44 `guardCommand` sites, relocating the forgetting this ADR exists to
+close rather than closing it; and the recorded id set is knowingly incomplete per the identity ruling above, so an
 intersection gate would let a write land on an entity that IS inconsistent while presenting as
 precise. A coarse, vault-wide gate is the sound answer here, not merely the cheap one.
 
@@ -134,8 +144,10 @@ refused: three generic compensators (`ConstructionMaterialCommand.ts:78`, `compo
 
 ## What this decision refuses
 
-Nine recorded declinations elsewhere in this repository all name the same shape, and none of them
-is walked into here:
+The BP-02 discovery lane recorded in `docs/releases/first-beta-readiness/03-execution-tracker.md`
+found this repository has declined durable crash-recovery metadata nine times, every one naming a
+generic automatic replay-rollback journal — the same shape this decision also refuses, and none of
+them is walked into here:
 
 - **No automatic replay.** A restart never re-runs the interrupted command.
 - **No rollback journal.** This record stores no entity snapshots — unlike `SequenceMarker`,
@@ -175,7 +187,7 @@ already publishes the user-facing half of that refusal.
 **Intersection-gate writes against the recorded affected-id set**, refusing only a write that
 names one of the incident's ids rather than every guarded write. Rejected under the coarse-gate
 ruling above: no common id field exists across sampled command inputs to gate on, gating would
-require a declaration at all 69 `guardCommand` sites, and the recorded set is known-incomplete,
+require a declaration at all 44 `guardCommand` sites, and the recorded set is known-incomplete,
 so a gate built on it would look precise while missing the exact writes item 2's three refuted
 sites failed to name.
 
@@ -219,5 +231,8 @@ could name, not about whether the vault is safe.
   for irreversible delete/rebuild operations is not silently repurposed."
 - `docs/using-planning-recovery.md` — the user-facing statement of retirement and of "no 'I have
   repaired this' control" this decision keeps consistent with.
+- `docs/releases/first-beta-readiness/03-execution-tracker.md` — the BP-02 discovery lane that
+  counted the nine recorded declinations of durable crash-recovery metadata this decision checks
+  itself against under "What this decision refuses."
 - SDD §68, §86 (diagnostics, content-free) and §87 rules 7 and 8 (fail closed on unsupported
   schema versions; never present a missing or refused read as nothing).

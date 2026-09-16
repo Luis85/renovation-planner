@@ -12,7 +12,11 @@ export interface OpeningResizeDeps {
 	/** The opening and its host as the CANVAS has them, for previewing; the write re-reads its own baseline. */
 	readonly openingTarget?: (id: string) => { readonly opening: Opening; readonly host: Wall } | null;
 	readonly previewOpening?: (id: string | null, next?: Opening) => void;
-	readonly commitOpening?: (id: string, next: Opening) => void;
+	/**
+	 * The drop. `original` is the opening the drag STARTED from, so the write can refuse a drop the
+	 * baseline has since moved on from rather than writing `next` over whatever landed meanwhile.
+	 */
+	readonly commitOpening?: (id: string, original: Opening, next: Opening) => void;
 }
 
 interface Gesture {
@@ -27,10 +31,15 @@ interface Gesture {
 
 /**
  * A width or move grip drag. The same shape as `ElementResize` — a press is not yet an edit, travel
- * past the click epsilon starts one, an illegal proposal leaves the last valid preview standing,
- * and the drop stays previewed until the write is read back — with one difference: this gesture is
- * ONE-DIMENSIONAL. The pointer is projected onto the host and only the offset it lands at matters,
- * so there is no snap and no snap-guide write (opening handles design, Decision 5).
+ * past the click epsilon starts one, a proposal the TRANSFORM refuses (`resizedOpening` or
+ * `openingOffsetAt` answering `null`) leaves the last valid preview standing, and the drop stays
+ * previewed until the write is read back. Read that narrowly: a proposal that overlaps a
+ * neighbour, or otherwise fails `openingValidationError`, is not refused here. It previews as if
+ * legal, and only the write refuses it, on the drop, with a warning.
+ *
+ * One difference from `ElementResize`: this gesture is ONE-DIMENSIONAL. The pointer is projected
+ * onto the host and only the offset it lands at matters, so there is no snap and no snap-guide
+ * write (opening handles design, Decision 5).
  *
  * The move grip goes through `openingOffsetAt`, which is the function the click-to-place tool
  * already uses, so a drag and a click put the opening in the same place rather than two places that
@@ -76,7 +85,7 @@ export class OpeningResize {
 		// Left previewing at the drop; the write clears it once read back, as `ElementResize` does.
 		this.gesture = null;
 		this.deps.previewOpening?.(gesture.id, next);
-		this.deps.commitOpening?.(gesture.id, next);
+		this.deps.commitOpening?.(gesture.id, gesture.opening, next);
 	}
 
 	cancel(): void {

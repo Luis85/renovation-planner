@@ -5,6 +5,8 @@ import { createOpeningHandleActions } from '../../../../src/presentation/editor/
 import { staleWriteRefusal } from '../../../../src/presentation/editor/tools/with-stale-gate';
 import * as notify from '../../../../src/presentation/notices/notify';
 import type { Opening, Structure, Wall } from '../../../../src/domain/spatial/Structure';
+import { flippedOpening } from '../../../../src/domain/spatial/openingGeometry';
+import type { PlanGeometrySnapshot } from '../../../../src/application/ports/PlanGeometrySidecar';
 import type * as VueModule from 'vue';
 
 // Vue's real `onBeforeUnmount` is a no-op outside a component instance (a warning, nothing
@@ -86,12 +88,22 @@ it('dispatches nothing when the proposal fails opening validation', async () => 
 	expect(dispatch).not.toHaveBeenCalled();
 });
 
-it('dispatches nothing and clears the preview when the edit is unavailable', async () => {
+it('dispatches nothing and clears the preview when a drop is unavailable', async () => {
+	const { actions, dispatch, preview } = harness({ unavailable: () => true });
+	preview.value = structure;
+	await actions.applyOpening('opening-a', opening => ({ ...opening, offset: 0 }), true);
+	expect(dispatch).not.toHaveBeenCalled();
+	expect(preview.value).toBeNull();
+});
+
+it('leaves the preview standing when an unavailable TAP is dropped', async () => {
+	// The preview is shared: a step tap refused during a drop's pending write must not wipe that
+	// drop's ghost, which only the drop's own write clears.
 	const { actions, dispatch, preview } = harness({ unavailable: () => true });
 	preview.value = structure;
 	await actions.applyOpening('opening-a', opening => ({ ...opening, offset: 0 }));
 	expect(dispatch).not.toHaveBeenCalled();
-	expect(preview.value).toBeNull();
+	expect(preview.value).toBe(structure);
 });
 
 it('awaits the recovery a stale baseline hands back and writes nothing', async () => {
@@ -124,6 +136,20 @@ it('dispatches nothing when the transform answers the opening unchanged', async 
 	// byte-identical to the baseline — `StructureCommand` does not refuse that on its own.
 	await actions.applyOpening('opening-a', opening => ({ ...opening }));
 	expect(dispatch).not.toHaveBeenCalled();
+});
+
+it('dispatches nothing for a chevron press on the side a door with no stored swing already draws', async () => {
+	// A legacy door stores no swing and draws the default left one. Choosing left fills that default
+	// in, which `sameGeometryDocument` alone reads as a change: an undo entry that changes nothing
+	// visible, and a note migrated for it. The plain opening beside it has no swing to normalise.
+	const plain: Opening = { id: 'opening-c', kind: 'opening', hostId: wall.id, offset: 3300, width: 500, height: 2100, sill: 0 };
+	const legacy = { document: { objects: [], structure: { ...structure, openings: [door, skylight, plain] }, calibration: null } } as unknown as PlanGeometrySnapshot;
+	const { actions, dispatch } = harness({ prepareBaseline: () => ({ snapshot: legacy, recovery: null }) });
+	await actions.applyOpening('opening-a', opening => flippedOpening(opening, 'left'));
+	expect(dispatch).not.toHaveBeenCalled();
+	// The other side IS a change, so the normalising comparison has not simply stopped seeing swings.
+	await actions.applyOpening('opening-a', opening => flippedOpening(opening, 'right'));
+	expect(dispatch).toHaveBeenCalledTimes(1);
 });
 
 it('drops a read that resolves after the component unmounted', async () => {

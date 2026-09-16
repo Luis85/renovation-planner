@@ -79,7 +79,7 @@ it('commits a width drag on release', () => {
 	tool.pointerDown(press(pointOf('width-end')));
 	tool.pointerMove(pointerAt(2500, 0));
 	tool.pointerUp(pointerAt(2500, 0));
-	expect(commitOpening).toHaveBeenCalledWith(door.id, { ...door, offset: 800, width: 1700 });
+	expect(commitOpening).toHaveBeenCalledWith(door.id, door, { ...door, offset: 800, width: 1700 });
 });
 
 it('selects the opening instead of editing it when geometry cannot be mutated', () => {

@@ -6,6 +6,7 @@ import { useSelectionStore } from '../selection/selection-store';
 import type { EditorToolDeps } from '../tools/registerEditorTools';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../viewport/Viewport';
 import { selectedOpeningHandles } from './openingHandles';
+import { sameOpening } from './openingHandleActions';
 import type { createStructureActions } from './structureActions';
 
 /** The two of `createStructureActions`' members this needs — named so a double is a typed object, not a cast. */
@@ -19,11 +20,15 @@ type OpeningDoors = Required<Pick<EditorToolDeps, 'openingTarget' | 'openingHand
  * The selected opening's direct-manipulation doors, as `SelectTool` takes them.
  *
  * Every write goes through `applyOpening`, which owns the guarded write — and the two SHAPES of
- * write here are deliberately different. `commitOpening` ignores the baseline's opening and writes
- * the DRAGGED one, because the drag's arithmetic was done against what the user could see;
- * `applyOpening` still validates that against the baseline structure and still refuses a stale one.
- * `stepOpening` and `flipOpening` transform the BASELINE's opening instead, so two taps in quick
- * succession accumulate rather than the second overwriting the first.
+ * write here are deliberately different. `commitOpening` writes the DRAGGED opening rather than
+ * transforming the baseline's, because the drag's arithmetic was done against what the user could
+ * see; but only while the baseline still holds the opening that drag STARTED from, compared by
+ * `sameOpening`, the no-op guard's own equality. Otherwise its transform answers `null` and the
+ * drop is refused like any illegal proposal, since writing it would silently revert whatever
+ * landed after the drag began. `applyOpening` still validates what it does write against the
+ * baseline structure. `stepOpening` and `flipOpening` transform the BASELINE's opening instead, so
+ * taps accumulate once each write has landed rather than the second overwriting the first; a tap
+ * while an earlier write is still in flight is dropped by `unavailable()`, not queued.
  *
  * The handles are the SAME `selectedOpeningHandles` call `OpeningHandles.vue` draws from, at the
  * same camera scale, which is what makes a press land on the mark the user aimed at rather than
@@ -41,7 +46,7 @@ export function openingHandleDoors(structureActions: StructureWrites): OpeningDo
 		},
 		openingHandles: () => selectedOpeningHandles(project.structure, selection.selectedIds, worldPerScreenPixel(editor.viewport, STAGE_PIXELS)),
 		previewOpening: structureActions.previewOpening,
-		commitOpening: (id, next) => { void structureActions.applyOpening(id, () => next); },
+		commitOpening: (id, original, next) => { void structureActions.applyOpening(id, opening => sameOpening(opening, original) ? next : null, true); },
 		stepOpening: (id, deltaMm) => { void structureActions.applyOpening(id, (opening, host) => steppedOpening(opening, host, deltaMm)); },
 		flipOpening: (id, side) => { void structureActions.applyOpening(id, opening => flippedOpening(opening, side)); },
 	};

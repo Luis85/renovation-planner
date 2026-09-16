@@ -52,20 +52,28 @@ it('offers no handles for a multi-selection, for a selection that is not an open
 	expect(handlesFor([orphan.id])).toBeNull();
 });
 
-it('commits the DRAGGED opening, ignoring the baseline the write read back', () => {
+it('commits the DRAGGED opening, as a drop, over a baseline still holding the opening the drag started from', () => {
 	const { doors, applyOpening, transformed } = harness();
 	const dragged: Opening = { ...door, width: 1700 };
-	doors.commitOpening(door.id, dragged);
-	expect(applyOpening).toHaveBeenCalledWith(door.id, expect.any(Function));
-	// The drag's arithmetic was done against what the user could SEE, so a baseline that has since
-	// moved must not change what lands; `applyOpening` is what still validates and refuses a stale one.
-	expect(transformed({ ...door, offset: 2500 })).toEqual(dragged);
+	doors.commitOpening(door.id, door, dragged);
+	expect(applyOpening).toHaveBeenCalledWith(door.id, expect.any(Function), true);
+	// The drag's arithmetic was done against what the user could SEE, so what lands is what was dragged.
+	expect(transformed(door)).toEqual(dragged);
 });
 
-it('steps and flips the BASELINE\u2019s opening, so two taps in quick succession accumulate', () => {
+it('refuses a drop whose starting opening the baseline no longer holds, rather than reverting what landed since', () => {
+	const { doors, transformed } = harness();
+	// A write landed offset 2500 after this drag started from the opening at 800: writing the dragged
+	// copy would silently undo that write, so the transform refuses it as it refuses any illegal proposal.
+	doors.commitOpening(door.id, door, { ...door, width: 1700 });
+	expect(transformed({ ...door, offset: 2500 })).toBeNull();
+});
+
+it('steps and flips the BASELINE\u2019s opening, so taps accumulate once each write has landed', () => {
 	const { doors, transformed } = harness();
 	doors.stepOpening(door.id, 100);
-	// A second tap reads the offset the first one wrote, rather than overwriting it from a stale copy.
+	// A tap after the first write landed reads the offset it wrote, rather than overwriting it from a
+	// stale copy. A tap DURING that write is dropped by `unavailable()` instead, which this cannot see.
 	expect(transformed({ ...door, offset: 900 })).toMatchObject({ offset: 1000 });
 	doors.flipOpening(door.id, 'right');
 	expect(transformed(door)).toMatchObject({ swing: { hinge: 'start', side: 'right', angle: 90 } });

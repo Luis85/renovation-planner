@@ -85,7 +85,7 @@ it('commits on release and keeps the preview up for the write to clear', () => {
 	resize.start(context, at(1700), 'opening-a', 'width-end');
 	resize.move(context, at(2500));
 	resize.finish(context, at(2500));
-	expect(commitOpening).toHaveBeenCalledWith('opening-a', { ...door, offset: 800, width: 1700 });
+	expect(commitOpening).toHaveBeenCalledWith('opening-a', door, { ...door, offset: 800, width: 1700 });
 	expect(previewOpening).toHaveBeenLastCalledWith('opening-a', { ...door, offset: 800, width: 1700 });
 	expect(resize.active).toBe(false);
 });

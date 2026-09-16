@@ -87,10 +87,10 @@ export function steppedOpening(opening: Opening, host: Wall, deltaMm: number): O
  * A side chevron puts the leaf on that wall face. It materialises the default swing for an opening
  * that stored none — a deliberate exception to `openingSwing`'s "reading never materializes new
  * fields", because this is not a read: the press IS the user choosing a side, so the write is
- * theirs. Choosing the side already held is permitted and answers the unchanged opening; the
- * refusal of the resulting no-op document is the handle write path's OWN guard
- * (`noOpProposal` in `presentation/editor/structure/openingHandleActions.ts`), not
- * `StructureCommand` — which writes whatever document it is handed.
+ * theirs. Choosing the side already held is permitted and answers the unchanged opening — or, for
+ * an opening that stored no swing, the default filled in, which draws identically. Refusing either
+ * as a no-op is the job of the opening-handle write path in presentation, which compares what it
+ * would write as DRAWN; not of `StructureCommand`, which writes whatever document it is handed.
  */
 export function flippedOpening(opening: Opening, side: OpeningSwing['side']): Opening | null {
 	const swing = openingSwing(opening);

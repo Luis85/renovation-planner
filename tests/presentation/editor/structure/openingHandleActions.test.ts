@@ -109,6 +109,14 @@ it('reports the failure when the reviewed write itself refuses', async () => {
 	spy.mockRestore();
 });
 
+it('dispatches nothing when the transform answers the opening unchanged', async () => {
+	const { actions, dispatch } = harness();
+	// Shaped like `flippedOpening` choosing the side already held: a real, valid Opening, but
+	// byte-identical to the baseline — `StructureCommand` does not refuse that on its own.
+	await actions.applyOpening('opening-a', opening => ({ ...opening }));
+	expect(dispatch).not.toHaveBeenCalled();
+});
+
 it('drops a read that resolves after the component unmounted', async () => {
 	let resolveRead!: (value: unknown) => void;
 	const read = vi.fn<() => Promise<unknown>>(() => new Promise(resolve => { resolveRead = resolve; }));

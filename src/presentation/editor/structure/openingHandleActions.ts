@@ -2,11 +2,36 @@ import { onBeforeUnmount } from 'vue';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { Opening, Structure, Wall } from '../../../domain/spatial/Structure';
 import { openingValidationError } from '../../../domain/spatial/structureGeometry';
+import { sameGeometryDocument } from '../../../application/commands/spatial/sameGeometryDocument';
+import type { PlanGeometryDocument } from '../../../application/ports/PlanGeometrySidecar';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import { useProjectStore } from '../../stores/ProjectStore';
 import { notifyFault, notifyOperationFailure, notifyWarning } from '../../notices/notify';
 import { spatialMessage } from './spatialMessage';
 import type { StructureReviewState } from './structureBulkEdit';
+
+/**
+ * A chevron pressed on the side the leaf already holds proposes the document it started from —
+ * `flippedOpening` answers the SAME opening rather than `null`, deliberately (its own docblock).
+ * `StructureCommand` does not refuse that: it writes whatever document it is handed, and
+ * `sameGeometryDocument` elsewhere in this write path (`prepareBaseline`, every sibling
+ * collaborator's own staleness check) compares a freshly-read document against a held baseline,
+ * never a finished PROPOSAL against its own baseline before dispatch. Without this, a no-op
+ * chevron press would land a real write whose undo reverts to the document it started from — the
+ * same shape `openingMove.ts`'s own `move()` guards against at its own call site (line 81), which
+ * this is not an extraction of: both simply reach the same application-layer function.
+ */
+function noOpProposal(baseline: PlanGeometryDocument, proposed: Structure): boolean {
+	return sameGeometryDocument({ ...baseline, structure: proposed }, baseline);
+}
+
+/** `true` when `applyOpening` must stop here — an invalid proposal has already been warned about. */
+function refuseProposal(next: Opening, proposed: Structure, baseline: PlanGeometryDocument): boolean {
+	const invalid = openingValidationError(next, proposed);
+	// `spatialMessage` is a call, not a literal, so this passes NOTICE_TEXT_BAN and stays translated.
+	if (invalid) { notifyWarning(spatialMessage(invalid)); return true; }
+	return noOpProposal(baseline, proposed);
+}
 
 /**
  * A selected opening's canvas handles, writing through the SAME admission, stale-baseline check and
@@ -46,9 +71,7 @@ export function createOpeningHandleActions(context: PlanEditorContext,
 			const next = opening && host ? transform(opening, host) : null;
 			if (!next) return;
 			const proposed: Structure = { ...structure, openings: structure.openings.map(item => item.id === id ? next : item) };
-			const invalid = openingValidationError(next, proposed);
-			// `spatialMessage` is a call, not a literal, so this passes NOTICE_TEXT_BAN and stays translated.
-			if (invalid) { notifyWarning(spatialMessage(invalid)); return; }
+			if (refuseProposal(next, proposed, snapshot.document)) return;
 			const result = await state.reviewedWrite(services, snapshot).dispatch(proposed);
 			if (alive && !result.ok) notifyOperationFailure(result.error);
 		} catch (cause) {

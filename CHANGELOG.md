@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Asset designer: select several parts at once. Shift-click adds a part to the selection or takes it out again, and a "Select multiple parts" switch in the Inspector does the same with no modifier, for a keyboard or a touch. The Inspector counts what is selected. The footprint, the clearance boundary, the anchor and the facing direction stay single selections — each has its own fields and its own gestures — and an adding click only chooses, so building a set never nudges a part out of place.
+
 - Asset designer: the Inspector names the object you are designing, and offers a way back to the asset library. Every designer tab is titled "Asset designer" whatever asset it holds, so with two or three open there was nothing on the surface saying which was which, and the only way back to the catalogue was the tab bar.
 
 - Asset designer (groundwork, nothing to click yet): an asset's shape can now hold an open line as well as a closed one, each graphic can carry your own label beside its built-in name, and graphics can be collected into groups. Asset geometry holding an open graphic, a label or a group is saved as schema 3, which older builds refuse rather than quietly dropping what they do not understand; a file written by any earlier build is read unchanged and means exactly what it meant. The tools for drawing an open line and for grouping arrive in later increments — this release only teaches the model, the validation and the file format.

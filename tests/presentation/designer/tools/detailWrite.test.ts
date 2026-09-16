@@ -53,6 +53,7 @@ function drawRig() {
 			selection: () => null,
 			mode: () => 'transform',
 			select: () => undefined,
+			extend: () => undefined,
 			setPreview: () => undefined,
 			createCommand: (shape, expected) => {
 				built.push({ shape, expected });

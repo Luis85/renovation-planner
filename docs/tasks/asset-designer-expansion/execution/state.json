@@ -77,16 +77,14 @@
       "blocker": null
     },
     "AD06": {
-      "status": "in_review",
+      "status": "integrated",
       "base_sha": "f1cbe86ef",
-      "candidate_sha": null,
-      "integrated_sha": null,
+      "candidate_sha": "e3a9ecc6b",
+      "integrated_sha": "e3a9ecc6b",
       "evidence": [
-        "the Inspector names the asset and offers the library door",
-        "assetDesignerWiring.test.ts opens a real library leaf from the control, watched red against a stub",
-        "vue-tsc 0, oxlint 0, analyze 0, 47 designer/wiring/style files green"
+        "the Inspector names the asset and opens the library, wiring case watched red"
       ],
-      "blocker": "Use in plan deferred to AD13 with the rest of the designer-plan seam; no header chrome added, per C12"
+      "blocker": "Use in plan deferred to AD13; no header chrome, per C12"
     },
     "AD07": {
       "status": "planned",
@@ -97,12 +95,17 @@
       "blocker": null
     },
     "AD08": {
-      "status": "planned",
-      "base_sha": null,
+      "status": "in_review",
+      "base_sha": "e3a9ecc6b",
       "candidate_sha": null,
       "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
+      "evidence": [
+        "a selected SET with a derived primary, pruned per member across a refresh",
+        "Shift-press and a sticky mode both extend; an additive press starts no drag",
+        "the Inspector counts the selection and carries the mode control",
+        "every case watched red; vue-tsc 0, oxlint 0, analyze 0, 45 files / 590 cases"
+      ],
+      "blocker": "Marquee selection, the overlap chooser and per-part locks are NOT in this slice; they need the Parts panel (AD09) and a drag-on-empty-canvas gesture, and are carried as AD08 remainder"
     },
     "AD09": {
       "status": "planned",

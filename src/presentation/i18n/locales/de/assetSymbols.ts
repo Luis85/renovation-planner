@@ -97,6 +97,8 @@ export const assetSymbolsDe: Record<keyof typeof assetSymbolsEn, string> = {
 	'designer.selection.mode.bend.tip': 'Den Griff in der Mitte einer Kante ziehen, um diese Kante zu biegen',
 	'designer.inspector.asset': 'Objekt',
 	'designer.inspector.open-library': 'Assetbibliothek öffnen',
+	'designer.selection.toggle-mode': 'Mehrere Teile auswählen',
+	'designer.selection.count': '{count} Teile ausgewählt',
 	'designer.selection.angle.hint': 'Ein Winkel von 0 zeigt nach rechts, 90 nach unten',
 	'designer.status.grid': 'Raster {step} mm',
 };

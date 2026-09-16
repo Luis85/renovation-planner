@@ -19,7 +19,7 @@
  * field that has no reset button to walk past the guard: `useFieldCommit`'s own `submitted ===
  * null` check is the whole of what closes it).
  */
-import { computed } from 'vue';
+import { computed, type Ref } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { Logger } from '../../../application/ports/Logger';
@@ -46,7 +46,14 @@ const props = defineProps<{
 	select: (next: DesignerSelection | null) => void;
 	/** The way back to the shared catalogue, or `undefined` where no door is bound (AD06). */
 	openLibrary?: () => void;
+	/** Every selected part, in selection order — the last is the one whose fields show (AD08). */
+	selected: readonly DesignerSelection[];
+	/** The sticky "select multiple" mode, or `undefined` where no runtime binds one (AD08). */
+	multiSelectionMode?: Ref<boolean>;
 }>();
+
+/** How many graphics this design has — what decides whether composing a set is even possible. */
+const graphicCount = computed(() => props.design.shape?.details.length ?? 0);
 
 /**
  * Both codes are `SetAssetHeightCommand`'s own — `Asset.ts`'s `checkHeight`, through
@@ -121,6 +128,18 @@ const dimensionsLabel = computed(() =>
 		<h2 class="rp-designer-panel-title">
 			{{ tr('designer.inspector') }}
 		</h2>
+		<!--
+			**How many parts are selected** (AD08). Drawn only for a set of two or more: with one
+			selected the section below already says which part it is, and a count of "1" beside it
+			would be a second way of saying the same thing.
+		-->
+		<p
+			v-if="selected.length > 1"
+			class="rp-designer-selection-count"
+			role="status"
+		>
+			{{ tr('designer.selection.count', { count: String(selected.length) }) }}
+		</p>
 		<DesignerSelectionInspector
 			v-if="selection !== null"
 			:key="partKey(selection)"
@@ -190,6 +209,24 @@ const dimensionsLabel = computed(() =>
 		>
 			{{ tr('designer.inspector.open-library') }}
 		</button>
+		<!--
+			C05: adding to a selection needs a control a keyboard and a touch user can reach, not a
+			modifier alone. The Plan Editor's own "Select multiple elements" checkbox, in the panel
+			that governs the same gesture — same shape, same binding, so the two surfaces behave
+			alike (C12). It STAYS while on, for that control's own reason: the mode also governs
+			canvas presses, so it must never be left unreachable.
+		-->
+		<label
+			v-if="multiSelectionMode !== undefined && (graphicCount > 1 || multiSelectionMode.value)"
+			class="rp-designer-multi-select"
+		>
+			<input
+				v-model="multiSelectionMode.value"
+				type="checkbox"
+				data-rp-action="multiple-selection"
+			>
+			{{ tr('designer.selection.toggle-mode') }}
+		</label>
 
 		<FieldError
 			v-slot="{ inputId, aria }"

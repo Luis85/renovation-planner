@@ -21,6 +21,8 @@ import { recorder } from '../../helpers/logger';
 import { assetDesign } from '../../helpers/assetDesign';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
+import { ref, type Ref } from 'vue';
+import { editableShape } from '../../helpers/assetShapes';
 
 let setHeight: ReturnType<typeof vi.fn<(height: number | null) => Promise<DispatchResult>>>;
 let editDimensions: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -44,8 +46,11 @@ function buildDesign(options: {
 	readonly dimensionsUnscaled?: boolean;
 	readonly origin?: 'typed' | 'traced';
 	readonly height?: number | null;
+	/** A shape with two graphics, which is what makes composing a set possible at all (AD08). */
+	readonly manyGraphics?: boolean;
 } = {}): AssetDesignDto {
 	const base = assetDesign();
+	if (options.manyGraphics === true) return { ...base, shape: editableShape() };
 	return {
 		...base,
 		...(options.height !== undefined ? { height: options.height } : {}),
@@ -58,10 +63,16 @@ function buildDesign(options: {
 	};
 }
 
-function mountInspector(options: Parameters<typeof buildDesign>[0] = {}, selection: DesignerSelection | null = null, openLibrary?: () => void) {
+function mountInspector(
+	options: Parameters<typeof buildDesign>[0] = {},
+	selection: DesignerSelection | null = null,
+	extras: { openLibrary?: () => void; selected?: readonly DesignerSelection[]; multiSelectionMode?: Ref<boolean> } = {},
+) {
 	return mount(DesignerInspector, {
 		props: {
-			...(openLibrary === undefined ? {} : { openLibrary }),
+			...extras,
+			// Defaults to the primary alone, which is what a single-part selection IS (AD08).
+			selected: extras.selected ?? (selection === null ? [] : [selection]),
 			design: buildDesign(options),
 			setHeight,
 			editDimensions,
@@ -246,7 +257,7 @@ describe('identifying the object and getting back to the library', () => {
 
 	it('offers the library door, and calls it', async () => {
 		const openLibrary = vi.fn<() => void>();
-		const wrapper = mountInspector({}, null, openLibrary);
+		const wrapper = mountInspector({}, null, { openLibrary });
 		await wrapper.find('.rp-designer-open-library').trigger('click');
 		expect(openLibrary).toHaveBeenCalledTimes(1);
 	});
@@ -254,5 +265,47 @@ describe('identifying the object and getting back to the library', () => {
 	/** Slice 14's Amendment 1: no door bound, no control — never a live one that does nothing. */
 	it('draws no library control where no door is bound', () => {
 		expect(mountInspector().find('.rp-designer-open-library').exists()).toBe(false);
+	});
+});
+
+/**
+ * AD08 / C05: the panel says how many parts are selected, and carries the control that lets a
+ * keyboard or a touch user build the set — a modifier alone is not a route.
+ */
+describe('a selection of several parts', () => {
+	const two: readonly DesignerSelection[] = [{ kind: 'detail', id: 'detail-1' }, { kind: 'detail', id: 'detail-2' }];
+
+	it('counts them', () => {
+		const wrapper = mountInspector({}, two[1], { selected: two });
+		expect(wrapper.find('.rp-designer-selection-count').text()).toBe(t('en', 'designer.selection.count', { count: '2' }));
+	});
+
+	/** One selected part is already named by its own section; a count of "1" would say it twice. */
+	it('counts nothing for a single part, or for none', () => {
+		expect(mountInspector({}, { kind: 'detail', id: 'detail-1' }).find('.rp-designer-selection-count').exists()).toBe(false);
+		expect(mountInspector().find('.rp-designer-selection-count').exists()).toBe(false);
+	});
+
+	it('offers the select-multiple control where the design has more than one graphic', () => {
+		const wrapper = mountInspector({ manyGraphics: true }, null, { multiSelectionMode: ref(false) });
+		expect(wrapper.find('[data-rp-action="multiple-selection"]').exists()).toBe(true);
+	});
+
+	it('turns the mode on through the control, so a canvas press extends rather than replaces', async () => {
+		const mode = ref(false);
+		const wrapper = mountInspector({ manyGraphics: true }, null, { multiSelectionMode: mode });
+		await wrapper.find('[data-rp-action="multiple-selection"]').setValue(true);
+		expect(mode.value).toBe(true);
+	});
+
+	/** Slice 14's Amendment 1 again: no runtime bound, no control. */
+	it('draws no control where no mode is bound', () => {
+		expect(mountInspector({ manyGraphics: true }).find('[data-rp-action="multiple-selection"]').exists()).toBe(false);
+	});
+
+	/** Nor where there is nothing to compose: one graphic cannot be part of a set of two. */
+	it('draws no control for a design with one graphic, until the mode is already on', () => {
+		expect(mountInspector({}, null, { multiSelectionMode: ref(false) }).find('[data-rp-action="multiple-selection"]').exists()).toBe(false);
+		expect(mountInspector({}, null, { multiSelectionMode: ref(true) }).find('[data-rp-action="multiple-selection"]').exists()).toBe(true);
 	});
 });

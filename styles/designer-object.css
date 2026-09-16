@@ -1,0 +1,42 @@
+/*
+ * The designer Inspector's OBJECT block: which asset this is, the way back to the catalogue, and
+ * the multi-selection controls (AD06, AD08).
+ *
+ * Split out of `designer.css` because that partial reached the 400-line cap, which is the same
+ * reason `editor-status.css` and `editor-requirements.css` exist. Its position in `index.css` is
+ * directly after `designer.css` and before `designer-selection.css`, because these rules were
+ * authored at the END of that file: an equal-specificity pair is decided by order, so moving them
+ * earlier would change which wins.
+ */
+
+/**
+ * The asset's own name, under its section heading (AD06). Normal text at the panel's own size —
+ * it identifies the subject rather than labelling a field, so it is neither a heading nor muted.
+ * `overflow-wrap` because a user's name for an object is theirs: a long one wraps inside the panel
+ * instead of widening it, which at a sidebar's width would push the canvas into a sliver.
+ */
+.rp-designer-inspector .rp-designer-asset-name {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	overflow-wrap: anywhere;
+}
+
+/**
+ * How many parts are selected, and the control that builds the set (AD08). The count is a status
+ * line under the panel title — muted, like the title itself, because it describes the panel rather
+ * than labelling a field. The checkbox sits with the object's own actions and reads as one row.
+ */
+.rp-designer-inspector .rp-designer-selection-count {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.rp-designer-inspector .rp-designer-multi-select {
+	display: flex;
+	gap: var(--size-4-2);
+	align-items: center;
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}

@@ -49,6 +49,8 @@ export interface SelectToolRigOptions {
 	/** The leaf's write chain as the tool asks it (`createWriteChain`). Default: nothing ever queued. */
 	readonly writing?: () => boolean;
 	readonly settled?: () => Promise<void>;
+	/** The sticky select-multiple mode the tool asks per press (AD08). Default: off. */
+	readonly multiSelectionMode?: () => boolean;
 }
 
 export interface SelectToolRig {
@@ -56,6 +58,8 @@ export interface SelectToolRig {
 	readonly harness: ToolContextHarness;
 	/** Every `select` call, in order. */
 	readonly selected: (DesignerSelection | null)[];
+	/** Every `extend` call, in order — the additive route (AD08). */
+	readonly extended: DesignerSelection[];
 	/** Every `setPreview` call, in order. */
 	readonly previews: (AssetShape | null)[];
 	/** Every write built, with the version it was made conditional on. */
@@ -82,10 +86,16 @@ export function selectToolRig(options: SelectToolRigOptions = {}): SelectToolRig
 		snapCandidates: (exclude) => designerSnapCandidates(shape, exclude ?? []),
 		...options.context,
 	});
+	const extended: DesignerSelection[] = [];
 	const tool = new DesignerSelectTool({
 		design: () => (shape === null ? null : { shape, geometryVersion: DESIGN_VERSION }),
 		selection: () => selection,
 		mode: () => mode,
+		multiSelectionMode: options.multiSelectionMode ?? (() => false),
+		extend: (next) => {
+			extended.push(next);
+			selection = next;
+		},
 		select: (next) => {
 			selected.push(next);
 			selection = next;
@@ -109,5 +119,5 @@ export function selectToolRig(options: SelectToolRigOptions = {}): SelectToolRig
 		writing: options.writing ?? (() => false),
 		settled: options.settled ?? (() => Promise.resolve()),
 	});
-	return { tool, harness, selected, previews, written, rejected, invalid };
+	return { tool, harness, selected, extended, previews, written, rejected, invalid };
 }

@@ -1,4 +1,4 @@
-import { inject, onBeforeUnmount, provide, reactive, type InjectionKey, type Ref } from 'vue';
+import { inject, onBeforeUnmount, provide, reactive, ref, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
@@ -73,7 +73,7 @@ export interface DesignerRuntime {
 	 * is its only caller — `AssetDesignerRoot.vue` awaits `context.picker.pick()` first, and a
 	 * cancelled pick (`null`) never reaches this at all.
 	 */
-	readonly setBackground: (ref: DocumentRef) => Promise<void>;
+	readonly setBackground: (document: DocumentRef) => Promise<void>;
 	/**
 	 * Task B8's gesture, the same shape as `setBackground` above and for the same reason: a
 	 * click-bound dispatch with no field to show a refusal under, so it swallows the `Result`
@@ -131,6 +131,15 @@ export interface DesignerRuntime {
 	 * beside itself; a key binding hands the result to `notifyIfRefused`.
 	 */
 	readonly editShape: EditShape;
+	/**
+	 * The sticky "select multiple" mode (AD08), per leaf, on the runtime rather than in the store
+	 * for `PlanEditorRuntime.multiSelectionMode`'s reason: it is EPHEMERAL UI about how the next
+	 * press behaves, not a fact about the design, and a panel reflow must not clear it.
+	 *
+	 * A `Ref` and not a getter, because the control binds to it with `v-model` — the Plan Editor's
+	 * `PropertyLayerPanel` binds its own the same way.
+	 */
+	readonly multiSelectionMode: Ref<boolean>;
 }
 
 /**
@@ -202,6 +211,7 @@ function selectToolDeps(
 	edits: ReversibleAssetDesignCommands,
 	assetId: AssetId,
 	chain: Pick<ReturnType<typeof createWriteChain>, 'writing' | 'settled'>,
+	multiSelectionMode: Ref<boolean>,
 ): DesignerSelectToolDeps {
 	return {
 		design: () => {
@@ -211,6 +221,8 @@ function selectToolDeps(
 		selection: () => store.selection,
 		mode: () => store.mode,
 		select: (next) => store.select(next),
+		extend: (next) => store.extend(next),
+		multiSelectionMode: () => multiSelectionMode.value,
 		setPreview: (shape) => store.setPreview(shape),
 		createCommand: (shape, expected) => edits.setShape({ assetId, shape, expected }),
 		reportRejected: reportDispatchFailure,
@@ -359,6 +371,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const geometryLedger = new SessionWriteLedger();
 	const edits: ReversibleAssetDesignCommands = context.commands.designEdits({ noteLedger, geometryLedger });
 	const { chain, toolDispatcher, editShape } = designWrites(dispatcher, context.logger, store, (shape, expected) => edits.setShape({ assetId, shape, expected }));
+	const multiSelectionMode = ref(false);
 
 	/**
 	 * A FRESH context per activation, through the same assembler the Plan Editor uses — which
@@ -415,7 +428,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		reportInvalidInput: notifyOperationFailure,
 		// A completed trace or drawn detail returns to Select, which this surface registers since Decision 10.
 		returnToSelect: () => setTool('select'),
-		selectTool: selectToolDeps(store, edits, assetId, chain),
+		selectTool: selectToolDeps(store, edits, assetId, chain, multiSelectionMode),
 		...calibrationDeps(useDialogStore(), store),
 		...detailDeps(store),
 	});
@@ -441,12 +454,15 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	async function redo(): Promise<void> {
 		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, chain.enqueue(() => dispatcher.redo())));
 	}
-	async function setBackground(ref: DocumentRef): Promise<void> {
+	// `document` and not `ref`: this module imports Vue's own `ref` since AD08's selection mode, and
+	// `no-shadow` fails the build on the collision — the same rename `onEmptyStateAction` made in
+	// `AssetDesignerRoot.vue` when the background status arrived there.
+	async function setBackground(document: DocumentRef): Promise<void> {
 		await notifyIfRefused(
 			reportDispatchFault(
 				context.logger,
 				DISPATCH_FAULT_EVENT,
-				chain.enqueue(() => dispatcher.run(edits.setBackground({ assetId, path: ref.path, kind: ref.kind, page: ref.page }))),
+				chain.enqueue(() => dispatcher.run(edits.setBackground({ assetId, path: document.path, kind: document.kind, page: document.page }))),
 			),
 		);
 	}
@@ -510,6 +526,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		activeToolId,
 		setTool,
 		editShape,
+		multiSelectionMode,
 	};
 }
 

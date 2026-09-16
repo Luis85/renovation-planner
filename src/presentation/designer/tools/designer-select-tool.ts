@@ -15,6 +15,7 @@ import type { UndoableCommand } from '../../editor/tools/undoable-command';
 import { partKey, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
 import { dragTarget } from '../selection/dragSnap';
 import { hitDesign } from '../selection/hitTest';
+import type { HandleRole } from '../selection/handles';
 import { draggedShape, type DragRole, type DragStart } from '../selection/selectionDrag';
 
 /**
@@ -26,6 +27,20 @@ export interface DesignerSelectToolDeps {
 	readonly selection: () => DesignerSelection | null;
 	readonly mode: () => SelectionMode;
 	readonly select: (next: DesignerSelection | null) => void;
+	/**
+	 * Add a graphic to the selection, or remove it when it is already a member (AD08).
+	 *
+	 * Separate from `select` rather than a flag on it, because the store owns which parts may be
+	 * composed at all: the footprint, the clearance, the anchor and the facing stay special
+	 * selections (C05), and this tool should not have to know that list.
+	 */
+	readonly extend: (next: DesignerSelection) => void;
+	/**
+	 * The sticky "select multiple" mode, read PER CALL. The Plan Editor's own seam
+	 * (`selectionInteractions.ts`), for C05's reason: adding to a selection needs a control a
+	 * keyboard and a touch user can reach, not a modifier alone.
+	 */
+	readonly multiSelectionMode?: () => boolean;
 	readonly setPreview: (shape: AssetShape | null) => void;
 	/** One reversible SetAssetShape write, conditional on `expected`. */
 	readonly createCommand: (shape: AssetShape, expected: EntityVersion) => UndoableCommand;
@@ -204,19 +219,26 @@ export class DesignerSelectTool implements EditorTool {
 			return;
 		}
 		if (hit.kind === 'part') {
-			this.deps.select(hit.selection);
-			this.begin(context, design, hit.selection, { kind: 'body' }, event.worldPoint);
+			this.choosePart(context, design, hit.selection, event);
 			return;
 		}
-		if (hit.role.kind === 'edge') {
+		this.grabHandle(context, design, selection, hit.role, event);
+	}
+
+	/**
+	 * A press on one of the selection's own handles. Split from `press` for the complexity budget
+	 * AD08's additive arm pushed it over; the two arms and both casts are unchanged.
+	 */
+	private grabHandle(context: EditorContext, design: PressedDesign, selection: DesignerSelection | null, role: HandleRole, event: EditorPointerEvent): void {
+		if (role.kind === 'edge') {
 			// An edge handle is drawn only in Bend edges, around an outline the shape has.
-			this.beginBend(context, design, selection as OutlinePart, hit.role.index);
+			this.beginBend(context, design, selection as OutlinePart, role.index);
 			this.curve.pointerDown(event);
 			return;
 		}
 		// A handle is only ever drawn around a selection — `selectionHandles` answers `[]` for none — so
 		// the selection it belongs to is never null here, and no guard is written for it.
-		this.begin(context, design, selection as DesignerSelection, hit.role, event.worldPoint);
+		this.begin(context, design, selection as DesignerSelection, role, event.worldPoint);
 	}
 
 	private movePointer(event: EditorPointerEvent): void {
@@ -341,6 +363,25 @@ export class DesignerSelectTool implements EditorTool {
 	 * were made. It REPLACES the last one only when that one's release never came — the rule a live press
 	 * follows — and never a gesture whose release was recorded, which is a whole drag the user finished.
 	 */
+	/**
+	 * A press on a part: choose it, and begin a body drag unless the press was ADDITIVE.
+	 *
+	 * **An additive press chooses and never drags** (AD08) — the Plan Editor's own rule, and the
+	 * reason this returns early: a user building a set out of three graphics would otherwise move
+	 * the third by however far the press wandered before release.
+	 *
+	 * Split out of `press` for the complexity budget: adding the additive arm put that function
+	 * over the CRAP threshold, and this is the arm with a rule of its own to state.
+	 */
+	private choosePart(context: EditorContext, design: PressedDesign, selection: DesignerSelection, event: EditorPointerEvent): void {
+		if (event.modifiers.shift || this.deps.multiSelectionMode?.() === true) {
+			this.deps.extend(selection);
+			return;
+		}
+		this.deps.select(selection);
+		this.begin(context, design, selection, { kind: 'body' }, event.worldPoint);
+	}
+
 	private hold(down: EditorPointerEvent): void {
 		const idle = this.held.length === 0;
 		const last: Held | undefined = this.held[this.held.length - 1];

@@ -383,16 +383,3 @@
 .rp-designer-grid-step {
 	color: var(--text-muted);
 }
-
-/**
- * The asset's own name, under its section heading (AD06). Normal text at the panel's own size —
- * it identifies the subject rather than labelling a field, so it is neither a heading nor muted.
- * `overflow-wrap` because a user's name for an object is theirs: a long one wraps inside the panel
- * instead of widening it, which at a sidebar's width would push the canvas into a sliver.
- */
-.rp-designer-inspector .rp-designer-asset-name {
-	margin: 0 0 var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	overflow-wrap: anywhere;
-}

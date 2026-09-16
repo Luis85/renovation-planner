@@ -76,7 +76,7 @@ const workspace = useWorkspaceStore(), editorStore = useEditorStore();
  */
 const runtime = provideDesignerRuntime(context);
 const designStore = useAssetDesignStore();
-const { design, error, status, stale, selection } = storeToRefs(designStore);
+const { design, error, status, stale, selection, selected } = storeToRefs(designStore);
 
 /**
  * The canvas is drawing a design it can no longer confirm.
@@ -154,9 +154,9 @@ const hintKey = computed<StringKey | null>(() => {
 	const id = runtime.activeToolId.value;
 	if (constrainsAngle(id)) return 'editor.hint.constrain-angle';
 	if (id !== 'select') return null;
-	const selected = selection.value;
-	if (selected?.kind === 'facing') return 'editor.hint.constrain-angle';
-	return isOutlineSelection(selected) && designStore.mode === 'transform' ? 'designer.hint.shift-transform' : null;
+	const focused = selection.value;
+	if (focused?.kind === 'facing') return 'editor.hint.constrain-angle';
+	return isOutlineSelection(focused) && designStore.mode === 'transform' ? 'designer.hint.shift-transform' : null;
 });
 
 /**
@@ -492,6 +492,8 @@ onMounted(() => {
 					:edit-shape="runtime.editShape"
 					:select="designStore.select"
 					:open-library="context.openLibrary"
+					:selected="selected"
+					:multi-selection-mode="runtime.multiSelectionMode"
 				/>
 			</div>
 		</div>

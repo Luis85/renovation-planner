@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
-import { ref, shallowRef } from 'vue';
+import { computed, ref, shallowRef } from 'vue';
 import { isErr } from '../../../core/result/Result';
 import type { AssetDesignDto, AssetDesignError } from '../../../application/queries/GetAssetDesign';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { AssetDesignerQueryServices } from '../../read-models/assetDesignerQueries';
-import { sameSelection, selectionExists, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
+import { isOutlineSelection, sameSelection, selectionExists, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
 
 /**
  * How far this designer leaf got loading its asset.
@@ -75,12 +75,26 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 	const stale = ref(false);
 
 	/**
-	 * The designer's selection (symbols spec, Decision 10): one part at a time, per leaf, writing
-	 * nothing. It names a PART rather than holding a copy of one, so every read of the design is
-	 * the truth about what is selected, and `hydrate` drops a selection whose part a write or an
-	 * undo has removed.
+	 * The designer's selection, per leaf, writing nothing (symbols spec, Decision 10; widened to a
+	 * SET by AD08, contract C05). It names PARTS rather than holding copies of them, so every read
+	 * of the design is the truth about what is selected, and `hydrate` prunes members whose part a
+	 * write or an undo has removed.
+	 *
+	 * **One list and a derived primary, not two synchronised copies** — C05's own requirement, and
+	 * the reason `selection` below is a `computed` rather than a second `ref`: a canvas press, the
+	 * inspector and (later) a Parts panel all write HERE, and a primary held separately would be a
+	 * second answer to what is focused the first time one of them forgot to update it.
+	 *
+	 * Order is SELECTION order, so the primary is the part most recently added — which is the one a
+	 * user just pressed, and the one whose fields the inspector shows.
 	 */
-	const selection = ref<DesignerSelection | null>(null);
+	const selected = ref<DesignerSelection[]>([]);
+	/**
+	 * The focused part: the last one added, or `null` for an empty selection. Every existing reader
+	 * — the inspector's fields, the handles, the keyboard, the snap exclusion — asks this and
+	 * behaves exactly as it did while a selection could only ever have one member.
+	 */
+	const selection = computed<DesignerSelection | null>(() => selected.value.at(-1) ?? null);
 	const mode = ref<SelectionMode>('transform');
 	/**
 	 * A gesture's in-flight shape, drawn instead of `design.shape` while a drag is live. Shallow:
@@ -95,7 +109,34 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 	 */
 	function select(next: DesignerSelection | null): void {
 		if (!sameSelection(selection.value, next)) mode.value = 'transform';
-		selection.value = next;
+		selected.value = next === null ? [] : [next];
+	}
+
+	/**
+	 * Add a part to the selection, or remove it when it is already a member (AD08).
+	 *
+	 * **Only a GRAPHIC may join a set.** The footprint, the clearance, the anchor and the facing are
+	 * the shape's own special parts, and C05 keeps them out of bulk composition: each is a single
+	 * attribute with its own fields and its own gestures, and a "selection" holding the anchor and
+	 * two details has no meaning any group action could act on. Extending toward one of them is
+	 * therefore a plain `select` — the same answer a user gets from pressing it without a modifier.
+	 *
+	 * Removing the last member empties the selection rather than leaving a phantom primary.
+	 * Re-adding a member that is already there REMOVES it, which is what makes one control both
+	 * halves of "add or remove" and keeps the gesture reversible without a second one.
+	 */
+	function extend(next: DesignerSelection): void {
+		const bulk = isOutlineSelection(next) && next.kind === 'detail';
+		const members = selected.value.filter((member) => !isOutlineSelection(member) || member.kind !== 'detail');
+		if (!bulk || members.length > 0) {
+			select(next);
+			return;
+		}
+		const without = selected.value.filter((member) => !sameSelection(member, next));
+		// Mode follows the primary, exactly as `select` does: a set of parts has no point or bend
+		// mode of its own, so a changed primary starts at Transform.
+		mode.value = 'transform';
+		selected.value = without.length === selected.value.length ? [...selected.value, next] : without;
 	}
 
 	function setMode(next: SelectionMode): void {
@@ -127,8 +168,8 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 		design.value = null;
 		error.value = cause;
 		status.value = 'failed';
-		// Nothing is drawn, so nothing can be selected.
-		selection.value = null;
+		// Nothing is drawn, so nothing can be selected — the whole set, not just the primary.
+		selected.value = [];
 		// Nothing is on screen to BE stale: this path blanks the design and the failure state
 		// replaces the canvas.
 		stale.value = false;
@@ -230,13 +271,15 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 		}
 
 		design.value = found.value;
-		// A delete, or an undo that removed a detail, leaves nothing for the selection to name.
-		if (selection.value !== null && !selectionExists(found.value.shape, selection.value)) selection.value = null;
+		// A delete, or an undo that removed a detail, leaves nothing for those members to name.
+		// PRUNED rather than cleared: a delete of one member of three must not drop the other two,
+		// and a command is never retargeted to a part the user did not choose (C05).
+		selected.value = selected.value.filter((member) => selectionExists(found.value.shape, member));
 		status.value = 'ready';
 		// The ONE event that retires a stale-data warning: what is on screen came back from the
 		// vault just now. Every hydration path ends here on success, whatever its options.
 		stale.value = false;
 	}
 
-	return { design, error, status, stale, hydrate, selection, mode, preview, select, setMode, setPreview };
+	return { design, error, status, stale, hydrate, selected, selection, mode, preview, select, extend, setMode, setPreview };
 });

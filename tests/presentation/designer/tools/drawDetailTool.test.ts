@@ -304,6 +304,7 @@ function traceRig(shape: AssetShape | null) {
 			selection: () => null,
 			mode: () => 'transform',
 			select: () => undefined,
+			extend: () => undefined,
 			setPreview: () => undefined,
 			createCommand: () => COMMAND,
 			reportRejected: (error) => rejected.push(error),

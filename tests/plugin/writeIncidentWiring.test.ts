@@ -29,6 +29,43 @@ describe('write incident wiring', () => {
 		expect(activeWriteIncidentRegistry()).toBeNull();
 	});
 
+	/**
+	 * ADR-0034's reader, wired end to end. `GetDiagnosticsSnapshotQuery` takes the open
+	 * incidents through its `DiagnosticsSources` bundle, and `guardedServices.ts` fills that
+	 * slot from `activeWriteIncidentRegistry()` — so this is the only case that can see the
+	 * accessor and the composed query agreeing about ONE registry. The unit tests either side
+	 * of it would both pass over a bundle wired to a constant.
+	 */
+	it('reports the installed registry through the composed diagnostics query', async () => {
+		const { plugin } = await loadedPlugin();
+		const persistence = plugin.root.persistence;
+		expect(persistence).not.toBeNull();
+
+		const before = await persistence?.queries.diagnostics.execute();
+		expect(before?.writeIncidents.open).toEqual([]);
+		// The path is the plugin directory's own, which is what makes the removal gesture
+		// findable — and it is the ONE path this content-free snapshot carries.
+		expect(before?.writeIncidents.path).toMatch(/write-incidents\.json$/);
+
+		await activeWriteIncidentRegistry()?.record({
+			category: 'Persistence',
+			code: 'zone.write-uncompensated',
+			message: 'half-written',
+			uncompensatedWrite: [{ entityKind: 'zone', entityId: 'zone-01JAAA' }],
+		});
+
+		const after = await persistence?.queries.diagnostics.execute();
+		expect(after?.writeIncidents.open).toHaveLength(1);
+		expect(after?.writeIncidents.open[0]?.affected).toEqual([{ entityKind: 'zone', entityId: 'zone-01JAAA' }]);
+
+		plugin.onunload();
+
+		// The other arm of the accessor, and the one a root composed without a session takes:
+		// released global, so the query answers the empty constant rather than throwing.
+		const released = await persistence?.queries.diagnostics.execute();
+		expect(released?.writeIncidents).toEqual({ path: '', open: [] });
+	});
+
 	it('reads the incidents file at load, so a previous session can close the gate', async () => {
 		const { plugin, workspace, asked } = await loadedPlugin();
 		workspace.layoutReady();

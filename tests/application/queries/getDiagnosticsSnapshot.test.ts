@@ -4,6 +4,14 @@ import type { DiagnosticEntityKind, DiagnosticsLedger, RuntimeVersions } from '.
 import type { AppError } from '../../../src/core/errors/AppError';
 import type { EntityId } from '../../../src/core/identity/EntityId';
 import { InMemoryDiagnosticsLedger } from '../../../src/infrastructure/logging/diagnosticsLedger';
+import {
+	NO_WRITE_INCIDENTS,
+	WriteIncidentRegistry,
+	type WriteIncidentReport,
+} from '../../../src/application/incidents/WriteIncidentRegistry';
+import { WRITE_INCIDENT_SCHEMA_VERSION } from '../../../src/application/incidents/WriteIncident';
+import { InMemoryWriteIncidentStore } from '../../helpers/InMemoryWriteIncidentStore';
+import { recorder } from '../../helpers/logger';
 
 /**
  * SDD §68's hard rule, asserted structurally: the snapshot contains ONLY the fields the
@@ -30,12 +38,13 @@ function ledgerOf(...recorded: Recorded[]): DiagnosticsLedger {
 	return ledger;
 }
 
-function snapshotFrom(ledger: DiagnosticsLedger) {
+function snapshotFrom(ledger: DiagnosticsLedger, writeIncidents: WriteIncidentReport = NO_WRITE_INCIDENTS) {
 	return new GetDiagnosticsSnapshotQuery({
 		versions,
 		latestSchemaVersions: () => ({ project: 1, plan: 1, zone: 1 }),
 		lastAppliedMigration: () => 'zone: 0 -> 1',
 		ledger,
+		writeIncidents: () => writeIncidents,
 	}).execute();
 }
 
@@ -69,8 +78,10 @@ describe('GetDiagnosticsSnapshot', () => {
 	 * `message` and its `cause`, because that is what a real one carries: `migrateNote`
 	 * interpolates the value it refused, and `persistenceError` spreads the thrown cause. The
 	 * assertion is that none of it survives the ledger. The structural half — that the
-	 * snapshot has exactly the five declared fields — stays, because a sixth field is the
-	 * other way content could ride along.
+	 * snapshot has exactly the fields the interface declares — stays, because an undeclared
+	 * field is the other way content could ride along. The COUNT is deliberately not written
+	 * here: this sentence said "five" until ADR-0034's `writeIncidents` made it six, and the
+	 * list in the assertion below is the only place that cannot go stale.
 	 */
 	it('drops the content a real refusal carries, keeping only the code', async () => {
 		const snapshot = await snapshotFrom(
@@ -105,8 +116,72 @@ describe('GetDiagnosticsSnapshot', () => {
 			{ entityType: 'plan', entityId: 'plan-01JZZZ', issue: 'plan.schema-version-malformed' },
 		]);
 		expect(Object.keys(snapshot).toSorted()).toEqual(
-			['obsidianVersion', 'pluginVersion', 'schemaVersions', 'migrationState', 'validationIssues'].toSorted(),
+			['obsidianVersion', 'pluginVersion', 'schemaVersions', 'migrationState', 'validationIssues', 'writeIncidents'].toSorted(),
 		);
+	});
+});
+
+/**
+ * ADR-0034's reader. The registry under these cases is the REAL one — its `report()` is what
+ * the composition root wires into `DiagnosticsSources` — rather than a hand-built
+ * `WriteIncidentReport`, because a literal written by the same hand as the assertion could
+ * only prove that the query copies a field.
+ */
+describe('the open write incidents the snapshot carries', () => {
+	const halfWritten = { category: 'Persistence' as const, code: 'zone.write-uncompensated', message: 'half-written' };
+	const registryHolding = async (...affected: Array<{ entityKind: 'zone' | 'plan'; entityId: string }>) => {
+		const registry = new WriteIncidentRegistry(new InMemoryWriteIncidentStore(), recorder, 'plugins/rp/write-incidents.json');
+		await registry.record({ ...halfWritten, uncompensatedWrite: affected });
+		return registry;
+	};
+
+	it('carries none, and the file path stays out of an all-clear report', async () => {
+		const snapshot = await snapshotFrom(new InMemoryDiagnosticsLedger());
+		expect(snapshot.writeIncidents).toEqual(NO_WRITE_INCIDENTS);
+		expect(snapshot.writeIncidents.open).toEqual([]);
+	});
+
+	it('names an open incident by kind, code and affected entities, and names the file to remove', async () => {
+		const registry = await registryHolding({ entityKind: 'zone', entityId: 'zone-01JABC' });
+		const snapshot = await snapshotFrom(new InMemoryDiagnosticsLedger(), registry.report());
+		expect(snapshot.writeIncidents.path).toBe('plugins/rp/write-incidents.json');
+		expect(snapshot.writeIncidents.open).toHaveLength(1);
+		expect(snapshot.writeIncidents.open[0]).toMatchObject({
+			schemaVersion: WRITE_INCIDENT_SCHEMA_VERSION,
+			code: 'zone.write-uncompensated',
+			category: 'Persistence',
+			affected: [{ entityKind: 'zone', entityId: 'zone-01JABC' }],
+		});
+	});
+
+	/**
+	 * The cannot-fail contract, kept honest at the one source that could have broken it.
+	 *
+	 * `execute()` is `async`-free and returns `Promise.resolve(...)` of a literal, so what this
+	 * asserts is that `writeIncidents()` is a SYNCHRONOUS in-memory read: the assertion is on
+	 * a resolved value, and a `writeIncidents` that returned a `Promise` or a `Result` would
+	 * not type-check against `DiagnosticsSources` at all. The compiler holds the contract; this
+	 * case holds that the registry actually answers through it with an incident in hand.
+	 */
+	it('answers from memory, so the query keeps its cannot-fail contract', async () => {
+		const registry = await registryHolding();
+		const query = new GetDiagnosticsSnapshotQuery({
+			versions,
+			latestSchemaVersions: () => ({}),
+			lastAppliedMigration: () => null,
+			ledger: new InMemoryDiagnosticsLedger(),
+			writeIncidents: () => registry.report(),
+		});
+		await expect(query.execute()).resolves.toMatchObject({ writeIncidents: { open: [{ affected: [] }] } });
+	});
+
+	it('hands out a copy, so a reader cannot splice the mirror the gate closes on', async () => {
+		const registry = await registryHolding({ entityKind: 'plan', entityId: 'plan-01JZ' });
+		const snapshot = await snapshotFrom(new InMemoryDiagnosticsLedger(), registry.report());
+		// `readonly` is erased at runtime, so only a runtime mutation can test the copy.
+		(snapshot.writeIncidents.open as { length: number }).length = 0;
+		expect(registry.report().open).toHaveLength(1);
+		expect(registry.anyOpen()).toBe(true);
 	});
 });
 

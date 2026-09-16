@@ -11,6 +11,7 @@ import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/di
 import type { VaultExceptionMapper } from '../application/errors/exceptionMapper';
 import { createVaultExceptionMapper } from '../application/errors/exceptionMapper';
 import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
+import { NO_WRITE_INCIDENTS, activeWriteIncidentRegistry } from '../application/incidents/WriteIncidentRegistry';
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { GetProject, type GetProjectInput } from '../application/queries/GetProject';
 import {
@@ -319,6 +320,12 @@ export function guardedEditorServices(
 		latestSchemaVersions: () => diagnosticsSources.migrations.latestVersions,
 		lastAppliedMigration: () => diagnosticsSources.migrations.lastApplied,
 		ledger: diagnosticsSources.ledger,
+		// The module accessor is reached HERE rather than inside the query, which is the whole
+		// of why the query stays isolable in a test. `src/plugin/` is the layer that composes
+		// session state, and asking per call rather than capturing the registry once is what
+		// keeps a root composed before `SessionStores` (or after a settings save replaced it)
+		// answering about the live one.
+		writeIncidents: () => activeWriteIncidentRegistry()?.report() ?? NO_WRITE_INCIDENTS,
 	});
 
 	const setPlanBackground = guardCommand(

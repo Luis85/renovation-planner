@@ -44,7 +44,12 @@ export class SessionStores {
 		// "nothing open" until `seed()` resolves, which leaves a window at startup in which a
 		// write recorded by a previous session is not yet blocking — the same window
 		// `recoverInterruptedSequences` runs in, and not one this task closes.
-		this.writeIncidents = new WriteIncidentRegistry(new WriteIncidentFileStore(adapter, `${pluginDir}/write-incidents.json`), logger);
+		// Spelled ONCE and handed to both: the store READS and WRITES it, the registry only
+		// NAMES it for the diagnostics report (ADR-0034's discoverable retirement gesture). Two
+		// spellings of one path is how a report starts pointing at a file that is not the one
+		// being written.
+		const incidentsPath = `${pluginDir}/write-incidents.json`;
+		this.writeIncidents = new WriteIncidentRegistry(new WriteIncidentFileStore(adapter, incidentsPath), logger, incidentsPath);
 		installWriteIncidentRegistry(this.writeIncidents);
 	}
 

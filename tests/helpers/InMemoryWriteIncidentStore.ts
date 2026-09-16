@@ -12,9 +12,14 @@ import type { WriteIncidentStore } from '../../src/application/ports/WriteIncide
  * services with no session. This one has no such caller: nothing in `CompositionRoot` reads
  * the incident store, because the gate reads the registry `RenovationPlannerPlugin` installs
  * rather than anything the root carries. The reason is what places the file, so when the
- * reason does not hold the file does not move. A later increment that gives the root a reader
- * — ADR-0034 requires `GetDiagnosticsSnapshotQuery` to name open incidents — is what moves it
- * across, with the fallback the move is for.
+ * reason does not hold the file does not move.
+ *
+ * **That increment has now landed and the file stayed put, which is worth recording because
+ * this docblock predicted otherwise.** `GetDiagnosticsSnapshotQuery` names open incidents as
+ * of ADR-0034's diagnostics task, but it reads the REGISTRY's `report()` — composed in
+ * `guardedServices.ts` off `activeWriteIncidentRegistry()` — and still never the store. A
+ * caller composing without a session gets `NO_WRITE_INCIDENTS`, a constant, so the fallback
+ * this file was going to move across for turned out not to be a store at all.
  *
  * Append-only, like the port: there is no `clear`, because nothing in the plugin retires an
  * incident.

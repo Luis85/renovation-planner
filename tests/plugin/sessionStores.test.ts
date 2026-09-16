@@ -38,6 +38,31 @@ describe('SessionStores', () => {
 		resetRecorder();
 	});
 
+	/**
+	 * The path the registry NAMES is the path the store WRITES, asserted rather than trusted
+	 * to one spelling. `WriteIncidentRegistry`'s `location` defaults to `''` so fifteen test
+	 * constructions need not carry a path they do not use — which means a composition site
+	 * that forgot to pass one would report an empty path in the diagnostics section, and a
+	 * report pointing at nothing is exactly the discoverability ADR-0034 asks this surface for.
+	 * This is the only instrument that can see that.
+	 */
+	it('names the file it writes, so the diagnostics report points at a real path', async () => {
+		const adapter = fakeAdapter();
+		const stores = new SessionStores(adapter, 'plugins/renovation-planner', recorder);
+
+		expect(stores.writeIncidents.report().path).toBe('plugins/renovation-planner/write-incidents.json');
+
+		await stores.writeIncidents.record({
+			category: 'Persistence',
+			code: 'zone.write-uncompensated',
+			message: 'half-written',
+			uncompensatedWrite: [],
+		});
+		expect(await adapter.exists(stores.writeIncidents.report().path)).toBe(true);
+
+		stores.dispose();
+	});
+
 	it('releases the registry it installed on dispose', () => {
 		const stores = new SessionStores(fakeAdapter(), 'plugins/renovation-planner', recorder);
 		expect(activeWriteIncidentRegistry()).toBe(stores.writeIncidents);

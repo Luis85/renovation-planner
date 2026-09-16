@@ -11,6 +11,35 @@ import {
 } from './WriteIncident';
 
 /**
+ * What a reader — today only the diagnostics snapshot — is told about open incidents.
+ *
+ * Declared beside the registry that PRODUCES it rather than beside the query that consumes
+ * it, which is this repository's own layering rule: a type placed with its consumer makes the
+ * pure layer depend on the effectful one.
+ *
+ * `path` is the ONE path anything here carries. It is plugin-local
+ * (`<plugin dir>/write-incidents.json`) and holds no user content, which is what lets it
+ * through SDD §86's content-free rule while a note path would not. It is here because
+ * ADR-0034 makes removing that file the ONLY retirement there is — the plugin offers no "I
+ * have repaired this" control, because nothing here can tell a repaired vault from an
+ * unrepaired one — so a read-only report naming the file is the whole of how that gesture
+ * becomes discoverable.
+ */
+export interface WriteIncidentReport {
+	readonly path: string;
+	readonly open: readonly WriteIncident[];
+}
+
+/**
+ * What a caller composing without a session is told: no registry is installed, so there is no
+ * vault whose incidents this could be answering about — which is a different fact from "a
+ * vault that has none", and both render as an empty list. Safe only because it is unreachable
+ * from a composed plugin: `SessionStores` installs a registry at CONSTRUCTION rather than at
+ * seeding, so the accessor is non-null from load.
+ */
+export const NO_WRITE_INCIDENTS: WriteIncidentReport = { path: '', open: [] };
+
+/**
  * The open write incidents, in memory, so the gate can answer SYNCHRONOUSLY.
  *
  * `guardCommand` runs on every command dispatch and cannot afford a file read per call, so
@@ -30,9 +59,18 @@ export class WriteIncidentRegistry {
 	// until something counted rather than merely tested presence.
 	private seeded = false;
 
+	/**
+	 * @param location Where the durable record sits, for the diagnostics report to NAME —
+	 * never for this class to read or write, which is the store's whole job. It is carried
+	 * here rather than fetched from the store because `WriteIncidentStore` deliberately
+	 * declares exactly two methods and the absence of a third is load-bearing (its own
+	 * docblock), so widening that port to expose a path would trade a real guarantee for a
+	 * string this class is already handed at construction.
+	 */
 	constructor(
 		private readonly store: WriteIncidentStore,
 		private readonly logger: Logger,
+		private readonly location = '',
 	) {}
 
 	/**
@@ -65,6 +103,23 @@ export class WriteIncidentRegistry {
 	/** Is any incident open? The gate's whole question, asked without touching the vault. */
 	anyOpen(): boolean {
 		return this.open.length > 0;
+	}
+
+	/**
+	 * What the diagnostics report reads — every open incident, and where the file holding them
+	 * sits (ADR-0034 requires `GetDiagnosticsSnapshotQuery` to name both).
+	 *
+	 * **Read-only and SYNCHRONOUS for the same reason `anyOpen()` is**: the snapshot query's
+	 * public contract is a plain `Promise<DiagnosticsSnapshot>` rather than a `Result` because
+	 * every source answers from memory, and a file read here would be the one source that could
+	 * fail — changing that contract for a fact this object already holds.
+	 *
+	 * Hands out a COPY of the array, like `DiagnosticsLedger.issues()` and for the same reason:
+	 * `readonly` is erased at runtime, and the mirror the gate closes on is not a caller's to
+	 * splice. The incidents themselves are frozen only by their `readonly` fields.
+	 */
+	report(): WriteIncidentReport {
+		return { path: this.location, open: [...this.open] };
 	}
 
 	/**

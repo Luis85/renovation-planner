@@ -27,4 +27,22 @@
 export const writeIncidentEn = {
 	'write-incident.writes-paused':
 		'Writing is paused. An earlier change was written and could not be undone, so files in this vault may be left half-written. Check them against a backup, then remove write-incidents.json from the plugin folder to resume writing.',
+	'diagnostics.incidents': 'Open write incidents',
+	'diagnostics.incidents.none': 'No write incident is open.',
+	// The retirement gesture, and the ONE place in the diagnostics report a path appears. It
+	// names the file rather than offering to remove it, because ADR-0034 refuses a
+	// plugin-decided all-clear outright: nothing here can tell a write that mended the
+	// affected files from any other write that happened to land, so a control would be a lie
+	// with a button on it. One key with a `{path}` hole rather than a sentence concatenated
+	// around a path — word order and the punctuation around it are the translator's.
+	'diagnostics.incidents.remove':
+		'Nothing here clears these. Check the affected files against a backup, then remove {path} to resume writing.',
+	// The `unreadableWriteIncident` pair — a record written by a version whose shape this build
+	// does not know. It is the incident a user most needs named and the one with the least to
+	// say, so it gets a sentence instead of a blank row: the id and timestamp columns really
+	// are empty, and an empty row reads as a rendering defect rather than as a fact.
+	'diagnostics.incidents.unreadable': 'This build cannot read this record, so only its presence is known.',
+	// An EMPTY affected list is a legal stamp (ADR-0034) meaning the raise site could not name
+	// what it left standing — not a stamp with nothing wrong behind it.
+	'diagnostics.incidents.unnamed': 'Affected files could not be named.',
 };

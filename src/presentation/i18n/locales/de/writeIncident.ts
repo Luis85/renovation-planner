@@ -15,4 +15,10 @@ import type { writeIncidentEn } from '../en/writeIncident';
 export const writeIncidentDe: Record<keyof typeof writeIncidentEn, string> = {
 	'write-incident.writes-paused':
 		'Das Schreiben ist pausiert. Eine frühere Änderung wurde geschrieben und konnte nicht rückgängig gemacht werden, daher sind Dateien in diesem Vault möglicherweise nur halb geschrieben. Vergleichen Sie sie mit einer Sicherung und entfernen Sie dann write-incidents.json aus dem Plugin-Ordner, um das Schreiben fortzusetzen.',
+	'diagnostics.incidents': 'Offene Schreibvorfälle',
+	'diagnostics.incidents.none': 'Es ist kein Schreibvorfall offen.',
+	'diagnostics.incidents.remove':
+		'Nichts hier räumt diese Einträge ab. Vergleichen Sie die betroffenen Dateien mit einer Sicherung und entfernen Sie dann {path}, um das Schreiben fortzusetzen.',
+	'diagnostics.incidents.unreadable': 'Dieser Build kann den Eintrag nicht lesen; bekannt ist nur, dass es ihn gibt.',
+	'diagnostics.incidents.unnamed': 'Die betroffenen Dateien konnten nicht benannt werden.',
 };

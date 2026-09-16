@@ -18,6 +18,7 @@ import { DEFAULT_SETTINGS } from '../../../src/plugin/settings/settings';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { DiagnosticsReportModal } from '../../../src/plugin/diagnostics/DiagnosticsReportModal';
 import { showDiagnosticsReport } from '../../../src/plugin/diagnostics/showDiagnosticsReport';
+import { NO_WRITE_INCIDENTS } from '../../../src/application/incidents/WriteIncidentRegistry';
 import { recorder } from '../../helpers/logger';
 import type { PluginCommandHost } from '../../../src/plugin/commandHost';
 
@@ -116,6 +117,12 @@ describe('what showDiagnosticsReport hands the modal', () => {
 									schemaVersions: { zone: 1 },
 									migrationState: { pending: [], lastApplied: null },
 									validationIssues: [ISSUE],
+									// Not optional, and the `as unknown as PluginCommandHost` cast below is why
+									// the compiler did not say so when ADR-0034 added the field: this literal
+									// reaches the real renderer, which read `.open` off `undefined` and threw.
+									// A fake thinner than the real thing, caught by the suite rather than by
+									// the type it is cast to.
+									writeIncidents: NO_WRITE_INCIDENTS,
 								}),
 						},
 					},

@@ -222,6 +222,54 @@ describe('the designer’s dimensions dialog', () => {
 		expect(vi.mocked(dialogs.openDialog).mock.calls[0][0]).toHaveProperty('initial', { width: 100, depth: 100 });
 	});
 
+	/**
+	 * **Typing back the offered numbers is not an edit.** `SetAssetShapeCommand` compares nothing by
+	 * design — `ALWAYS_CHANGED`, symbols spec Decision 7 — so a re-applied identical shape writes,
+	 * costs a revision and pushes an undo entry that visibly undoes nothing. The guard is at
+	 * `editDimensions` rather than in the command, because the command's rule is about a WHOLE shape
+	 * arriving from anywhere while this is about one form's own round trip.
+	 *
+	 * Compared against what the form OFFERED and not against the canonical extent: `drawn()` is
+	 * exactly 100 × 100, but a footprint measuring 100.4 is offered as 100, and a user typing 100
+	 * back into that field means "leave it" rather than "trim four tenths".
+	 *
+	 * Both halves asserted, because a guard that returned early from the wrong branch would still
+	 * pass one of them: nothing is dispatched, and the stored document is byte-identical — revision
+	 * included, which is the half a shape comparison alone would miss.
+	 */
+	it('writes nothing and pushes no undo entry when the offered dimensions are typed back', async () => {
+		const harness = await seeded();
+		await harness.seed(drawn());
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 100, depth: 100 });
+		const setShape = vi.spyOn(harness.bundle.setShape, 'executeWithVersion');
+		const fromDimensions = vi.spyOn(harness.bundle.setFootprintFromDimensions, 'executeWithVersion');
+		const before = expectOk(await harness.sidecar.read(harness.assetId));
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(setShape).not.toHaveBeenCalled();
+		expect(fromDimensions).not.toHaveBeenCalled();
+		const after = expectOk(await harness.sidecar.read(harness.assetId));
+		expect(after.version.revision).toBe(before.version.revision);
+		expect(after.document).toEqual(before.document);
+	});
+
+	/** The other arm: one number moved is an edit, so the same gesture writes. */
+	it('writes when one of the offered dimensions is changed', async () => {
+		const harness = await seeded();
+		await harness.seed(drawn());
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 100, depth: 120 });
+		const setShape = vi.spyOn(harness.bundle.setShape, 'executeWithVersion');
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(setShape).toHaveBeenCalled();
+	});
+
 	it('offers the same editor from the inspector once a shape exists', async () => {
 		const harness = await seeded();
 		await harness.seed(drawn());

@@ -29,15 +29,22 @@ export type EditShape = (edit: (shape: AssetShape) => ReturnType<ShapeEdit> | nu
  * write left, and two gestures made before the first refresh lands compose rather than the second
  * being refused as a version conflict against the user's own first.
  *
- * The joiners: every tool's dispatch (through the runtime's queued dispatcher); `commitHeight`, which
- * borrows that same queued dispatcher rather than being a tool itself; and every `editShape` call —
- * the arrow keys, the canvas's own Delete and Ctrl+D, the selection inspector, and Edit dimensions'
- * SCALING path (`scaleDesignToDimensions`, taken whenever the footprint is already measured). Four
- * writes dispatch directly and never join this chain: undo, redo, set background and Start from
- * preset (`applyShape`). Edit dimensions' REPLACE-WITH-RECTANGLE path (`setFootprintFromDimensions`,
- * taken for an unscaled drawing or no shape at all) dispatches directly too, unlike its scaling path
- * above. A press or key made while one of these bypassing writes is still awaiting its read-back
- * reads the OLD version and is refused as a version conflict; nothing is overwritten.
+ * **Every write door on this surface joins it** (AD03): every tool's dispatch (through the runtime's
+ * queued dispatcher); `commitHeight`, which borrows that same queued dispatcher rather than being a
+ * tool itself; every `editShape` call — the arrow keys, the canvas's own Delete and Ctrl+D, the
+ * selection inspector, and Edit dimensions' SCALING path (`scaleDesignToDimensions`, taken whenever
+ * the footprint is already measured); and the five that `runtime.ts` enqueues explicitly — undo,
+ * redo, set background, Start from preset (`applyShape`) and Edit dimensions'
+ * REPLACE-WITH-RECTANGLE path (`setFootprintFromDimensions`, taken for an unscaled drawing or no
+ * shape at all).
+ *
+ * Those five dispatched DIRECTLY until AD03, and the cost was never an overwrite: a press or key
+ * made while one of them was still awaiting its read-back read the OLD version and was refused as a
+ * version conflict. Refusing the user's own next gesture is a worse answer than sequencing it, and
+ * undo could begin before the write it was about had settled — so they wait their turn now.
+ *
+ * What may NOT join it is a step already running inside it: `editShape` writes through a second,
+ * UNQUEUED mapping of the same dispatcher for exactly that reason.
  *
  * `writing` and `settled` are the Select tool's two questions for a press (`DesignerSelectTool`'s
  * `hold`): is a write still queued, and when will every write queued so far have landed. `settled`

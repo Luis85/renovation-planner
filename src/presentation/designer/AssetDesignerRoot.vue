@@ -236,14 +236,22 @@ async function editDimensions(): Promise<void> {
 	const current = design.value;
 	const unscaled = current?.dimensionsUnscaled === true;
 	const dimensions = current?.dimensions ?? null;
+	// In the whole millimetres `DesignerInspector` shows, never a curve's irrational box.
+	const initial = dimensions !== null && !unscaled ? { width: Math.round(dimensions.width), depth: Math.round(dimensions.depth) } : null;
 	const result = await dialogs.openDialog({
 		kind: 'asset-dimensions',
 		title: tr('designer.dimensions.edit.title'),
-		// In the whole millimetres `DesignerInspector` shows, never a curve's irrational box.
-		...(dimensions !== null && !unscaled ? { initial: { width: Math.round(dimensions.width), depth: Math.round(dimensions.depth) } } : {}),
+		...(initial !== null ? { initial } : {}),
 		...(unscaled ? { warning: tr('designer.dimensions.unscaled') } : {}),
 	});
 	if (result === null) return;
+	// Typing back the numbers this form OFFERED is not an edit, so it dispatches nothing and pushes no
+	// undo entry (contract C03, and AD02's own acceptance criterion). Compared against `initial` rather
+	// than against the canonical extent on purpose: a footprint measuring 1200.4 is offered as 1200, and
+	// a user typing 1200 there means "leave it as it is" rather than "trim four tenths of a millimetre".
+	// The two states with no `initial` — no shape, and a footprint still in placeholder pixels — cannot
+	// reach this, which is right: there is nothing to have typed back.
+	if (initial !== null && result.width === initial.width && result.depth === initial.depth) return;
 	// A footprint in real millimetres is SCALED, whatever it is drawn as — a traced L-shape keeps its
 	// corners, and its anchor keeps whatever relationship to the shape the user gave it. The rectangle
 	// is for the two states where there is nothing to scale: no shape at all, and a footprint still in

@@ -422,28 +422,49 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 
 	// Both halves of SDD §65 — a THROWN fault and a RESOLVED refusal — bound straight to
 	// toolbar clicks, which discard the promise they are handed.
+	//
+	// **Every one of them is QUEUED on the leaf's chain** (AD03), which they were not until this
+	// task: undo, redo, Choose a drawing, Start from preset and the replace-with-a-rectangle half
+	// of Set dimensions each dispatched straight past it. Nothing was ever overwritten — a gesture
+	// made while one of them was still awaiting its read-back held the OLD version and was refused
+	// as a conflict — but a refusal of the user's own next press is a worse answer than making it
+	// wait, and undo could start before the write it was about had settled. Queued, the five
+	// compose with every gesture instead of racing them.
+	//
+	// `chain.enqueue` and not `toolDispatcher`: `toolDispatcher` maps `run` alone, and undo/redo
+	// are their own door on the dispatcher. None of the five is ever called from inside a queued
+	// step, so none of them can wait behind itself — the deadlock `editShape` avoids by writing
+	// through the UNQUEUED mapping.
 	async function undo(): Promise<void> {
-		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.undo()));
+		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, chain.enqueue(() => dispatcher.undo())));
 	}
 	async function redo(): Promise<void> {
-		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.redo()));
+		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, chain.enqueue(() => dispatcher.redo())));
 	}
 	async function setBackground(ref: DocumentRef): Promise<void> {
 		await notifyIfRefused(
 			reportDispatchFault(
 				context.logger,
 				DISPATCH_FAULT_EVENT,
-				dispatcher.run(edits.setBackground({ assetId, path: ref.path, kind: ref.kind, page: ref.page })),
+				chain.enqueue(() => dispatcher.run(edits.setBackground({ assetId, path: ref.path, kind: ref.kind, page: ref.page }))),
 			),
 		);
 	}
 	async function setFootprintFromDimensions(width: number, depth: number): Promise<void> {
 		await notifyIfRefused(
-			reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setFootprintFromDimensions({ assetId, width, depth }))),
+			reportDispatchFault(
+				context.logger,
+				DISPATCH_FAULT_EVENT,
+				chain.enqueue(() => dispatcher.run(edits.setFootprintFromDimensions({ assetId, width, depth }))),
+			),
 		);
 	}
 	async function applyShape(shape: AssetShape): Promise<void> {
-		const result = await reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setShape({ assetId, shape })));
+		const result = await reportDispatchFault(
+			context.logger,
+			DISPATCH_FAULT_EVENT,
+			chain.enqueue(() => dispatcher.run(edits.setShape({ assetId, shape }))),
+		);
 		await notifyIfRefused(Promise.resolve(result));
 		// A preset is centred on the origin at whatever size was typed, so it can land wholly outside
 		// the view it was applied from. A WRITTEN shape is framed as `Shift+1` frames it — the same

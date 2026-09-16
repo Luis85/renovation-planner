@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "reviewed_baseline": "d77e7c5eba5e6518b93a5be4606532ceab3a77eb",
+  "selected_baseline": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+  "contract": {
+    "status": "accepted",
+    "revision": "r1"
+  },
+  "tasks": {
+    "AD00": {
+      "status": "verified",
+      "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [
+        "reports/AD00-baseline.md",
+        "npm run build exit 0",
+        "npm run lint exit 0",
+        "npm run analyze exit 0"
+      ],
+      "blocker": null
+    },
+    "AD01": {
+      "status": "verified",
+      "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [
+        "contracts/DECISIONS.md revision r1",
+        "contracts/AD01-SCREEN-STATES.md",
+        "three conflicts ruled by the product owner"
+      ],
+      "blocker": null
+    },
+    "AD02": {
+      "status": "in_review",
+      "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [
+        "R05/R06 already shipped before this run (adec599f0, b9d014858, 2f8c84647, d253f727e)",
+        "no-op dimension edit guard + 2 cases, watched red"
+      ],
+      "blocker": null
+    },
+    "AD03": {
+      "status": "in_review",
+      "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [
+        "five bypassing write doors queued on the leaf chain",
+        "designerWriteChain.test.ts undo case, watched red"
+      ],
+      "blocker": null
+    },
+    "AD04": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD05": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD06": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD07": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD08": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD09": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD10": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD11": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD12": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD13": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD14": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD15": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD16": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    },
+    "AD17": {
+      "status": "planned",
+      "base_sha": null,
+      "candidate_sha": null,
+      "integrated_sha": null,
+      "evidence": [],
+      "blocker": null
+    }
+  }
+}

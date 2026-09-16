@@ -63,10 +63,10 @@ available again. Unlink removes the relationship, not the user's file.
 
 ## Existing vaults
 
-The combined editor reads Plan metadata through v6, Requirement metadata through v3 and
-geometry through v4. Writers use these versions only for their new content: generic element
-labels/shapes and element-length or object-area sources. Shared Work/Evidence contexts use
-Plan v5 when no generic labels require v6. Older payloads retain their earlier persisted
+The combined editor reads Plan metadata through v12, Requirement metadata through v5 and
+geometry through v16. A writer stamps a note or sidecar with the lowest of those versions its
+actual content needs, not the ceiling by default — Shared Work/Evidence contexts use Plan v5
+when no generic labels require v6. Older payloads retain their earlier persisted
 versions; opening a Plan does not bulk-rewrite the vault. Unsupported future versions are
 refused, and unrelated human-written note content is preserved. Use a build that understands
 these formats before editing a vault containing the new element types.

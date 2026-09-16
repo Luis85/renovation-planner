@@ -85,10 +85,8 @@ export function shapeWithOpenGraphic(): AssetShape {
  * that can mint the brand — a literal cannot be an `OpenDetail`, which is the access lock working
  * rather than an inconvenience.
  *
- * Not exported: its only caller is `shapeWithOpenGraphic` above. A case that needs a curved or a
- * differently-shaped one exports it then, with that case.
  */
-function openGraphic(id: string, points: readonly Point[], bulges?: readonly number[]): AssetDetail {
+export function openGraphic(id: string, points: readonly Point[], bulges?: readonly number[]): AssetDetail {
 	const outline = expectOk(createCurvedPath({ points: [...points], ...(bulges === undefined ? {} : { bulges: [...bulges] }) }));
 	return { id, name: id, kind: 'open', line: 'solid', pending: false, outline };
 }

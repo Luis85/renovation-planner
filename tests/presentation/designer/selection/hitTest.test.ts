@@ -5,7 +5,9 @@ import { rect } from '../../../../src/domain/asset/presets/presetGeometry';
 import { facingTip } from '../../../../src/presentation/designer/layers/anchorLayer';
 import type { DesignerSelection, SelectionMode } from '../../../../src/presentation/designer/selection/designerSelection';
 import { hitDesign, type DesignerHit } from '../../../../src/presentation/designer/selection/hitTest';
-import { shapeWithOpenGraphic, toiletShape } from '../../../helpers/assetShapes';
+import { editableShape, openGraphic, shapeWithOpenGraphic, toiletShape } from '../../../helpers/assetShapes';
+import { validateAssetShape } from '../../../../src/domain/asset/AssetShape';
+import { expectOk } from '../../../helpers/domain';
 
 /**
  * Spec 2026-09-13 Decision 10's hit order, as a table over one toilet at one millimetre per screen
@@ -98,4 +100,15 @@ describe('hitting an open graphic', () => {
 	it('does not take a press inside the area its points would enclose if it closed', () => {
 		expect(hit({ x: -100, y: -150 })).not.toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-3' } });
 	});
+});
+
+/**
+ * A doubled vertex is a zero-length segment, and `createCurvedPath` admits one deliberately — a
+ * trace produces them routinely. The distance rule has to answer about the POINT there rather than
+ * dividing by a length of nothing.
+ */
+it('hits an open graphic that carries a doubled vertex', () => {
+	const shape = expectOk(validateAssetShape({ ...editableShape(), details: [openGraphic('detail-9', [{ x: -400, y: -250 }, { x: -400, y: -250 }, { x: -200, y: -250 }])] }));
+	const hit = hitDesign(shape, { x: -400, y: -250 }, { selection: null, mode: 'transform', worldPerPixel: 1 });
+	expect(hit).toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-9' } });
 });

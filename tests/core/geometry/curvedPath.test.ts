@@ -115,3 +115,14 @@ describe('pathPolyline', () => {
 		expect(flat.length).toBeGreaterThan(3);
 	});
 });
+
+/**
+ * `pathPolyline` takes the UNVALIDATED input type, so a caller can hand it a bulge array shorter
+ * than its segments — a mid-gesture buffer is exactly that. The missing entry reads as a straight
+ * edge rather than throwing, which is `polygonPolyline`'s own answer to the same input.
+ */
+it('treats a segment with no bulge of its own as straight', () => {
+	const flat = pathPolyline({ points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }], bulges: [0.5] });
+	expect(flat.at(-1)).toEqual({ x: 100, y: 100 });
+	expect(flat).toContainEqual({ x: 100, y: 0 });
+});

@@ -11,7 +11,8 @@ import { assetSidecarPathFor } from '../../../../src/infrastructure/obsidian/rep
 import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import type { AssetGeometryDocument } from '../../../../src/application/ports/AssetGeometrySidecar';
 import type { CurvedPolygon } from '../../../../src/core/geometry/CurvedPolygon';
-import { shapeFromDimensions, type AssetShape } from '../../../../src/domain/asset/AssetShape';
+import { validateAssetShape, shapeFromDimensions, type AssetShape } from '../../../../src/domain/asset/AssetShape';
+import { openGraphic } from '../../../helpers/assetShapes';
 
 const seeded = () => {
 	const stack = createRepositoryStack();
@@ -96,5 +97,45 @@ describe('asset geometry sidecar, schema version 2', () => {
 		stack.vault.entries.set(path, rawDocument(assetId, { schemaVersion: 2, shape }));
 
 		expect(expectErr(await sidecar.read(assetId))).toMatchObject({ category: 'Validation', code: 'asset-geometry.schema-invalid' });
+	});
+});
+
+/**
+ * AD04's own fields across the storage boundary: an OPEN graphic, a user label on it and on a
+ * group, and the group itself. Every one of them is a mapper arm that no other case reaches — and
+ * the round trip is the only instrument that can say a field survives BOTH directions, since a
+ * write that drops it and a read that invents it look identical from either side alone.
+ */
+describe('schema version 3 fields', () => {
+	it('round-trips an open graphic, its label and its group', async () => {
+		const { sidecar, assetId, stack, path } = seeded();
+		const base = symbol();
+		const shape = expectOk(
+			validateAssetShape({
+				...base,
+				details: [...base.details, openGraphic('detail-3', [{ x: -100, y: -100 }, { x: 100, y: -100 }, { x: 100, y: 100 }])],
+				groups: [{ id: 'group-1', label: 'Front', members: ['detail-1', 'detail-3'] }],
+			}),
+		);
+
+		expectOk(await sidecar.write(assetId, { calibration: null, shape }));
+		const read = expectOk(await sidecar.read(assetId));
+
+		expect(read.document.shape).toEqual(shape);
+		const stored = JSON.parse(stack.vault.entries.get(path) ?? '{}');
+		expect(stored.schemaVersion).toBe(3);
+		expect(stored.shape.details[2]).toMatchObject({ kind: 'open' });
+		expect(stored.shape.groups).toEqual([{ id: 'group-1', label: 'Front', members: ['detail-1', 'detail-3'] }]);
+	});
+
+	/** A graphic's own label, which rides on the detail rather than on the group. */
+	it('round-trips a label on a graphic', async () => {
+		const { sidecar, assetId } = seeded();
+		const base = symbol();
+		const shape = expectOk(validateAssetShape({ ...base, details: [{ ...base.details[0], label: 'Lid' }, base.details[1]] }));
+
+		expectOk(await sidecar.write(assetId, { calibration: null, shape }));
+
+		expect(expectOk(await sidecar.read(assetId)).document.shape?.details[0]).toMatchObject({ name: 'top', label: 'Lid' });
 	});
 });

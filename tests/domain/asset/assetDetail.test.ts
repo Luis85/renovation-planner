@@ -3,6 +3,8 @@ import type { CurvedPolygon } from '../../../src/core/geometry/CurvedPolygon';
 import type { AssetDetail } from '../../../src/domain/asset/AssetDetail';
 import { dimensionsOf, shapeFromDimensions, validateAssetShape, type AssetShape } from '../../../src/domain/asset/AssetShape';
 import { expectErr, expectOk } from '../../helpers/domain';
+import { scaleDesign } from '../../../src/domain/asset/shapeEdits';
+import { OPEN_POINTS, shapeWithOpenGraphic } from '../../helpers/assetShapes';
 
 /**
  * Spec 2026-09-13 Decisions 1–4: details are curved outlines, validated like a footprint, and the
@@ -140,5 +142,25 @@ describe('open graphics, labels and groups (AD04)', () => {
 	it('refuses a group naming a graphic whose own geometry was refused', () => {
 		const broken = { ...base(), details: [{ ...detail('a', { points: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] }) }], groups: [{ id: 'group-1', members: ['a'] }] };
 		expect(expectErr(validateAssetShape(broken as AssetShape)).code).toBe('asset.degenerate-detail');
+	});
+});
+
+/**
+ * The arms AD04's and AD05's own helpers take for an OPEN graphic, which nothing else in the suite
+ * reaches: a whole-object scale, a bounding box over a path, and a label and a group surviving the
+ * domain validator.
+ */
+describe('an open graphic through the shape operations', () => {
+	it('scales with everything else, and stays open', () => {
+		const scaled = expectOk(scaleDesign(shapeWithOpenGraphic(), 2, 2));
+		const open = scaled.details[2];
+		expect(open.kind).toBe('open');
+		expect(open.outline.points).toEqual(OPEN_POINTS.map((point) => ({ x: point.x * 2, y: point.y * 2 })));
+	});
+
+	it('carries a label on a group as well as on a graphic', () => {
+		const withOpen = shapeWithOpenGraphic();
+		const grouped = expectOk(validateAssetShape({ ...withOpen, groups: [{ id: 'group-1', label: 'Front', members: ['detail-1', 'detail-3'] }] }));
+		expect(grouped.groups).toEqual([{ id: 'group-1', label: 'Front', members: ['detail-1', 'detail-3'] }]);
 	});
 });

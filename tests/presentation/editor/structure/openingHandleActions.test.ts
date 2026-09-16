@@ -25,10 +25,17 @@ const skylight: Opening = { id: 'opening-b', kind: 'window', hostId: wall.id, of
 const structure: Structure = { walls: [wall], openings: [door, skylight], boundaries: [] };
 const snapshot = { document: { objects: [], structure, calibration: null } } as never;
 
+// The store is a frame AHEAD of the read baseline above — an optimistic preview a drag already
+// drew, which `applyOpening` must not read the opening or host FROM: it sources both from the
+// baseline `snapshot` alone. Same id, a visibly different offset, so a regression to reading
+// `project.structure` instead of the baseline is falsifiable rather than coincidentally identical.
+const storeDoor: Opening = { ...door, offset: 2000 };
+const storeStructure: Structure = { walls: [wall], openings: [storeDoor, skylight], boundaries: [] };
+
 beforeEach(() => {
 	setActivePinia(createPinia());
 	// `previewOpening` builds its ghost from the STORE's structure, so the store has to hold one.
-	useProjectStore().structure = structure;
+	useProjectStore().structure = storeStructure;
 });
 
 function harness(overrides: Partial<Parameters<typeof createOpeningHandleActions>[1]> = {},
@@ -59,6 +66,8 @@ it('transforms the BASELINE opening, never the one the store is showing', async 
 	const seen: Opening[] = [];
 	await actions.applyOpening('opening-a', opening => { seen.push(opening); return { ...opening, offset: 0 }; });
 	expect(seen[0]).toEqual(door);
+	// The store's door sits at 2000; seeing 800 here is what rules out a read from `project.structure`.
+	expect(seen[0].offset).toBe(800);
 });
 
 it('dispatches nothing when the transform refuses, when the opening is gone, or when its host is', async () => {

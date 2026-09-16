@@ -8,17 +8,17 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 |---|---|
 | Handoff baseline | `d77e7c5eba5e6518b93a5be4606532ceab3a77eb` |
 | Upstream reconciled | `main` advanced 14 commits to `f3a8864a9` (asset-designer consolidation, plan deletion) and was **merged** into this branch, not rebased — every review and ledger entry references this work by commit SHA. Zero file overlap; no conflict resolved by hand. |
-| Current working revision / branch | `d77e7c5eb` (identical to the handoff baseline) on branch `renovation-planner-beta-handoff-e80bb5`; session work commits on top |
+| Current working revision / branch | `f05d5d62f` on branch `renovation-planner-beta-handoff-e80bb5`. Nothing pushed; no pull request opened. Three sessions of work sit on top of the handoff baseline `d77e7c5eb` and the merged upstream `f3a8864a9`. |
 | Worktree and dirty files | Worktree `.claude/worktrees/renovation-planner-beta-handoff-e80bb5`. Clean at session start. 95 other worktrees exist under `.worktrees/` and `D:/codex-worktrees/`; none was touched, reset, cleaned, or stashed. |
 | Responsible integrator | Unassigned — no human integrator has accepted this work. |
 | Selected beta scope / platforms | Unchanged from the handoff proposal: current editor capabilities, desktop editing, mobile read-only. Not yet confirmed by an owner. |
 | Existing backlog mapping | BP-01 maps to an existing recorded repository decision (increment-history ruling R1) rather than to a new backlog item. The remaining BP identifiers are unmapped. |
-| Baseline full gates | `npm run check` NOT run this session (~200 s, contends with parallel work; CI runs it on the pull request). Scoped baseline measured instead and recorded below. |
+| Baseline full gates | `npm run check` is **RED, and not because of this work** — its `analyze` leg fails on `origin/main` itself. See limitation **L-04**, which carries the measurement. Its other three legs are green: `npm run build` 0, `npx eslint .` 0, and one clean uncontended `npm run test:coverage` at 1023 files / 11025 tests with thresholds met. |
 | Candidate source and bundle hashes | Not created. No production build was made. |
 | Native acceptance | Not performed. No Obsidian was run. |
 | Publication authorization | Not granted. |
 | Next executable action | Recorded at the end of the session log below. |
-| Reviews performed | BP-01 task review, two scoped re-reviews, a final whole-branch review and one scoped re-review of its fix wave. All independent subagent seats; each re-ran tests itself rather than accepting a report. |
+| Reviews performed | Across three sessions. Session 3 alone: five task reviews, six scoped re-reviews and a final whole-session review, every one an independent subagent seat instructed to re-run the instruments rather than accept a report. Three of its five task reviews returned spec ❌, and two findings were real defects rather than wording — an unbounded re-seed of the incident registry on every settings save, and a module global released without checking it was still the one that load claimed. |
 
 ## Package register
 
@@ -28,7 +28,7 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 |---|---|---|---|---|---|---|---|
 | BP-00 | Reconcile baseline and ownership | P0 | None | Discovery | **Complete** | This session / unmapped | Five discovery lanes; every finding classified below. Scoped baseline green. |
 | BP-01 | Preserve recovery incidents across remounts | P0 | BP-00 | Confirmed defect | **Complete** | This session / increment-history ruling R1 | Fixed at `67f5acf9c`, narrowed at `41d803611` and `2af92f8fd`; task review clean. Second-pane gating deferred to BP-02 — limitation L-01 — so BP-01's own acceptance set is not met in full. |
-| BP-02 | Durable incident detection and recovery | P0 | BP-01 | Safety hardening | **In progress — slice 1 of 4 complete** | This session / ADR-0019 requires a decision record for slice 2 | Discovery resolved the package's opening conflict: durable detection is **outside** the recorded refusal. Slice 1 (silent compensation paths now stamp) is at `81f627b53..beda98597`. Slices 2–4 below. |
+| BP-02 | Durable incident detection and recovery | P0 | BP-01 | Safety hardening | **In progress — slices 1 and 2 of 4 complete** | This session / ADR-0019 requires a decision record for slice 2 | Discovery resolved the package's opening conflict: durable detection is **outside** the recorded refusal. Slice 1 (silent compensation paths now stamp) is at `81f627b53..beda98597`. Slice 2 — ADR-0034, affected-entity identity, the durable record and the coarse gate — is at `4599a388e..f05d5d62f` and closes L-02. Slices 3–4 below. |
 | BP-03 | Protect drafts and in-flight commands | P0/P1 | BP-01; final after BP-02 | Verification | Not started | Unassigned / unmapped | — |
 | BP-04 | Precise non-drag corner editing | P1 | BP-00; integrate after BP-03 | Interaction addition | Not started | Unassigned / unmapped | — |
 | BP-05 | Selection, transform, cancel and history | P1 | BP-03; coordinate BP-04 | Verification/polish | Not started | Unassigned / unmapped | — |
@@ -85,9 +85,9 @@ rings.
 | Slice | What it does | State |
 |---|---|---|
 | 1 | The silent compensation paths stamp | **Complete** — `81f627b53..beda98597` |
-| 2 | Affected-entity-id identity on the stamp, a durable store, and the gate widening | Not started; needs the decision record ADR-0019 asks for |
+| 2 | Affected-entity-id identity on the stamp, a durable store, and the gate widening | **Complete** — `4599a388e..f05d5d62f`. ADR-0034 is the decision record ADR-0019 asked for. |
 | 3 | A future-version recovery marker must read as *unknown*, not as healthy absence | Not started; a bug against SDD §87 rule 8, not a new design claim |
-| 4 | L-01's second pane, and the designer's hard-coded `writesBlocked: () => false` | Not started; falls out of slice 2 |
+| 4 | L-01's second pane, the designer's hard-coded `writesBlocked: () => false`, and now L-05's two unguarded editor commands | Not started; its scope GREW during slice 2 |
 
 Slice 1 found all five census entries real and a sixth the census missed. It deliberately did
 **not** add a gate, and did not widen the stamp to carry entity ids — both are slice 2. Its
@@ -115,9 +115,12 @@ Record the decision-maker, date, affected scope, evidence, consequence, and revi
 | L-01 | **Limitation.** A second Plan Editor pane on the same plan is not gated by an open incident, before or after BP-01 | Deferred by this session | 2026-09-16 | Found during BP-00 lane A. Closing it needs the affected-identity model that BP-02 action 2 already owns. | Blocks the full BP-01 acceptance set. Must be closed or explicitly accepted by an owner before gate G1 passes. |
 | D-06 | An incident, once session-scoped, is cleared only by a plugin reload — not by closing and reopening the tab | Decided this session; **owner-reviewable, it has a real UX cost** | 2026-09-16 | Today's close-and-reopen reset is an accident of view-object lifetime, not a signal that anything was repaired, and it stops existing the moment the flag is session-scoped. The alternatives were an explicit user acknowledgement (contradicts recorded ruling R1) and an integrity-check signal (nothing here has one). | A user who has genuinely repaired their vault must restart to clear the warning. Conservative direction, and plan section 7 names the opposite — a false all-clear — as a no-go. **Revisit if slice 2 produces a real integrity signal.** Not yet implemented; it binds slice 4. |
 | D-07 | BP-02's durable marker is inside, not outside, this repository's recorded refusals | Established by discovery, not chosen | 2026-09-16 | Nine declinations, all naming an automatic replay-rollback journal; ADR-0019 preserves the sequence-marker mechanism and asks only for a decision record before extending it. | Unblocks slices 2–4. A decision record is still required before slice 2 integrates. |
-| L-02 | **Limitation.** Four of the six newly-stamped compensation paths raise an incident no surface reads | Accepted for slice 1 | 2026-09-16 | Plan create/delete and project create dispatch from views that do not call `withSaveStateTracking`; the Asset Library imports no save-state store at all. | Closed by slice 2. Until then a user may see a warning in the editor and none in the library for the same class of fault. |
+| L-02 | **Limitation, now CLOSED.** Four of the six newly-stamped compensation paths raised an incident no surface read | Accepted for slice 1; closed 2026-09-16 | 2026-09-16 | Plan create/delete and project create dispatch from views that do not call `withSaveStateTracking`; the Asset Library imports no save-state store at all. | **Closed at `4599a388e..f05d5d62f`.** The gate now sits in `guardCommand`, through which every guarded command passes, so a stamp no longer needs a per-surface reader: an open incident refuses the next guarded command whatever surface dispatched it, and the diagnostics report names every open incident. |
 | L-03 | **Limitation.** Neither gesture that produces two editor panes on one plan is simulable in this repository's test fakes | Established this session | 2026-09-16 | Two panes arise only from Obsidian's native `duplicateLeaf` (split, drag-to-split) and from restoring a saved layout — both bypass the plugin's own reveal logic, which dedupes by plan id. | Slice 4 cannot be driven end to end by the suite and needs a manual case, exactly as BP-01's restart claim did. |
 | Q-01 | **Open question.** Zone outline units are pinned to millimetres (ADR-009 / `WorldUnit`) but no origin convention for a zone outline is written in code or in the SDD | Raised this session | 2026-09-16 | BP-00 lane B. BP-04 action 2 requires the numeric form to state its coordinate system explicitly, which cannot be done until the origin is decided. | Blocks BP-04 from starting. Needs a recorded decision, not an inference from a form. |
+| L-04 | **Limitation.** `npm run check` cannot go green on this branch, and the cause is not this branch | Measured this session | 2026-09-16 | `npm run analyze` exits 1 with “dupes (4 clone groups), health (1 above threshold)”. Three clone groups are `scripts/editor-usability-combined-check.mjs` against `scripts/editor-usability-fidelity-check.mjs`, the fourth is an intra-file pair in `ObsidianPlanGeometrySidecar.ts`, and the health target is `renovationSummary.ts`. `git diff --name-only f3a8864a9..HEAD` over all four paths returns nothing — this branch has never touched one of them — and the last commit to touch each (`499303fc7`, `c444fa3c0`) is an ancestor of `origin/main`. `package.json` runs bare `npm run analyze` inside `check`. Dead files 0.0%, dead exports 0.0%. | **A red CI leg on this pull request must be read against this row before it is attributed to BP-02.** Clearing it is separate work on main's own duplication. |
+| L-05 | **Limitation.** Two Plan editor commands are not covered by the vault-wide gate | Found in review this session, deferred deliberately | 2026-09-16 | `EditZoneDetailsCommand` and `ReversibleRenameZoneCommand` are constructed unguarded against the raw repository at `inspector-wiring.ts:99` and `:101`, so `guardCommand` never sees them; `runtime.ts:607`'s `writesBlocked` is computed from project staleness or `unsafeHistory()`, and `unsafeHistory` reads the PER-LEAF Pinia flag rather than the vault-scoped registry. So an incident raised elsewhere leaves those two working. Every other editor write dispatches through the guarded services and IS refused. | Bound to slice 4, whose scope grew to include it. ADR-0034, the code comments and `docs/using-planning-recovery.md` all state it, and the guide names the two actions in user-facing words. |
+| D-08 | Nothing in the plugin retires a write incident — not a control, not a reload, not a later successful write | Decided this session, recorded in ADR-0034 | 2026-09-16 | Ruling R1 says the flag is set and never unset; two of the nine recorded declinations object specifically to a plugin-decided all-clear; and `docs/using-planning-recovery.md` already told users there is no “I have repaired this” control. Retirement is the user removing `write-incidents.json` after verifying against a backup, made discoverable by the diagnostics report. | **Deepens D-06 rather than easing it:** a reload used to clear a session-scoped incident and now does not, because the record outlives the process. Owner-reviewable, with a real cost to a user who has genuinely repaired their vault. |
 
 ## Native / hardware availability
 
@@ -270,6 +273,102 @@ production bundle was built.
 durable store, and the gate widening. It is the slice that needs the decision record ADR-0019's
 own refusal asks for, and it closes L-02. Take its scope from the lane reports, and note that
 `relocateEvidence` (a partial-write path with no compensation at all) belongs in it.
+
+### Session 3 — 2026-09-16 — BP-02 slice 2
+
+**Revision and branch:** started at `330a4d554` on `renovation-planner-beta-handoff-e80bb5`, tree
+clean. `git fetch origin main` then `git rev-list --count HEAD..origin/main` returned **0**, so
+`origin/main` had not moved since session 2's merge and no merge was needed. Ends at `f05d5d62f`,
+eleven commits, nothing pushed.
+
+**Package:** BP-02 slice 2 — the decision record, affected-entity identity on the stamp, a durable
+store, and the gate. It closes L-02 and absorbs `relocateEvidence`.
+
+**Files changed:** 60 files, 2764 insertions, 124 deletions. New production modules:
+`src/application/incidents/WriteIncident.ts` and `WriteIncidentRegistry.ts`,
+`src/application/ports/WriteIncidentStore.ts`,
+`src/infrastructure/obsidian/plugin-data/WriteIncidentFileStore.ts`, `src/plugin/sessionStores.ts`,
+`src/plugin/diagnostics/DiagnosticsReportModal.ts`, `styles/diagnostics.css`, and an `en`/`de`
+`writeIncident` locale pair. Amended: `DispatchOutcome.ts` and its raise sites,
+`guardAgainstThrowing.ts`, `GetDiagnosticsSnapshot.ts`, `relocateEvidence.ts`, `evidenceRename.ts`,
+`guardedServices.ts`, `RenovationPlannerPlugin.ts`, three Obsidian repositories, `noteEntityWrite.ts`,
+both `deleteResolution` modules, plus `docs/development/adrs/0034-…md` and
+`docs/using-planning-recovery.md`. Commits `4599a388e`, `0138b8834`, `616deaed1`, `316e86a86`,
+`4b0af3f03`, `e6afb4de2`, `ae4ae7088`, `554d84556`, `f3a5d4f4d`, `f7f457a1a`, `f05d5d62f`.
+
+| Command / test | Source | Exit / outcome | Evidence |
+|---|---|---|---|
+| `npx eslint .` | every task and every re-review | **0, no output** | run independently by me and by five separate reviewer seats |
+| `npx vue-tsc -noEmit` | `316e86a86`, `4b0af3f03`, `f05d5d62f` | 0 | proves the refusal needed no signature change at any guarded call site |
+| `npm run build` | `4b0af3f03` | 0 | implementer |
+| `npm run test:coverage` (clean, uncontended) | `4b0af3f03` | 0 — 1023 files / 11025 tests, thresholds met | implementer; the only full-suite run of the session |
+| `npm run check:fast -- tests/plugin tests/application tests/infrastructure/obsidian/plugin-data` | `e6afb4de2` | 0 — 58 files / 475 tests | scoped re-review |
+| `npx vitest run tests/plugin tests/application tests/infrastructure/obsidian/repositories` | `554d84556` | 0 — 232 files / 2600 tests | implementer |
+| `npm run analyze` | `4b0af3f03` | **1 — pre-existing, see L-04** | run by me, and classified by reading the failure's content rather than by trusting a baseline |
+
+**Reviews performed:** five task reviews and six scoped re-reviews, every one an independent
+subagent seat that re-ran the instruments rather than accepting a report. Three of the five task
+reviews returned spec ❌. A final whole-session review was dispatched over all eleven commits.
+
+**What was decided, and the decision record.** ADR-0034 — *A write incident is durable and
+vault-scoped* — is the record ADR-0019's own refusal asked for, and it is the non-silent extension
+that refusal names as the way through. It fixes what an incident IS, that its affected-entity set is
+**best effort and knowingly incomplete**, that the application layer owns it, that it persists to its
+own plugin-local file rather than into `sequence-markers.json`, that **nothing in the plugin retires
+it**, which command families it covers, and that the gate is **coarse by decision**. It refuses, out
+loud: automatic replay, a rollback journal, a plugin-decided all-clear, a pre-write marker for the
+families that lack one, and storing any content.
+
+**The census premise the plan rested on is FALSE, and it is what shaped the slice.** The handoff said
+every producer has its affected ids in scope at the raise site. Measured per site: three did not.
+`ObsidianZoneRepository.ts:370` dropped the plan id in an under-parameterized helper while its
+sibling `delete()` bound it correctly inline in the same class; `deleteResolution.ts:499` left the
+requirement ids reachable but unbound outside the loop; and `undoDeleteResolution.ts:131` cannot
+reach them at all, its rollback list being zero-argument closures. The first two were threaded in
+this slice; the third is recorded as a stated limit. **This is why the gate is coarse rather than
+intersection-keyed**: a gate built on a knowingly incomplete id set would let a write land on an
+entity that IS inconsistent while presenting as precise. The second measurement agrees — eleven
+sampled command input types use five different id field names and creation commands carry a
+parent's id, so no affected set can be derived generically at the wrapper.
+
+**Actually observed behaviour.** A half-written vault now raises an incident that outlives the tab,
+the settings save, the plugin reload and the application. The next guarded command is refused with a
+coded, localised message; guarded queries still run, so the vault stays inspectable. The diagnostics
+report names the open incidents and the file that retires them. Every one of those is driven by
+tests against the real modules — the gate test asserts the refused command's `execute` was never
+CALLED rather than only that an error came back, and the `relocateEvidence` non-stamping arm asserts
+a byte-identical refusal, which is the only shape that catches an over-report now that a stamp is a
+vault-wide block.
+
+**Three fakes were found thinner or harsher than the real thing, none by a gate.** A test vault
+adapter answered `exists` true for every path with no `read` — "present and unreadable" where a real
+vault says "absent" — and had been silently logging a failed recovery read on every plugin load,
+invisible because that path only logs. A `PluginCommandHost` cast hid a snapshot literal missing a
+required field that the real renderer threw on. A third is recorded in the session ledger. They are
+further instances of CLAUDE.md's fake rule, whose numbered record lives in the increment history.
+
+**Implemented but NOT verified.** Nothing in this slice was exercised in a real vault. Every failure
+arm is driven through injected failures on in-memory fakes, and whether the real Obsidian
+`DataAdapter` produces these shapes in these sequences is unchecked. Specifically unverified: that
+the incidents file is written where `manifest.dir` actually resolves in a running vault; what
+happens if the user deletes that file while the plugin is running; the behaviour with two Obsidian
+windows on one vault; and whether the diagnostics modal renders legibly. The German copy was checked
+against its English rows by reading and by the register gate, not by a native speaker.
+
+**Native/device checks not performed:** all of them. No Obsidian was launched, no production bundle
+was built, no device and no screen reader was used.
+
+**New limitations:** L-04 and L-05, both in the table above. L-02 is closed.
+
+**One next executable action:** **BP-02 slice 3** — a recovery marker whose schema version this
+build does not recognise must read as *unknown* rather than as healthy absence.
+`SequenceMarkerFileStore.readEnvelope`'s check is bare equality and therefore direction-blind: a
+HIGHER version is discarded exactly like a lower one, with a log line, and `list()` never returns
+it. That is a defect against SDD §87 rules 7 and 8. **The pattern to copy already exists in this
+branch** — `WriteIncidentFileStore` deliberately treats an unrecognised record as an open incident,
+never dropped and never rewritten, and its docblock states why it differs from its sibling. Slice 4
+follows, and its scope has GROWN: it now owns L-05 as well as L-01 and the designer's hard-coded
+`writesBlocked: () => false`.
 
 ---
 

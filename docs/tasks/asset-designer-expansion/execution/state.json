@@ -95,17 +95,16 @@
       "blocker": null
     },
     "AD08": {
-      "status": "in_review",
+      "status": "integrated",
       "base_sha": "e3a9ecc6b",
-      "candidate_sha": null,
-      "integrated_sha": null,
+      "candidate_sha": "26e68b589",
+      "integrated_sha": "116c7ced0",
       "evidence": [
-        "a selected SET with a derived primary, pruned per member across a refresh",
-        "Shift-press and a sticky mode both extend; an additive press starts no drag",
-        "the Inspector counts the selection and carries the mode control",
-        "every case watched red; vue-tsc 0, oxlint 0, analyze 0, 45 files / 590 cases"
+        "a selected set with a derived primary, pruned per member",
+        "Shift-press and a sticky mode, both watched red",
+        "reports/RESUME.md"
       ],
-      "blocker": "Marquee selection, the overlap chooser and per-part locks are NOT in this slice; they need the Parts panel (AD09) and a drag-on-empty-canvas gesture, and are carried as AD08 remainder"
+      "blocker": "PARTIAL: marquee, the overlap chooser and per-part locks need AD09 and a drag-on-empty-canvas gesture"
     },
     "AD09": {
       "status": "planned",
@@ -156,20 +155,20 @@
       "blocker": null
     },
     "AD15": {
-      "status": "planned",
+      "status": "blocked",
       "base_sha": null,
       "candidate_sha": null,
       "integrated_sha": null,
       "evidence": [],
-      "blocker": null
+      "blocker": "No Obsidian and no pinned Chromium in this environment. Runbook section 10: the beta may not be labelled ready from here."
     },
     "AD16": {
-      "status": "planned",
+      "status": "blocked",
       "base_sha": null,
       "candidate_sha": null,
       "integrated_sha": null,
       "evidence": [],
-      "blocker": null
+      "blocker": "No Obsidian and no pinned Chromium in this environment. Runbook section 10: the beta may not be labelled ready from here."
     },
     "AD17": {
       "status": "planned",

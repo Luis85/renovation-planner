@@ -47,8 +47,12 @@ Preconditions: `npm run test-build`, open this folder as a vault with the plugin
 8. Repeat step 2 against a curved wall. **Expect:** the handles sit on the arc, not on a straight
    chord between its ends.
 9. Switch to Renovate, then to Review. **Expect:** no handles draw in either perspective.
-10. Zoom far out. **Expect:** the step arrows disappear first; keep zooming out and everything but
-    the centre grip disappears too. Nothing overlaps at any zoom level in between.
+10. Select the curved wall's door from step 8 (re-select it if step 7's plain opening is still
+    selected), then zoom far out. **Expect:** the two step arrows disappear first, leaving five
+    handles. Keep zooming out and the two end circles disappear too, leaving the centre grip and
+    the two swing chevrons — the chevrons stay at every zoom, however narrow the opening gets.
+    Nothing overlaps at any zoom level in between. (On a plain opening, which has no chevrons, the
+    far-zoom state is the centre grip alone.)
 
 ## Runs
 

@@ -55,8 +55,10 @@ function chevrons(opening: Opening, host: Wall, worldPerPixel: number): readonly
 
 export function openingHandles(opening: Opening, host: Wall, worldPerPixel: number): readonly OpeningHandle[] {
 	const minimum = MIN_SEPARATION_PX * worldPerPixel;
+	// Each tier is gated on ITS OWN spacing: five marks sit width / 4 apart, the three edge-tier
+	// marks width / 2 apart (opening handles design, Amendment 2).
 	const marks = opening.width / 4 >= minimum ? CENTRE_LINE
-		: opening.width >= minimum ? CENTRE_LINE.filter(mark => EDGES.includes(mark.grip))
+		: opening.width / 2 >= minimum ? CENTRE_LINE.filter(mark => EDGES.includes(mark.grip))
 		: CENTRE_LINE.filter(mark => mark.grip === 'move');
 	return [
 		...marks.map(mark => ({ grip: mark.grip, point: alongWall(host, opening.offset + mark.fraction * opening.width) })),

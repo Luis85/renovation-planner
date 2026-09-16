@@ -50,7 +50,14 @@ it('drops the step arrows, then everything but the move grip, as the marks crowd
 	expect(grips(openingHandles(door, wall, 1200 / 4 / 16))).toContain('step-back');
 	expect(grips(openingHandles(door, wall, 1200 / 4 / 16 + 0.001))).not.toContain('step-back');
 	expect(grips(openingHandles(door, wall, 1200 / 4 / 16 + 0.001))).toEqual(['width-start', 'move', 'width-end', 'side-left', 'side-right']);
-	expect(grips(openingHandles(door, wall, 1200 / 16 + 0.001))).toEqual(['move', 'side-left', 'side-right']);
+});
+
+it('keeps the edge tier only while ITS OWN marks, half the width apart, clear the floor', () => {
+	// The edge tier draws width-start, move and width-end, so ITS adjacent marks are width / 2 apart —
+	// gating it on the whole width let two 7 px circles overlap for any opening 16–28 px wide on
+	// screen, and a press aimed at the centre start a resize, since `width-start` is found first.
+	expect(grips(openingHandles(door, wall, 1200 / 2 / 16))).toEqual(['width-start', 'move', 'width-end', 'side-left', 'side-right']);
+	expect(grips(openingHandles(door, wall, 1200 / 2 / 16 + 0.001))).toEqual(['move', 'side-left', 'side-right']);
 });
 
 it('draws no chevron for an opening with no leaf', () => {

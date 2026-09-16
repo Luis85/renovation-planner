@@ -41,4 +41,5 @@ path is the whole guarantee gone.
 ## Outcome
 
 Once a plan version is approved, nothing can change it, and what somebody quoted against can always be
-reproduced.
+reproduced — the plan's own geometry and every asset shape it referenced, which goes on changing in the
+shared catalogue after the approval.

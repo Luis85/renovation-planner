@@ -51,11 +51,13 @@ guarantee this epic exists for.
 **The epic's recoverability condition is open beneath this feature, and no item here ticks it.**
 The sidecar is a single mutable document: its revision identifies the latest write and retains no
 earlier state, so editing a footprint overwrites in place, which is the opposite of *recoverable
-rather than overwritten in place*. Nothing is lost today, and that is a fact rather than a
-defence — placement does not exist, so no plan references a shape, and [[Plan revisions]] does
-not exist to have approved one. The trigger is named so this cannot land quietly: the first
-increment that lets a placement reference a shape, or [[Plan revisions]] itself, whichever comes
-first, owes retained history before it ships.
+rather than overwritten in place*. A placement references the live shape, which is what the correct-it-once promise is for, and stays
+correct for as long as nothing can be frozen. The trigger is therefore [[Plan revisions]] rather
+than placement: an approved revision **snapshots** every shape it references, taken at approval
+from the state on screen, so no earlier state is owed before a plan can be approved. That decision
+was taken on 2026-09-16 (`docs/superpowers/specs/2026-09-16-asset-designer-consolidate-design.md`
+§2); a version pin would have needed history reaching back before the pin existed, which is the
+thing nothing here retained.
 
 # The designer surface
 

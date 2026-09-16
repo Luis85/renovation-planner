@@ -150,6 +150,7 @@ calibrated spec sheet.
 | 49 | `obsidian` | Untick Snap to objects, close the designer, open another asset's designer, then a Plan Editor | The second designer opens with the grid shown and Snap to objects unticked; the Plan Editor's View menu is unchanged | The designer's own device slot (`designer-view`), apart from the Plan Editor's |
 | 50 | `suite` | With the bowl selected in Transform, hold Shift and drag a side handle past the tank's edge | The bowl keeps its proportions, nothing snaps and no guide is drawn | Proportional resize taking the raw point |
 | 51 | `obsidian` | On an asset with a calibrated spec sheet, tick Show grid | The grid lines are visible over the drawing, not hidden behind it | The grid mounted above the stage — the harness refuses a background document, so no capture can show it |
+| 52 | `obsidian` | On an asset whose spec sheet is calibrated, trace an L-shaped footprint with no details, then Edit dimensions and type a new width | The outline keeps its six corners and its notch at the new overall size | The footprint replaced by a rectangle — the defect this row exists for |
 
 ## Deliberately NOT checked
 

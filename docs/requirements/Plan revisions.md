@@ -58,4 +58,10 @@ An item beneath this epic is done when:
 - The lifecycle is exactly §31's five states, ending at `as-built`, which is the joint with
   [[Existing state, planned change and as-built]].
 - Revision comparison is derived from the two revisions (§88) and stored nowhere.
+- An approved revision reproduces every **asset shape it referenced** — footprint, clearance
+  boundary, anchor, facing and height — and not the plan's own geometry alone. A placement stores a
+  reference to a shared definition that goes on being corrected, so a revision that snapshots the
+  plan sidecar and nothing else redraws, reorients and re-exports a drawing somebody approved. The
+  five attributes are named one at a time because an obligation written about *the geometry* reads
+  as the outline, and the other four move the drawing just as surely ([[Asset designer]]).
 - Revision metadata says who, when and — the part that becomes unrecoverable within a month — why.

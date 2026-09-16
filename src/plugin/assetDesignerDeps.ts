@@ -60,10 +60,11 @@ import type { CompositionRoot } from './composition-root';
 export function assetDesignerDeps(
 	root: CompositionRoot,
 	app: App,
-	options: { indexScanCompleted: () => boolean },
+	options: { indexScanCompleted: () => boolean; openLibrary: () => void },
 ): AssetDesignerDeps {
 	const persistence = root.persistence;
 	return {
+		openLibrary: options.openLibrary,
 		picker: new ObsidianBackgroundPicker(app),
 		// Obsidian's real `Vault`, passed straight in: `BackgroundVault` is a `Pick` of it, so
 		// there is nothing to adapt and nothing that can drift from the API.

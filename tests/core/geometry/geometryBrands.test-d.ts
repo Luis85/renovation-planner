@@ -19,7 +19,7 @@ declare const polygon: CurvedPolygon;
 
 // A path may not stand in for a closed boundary: `true` is not assignable to `undefined`.
 // @ts-expect-error an open path is not a closed boundary
-const asPolygon: CurvedPolygon = path;
+const _asPolygon: CurvedPolygon = path;
 
 // Nor may it reach a routine that closes one — the operation the brand exists to refuse.
 // @ts-expect-error `polygonPolyline` closes the ring it is given
@@ -27,17 +27,17 @@ polygonPolyline(path);
 
 // And a polygon may not stand in for a path either: it carries no proof of `createCurvedPath`.
 // @ts-expect-error a closed boundary has not been through the open path's validator
-const asPath: CurvedPath = polygon;
+const _asPath: CurvedPath = polygon;
 
 // A hand-built object cannot claim the brand: the symbol is a declared type, never a value.
 // @ts-expect-error nothing outside `createCurvedPath` can mint one
-const forged: CurvedPath = { points: [{ x: 0, y: 0 }, { x: 1, y: 0 }] };
+const _forged: CurvedPath = { points: [{ x: 0, y: 0 }, { x: 1, y: 0 }] };
 
 // What IS allowed: reading the shared fields off either, with no narrowing at all.
-const bothHavePoints: readonly { x: number; y: number }[] = ([polygon, path] as const)[0].points;
+const _bothHavePoints: readonly { x: number; y: number }[] = ([polygon, path] as const)[0].points;
 
 // And the constructor's own answer is a path.
 const made = createCurvedPath({ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }] });
-const fromConstructor: CurvedPath | null = made.ok ? made.value : null;
+const _fromConstructor: CurvedPath | null = made.ok ? made.value : null;
 
-export type Pinned = [typeof asPolygon, typeof asPath, typeof forged, typeof bothHavePoints, typeof fromConstructor];
+export type Pinned = [typeof _asPolygon, typeof _asPath, typeof _forged, typeof _bothHavePoints, typeof _fromConstructor];

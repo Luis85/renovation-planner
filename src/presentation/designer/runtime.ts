@@ -1,6 +1,6 @@
 import { inject, onBeforeUnmount, provide, reactive, ref, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { SessionWriteLedger } from '../../application/editor/WriteLedger';
+import { SessionWriteLedger, type WriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { AssetShape } from '../../domain/asset/AssetShape';
@@ -279,16 +279,85 @@ function detailDeps(store: ReturnType<typeof useAssetDesignStore>): Pick<Designe
 	};
 }
 
-function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
-	const store = useAssetDesignStore();
-	const history = new CommandHistory();
+/**
+ * This leaf's write machinery in one call: its TWO ledgers, the reversible adapters over them, the
+ * serial chain and its two doors, and the sticky select-multiple mode.
+ *
+ * Extracted for `buildRuntime`'s 100-line budget, which AD08's mode pushed it over — and the five
+ * belong together anyway: every one of them is per-LEAF state, which is exactly what may not be
+ * shared between two designer leaves editing two assets.
+ */
+function writingFor(
+	context: AssetDesignerContext,
+	store: ReturnType<typeof useAssetDesignStore>,
+	dispatcher: RefreshedHistory,
+	assetId: AssetId,
+): ReturnType<typeof designWrites> & {
+	readonly edits: ReversibleAssetDesignCommands;
+	readonly geometryLedger: WriteLedger;
+	readonly multiSelectionMode: Ref<boolean>;
+} {
+	// TWO ledgers, because an asset is two resources under one id — `ReversibleAssetDesignDeps`
+	// states the whole argument, and one ledger has the note's revision presented to the sidecar.
+	const noteLedger = new SessionWriteLedger();
+	const geometryLedger = new SessionWriteLedger();
+	const edits: ReversibleAssetDesignCommands = context.commands.designEdits({ noteLedger, geometryLedger });
+	return {
+		edits,
+		geometryLedger,
+		multiSelectionMode: ref(false),
+		...designWrites(dispatcher, context.logger, store, (shape, expected) => edits.setShape({ assetId, shape, expected })),
+	};
+}
 
-	/**
-	 * `indexScanCompleted` is read PER CALL and never captured. It starts false in every
-	 * session and turns true once, when `onLayoutReady` has run the vault scan — so a runtime
-	 * that snapshotted it at mount would hold `false` for the life of a restored leaf and go on
-	 * declining to believe an authoritative miss forever.
-	 */
+/**
+ * The leaf's dispatcher, decorated in the order the two decorators require.
+ *
+ * `withSaveStateTracking` sits OUTSIDE the refresh decorator, so `Saved` never appears while the
+ * canvas still shows the pre-command state, and INSIDE `wrapDispatcher`, which is the one object a
+ * leaf hands out. Extracted for `buildRuntime`'s 100-line budget; the order is the behaviour and is
+ * why the three lines stay together rather than being inlined at the call.
+ */
+function dispatchingFor(history: CommandHistory, refresh: () => Promise<void>): ReturnType<typeof wrapDispatcher> {
+	return wrapDispatcher(history, withSaveStateTracking(withStateRefresh(history, refresh), useSaveStateStore()));
+}
+
+/**
+ * The stores and camera adapters this leaf's tools see.
+ *
+ * Resolved during SETUP and closed over, never inside the context factory: a Pinia store may not be
+ * touched without an active instance, and that factory runs from a toolbar click long after `setup`
+ * has returned. The camera adapter is the SAME function the Plan Editor's runtime binds
+ * (`editor/viewport/editorViewportAdapter.ts`) rather than a second copy of five identical members,
+ * and the snap service reads this leaf's own Snap choice at every call — the grid reaches it only
+ * while this leaf's grid is SHOWN (snapping spec §2.4).
+ *
+ * Extracted for `buildRuntime`'s 100-line budget.
+ */
+function leafStores(): {
+	readonly editor: ReturnType<typeof useEditorStore>;
+	readonly selection: ReturnType<typeof useSelectionStore>;
+	readonly workspace: ReturnType<typeof useWorkspaceStore>;
+	readonly viewportAdapter: ReturnType<typeof editorViewportAdapter>;
+	readonly snapService: ReturnType<typeof createEditorSnapService>;
+} {
+	const editor = useEditorStore();
+	return {
+		editor,
+		selection: useSelectionStore(),
+		workspace: useWorkspaceStore(),
+		viewportAdapter: editorViewportAdapter(editor),
+		snapService: createEditorSnapService(() => editor.snappingEnabled),
+	};
+}
+
+/**
+ * This leaf's two READ doors, extracted for `buildRuntime`'s 100-line budget.
+ *
+ * `indexScanCompleted` is read PER CALL and never captured. It starts false in every
+ * session and turns true once, when `onLayoutReady` has run the vault scan — so a runtime
+ * that snapshotted it at mount would hold `false` for the life of a restored leaf and go on
+ * declining to believe an authoritative miss forever.
 	const read = (keepPreviousOnFailure: boolean): Promise<void> =>
 		store.hydrate(context.queries, context.assetId, {
 			indexScanCompleted: context.indexScanCompleted(),
@@ -296,40 +365,47 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		});
 
 	const hydrate = (): Promise<void> => read(false);
-
 	/**
-	 * The two doors are the SPLIT, named rather than spelled as a boolean at each call site:
-	 * a refresh keeps what is on screen when its read fails, a hydration has nothing to keep.
-	 * The same split `ProjectStore` draws, and the reason is that a refresh runs over content
-	 * the vault already holds — blanking the canvas would replace "possibly stale" with
-	 * definitely nothing.
+ * The two doors are the SPLIT, named rather than spelled as a boolean at each call site:
+ * a refresh keeps what is on screen when its read fails, a hydration has nothing to keep.
+ * The same split `ProjectStore` draws, and the reason is that a refresh runs over content
+ * the vault already holds — blanking the canvas would replace "possibly stale" with
+ * definitely nothing.
 	 *
-	 * **`refresh` has TWO callers, and the second is why this is a named door.** The
-	 * post-command read-back is the obvious one; the cross-leaf subscription below is the one
-	 * that took `hydrate` and should not have. Whether WE made the write or a peer leaf did is
-	 * not a difference the user's canvas can tell, so a transient failure re-reading after a
-	 * peer's edit blanked a valid design and put the failure panel over it. A flag at each call
-	 * site is a rule somebody has to remember at a third door; a named function is not.
+ * **`refresh` has TWO callers, and the second is why this is a named door.** The
+ * post-command read-back is the obvious one; the cross-leaf subscription below is the one
+ * that took `hydrate` and should not have. Whether WE made the write or a peer leaf did is
+ * not a difference the user's canvas can tell, so a transient failure re-reading after a
+ * peer's edit blanked a valid design and put the failure panel over it. A flag at each call
+ * site is a rule somebody has to remember at a third door; a named function is not.
 	 *
-	 * **What it cannot suppress**, in the two places `AssetDesignStore.hydrate` bounds it. A leaf
-	 * with nothing on screen: the keep-previous arm is guarded on `status === 'ready'`, so the
-	 * `ProjectIndexRebuilt` arm of `createAssetDesignChangeSource` — which reaches a leaf
-	 * restored before the scan ran, and therefore not ready — falls through to `fail` exactly as
-	 * it did before. And a read that ANSWERED rather than failed: an authoritative
-	 * `asset.not-found` blanks, because the argument for keeping is "over data the vault has"
-	 * and a deleted note is the case where it has none. That second bound was NARROWED by this
-	 * change rather than merely inherited — `assetDesignerWiring.test.ts`'s design-change case
-	 * is what found it, by using a deleted asset as its observable.
-	 */
-	const refresh = (): Promise<void> => read(true);
+ * **What it cannot suppress**, in the two places `AssetDesignStore.hydrate` bounds it. A leaf
+ * with nothing on screen: the keep-previous arm is guarded on `status === 'ready'`, so the
+ * `ProjectIndexRebuilt` arm of `createAssetDesignChangeSource` — which reaches a leaf
+ * restored before the scan ran, and therefore not ready — falls through to `fail` exactly as
+ * it did before. And a read that ANSWERED rather than failed: an authoritative
+ * `asset.not-found` blanks, because the argument for keeping is "over data the vault has"
+ * and a deleted note is the case where it has none. That second bound was NARROWED by this
+ * change rather than merely inherited — `assetDesignerWiring.test.ts`'s design-change case
+ * is what found it, by using a deleted asset as its observable.
+ */
+function readingFor(
+	context: AssetDesignerContext,
+	store: ReturnType<typeof useAssetDesignStore>,
+): { readonly hydrate: () => Promise<void>; readonly refresh: () => Promise<void> } {
+	const read = (keepPreviousOnFailure: boolean): Promise<void> =>
+		store.hydrate(context.queries, context.assetId, {
+			indexScanCompleted: context.indexScanCompleted(),
+			keepPreviousOnFailure,
+		});
+	return { hydrate: () => read(false), refresh: () => read(true) };
+}
 
-	const refreshed = withStateRefresh(history, refresh);
-
-	// Outside the refresh decorator, so `Saved` never appears while the canvas still shows the
-	// pre-command state; inside `wrapDispatcher`, which is the one object a leaf hands out.
-	const tracked = withSaveStateTracking(refreshed, useSaveStateStore());
-
-	const { dispatcher, canUndo, canRedo } = wrapDispatcher(history, tracked);
+function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
+	const store = useAssetDesignStore();
+	const history = new CommandHistory();
+	const { hydrate, refresh } = readingFor(context, store);
+	const { dispatcher, canUndo, canRedo } = dispatchingFor(history, refresh);
 
 	/**
 	 * The ONE cast in this file, and the shape `presentation/editor/runtime.ts` already draws
@@ -343,22 +419,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 */
 	const assetId = context.assetId as AssetId;
 
-	// Both stores are resolved during SETUP and closed over, never inside the context factory
-	// below: a Pinia store may not be touched without an active instance, and that factory runs
-	// from a toolbar click long after `setup` has returned.
-	const editor = useEditorStore();
-	const selection = useSelectionStore();
-
-	// The camera as a tool sees it — the SAME function the Plan Editor's runtime binds
-	// (`editor/viewport/editorViewportAdapter.ts`), not a second copy of five identical
-	// members. It closes over this leaf's live camera ref.
-	const viewportAdapter = editorViewportAdapter(editor);
-
-	/**
-	 * Per leaf, like the Plan Editor's: the View menu's Snap choice is this leaf's `EditorStore.snappingEnabled`,
-	 * read at every call. The grid is supplied to snapping only while this leaf's grid is SHOWN (snapping spec §2.4).
-	 */
-	const snapService = createEditorSnapService(() => editor.snappingEnabled), workspace = useWorkspaceStore();
+	const { editor, selection, workspace, viewportAdapter, snapService } = leafStores();
 
 	const renderState = reactive(new RenderState());
 	/**
@@ -367,12 +428,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * sidecar; the note ledger exists because the adapters take both and Task B8's height field
 	 * writes through the other.
 	 */
-	const noteLedger = new SessionWriteLedger();
-	const geometryLedger = new SessionWriteLedger();
-	const edits: ReversibleAssetDesignCommands = context.commands.designEdits({ noteLedger, geometryLedger });
-	const { chain, toolDispatcher, editShape } = designWrites(dispatcher, context.logger, store, (shape, expected) => edits.setShape({ assetId, shape, expected }));
-	const multiSelectionMode = ref(false);
-
+	const { edits, chain, toolDispatcher, editShape, geometryLedger, multiSelectionMode } = writingFor(context, store, dispatcher, assetId);
 	/**
 	 * A FRESH context per activation, through the same assembler the Plan Editor uses — which
 	 * is the guarantee `ToolManager`'s header states its factory exists for, and which one

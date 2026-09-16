@@ -19,7 +19,7 @@
  * field that has no reset button to walk past the guard: `useFieldCommit`'s own `submitted ===
  * null` check is the whole of what closes it).
  */
-import { computed, type Ref } from 'vue';
+import { computed } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { Logger } from '../../../application/ports/Logger';
@@ -48,8 +48,18 @@ const props = defineProps<{
 	openLibrary?: () => void;
 	/** Every selected part, in selection order — the last is the one whose fields show (AD08). */
 	selected: readonly DesignerSelection[];
-	/** The sticky "select multiple" mode, or `undefined` where no runtime binds one (AD08). */
-	multiSelectionMode?: Ref<boolean>;
+	/** Whether the sticky "select multiple" mode is on (AD08). */
+	multiSelectionMode?: boolean;
+	/**
+	 * Turn that mode on or off, or `undefined` where no runtime binds one.
+	 *
+	 * A value down and a callback up, rather than the runtime's `Ref` handed over as a prop:
+	 * `v-model` on a prop is a mutation of it, which `vue/no-mutating-props` refuses — measured,
+	 * the first version of this control failed exactly there. The Plan Editor's own checkbox
+	 * escapes the question by reading its runtime directly; this panel takes everything as props,
+	 * so it takes this one the same way.
+	 */
+	setMultiSelectionMode?: (next: boolean) => void;
 }>();
 
 /** How many graphics this design has — what decides whether composing a set is even possible. */
@@ -162,7 +172,9 @@ const dimensionsLabel = computed(() =>
 			surfaces disagree — and a per-asset view is precisely the one you can have three of at
 			once. The name is already on the DTO this panel is handed; it was simply never drawn.
 		-->
-		<p class="rp-designer-asset-name">{{ design.name }}</p>
+		<p class="rp-designer-asset-name">
+			{{ design.name }}
+		</p>
 		<!--
 			`design.dimensions` is `null` exactly when the asset has no footprint — the same field
 			`GetAssetDesign`'s own docblock says is "never `{ width: 0, depth: 0 }`" — so the block
@@ -217,13 +229,14 @@ const dimensionsLabel = computed(() =>
 			canvas presses, so it must never be left unreachable.
 		-->
 		<label
-			v-if="multiSelectionMode !== undefined && (graphicCount > 1 || multiSelectionMode.value)"
+			v-if="setMultiSelectionMode !== undefined && (graphicCount > 1 || multiSelectionMode === true)"
 			class="rp-designer-multi-select"
 		>
 			<input
-				v-model="multiSelectionMode.value"
 				type="checkbox"
 				data-rp-action="multiple-selection"
+				:checked="multiSelectionMode === true"
+				@change="setMultiSelectionMode(($event.target as HTMLInputElement).checked)"
 			>
 			{{ tr('designer.selection.toggle-mode') }}
 		</label>

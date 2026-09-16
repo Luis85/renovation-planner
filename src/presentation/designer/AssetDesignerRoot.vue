@@ -493,7 +493,8 @@ onMounted(() => {
 					:select="designStore.select"
 					:open-library="context.openLibrary"
 					:selected="selected"
-					:multi-selection-mode="runtime.multiSelectionMode"
+					:multi-selection-mode="runtime.multiSelectionMode.value"
+					:set-multi-selection-mode="(next: boolean) => (runtime.multiSelectionMode.value = next)"
 				/>
 			</div>
 		</div>

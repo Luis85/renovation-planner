@@ -16,8 +16,8 @@
  * Unannotated, like its sibling partials, and deliberately NOT typed against `StringKey`:
  * `StringKey` is `keyof typeof en` and `en` is assembled by spreading this module, so naming
  * it here would be a circular type. `de/errorFallback.ts` carries the parity type instead
- * (`Record<keyof typeof errorFallbackEn, string>`), which is the convention every other pair
- * under these two directories already uses and is stricter than the table-wide check in
+ * (`Record<keyof typeof errorFallbackEn, string>`), which most pairs in these two directories
+ * use and is stricter than the table-wide check in
  * `strings.test.ts`: a key added here with no German counterpart is a compile error rather
  * than a case that goes red later.
  */

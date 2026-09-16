@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { boundingBoxOf } from '../../../src/core/geometry/operations';
 import { circle } from '../../../src/domain/asset/presets/presetGeometry';
-import type { AssetShape } from '../../../src/domain/asset/AssetShape';
+import { dimensionsOf, type AssetShape } from '../../../src/domain/asset/AssetShape';
+import { solveScale } from '../../../src/domain/asset/scaleSolve';
 import {
 	moveAnchor,
 	moveOutline,
@@ -33,6 +34,9 @@ const ALL_QUARTERS = [QUARTER, QUARTER, QUARTER, QUARTER];
 
 const near = (pairs: readonly (readonly [number, number])[]) =>
 	pairs.map(([x, y]) => ({ x: expect.closeTo(x, 9), y: expect.closeTo(y, 9) }));
+
+const widthOf = (shape: AssetShape) => expectOk(dimensionsOf(shape.footprint)).width;
+const depthOf = (shape: AssetShape) => expectOk(dimensionsOf(shape.footprint)).depth;
 
 describe('outlineOf', () => {
 	it('names the footprint, the clearance and a detail by id', () => {
@@ -281,5 +285,37 @@ describe('scaleDesignToDimensions', () => {
 			details: [],
 		};
 		expect(expectErr(scaleDesignToDimensions(huge, 1000, 500)).code).toBe('asset.invalid-footprint');
+	});
+
+	/**
+	 * The docblock's "the third pass never landed worse than the second" claim, closed with a check
+	 * rather than left as nine one-time fixture measurements. A four-arc circle's kept bulges cannot
+	 * narrow its width below about a fifth of its diameter (`solveScale`'s own docblock) — the shape
+	 * that function already names as unreachable — so width 1 is unreachable from the 1000-diameter
+	 * `round` below. Reproducing pass 1 (width) and pass 2 (depth) directly through the exported
+	 * `solveScale` and `scaleDesign` — the same two calls `scaleDesignToDimensions` makes internally —
+	 * gives the shape the THIRD pass (width, again) starts from, without reaching into the function's
+	 * own private loop.
+	 */
+	it('never lands the third pass on width worse than the second, when the target is unreachable', () => {
+		const round = editableShape({ footprint: circle(1000), clearance: null, details: [] });
+
+		const afterPass1 = expectOk(
+			solveScale({ start: widthOf(round), target: 1, apply: (factor) => scaleDesign(round, factor, 1), measure: widthOf }),
+		);
+		// Depth 5000 is reachable, so pass 2 lands on it exactly — and moves width further from its
+		// own unreached target as a side effect of the coupled geometry (the same coupling Important 1
+		// measures on a different pair of targets).
+		const afterPass2 = expectOk(
+			solveScale({ start: depthOf(afterPass1), target: 5000, apply: (factor) => scaleDesign(afterPass1, 1, factor), measure: depthOf }),
+		);
+		expect(Math.abs(widthOf(afterPass2) - 1)).toBeGreaterThan(Math.abs(widthOf(afterPass1) - 1));
+
+		const full = expectOk(scaleDesignToDimensions(round, 1, 5000));
+		// The third pass (width, target 1 again) starts from `afterPass2` inside the real function —
+		// unreachable again, so it must not push width any further from the target than pass 2 left
+		// it, and it measurably lands within a tenth of a millimetre of that same unreached width.
+		expect(Math.abs(widthOf(full) - 1)).toBeLessThanOrEqual(Math.abs(widthOf(afterPass2) - 1));
+		expect(widthOf(full)).toBeCloseTo(widthOf(afterPass2), 0);
 	});
 });

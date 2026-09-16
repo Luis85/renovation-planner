@@ -154,7 +154,9 @@ export function removeClearance(shape: AssetShape): Result<AssetShape, Validatio
 
 /**
  * Every outline scaled about the ANCHOR, so the point a plan positions the asset by stays where it
- * is. What "Set dimensions" uses on a shape with details or curves (Amendment 1).
+ * is, by one raw factor per axis. `scaleDesignToDimensions` below is the caller for the dimensions
+ * gesture: it uses this as the per-axis `apply` a secant solve calls with successive factors, one
+ * axis at a time, rather than calling it directly with a ratio.
  */
 export function scaleDesign(shape: AssetShape, sx: number, sy: number): Result<AssetShape, ValidationError> {
 	const refused = scaleRefusal(sx, sy);
@@ -197,11 +199,15 @@ function sized(shape: AssetShape): Result<Sized, ValidationError> {
  *
  * **One axis at a time, three passes, because the axes are COUPLED.** Scaling y changes the chord of
  * an arc that bows in x, so its x-extent moves with it: x, then y, then x again, each solved on the
- * result of the last. The answer is whatever the LAST pass lands — measured across circles, a
- * scalloped ring, `roundFront` and the toilet preset at a spread of targets including ones past
- * `solveScale`'s reachable floor, the third pass never landed worse than the second; where a target
- * was unreachable, the third pass matched the second exactly rather than overshooting past it. A
- * straight-sided design lands both axes exactly on the first pass and the later ones change nothing.
+ * result of the last. The answer is whatever the LAST pass lands. `shapeEdits.test.ts`'s
+ * "never lands the third pass on width worse than the second" reconstructs pass 1 and pass 2 through
+ * the exported `solveScale` and `scaleDesign` for an unreachable width, then checks the real third
+ * pass against that reconstruction: it never lands further from the target than the second pass did,
+ * and lands within a tenth of a millimetre of it — CLOSE rather than exact, since a secant correction
+ * still moves it slightly. Circles, a scalloped ring, `roundFront` and the toilet preset at a spread
+ * of other targets were measured once at extraction to behave the same way and are not held by a
+ * check. A straight-sided design lands both axes exactly on the first pass and the later ones change
+ * nothing.
  *
  * Its ceiling is `solveScale`'s: an unreachable extent lands near the typed value rather than on it.
  */

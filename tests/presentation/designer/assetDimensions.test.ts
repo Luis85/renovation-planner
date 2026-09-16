@@ -98,11 +98,15 @@ async function mountDesigner(harness: Awaited<ReturnType<typeof seeded>>) {
 	return { wrapper, dialogs: useDialogStore(pinia) };
 }
 
-function expectNear(points: readonly Point[] | undefined, expected: readonly (readonly [number, number])[]): void {
+function expectNear(
+	points: readonly Point[] | undefined,
+	expected: readonly (readonly [number, number])[],
+	precision = 6,
+): void {
 	expect(points).toHaveLength(expected.length);
 	points?.forEach((point, index) => {
-		expect(point.x).toBeCloseTo(expected[index][0], 6);
-		expect(point.y).toBeCloseTo(expected[index][1], 6);
+		expect(point.x).toBeCloseTo(expected[index][0], precision);
+		expect(point.y).toBeCloseTo(expected[index][1], precision);
 	});
 }
 
@@ -306,8 +310,14 @@ describe('the designer’s dimensions dialog', () => {
 		expect(fromDimensions).not.toHaveBeenCalled();
 		expect(setShape).toHaveBeenCalledTimes(1);
 		const footprint = (await harness.document()).shape?.footprint;
-		// `drawn()`'s anchor is (5, 5), so x' = 2x − 5 and y' = 2y − 5.
-		expectNear(footprint?.points, [[-5, -1005], [995, -5], [-5, 995], [-1005, -5]]);
+		// Solved per axis (`scaleDesignToDimensions`), not divided: pass 1 (width) moves depth off
+		// 1000 to about 1081.1388 as a side effect — a circle's bulge keeps its sagitta tied to its
+		// chord, so widening x alone bows the y-reach too — and pass 2 then solves 2000 / 1081.1388
+		// rather than dividing by 2. That secant lands within `solveScale`'s 1e-6 tolerance rather
+		// than exactly on the target, which is why the last digits below are not whole millimetres;
+		// asserted to 3 decimal places rather than the usual 6 for that reason. `drawn()`'s anchor
+		// is (5, 5).
+		expectNear(footprint?.points, [[-5, -1005], [995, -5], [-5, 995], [-1005, -5]], 3);
 		const quarter = Math.tan(Math.PI / 8);
 		expect(footprint?.bulges).toEqual([quarter, quarter, quarter, quarter]);
 	});

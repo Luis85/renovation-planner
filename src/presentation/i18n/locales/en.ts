@@ -794,11 +794,12 @@ export const en = {
 	'designer.dimensions.edit.title': 'Set this asset’s dimensions',
 	// Shown INSTEAD of the current numbers, not beside them: this footprint's dimensions are
 	// placeholder-space coordinates, and offering them as the form's default is how they get
-	// saved back as authored millimetres in two clicks. It says the same thing
+	// saved back as authored millimetres in two clicks. It opens by saying what
 	// `designer.inspector.dimensions.unscaled` says and cannot be that key: there, numbers are
-	// on screen for "these numbers" to point at, and here the fields are deliberately empty. Its
-	// last sentence names what Save actually does to this footprint: it is still the replace path,
-	// and a user typing over an uncalibrated trace should not discover that from the result alone.
+	// on screen for "these numbers" to point at, and here the fields are deliberately empty. It
+	// then goes further, naming what Save actually does to this footprint: it is still the
+	// replace path, and a user typing over an uncalibrated trace should not discover that from
+	// the result alone.
 	'designer.dimensions.unscaled':
 		'This footprint was traced before a scale existed, so its current size is not a real measurement. Type the real width and depth, or calibrate the background first. Saving replaces the traced outline with a rectangle of that size.',
 	'designer.dimensions.width': 'Width in millimetres',

@@ -734,10 +734,10 @@ function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovati
 		context, planId, ledger, dispatcher: toolDispatcher, selection, returnToSelect,
 	});
 	const { onAreaCompleted, ...areaTask } = createAreaTask({ toolManager, activeToolId, renderState, writesBlocked, returnToSelect, roomDraft, defaultRoomName });
-	const { structureTask, structureActions, openingMove } = createStructureEditing(context, { toolManager, activeToolId, setTool, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
+	const { structureTask, structureActions, openingMove, openingDoors } = createStructureEditing(context, { toolManager, activeToolId, setTool, returnToSelect, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, ledger });
 	const { elementTask, elementActions, groupActions, rotationActions, labelActions, curveTask, toolBindings } = createSpatialEditing(context, { toolManager, setTool, returnToSelect, activeToolId, dispatcher: wrappedDispatcher, writesBlocked, refreshProjection, renderState, ledger, structureTask, wall: structureActions, openPlanNote: () => context.openPlanNote() });
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect, roomDraft, defaultRoomName, onAreaCompleted, canFinishArea: () => areaTask.canFinishArea.value,
-		...toolBindings, multiSelectionMode: () => multiSelectionMode.value,
+		...toolBindings, multiSelectionMode: () => multiSelectionMode.value, ...openingDoors,
 		previewWall: structureActions.previewWall, editWall: (id, end) => { void structureActions.edit(id, end); } });
 
 	// Select is the safe default (design spec M01), armed whenever `projectStore.status`

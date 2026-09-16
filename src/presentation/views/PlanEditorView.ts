@@ -411,9 +411,12 @@ export class PlanEditorView extends ItemView {
 		app.use(pinia);
 		// **Both directions of this leaf's incident, before anything in the tree reads the
 		// store.** Seeding is what makes a rebind keep the warning; the watcher is what makes
-		// the NEXT rebind keep one raised since. `withSaveStateTracking` is the only caller of
-		// `markUnrecovered`, and it runs inside this app, so the store is where the view has to
-		// hear about it — a callback on the context would be a second seam for one boolean.
+		// the NEXT rebind keep one raised since. `withSaveStateTracking` is the one caller that
+		// RAISES an incident, and it runs inside this app, so the store is where the view has to
+		// hear about it — a callback on the context would be a second seam for one boolean. The
+		// call just below is the other caller, seeding a fresh store from what this leaf already
+		// carried; see `mount`'s own doc comment on `rebind` above and
+		// `tests/presentation/views/planEditorIncident.test.ts` for the full account.
 		//
 		// `flush: 'sync'` because a rebind is not required to give Vue a tick first, and a
 		// watcher that had not run yet would seed the next mount from a stale field.

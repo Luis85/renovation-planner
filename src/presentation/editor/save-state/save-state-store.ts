@@ -56,11 +56,24 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * `markUnrecovered`, and a watcher there hands a newly raised incident back. So this ref is
 	 * the mount's REPORT of the leaf's incident rather than the record of it.
 	 *
-	 * Read the resulting guarantee at the leaf: it survives a rebind, a close-and-reopen of the
-	 * same leaf, and a restart (`getState` is persisted). It does not reach a SECOND Plan Editor
-	 * leaf on the same plan — that leaf has its own view, its own Pinia and its own gate — and
-	 * neither Asset Designer nor the project view's work section is seeded at all; each of those
-	 * still holds a mount-local flag of its own.
+	 * Read the resulting guarantee at the leaf, at exactly this width. It survives a settings
+	 * rebind, and a close-and-reopen that REUSES the view object (`onClose`/`onOpen` on a tab
+	 * that stays in the layout) — both of which this repository drives. A leaf DETACHED and
+	 * reopened from the palette, and an application restart, are a different mechanism: the
+	 * field rides `getState()` and nothing more, so the incident comes back if and only if
+	 * Obsidian hands that state to the new leaf. Obsidian does not run here and `FakeLeaf`
+	 * records asks rather than performing them, so that half is Obsidian's behaviour and not a
+	 * checked claim — either way nothing manufactures an all-clear: a leaf that comes back
+	 * without the state comes back clean, exactly as one does today.
+	 *
+	 * Two things it does NOT reach. A SECOND Plan Editor leaf on the same plan — that leaf has
+	 * its own view, its own Pinia and its own gate — and neither Asset Designer nor the project
+	 * view's work section is seeded at all; each of those still holds a mount-local flag of its
+	 * own. And a write already IN FLIGHT when the settings are saved, whose compensation refuses
+	 * after the remount: that `markUnrecovered()` lands on the retired store, which no watcher
+	 * and no reader is left on. `PlanEditorView.rebind`'s docblock carries that window, beside
+	 * the two sibling residues of the same remount; every sentence here is about an incident
+	 * already raised when the save lands.
 	 *
 	 * The reasoning for sticky-over-clearing still holds inside one mount's life: the only
 	 * in-session event that actually repairs a half-written vault is a successful retry of the

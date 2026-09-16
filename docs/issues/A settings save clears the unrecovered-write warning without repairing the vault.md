@@ -44,8 +44,17 @@ the vault unrepaired. Reopening the leaf has the same effect for the same reason
 The incident is `PlanEditorView`'s own `unrecoveredWrite` now — a field on the view, emitted by
 `getState` and read back by `setState` beside `planId`, with `mount` seeding each fresh store
 through `markUnrecovered` and a sync watcher handing a newly raised one back. So a settings
-save, a close-and-reopen of the leaf and a restart all keep the warning, and nothing clears it
-(R1's other half is untouched: this layer still cannot tell a repairing write from any other).
+save keeps the warning, and so does a close-and-reopen, and nothing clears it (R1's other half
+is untouched: this layer still cannot tell a repairing write from any other).
+
+**"Close and reopen" is two different mechanisms and only one of them is ours.** A tab that
+stays in the layout is `onClose` then `onOpen` on the SAME view object, so the field is simply
+still there — that is the half this repository drives and checks. A leaf DETACHED and reopened
+from the palette is a NEW view, and so is every leaf after an application restart: the incident
+comes back if and only if Obsidian hands the persisted `getState()` back to it. Obsidian does
+not run here, so that half is Obsidian's behaviour rather than a checked claim. Neither
+direction manufactures an all-clear — a leaf that comes back without the state comes back
+clean, exactly as one does today.
 The pinned case below asserts survival now, under the title "keeps a leaf’s unrecovered-write
 flag across a rebind, re-seeded into the fresh Pinia";
 `tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
@@ -54,7 +63,13 @@ dispatch path and walks the lifecycle.
 **Not closed by it:** a SECOND Plan Editor leaf on the same plan is still ungated by the first
 leaf's incident, with or without a rebind — a pre-existing hole needing an affected-identity
 model — and the Asset Designer and the project view's work section each still hold a
-mount-local flag of their own.
+mount-local flag of their own. Nor a write already IN FLIGHT when the settings are saved: its
+compensation can refuse after the remount, and that `markUnrecovered()` lands on the retired
+store with no watcher and no reader left on it, while the fresh store has already seeded
+`false`. That was lost before this change too, and closing it means deferring the rebind, which
+this repository has refused — `PlanEditorView.rebind`'s docblock carries it beside the two
+sibling residues of the same remount. Every sentence above is about an incident already RAISED
+when the save lands.
 
 ## What was true before it
 

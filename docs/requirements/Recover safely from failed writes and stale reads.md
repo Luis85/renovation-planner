@@ -128,13 +128,22 @@ checkpoint C3. Which test holds each criterion:
 
    **Amendment (2026-09-16): that task is done, and the flag is the LEAF's.**
    `PlanEditorView` holds its own `unrecoveredWrite`, emitted by `getState` and read back by
-   `setState` beside `planId`, and `mount` seeds each fresh store from it — so a settings save,
-   a close-and-reopen of that leaf and a restart all keep the warning, and nothing clears it at
-   all (R1's other half is unchanged: this layer still cannot tell a repairing write from any
-   other). Two limits, stated rather than left to be read wider: a SECOND Plan Editor leaf on
-   the same plan is still not gated by the first one's incident, with or without a rebind, which
-   needs an affected-identity model nobody has built; and the Asset Designer and the project
-   view's work section still hold a mount-local flag each, unseeded.
+   `setState` beside `planId`, and `mount` seeds each fresh store from it — so a settings save
+   keeps the warning, a close-and-reopen keeps it, and nothing clears it at all (R1's other half
+   is unchanged: this layer still cannot tell a repairing write from any other).
+   **"Close and reopen" is two mechanisms**: a tab that stays in the layout is closed and
+   reopened on the SAME view object, so the field is simply still there, which is the half this
+   repository drives; a leaf detached and reopened from the palette — and every leaf after an
+   application restart — is a NEW view, and gets the incident back if and only if Obsidian hands
+   it the persisted view state, which is Obsidian's own behaviour and not a checked claim here.
+   Neither direction manufactures an all-clear: a leaf that comes back without the state comes
+   back clean. Three limits, stated rather than left to be read wider: a SECOND Plan Editor leaf
+   on the same plan is still not gated by the first one's incident, with or without a rebind,
+   which needs an affected-identity model nobody has built; the Asset Designer and the project
+   view's work section still hold a mount-local flag each, unseeded; and a write already IN
+   FLIGHT when the settings are saved can have its compensation refuse after the remount, onto
+   the retired store — lost before this change too, and not closable without deferring the
+   rebind, which is refused.
    `tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
    dispatch path and walks that lifecycle; the rebind case named above asserts survival now.
 

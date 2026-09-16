@@ -84,8 +84,12 @@ unrecovered-write flag on rebind" pins this window; it is recorded rather than c
 
 **Amendment (2026-09-16): closed.** The incident moved to `PlanEditorView`'s own
 `unrecoveredWrite`, carried in Obsidian's view state beside `planId`, and each mount's store is
-seeded from it — so it now stands for the LEAF's life (a rebind, a close-and-reopen, a restart),
-still cleared by nothing, and still not reaching a second leaf on the same plan. The case named
+seeded from it — so it now stands for the LEAF's life: a rebind and a close-and-reopen that
+reuses the view object, both driven here, plus a detached-and-reopened leaf or a restart if and
+only if Obsidian hands the persisted view state back, which is its behaviour rather than a
+checked claim. Still cleared by nothing, still not reaching a second leaf on the same plan, and
+still open on a write already in flight when the save lands (`PlanEditorView.rebind`'s docblock
+carries that one). The case named
 above asserts survival now; `tests/presentation/views/planEditorIncident.test.ts` is the rest.
 
 **What was NOT injected here, so it is not read as covered.** This task exercised the note/sidecar

@@ -188,6 +188,17 @@ export class PlanEditorView extends ItemView {
 	 * partial and is not one — the write is this plugin's own, so `VaultChangeAdapter`'s echo
 	 * window suppresses it by design and no index event is ever raised to carry it.
 	 * `docs/tasks/16`'s sixteenth-round section has the full account.
+	 *
+	 * **A THIRD residue of that same window, recorded here for the same reason: the incident.**
+	 * `unmount()` below stops the watcher before the app goes, and `withSaveStateTracking`
+	 * captured its store at construction — so a write already in flight when the settings are
+	 * saved can have its compensation refuse AFTER the remount, and its `markUnrecovered()`
+	 * lands on the retired store with no watcher to carry it back and no reader to draw it,
+	 * while the fresh store has already seeded `false`. A half-written vault with no warning.
+	 * This was lost before the incident moved onto this view too — it is not a regression, and
+	 * it is not fixable without deferring the rebind, which is declined above. So read every
+	 * "a settings save keeps the warning" sentence in this file, in `save-state-store.ts` and
+	 * in the SDD as being about an incident already RAISED when the save lands.
 	 */
 	rebind(deps: PlanEditorDeps): void {
 		this.deps = deps;
@@ -239,12 +250,24 @@ export class PlanEditorView extends ItemView {
 	 */
 	async setState(state: unknown, result: ViewStateResult): Promise<void> {
 		const parsed = planIdFrom(state);
-		if (parsed?.origin && parsed.planId === this.mountedPlanId && this.root && !(await this.root.navigateToRecord(parsed.origin))) { result.history = false; return; }
 		// The incident is OR-ed in and never assigned: `revealPlanEditor` sets `{ planId }` on a
 		// leaf it created, and Obsidian re-enters here on a restore. Assigning would let either
 		// arrival say "all clear" about a vault this view knows is half-written, and only a
 		// write that actually succeeded may say that.
-		if (parsed !== null) { this.planId = parsed.planId; this.origin = parsed.origin; if (parsed.unrecoveredWrite) this.unrecoveredWrite = true; }
+		//
+		// Ahead of the navigation refusal below rather than beside the `planId` assignment,
+		// so that "never assigned" is unconditional in fact and not only in prose: that path
+		// returns, and an arriving incident dropped on it would be an all-clear this view was
+		// handed. Unreachable today (the refusal needs `parsed.origin` on the plan already
+		// mounted), which is exactly why it would stay wrong quietly.
+		//
+		// KNOWN AND DEFERRED: setting the field does not seed the LIVE store when the leaf is
+		// already mounted, because `sync()` returns early on `planId === mountedPlanId`, so an
+		// incident arriving this way shows up only at the next remount. Also unreachable today,
+		// and its fix is inside `sync()`'s mount-identity logic, which a later work package owns.
+		if (parsed?.unrecoveredWrite) this.unrecoveredWrite = true;
+		if (parsed?.origin && parsed.planId === this.mountedPlanId && this.root && !(await this.root.navigateToRecord(parsed.origin))) { result.history = false; return; }
+		if (parsed !== null) { this.planId = parsed.planId; this.origin = parsed.origin; }
 		this.sync();
 		return Promise.resolve();
 	}

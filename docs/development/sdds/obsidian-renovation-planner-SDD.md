@@ -3040,10 +3040,16 @@ A failed read retains the last published projection and qualifies a confirmed sa
 refresh. A planning read failure or uncompensated operation blocks unsafe history as well as
 new writes. The existing versioned spatial-only history behavior is preserved. Read success
 clears read failure, never an uncompensated operation. The latter flag is the LEAF's, carried
-in Obsidian's own view state beside the plan id, so a settings rebind and a close-and-reopen of
-that leaf both keep it and nothing clears it at all. It is still not crash recovery: it records
-that a write was left half-done and never what was left, and it gates only what that leaf
-dispatches.
+in Obsidian's own view state beside the plan id, so a settings rebind keeps it and nothing
+clears it at all. A close-and-reopen keeps it too, and that phrase covers two mechanisms: a tab
+that stays in the layout is closed and reopened on the SAME view object, so the field is still
+there, while a detached leaf reopened from the palette — and every leaf after a restart — is a
+NEW view that gets the incident back if and only if Obsidian hands it the persisted state.
+Neither direction manufactures an all-clear; a leaf that comes back without the state comes
+back clean. One window stays open and is not closable without deferring the rebind (refused):
+a write already IN FLIGHT when the settings are saved can have its compensation refuse after
+the remount, onto the retired store. It is still not crash recovery: it records that a write
+was left half-done and never what was left, and it gates only what that leaf dispatches.
 
 Invalidations coalesce into one active read and a latest follow-up. Obsolete planning results
 do not publish, and disposal retires subscriptions, pending waiters and hydration tickets.

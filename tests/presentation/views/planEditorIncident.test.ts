@@ -3,10 +3,13 @@
  *
  * **Who owns an unrecovered-write incident, now that it is not the mount.**
  *
- * The incident is raised by `withSaveStateTracking` — the ONE caller of `markUnrecovered`,
- * `grep -rn "markUnrecovered(" src/` on 2026-09-16 printing that call and the store's own
- * definition and nothing else — when a refused dispatch `leftWritesBehind`. Every case below
- * that raises one raises it that way, through the leaf's real dispatcher with a command whose
+ * The incident is raised by `withSaveStateTracking` — the one caller of `markUnrecovered` that
+ * RAISES one, when a refused dispatch `leftWritesBehind`. It is not the only caller:
+ * `grep -rn "markUnrecovered(" src/` on 2026-09-16 prints that call, the store's own
+ * definition, `PlanEditorView.mount`'s `if (this.unrecoveredWrite) saveState.markUnrecovered()`
+ * — which SEEDS a fresh store with the incident the leaf was already carrying, and is the fix
+ * this file exists for — and two prose mentions in docblocks. Every case below that raises an
+ * incident raises it the first way, through the leaf's real dispatcher with a command whose
  * refusal carries the real `markUncompensated` stamp, rather than by setting the store's
  * boolean: a case that pokes the flag proves the seeding and says nothing about whether the
  * seeding is wired to the thing production sets.
@@ -19,6 +22,9 @@
  * an Obsidian RESTART is a fact about Obsidian persisting `getState()`, which `FakeLeaf`
  * records rather than performs — the round-trip case below drives the two halves this
  * repository owns (what `getState` emits, what `setState` does with it) and stops there.
+ * Every rebind case below raises the incident BEFORE the save; a write still in flight when
+ * the settings are saved can have its compensation refuse onto the retired store, which no
+ * case here covers and nothing closes (`PlanEditorView.rebind`'s docblock carries it).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { err, isErr, ok } from '../../../src/core/result/Result';

@@ -44,6 +44,8 @@ const props = defineProps<{
 	selection: DesignerSelection | null;
 	editShape: (edit: ShapeEdit) => Promise<DispatchResult>;
 	select: (next: DesignerSelection | null) => void;
+	/** The way back to the shared catalogue, or `undefined` where no door is bound (AD06). */
+	openLibrary?: () => void;
 }>();
 
 /**
@@ -135,6 +137,14 @@ const dimensionsLabel = computed(() =>
 			{{ tr('designer.inspector.asset') }}
 		</h3>
 		<!--
+			**Which object is this?** (AD06's first acceptance criterion.) Nothing on this surface
+			answered it: `getDisplayText` titles every designer leaf "Asset designer" whatever asset
+			it holds — the Plan Editor's own convention, so changing it here alone would make the two
+			surfaces disagree — and a per-asset view is precisely the one you can have three of at
+			once. The name is already on the DTO this panel is handed; it was simply never drawn.
+		-->
+		<p class="rp-designer-asset-name">{{ design.name }}</p>
+		<!--
 			`design.dimensions` is `null` exactly when the asset has no footprint — the same field
 			`GetAssetDesign`'s own docblock says is "never `{ width: 0, depth: 0 }`" — so the block
 			and its warning disappear together rather than showing a rectangle of zeroes.
@@ -166,6 +176,19 @@ const dimensionsLabel = computed(() =>
 			@click="() => void startFromPreset()"
 		>
 			{{ tr('designer.inspector.start-preset') }}
+		</button>
+		<!--
+			The way BACK (AD06). Drawn only where a door is bound — the harness and the component
+			suites bind none — because slice 14's Amendment 1 refuses a live control that does
+			nothing, which is what an unbound one would be.
+		-->
+		<button
+			v-if="openLibrary !== undefined"
+			type="button"
+			class="rp-designer-open-library"
+			@click="openLibrary"
+		>
+			{{ tr('designer.inspector.open-library') }}
 		</button>
 
 		<FieldError

@@ -104,6 +104,7 @@ export const assetSymbolsEn = {
 	'designer.selection.mode.bend.tip': 'Drag the handle in the middle of an edge to curve that edge',
 	// The asset-level block's own heading, so its Dimensions never read as the selected part's (critique finding 4).
 	'designer.inspector.asset': 'Asset',
+	'designer.inspector.open-library': 'Open the asset library',
 	// Under the facing's angle field, as its description: `facingTip` adds the sine to y, and y grows DOWN the screen.
 	'designer.selection.angle.hint': 'An angle of 0 points right, and 90 points down',
 	// The status row while the grid is shown (snapping spec 2026-09-15 §2.6); withheld while the footprint is unscaled.

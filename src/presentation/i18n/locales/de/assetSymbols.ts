@@ -96,6 +96,7 @@ export const assetSymbolsDe: Record<keyof typeof assetSymbolsEn, string> = {
 	'designer.selection.mode.points.tip': 'Eine Ecke ziehen, um sie zu verschieben; sie rastet an den Ecken, Kanten und Fluchtlinien der anderen Teile, am Ankerpunkt und, solange sichtbar, am Raster ein',
 	'designer.selection.mode.bend.tip': 'Den Griff in der Mitte einer Kante ziehen, um diese Kante zu biegen',
 	'designer.inspector.asset': 'Objekt',
+	'designer.inspector.open-library': 'Assetbibliothek öffnen',
 	'designer.selection.angle.hint': 'Ein Winkel von 0 zeigt nach rechts, 90 nach unten',
 	'designer.status.grid': 'Raster {step} mm',
 };

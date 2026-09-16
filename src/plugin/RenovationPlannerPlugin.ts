@@ -766,7 +766,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */
 	private assetDesignerViewDeps(): AssetDesignerDeps {
-		return { ...assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted }), ...assetDesignerDeviceSlots(this.app, this.manifest.id, this.root.logger) };
+		return {
+			...assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted }),
+			...assetDesignerDeviceSlots(this.app, this.manifest.id, this.root.logger),
+			// The SAME door the palette command and the project surface take (AD06). A second
+			// `revealView` call composed here would be a second answer to what opening the library
+			// means, which is the duplicate-tab defect `revealCandidate` exists to prevent.
+			openLibrary: () => {
+				this.openAssetLibrary();
+			},
+		};
 	}
 
 	/** ONE spelling of the Asset library's bundle, for the factory and the rebind. */

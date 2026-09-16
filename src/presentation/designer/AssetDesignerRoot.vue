@@ -491,6 +491,7 @@ onMounted(() => {
 					:selection="selection"
 					:edit-shape="runtime.editShape"
 					:select="designStore.select"
+					:open-library="context.openLibrary"
 				/>
 			</div>
 		</div>

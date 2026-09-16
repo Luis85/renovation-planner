@@ -66,24 +66,27 @@
       "blocker": null
     },
     "AD05": {
-      "status": "in_review",
+      "status": "integrated",
       "base_sha": "2b296d938",
-      "candidate_sha": null,
-      "integrated_sha": null,
+      "candidate_sha": "f1cbe86ef",
+      "integrated_sha": "f1cbe86ef",
       "evidence": [
-        "the brand now actually refuses a path where a polygon is expected \u2014 geometryBrands.test-d.ts, five directives",
-        "canvas, hit test, snapping, preset preview and plan placement each kind-aware, every case watched red",
-        "vue-tsc 0, oxlint 0, analyze 0, 140 files / 1566 cases green"
+        "geometryBrands.test-d.ts (five directives, two watched red)",
+        "canvas, hit test, snapping, preview and placement each kind-aware"
       ],
       "blocker": null
     },
     "AD06": {
-      "status": "planned",
-      "base_sha": null,
+      "status": "in_review",
+      "base_sha": "f1cbe86ef",
       "candidate_sha": null,
       "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
+      "evidence": [
+        "the Inspector names the asset and offers the library door",
+        "assetDesignerWiring.test.ts opens a real library leaf from the control, watched red against a stub",
+        "vue-tsc 0, oxlint 0, analyze 0, 47 designer/wiring/style files green"
+      ],
+      "blocker": "Use in plan deferred to AD13 with the rest of the designer-plan seam; no header chrome added, per C12"
     },
     "AD07": {
       "status": "planned",

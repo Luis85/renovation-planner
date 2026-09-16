@@ -269,7 +269,8 @@
 /* REVIEWED CLONE: the bordered variant with a leading `width`/`margin` — the flat button is per-component by
    necessity; the argument is on `.rp-designer-tool-button`, above in this file. */
 .rp-designer-inspector .rp-designer-edit-dimensions,
-.rp-designer-inspector .rp-designer-start-preset {
+.rp-designer-inspector .rp-designer-start-preset,
+.rp-designer-inspector .rp-designer-open-library {
 	width: 100%;
 	/* The reviewed clone starts at margin; target the declaration rather than the selector. */
 	/* fallow-ignore-next-line code-duplication */
@@ -287,13 +288,15 @@
 }
 
 .rp-designer-inspector .rp-designer-edit-dimensions:hover,
-.rp-designer-inspector .rp-designer-start-preset:hover {
+.rp-designer-inspector .rp-designer-start-preset:hover,
+.rp-designer-inspector .rp-designer-open-library:hover {
 	background-color: var(--background-modifier-hover);
 }
 
 /* The ring, for the reason `editor.css`'s toolbar `:focus-visible` comment gives at length. */
 .rp-designer-inspector .rp-designer-edit-dimensions:focus-visible,
-.rp-designer-inspector .rp-designer-start-preset:focus-visible {
+.rp-designer-inspector .rp-designer-start-preset:focus-visible,
+.rp-designer-inspector .rp-designer-open-library:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }
@@ -379,4 +382,17 @@
 /* The grid step: a standing fact about the view, muted like the hint beside it. */
 .rp-designer-grid-step {
 	color: var(--text-muted);
+}
+
+/**
+ * The asset's own name, under its section heading (AD06). Normal text at the panel's own size —
+ * it identifies the subject rather than labelling a field, so it is neither a heading nor muted.
+ * `overflow-wrap` because a user's name for an object is theirs: a long one wraps inside the panel
+ * instead of widening it, which at a sidebar's width would push the canvas into a sliver.
+ */
+.rp-designer-inspector .rp-designer-asset-name {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	overflow-wrap: anywhere;
 }

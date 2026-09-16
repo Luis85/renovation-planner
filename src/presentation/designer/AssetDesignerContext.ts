@@ -109,6 +109,25 @@ export interface AssetDesignerDeps {
 	 * `PlanEditorDeps.viewPreferences`'s reason: a surface with no slot bound keeps the defaults.
 	 */
 	readonly viewPreferences?: EditorViewPreferences;
+	/**
+	 * Open the shared asset library (AD06).
+	 *
+	 * The designer is reached FROM the library — `AssetInspector`'s "Open in designer" — and there
+	 * was no way back but the tab bar. Every designer leaf is titled "Asset designer" whatever
+	 * asset it holds (the Plan Editor's convention too), so a user with three of them open cannot
+	 * tell them apart from the host chrome alone.
+	 *
+	 * An `AssetDesignerDeps` member and NOT a leaf-scoped one like `closeLeaf`: the library is a
+	 * singleton view the composition root already reveals for the palette command and the project
+	 * surface, through the one `revealView(ASSET_LIBRARY_VIEW)` door. Binding to that rather than
+	 * adding a second activation is the "one action, every input" rule — a second door with its own
+	 * activation looks correct alone and opens a duplicate tab the moment a user uses both.
+	 *
+	 * OPTIONAL, like `viewPreferences` above and for the reason slice 14's Amendment 1 gives: a
+	 * surface with no door bound draws no control for it, rather than a live one that does
+	 * nothing. The browser harness and the component suites are exactly that surface.
+	 */
+	readonly openLibrary?: () => void;
 }
 
 /**

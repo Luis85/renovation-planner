@@ -19,6 +19,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
+import { ASSET_LIBRARY_VIEW } from '../../src/presentation/library/AssetLibraryView';
 import { assetDesignerDeviceSlots } from '../../src/plugin/assetDesignerDeps';
 import { assetDesignChanged } from '../../src/domain/asset/Asset.events';
 import { createAssetId, type AssetId } from '../../src/domain/asset/AssetId';
@@ -181,6 +182,38 @@ describe('a designer leaf restored by the composed plugin', () => {
 
 /** A key is persisted data like a command id: renaming one strands what every device remembered. */
 describe('the asset designer device slot', () => {
+	/**
+	 * AD06's way back, wired for real. The compiler owns "a callback was passed"; only a case that
+	 * CLICKS the control and watches a library leaf appear owns "the right one" — an
+	 * `openLibrary: () => undefined` stub compiles, mounts, draws an enabled button and does
+	 * nothing, which is the live-control-that-does-nothing defect this repository refuses.
+	 *
+	 * It goes through the composed plugin rather than the deps factory, because the factory is
+	 * deliberately NOT where the door is bound: the library is a singleton view the plugin already
+	 * reveals for the palette command, and binding it twice would be a second answer to what
+	 * opening it means.
+	 */
+	it('opens the shared library from the designer’s own control, through the plugin’s one door', async () => {
+		const { stack, assetId } = await vaultWithOneAsset();
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		const view = designerOn(plugin);
+
+		await view.setState({ assetId }, {} as never);
+		await view.onOpen();
+		workspace.layoutReady();
+		await settle();
+
+		expect(workspace.getLeavesOfType(ASSET_LIBRARY_VIEW)).toHaveLength(0);
+		const back = view.contentEl.querySelector<HTMLButtonElement>('.rp-designer-open-library');
+		expect(back).not.toBeNull();
+		back?.click();
+		await settle();
+
+		expect(workspace.getLeavesOfType(ASSET_LIBRARY_VIEW)).toHaveLength(1);
+
+		await view.onClose();
+	});
+
 	it('keys the View menu choices under the plugin id, apart from the Plan Editor’s', () => {
 		const keys: string[] = [];
 		const adapter = {

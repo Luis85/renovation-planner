@@ -12,6 +12,8 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- Asset designer: the Inspector names the object you are designing, and offers a way back to the asset library. Every designer tab is titled "Asset designer" whatever asset it holds, so with two or three open there was nothing on the surface saying which was which, and the only way back to the catalogue was the tab bar.
+
 - Asset designer (groundwork, nothing to click yet): an asset's shape can now hold an open line as well as a closed one, each graphic can carry your own label beside its built-in name, and graphics can be collected into groups. Asset geometry holding an open graphic, a label or a group is saved as schema 3, which older builds refuse rather than quietly dropping what they do not understand; a file written by any earlier build is read unchanged and means exactly what it meant. The tools for drawing an open line and for grouping arrive in later increments — this release only teaches the model, the validation and the file format.
 
 - Asset designer: parts snap while you move, resize or draw them — onto the corners and edges of the other parts and into line with their corners and centres, with a dashed guide showing why. A new View menu shows a millimetre grid whose step follows the zoom, counted from the footprint's top-left corner; while it is shown, parts snap to it and the status row names its step. Snap to objects can be turned off on its own, and both choices are remembered on this device.

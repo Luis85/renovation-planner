@@ -20,8 +20,9 @@ export interface ScaleAttempt<T> {
  * Both callers scale geometry whose BULGES are kept, so an arc keeps bowing by a sagitta that follows
  * its chord: `target / start` lands a straight outline exactly and misses a curved one — the toilet
  * bowl's Depth 900 as a plain factor measures 596. So the factor is solved by a secant over the
- * measured extent: exact at the first step whenever the extent is linear in the factor, and within
- * `TOLERANCE_MM` in a few more for an arc whose chord turns with the scale.
+ * measured extent: exact at the first step whenever the extent is linear in the factor, and — for an
+ * arc whose chord turns with the scale — the NEAREST attempt within `MAX_STEPS`, which is not always
+ * within `TOLERANCE_MM`: one fixture converges to about 3e-5 at the cap rather than landing inside it.
  *
  * **Some extents cannot be reached at all.** A four-arc circle cannot be narrowed below about a fifth
  * of its diameter with a positive factor, and the secant can step past zero on the way. A step past

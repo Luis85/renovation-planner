@@ -10,12 +10,13 @@ import {
 	resizeBox,
 	rotateOutline,
 	scaleDesign,
+	scaleDesignToDimensions,
 	setBulge,
 	setFacing,
 	type OutlinePart,
 } from '../../../src/domain/asset/shapeEdits';
 import { editableShape, QUARTER } from '../../helpers/assetShapes';
-import { expectErr, expectOk } from '../../helpers/domain';
+import { expectDefined, expectErr, expectOk } from '../../helpers/domain';
 
 /**
  * Spec 2026-09-13 Decision 9 and Amendment 1: every part edit answers a validated shape or a
@@ -226,5 +227,41 @@ describe('scaleDesign', () => {
 
 	it('refuses a factor that is not a finite positive number', () => {
 		expect(expectErr(scaleDesign(editableShape(), 0, 1)).code).toBe('asset.invalid-scale');
+	});
+});
+
+describe('scaleDesignToDimensions', () => {
+	it('lands a straight design exactly and scales every part about the anchor', () => {
+		const scaled = expectOk(scaleDesignToDimensions(editableShape(), 2000, 300));
+
+		const box = expectOk(boundingBoxOf(scaled.footprint));
+		expect([box.max.x - box.min.x, box.max.y - box.min.y]).toEqual([2000, 300]);
+		expect(scaled.anchor).toEqual({ x: 0, y: 0 });
+		// 1400 x 1000 clearance scaled by the same 2 x 0.5 the footprint took.
+		const clearance = expectOk(boundingBoxOf(expectDefined(scaled.clearance, 'the clearance')));
+		expect([clearance.max.x - clearance.min.x, clearance.max.y - clearance.min.y]).toEqual([2800, 500]);
+		expect(scaled.details[1].pending).toBe(true);
+	});
+
+	it('lands a curved footprint the plain ratio would miss', () => {
+		const round = editableShape({ footprint: circle(1000), clearance: null, details: [] });
+
+		const plain = expectOk(scaleDesign(round, 1.4, 1));
+		const plainBox = expectOk(boundingBoxOf(plain.footprint));
+		// The miss this function exists for — measured, not guessed: the x-axis lands on 1400
+		// exactly (the widest points are the vertices, not an arc apex), but leaving sy at 1 does
+		// NOT leave the depth at 1000. Scaling x alone still turns each arc's chord, so the
+		// untouched axis drifts too — measured at 1016.5525 mm, a ~16.55 mm miss.
+		expect(Math.abs(plainBox.max.y - plainBox.min.y - 1000)).toBeGreaterThan(15);
+
+		const solved = expectOk(scaleDesignToDimensions(round, 1400, 1000));
+		const box = expectOk(boundingBoxOf(solved.footprint));
+		expect(box.max.x - box.min.x).toBeCloseTo(1400, 3);
+		expect(box.max.y - box.min.y).toBeCloseTo(1000, 3);
+		expect(solved.footprint.bulges).toEqual(round.footprint.bulges);
+	});
+
+	it('refuses a size that is not a finite positive number', () => {
+		expect(expectErr(scaleDesignToDimensions(editableShape(), 0, 300)).code).toBe('asset.invalid-scale');
 	});
 });

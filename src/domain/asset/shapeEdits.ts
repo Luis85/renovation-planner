@@ -5,7 +5,8 @@ import { rotate, translate } from '../../core/geometry/operations';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
-import { validateAssetShape, type AssetShape } from './AssetShape';
+import { dimensionsOf, validateAssetShape, type AssetShape, type Dimensions } from './AssetShape';
+import { solveScale } from './scaleSolve';
 
 /**
  * Part edits (asset designer symbols spec, Decision 9 and Amendment 1): pure functions over an
@@ -165,4 +166,63 @@ export function scaleDesign(shape: AssetShape, sx: number, sy: number): Result<A
 		clearance: shape.clearance === null ? null : about(shape.clearance),
 		details: shape.details.map((detail) => ({ ...detail, outline: about(detail.outline) })),
 	});
+}
+
+/** The design and what its footprint measures, carried together so a solve never re-asks for a size that could overflow. */
+interface Sized {
+	readonly shape: AssetShape;
+	readonly dimensions: Dimensions;
+}
+
+function sized(shape: AssetShape): Result<Sized, ValidationError> {
+	const dimensions = dimensionsOf(shape.footprint);
+	if (isErr(dimensions)) return err(assetError('invalid-footprint', dimensions.error.message));
+	return ok({ shape, dimensions: dimensions.value });
+}
+
+/**
+ * The design scaled about its anchor until its FOOTPRINT measures `width` x `depth` — what Set
+ * dimensions does to a design that already has real millimetres in it.
+ *
+ * Solved rather than divided, through `solveScale`, for the reason that function states: bulges are
+ * kept, so an arc's reach follows its chord and a plain ratio misses on anything curved.
+ *
+ * **One axis at a time, three passes, because the axes are COUPLED.** Scaling y changes the chord of
+ * an arc that bows in x, so its x-extent moves with it: x, then y, then x again, each solved on the
+ * result of the last, and the answer is the pass whose combined miss is smallest rather than the last
+ * one tried. A straight-sided design lands both axes exactly on the first pass and the later ones
+ * change nothing.
+ *
+ * Its ceiling is `solveScale`'s: an unreachable extent lands near the typed value rather than on it.
+ */
+export function scaleDesignToDimensions(shape: AssetShape, width: number, depth: number): Result<AssetShape, ValidationError> {
+	const start = sized(shape);
+	if (isErr(start)) return start;
+	const passes = [
+		{ axis: 'width', target: width },
+		{ axis: 'depth', target: depth },
+		{ axis: 'width', target: width },
+	] as const;
+	let current = start.value;
+	let best = current;
+	let bestMiss = Infinity;
+	for (const pass of passes) {
+		const solved = solveScale<Sized>({
+			start: current.dimensions[pass.axis],
+			target: pass.target,
+			apply: (factor) => {
+				const scaledShape = scaleDesign(current.shape, pass.axis === 'width' ? factor : 1, pass.axis === 'width' ? 1 : factor);
+				return isErr(scaledShape) ? scaledShape : sized(scaledShape.value);
+			},
+			measure: (candidate) => candidate.dimensions[pass.axis],
+		});
+		if (isErr(solved)) return solved;
+		current = solved.value;
+		const miss = Math.abs(current.dimensions.width - width) + Math.abs(current.dimensions.depth - depth);
+		if (miss < bestMiss) {
+			best = current;
+			bestMiss = miss;
+		}
+	}
+	return ok(best.shape);
 }

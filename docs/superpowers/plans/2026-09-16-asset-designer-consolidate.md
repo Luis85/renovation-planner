@@ -87,8 +87,9 @@ describe('solveScale', () => {
 	});
 
 	it('answers the nearest landing when the target cannot be reached', () => {
-		// Never above 200, whatever the factor — a four-arc circle asked to narrow past its floor.
-		const capped = (factor: number): number => 200 - 100 / (1 + factor);
+		// 100 at factor 1 and never above 200, whatever the factor — a four-arc circle asked to
+		// stretch past a ceiling its kept bulges will not cross.
+		const capped = (factor: number): number => 200 - 100 / factor;
 
 		const solved = expectOk(
 			solveScale({ start: 100, target: 900, apply: (factor) => ok(capped(factor)), measure: (extent) => extent }),
@@ -280,7 +281,8 @@ describe('scaleDesignToDimensions', () => {
 
 		const plain = expectOk(scaleDesign(round, 1.4, 1));
 		const plainBox = expectOk(boundingBoxOf(plain.footprint));
-		// The miss this function exists for, measured rather than asserted as "close".
+		// The miss this function exists for. Run it, read the number, and assert against what it
+		// really is — a threshold guessed in the plan is not a measurement.
 		expect(Math.abs(plainBox.max.x - plainBox.min.x - 1400)).toBeGreaterThan(1);
 
 		const solved = expectOk(scaleDesignToDimensions(round, 1400, 1000));

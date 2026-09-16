@@ -285,10 +285,21 @@ export const en = {
 	'error.suffix.note-id-mismatch':
 		'This note belongs to a different entry, so it was not opened. Reload the vault to rebuild the index.',
 	// Every refusal whose code ends in `-uncompensated`: a write landed, the undo for it also
-	// refused, and the vault is knowingly inconsistent. Names the manual action, because this
-	// is the one family where nothing in the plugin can put it right.
+	// refused, and something of it is still in the vault.
+	//
+	// **It names NO object, and that is the correction rather than vagueness.** This sentence
+	// inherited "inspect the affected notes" from `zone.sidecar-*-uncompensated` above, where
+	// the note IS on disk and that is a real action. It is false for four of the five codes
+	// this row covers: `project.write-uncompensated`'s residue is an empty FOLDER and no note
+	// was written at all, `plan.write-uncompensated`'s is an orphan geometry sidecar with no
+	// note either, and the three delete codes TRASHED the note — nothing is at the path to
+	// inspect. Carving `project.` out to its own row would not have fixed it; the other four
+	// would still have been pointed at notes that are not there.
+	//
+	// The developer console is the one pointer true of all five: every path here logs a
+	// `*-compensation-failed` line naming what it could not take back, before it returns.
 	'error.suffix.uncompensated':
-		'A change was written but could not be undone again, so some files are inconsistent. Inspect the affected notes by hand before editing further.',
+		'A change was written and could not be undone again, so part of it is still in the vault. Check the developer console to see what was left behind before editing further.',
 	'error.category.domain': 'Something about the project data is invalid.',
 	'error.category.validation': 'This data is not in the expected form.',
 	'error.category.persistence': 'The vault could not be read or written.',

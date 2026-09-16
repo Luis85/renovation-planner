@@ -514,6 +514,10 @@ describe('zone repository failure branches', () => {
 		expect(leftWritesBehind(expectErr(result))).toBe(true);
 		expect(expectErr(result).message).not.toContain('was restored');
 		expect(stack.logged.some((line) => line.event === 'zone.delete-compensation-failed')).toBe(true);
+		// The residue itself, the way the plan twin above asserts its own: the note is gone
+		// and the geometry entry the mutation could not remove is still in the sidecar.
+		expect(stack.vault.entries.has(notePath)).toBe(false);
+		expect(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId))).toContain(zoneId);
 	});
 
 	/**

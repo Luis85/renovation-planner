@@ -226,9 +226,13 @@ export class ObsidianPlanRepository {
 			if (!undone.ok) {
 				this.deps.logger.error('plan.insert-compensation-failed', { id: plan.id, cause: undone.error });
 				// The sidecar this call created is still on disk with no note to own it, and
-				// the rollback could not take it away either. Stamped, so the save-state strip
-				// hears about a standing write rather than inferring one from a code — the
-				// mildest residue of this family and the same fact about it.
+				// the rollback could not take it away either. Stamped, so a surface reading
+				// the stamp learns there is a standing write rather than inferring one from a
+				// code — the conditional form on purpose: plan insert is dispatched from
+				// `ProjectDetailStore`, `ProjectDetailState.vue` and
+				// `renovationProjectCommands.ts`, none of which calls `withSaveStateTracking`
+				// (grepped), so no surface reads it TODAY. The zone-delete twin may say "the
+				// save-state strip hears" because the Plan editor is wired; this one may not.
 				return err(
 					markUncompensated(
 						persistenceError(

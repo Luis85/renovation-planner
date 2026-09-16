@@ -254,8 +254,11 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Diese Notiz konnte nicht gespeichert werden, weil der Ordner des zugehörigen Projekts nicht gefunden wurde.',
 	'error.suffix.note-id-mismatch':
 		'Diese Notiz gehört zu einem anderen Eintrag, daher wurde sie nicht geöffnet. Lade den Vault neu, um den Index neu aufzubauen.',
+	// Sie-Form wie der Rest dieser Datei und wie die beiden `zone.sidecar-*-uncompensated`
+	// oben: derselbe Vorfall darf nicht in zwei Anreden erscheinen. Sagt dasselbe wie das
+	// englische Original — siehe dessen Kommentar für den Grund, warum kein Objekt genannt wird.
 	'error.suffix.uncompensated':
-		'Eine Änderung wurde geschrieben, konnte aber nicht rückgängig gemacht werden, daher sind einige Dateien inkonsistent. Prüfe die betroffenen Notizen von Hand, bevor du weiterarbeitest.',
+		'Eine Änderung wurde geschrieben und konnte nicht wieder rückgängig gemacht werden, daher ist ein Teil davon noch im Vault. Prüfen Sie die Entwicklerkonsole, um zu sehen, was zurückgeblieben ist, bevor Sie weiterarbeiten.',
 	'error.category.domain': 'Die Projektdaten sind ungültig.',
 	'error.category.validation': 'Diese Daten haben nicht die erwartete Form.',
 	'error.category.persistence': 'Der Vault konnte nicht gelesen oder geschrieben werden.',

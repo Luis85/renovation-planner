@@ -156,12 +156,27 @@ export async function plainDispatch(versioned: Promise<VersionedDispatchResult>)
  * 2026-09-16, of which that one is the self-count. An `import` of this function carries no
  * `(` and is therefore not in the number; six files spell two calls each.
  *
+ * **The DEFINITION below is out of the number too, and NOT because anything excluded it.**
+ * It is spelled `markUncompensated<TError extends AppError>(`, so the pattern's `(` never
+ * meets it — this repository's own "a grep for `foo(` misses `foo<T>(`" hazard, landing in
+ * our favour here by accident rather than by design. Stated because the next reader re-runs
+ * the grep, notices the definition is missing from a count of producers, and "corrects" it
+ * by widening the pattern to `markUncompensated` — which then matches the definition, the
+ * imports and this docblock, and prints a number that is not producers at all.
+ *
  * **No list of them is kept here**, and that is the correction rather than laziness. This
  * sentence said "four producers in three files" while five existed, then "five in four" while
  * seventeen did — off by more than 3x — and both times the ENUMERATION is what rotted first,
  * because a producer added in another file cannot edit a list that lives in this one. What is
  * durable is the RULE: each producer sits at a moment the vault is KNOWN to be half-written,
  * and the grep above is the census. Run it.
+ *
+ * **One member stretches that word and is stamped anyway**: `project.write-uncompensated`'s
+ * residue is an EMPTY FOLDER — no note was written, so the vault's data is coherent and
+ * "half-written" is true only of the folder tree. It qualifies on the rule this stamp is
+ * actually for — something was written and the undo for it refused — which is the wider of
+ * the two readings, and the one to say out loud before a later slice gives that surface a
+ * gate that would pause writes over an empty folder.
  *
  * The 2026-09-16 pass is the second stale-count repair and it moved the number itself: a sweep
  * of the repository layer found that five of its six compensation paths raised nothing at all

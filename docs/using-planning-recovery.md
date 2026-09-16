@@ -33,27 +33,41 @@ whose read-back failed.
 
 An incomplete-write warning means a multi-file operation could neither finish nor undo its
 partial writes. Inspect the Plan note and related geometry against your backup before making
-further changes. Edits through that editor tab stay blocked while the warning stands. Nothing
-clears it: a successful read does not repair those files, a later successful write is not
-evidence that the affected ones were the ones mended, and saving plugin settings no longer
-loses it either. The warning belongs to the editor tab that raised it, so it is still there
-after a settings save and still there when you return to that tab. There is no general durable
-crash-recovery journal for these planning operations.
+further changes. This pauses writing everywhere in the vault, not only in the tab that raised
+it — every write the plugin offers as a command or form is refused until the incident is
+resolved. Reading, navigating and inspecting still work: that is deliberate, because comparing
+the affected files against your backup is the recovery, and a plugin that also blocked reading
+would take away the one tool you have for it.
+
+Nothing clears this on its own. A successful read does not repair those files, a later
+successful write elsewhere is not evidence that the affected ones were mended, and saving
+plugin settings does not lose it. Neither does closing the tab, reloading the plugin or
+restarting Obsidian — the record lives in a file in the plugin's own folder, not in the tab or
+the running session, and it outlives all three. A restart is not an all-clear here.
 
 Ending an incident is therefore something you do, not something the plugin decides. There is no
 "I have repaired this" control, because nothing here can tell a write that mended the affected
-files from any other write that happened to land. Once you have checked the Plan note and its
-geometry against your backup, close that Plan editor tab and open the plan again: the plugin
-opens a new tab carrying the plan and no warning. Clearing it that way proves **nothing** about
-the vault — your inspection is what does. Two situations could bring the warning back by
-restoring the tab's saved state rather than the plugin re-raising anything: reopening the
-closed tab with Obsidian's own undo-close gesture instead of opening the plan afresh, and
-restarting Obsidian onto a layout that still held the tab. Whether either one actually does is
-not confirmed. Treat a returned warning exactly as before — it is not a fresh incident to
-diagnose, but it is also not a reason to trust the tab any less than you already did. Treat its
-absence the same way you treat clearing the tab in the first place: it proves nothing about the
-vault either way, only your own inspection does. The existing specialized requirement-sequence
-recovery mechanism remains separate.
+files from any other write that happened to land. Once you have checked the affected files
+against your backup, remove `write-incidents.json` from the plugin's folder — it is the
+plugin's own bookkeeping file, not vault content, and deleting it is how you resume writing.
+Clearing it that way proves **nothing** about the vault; your own inspection is what does. If
+that file is edited by hand into something the plugin cannot read, that counts as an open
+incident too, on purpose, so a corrupted record can never be mistaken for an all-clear —
+deleting it is the supported way to end an incident, editing it is not.
+
+The list of affected files an incident names is best effort. Some failures cannot name
+everything they touched, so an incident's list may under-report; inspect around what it names
+rather than treating it as exhaustive. The diagnostics report, reached from settings and from
+the command palette, lists every open incident and names the file to remove.
+
+Writing is refused for the plugin's own commands and forms; that is the boundary this pauses,
+not every possible write to the vault. Nothing here repairs anything, replays the interrupted
+operation, or rolls it back automatically — a restart never re-runs what was interrupted. There
+is no general durable crash-recovery journal for these planning operations: this is a durable
+*record* that a half-write happened, not a journal that could undo one. The existing
+specialized requirement-sequence recovery mechanism remains separate — it exists to roll back
+an interrupted delete and carries the deleted content to do it, where this record carries no
+content and rolls nothing back.
 
 An open draft in this state offers source-note inspection and Cancel. It does not offer a
 read retry or promise that reading will resume Apply. You can copy its retained text before

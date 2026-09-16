@@ -253,7 +253,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'error.suffix.project-folder-unresolved':
 		'Diese Notiz konnte nicht gespeichert werden, weil der Ordner des zugehörigen Projekts nicht gefunden wurde.',
 	'error.suffix.note-id-mismatch':
-		'Diese Notiz gehört zu einem anderen Eintrag, daher wurde sie nicht geöffnet. Lade den Vault neu, um den Index neu aufzubauen.',
+		'Diese Notiz gehört zu einem anderen Eintrag, daher wurde sie nicht geöffnet. Laden Sie den Vault neu, um den Index neu aufzubauen.',
 	// Sie-Form wie der Rest dieser Datei und wie die beiden `zone.sidecar-*-uncompensated`
 	// oben: derselbe Vorfall darf nicht in zwei Anreden erscheinen. Sagt dasselbe wie das
 	// englische Original — siehe dessen Kommentar für den Grund, warum kein Objekt genannt wird.

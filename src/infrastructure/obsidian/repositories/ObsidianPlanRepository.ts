@@ -228,11 +228,17 @@ export class ObsidianPlanRepository {
 				// The sidecar this call created is still on disk with no note to own it, and
 				// the rollback could not take it away either. Stamped, so a surface reading
 				// the stamp learns there is a standing write rather than inferring one from a
-				// code — the conditional form on purpose: plan insert is dispatched from
-				// `ProjectDetailStore`, `ProjectDetailState.vue` and
-				// `renovationProjectCommands.ts`, none of which calls `withSaveStateTracking`
-				// (grepped), so no surface reads it TODAY. The zone-delete twin may say "the
-				// save-state strip hears" because the Plan editor is wired; this one may not.
+				// code — the conditional form on purpose. `grep -rn "createPlan.execute" src/`
+				// prints exactly three dispatch sites: `ProjectDetailState.vue:286`,
+				// `detailPlanActions.ts:46` and `sampleProject.ts:173`. Every one of them calls
+				// `Command.execute` DIRECTLY, so none of them passes through
+				// `withSaveStateTracking` and no surface reads this stamp TODAY.
+				// `detailPlanActions.ts` is the site that looks like a counterexample and is not:
+				// it sits INSIDE the Plan editor, whose `runtime.ts` does wrap its command history
+				// in `withSaveStateTracking` — but the New-detail-plan dialog hands
+				// `createPlan.execute` to `NewPlanForm` and never reaches that wrapper. The
+				// zone-delete twin may say "the save-state strip hears" because the Plan editor’s
+				// HISTORY is wired; a plan insert goes nowhere near it.
 				return err(
 					markUncompensated(
 						persistenceError(

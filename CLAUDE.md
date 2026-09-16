@@ -77,7 +77,12 @@ build could not read, so it gets the notice and no "no projects yet".
 NAVIGATES now rather than opening `Project.md`, into a detail state that
 draws one project — its name, its lifecycle status, an **Open note** action (the only surface
 left that opens the raw note), a **‹ back**, and that project's plans with a `New plan` form
-dispatching the real `CreatePlanCommand`. A project that turns out not to be there draws a
+dispatching the real `CreatePlanCommand`, each row carrying a Delete over the real
+`DeletePlanCommand` behind a `danger` confirm. **That delete REFUSES a plan that still holds
+rooms or detail plans**, rather than offering BR-DATA-004's other three resolutions: slice 10's
+resolution engine is typed for REQUIREMENT referents, and a plan's are Zones and Plans, so
+widening it is a slice of its own. `DeletePlan.ts`'s own docblock carries that trade, and the
+refusal is the arm that rule already blesses as the safe default. A project that turns out not to be there draws a
 screen saying so, with its own way back, and **nothing redirects on its own** — reached
 identically from a read that missed, from `CreatePlanCommand`'s `plan.project-not-found`, and
 from a back-arrow restore of a project since deleted. Which project is open lives in **Obsidian's own view

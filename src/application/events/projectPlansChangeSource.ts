@@ -22,7 +22,7 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * its SIBLINGS' tree as much as its own: the Plan Editor draws the whole project's hierarchy,
  * and its plan-filtered door (`planChangeSource`) never hears a sibling move.
  */
-const PROJECT_PLAN_EVENTS = ['PlanCreated', 'PlanDetailsChanged'] as const;
+const PROJECT_PLAN_EVENTS = ['PlanCreated', 'PlanDeleted', 'PlanDetailsChanged'] as const;
 
 /**
  * Events that name ONE index entry, and are this project's business when that entry is a

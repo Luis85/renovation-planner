@@ -13,6 +13,9 @@ import { createProjectListChangeSource } from '../application/events/projectList
 import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
 import type { CreatePlanInput, CreatePlanError } from '../application/commands/plan/CreatePlan';
+import type { PlanId } from '../domain/plan/PlanId';
+import { DeletePlanCommand } from '../application/commands/plan/DeletePlan';
+import type { DeletePlanInput, DeletePlanError } from '../application/commands/plan/DeletePlan';
 import { UpdatePlanDetailsCommand } from '../application/commands/plan/UpdatePlanDetails';
 import type { UpdatePlanDetailsInput, UpdatePlanDetailsError } from '../application/commands/plan/UpdatePlanDetails';
 import { CreateProjectCommand } from '../application/commands/project/CreateProject';
@@ -277,6 +280,8 @@ export interface PersistenceServices
 	 */
 	readonly createProject: Command<CreateProjectInput, Result<{ project: Loaded<Project> }, CreateProjectError>>;
 	readonly createPlan: Command<CreatePlanInput, Result<{ plan: Loaded<Plan> }, CreatePlanError>>;
+	/** Dispatched by `ProjectDetailState.vue`'s plan rows, and by nothing else. */
+	readonly deletePlan: Command<DeletePlanInput, Result<{ planId: PlanId }, DeletePlanError>>;
 	readonly updatePlanDetails: Command<UpdatePlanDetailsInput, Result<{ plan: Loaded<Plan> }, UpdatePlanDetailsError>>;
 	readonly createZone: Command<CreateZoneInput, Result<{ zone: Loaded<Zone> }, CreateZoneError>>;
 	/**
@@ -437,6 +442,7 @@ function composeGuarded(
 		...guardAssetDesign({ sidecar: assetGeometry, assets, events: eventBus, locks }, files, logger, map),
 		createProject: guardCommand(new CreateProjectCommand(projects, eventBus, defaultCurrency), 'command.createProject.failed', logger, map),
 		createPlan: guardCommand(new CreatePlanCommand(plans, projects, zones, eventBus), 'command.createPlan.failed', logger, map),
+		deletePlan: guardCommand(new DeletePlanCommand(plans, zones, eventBus), 'command.deletePlan.failed', logger, map),
 		updatePlanDetails: guardCommand(new UpdatePlanDetailsCommand(plans, eventBus), 'command.updatePlanDetails.failed', logger, map),
 		createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, map),
 		reversibleSetPlanBackground: guardCommand(

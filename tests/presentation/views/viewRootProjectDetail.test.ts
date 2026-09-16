@@ -91,6 +91,7 @@ interface Overrides {
 	 * thing to drift.
 	 */
 	createPlan?: RenovationProjectCommandServices['createPlan']['execute'];
+	deletePlan?: RenovationProjectCommandServices['deletePlan']['execute'];
 	getProject?: RenovationProjectQueryServices['getProject'];
 	/** How many of this project's plan notes refused to load. Ignored when `listPlansByProject`
 	 * is supplied whole, like `plans` is. */
@@ -126,6 +127,10 @@ function mountRoot(over: Overrides): VueWrapper {
 				over.createPlan === undefined
 					? base.commands.createPlan
 					: { execute: over.createPlan },
+			deletePlan:
+				over.deletePlan === undefined
+					? base.commands.deletePlan
+					: { execute: over.deletePlan },
 		},
 		queries: {
 			...base.queries,
@@ -168,6 +173,16 @@ async function openTheFormAndSubmit(wrapper: VueWrapper, name = 'Ground floor'):
 	await wrapper.get('form').trigger('submit');
 	await flushPromises();
 }
+
+/** Clicks the first plan row's Delete and answers the confirm it raises. */
+async function deleteFirstPlan(wrapper: VueWrapper, answer: 'confirm' | 'cancel'): Promise<void> {
+	await wrapper.get('.rp-plan-list__delete').trigger('click');
+	await flushPromises();
+	await wrapper.get(`[data-rp-action="${answer}"]`).trigger('click');
+	await flushPromises();
+}
+
+const ONE_PLAN: readonly PlanSummaryDto[] = [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }];
 
 describe('ViewRoot in the detail state', () => {
 	beforeEach(() => {
@@ -711,5 +726,57 @@ describe('ViewRoot in the detail state', () => {
 
 		expect(wrapper.find('.rp-dialog').exists()).toBe(false);
 		expect(listPlansByProject).toHaveBeenCalledTimes(1);
+	});
+	/**
+	 * The whole delete path through the real template: the row's icon button, the confirm the
+	 * state raises, the dispatch, and the re-read that takes the row off the screen. Asserted on
+	 * what is left drawn rather than on the spy alone, because "deletePlan was called" is equally
+	 * true of a build that never refreshes.
+	 */
+	it('deletes a plan through the row control once the confirm is answered', async () => {
+		const plansRef: PlanSummaryDto[] = [...ONE_PLAN];
+		const deletePlan = vi.fn<RenovationProjectCommandServices['deletePlan']['execute']>(({ planId }) => {
+			plansRef.splice(0, plansRef.length, ...plansRef.filter((plan) => plan.id !== planId));
+			return Promise.resolve(ok({ planId }));
+		});
+		const wrapper = mountRoot({ projectId: 'project-1', plansRef, deletePlan });
+		await flushPromises();
+
+		await deleteFirstPlan(wrapper, 'confirm');
+
+		expect(deletePlan).toHaveBeenCalledWith({ planId: 'plan-1' });
+		expect(wrapper.findAll('.rp-plan-list__row')).toHaveLength(0);
+	});
+
+	it('dispatches nothing when the confirm is cancelled', async () => {
+		const deletePlan = vi.fn<RenovationProjectCommandServices['deletePlan']['execute']>();
+		const wrapper = mountRoot({ projectId: 'project-1', plans: ONE_PLAN, deletePlan });
+		await flushPromises();
+
+		await deleteFirstPlan(wrapper, 'cancel');
+
+		expect(deletePlan).not.toHaveBeenCalled();
+		expect(wrapper.findAll('.rp-plan-list__row')).toHaveLength(1);
+	});
+
+	/**
+	 * A refusal is a NOTICE and the row stays — the opposite of the vanished-project case above,
+	 * and for `onDeletePlan`'s own stated reason: the plan is still there, so the surface is still
+	 * true and what is wrong is the gesture. The sentence comes from the locale table for the
+	 * refusal's CODE, never from `AppError.message`.
+	 */
+	it('leaves the row and says why when the command refuses a plan that still holds rooms', async () => {
+		const wrapper = mountRoot({
+			projectId: 'project-1',
+			plans: ONE_PLAN,
+			deletePlan: () => Promise.resolve(err({ category: 'Reference', code: 'plan.rooms-exist', message: 'internal english nobody may read', names: ['Kitchen'] }) as never),
+		});
+		await flushPromises();
+
+		await deleteFirstPlan(wrapper, 'confirm');
+
+		expect(wrapper.findAll('.rp-plan-list__row')).toHaveLength(1);
+		expect(Notice.shown.at(-1)).toContain(t('en', 'plan.rooms-exist', { names: 'Kitchen' }));
+		expect(Notice.shown.join(' ')).not.toContain('internal english');
 	});
 });

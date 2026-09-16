@@ -11,9 +11,11 @@ import { useProjectDetailStore } from '../stores/ProjectDetailStore';
 import { cancelResultFor, useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
+import { notifyFault, notifyOperationFailure } from '../notices/notify';
 import type { CreatePlanInput } from '../../application/commands/plan/CreatePlan';
 import type { PlanSummaryDto } from '../read-models/PlanDto';
 import type { ProjectId } from '../../domain/project/ProjectId';
+import type { PlanId } from '../../domain/plan/PlanId';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { isErr, ok } from '../../core/result/Result';
 import { singleFlight } from '../composables/single-flight';
@@ -221,6 +223,54 @@ async function onOpenPlan(planId: string): Promise<void> {
 	}
 }
 
+let deleting = false;
+
+/**
+ * The plan row's delete, confirmed then dispatched.
+ *
+ * **`deleting` is the same in-flight guard `AssetLibraryRoot.deleteSelectedAsset` holds**, and it
+ * is not the dialog gate beside it: the dialog closes the moment the user confirms, so a second
+ * click during the WRITE sees `dialogs.current === null` and dispatches a second delete against a
+ * version the first one already consumed.
+ *
+ * A refusal is a NOTICE rather than a screen, which is the opposite of `onProjectGone` above and
+ * for that docblock's own reason: the plan is still there and the surface is still true, so what
+ * is wrong is the gesture. `plan.rooms-exist` and its two siblings resolve through the locale
+ * tables at `notifyOperationFailure`, never from `AppError.message`.
+ *
+ * A plan the stored continue context named needs no cleanup here: `hydrate` re-resolves that
+ * context against the fresh list every time, and a stored plan the list no longer holds is
+ * exactly what `missingPlan` already draws P03's entry for.
+ */
+async function onDeletePlan(planId: string, name: string): Promise<void> {
+	if (context.readOnly || dialogs.current !== null || deleting) return;
+
+	const confirmed = await dialogs.openDialog({
+		kind: 'confirm',
+		title: tr('view.project.delete-plan-title'),
+		message: tr('view.project.delete-plan-body', { name }),
+		confirmLabel: tr('view.project.delete-plan-confirm'),
+		cancelLabel: tr('view.project.delete-plan-cancel'),
+		danger: true,
+	});
+	if (confirmed !== 'confirm' || disposed) return;
+
+	deleting = true;
+	try {
+		const result = await context.commands.deletePlan.execute({ planId: planId as PlanId });
+		if (disposed) return;
+		if (isErr(result)) {
+			notifyOperationFailure(result.error);
+			return;
+		}
+		await hydrate();
+	} catch (cause) {
+		if (!disposed) notifyFault(cause, context.commands.logger, 'view.project.delete-plan-failed');
+	} finally {
+		deleting = false;
+	}
+}
+
 async function onCreatePlan(): Promise<void> {
 	if (context.readOnly || dialogs.current !== null) return;
 
@@ -414,6 +464,7 @@ if (section === 'prices') {
 		@open-note="() => void onOpenNote()"
 		@open-plan="onOpenPlan"
 		@create-plan="() => void onCreatePlan()"
+		@delete-plan="(planId, name) => void onDeletePlan(planId, name)"
 	/>
 
 	<EmptyState

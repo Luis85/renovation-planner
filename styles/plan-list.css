@@ -1,0 +1,194 @@
+/*
+ * One project's plan rows — the `PlanList.vue` region, split out of `project-detail.css` when
+ * the delete control on each row took that file past the assembler's 400-line cap. Nothing
+ * about the rules moved; the seam is the component boundary the classes already named.
+ */
+
+/*
+ * The plans region: a native disclosure with `New plan` on its summary's line and OUTSIDE the
+ * `<summary>`, because a button inside one is a nested interactive element and P02 forbids that
+ * by name. A ONE-ROW GRID whose two children overlap that row — the disclosure spans it and the
+ * create button sits at its top-right corner. Two grid items in one cell is the only arrangement
+ * that puts a control on a `<summary>`'s line without putting it inside the element: a flex row
+ * cannot, because the `<ul>` has to be inside the `<details>` for the native open state to reach.
+ */
+.rp-plan-list__section {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: start;
+	padding-block: var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.rp-plan-list__disclosure {
+	grid-area: 1 / 1 / 2 / -1;
+	min-width: 0;
+}
+
+/*
+ * `list-style: none` takes the browser's own triangle off, which is what makes room for the
+ * `chevron-right` the template draws instead. Both spellings, because WebKit still needs its
+ * pseudo-element.
+ */
+.rp-plan-list__summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding-inline-end: 9em;
+	list-style: none;
+	cursor: var(--cursor);
+}
+
+.rp-plan-list__summary::-webkit-details-marker {
+	display: none;
+}
+
+.rp-plan-list__summary:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.rp-plan-list__twisty {
+	color: var(--text-muted);
+	transition: transform 120ms ease;
+}
+
+.rp-plan-list__disclosure[open] .rp-plan-list__twisty {
+	transform: rotate(90deg);
+}
+
+.rp-plan-list__title {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+}
+
+.rp-plan-list__empty {
+	margin: var(--size-4-2) 0 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * The create action, on the summary's line and in the grid's second column. DOUBLED for the
+ * (0,1,1) threshold, like every other flattened button on this surface.
+ */
+.rp-plan-list__section .rp-plan-list__create {
+	grid-area: 1 / 2 / 2 / -1;
+	justify-self: end;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	padding-inline: 0;
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-accent);
+}
+
+.rp-plan-list__section .rp-plan-list__create:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.rp-plan-list {
+	margin: var(--size-4-2) 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+/*
+ * Scoped under `.rp-plan-list`, not a bare `.rp-plan-list__row`: Obsidian's own
+ * `button:not(.clickable-icon)` is (0,1,1) and a single class here is (0,1,0), so the flat
+ * transparent row would lose its background and colour outright —
+ * `tests/build/buttonSpecificity.test.ts` refuses that loss as a category.
+ */
+/*
+ * The row and its Delete share one line, so the separator moved from the row to the ITEM: left
+ * on the row it would have stopped at the row's own right edge, drawing a rule that ends before
+ * the trash icon.
+ */
+.rp-plan-list__item {
+	display: flex;
+	align-items: center;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.rp-plan-list__item:first-child {
+	border-top: 0;
+}
+
+/*
+ * Revealed on hover and on keyboard focus, and `:focus-within` is what carries the keyboard
+ * half: `visibility: hidden` takes an element out of the focus order entirely, so a plain
+ * `:focus` rule could never match — the caret would tab straight past a control that never
+ * became focusable. Opacity keeps it in the order and only makes it invisible.
+ */
+.rp-plan-list__item .rp-plan-list__delete {
+	flex: 0 0 auto;
+	margin-inline-end: var(--size-4-2);
+	padding: var(--size-4-1);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-faint);
+	opacity: 0;
+}
+
+.rp-plan-list__item:hover .rp-plan-list__delete,
+.rp-plan-list__item:focus-within .rp-plan-list__delete {
+	opacity: 1;
+}
+
+.rp-plan-list__item .rp-plan-list__delete:hover:not(:disabled) {
+	color: var(--text-error);
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-plan-list__item .rp-plan-list__delete:focus-visible {
+	opacity: 1;
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.rp-plan-list .rp-plan-list__row {
+	flex: 1;
+	min-width: 0;
+	/*
+	 * Obsidian's own `button` rule sets `justify-content: center`, and it is not overridden by
+	 * `text-align: left` — that property positions INLINE content, and a flex item is not inline
+	 * content. The first capture of this state showed twelve plan names centred in the pane,
+	 * under a left-aligned `Plans` heading and beside a rule saying `text-align: left`.
+	 */
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-4-3);
+	width: 100%;
+	padding: var(--size-4-2);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-normal);
+}
+
+.rp-plan-list .rp-plan-list__row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* Flattening the row took Obsidian's own `button:focus-visible` box-shadow with it, so the ring
+   is stated here — `tests/build/buttonFocusRing.test.ts` is the check for exactly that. The
+   offset is NEGATIVE because the row is edge-to-edge and an outside ring would clip. WCAG 2.4.7. */
+.rp-plan-list .rp-plan-list__row:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.rp-plan-list__name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	text-align: start;
+}
+
+.rp-plan-list__chevron {
+	color: var(--text-faint);
+}

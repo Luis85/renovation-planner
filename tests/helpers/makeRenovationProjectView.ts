@@ -58,6 +58,7 @@ import { ListProjects } from '../../src/application/queries/ListProjects';
 import { ListProjectAssetPrices } from '../../src/application/queries/ListProjectAssetPrices';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
+import { DeletePlanCommand } from '../../src/application/commands/plan/DeletePlan';
 import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { IndexProjectListFacts } from '../../src/infrastructure/obsidian/repositories/IndexProjectListFacts';
 import { IndexLibraryOverlaps } from '../../src/infrastructure/obsidian/repositories/IndexLibraryOverlaps';
@@ -282,6 +283,8 @@ export const defaultRenovationProjectDeps = (
 		},
 	});
 
+	const zones = new InMemoryZoneRepository();
+
 	// ANNOTATED rather than inferred, so a member the interface grows is a compile error here
 	// rather than an `undefined` handed to whoever reads it — which is what this file shipped:
 	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
@@ -297,7 +300,11 @@ export const defaultRenovationProjectDeps = (
 		}),
 		commands: {
 			createProject: new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency),
-			createPlan: new CreatePlanCommand(plans, projects, new InMemoryZoneRepository(), events),
+			createPlan: new CreatePlanCommand(plans, projects, zones, events),
+			// The SAME `zones` `createPlan` takes, not a second throwaway: `DeletePlanCommand`
+			// refuses a plan that still holds rooms, and a delete pointed at an empty repository
+			// no plan ever wrote into would answer `ok` for every plan the harness draws.
+			deletePlan: new DeletePlanCommand(plans, zones, events),
 			// REAL commands over the SAME `assets`/`overrides` this file's `listAssetPrices`
 			// reads through, not refusals: a stand-in that refuses what production answers turns
 			// a tool built for looking into one that shows a false picture, and the price section

@@ -231,26 +231,31 @@ describe('the designer’s dimensions dialog', () => {
 	});
 
 	/**
-	 * The one worth thinking about rather than copying (the plan's own words): typing dimensions
-	 * over a trace replaces measured coordinates with authored ones, so the provenance must
-	 * follow, or a later calibration would rescale a rectangle nobody measured (Decision 6).
-	 * `drawn()`'s footprint is `footprintOrigin: 'traced'`, `footprintPending: false` — the write
-	 * command's own `withFootprint(current, footprint, 'typed', false)` retypes it regardless of
-	 * what it replaces, so this is the wiring proof that the real command really is what answers
-	 * this gesture end to end.
+	 * Retyping is the REPLACE path's own act — it claims an authorship the coordinates do not have.
+	 * A measured TRACED footprint takes the scaling path (§3a): its corners came from the drawing and
+	 * only their scale changes, so `footprintOrigin` stays `'traced'`. Nothing is put at risk by that:
+	 * `CalibrateAsset`'s own docblock already states that provenance and the pending flag have no
+	 * conjunction, and a calibration converts a PENDING group alone, so a non-pending, traced
+	 * footprint like this one is never rescaled by a later calibration.
 	 */
-	it('retypes a TRACED footprint as typed, since the numbers are now authored rather than measured', async () => {
+	it('scales a TRACED footprint and keeps it traced, since its coordinates are still measured', async () => {
 		const harness = await seeded();
 		await harness.seed(drawn());
 		const { wrapper, dialogs } = await mountDesigner(harness);
-		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 1200, depth: 800 });
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 200, depth: 200 });
 
 		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
 		await flushPromises();
 
 		const stored = await harness.sidecar.read(harness.assetId);
-		expect(isOk(stored) && stored.value.document.shape?.footprintOrigin).toBe('typed');
+		expect(isOk(stored) && stored.value.document.shape?.footprintOrigin).toBe('traced');
 		expect(isOk(stored) && stored.value.document.shape?.footprintPending).toBe(false);
+		// `drawn()`'s square is 100 × 100 anchored at (5, 5); doubling both axes doubles the offset
+		// from the anchor on every corner.
+		expectNear(
+			isOk(stored) ? stored.value.document.shape?.footprint.points : undefined,
+			[[-5, -5], [195, -5], [195, 195], [-5, 195]],
+		);
 	});
 
 	/**
@@ -345,6 +350,42 @@ describe('the designer’s dimensions dialog', () => {
 		expect(setShape).not.toHaveBeenCalled();
 		expect(Notice.shown).toEqual([t('en', 'asset.invalid-scale')]);
 		expect((await harness.document()).shape).toEqual(TOILET);
+	});
+
+	/**
+	 * A footprint in real millimetres is SCALED whatever it is drawn as. The old branch scaled only a
+	 * design with details or a curved edge, so a straight traced outline with a notch — an L-shaped
+	 * counter — was silently squared off into a centred rectangle (consolidation spec §3).
+	 */
+	it('scales a calibrated L-shaped footprint instead of squaring it off', async () => {
+		const harness = await seeded();
+		// 1000 x 600 overall, six corners, the notch in the +x/+y quadrant.
+		await harness.seed({
+			...drawn(),
+			footprint: {
+				points: [
+					{ x: -500, y: -300 },
+					{ x: 500, y: -300 },
+					{ x: 500, y: 0 },
+					{ x: 0, y: 0 },
+					{ x: 0, y: 300 },
+					{ x: -500, y: 300 },
+				],
+			},
+			clearance: null,
+			anchor: { x: 0, y: 0 },
+		});
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 2000, depth: 300 });
+		const fromDimensions = vi.spyOn(harness.bundle.setFootprintFromDimensions, 'executeWithVersion');
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(fromDimensions).not.toHaveBeenCalled();
+		const footprint = (await harness.document()).shape?.footprint;
+		// x doubled and y halved about the anchor at the origin; the notch is still there.
+		expectNear(footprint?.points, [[-1000, -150], [1000, -150], [1000, 0], [0, 0], [0, 150], [-1000, 150]]);
 	});
 });
 

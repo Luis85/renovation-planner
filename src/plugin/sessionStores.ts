@@ -1,6 +1,7 @@
 import type { Logger } from '../application/ports/Logger';
 import {
 	WriteIncidentRegistry,
+	activeWriteIncidentRegistry,
 	installWriteIncidentRegistry,
 } from '../application/incidents/WriteIncidentRegistry';
 import { SequenceMarkerFileStore, type TextFileAdapter } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
@@ -29,7 +30,10 @@ import { WriteIncidentFileStore } from '../infrastructure/obsidian/plugin-data/W
 export class SessionStores {
 	readonly markers: SequenceMarkerFileStore;
 
-	readonly incidents: WriteIncidentRegistry;
+	/** Named for what it HOLDS, not for what `guardCommand` asks of it — a reader reaching for
+	 * `stores.incidents.list()` on a registry (it has no such method; `WriteIncidentStore.list()`
+	 * lives on the file store this wraps) is the confusion this name exists to prevent. */
+	readonly writeIncidents: WriteIncidentRegistry;
 
 	// `pluginDir` is `Manifest.dir`, which Obsidian declares OPTIONAL. It is interpolated
 	// rather than defaulted, which is verbatim what the call site did before this extraction —
@@ -40,12 +44,24 @@ export class SessionStores {
 		// "nothing open" until `seed()` resolves, which leaves a window at startup in which a
 		// write recorded by a previous session is not yet blocking — the same window
 		// `recoverInterruptedSequences` runs in, and not one this task closes.
-		this.incidents = new WriteIncidentRegistry(new WriteIncidentFileStore(adapter, `${pluginDir}/write-incidents.json`), logger);
-		installWriteIncidentRegistry(this.incidents);
+		this.writeIncidents = new WriteIncidentRegistry(new WriteIncidentFileStore(adapter, `${pluginDir}/write-incidents.json`), logger);
+		installWriteIncidentRegistry(this.writeIncidents);
 	}
 
-	/** A global this code installs is a global this code removes — `onunload`'s half. */
+	/**
+	 * A global this code installs is a global this code removes — `onunload`'s half, and the
+	 * exact pattern `konvaGlobal.ts`'s `claimKonvaGlobal` already carries for the same reason:
+	 * release only while the global is still the one THIS instance claimed.
+	 *
+	 * **Unconditional release was the defect.** Two overlapping `SessionStores` — which the
+	 * suite produces routinely within a single test file (a second `loadedPlugin()` before the
+	 * first is disposed) and which a real reload race can produce in a vault — means session
+	 * A's `dispose()` used to null out whatever was installed, including session B's registry
+	 * if B loaded after A but before A unloaded. The gate then answers "nothing open" over a
+	 * vault B's own incidents say is half-written. Comparing identity first is what keeps this
+	 * to releasing exactly what this instance added, never a later instance's replacement.
+	 */
 	dispose(): void {
-		installWriteIncidentRegistry(null);
+		if (activeWriteIncidentRegistry() === this.writeIncidents) installWriteIncidentRegistry(null);
 	}
 }

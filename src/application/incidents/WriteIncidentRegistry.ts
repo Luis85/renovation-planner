@@ -21,6 +21,15 @@ import {
 export class WriteIncidentRegistry {
 	private readonly open: WriteIncident[] = [];
 
+	// Guards `seed()` itself rather than relying on a caller to call it once. `startPersistence`
+	// (`RenovationPlannerPlugin.ts`) is re-entered by every settings save, ABOVE the
+	// `listenersRegistered` guard that stops the rest of that method's body from re-running —
+	// so without this flag, every settings save re-read the store and re-pushed the SAME
+	// durable incidents onto `open`, unbounded. `anyOpen()`'s `length > 0` test cannot see
+	// that: any positive length answers the same, which is why the regression was invisible
+	// until something counted rather than merely tested presence.
+	private seeded = false;
+
 	constructor(
 		private readonly store: WriteIncidentStore,
 		private readonly logger: Logger,
@@ -30,12 +39,20 @@ export class WriteIncidentRegistry {
 	 * Read the durable record once, at load, so an incident raised in a previous session
 	 * closes the gate before the user can write anything.
 	 *
+	 * **Idempotent by its OWN guard, not by a caller's discipline.** A second call is a no-op:
+	 * `seeded` is set before the read starts, so a re-entrant call made while the first is
+	 * still in flight also finds it set. That is what lets `RenovationPlannerPlugin` call this
+	 * from `startPersistence` without tracking, elsewhere, whether that method has already run
+	 * this session.
+	 *
 	 * **A failed read FAILS CLOSED.** SDD §87 rule 8: a file this build cannot read is never
 	 * presented as zero open incidents, so a refused list seeds one unreadable incident and
 	 * the gate shuts. That is the same answer rule 7 gives an unsupported schema version, and
 	 * it is the answer ADR-0034 requires of this file specifically.
 	 */
 	async seed(): Promise<void> {
+		if (this.seeded) return;
+		this.seeded = true;
 		const listed = await this.store.list();
 		if (isErr(listed)) {
 			this.open.push(unreadableWriteIncident(null));

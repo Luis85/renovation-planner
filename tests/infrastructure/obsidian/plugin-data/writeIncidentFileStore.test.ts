@@ -108,6 +108,29 @@ describe('WriteIncidentFileStore', () => {
 		expect(listed[0]?.affected).toEqual([]);
 	});
 
+	/**
+	 * The case Fix 3 closes: a v1-stamped record — the CURRENT schema version, so the
+	 * unrecognised-version case above does not cover it — missing `raisedAt`, `code` or
+	 * `category`. Before the fix `asIncident` checked only `schemaVersion`, `incidentId` and
+	 * `affected`, so a record like this came back RECOGNISED with `undefined` sitting where
+	 * the type declares a string — invisible until something reads one of the three, which
+	 * the diagnostics reader ADR-0034 requires will do. Watched red: reverting the three added
+	 * `typeof` checks in `asIncident` makes this assert `code === UNREADABLE_WRITE_INCIDENT_CODE`
+	 * against a listed record whose `code` is actually `undefined`.
+	 */
+	it('treats a v1 record missing raisedAt, code or category as unreadable, not recognised', async () => {
+		const files = new Map([
+			[PATH, JSON.stringify({ schemaVersion: 1, incidents: [{ schemaVersion: 1, incidentId: 'incident-a', affected: [] }] })],
+		]);
+		const store = new WriteIncidentFileStore(fakeAdapter(files), PATH);
+
+		const listed = expectOk(await store.list());
+		expect(listed).toHaveLength(1);
+		expect(listed[0]?.code).toBe(UNREADABLE_WRITE_INCIDENT_CODE);
+		expect(listed[0]?.category).toBe('Persistence');
+		expect(listed[0]?.incidentId).toBe('incident-a');
+	});
+
 	it('rewrites an unreadable record VERBATIM rather than migrating it', async () => {
 		const foreign = { schemaVersion: 2, incidentId: 'from-the-future', shape: 'unknown' };
 		const files = new Map([[PATH, JSON.stringify({ schemaVersion: 2, incidents: [foreign] })]]);

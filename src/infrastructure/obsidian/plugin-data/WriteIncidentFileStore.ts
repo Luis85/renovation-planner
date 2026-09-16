@@ -74,7 +74,18 @@ export class WriteIncidentFileStore implements WriteIncidentStore {
 		});
 	}
 
-	/** The raw record list, untyped on purpose: validating a record is `asIncident`'s job. */
+	/**
+	 * The raw record list, untyped on purpose: validating a record is `asIncident`'s job — all
+	 * SIX declared fields' TYPES, not merely the three (`schemaVersion`, `incidentId`,
+	 * `affected`) a prior pass checked. A record passing the narrower check with `raisedAt`,
+	 * `code` or `category` missing was returned as RECOGNISED with `undefined` sitting where
+	 * the type declares a string, invisible until something reads one of those three fields —
+	 * which the diagnostics reader ADR-0034 requires will do. What this still does not check:
+	 * that `raisedAt` parses as a real ISO-8601 instant, or that `category` names one of
+	 * `ErrorCategory`'s eight members rather than merely being A string — a `typeof` check
+	 * catches the shape a truncated or hand-edited record loses, not a value that is
+	 * well-typed and still wrong.
+	 */
 	private async readRecords(): Promise<Result<readonly unknown[], PersistenceError>> {
 		if (!(await this.adapter.exists(this.path))) return ok([]);
 		let raw: unknown;
@@ -113,6 +124,9 @@ function asIncident(raw: unknown): WriteIncident {
 		shape !== null &&
 		shape.schemaVersion === WRITE_INCIDENT_SCHEMA_VERSION &&
 		typeof shape.incidentId === 'string' &&
+		typeof shape.raisedAt === 'string' &&
+		typeof shape.code === 'string' &&
+		typeof shape.category === 'string' &&
 		Array.isArray(shape.affected)
 	) {
 		return shape as WriteIncident;

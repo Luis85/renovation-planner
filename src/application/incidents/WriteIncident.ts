@@ -45,6 +45,20 @@ export interface WriteIncident {
 export const UNREADABLE_WRITE_INCIDENT_CODE = 'write-incident.unreadable';
 
 /**
+ * The `incidentId` a record gets when its OWN `incidentId` cannot be read either — the
+ * `unreadableWriteIncident(null)` path `WriteIncidentRegistry.seed()` takes when the durable
+ * read itself refuses, where there is no raw record to salvage a string out of at all.
+ *
+ * A stable sentinel rather than `''`: the gate only counts (`anyOpen()`'s `length > 0`), so an
+ * empty id costs it nothing, but the diagnostics reader ADR-0034 requires would otherwise hold
+ * an incident it cannot NAME — indistinguishable from a second one in the same list, and empty
+ * in whatever the reader renders. `'incident-'` followed by a lowercase word rather than a
+ * ULID is deliberately not a shape `createEntityId('incident')` ever mints — that factory's
+ * suffix is uppercase Crockford base32 — so this sentinel can never collide with a real one.
+ */
+export const UNREADABLE_WRITE_INCIDENT_ID = 'incident-unreadable';
+
+/**
  * Surface a record this build cannot read as an OPEN incident rather than as absence.
  *
  * This is the point where this mechanism deliberately differs from `SequenceMarkerFileStore`,
@@ -64,7 +78,12 @@ export function unreadableWriteIncident(raw: unknown): WriteIncident {
 	const shape: Partial<WriteIncident> = typeof raw === 'object' && raw !== null ? raw : {};
 	return {
 		schemaVersion: typeof shape.schemaVersion === 'number' ? shape.schemaVersion : 0,
-		incidentId: typeof shape.incidentId === 'string' ? shape.incidentId : '',
+		incidentId: typeof shape.incidentId === 'string' ? shape.incidentId : UNREADABLE_WRITE_INCIDENT_ID,
+		// No comparable sentinel for a TIMESTAMP: unlike an id, there is no string shape a real
+		// `raisedAt` can never take, so a placeholder here would risk reading as a real instant
+		// rather than announcing itself as absent. `''` stays the honest answer — a reader must
+		// already treat it as "unknown", the same way it must treat `UNREADABLE_WRITE_INCIDENT_CODE`
+		// as "not a code any raise site minted" rather than parse either as data.
 		raisedAt: typeof shape.raisedAt === 'string' ? shape.raisedAt : '',
 		code: UNREADABLE_WRITE_INCIDENT_CODE,
 		category: 'Persistence',

@@ -954,9 +954,15 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// sequence recovery runs in. `seed` resolves rather than rejects for every fault and
 			// fails CLOSED on a refused read — an unreadable incidents file is not an empty one
 			// (SDD §87 rule 8) — which is why the `void` here is safe and why a fault leaves the
-			// gate shut rather than open. Idempotent it is NOT: `saveSettings` re-runs this step,
-			// so the registry is memoised per session and seeded once, at its construction.
-			void this.stores.incidents.seed();
+			// gate shut rather than open. `startPersistence` is re-entered by `applySettings` on
+			// every settings save, ABOVE the `listenersRegistered` guard below — so THIS call
+			// re-runs on every save too, and it is idempotent by `WriteIncidentRegistry`'s OWN
+			// `seeded` guard rather than by memoisation here: the registry itself is constructed
+			// once per session (`SessionStores`), but until that guard existed a second `seed()`
+			// re-read the store and re-pushed the same durable incidents onto the open list,
+			// unbounded — invisible only because `anyOpen()` tests `length > 0` rather than a
+			// count.
+			void this.stores.writeIncidents.seed();
 
 			void recoverInterruptedSequences({
 				markers: persistence.markers,

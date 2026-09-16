@@ -97,6 +97,42 @@ describe('WriteIncidentRegistry', () => {
 		expect(lines.map((l) => l.event)).toContain('incident.write-failed');
 	});
 
+	/**
+	 * Fix 1's regression: `startPersistence` (`RenovationPlannerPlugin.ts`) is re-entered by
+	 * every settings save, ABOVE the `listenersRegistered` guard that stops the rest of that
+	 * method from re-running, so `seed()` used to be called again on every save. It re-read
+	 * the store and re-pushed the SAME durable incidents onto the open list each time —
+	 * invisible because `anyOpen()` only tests `length > 0`, so the count is what has to be
+	 * watched. Watched red: without the `seeded` guard in `WriteIncidentRegistry.seed()`, the
+	 * store below is asked to `list()` twice and `listCalls` is 2, not 1.
+	 */
+	it('seeds only once: a second seed() call re-reads nothing', async () => {
+		let listCalls = 0;
+		const store: WriteIncidentStore = {
+			list: () => {
+				listCalls += 1;
+				return Promise.resolve(ok([
+					{
+						schemaVersion: WRITE_INCIDENT_SCHEMA_VERSION,
+						incidentId: 'incident-a',
+						raisedAt: '2026-09-16T00:00:00.000Z',
+						code: 'plan.write-uncompensated',
+						category: 'Persistence' as const,
+						affected: [],
+					},
+				]));
+			},
+			add: () => Promise.resolve(ok(undefined)),
+		};
+		const registry = new WriteIncidentRegistry(store, recorder);
+
+		await registry.seed();
+		await registry.seed();
+
+		expect(listCalls).toBe(1);
+		expect(registry.anyOpen()).toBe(true);
+	});
+
 	it('fails CLOSED when the seeding read itself refuses: unreadable is not empty', async () => {
 		const unreadable: WriteIncidentStore = {
 			list: () => Promise.resolve(err(persistenceError('write-incident.file-unreadable', 'no'))),

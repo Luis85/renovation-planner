@@ -451,7 +451,10 @@ refreshing. The first bullet refines Amendment 1's condition:
   design when it runs. So does `commitHeight`, which borrows that same queued dispatcher rather than
   being a tool itself, and so does every `editShape` call: the arrow keys, the canvas's own Delete and
   Ctrl+D, the selection inspector, and Edit dimensions' SCALING path (`scaleDesign`, taken when the
-  design has a detail or a curved footprint or clearance edge).
+  design has a detail or a curved footprint or clearance edge). Superseded by
+  `docs/superpowers/specs/2026-09-16-asset-designer-consolidate-design.md` §3: the scaling path is now
+  taken whenever the footprint already measures real millimetres, whatever its shape, not only when it
+  has a detail or a curve.
 - Four writes dispatch directly and never join that chain: undo, redo, set background and Start from
   preset (`applyShape`). Edit dimensions' REPLACE-WITH-RECTANGLE path
   (`setFootprintFromDimensions`, taken for an unscaled drawing or one with nothing curved or detailed

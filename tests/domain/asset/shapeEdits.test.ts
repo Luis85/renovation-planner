@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { boundingBoxOf } from '../../../src/core/geometry/operations';
 import { circle } from '../../../src/domain/asset/presets/presetGeometry';
+import { dimensionsOf, type AssetShape } from '../../../src/domain/asset/AssetShape';
+import { solveScale } from '../../../src/domain/asset/scaleSolve';
 import {
 	moveAnchor,
 	moveOutline,
@@ -10,12 +12,13 @@ import {
 	resizeBox,
 	rotateOutline,
 	scaleDesign,
+	scaleDesignToDimensions,
 	setBulge,
 	setFacing,
 	type OutlinePart,
 } from '../../../src/domain/asset/shapeEdits';
 import { editableShape, QUARTER } from '../../helpers/assetShapes';
-import { expectErr, expectOk } from '../../helpers/domain';
+import { expectDefined, expectErr, expectOk } from '../../helpers/domain';
 
 /**
  * Spec 2026-09-13 Decision 9 and Amendment 1: every part edit answers a validated shape or a
@@ -31,6 +34,9 @@ const ALL_QUARTERS = [QUARTER, QUARTER, QUARTER, QUARTER];
 
 const near = (pairs: readonly (readonly [number, number])[]) =>
 	pairs.map(([x, y]) => ({ x: expect.closeTo(x, 9), y: expect.closeTo(y, 9) }));
+
+const widthOf = (shape: AssetShape) => expectOk(dimensionsOf(shape.footprint)).width;
+const depthOf = (shape: AssetShape) => expectOk(dimensionsOf(shape.footprint)).depth;
 
 describe('outlineOf', () => {
 	it('names the footprint, the clearance and a detail by id', () => {
@@ -226,5 +232,90 @@ describe('scaleDesign', () => {
 
 	it('refuses a factor that is not a finite positive number', () => {
 		expect(expectErr(scaleDesign(editableShape(), 0, 1)).code).toBe('asset.invalid-scale');
+	});
+});
+
+describe('scaleDesignToDimensions', () => {
+	it('lands a straight design exactly and scales every part about the anchor', () => {
+		const scaled = expectOk(scaleDesignToDimensions(editableShape(), 2000, 300));
+
+		const box = expectOk(boundingBoxOf(scaled.footprint));
+		expect([box.max.x - box.min.x, box.max.y - box.min.y]).toEqual([2000, 300]);
+		expect(scaled.anchor).toEqual({ x: 0, y: 0 });
+		// 1400 x 1000 clearance scaled by the same 2 x 0.5 the footprint took.
+		const clearance = expectOk(boundingBoxOf(expectDefined(scaled.clearance, 'the clearance')));
+		expect([clearance.max.x - clearance.min.x, clearance.max.y - clearance.min.y]).toEqual([2800, 500]);
+		expect(scaled.details[1].pending).toBe(true);
+	});
+
+	it('lands a curved footprint the plain ratio would miss', () => {
+		const round = editableShape({ footprint: circle(1000), clearance: null, details: [] });
+
+		const plain = expectOk(scaleDesign(round, 1.4, 1));
+		const plainBox = expectOk(boundingBoxOf(plain.footprint));
+		// The miss this function exists for — measured, not guessed: the x-axis lands on 1400
+		// exactly (the widest points are the vertices, not an arc apex), but leaving sy at 1 does
+		// NOT leave the depth at 1000. Scaling x alone still turns each arc's chord, so the
+		// untouched axis drifts too — measured at 1016.5525 mm, a ~16.55 mm miss.
+		expect(Math.abs(plainBox.max.y - plainBox.min.y - 1000)).toBeGreaterThan(15);
+
+		const solved = expectOk(scaleDesignToDimensions(round, 1400, 1000));
+		const box = expectOk(boundingBoxOf(solved.footprint));
+		expect(box.max.x - box.min.x).toBeCloseTo(1400, 3);
+		expect(box.max.y - box.min.y).toBeCloseTo(1000, 3);
+		expect(solved.footprint.bulges).toEqual(round.footprint.bulges);
+	});
+
+	it('refuses a size that is not a finite positive number', () => {
+		expect(expectErr(scaleDesignToDimensions(editableShape(), 0, 300)).code).toBe('asset.invalid-scale');
+	});
+
+	it('refuses a footprint whose extent overflows rather than solving against Infinity', () => {
+		// The AssetShape.dimensionsOf fixture: every coordinate is finite on its own, but the
+		// bounding box's x-span (1e308 - (-1e308)) is not a representable double.
+		const huge: AssetShape = {
+			footprint: { points: [{ x: -1e308, y: 0 }, { x: 1e308, y: 0 }, { x: 1e308, y: 10 }] },
+			footprintOrigin: 'typed',
+			footprintPending: false,
+			clearancePending: false,
+			anchorPending: false,
+			clearance: null,
+			anchor: { x: 0, y: 0 },
+			facing: 0,
+			details: [],
+		};
+		expect(expectErr(scaleDesignToDimensions(huge, 1000, 500)).code).toBe('asset.invalid-footprint');
+	});
+
+	/**
+	 * The docblock's "the third pass never landed worse than the second" claim, closed with a check
+	 * rather than left as nine one-time fixture measurements. A four-arc circle's kept bulges cannot
+	 * narrow its width below about a fifth of its diameter (`solveScale`'s own docblock) — the shape
+	 * that function already names as unreachable — so width 1 is unreachable from the 1000-diameter
+	 * `round` below. Reproducing pass 1 (width) and pass 2 (depth) directly through the exported
+	 * `solveScale` and `scaleDesign` — the same two calls `scaleDesignToDimensions` makes internally —
+	 * gives the shape the THIRD pass (width, again) starts from, without reaching into the function's
+	 * own private loop.
+	 */
+	it('never lands the third pass on width worse than the second, when the target is unreachable', () => {
+		const round = editableShape({ footprint: circle(1000), clearance: null, details: [] });
+
+		const afterPass1 = expectOk(
+			solveScale({ start: widthOf(round), target: 1, apply: (factor) => scaleDesign(round, factor, 1), measure: widthOf }),
+		);
+		// Depth 5000 is reachable, so pass 2 lands on it exactly — and moves width further from its
+		// own unreached target as a side effect of the coupled geometry (the same coupling Important 1
+		// measures on a different pair of targets).
+		const afterPass2 = expectOk(
+			solveScale({ start: depthOf(afterPass1), target: 5000, apply: (factor) => scaleDesign(afterPass1, 1, factor), measure: depthOf }),
+		);
+		expect(Math.abs(widthOf(afterPass2) - 1)).toBeGreaterThan(Math.abs(widthOf(afterPass1) - 1));
+
+		const full = expectOk(scaleDesignToDimensions(round, 1, 5000));
+		// The third pass (width, target 1 again) starts from `afterPass2` inside the real function —
+		// unreachable again, so it must not push width any further from the target than pass 2 left
+		// it, and it measurably lands within a tenth of a millimetre of that same unreached width.
+		expect(Math.abs(widthOf(full) - 1)).toBeLessThanOrEqual(Math.abs(widthOf(afterPass2) - 1));
+		expect(widthOf(full)).toBeCloseTo(widthOf(afterPass2), 0);
 	});
 });

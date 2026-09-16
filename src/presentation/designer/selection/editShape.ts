@@ -32,13 +32,12 @@ export type EditShape = (edit: (shape: AssetShape) => ReturnType<ShapeEdit> | nu
  * The joiners: every tool's dispatch (through the runtime's queued dispatcher); `commitHeight`, which
  * borrows that same queued dispatcher rather than being a tool itself; and every `editShape` call —
  * the arrow keys, the canvas's own Delete and Ctrl+D, the selection inspector, and Edit dimensions'
- * SCALING path (`scaleDesign`, taken when the design has a detail or a curved footprint or clearance
- * edge). Four writes dispatch directly and never join this chain: undo, redo, set background and
- * Start from preset (`applyShape`). Edit dimensions' REPLACE-WITH-RECTANGLE path
- * (`setFootprintFromDimensions`, taken for an unscaled drawing or one with nothing curved or detailed
- * to scale) dispatches directly too, unlike its scaling path above. A press or key made while one of
- * these bypassing writes is still awaiting its read-back reads the OLD version and is refused as a
- * version conflict; nothing is overwritten.
+ * SCALING path (`scaleDesignToDimensions`, taken whenever the footprint is already measured). Four
+ * writes dispatch directly and never join this chain: undo, redo, set background and Start from
+ * preset (`applyShape`). Edit dimensions' REPLACE-WITH-RECTANGLE path (`setFootprintFromDimensions`,
+ * taken for an unscaled drawing or no shape at all) dispatches directly too, unlike its scaling path
+ * above. A press or key made while one of these bypassing writes is still awaiting its read-back
+ * reads the OLD version and is refused as a version conflict; nothing is overwritten.
  *
  * `writing` and `settled` are the Select tool's two questions for a press (`DesignerSelectTool`'s
  * `hold`): is a write still queued, and when will every write queued so far have landed. `settled`

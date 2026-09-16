@@ -5,7 +5,8 @@ import { rotate, translate } from '../../core/geometry/operations';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
-import { validateAssetShape, type AssetShape } from './AssetShape';
+import { dimensionsOf, validateAssetShape, type AssetShape, type Dimensions } from './AssetShape';
+import { solveScale } from './scaleSolve';
 
 /**
  * Part edits (asset designer symbols spec, Decision 9 and Amendment 1): pure functions over an
@@ -153,7 +154,9 @@ export function removeClearance(shape: AssetShape): Result<AssetShape, Validatio
 
 /**
  * Every outline scaled about the ANCHOR, so the point a plan positions the asset by stays where it
- * is. What "Set dimensions" uses on a shape with details or curves (Amendment 1).
+ * is, by one raw factor per axis. `scaleDesignToDimensions` below is the caller for the dimensions
+ * gesture: it uses this as the per-axis `apply` a secant solve calls with successive factors, one
+ * axis at a time, rather than calling it directly with a ratio.
  */
 export function scaleDesign(shape: AssetShape, sx: number, sy: number): Result<AssetShape, ValidationError> {
 	const refused = scaleRefusal(sx, sy);
@@ -165,4 +168,70 @@ export function scaleDesign(shape: AssetShape, sx: number, sy: number): Result<A
 		clearance: shape.clearance === null ? null : about(shape.clearance),
 		details: shape.details.map((detail) => ({ ...detail, outline: about(detail.outline) })),
 	});
+}
+
+/** The design and what its footprint measures, carried together so a solve never re-asks for a size that could overflow. */
+interface Sized {
+	readonly shape: AssetShape;
+	readonly dimensions: Dimensions;
+}
+
+/**
+ * Maps `dimensionsOf`'s own overflow guard onto a design edit's refusal shape. Called both on the
+ * shape a caller hands in AND, inside `scaleDesignToDimensions`'s loop, on every candidate a secant
+ * step produces — `solveScale` clamps a factor only away from non-positive, never away from large,
+ * so an internally-computed factor can stretch a footprint past what a double can represent, the
+ * same `-1e308`-to-`1e308` overflow `AssetShape.dimensionsOf` already refuses as `dimensions-overflow`.
+ * Refused here rather than solved against, since `Infinity` is not a measurement a secant can use.
+ */
+function sized(shape: AssetShape): Result<Sized, ValidationError> {
+	const dimensions = dimensionsOf(shape.footprint);
+	if (isErr(dimensions)) return err(assetError('invalid-footprint', dimensions.error.message));
+	return ok({ shape, dimensions: dimensions.value });
+}
+
+/**
+ * The design scaled about its anchor until its FOOTPRINT measures `width` x `depth` — what Set
+ * dimensions does to a design that already has real millimetres in it.
+ *
+ * Solved rather than divided, through `solveScale`, for the reason that function states: bulges are
+ * kept, so an arc's reach follows its chord and a plain ratio misses on anything curved.
+ *
+ * **One axis at a time, three passes, because the axes are COUPLED.** Scaling y changes the chord of
+ * an arc that bows in x, so its x-extent moves with it: x, then y, then x again, each solved on the
+ * result of the last. The answer is whatever the LAST pass lands. `shapeEdits.test.ts`'s
+ * "never lands the third pass on width worse than the second" reconstructs pass 1 and pass 2 through
+ * the exported `solveScale` and `scaleDesign` for an unreachable width, then checks the real third
+ * pass against that reconstruction: it never lands further from the target than the second pass did,
+ * and lands within a tenth of a millimetre of it — CLOSE rather than exact, since a secant correction
+ * still moves it slightly. Circles, a scalloped ring, `roundFront` and the toilet preset at a spread
+ * of other targets were measured once at extraction to behave the same way and are not held by a
+ * check. A straight-sided design lands both axes exactly on the first pass and the later ones change
+ * nothing.
+ *
+ * Its ceiling is `solveScale`'s: an unreachable extent lands near the typed value rather than on it.
+ */
+export function scaleDesignToDimensions(shape: AssetShape, width: number, depth: number): Result<AssetShape, ValidationError> {
+	const start = sized(shape);
+	if (isErr(start)) return start;
+	const passes = [
+		{ axis: 'width', target: width },
+		{ axis: 'depth', target: depth },
+		{ axis: 'width', target: width },
+	] as const;
+	let current = start.value;
+	for (const pass of passes) {
+		const solved = solveScale<Sized>({
+			start: current.dimensions[pass.axis],
+			target: pass.target,
+			apply: (factor) => {
+				const scaledShape = scaleDesign(current.shape, pass.axis === 'width' ? factor : 1, pass.axis === 'width' ? 1 : factor);
+				return isErr(scaledShape) ? scaledShape : sized(scaledShape.value);
+			},
+			measure: (candidate) => candidate.dimensions[pass.axis],
+		});
+		if (isErr(solved)) return solved;
+		current = solved.value;
+	}
+	return ok(current.shape);
 }

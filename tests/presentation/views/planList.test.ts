@@ -37,6 +37,49 @@ describe('PlanList', () => {
 		expect(wrapper.emitted('open')).toEqual([['plan-1']]);
 	});
 
+	/**
+	 * The row's Delete is a SECOND button in the item rather than anything inside the row: a
+	 * button inside a button is a nested interactive element, which is the same rule that keeps
+	 * `New plan` outside the `<summary>`.
+	 */
+	it('emits the plan a row Delete was clicked for, and never open', async () => {
+		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }] } });
+
+		await wrapper.get('.rp-plan-list__delete').trigger('click');
+
+		expect(wrapper.emitted('delete')).toEqual([['plan-1', 'Ground floor']]);
+		expect(wrapper.emitted('open')).toBeUndefined();
+	});
+
+	/**
+	 * Icon-only, so the `aria-label` is its whole accessible name — and it NAMES THE PLAN,
+	 * because a list of rows each announced as `Delete` gives a screen-reader user no way to
+	 * tell which one the caret is on.
+	 */
+	it('names the plan in each Delete button accessible name', () => {
+		const wrapper = mount(PlanList, {
+			props: {
+				plans: [
+					{ id: 'plan-1', name: 'Ground floor', kind: 'floor' },
+					{ id: 'plan-2', name: 'First floor', kind: 'floor' },
+				],
+			},
+		});
+
+		expect(wrapper.findAll('.rp-plan-list__delete').map((button) => button.attributes('aria-label')))
+			.toEqual(['Delete plan Ground floor', 'Delete plan First floor']);
+	});
+
+	it('disables Delete on a read-only surface, beside the row it belongs to', () => {
+		const wrapper = mount(PlanList, {
+			props: { plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }], readOnly: true, readOnlyReasonId: 'why' },
+		});
+
+		const button = wrapper.get('.rp-plan-list__delete');
+		expect(button.attributes('disabled')).toBeDefined();
+		expect(button.attributes('aria-describedby')).toBe('why');
+	});
+
 	it('emits create from its header button', async () => {
 		const wrapper = mount(PlanList, { props: { plans: [] } });
 
@@ -122,7 +165,10 @@ describe('PlanList', () => {
 	 * in the template fails here instead of quietly shipping an unstyled row.
 	 */
 	it('declares a rule for every class it actually emits', () => {
-		const css = readFileSync('styles/project-detail.css', 'utf8');
+		// `plan-list.css`, not `project-detail.css`: the rules moved into their own partial when
+		// the row's Delete took that file past the assembler's 400-line cap, and this read is the
+		// one thing that would have gone on passing against the file they left.
+		const css = readFileSync('styles/plan-list.css', 'utf8');
 		const wrapper = mount(PlanList, { props: { plans: [{ id: 'plan-1', name: 'Ground floor', kind: 'floor' }] } });
 
 		const emitted = new Set(

@@ -50,11 +50,11 @@ import { disposeAll, subscribeAll } from './subscriptions';
  * **`PlanCreated` is here because the Home spec commissioned a plan COUNT.** A field the
  * surface never re-reads is a field that lies, and until this name was added a plan created in
  * a background leaf reached the index and not this list — the row went on stating a number it
- * no longer had. The spec also names `PlanDeleted`; there is no such event in this tree and no
- * delete command to raise one, so the deletion case is carried by the entry arm below rather
- * than by a subscription to something nothing publishes.
+ * no longer had. `PlanDeleted` is the same field falling the other way, and it exists now:
+ * `DeletePlanCommand` raises it. The entry arm below still carries a plan note deleted OUTSIDE
+ * the plugin, which is the case no domain event can reach.
  */
-const PROJECT_LIST_CHANGE_EVENTS = ['ProjectIndexRebuilt', 'ProjectCreated', 'PlanCreated'] as const;
+const PROJECT_LIST_CHANGE_EVENTS = ['ProjectIndexRebuilt', 'ProjectCreated', 'PlanCreated', 'PlanDeleted'] as const;
 
 /**
  * Events that name ONE index entry, and are the list's business only when that entry is a

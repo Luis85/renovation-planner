@@ -69,7 +69,7 @@ const props = defineProps<{
 	commitAssetPrice: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>;
 	logger: Logger;
 }>();
-defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []; prices: []; schedule: []; quotes: []; toggleGuidance: []; refresh: []; retryPlans: []; scrolled: [top: number]; editState: [assetId: string, dirty: boolean, pending: boolean] }>();
+defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []; deletePlan: [planId: string, name: string]; prices: []; schedule: []; quotes: []; toggleGuidance: []; refresh: []; retryPlans: []; scrolled: [top: number]; editState: [assetId: string, dirty: boolean, pending: boolean] }>();
 const planEmpty = computed(() => (props.plansFailure ? null : props.emptyState));
 
 const planList = ref<InstanceType<typeof PlanList> | null>(null);
@@ -287,6 +287,7 @@ defineExpose({ focusEntry });
 					:empty-message="planEmpty === null ? null : planEmpty.body"
 					@open="(planId) => $emit('openPlan', planId)"
 					@create="$emit('createPlan')"
+					@delete="(planId, name) => $emit('deletePlan', planId, name)"
 				/>
 
 				<!--

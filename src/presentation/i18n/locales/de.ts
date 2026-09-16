@@ -509,7 +509,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	// „Objekt“, nie „Material“. Statt der aktuellen Zahlen und nicht daneben: das Formular
 	// bleibt leer, damit Platzhalterwerte nicht als echte Millimeter gespeichert werden.
 	'designer.dimensions.unscaled':
-		'Dieser Umriss wurde gezeichnet, bevor ein Maßstab vorlag; seine aktuelle Größe ist kein echtes Maß. Geben Sie die echte Breite und Tiefe ein, oder kalibrieren Sie zuerst den Hintergrund.',
+		'Dieser Umriss wurde gezeichnet, bevor ein Maßstab vorlag; seine aktuelle Größe ist kein echtes Maß. Geben Sie die echte Breite und Tiefe ein, oder kalibrieren Sie zuerst den Hintergrund. Beim Speichern wird der gezeichnete Umriss durch ein Rechteck dieser Größe ersetzt.',
 	'designer.dimensions.width': 'Breite in Millimetern',
 	'designer.dimensions.depth': 'Tiefe in Millimetern',
 	'undo.superseded':

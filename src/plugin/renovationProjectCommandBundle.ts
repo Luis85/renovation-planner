@@ -7,11 +7,13 @@ import type { AppError } from '../core/errors/AppError';
 import type { Result } from '../core/result/Result';
 import type { Asset } from '../domain/asset/Asset';
 import type { CreatePlanInput } from '../application/commands/plan/CreatePlan';
+import type { DeletePlanInput } from '../application/commands/plan/DeletePlan';
 import type { CreateProjectInput } from '../application/commands/project/CreateProject';
 import type { Command } from '../application/commands/Command';
 import type {
 	CreatePlanResult,
 	CreateProjectResult,
+	DeletePlanResult,
 	RenovationProjectCommandServices,
 } from '../presentation/views/renovationProjectCommands';
 
@@ -42,6 +44,7 @@ export function renovationProjectCommandBundle(
 	persistence: GuardedAssetPriceServices & {
 		readonly createProject: Command<CreateProjectInput, CreateProjectResult>;
 		readonly createPlan: Command<CreatePlanInput, CreatePlanResult>;
+		readonly deletePlan: Command<DeletePlanInput, DeletePlanResult>;
 		readonly createAsset: Command<CreateAssetInput, Result<Asset, AppError>>;
 		readonly assetDesign: GuardedAssetDesignServices['assetDesign'];
 		readonly defaultCurrency: Currency;
@@ -51,6 +54,7 @@ export function renovationProjectCommandBundle(
 	return {
 		createProject: persistence.createProject,
 		createPlan: persistence.createPlan,
+		deletePlan: persistence.deletePlan,
 		setAssetPriceOverride: persistence.setAssetPriceOverride,
 		clearAssetPriceOverride: persistence.clearAssetPriceOverride,
 		createAsset: persistence.createAsset,

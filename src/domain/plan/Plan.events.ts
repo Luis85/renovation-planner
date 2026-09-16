@@ -54,3 +54,19 @@ export function planCreated(payload: PlanEventPayload): PlanCreated {
 export function planCalibrated(payload: PlanEventPayload): PlanCalibrated {
 	return { type: 'PlanCalibrated', payload };
 }
+
+/**
+ * A Plan and its note are gone — what `DeletePlanCommand` publishes.
+ *
+ * `projectPlansChangeSource` and `projectListChangeSource` both carried the deletion case on
+ * their `ProjectIndexEntryChanged` arm while nothing raised this, and both said so in prose.
+ * That arm still covers a note deleted outside the plugin; this one is what makes the surfaces
+ * that dispatched the delete refresh from the write rather than from Obsidian's vault watcher.
+ */
+export interface PlanDeleted extends DomainEvent<'PlanDeleted'> {
+	readonly payload: PlanEventPayload;
+}
+
+export function planDeleted(payload: PlanEventPayload): PlanDeleted {
+	return { type: 'PlanDeleted', payload };
+}

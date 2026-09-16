@@ -36,10 +36,8 @@ import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import DialogHost from '../dialogs/DialogHost.vue';
 import { useDialogStore } from '../dialogs/dialog-store';
-import { dimensionsOf, type AssetShape } from '../../domain/asset/AssetShape';
-import { scaleDesign } from '../../domain/asset/shapeEdits';
-import { hasCurves } from '../../core/geometry/CurvedPolygon';
-import { unwrap } from '../../core/result/Result';
+import type { AssetShape } from '../../domain/asset/AssetShape';
+import { scaleDesignToDimensions } from '../../domain/asset/shapeEdits';
 import { notifyIfRefused } from '../editor/report-failure';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
@@ -206,22 +204,6 @@ const overlay = computed<EmptyStateProps | null>(() => {
 });
 
 /**
- * Does this shape carry a DRAWING that Set dimensions would scale rather than replace (symbols spec,
- * Decision 9 and Amendment 1)? A shape with details, or with a curved footprint or clearance edge,
- * does; a plain polygon keeps the replace-with-rectangle it always had.
- *
- * Asked only of a footprint already in millimetres: `editDimensions` takes the replace path for a
- * PENDING one first, because scaling placeholder pixels by typed millimetres would leave the result
- * flagged pending — still warned about as unscaled, and multiplied again by a later calibration.
- */
-function scalesDrawing(shape: AssetShape | null): shape is AssetShape {
-	return (
-		shape !== null &&
-		(shape.details.length > 0 || [shape.footprint, ...(shape.clearance === null ? [] : [shape.clearance])].some((outline) => hasCurves(outline)))
-	);
-}
-
-/**
  * Task B8's dimensions gesture, and the ONE place it is written rather than one copy per
  * caller: the empty state's action below and `DesignerInspector`'s own dimensions control
  * (labelled *Set* or *Edit* by whether there is a shape) both call it, so the two cannot drift into disagreeing about which dialog opens or
@@ -262,18 +244,16 @@ async function editDimensions(): Promise<void> {
 		...(unscaled ? { warning: tr('designer.dimensions.unscaled') } : {}),
 	});
 	if (result === null) return;
-	if (unscaled || !scalesDrawing(current?.shape ?? null)) {
+	// A footprint in real millimetres is SCALED, whatever it is drawn as — a traced L-shape keeps its
+	// corners, and its anchor keeps whatever relationship to the shape the user gave it. The rectangle
+	// is for the two states where there is nothing to scale: no shape at all, and a footprint still in
+	// placeholder pixels, where scaling by typed millimetres would leave the result flagged pending and
+	// multiplied again by a later calibration.
+	if (unscaled || !current?.shape) {
 		await runtime.setFootprintFromDimensions(result.width, result.depth);
 		return;
 	}
-	// The ratio is taken against the shape the write is computed from, so it cannot disagree with the
-	// design `editShape` makes conditional. `dimensionsOf` answers for any validated footprint.
-	await notifyIfRefused(
-		runtime.editShape((shape) => {
-			const measured = unwrap(dimensionsOf(shape.footprint));
-			return scaleDesign(shape, result.width / measured.width, result.depth / measured.depth);
-		}),
-	);
+	await notifyIfRefused(runtime.editShape((shape) => scaleDesignToDimensions(shape, result.width, result.depth)));
 }
 
 /** `FormDialog` carries its payload as `unknown`; the command validates the shape itself. */

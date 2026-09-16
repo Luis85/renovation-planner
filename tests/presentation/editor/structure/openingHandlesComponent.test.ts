@@ -101,6 +101,29 @@ it('draws nothing while a tool other than Select is active', async () => {
 	expect(nodes).toHaveLength(0);
 });
 
+/**
+ * The ghost draws from the structure PREVIEW while these marks draw from the store, so while a
+ * preview is up — a width drag, or a drop waiting on its read-back — marks drawn from the store
+ * would sit at the old edge beside the ghost's new one. `TransformBoxHandles.vue` hides for the
+ * identical reason.
+ */
+it('draws nothing while a structure preview is up, and draws again once it clears', async () => {
+	const harness = await mountPlanEditorCanvas();
+	useProjectStore().structure = structure;
+	useSelectionStore().select([door.id as EntityId<string>]);
+	const editor = useEditorStore();
+	editor.viewport = { ...editor.viewport, zoom: 1 };
+	const count = async () => { await settle(); return harness.stage.findOne<Konva.Group>('.opening-handles')?.getChildren().length ?? 0; };
+	const preview = runtimeOf(harness).structureActions.preview;
+	preview.value = { ...structure, openings: [{ ...door, width: 1700 }] };
+	const whilePreviewing = await count();
+	preview.value = null;
+	const afterClearing = await count();
+	harness.unmount();
+	expect(whilePreviewing).toBe(0);
+	expect(afterClearing).toBe(7);
+});
+
 it('listens for no pointer events, on every node it draws', async () => {
 	const nodes = await drawn();
 	expect(nodes.length).toBeGreaterThan(0);

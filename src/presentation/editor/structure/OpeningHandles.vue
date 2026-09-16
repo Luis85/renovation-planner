@@ -10,6 +10,11 @@
  * geometry hit test against the same `selectedOpeningHandles` call. Drawn only in the Plan
  * perspective's Select tool, which is a gate `selectedOpeningHandles` itself does not take:
  * it answers purely from the selection and the structure.
+ *
+ * Hidden while the structure PREVIEW is up — a drag in flight, or a drop waiting on its
+ * read-back — exactly as `TransformBoxHandles.vue` hides beside its own preview: the ghost draws
+ * from the preview and these marks from the store, so drawing both would leave a grip at the
+ * old edge beside the ghost's new one.
  */
 import { computed } from 'vue';
 import { useEditorRuntime } from '../runtime';
@@ -31,7 +36,7 @@ const STEP_GRIPS: readonly OpeningGrip[] = ['step-back', 'step-forward'];
 const CHEVRON_LENGTH_PX = 8, CHEVRON_SPREAD_PX = 5;
 
 const drawn = computed(() => {
-	if (session.perspective !== 'plan' || runtime.activeToolId.value !== 'select') return null;
+	if (session.perspective !== 'plan' || runtime.activeToolId.value !== 'select' || runtime.structureActions.preview.value !== null) return null;
 	const worldPerPixel = worldPerScreenPixel(editor.viewport, STAGE_PIXELS);
 	const resolved = selectedOpeningHandles(project.structure, selection.selectedIds, worldPerPixel);
 	if (resolved === null) return null;

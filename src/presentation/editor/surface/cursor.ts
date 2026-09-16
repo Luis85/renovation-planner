@@ -74,7 +74,7 @@ export interface CursorInputs {
 	readonly panPhase: PanPhase;
 	readonly activeToolId: ToolId | null;
 	readonly hoveredObjectId: string | null;
-	readonly hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | 'resize' | null;
+	readonly hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | 'resize' | 'opening-handle' | null;
 	readonly rotationActive?: boolean;
 }
 
@@ -104,7 +104,7 @@ export function cursorClassFor(inputs: CursorInputs): string | null {
 	if (inputs.panPhase !== 'idle') return `rp-plan-canvas-${inputs.panPhase}`;
 	if (inputs.activeToolId === 'select' && inputs.rotationActive) return 'rp-plan-canvas-grabbing';
 	if (inputs.activeToolId === 'select' && inputs.hoveredObjectId !== null) {
-		return inputs.hoveredTargetKind === 'handle' || inputs.hoveredTargetKind === 'rotation' || inputs.hoveredTargetKind === 'label' || inputs.hoveredTargetKind === 'resize' ? 'rp-plan-canvas-grab' : 'rp-plan-canvas-target';
+		return inputs.hoveredTargetKind === 'handle' || inputs.hoveredTargetKind === 'rotation' || inputs.hoveredTargetKind === 'label' || inputs.hoveredTargetKind === 'resize' || inputs.hoveredTargetKind === 'opening-handle' ? 'rp-plan-canvas-grab' : 'rp-plan-canvas-target';
 	}
 	const tool = inputs.activeToolId;
 	return tool !== null && PRECISE_TOOLS.includes(tool) ? 'rp-plan-canvas-precise' : null;

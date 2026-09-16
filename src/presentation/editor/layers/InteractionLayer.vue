@@ -5,7 +5,9 @@ const renovationSession = useRenovationSession();
  * §19's transient layer, filled by design slice 8: the in-progress polygon a drawing tool
  * broadcasts through `RenderState`, the calibration segment's ruler marks, and the selected
  * zone's body outline and vertex handles — or, for a multi-selection, one numbered outline per
- * selected zone and no handles, since nothing here edits a group.
+ * selected zone and no handles, since nothing here edits a group. Task 7 of the opening-handles
+ * slice adds one more family: `OpeningHandles.vue` draws a selected door, window or opening's
+ * own width, move, step and side-flip grips, at the same points `SelectTool` hit-tests them at.
  *
  * **Still screen-space, and still `listening: false`.** Everything here works in stage
  * pixels: world points go through `worldToScreen` per recompute (a `computed`, so a camera
@@ -45,6 +47,7 @@ import type { SpatialObjectCandidate } from '../tools/select-tool';
 import GestureSketch from './GestureSketch.vue';
 import ObjectRotationHandle from '../elements/ObjectRotationHandle.vue';
 import TransformBoxHandles from '../elements/TransformBoxHandles.vue';
+import OpeningHandles from '../structure/OpeningHandles.vue';
 import SnapGuides from './SnapGuides.vue';
 import { spatialOutlinePoints } from '../selection/spatialOutlinePoints';
 import { polygonPolyline } from '../../../core/geometry/curvePolyline';
@@ -283,6 +286,7 @@ const editableVertices = computed(() => {
 			</template>
 		</template>
 		<TransformBoxHandles :tokens="props.tokens" />
+		<OpeningHandles :tokens="props.tokens" />
 		<VGroup :config="{ name: 'rotation-handle-viewport', ...viewportTransform(editorStore.viewport) }">
 			<CurveHandles
 				v-if="runtime.curveTask.target.value"

@@ -1,9 +1,10 @@
 import { expect, it } from 'vitest';
-import { openingHandles } from '../../../../src/presentation/editor/structure/openingHandles';
+import { openingHandles, selectedOpeningHandles } from '../../../../src/presentation/editor/structure/openingHandles';
 import { openingSymbol } from '../../../../src/domain/spatial/openingGeometry';
-import { alongWall, type Opening, type Wall } from '../../../../src/domain/spatial/Structure';
+import { alongWall, type Opening, type Structure, type Wall } from '../../../../src/domain/spatial/Structure';
 import { OPENING_CHEVRON_GAP_PX } from '../../../../src/presentation/editor/handleMetrics';
 import { expectDefined } from '../../../helpers/domain';
+import type { EntityId } from '../../../../src/core/identity/EntityId';
 
 const wall: Wall = { id: 'wall-a', start: { x: 0, y: 0 }, end: { x: 4000, y: 0 }, height: 2400, thickness: 200 };
 const door: Opening = { id: 'opening-a', kind: 'door', hostId: wall.id, offset: 800, width: 1200, height: 2100, sill: 0 };
@@ -55,4 +56,20 @@ it('drops the step arrows, then everything but the move grip, as the marks crowd
 it('draws no chevron for an opening with no leaf', () => {
 	expect(grips(openingHandles({ ...door, kind: 'opening' }, wall, 1))).toEqual(['width-start', 'step-back', 'move', 'step-forward', 'width-end']);
 	expect(grips(openingHandles({ ...door, kind: 'window' }, wall, 1))).toContain('side-left');
+});
+
+/** Hosted by a wall that is not in the structure: the arm where an opening is found and its host is not. */
+const orphan: Opening = { ...door, id: 'opening-orphan', hostId: 'wall-gone' };
+const structure: Structure = { walls: [wall], openings: [door, orphan], boundaries: [] };
+const ids = (values: readonly string[]) => values.map(value => value as EntityId<string>);
+
+it('resolves the one selected opening and its host, the same answer openingHandles itself gives', () => {
+	expect(selectedOpeningHandles(structure, ids([door.id]), 1)).toEqual({ id: door.id, handles: openingHandles(door, wall, 1) });
+});
+
+it('answers null for no selection, a multi-selection, a selected wall, or a hostless opening', () => {
+	expect(selectedOpeningHandles(structure, ids([]), 1)).toBeNull();
+	expect(selectedOpeningHandles(structure, ids([door.id, wall.id]), 1)).toBeNull();
+	expect(selectedOpeningHandles(structure, ids([wall.id]), 1)).toBeNull();
+	expect(selectedOpeningHandles(structure, ids([orphan.id]), 1)).toBeNull();
 });

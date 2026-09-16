@@ -5,7 +5,7 @@ import { useEditorStore } from '../../stores/EditorStore';
 import { useSelectionStore } from '../selection/selection-store';
 import type { EditorToolDeps } from '../tools/registerEditorTools';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../viewport/Viewport';
-import { openingHandles } from './openingHandles';
+import { selectedOpeningHandles } from './openingHandles';
 import type { createStructureActions } from './structureActions';
 
 /** The two of `createStructureActions`' members this needs — named so a double is a typed object, not a cast. */
@@ -25,10 +25,10 @@ type OpeningDoors = Required<Pick<EditorToolDeps, 'openingTarget' | 'openingHand
  * `stepOpening` and `flipOpening` transform the BASELINE's opening instead, so two taps in quick
  * succession accumulate rather than the second overwriting the first.
  *
- * The handles are the ones `SelectTool` hit-tests against, computed at the camera scale the canvas
- * draws at. This is `openingHandles`' only caller in `src/` today; once a component draws from the
- * same door, the wider claim — that what lights up is what a press acts on — becomes true and needs
- * a check under it rather than this sentence.
+ * The handles are the SAME `selectedOpeningHandles` call `OpeningHandles.vue` draws from, at the
+ * same camera scale, which is what makes a press land on the mark the user aimed at rather than
+ * near it — `openingHandlesComponent.test.ts`'s "draws exactly what a press would act on, grip by
+ * grip" is the check, not this sentence.
  */
 export function openingHandleDoors(structureActions: StructureWrites): OpeningDoors {
 	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore();
@@ -39,14 +39,7 @@ export function openingHandleDoors(structureActions: StructureWrites): OpeningDo
 			const host = hostOf(opening);
 			return opening && host ? { opening, host } : null;
 		},
-		openingHandles: () => {
-			const ids = selection.selectedIds;
-			const opening = ids.length === 1 ? project.structure.openings.find(item => item.id === String(ids[0])) : undefined;
-			const host = hostOf(opening);
-			return opening && host
-				? { id: opening.id, handles: openingHandles(opening, host, worldPerScreenPixel(editor.viewport, STAGE_PIXELS)) }
-				: null;
-		},
+		openingHandles: () => selectedOpeningHandles(project.structure, selection.selectedIds, worldPerScreenPixel(editor.viewport, STAGE_PIXELS)),
 		previewOpening: structureActions.previewOpening,
 		commitOpening: (id, next) => { void structureActions.applyOpening(id, () => next); },
 		stepOpening: (id, deltaMm) => { void structureActions.applyOpening(id, (opening, host) => steppedOpening(opening, host, deltaMm)); },

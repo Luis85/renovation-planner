@@ -1,13 +1,17 @@
+import type { EntityId } from '../../../core/identity/EntityId';
 import type { Point } from '../../../core/geometry/Point';
-import { alongWall, wallTangent, type Opening, type Wall } from '../../../domain/spatial/Structure';
+import { alongWall, wallTangent, type Opening, type Structure, type Wall } from '../../../domain/spatial/Structure';
 import { openingSwing } from '../../../domain/spatial/openingSwing';
 import { wallSideExtents, wallSideNormal } from '../../../domain/spatial/wallSides';
 import { OPENING_CHEVRON_GAP_PX, VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
 
 /**
- * Where a selected opening's handles are — the ONE answer, used by the component that draws them
- * and by `resolveSelectionTarget` through `SelectTool`, so what lights up under the pointer is
- * always what a press will act on. Two functions here would be two places for them to disagree.
+ * Where a selected opening's handles are — the ONE answer, reached through `selectedOpeningHandles`
+ * below by both `OpeningHandles.vue`, the component that draws them, and `openingHandleDoors`,
+ * which `resolveSelectionTarget` through `SelectTool` hit-tests against: `selectedOpeningHandles(`
+ * has exactly those two callers in `src/` today. Two resolutions here would be two places for what
+ * lights up under the pointer and what the canvas draws to disagree; `openingHandlesComponent.test.ts`'s
+ * "draws exactly what a press would act on, grip by grip" is the check, not this sentence.
  *
  * World coordinates, not screen: the caller converts. `worldPerPixel` is taken only to decide which
  * marks are far enough apart to be worth drawing, which is the one question that depends on zoom.
@@ -56,4 +60,22 @@ export function openingHandles(opening: Opening, host: Wall, worldPerPixel: numb
 		...marks.map(mark => ({ grip: mark.grip, point: alongWall(host, opening.offset + mark.fraction * opening.width) })),
 		...chevrons(opening, host, worldPerPixel),
 	];
+}
+
+/**
+ * The single selected opening's handles — `null` for anything but exactly one opening with a
+ * host still in the structure. The ONE place that resolution happens: `openingHandleDoors`'
+ * door and `OpeningHandles.vue` both call this rather than each walking `structure.openings`/
+ * `structure.walls` by hand, which is what keeps what lights up under the pointer and what the
+ * canvas draws from ever being able to disagree.
+ */
+export function selectedOpeningHandles(
+	structure: Structure,
+	selectedIds: readonly EntityId<string>[],
+	worldPerPixel: number,
+): { readonly id: string; readonly handles: readonly OpeningHandle[] } | null {
+	if (selectedIds.length !== 1) return null;
+	const opening = structure.openings.find(item => item.id === String(selectedIds[0]));
+	const host = opening && structure.walls.find(wall => wall.id === opening.hostId);
+	return opening && host ? { id: opening.id, handles: openingHandles(opening, host, worldPerPixel) } : null;
 }

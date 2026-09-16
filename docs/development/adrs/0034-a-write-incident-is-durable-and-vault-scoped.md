@@ -51,7 +51,12 @@ This copies the codebase's own existing answer to "how do you disambiguate an id
 `SequenceMarker` pairs `entityId: string` with `entityKind: 'zone' | 'asset'` under the comment
 "an ID alone cannot say" — rather than inventing a branded array. Of the 23 raise sites, 17 are
 single-entity writes where completeness is moot and six cross two ids; of those six, three are
-refuted against the "affected ids are in scope at the raise site" premise:
+refuted against the "affected ids are in scope at the raise site" premise (**dated 2026-09-16:
+the count below is this ADR's own, taken at the moment it was written. It moved later in the
+same slice, BP-02 slice 2 task 4 Part B, when `relocateEvidence.ts` gained a stamp naming only
+`plan` entities — it never crosses to a second entity KIND, so the six-sites ruling below is
+unaffected either way. `DispatchOutcome.ts`'s own docblock re-runs the grep and carries the
+current figure; this ADR is a record of a decision at a point in time and does not chase it**):
 `ObsidianZoneRepository.ts:370` (`compensateFailedSidecarWrite`) takes `(zoneId, wasUpdate,
 notePath, snapshotText, cause)` and never receives the plan id its caller `saveQueued` holds as
 `zone.planId` — its sibling `delete()` at `:449` closes over `cachedPlan: PlanId` inline in the
@@ -111,8 +116,27 @@ paths bypass the chokepoint entirely and are not reached by an incident raised h
 (`composition-root.ts:562-568`, a brand-new `ObsidianPlanGeometrySidecar` beside the guarded
 queries object, called at `read-models/planEditorQueries.ts:256`); and `relocateEvidence`'s
 host-rename listener (`src/plugin/evidenceRename.ts`), which has its own ad-hoc try/catch boundary
-around a THROW rather than a guarded `Result`. Those editor paths stay covered by the Plan
-editor's own `writesBlocked` gate — a different, existing mechanism this ADR does not fold in.
+around a THROW rather than a guarded `Result`.
+
+**Correction, 2026-09-16 (BP-02 slice 2 task 4 review-fix pass): the claim that those three paths
+"stay covered by the Plan editor's own `writesBlocked` gate" was false as written, and this
+paragraph replaces it rather than restating it more carefully — the earlier text is not a
+weaker true thing, it is a wrong one.** Verified against the code: `writesBlocked`
+(`src/presentation/editor/runtime.ts:607`) is `computed(() => projectStore.stale ||
+unsafeHistory())`, and `unsafeHistory` reads `save.unrecoveredWrite` — a per-leaf Pinia flag
+(`src/presentation/editor/save-state/save-state-store.ts`) set only by that leaf's own guarded
+dispatches, never by the vault-scoped `WriteIncidentRegistry` this ADR adds. So that gate closes
+on THIS leaf's own staleness or its own incident, not on an incident raised anywhere else in the
+vault. Concretely: `inspector-wiring.ts:99` and `:101` construct `EditZoneDetailsCommand` and
+`ReversibleRenameZoneCommand` unguarded, and a vault-scoped incident raised by a DIFFERENT
+command, a different leaf, or `relocateEvidence`'s own listener does not close `writesBlocked`
+for either — both stay reachable while that incident is open. The third path,
+`relocateEvidence`'s host-rename listener, is not "covered" by anything at all:
+`src/plugin/evidenceRename.ts`'s own docblock already states it is "not gated, unlike a guarded
+command" and runs regardless of any open incident. **This is a stated coverage gap, not a
+behaviour this ADR changes.** A later increment owns closing it, if it is closed at all; this
+record exists so a reader comparing coverage against the code finds the true boundary rather than
+an aspirational one.
 
 **The gate is coarse, and that is a decision, not an omission.** While any incident file holds a
 record, every guarded COMMAND is refused; guarded QUERIES are not, so the vault stays inspectable

@@ -150,25 +150,29 @@ export async function plainDispatch(versioned: Promise<VersionedDispatchResult>)
  * every consumer that reads them reads exactly what it read before, and the one consumer that
  * asks about persistence gets an answer nothing had to infer.
  *
- * **22 producers in 16 files, dated rather than trusted, because this count has already gone
- * stale FOUR times — the fourth time inside the very edit that was fixing the third.** BP-02
- * slice 2 task 2's own count paragraph said "23 lines … of which that one is the self-count,"
- * naming exactly one self-match. That was already wrong the moment it was written: the SAME
- * edit added `AffectedEntityKind`'s docblock a few dozen lines below, and that docblock quoted
- * this identical grep pattern too, to explain how ITS membership was measured — a second
- * self-matching line the first paragraph never counted, because a paragraph about an
- * instrument counting itself did not re-check itself against its own sibling. Re-run on
- * 2026-09-16 (BP-02 slice 2 review-fix pass), `grep -rn "markUncompensated(" src/` prints
- * **24 lines**, of which **2 are self-matches** — this paragraph's own quoted pattern, and one
- * line in `AffectedEntityKind`'s docblock below that still quotes it to explain its own
- * measurement. 24 lines minus 2 self-matches is 22 producers; six files spell two calls each,
- * so 22 producers sit in 16 files — the same conclusion the earlier, wrongly-reasoned count
- * happened to land on, which is why the defect went unnoticed rather than why it was harmless:
- * a wrong instrument that returns the right number by accident is still a wrong instrument. An
- * `import` of this function carries no `(` and is therefore not in the number. The number
- * first moved from 23 producers in 17 files earlier in the same task, because that pass
- * NARROWS `project.write-uncompensated` (`ObsidianProjectRepository`) to stop stamping at all
- * — see the empty-folder paragraph below.
+ * **23 producers in 17 files, dated rather than trusted, because this count has already gone
+ * stale FIVE times now — the fourth time inside the very edit that was fixing the third, and
+ * this is the fifth.** BP-02 slice 2 task 2's own count paragraph said "23 lines … of which
+ * that one is the self-count," naming exactly one self-match. That was already wrong the
+ * moment it was written: the SAME edit added `AffectedEntityKind`'s docblock a few dozen lines
+ * below, and that docblock quoted this identical grep pattern too, to explain how ITS
+ * membership was measured — a second self-matching line the first paragraph never counted,
+ * because a paragraph about an instrument counting itself did not re-check itself against its
+ * own sibling. That produced "24 lines, 2 self-matches, 22 producers in 16 files," which then
+ * went stale a fifth time when BP-02 slice 2 task 4 Part B added `relocateEvidence.ts` as a new
+ * producer and left this paragraph unrun — exactly the failure mode this sentence already
+ * warned about, landing again in the task named to fix a different, unrelated set of findings.
+ * Re-run on 2026-09-16 (BP-02 slice 2 task 4 review-fix pass), `grep -rn "markUncompensated(" src/`
+ * prints **25 lines**, of which **2 are self-matches** — this paragraph's own quoted pattern,
+ * and one line in `AffectedEntityKind`'s docblock below that still quotes it to explain its own
+ * measurement. 25 lines minus 2 self-matches is 23 producers; `relocateEvidence.ts` is a new
+ * file with one producer, so producers now sit in 17 files, six of which spell two calls each.
+ * An `import` of this function carries no `(` and is therefore not in the number. The number
+ * first moved from 23 producers in 17 files to 22 in 16 earlier in the design-slice history,
+ * because a pass NARROWED `project.write-uncompensated` (`ObsidianProjectRepository`) to stop
+ * stamping at all — see the empty-folder paragraph below — and has now moved back to 23 in 17
+ * for the unrelated reason of a new producer arriving, which is worth stating so a reader does
+ * not mistake the coincidence of matching numbers for the count having been reverted.
  *
  * **The DEFINITION below is out of the number too, and NOT because anything excluded it.**
  * It is spelled `markUncompensated<TError extends AppError>(`, so the pattern's `(` never
@@ -247,7 +251,8 @@ export interface UncompensatedWrite {
  * `reversible-delete-zone-command.ts` and `ObsidianZoneRepository.ts` name a `zone` (and, since
  * this task's threading, the `plan` whose sidecar shares the write); `RenovationCommand.ts`,
  * `StructureCommand.ts`, `GroupGeometryCommand.ts`, `ConfigurePlanReference.ts`,
- * `ConstructionMaterialCommand.ts` and `ObsidianPlanRepository.ts` all name a `plan`;
+ * `ConstructionMaterialCommand.ts`, `ObsidianPlanRepository.ts` and, since BP-02 slice 2 task 4
+ * Part B, `relocateEvidence.ts` all name a `plan`;
  * `SetAssetBackground.ts` and `ReversibleAssetDesignCommands.ts` name an `asset`; and
  * `noteEntityWrite.ts`'s `trashNoteBackedEntity`'s three real callers pass
  * `'asset'` (`ObsidianAssetRepository.ts`), `'asset-price'`

@@ -31,8 +31,11 @@ import { err, ok } from '../../../core/result/Result';
 export async function relocateEvidence(deps: { plans: PlanRepository; index: ProjectIndex; events: EventBus }, oldPath: string, newPath: string) {
  const written: AffectedEntity[] = [];
  // `markUncompensated` only when something is actually half-written. `written` is the loop's
- // own record rather than a count, because ADR-0034 asks a raise site to NAME what it left —
- // and this one can, unlike the three sites the ADR's census found unable to.
+ // own record rather than a count, because ADR-0034 asks a raise site to NAME what it left.
+ // Only one of the ADR's three refuted sites is structurally unable to do that —
+ // `undoDeleteResolution.ts:131`, whose `done` list is zero-argument closures exposing no id.
+ // The other two (`ObsidianZoneRepository.ts:370`, `deleteResolution.ts:499`) could and
+ // partly do; this site can too, because the id it needs is already in scope in the loop.
  const abort = <E extends AppError>(error: E) => err(written.length === 0 ? error : markUncompensated(error, written));
  for (const id of deps.index.getIdsByType('renovation-plan')) {
   const read = await deps.plans.getById(id as PlanId);

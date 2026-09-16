@@ -5,7 +5,7 @@ import { boundingBoxOf, translate } from '../../core/geometry/operations';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, unwrap, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
-import type { DetailLine } from './AssetDetail';
+import { mapDetailOutline, type DetailLine } from './AssetDetail';
 import { validateAssetShape, type AssetShape } from './AssetShape';
 import { partNotFound } from './shapeEdits';
 
@@ -57,7 +57,7 @@ export function duplicateDetail(shape: AssetShape, id: string, offset: Vector): 
 	const found = detailIndex(shape, id);
 	if (isErr(found)) return found;
 	const original = shape.details[found.value];
-	const copy = { ...original, id: nextDetailId(shape), outline: translate(original.outline, offset) };
+	const copy = { ...mapDetailOutline(original, (outline) => translate(outline, offset)), id: nextDetailId(shape) };
 	return validateAssetShape({ ...shape, details: shape.details.toSpliced(found.value + 1, 0, copy) });
 }
 

@@ -33,33 +33,39 @@
       "blocker": null
     },
     "AD02": {
-      "status": "in_review",
+      "status": "integrated",
       "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
-      "candidate_sha": null,
-      "integrated_sha": null,
+      "candidate_sha": "fa51ae88d",
+      "integrated_sha": "fa51ae88d",
       "evidence": [
-        "R05/R06 already shipped before this run (adec599f0, b9d014858, 2f8c84647, d253f727e)",
-        "no-op dimension edit guard + 2 cases, watched red"
+        "R05/R06 shipped before this run (adec599f0, b9d014858, 2f8c84647, d253f727e)",
+        "no-op dimension guard + 2 cases in assetDimensions.test.ts, watched red"
       ],
       "blocker": null
     },
     "AD03": {
-      "status": "in_review",
+      "status": "integrated",
       "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
-      "candidate_sha": null,
-      "integrated_sha": null,
+      "candidate_sha": "fa51ae88d",
+      "integrated_sha": "fa51ae88d",
       "evidence": [
         "five bypassing write doors queued on the leaf chain",
-        "designerWriteChain.test.ts undo case, watched red"
+        "designerWriteChain.test.ts undo-during-write case, watched red"
       ],
       "blocker": null
     },
     "AD04": {
-      "status": "planned",
-      "base_sha": null,
+      "status": "in_review",
+      "base_sha": "fa51ae88d",
       "candidate_sha": null,
       "integrated_sha": null,
-      "evidence": [],
+      "evidence": [
+        "core/geometry/CurvedPath.ts, branded, 16 cases",
+        "AssetDetail closed/open union with an optional label",
+        "shallow groups on AssetShape with six refusals, watched red",
+        "asset geometry schema v3: reads v1/v2/v3, emits 3, refuses 4",
+        "analyze exit 0, oxlint exit 0, vue-tsc exit 0"
+      ],
       "blocker": null
     },
     "AD05": {

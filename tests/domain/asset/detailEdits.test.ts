@@ -45,6 +45,8 @@ describe('addDetail', () => {
 		expect(added.details[2]).toEqual({
 			id: 'detail-3',
 			name: 'seat',
+			// Stamped by the validator: a graphic proposed without a kind is the closed one (AD04 §3).
+			kind: 'closed',
 			line: 'solid',
 			pending: false,
 			outline: { points: [{ x: -50, y: 150 }, { x: 50, y: 150 }, { x: 50, y: 250 }, { x: -50, y: 250 }] },

@@ -1,6 +1,6 @@
 import { err, ok, type Result } from '../result/Result';
 import type { GeometryError } from '../errors/AppError';
-import type { Point } from './Point';
+import { firstNonFinitePoint, type Point } from './Point';
 
 /**
  * A closed polygon whose last→first edge is implicit — never a repeated closing point.
@@ -33,16 +33,15 @@ export function validatePolygonPoints(
 			message: `A polygon needs at least 3 vertices; got ${points.length}.`,
 		});
 	}
-	for (const point of points) {
-		if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
-			return err({
-				category: 'Geometry',
-				code: 'polygon-non-finite-coordinate',
-				message:
-					`A polygon vertex must have finite coordinates; ` +
-					`got (${point.x}, ${point.y}).`,
-			});
-		}
+	const broken = firstNonFinitePoint(points);
+	if (broken !== null) {
+		return err({
+			category: 'Geometry',
+			code: 'polygon-non-finite-coordinate',
+			message:
+				`A polygon vertex must have finite coordinates; ` +
+				`got (${broken.x}, ${broken.y}).`,
+		});
 	}
 	return ok(undefined);
 }

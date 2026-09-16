@@ -49,10 +49,14 @@ const square = (half: number): CurvedPolygon => ({
 const symbol = (): AssetShape => ({
 	...expectOk(shapeFromDimensions(900, 900)),
 	footprint: circle(450),
+	// `kind` spelled out because this fixture is compared against what comes BACK: a shape that has
+	// been through `validateAssetShape` always carries the discriminant, whether or not the document
+	// it was read from did (AD04 §5 — absent means closed, and the validator stamps it).
 	details: [
-		{ id: 'detail-1', name: 'top', outline: circle(400), line: 'solid', pending: false },
-		{ id: 'detail-2', name: 'overhead', outline: square(200), line: 'dashed', pending: true },
+		{ id: 'detail-1', kind: 'closed', name: 'top', outline: circle(400), line: 'solid', pending: false },
+		{ id: 'detail-2', kind: 'closed', name: 'overhead', outline: square(200), line: 'dashed', pending: true },
 	],
+	groups: [],
 });
 
 describe('asset geometry sidecar, schema version 2', () => {
@@ -65,7 +69,7 @@ describe('asset geometry sidecar, schema version 2', () => {
 		expect(expectOk(await sidecar.read(assetId)).document).toEqual(document);
 	});
 
-	it('reads a version 1 file as a shape with no details, and writes version 2 back', async () => {
+	it('reads a version 1 file as a shape with no details, and writes version 3 back', async () => {
 		const { sidecar, stack, assetId, path } = seeded();
 		stack.vault.entries.set(path, rawDocument(assetId));
 
@@ -73,7 +77,7 @@ describe('asset geometry sidecar, schema version 2', () => {
 		expect(read.document.shape?.details).toEqual([]);
 		expectOk(await sidecar.write(assetId, read.document, read.version));
 
-		expect(JSON.parse(stack.vault.entries.get(path) ?? '{}').schemaVersion).toBe(2);
+		expect(JSON.parse(stack.vault.entries.get(path) ?? '{}').schemaVersion).toBe(3);
 	});
 
 	it('writes a straight outline with no bulges key', async () => {

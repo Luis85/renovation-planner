@@ -93,6 +93,9 @@ export const drawn = (): AssetShape => ({
 	anchorPending: false,
 	facing: 0,
 	details: [],
+	// A shape that has been through `validateAssetShape` always carries the array, so a fixture
+	// compared against one that was READ BACK has to carry it too (AD04 §4).
+	groups: [],
 });
 
 /** A vault fault a test can inject, shaped exactly as the ports' own union permits. */

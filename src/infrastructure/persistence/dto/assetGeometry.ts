@@ -94,14 +94,70 @@ const AssetGeometrySchemaV2 = AssetGeometrySchemaV1.extend({
 	shape: AssetShapeSchemaV2.nullable(),
 });
 
-/** A v1 document is a valid v2 one once it says so: `details` defaults to `[]`, `bulges` is optional. */
-function raiseVersion1(input: unknown): unknown {
+/** An OPEN graphic's geometry: two points or more, and one bulge per SEGMENT rather than per point. */
+const PathSchemaV3 = z
+	.object({ points: z.array(pointTuple).min(2), bulges: z.array(BulgeSchema).optional() })
+	.refine((value) => value.bulges === undefined || value.bulges.length === value.points.length - 1, {
+		message: 'An open path needs one curve value per segment.',
+	});
+
+/**
+ * Version 3 (AD04): a graphic may be an open path, may carry the user's own label beside its stable
+ * semantic name, and a shape may carry shallow groups of graphic ids.
+ *
+ * A DISCRIMINATED union on `kind` rather than one object with two optional geometries: the two arms
+ * have different point minimums and different bulge arithmetic, and a single schema admitting both
+ * would accept a two-point "closed" outline and a polygon-shaped bulge array on a path.
+ *
+ * `kind` defaults to `'closed'` because that is the only kind a v1 or v2 document could express —
+ * absent means closed, which is what makes the migration additive. A `kind` that is PRESENT and
+ * outside the union fails the read; so does a non-string `label` and a `groups` that is not an
+ * array. Defaults are for ABSENT fields, never for malformed present ones — `footprintPending`'s
+ * rule, generalised: refuse, do not repair.
+ */
+const ClosedDetailSchemaV3 = DetailSchemaV2.extend({ kind: z.literal('closed').default('closed'), label: z.string().optional() });
+const OpenDetailSchemaV3 = DetailSchemaV2.omit({ outline: true }).extend({
+	kind: z.literal('open'),
+	label: z.string().optional(),
+	outline: PathSchemaV3,
+});
+const DetailSchemaV3 = z.union([OpenDetailSchemaV3, ClosedDetailSchemaV3]);
+
+/**
+ * A group names graphic ids and carries no coordinates (C06). Membership is checked against the
+ * shape's own details by `validateAssetShape` rather than here: a schema sees one document's text
+ * and cannot know which ids survived geometry validation.
+ */
+const GroupSchemaV3 = z.object({ id: z.string().min(1), label: z.string().optional(), members: z.array(z.string().min(1)).min(1) });
+
+const AssetShapeSchemaV3 = AssetShapeSchemaV2.extend({
+	details: z.array(DetailSchemaV3).default([]),
+	groups: z.array(GroupSchemaV3).default([]),
+});
+
+const AssetGeometrySchemaV3 = AssetGeometrySchemaV2.extend({
+	schemaVersion: z.literal(3),
+	shape: AssetShapeSchemaV3.nullable(),
+});
+
+/**
+ * A v1 or v2 document is a valid v3 one once it says so: `details` defaults to `[]`, `bulges` is
+ * optional, `kind` defaults to closed, `label` is optional and `groups` defaults to `[]`. Nothing
+ * is rewritten and nothing is inferred — every added field has a default that means "this document
+ * predates the field", which is the only kind of migration that cannot lose data.
+ *
+ * The bump is REQUIRED rather than tidy, for the reason v2's own note gives: a Zod object strips
+ * unknown keys, so a v2-only build reading a v3 file would load it and erase every group and every
+ * open graphic on its next write. `z.literal(2)` makes that build refuse the file instead.
+ */
+function raiseLegacyVersions(input: unknown): unknown {
 	if (typeof input !== 'object' || input === null) return input;
-	return (input as { schemaVersion?: unknown }).schemaVersion === 1 ? { ...input, schemaVersion: 2 } : input;
+	const version = (input as { schemaVersion?: unknown }).schemaVersion;
+	return version === 1 || version === 2 ? { ...input, schemaVersion: 3 } : input;
 }
 
-/** Every version this build reads, answered as version 2. The store parses with this and nothing else. */
-export const AssetGeometrySchema = z.preprocess(raiseVersion1, AssetGeometrySchemaV2);
+/** Every version this build reads, answered as version 3. The store parses with this and nothing else. */
+export const AssetGeometrySchema = z.preprocess(raiseLegacyVersions, AssetGeometrySchemaV3);
 
 /**
  * The parsed document's shape, for the store and the adapter that raise it.
@@ -112,4 +168,4 @@ export const AssetGeometrySchema = z.preprocess(raiseVersion1, AssetGeometrySche
  * holds. Inferred rather than hand-written: a second spelling of a Zod schema's output is
  * a second answer to what is in the file.
  */
-export type AssetGeometryDTO = z.infer<typeof AssetGeometrySchemaV2>;
+export type AssetGeometryDTO = z.infer<typeof AssetGeometrySchemaV3>;

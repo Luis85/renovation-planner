@@ -30,6 +30,28 @@ export interface AssetShape {
 	readonly facing: number;
 	/** Interior linework, drawn in this order over the footprint (symbols spec, Decisions 1 and 4). */
 	readonly details: readonly AssetDetail[];
+	/**
+	 * Shallow groups of graphic ids (AD04 §4). EDITING METADATA and nothing more: a group carries
+	 * no coordinates and no z-order, so `details` above stays the one canonical draw order and a
+	 * group's members remain visually interleaved with everything else until somebody reorders
+	 * them deliberately (C06).
+	 *
+	 * Optional in the TYPE so every existing construction site stays valid and reads as no groups;
+	 * `validateAssetShape` answers `[]` for an absent one, so a validated shape always has the
+	 * array.
+	 */
+	readonly groups?: readonly AssetGroup[];
+}
+
+/**
+ * One shallow group. `members` are detail ids — never the footprint, the clearance, the anchor,
+ * the facing or another group (C05, C06). `label` is the renovator's own name for it, optional
+ * because a group is useful before it is named.
+ */
+export interface AssetGroup {
+	readonly id: string;
+	readonly label?: string;
+	readonly members: readonly string[];
 }
 
 export interface Dimensions {
@@ -164,6 +186,40 @@ export function normaliseFacing(radians: number): number {
  * (`validateCurvedBoundary`), so a straight outline gets exactly the validation it had
  * before curves existed.
  */
+/**
+ * The clearance's own half of `validateAssetShape`, split out for the complexity budget rather
+ * than for taste: the shape validator answers eight questions and adding groups put its cognitive
+ * score over the gate's threshold. Same rules, same two error codes, one caller.
+ */
+function validateClearance(clearance: CurvedPolygon | null): Result<CurvedPolygon | null, ValidationError> {
+	if (clearance === null) return ok(null);
+	const validated = createCurvedPolygon(clearance);
+	if (isErr(validated)) return err(assetError('invalid-clearance', validated.error.message));
+	return enclosesArea(validated.value)
+		? ok(validated.value)
+		: err(assetError('degenerate-clearance', 'A clearance must enclose an area; these vertices are collinear.'));
+}
+
+/**
+ * The anchor, the facing and the two pending-flag coherences — the questions that are about the
+ * shape's own fields rather than about a polygon. Split from `validateAssetShape` for the
+ * complexity budget the group check pushed it over; every rule and every code is unchanged.
+ */
+function validatePlacement(shape: AssetShape): Result<void, ValidationError> {
+	if (!Number.isFinite(shape.anchor.x) || !Number.isFinite(shape.anchor.y)) {
+		return err(assetError('invalid-anchor', 'An anchor must have finite coordinates.'));
+	}
+	if (!Number.isFinite(shape.facing)) {
+		return err(assetError('invalid-facing', 'A facing must be a finite angle in radians.'));
+	}
+	if (shape.footprintOrigin === 'typed' && shape.footprintPending) {
+		return err(assetError('typed-footprint-cannot-be-pending', 'A typed footprint is authored in millimetres and never awaits a scale.'));
+	}
+	return shape.clearance === null && shape.clearancePending
+		? err(assetError('absent-clearance-cannot-be-pending', 'A shape with no clearance has no clearance coordinates awaiting a scale.'))
+		: ok(undefined);
+}
+
 export function validateAssetShape(shape: AssetShape): Result<AssetShape, ValidationError> {
 	const footprint = createCurvedPolygon(shape.footprint);
 	if (isErr(footprint)) return err(assetError('invalid-footprint', footprint.error.message));
@@ -175,44 +231,15 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 			),
 		);
 	}
-	let clearance: CurvedPolygon | null = null;
-	if (shape.clearance !== null) {
-		const validated = createCurvedPolygon(shape.clearance);
-		if (isErr(validated)) return err(assetError('invalid-clearance', validated.error.message));
-		if (!enclosesArea(validated.value)) {
-			return err(
-				assetError(
-					'degenerate-clearance',
-					'A clearance must enclose an area; these vertices are collinear.',
-				),
-			);
-		}
-		clearance = validated.value;
-	}
-	if (!Number.isFinite(shape.anchor.x) || !Number.isFinite(shape.anchor.y)) {
-		return err(assetError('invalid-anchor', 'An anchor must have finite coordinates.'));
-	}
-	if (!Number.isFinite(shape.facing)) {
-		return err(assetError('invalid-facing', 'A facing must be a finite angle in radians.'));
-	}
-	if (shape.footprintOrigin === 'typed' && shape.footprintPending) {
-		return err(
-			assetError(
-				'typed-footprint-cannot-be-pending',
-				'A typed footprint is authored in millimetres and never awaits a scale.',
-			),
-		);
-	}
-	if (shape.clearance === null && shape.clearancePending) {
-		return err(
-			assetError(
-				'absent-clearance-cannot-be-pending',
-				'A shape with no clearance has no clearance coordinates awaiting a scale.',
-			),
-		);
-	}
+	const clearanceResult = validateClearance(shape.clearance);
+	if (isErr(clearanceResult)) return clearanceResult;
+	const clearance = clearanceResult.value;
+	const placement = validatePlacement(shape);
+	if (isErr(placement)) return placement;
 	const details = validateDetails(shape.details);
 	if (isErr(details)) return details;
+	const groups = validateGroups(shape.groups, details.value);
+	if (isErr(groups)) return groups;
 	return ok({
 		...shape,
 		footprint: footprint.value,
@@ -220,7 +247,69 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 		anchor: { x: shape.anchor.x, y: shape.anchor.y },
 		facing: normaliseFacing(shape.facing),
 		details: details.value,
+		groups: groups.value,
 	});
+}
+
+/**
+ * Shallow groups of GRAPHIC ids (C06, AD04 §4), checked against the details that survived
+ * validation rather than against the raw input, so a group cannot come out pointing at a detail
+ * the step above refused.
+ *
+ * **Every fault is a refusal and not a repair.** Dropping a dangling member or de-duplicating a
+ * membership would leave the file saying one thing and the loaded shape another, which is the
+ * direction C06 names: *reject dangling, duplicated or cyclic membership rather than repairing
+ * it silently.* Cycles and nesting need no check of their own — a group holds detail ids and a
+ * group id is not one, so neither state is representable.
+ *
+ * What a group may NOT hold is as load-bearing as what it may: the footprint, the clearance, the
+ * anchor and the facing are the shape's own special parts, and a bulk grouping that absorbed one
+ * would make "select the whole object" and "select this group" the same act (C05).
+ */
+function validateGroups(
+	groups: readonly AssetGroup[] | undefined,
+	details: readonly AssetDetail[],
+): Result<AssetGroup[], ValidationError> {
+	if (groups === undefined) return ok([]);
+	const known = new Set(details.map((detail) => detail.id));
+	const seenGroups = new Set<string>();
+	const claimed = new Set<string>();
+	const validated: AssetGroup[] = [];
+	for (const group of groups) {
+		if (group.id === '' || seenGroups.has(group.id)) {
+			return err(assetError('invalid-group-id', `Every group needs its own non-empty id; got "${group.id}".`));
+		}
+		seenGroups.add(group.id);
+		const members = validateMembers(group, known, claimed);
+		if (isErr(members)) return members;
+		validated.push({ id: group.id, ...(group.label === undefined ? {} : { label: group.label }), members: members.value });
+	}
+	return ok(validated);
+}
+
+/**
+ * One group's membership, against the graphics that exist and the ones already claimed. Split from
+ * the loop above for the complexity budget; `claimed` is mutated as it goes, which is what makes
+ * "a graphic belongs to at most one group" a check across the whole list rather than within one.
+ */
+function validateMembers(
+	group: AssetGroup,
+	known: ReadonlySet<string>,
+	claimed: Set<string>,
+): Result<string[], ValidationError> {
+	if (group.members.length === 0) {
+		return err(assetError('empty-group', `Group "${group.id}" has no members; delete it rather than keeping it empty.`));
+	}
+	for (const member of group.members) {
+		if (!known.has(member)) {
+			return err(assetError('dangling-group-member', `Group "${group.id}" names "${member}", which is not a graphic on this shape.`));
+		}
+		if (claimed.has(member)) {
+			return err(assetError('overlapping-groups', `"${member}" is already in another group; a graphic belongs to at most one.`));
+		}
+		claimed.add(member);
+	}
+	return ok([...group.members]);
 }
 
 /**

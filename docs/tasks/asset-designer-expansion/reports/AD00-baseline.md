@@ -56,10 +56,13 @@ delegated, and nothing here is reported as if it had been.**
 |---|---|---|---|---|
 | `npm run build` (`vue-tsc -noEmit && vite build`) | `f3a8864a9`, Node 24.20.0, win32 | 0 | **passed** | 1472 modules, `dist/main.js` 1,929.24 kB (gzip 566.57), `dist/styles.css` 172.73 kB, built in 7.78 s |
 | `npm run lint` (`oxlint --deny-warnings && eslint . --max-warnings 0`) | same | 0 | **passed** | 5 m 31 s wall on this machine |
-| `npm run test:coverage` | same | _pending_ | _see addendum_ | first attempt was invalidated by my own concurrent lint run (see "Contention" below) |
-| `npm run analyze` (fallow) | same | — | **not run** | blocked behind the suite in `check` |
+| `npm run test:coverage` | same | 1 | **VOID — do not read as a baseline** | 25 files / 33 cases red, but `node_modules` was emptied mid-run by a failed `npx playwright install` (`npm error ECOMPROMISED / Lock compromised`), and the machine was shared with other agents at 67% load. Restored with `npm ci` (exit 0, 413 packages). A trustworthy full-suite figure is still owed |
+| `npm run analyze` (fallow) | `f3a8864a9` + this run's docs | 0 | **passed** | `✓ No issues found`, 0 above threshold, maintainability 86.7. Measured twice — the package copy initially reddened it through `ready-tasks.mjs` alone |
+| `npx vue-tsc -noEmit` | working tree | 0 | **passed** | |
+| `npx oxlint --deny-warnings` | working tree | 0 | **passed** | |
+| `npx vitest run tests/presentation/designer` | working tree | 0 | **passed** | 45 files, 554 cases |
 | `npm run audit` | same | — | **not run** | separate gate, not attempted |
-| `npm run harness-shot` | same | — | **not run** | `scripts/chromium.mjs` refuses: no pinned Chromium on disk, and `RP_CHROMIUM_EXECUTABLE` is unset |
+| `npm run harness-shot` | same | 0 | **passed, with a caveat that travels** | The pinned Chromium (revision 1234) could not be installed: `npm` and `playwright-core` both fail on `D:dev-cacheplaywright__dirlock` ("Unable to update lock within the stale threshold") on this loaded machine, and clearing the stale lock did not help. Captured instead with `RP_CHROMIUM_EXECUTABLE` naming the installed revision 1223 — the script's one sanctioned door, which prints that the build is not the pinned one. **Read those pictures as approximate** |
 | `npm run test-build` + real Obsidian session | — | — | **not run** | no Obsidian available in this environment |
 
 ### Contention (recorded because it produced a false red)
@@ -71,11 +74,13 @@ discarded**, not reported. The suite was re-run alone.
 
 ## Visual/host baseline
 
-Screenshots and exact surface/theme/width: **none captured.** `npm run harness-shot` cannot run
-without a Chromium binary; the script deliberately refuses to substitute one silently. The fixed
-shot table already contains the designer in dark, light, narrow (460 px), four presets and the
-selection modes (`scripts/harness-shot.mjs:669-710`), so the capture obligation for AD06 is
-*blocked on a browser*, not on missing shots.
+Screenshots and exact surface/theme/width: **the full fixed table was captured** into the gitignored
+`harness-shots/`, including `asset-designer-dark`, `asset-designer-light`, `asset-designer-narrow` (460 px,
+the width an Obsidian sidebar leaf actually has), the four preset shots and the selection-mode shots.
+**Captured with an unpinned Chromium** (revision 1223 named through `RP_CHROMIUM_EXECUTABLE`, because
+the pinned 1234 could not be installed here), so the script printed its caveat and these pictures are
+approximate about text metrics and layout. They are evidence that the surface DRAWS and roughly how;
+they are not evidence of a millimetre.
 Real Obsidian tests executed: **none.** `docs/tests/cases/Design an Asset.md` exists and its Runs
 table is honestly empty.
 Unavailable verification and reason: headless captures (no Chromium — remedy `npx playwright

@@ -1,10 +1,12 @@
 import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
+import type { CurvedPath } from '../../core/geometry/CurvedPath';
 import type { Point } from '../../core/geometry/Point';
 import type { Vector } from '../../core/geometry/Vector';
 import { rotate, translate } from '../../core/geometry/operations';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
+import { mapDetailOutline } from './AssetDetail';
 import { dimensionsOf, validateAssetShape, type AssetShape, type Dimensions } from './AssetShape';
 import { solveScale } from './scaleSolve';
 
@@ -36,11 +38,20 @@ export type OutlinePart =
 	| { readonly kind: 'clearance' }
 	| { readonly kind: 'detail'; readonly id: string };
 
-/** The outline a part names, or null when the shape has no such part. */
+/**
+ * The outline a part names, or null when the shape has no such part.
+ *
+ * **An OPEN graphic answers null too** (AD04), which is what keeps every outline gesture — the
+ * vertex drag, the bend, the numeric box, the fit — closed-only until AD11 builds the open ones.
+ * A path has no interior and its bulge array is a segment shorter, so handing one to a routine
+ * that closes would draw a wrong picture rather than fail; refusing it here means the caller gets
+ * `partNotFound`, which is the same answer it already has for a part that is not there.
+ */
 export function outlineOf(shape: AssetShape, part: OutlinePart): CurvedPolygon | null {
 	if (part.kind === 'footprint') return shape.footprint;
 	if (part.kind === 'clearance') return shape.clearance;
-	return shape.details.find((detail) => detail.id === part.id)?.outline ?? null;
+	const detail = shape.details.find((found) => found.id === part.id);
+	return detail === undefined || detail.kind === 'open' ? null : detail.outline;
 }
 
 /**
@@ -69,7 +80,7 @@ function scaleRefusal(sx: number, sy: number): ValidationError | null {
 }
 
 /** Each axis scaled about `origin` on its own; bulges are carried by the spread. */
-function scaled(outline: CurvedPolygon, sx: number, sy: number, origin: Point): CurvedPolygon {
+function scaled<T extends CurvedPolygon | CurvedPath>(outline: T, sx: number, sy: number, origin: Point): T {
 	return {
 		...outline,
 		points: outline.points.map((point) => ({ x: origin.x + (point.x - origin.x) * sx, y: origin.y + (point.y - origin.y) * sy })),
@@ -80,7 +91,10 @@ function scaled(outline: CurvedPolygon, sx: number, sy: number, origin: Point): 
 function withOutline(shape: AssetShape, part: OutlinePart, outline: CurvedPolygon): AssetShape {
 	if (part.kind === 'footprint') return { ...shape, footprint: outline };
 	if (part.kind === 'clearance') return { ...shape, clearance: outline };
-	return { ...shape, details: shape.details.map((detail) => (detail.id === part.id ? { ...detail, outline } : detail)) };
+	// `detail.kind !== 'open'` and not a guard clause: `outlineOf` above has already answered null
+	// for an open graphic, so `editOutline` refused this part before reaching here. The condition is
+	// what makes that true at the type level as well — an open detail cannot be handed a polygon.
+	return { ...shape, details: shape.details.map((detail) => (detail.id === part.id && detail.kind !== 'open' ? { ...detail, outline } : detail)) };
 }
 
 /** Find the part, edit its outline, write it back and validate the whole shape: every outline edit's one path. */
@@ -161,12 +175,12 @@ export function removeClearance(shape: AssetShape): Result<AssetShape, Validatio
 export function scaleDesign(shape: AssetShape, sx: number, sy: number): Result<AssetShape, ValidationError> {
 	const refused = scaleRefusal(sx, sy);
 	if (refused !== null) return err(refused);
-	const about = (outline: CurvedPolygon): CurvedPolygon => scaled(outline, sx, sy, shape.anchor);
+	const about = <T extends CurvedPolygon | CurvedPath>(outline: T): T => scaled(outline, sx, sy, shape.anchor);
 	return validateAssetShape({
 		...shape,
 		footprint: about(shape.footprint),
 		clearance: shape.clearance === null ? null : about(shape.clearance),
-		details: shape.details.map((detail) => ({ ...detail, outline: about(detail.outline) })),
+		details: shape.details.map((detail) => mapDetailOutline(detail, (outline) => scaled(outline, sx, sy, shape.anchor))),
 	});
 }
 

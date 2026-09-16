@@ -48,8 +48,15 @@ export type AssetSidecarContent = Pick<AssetGeometryDTO, 'calibration' | 'shape'
  */
 const ABSENT_VERSION: EntityVersion = { revision: 0, observed: observeSidecar('') };
 
+/**
+ * The version this build EMITS, named once so the empty document and the write cannot disagree —
+ * they were two literal `2`s and a bump had to remember both. What it READS is wider and is
+ * `AssetGeometrySchema`'s business: v1, v2 and v3 in, v3 out (AD04 §5).
+ */
+const SCHEMA_VERSION = 3;
+
 const emptyDocument = (assetId: AssetId): AssetGeometryDTO => ({
-	schemaVersion: 2,
+	schemaVersion: SCHEMA_VERSION,
 	assetId,
 	revision: 0,
 	unit: 'mm',
@@ -237,7 +244,7 @@ export class AssetGeometryStore {
 
 			const nextRevision = current.value.version.revision + 1;
 			const text = canonicalJson({
-				schemaVersion: 2,
+				schemaVersion: SCHEMA_VERSION,
 				assetId,
 				revision: nextRevision,
 				unit: 'mm',

@@ -153,6 +153,9 @@ describe('shapeFromDimensions', () => {
 			anchor: { x: 0, y: 0 },
 			facing: 0,
 			details: [],
+			// A validated shape always carries the array, even where the document it came from
+			// predates groups entirely (AD04 §4): the validator answers `[]` for an absent one.
+			groups: [],
 		});
 	});
 
@@ -196,6 +199,9 @@ describe('shapeFromOutline', () => {
 			anchor: { x: 0, y: 0 },
 			facing: 0,
 			details: [],
+			// A validated shape always carries the array, even where the document it came from
+			// predates groups entirely (AD04 §4): the validator answers `[]` for an absent one.
+			groups: [],
 		});
 	});
 

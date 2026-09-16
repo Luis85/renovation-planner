@@ -18,6 +18,8 @@ import { OPENING_CHEVRON_GAP_PX, VERTEX_GRAB_RADIUS_PX } from '../handleMetrics'
  */
 export type OpeningGrip = 'width-start' | 'step-back' | 'move' | 'step-forward' | 'width-end' | 'side-left' | 'side-right';
 export interface OpeningHandle { readonly grip: OpeningGrip; readonly point: Point }
+/** The two TAP grips that read Shift, for the larger step — and so the only grips a Shift press may act on. */
+export function isStepGrip(grip: OpeningGrip): boolean { return grip === 'step-back' || grip === 'step-forward'; }
 
 /** Adjacent marks closer than this in screen pixels are a pile of overlapping targets, not five handles. */
 const MIN_SEPARATION_PX = VERTEX_GRAB_RADIUS_PX * 2;

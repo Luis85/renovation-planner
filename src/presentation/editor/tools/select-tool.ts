@@ -10,7 +10,7 @@ import type { RotationShape } from '../elements/objectRotation';
 import { ElementMove, type ElementMoveDeps } from '../elements/ElementMove';
 import { ElementResize, type ElementResizeDeps } from '../elements/ElementResize';
 import { OpeningResize, type OpeningResizeDeps } from '../structure/OpeningResize';
-import type { OpeningGrip, OpeningHandle } from '../structure/openingHandles';
+import { isStepGrip, type OpeningGrip, type OpeningHandle } from '../structure/openingHandles';
 import { NUDGE_STEP_MM, NUDGE_STEP_SHIFT_MM } from '../surface/keyboard';
 import { transformHandlePoints } from '../elements/transformBox';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
@@ -355,7 +355,7 @@ export class SelectTool implements EditorTool {
 	 * the same one Shift takes on an arrow key.
 	 */
 	private startOpeningGrip(context: EditorContext, event: EditorPointerEvent, target: { readonly id: string; readonly grip: OpeningGrip }): void {
-		if (target.grip === 'step-back' || target.grip === 'step-forward') {
+		if (isStepGrip(target.grip)) {
 			const step = event.modifiers.shift ? NUDGE_STEP_SHIFT_MM : NUDGE_STEP_MM;
 			this.deps.stepOpening?.(target.id, target.grip === 'step-back' ? -step : step);
 			return;
@@ -499,23 +499,26 @@ export class SelectTool implements EditorTool {
 		const selectedIds = context.selection.selectedIds.map(String);
 		const openings = this.deps.openingHandles?.() ?? undefined;
 		const handleToleranceWorld = VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel();
-		// A press on ANY of the selected opening's own handles is direct manipulation, not a
+		// A PHYSICAL Shift press on the selected opening's own STEP dot is direct manipulation, not a
 		// selection press, so Shift does not blank the selection there — the same exemption
-		// `rotation.hit` takes beside it. Read it as exactly that and no wider: it covers all
-		// seven grips, and only the two step arrows go on to READ Shift, for the step size
-		// (`startOpeningGrip`, which owns that list). For the other five Shift means nothing,
-		// and the cost of the exemption is that it no longer toggles this opening out of the
-		// selection over its own handles. Without it the blanked `selectedIds` make
-		// `openingHandleAt` decline every handle and the shift-step arm is unreachable.
-		// Evaluated only under Shift, since nothing but the ternary below reads it and a hover
-		// asks this on every pointer move.
-		const openingGrip = event.modifiers.shift && openingHandleAt({ selectedIds, worldPoint: event.worldPoint, handleToleranceWorld, openingHandles: openings }) !== null;
+		// `rotation.hit` takes beside it. Read it as exactly that and no wider. Only the two step
+		// dots, because only they go on to READ Shift, for the step size (`startOpeningGrip`): over
+		// the move grip, a width grip or a chevron, Shift toggles the opening out as it always did.
+		// And only a PHYSICAL Shift: the "select multiple" mode's Shift is synthetic (`withMode`), and
+		// a touch user building a set who taps a step dot is choosing, not asking for a write — told
+		// apart from the mode the way `rotationSuppressed` tells it apart. Without the exemption the
+		// blanked `selectedIds` make `openingHandleAt` decline every handle and the shift-step arm is
+		// unreachable. Evaluated only under Shift, since nothing but the ternary below reads it and a
+		// hover asks this on every pointer move.
+		const grip = event.modifiers.shift && this.deps.multiSelectionMode?.() !== true
+			? openingHandleAt({ selectedIds, worldPoint: event.worldPoint, handleToleranceWorld, openingHandles: openings }) : null;
+		const stepGrip = grip?.kind === 'opening-handle' && isStepGrip(grip.grip);
 		const target = resolveSelectionTarget({
 			rotationHandle: rotation.grip && { id: rotation.grip.shape.id, bounds: rotation.grip.control.bounds },
 			resizeHandles: frame ? { id: frame.element.id, points: transformHandlePoints(frame, context.viewport.worldPerScreenPixel()) } : undefined,
 			openingHandles: openings,
 			candidates,
-			selectedIds: event.modifiers.shift && !rotation.hit && !openingGrip ? [] : selectedIds,
+			selectedIds: event.modifiers.shift && !rotation.hit && !stepGrip ? [] : selectedIds,
 			worldPoint: event.worldPoint,
 			handleToleranceWorld,
 			cycle: event.modifiers.alt,

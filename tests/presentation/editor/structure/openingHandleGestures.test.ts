@@ -84,10 +84,15 @@ it('commits a width drag on release', () => {
 
 it('selects the opening instead of editing it when geometry cannot be mutated', () => {
 	const { tool, context, stepOpening, previewOpening } = harness({ canMutateGeometry: () => false });
+	// The selection cannot be reset to empty first: the handles answer only while this door IS the
+	// selection, so an empty one would never reach the grip at all. The spy is what can fail — the
+	// harness already selected the door, so reading `selectedIds` back passes whether or not the
+	// press selected anything.
+	const select = vi.spyOn(context.selection, 'select');
 	tool.pointerDown(press(pointOf('step-forward')));
 	expect(stepOpening).not.toHaveBeenCalled();
 	expect(previewOpening).not.toHaveBeenCalled();
-	expect(context.selection.selectedIds.map(String)).toEqual([door.id]);
+	expect(select).toHaveBeenCalledWith([door.id]);
 });
 
 it('abandons an opening drag when the gesture is cancelled', () => {
@@ -108,8 +113,7 @@ it('offers no grip where the facade answers no handles, and writes nothing where
 	none.tool.pointerDown(press(pointOf('step-forward')));
 	expect(none.stepOpening).not.toHaveBeenCalled();
 	const unwired = harness({ openingHandles: undefined, stepOpening: undefined, flipOpening: undefined });
-	unwired.tool.pointerDown(press(pointOf('step-forward')));
-	expect(unwired.stepOpening).not.toHaveBeenCalled();
+	expect(() => unwired.tool.pointerDown(press(pointOf('step-forward')))).not.toThrow();
 	const deaf = harness({ stepOpening: undefined, flipOpening: undefined });
 	deaf.tool.pointerDown(press(pointOf('step-forward')));
 	deaf.tool.pointerDown(press(pointOf('side-left')));
@@ -118,7 +122,8 @@ it('offers no grip where the facade answers no handles, and writes nothing where
 
 
 it('blanks the selection on a Shift press that is not on one of the opening’s own handles', () => {
-	// The exemption covers all seven grips and NOTHING else, and that narrowness is only
+	// The exemption covers the two step dots and NOTHING else (the other grips are
+	// `selectToolMultiSelectionMode.test.ts`'s), and that narrowness here is only
 	// observable where a decoration which is NOT an opening handle exists: `handleAt` declines an
 	// `opening` candidate outright, so a transform box is this suite's only other grabbable thing.
 	// Its corner sits 400mm off the wall, clear of every handle and every chevron. Asked as a
@@ -134,7 +139,7 @@ it('blanks the selection on a Shift press that is not on one of the opening’s 
 	expect(hoverKind(pointerAt(corner.x, corner.y))).toBe('resize');
 	// With Shift the selection is still blanked there, so `resizeAt` declines an empty selection
 	// and the point offers nothing to grab — the press falls through to the marquee, exactly as a
-	// Shift press did before this exemption existed. Widen `openingGrip` past the opening's own
+	// Shift press did before this exemption existed. Widen `stepGrip` past the opening's own
 	// handle set and this goes red: it would answer 'resize' under Shift too.
 	expect(hoverKind(shiftPointerAt(corner.x, corner.y))).toBeNull();
 });

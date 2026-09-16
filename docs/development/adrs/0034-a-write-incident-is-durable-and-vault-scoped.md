@@ -132,7 +132,10 @@ intersection gate would let a write land on an entity that IS inconsistent while
 precise. A coarse, vault-wide gate is the sound answer here, not merely the cheap one.
 
 **`project.write-uncompensated` (`ObsidianProjectRepository`) is narrowed by this decision and
-stops raising an incident**, while keeping its existing log line and ledger record. Its residue is
+stops raising an incident**, while keeping its existing log line — there is no separate ledger
+record at this path; verified against the code, which carries only a `logger.error` call
+(`project.insert-compensation-failed`, one per stranded folder) and no `deps.ledger.record`, so
+this ADR names only what actually survives. Its residue is
 an empty folder: no note was written, so the vault's data stays coherent and "half-written" is
 true only of the folder tree — `DispatchOutcome.ts`'s own docblock already names this as the case
 to decide once a gate exists, and under the coarse-gate ruling above a stamp is now a vault-wide

@@ -27,7 +27,7 @@ import { observeFrontmatter } from './digest';
 import { freshNotePath } from './paths';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
-import { markUncompensated, type AffectedEntityKind } from '../../../application/commands/DispatchOutcome';
+import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
 /**
  * The conditional note write the asset and requirement repositories share — the Zone
@@ -292,13 +292,14 @@ export async function trashNoteBackedEntity(
 						`Could not remove the second file of ${kind} ${id}, and the note could NOT be restored; inspect it by hand.`,
 						removed.error,
 					),
-					// `kind` is `DiagnosticEntityKind` (the wider migration/logging vocabulary);
-					// the cast is bounded by measurement, not by convenience — grepped 2026-09-16,
-					// this function's three real callers pass exactly `'asset'`, `'asset-price'`
-					// and `'requirement'` (`ObsidianAssetRepository.ts`,
+					// `kind` is `DiagnosticEntityKind`, and `AffectedEntityKind` is now an alias of
+					// that same type (DispatchOutcome.ts), so no cast is needed here — this
+					// function's three real callers pass exactly `'asset'`, `'asset-price'` and
+					// `'requirement'` (`ObsidianAssetRepository.ts`,
 					// `ObsidianAssetPriceOverrideRepository.ts`, `ObsidianRequirementRepository.ts`),
-					// which is exactly `AffectedEntityKind`'s coverage of this site.
-					[{ entityKind: kind as AffectedEntityKind, entityId: id }],
+					// which is what `AffectedEntityKind`'s own docblock records as this site's
+					// measured coverage of the wider alias.
+					[{ entityKind: kind, entityId: id }],
 				),
 			);
 		}

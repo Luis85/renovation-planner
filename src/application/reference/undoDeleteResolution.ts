@@ -129,14 +129,21 @@ async function rollBack(
 	// returned the vault to the post-resolution state the docblock's third bullet promises,
 	// and stamping that would badge data as safe as it was before the gesture.
 	//
-	// **Empty, and genuinely so — not merely unbound.** `done` is `readonly Compensation[]`,
-	// zero-argument closures with no id exposed at all, so nothing inside this loop can be
-	// named. `ops.entityId` names the restored entity but `UndoSequenceOps` carries no
-	// `entityKind` beside it — unlike `ResolutionOps`, its forward twin, which does — so even
-	// the one id in scope cannot be paired into an `AffectedEntity` without inventing a kind
-	// this function does not actually know. Threading one in is a larger change than this task
-	// (ADR-0034 already records this set as deliberately incomplete); the empty array is this
-	// site's honest answer under the shape this task adds.
+	// **Empty, and not reachable from INSIDE this function — narrower than "cannot" reads.**
+	// `done` is `readonly Compensation[]`, zero-argument closures with no id exposed at all, so
+	// nothing inside this loop can be named. `ops.entityId` names the restored entity but
+	// `UndoSequenceOps` carries no `entityKind` beside it — unlike `ResolutionOps`, its forward
+	// twin, which does — so even the one id in scope cannot be paired into an `AffectedEntity`
+	// without inventing a kind this function does not actually know.
+	//
+	// **This function's only caller is not in the same position.** `undoDeleteResolution` holds
+	// `sequence.affectedAfter` — the requirement ids this whole rollback is restoring, each
+	// already routed through `ops.requirements` before `done` is ever pushed to — so threading
+	// those ids into `rollBack` as a parameter is an available improvement, not an impossibility.
+	// Left undone here because a behaviour change surfaced in review belongs in its own
+	// increment, not folded into a wording fix (and ADR-0034 already records this set as
+	// deliberately incomplete); the empty array is this site's honest answer under the shape
+	// this task adds, and "honest" is a claim about `rollBack` alone, not about the caller.
 	return err(uncompensated ? markUncompensated(cause, []) : cause);
 }
 

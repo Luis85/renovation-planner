@@ -1,6 +1,7 @@
 import { isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { EntityVersion } from '../ports/versioning';
+import type { DiagnosticEntityKind } from '../ports/diagnostics';
 
 /**
  * What a dispatched reversible gesture DID, beside whether it succeeded.
@@ -150,14 +151,24 @@ export async function plainDispatch(versioned: Promise<VersionedDispatchResult>)
  * asks about persistence gets an answer nothing had to infer.
  *
  * **22 producers in 16 files, dated rather than trusted, because this count has already gone
- * stale three times.** `grep -rn "markUncompensated(" src/`, EXCLUDING this docblock's own
- * line above (its quoted grep pattern contains the literal substring it searches for, so the
- * instrument counts itself — this repository's own recurring shape), printed 23 lines on
- * 2026-09-16 (BP-02 slice 2 task 2), of which that one is the self-count. An `import` of this
- * function carries no `(` and is therefore not in the number; six files spell two calls each.
- * The count moved from 23 producers in 17 files because this same pass NARROWS
- * `project.write-uncompensated` (`ObsidianProjectRepository`) to stop stamping at all — see
- * the empty-folder paragraph below, now a decision rather than a question.
+ * stale FOUR times — the fourth time inside the very edit that was fixing the third.** BP-02
+ * slice 2 task 2's own count paragraph said "23 lines … of which that one is the self-count,"
+ * naming exactly one self-match. That was already wrong the moment it was written: the SAME
+ * edit added `AffectedEntityKind`'s docblock a few dozen lines below, and that docblock quoted
+ * this identical grep pattern too, to explain how ITS membership was measured — a second
+ * self-matching line the first paragraph never counted, because a paragraph about an
+ * instrument counting itself did not re-check itself against its own sibling. Re-run on
+ * 2026-09-16 (BP-02 slice 2 review-fix pass), `grep -rn "markUncompensated(" src/` prints
+ * **24 lines**, of which **2 are self-matches** — this paragraph's own quoted pattern, and one
+ * line in `AffectedEntityKind`'s docblock below that still quotes it to explain its own
+ * measurement. 24 lines minus 2 self-matches is 22 producers; six files spell two calls each,
+ * so 22 producers sit in 16 files — the same conclusion the earlier, wrongly-reasoned count
+ * happened to land on, which is why the defect went unnoticed rather than why it was harmless:
+ * a wrong instrument that returns the right number by accident is still a wrong instrument. An
+ * `import` of this function carries no `(` and is therefore not in the number. The number
+ * first moved from 23 producers in 17 files earlier in the same task, because that pass
+ * NARROWS `project.write-uncompensated` (`ObsidianProjectRepository`) to stop stamping at all
+ * — see the empty-folder paragraph below.
  *
  * **The DEFINITION below is out of the number too, and NOT because anything excluded it.**
  * It is spelled `markUncompensated<TError extends AppError>(`, so the pattern's `(` never
@@ -210,30 +221,51 @@ export interface UncompensatedWrite {
 }
 
 /**
- * The closed vocabulary `AffectedEntity.entityKind` may name — closed deliberately, so a new
- * raise site has to add its kind on purpose and the diagnostics report ADR-0034 hands this to
- * cannot print a typo'd kind as if it were real.
+ * The closed vocabulary `AffectedEntity.entityKind` may name — an ALIAS of
+ * `DiagnosticEntityKind` (`application/ports/diagnostics.ts`), not a parallel union with its
+ * own membership.
  *
- * **Measured, not guessed**, from every `markUncompensated(` raise site in `src/` after this
- * task's edits (the same `grep -rn "markUncompensated(" src/` the count above already runs,
- * read site by site): `deleteResolution.ts` and `MaterialCommand.ts` name a `requirement`;
- * `reversible-delete-zone-command.ts` and `ObsidianZoneRepository.ts` name a `zone` (and,
- * threaded in this task, the `plan` whose sidecar shares the write); `RenovationCommand.ts`,
+ * **It was a five-member union measured independently from the raise sites, and that was the
+ * defect a review round found.** `noteEntityWrite.ts`'s `trashNoteBackedEntity` takes its kind
+ * as a caller-supplied `DiagnosticEntityKind` — the wider, ten-member vocabulary
+ * `DiagnosticsLedger.record` already uses — and stamped it here through `kind as
+ * AffectedEntityKind`, a cast from the wider vocabulary to the narrower one. A future
+ * `DiagnosticEntityKind` this build does not yet raise (`'project'`, `'trade'`, `'supplier'`,
+ * `'quote'`, `'plan-geometry'`) would have compiled silently through that cast, defeating the
+ * closed union's whole purpose: the type said "these five and no others" while the value
+ * flowing into it was drawn from a wider set the type could not see. Making this an alias
+ * removes the cast (`noteEntityWrite.ts`) rather than widen-then-narrow it, because the
+ * two vocabularies were never actually different sets — both are ADR-0034's and SDD §68's
+ * answer to "which entity kinds does this system hand to a content-free report," diagnostics
+ * and this stamp being two readers of the same fact. The closure itself still lives at
+ * `DiagnosticEntityKind`'s own declaration, unmoved.
+ *
+ * **What is ACTUALLY raised today, measured from every `markUncompensated(` raise site in
+ * `src/` (the same grep the count above runs, read site by site) — kept here as prose because
+ * it is real information, and it no longer needs its own narrower type to be true:**
+ * `deleteResolution.ts` and `MaterialCommand.ts` name a `requirement`;
+ * `reversible-delete-zone-command.ts` and `ObsidianZoneRepository.ts` name a `zone` (and, since
+ * this task's threading, the `plan` whose sidecar shares the write); `RenovationCommand.ts`,
  * `StructureCommand.ts`, `GroupGeometryCommand.ts`, `ConfigurePlanReference.ts`,
  * `ConstructionMaterialCommand.ts` and `ObsidianPlanRepository.ts` all name a `plan`;
  * `SetAssetBackground.ts` and `ReversibleAssetDesignCommands.ts` name an `asset`; and
- * `noteEntityWrite.ts`'s `trashNoteBackedEntity` takes its kind as a caller-supplied
- * parameter rather than a literal, so its three real callers were read in turn
- * (`ObsidianAssetRepository.ts` passes `'asset'`, `ObsidianAssetPriceOverrideRepository.ts`
- * passes `'asset-price'`, `ObsidianRequirementRepository.ts` passes `'requirement'`) — which
- * is where `asset-price` enters this union even though, of those three, only the asset
- * caller's spec supplies the `alsoRemove` this stamp's branch requires to be reached at all
- * today. **What this instrument cannot see**: a future caller of `trashNoteBackedEntity`
- * passing a kind outside this five-member list would fail to compile at the stamp site,
- * which is the closed union doing its job — but a caller passing an EXISTING member's
- * spelling for some other, unrelated meaning would compile and say nothing.
+ * `noteEntityWrite.ts`'s `trashNoteBackedEntity`'s three real callers pass
+ * `'asset'` (`ObsidianAssetRepository.ts`), `'asset-price'`
+ * (`ObsidianAssetPriceOverrideRepository.ts`) and `'requirement'`
+ * (`ObsidianRequirementRepository.ts`) — of which only the asset caller's spec supplies the
+ * `alsoRemove` this stamp's branch requires to be reached at all today. `'project'`, `'trade'`,
+ * `'supplier'`, `'quote'` and `'plan-geometry'` are valid members of the alias and no current
+ * raise site produces any of them.
+ *
+ * **What this instrument cannot see, now that the type is exactly as wide as
+ * `DiagnosticEntityKind`**: nothing stops a future raise site from stamping any of the five
+ * unused members above for a write that has nothing to do with diagnostics' existing use of
+ * that kind — the alias buys "this is a real, spelled-correctly entity kind," not "this kind
+ * is one this stamp has ever meant." That is weaker than the five-member union's claim used to
+ * read, and it is the honest version of it: the five-member claim was never true once a cast
+ * could feed it a sixth.
  */
-export type AffectedEntityKind = 'zone' | 'plan' | 'asset' | 'asset-price' | 'requirement';
+export type AffectedEntityKind = DiagnosticEntityKind;
 
 /**
  * One entity a refusal's raise site could name as left inconsistent. The pairing is the

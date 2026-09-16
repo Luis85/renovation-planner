@@ -33,7 +33,7 @@ import { tr } from '../i18n/strings';
  * `Create first plan`; this region states the fact and stops.
  */
 defineProps<{ readOnly?: boolean; readOnlyReasonId?: string; plans: readonly PlanSummaryDto[]; emptyMessage?: string | null }>();
-defineEmits<{ open: [planId: string]; create: [] }>();
+defineEmits<{ open: [planId: string]; create: []; delete: [planId: string, name: string] }>();
 
 const list = ref<HTMLUListElement | null>(null);
 
@@ -95,6 +95,7 @@ defineExpose({ focusFirst });
 				<li
 					v-for="plan in plans"
 					:key="plan.id"
+					class="rp-plan-list__item"
 				>
 					<button
 						type="button"
@@ -109,6 +110,27 @@ defineExpose({ focusFirst });
 							name="chevron-right"
 							class="rp-plan-list__chevron"
 						/>
+					</button>
+					<!--
+						OUTSIDE the row button for the reason `New plan` sits outside the
+						`<summary>`: a button inside a button is a nested interactive element, and
+						the row's whole job is to open the plan.
+
+						The accessible name carries the PLAN, because twelve rows each named
+						`Delete` is a screen-reader list with no way to tell them apart —
+						`aria-label` rather than visible text so the row stays a name and a
+						chevron, which is what the icon-only control costs and why it is labelled
+						at all.
+					-->
+					<button
+						type="button"
+						class="rp-plan-list__delete"
+						:disabled="readOnly"
+						:aria-label="tr('view.project.delete-plan-label', { name: plan.name })"
+						:aria-describedby="readOnly ? readOnlyReasonId : undefined"
+						@click="$emit('delete', plan.id, plan.name)"
+					>
+						<HostIcon name="trash" />
 					</button>
 				</li>
 			</ul>

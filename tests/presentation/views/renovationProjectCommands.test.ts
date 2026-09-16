@@ -51,6 +51,7 @@ describe('unavailableRenovationProjectCommands', () => {
 			'createAsset',
 			'createPlan',
 			'createProject',
+			'deletePlan',
 			'setAssetFootprintFromDimensions',
 			'setAssetPriceOverride',
 		]);

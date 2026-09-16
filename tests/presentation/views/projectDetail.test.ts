@@ -351,7 +351,13 @@ describe('ProjectDetail', () => {
 	 * present while doing nothing.
 	 */
 	it('gives the scroll to the body and to nothing else', () => {
-		const rules = stylesheetRules(readFileSync('styles/project-detail.css', 'utf8'));
+		// BOTH partials, because the plan-list rules moved into their own when the row's Delete
+		// took `project-detail.css` past the assembler's 400-line cap — and the claim below is
+		// about the scroll belonging to the body and to nothing ELSE, so a split that dropped
+		// half the file from the read would make it quieter rather than redder.
+		const rules = stylesheetRules(
+			[readFileSync('styles/project-detail.css', 'utf8'), readFileSync('styles/plan-list.css', 'utf8')].join('\n'),
+		);
 		const rulesFor = (selector: string) => rules.filter((rule) => rule.selectors.map(show).includes(selector));
 		const declared = (selector: string, property: string) =>
 			rulesFor(selector).flatMap((rule) => rule.declarations).find((declaration) => propertyOf(declaration) === property);

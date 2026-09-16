@@ -18,4 +18,16 @@ export const planEn = {
 	'plan.parent-project-mismatch': 'That plan belongs to a different project.',
 	'plan.parent-zone-not-found': 'That room or area is no longer on its plan.',
 	'plan.nothing-to-undo': 'Nothing to undo yet.',
+	// Design slice 21's plan rows grew a Delete. `delete-plan-label` is the icon-only button's
+	// whole accessible name, so it NAMES the plan; the three refusal codes below are
+	// `DeletePlanCommand`'s, and `{names}` is filled from `namedReferenceError`'s own field.
+	'plan.rooms-exist': 'This plan still holds rooms: {names}. Delete them in the plan editor first.',
+	'plan.detail-plans-exist': 'This plan is the parent of detail plans: {names}. Delete those first.',
+	'plan.referents-unreadable':
+		'Some notes under this plan could not be read, so it cannot be confirmed empty. Fix or remove them first.',
+	'view.project.delete-plan-label': 'Delete plan {name}',
+	'view.project.delete-plan-title': 'Delete plan?',
+	'view.project.delete-plan-body': '{name} and its note will be deleted. This cannot be undone.',
+	'view.project.delete-plan-confirm': 'Delete plan',
+	'view.project.delete-plan-cancel': 'Keep plan',
 };

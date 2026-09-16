@@ -7,6 +7,8 @@ import type { DispatchResult } from '../../application/commands/DispatchOutcome'
 import type { Asset } from '../../domain/asset/Asset';
 import type { Command } from '../../application/commands/Command';
 import type { CreatePlanError, CreatePlanInput } from '../../application/commands/plan/CreatePlan';
+import type { DeletePlanError, DeletePlanInput } from '../../application/commands/plan/DeletePlan';
+import type { PlanId } from '../../domain/plan/PlanId';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 import type {
 	SetAssetPriceOverrideErrors,
@@ -42,6 +44,9 @@ export type CreateProjectResult = Result<{ project: Loaded<Project> }, Repositor
  */
 export type CreatePlanResult = Result<{ plan: Loaded<Plan> }, CreatePlanError>;
 
+/** Exported for the reason every alias in this file is: it is named by an exported signature. */
+export type DeletePlanResult = Result<{ planId: PlanId }, DeletePlanError>;
+
 /**
  * The price section's two dispatch results, aliased here for the same reason the two above are:
  * both are named by an exported signature, and `private-type-leaks` is an `error`.
@@ -67,6 +72,11 @@ export interface RenovationProjectCommandServices {
 	 * still compile, which is the self-declared shape this repository refuses everywhere else.
 	 */
 	readonly createPlan: Command<CreatePlanInput, CreatePlanResult>;
+	/**
+	 * The plan row's own destructive action. REQUIRED like its siblings: an optional member
+	 * would let a composition forget it and draw a live Delete that dispatches nothing.
+	 */
+	readonly deletePlan: Command<DeletePlanInput, DeletePlanResult>;
 	/**
 	 * The project's own price section — the affordance that turns `cost.currency-mismatch` from
 	 * a dead end into something a user can act on.
@@ -149,6 +159,11 @@ export function unavailableRenovationProjectCommands(): RenovationProjectCommand
 		createPlan: {
 			execute(): Promise<CreatePlanResult> {
 				return Promise.resolve(err(persistenceFailure()) as CreatePlanResult);
+			},
+		},
+		deletePlan: {
+			execute(): Promise<DeletePlanResult> {
+				return Promise.resolve(err(persistenceFailure()) as DeletePlanResult);
 			},
 		},
 		// Both price doors through the SAME `persistenceFailure()` the pair above share, so

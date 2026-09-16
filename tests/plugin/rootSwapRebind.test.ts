@@ -297,19 +297,21 @@ describe('a view already open when the root is replaced', () => {
 	});
 
 	/**
-	 * The recorded gap named in `save-state-store.ts`'s `unrecoveredWrite` docblock (R1),
-	 * pinned rather than left as prose: a rebind builds a fresh Pinia
-	 * (`PlanEditorView.mount`'s `app.use(createPinia())`), so a leaf's unrecovered-write
-	 * warning does not survive ANY settings save while that leaf is open — not because
-	 * something clears the flag, but because the whole store it lived in is discarded.
+	 * What used to be the recorded gap (R1), now the desired outcome: a settings save no
+	 * longer manufactures an all-clear over a half-written vault.
 	 *
-	 * This is NOT the desired behaviour. It is here so the day someone carries the flag
-	 * through a rebind (the way `planId` already survives one, as view-owned state rather
-	 * than store state — recorded as deferred, not done, in this task) this case is what
-	 * tells them to flip its final expectation to `true`, rather than the fix landing with
-	 * nothing here to notice it.
+	 * The mechanism it pins is the one the store's own docblock named as the fix shape — the
+	 * incident is the VIEW's, carried on `PlanEditorView` beside `planId` and through the
+	 * same `getState`/`setState`, and `mount` seeds each fresh store from it. So the Pinia
+	 * is still a different instance after the swap (nothing about the remount changed) and
+	 * the warning is still standing in it.
+	 *
+	 * Reached by marking the store rather than by failing a write, because the subject here
+	 * is the SWAP: `tests/presentation/views/planEditorIncident.test.ts` is where the
+	 * incident is raised through the real dispatch path, and the two together are what say
+	 * the seeding is wired to the thing production actually sets.
 	 */
-	it('drops a leaf’s unrecovered-write flag on rebind — the recorded gap, not the desired behaviour', async () => {
+	it('keeps a leaf’s unrecovered-write flag across a rebind, re-seeded into the fresh Pinia', async () => {
 		resetRecorder();
 		const { plugin, workspace } = await loadedPlugin();
 		const { view } = await openViewOnLeaf(plugin, workspace, PLAN_EDITOR_VIEW, { planId: 'plan-1' });
@@ -320,10 +322,11 @@ describe('a view already open when the root is replaced', () => {
 		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
 
 		const rebound = saveStatePiniaOf(view);
-		// A DIFFERENT Pinia instance, not merely a store that happened to reset: this is what
-		// the docblock's claim actually is — the whole app, and everything in it, is fresh.
+		// A DIFFERENT Pinia instance, not merely the same store surviving: the whole app, and
+		// everything in it, is still fresh — which is what makes the flag's survival a fact
+		// about where it now lives rather than about the remount having been skipped.
 		expect(rebound).not.toBe(pinia);
-		expect(useSaveStateStore(rebound).unrecoveredWrite).toBe(false);
+		expect(useSaveStateStore(rebound).unrecoveredWrite).toBe(true);
 	});
 
 	it('delivers the new root rebuild to the rebound project view, and not the old root', async () => {

@@ -60,7 +60,9 @@ at compile time rather than by a sentence.
 Three fields were added and one deliberately was not. `ProjectStore` gained `refreshing` and
 `retriesFailed`; `SaveStateStore` gained `unrecoveredWrite`
 (**amendment, 2026-09-06**: sticky for the leaf's MOUNT, not the leaf itself — a settings save
-rebuilds the store and drops it, pinned by `tests/plugin/rootSwapRebind.test.ts`); the status union did NOT grow, because
+rebuilds the store and drops it, pinned by `tests/plugin/rootSwapRebind.test.ts`; **amendment,
+2026-09-16**: closed — the incident is `PlanEditorView`'s own view state now and each mount's
+store is seeded from it, so it is the LEAF's after all); the status union did NOT grow, because
 `keepPreviousOnFailure` holds `status === 'ready'` on purpose and a fifth status would reopen every
 `=== 'ready'` gate in the tree.
 

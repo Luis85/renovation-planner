@@ -711,7 +711,8 @@ Four kinds of presentation state, and who owns each:
 | State | Owner | Survives |
 |---|---|---|
 | Which project / plan / asset a leaf shows | **Obsidian view state** (`getState`/`setState`) | rebind, restart, layout restore |
-| Entities hydrated for display, selection, tool, history, save state | Pinia stores (`ProjectStore`, `EditorStore`, selection, save-state, inspector, `AssetLibraryStore`, `AssetSelectionStore`, `RenovationProjectStore`, `ProjectDetailStore`, `WorkspaceStore`) | the leaf's life |
+| A Plan Editor leaf's open unrecovered-write incident | **Obsidian view state**, on `PlanEditorView` beside `planId` | rebind, restart, layout restore — for THAT leaf only |
+| Entities hydrated for display, selection, tool, history, the save INDICATOR | Pinia stores (`ProjectStore`, `EditorStore`, selection, save-state, inspector, `AssetLibraryStore`, `AssetSelectionStore`, `RenovationProjectStore`, `ProjectDetailStore`, `WorkspaceStore`) | one Vue mount: a settings rebind remounts the tree and builds these again |
 | Search text, group expansion, scroll, focus target, guidance visibility | a leaf-local UI snapshot | Vue remounts; never written to a note |
 | An unsaved field draft and its field errors | form state bound to ONE entity id and ONE baseline version | selection change only through the draft guard (§101) |
 
@@ -3038,8 +3039,11 @@ Initial hydration, write read-back and explicit retry share the runtime refresh 
 A failed read retains the last published projection and qualifies a confirmed save as needing
 refresh. A planning read failure or uncompensated operation blocks unsafe history as well as
 new writes. The existing versioned spatial-only history behavior is preserved. Read success
-clears read failure, never an uncompensated operation. The latter flag remains mount-local;
-settings rebind or closing the view loses that flag and is not crash recovery.
+clears read failure, never an uncompensated operation. The latter flag is the LEAF's, carried
+in Obsidian's own view state beside the plan id, so a settings rebind and a close-and-reopen of
+that leaf both keep it and nothing clears it at all. It is still not crash recovery: it records
+that a write was left half-done and never what was left, and it gates only what that leaf
+dispatches.
 
 Invalidations coalesce into one active read and a latest follow-up. Obsolete planning results
 do not publish, and disposal retires subscriptions, pending waiters and hydration tickets.

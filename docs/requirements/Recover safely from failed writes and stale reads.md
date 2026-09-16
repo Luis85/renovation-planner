@@ -126,6 +126,18 @@ checkpoint C3. Which test holds each criterion:
    on rebind" pins the window rather than closing it; closing it means carrying the flag as
    view-owned state the way `planId` already is, which is its own task.
 
+   **Amendment (2026-09-16): that task is done, and the flag is the LEAF's.**
+   `PlanEditorView` holds its own `unrecoveredWrite`, emitted by `getState` and read back by
+   `setState` beside `planId`, and `mount` seeds each fresh store from it — so a settings save,
+   a close-and-reopen of that leaf and a restart all keep the warning, and nothing clears it at
+   all (R1's other half is unchanged: this layer still cannot tell a repairing write from any
+   other). Two limits, stated rather than left to be read wider: a SECOND Plan Editor leaf on
+   the same plan is still not gated by the first one's incident, with or without a rebind, which
+   needs an affected-identity model nobody has built; and the Asset Designer and the project
+   view's work section still hold a mount-local flag each, unseeded.
+   `tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
+   dispatch path and walks that lifecycle; the rebind case named above asserts survival now.
+
    **What the stamp cannot see, stated here because it is where a reader of this PBI stands.** The
    row fires for a refusal that was STAMPED at the site that wrote. CLAUDE.md's own
    `affectsSaveState` account records the residue this inherits: **a post-write refusal raised in a

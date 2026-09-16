@@ -44,17 +44,23 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * `save-error`, which any refused write raises and which the NEXT successful write clears
 	 * for the ordinary reason — this one is about the vault's coherence.
 	 *
-	 * **Ruling R1 (2026-09-05): sticky for the MOUNT's life, not the leaf's. Nothing in this
-	 * store ever clears it once set**, `resolveOk` included — that half of R1 stands. But a
-	 * mount is not the leaf: `PlanEditorView.rebind` (`src/presentation/views/PlanEditorView.ts`)
-	 * calls `unmount()` then `sync()`, and `sync()`'s `mount()` runs `app.use(createPinia())` —
-	 * a FRESH Pinia, and therefore a fresh `unrecoveredWrite` starting at `false`, discarding
-	 * whatever the retired mount held. `rebind` runs on every `saveSettings`
-	 * (`RenovationPlannerPlugin.rebindOpenViews`), for every open Plan Editor leaf, regardless of
-	 * which setting changed — units, currency, verbose logging, the library rows, all of them.
-	 * So the recorded window is: a user sees the warning, saves ANY setting with that leaf still
-	 * open, and the warning is gone with the vault unrepaired. Reopening the leaf has the same
-	 * effect for the same reason, which is the case this docblock used to name alone.
+	 * **Ruling R1 (2026-09-05): nothing in this store ever clears it once set**, `resolveOk`
+	 * included — that half of R1 stands and the reasoning for it is below.
+	 *
+	 * **The other half — "sticky for the MOUNT's life" — is no longer where the incident
+	 * lives.** This ref is still built fresh with every `createPinia()`, so on its own it would
+	 * still lose the warning on any `saveSettings` (`rebind` → `unmount()` → `sync()` →
+	 * `mount()`, for every open Plan Editor leaf, whichever setting changed). What closed that
+	 * window is `PlanEditorView`'s own `unrecoveredWrite` field: the leaf holds the incident
+	 * beside its `planId`, in Obsidian's view state, `mount` SEEDS this ref from it through
+	 * `markUnrecovered`, and a watcher there hands a newly raised incident back. So this ref is
+	 * the mount's REPORT of the leaf's incident rather than the record of it.
+	 *
+	 * Read the resulting guarantee at the leaf: it survives a rebind, a close-and-reopen of the
+	 * same leaf, and a restart (`getState` is persisted). It does not reach a SECOND Plan Editor
+	 * leaf on the same plan — that leaf has its own view, its own Pinia and its own gate — and
+	 * neither Asset Designer nor the project view's work section is seeded at all; each of those
+	 * still holds a mount-local flag of its own.
 	 *
 	 * The reasoning for sticky-over-clearing still holds inside one mount's life: the only
 	 * in-session event that actually repairs a half-written vault is a successful retry of the
@@ -64,11 +70,9 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * is cheaper than a false all-clear. A successful REFRESH does not clear it either: reading a
 	 * half-written vault back does not mend it.
 	 *
-	 * Deferred rather than closed here: carrying this flag through a rebind the way `planId`
-	 * already is (view-owned state surviving the remount, not store state) is its own change
-	 * with its own test — recorded in the polish-pass ledger rather than done in this task.
-	 * `tests/plugin/rootSwapRebind.test.ts` pins today's gap (a rebind discards the flag) so the
-	 * day someone closes it, that case is what tells them to flip its expectation.
+	 * `tests/plugin/rootSwapRebind.test.ts` pins the rebind, and
+	 * `tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
+	 * dispatch path and walks the leaf's whole lifecycle with it.
 	 */
 	const unrecoveredWrite = ref(false);
 
@@ -106,7 +110,14 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 			state.value = 'saving';
 		},
 
-		/** The refusal that follows left writes standing in the vault (`leftWritesBehind`). */
+		/**
+		 * The refusal that follows left writes standing in the vault (`leftWritesBehind`).
+		 *
+		 * TWO callers: `withSaveStateTracking`, which is where the incident is raised, and
+		 * `PlanEditorView.mount`, which seeds a fresh store with the incident that leaf was
+		 * already carrying. The second is why this stays an action rather than becoming
+		 * `withSaveStateTracking`'s private business.
+		 */
 		markUnrecovered(): void {
 			unrecoveredWrite.value = true;
 		},
@@ -114,7 +125,7 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 		/**
 		 * A write landed whole. Does NOT clear `unrecoveredWrite` — see that field's docblock
 		 * (R1): this wrapper cannot tell a repairing write from any other, so the flag stays
-		 * sticky for the MOUNT's life (see that field's docblock for the rebind window).
+		 * standing for as long as the LEAF does.
 		 */
 		resolveOk(): void {
 			pendingCount.value -= 1;

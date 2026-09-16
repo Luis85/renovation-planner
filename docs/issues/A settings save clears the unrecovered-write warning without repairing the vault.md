@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 110
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-16
+finished: 2026-09-16
 horizon: Now
 start: ""
 due: ""
@@ -39,11 +39,28 @@ at `false`. So a user who sees the warning and then saves ANY setting — units,
 verbose logging, one of the library rows — with that leaf still open loses the warning with
 the vault unrepaired. Reopening the leaf has the same effect for the same reason.
 
-## What is true today
+## Closed, 2026-09-16
+
+The incident is `PlanEditorView`'s own `unrecoveredWrite` now — a field on the view, emitted by
+`getState` and read back by `setState` beside `planId`, with `mount` seeding each fresh store
+through `markUnrecovered` and a sync watcher handing a newly raised one back. So a settings
+save, a close-and-reopen of the leaf and a restart all keep the warning, and nothing clears it
+(R1's other half is untouched: this layer still cannot tell a repairing write from any other).
+The pinned case below asserts survival now, under the title "keeps a leaf’s unrecovered-write
+flag across a rebind, re-seeded into the fresh Pinia";
+`tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
+dispatch path and walks the lifecycle.
+
+**Not closed by it:** a SECOND Plan Editor leaf on the same plan is still ungated by the first
+leaf's incident, with or without a rebind — a pre-existing hole needing an affected-identity
+model — and the Asset Designer and the project view's work section each still hold a
+mount-local flag of their own.
+
+## What was true before it
 
 Pinned rather than closed: `tests/plugin/rootSwapRebind.test.ts` "drops a leaf’s
-unrecovered-write flag on rebind — the recorded gap, not the desired behaviour" asserts the
-window exists, it does not refuse it. Ruling R1
+unrecovered-write flag on rebind — the recorded gap, not the desired behaviour" asserted the
+window existed, it did not refuse it. Ruling R1
 already accepts a stale warning over a false all-clear as the lesser defect — the only
 in-session event that actually repairs a half-written vault is a successful retry of the same
 delete resolution over the same rows, which the dispatch wrapper cannot identify — and this

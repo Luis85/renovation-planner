@@ -1,6 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { openingHandleDoors } from '../../../../src/presentation/editor/structure/openingHandleDoors';
+import type { OpeningDoors, StructureWrites } from '../../../../src/presentation/editor/structure/openingHandleDoors';
 import { openingHandles } from '../../../../src/presentation/editor/structure/openingHandles';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../../../../src/presentation/editor/viewport/Viewport';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
@@ -24,7 +25,8 @@ function harness(selected: readonly string[] = [door.id]) {
 	useSelectionStore().select(selected.map(id => id as EntityId<string>));
 	const applyOpening = vi.fn<(id: string, transform: Transform) => Promise<void>>().mockResolvedValue();
 	const previewOpening = vi.fn<(id: string | null, next?: Opening) => void>();
-	const doors = openingHandleDoors({ applyOpening, previewOpening });
+	const writes: StructureWrites = { applyOpening, previewOpening };
+	const doors: OpeningDoors = openingHandleDoors(writes);
 	/** The transform the door handed `applyOpening`, run against a baseline of this test's choosing. */
 	const transformed = (baseline: Opening, host: Wall = wall): Opening | null =>
 		expectDefined(applyOpening.mock.calls.at(-1), 'an applyOpening call')[1](baseline, host);

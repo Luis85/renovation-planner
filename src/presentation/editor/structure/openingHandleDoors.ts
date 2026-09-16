@@ -9,12 +9,14 @@ import { selectedOpeningHandles } from './openingHandles';
 import { sameOpening } from './openingHandleActions';
 import type { createStructureActions } from './structureActions';
 
-/** The two of `createStructureActions`' members this needs — named so a double is a typed object, not a cast. */
-type StructureWrites = Pick<ReturnType<typeof createStructureActions>, 'applyOpening' | 'previewOpening'>;
+/** The two of `createStructureActions`' members this needs — named so a double is a typed object, not a cast.
+ * Exported so a test double can be annotated by name instead of shaped by inference. */
+export type StructureWrites = Pick<ReturnType<typeof createStructureActions>, 'applyOpening' | 'previewOpening'>;
 
 /** The six doors `SelectTool` takes for a selected opening's direct manipulation. `Required`, because
- * every one of them is supplied here — optional on `EditorToolDeps` is about the tool, not about this. */
-type OpeningDoors = Required<Pick<EditorToolDeps, 'openingTarget' | 'openingHandles' | 'previewOpening' | 'commitOpening' | 'stepOpening' | 'flipOpening'>>;
+ * every one of them is supplied here — optional on `EditorToolDeps` is about the tool, not about this.
+ * Exported so a caller can annotate the return by name instead of shaped by inference. */
+export type OpeningDoors = Required<Pick<EditorToolDeps, 'openingTarget' | 'openingHandles' | 'previewOpening' | 'commitOpening' | 'stepOpening' | 'flipOpening'>>;
 
 /**
  * The selected opening's direct-manipulation doors, as `SelectTool` takes them.

@@ -1,9 +1,11 @@
 import { expect, it, vi } from 'vitest';
 import { SelectTool, type SelectToolDeps } from '../../../../src/presentation/editor/tools/select-tool';
 import { openingHandles } from '../../../../src/presentation/editor/structure/openingHandles';
+import { itemTransformBox, transformHandlePoints } from '../../../../src/presentation/editor/elements/transformBox';
 import type { OpeningGrip } from '../../../../src/presentation/editor/structure/openingHandles';
 import type { Opening, Wall } from '../../../../src/domain/spatial/Structure';
 import type { EntityId } from '../../../../src/core/identity/EntityId';
+import type { EditorPointerEvent } from '../../../../src/presentation/editor/tools/editor-tool';
 import { ok } from '../../../../src/core/result/Result';
 import { expectDefined } from '../../../helpers/domain';
 import { pointerAt, shiftPointerAt, toolContext } from '../../../helpers/tool-context';
@@ -112,4 +114,27 @@ it('offers no grip where the facade answers no handles, and writes nothing where
 	deaf.tool.pointerDown(press(pointOf('step-forward')));
 	deaf.tool.pointerDown(press(pointOf('side-left')));
 	expect(deaf.tool.hasDraft()).toBe(false);
+});
+
+
+it('blanks the selection on a Shift press that is not on one of the opening’s own handles', () => {
+	// The exemption covers all seven grips and NOTHING else, and that narrowness is only
+	// observable where a decoration which is NOT an opening handle exists: `handleAt` declines an
+	// `opening` candidate outright, so a transform box is this suite's only other grabbable thing.
+	// Its corner sits 400mm off the wall, clear of every handle and every chevron. Asked as a
+	// hover because `updateHover` resolves through the very same `targetAt` a press does, and a
+	// press has no clean observable here — a Shift press landing on nothing starts a marquee.
+	const box = expectDefined(itemTransformBox({ id: door.id, kind: 'object', points: [{ x: 0, y: -400 }, { x: 4000, y: -400 }, { x: 4000, y: -200 }, { x: 0, y: -200 }] }), 'a transform box');
+	const corner = expectDefined(transformHandlePoints(box, 1)[0], 'a transform box handle');
+	const hoverKind = (at: EditorPointerEvent): string | null => {
+		const rig = harness({ transformBox: () => box });
+		rig.tool.pointerMove(at);
+		return rig.context.renderState.hoveredTargetKind;
+	};
+	expect(hoverKind(pointerAt(corner.x, corner.y))).toBe('resize');
+	// With Shift the selection is still blanked there, so `resizeAt` declines an empty selection
+	// and the point offers nothing to grab — the press falls through to the marquee, exactly as a
+	// Shift press did before this exemption existed. Widen `openingGrip` past the opening's own
+	// handle set and this goes red: it would answer 'resize' under Shift too.
+	expect(hoverKind(shiftPointerAt(corner.x, corner.y))).toBeNull();
 });

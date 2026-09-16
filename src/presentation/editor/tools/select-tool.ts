@@ -499,13 +499,17 @@ export class SelectTool implements EditorTool {
 		const selectedIds = context.selection.selectedIds.map(String);
 		const openings = this.deps.openingHandles?.() ?? undefined;
 		const handleToleranceWorld = VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel();
-		// Shift over one of the selected opening's own handles is the BIGGER STEP, the same one
-		// Shift takes on an arrow key — not a multi-select press. That is the exemption
-		// `rotation.hit` already takes beside it, for the identical reason: a decoration whose own
-		// gesture reads Shift cannot also be the selection modifier. Without it the blanked
-		// `selectedIds` make `openingHandleAt` decline every handle, so `startOpeningGrip`'s
-		// `NUDGE_STEP_SHIFT_MM` arm is unreachable from the pointer.
-		const openingGrip = openingHandleAt({ selectedIds, worldPoint: event.worldPoint, handleToleranceWorld, openingHandles: openings }) !== null;
+		// A press on ANY of the selected opening's own handles is direct manipulation, not a
+		// selection press, so Shift does not blank the selection there — the same exemption
+		// `rotation.hit` takes beside it. Read it as exactly that and no wider: it covers all
+		// seven grips, and only the two step arrows go on to READ Shift, for the step size
+		// (`startOpeningGrip`, which owns that list). For the other five Shift means nothing,
+		// and the cost of the exemption is that it no longer toggles this opening out of the
+		// selection over its own handles. Without it the blanked `selectedIds` make
+		// `openingHandleAt` decline every handle and the shift-step arm is unreachable.
+		// Evaluated only under Shift, since nothing but the ternary below reads it and a hover
+		// asks this on every pointer move.
+		const openingGrip = event.modifiers.shift && openingHandleAt({ selectedIds, worldPoint: event.worldPoint, handleToleranceWorld, openingHandles: openings }) !== null;
 		const target = resolveSelectionTarget({
 			rotationHandle: rotation.grip && { id: rotation.grip.shape.id, bounds: rotation.grip.control.bounds },
 			resizeHandles: frame ? { id: frame.element.id, points: transformHandlePoints(frame, context.viewport.worldPerScreenPixel()) } : undefined,

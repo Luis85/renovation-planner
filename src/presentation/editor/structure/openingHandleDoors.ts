@@ -25,8 +25,10 @@ type OpeningDoors = Required<Pick<EditorToolDeps, 'openingTarget' | 'openingHand
  * `stepOpening` and `flipOpening` transform the BASELINE's opening instead, so two taps in quick
  * succession accumulate rather than the second overwriting the first.
  *
- * The handles are the SAME `openingHandles` call the canvas draws from, at the same camera scale,
- * which is what makes a press land on the mark the user aimed at rather than near it.
+ * The handles are the ones `SelectTool` hit-tests against, computed at the camera scale the canvas
+ * draws at. This is `openingHandles`' only caller in `src/` today; once a component draws from the
+ * same door, the wider claim — that what lights up is what a press acts on — becomes true and needs
+ * a check under it rather than this sentence.
  */
 export function openingHandleDoors(structureActions: StructureWrites): OpeningDoors {
 	const project = useProjectStore(), selection = useSelectionStore(), editor = useEditorStore();

@@ -54,9 +54,13 @@ export function openingCutPolygon(opening: Opening, host: Wall, tolerance = 1, p
  * together. Dragging an edge past its partner swaps their roles rather than producing a negative
  * width — `Math.min` decides which is the offset, so the opening is always stated the one legal way.
  *
- * Off-host is REFUSED rather than clamped, deliberately: the gesture above keeps the last valid
- * proposal on screen (`OpeningResize`), so a drag past the wall's end freezes at the last legal
- * width instead of sliding along it, which is what `ElementResize` already does for an item.
+ * Off-host is REFUSED rather than clamped: this is a public function, a caller may hand it an
+ * arbitrary offset, and this file's own tests exercise that arm directly. `OpeningResize`'s width
+ * drag can never reach it, though — it projects the pointer through `projectOntoWall`, whose
+ * `arcProjection` clamps into `[0, wallLength(host)]` before this function ever sees the offset,
+ * so a drag past the wall's end there grows the opening to the wall's end rather than freezing.
+ * What keeps THAT gesture's last valid preview standing past a limit is this function's OTHER
+ * refusal: the dragged edge landing on its fixed partner, where `width` collapses to zero.
  */
 export function resizedOpening(opening: Opening, host: Wall, end: 'start' | 'end', toOffset: number): Opening | null {
 	const length = wallLength(host);

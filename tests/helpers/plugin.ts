@@ -132,6 +132,8 @@ export async function loadedPlugin(
 		return surface.vault;
 	};
 	const asked: string[] = [];
+	/** Plugin-directory files this session has written — what `adapter.read` answers from. */
+	const pluginFiles = new Map<string, string>();
 	/** Vault event handlers the plugin registered — tests fire these directly. */
 	/**
 	 * The vault-event handlers the plugin registered, in registration order.
@@ -155,10 +157,40 @@ export async function loadedPlugin(
 	const byReference = new Map<object, { name: string; handler: (file: never, oldPath?: string) => void }>();
 	const vault = {
 		configDir: '.obsidian',
+		/**
+		 * The plugin-directory file surface — `DataAdapter`'s four members the plugin-data stores
+		 * use, not just the one `data.json`'s probe uses.
+		 *
+		 * **`exists` used to answer `dataFileExists` for EVERY path, and that made this stub both
+		 * thin and harsh.** `SequenceMarkerFileStore` and ADR-0034's `WriteIncidentFileStore` each
+		 * ask this adapter about their own JSON file, and a stub that claimed a file exists and
+		 * then had no `read` at all answered "present and unreadable" for a file no test ever
+		 * planted — which a real vault answers "absent" for. It logged
+		 * `sequence.recovery.list-failed` on every plugin load here for as long as that store has
+		 * existed, invisibly, because recovery only logs; the write-incident gate FAILS CLOSED on
+		 * an unreadable file, so the same lie stopped every guarded write in the suite instead.
+		 * That is this repository's fake rule met from two of its four faces at once.
+		 *
+		 * So: `dataFileExists` still decides `data.json` — including the deliberately incoherent
+		 * "file present, no data" case the docblock above describes — and every other path is
+		 * answered from what has actually been written here.
+		 */
 		adapter: {
 			exists: (path: string): Promise<boolean> => {
 				asked.push(path);
-				return Promise.resolve(dataFileExists);
+				return Promise.resolve(path.endsWith('/data.json') ? dataFileExists : pluginFiles.has(path));
+			},
+			read: (path: string): Promise<string> => {
+				const text = pluginFiles.get(path);
+				return text === undefined ? Promise.reject(new Error(`no file ${path}`)) : Promise.resolve(text);
+			},
+			write: (path: string, data: string): Promise<void> => {
+				pluginFiles.set(path, data);
+				return Promise.resolve();
+			},
+			remove: (path: string): Promise<void> => {
+				pluginFiles.delete(path);
+				return Promise.resolve();
 			},
 		},
 		// The index scan iterates these. An empty vault is the honest default; a suite that

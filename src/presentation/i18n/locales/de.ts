@@ -34,6 +34,7 @@ import { renovationDe } from './de/renovation';
 import { deMobile } from './de/mobile';
 import { newAssetFootprintDe } from './de/newAssetFootprint';
 import { errorFallbackDe } from './de/errorFallback';
+import { writeIncidentDe } from './de/writeIncident';
 
 export const de: Partial<Record<StringKey, string>> = {
 	...itemColorDe,
@@ -46,6 +47,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	...deMobile,
 	...newAssetFootprintDe,
 	...errorFallbackDe,
+	...writeIncidentDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.price-apply': 'Übernehmen',

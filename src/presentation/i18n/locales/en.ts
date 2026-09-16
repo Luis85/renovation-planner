@@ -9,6 +9,7 @@ import { renovationEn } from './en/renovation';
 import { enMobile } from './en/mobile';
 import { newAssetFootprintEn } from './en/newAssetFootprint';
 import { errorFallbackEn } from './en/errorFallback';
+import { writeIncidentEn } from './en/writeIncident';
 
 /**
  * The English table is the COMPLETE one: a key exists because this file answers it, and
@@ -54,6 +55,7 @@ export const en = {
 	...enMobile,
 	...newAssetFootprintEn,
 	...errorFallbackEn,
+	...writeIncidentEn,
 	'command.open-project': 'Open renovation project',
 	'command.open-project-detail': 'Go to renovation project',
 	'view.project.price-apply': 'Apply',

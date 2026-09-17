@@ -4,6 +4,8 @@ import { curvesEn } from './curves';
 import { assetSymbolsEn } from './assetSymbols';
 import { assetEntryPathsEn } from './assetEntryPaths';
 import { assetArrangeEn } from './assetArrange';
+import { assetOpenLinesEn } from './assetOpenLines';
+import { assetReferenceEn } from './assetReference';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
@@ -45,6 +47,8 @@ export const editorEn = {
 	...assetSymbolsEn,
 	...assetEntryPathsEn,
 	...assetArrangeEn,
+	...assetOpenLinesEn,
+	...assetReferenceEn,
 	...groupsEn,
 	...stairsArrowsEn,
 	...structuralEn,

@@ -4,6 +4,8 @@ import { curvesDe } from './curves';
 import { assetSymbolsDe } from './assetSymbols';
 import { assetEntryPathsDe } from './assetEntryPaths';
 import { assetArrangeDe } from './assetArrange';
+import { assetOpenLinesDe } from './assetOpenLines';
+import { assetReferenceDe } from './assetReference';
 import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
@@ -33,6 +35,8 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...assetSymbolsDe,
 	...assetEntryPathsDe,
 	...assetArrangeDe,
+	...assetOpenLinesDe,
+	...assetReferenceDe,
 	...groupsDe,
 	...stairsArrowsDe,
 	...structuralDe,

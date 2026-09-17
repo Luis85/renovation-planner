@@ -41,11 +41,26 @@ Written 2026-09-17 during wave 2.
 ## AD10 — candidate `0c818cb1c` (branch `ad10-arrange`)
 
 - [ ] **`AssetDesignerRoot.vue`: pass `:locked-graphics="runtime.partView.locked.value"` to
-      `<DesignerInspector>`.** The worker calls this the single highest-value line in its handoff and
-      it is right: the prop is declared optional with an empty default, so **until this lands a
-      locked graphic composes like any other** — which is C06's "locked elements must not move by
-      implication", live. Ask the reviewer's question while doing it: should the absence of that set
-      be expressible at all, or should the prop be required?
+      `<DesignerInspector>`, AND make that prop REQUIRED rather than optional.** The worker calls the
+      wiring the single highest-value line in its handoff and it is right: while the prop is optional
+      with an empty default, **a locked graphic composes like any other** — C06's "locked elements
+      must not move by implication", live.
+
+      The reviewer answered the required-versus-optional question and I accept the answer. Optional
+      is right for `openLibrary` and `setMultiSelectionMode`, because their ABSENCE MEANS something
+      — no runtime, therefore no navigation. Absence means nothing here: "no locks" and "locks
+      unknown" are different states, and `?? new Set()` collapses them into the permissive one, so a
+      missing wire is invisible to all four gates and the only thing that would ever notice is a
+      person. That is this repository's own recorded defect shape with the safety rule pointed the
+      wrong way.
+
+      **This is an INTEGRATOR edit and neither worker may do it**, which is why it sits here: making
+      the prop required breaks `vue-tsc` on any branch whose root does not yet pass it, and the root
+      belongs to AD07 while the prop belongs to AD10. It lands in one commit after BOTH are merged —
+      the prop, the root's binding, and the three test mounts the reviewer counted. If it ever gets
+      deferred back to optional, the reviewer's alternative is binding rather than advisory: an
+      assertion in `assetDesignerRoot.test.ts` that the root binds `:locked-graphics`, in the idiom
+      `lint-edited.test.ts` uses for its own hook registration. One or the other, never neither.
 - [ ] Ruling **AD10-R1** (recorded in `contracts/DECISIONS.md`, commit `857c05da5`) is not yet
       satisfied by the candidate: the five spatial operations still accept a selection mixing a
       `pending` graphic with a measured one. The check belongs in `resolveParticipants`

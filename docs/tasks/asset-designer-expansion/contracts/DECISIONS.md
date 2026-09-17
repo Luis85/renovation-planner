@@ -94,6 +94,29 @@ one coordinate space, incompatible with nothing, so aligning them is coherent an
 the refusal is about MIXING, never about being unscaled. The unscaled warning the inspector already
 draws is what tells the user those numbers are not millimetres yet.
 
+**Amended the same day, because the first version of this ruling named five operations and one of
+them does not belong.** It listed *"align, distribute, repeat, the block reorder and the group
+transform"*. AD10's reviewer pushed back on the block reorder and is right: `moveGroupToEnd` takes a
+GROUP ID rather than a selection, so it cannot see a mix in the first place, and it writes no
+coordinates at all — it reorders the `details` array. C07's rationale is about combining two
+coordinate spaces in one arithmetic, and there is no arithmetic here. **So the ruling binds four
+operations, not five:** align, distribute, repeat and the group transform. Bringing a group to the
+front of the drawing order stays allowed on a mixed selection, for the same reason grouping does.
+
+**A second correction, about WHERE the check goes, and it is the more dangerous of the two.** The
+obvious site is `resolveParticipants` in `detailEdits.ts`, which is what AD10's own handoff proposed
+and what a reader of the first version of this ruling would reach for. **That site is wrong and
+would break the other half of the ruling**: `groupEdits.groupDetails` shares that function, so a
+refusal there would refuse grouping a mixed selection — which this ruling explicitly permits. The
+check belongs in `participants` in `arrangeDetails.ts`, which `groupEdits` does not call. And
+`moveDetails` currently bypasses `participants` and calls `resolveParticipants` directly because it
+needs no boxes, so it must be routed through `participants` too or the move-by fields go on
+accepting a mix through the back door. One funnel, or the rule holds in four places out of five.
+
+Recorded at this length because the shape of the mistake is the point: a ruling that names a
+BEHAVIOUR is not finished until somebody has found the one function every affected path actually
+goes through, and the first plausible function was shared with a path the ruling exempts.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

@@ -8,15 +8,30 @@
  * claim split across two files with no pointer is how the next reader resolves it wrongly.
  *
  * This file is the first half: **"Every write it dispatches is refused by the guarded doors
- * underneath."** **It checks LESS than that sentence, and the narrowing is written here rather
- * than left for a reader to discover.** What it actually holds is: *two* of the nine doors
- * `guardAssetDesign` composes — `setHeight` and `setAnchor` — refuse a FORWARD dispatch with
- * `WRITES_PAUSED_CODE` and leave their port unwritten while an incident is open. The other
- * seven doors are composed through the same `guardBothDoors` call in the same function and are
- * not driven here; the whole-bundle claim is `tests/plugin/guardCategory.test.ts`'s, which
- * drives every door of everything the composition root hands out. And the UNDO half is not
- * covered by the sentence at all — see the last describe, which measures it going the other
- * way.
+ * underneath."** What it holds, in two layers:
+ *
+ * - **The CATEGORY**, checked at the forbidden thing rather than by listing the places. The
+ *   last-but-one describe iterates the guarded bundle ITSELF — every command member discovered
+ *   from the object `guardAssetDesign` returns, never from a list typed into this file — and
+ *   requires BOTH doors of each (`execute` and `executeWithVersion`) to answer
+ *   `WRITES_PAUSED_CODE` while an incident is open. Nine commands, eighteen doors today, and a
+ *   tenth command is driven the day it is composed with no edit here. The `get` QUERY is the
+ *   one member excluded, deliberately ungated so ADR-0034 keeps the vault inspectable, and the
+ *   exclusion is asserted BY NAME rather than filtered silently.
+ * - **Two adapters end to end**, which the category loop cannot do: `setHeight` and `setAnchor`
+ *   are dispatched through the designer's real `designEdits` chain and their PORT is read back,
+ *   so a refusal raised after the write would fail. The loop reaches the guarded bundle
+ *   directly and can only see the code, not the data safety.
+ *
+ * **`tests/plugin/guardCategory.test.ts` does NOT carry the whole-bundle claim and never did.**
+ * Its `MAPPED_REFUSAL` is `'vault.unexpected-failure'` and it names `WRITES_PAUSED_CODE`
+ * nowhere: it drives a THROW through every door the composition root hands out and requires the
+ * mapped refusal back. That is the ERROR BOUNDARY on every door — a true and useful
+ * neighbouring claim, and a different one from this file's WRITE GATE. Disable the gate and
+ * that file stays green; the loop below goes red, which is how this sentence was checked.
+ *
+ * The UNDO half is not covered by the file's sentence at all — see the last describe, which
+ * measures it going the other way.
  *
  * The designer has exactly ONE write door for this to be about:
  * `grep -rn "\.commands\." src/presentation/designer/` prints the single line
@@ -48,7 +63,8 @@
  * desirable; if the undo is ever brought inside the gate, they go red and say so.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { isErr } from '../../../src/core/result/Result';
+import { isErr, type Result } from '../../../src/core/result/Result';
+import type { AppError } from '../../../src/core/errors/AppError';
 import { WRITES_PAUSED_CODE } from '../../../src/application/errors/guardAgainstThrowing';
 import type { VaultExceptionMapper } from '../../../src/application/errors/exceptionMapper';
 import { persistenceError } from '../../../src/application/errors';
@@ -59,7 +75,7 @@ import type {
 	AssetDesignCommandBundle,
 	ReversibleAssetDesignCommands,
 } from '../../../src/application/editor/asset/ReversibleAssetDesignCommands';
-import { guardAssetDesign } from '../../../src/plugin/guardedServices';
+import { guardAssetDesign, type GuardedAssetDesignServices } from '../../../src/plugin/guardedServices';
 import { createAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { seeded, drawn, type AssetDesignHarness } from '../../helpers/assetDesignHarness';
 import { recorder, resetRecorder } from '../../helpers/logger';
@@ -78,10 +94,13 @@ const threw: VaultExceptionMapper = (cause) => ({
 /**
  * `SetAssetBackgroundCommand`'s file probe, refusing every path.
  *
- * `guardAssetDesign` requires one to build its eighth door and no case here dispatches
- * `setBackground`, so this fake is never asked a question. Stated rather than left implicit,
- * because a probe that answered `true` for everything would be KINDER than the real thing and
- * would be reached the moment somebody adds a background case to this file.
+ * `guardAssetDesign` requires one to build `setBackground`, the ninth member of the bundle it
+ * returns. No case here reaches it: the two adapter cases dispatch other commands, and the
+ * category loop's dispatch is refused by the gate before `SetAssetBackgroundCommand` runs. So
+ * this fake is never asked a question while the suite is green. Stated rather than left
+ * implicit, because a probe that answered `true` for everything would be KINDER than the real
+ * thing — and it IS reached with the gate disabled, where `setBackground` answered
+ * `vault.threw` rather than a probe refusal.
  */
 const noSpecSheets: VaultFileProbe = { fileExists: () => false };
 
@@ -103,23 +122,52 @@ const NEW_ANCHOR = { x: 40, y: 60 };
 async function guardedDesigner(): Promise<{
 	readonly harness: AssetDesignHarness;
 	readonly edits: ReversibleAssetDesignCommands;
+	/** The same guarded object, at its FULL type — both doors per command, plus the query. */
+	readonly guarded: GuardedAssetDesignServices['assetDesign'];
 }> {
 	const harness = await seeded();
 	await harness.seed(drawn());
 	const ports = { sidecar: harness.sidecar, assets: harness.stack.assets, events: harness.events };
 	// The whole guarded bundle, `get` and all, exactly as `assetDesignerDeps.ts` passes
 	// `persistence.assetDesign` straight through as the command bundle.
-	const bundle: AssetDesignCommandBundle = guardAssetDesign(
+	const guarded = guardAssetDesign(
 		{ ...ports, locks: new ReferenceLocks() },
 		noSpecSheets,
 		recorder,
 		threw,
 	).assetDesign;
+	const bundle: AssetDesignCommandBundle = guarded;
 	const edits = createAssetDesignerCommands(ports, bundle).designEdits({
 		noteLedger: harness.noteLedger,
 		geometryLedger: harness.geometryLedger,
 	});
-	return { harness, edits };
+	return { harness, edits, guarded };
+}
+
+/**
+ * One guarded design command as the category case reaches it: BOTH doors, and OPAQUE about the
+ * input each would validate.
+ *
+ * The nine members carry nine different input types, so a loop over them can only be typed at
+ * the shape they share. That is sound here for the reason the case exists: `guardCommand`
+ * refuses BEFORE the wrapped command is awaited, so the input never reaches any door's
+ * validation while an incident is open.
+ */
+interface OpaqueDoorPair {
+	execute(input: unknown): Promise<Result<unknown, AppError>>;
+	executeWithVersion(input: unknown): Promise<Result<unknown, AppError>>;
+}
+
+/**
+ * A member of the bundle before it has been sorted into command or query, with
+ * `executeWithVersion` OPTIONAL — which is the compiler agreeing with the discovery below: `guardQuery` really does
+ * hand out an object that has no such door, and the whole bundle only types as this.
+ */
+type OpaqueMember = Partial<OpaqueDoorPair> & Pick<OpaqueDoorPair, 'execute'>;
+
+/** What a door answered, as one comparable string, so a red prints every door's own verdict. */
+function verdict(answer: Result<unknown, AppError>): string {
+	return isErr(answer) ? answer.error.code : 'RESOLVED OK — the door was not refused';
 }
 
 describe('the asset designer dispatching through the REAL guarded design bundle', () => {
@@ -181,6 +229,66 @@ describe('the asset designer dispatching through the REAL guarded design bundle'
 			// rather than `toBe` because an `EntityVersion` is an OBJECT — each read mints a
 			// fresh one, so identity here compares readers rather than revisions.
 			expect(await harness.geometryVersion()).toEqual(before);
+		});
+	});
+
+	/**
+	 * **The CATEGORY, checked at the forbidden thing rather than by listing the places.** The
+	 * forbidden thing is a door `guardAssetDesign` hands out that answers anything other than
+	 * `WRITES_PAUSED_CODE` while an incident is open, so the case drives the bundle ITSELF —
+	 * every member discovered from the returned object, never from a list typed here. A tenth
+	 * design command is driven the day it is composed, with no edit to this file.
+	 */
+	describe('the CATEGORY — every command door the guarded bundle hands out', () => {
+		it('refuses every door of every command member with the writes-paused code', async () => {
+			await installOpenWriteIncident();
+			const { harness, guarded } = await guardedDesigner();
+			const members: Record<string, OpaqueMember> = guarded;
+
+			// Discovered by SHAPE, not by name: `guardBothDoors` gives a command both doors and
+			// `guardQuery` gives the query only `execute`.
+			const commands = Object.entries(members).filter(
+				(entry): entry is [string, OpaqueDoorPair] => typeof entry[1].executeWithVersion === 'function',
+			);
+			const driven = new Set(commands.map(([name]) => name));
+			const excluded = Object.keys(members).filter((name) => !driven.has(name));
+			// Asserted by NAME rather than filtered silently: `get` is deliberately ungated
+			// (ADR-0034 keeps the vault inspectable), and a COMMAND that quietly fell out of this
+			// filter would make the loop certify the gap it exists to close.
+			expect(excluded).toEqual(['get']);
+			// Found-something-at-all. `AssetDesignCommandBundle` declares nine commands today;
+			// a door that vanished from the composed object drops this below nine and goes red,
+			// while a tenth door simply joins the loop.
+			expect(commands.length).toBeGreaterThanOrEqual(9);
+
+			const answers: Record<string, string> = {};
+			for (const [name, door] of commands) {
+				// The input is deliberately the same for all nine and deliberately incomplete for
+				// most: the gate refuses before any door's validation runs, so no door here is
+				// ever asked whether it likes its argument.
+				//
+				// **Watched red, 2026-09-17**, by disabling `guardCommand`'s incident block in
+				// `src/application/errors/guardAgainstThrowing.ts`. All eighteen doors then
+				// answered something ELSE, identically at both doors of each command:
+				// `vault.threw` (setAnchor, setBackground, setClearance, setFootprint, setShape —
+				// the mapper reached, because an absent field threw past the command),
+				// `asset.invalid-facing` (setFacing), `asset.invalid-footprint`
+				// (setFootprintFromDimensions), `calibration.invalid-distance` (calibrate), and a
+				// RESOLVED OK for setHeight, which accepted the input and wrote. That spread is
+				// the evidence the loop reaches nine real commands rather than a stub: a stub
+				// could not produce five different verdicts.
+				answers[`${name}.execute`] = verdict(await door.execute({ assetId: harness.assetId }));
+				answers[`${name}.executeWithVersion`] = verdict(
+					await door.executeWithVersion({ assetId: harness.assetId }),
+				);
+			}
+
+			expect(Object.keys(answers)).toHaveLength(commands.length * 2);
+			// One assertion over the whole map rather than one per door, so a red prints WHICH
+			// door answered WHAT rather than stopping at the first.
+			expect(answers).toEqual(
+				Object.fromEntries(Object.keys(answers).map((door) => [door, WRITES_PAUSED_CODE])),
+			);
 		});
 	});
 

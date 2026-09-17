@@ -98,6 +98,31 @@ the assertion that fails without them**, in the idiom AD10's reviewer prescribed
 lines at integration and that assertion is what turns green. An unwired callback is otherwise
 invisible to all six gates, which is the whole of why this row exists.
 
+**Lease amendment, issued 2026-09-17 at the ADQ review-fix round, and written here rather than into
+the dispatch message.** The ADQ reviewer asked for two files the original row did not carry, and both
+are granted to that worker for its fix round:
+`src/presentation/editor/layers/background/BackgroundLayer.vue` (**ADDITIVE ONLY** — declare an
+`opacity?: number` defaulting to `1` and put it in the Konva config, which is what stops the whole
+current binding from depending on Vue attribute fallthrough that `props.config` would silently win
+over) and `tests/application/commands/asset/assetReferenceReplacement.test.ts` (a three-line header
+claim this candidate FALSIFIED — it says deleting a reference has no door because
+`SetAssetBackgroundInput.path` is a bare string, which stopped being true at `70937e5af`). Neither
+file is in any other wave-4 row; both were checked against the two AD13 rows before granting.
+
+**This is written down because the previous session's identical grant was not.**
+`presentation/components/EmptyState.vue` was granted to AD07 in a dispatch brief and never entered
+this table, which made the worker's own report the only place the permission existed — exactly what
+this ledger's opening sentence forbids, and a reviewer caught it.
+
+**What is NOT granted, and must land as an INTEGRATOR commit instead:** the
+`DesignerInspector.vue:324` binding of `:remove-background`, the matching removal of the `?` from
+`removeBackground` in `DesignerReferenceStatus.vue`'s `defineProps`, and the deletion of the
+now-uncompilable "draws no control when nothing is bound to it" case. Those three are ONE commit and
+cannot be split: dropping the `?` before the binding lands turns `vue-tsc` red, and
+`DesignerInspector.vue` belongs to AD13 nav for the whole of this wave. So the integrator applies
+all three after AD13 nav integrates, which is also when AD12-R2's queue row becomes tickable — the
+reviewer's finding 3 is that until then no user can reach the gesture at all.
+
 **Background opacity is deliberately NOT an inspector control.** AD12-R1 calls it a leaf-local view
 preference and names the three files it lives in; putting it in the view menu instead of the
 inspector is what keeps the Queue worker out of `DesignerInspector.vue` for everything except the one

@@ -66,15 +66,30 @@ function placementCount(document: PlanGeometryDocument, assetId: AssetId): numbe
  * placed on a plan with no requirement anywhere, and required with nothing placed, so neither
  * read is a narrowing of the other.
  *
- * **It walks the PROJECT and PLAN repositories, and deliberately not `index.getIdsByType`,
- * which is what the first version of it did.** That version was faster and wrong in the one
- * direction that matters here: the index is derived data that is legitimately EMPTY before the
- * initial scan and after a failure below it, so an unreachable vault answered
- * `{ plans: [], unreadable: 0 }` — *no plan places this asset*, stated confidently, over a vault
- * nobody could read. `tests/plugin/guardCategory.test.ts` found it by detonating the ports and
- * getting a success back (*"`execute` answered a SUCCESS while the vault below it threw"*). Reads
- * that must not report a false absence have to derive their answer from something that FAILS
- * when the vault fails, which is what the repositories do and an index lookup cannot.
+ * **It walks the PROJECT and PLAN repositories, so a vault that REFUSES is propagated rather
+ * than degrading into an empty scope.** The first version enumerated `index.getIdsByType`
+ * itself and answered `{ plans: [], unreadable: 0 }` over ports that threw;
+ * `tests/plugin/guardCategory.test.ts` found it by detonating them and getting a success back
+ * (*"`execute` answered a SUCCESS while the vault below it threw"*). That refusing-ports arm is
+ * what this shape closes, and it is the WHOLE of what it closes.
+ *
+ * **It is NOT "deliberately not `index.getIdsByType`", which is what this paragraph claimed
+ * until a reviewer read the two ports.** Both of them enumerate through exactly that lookup —
+ * `ObsidianProjectRepository.listAll` iterates `getIdsByType('renovation-project')` and
+ * `ObsidianPlanRepository.listByProject` intersects `getIdsByType('renovation-plan')` with
+ * `getIdsByProject` — which is what `grep -n getIdsByType
+ * src/infrastructure/obsidian/repositories/Obsidian{Project,Plan}Repository.ts` prints in the
+ * edit that wrote this sentence. So an EMPTY index over a healthy vault still answers an empty
+ * scope from here, `ok` and confident, and that state is legitimately reached: the initial scan
+ * runs from `onLayoutReady`, after the views are registered.
+ *
+ * **Which is why the pre-scan gate is at the CALLER and named here rather than left to be
+ * rediscovered.** No query can tell the two apart — *the index holds nothing* and *the vault
+ * holds nothing* are one answer at this depth, and the fact that separates them is whether the
+ * scan has RUN, which lives in `plugin/` where it is run. `AssetUsageScope.vue` asks
+ * `indexScanCompleted()` before it dispatches this query and draws *the scope is unknown*
+ * instead; any second caller — a palette action, the designer→plan door — owes the same ask,
+ * because what it would otherwise draw is a confident "no plan places this" over a full vault.
  *
  * **Tolerant where the ports are tolerant; refusing where they refuse.** `ProjectRepository.
  * listAll` and `PlanRepository.listByProject` each answer `{ loaded, refused }`, so a single
@@ -83,6 +98,16 @@ function placementCount(document: PlanGeometryDocument, assetId: AssetId): numbe
  * that refuses is propagated, which is `ListRequirementsReferencing`'s own rule for the read
  * this section sits beside: one unreadable project note is a gap in the scope, and an unreadable
  * project LIST is not a scope at all.
+ *
+ * **Which sidecar refusals become `unreadable`: every one, conflated.** `collect` counts a
+ * refusing `geometry.read` whatever it refused with — `plan-geometry.missing` for a sidecar file
+ * that is gone, `plan-geometry.path-unresolved` for a plan the index holds no mapping for, and a
+ * parse or I/O failure alike — into the one number, and the locale string says *note(s) could not
+ * be read* rather than naming a cause. Said out loud because the ASSET sidecar does the opposite
+ * and a reader who knows that one would expect this: an absent `.rpgeo` reads there as an empty
+ * document, while `PlanGeometryStore` refuses — a plan's sidecar is created with the plan
+ * (`ObsidianPlanRepository.save`), so an absent one is damage rather than a plan nobody has
+ * drawn on yet, and counting it is the honest answer rather than an over-count.
  *
  * **A plan id whose note is gone is dropped silently rather than counted** — `getById` answering
  * `ok(null)` is not a refusal, which is `ListPlansByProject`'s own rule for a stale index entry.

@@ -43,14 +43,26 @@ function usage(overrides: Partial<AssetPlanUsage> = {}): AssetPlanUsage {
 	};
 }
 
-/** Exactly the door the bundle declares, so a mock cannot be kinder than the command it stands for. */
+/** Exactly the doors the bundle declares, so a mock cannot be kinder than the command it stands for. */
 type DuplicateDoor = (input: DuplicateAssetInput) => Promise<Result<Asset, AppError>>;
+type UsageDoor = (assetId: AssetId) => Promise<Result<AssetPlanUsage, AppError>>;
 
 /** The answering pair: a usage read that settles, and a duplicate that records what it was asked. */
-function doors(options: { scope?: AssetPlanUsage; duplicate?: Mock<DuplicateDoor> } = {}) {
+function doors(options: { scope?: AssetPlanUsage | 'pending'; duplicate?: Mock<DuplicateDoor> } = {}) {
 	const duplicate = options.duplicate ?? vi.fn<DuplicateDoor>(() => Promise.resolve(ok(makeAsset())));
+	const scope = options.scope ?? usage();
 	const commands: Partial<AssetLibraryCommandServices> = {
-		listPlansUsingAsset: { execute: () => Promise.resolve(ok(options.scope ?? usage())) },
+		listPlansUsingAsset: {
+			// `'pending'` is a read that never answers, which is the in-flight state and the one
+			// thing no settled promise can stand in for.
+			execute:
+				scope === 'pending'
+					? (): Promise<never> =>
+							new Promise<never>(() => {
+								// Deliberately never settles.
+							})
+					: () => Promise.resolve(ok(scope)),
+		},
 		duplicateAsset: { execute: duplicate },
 	};
 	return { duplicate, commands };
@@ -121,6 +133,42 @@ describe('the duplicate panel', () => {
 
 		expect(inspector.panel.text()).not.toContain('No plan places this asset');
 		expect(inspector.panel.findAll('.rp-al-inspector__refusal').some((p) => p.text().length > 0)).toBe(true);
+	});
+
+	it('says the scope is unknown rather than empty when the index has not been scanned', async () => {
+		// The pre-scan false absence: both repositories `ListPlansUsingAsset` walks enumerate
+		// `index.getIdsByType`, so an empty index answers `ok({ plans: [], unreadable: 0 })` over a
+		// vault full of plans that place this asset. The query cannot tell those apart; the gate is
+		// this section's ask. Asserted at the DISPATCH as well as on screen — the strongest form is
+		// that no false answer was even computed.
+		const entry = anEntry();
+		const usageRead = vi.fn<UsageDoor>(() => Promise.resolve(ok(usage({ plans: [] }))));
+		const inspector = await mountInspector({
+			entries: [entry],
+			assetId: entry.assetId,
+			commands: { listPlansUsingAsset: { execute: usageRead } },
+			indexScanCompleted: () => false,
+		});
+		await inspector.panel.get('[data-action="duplicate-open"]').trigger('click');
+		await settle();
+
+		expect(usageRead).not.toHaveBeenCalled();
+		expect(inspector.panel.text()).not.toContain('No plan places this asset');
+		expect(inspector.panel.get('.rp-al-inspector__refusal').text()).toContain('could not be read');
+	});
+
+	it('draws the loading line while the usage read is out, and the confirm stays live', async () => {
+		// The state a slow vault actually shows, and the ruling that goes with it: `duplicate-confirm`
+		// is NOT gated on the scope read. A duplicate changes nothing about the original, so waiting
+		// would guard nothing — and a drawn control that can only refuse is the shape this
+		// repository refuses everywhere it has a name for it.
+		const open = await opened({ scope: 'pending' });
+
+		expect(open.inspector.panel.text()).toContain('Loading which plans place this');
+		await open.inspector.panel.get('[data-action="duplicate-confirm"]').trigger('submit');
+		await settle();
+
+		expect(open.duplicate).toHaveBeenCalledTimes(1);
 	});
 
 	it('dispatches the real command with the subject and the typed name', async () => {

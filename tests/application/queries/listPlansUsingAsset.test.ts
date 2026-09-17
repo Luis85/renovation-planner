@@ -135,11 +135,17 @@ describe('ListPlansUsingAsset', () => {
 	});
 
 	it('REFUSES rather than answering an empty scope when the project list cannot be read', async () => {
-		// The defect `tests/plugin/guardCategory.test.ts` caught in the first version of this
-		// query, which enumerated plans from `index.getIdsByType`: an index is legitimately empty
-		// before the initial scan and after a failure below it, so an unreachable vault answered
-		// "no plan places this asset" — a false absence at the one surface whose job is to state a
-		// blast radius. The answer now derives from a read that fails when the vault fails.
+		// The defect `tests/plugin/guardCategory.test.ts` caught in the first version of this query,
+		// which enumerated plans from `index.getIdsByType` itself: a vault nobody could read
+		// answered "no plan places this asset" — a false absence at the one surface whose job is to
+		// state a blast radius. What this case pins is the REFUSING arm of that, and only it: a
+		// listing that fails is propagated.
+		//
+		// It does NOT pin the pre-scan arm, and the comment that used to stand here implied it did.
+		// Both repositories this query walks enumerate `index.getIdsByType` themselves, so an EMPTY
+		// index over a healthy vault still answers an empty scope from here — which no query can
+		// tell from an empty vault. That gate is `AssetUsageScope.vue`'s ask on
+		// `indexScanCompleted()`, and its case lives with the component.
 		const rig = await vault();
 		await rig.plan('Kitchen', { current: [placement('element-1', OVEN, 0)] });
 		const projects: ProjectRepository = {

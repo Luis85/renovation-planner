@@ -144,10 +144,17 @@ export function guardAssetLibrary(
  * `guardCategory.test.ts`'s detonation reaches them through the same wrappers.
  *
  * **Both are guarded plainly, with no `Result` adapter.** `ListPlansUsingAsset` answers a
- * `Result` of its own: it walks the project and plan repositories rather than the index, so a
- * whole listing that refuses is a real failure arm — which is exactly the property
- * `guardCategory.test.ts` exists to enforce, and exactly what an index-driven first version of
- * that query did not have (it answered an empty scope over a vault that threw).
+ * `Result` of its own: it walks the project and plan repositories, so a listing that REFUSES is
+ * a real failure arm — which is exactly the property `guardCategory.test.ts` exists to enforce,
+ * and exactly what an index-driven first version of that query did not have (it answered an
+ * empty scope over a vault that threw).
+ *
+ * **Read that narrowly: those repositories enumerate through `index.getIdsByType` themselves.**
+ * So the arm this door covers is a port that FAILS, never an index that is merely EMPTY — a
+ * pre-scan vault still answers an empty scope through here, and that arm is gated at the caller
+ * (`AssetUsageScope.vue` asks `indexScanCompleted()` before dispatching). `ListPlansUsingAsset`'s
+ * own header carries the measurement; this note exists so the claim is not wider on this side of
+ * the seam than on that one.
  */
 export function guardAssetDuplication(
 	ports: {

@@ -16,6 +16,7 @@ import type { AssetRepository } from '../../../../src/application/ports/AssetRep
 import { ReferenceLocks } from '../../../../src/application/reference/ReferenceLocks';
 import { createEventBus } from '../../../../src/core/events/EventBus';
 import { err } from '../../../../src/core/result/Result';
+import type { Asset } from '../../../../src/domain/asset/Asset';
 import type { AssetId } from '../../../../src/domain/asset/AssetId';
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
@@ -29,6 +30,31 @@ const VAULT_FAULT = {
 	code: 'vault.unexpected-failure',
 	message: 'the write failed',
 } as const;
+
+/**
+ * Every field a copy must carry across unchanged, taken off the asset as the VAULT holds it
+ * rather than compared against literals: the note round-trip normalises a money amount (`45.00`
+ * reads back as `45`), so literals would assert the repository's formatting instead of this
+ * command's copying. `id` and `name` are absent because they are the two that must DIFFER.
+ *
+ * At module scope because `unicorn(consistent-function-scoping)` says so — it captures nothing,
+ * and oxlint reported it from inside the case.
+ */
+function facts(asset: Asset) {
+	return {
+		category: asset.category,
+		unit: asset.unit,
+		amount: asset.unitCost.amount,
+		currency: asset.unitCost.currency,
+		waste: asset.wasteFactorDefault.toString(),
+		supplier: asset.supplier,
+		sku: asset.sku,
+		notes: asset.notes,
+		height: asset.height,
+		background: asset.background,
+		planPattern: asset.planPattern,
+	};
+}
 
 /** `editableShape` plus a group over both of its graphics — the identity graph a copy must keep. */
 function groupedShape(): AssetShape {
@@ -49,10 +75,16 @@ async function seeded() {
 
 	let sidecarWriteFails = false;
 	let sidecarReadFails = false;
+	// A peer's edit, landing at the one instant that matters: after the copy's NOTE was saved and
+	// before the compensating delete is attempted. Nothing else in this rig can express that
+	// window, because it opens and closes inside one `execute`.
+	let duringSidecarWrite: ((assetId: AssetId) => Promise<void>) | null = null;
 	const sidecar: AssetGeometrySidecar = {
 		read: (id) => (sidecarReadFails ? Promise.resolve(err(VAULT_FAULT)) : real.read(id)),
-		write: (id, document, expected) =>
-			sidecarWriteFails ? Promise.resolve(err(VAULT_FAULT)) : real.write(id, document, expected),
+		write: async (id, document, expected) => {
+			if (duringSidecarWrite) await duringSidecarWrite(id);
+			return sidecarWriteFails ? err(VAULT_FAULT) : real.write(id, document, expected);
+		},
 	};
 
 	let noteReadFails = false;
@@ -95,9 +127,29 @@ async function seeded() {
 		failDelete(): void {
 			deleteFails = true;
 		},
+		/**
+		 * A peer RENAMES the note the command has just created, from inside the sidecar write —
+		 * the only window in which that note exists and the compensating delete has not run yet.
+		 * It saves at the version the vault currently holds, so it is an ordinary successful edit
+		 * and the command's own captured version becomes stale, which is precisely what the
+		 * conditional delete is conditioned against.
+		 */
+		peerRenamesTheCopyDuringSidecarWrite(name: string): void {
+			duringSidecarWrite = async (copyId): Promise<void> => {
+				const loaded = expectDefined(
+					expectOk(await stack.assets.getById(copyId)),
+					'the copy note the command just saved',
+				);
+				expectOk(await stack.assets.save(expectOk(loaded.entity.withChanges({ name })), loaded.version));
+			};
+		},
 		/** Every asset note the vault holds, which is what "did this create an orphan" asks. */
 		async catalogue(): Promise<readonly AssetId[]> {
 			return expectOk(await stack.assets.listAll()).loaded.map((loaded) => loaded.entity.id);
+		},
+		/** The names the vault holds, which is what "did the cleanup trash a peer's edit" asks. */
+		async names(): Promise<readonly string[]> {
+			return expectOk(await stack.assets.listAll()).loaded.map((loaded) => loaded.entity.name);
 		},
 	};
 }
@@ -112,23 +164,6 @@ describe('DuplicateAssetCommand', () => {
 
 		expect(copy.id).not.toBe(rig.assetId);
 		expect(copy.name).toBe('Wall oven (copy)');
-		// Every field but the two that MUST differ, compared against the SOURCE as the vault
-		// actually holds it rather than against literals: the note round-trip normalises a money
-		// amount (`45.00` reads back as `45`), so literals here would assert the repository's
-		// formatting instead of this command's copying.
-		const facts = (asset: typeof copy) => ({
-			category: asset.category,
-			unit: asset.unit,
-			amount: asset.unitCost.amount,
-			currency: asset.unitCost.currency,
-			waste: asset.wasteFactorDefault.toString(),
-			supplier: asset.supplier,
-			sku: asset.sku,
-			notes: asset.notes,
-			height: asset.height,
-			background: asset.background,
-			planPattern: asset.planPattern,
-		});
 		expect(facts(copy)).toEqual(facts(expectDefined(before, 'the source asset').entity));
 		expect(facts(copy).sku).toBe('HBG-1');
 
@@ -250,6 +285,25 @@ describe('DuplicateAssetCommand', () => {
 		expect(leftWritesBehind(refusal)).toBe(true);
 		// The metadata-only copy really is on disk, which is what the stamp exists to say.
 		expect(await rig.catalogue()).toHaveLength(2);
+	});
+
+	it('refuses the cleanup rather than trashing a note a peer edited in between', async () => {
+		// C08's *"compensating cleanup must verify that it only touches files created by that
+		// operation and has not overwritten later user edits"*, driven rather than argued: the
+		// delete is conditioned on the version THIS command's own save produced, so a peer edit
+		// landing in the window moves the version and `checkExpectedVersion` refuses. The note
+		// stays, the refusal is stamped uncompensated, and the peer's edit is what survives — the
+		// opposite outcome from a cleanup that deleted by id or by name.
+		const rig = await seeded();
+		await rig.seedShape(groupedShape());
+		rig.failSidecarWrite();
+		rig.peerRenamesTheCopyDuringSidecarWrite('Renamed by a peer leaf');
+
+		const refusal = expectErr(await rig.duplicate.execute({ assetId: rig.assetId, name: 'Copy' }));
+
+		expect(leftWritesBehind(refusal)).toBe(true);
+		expect(await rig.catalogue()).toHaveLength(2);
+		expect(await rig.names()).toContain('Renamed by a peer leaf');
 	});
 
 	it('refuses a name the domain refuses, and writes nothing', async () => {

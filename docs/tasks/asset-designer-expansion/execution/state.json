@@ -6,7 +6,8 @@
 		"status": "accepted",
 		"revision": "r1",
 		"rulings": [
-			"AD08-R1 (2026-09-17): the Parts panel is C05 overlap alternative; no chooser is built"
+			"AD08-R1 (2026-09-17): the Parts panel is C05 overlap alternative; no chooser is built",
+			"AD10-R1 (2026-09-17, amended same day): a spatial composition refuses a mixed measured/pending selection; grouping does not; an all-pending selection is not mixed. The amendment narrowed it from five operations to four and moved the check off the shared participant resolver, which would have refused the grouping the ruling permits"
 		]
 	},
 	"tasks": {
@@ -90,30 +91,37 @@
 			"blocker": "Use in plan deferred to AD13; no header chrome, per C12"
 		},
 		"AD07": {
-			"status": "in_progress",
+			"status": "integrated",
 			"base_sha": "13f82f82e",
-			"candidate_sha": null,
-			"integrated_sha": null,
+			"candidate_sha": "adaf941be",
+			"integrated_sha": "f8c565590",
 			"evidence": [
-				"dispatched 2026-09-17 to worker worktree .worktrees/ad07, branch ad07-entry-paths",
-				"leases in execution/LEASES.md, wave 2 table"
+				"reports/AD07-entry-paths.md",
+				"three entry paths at the empty state, a searchable preset gallery, one tab stop with arrows",
+				"independent review returned REQUEST CHANGES on a REAL red gate (tests/build/buttonFocusRing), reproduced by the integrator before the fix round",
+				"the pressed preset lost Obsidian focus ring entirely: a box-shadow rule over a host ring that IS a box-shadow",
+				"fix round addf941be: focus ring restored, preset rules moved to their own partial, roving tabindex, three vacuous-passing selectors narrowed, four false sentences corrected",
+				"integrator: empty-state copy in both locales (b4869f3b1), since locales/{en,de}.ts are integrator-owned"
 			],
-			"blocker": null
+			"blocker": "Item 3 (optional descriptive height) DEFERRED with a trigger in the card amendments. The reason is NOT the 399/400 line budget the first report gave: CreateAssetInput carries no height field and CreateAsset.ts was in no lease. Height stays settable in the inspector immediately after creation."
 		},
 		"AD08": {
-			"status": "in_progress",
+			"status": "integrated",
 			"base_sha": "13f82f82e",
-			"candidate_sha": "26e68b589",
-			"integrated_sha": "116c7ced0",
+			"candidate_sha": "034ba7210",
+			"integrated_sha": "1896123c0",
 			"evidence": [
 				"a selected set with a derived primary, pruned per member",
 				"Shift-press and a sticky mode, both watched red",
 				"reports/RESUME.md",
-				"remainder dispatched 2026-09-17 to .worktrees/ad08r, branch ad08r-marquee: marquee selection only",
-				"the overlap chooser is RULED OUT by DECISIONS.md ruling AD08-R1; the Parts panel is C05 alternative",
-				"per-part locks landed in AD09, so they are no longer part of this remainder"
+				"reports/AD08-marquee.md",
+				"marquee by intersection, direction-independent, writing nothing; rubber band through the shared RenderState field the plan editor already declared",
+				"review REQUEST CHANGES: the marquee ignored BOTH additive routes, and extend-in-a-loop was safe only against an empty selection",
+				"fix round 034ba7210: additive sweeps union, the release clears first, a plain press inside a set keeps it, cancellation restores",
+				"integrator 187b1de5d: the segment-vs-box slab test lifted to core/geometry (a verbatim clone of the plan editor private copy), runtime wires deps.selected, marquee locale pair deleted unused",
+				"the wiring case was watched red with the runtime line removed: the press collapsed the set to one part"
 			],
-			"blocker": "PARTIAL: marquee selection is outstanding and in progress. Per-part locks landed in AD09; the overlap chooser is refused by ruling AD08-R1 rather than owed."
+			"blocker": null
 		},
 		"AD09": {
 			"status": "integrated",
@@ -132,13 +140,16 @@
 			"blocker": "no Obsidian and no pinned Chromium here, so the three-region layout is unphotographed and unwalked"
 		},
 		"AD10": {
-			"status": "in_progress",
+			"status": "integrated",
 			"base_sha": "13f82f82e",
-			"candidate_sha": null,
-			"integrated_sha": null,
+			"candidate_sha": "dcc456adf",
+			"integrated_sha": "ca6bce144",
 			"evidence": [
-				"dispatched 2026-09-17 to .worktrees/ad10, branch ad10-arrange",
-				"the model half already exists: AssetShape.groups, six refusals, schema v3, the Parts panel group rows. The OPERATIONS are what this card owes"
+				"reports/AD10-grouping-and-arrange.md",
+				"all six operations: group/ungroup, align, distribute, repeat, block reorder, group transform",
+				"review REQUEST CHANGES: ruling AD10-R1 unsatisfied, and a no-op composition wrote a revision and an undo entry",
+				"fix round dcc456adf: mixed-space refusal in the arrange funnel with moveDetails routed through it, identity returns for every no-op, undo/redo walked through CommandHistory",
+				"integrator c107b2bda: lockedGraphics made REQUIRED and bound at the root - it shipped optional for one commit and the root did not bind it, so the locked rule could never fire"
 			],
 			"blocker": null
 		},

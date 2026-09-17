@@ -67,6 +67,33 @@ canvas without the panel. Until then the honest fix for "I cannot click the part
 panel, and AD08's remainder owes the one gesture that is genuinely missing instead: marquee
 selection.
 
+### AD10-R1 — a spatial composition REFUSES a selection mixing pending and measured graphics. Grouping does not. (2026-09-17)
+
+AD10 asked whether its five spatial operations — align, distribute, repeat, the block reorder and
+the group transform — should refuse a selection holding both a `pending` graphic and a measured
+one. **C07 already answers it, in one sentence, and this ruling only records which half applies to
+what:** *"Metadata grouping may be allowed, while incompatible spatial operations are refused with
+an explanation."*
+
+So: **group and ungroup stay allowed on a mixed selection**, because a group carries no coordinates
+— `AssetShape.groups` is editing metadata and `validateGroups` never looks at a point. **Every
+operation that MOVES something refuses one, with a coded refusal the inspector can show**, because
+a `pending` graphic's numbers are background pixels and a measured one's are millimetres, and an
+alignment computed across the two would place a part using a distance that means two different
+things at its two ends. That is C07's *"composite transforms must not silently combine incompatible
+coordinate spaces"* — silently being the operative word, which is why a refusal with a reason is
+the required shape and dropping the pending members quietly is not.
+
+**This is not a new decision and it is not a revision.** It is the same rule
+`fitFootprintToDetails` already enforces one layer down, refusing under `details-await-scale` when
+any graphic is still in background pixels rather than laundering pixels into millimetres. A second
+answer to the same question in the same aggregate would be the defect.
+
+**What it does NOT cover, deliberately:** a selection whose members are ALL pending. Those share
+one coordinate space, incompatible with nothing, so aligning them is coherent and stays allowed —
+the refusal is about MIXING, never about being unscaled. The unscaled warning the inspector already
+draws is what tells the user those numbers are not millimetres yet.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

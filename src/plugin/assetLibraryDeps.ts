@@ -11,6 +11,8 @@ import {
 	type AssetLibraryDeps,
 } from '../presentation/library/AssetLibraryDeps';
 import { renovationProjectOpenAsset, renovationProjectOpenProject } from './renovationProjectOpenSeams';
+import { guardAssetDuplication } from './guardedAssetLibrary';
+import { VAULT_EXCEPTION_MAPPER } from './guardedServices';
 import type { CompositionRoot } from './composition-root';
 
 /**
@@ -82,6 +84,26 @@ export function assetLibraryDeps(
 						// door, reached here rather than shared because the two bundles are
 						// siblings, not one type (`AssetLibraryCommandServices`'s own docblock).
 						createAsset: persistence.createAsset,
+						// AD13's two doors, composed HERE rather than in `composition-root.ts`'s
+						// `guardAssetLibrary` call. `guardedAssetLibrary.guardAssetDuplication`
+						// carries why that line is drawn where it is; what matters at this call
+						// site is that every port it takes is one this root already holds, so
+						// nothing new is constructed beneath them and the `assets`,
+						// `assetGeometry`, `projects`, `plans` and `geometry` these reach are
+						// the same instances every other door here shares.
+						...guardAssetDuplication(
+							{
+								assets: persistence.assets,
+								assetGeometry: persistence.assetGeometry,
+								events: root.eventBus,
+								locks: persistence.locks,
+								projects: persistence.projects,
+								plans: persistence.plans,
+								planGeometry: persistence.geometry,
+							},
+							root.logger,
+							VAULT_EXCEPTION_MAPPER,
+						),
 						setAssetFootprintFromDimensions: persistence.assetDesign.setFootprintFromDimensions,
 						defaultCurrency: persistence.defaultCurrency,
 					},

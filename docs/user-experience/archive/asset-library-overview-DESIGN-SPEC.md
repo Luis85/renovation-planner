@@ -1642,6 +1642,32 @@ wording would have named an asset's footprint with the word this plugin uses for
 German-vocabulary drift CLAUDE.md records fixing twice already (`Material`/`Objekt`, and one noun
 given two genders across two keys). An instruction from the coordinator is a claim like any other,
 and this one was checkable against the file it was a claim about.
+
+**Correction to the sentence above, made while writing Amendment 6, because that amendment ships
+German using the word this one appears to forbid.** *"`Grundriss` is `de.ts`'s established word for
+a PLAN"* is TOO BROAD, and left standing it would make Amendment 6's `Plan`/`Pläne` read as the
+very drift this paragraph warns about. The two citations are correct — `view.plan-editor.name` and
+`command.open-plan-editor` are both `Grundriss-Editor` — but they are both the plan EDITOR, and the
+rule the repository actually holds is a SURFACE rule that `de.ts` states in its own comments rather
+than a whole-word reservation: *"`Pläne`, nicht `Grundrisse`: auf den Projektoberflächen ist ein
+Plan eine Planungseinheit und kein gezeichneter Grundriss. Das Wort `Grundriss` bleibt dem
+Plan-Editor vorbehalten"* (`de.ts`, above `empty.plan.*`), repeated fifty lines down as *"`Grundriss`
+bleibt das Wort des PLAN-EDITORS … Auf den Projektoberflächen heißt eine Planungseinheit `Plan`"*.
+So `Grundriss` is the DRAWING SURFACE and the drawn sheet, and `Plan` is the planning ENTITY.
+Measured rather than recalled, on the tree before Amendment 6's keys landed, comment lines
+excluded: `locales/de/` holds **23** `Grundriss*` against **55** standalone
+`Plan`/`Pläne`/`Plänen`, and `de.ts` holds **20** of each. Reading the hits is what settles it
+rather than the ratio — `Grundriss hochladen`, `Grundriss-Zeichenfläche`, `Grundriss wird geladen …`
+and `Die Hintergrunddatei dieses Grundrisses fehlt` against `Elemente im Plan`, `Ein Plan braucht
+einen Namen`, `Pläne ({count})` and *"zu welchen Plänen dieser Plan gehört"*. **One hit contradicts
+the split and is named rather than dropped:** `plan.none` reads *"In diesem Vault gibt es noch keine
+Grundrisse"*, which counts ENTITIES with the surface word. It is one line against the two comments
+that state the rule, so it reads as the exception to fix rather than as evidence the rule is
+different — but a correction that quietly omitted it would be the same shape of claim it is
+correcting.
+**Amendment 2's own conclusion is UNCHANGED and was right for a second reason this correction does
+not touch:** `Gemessener Umriss` beats `Gemessener Grundriss` because the other four shape keys all
+say `Umriss`, and an asset's footprint is not a sheet of any kind.
 **This amendment exists because a test caught it.** `tests/presentation/i18n/strings.test.ts` pins
 the inventory at an exact count in both locales, so a 60th key cannot be added quietly — it fails,
 somebody reads why, and the addition becomes a decision. That pin was written after the count went
@@ -1770,6 +1796,49 @@ not cosmetic to this surface alone. `view.asset-library.plan-pattern` is the fie
 `view.asset-library.pattern.none` is the empty option, and the seven `view.asset-library.pattern.*`
 keys name the patterns — nine keys, taking `tests/presentation/i18n/strings.test.ts`'s pin from 78
 to 87.
+
+**Amendment 6 (asset-designer-expansion, AD13 duplicate and usage-scope half): the Inspector gains
+a *Used in plans* section and a *Duplicate* action, and the inventory grows by thirteen keys — no
+ordinal assigned, per Amendment 4.** The pin moves **87 → 100**, in both locales. They live in
+`{en,de}/assetDuplicate.ts` rather than in `{en,de}-assetLibrary.ts`, which is that package's
+per-card locale split and not a second home for this surface's copy; they keep this surface's own
+`view.asset-library.` prefix precisely so they reach the pin, a key named to dodge it being a
+second naming convention bought to evade the one instrument that makes an addition deliberate.
+
+**Six `view.asset-library.used-in-plans*`:** the heading itself, plus `.loading`, `.failed`,
+`.none`, `.plan` (interpolated: `{name}`, `{count}`) and `.unreadable` (interpolated: `{count}`).
+
+**Seven `view.asset-library.duplicate*`:** the action label itself, plus `.title`, `.explains`,
+`.name`, `.suggested` (interpolated: `{name}`), `.confirm` and `.cancel`.
+
+**Why a `used-in-plans` group and not an extension of `used-in`, which is the question this
+inventory's shape invites.** They have TWO DIFFERENT PRODUCERS answering two different questions:
+`used-in` groups by project the REQUIREMENTS that REFERENCE this asset, and `used-in-plans` names
+the PLANS whose geometry PLACES it. Neither list is a subset of the other — an asset can be placed
+on a plan with no requirement anywhere, and required with nothing placed — so one key family under
+one heading would be one heading over two claims, and the `.none` string in particular would be
+read as *nobody uses this* while meaning only *nobody of one kind*. That is the distinction §3.5
+already draws between its sections, applied to a second reader of the same asset.
+
+**`.failed` covers TWO states, which is a deliberate reuse and not an oversight.** It is drawn both
+when the listing REFUSES and when the index has not been SCANNED — `AssetUsageScope.vue`'s template
+draws it on `!scanned || status === 'failed'`, one arm. The sentence, *the plans that place this
+asset could not be read, so the scope below is unknown*, is true of both, and the only distinction
+that matters to a reader of a blast-radius panel is unknown-versus-none: *no plan places this asset*
+invites a change and *unknown* does not. The gate exists at all because `ListPlansUsingAsset`
+answers `ok` over a legitimately EMPTY index — both repositories it walks enumerate
+`index.getIdsByType` — so before the `onLayoutReady` scan the section would otherwise draw *no plan
+places this asset* over a vault full of plans that place it.
+
+**A FOURTEENTH key — a dedicated pre-scan sentence — was considered and REFUSED**, which is why
+this amendment records thirteen. The pre-scan state is unreachable through today's only mount path:
+`AssetUsageScope` is drawn only inside `AssetUsageDuplicate`, which `AssetInspector` draws only on a
+`ready` entry, which `AssetLibraryStore.hydrate` withholds until the scan has run. So a fourteenth
+key and its German line would buy a distinction no user can currently reach, in a section that
+already draws four states — more than any other inspector section. **The gate is kept even though
+the state is unreachable**, and that asymmetry is the point: the property is held today by a
+different file with nothing tying the two together, so the next caller of this query reintroduces
+the defect silently, whereas the extra string would only ever be dead copy.
 
 The longest German shelf label is `Benutzerdefiniert` (17 characters). Shelf headers are full-width,
 so they clip nothing — which is the second reason there is no column header row, where a translator

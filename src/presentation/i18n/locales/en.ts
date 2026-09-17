@@ -222,6 +222,20 @@ export const en = {
 		'A room was written but its shape could not be saved, and the note could not be removed again. Inspect the room’s note before editing further.',
 	'zone.sidecar-update-uncompensated':
 		'A room was changed but its shape could not be saved, and the note could not be restored. Inspect the room’s note before editing further.',
+	// BP-02 slice 3, and the one refusal in that slice a user can actually reach: the vault
+	// holds an outstanding recovery record for this very item that this build cannot read, so
+	// `SequenceMarkerFileStore.write` refuses to open a new destructive sequence over it.
+	//
+	// Keyed by the exact `AppError.code` and living HERE rather than in `en/errorFallback.ts`,
+	// which holds the two generic tiers and nothing minted. Without this row the code fell
+	// through to `error.category.persistence` — 'The vault could not be read or written.' —
+	// which is false twice over: the vault read fine and was deliberately NOT written.
+	//
+	// It offers BOTH remedies `docs/using-planning-recovery.md` splits by cause, because
+	// nothing at this door can tell a record written by a newer version from one a hand edit
+	// bent out of shape, and only the first of those has a build to wait for.
+	'sequence.marker-write-blocked':
+		'That change was refused. A recovery record for this item is still outstanding and this build cannot read it, so nothing was written over it. Run a build at least as new as the one that wrote the record, or check the affected files against your backup and then remove sequence-markers.json from the plugin folder and reload the plugin.',
 	// The Asset library inspector's two unconvertible drafts — `moneyOf` and `new Decimal(...)`
 	// both THROW on a malformed literal, so these are `useFieldCommit`'s own `validate` refusals
 	// rather than a command's, and there is no `AppError` for `routeError` to place. Under

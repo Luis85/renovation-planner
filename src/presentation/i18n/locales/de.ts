@@ -230,6 +230,12 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Ein Raum wurde geschrieben, aber seine Form konnte nicht gespeichert werden, und die Notiz konnte nicht wieder entfernt werden. Prüfen Sie die Notiz des Raums, bevor Sie weiter bearbeiten.',
 	'zone.sidecar-update-uncompensated':
 		'Ein Raum wurde geändert, aber seine Form konnte nicht gespeichert werden, und die Notiz konnte nicht wiederhergestellt werden. Prüfen Sie die Notiz des Raums, bevor Sie weiter bearbeiten.',
+	// Sie-Form wie der Rest dieser Datei. Nennt beide Abhilfen, die
+	// `docs/using-planning-recovery.md` nach Ursache trennt — siehe den englischen Kommentar
+	// für den Grund, warum an dieser Stelle nicht zwischen den beiden Ursachen unterschieden
+	// werden kann.
+	'sequence.marker-write-blocked':
+		'Diese Änderung wurde abgelehnt. Für diesen Eintrag ist noch ein Wiederherstellungsdatensatz offen, den dieser Build nicht lesen kann, daher wurde nichts darüber geschrieben. Verwenden Sie einen Build, der mindestens so neu ist wie derjenige, der den Datensatz geschrieben hat, oder prüfen Sie die betroffenen Dateien gegen Ihre Sicherung und entfernen Sie dann sequence-markers.json aus dem Plugin-Ordner und laden Sie das Plugin neu.',
 	'error.asset.unit-cost.unparseable': 'Geben Sie einen Betrag ein, zum Beispiel 34.95.',
 	'error.asset.waste.unparseable': 'Geben Sie einen Bruchteil zwischen 0 und 1 ein, zum Beispiel 0.08.',
 	// Die Absagen des Preisbereichs, nach dem exakten `AppError.code` ihrer Fundstellen benannt.

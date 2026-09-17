@@ -144,6 +144,23 @@ checkpoint C3. Which test holds each criterion:
    FLIGHT when the settings are saved can have its compensation refuse after the remount, onto
    the retired store — lost before this change too, and not closable without deferring the
    rebind, which is refused.
+
+   **Amendment (2026-09-17, BP-02 slice 4): the first two of those three limits are closed, and
+   the affected-identity model the first one asked for was not needed.** The save-state store now
+   SEEDS `unrecoveredWrite` from the vault-scoped `WriteIncidentRegistry` (ADR-0034) when the
+   store is created, and every leaf — a second Plan Editor on the same plan, an Asset Designer,
+   a leaf restored from the layout — mounts its own Pinia and therefore its own store, so each
+   asks the vault's record for itself and is paused from its first frame. The Asset Designer's
+   tool framework reads that flag too, where it read a hard-coded `false` before. Two things this
+   does not do, stated so the amendment is not read wider than the change: an incident raised in
+   another leaf while this one is ALREADY open does not re-render it — the registry notifies
+   nobody, so that leaf catches up at its next write, which `guardCommand` refuses and
+   `withSaveStateTracking` marks on; and the designer's own buttons stay visually enabled while
+   their dispatches are refused underneath. The third limit — the project view's work section —
+   turned out to be closed by the same edit, because that section calls the same shared store
+   (`views/work/projectWorkActions.ts`); what none of them gets is a leaf-owned field surviving a
+   rebind the way `PlanEditorView`'s does, which the durable vault record makes far less
+   important than it was.
    `tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
    dispatch path and walks that lifecycle; the rebind case the amendment above named has been
    renamed with the behaviour it now asserts, to

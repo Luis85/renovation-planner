@@ -85,11 +85,15 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the twenty cases whose
-steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
-procedure is a list. (That number said *fifteen* through five case additions, because it is
-prose beside a grep nobody re-ran for it; it is `ls docs/tests/cases/*.md` minus the one list-form
-case, taken 2026-09-05.) The verdict names the **cheapest instrument that could discharge that
+Every step below carries a **`Reachable by`** verdict — a column in the twenty-three cases whose
+steps are a table and carry the column, and an inline token after the step number in
+[[Canvas Navigation]], whose procedure is a list. (That number said *fifteen* through five case
+additions and then *twenty* through more, because it is prose beside a grep nobody re-ran for it.
+It is no longer `ls docs/tests/cases/*.md` minus the one list-form case, which is why it kept
+going stale: that print is **46** on 2026-09-17 and most of those cases carry no verdict column
+at all. Measured at the column instead —
+`grep -rlE '^\| [0-9]+[a-z]? \| \`(suite|browser|obsidian|desktop|judgement)\` \|' docs/tests/cases/*.md | wc -l`
+prints **23**, the same instrument the census below counts rows with.) The verdict names the **cheapest instrument that could discharge that
 step as written**. It is a claim about the step's own pass condition, not a report on what is
 tested today.
 
@@ -97,9 +101,24 @@ tested today.
 | --- | --- | --- |
 | `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 133 |
 | `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 60 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 185 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 196 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 15 |
-| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 14 |
+
+**418 steps — 400 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-17
+by running both greps below in the edit that added [[Two panes on one plan under an open write
+incident]].** Per tier: `suite` 133, `browser` 60, `obsidian` 196, `desktop` 15, `judgement` 14 —
+each tier counted with the same two greps narrowed to that token, and the five summing to 418,
+which is the only thing that makes the per-tier figures evidence rather than five separate
+claims. The new case contributes eleven rows, all of them in two tiers (`obsidian` 10,
+`judgement` 1), so `obsidian` 186 → 196 and `judgement` 13 → 14 and the other three are
+unchanged — additive per row and not merely in total, which is what says the edit re-tiered
+nothing outside its own case. **The tier table above read `obsidian` 185 and `judgement` 13 while
+the paragraph below read 186**, a one-row disagreement between the table and the prose that
+predates this edit and whose provenance is not recoverable from the greps; both now carry the
+freshly measured figures instead.
+
+**The previous measurement's own account follows, kept as history.**
 
 **407 steps — 389 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-16
 by running both greps below rather than trusted from the 397 recorded beneath this paragraph.**
@@ -714,6 +733,17 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   the other of which blanks it — and its steps 4a and 4b are two RECORDED holes looked at rather
   than described: a plugin command that never enters the leaf's gated dispatcher and is therefore
   not paused, and the status bar clipping its paused hint at a sidebar's width.
+- [[Two panes on one plan under an open write incident]] — the only instrument anywhere for
+  whether a SECOND pane is paused with the first while the vault holds an open write incident
+  (ADR-0034). The mechanism under it is tested three ways and the GESTURE is not testable at
+  all: `duplicateLeaf` appears nowhere in `src/` or `tests/`, `FakeWorkspace` has no split and
+  no layout restore, and no automated case anywhere drives two Plan Editor leaves on the same
+  plan (BP-02 limitation L-03) — so this case exists instead of a fake that pretended to. Its
+  incident is PLANTED by hand, because ADR-0034 refuses to offer a control that raises or clears
+  one; its step 1a is a recorded COPY gap looked at rather than described (`editor.unrecovered`
+  still names "the floor's note" for an incident that may have been left anywhere in the vault),
+  and its step 5 is a recorded AFFORDANCE gap in the Asset Designer, whose tool framework is
+  gated while its buttons still look enabled.
 - [[Reload a room]] — the other half of C3, and the only case in this suite that requires a full
   **restart**. Both automated reopen paths model a reopen with fresh objects over a vault that
   never left memory; step 5 is a new process, which is where this suite has already caught a

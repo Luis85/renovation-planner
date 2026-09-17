@@ -71,6 +71,18 @@ this repository has refused — `PlanEditorView.rebind`'s docblock carries it be
 sibling residues of the same remount. Every sentence above is about an incident already RAISED
 when the save lands.
 
+**Pointer, 2026-09-17 (BP-02 slice 4): two of those three are closed, elsewhere, and this
+paragraph is left standing as the record of what the settings-save fix itself did.** The second
+Plan Editor leaf and the Asset Designer are both gated now — not by an affected-identity model,
+which nobody built, but by `save-state-store.ts` seeding `unrecoveredWrite` from the
+vault-scoped `WriteIncidentRegistry` (ADR-0034) at store setup. Every leaf mounts its own Pinia,
+so every leaf's store asks — and the project view's work section, the third clause, is closed by
+the same step for the same reason: it calls that same store. The IN-FLIGHT
+residue above is narrowed rather than closed: the compensation that refuses after the remount
+records a durable incident if it refused inside a `guardCommand` stack, so the fresh store's
+`false` is corrected at that leaf's next write, which the gate refuses. A compensation refusing
+outside that stack is unchanged.
+
 ## What was true before it
 
 Pinned rather than closed: `tests/plugin/rootSwapRebind.test.ts` "drops a leaf’s

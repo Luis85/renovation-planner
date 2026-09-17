@@ -39,8 +39,10 @@ any of it and does not touch the schema-version direction-blindness `SequenceMar
 already has (SDD §87 rule 7, "fail closed on unsupported schema versions") — that is a separate
 increment's subject, recorded but not fixed here.
 
-**Correction, 2026-09-17 (BP-02 slice 3): that separate increment landed.** An entry
-`SequenceMarkerFileStore` cannot read is now preserved verbatim across every rewrite and reported
+**Correction, 2026-09-17 (BP-02 slice 3): that separate increment landed.** Each ENTRY
+`SequenceMarkerFileStore` cannot read is now preserved verbatim across every rewrite — the entry,
+not the ENVELOPE around it, whose own top-level `schemaVersion` every write stamps with this
+build's — and reported
 through the `unreadable` half of `SequenceMarkerListing`
 (`src/application/ports/SequenceMarkerStore.ts`), which recovery neither replays nor clears — the
 same fail-closed answer this ADR reasons about for incidents, shaped as a separate half rather
@@ -355,12 +357,62 @@ could name, not about whether the vault is safe.
   incident. `undo()` and `redo()` on every reversible adapter are outside the chokepoint the
   same way, for the same reason; the three bypass paths named above under Coverage are further
   examples of the same category.
+- **Correction, 2026-09-17 (BP-02 slice 4, task L-06): "`guardCommand` is the single observation
+  point" is FALSE, and has been since `relocateEvidence` gained a stamp.** There are TWO
+  recorders, both spelled identically and measured with one command —
+  `grep -rn "record(result.error as AppError & UncompensatedWrite)" src/` prints exactly two
+  lines: `src/application/errors/guardAgainstThrowing.ts`'s
+  `void incidents?.record(…)`, inside `guardCommand`, and `src/plugin/evidenceRename.ts`'s
+  `void activeWriteIncidentRegistry()?.record(…)`, a hand-rolled recorder in the host-rename
+  listener that ADR text above correctly lists as OUTSIDE the chokepoint. Read that grep
+  narrowly: it matches one literal argument spelling, so a recorder written any other way is
+  invisible to it, and it is a text scan rather than a reachability proof. What the correction
+  changes for the category: the durable-reader category is **"a stamp that reaches one of the two
+  recorders"**, not "a stamp raised inside a `guardCommand` call stack". The `relocateEvidence`
+  path is therefore durable despite bypassing `guardCommand`, and every sentence in this document
+  that reasons from a SINGLE observation point is stale by exactly that one path.
+- **Correction, 2026-09-17 (BP-02 slice 4, task L-06): the uncovered examples were short by two,
+  and one site is on the wrong list.** Measured — `grep -rn "markUncompensated(" src/` prints 25
+  lines in 18 files, of which two are `DispatchOutcome.ts`'s own quoted self-matches, so 23
+  producers in 17 files, unchanged. Two of those producers reach neither recorder and are named
+  nowhere above: `restoreSteps` in `src/application/commands/spatial/composedSteps.ts`, whose only
+  importers are `DeleteSelectionCommand` and `PasteCommand`, both constructed in presentation and
+  dispatched by `CommandHistory`; and `rollBack` in `src/application/reference/undoDeleteResolution.ts`,
+  whose only importer in `src/` is `reversible-delete-zone-command.ts` (measured,
+  `grep -rn "undoDeleteResolution" src/` — the other hits are prose), so its only reachable
+  dispatch is the bypassed one the correction above describes. **That second one makes the first
+  Consequences bullet's covered-examples list wrong where it names `undoDeleteResolution.rollBack`:
+  it belongs on the uncovered side.** This list is still not a claim of completeness — it is three
+  named sites out of a category nothing enumerates, and the check below sees none of them.
 - **Nothing currently checks that category, and building a check is deferred.** CLAUDE.md's rule
   is that a category invariant is checked at the forbidden thing rather than by listing the
   places — here, a check would have to refuse (or account for) a `markUncompensated` call whose
   dispatch cannot reach `guardCommand`, which is a reachability question over the composition
   graph rather than a text scan. Until such a check exists, this record is the only instrument,
   and it is prose: a raise site added outside a guarded stack will not turn anything red.
+- **Correction, 2026-09-17 (BP-02 slice 4, task L-06): the deferred-check bullet above is narrowed,
+  not withdrawn — a check now exists for a NECESSARY CONDITION of violating the category, and the
+  category itself is still unchecked.** A static check of the real relation was attempted and
+  refuted by measurement: the guarded relation is made by wrapping an object at runtime and
+  consumed by calling a port method, and neither is an import edge, so an import-graph walk from
+  `guardedServices.ts` reaches 1 of the 17 stamping modules while one from `composition-root.ts`
+  reaches 929 files including all of presentation. What was built instead is
+  `tests/plugin/guardCategory.test.ts`'s class-instance skip census: every raw class instance the
+  composition root hands out — which is what a raw write PORT is, and every uncovered site above
+  reaches the vault through one — is now recorded by name and pinned by exact value. **What that
+  buys is that the hole cannot get WIDER: a NEW raw port in the handoff turns the gate red. It
+  does not close the hole.** The three uncovered sites named in the correction above stay live and
+  stay silent — and "three" is the count of what has been NAMED, not a completeness claim — and a second
+  `markUncompensated` added behind one of them turns nothing red. **The option that WOULD close the
+  category by construction is to record inside `markUncompensated` itself** — 23 direct callers, no
+  alias and no re-export, so it is already the chokepoint — and BP-02 slice 4 refused it
+  deliberately for one reason worth taking on purpose later rather than rediscovering: it makes a
+  pure stamping function effectful against module state, and it would record a stamp an
+  intermediate caller deliberately SWALLOWS (`ConstructionMaterialCommand` reads
+  `leftWritesBehind(error)` and retires the stamp rather than re-raising it), which under the
+  coarse gate above turns a swallowed stamp into a vault-wide write block that does not happen
+  today. Widening what raises the harshest mechanism this plugin has, on a branch nothing has ever
+  run in a real Obsidian vault, is the trade a release owner should take explicitly.
 
 ## Revisit when
 

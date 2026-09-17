@@ -166,16 +166,19 @@
 			"blocker": null
 		},
 		"AD12": {
-			"status": "in_progress",
+			"status": "integrated",
 			"base_sha": "c5436082d",
-			"candidate_sha": null,
-			"integrated_sha": null,
+			"candidate_sha": "643ba6e5e",
+			"integrated_sha": "e50fe6f22",
 			"evidence": [
-				"dispatched 2026-09-17 to .worktrees/ad12, branch ad12-reference",
-				"leases in execution/LEASES.md, wave 3 table",
-				"r1 row 2 parked C07 refuse-the-resize behaviour; this card must NOT build it"
+				"reports/AD12-reference-and-clearance.md, with an integrator acceptance section correcting two of its own claims",
+				"a reference panel stating per-group whether coordinates are millimetres or background pixels; anchor presets over ONE derivation; a clearance helper that generates a boundary and says so",
+				"independent review: APPROVE FOR INTEGRATION, seven findings, none blocking",
+				"the facing frame verified against set-facing-tool and anchorLayer.facingTip, asserted by dot product against the DRAWN arrow rather than a re-derived angle",
+				"the clearance helper is WITHHELD where unsupported rather than disabled, and re-derives from the shape its step was handed",
+				"integrator 8825bfb76: the pure frame moved to domain/asset/referenceFrame.ts, captureAwaitsScale one-answer claim narrowed, a docblock falsified in one press corrected"
 			],
-			"blocker": null
+			"blocker": "Criterion 4 (clearance under resize) is NOT met and r1 parks only the refusal arm for a PENDING clearance. A persisted review state is OWED - AD01 S09 names AD12 as owner - and is unbuildable in any current lease: it needs the aggregate, the schemas, the mappers, a schema version, and a representation ruling AD01 never made. Both carried in INTEGRATION-QUEUE.md. No capture and no Obsidian."
 		},
 		"AD13": {
 			"status": "planned",

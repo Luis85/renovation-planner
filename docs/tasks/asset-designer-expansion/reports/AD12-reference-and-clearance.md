@@ -324,3 +324,70 @@ Post-integration checks/evidence:
 Final status: integrated / verified / blocked
 
 *Not filled by the worker. This report does not claim verification.*
+
+
+---
+
+## Integrator and reviewer acceptance (added at integration, 2026-09-17)
+
+**Reviewer outcome: APPROVE FOR INTEGRATION**, with seven findings, none blocking. Integrated as
+`e50fe6f22`; three corrections the card could not reach applied as `8825bfb76`.
+
+**Two of this report's own claims were found overstated, and they are corrected here rather than
+left standing, because a report is read long after its reviewer's message is gone.**
+
+### "Persisted review state is not owed" — WRONG WORD. It is OWED, unbuildable in this lease, and reassigned.
+
+The four links in the original argument, checked by the reviewer one at a time:
+
+| Link | Verdict |
+|---|---|
+| AD01 §1 S09's *Today* column records "no explicit review state" as fact | **True but incomplete.** That table's own header also says *"a state marked absent has neither, and the task that owes it is named"* — and S09's Owner column names **AD12**. The four-side helper and the review state are the two absences in that one sentence; this card built one and declined the other on an argument that would have declined both |
+| C07 delegates the representation to AD01, and AD01 never chose one | **Verified true** across AD01 §§1–3 |
+| r1 row 2 parks the surrounding question | **Partly.** It parks the pending-clearance-under-scale question and kills the refusal arm. It never names a review state |
+| The lease makes it unbuildable | **Verified true, and decisive.** A durable flag needs `AssetShape`, the DTO schemas, the mappers and the schema-version literal — AD01 §2 puts all of them elsewhere — plus a C09 version bump so an older build refuses rather than strips |
+
+**So: not building it here was correct; describing it as not owed was not.** It is owed, it is
+blocked on a representation ruling nobody has made and a schema number another task holds, and it
+is carried in `execution/INTEGRATION-QUEUE.md` for reassignment.
+
+### Criterion 4 is NOT MET, not "partially met"
+
+*"Resize never weakens a clearance silently; a required review survives reopening."*
+`scaleDesign` (`domain/asset/shapeEdits.ts`) scales the clearance about the anchor unconditionally.
+C07's default is *do not scale a clearance down silently*; C03 records that behaviour as one to
+supersede deliberately with a spec or ADR update. **r1 row 2 disposes only of the REFUSE arm and
+only for a PENDING clearance** — it does not bless the general scaling. This report's original
+framing ("scales the clearance with every other outline, so a resize preserves the boundary
+proportionally rather than dropping it") re-describes the unmet behaviour as the met one.
+
+Nothing in this candidate makes it worse and nothing in this lease could have fixed it. It is an
+integration obligation, not a shortfall of the work.
+
+### What the reviewer verified rather than took on trust
+
+The facing frame really does derive from the shipped convention (`set-facing-tool.ts`'s
+`atan2(dy, dx)` and `anchorLayer.facingTip`) with **one derivation and no second to drift**, and the
+cases assert a negative dot product against the drawn arrow rather than a re-derived angle.
+Mirroring is genuinely covered. Worth stating plainly, because the criterion's wording implies
+otherwise: **no mirror gesture exists anywhere in the product**, so that half is a fixture-level
+guarantee about a state nothing can currently produce.
+
+The clearance helper is withheld rather than disabled where unsupported, never reads an existing
+boundary back, and re-derives what it needs from the shape its step is handed — so a peer leaf that
+curved the outline between render and press gets a no-write rather than a rectangle around an
+outline that has gone.
+
+The out-of-lease narrowing in `designerInspector.test.ts` was reviewed and **kept**: the case's
+subject is what a section opens with and in what order, and the narrowed form still catches an
+insertion above the asset heading or between the part's section and it. What it lost — an
+enumeration of the inspector's siblings — was never that case's subject and is owned by
+`assetDesignerRoot.test.ts` and `regionsReachable.test.ts`.
+
+### Still unverified by anyone
+
+Coverage floors and fallow over three new SFCs (the integrated-SHA gate answers both); appearance,
+theme and narrow-leaf layout — four number fields and two definition grids land in a column that
+already carries several, and **no capture of it exists**; real Obsidian. `FacingQuarter` is exported
+and imported by nothing, which `npm run analyze` will report or not — removing the export trades it
+for a `private-type-leak`, since it is named in `clearanceRectangle`'s exported signature.

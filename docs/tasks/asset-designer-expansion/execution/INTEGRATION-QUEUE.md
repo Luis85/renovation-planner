@@ -76,15 +76,29 @@ Written 2026-09-17 during wave 2.
       nowhere. **Background LOCK is refused, not deferred**: every designer layer is
       `listening: false` and no tool moves the background, so the property is already true and a
       control for it would be a switch with an unreachable off position.
-- [ ] Decide whether `DesignerReferenceFrame.ts` moves to `domain/asset/`. The worker says it is pure
+- [x] **DONE** (`8825bfb76`) — `DesignerReferenceFrame.ts` moved to `domain/asset/referenceFrame.ts`,
+      its test beside it. The reviewer confirmed purity independently. Decide whether The worker says it is pure
       and reaches only `core/geometry`, and that it sits in `presentation/` only because its lease
       granted no `domain/asset/` file. If that holds on reading, the move is a rename plus three
       imports — and it matters beyond tidiness, because a pure geometry rule in `presentation/` is
       one the layer bans cannot protect.
-- [ ] Review the **narrowed assertion** in `designerInspector.test.ts`. AD12 applied it rather than
+- [x] **DONE — KEPT after review.** The **narrowed assertion** in `designerInspector.test.ts`. AD12 applied it rather than
       requesting it, and declared it. It changed "the asset's is the ONLY `h3`" to "it is the FIRST".
       Defensible — the case's title is about ordering — but a rewritten assertion is how a real
       regression gets absorbed, so read the before and after and agree or revert.
+- [ ] **PERSISTED REVIEW STATE is OWED and cannot be built in any current lease.** AD01 §1 S09 names
+      **AD12** as its owner, and AD12 could not reach it: a durable flag needs `AssetShape`, the DTO
+      schemas, the mappers and the schema-version literal, plus a C09 version bump so an older build
+      refuses the file rather than stripping the field. **It is also blocked on a decision nobody has
+      made** — C07 delegates the representation to AD01 and AD01 never chose one. So this needs a
+      ruling first and a card second, and it must not be quietly dropped: the AD12 report originally
+      called it "not owed", which the reviewer corrected, and that is the wording that would have
+      lost it.
+- [ ] **Clearance under resize (criterion 4) is NOT met**, and r1 does not park all of it. `scaleDesign`
+      scales the clearance about the anchor unconditionally; C07's default is not to weaken one
+      silently and C03 records the behaviour as one to supersede deliberately with a spec or ADR
+      update. r1 row 2 disposes only of the REFUSE arm, and only for a PENDING clearance. Carried as
+      an integration obligation rather than as an AD12 shortfall — nothing in that lease could fix it.
 - [ ] **There is no door to DELETE a reference** — `SetAssetBackgroundInput.path` is a bare string,
       so replacement is expressible and removal is not. AD12's criterion about deleting a reference
       cannot be met without a new command arm with its own calibration and pending-flag answers.

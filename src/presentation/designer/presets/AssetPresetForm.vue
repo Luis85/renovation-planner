@@ -8,6 +8,8 @@
  * it through the reversible `setShape` edit — the split `AssetDimensionsDialog` already draws.
  */
 import { computed, ref, shallowRef } from 'vue';
+import { rovingIndex } from '../../components/rovingIndex';
+import AssetPresetGallery from './AssetPresetGallery.vue';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { ASSET_PRESETS, PRESET_GROUPS } from '../../../domain/asset/presets/catalogue';
 import { defaultValues, type AssetPreset, type PresetFieldKey } from '../../../domain/asset/presets/presetGeometry';
@@ -97,12 +99,6 @@ const tabbableId = computed((): string | undefined => {
  * would guess differently at every width. The one order that IS known is the reading order, so the
  * gallery is walked as the single list it is authored as.
  */
-function movedTo(key: string, from: number, length: number): number {
-	if (key === 'Home') return 0;
-	if (key === 'End') return length - 1;
-	const step = key === 'ArrowDown' || key === 'ArrowRight' ? 1 : key === 'ArrowUp' || key === 'ArrowLeft' ? -1 : 0;
-	return step === 0 ? -1 : Math.min(length - 1, Math.max(0, Math.max(from, 0) + step));
-}
 
 /**
  * The arrows, Home and End over the whole gallery, moving the tab stop with the focus.
@@ -113,7 +109,7 @@ function movedTo(key: string, from: number, length: number): number {
  */
 function onKeydown(event: KeyboardEvent): void {
 	const ids = choosable.value;
-	const next = ids[movedTo(event.key, ids.findIndex((id) => id === tabbableId.value), ids.length)];
+	const next = ids[rovingIndex(event.key, ids.findIndex((id) => id === tabbableId.value), ids.length, true)];
 	if (next === undefined) return;
 	event.preventDefault();
 	focusedId.value = next;
@@ -173,61 +169,13 @@ function onSubmit(): void {
 				name="preset-search"
 			>
 		</label>
-		<!--
-			The gallery. One `role="group"` per catalogue group carrying the group's own name, and
-			the heading beside it, so the grouping is both visible and announced — an `<optgroup>`
-			gave both for free and a grid of buttons gives neither.
-
-			`aria-pressed` rather than a radio group: these are buttons that CHANGE the form below
-			them, and the pressed one is the preset the fields and the live preview belong to.
-		-->
-		<template
-			v-for="entry in groups"
-			:key="entry.group"
-		>
-			<h3>{{ tr(`designer.preset.group.${entry.group}`) }}</h3>
-			<div
-				class="rp-preset-gallery"
-				role="group"
-				:aria-label="tr(`designer.preset.group.${entry.group}`)"
-				@keydown="onKeydown"
-			>
-				<button
-					v-for="choice in entry.choices"
-					:key="choice.preset.id"
-					type="button"
-					class="rp-preset-choice"
-					:data-preset="choice.preset.id"
-					:aria-pressed="choice.preset.id === preset.id"
-					:tabindex="choice.preset.id === tabbableId ? 0 : -1"
-					@click="choose(choice.preset)"
-				>
-					<!--
-						`aria-hidden`, because the button's own text already names the preset: an
-						`aria-label` on the picture would announce the same thing twice.
-					-->
-					<svg
-						v-if="choice.thumbnail !== null"
-						class="rp-asset-preset-preview"
-						:viewBox="choice.thumbnail.viewBox"
-						aria-hidden="true"
-					>
-						<path
-							class="rp-asset-preset-preview__footprint"
-							:d="choice.thumbnail.footprint"
-						/>
-						<path
-							v-for="(detail, index) in choice.thumbnail.details"
-							:key="index"
-							class="rp-asset-preset-preview__detail"
-							:class="{ 'rp-asset-preset-preview__detail--dashed': detail.dashed }"
-							:d="detail.d"
-						/>
-					</svg>
-					{{ tr(`preset.${choice.preset.id}`) }}
-				</button>
-			</div>
-		</template>
+		<AssetPresetGallery
+			:groups="groups"
+			:chosen-id="preset.id"
+			:tabbable-id="tabbableId"
+			:choose="choose"
+			:on-keydown="onKeydown"
+		/>
 		<p
 			v-if="groups.length === 0"
 			class="rp-dialog-message"

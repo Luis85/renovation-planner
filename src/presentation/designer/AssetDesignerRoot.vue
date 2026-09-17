@@ -57,6 +57,7 @@ import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
 import DesignerPartsPanel from './parts/DesignerPartsPanel.vue';
+import DesignerEntryPaths from './DesignerEntryPaths.vue';
 import AssetPresetForm from './presets/AssetPresetForm.vue';
 import { useViewPreferences } from '../editor/shell/useViewPreferences';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../editor/viewport/Viewport';
@@ -508,47 +509,14 @@ onMounted(() => {
 						overlay
 						@action="onEmptyStateAction"
 					>
-						<!--
-							AD07: all THREE entry paths at the empty state, not only the one the
-							selector ranks. The ranked one is the `actionLabel` above; these are the
-							rest, each calling the very function that path's ranked caller calls, so
-							the two spellings of one gesture cannot drift.
-
-							`.rp-empty-state__action` is not decoration — `styles/empty-state.css`
-							hangs `pointer-events: auto` and this surface's readable focus ring off
-							exactly that class, and an overlay's children are `pointer-events: none`
-							otherwise. They wear no second class: the cases here find them by their
-							WORDS, and `.rp-designer-entry-path` was a hook nothing ever reached for
-							(AD07 review, FIX 5.1).
-
-							Each is offered only where it is not already the ranked action, and the
-							reference path only where a picker is bound at all — slice 14's
-							Amendment 1 reaches an alternative exactly as it reaches a primary.
-						-->
 						<template #actions>
-							<button
-								v-if="emptyStateKey === 'noBackground'"
-								type="button"
-								class="rp-empty-state__action"
-								@click="() => void editDimensions()"
-							>
-								{{ tr('empty.asset.no-shape.action') }}
-							</button>
-							<button
-								v-if="emptyStateKey === 'noShape' && context.picker !== null"
-								type="button"
-								class="rp-empty-state__action"
-								@click="() => void traceReference()"
-							>
-								{{ tr('empty.asset.no-background.action') }}
-							</button>
-							<button
-								type="button"
-								class="rp-empty-state__action"
-								@click="() => void startFromPreset()"
-							>
-								{{ tr('designer.inspector.start-preset') }}
-							</button>
+							<DesignerEntryPaths
+								:empty-state-key="emptyStateKey"
+								:has-picker="context.picker !== null"
+								:edit-dimensions="editDimensions"
+								:trace-reference="traceReference"
+								:start-from-preset="startFromPreset"
+							/>
 						</template>
 					</EmptyState>
 				</DesignerCanvas>

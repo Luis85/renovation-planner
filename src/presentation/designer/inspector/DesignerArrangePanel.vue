@@ -54,7 +54,7 @@ import { trError } from '../../i18n/toUserMessage';
 import type { EditShape, ShapeEdit } from '../selection/editShape';
 import type { DesignerSelection } from '../selection/designerSelection';
 import { semanticLabel } from '../parts/partNames';
-import DesignerActionButton from './DesignerActionButton.vue';
+import DesignerActionRow from './DesignerActionRow.vue';
 import DesignerSetTransform from './DesignerSetTransform.vue';
 import DesignerRepeatForm from './DesignerRepeatForm.vue';
 
@@ -200,19 +200,7 @@ watch(
 		<h3 class="rp-designer-panel-title rp-designer-section-title">
 			{{ tr('designer.arrange') }}
 		</h3>
-		<div
-			v-if="groupActions.length > 0"
-			class="rp-designer-selection-actions"
-		>
-			<DesignerActionButton
-				v-for="action in groupActions"
-				:key="action.name"
-				:name="action.name"
-				:label="action.label"
-				:disabled="false"
-				:on-run="action.run"
-			/>
-		</div>
+		<DesignerActionRow :actions="groupActions" />
 		<label
 			v-if="graphics.length > 1"
 			class="rp-designer-field"
@@ -231,32 +219,8 @@ watch(
 				</option>
 			</select>
 		</label>
-		<div
-			v-if="alignActions.length > 0"
-			class="rp-designer-selection-actions"
-		>
-			<DesignerActionButton
-				v-for="action in alignActions"
-				:key="action.name"
-				:name="action.name"
-				:label="action.label"
-				:disabled="false"
-				:on-run="action.run"
-			/>
-		</div>
-		<div
-			v-if="distributeActions.length > 0"
-			class="rp-designer-selection-actions"
-		>
-			<DesignerActionButton
-				v-for="action in distributeActions"
-				:key="action.name"
-				:name="action.name"
-				:label="action.label"
-				:disabled="false"
-				:on-run="action.run"
-			/>
-		</div>
+		<DesignerActionRow :actions="alignActions" />
+		<DesignerActionRow :actions="distributeActions" />
 		<DesignerSetTransform
 			:ids="graphics"
 			:locked="locked"

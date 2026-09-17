@@ -34,6 +34,7 @@
  * ARIA that `tests/harness/accessibility*.test.ts` would be right to refuse.
  */
 import { computed, ref } from 'vue';
+import { rovingIndex } from '../../components/rovingIndex';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import { reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
@@ -103,14 +104,6 @@ function choose(row: PartRow): void {
 	props.select(row.selection);
 }
 
-/** Where Up, Down, Home and End land from `from`, or `-1` for a key this list does not take. */
-function movedTo(key: string, from: number, length: number): number {
-	if (key === 'Home') return 0;
-	if (key === 'End') return length - 1;
-	const step = key === 'ArrowDown' ? 1 : key === 'ArrowUp' ? -1 : 0;
-	return step === 0 ? -1 : Math.min(length - 1, Math.max(0, Math.max(from, 0) + step));
-}
-
 /**
  * Up/Down/Home/End over the rows, moving the roving tabindex with the focus.
  *
@@ -127,7 +120,7 @@ function movedTo(key: string, from: number, length: number): number {
 function onKeydown(event: KeyboardEvent): void {
 	const candidates = focusable.value;
 	const from = candidates.findIndex((row) => row.key === tabbableKey.value);
-	const next = candidates[movedTo(event.key, from, candidates.length)];
+	const next = candidates[rovingIndex(event.key, from, candidates.length, false)];
 	if (next === undefined) return;
 	event.preventDefault();
 	focusedKey.value = next.key;

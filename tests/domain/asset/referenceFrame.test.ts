@@ -25,7 +25,7 @@ import {
 	currentAnchorPreset,
 	facingQuarter,
 	rectangularFootprint,
-} from '../../../src/presentation/designer/inspector/DesignerReferenceFrame';
+} from '../../../src/domain/asset/referenceFrame';
 import { expectOk } from '../../helpers/domain';
 
 const QUARTER = Math.PI / 2;

@@ -11,10 +11,19 @@
  * of the facing-frame box, opposite the arrow by construction, at any rotation and after any
  * mirror — there is no second derivation for the two to disagree about.
  *
- * **This does not replace the anchor's numeric fields.** `DesignerSelectionInspector` still
- * offers x and y when the anchor itself is selected, and that is the "custom" this panel names
- * rather than a third way of moving the same point: the presets write through the same
- * `moveAnchor` those fields do.
+ * **This does not replace the anchor's numeric fields, on a MEASURED object.**
+ * `DesignerSelectionInspector` offers x and y when the anchor itself is selected, and that is the
+ * "custom" this panel names rather than a third way of moving the same point: the presets write
+ * through the same `moveAnchor` those fields do.
+ *
+ * **On a PENDING one the two interact, and the first version of this sentence claimed otherwise.**
+ * That inspector withholds the anchor's fields while `anchorPending` — they would be placeholder
+ * pixels presented as a position — and a preset pressed on an object whose footprint is pending
+ * writes exactly that flag. So one press on a traced-and-uncalibrated asset takes the numeric door
+ * away until a calibration lands. That is coherent rather than accidental: neither number means
+ * millimetres yet, and the preset is the honest way to place an anchor in a space that has no scale
+ * — but it is a consequence a reader of the old sentence would not have expected, so it is written
+ * here rather than discovered.
  *
  * **A preset anchor takes the FOOTPRINT's coordinate space, and says so in what it writes.** The
  * point is derived from the outline, so `anchorPending` becomes `footprintPending` — an anchor
@@ -35,7 +44,7 @@ import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import type { EditShape } from '../selection/editShape';
-import { anchorPresetPoint, currentAnchorPreset, facingQuarter, type AnchorPreset } from './DesignerReferenceFrame';
+import { anchorPresetPoint, currentAnchorPreset, facingQuarter, type AnchorPreset } from '../../../domain/asset/referenceFrame';
 
 const props = defineProps<{ design: AssetDesignDto; editShape: EditShape }>();
 

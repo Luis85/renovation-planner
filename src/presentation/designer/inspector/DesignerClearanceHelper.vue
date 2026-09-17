@@ -33,7 +33,7 @@ import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import type { EditShape } from '../selection/editShape';
-import { clearanceRectangle, facingQuarter, rectangularFootprint, type ClearanceSetbacks } from './DesignerReferenceFrame';
+import { clearanceRectangle, facingQuarter, rectangularFootprint, type ClearanceSetbacks } from '../../../domain/asset/referenceFrame';
 
 const props = defineProps<{ design: AssetDesignDto; editShape: EditShape }>();
 

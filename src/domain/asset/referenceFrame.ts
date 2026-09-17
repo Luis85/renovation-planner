@@ -1,8 +1,8 @@
-import type { BoundingBox } from '../../../core/geometry/BoundingBox';
-import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
-import { hasCurves } from '../../../core/geometry/CurvedPolygon';
-import type { Point } from '../../../core/geometry/Point';
-import { boundingBoxOf, coincident, rotate } from '../../../core/geometry/operations';
+import type { BoundingBox } from '../../core/geometry/BoundingBox';
+import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
+import { hasCurves } from '../../core/geometry/CurvedPolygon';
+import type { Point } from '../../core/geometry/Point';
+import { boundingBoxOf, coincident, rotate } from '../../core/geometry/operations';
 
 /**
  * The FACING FRAME (AD12, contracts C04 and C07): the two placement points an asset can be

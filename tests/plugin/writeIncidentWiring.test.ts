@@ -2,6 +2,7 @@
 // jsdom: loading the plugin shell touches the DOM through the module mock, the same reason
 // tests/plugin/assetPriceWiring.test.ts gives.
 import { describe, expect, it, vi } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
 import { loadedPlugin } from '../helpers/plugin';
 import { installObsidianDom } from '../helpers/dom';
 import { activeWriteIncidentRegistry } from '../../src/application/incidents/WriteIncidentRegistry';
@@ -11,6 +12,11 @@ import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { SessionWriteLedger } from '../../src/application/editor/WriteLedger';
+import { createInspector } from '../../src/presentation/editor/inspector-wiring';
+import type { InspectorEdit } from '../../src/presentation/editor/inspector/inspector-store';
+import type { PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
+import type { UndoableCommand } from '../../src/presentation/editor/tools/undoable-command';
+import type { DispatchResult } from '../../src/application/commands/DispatchOutcome';
 
 // The notice host builds its markup with Obsidian's own `createSpan`/`createEl` globals.
 installObsidianDom();
@@ -169,6 +175,82 @@ describe('write incident wiring', () => {
 
 		for (const drive of doors()) {
 			const refusedEdit = await drive();
+			expect(refusedEdit.ok).toBe(false);
+			expect(refusedEdit.ok === false && refusedEdit.error.code).toBe(WRITES_PAUSED_CODE);
+		}
+
+		plugin.onunload();
+	});
+
+	/**
+	 * The same claim as the case above, one seam LOWER — and the seam is the whole point.
+	 *
+	 * That case enters at `deps.commands.editZoneDetails(...)`, so what it proves is that the
+	 * composition root now OFFERS a guarded factory. It cannot see whether the Inspector USES
+	 * it: `inspector-wiring.ts`'s `toCommand` switch is what decides, and reverting its
+	 * `'details'` and `'name'` arms to the pre-fix raw `new EditZoneDetailsCommand(...)` /
+	 * `new ReversibleRenameZoneCommand(...)` construction left the whole suite green. This case
+	 * is the one that reddens under exactly that revert — measured, by making the revert and
+	 * watching it fail, not by reasoning about the composition.
+	 *
+	 * So it enters where a user does: `inspector.commit({ kind: 'details' | 'name' })`, over the
+	 * real `createInspector` and the real composed `deps.commands`. The dispatcher keeps each
+	 * command it is handed, so the `undo` door is driven through the same seam rather than being
+	 * reached for behind the store's back.
+	 *
+	 * Both halves, for the reason the case above gives: before any incident every door must
+	 * reach the command underneath (a gate stuck shut passes a refusal test by breaking the
+	 * feature), and after one every door must answer `WRITES_PAUSED_CODE`.
+	 */
+	it("refuses an Inspector commit at the switch that decides, before and after an incident", async () => {
+		setActivePinia(createPinia());
+		const { plugin } = await loadedPlugin();
+		const deps = planEditorDeps(plugin.root, {} as never, {} as never, createEditorClipboard(), memoryDeviceStorage());
+		const dispatched: UndoableCommand[] = [];
+		const inspector = createInspector(
+			{ commands: deps.commands } as unknown as PlanEditorContext,
+			{
+				run: (command) => {
+					dispatched.push(command);
+					return command.execute();
+				},
+			},
+			new SessionWriteLedger(),
+		);
+		const expected = { revision: 1, observed: 'observed-1' as never };
+		const edits: InspectorEdit[] = [
+			{
+				kind: 'details',
+				zoneId: 'zone-01JAAA' as ZoneId,
+				forward: { name: 'Kitchen', zoneType: 'Room' as const },
+				inverse: { name: 'Küche', zoneType: 'Room' as const },
+				expected,
+			},
+			{ kind: 'name', zoneId: 'zone-01JAAA' as ZoneId, name: 'Kitchen', inverse: 'Küche', expected },
+		];
+		const driveBothDoors = async (): Promise<DispatchResult[]> => {
+			dispatched.length = 0;
+			const answers = [];
+			for (const edit of edits) answers.push(await inspector.commit(edit));
+			for (const command of dispatched) answers.push(await command.undo());
+			return answers;
+		};
+
+		for (const answered of await driveBothDoors()) {
+			expect(answered.ok).toBe(false);
+			expect(answered.ok === false && answered.error.code).not.toBe(WRITES_PAUSED_CODE);
+		}
+
+		await activeWriteIncidentRegistry()?.record({
+			category: 'Persistence',
+			code: 'zone.write-uncompensated',
+			message: 'half-written',
+			uncompensatedWrite: [{ entityKind: 'zone', entityId: 'zone-01JAAA' }],
+		});
+
+		const refusals = await driveBothDoors();
+		expect(refusals).toHaveLength(4);
+		for (const refusedEdit of refusals) {
 			expect(refusedEdit.ok).toBe(false);
 			expect(refusedEdit.ok === false && refusedEdit.error.code).toBe(WRITES_PAUSED_CODE);
 		}

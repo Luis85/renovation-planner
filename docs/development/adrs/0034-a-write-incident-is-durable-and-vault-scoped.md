@@ -387,8 +387,10 @@ could name, not about whether the vault is safe.
   **Read that "three" on its own axis.** It counts `markUncompensated` SITES that reach neither
   recorder. The Coverage paragraph above counts something else — three PATHS that bypass the
   `guardCommand` chokepoint — and the L-05 correction there has since closed one of those three,
-  leaving two. Three different numbers, three different subjects: sites here, paths there, and
-  the two sets overlap without being the same set.
+  leaving two. Three different numbers over TWO subjects — sites here (three), paths there (three
+  as first counted, two after L-05) — and the two sets overlap without being the same set. "Three
+  different subjects" is what this line said until BP-02 slice 4's final round, in a clause whose
+  own next words name two.
 - **Nothing currently checks that category, and building a check is deferred.** CLAUDE.md's rule
   is that a category invariant is checked at the forbidden thing rather than by listing the
   places — here, a check would have to refuse (or account for) a `markUncompensated` call whose
@@ -424,9 +426,14 @@ could name, not about whether the vault is safe.
   reviewed and two things were found. First, the pin covered the root's OWN collaborator stack as
   well as the leaf handoffs — 21 of its 27 entries — under a case title claiming a bypass surface
   had arrived; every one of those 21 arrived in its own commit, so the pin would have reddened on
-  ~21 past changes that added no bypass at all, and it added nothing to the guarantee, because a
-  port reaching a leaf is recorded on the leaf side regardless (`persistence.zones` and
-  `editorDeps.commands.zones` were one object, both pinned). The pin is LEAF handoffs only now.
+  ~21 past changes that added no bypass at all, and what it added to the guarantee was an accident
+  of where an object happened to live rather than a rule, because a port **the leaf-side WALK
+  REACHES** is recorded there regardless (`persistence.zones` and `editorDeps.commands.zones` were
+  one object, both pinned). That sentence read "a port reaching a leaf is recorded on the leaf side
+  regardless" until BP-02 slice 4's final round, and the missing word was load-bearing: a port
+  handed to a leaf by an ARGUMENT-TAKING factory is reached by no walk here, so the drop DID lose
+  that shape. It is bounded by a recorded `function-with-arguments` skip rather than by the pin;
+  the pin's own fourth limit bullet carries the measurement. The pin is LEAF handoffs only now.
   Second, the walk it rests on visited a zero-argument factory's product only when that product
   was itself a service, so a factory handing back a raw class instance — `roomHistory()` is one,
   in the tree today — was still dropped in silence, which is the very shape the census exists to

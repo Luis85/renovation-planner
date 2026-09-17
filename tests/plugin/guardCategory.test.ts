@@ -77,7 +77,7 @@
  *   ADR-0034 records under tracker limitation L-06 are unchanged, and a `markUncompensated`
  *   stamp added behind one of them turns nothing red here. Nor does it hold anything about the
  *   root's OWN collaborators, which that case's fix round deliberately dropped from the pin —
- *   its docblock carries why, and why dropping them loses no handoff to a leaf.
+ *   its docblock carries why, and what that drop does and does not cost.
  *   **The hole cannot get wider; it is not closed.**
  * - **a service hiding inside a class instance.** The walk descends into bundles (plain
  *   objects and arrays) and never into a class instance that is not itself a service,
@@ -265,8 +265,12 @@ function discover(root: unknown, rootPath: string): Discovery {
 			// recorded, and `calibratePlan` proves that shape is already in the tree. `visit`
 			// decides what the product is — a service is collected, a bundle is descended into, a
 			// class instance is RECORDED at `${path}()`. A zero-argument QUERY hands back a
-			// Promise, which is a class instance, so four of those are on the pinned set below
-			// rather than excluded by an `if` nobody would see.
+			// Promise, which is a class instance, so THREE of those are on the pinned set below
+			// rather than excluded by an `if` nobody would see. Three, not the four this comment
+			// said until BP-02 slice 4's final round: four is the count of walked PRODUCTS, and the
+			// fourth — `structure.roomHistory()` — is synchronous. Measured,
+			// `grep -n "roomHistory" src/application/commands/spatial/StructureCommand.ts` prints
+			// `roomHistory: () => new RoomBoundaryHistory(geometry)` (exit 0).
 			visit(produced, `${path}()`, depth + 1);
 			return;
 		}
@@ -710,8 +714,10 @@ describe('every service leaving the composition root is guarded', () => {
 		//
 		// **These two assertions are a PRESENCE check and nothing more — do not cite them as
 		// the instrument that proves either factory is GUARDED.** Measured, not reasoned:
-		// composing both factories WITHOUT `guardZoneEdit` leaves this file at 12 passed,
-		// exit 0. What they hold is that both members exist on that bundle and take an
+		// composing both factories WITHOUT `guardZoneEdit` leaves this file at 13 passed,
+		// exit 0. THIRTEEN re-measured 2026-09-17 by unwrapping both `guardZoneEdit` call sites in
+		// `planEditorDeps.ts` and re-running; the "12" this line carried was a true snapshot of a
+		// file that then had one case fewer. What they hold is that both members exist on that bundle and take an
 		// argument; if either ever becomes zero-argument it moves to `discovered` and these
 		// redden. The two behavioural files named above are what would notice a lost guard.
 		expect(skipped.map((skip) => skip.path)).toContain('editorDeps.commands.editZoneDetails');
@@ -780,11 +786,14 @@ describe('every service leaving the composition root is guarded', () => {
 	 * **The set is the LEAF handoffs and nothing else, and that is a narrowing made on purpose.**
 	 * The `persistence.*` half — 21 entries until BP-02 slice 4's fix round — was the root's OWN
 	 * stack of collaborators, exposed so that this very file can `detonate` them and reached by a
-	 * view only through a guarded service. Dropping it loses NO handoff to a leaf, because
-	 * `surveyed()` runs `discover` once per bundle with its own `seen`: a port that reaches a leaf
-	 * is recorded on the leaf side whether or not it also sits on the root's stack, which
-	 * `persistence.zones` and `editorDeps.commands.zones` demonstrated by both appearing for ONE
-	 * object (`planEditorDeps.ts` composes `zones: persistence.zones`). What the 21 cost was
+	 * view only through a guarded service. Dropping it loses no handoff **the LEAF-SIDE WALK
+	 * REACHES**, because `surveyed()` runs `discover` once per bundle with its own `seen`: a port
+	 * that walk reaches is recorded on the leaf side whether or not it also sits on the root's
+	 * stack, which `persistence.zones` and `editorDeps.commands.zones` demonstrated by both
+	 * appearing for ONE object (`planEditorDeps.ts` composes `zones: persistence.zones`).
+	 * **One word narrower than the sentence standing here until BP-02 slice 4's final round, and
+	 * the word is load-bearing: it DOES lose handoffs that walk does not reach.** The fourth limit
+	 * bullet below carries the shape, measured. What the 21 cost was
 	 * churn under a false title: each arrived in its own commit, so this pin would have reddened
 	 * on ~21 past changes that added a collaborator — not a bypass surface — to the root. Do not
 	 * restore them here; a root-collaborator census is a different question and would want its own
@@ -792,8 +801,13 @@ describe('every service leaving the composition root is guarded', () => {
 	 *
 	 * Three limits on the claim, at the claim rather than further down:
 	 *
-	 * - **Three of the five view-deps bundles are not walked at all.** `surveyed()` walks
-	 *   `persistence`, `planEditorDeps` and `assetLibraryDeps`; `renovationProjectDeps` and
+	 * - **Two of the FOUR view-deps bundles are not walked at all** — not the "three of five" this
+	 *   bullet claimed until BP-02 slice 4's final round, which contradicted the two it then named
+	 *   and counted `persistence`, which is not a view-deps bundle, into the five. FOUR is
+	 *   measured: `grep -rhoE "^export function [a-zA-Z]*Deps\(" src/plugin/` prints
+	 *   `assetDesignerDeps`, `assetLibraryDeps`, `planEditorDeps` and `renovationProjectDeps`
+	 *   (exit 0). `surveyed()` walks `persistence` plus two of them, `planEditorDeps` and
+	 *   `assetLibraryDeps`; `renovationProjectDeps` and
 	 *   `assetDesignerDeps` are not, so a raw port handed out THERE is invisible to this pin. The
 	 *   reason they have missed nothing yet is in `surveyed()`'s own comment, and it is a reason
 	 *   rather than a guarantee.
@@ -801,13 +815,29 @@ describe('every service leaving the composition root is guarded', () => {
 	 *   at the same instance produce one entry, because `seen` is per bundle and not per path — so
 	 *   this set is a set of OBJECTS reached, named by where the walk met each first, and a second
 	 *   name for one of them arrives silently. Measured by the reviewer of the previous round.
+	 * - **A port handed out by an ARGUMENT-TAKING factory is outside this pin, and ruling 1a
+	 *   WIDENED that gap rather than opening it.** Measured 2026-09-17 by planting one:
+	 *   `probePort: new (class ReviewProbeWriter { write(): void {} })()` in the `persistence`
+	 *   literal of `composition-root.ts`, reached by the leaf ONLY through
+	 *   `makeProbe: (_id: string) => persistence.probePort` on `planEditorDeps`' `commands` bundle,
+	 *   so presentation genuinely receives the raw port.
+	 *   `npx vitest run tests/plugin/guardCategory.test.ts` is exit 0, 13 passed — SILENT — while
+	 *   the pre-1a set caught it (exit 1, `+ "persistence.probePort"`). Take ONE parameter off that
+	 *   factory and the same probe reddens HERE (exit 1, `+ "editorDeps.commands.makeProbe()"`):
+	 *   ARITY is the whole of the boundary, which is why the case title names it rather than
+	 *   saying "hands a leaf". The walk records the argument-taking spelling as a
+	 *   `function-with-arguments` skip, so that shape is bounded by a RECORDED skip kind and not by
+	 *   this pin; the owners assertion cannot backstop it either, because `editorDeps.commands` is
+	 *   ALREADY an owner. What ruling 1a lost is an accident of where an object happened to live —
+	 *   the same port constructed inline in `planEditorDeps` and handed through the same
+	 *   argument-taking factory was missed before 1a too — and not a guarantee.
 	 * - **The set is a fact about this file's FAKE vault stack as well as about the root.**
 	 *   `vaultStack()` hands back object literals where Obsidian hands class instances; under the
 	 *   previous, wider set that alone moved it from 27 to 30. It does not move THIS set — see the
 	 *   comment at `vaultStack` — because everything it moved sat under `persistence.`, and that
 	 *   is a property of today's wiring rather than a rule.
 	 */
-	it('pins every raw class instance the root hands a LEAF, so a new bypass surface cannot arrive quietly', () => {
+	it("pins every raw class instance the leaf-side walk REACHES — a field, or a ZERO-argument factory's product", () => {
 		const instances = surveyed()
 			.skipped.filter((skip) => skip.kind === 'class-instance')
 			// LEAF handoffs only — see the docblock. A prefix rather than a list of the leaf
@@ -852,7 +882,12 @@ describe('every service leaving the composition root is guarded', () => {
 		]);
 		// An instrument that reached nothing would report an empty set and look exactly like a
 		// clean handoff. This guards the PINNED ARRAY as much as the walk: emptying the array to
-		// clear a drift, or a leaf filter that matched everything, would otherwise pass.
+		// clear a drift AND a leaf filter that matched everything would otherwise pass — the PAIR,
+		// not either alone, which is what this comment said until BP-02 slice 4's final round.
+		// Measured 2026-09-17, all three exit 1: a filter excluding everything alone reddens the
+		// `toEqual` above (`expected [] to deeply equal [ 'editorDeps.clipboard', …(9) ]`), a
+		// filter letting everything through alone reddens it too (`…(31)` against `…(9)`), and
+		// only the two together reach this line (`expected 0 to be greater than 0`).
 		expect(instances.length).toBeGreaterThan(0);
 	});
 });

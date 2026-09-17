@@ -68,9 +68,18 @@ describe('selecting', () => {
 
 		// Outside the clearance, which reaches x = 390 and y = 950.
 		rig.tool.pointerDown(pointerAt(1000, 1000));
-
 		expect(rig.selected).toEqual([null]);
-		expect(rig.tool.hasDraft()).toBe(false);
+
+		// **No DRAG**, asked of what a drag would DO rather than of `hasDraft`: that press now begins a
+		// MARQUEE (AD08), which is a draft too, so the flag can no longer tell the two apart. A drag
+		// would preview a moved shape on this move and write one at this release; a marquee over empty
+		// canvas does neither. `tools/designerSelectMarquee.test.ts` is the sweep's own file.
+		rig.tool.pointerMove(pointerAt(1200, 1200));
+		rig.tool.pointerUp(pointerAt(1200, 1200));
+
+		expect(rig.previews).toEqual([]);
+		expect(rig.written).toEqual([]);
+		expect(rig.extended).toEqual([]);
 	});
 
 	it('does nothing before activation, after deactivation, or on an asset with no shape', () => {
@@ -319,7 +328,10 @@ describe('an interrupted gesture', () => {
 		rig.tool.pointerUp(pointerAt(IN_BOWL.x + 100, IN_BOWL.y, 'secondary'));
 		// Outside the clearance: a press on nothing, whose release must not commit the older drag.
 		rig.tool.pointerDown(pointerAt(1000, 1000));
-		expect(rig.tool.hasDraft()).toBe(false);
+		// `tracksPointer` rather than `hasDraft`, since that press begins a marquee and a marquee is a
+		// draft: what says the older DRAG is gone is that nothing is following the pointer any more —
+		// it answered true while that drag was live, and a sweep with no move yet answers false.
+		expect(rig.tool.tracksPointer()).toBe(false);
 		rig.tool.pointerUp(pointerAt(1000, 1000));
 		await flushGesture();
 

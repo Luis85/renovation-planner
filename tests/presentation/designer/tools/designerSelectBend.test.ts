@@ -102,7 +102,10 @@ describe('bending an edge', () => {
 		expect(rig.tool.hasDraft()).toBe(true);
 		// Outside the clearance: a press on nothing.
 		rig.tool.pointerDown(pointerAt(1000, 1000));
-		expect(rig.tool.hasDraft()).toBe(false);
+		// `tracksPointer` rather than `hasDraft`, since that press begins a MARQUEE (AD08) and a
+		// marquee is a draft too: what says the leftover BEND is gone is that nothing follows the
+		// pointer any more — a live bend answers true and a sweep with no move yet answers false.
+		expect(rig.tool.tracksPointer()).toBe(false);
 		rig.tool.pointerUp(pointerAt(1000, 1000));
 		await flushGesture();
 

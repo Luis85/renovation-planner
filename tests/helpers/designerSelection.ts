@@ -44,6 +44,17 @@ export interface SelectToolRigOptions {
 	/** Default `TOILET`; `null` is an asset nobody has drawn on. */
 	readonly shape?: AssetShape | null;
 	readonly selection?: DesignerSelection | null;
+	/**
+	 * The whole selection SET, as `assetDesignStore.selected` holds it (AD08). Default: undefined,
+	 * which is the dep left unwired — the shape a leaf whose `selectToolDeps` has not been given it
+	 * sees, and the arm `DesignerSelectTool.selectionSet` falls back on.
+	 *
+	 * A stub the CASE names rather than a set this rig evolves: the rig records `select`/`extend`
+	 * calls instead of holding a store, so a set it tried to maintain would be a second answer to
+	 * the store's own composition rule. What a set built by real gestures does is
+	 * `designerMarqueeCanvas.test.ts`'s subject, where the store is real.
+	 */
+	readonly selected?: () => readonly DesignerSelection[];
 	readonly mode?: SelectionMode;
 	readonly context?: ToolContextOptions;
 	/** The leaf's write chain as the tool asks it (`createWriteChain`). Default: nothing ever queued. */
@@ -53,7 +64,12 @@ export interface SelectToolRigOptions {
 	readonly multiSelectionMode?: () => boolean;
 	/** Graphics the Parts panel has locked against editing (AD09). Default: none. */
 	readonly locked?: () => ReadonlySet<string>;
-	/** Graphics the Parts panel has hidden, which no press can land on (AD09). Default: none. */
+	/**
+	 * Graphics the Parts panel has hidden, which no press can land on (AD09). Default: the dep left
+	 * UNWIRED rather than a function answering an empty set — the two are the same to every rule that
+	 * reads it, and only the unwired shape reaches `DesignerSelectTool`'s own `hidden === undefined`
+	 * arm, which nothing in the tree had ever reached.
+	 */
 	readonly hidden?: () => ReadonlySet<string>;
 }
 
@@ -94,10 +110,11 @@ export function selectToolRig(options: SelectToolRigOptions = {}): SelectToolRig
 	const tool = new DesignerSelectTool({
 		design: () => (shape === null ? null : { shape, geometryVersion: DESIGN_VERSION }),
 		selection: () => selection,
+		...(options.selected === undefined ? {} : { selected: options.selected }),
 		mode: () => mode,
 		multiSelectionMode: options.multiSelectionMode ?? (() => false),
 		locked: options.locked ?? ((): ReadonlySet<string> => new Set()),
-		hidden: options.hidden ?? ((): ReadonlySet<string> => new Set()),
+		...(options.hidden === undefined ? {} : { hidden: options.hidden }),
 		extend: (next) => {
 			extended.push(next);
 			selection = next;

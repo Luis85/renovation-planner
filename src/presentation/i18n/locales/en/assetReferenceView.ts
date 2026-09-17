@@ -14,4 +14,12 @@
  * is still incomplete. See `de/assetOpenLines.ts`'s header for what reading the neighbours instead
  * of the rule cost this package once.
  */
-export const assetReferenceViewEn = {} as const;
+export const assetReferenceViewEn = {
+	// The View menu's own row, so it reads as a property of the VIEW rather than of the sheet —
+	// which is what it is: leaf-local, written nowhere, gone when the leaf is reopened.
+	'designer.view.reference-opacity': 'Reference opacity',
+	// "Remove" and not "Delete": the vault file is untouched, still exactly where the user saved
+	// the document (SDD §55). What goes is this asset's reference to that file, and nothing else.
+	// The wording is deliberate — "delete" beside a file path reads as a promise to delete a file.
+	'designer.reference.remove': 'Remove reference',
+} as const;

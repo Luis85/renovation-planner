@@ -41,21 +41,9 @@ function sameBackground(a: AssetBackgroundRef | null, b: AssetBackgroundRef | nu
 	return a.path === b.path && a.kind === b.kind && a.page === b.page;
 }
 
-/**
- * What one background-picking gesture supplies (Task B7).
- *
- * `kind` is a bare `string`, not `AssetBackgroundKind` — this is the untrusted-input door
- * (`parseCurrency`'s reasoning, applied to a second value type): a caller may be a hand-typed
- * fixture, a note nobody has read yet, or a picker that DID narrow it, and refusing an
- * unsupported kind is this command's job rather than a precondition on its input type. A
- * `BackgroundPicker` result satisfies this shape without narrowing, since its own `kind` is
- * already `'image' | 'pdf'`.
- */
-export interface SetAssetBackgroundInput {
+/** What BOTH of this command's arms carry: which asset, and the versions the caller already read. */
+interface SetAssetBackgroundBase {
 	readonly assetId: AssetId;
-	readonly path: string;
-	readonly kind: string;
-	readonly page: number | null;
 	/** The NOTE's version this gesture read, if the caller already has one (an undo does). */
 	readonly expected?: EntityVersion;
 	/**
@@ -67,6 +55,31 @@ export interface SetAssetBackgroundInput {
 	 */
 	readonly expectedGeometry?: EntityVersion;
 }
+
+/**
+ * One background-picking gesture, or the REMOVAL of the reference an asset already carries
+ * (AD12-R2).
+ *
+ * A UNION rather than a nullable `path` beside a still-required `kind`, because the two arms
+ * carry different fields and a flat shape would make a caller spell a `kind` that names
+ * nothing. `path: null` is the whole discriminant: the domain already admits the state —
+ * `Asset.background` is `AssetBackgroundRef | null`, `withChanges` resolves
+ * `'background' in changes ? (changes.background ?? null) : this.background`, and
+ * `checkBackground(null)` answers `ok(null)` on its first line — so this admits one arm rather
+ * than adding a second command.
+ *
+ * `kind` is a bare `string`, not `AssetBackgroundKind` — this is the untrusted-input door
+ * (`parseCurrency`'s reasoning, applied to a second value type): a caller may be a hand-typed
+ * fixture, a note nobody has read yet, or a picker that DID narrow it, and refusing an
+ * unsupported kind is this command's job rather than a precondition on its input type. A
+ * `BackgroundPicker` result satisfies this shape without narrowing, since its own `kind` is
+ * already `'image' | 'pdf'`.
+ */
+export type SetAssetBackgroundInput = SetAssetBackgroundBase &
+	(
+		| { readonly path: string; readonly kind: string; readonly page: number | null }
+		| { readonly path: null; readonly kind?: undefined; readonly page?: undefined }
+	);
 
 /**
  * Point an asset's designer at the spec sheet it is drawn over, and clear the calibration
@@ -93,6 +106,19 @@ export interface SetAssetBackgroundInput {
  * returned refusal so the save-state indicator does not settle at `Saved` over a vault whose
  * calibration is gone — `DispatchOutcome`'s own account of `deleteResolution.ts`'s `compensate`
  * is the rule this command re-derives for a two-write gesture rather than a multi-entity one.
+ *
+ * **REMOVING a reference is the same gesture with no document at the end of it** (AD12-R2), and
+ * it inherits all three answers above rather than inventing new ones: the calibration is cleared
+ * in the same order and with the same compensation — more sharply, because a scale measured off a
+ * document that is no longer referenced names nothing at all — and the per-group pending flags are
+ * left exactly as they were, since coordinates captured in background pixels are still in
+ * background pixels after the picture is taken away.
+ *
+ * **The two cheap pre-read refusals do not apply to it**, and that is a behaviour rather than an
+ * omission: `backgroundKindOf` and `files.fileExists` both ask about a path, and a removal names
+ * none. Removing a reference to a file that has already been deleted must SUCCEED — it is the one
+ * gesture that repairs that state — so the removal arm sits ABOVE both, including above the
+ * `fileExists` guard that deliberately refuses a re-submit of a reference whose file has gone.
  */
 export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInput, DispatchResult> {
 	/**
@@ -118,6 +144,15 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 	 */
 	async executeWithVersion(input: SetAssetBackgroundInput): Promise<VersionedDispatchResult> {
 		const { locks } = this.deps;
+		// The REMOVAL arm, ABOVE both cheap refusals (AD12-R2). Neither of them can answer a
+		// gesture that names no path, and the `fileExists` one would actively refuse the one
+		// gesture that repairs a dangling reference. `removeAssetBackground.test.ts` pins it here.
+		//
+		// The reference is resolved BEFORE the region rather than inside the closure, because a
+		// parameter's narrowing does not survive into a callback — building it here is what lets
+		// `write` take an already-decided `AssetBackgroundRef | null` instead of re-deciding.
+		if (input.path === null) return await locks.withLevel1(input.assetId, () => this.write(input, null));
+
 		// The two cheap refusals are OUTSIDE the region on purpose: neither reads the vault, so
 		// taking a lock to answer them would make a mislabelled path or a missing file queue
 		// behind whatever else is touching this asset. The region starts where the reads do.
@@ -164,7 +199,8 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 		// asset with no sidecar that clear CREATES one. So an asset deleted between the note read
 		// and that clear was left with a `.rpgeo` written by a gesture that then failed at the
 		// note it was for. `ReferenceLocks.withLevel1` carries the account.
-		return await locks.withLevel1(input.assetId, () => this.write(input, kind));
+		const background: AssetBackgroundRef = { path: input.path, kind, page: input.page };
+		return await locks.withLevel1(input.assetId, () => this.write(input, background));
 	}
 
 	/**
@@ -175,13 +211,16 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 	 * gate that says so: above, what can be refused without touching the vault; here, the pair
 	 * of writes and the compensation between them.
 	 *
-	 * `kind` is passed in already validated rather than re-derived, so the value the note is
+	 * `background` is passed in already resolved rather than re-derived, so the value the note is
 	 * saved with is the one the refusal above compared — a second `backgroundKindOf` call would
-	 * be a second derivation of one fact.
+	 * be a second derivation of one fact. `null` is AD12-R2's removal arm, which reaches here
+	 * having been refused by nothing, and from this line down the two arms are ONE path: the
+	 * domain check, the no-write guard, the calibration clear and its compensation all read a
+	 * nullable reference already.
 	 */
 	private async write(
 		input: SetAssetBackgroundInput,
-		kind: 'image' | 'pdf',
+		background: AssetBackgroundRef | null,
 	): Promise<VersionedDispatchResult> {
 		const { assets, sidecar, events } = this.deps;
 
@@ -190,7 +229,6 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 		if (loaded.value === null) return err(assetNotFound(input.assetId));
 		const { entity: current, version: noteVersion } = loaded.value;
 
-		const background: AssetBackgroundRef = { path: input.path, kind, page: input.page };
 		// Validated (and re-validated: `Asset.create` never trusts the candidate that reaches
 		// it) BEFORE either write, so a domain refusal — an empty path, an invalid page —
 		// touches neither resource.

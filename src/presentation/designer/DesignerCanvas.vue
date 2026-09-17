@@ -101,7 +101,7 @@ const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.
-const { toolManager, renderState, setTool, editShape, activeToolId, partView } = useDesignerRuntime();
+const { toolManager, renderState, setTool, editShape, activeToolId, partView, backgroundOpacity } = useDesignerRuntime();
 /**
  * An arrow key nudges the designer's selection (symbols spec, Decision 10) by `EditorSurface`'s own
  * `arrowVector` — 10 mm a press, 100 mm with Shift — as one conditional shape write per press, under
@@ -244,6 +244,20 @@ onBeforeUnmount(() => stopPixelRatio());
 					— and `visible` is a literal because this surface has no layer-visibility
 					control to bind: layer visibility in the plan editor's `WorkspaceStore` is a
 					Plan Editor concern (its `gridVisible` is shared).
+
+					`opacity` is NOT a literal, and it is the one thing on this mount that is not:
+					`DesignerViewMenu`'s third row binds the leaf's own `backgroundOpacity` ref
+					(AD12-R1). It is a VIEW preference and reaches nothing the vault holds —
+					`runtime.ts` carries the whole account.
+
+					**It is not a DECLARED prop of that component**, and the mechanism is worth naming
+					rather than leaving to be rediscovered: `BackgroundLayer` declares five props and
+					no `opacity`, so this is Vue's attribute FALLTHROUGH onto its root `<VLayer>`,
+					which vue-konva applies to the Konva node. That works and is measured — the
+					layer node really does dim — but it is an arrangement no type checks, so what
+					holds it is `designerReferenceView.test.ts` asserting the SCENE rather than this
+					binding. `BackgroundLayer.vue` belongs to nobody this wave; declaring the prop
+					there explicitly is the follow-up, and this comment is the pointer to it.
 				-->
 				<BackgroundLayer
 					:name="BACKGROUND_LAYER"
@@ -251,6 +265,7 @@ onBeforeUnmount(() => stopPixelRatio());
 					:vault="context.vault"
 					:transform="transform"
 					:visible="true"
+					:opacity="backgroundOpacity"
 					:pixels-per-world-unit="pixelsPerWorldUnit"
 					:file-changes="context.onVaultFileChanged"
 					@status="(status) => emit('backgroundStatus', status)"

@@ -36,6 +36,37 @@ Three further reconciliations r1 records, which change no contract text but do c
 
 **Anything not listed above is accepted as written.**
 
+## Rulings that APPLY an accepted contract (no revision)
+
+`r1` is settled and closed. The rulings below decide how an already-accepted sentence is
+satisfied; none of them changes a contract's text, so none of them is a revision and none is
+re-litigable as one. Each was taken before the code it governs was written, which is the only
+time such a ruling is worth anything.
+
+### AD08-R1 — the Parts panel IS C05's overlap alternative. No chooser is built. (2026-09-17)
+
+C05 reads: *"Default hit behavior: select the visually topmost eligible part; expose an overlap
+chooser/Parts alternative."* That is a DISJUNCTION, and AD09 shipped the second arm. Measured
+rather than assumed — `src/presentation/designer/parts/DesignerPartsPanel.vue` lists every part
+of the shape including ones lying under others, a row press calls the same `select` a canvas
+press calls (one selection model, C05's own first requirement), and the list is a single tab stop
+with Up/Down/Home/End, so the route is keyboard- and touch-reachable without a modifier. AD08's
+own criterion — *deterministic overlapping-object selection with an accessible alternative* — is
+met by the pair: `hitDesign`'s `findLast` is the determinism, the panel is the alternative.
+
+**What building a chooser as well would cost, which is why it is refused rather than deferred.**
+A popup listing the parts under the cursor is a SECOND selection surface: its own hit rule (which
+parts count as "under"), its own keyboard model, its own dismissal and focus-return behaviour, and
+its own answer to what happens when the shape changes while it is open. Two surfaces that both
+answer "which part did you mean" are two places for that answer to differ — the shape this
+repository refuses everywhere else it has a name for it. The panel already answers it once.
+
+**The trigger, so this is a decision and not a dead end.** Build a chooser when the Parts panel is
+not on screen and cannot be — a leaf too narrow to show it, or a future surface that draws the
+canvas without the panel. Until then the honest fix for "I cannot click the part I want" is the
+panel, and AD08's remainder owes the one gesture that is genuinely missing instead: marquee
+selection.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

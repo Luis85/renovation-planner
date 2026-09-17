@@ -2,6 +2,9 @@ import { openingMoveDe } from './openingMove';
 import { openingDe } from './opening';
 import { curvesDe } from './curves';
 import { assetSymbolsDe } from './assetSymbols';
+import { assetEntryPathsDe } from './assetEntryPaths';
+import { assetMarqueeDe } from './assetMarquee';
+import { assetArrangeDe } from './assetArrange';
 import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
@@ -29,6 +32,9 @@ import { structureDe } from './structure';
 export const editorDe: Record<keyof typeof editorEn, string> = {
 	...curvesDe,
 	...assetSymbolsDe,
+	...assetEntryPathsDe,
+	...assetMarqueeDe,
+	...assetArrangeDe,
 	...groupsDe,
 	...stairsArrowsDe,
 	...structuralDe,

@@ -2,6 +2,9 @@ import { openingMoveEn } from './openingMove';
 import { openingEn } from './opening';
 import { curvesEn } from './curves';
 import { assetSymbolsEn } from './assetSymbols';
+import { assetEntryPathsEn } from './assetEntryPaths';
+import { assetMarqueeEn } from './assetMarquee';
+import { assetArrangeEn } from './assetArrange';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
@@ -41,6 +44,9 @@ import { structureEn } from './structure';
 export const editorEn = {
 	...curvesEn,
 	...assetSymbolsEn,
+	...assetEntryPathsEn,
+	...assetMarqueeEn,
+	...assetArrangeEn,
 	...groupsEn,
 	...stairsArrowsEn,
 	...structuralEn,

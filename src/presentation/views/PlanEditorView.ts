@@ -325,8 +325,10 @@ export class PlanEditorView extends ItemView {
 	 * Editor leaf on the same plan. This field is per LEAF and reaches no other one, with or
 	 * without a rebind. That used to read "a pre-existing hole needing an affected-identity
 	 * model, not this field"; the hole was closed on 2026-09-17 (BP-02 slice 4) somewhere else
-	 * entirely, and it needed no identity model. `save-state-store.ts` SEEDS `unrecoveredWrite`
-	 * from the vault-scoped `WriteIncidentRegistry` at setup, so a second leaf opened while an
+	 * entirely, and it needed no identity model. `save-state-store.ts` SEEDS its `vaultPaused`
+	 * ref — one of the two terms of the `unrecoveredWrite` gate, exported as `vaultWritesPaused`;
+	 * the gate itself is a computed and has no writer at all — from the vault-scoped
+	 * `WriteIncidentRegistry` at setup, so a second leaf opened while an
 	 * incident is open is gated by the VAULT's record rather than by this leaf's field — which
 	 * is the durable fact, and the one that also survives a restart. Read the two as different
 	 * subjects: this field carries THIS leaf's incident across a rebind, and the registry

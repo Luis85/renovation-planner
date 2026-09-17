@@ -350,7 +350,9 @@ describe('an unrecovered-write incident belongs to the leaf, not to the mount', 
  * absorb the first into the second** (ADR-0034, BP-02 slice 4).
  *
  * A leaf that mounts while the vault holds an open incident is gated from its first frame, by
- * `save-state-store.ts` seeding `unrecoveredWrite` from `activeWriteIncidentRegistry()`. Its own
+ * `save-state-store.ts` seeding its `vaultPaused` ref — the vault term of the `unrecoveredWrite`
+ * gate, exported as `vaultWritesPaused`; the gate is a computed and is seeded by nothing — from
+ * `activeWriteIncidentRegistry()`. Its own
  * `unrecoveredWrite` field must stay false, and that is a behaviour rather than an accident of
  * ordering: the field is set-never-unset and rides `getState()` into Obsidian's persisted
  * workspace layout, so a leaf that recorded the vault's incident in it would still be paused

@@ -147,7 +147,9 @@ checkpoint C3. Which test holds each criterion:
 
    **Amendment (2026-09-17, BP-02 slice 4): the first two of those three limits are closed, and
    the affected-identity model the first one asked for was not needed.** The save-state store now
-   SEEDS `unrecoveredWrite` from the vault-scoped `WriteIncidentRegistry` (ADR-0034) when the
+   SEEDS its `vaultPaused` ref — one of the two terms of the `unrecoveredWrite` gate, exported as
+   `vaultWritesPaused`; the gate itself is a computed OR with no writer — from the vault-scoped
+   `WriteIncidentRegistry` (ADR-0034) when the
    store is created, and every leaf — a second Plan Editor on the same plan, a leaf opened by hand
    at any time after the plugin has loaded — mounts its own Pinia and therefore its own store, so
    each asks the vault's record for itself and is paused from its first frame. Three things this does

@@ -402,9 +402,11 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			// and no re-read that can go stale over an asset's own design, so nothing blocks a
 			// write on that account — which is why this is the save-state flag alone and not a
 			// copy of the editor's three-term expression. But an open write incident is
-			// vault-wide (ADR-0034): `save-state-store.ts` seeds `unrecoveredWrite` from
-			// `activeWriteIncidentRegistry()` at setup and marks the vault half on the gate's own
-			// refusal code, and this leaf mounts that same shared store. Until 2026-09-17 this read
+			// vault-wide (ADR-0034): `save-state-store.ts` seeds its `vaultPaused` ref — the vault
+			// half of this gate, exported as `vaultWritesPaused`, and NOT `unrecoveredWrite`,
+			// which is a computed OR that nothing writes — from `activeWriteIncidentRegistry()` at
+			// setup, and sets that same ref on the gate's own refusal code through
+			// `markVaultPaused`. This leaf mounts that same shared store. Until 2026-09-17 this read
 			// `() => false`, a constant — so the value here is now truthful where it was not. Read
 			// the paragraph below before reading that as a gate.
 			//

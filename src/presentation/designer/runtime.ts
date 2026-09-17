@@ -316,7 +316,8 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	// Outside the refresh decorator, so `Saved` never appears while the canvas still shows the
 	// pre-command state; inside `wrapDispatcher`, which is the one object a leaf hands out.
 	// Held in a named local because the tool context below reads it too — `unrecoveredWrite` is
-	// this surface's whole write gate (see `writesBlocked` there). ONE statement rather than two,
+	// the value that context's `writesBlocked` answers with, which is not the same as a gate on
+	// this surface: read that member's own comment, which measures what consults it. ONE statement rather than two,
 	// which is not cosmetic: `buildRuntime` sits on `max-lines-per-function`'s 100-line budget
 	// (comments are free, code lines are not), and naming this store as a second statement put it
 	// at 101. The file's own `snapService`/`workspace` line already takes this spelling.
@@ -402,16 +403,35 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			// write on that account — which is why this is the save-state flag alone and not a
 			// copy of the editor's three-term expression. But an open write incident is
 			// vault-wide (ADR-0034): `save-state-store.ts` seeds `unrecoveredWrite` from
-			// `activeWriteIncidentRegistry()` at setup and marks it on the gate's own refusal
-			// code, and this leaf mounts that same shared store. Until 2026-09-17 this read
-			// `() => false` and the designer was the one editing surface with no gate at all.
+			// `activeWriteIncidentRegistry()` at setup and marks the vault half on the gate's own
+			// refusal code, and this leaf mounts that same shared store. Until 2026-09-17 this read
+			// `() => false`, a constant — so the value here is now truthful where it was not. Read
+			// the paragraph below before reading that as a gate.
 			//
-			// **One line, and it reaches every registered tool at once** — the framework asks the
-			// context, the way `SelectTool` does in the editor. What it does NOT do is disable a
-			// single designer CONTROL: the inspector's fields, the toolbar and the preset form
-			// stay visually enabled and their dispatches are refused by the guarded doors
-			// underneath. That is an affordance gap, not a data-safety one, and closing it is its
-			// own increment.
+			// **What this value IS: correct, and read by NOTHING on this surface today.** The
+			// framework does not ask the context — each TOOL asks it, and no tool this surface
+			// registers does. Measured in the edit that wrote this sentence rather than assumed:
+			// `grep -rn "writesBlocked()" src/presentation/editor/` prints **23** call sites in SIX
+			// modules — `tools/select-tool.ts`, `elements/ElementMove.ts`, `elements/ElementResize.ts`,
+			// `elements/ElementRotation.ts`, `labels/LabelMove.ts`, `structure/OpeningResize.ts`.
+			// That grep is SCOPED to `editor/` deliberately: the unscoped one over `src/` counts the
+			// lines you are reading, since this comment spells the call it is counting, so it answers
+			// several more than the calls — the same trap `CLAUDE.md` records for
+			// `grep -c "registerView"`. In THIS directory the only occurrence of `writesBlocked` that
+			// is not prose is the property just below; `grep -rn "writesBlocked" src/presentation/designer/`
+			// returns that one line plus this paragraph and its neighbours, and zero calls.
+			// `registerDesignerTools` builds `DesignerSelectTool`, `DrawPolygonTool`,
+			// `DrawDetailTool`, `SetAnchorTool`, `SetFacingTool` and `CalibrateTool`; none of the
+			// six reading modules is among them.
+			//
+			// So this closes nothing on this surface: **the Asset Designer is not gated at all.**
+			// Not a tool, not a button, not the inspector, not the preset form. Every write it
+			// dispatches is refused by the guarded doors underneath, and nothing on screen says so
+			// first. The honest value is here anyway because `EditorContext` requires the field and
+			// a hard-coded `false` is a lie waiting to be read by the first tool that asks — this
+			// is the prerequisite for the increment that makes one ask, not the increment itself.
+			// `tests/presentation/designer/designerIncidentGate.test.ts` carries that measurement
+			// in a case name, so a reader meets it there too.
 			writesBlocked: () => saveState.unrecoveredWrite,
 		}),
 	);

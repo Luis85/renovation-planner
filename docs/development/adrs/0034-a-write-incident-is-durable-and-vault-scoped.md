@@ -174,6 +174,52 @@ states — `reversible-delete-zone-command.ts`'s undo half, dispatched by `Comma
 the raw `commands.zones` port, which is a CATEGORY rather than a path and has no check under it
 (tracker limitation L-06).
 
+**Correction, 2026-09-17 (BP-02 slice 4, task SCOPE): the 2026-09-16 paragraph's claim that the
+per-leaf gate is closed "never by the vault-scoped `WriteIncidentRegistry` this ADR adds" is now
+false, and this paragraph says what replaced it.** The 2026-09-16 text above is left exactly as
+written — it is a record of what was true that day, and this file keeps earlier text visible.
+
+**What is now true.** The gate SEES this registry, at two moments.
+`src/presentation/editor/save-state/save-state-store.ts` initialises its vault-pause ref from
+`activeWriteIncidentRegistry()?.anyOpen() ?? false` while the store is being created, and
+`src/presentation/editor/save-state/with-save-state-tracking.ts` calls that store's
+`markVaultPaused()` whenever a refusal carries `WRITES_PAUSED_CODE` — the constant `guardCommand`
+itself builds its refusal from, matched on the exported code and never on a message. Every
+`ItemView` mounts its own Vue app and its own Pinia (ADR-0004), so each leaf builds its own store
+and asks the vault's record for itself: a SECOND Plan Editor pane opened while an incident is open
+is paused from its first frame, without any leaf knowing another exists.
+
+**What is still NOT true, and each of these is a live limitation rather than a nuance.**
+
+1. **The gate is not reactive.** `WriteIncidentRegistry.record()` publishes no event and holds a
+   plain array, so an incident raised while a pane is already mounted does not re-render that
+   pane's controls. It catches up at its next write, which is refused at the guarded door and
+   marks the vault fact from there. No data is at risk; the affordance is late.
+2. **A leaf Obsidian RESTORES seeds clean.** `RenovationPlannerPlugin` calls
+   `void this.stores.writeIncidents.seed()` from `startPersistence`, which runs at
+   `onLayoutReady`, and that same function's own comment records that Obsidian restores its leaves
+   BEFORE `onLayoutReady`. A registry whose file read has not resolved holds an empty list and
+   answers `anyOpen() === false`. So a restored pane is not paused from its first frame either; it
+   is the same non-reactive limitation reached from startup. Startup was deliberately not
+   reordered for it — the registry must read a file before it can answer, and nothing on this
+   branch has ever run in Obsidian.
+3. **The Asset Designer is not gated at all.** `src/presentation/designer/runtime.ts` now hands
+   its `EditorContext` a truthful `writesBlocked` where it hard-coded `false`, and NOTHING reads
+   it: `grep -rn "writesBlocked()" src/presentation/editor/` prints 23 call sites in six modules
+   (scoped to `editor/` because the unscoped grep also counts the comments that quote the call),
+   and the designer registers none of those tools. Its buttons,
+   inspector fields, toolbar and preset form all stay live and their dispatches are refused
+   underneath. An affordance gap, not a data-safety one, and its own increment.
+4. **The two ungated paths named above are unchanged.** The geometry sidecar spread into
+   `planEditorQueries`, `relocateEvidence`'s host-rename listener, and the reversible-adapter
+   `undo` category of tracker limitation L-06 are all still outside the chokepoint, so an incident
+   raised in one of them still becomes no durable record and reaches no other leaf.
+
+The gate's scope also remains COMMANDS only, which the section below states and which the same
+change had to repair in one place: `DraftRecovery.vue` reads the store's narrow
+`leafUnrecoveredWrite` rather than the wider gate, because its fourth read site removes a **Try
+again** button that performs a re-READ.
+
 **The gate is coarse, and that is a decision, not an omission.** While any incident file holds a
 record, every guarded COMMAND is refused; guarded QUERIES are not, so the vault stays inspectable
 — which is what `docs/using-planning-recovery.md` already tells the user to do. Two measured

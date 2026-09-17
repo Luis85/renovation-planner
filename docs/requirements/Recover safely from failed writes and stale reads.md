@@ -148,19 +148,43 @@ checkpoint C3. Which test holds each criterion:
    **Amendment (2026-09-17, BP-02 slice 4): the first two of those three limits are closed, and
    the affected-identity model the first one asked for was not needed.** The save-state store now
    SEEDS `unrecoveredWrite` from the vault-scoped `WriteIncidentRegistry` (ADR-0034) when the
-   store is created, and every leaf — a second Plan Editor on the same plan, an Asset Designer,
-   a leaf restored from the layout — mounts its own Pinia and therefore its own store, so each
-   asks the vault's record for itself and is paused from its first frame. The Asset Designer's
-   tool framework reads that flag too, where it read a hard-coded `false` before. Two things this
-   does not do, stated so the amendment is not read wider than the change: an incident raised in
+   store is created, and every leaf — a second Plan Editor on the same plan, a leaf opened by hand
+   at any time after the plugin has loaded — mounts its own Pinia and therefore its own store, so
+   each asks the vault's record for itself and is paused from its first frame. Three things this does
+   not do, stated so the amendment is not read wider than the change: an incident raised in
    another leaf while this one is ALREADY open does not re-render it — the registry notifies
    nobody, so that leaf catches up at its next write, which `guardCommand` refuses and
-   `withSaveStateTracking` marks on; and the designer's own buttons stay visually enabled while
-   their dispatches are refused underneath. The third limit — the project view's work section —
+   `withSaveStateTracking` marks on; a leaf Obsidian RESTORES from the workspace layout seeds
+   clean, because the registry's own file read is started at `onLayoutReady` and Obsidian restores
+   leaves before that, so it catches up the same way; and **the Asset Designer is not gated at
+   all**. The third limit — the project view's work section —
    turned out to be closed by the same edit, because that section calls the same shared store
    (`views/work/projectWorkActions.ts`); what none of them gets is a leaf-owned field surviving a
    rebind the way `PlanEditorView`'s does, which the durable vault record makes far less
    important than it was.
+
+   **Correction (2026-09-17, later the same day): the sentence "The Asset Designer's tool framework
+   reads that flag too" was false and is removed above rather than softened.** The designer's
+   `EditorContext.writesBlocked` carries the honest value now where it carried a hard-coded
+   `false`, and nothing consults it. Measured:
+   `grep -rn "writesBlocked()" src/presentation/editor/` prints 23 call sites in six modules —
+   scoped to `editor/` because the unscoped grep also counts the comments that quote the call —
+   namely `tools/select-tool.ts`,
+   `elements/ElementMove.ts`, `elements/ElementResize.ts`, `elements/ElementRotation.ts`,
+   `labels/LabelMove.ts`, `structure/OpeningResize.ts` — and the designer registers none of them
+   (`DesignerSelectTool`, `DrawPolygonTool`, `DrawDetailTool`, `SetAnchorTool`, `SetFacingTool`,
+   `CalibrateTool`). So on the Asset Designer nothing is gated: not a tool, not a button, not the
+   inspector, not the preset form. Every write it dispatches is still refused by the guarded doors
+   underneath, so this is an affordance gap and not a data-safety one — but a reader must not take
+   the paragraph above as saying a designer gesture stops.
+
+   **And a second correction of the same date: the flag was SPLIT, because one boolean was
+   answering two questions.** The store now holds this leaf's own unrecovered write and the
+   vault's write pause as separate facts, with `unrecoveredWrite` the OR of them. Sharing one ref
+   had two visible consequences, both now closed: a leaf's own half-written write stopped reaching
+   Obsidian's persisted view state while the vault was paused, and a vault-wide incident removed
+   the **Try again** READ retry from the draft-recovery panel — which ADR-0034 forbids, since it
+   gates commands precisely so the vault stays inspectable.
    `tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
    dispatch path and walks that lifecycle; the rebind case the amendment above named has been
    renamed with the behaviour it now asserts, to

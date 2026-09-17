@@ -73,11 +73,18 @@ when the save lands.
 
 **Pointer, 2026-09-17 (BP-02 slice 4): two of those three are closed, elsewhere, and this
 paragraph is left standing as the record of what the settings-save fix itself did.** The second
-Plan Editor leaf and the Asset Designer are both gated now — not by an affected-identity model,
-which nobody built, but by `save-state-store.ts` seeding `unrecoveredWrite` from the
-vault-scoped `WriteIncidentRegistry` (ADR-0034) at store setup. Every leaf mounts its own Pinia,
-so every leaf's store asks — and the project view's work section, the third clause, is closed by
-the same step for the same reason: it calls that same store. The IN-FLIGHT
+Plan Editor leaf is gated now — not by an affected-identity model, which nobody built, but by
+`save-state-store.ts` seeding the vault half of its write gate from the vault-scoped
+`WriteIncidentRegistry` (ADR-0034) at store setup. Every leaf mounts its own Pinia, so every
+leaf's store asks — and the project view's work section, the third clause, is closed by the same
+step for the same reason: it calls that same store.
+
+**The Asset Designer is NOT**, and a first draft of this pointer said it was. Its
+`EditorContext.writesBlocked` carries the honest value now where it carried a hard-coded `false`,
+and nothing on that surface reads it: `grep -rn "writesBlocked()" src/presentation/editor/` prints
+23 call sites in six modules — scoped to `editor/` because the unscoped grep also counts the
+comments that quote the call — and the designer registers none of those tools. Its writes are still refused at the guarded doors underneath, so no data is at risk; it
+offers no sign that they will be. The IN-FLIGHT
 residue above is narrowed rather than closed: the compensation that refuses after the remount
 records a durable incident if it refused inside a `guardCommand` stack, so the fresh store's
 `false` is corrected at that leaf's next write, which the gate refuses. A compensation refusing

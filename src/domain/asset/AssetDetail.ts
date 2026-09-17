@@ -73,13 +73,25 @@ export interface OpenDetail extends DetailBase {
  * ORDER — a `solid` closed one is filled with the canvas colour and covers what is beneath it, a
  * `dashed` one is not (Decision 4 — dashed means overhead or hidden).
  *
- * **A discriminated union, and the geometry property is named differently on each arm on
- * purpose.** A consumer that reads `detail.outline` without narrowing stops compiling, which is
- * AD04's criterion 7 — *new unsupported kinds fail explicitly rather than silently disappearing*.
- * One shared property name would have let a renderer hand an open path to a polygon routine and
- * draw a wrong picture, which is the failure this repository refuses everywhere else.
+ * **A discriminated union, and the two arms share the geometry property's NAME while differing in
+ * its type.** Renaming it on the open arm was the first plan and is recorded as the rejected
+ * alternative in AD04 §3: it bought the identical guarantee and would have rewritten about seventy
+ * legitimate closed-graphic reads across twenty test files. What holds the guarantee instead is the
+ * brand on `CurvedPath` — a consumer may read `.points` off the union with no narrowing, and handing
+ * that same value to a routine that closes, measures or fills it does not compile. That is AD04's
+ * criterion 7: a renderer cannot draw an open path as a polygon by accident.
  */
 export type AssetDetail = ClosedDetail | OpenDetail;
+
+/**
+ * A graphic's geometry and nothing else — the pair a DRAWING TOOL has when it has finished its
+ * gesture and before the shape has given the graphic an id (AD11).
+ *
+ * Derived from the two arms rather than spelled out, so it cannot drift from them, and kept as a
+ * union rather than `{ kind, outline }` so `kind` still narrows `outline` to the right type: that
+ * narrowing is the whole of what stops a tool handing a ring to the open arm.
+ */
+export type DetailGeometry = Pick<ClosedDetail, 'kind' | 'outline'> | Pick<OpenDetail, 'kind' | 'outline'>;
 
 /**
  * The same graphic with its geometry put through a point-wise transform, KEEPING ITS KIND.

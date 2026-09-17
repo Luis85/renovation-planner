@@ -4,7 +4,7 @@ import type { LineSegment } from '../../../core/geometry/LineSegment';
 import { boundingBoxOf } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
 import { unwrap } from '../../../core/result/Result';
-import { outlineOf, type OutlinePart } from '../../../domain/asset/shapeEdits';
+import { outlineOf, partPoints, type OutlinePart } from '../../../domain/asset/shapeEdits';
 import { SNAP_TOLERANCE_PX } from '../../editor/handleMetrics';
 import type { SnapCandidates } from '../../editor/snapping/snap-service';
 import type { EditorContext } from '../../editor/tools/editor-context';
@@ -33,9 +33,15 @@ function snapFeature(snap: Snap, feature: Point): DragTarget {
 	return { to: result.point, guides: result.guides };
 }
 
-/** A body move stays a translation: the outline carried by the travel, corrected by ONE vector. */
-function snapBody(snap: Snap, outline: CurvedPolygon, raw: Point): DragTarget {
-	const moving = outline.points.map((point) => carry(snap, point));
+/**
+ * A body move stays a translation: every vertex carried by the travel, corrected by ONE vector.
+ *
+ * Takes POINTS rather than an outline (AD11), which is what lets an OPEN graphic be dragged: a path
+ * has vertices and no interior, and a translation asks about nothing else. The box handle below
+ * still takes a `CurvedPolygon`, because a box handle is only ever drawn on one.
+ */
+function snapBody(snap: Snap, points: readonly Point[], raw: Point): DragTarget {
+	const moving = points.map((point) => carry(snap, point));
 	const result = snap.context.snapService.snapTranslation(moving, snap.candidates, snap.tolerance);
 	return { to: { x: raw.x + result.correction.dx, y: raw.y + result.correction.dy }, guides: result.guides };
 }
@@ -87,11 +93,13 @@ export function dragTarget(context: EditorContext, start: DragStart, event: Edit
 		return { to: { x: from.x + moved.to.x - shape.anchor.x, y: from.y + moved.to.y - shape.anchor.y }, guides: moved.guides };
 	}
 	if (!isOutlineSelection(selection)) return { to: raw, guides: [] };
-	// Likewise: a body drag or a box handle is only reachable on the outline part that was hit on, or that
-	// part's handles drawn around, the pressed `shape` — captured together with `selection` at press — so this
-	// lookup cannot miss either.
-	const outline = outlineOf(shape, selection) as CurvedPolygon;
-	if (role.kind === 'body') return snapBody(snap, outline, raw);
-	if (role.kind === 'box' && !event.modifiers.shift) return snapBoxHandle(snap, outline, role.index);
+	// A body drag is reachable on an OPEN graphic too since AD11 — `hitDesign` hits one by its stroke
+	// and `moveOutline` moves it — so this half asks `partPoints`, which answers for either kind. The
+	// cast hides no null for the same reason the vertex one above does not: the press landed on this
+	// part of this captured `shape`.
+	if (role.kind === 'body') return snapBody(snap, partPoints(shape, selection) as readonly Point[], raw);
+	// A box handle is drawn by `selectionHandles` only where `outlineOf` answered a ring, so this
+	// branch is closed-only by construction.
+	if (role.kind === 'box' && !event.modifiers.shift) return snapBoxHandle(snap, outlineOf(shape, selection) as CurvedPolygon, role.index);
 	return { to: raw, guides: [] };
 }

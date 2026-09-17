@@ -39,19 +39,56 @@ export type OutlinePart =
 	| { readonly kind: 'detail'; readonly id: string };
 
 /**
- * The outline a part names, or null when the shape has no such part.
+ * The CLOSED outline a part names, or null when the shape has no such part — **and null for an
+ * OPEN graphic**, which is the whole point of the function and did not change at AD11.
  *
- * **An OPEN graphic answers null too** (AD04), which is what keeps every outline gesture — the
- * vertex drag, the bend, the numeric box, the fit — closed-only until AD11 builds the open ones.
  * A path has no interior and its bulge array is a segment shorter, so handing one to a routine
- * that closes would draw a wrong picture rather than fail; refusing it here means the caller gets
- * `partNotFound`, which is the same answer it already has for a part that is not there.
+ * that closes would draw a wrong picture rather than fail. What AD11 changed is that the
+ * point-wise transforms no longer come through here: `moveOutline`, `rotateOutline` and
+ * `resizeBox` go through `mapPartOutline` below, which keeps a graphic's kind. What is still
+ * closed-only is everything that needs the ring itself — `moveVertex` and `setBulge` here (a
+ * path's bulge array is indexed per SEGMENT, so `indexIn`'s point-count rule is the wrong question
+ * for one), plus, outside this module, **eight call sites in six files, which is what
+ * `grep -rn 'outlineOf(' src/` prints once this file and `AssetShelf.vue`'s same-named local are
+ * dropped.** The count is written down because both earlier versions of this paragraph got it
+ * wrong: the first said "four" and listed four, and the rewrite that caught that said "seven"
+ * while listing eight.
+ *
+ * - `partExtent.partMeasure` — reaches here for the footprint and the clearance only; a detail of
+ *   either kind now goes through `detailBox`.
+ * - `selectionDrag.boxOf` — so a vertex, box or rotate drag of a path answers `partNotFound`.
+ * - `handles.selectionHandles` — which is why a path is drawn with no handles at all, and in turn
+ *   why the two `dragSnap` sites and `designer-select-tool.beginBend` below cannot be reached on
+ *   one.
+ * - `selectionLayer.selectedRun` (footprint and clearance only, as `partMeasure`) and
+ *   `selectionLayer.selectionFrame` — the second is why Shift+2 frames nothing on a path.
+ * - `dragSnap`'s vertex and box-handle arms, and `designer-select-tool.beginBend` — all three cast
+ *   the answer to a `CurvedPolygon`, and all three are safe because `selectionHandles` draws no
+ *   handle on a path for a press to land on.
+ *
+ * So an open graphic today has no vertex handles, no bend, no box resize and nothing for Shift+2
+ * to frame. What it HAS is the Parts panel, the inspector's numeric fields, the arrow-key nudge and
+ * a body drag — the first three through the transforms below, the last through `partPoints`.
  */
 export function outlineOf(shape: AssetShape, part: OutlinePart): CurvedPolygon | null {
 	if (part.kind === 'footprint') return shape.footprint;
 	if (part.kind === 'clearance') return shape.clearance;
 	const detail = shape.details.find((found) => found.id === part.id);
 	return detail === undefined || detail.kind === 'open' ? null : detail.outline;
+}
+
+/**
+ * Every VERTEX of the part `part` names, whatever its kind, or null when the shape has no such
+ * part — the read for a caller that wants points and no interior (AD11).
+ *
+ * Its own function rather than a widened `outlineOf` because the two answer different questions
+ * and one of them has to keep refusing: `outlineOf` promises a ring, and every caller that asks
+ * for one goes on to close, fill or index it per point. `dragSnap.snapBody` is the caller this
+ * exists for — a body drag is a translation, so a path's vertices are the whole of what it needs.
+ */
+export function partPoints(shape: AssetShape, part: OutlinePart): readonly Point[] | null {
+	if (part.kind !== 'detail') return outlineOf(shape, part)?.points ?? null;
+	return shape.details.find((found) => found.id === part.id)?.outline.points ?? null;
 }
 
 /**
@@ -87,6 +124,31 @@ function scaled<T extends CurvedPolygon | CurvedPath>(outline: T, sx: number, sy
 	};
 }
 
+/**
+ * `map` applied to whichever part `part` names, KEEPING ITS KIND, then validated — the one path
+ * every point-wise transform of a part takes (AD11).
+ *
+ * `map` is generic exactly as `mapDetailOutline`'s callback is, so an open path comes back an open
+ * path with its brand intact and a ring comes back a ring: `translate`, `rotate` and `scaled` all
+ * have that shape already, which is why this is a re-pointing rather than a second implementation.
+ * `editOutline` beside it stays for the edits that genuinely need a closed ring.
+ */
+function mapPartOutline(
+	shape: AssetShape,
+	part: OutlinePart,
+	map: <T extends CurvedPolygon | CurvedPath>(outline: T) => T,
+): Result<AssetShape, ValidationError> {
+	if (part.kind === 'footprint') return validateAssetShape({ ...shape, footprint: map(shape.footprint) });
+	if (part.kind === 'clearance') {
+		return shape.clearance === null ? err(partNotFound(part)) : validateAssetShape({ ...shape, clearance: map(shape.clearance) });
+	}
+	if (!shape.details.some((detail) => detail.id === part.id)) return err(partNotFound(part));
+	return validateAssetShape({
+		...shape,
+		details: shape.details.map((detail) => (detail.id === part.id ? mapDetailOutline(detail, map) : detail)),
+	});
+}
+
 /** The shape with one part's outline replaced; a detail keeps its id, name, line and pending flag. */
 function withOutline(shape: AssetShape, part: OutlinePart, outline: CurvedPolygon): AssetShape {
 	if (part.kind === 'footprint') return { ...shape, footprint: outline };
@@ -110,8 +172,9 @@ function editOutline(
 	return validateAssetShape(withOutline(shape, part, edited.value));
 }
 
+/** Translation is kind-agnostic, so an open graphic moves here — the arrow-key nudge and the inspector's centre fields. */
 export function moveOutline(shape: AssetShape, part: OutlinePart, by: Vector): Result<AssetShape, ValidationError> {
-	return editOutline(shape, part, (outline) => ok(translate(outline, by)));
+	return mapPartOutline(shape, part, (outline) => translate(outline, by));
 }
 
 /**
@@ -144,11 +207,11 @@ export function resizeBox(
 ): Result<AssetShape, ValidationError> {
 	const refused = scaleRefusal(factors.sx, factors.sy);
 	if (refused !== null) return err(refused);
-	return editOutline(shape, part, (outline) => ok(scaled(outline, factors.sx, factors.sy, origin)));
+	return mapPartOutline(shape, part, (outline) => scaled(outline, factors.sx, factors.sy, origin));
 }
 
 export function rotateOutline(shape: AssetShape, part: OutlinePart, radians: number, origin: Point): Result<AssetShape, ValidationError> {
-	return editOutline(shape, part, (outline) => ok(rotate(outline, radians, origin)));
+	return mapPartOutline(shape, part, (outline) => rotate(outline, radians, origin));
 }
 
 export function moveAnchor(shape: AssetShape, to: Point): Result<AssetShape, ValidationError> {

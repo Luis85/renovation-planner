@@ -40,3 +40,22 @@
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
 }
+
+/**
+ * One sentence under a selected LINE's heading, saying what its Line control can and cannot mean
+ * (AD11): an open graphic is a stroke, so solid and dashed are its pattern and neither fills it.
+ *
+ * Deliberately NOT `.rp-designer-unscaled`'s warning rule beside it. That one's warning bar says
+ * "these numbers are not millimetres yet" — a state the user can clear by calibrating. This is a
+ * permanent property of the graphic they drew, so it reads as the muted status line the panel uses
+ * for facts about the subject, exactly as `.rp-designer-selection-count` above does.
+ *
+ * In this partial rather than in `designer-selection.css` because this is the one AD11 owns; both
+ * are the designer inspector's, and `index.css` orders this one after it, so nothing above depends
+ * on which of the two an equal-specificity rule would win from. Neither is near the 400-line cap.
+ */
+.rp-designer-inspector .rp-designer-open-graphic {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}

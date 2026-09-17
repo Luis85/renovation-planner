@@ -32,14 +32,12 @@ import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { AppError } from '../../../core/errors/AppError';
-import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { DetailLine } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { deleteDetail, fitFootprintToDetails, reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
 import {
 	moveAnchor,
 	moveOutline,
-	outlineOf,
 	removeClearance,
 	rotateOutline,
 	setFacing,
@@ -51,7 +49,7 @@ import { trError } from '../../i18n/toUserMessage';
 import { duplicateAndSelect } from '../designerKeys';
 import type { ShapeEdit } from '../selection/editShape';
 import { selectionExists, type DesignerSelection } from '../selection/designerSelection';
-import { partBox, resizeToExtent, withPartBox } from '../selection/partExtent';
+import { partMeasure, resizeToExtent, withPartBox, type PartBox } from '../selection/partExtent';
 import { semanticLabel } from '../parts/partNames';
 import DesignerFieldRow from './DesignerFieldRow.vue';
 import DesignerActionButton from './DesignerActionButton.vue';
@@ -126,15 +124,16 @@ function commit(edit: ShapeEdit): Promise<boolean> {
 }
 
 /**
- * The part's curve-aware box, for DISPLAY.
+ * The part's curve-aware box, for DISPLAY — **of either kind since AD11**.
  *
- * The cast stands on TWO guards now, and the second is newer than this function: `exists` keeps a
- * part the shape has not got from mounting the section at all, and `openGraphic` below keeps every
- * caller of this away from an open graphic, which is the other thing `outlineOf` answers `null`
- * for. This comment used to name only the first, which was true while a path could not be selected.
+ * `partMeasure` measures an open graphic through the domain's own `detailBox`, so a line reports
+ * the extent its arcs reach exactly as an alignment measures it. The cast stands on the one guard
+ * that has always held it: `exists` keeps a part the shape has not got from mounting the section
+ * at all. It used to stand on a second — the open-graphic withholding — which this card removes,
+ * because there is no longer a kind this cannot measure.
  */
-function boxOf(part: OutlinePart): ReturnType<typeof partBox> {
-	return partBox(outlineOf(shape.value, part) as CurvedPolygon);
+function boxOf(part: OutlinePart): PartBox {
+	return partMeasure(shape.value, part) as PartBox;
 }
 
 function sizeFields(part: OutlinePart): NumberField[] {
@@ -182,15 +181,19 @@ const pendingPart = computed(() =>
 );
 
 /**
- * An OPEN graphic (AD04), which has no interior and therefore no box to measure, move or resize.
+ * An OPEN graphic (AD04). **Its geometry fields are no longer withheld** — AD11 is the card AD09's
+ * withholding named as the one that would bring them back, and this is that half.
  *
- * Its section still draws — `selectionExists` counts it as a part that is there, which is what the
- * Parts panel makes selectable — so the withholding is HERE rather than at the mount: the name, the
- * line and the four ordering actions ask nothing about an area and are kept. Every numeric field
- * below reads `outlineOf`, which answers `null` for a path on purpose, so drawing them threw.
+ * What changed underneath: `partMeasure` measures a path through `detailBox`, and `moveOutline`,
+ * `rotateOutline` and `resizeBox` go through `mapPartOutline`, which keeps a graphic's kind. So
+ * centre, size and rotate-by all mean for a line what they mean for a ring — the box its geometry
+ * reaches — and every one of them writes through the same `editShape`.
  *
- * They come back when AD11 builds an open graphic's own gestures; until then this is the same
- * refusal `outlineOf` already makes, said where the user can see the consequence.
+ * What is left is one honest limitation, so it is SAID rather than left to be discovered: the Line
+ * control above is drawn for a line and keeps working, but a `solid` open graphic is an unbroken
+ * stroke and never a fill (C10). A zero extent is the other, and it is the field's own refusal
+ * rather than a sentence here, because whether an axis is flat is a fact about this line and not
+ * about lines.
  */
 const openGraphic = computed(() => selectedDetails.value.some((item) => item.kind === 'open'));
 
@@ -198,7 +201,6 @@ const fields = computed((): readonly NumberField[] => {
 	const selection = props.selection;
 	switch (selection.kind) {
 		case 'detail':
-			if (openGraphic.value) return [];
 			return pendingPart.value ? detailFields(selection).filter((field) => field.name === 'rotate-by') : detailFields(selection);
 		case 'footprint':
 			// A pending footprint's numbers are placeholder pixels; the Dimensions block below says so.
@@ -274,6 +276,12 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 			class="rp-designer-unscaled"
 		>
 			{{ tr('designer.selection.unscaled') }}
+		</p>
+		<p
+			v-if="openGraphic"
+			class="rp-designer-open-graphic"
+		>
+			{{ tr('designer.selection.open-graphic') }}
 		</p>
 		<template
 			v-for="item in selectedDetails"

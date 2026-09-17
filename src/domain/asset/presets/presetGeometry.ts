@@ -174,3 +174,35 @@ export function ringSector(outerRadius: number, depth: number, sweepDegrees: num
 		bulges: [-bulge, 0, bulge, 0],
 	};
 }
+
+/**
+ * A rectangle whose four corners are EXACT quarter circles of `radius` — the same `QUARTER_BULGE`
+ * a circle is drawn from, so a corner is a circular arc rather than an approximation of one
+ * (C04: "reusing circular arc representation where exact").
+ *
+ * Eight points, wound as `rect` winds four, with a corner arc on every second edge. `radius` must
+ * be positive and strictly under half the shorter side; at exactly half, two of the eight points
+ * coincide, and above it the outline crosses itself. **Nothing here checks that**, deliberately:
+ * the only caller derives the radius FROM the sides (`roundedRectOutline`, AD11), so an
+ * out-of-range value is unreachable from the product, and a guard nothing can drive costs a branch
+ * it can never pay back. What a caller handing one in would get is `createCurvedPolygon`'s own
+ * refusal, through `validateAssetShape`, which is where every other geometry rule is already asked.
+ *
+ * No radius is STORED anywhere (AD11, item 2): what is written is ordinary points and bulges, which
+ * is the answer presets already give. A later edit therefore maintains nothing — a nonuniform
+ * resize keeps each corner's bulge through its new chord, which is r1's stated approximation rather
+ * than a circle, and the existing bend handle edits a corner like any other curved edge.
+ */
+export function roundedRect(width: number, depth: number, radius: number, cx = 0, cy = 0): CurvedPolygon {
+	const halfWidth = width / 2, halfDepth = depth / 2;
+	const [left, right, top, bottom] = [cx - halfWidth, cx + halfWidth, cy - halfDepth, cy + halfDepth];
+	return {
+		points: [
+			{ x: left + radius, y: top }, { x: right - radius, y: top },
+			{ x: right, y: top + radius }, { x: right, y: bottom - radius },
+			{ x: right - radius, y: bottom }, { x: left + radius, y: bottom },
+			{ x: left, y: bottom - radius }, { x: left, y: top + radius },
+		],
+		bulges: [0, QUARTER_BULGE, 0, QUARTER_BULGE, 0, QUARTER_BULGE, 0, QUARTER_BULGE],
+	};
+}

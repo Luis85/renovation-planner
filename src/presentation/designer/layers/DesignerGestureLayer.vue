@@ -38,7 +38,11 @@ function toScreen(point: Point) {
 	return worldToScreen(point, viewport.value, STAGE_PIXELS);
 }
 
-/** A draw tool's in-flight detail (`DrawDetailTool`), already flattened in world space; projected here. */
+/**
+ * A draw tool's in-flight detail (`DrawDetailTool`, and `DrawLineTool` since AD11), already
+ * flattened in world space; projected here. Whether it CLOSES is `renderState.previewClosed` beside
+ * it: an open line's preview must not draw an edge its write does not contain.
+ */
 const previewFlat = computed(
 	() => props.renderState.previewPolygon?.flatMap((point) => {
 		const at = toScreen(point);
@@ -60,7 +64,7 @@ const previewFlat = computed(
 			:config="{
 				name: 'detail-preview',
 				points: previewFlat,
-				closed: true,
+				closed: props.renderState.previewClosed,
 				dash: [4, 4],
 				stroke: props.tokens.accent,
 				strokeWidth: 1.5,

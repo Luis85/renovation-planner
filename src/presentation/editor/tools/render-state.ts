@@ -90,6 +90,30 @@ export class RenderState {
 	 */
 	hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | 'resize' | null = null;
 	previewPolygon: readonly Point[] | null = null;
+	/**
+	 * Whether `previewPolygon` CLOSES. `true` for every writer but one, which is why it is a flag
+	 * beside the field rather than a richer type: the plan editor's translated ghost, its room
+	 * resize and the designer's box and circle are all closed, and widening the field would have
+	 * moved five call sites for one.
+	 *
+	 * The one is the designer's open-line tool (AD11). Its preview is the same dashed rubber band
+	 * as every other, and drawing it `closed` would put an edge from the last vertex back to the
+	 * first that the write does not contain — the wrong picture rather than a missing one, which is
+	 * what C10 refuses about an open graphic everywhere else.
+	 *
+	 * Read by `DesignerGestureLayer` alone today — which `grep -rn previewClosed src/` prints, and is
+	 * the narrow claim. The wider one this used to make was that the only OTHER reader of
+	 * `previewPolygon` is `InteractionLayer.vue`, and that is not what the grep prints:
+	 * `grep -rn previewPolygon src/` gives a third reader, `resize/RoomDimensionLabels.vue`, at four
+	 * sites. **The conclusion survives and the sentence had to be corrected anyway**, because the
+	 * count was offered as grepped: both of those readers hard-code their own `closed: true` — in
+	 * `InteractionLayer.vue`'s preview config and in the `points`/`bulges` config
+	 * `RoomDimensionLabels.vue` builds for a room being resized — so neither can see this field and
+	 * no plan-editor picture moves. Every WRITER of `previewPolygon` outside the
+	 * designer — `select-tool`, `rotationActions`, `roomDimensionAction`, `roomResizeAction` —
+	 * leaves this field at its default.
+	 */
+	previewClosed = true;
 	marquee: BoundingBox | null = null;
 	snapGuides: LineSegment[] = [];
 	/**
@@ -119,6 +143,7 @@ export class RenderState {
 		this.rotationHoverSuppressed = false;
 		this.hoveredTargetKind = null;
 		this.previewPolygon = null;
+		this.previewClosed = true;
 		this.marquee = null;
 		this.snapGuides = [];
 		this.measurement = null;

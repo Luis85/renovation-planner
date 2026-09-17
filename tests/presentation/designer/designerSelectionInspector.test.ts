@@ -19,7 +19,7 @@ import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { ValidationError } from '../../../src/core/errors/AppError';
 import type { Point } from '../../../src/core/geometry/Point';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
-import type { AssetShape } from '../../../src/domain/asset/AssetShape';
+import { validateAssetShape, type AssetShape } from '../../../src/domain/asset/AssetShape';
 import {
 	deleteDetail,
 	fitFootprintToDetails,
@@ -31,7 +31,7 @@ import { sameSelection, type DesignerSelection } from '../../../src/presentation
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
-import { shapeWithOpenGraphic, toiletShape } from '../../helpers/assetShapes';
+import { openGraphic, shapeWithOpenGraphic, toiletShape } from '../../helpers/assetShapes';
 import { expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
@@ -41,6 +41,15 @@ type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
 const TOILET = toiletShape();
 
 const BOWL: DesignerSelection = { kind: 'detail', id: 'detail-2' };
+
+/** A line with no depth at all: `shapeWithOpenGraphic`'s third graphic replaced by a flat run. */
+function flatLine(): AssetShape {
+	const base = shapeWithOpenGraphic();
+	return expectOk(validateAssetShape({
+		...base,
+		details: [...base.details.filter((detail) => detail.id !== 'detail-3'), openGraphic('detail-3', [{ x: -300, y: 0 }, { x: 300, y: 0 }])],
+	}));
+}
 
 /**
  * `advances`: the fake's LIVE shape takes each edit that lands while the props stay on the first read —
@@ -515,14 +524,20 @@ describe('the inspector in the mounted designer', () => {
 });
 
 /**
- * An OPEN graphic is a part that EXISTS (`selectionExists`), so this section mounts for one — and
- * every geometry field it draws reads `outlineOf`, which answers `null` for an open graphic by
- * design. Before this guard the section threw on mount the moment a path could be selected, which
- * the Parts panel is what makes possible.
+ * An OPEN graphic is a part that EXISTS (`selectionExists`), so this section mounts for one.
  *
- * The name, the line and the ordering actions are kept: none of them asks about an interior. Only
- * the centre, the size and the rotate-by field go, and they go until AD11 gives an open graphic its
- * own authoring gestures.
+ * **AD09 withheld its geometry fields and AD11 gives them back**, which is the change these cases
+ * are written against: `partMeasure` measures a path through the domain's own `detailBox`, and
+ * `moveOutline`/`rotateOutline`/`resizeBox` go through `mapPartOutline`, which keeps a graphic's
+ * kind. So centre, size and rotate-by mean for a line what they mean for a ring — the box its
+ * geometry reaches.
+ *
+ * What is NOT given back is a fill: the Line control is drawn and works, and one sentence says that
+ * for a line it is a dash pattern and nothing else (C10).
+ *
+ * `shapeWithOpenGraphic`'s path runs (-300,-200) → (0,-200) → (0,100), so its box is 300 x 300
+ * centred on (-150,-50) — both extents positive, which is what makes it the ORDINARY case and why
+ * the flat line below is built separately.
  */
 describe('an open graphic', () => {
 	const OPEN: DesignerSelection = { kind: 'detail', id: 'detail-3' };
@@ -540,9 +555,67 @@ describe('an open graphic', () => {
 		]);
 	});
 
-	it('withholds every field that would measure an interior it has not got', () => {
+	it('measures the box its geometry reaches, in the same five fields a closed graphic has', () => {
 		const { wrapper } = mountFor(OPEN, shapeWithOpenGraphic());
 
-		expect(wrapper.findAll('input[type="number"]')).toHaveLength(0);
+		expect(wrapper.findAll('input[type="number"]').map((input) => input.attributes('name'))).toEqual([
+			'centre-x',
+			'centre-y',
+			'width',
+			'depth',
+			'rotate-by',
+		]);
+		expect(numberFields(wrapper)).toMatchObject({ 'centre-x': '-150', 'centre-y': '-50', width: '300', depth: '300' });
+	});
+
+	it('says that solid and dashed are a line’s pattern and never a fill', () => {
+		const { wrapper } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		expect(wrapper.find('.rp-designer-open-graphic').text()).toBe(t('en', 'designer.selection.open-graphic'));
+		expect(mountFor(BOWL).wrapper.find('.rp-designer-open-graphic').exists()).toBe(false);
+	});
+
+	it('moves the whole path when a centre is typed, keeping it open', async () => {
+		const { wrapper, applied } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		await change(wrapper, 'centre-x', '0');
+
+		const moved = expectOk(applied[0]).details.find((detail) => detail.id === 'detail-3');
+		expect(moved?.kind).toBe('open');
+		expect(moved?.outline.points).toEqual([{ x: -150, y: -200 }, { x: 150, y: -200 }, { x: 150, y: 100 }]);
+	});
+
+	it('resizes it to the typed extent about its own box centre', async () => {
+		const { wrapper, applied } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		await change(wrapper, 'width', '600');
+
+		const resized = expectOk(applied[0]).details.find((detail) => detail.id === 'detail-3');
+		expect(resized?.outline.points).toEqual([{ x: -450, y: -200 }, { x: 150, y: -200 }, { x: 150, y: 100 }]);
+	});
+
+	/**
+	 * A FLAT line is the one case a size field cannot answer, and it is reachable only here: a closed
+	 * graphic must enclose an area, so both of its extents are positive. A scale about the box centre
+	 * multiplies the distance from it, and every point of a horizontal line is zero from it along y —
+	 * so the field says why rather than appearing to do nothing, which is C12's rule.
+	 */
+	it('refuses a depth for a flat line, and says why, rather than solving forever', async () => {
+		const { wrapper, applied } = mountFor(OPEN, flatLine());
+
+		expect(numberFields(wrapper).depth).toBe('0');
+		await change(wrapper, 'depth', '400');
+
+		expect(applied[0].ok).toBe(false);
+		expect(wrapper.find('[role="alert"]').text()).toBe(t('en', 'asset.extent-not-scalable'));
+	});
+
+	it('still stretches the axis it does have', async () => {
+		const { wrapper, applied } = mountFor(OPEN, flatLine());
+
+		await change(wrapper, 'width', '1200');
+
+		const resized = expectOk(applied[0]).details.find((detail) => detail.id === 'detail-3');
+		expect(resized?.outline.points).toEqual([{ x: -600, y: 0 }, { x: 600, y: 0 }]);
 	});
 });

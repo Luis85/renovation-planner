@@ -63,6 +63,14 @@ export function createEditorSnapService(enabled: () => boolean): SnapService {
  * Plan Editor and vice versa; what one list buys is that "does this tool constrain" has one
  * answer, so a tool that grows the constraint is advertised the moment it is added here rather
  * than in whichever of two lists its author happened to open.
+ *
+ * **`draw-line` is on it and `draw-rounded-rect` is not**, which is the same split
+ * `PRECISE_TOOLS` records for `draw-room` and for the same kind of reason: `DrawLineTool.landingPoint`
+ * hands `event.modifiers.shift` to `constrainDrawingPoint`, so a run's next vertex projects onto a
+ * whole angle from the last, while `draw-rounded-rect` IS `DrawDetailTool` — the class behind
+ * `draw-rect`, whose box is axis-aligned and has no free direction to constrain. It was AD11's
+ * review that put `draw-line` here: the tool honoured Shift from the day it was written and this
+ * list was the only thing that could have said so.
  */
 const CONSTRAINING_TOOLS: readonly ToolId[] = [
 	'draw-polygon',
@@ -78,6 +86,7 @@ const CONSTRAINING_TOOLS: readonly ToolId[] = [
 	'trace-footprint',
 	'trace-clearance',
 	'trace-detail',
+	'draw-line',
 	'set-facing',
 ];
 

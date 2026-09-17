@@ -24,7 +24,7 @@ import { DESIGNER_TOOL_LABELS } from '../../../src/presentation/designer/tools/r
 import { settle } from '../../helpers/editor';
 import { designerRig, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
-import { toiletShape } from '../../helpers/assetShapes';
+import { shapeWithOpenGraphic, toiletShape } from '../../helpers/assetShapes';
 
 /**
  * Every tool the toolbar offers, as `(id, label)` pairs read from the table the toolbar itself
@@ -91,8 +91,15 @@ describe('every tool the toolbar offers', () => {
 		rig.unmount();
 	});
 
-	/** The detail tools make the same promise: a traced vertex, a box's corner and a circle's centre land where pressed. */
-	it.each(['draw-rect', 'draw-circle', 'trace-detail'] as const)('gives %s the precise cursor too', async (id) => {
+	/**
+	 * The detail tools make the same promise: a traced vertex, a box's corner, a circle's centre, a
+	 * line's vertex and a rounded rectangle's corner all land where pressed.
+	 *
+	 * `draw-line` and `draw-rounded-rect` were added at AD11's review: the second IS `DrawDetailTool`,
+	 * the same class `draw-rect` is, and the first places vertices by click exactly as `trace-detail`
+	 * does — so a designer drawing tool without a crosshair was the one thing that separated them.
+	 */
+	it.each(['draw-rect', 'draw-circle', 'trace-detail', 'draw-line', 'draw-rounded-rect'] as const)('gives %s the precise cursor too', async (id) => {
 		const rig = await designerRig();
 
 		await press(rig, DESIGNER_TOOL_LABELS[id]);
@@ -127,7 +134,9 @@ describe('every tool the toolbar offers', () => {
 			t('en', 'designer.toolbar.trace-footprint'),
 			t('en', 'designer.toolbar.trace-clearance'),
 			t('en', 'designer.toolbar.draw-rect'),
+			t('en', 'designer.toolbar.draw-rounded-rect'),
 			t('en', 'designer.toolbar.draw-circle'),
+			t('en', 'designer.toolbar.draw-line'),
 			t('en', 'designer.toolbar.trace-detail'),
 			t('en', 'designer.toolbar.set-anchor'),
 			t('en', 'designer.toolbar.set-facing'),
@@ -232,6 +241,25 @@ describe('the shift hint', () => {
 		rig.unmount();
 	});
 
+	/**
+	 * The two tools AD11 added answer this question DIFFERENTLY, which is why both are asserted here
+	 * rather than only the one that was missing. `DrawLineTool.landingPoint` calls
+	 * `constrainDrawingPoint` with `event.modifiers.shift`, so the line tool honours the constraint
+	 * and owes the hint; `draw-rounded-rect` IS `DrawDetailTool`, which constrains nothing — the same
+	 * answer `draw-rect` already gets, for the same reason `draw-room` is off that list.
+	 */
+	it('appears for the line tool, which honours Shift, and not for the rounded rectangle, which does not', async () => {
+		const rig = await designerRig();
+		const hint = () => rig.wrapper.find('.rp-designer-hint');
+
+		await press(rig, 'designer.toolbar.draw-line');
+		expect(hint().text()).toBe(t('en', 'editor.hint.constrain-angle'));
+
+		await press(rig, 'designer.toolbar.draw-rounded-rect');
+		expect(hint().exists()).toBe(false);
+		rig.unmount();
+	});
+
 	it('is absent in camera mode, where no key would do anything', async () => {
 		const rig = await designerRig();
 
@@ -309,6 +337,61 @@ describe('the selection mode buttons', () => {
 			[t('en', 'designer.selection.mode.points'), t('en', 'designer.selection.mode.points.tip')],
 			[t('en', 'designer.selection.mode.bend'), t('en', 'designer.selection.mode.bend.tip')],
 		]);
+		rig.unmount();
+	});
+
+	/**
+	 * An OPEN graphic is offered only the mode it actually has (AD11 review, finding 1). `selectionHandles`
+	 * opens with `outlineOf`, which answers `null` for a path, so Edit points drew no vertex handles and
+	 * Bend edges drew no edge handles — two enabled buttons that produced nothing, on the card's very first
+	 * gesture, since `completeDetail` returns to Select with the new line selected.
+	 *
+	 * **Dropped rather than disabled**, which is the shape AD10's review accepted for the Arrange panel and
+	 * `DesignerArrangePanel`'s own docblock states: *"Which parts a control needs is what decides whether it
+	 * is DRAWN, never a `:disabled`"*. Transform stays, because its gesture works — a body drag, and the
+	 * inspector's centre, size and rotate fields — but it draws no box or rotate handle either, so its
+	 * tooltip says the gesture it really offers instead of the one a closed part gets.
+	 *
+	 * **The closed assertion first is what makes this case able to fail.** A component rendering nothing at
+	 * all satisfies the open half trivially; only the three-button expectation above it can tell "correctly
+	 * narrowed" from "never drawn".
+	 */
+	it('offers an open graphic only Transform, and tells it what Transform can still do', async () => {
+		const rig = await designerRig({ shape: shapeWithOpenGraphic() });
+		const store = useAssetDesignStore(rig.pinia);
+		const modes = () => rig.wrapper.findAll('.rp-designer-selection-modes button').map((button) => [button.text(), button.attributes('title')]);
+		await press(rig, 'designer.toolbar.select');
+
+		store.select({ kind: 'detail', id: 'detail-1' });
+		await settle();
+		expect(modes()).toEqual([
+			[t('en', 'designer.selection.mode.transform'), t('en', 'designer.selection.mode.transform.tip')],
+			[t('en', 'designer.selection.mode.points'), t('en', 'designer.selection.mode.points.tip')],
+			[t('en', 'designer.selection.mode.bend'), t('en', 'designer.selection.mode.bend.tip')],
+		]);
+
+		store.select({ kind: 'detail', id: 'detail-3' });
+		await settle();
+		expect(modes()).toEqual([[t('en', 'designer.selection.mode.transform'), t('en', 'designer.selection.mode.transform.open')]]);
+		rig.unmount();
+	});
+
+	/**
+	 * The footprint and the clearance are `CurvedPolygon`s by TYPE, so neither can ever be the open case —
+	 * asserted rather than reasoned, because the narrowing reads the selected part out of `shape.details`
+	 * and a version of it that answered on "not found" would take these two with it.
+	 */
+	it('keeps all three for the footprint and the clearance, which cannot be open', async () => {
+		const rig = await designerRig({ shape: shapeWithOpenGraphic() });
+		const store = useAssetDesignStore(rig.pinia);
+		const labels = () => rig.wrapper.findAll('.rp-designer-selection-modes button').map((button) => button.text());
+		await press(rig, 'designer.toolbar.select');
+
+		for (const part of [{ kind: 'footprint' }, { kind: 'clearance' }] as const) {
+			store.select(part);
+			await settle();
+			expect(labels()).toEqual([t('en', 'designer.selection.mode.transform'), t('en', 'designer.selection.mode.points'), t('en', 'designer.selection.mode.bend')]);
+		}
 		rig.unmount();
 	});
 });

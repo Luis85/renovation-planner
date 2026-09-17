@@ -6,7 +6,7 @@ import { boundingBoxOf, translate } from '../../core/geometry/operations';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, unwrap, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
-import { mapDetailOutline, type AssetDetail, type DetailLine } from './AssetDetail';
+import { mapDetailOutline, type AssetDetail, type ClosedDetail, type DetailLine, type OpenDetail } from './AssetDetail';
 import { validateAssetShape, type AssetShape } from './AssetShape';
 import { partNotFound } from './shapeEdits';
 
@@ -19,13 +19,17 @@ import { partNotFound } from './shapeEdits';
 /** How far a duplicate lands from its original, along +x and +y (Amendment 1). */
 export const DUPLICATE_OFFSET_MM = 100;
 
-/** A detail as a tool proposes it: everything but the id, which the shape assigns. */
-export interface NewDetail {
-	readonly name: string;
-	readonly outline: CurvedPolygon;
-	readonly line: DetailLine;
-	readonly pending: boolean;
-}
+/**
+ * A detail as a tool proposes it: everything but the id, which the shape assigns.
+ *
+ * **A union over `AssetDetail`'s own arms rather than a fourth spelling of a graphic** (AD11). It
+ * was `{ name, outline: CurvedPolygon, line, pending }`, which is the closed arm written out — so
+ * `addDetail` was the one door into the shape and it could only be handed a ring. That was correct
+ * while nothing could build an open one; AD04 recorded the day something could as the day this had
+ * to widen. Derived from the arms so it cannot drift from them, and so `label` (AD09) arrives here
+ * too rather than being the next field somebody notices is missing.
+ */
+export type NewDetail = Omit<ClosedDetail, 'id'> | Omit<OpenDetail, 'id'>;
 
 const NUMBERED_ID = /^detail-(\d+)$/;
 
@@ -134,7 +138,12 @@ function detailIndex(shape: AssetShape, id: string): Result<number, ValidationEr
 
 /** Appended, so the new detail draws on top. */
 export function addDetail(shape: AssetShape, detail: NewDetail): Result<AssetShape, ValidationError> {
-	return validateAssetShape({ ...shape, details: [...shape.details, { ...detail, id: nextDetailId(shape) }] });
+	const id = nextDetailId(shape);
+	// Both arms written out for `mapDetailOutline`'s reason: TypeScript cannot correlate a spread
+	// with a union, so `{ ...detail, id }` over the union is assignable to neither arm even though
+	// each arm's own spread is.
+	const added: AssetDetail = detail.kind === 'open' ? { ...detail, id } : { ...detail, id };
+	return validateAssetShape({ ...shape, details: [...shape.details, added] });
 }
 
 /** A copy directly above the original, offset by `offset`, with its name, line and pending flag. */

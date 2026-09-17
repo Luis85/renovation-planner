@@ -603,6 +603,13 @@ describe('every service leaving the composition root is guarded', () => {
 		// member — so the owners assertion alone would not have noticed them arriving. Both
 		// doors of both are driven by `guardWiring.test.ts` (a vault fault under each) and
 		// `writeIncidentWiring.test.ts` (the ADR-0034 gate over each).
+		//
+		// **These two assertions are a PRESENCE check and nothing more — do not cite them as
+		// the instrument that proves either factory is GUARDED.** Measured, not reasoned:
+		// composing both factories WITHOUT `guardZoneEdit` leaves this file at 12 passed,
+		// exit 0. What they hold is that both members exist on that bundle and take an
+		// argument; if either ever becomes zero-argument it moves to `discovered` and these
+		// redden. The two behavioural files named above are what would notice a lost guard.
 		expect(skipped.map((skip) => skip.path)).toContain('editorDeps.commands.editZoneDetails');
 		expect(skipped.map((skip) => skip.path)).toContain('editorDeps.commands.renameZone');
 		expect(owners).toEqual([

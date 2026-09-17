@@ -90,6 +90,15 @@ variable is invisible to it; and a call SITE is not a guarded DOOR — `guardBot
 already counted in the 44. "44 call sites" and "44 doors" are therefore different claims, and
 this ADR uses only the former.
 
+**Correction, 2026-09-17 (BP-02 slice 4, task L-05): the count is now 46 call sites in 14 files,
+and that supersedes every "44" in this document.** The same quoted instrument, re-run:
+`grep -rnE "guardCommand[<(]" src/plugin/ | wc -l` prints **46**, and `-rlE … | wc -l` prints
+**14**. The two new sites are both inside `src/plugin/guardedZoneEdit.ts`'s `guardZoneEdit`,
+which brought the Inspector's `'details'` and `'name'` zone edits inside the chokepoint — see
+the Coverage correction of the same date below. The recorded 44 is left standing wherever it
+appears because it was true when written; this paragraph is the number a reader should use, and
+the grep above is the thing to re-run rather than to trust either figure.
+
 **It is stored in its own plugin-local JSON file beside `sequence-markers.json`, not inside it.**
 Same narrow `TextFileAdapter` port, same single `KeyedQueues` lane, same versioned whole-envelope
 rewrite, same construction site in `RenovationPlannerPlugin`, wired the way `SequenceMarkerFileStore`
@@ -148,6 +157,21 @@ command" and runs regardless of any open incident. **This is a stated coverage g
 behaviour this ADR changes.** A later increment owns closing it, if it is closed at all; this
 record exists so a reader comparing coverage against the code finds the true boundary rather than
 an aspirational one.
+
+**Correction, 2026-09-17 (BP-02 slice 4, task L-05): the first of those three paths is CLOSED,
+and both paragraphs above are stale in the other direction.** `EditZoneDetailsCommand` and
+`ReversibleRenameZoneCommand` are no longer constructed against the raw `ZoneRepository` port in
+`inspector-wiring.ts` — its `'details'` and `'name'` arms now call `editZoneDetails` and
+`renameZone` factories composed through `guardZoneEdit` (`src/plugin/guardedZoneEdit.ts`) in
+`src/plugin/planEditorDeps.ts`, so BOTH doors of both adapters — `execute` and `undo` — pass
+through `guardCommand` and are refused while any incident is open. The file-and-line citations in
+the two paragraphs above (`inspector-wiring.ts:99` and `:101`) no longer name what they described;
+they are left as the record of what was true on 2026-09-16. **The remaining coverage gap is two
+paths, not three**: the geometry sidecar spread into `planEditorQueries`, and `relocateEvidence`'s
+host-rename listener. Beside them sits the wider one this ADR's Consequences correction already
+states — `reversible-delete-zone-command.ts`'s undo half, dispatched by `CommandHistory` against
+the raw `commands.zones` port, which is a CATEGORY rather than a path and has no check under it
+(tracker limitation L-06).
 
 **The gate is coarse, and that is a decision, not an omission.** While any incident file holds a
 record, every guarded COMMAND is refused; guarded QUERIES are not, so the vault stays inspectable

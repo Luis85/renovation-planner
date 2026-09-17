@@ -184,8 +184,10 @@ export class WriteIncidentRegistry {
  * The registry the guard consults, installed once by the composition root.
  *
  * **A module-level holder rather than a parameter, and the reason is the call sites.** The
- * refusal has to reach every guarded command, and there are 44 `guardCommand` call sites in
- * 13 files (`grep -rnE "guardCommand[<(]" src/plugin/`, 2026-09-16). A fifth parameter would
+ * refusal has to reach every guarded command, and there are 46 `guardCommand` call sites in
+ * 14 files (`grep -rnE "guardCommand[<(]" src/plugin/ | wc -l`, and the same pattern under
+ * `-rlE` for the files; re-measured 2026-09-17, 44 in 13 before BP-02 slice 4 added the
+ * Inspector's two zone edits). A fifth parameter would
  * have to be threaded through all of them, and an OPTIONAL one would relocate the forgetting
  * rather than close it — a site that omitted it would be silently ungated, which is the exact
  * shape ADR-0034 rejects intersection gating for. What that grep cannot see: a call reached

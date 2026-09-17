@@ -274,11 +274,22 @@ export async function assignedRequirementFixture(): Promise<
  * guarded, built here out of whichever repository and bus the rig is driving.
  *
  * Raw rather than guarded on purpose, and consistent with every other command these rigs
- * compose (`createZone`, `moveObject`, `deleteZone` are all bare classes here): what a mounted
- * editor's suite drives is presentation's own handling of a refusal or a throw, and
- * `editorFaults.test.ts` depends on a raw throw reaching it. The COMPOSED, guarded pair is the
- * subject of `tests/plugin/guardWiring.test.ts` and `tests/plugin/writeIncidentWiring.test.ts`
- * instead, where the composition root is the thing under test.
+ * compose: `createZone`, `moveObject` and `deleteZone` are bare application classes here too,
+ * and what a mounted editor's suite exists to drive is presentation's OWN handling of a refusal
+ * or a throw. `editorFaults.test.ts` is the case that depends on a raw throw reaching
+ * presentation — but through the DELETE flow and a tool gesture, not through either of these
+ * two: `grep -n "editZoneDetails\|renameZone\|'name'\|'details'"
+ * tests/presentation/editor/editorFaults.test.ts` prints nothing (2026-09-17). So the argument
+ * is about these rigs as a whole and was never a measured fact about this pair; it is written
+ * that way here because an earlier version of this sentence cited that file as though it had
+ * been.
+ *
+ * **The cost, stated rather than left to be found: these rigs compose these two edits
+ * DIFFERENTLY from production.** Since BP-02 slice 4 the plugin composes them guarded, so
+ * `roomNaming.e2e.test.ts` drives a rename through a composition the plugin no longer ships and
+ * no mounted suite can see the guard. The COMPOSED, guarded pair is the subject of
+ * `tests/plugin/guardWiring.test.ts` and `tests/plugin/writeIncidentWiring.test.ts` instead —
+ * the latter driving it through the real `createInspector`, which is the switch that decides.
  */
 export function zoneEditCommands(zones: ZoneRepository, events: EventBus): {
 	editZoneDetails: (ledger: WriteLedger, input: EditZoneDetailsInput) => UndoableCommand;

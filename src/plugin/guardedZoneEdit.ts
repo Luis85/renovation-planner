@@ -25,12 +25,32 @@ import { VAULT_EXCEPTION_MAPPER } from './guardedServices';
  * who supplies the argument. `tests/plugin/guardWiring.test.ts` measures the door list rather
  * than assuming it and drives all four.
  *
- * In its own file rather than beside `guardCalibratePlan`, and that is a measurement rather than
- * taste: `guardedServices.ts` reached EXACTLY its 400-line `max-lines` cap with this function in
- * it — probed by appending three code lines and reading ESLint's own count back
- * (`File has too many lines (403). Maximum allowed is 400`), so the next line of code anywhere in
- * that file would have forced this extraction anyway. `guardedPlanNorth.ts` is the shape copied:
- * a one-function module importing `VAULT_EXCEPTION_MAPPER` rather than taking it as a parameter.
+ * **Its body is `guardedPlanNorth.ts`'s inner block character for character, and nothing in it
+ * is zone-specific** — it guards both doors of ANY `UndoableCommand` under two event names, and
+ * the name is about its one caller rather than about that shape. Said plainly rather than
+ * refactored away: collapsing the two would edit `guardedPlanNorth`'s call site to share three
+ * lines, and a sibling file per guarded factory is already this repository's shape —
+ * `ls src/plugin/guarded*.ts` printed nine on 2026-09-17: `guardedAssetLibrary.ts`,
+ * `guardedAssetPrice.ts`, `guardedGroups.ts`, `guardedPlanNorth.ts`, `guardedReferencePlan.ts`,
+ * `guardedRenovation.ts` and `guardedStructure.ts` beside the `guardedServices.ts` hub and this
+ * file. A third caller is the trigger for sharing it; two is a clone the reader can see whole.
+ *
+ * **In its own file rather than beside `guardCalibratePlan`, and the measurement behind that has
+ * been RE-PROBED — the first version of this paragraph got it wrong.** It claimed
+ * `guardedServices.ts` reached EXACTLY its 400-line cap with this function in it. It does not.
+ * Re-measured 2026-09-17 by appending 400 throwaway `export const PROBE_i = i;` lines and reading
+ * ESLint's own count back (`max-lines` is `{ max: 400, skipBlankLines: true, skipComments: true }`,
+ * so `wc -l` overstates by a wide margin):
+ *
+ * - `guardedServices.ts` bare → `File has too many lines (786)`, i.e. **386** counted;
+ * - `guardedServices.ts` with this function and its one missing import folded in → **(796)**,
+ *   i.e. **396** counted — the function costs **10** counted lines there and would have left
+ *   **4** of headroom, not zero;
+ * - this file standing alone → **(413)**, i.e. **13** counted lines.
+ *
+ * Four lines is thin enough that a concurrent branch adding five would have produced a red merge,
+ * which is the argument the extraction actually rests on — but "thin" is what the probe supports
+ * and "exactly at the cap" is not, so the sentence is written to what the probe printed.
  */
 export function guardZoneEdit(
 	transaction: UndoableCommand,

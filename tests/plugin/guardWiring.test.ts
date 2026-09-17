@@ -210,14 +210,27 @@ describe('the calibration transaction leaves the composition root guarded', () =
  * `execute` guarded beside a raw `undo` is a wrapper by every structural test anyone can
  * write — the shape `guardCategory.test.ts`'s header exists to refuse.
  *
- * The door list is TWO per adapter, measured rather than assumed — every member indented one
- * level in either class, listed with a literal tab in the pattern:
- * `grep -nE "^<TAB>[a-z]" src/application/commands/zone/EditZoneDetails.ts
- *  src/application/commands/zone/reversible-rename-zone-command.ts`
- * printed 14 lines on 2026-09-17 — nine for `EditZoneDetails.ts` (four `EditZoneDetailsInput`
- * fields, `private generation`, the constructor, `execute`, `undo`, `private async dispatch`)
- * and five for the rename adapter (the same, minus the input fields). Exactly `execute()` and
- * `undo()` are public per class; nothing else is callable from outside.
+ * The door list is TWO per adapter, measured rather than assumed — and it takes THREE
+ * measurements, because the single grep an earlier version of this header quoted could not see
+ * the whole of what the sentence beneath it claimed. All run 2026-09-17 over
+ * `src/application/commands/zone/EditZoneDetails.ts` and
+ * `src/application/commands/zone/reversible-rename-zone-command.ts`:
+ *
+ * 1. Members indented exactly one level, with a literal tab in the pattern (`grep -E` does not
+ *    read `\t` as one, which is why an earlier spelling printed nothing and would have been a
+ *    false "no second door"): `grep -nE "^<TAB>[a-z]" <both files>` printed 14 lines — nine for
+ *    `EditZoneDetails.ts` (four `EditZoneDetailsInput` fields, `private generation`, the
+ *    constructor, `execute`, `undo`, `private async dispatch`) and five for the rename adapter
+ *    (the same, minus the input fields). In what it prints, exactly `execute()` and `undo()`
+ *    are public.
+ * 2. Neither class has a base, so there is no inherited member for (1) to have missed:
+ *    `grep -nE "^export class .*\bextends\b" <both files>` printed nothing (exit 1).
+ * 3. Neither declares an accessor, which (1) would have printed looking like a method:
+ *    `grep -nE "\b(get|set)[[:space:]]+[a-zA-Z_]" <both files>` printed nothing (exit 1).
+ *
+ * What none of the three can see is a member indented other than one tab. Neither file has one
+ * — read whole — but that is a reading rather than a check, and this header says so rather than
+ * letting the greps be quoted for more than they cover.
  */
 describe("the Inspector's zone edits leave the composition root guarded", () => {
 	const ZONE_ID = 'zone-1' as never;

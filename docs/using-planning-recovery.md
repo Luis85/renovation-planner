@@ -35,12 +35,13 @@ An incomplete-write warning means a multi-file operation could neither finish no
 partial writes. Inspect the Plan note and related geometry against your backup before making
 further changes. This pauses writing everywhere in the vault, not only in the tab that raised
 it — most of what the plugin offers as a command or form is refused until the incident is
-resolved. A few actions are outside this pause — editing a zone's details, renaming a zone, and
-undoing a zone deletion among them — and for those the plugin may neither pause nor remember:
-if one of them leaves files half-written, it can fail without ever recording an incident, and
-the warning you are reading now would not appear for it at all. So do not read any single
-action still working as proof the incident has cleared, and do not treat a quiet failure in one
-of those actions as nothing having happened. Stop making changes anywhere in the vault and
+resolved. Not everything is inside this pause. Undoing a zone deletion is the one action known
+to be outside it, and nothing in the plugin checks for another like it, so there may be others.
+For an action outside the pause the plugin may neither pause nor remember: if it leaves files
+half-written, it can fail without ever recording an incident, and the warning you are reading
+now would not appear for it at all. So do not read any single action still working as proof the
+incident has cleared, and do not treat a quiet failure as nothing having happened.
+Stop making changes anywhere in the vault and
 inspect the affected files against your backup instead. Reading, navigating and inspecting still work: that is deliberate,
 because comparing the affected files against your backup is the recovery, and a plugin that
 also blocked reading would take away the one tool you have for it.

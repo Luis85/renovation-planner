@@ -80,8 +80,14 @@ export const WRITES_PAUSED_CODE = 'write-incident.writes-paused';
  * passes `input` through unread, and eleven sampled command input types use five different id
  * field names (`assetId`, `planId`, `zoneId`, `requirementId`, `projectId`) while the two
  * creation commands carry no id of their own at all — `CreatePlanInput` carries its PARENT's.
- * An intersection gate would therefore need a declaration added at all 44 `guardCommand` call
- * sites, which relocates the forgetting rather than closing it; and the recorded affected set
+ * An intersection gate would therefore need a declaration added at every `guardCommand` call
+ * site — **46 of them in 14 files**, re-measured 2026-09-17 with
+ * `grep -rnE "guardCommand[<(]" src/plugin/ | wc -l` for the sites and the same pattern under
+ * `-rlE … | wc -l` for the files (it read 44 in 13 until BP-02 slice 4 brought the Inspector's
+ * two zone edits inside the gate; a count is a fact that goes stale, so it is re-derived rather
+ * than remembered) — which relocates the forgetting rather than closing it. What that grep
+ * cannot see: a call reached through an alias, a re-export or a variable, since it matches the
+ * literal text `guardCommand(` or `guardCommand<`. And the recorded affected set
  * is knowingly incomplete (ADR-0034's identity ruling), so a gate built on it would read as
  * precise while missing the writes the incomplete sites failed to name.
  *

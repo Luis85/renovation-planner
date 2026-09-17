@@ -104,6 +104,21 @@ Written 2026-09-17 during wave 2.
       cannot be met without a new command arm with its own calibration and pending-flag answers.
       Decide whether that is owed here or is its own card.
 
+## AD11 — candidate `eab8cb00c` (branch `ad11-open-lines`), in review
+
+- [ ] **`domain/asset/arrangeDetails.ts`'s header carries a paragraph that AD11 makes stale**, and
+      that file is outside AD11's lease so its worker correctly did not touch it. It says *"The two
+      disagree about an OPEN graphic, and that is AD11's to reconcile rather than this module's"*
+      and then describes `outlineOf` answering `null` for a path so every single-part gesture refuses
+      a line. **Do this only AFTER AD11 integrates** — until then the paragraph is true, and editing
+      it early would make the file claim something this branch has not yet delivered. Rewrite it from
+      what the code then does rather than from this note: the finisher reports `outlineOf` is
+      byte-identical and a new sibling carries the open case, so the reconciliation is not the
+      widening the paragraph anticipates.
+- [ ] Eight out-of-lease edits were KEPT with reasons, including two files I explicitly forbade
+      (`render-state.ts`, `detailEdits.ts`). The review's verdict on each is the gate; anything it
+      calls unjustified comes back out before integration.
+
 ## Standing, not per-candidate
 
 - [x] **DONE** — Re-run all six gates on **each** integration SHA, serially, one heavy command at a time:

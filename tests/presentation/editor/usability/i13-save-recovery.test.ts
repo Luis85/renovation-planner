@@ -117,6 +117,16 @@ it('I13 keeps the read retry while the vault is paused by an incident this leaf 
 	await installOpenWriteIncident();
 	const { wrapper, retry } = mountedRecovery();
 
+	// **The precondition gets its own assertion, because every assertion below it is NEGATIVE.**
+	// "The panel is unchanged" is also exactly what a build where the vault fact never arrived
+	// looks like, so without this line the case would certify the gap it exists to guard.
+	// Measured rather than argued, 2026-09-17: with the store's seed reverted to `ref(false)` AND
+	// `with-save-state-tracking.ts`'s `markVaultPaused` call short-circuited — so the vault fact
+	// reaches this leaf through neither door — `npx vitest run <this file>` exits 1 with
+	// `2 failed | 3 passed`, and BOTH failures are THIS line
+	// (`AssertionError: expected false to be true`). Every panel assertion below it stayed green
+	// under that mutation, which is the whole reason this line exists.
+	expect(useSaveStateStore().unrecoveredWrite).toBe(true);
 	expect(wrapper.attributes('data-rp-recovery-state')).toBe('read-failed');
 	expect(wrapper.text()).toContain(t('en', 'planning.recovery.draft'));
 	expect(wrapper.findAll('button')).toHaveLength(2);
@@ -144,6 +154,9 @@ it('I13 keeps the read retry after the vault-wide gate refuses this leaf’s nex
 	await history.run({ execute: () => guarded.execute(undefined), undo: () => guarded.execute(undefined) });
 	await wrapper.vm.$nextTick();
 
+	// The same guard as the case above, over the catch-up door rather than the seed: the refusal
+	// has to have reached the store before "the panel is unchanged" means anything.
+	expect(useSaveStateStore().unrecoveredWrite).toBe(true);
 	expect(wrapper.attributes('data-rp-recovery-state')).toBe('read-failed');
 	expect(wrapper.text()).toContain(t('en', 'planning.recovery.draft'));
 	expect(wrapper.findAll('button')).toHaveLength(2);

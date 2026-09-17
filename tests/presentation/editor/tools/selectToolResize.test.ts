@@ -40,6 +40,10 @@ it('predicts a transform box handle on hover with the grab cursor, then resizes 
 	expect(moveElement).not.toHaveBeenCalled();
 });
 
+it('promises a grab over an opening handle', () => {
+	expect(cursorClassFor({ panPhase: 'idle', activeToolId: 'select', hoveredObjectId: 'opening-a', hoveredTargetKind: 'opening-handle' })).toBe('rp-plan-canvas-grab');
+});
+
 it('abandons a resize on cancel and offers no handles when the facade answers no box', () => {
 	const { tool, commitResize, previewResize } = rig();
 	tool.pointerDown(pointerAt(1012, 512)); tool.pointerMove(pointerAt(1512, 1012));

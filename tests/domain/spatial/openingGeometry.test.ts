@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
-import { openingOffsetAt, openingSymbol } from '../../../src/domain/spatial/openingGeometry';
-import { alongWall, endForWallLength, wallLength, wallTangent, type Opening, type Wall } from '../../../src/domain/spatial/Structure';
+import { flippedOpening, openingOffsetAt, openingSymbol, resizedOpening, steppedOpening } from '../../../src/domain/spatial/openingGeometry';
+import { alongWall, endForWallLength, wallLength, wallTangent, type Opening, type OpeningSwing, type Wall } from '../../../src/domain/spatial/Structure';
 import { rotateWallStructure } from '../../../src/domain/spatial/rotateWall';
 import { scaleStructure } from '../../../src/domain/spatial/structureGeometry';
 import { expectOk } from '../../helpers/domain';
@@ -73,4 +73,50 @@ it('carries persisted swing through host rotation and calibration while deriving
 	const scaled = scaleStructure(turned, 2);
 	expect(scaled.openings[0].swing).toEqual(opening.swing);
 	expect(scaled.openings[0].width).toBe(1800);
+});
+
+it('moves one edge of an opening and holds the other still', () => {
+	const wider = resizedOpening(door, wall, 'start', 500);
+	expect(wider).toEqual({ ...door, offset: 500, width: 1200 });
+	const narrower = resizedOpening(door, wall, 'end', 1200);
+	expect(narrower).toEqual({ ...door, offset: 800, width: 400 });
+	// Dragging one edge past the other is a flip, not a negative width: the edges swap roles.
+	const flipped = resizedOpening(door, wall, 'start', 2000);
+	expect(flipped).toEqual({ ...door, offset: 1700, width: 300 });
+});
+
+it('refuses a width edit that collapses the opening or leaves the host', () => {
+	expect(resizedOpening(door, wall, 'start', 1700)).toBeNull();   // onto the fixed edge: zero width
+	expect(resizedOpening(door, wall, 'end', 800)).toBeNull();      // onto the fixed edge from the other side
+	expect(resizedOpening(door, wall, 'start', -1)).toBeNull();     // before the host's start
+	expect(resizedOpening(door, wall, 'end', 4001)).toBeNull();     // past the host's end
+	expect(resizedOpening(door, wall, 'end', Number.NaN)).toBeNull();
+});
+
+it('steps an opening along its host and clamps it to the ends', () => {
+	expect(steppedOpening(door, wall, 100)).toEqual({ ...door, offset: 900 });
+	expect(steppedOpening(door, wall, -100)).toEqual({ ...door, offset: 700 });
+	// Clamped, not refused: a step that would overshoot lands on the end.
+	expect(steppedOpening(door, wall, -5000)).toEqual({ ...door, offset: 0 });
+	expect(steppedOpening(door, wall, 5000)).toEqual({ ...door, offset: 3100 });
+});
+
+it('refuses a step that changes nothing and one it cannot measure', () => {
+	expect(steppedOpening({ ...door, offset: 0 }, wall, -100)).toBeNull();
+	expect(steppedOpening({ ...door, offset: 3100 }, wall, 100)).toBeNull();
+	expect(steppedOpening(door, wall, 0)).toBeNull();
+	expect(steppedOpening(door, wall, Number.NaN)).toBeNull();
+	// An opening wider than its host has no legal range at all.
+	expect(steppedOpening({ ...door, width: 5000 }, wall, 100)).toBeNull();
+});
+
+it('puts a leaf on either wall face and materialises the default swing to do it', () => {
+	// `door` stores no swing; pressing a chevron IS the user choosing one, so the default is written out.
+	expect(flippedOpening(door, 'right')).toEqual({ ...door, swing: { hinge: 'start', side: 'right', angle: 90 } });
+	const hinged: OpeningSwing = { hinge: 'end', side: 'left', angle: 45 };
+	expect(flippedOpening({ ...door, swing: hinged }, 'right')).toEqual({ ...door, swing: { ...hinged, side: 'right' } });
+	// Re-choosing the side the leaf is already on is permitted; the write path refuses the no-op document.
+	expect(flippedOpening({ ...door, swing: hinged }, 'left')).toEqual({ ...door, swing: hinged });
+	// A plain opening has no leaf.
+	expect(flippedOpening({ ...door, kind: 'opening' }, 'right')).toBeNull();
 });

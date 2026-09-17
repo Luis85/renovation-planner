@@ -131,3 +131,21 @@ export const ROTATION_PIVOT_DEADZONE_PX = 8;
 export const TRANSFORM_BOX_PADDING_PX = 12;
 /** The drawn side of a transform box handle square; the grab reach is `VERTEX_GRAB_RADIUS_PX`, like a vertex. */
 export const TRANSFORM_HANDLE_SIZE_PX = 8;
+
+/**
+ * The radius of a selected opening's own handles — its two width grips, its move grip and its two
+ * step arrows. Its own constant rather than a reuse of `VERTEX_HANDLE_RADIUS_PX`: these are drawn
+ * larger because five of them share one opening's width and a user aims at a specific one, so a
+ * future change to a zone's vertex dot must not silently move them.
+ *
+ * The GRAB radius is `VERTEX_GRAB_RADIUS_PX`, like every other handle — see the module comment on
+ * why a pointing target is deliberately larger than the mark drawn for it.
+ */
+export const OPENING_HANDLE_RADIUS_PX = 7;
+
+/**
+ * How far OUTSIDE a wall face an opening's side chevron is drawn. Measured from the face rather
+ * than from the centre-line, so an asymmetric wall (`sideExtents`) puts each chevron clear of its
+ * own face instead of burying one inside the wall body.
+ */
+export const OPENING_CHEVRON_GAP_PX = 18;

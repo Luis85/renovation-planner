@@ -192,6 +192,11 @@ const emptyStateKey = computed<'noShape' | 'noBackground' | null>(() => {
  * `noShape` needs no such guard: Task B8's dimensions dialog is a member of THIS component's
  * own script, not a port that might be unbound, so `EMPTY_STATE_CONTENT.assetDesigner.noShape`'s
  * `actionLabel` is reachable unconditionally the moment it is declared.
+ *
+ * **This is the RANKED path alone since AD07.** The other two entry paths are buttons in
+ * `EmptyState`'s `actions` slot below, which is why a `noBackground` state with no picker bound
+ * still draws a panel with two live controls in it rather than none: the stripped label is the
+ * one gesture nothing can perform, not the whole offer.
  */
 const overlay = computed<EmptyStateProps | null>(() => {
 	const key = emptyStateKey.value;
@@ -287,20 +292,32 @@ async function startFromPreset(): Promise<void> {
 }
 
 /**
- * The empty state's `@action`, for BOTH entries now that Task B8 has given `noShape` one too.
+ * The reference gesture, and the ONE place it is written — `editDimensions`'s rule applied to
+ * the third entry path, because AD07 gave it two callers: the ranked action of the
+ * `noBackground` state, and the alternative offered from `noShape`.
  *
  * Cancelling the picker (`null`) dispatches nothing: a cancelled pick is not a chosen
  * reference, and `SetAssetBackground` has no meaning applied to data the user never supplied.
  */
+async function traceReference(): Promise<void> {
+	const picker = context.picker;
+	if (picker === null) return;
+	// `picked`, not `ref`: this script imports Vue's own `ref` since the background status
+	// arrived, and `no-shadow` fails the build on the collision.
+	const picked = await picker.pick();
+	if (picked === null) return;
+	await runtime.setBackground(picked);
+}
+
+/**
+ * The empty state's `@action` — the path `selectAssetDesignerEmptyState` RANKS FIRST, which is
+ * all that selector has ever decided (`selectors.ts`'s own header: "prominence rather than
+ * access"). The other two paths are offered beside it in the `actions` slot below and call the
+ * same two functions this does.
+ */
 async function onEmptyStateAction(): Promise<void> {
 	if (emptyStateKey.value === 'noBackground') {
-		const picker = context.picker;
-		if (picker === null) return;
-		// `picked`, not `ref`: this script imports Vue's own `ref` since the background status
-		// arrived, and `no-shadow` fails the build on the collision.
-		const picked = await picker.pick();
-		if (picked === null) return;
-		await runtime.setBackground(picked);
+		await traceReference();
 		return;
 	}
 	if (emptyStateKey.value === 'noShape') await editDimensions();
@@ -490,7 +507,50 @@ onMounted(() => {
 						v-bind="overlay"
 						overlay
 						@action="onEmptyStateAction"
-					/>
+					>
+						<!--
+							AD07: all THREE entry paths at the empty state, not only the one the
+							selector ranks. The ranked one is the `actionLabel` above; these are the
+							rest, each calling the very function that path's ranked caller calls, so
+							the two spellings of one gesture cannot drift.
+
+							`.rp-empty-state__action` is not decoration — `styles/empty-state.css`
+							hangs `pointer-events: auto` and this surface's readable focus ring off
+							exactly that class, and an overlay's children are `pointer-events: none`
+							otherwise. They wear no second class: the cases here find them by their
+							WORDS, and `.rp-designer-entry-path` was a hook nothing ever reached for
+							(AD07 review, FIX 5.1).
+
+							Each is offered only where it is not already the ranked action, and the
+							reference path only where a picker is bound at all — slice 14's
+							Amendment 1 reaches an alternative exactly as it reaches a primary.
+						-->
+						<template #actions>
+							<button
+								v-if="emptyStateKey === 'noBackground'"
+								type="button"
+								class="rp-empty-state__action"
+								@click="() => void editDimensions()"
+							>
+								{{ tr('empty.asset.no-shape.action') }}
+							</button>
+							<button
+								v-if="emptyStateKey === 'noShape' && context.picker !== null"
+								type="button"
+								class="rp-empty-state__action"
+								@click="() => void traceReference()"
+							>
+								{{ tr('empty.asset.no-background.action') }}
+							</button>
+							<button
+								type="button"
+								class="rp-empty-state__action"
+								@click="() => void startFromPreset()"
+							>
+								{{ tr('designer.inspector.start-preset') }}
+							</button>
+						</template>
+					</EmptyState>
 				</DesignerCanvas>
 			</div>
 			<!--

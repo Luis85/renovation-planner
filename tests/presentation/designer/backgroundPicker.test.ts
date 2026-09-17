@@ -14,7 +14,7 @@
  * a claim about what actually reached the vault rather than about a mock's own bookkeeping.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { flushPromises, mount } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import AssetDesignerRoot from '../../../src/presentation/designer/AssetDesignerRoot.vue';
@@ -24,6 +24,7 @@ import {
 } from '../../../src/presentation/designer/AssetDesignerContext';
 import type { BackgroundPicker } from '../../../src/presentation/designer/ports';
 import { ok } from '../../../src/core/result/Result';
+import { t } from '../../../src/presentation/i18n/strings';
 import { recorder } from '../../helpers/logger';
 import { expectOk } from '../../helpers/domain';
 import { seeded } from '../../helpers/assetDesignHarness';
@@ -98,15 +99,39 @@ async function mountDesigner(options: { readonly picker: BackgroundPicker | null
 	return { wrapper, harness };
 }
 
+/**
+ * The BACKGROUND gesture BY ITS WORDS (AD07 review, FIX 4). `.rp-empty-state__action` matched one
+ * button when these cases were written and matches three since AD07 put every entry path in this
+ * panel, so a first match is the reference path only while the ranking happens to put it first.
+ * *"does nothing when the picker is cancelled"* is the case that made this worth fixing rather
+ * than noting: ranked differently it would press Set dimensions, correctly observe that
+ * `setBackground` was never used, and pass VACUOUSLY.
+ */
+function referencePath(wrapper: VueWrapper) {
+	const label = t('en', 'empty.asset.no-background.action');
+	const found = wrapper.findAll('.rp-empty-state__action').find((button) => button.text() === label);
+	if (found === undefined) throw new Error(`the empty state offers no path labelled ${label}`);
+	return found;
+}
+
 describe('the designer’s background picker', () => {
 	/**
 	 * Slice 14's Amendment 1, applied to a picker rather than to a form: a button whose picker
 	 * is unbound would be a live control that does nothing the moment it were pressed.
+	 *
+	 * **Asked of the BACKGROUND gesture by its words rather than of the panel's button count**,
+	 * since AD07: the empty state offers three entry paths now, and the other two — measurements
+	 * and preset — need no port at all, so they are correctly still there. This case read
+	 * `.rp-empty-state__action` does not exist, which was the same sentence while the panel had
+	 * one button and is a different, wrong one now. Watched red against AD07's change before it
+	 * was narrowed.
 	 */
 	it('draws no background button when no picker is bound, rather than a control that does nothing', async () => {
 		const { wrapper } = await mountDesigner({ picker: null });
 
-		expect(wrapper.find('.rp-empty-state__action').exists()).toBe(false);
+		const labels = wrapper.findAll('.rp-empty-state button').map((button) => button.text());
+		expect(labels).not.toContain(t('en', 'empty.asset.no-background.action'));
+		expect(labels.length).toBeGreaterThan(0);
 	});
 
 	it('opens the picker from the empty state action and stores what it returns', async () => {
@@ -115,7 +140,7 @@ describe('the designer’s background picker', () => {
 		const { wrapper, harness } = await mountDesigner({ picker });
 		const setBackground = vi.spyOn(harness.bundle.setBackground, 'executeWithVersion');
 
-		await wrapper.find('.rp-empty-state__action').trigger('click');
+		await referencePath(wrapper).trigger('click');
 		await flushPromises();
 
 		expect(picker.pick).toHaveBeenCalled();
@@ -132,7 +157,7 @@ describe('the designer’s background picker', () => {
 		const { wrapper, harness } = await mountDesigner({ picker });
 		const setBackground = vi.spyOn(harness.bundle.setBackground, 'executeWithVersion');
 
-		await wrapper.find('.rp-empty-state__action').trigger('click');
+		await referencePath(wrapper).trigger('click');
 		await flushPromises();
 
 		expect(setBackground).not.toHaveBeenCalled();
@@ -153,10 +178,10 @@ describe('the designer’s background picker', () => {
 			global: { plugins: [pinia, VueKonva], provide: { [ASSET_DESIGNER_CONTEXT as symbol]: ctx } },
 		});
 		await flushPromises();
-		expect(wrapper.find('.rp-empty-state__action').exists()).toBe(true);
+		const action = referencePath(wrapper);
 
 		(ctx as { picker: BackgroundPicker | null }).picker = null;
-		await wrapper.find('.rp-empty-state__action').trigger('click');
+		await action.trigger('click');
 		await flushPromises();
 
 		expect(picker.pick).not.toHaveBeenCalled();

@@ -1,0 +1,53 @@
+/*
+ * AD07's PRESET GALLERY — the grid of thumbnail buttons `AssetPresetForm.vue` draws inside the
+ * preset dialog, in place of the `<select>` it replaced.
+ *
+ * Its own partial rather than more of `styles/designer.css`, for three reasons and the first is
+ * the one that decides: `styles/` partitions by SURFACE, and a dialog-scoped gallery is not the
+ * designer shell. `designer.css` is also AD06's file in AD01 §2, lent to this wave rather than
+ * given; and it stood at EXACTLY the assembler's 400-line cap (`scripts/styles-assemble.mjs`,
+ * `MAX_LINES`) with these rules in it, so the next line anyone added to that partial failed
+ * `npm run build` rather than a test.
+ *
+ * Imported AFTER `designer.css`, which is load-bearing rather than incidental:
+ * `.rp-preset-gallery .rp-asset-preset-preview` below and `.rp-asset-preset-form
+ * .rp-asset-preset-preview` there both score (0,2,0) and both match a thumbnail, so the
+ * thumbnail's 48px beats the live preview's 160px by SOURCE ORDER alone. Moving this import
+ * above `designer.css` would give every thumbnail the full preview height and fail no gate.
+ */
+.rp-preset-gallery {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+	gap: var(--size-4-1);
+}
+
+/* One thumbnail button per preset, the chosen one ringed. */
+.rp-preset-gallery .rp-preset-choice[aria-pressed='true'] {
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/*
+ * THE RING THE RULE ABOVE TAKES AWAY, given back (AD07 review, FIX 1).
+ *
+ * Obsidian's own focus ring for a button IS a `box-shadow`, at `button:focus-visible`, specificity
+ * (0,1,1) — its global `:focus { outline: none }` has already taken the outline. The pressed rule
+ * above scores (0,3,0) and sets `box-shadow` unconditionally, so on the one button in the gallery
+ * carrying `aria-pressed="true"` it REPLACES the host's ring: that button then looks identical at
+ * rest and when tabbed to, and a keyboard user cannot see where they are. It is the same defect
+ * `styles/asset-row.css` records for `.rp-al-row--on`, and `tests/build/buttonFocusRing.test.ts`
+ * reported this file's own selector by name before this rule existed.
+ *
+ * An `outline` rather than a layered shadow, which is the spelling every other control in `styles/`
+ * uses: it is a DIFFERENT property, so it neither replaces the pressed ring nor is replaced by it,
+ * and at (0,2,0) it beats the host's `:focus` outline reset. Unscoped by the gallery on purpose —
+ * `.rp-preset-choice` is drawn nowhere else, and an unconditional ring covers the pressed site and
+ * every unpressed button alike.
+ */
+.rp-preset-choice:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.rp-preset-gallery .rp-asset-preset-preview {
+	height: 48px;
+}

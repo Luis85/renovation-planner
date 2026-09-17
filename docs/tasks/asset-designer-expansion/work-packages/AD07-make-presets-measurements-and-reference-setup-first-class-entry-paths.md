@@ -46,3 +46,35 @@ These are investigation/ownership entry points, not blanket edit permission. Res
 Use [TASK-REPORT.md](../templates/TASK-REPORT.md). Record exact base/candidate/integrated commits, contract revision, files changed, tests and exit codes, acceptance coverage, screenshots where relevant, and all verification not performed. Apply [DECISIONS.md](../contracts/DECISIONS.md) and the task-specific requirements above.
 
 No task is verified until its actual integration wiring and relevant consumers pass the required checks. The worker cannot waive missing dependencies, future-schema refusal, negative cases or a real-host test by declaring completion.
+
+## Amendments
+
+### Amendment 1 — the optional descriptive height is DEFERRED, not delivered (2026-09-17, accepted at the AD07 review)
+
+Implementation item 3 reads *"Create a named measured rectangle with optional descriptive height;
+price/category/supplier must not block creation."* The named measured rectangle and the
+non-blocking catalogue fields shipped. **The optional descriptive height did not**, and the reason
+recorded in the first candidate's report was the wrong one.
+
+**The binding constraint is a LEASE, not a line budget.** `CreateAssetInput` declares no `height`
+field at all, so the value has nowhere to travel from the form to `Asset.create` — and
+`src/application/commands/asset/CreateAsset.ts` is not in AD07's lease. The command half of this
+item needed a lease this task never held, so it could not have been written here whatever the form
+measured. (`src/presentation/views/NewAssetForm.vue` at 399 counted lines against its 400-line
+`max-lines` budget is TRUE and was measured — `npx eslint` reported 434 with a height field in
+place — but it is a second constraint on the same work rather than the one that decides. The
+earlier report named it as the reason; this amendment corrects that.)
+
+**The outcome is deferred to a second screen rather than lost.** `Asset.create` already validates
+a height through `checkHeight` inside its own smart constructor, and the designer inspector already
+writes one through the existing `SetAssetHeight` command the moment the created asset opens — which
+is the very next screen this flow lands on. So a user can give the object a height without this
+item; they cannot give it one *at creation time*.
+
+**Trigger.** Do this when a single task holds BOTH leases at once: `CreateAsset.ts` (for
+`CreateAssetInput.height` passed into `Asset.create`, which needs no second write, no repository
+change and no schema version) and `NewAssetForm.vue` together with room to grow it — the cheapest
+way to make that room is to extract the numeric-field row that width and depth already spell
+identically into one small component, which takes the file from 399 to roughly 355. The error codes
+`asset.invalid-height` and `asset.negative-height` already exist with copy in both locales and need
+only routing to a `height` field in `NEW_ASSET_ERRORS`.

@@ -106,7 +106,8 @@ Written 2026-09-17 during wave 2.
 
 ## AD11 — candidate `eab8cb00c` (branch `ad11-open-lines`), in review
 
-- [ ] **`domain/asset/arrangeDetails.ts`'s header carries a paragraph that AD11 makes stale**, and
+- [x] **DONE** (`97ca96ff9`), rewritten from the code rather than from the note — which mattered:
+      the note anticipated a widening of `outlineOf` that never happened. **`domain/asset/arrangeDetails.ts`'s header carried a paragraph that AD11 made stale**, and
       that file is outside AD11's lease so its worker correctly did not touch it. It says *"The two
       disagree about an OPEN graphic, and that is AD11's to reconcile rather than this module's"*
       and then describes `outlineOf` answering `null` for a path so every single-part gesture refuses
@@ -115,9 +116,28 @@ Written 2026-09-17 during wave 2.
       what the code then does rather than from this note: the finisher reports `outlineOf` is
       byte-identical and a new sibling carries the open case, so the reconciliation is not the
       widening the paragraph anticipates.
-- [ ] Eight out-of-lease edits were KEPT with reasons, including two files I explicitly forbade
+- [x] **DONE — all eight verdicted JUSTIFIED by the review, none reverted.** Eight out-of-lease edits were KEPT with reasons, including two files I explicitly forbade
       (`render-state.ts`, `detailEdits.ts`). The review's verdict on each is the gate; anything it
       calls unjustified comes back out before integration.
+
+## Uncovered arms in changed files, read after the final green gate
+
+`npm run test:coverage` passes at **99.22 / 98.04 / 99.28 / 99.67** against 99/98/99/98, so branches
+carry roughly **nine arms of margin** — and the per-file read finds **22 uncovered arms across 61
+changed source files** that the threshold cannot see. None is a failure; each is a decision somebody
+should take deliberately rather than inherit:
+
+- `ObsidianAssetGeometrySidecar.toDomainDetail` (4) — the OPEN graphic's read-back path, including
+  `path.ok ? path.value : EMPTY_PATH`. **That fallback is the one worth a case**: it is what a
+  corrupt or hand-edited sidecar takes, and nothing exercises it. Data-integrity, not cosmetics.
+- `DesignerArrangePanel.vue` (4), `DesignerRepeatForm.vue` (3 + 1 function), `DesignerClearanceHelper.vue` (2),
+  `DesignerInspector.vue` (1 + 1 function), `AssetDesignerRoot.vue` (2) — template and guard arms.
+- `arrangeDetails.ts` (2), `operations.ts` (1), `draw-line-tool.ts` (1), `EmptyState.vue` (1),
+  `MarqueeSelection.ts` (1).
+
+Read each before adding a case: **an unreachable guard costs a branch it can never pay back**, and
+this expansion has already recovered headroom twice by deleting rather than testing (AD09 six,
+`rovingIndex`/`assetGroups` nine more). With nine arms of margin, the next card has very little room.
 
 ## Standing, not per-candidate
 

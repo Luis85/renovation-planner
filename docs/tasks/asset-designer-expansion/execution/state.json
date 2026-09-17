@@ -154,16 +154,21 @@
 			"blocker": null
 		},
 		"AD11": {
-			"status": "in_progress",
+			"status": "integrated",
 			"base_sha": "c5436082d",
-			"candidate_sha": null,
-			"integrated_sha": null,
+			"candidate_sha": "acaebd78a",
+			"integrated_sha": "1940aad0e",
 			"evidence": [
-				"dispatched 2026-09-17 to .worktrees/ad11, branch ad11-open-lines",
-				"leases in execution/LEASES.md, wave 3 table",
-				"the open model exists since AD04 and is unreachable: outlineOf answers null for an open graphic BY DESIGN, and this card is what relaxes that"
+				"reports/AD11-open-lines.md",
+				"a click-to-place open polyline and a rounded rectangle; the open model has existed since AD04 with nothing able to create one",
+				"outlineOf is BYTE-IDENTICAL and still answers null for a path: a sibling that measures points carries the open case instead",
+				"two defects the card EXPOSED rather than caused: dragging a line crashed on a null outline, and a selected line was restroked as nothing",
+				"independent review REQUEST CHANGES: three selection-mode buttons inert on an open graphic (the shape AD12-R1 already refused), and both new tools missing from PRECISE_TOOLS",
+				"fix round acaebd78a took the AD10 shape (not drawn, not disabled) and corrected three docblock counts",
+				"the review verdicted all eight out-of-lease edits JUSTIFIED, re-deriving the three riskiest itself",
+				"integrator 97ca96ff9: the same defect one file over - the status row advertised Shift on a part with no handle for it - predicate EXTRACTED rather than copied, watched red"
 			],
-			"blocker": null
+			"blocker": "No capture and no Obsidian. Two new toolbar buttons, a one-button mode group and an inspector paragraph have had NO layout, contrast or hit-size check. Nothing verifies that PRECISE_TOOLS membership actually resolves to a crosshair - that keyword lives in styles/editor-cursors.css and a manual case is its only instrument."
 		},
 		"AD12": {
 			"status": "integrated",

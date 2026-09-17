@@ -1,115 +1,118 @@
-# Resume packet — asset-designer expansion
+# Resume packet - asset-designer expansion
 
-Written 2026-09-16 at the end of the first execution session, per the runbook's §9 rule that an
-interrupted run hands over a resume packet rather than a completion claim. Start from
-[`prompts/04-RESUME.md`](../prompts/04-RESUME.md) with this file beside it.
+Rewritten 2026-09-17 at the end of the SECOND execution session, replacing the first session's
+packet. Per the runbook's section 9 rule: a handover, not a completion claim.
 
 ## Where the work is
 
-**Branch:** `renovation-planner-asset-designer-bc5539` (a worktree at
-`.claude/worktrees/renovation-planner-asset-designer-bc5539`). Nothing has been pushed, merged or
-tagged. `main` is untouched.
+**Branch:** `renovation-planner-asset-designer-bc5539` (worktree
+`.claude/worktrees/renovation-planner-asset-designer-bc5539`). **Nothing has been pushed, merged or
+tagged. `main` is untouched.**
 
-**Last integration commit:** `116c7ced0`. Seven commits since `f3a8864a9`, in order:
+Five worker worktrees remain under `.worktrees/` (`ad07`, `ad08r`, `ad10`, `ad11`, `ad12`), each on
+its own branch with its candidate history intact. They are gitignored and safe to remove once the
+branch is merged; keeping them is what makes every review boundary re-readable.
 
-| Commit | Card | What it landed |
-|---|---|---|
-| `fa51ae88d` | AD00–AD03 | the package itself, the baseline audit, contract revision `r1`, the no-op dimension guard, the five queued write doors |
-| `2b296d938` | AD04 | `CurvedPath`, the closed/open `AssetDetail` union, labels, shallow groups, schema v3 |
-| `f1cbe86ef` | AD05 | the brand made real, and five consumers taught the difference |
-| `e3a9ecc6b` | AD06 | the Inspector names the asset and opens the library |
-| `26e68b589` | AD08 | a selected set with a derived primary, two routes in, a count |
-| `dd7ca6ed7` | — | what `eslint .` caught that `check:fast` cannot see |
-| `116c7ced0` | — | the branches the new model left uncovered |
+## What this session did
 
-**Contract revision:** `r1`, accepted. Three conflicts were ruled by the product owner in favour of
-the repository's own 2026-09-16 decisions; [`contracts/DECISIONS.md`](../contracts/DECISIONS.md)
-carries the table.
+| Card | Status | Integrated | Review |
+|---|---|---|---|
+| AD07 presets, measurements, reference entry paths | integrated | `f8c565590` + `b4869f3b1` | REQUEST CHANGES, then fixed |
+| AD08 remainder (marquee) | integrated | `1896123c0` + `187b1de5d` | REQUEST CHANGES, then fixed |
+| AD10 grouping, align, distribute, repeat | integrated | `ca6bce144` + `c107b2bda` | REQUEST CHANGES, then fixed |
+| AD11 open lines and rounded shapes | integrated | `1940aad0e` + `97ca96ff9` | REQUEST CHANGES, then fixed |
+| AD12 reference, clearance, placement | integrated | `e50fe6f22` + `8825bfb76` | APPROVE, seven findings |
 
-## Execution mode, stated because the plan requires it
+**Execution mode: genuinely delegated.** Five implementation workers and five independent reviewers,
+each in its own worktree on its own branch, each given the package's own worker or reviewer prompt
+verbatim plus an exact lease. Every card was reviewed by an agent that did not write it. **All five
+came back with findings, and four came back REQUEST CHANGES.**
 
-**Everything was executed serially by one agent.** Nothing was delegated to a subagent. The
-runbook's own fallback covers this — *"use the same prompts sequentially when the host offers no
-parallel delegation"* — and no report here describes work as delegated.
+## The gates, on the final tree
 
-## Task status
+| Gate | Result |
+|---|---|
+| `npm run build` | **0** |
+| `npx oxlint --deny-warnings` | **0** |
+| `npx eslint . --max-warnings 0` | **0** |
+| `npx vue-tsc -noEmit` | **0** |
+| `npm run analyze` | **0**, zero above threshold |
+| `npm run test:coverage` | **0**, 99.22 / 98.04 / 99.28 / 99.67 against 99/98/99/98 |
 
-| Card | Status | Note |
-|---|---|---|
-| AD00 | verified | [`reports/AD00-baseline.md`](AD00-baseline.md) |
-| AD01 | verified | `r1` + [`contracts/AD01-SCREEN-STATES.md`](../contracts/AD01-SCREEN-STATES.md) |
-| AD02 | integrated | most of it had already shipped before this run; only the no-op guard was outstanding |
-| AD03 | integrated | all five bypassing write doors queued |
-| AD04 | integrated | [`reports/AD04-model-and-schema.md`](AD04-model-and-schema.md) |
-| AD05 | integrated | the AD04 brand was **wrong** and this corrected it; see that commit |
-| AD06 | integrated | "Use in plan" deferred to AD13; no header chrome, per C12 |
-| AD07 | **not started** | presets/measurements/reference entry paths |
-| AD08 | integrated, **partial** | marquee, the overlap chooser and per-part locks are NOT in it |
-| AD09–AD14 | **not started** | Parts panel, grouping ops, open-line authoring, reference/clearance, library–designer–plan, historical gating |
-| AD15, AD16 | **not startable here** | see the blocker below |
-| AD17 | out of scope | post-beta |
+The suite went green **in one run with no timeouts**, which had not happened once before on this box
+this session. Do not read that as the machine being fixed; read it as the machine being quiet.
 
-No leases are outstanding; one agent held everything.
+## What the reviews caught that the gates could not
+
+Recorded because it is the argument for keeping the review step when it is expensive:
+
+- **A keyboard user could not see focus on the selected preset** - a `box-shadow` rule over a host
+  focus ring that IS a `box-shadow`. A red gate, reproduced independently before acting.
+- **The sticky select-multiple control did not apply to the marquee at all**, so the one route C05
+  requires in order to avoid a modifier did not work for the new gesture.
+- **`lockedGraphics` shipped optional with a permissive default and the root never bound it**, so
+  AD10's locked-part rule could never fire. Invisible to all four gates.
+- **A no-op align wrote a revision and pushed an undo entry** that appeared to do nothing.
+- **Three selection-mode buttons were inert on an open graphic** on the very first gesture AD11
+  delivers - the exact shape this package had already refused once, in AD12-R1.
+
+## Three rulings issued, all in `contracts/DECISIONS.md`
+
+`r1` remains settled and untouched; these APPLY it rather than revise it.
+
+- **AD08-R1** - the Parts panel IS C05's overlap alternative; no chooser is built. Trigger: a leaf
+  too narrow to draw the panel.
+- **AD10-R1** - a spatial composition refuses a selection mixing measured and pending graphics;
+  grouping does not; an all-pending selection is not mixed. **Amended the same day**: it named five
+  operations where only four can be bound, and pointed at a fix site shared with the path it
+  exempts. Read the amendment, not only the rule.
+- **AD12-R1** - "lock reference" is already true by construction, so no control is owed. Opacity is
+  a real gap and is queued.
+
+## The next dependency-ready tasks
+
+**AD13** (library to designer to plan), then **AD14** (historical output). AD13's prerequisites
+AD05, AD07 and AD12 are all integrated. AD14 needs AD13.
+
+Before dispatching AD13, read `execution/INTEGRATION-QUEUE.md`. It carries four obligations nobody
+can currently discharge, two of which AD13 meets head-on:
+
+- **A persisted review state is OWED** (AD01 section 1, S09 names AD12 as its owner) and is
+  unbuildable in any current lease: it needs the aggregate, the DTO schemas, the mappers, a schema
+  version, and a representation C07 delegated to AD01 which AD01 never chose. **It needs a ruling
+  first and a card second.** The AD12 report originally called it "not owed"; that wording would
+  have lost it.
+- **Clearance under resize (AD12 criterion 4) is NOT met.** `scaleDesign` scales a clearance
+  unconditionally; r1 parks only the refusal arm, and only for a pending clearance.
+- **There is no door to DELETE a reference** - `SetAssetBackgroundInput.path` is a bare string.
+- **Background opacity** is a real gap in nobody's lease (runtime, canvas, view menu).
 
 ## The blocker that does not go away with more time
 
-**This environment has no Obsidian and no pinned Chromium.** Runbook §10 is explicit: *"If tests or
-an actual Obsidian session cannot be run, hand over implemented work and exact remaining
-verification steps, but do not label the beta ready."*
+**No Obsidian and no pinned Chromium.** Unchanged from the first session, and now much more
+consequential: this session built **five surfaces nobody has ever looked at** - a fourteen-thumbnail
+preset gallery in a dialog, three stacked overlay buttons on an empty state, a fifteen-button
+Arrange block, a reference and clearance column, and two new toolbar tools with a one-button mode
+group beside them.
 
-- **Obsidian:** unavailable. `npm run test-build` was never run. Every manual case under
-  `docs/tests/` remains unrun, including the ones AD15 needs.
-- **Chromium:** the pinned revision (1234) could not be installed — `npm` and `playwright-core` both
-  fail on `D:\dev-cache\playwright\__dirlock` ("Unable to update lock within the stale threshold")
-  on this loaded machine, and clearing the stale lock did not help. The 119 captures that exist were
-  taken with revision 1223 named through `RP_CHROMIUM_EXECUTABLE`, which is the script's one
-  sanctioned door and prints its own caveat. **Read those pictures as approximate.**
+Layout is what a capture measures and no layout engine in this repository does. This project's
+captures have caught **ten defects `npm run check` could not**. None of that instrument ran.
+`-- --width=460` is the one to take first: it is also AD08-R1's own stated trigger for ever
+revisiting the overlap chooser.
 
-So AD15 (validate the complete workflow) and AD16 (release decision) cannot be completed from here
-whatever else is built. They need a machine with Obsidian and the pinned browser.
+**AD15 and AD16 stay `blocked` and must stay blocked from here.** Runbook section 10: implemented
+work and exact remaining verification may be handed over, but the beta may not be labelled ready.
 
-## What the gates say on `116c7ced0`
+## Three things this session learned that the next one should not relearn
 
-| Command | Result |
-|---|---|
-| `npm run build` | 0 |
-| `npx eslint . --max-warnings 0` | 0 |
-| `npx oxlint --deny-warnings` | 0 |
-| `npx vue-tsc -noEmit` | 0 |
-| `npm run analyze` | 0 |
-| `npm run test:coverage` | thresholds met — branches 98.04 (floor 98), statements 99.21, functions 99.24, lines 99.66 |
-| `npm run check` end to end | **not green in one run**, and the reason is the machine rather than the tree |
-| `npm run audit` | not run |
-| Real Obsidian | not run |
-
-**About that last row.** Every `npm run check` and full-suite run on this machine reported a handful
-of failures — between 1 and 6 files, a different set each time — and **every one of them passed when
-re-run alone**. They are 5-second per-case timeouts: this box has 8 logical cores and was shared
-with other agents at ~67% load throughout, and `CLAUDE.md` names exactly this hazard for
-`tests/build/`. One measured instance: `lint-edited.test.ts`'s SFC case took 63.8 s against its 60 s
-budget in a full run and 8.2 s alone.
-
-**Do not "fix" these by raising a budget.** Re-run the named files alone, or run the gate on a quiet
-machine or in CI, which is where `CLAUDE.md` says the full gate belongs anyway.
-
-## Two mistakes this session made, so the next one does not repeat them
-
-1. **A backgrounded gate and a foreground lint at the same time reddened the gate.** Ten cases in
-   `tests/build/` failed on a tree with no source change. One heavy command at a time.
-2. **`npx playwright install chromium` emptied `node_modules`** (`npm error ECOMPROMISED`), which
-   made the next suite run fail with "Cannot find module oxlint" and looked like a source defect.
-   `npm ci` restored it. Prefer `node node_modules/playwright-core/cli.js install` — and expect the
-   dirlock problem above.
-
-## The next dependency-ready task
-
-**AD07** (presets, measurements and reference setup as first-class entry paths) — its prerequisites
-AD02, AD03 and AD06 are all integrated, and it touches files nothing else is mid-way through.
-
-**AD09** (the Parts panel) is the other ready one and is the better choice if the goal is to close
-AD08's remainder: the overlap chooser and the find-and-unlock route both need it, and AD10's
-grouping actions need its selection surface.
-
-Read [`contracts/AD04-MODEL-EXTENSION.md`](../contracts/AD04-MODEL-EXTENSION.md) before touching the
-model: it records what the union is, what the brand does and does not hold, and one rejected design
-with the measurement that rejected it.
+1. **A fallow CRAP finding is meaningless without knowing when the coverage under it was written.**
+   Learned twice in one sitting: three findings cleared themselves once the suite had run, and then
+   a refactor shifted line numbers and made the map stale again for exactly the file it touched.
+2. **Never generalise from a truncated log.** A real assertion failure spent an hour disguised as a
+   load timeout because a coverage run had been piped through `tail`, so only two of three failures
+   were ever visible.
+3. **A rule whose instrument enumerates what it refuses teaches the next author that anything
+   unenumerated is allowed.** The German register check listed ten verbs; this wave wrote seven
+   du-form strings and it caught one. A later worker then read the invisible neighbours and matched
+   them deliberately, reasoning the repository had no house register. Widening the list found an
+   eighth violation that predated the whole expansion.

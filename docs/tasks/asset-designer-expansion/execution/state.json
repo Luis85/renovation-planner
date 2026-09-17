@@ -117,7 +117,7 @@
 				"two defects found and fixed: selectionExists pruned a selected open graphic; the selection inspector then threw on one",
 				"rename writes AssetDetail.label and never name; round-tripped through the sidecar",
 				"npm run build / oxlint / eslint . / vue-tsc / npm run analyze all exit 0",
-				"npm run test:coverage exit 0 in ONE run: 1021 of 1021 files, branches 98.05 against the 98 floor",
+				"npm run test:coverage thresholds met (branches 98.05 against the 98 floor); the suite does not go green in ONE run on this box — a handful of 5s case timeouts, a different set each time, every one passing when re-run alone",
 				"coverage-final.json read per changed file; every new module has no uncovered arm"
 			],
 			"blocker": "no Obsidian and no pinned Chromium here, so the three-region layout is unphotographed and unwalked"

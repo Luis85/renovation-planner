@@ -119,8 +119,8 @@ look like a source defect.
 | `npx oxlint --deny-warnings` | 0 | Two `consistent-function-scoping` findings fixed by hoisting, not by a suppression |
 | `npx eslint . --max-warnings 0` | 0 | Found what `check:fast` cannot: Vue formatting in the new SFC, and `selectToolDeps` at six parameters — fixed by bundling the leaf's ephemeral UI into one argument |
 | `npm run build` | 0 | `dist/main.js` 1,946.03 kB, `dist/styles.css` 175.44 kB |
-| `npm run analyze` | 0 | Complexity 0 above threshold; the four pre-existing clone groups closed — see below |
-| `npm run test:coverage` | see the integration commit | |
+| `npm run analyze` | 0 | Complexity 0 above threshold, duplication clean, dead code clean — the four pre-existing clone groups closed, see below |
+| `npm run test:coverage` | **1**, and the reason is the machine | Thresholds MET: statements 99.21, branches **98.05** (floor 98), functions 99.25, lines 99.66. Two runs of this tree: one green end to end (1021 of 1021 files, 11121 cases), one with three five-second case timeouts — `clipboard`, `dimensionCaptionPlacement`, `astra-main-refresh`, none of them touched here, **all three passing when re-run alone**. `CLAUDE.md` names exactly this artefact for this box; do not raise a budget over it, run the gate in CI |
 | Real Obsidian | not run | Unavailable in this environment |
 
 ### The `analyze` red was pre-existing, and it is closed here on request

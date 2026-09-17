@@ -52,8 +52,9 @@ slice 4 will want your remaining budget.
 
 **Correction, 2026-09-17 (BP-02 slice 3): the defect this section describes is fixed, and the
 present tense below is the state of the code when this prompt was written, not now.** Nothing is
-discarded and there is no `sequence.marker.discarded` log line any more. An entry
-`SequenceMarkerFileStore` cannot read is preserved verbatim across every rewrite, reported through
+discarded and there is no `sequence.marker.discarded` log line any more. Each ENTRY
+`SequenceMarkerFileStore` cannot read is preserved verbatim — the entry, not the envelope around
+it, whose own top-level `schemaVersion` every write stamps with this build's — reported through
 the `unreadable` half of `SequenceMarkerListing`
 (`src/application/ports/SequenceMarkerStore.ts`), logged once per load from `list()` as
 `sequence.marker.unreadable`, refused rather than answered as an absence by `read()`, and neither

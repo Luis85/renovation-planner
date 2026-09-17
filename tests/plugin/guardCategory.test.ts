@@ -25,8 +25,9 @@
  *
  * FIVE hand-written lists live in this file — that detonation array, `SERVICE_CARVE_OUTS`,
  * `DOOR_CARVE_OUTS`, the skip test's `owners`, and the class-instance set pinned by
- * `it('pins every raw class instance the root hands out, …')`. Four, not three, since BP-02
- * slice 4 task L-06 added the last of them. The count is re-derived by NAMING them, which is
+ * `it('pins every raw class instance the root hands out, …')`. FIVE, not the four this
+ * sentence said until BP-02 slice 4 task L-06 added the last of them.
+ * The count is re-derived by NAMING them, which is
  * the only instrument there is for it — a grep cannot tell a maintained list from an
  * expectation — so the five names above are the measurement and this sentence is wrong the
  * moment one of them is not in it. The last four are each asserted by exact value, so a drift

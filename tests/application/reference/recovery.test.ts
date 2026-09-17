@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { err, ok } from '../../../src/core/result/Result';
 import { InMemorySequenceMarkerStore } from '../../../src/infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
+import { persistenceError } from '../../../src/application/errors';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
 import { recoverInterruptedSequences } from '../../../src/application/reference/recoverInterruptedSequences';
 import type { Requirement } from '../../../src/domain/requirement/Requirement';
@@ -447,6 +448,12 @@ describe('recoverInterruptedSequences', () => {
  * structurally CANNOT do: it holds typed `SequenceMarker` objects in a `Map`, so it can
  * never hold an unparseable one. Recording `clear` rather than asserting on a log, because
  * "recovery did not retire it" is the behaviour and a log line is only evidence of one.
+ *
+ * **`read` answers the port's rule rather than a flat `null`**, even though
+ * `recoverInterruptedSequences` never calls it: `ok(null)` for an id the listing files as
+ * unreadable is precisely the manufactured absence R-S3-6 forbids, so a fake that answered it
+ * would be kinder than the thing it stands in for and would be believed by the first case that
+ * ever reaches this door. Unreached today; correct if it is reached.
  */
 function listingOf(listing: SequenceMarkerListing): { markers: SequenceMarkerStore; cleared: string[] } {
 	const cleared: string[] = [];
@@ -454,7 +461,12 @@ function listingOf(listing: SequenceMarkerListing): { markers: SequenceMarkerSto
 		cleared,
 		markers: {
 			list: () => Promise.resolve(ok(listing)),
-			read: () => Promise.resolve(ok(null)),
+			read: (entityId: string) =>
+				Promise.resolve(
+					listing.unreadable.some((entry) => entry.entityId === entityId)
+						? err(persistenceError('sequence.marker-unreadable', 'That sequence marker could not be read.'))
+						: ok(listing.markers.find((held) => held.entityId === entityId) ?? null),
+				),
 			write: () => Promise.resolve(ok(undefined)),
 			clear: (entityId: string) => {
 				cleared.push(entityId);

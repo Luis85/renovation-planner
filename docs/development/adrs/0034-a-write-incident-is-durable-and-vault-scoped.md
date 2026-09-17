@@ -212,6 +212,37 @@ is paused from its first frame, without any leaf knowing another exists.
    and the designer registers none of those tools. Its buttons,
    inspector fields, toolbar and preset form all stay live and their dispatches are refused
    underneath. An affordance gap, not a data-safety one, and its own increment.
+
+   **Correction, 2026-09-18 (session 6, tracker limitations L-13 and L-16): the sentence
+   "their dispatches are refused underneath" was TRUE and was checked by nothing, and the half of
+   this bullet that is now false is the word "all".** The claim is measured at last.
+   `tests/presentation/designer/designerIncidentRefusal.test.ts` composes the design bundle through
+   the REAL `guardAssetDesign` — which neither shared designer harness does, both building raw
+   `new SetAsset…Command(...)` instances, so no designer test in this repository could observe this
+   gate at all before that file existed — and drives it: every command member of the guarded bundle,
+   both doors each, answers `WRITES_PAUSED_CODE` while an incident is open, and the two driven one
+   per adapter (`setHeight` through `AssetRepository`, `setAnchor` through `AssetGeometrySidecar`)
+   leave their port unwritten, version included. All three cases go red when the gate block in
+   `guardCommand` is removed; the affordance case in `designerIncidentGate.test.ts` beside them does
+   not, because it reads `writesBlocked()` off the registry and never enters `guardCommand`.
+
+   **What the same measurement found, which this bullet did not contemplate: the UNDO half is
+   outside the gate.** An inverse dispatches no command — `ReversibleAssetDesignCommands` writes its
+   captured snapshot back through the raw ports in `ReversibleAssetDesignDeps` (`sidecar.write`,
+   `assets.save`, and the background adapter's pair), and `guardCommand` wraps a `Command`, never a
+   port. Driven rather than reasoned: a forward gesture with no incident, an incident opened, then
+   `undo()` — and the restore lands, on both resources. So "the Asset Designer is not gated at all"
+   is wrong in the direction this record assumed and right in one it did not: the affordance is
+   ungated and the forward write is not, while the undo is genuinely outside. That is tracker
+   limitation **L-16**, it is the same category as L-06 rather than a new mechanism, and a release
+   owner ruled on 2026-09-18 that gate G1 stays blocked on it.
+
+   **Note for whoever amends this record to close L-16, because this ADR already argues the other
+   way.** The Context above grounds the whole mechanism in a compensating undo that itself failed,
+   which reads as a reason an undo should stay POSSIBLE while writes are paused. Nothing in the code
+   states that, and nothing beside those four port calls says it either — so it is an unstated
+   property rather than a recorded decision, and settling it in one direction is precisely what an
+   amendment here would be for.
 4. **The two ungated paths named above are unchanged.** The geometry sidecar spread into
    `planEditorQueries`, `relocateEvidence`'s host-rename listener, and the reversible-adapter
    `undo` category of tracker limitation L-06 are all still outside the chokepoint, so an incident

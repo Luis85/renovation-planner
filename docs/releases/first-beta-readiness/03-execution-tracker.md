@@ -8,17 +8,17 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 |---|---|
 | Handoff baseline | `d77e7c5eba5e6518b93a5be4606532ceab3a77eb` |
 | Upstream reconciled | Merged twice, never rebased — every review and ledger entry references this work by commit SHA. First: `main` advanced 14 commits to `f3a8864a9` (asset-designer consolidation, plan deletion), zero file overlap. Second, in session 4: 24 further commits to `ed5c50b76` (the opening-handles work), merged at `42d07b14a` with a **one-file** overlap measured by `comm -12` over the two `git diff --name-only` sets before the merge was run, so it was known-cheap beforehand. Session 5 re-checked and `main` had **not** moved: `git rev-parse origin/main` and `git merge-base HEAD origin/main` both print `ed5c50b76`, so main is an ancestor of HEAD and there was nothing to merge. |
-| Current working revision / branch | `9d08aeed4` on branch `renovation-planner-beta-handoff-e80bb5`. Nothing pushed; no pull request opened. Five sessions of work sit on top of the handoff baseline `d77e7c5eb` and the merged upstream `ed5c50b76`. |
+| Current working revision / branch | `e118f61d4` on branch `renovation-planner-beta-handoff-e80bb5`. Nothing pushed; no pull request opened. Six sessions of work sit on top of the handoff baseline `d77e7c5eb` and the merged upstream `ed5c50b76`. Session 6 re-checked upstream before starting and `main` had still not moved: `git rev-parse origin/main` and `git merge-base HEAD origin/main` both print `ed5c50b76`, so main remains an ancestor and there was nothing to merge. |
 | Worktree and dirty files | Worktree `.claude/worktrees/renovation-planner-beta-handoff-e80bb5`. Clean at session start. 95 other worktrees exist under `.worktrees/` and `D:/codex-worktrees/`; none was touched, reset, cleaned, or stashed. |
 | Responsible integrator | Unassigned — no human integrator has accepted this work. |
 | Selected beta scope / platforms | Unchanged from the handoff proposal: current editor capabilities, desktop editing, mobile read-only. Not yet confirmed by an owner. |
 | Existing backlog mapping | BP-01 maps to an existing recorded repository decision (increment-history ruling R1) rather than to a new backlog item. The remaining BP identifiers are unmapped. |
-| Baseline full gates | `npm run check` is **RED, and not because of this work** — its `analyze` leg fails on `origin/main` itself. See limitation **L-04**, which carries the measurement. Its other three legs are green. Measured at `9d08aeed4`, exit code captured into a file before any pipe: `npm run test:coverage` **exit 0**, 1035 files / 11165 passed / 1 skipped in 1410.87 s, with statements 99.21% (28619/28844), branches 98.08% (21041/21451), functions 99.27% (8316/8377) and lines 99.65% (21034/21106) against floors of 99/99/99/98 — all four met. Counted in UNITS rather than percentage points, per CLAUDE.md: uncovered arms fell against session 4's run in three metrics and held in the fourth (statements 227→225, branches 414→410, functions 63→61, lines 72→72), so this session added no uncovered arm. No floor was ratcheted: each already sits at the next whole point, so no integer raise is available. |
+| Baseline full gates | `npm run check` is **RED, and not because of this work** — its `analyze` leg fails on `origin/main` itself. See limitation **L-04**, which carries the measurement. Its other three legs are green. Measured at `9d08aeed4`, exit code captured into a file before any pipe: `npm run test:coverage` **exit 0**, 1035 files / 11165 passed / 1 skipped in 1410.87 s, with statements 99.21% (28619/28844), branches 98.08% (21041/21451), functions 99.27% (8316/8377) and lines 99.65% (21034/21106) against floors of 99/99/99/98 — all four met. Counted in UNITS rather than percentage points, per CLAUDE.md: uncovered arms fell against session 4's run in three metrics and held in the fourth (statements 227→225, branches 414→410, functions 63→61, lines 72→72), so this session added no uncovered arm. No floor was ratcheted: each already sits at the next whole point, so no integer raise is available. **Not re-measured in session 6 and deliberately so**: that session added three test cases and changed no production line, so no branch arm moved, and `npm run check` was kept off the working machine under the parallel-work rule. Coverage on this branch is therefore CI's report to make, not this row's. |
 | Candidate source and bundle hashes | Not created. No production build was made. |
 | Native acceptance | Not performed. No Obsidian was run. |
 | Publication authorization | Not granted. |
-| Next executable action | Recorded at the end of the session log below. |
-| Reviews performed | Across five sessions. Session 5 alone: two task reviews, two scoped re-reviews and two final rounds, every one an independent subagent seat instructed to re-run the instruments rather than accept a report. Both task reviews returned FIX, and in each case the reviewer overturned something the CONTROLLER had ruled rather than something an implementer had written — see L-13 and the session 5 log. Across three earlier sessions: Session 3 alone: five task reviews, six scoped re-reviews and a final whole-session review, every one an independent subagent seat instructed to re-run the instruments rather than accept a report. Three of its five task reviews returned spec ❌, and two findings were real defects rather than wording — an unbounded re-seed of the incident registry on every settings save, and a module global released without checking it was still the one that load claimed. |
+| Next executable action | Recorded at the end of the session log below. As of 2026-09-18 it is **L-16** — decide whether the reversible adapters' UNDO halves come inside the write gate. |
+| Reviews performed | Across six sessions. Session 6: one task review and one scoped re-review, both independent seats told to answer their seat's question by EXPERIMENT rather than by reading. Both returned findings that were real — the first that a pointer to `guardCategory.test.ts` could not carry the claim handed to it (that file names `WRITES_PAUSED_CODE` zero times and stays green with the gate removed), the second that a docblock clause this branch had just written was measured FALSE. Session 6 also had the CONTROLLER re-run every measurement it was given, including both reverts, and the controller's own census found eleven sites where a review had named five (L-17). Session 5 alone: two task reviews, two scoped re-reviews and two final rounds, every one an independent subagent seat instructed to re-run the instruments rather than accept a report. Both task reviews returned FIX, and in each case the reviewer overturned something the CONTROLLER had ruled rather than something an implementer had written — see L-13 and the session 5 log. Across three earlier sessions: Session 3 alone: five task reviews, six scoped re-reviews and a final whole-session review, every one an independent subagent seat instructed to re-run the instruments rather than accept a report. Three of its five task reviews returned spec ❌, and two findings were real defects rather than wording — an unbounded re-seed of the incident registry on every settings save, and a module global released without checking it was still the one that load claimed. |
 
 ## Package register
 
@@ -28,7 +28,7 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 |---|---|---|---|---|---|---|---|
 | BP-00 | Reconcile baseline and ownership | P0 | None | Discovery | **Complete** | This session / unmapped | Five discovery lanes; every finding classified below. Scoped baseline green. |
 | BP-01 | Preserve recovery incidents across remounts | P0 | BP-00 | Confirmed defect | **Complete** | This session / increment-history ruling R1 | Fixed at `67f5acf9c`, narrowed at `41d803611` and `2af92f8fd`; task review clean. Second-pane gating deferred to BP-02 — limitation L-01 — so BP-01's own acceptance set is not met in full. |
-| BP-02 | Durable incident detection and recovery | P0 | BP-01 | Safety hardening | **All four slices complete; the package's own limitations L-06, L-11, L-13, L-14 and L-15 remain open** | This session / ADR-0019 requires a decision record for slice 2 | Discovery resolved the package's opening conflict: durable detection is **outside** the recorded refusal. Slice 1 (silent compensation paths now stamp) is at `81f627b53..beda98597`. Slice 2 — ADR-0034, affected-entity identity, the durable record and the coarse gate — is at `4599a388e..f05d5d62f` and closes L-02. Slice 3 (the sequence-marker store's direction-blind read, which also destroyed the unreadable record on the next write) is at `60a748423..5580e53b5`. Slice 4 landed in three parts: L-05's two unguarded Inspector zone commands at `e6cdd914b..2546d88d8`, the write gate reading the vault's own record at `36a4c92f7..4966cbe7b`, and L-06's pinned leaf-handoff census at `e7c24d91b..9d08aeed4`. **Completing the slices did not close the package**: L-06 is narrowed rather than closed, and slice 4 opened L-13, L-14 and L-15. |
+| BP-02 | Durable incident detection and recovery | P0 | BP-01 | Safety hardening | **All four slices complete; the package's own limitations L-06, L-11, L-14, L-15, L-16, L-17 and L-18 remain open, and L-13 is reclassified rather than closed** | This session / ADR-0019 requires a decision record for slice 2 | Discovery resolved the package's opening conflict: durable detection is **outside** the recorded refusal. Slice 1 (silent compensation paths now stamp) is at `81f627b53..beda98597`. Slice 2 — ADR-0034, affected-entity identity, the durable record and the coarse gate — is at `4599a388e..f05d5d62f` and closes L-02. Slice 3 (the sequence-marker store's direction-blind read, which also destroyed the unreadable record on the next write) is at `60a748423..5580e53b5`. Slice 4 landed in three parts: L-05's two unguarded Inspector zone commands at `e6cdd914b..2546d88d8`, the write gate reading the vault's own record at `36a4c92f7..4966cbe7b`, and L-06's pinned leaf-handoff census at `e7c24d91b..9d08aeed4`. **Completing the slices did not close the package**: L-06 is narrowed rather than closed, and slice 4 opened L-13, L-14 and L-15. Session 6 then MEASURED L-13 rather than acting on it (`0248de6cf..4a9c14d68`, three commits, no production line changed) and it reclassified: the designer's forward writes were already refused, so what that row named as a surface bypass does not exist on the forward path. The same measurement opened **L-16** — the designer's undo half writes through raw ports and lands while the vault is paused — which is what G1 is blocked on now. L-12 was closed at `e118f61d4` on an owner's ruling; L-17 and L-18 are accuracy findings the measurement turned up beside its subject. |
 | BP-03 | Protect drafts and in-flight commands | P0/P1 | BP-01; final after BP-02 | Verification | Not started | Unassigned / unmapped | — |
 | BP-04 | Precise non-drag corner editing | P1 | BP-00; integrate after BP-03 | Interaction addition | Not started | Unassigned / unmapped | — |
 | BP-05 | Selection, transform, cancel and history | P1 | BP-03; coordinate BP-04 | Verification/polish | Not started | Unassigned / unmapped | — |
@@ -126,11 +126,14 @@ Record the decision-maker, date, affected scope, evidence, consequence, and revi
 | L-08 | **Limitation.** An unwritable or unreadable plugin folder silently defeats durability | Found by the final whole-increment review; stated, not fixed | 2026-09-16 | A failed envelope write logs `incident.write-failed` and nothing more: the session stays blocked, but the NEXT load finds no file and manufactures exactly the all-clear ADR-0034 refuses. Once the file is unreadable, `add` refuses at its read step, so no further incident ever persists. | Recorded in ADR-0034 and the store docblock narrowed to what is true. Durability rests on the plugin folder being writable; where it is not, an incident is session-scoped only. |
 | L-09 | **Limitation.** Deleting the incidents file takes effect only after a plugin reload | Found by the final whole-increment review; copy corrected rather than behaviour | 2026-09-16 | Nothing re-reads the incidents file after load: the open list is append-only and its seed is one-shot. Three surfaces told the user that deleting the file resumes writing, so a user who did that and retried received the identical refusal with no stated way out. The behaviour matches D-06, which already accepted that only a reload clears an incident; the copy simply never said so. | Both locales and the user guide now name the reload. **NOT exercised in a vault** — see the session 3 unverified list. |
 | L-10 | **Limitation.** An unreadable sequence marker is reported only in the console | Decided 2026-09-17 as slice 3's scope boundary | 2026-09-17 | `GetDiagnosticsSnapshot` could carry unreadable markers the way it carries write incidents, and deliberately does not: an unreadable entry cannot supply a `DiagnosticEntityKind`, because its `entityKind` is exactly what failed to parse, and that union is closed and hand-written. The level is `error`, always emitted by `createConsoleLogger` regardless of the verbose-logging setting — verified in that file rather than assumed. | A user whose vault holds a marker this build cannot read sees nothing in the plugin's own UI and must open devtools. The vault is undamaged and the record is preserved. Revisit when the diagnostics snapshot next changes shape. |
-| L-11 | **Limitation.** What is OUTSIDE the vault-wide pause is neither listed nor checked anywhere | Measured 2026-09-17; stated, not fixed | 2026-09-17 | Measured by reading all thirteen reversible adapters against the single gate: `grep -rn "activeWriteIncidentRegistry()" src/` prints six lines and exactly one is the gate, inside `guardCommand`, which returns one door. **Outside:** delete-zone undo, assign-asset undo, both override adapters, `evidenceRename.ts`'s host-rename listener, and ADR-0034's geometry sidecar. **Inside:** create-zone, move, the two zone edits closed this session, calibrate. **Unmeasured:** `ReversibleSetPlanBackground`'s undo and the four Asset designer edits. | `docs/using-planning-recovery.md` now names the SHAPE and says outright that nothing lists or checks the set — no "only", no count. Three consecutive review rounds narrowed that sentence to something still wider than the truth before anyone measured it. Closing the category is L-06's subject. |
-| L-12 | **Limitation.** One user-guide sentence about evidence links is in tension with the measured boundary | Found 2026-09-17 by the round that measured L-11; reported, not fixed | 2026-09-17 | The guide's Evidence paragraph says link updates on a rename go "through **guarded** Plan writes"; that path uses the raw `PlanRepository` port and is one of the things outside the pause. "Guarded" may have been meant as "version-checked" — those saves do carry the loaded version — so it is an intent call rather than a clear error. | One word closes it either way. Left for an owner or the next session rather than fixed by the controller, because a controller fix skips review. |
-| L-13 | **Limitation.** The Asset Designer is not gated by an open write incident at all | Found 2026-09-17 by the review of BP-02 slice 4's gate work; the wiring landed, the gating did not | 2026-09-17 | `src/presentation/designer/runtime.ts` no longer hard-codes `writesBlocked: () => false` — it reads the shared save-state gate — but **nothing reads that field on this surface**. `grep -rn "writesBlocked()" src/` returns call sites only under `src/presentation/editor/`, and the Asset Designer registers none of those tools. The value is correct and unread. This overturned a controller ruling made the previous session ("the framework already consults it"), which rested on a reconnaissance claim nobody had re-measured and survived a brief, an implementation and a report before an independent reviewer ran the grep. | **This is what blocks G1 now that L-01 is closed for the Plan Editor.** An open incident is still bypassed by opening a different surface. Gating it for real means wiring a tool framework that has never run in a vault, and is its own increment. Must be closed or explicitly accepted by an owner before G1 passes. |
+| L-11 | **Limitation.** What is OUTSIDE the vault-wide pause is neither listed nor checked anywhere | Measured 2026-09-17; stated, not fixed | 2026-09-17 | Measured by reading all thirteen reversible adapters against the single gate: `grep -rn "activeWriteIncidentRegistry()" src/` prints six lines and exactly one is the gate, inside `guardCommand`, which returns one door. **Outside:** delete-zone undo, assign-asset undo, both override adapters, `evidenceRename.ts`'s host-rename listener, and ADR-0034's geometry sidecar. **Inside:** create-zone, move, the two zone edits closed this session, calibrate. **Unmeasured:** `ReversibleSetPlanBackground`'s undo. **Measured 2026-09-18 (session 6):** the Asset designer edits are INSIDE the pause on their forward door and OUTSIDE it on their undo — see L-13 and L-16. | `docs/using-planning-recovery.md` now names the SHAPE and says outright that nothing lists or checks the set — no "only", no count. Three consecutive review rounds narrowed that sentence to something still wider than the truth before anyone measured it. Closing the category is L-06's subject. |
+| L-12 | **CLOSED 2026-09-18** at `e118f61d4`. The user-guide sentence now says what the code does. | Closed by session 6, on a release owner's ruling | 2026-09-17, closed 2026-09-18 | The owner ruled the intended meaning was "version-checked", and the replacement word was VERIFIED before it was written rather than after: `relocateEvidence.ts:50` saves as `deps.plans.save(changed.value, loaded.version)` — the version the read returned, not a fresh read at write time — and `ObsidianPlanRepository` refuses on it twice, at `:183` before writing and again inside the `processFrontMatter` transaction at `:283`, so it is not a read-time TOCTOU window. `docs/using-planning-recovery.md:128` now reads "version-checked Plan writes". | The path is still OUTSIDE the vault-wide pause and L-11 still says so; this row only stops the guide claiming otherwise. The implementer was briefed to STOP and report rather than invent a different word if the path had turned out not to be version-checked. |
+| L-13 | **RECLASSIFIED 2026-09-18, not closed: a FEEDBACK gap, not a data-safety hole.** The Asset Designer's forward writes ARE refused while an incident is open. | Reclassified by session 6's measurement; the 2026-09-17 row this replaces rested on an ASSUMPTION nobody had driven | 2026-09-17, reclassified 2026-09-18 | The 2026-09-17 finding — that `grep -rn "writesBlocked()" src/` returns call sites only under `src/presentation/editor/`, so the designer's correct `writesBlocked` value is read by nothing — is **still true and unchanged**. What was never measured is the sentence beside it, in `designerIncidentGate.test.ts`'s own header: *"Every write it dispatches is refused by the guarded doors underneath."* That is now checked. `tests/presentation/designer/designerIncidentRefusal.test.ts` builds the bundle through the REAL `guardAssetDesign` — which both shared designer harnesses (`designerRig.ts`, `assetDesignHarness.ts`) do NOT, building raw command instances instead, so no designer test in this repository could observe the gate at all before this one. It asserts: both the NOTE door (`setHeight`) and the GEOMETRY door (`setAnchor`) refuse with `WRITES_PAUSED_CODE` **and leave their port unwritten** — the data-safety half, since a refusal raised after the write would pass the code assertion and fail this one — plus a CATEGORY case iterating every command member of the guarded bundle, both doors each, discovered by shape, with the excluded `get` query asserted by name and a found-something-at-all floor. All three go red when the gate is removed; the controller ran that revert itself. | **What is left is the affordance, which is L-14's shape and is accepted there**: the user sees an enabled control that refuses on use. **G1 is NOT unblocked by this reclassification** — a release owner ruled on 2026-09-18 that the designer's UNDO half, which this same measurement found writes through raw ports while an incident is open, is a NEW limitation (L-16) and G1 stays blocked on it. |
 | L-14 | **Limitation.** The write gate is not reactive, and a RESTORED leaf seeds clean | Accepted 2026-09-17 as BP-02 slice 4's scope boundary | 2026-09-17 | `WriteIncidentRegistry` notifies nothing — `record()` has no subscribers and a reader must poll — so an incident raised in one leaf mid-session does not re-render an already-open pane's controls; that pane catches up at its next refused write. Separately, `seed()` is reached from `onLayoutReady` while Obsidian restores leaves BEFORE `onLayoutReady`, so a leaf restored with the workspace seeds clean and is likewise gated only at its first refused write. Measured from the code; **not observed in a vault**. Startup was deliberately NOT reordered: the registry must read a file before it can answer, so the read is async either way and an earlier start shrinks the window without closing it. | A user sees an enabled control that refuses on use, rather than a disabled one. No data-safety effect — the refusal is at the command. Revisit if the registry gains a notification, which would close both halves at once. |
 | L-15 | **Limitation.** Three locale strings describe a vault-wide pause as this surface's own | Found 2026-09-17; reported, not fixed | 2026-09-17 | `editor.unrecovered` and `schedule.unrecovered` name "this floor's note" for a condition that is now vault-wide. The recovery-dialog half of this was CLOSED rather than reworded, by splitting the store's one flag into the leaf's own unrecovered write and the vault's pause: `DraftRecovery.vue` reads the leaf fact at all four of its sites, so its message and its **Try again** READ retry are unchanged for a leaf that never wrote — which is what ADR-0034's commands-only decision requires so the vault stays inspectable. No copy was changed: `git diff --stat -- src/presentation/i18n/` is empty across the whole session. | Wrong emphasis, not wrong information, on two strings. Any fix mints copy in both locales and the German would be an agent's with no native-speaker review. Fold into the next copy pass rather than opening one for it. |
+| L-16 | **Limitation.** The Asset Designer's UNDO half writes through raw ports and is NOT behind the write gate | Measured 2026-09-18 by the round that reclassified L-13; a release owner ruled it a limitation of its own rather than folding it into L-06 | 2026-09-18 | An inverse dispatches no command at all: `ReversibleAssetDesignCommands`' undo writes the captured snapshot back through the RAW ports its `ReversibleAssetDesignDeps` carries — four sites, `sidecar.write` at `:299`, `assets.save` at `:376` and the background adapter's pair at `:521`/`:525` — and `guardCommand` wraps a `Command`, never a port. Driven rather than reasoned: two cases in `designerIncidentRefusal.test.ts` dispatch a forward gesture with no incident, OPEN one, then call `undo()`, and both restores land — height 850 back to 700 and the anchor back to its drawn value, `undo()` resolving ok. Both cases are written to what the instrument printed and go red the day the undo is brought inside the gate. | **This is what blocks G1 now.** It is the same SHAPE as L-06 — a write outside the `guardCommand` chokepoint — but is recorded separately on the owner's ruling, because L-06 is narrowed-and-accepted and this is not yet decided. Closing it means bringing the reversible adapters' inverses inside the gate, which touches ADR-0034's chokepoint and needs an amendment and an owner. **Read the ADR's own framing first, because it cuts the other way**: the gate exists because a compensating undo itself failed, which reads as an argument that an undo should stay possible while writes are paused. Nothing in the code or beside those four port calls says so, so today it is an unstated property rather than a recorded decision — and that is exactly what an amendment would have to settle. |
+| L-17 | **Limitation.** A production docblock family miscounts the asset-design bundle, in eleven places | Measured 2026-09-18 by the controller, after a review named five sites in two files | 2026-09-18 | `AssetDesignCommandBundle` declares NINE commands, and the guarded `assetDesign` object returns those nine plus a `get` query — ten members. The prose says eight. Counted rather than read — a case-insensitive word-boundary search for `eight`, `nine`, `eighth` and `ninth` over the four files that describe the bundle (the alternation is spelled out here rather than pasted, because a raw regex in a table cell breaks the cell) prints **eleven** sites in FOUR files — `ReversibleAssetDesignCommands.ts` at `:48`, `:63`, `:78`, `:560`; `guardedServices.ts` at `:216`, `:217`, `:236`, `:248`, `:501`; `designerCommands.ts` at `:123`, `:128`. The root is locatable: `:63`'s "six doors" geometry list omits `setShape`, so this is one off-by-one propagated, not eleven independent slips. | Prose only, no behaviour. **NOT fixed here, deliberately**: `:63` is a wrong GROUPING rather than a typo, so repairing it correctly means re-deriving which adapter inverts `setShape` — a task with its own review, not a find-and-replace, and folding it into a session whose subject is a gate measurement would bury it. Recorded so the next reader counts rather than reads. The review that surfaced it named five sites in two files; the census found eleven in four, which is CLAUDE.md's own rule met again — a reviewer's list is a reading, not a census. |
+| L-18 | **Limitation.** `SetAssetHeightCommand` accepts an absent height and clears the field | Found 2026-09-18 as a side effect of the category loop; confirmed by an independent reviewer | 2026-09-18 | With the write gate disabled, `setHeight` given `{ assetId }` and no `height` resolved ok and left the note's height `null` — the only one of the nine doors that did not refuse the loop's deliberately incomplete input. The mechanism is `Asset.withChanges`: `'height' in changes ? (changes.height ?? null)` reads an explicit `undefined` as "clear this field". | **Not reachable in production today** — `height` is a required `number \| null` and both call sites supply it, so the compiler stands where a runtime check does not. A latent shape rather than a live defect, and visible at all only because the category loop dispatches incomplete input at a gate that refuses first. Decide where that validation belongs if a third call site ever arrives. |
 
 ## Native / hardware availability
 
@@ -567,6 +570,150 @@ decision rather than a discovery: the field is already wired and correct-valued,
 a tool framework consulting it on a surface nothing has ever run in a vault. L-12 remains a one-word
 intent call for an owner.
 
+### Session 6 — 2026-09-18 — L-13 measured, and what the measurement found instead
+
+**Opened** at `35ab0c12d`, tree clean apart from the untracked session-6 prompt. `origin/main` at
+`ed5c50b76` and `git merge-base HEAD origin/main` the same SHA, so main is an ancestor and there was
+nothing to merge; no overlap measurement was needed. Closed at `e118f61d4`, **nothing pushed**.
+
+**This session wrote no production code at all.** `git diff --stat 35ab0c12d..e118f61d4 -- src/` is
+empty, and it was re-checked after every round.
+
+#### What was measured, and why the session did not build what it was dispatched to consider
+
+L-13 said the Asset Designer was "not gated by an open write incident at all", and that row was the
+only thing the previous session put between the current state and G1. The controller read the
+composition before dispatching anything and found the row's evidence — one grep showing that
+`writesBlocked()` is read only under `src/presentation/editor/` — **true but about the affordance**,
+while the data-safety question it was being used to answer had never been driven.
+
+Four measurements, taken by the controller from the code and then re-verified by an implementer and
+two independent reviewers:
+
+| # | Measurement | How |
+|---|---|---|
+| M1 | The designer has exactly ONE write door | `runtime.ts:368`, `context.commands.designEdits({ noteLedger, geometryLedger })` — the only non-prose write path in `src/presentation/designer/` |
+| M2 | Its FORWARD half is guarded | `guardAssetDesign` composes all nine commands through `guardBothDoors`, which wraps BOTH `execute` and `executeWithVersion` in `guardCommand`; the vault gate refuses BEFORE the wrapped command is awaited |
+| M3 | Its UNDO half is NOT | the inverses write through the raw ports in `ReversibleAssetDesignDeps` — `sidecar.write`, `assets.save` and the background adapter's pair — and `guardCommand` wraps a `Command`, never a port |
+| M4 | None of that was checked, and the harnesses were kinder than production | `designerRig.ts` and `assetDesignHarness.ts` both build the bundle from RAW `new SetAsset…Command(...)` instances; `grep -rn "guardAssetDesign" tests/` returned **zero** hits, so no designer test could observe the gate at all |
+
+M4 is the finding that shaped the session. `designerIncidentGate.test.ts`'s header already asserted,
+in prose, that *"Every write it dispatches is refused by the guarded doors underneath"* — a sentence
+with nothing under it, in a file whose other half is carefully checked. **Ruling R-S6-1: the
+session's subject is the instrument, not a gate.** No production gate unless the instrument
+contradicted M2. *Cost if wrong:* a forward designer edit landing under an open incident would have
+been a live data-safety hole, and the session would have had to gate it at the command seam.
+
+#### What was built
+
+`tests/presentation/designer/designerIncidentRefusal.test.ts` — seven cases, built over the REAL
+`guardAssetDesign` rather than either shared harness's raw bundle, with the deps spelled as
+`composition-root.ts` and `assetDesignerDeps.ts` spell them:
+
+- a success control and a refusal case for the NOTE door (`setHeight`) and the GEOMETRY door
+  (`setAnchor`), each refusal asserting `WRITES_PAUSED_CODE` **and that the port was not written** —
+  the geometry one checking the entity VERSION too, since a rewrite with identical bytes would move
+  it and the value assertion alone could not see that;
+- a CATEGORY case iterating every command member of the guarded bundle, both doors each, members
+  discovered by SHAPE rather than by a typed list, the excluded `get` query asserted BY NAME, and a
+  found-something-at-all floor;
+- two cases recording the UNDO gap, written to what the instrument printed rather than to what would
+  be desirable.
+
+**Ruling R-S6-2**, after a review found the file handing its whole-bundle claim to
+`tests/plugin/guardCategory.test.ts`: close the CATEGORY rather than narrow the sentence. That file
+names `WRITES_PAUSED_CODE` **zero** times — its `MAPPED_REFUSAL` is `vault.unexpected-failure`, it
+checks the error boundary and not the gate, and it stays 13/13 green with the gate removed. One loop
+over the bundle is both cheaper than seven more hand-written cases and wider than them.
+*Cost if wrong:* the loop's inputs are only valid to a gate that refuses first, so the fix round was
+required to watch it red and report the code each door answered. It did.
+
+#### Commands run, with exit codes captured before any pipe
+
+| Command | Revision | Exit | Outcome |
+|---|---|---|---|
+| `npx vitest run tests/presentation/designer/designerIncidentRefusal.test.ts` | `0248de6cf` | **0** | 1 file / 6 passed |
+| the same, with `guardCommand`'s incident block disabled | `0248de6cf` | **1** | 2 failed / 6 passed — both refusal cases red; `designerIncidentGate.test.ts` run beside it stayed FULLY GREEN |
+| the same file | `1732092ff` | **0** | 1 file / 7 passed |
+| the same, gate disabled | `1732092ff` | **1** | **3 failed** / 4 passed — the category loop now red too |
+| the same file | `4a9c14d68` | **0** | 1 file / 7 passed |
+| `npm run check:fast -- tests/presentation/designer` | `4a9c14d68` | **0** | 47 files / 560 tests (implementer and both reviewers) |
+| `npm run check` | — | **not run** | contends with parallel work; CI is where it belongs |
+| `npm run analyze` | — | **not run** | L-04 — it fails on `origin/main` itself |
+
+**The controller ran both reverts itself** rather than reading them out of a report, each applied by
+a script that asserted its anchor was present AND unique before writing, with `git diff --numstat`
+checked after and `git checkout --` and a clean `git diff --stat -- src/` proving the restore.
+
+#### The contrast datum, which is the session's most useful single fact
+
+Under the same revert that turns all three refusal cases red, **`designerIncidentGate.test.ts` stays
+fully green.** It reads `writesBlocked()` off the registry directly and never enters `guardCommand`.
+That is precisely the "one seam away from the code that decides" shape session 4 paid four review
+rounds to learn to hunt — and it was sitting in the same directory as its own counter-example, in a
+file whose prose claimed the property the green run cannot see.
+
+#### Reviews
+
+Two independent seats, each told to answer its seat's question by experiment and to treat every
+sentence of the report under it as a claim.
+
+- **Task review** — spec ✅, quality ✅, one Important. Its seat question was whether the refusal
+  cases' SETUP was vacuous: the incident is opened BEFORE the harness seeds, so "the note is
+  untouched" could have been asserting a value a failed seed would read back anyway. It answered by
+  perturbation, not by reading — seeded height 700 → 777 made the assertion follow it
+  (`expected 777 to be 700`) with the incident open, and a no-op'd `seed()` reddened the geometry
+  case with `expected undefined to deeply equal {x:5,y:5}`. **Not vacuous.**
+- **Scoped re-review** of the fix round — spec ✅, quality ✅, one Important. It falsified all three
+  of the category loop's guards by experiment: an `execute`-only member reddened the exclusion
+  assertion BY NAME, a deleted member reddened the count floor, and a stubbed single door was named
+  in place among the other seventeen. Its Important was that a clause the fix round had just written
+  — that the file probe "IS reached with the gate disabled" — was measured FALSE: instrumented, the
+  probe recorded `asked: []`, because `SetAssetBackgroundCommand` throws in `backgroundKindOf` before
+  consulting it. Fixed at `4a9c14d68`, by an implementer who re-measured it independently rather
+  than taking the review's word, and who added a well-formed-path arm so the empty result is a
+  measurement rather than a dead instrument.
+
+#### Rulings, and what each costs if wrong
+
+| Ruling | Decision | Cost if wrong |
+|---|---|---|
+| R-S6-1 | The subject is the instrument, not a gate; no production change unless M2 is falsified | A forward designer edit landing under an open incident would be a live hole; the session would have had to gate at the command seam |
+| R-S6-2 | Close the door CATEGORY with a loop over the bundle rather than narrowing the sentence to two doors | The loop's inputs are valid only to a gate that refuses first, so it must be watched red and its per-door codes reported — it was |
+| R-S6-3 | Record L-17 (the eleven-site EIGHT/nine miscount) rather than fix it here | The false counts stay in production docblocks one more session. `:63` is a wrong GROUPING, not a typo — repairing it means re-deriving which adapter inverts `setShape`, which is a task with its own review |
+| R-S6-4 | Record L-18 (`setHeight` accepting an absent height) rather than fix it | Nothing reaches it today; `height` is a required `number \| null` and both call sites supply it. If a third call site arrives without a decision on where validation belongs, it can clear a field silently |
+
+Three owner calls were put to a release owner rather than guessed, and all three were answered:
+**L-13** reclassified with G1 still blocked on the undo half as its own limitation (L-16), **L-12**
+closed by changing "guarded" to "version-checked", and **L-15** deliberately left for a copy pass
+with native-speaker review rather than minting more agent German.
+
+#### What is implemented but unverified, and what was NOT done
+
+- **Nothing on this branch has ever been run in Obsidian.** No native, device, screen-reader or
+  performance verification was performed in this session or any before it.
+- **Coverage was not re-measured.** Three test cases were added and no production line changed, so
+  no branch arm moved; `npm run check` was kept off the working machine under the parallel-work rule
+  and coverage on this branch is CI's report to make.
+- **BP-03 was not opened.** The session's remainder is not where a P0 discovery package starts.
+- **The seven other guarded doors' data-safety half.** The category loop proves all nine refuse with
+  `WRITES_PAUSED_CODE`; the port-was-not-written assertion is driven for two of them, one per
+  adapter. Widening it means seeding a meaningful before-state per door, which is a real cost for a
+  claim the shared `guardCommand` already carries.
+- **Whether the designer's UI actually reaches the guarded chain at runtime.** The instrument proves
+  the chain the composition root builds refuses. It does not prove the mounted surface dispatches
+  through that chain rather than through a harness's, because `designerRig` builds a raw bundle —
+  closing that means editing a shared harness, which changes what every other designer test measures
+  and is a decision with its own review.
+
+**Next executable action.** Decide **L-16** — whether the reversible adapters' UNDO halves come
+inside the write gate. It is a DECISION and not a discovery: the behaviour is measured, driven and
+pinned by two cases that go red the day it changes. Read ADR-0034's own framing first, because it
+argues the other way — the gate exists because a compensating undo itself failed, which reads as a
+reason an undo should stay possible while writes are paused. Nothing states that as a decision
+today, and settling it is what an ADR-0034 amendment would be for. BP-03 remains the next P0
+package after it.
+
 ## Candidate identity record
 
 Keep a new record for each production candidate. Evidence belongs to the recorded artifact, not merely the current branch name.
@@ -593,7 +740,7 @@ Keep a new record for each production candidate. Evidence belongs to the recorde
 | Gate | State | Required evidence / decision |
 |---|---|---|
 | G0 — baseline known | **Passed** | BP-00 complete: source identity recorded, every finding classified, scoped baseline green and unmodified, ownership recorded as unassigned. |
-| G1 — data trust | Not evaluated — **blocked by L-13** | BP-01's rebind survival is implemented and tested, and the second-pane bypass (L-01) is closed for the Plan Editor as of 2026-09-17. BP-02's four slices are complete. G1 still cannot pass: an open incident is bypassed by opening the **Asset Designer**, which is not gated at all (L-13), and BP-03 remains. L-06 is narrowed rather than closed, L-11's set is still neither listed nor checked, and nothing here has been run in a vault. |
+| G1 — data trust | Not evaluated — **blocked by L-16**, and no longer by L-13 | BP-01's rebind survival is implemented and tested, and the second-pane bypass (L-01) is closed for the Plan Editor as of 2026-09-17. BP-02's four slices are complete. **L-13 was measured on 2026-09-18 and reclassified**: the Asset Designer's forward writes ARE refused while an incident is open, at every door of the guarded bundle, with the port proven unwritten — so the surface-bypass this row used to name does not exist on the forward path. What that measurement found instead is **L-16**: the designer's UNDO half writes through raw ports and lands while the vault is paused. A release owner ruled on 2026-09-18 that G1 stays blocked on it rather than folding it into L-06. BP-03 also remains, L-06 is narrowed rather than closed, L-11's set is still neither listed nor checked, and **nothing here has been run in a vault**. |
 | G2 — core journey | Not evaluated | BP-04–BP-07 |
 | G3 — support and first use | Not evaluated | BP-08–BP-11 |
 | G4 — actual candidate | Not evaluated | BP-12–BP-13 |

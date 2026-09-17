@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
-import { err } from '../../../src/core/result/Result';
+import { err, ok } from '../../../src/core/result/Result';
 import { InMemorySequenceMarkerStore } from '../../../src/infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
 import { recoverInterruptedSequences } from '../../../src/application/reference/recoverInterruptedSequences';
 import type { Requirement } from '../../../src/domain/requirement/Requirement';
 import type { Loaded } from '../../../src/application/ports/versioning';
 import type { SequenceMarker } from '../../../src/application/reference/deleteResolution';
-import { expectErr, expectFound, expectOk } from '../../helpers/domain';
+import type { SequenceMarkerListing, SequenceMarkerStore } from '../../../src/application/ports/SequenceMarkerStore';
+import { expectErr, expectFound, expectOk, RecordingEventBus } from '../../helpers/domain';
 import { makeAsset, makeRequirement, makeZone } from '../../helpers/entities';
 import { lines, recorder as logger } from '../../helpers/logger';
 import { TEN_SQUARE_METERS, requirementFixture, zoneSequenceCollaborators } from '../../helpers/slice10';
@@ -156,7 +157,7 @@ describe('recoverInterruptedSequences', () => {
 		const stored = expectFound(await w.requirements.getById(requirement.id));
 		expect(stored?.entity.recalculationStatus).toBe('current');
 		expect(expectOk(await w.zones.getById(zone.entity.id))).not.toBeNull();
-		expect(expectOk(await markers.list())).toEqual([]);
+		expect(expectOk(await markers.list()).markers).toEqual([]);
 	});
 
 	it('is idempotent: a second pass finds no marker and changes nothing', async () => {
@@ -196,7 +197,7 @@ describe('recoverInterruptedSequences', () => {
 		// cleared once the entry was surfaced.
 		const surfaced = lines.filter((line) => line.event === 'sequence.recovery.restore-refused');
 		expect(surfaced.length).toBeGreaterThan(0);
-		expect(expectOk(await w.markers.list())).toEqual([]);
+		expect(expectOk(await w.markers.list()).markers).toEqual([]);
 	});
 
 	it('leaves a completed ASSET deletion standing rather than resurrecting it', async () => {
@@ -226,7 +227,7 @@ describe('recoverInterruptedSequences', () => {
 		// The delete was the sequence's LAST mutation, so the marker records a job finished
 		// rather than one interrupted. The asset stays deleted and the marker goes.
 		expect(expectOk(await w.assets.getById(asset.entity.id))).toBeNull();
-		expect(expectOk(await markers.list())).toEqual([]);
+		expect(expectOk(await markers.list()).markers).toEqual([]);
 	});
 
 	it('leaves a COMPLETED sequence standing: it clears the marker and reverses nothing', async () => {
@@ -271,7 +272,7 @@ describe('recoverInterruptedSequences', () => {
 		// marker that would have reversed both on the next load is gone.
 		expect(expectOk(await w.zones.getById(zone.entity.id))).toBeNull();
 		expect(expectFound(await w.requirements.getById(requirement.id))?.version).toBe(marked.version);
-		expect(expectOk(await markers.list())).toEqual([]);
+		expect(expectOk(await markers.list()).markers).toEqual([]);
 	});
 
 	it('logs a failed marker CLEAR rather than pretending recovery completed cleanly', async () => {
@@ -363,7 +364,7 @@ describe('recoverInterruptedSequences', () => {
 		expect(lines.some((line) => line.event === 'sequence.recovery.restore-refused')).toBe(true);
 		// The later marker was reached: its referent is back, and BOTH markers cleared.
 		expect(expectOk(await w.requirements.getById(later.id))).not.toBeNull();
-		expect(expectOk(await markers.list())).toEqual([]);
+		expect(expectOk(await markers.list()).markers).toEqual([]);
 		expect(lines.filter((line) => line.event === 'sequence.recovery.failed')).toHaveLength(0);
 	});
 
@@ -388,7 +389,7 @@ describe('recoverInterruptedSequences', () => {
 		expect(lines.some((line) => line.event === 'sequence.recovery.clear-failed')).toBe(true);
 		expect(lines.filter((line) => line.event === 'sequence.recovery.failed')).toHaveLength(0);
 		// The one that could clear did; the one that threw is left for the next load.
-		expect(expectOk(await markers.list()).map((marker) => marker.entityId)).toEqual(['zone-doomed']);
+		expect(expectOk(await markers.list()).markers.map((marker) => marker.entityId)).toEqual(['zone-doomed']);
 	});
 
 	it('resolves and logs rather than rejecting when the marker LIST throws', async () => {
@@ -437,6 +438,91 @@ describe('recoverInterruptedSequences', () => {
 		expect(lines.filter((line) => line.event === 'sequence.recovery.failed')).toHaveLength(1);
 		// And the marker is still there: a fault is not a completed recovery, so the next
 		// load tries again. Nothing cleared it on the way out of the catch.
-		expect(expectOk(await markers.list())).toHaveLength(1);
+		expect(expectOk(await markers.list()).markers).toHaveLength(1);
+	});
+});
+
+/**
+ * A store answering a listing with an unreadable half, which `InMemorySequenceMarkerStore`
+ * structurally CANNOT do: it holds typed `SequenceMarker` objects in a `Map`, so it can
+ * never hold an unparseable one. Recording `clear` rather than asserting on a log, because
+ * "recovery did not retire it" is the behaviour and a log line is only evidence of one.
+ */
+function listingOf(listing: SequenceMarkerListing): { markers: SequenceMarkerStore; cleared: string[] } {
+	const cleared: string[] = [];
+	return {
+		cleared,
+		markers: {
+			list: () => Promise.resolve(ok(listing)),
+			read: () => Promise.resolve(ok(null)),
+			write: () => Promise.resolve(ok(undefined)),
+			clear: (entityId: string) => {
+				cleared.push(entityId);
+				return Promise.resolve(ok(undefined));
+			},
+		},
+	};
+}
+
+/**
+ * BP-02 slice 3. A marker whose stored shape this build cannot parse reaches recovery through
+ * the listing's UNREADABLE half, and recovery does nothing with it — it is not walked, not
+ * restored and not cleared, because the plugin does not get to declare an all-clear over a
+ * record it could not read — ADR-0034's reasoning about its own sibling record (decision D-08
+ * in `docs/releases/first-beta-readiness/03-execution-tracker.md`), applied here.
+ */
+describe('recoverInterruptedSequences and a marker this build cannot read', () => {
+	const FUTURE = { entityId: 'zone-future', foundSchemaVersion: 99 };
+
+	it('neither replays nor clears it when it is the only entry', async () => {
+		// `lines` accumulates across this file; the fault count below is about THIS case.
+		lines.length = 0;
+		const w = await requirementFixture();
+		const events = new RecordingEventBus();
+		const { markers, cleared } = listingOf({ markers: [], unreadable: [FUTURE] });
+		const saved: unknown[] = [];
+		const requirements = overridePort(w.requirements, {
+			save: (entity: unknown, expected: unknown) => {
+				saved.push(entity);
+				return w.requirements.save(entity as never, expected as never);
+			},
+		});
+
+		await recoverInterruptedSequences({ markers, requirements, events, logger });
+
+		expect(saved).toEqual([]);
+		expect(events.published).toEqual([]);
+		expect(cleared).toEqual([]);
+		// Doing nothing is the CORRECT outcome here, not a swallowed fault — and the three
+		// assertions above hold just as well for a walk that threw on the listing's shape and
+		// was caught by the module's outer boundary, which is what they did before the fix.
+		expect(lines.filter((line) => line.event === 'sequence.recovery.failed')).toEqual([]);
+	});
+
+	it('recovers a recognised marker beside it in full and still leaves it alone', async () => {
+		const w = await requirementFixture();
+		const events = new RecordingEventBus();
+		const zone = expectOk(
+			await w.zones.save(makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }), 'absent'),
+		);
+		const asset = expectOk(await w.assets.save(makeAsset(), 'absent'));
+		// Never saved: its sequence REMOVED it, so a full recovery is the row coming back.
+		const removed = makeRequirement({
+			projectId: w.project.entity.id,
+			assetId: asset.entity.id,
+			origin: { kind: 'zone', zoneId: zone.entity.id },
+		});
+		const { markers, cleared } = listingOf({
+			markers: [markerOver('zone-ok', removed)],
+			unreadable: [FUTURE],
+		});
+
+		await recoverInterruptedSequences({ markers, requirements: w.requirements, events, logger });
+
+		expect(expectOk(await w.requirements.getById(removed.id))).not.toBeNull();
+		expect(events.published.map((event) => event.type)).toEqual(['RequirementCreated']);
+		// Only the recognised one was retired. The other stays in the file for a build that
+		// can read it — the exact opposite of the old discard-then-rewrite behaviour.
+		expect(cleared).toEqual(['zone-ok']);
 	});
 });

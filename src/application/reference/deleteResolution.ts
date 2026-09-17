@@ -64,9 +64,11 @@ export const SEQUENCE_MARKER_SCHEMA_VERSION = 1;
  * operational state, not project data — never `data.json`'s settings object (which drops
  * undeclared keys), carrying its own schemaVersion like every persisted shape here.
  *
- * Migration story, deliberately short: a marker a newer version cannot read is DISCARDED
- * with a diagnostic, not migrated. It is short-lived by construction, and recovery WRITES,
- * so a misread `progress` entry could restore the wrong content over a requirement.
+ * Migration story, deliberately short: a marker this build cannot read is never migrated,
+ * because recovery WRITES and a misread `progress` entry could restore the wrong content
+ * over a requirement. It is not discarded either — BP-02 slice 3: the store preserves it
+ * verbatim and reports it through `SequenceMarkerListing`'s `unreadable` half, and recovery
+ * neither replays nor clears it. Not migrated, not lost, not acted on.
  */
 export interface SequenceMarker {
 	readonly schemaVersion: number;

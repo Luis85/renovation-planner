@@ -466,11 +466,11 @@ export const de: Partial<Record<StringKey, string>> = {
 	// weiter oben in dieser Datei; "Material" ist hier eine Kategorie und kein Synonym.
 	'empty.asset.no-shape.headline': 'Noch kein Umriss',
 	'empty.asset.no-shape.body':
-		'Ein Objekt erhält seinen Umriss aus eingegebenen Maßen oder aus einer über ein Datenblatt gezeichneten Kontur. Beides macht daraus etwas, das ein Grundriss aufnehmen kann.',
+		'Ein Objekt erhält seinen Umriss aus einer Vorlage, aus eingegebenen Maßen oder aus einer über ein Datenblatt gezeichneten Kontur. Alle drei machen daraus etwas, das ein Grundriss aufnehmen kann.',
 	'empty.asset.no-shape.action': 'Maße festlegen',
 	'empty.asset.no-background.headline': 'Noch kein Datenblatt',
 	'empty.asset.no-background.body':
-		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt.',
+		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt. Eine Vorlage oder eingegebene Maße brauchen gar keinen Hintergrund.',
 	'empty.asset.no-background.action': 'Hintergrund wählen',
 	'view.asset-designer.name': 'Objekt-Designer',
 	'designer.canvas': 'Objekt-Zeichenfläche',

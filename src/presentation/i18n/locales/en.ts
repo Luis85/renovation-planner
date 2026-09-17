@@ -707,11 +707,11 @@ export const en = {
 	// so `content.test.ts` asserts both actions rather than assuming either.
 	'empty.asset.no-shape.headline': 'No footprint yet',
 	'empty.asset.no-shape.body':
-		'An asset gets its footprint from typed dimensions or from an outline traced over a spec sheet. Either one makes it something a plan can hold.',
+		'An asset gets its footprint from a preset shape, from typed dimensions, or from an outline traced over a spec sheet. Any of the three makes it something a plan can hold.',
 	'empty.asset.no-shape.action': 'Set dimensions',
 	'empty.asset.no-background.headline': 'No spec sheet yet',
 	'empty.asset.no-background.body':
-		'Set a photograph, drawing or datasheet as this asset’s background, then calibrate it so a traced outline comes out in real units.',
+		'Set a photograph, drawing or datasheet as this asset’s background, then calibrate it so a traced outline comes out in real units. A preset or typed dimensions need no background at all.',
 	'empty.asset.no-background.action': 'Choose a background',
 	// The designer's own shell. `designer.asset-failed.headline` is the counterpart of
 	// `editor.plan-failed.headline`: the BODY under it is `trError(error)`, so an unreadable

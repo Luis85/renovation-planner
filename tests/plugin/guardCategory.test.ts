@@ -23,9 +23,14 @@
  * `awk '/Detonated BEFORE the/{f=1} f&&/^\t\t\]\)/{f=0} f' tests/plugin/guardCategory.test.ts
  * | grep -oE 'persistence\.[a-zA-Z]+' | sort` prints one line per entry, and it printed nine.
  *
- * Four hand-written lists live in this file — that detonation array, `SERVICE_CARVE_OUTS`,
- * `DOOR_CARVE_OUTS`, and the skip test's `owners`. The last three are each asserted by exact
- * key set, so a drift is named at an assertion. The detonation array is the one that is NOT,
+ * FIVE hand-written lists live in this file — that detonation array, `SERVICE_CARVE_OUTS`,
+ * `DOOR_CARVE_OUTS`, the skip test's `owners`, and the class-instance set pinned by
+ * `it('pins every raw class instance the root hands out, …')`. Four, not three, since BP-02
+ * slice 4 task L-06 added the last of them. The count is re-derived by NAMING them, which is
+ * the only instrument there is for it — a grep cannot tell a maintained list from an
+ * expectation — so the five names above are the measurement and this sentence is wrong the
+ * moment one of them is not in it. The last four are each asserted by exact value, so a drift
+ * is named at an assertion. The detonation array is the one that is NOT,
  * deliberately: `index`, `vaultDeps`, `migrations`, `geometryStore`, `locks`, `markers` and
  * `changeAdapter` are left intact, which costs nothing only because of the fail-closed
  * property below — a service whose collaborators were not detonated answers a SUCCESS, and a
@@ -51,23 +56,35 @@
  * - **repository PORTS.** `PlanEditorCommandServices.zones` and the requirement/asset ports
  *   leave the root raw. Guarding a port is a different mechanism — every method, not one
  *   `execute` — and a port carries no `execute…` member, so the walk passes it by
- *   structurally rather than by exception. Closing that gap belongs to another slice, and
- *   this file would need a second question to hold it.
+ *   structurally rather than by exception.
+ *
+ *   **The second question this bullet used to ask for now EXISTS, and it is smaller than the
+ *   gap.** BP-02 slice 4 task L-06 made that structural pass-by a RECORDED skip
+ *   (`class-instance`) and pinned the resulting set by exact value in the last case below.
+ *   What that holds: a NEW raw class instance in the handoff — a new bypass surface — turns
+ *   the gate red and its author has to justify it in the same edit. What it does NOT hold:
+ *   the ports already on that list stay raw and stay unguarded, so the three live bypasses
+ *   ADR-0034 records under tracker limitation L-06 are unchanged, and a `markUncompensated`
+ *   stamp added behind one of them turns nothing red here. **The hole cannot get wider; it is
+ *   not closed.**
  * - **a service hiding inside a class instance.** The walk descends into bundles (plain
  *   objects and arrays) and never into a class instance that is not itself a service,
  *   because repositories, the index, the change adapter and the migration runner are
  *   collaborators whose innards are nobody's business here. A command composed as a FIELD
- *   of such an object is invisible.
+ *   of such an object is invisible — recorded as a `class-instance` skip at the object's own
+ *   path, which names where the walk stopped and never what is inside.
  * - **a door-bearing object with no `execute…` member at all.** `isService` recognises a
  *   member whose name begins with `execute`, which covers `execute` and
  *   `executeWithVersion`, the two entry-point spellings this codebase has. An object whose
  *   only door were `undo`, or `run`, would not be recognised as a service — though `undo`
  *   IS driven once a service is recognised, since `reachableDoors` returns every reachable
  *   member (methods and accessors alike) rather than the ones matching that prefix.
- * - **anything past depth 8, a function that takes arguments, and a factory whose call
- *   throws.** Those three are RECORDED rather than silently skipped — see `Skip` — because
- *   a recorded skip is something review can see. The most probable next hole is the second:
- *   `calibratePlan` is zero-argument today, and a factory usually takes one.
+ * - **anything past depth 8, a function that takes arguments, a factory whose call throws,
+ *   and a class instance that is not a service.** Those FOUR are RECORDED rather than
+ *   silently skipped — see `SkipKind` — because a recorded skip is something review can see.
+ *   The fourth is the newest and the only one pinned by exact value. The most probable next
+ *   hole is the second: `calibratePlan` is zero-argument today, and a factory usually takes
+ *   one.
  *
  * Two halves, and the first matters as much as the second: an instrument that reached
  * nothing would report no findings and look exactly like a guarded composition. `discover`
@@ -120,7 +137,7 @@ interface Finding {
 	readonly problem: string;
 }
 
-type SkipKind = 'function-with-arguments' | 'factory-threw' | 'depth-limit';
+type SkipKind = 'function-with-arguments' | 'factory-threw' | 'depth-limit' | 'class-instance';
 
 interface Skip {
 	readonly path: string;
@@ -194,7 +211,8 @@ function isService(value: unknown): value is Record<string, unknown> {
  *   which is what lets a raw command class be caught rather than skipped;
  * - a plain object or an array is a BUNDLE and is descended into, because that is what the
  *   root composes its groups out of (`queries`, `requirementQueries`, `commands`);
- * - a class instance that is not a service is NOT descended into — see the header;
+ * - a class instance that is not a service is NOT descended into, and is RECORDED as a
+ *   `class-instance` skip rather than dropped — see the header;
  * - a zero-argument FUNCTION is called and its answer walked, because a factory is a door
  *   too: `calibratePlan` is handed to the editor as one and never passes through
  *   `PersistenceServices`. A function taking arguments, and a call that throws, are
@@ -242,7 +260,14 @@ function discover(root: unknown, rootPath: string): Discovery {
 			discovered.push({ path, service: value });
 			return;
 		}
-		if (!isPlainObject(value)) return;
+		if (!isPlainObject(value)) {
+			// A class instance that is not itself a service. RECORDED rather than dropped, because
+			// this is where a raw write PORT leaves the composition root — the bypass surface
+			// ADR-0034's L-06 category is reached through. A recorded skip is something review can
+			// see; a silent `return` is how the next one arrives unremarked.
+			skipped.push({ path, kind: 'class-instance' });
+			return;
+		}
 		for (const [key, member] of Object.entries(value)) {
 			visit(member, `${path}.${key}`, depth + 1);
 		}
@@ -417,6 +442,11 @@ describe('the instrument that checks the boundary', () => {
 
 		expect(discovery.discovered.map((entry) => entry.path)).toEqual(['root.queries.one']);
 		expect(await auditDoors(discovery)).toEqual([]);
+		// The port is passed by, and SAYS SO. This is the fixture half of the class-instance
+		// skip: `discover` really does record a raw class instance at the path it sits on,
+		// which is what makes the pinned real-composition set below an instrument rather than
+		// an empty array that would look identical to a clean handoff.
+		expect(discovery.skipped).toEqual([{ path: 'root.zones', kind: 'class-instance' }]);
 	});
 
 	/** The two holes the walk has, RECORDED — a skip review can see beats a silent return. */
@@ -590,12 +620,34 @@ describe('every service leaving the composition root is guarded', () => {
 	 * method to a bundle already on this list changes nothing, while an argument-taking
 	 * factory appearing somewhere new — `editorDeps.commands` is where one would go —
 	 * changes it and review has to look.
+	 *
+	 * `class-instance` is the fourth kind and arrived with BP-02 slice 4 task L-06. It is
+	 * tolerated HERE and pinned by exact value in the case below, which is a stronger
+	 * assertion than an owner set rather than a weaker one — so `owners` is now derived from
+	 * the `function-with-arguments` skips alone, which is what this docblock has always said
+	 * it was ("the objects those functions live on"). Widening it to every kind would have
+	 * folded the new set into an owner list and lost the exact-value pin.
 	 */
 	it('records where it gave up, and gave up nowhere that could hide a service', () => {
 		const { skipped } = surveyed();
-		const owners = [...new Set(skipped.map((skip) => skip.path.slice(0, skip.path.lastIndexOf('.'))))].toSorted();
+		const owners = [
+			...new Set(
+				skipped
+					.filter((skip) => skip.kind === 'function-with-arguments')
+					.map((skip) => skip.path.slice(0, skip.path.lastIndexOf('.'))),
+			),
+		].toSorted();
 
-		expect(skipped.filter((skip) => skip.kind !== 'function-with-arguments')).toEqual([]);
+		// TWO tolerated kinds, by exact name, so a THIRD appearing still turns this red.
+		// `function-with-arguments` is tolerated because whether such a function is a factory is
+		// unknowable without calling it, and calling it is what this walk deliberately does not
+		// do — its owners are asserted below instead. `class-instance` is tolerated because a
+		// collaborator's innards are nobody's business here — but it is NOT tolerated blindly:
+		// the case below pins that set by exact value. `factory-threw` and `depth-limit` stay
+		// forbidden outright, because either could hide a real service.
+		expect(
+			skipped.filter((skip) => skip.kind !== 'function-with-arguments' && skip.kind !== 'class-instance'),
+		).toEqual([]);
 		// The two the header names as the most probable next hole, arriving: BP-02 slice 4's
 		// guarded zone-edit factories take the leaf's `WriteLedger`, so they land HERE rather
 		// than in `discovered` and this walk drives neither. Named rather than left inside the
@@ -646,5 +698,104 @@ describe('every service leaving the composition root is guarded', () => {
 			'persistence.planEditorQueries',
 			'persistence.vaultDeps.logger',
 		]);
+	});
+
+	/**
+	 * The file header's "second question", and **it is not an answer to ADR-0034's L-06
+	 * category** — read the next two paragraphs before citing it as one.
+	 *
+	 * A `markUncompensated` stamp becomes a DURABLE write incident only if the dispatch that
+	 * produced it reaches one of the two recorders (`guardAgainstThrowing.ts`'s
+	 * `void incidents?.record(…)` and `evidenceRename.ts`'s
+	 * `activeWriteIncidentRegistry()?.record(…)` — measured,
+	 * `grep -rn "record(result.error as AppError & UncompensatedWrite)" src/` prints exactly
+	 * those two lines). A stamp raised behind a RAW PORT the root hands to presentation reaches
+	 * neither, which is how `reversible-delete-zone-command.ts`'s undo half stamps and nothing
+	 * records it. Those raw ports are class instances, so the walk above passes them by — and
+	 * now says so at the path it passed them at.
+	 *
+	 * **What this buys is that the hole cannot get WIDER, not that it is closed.** A NEW raw
+	 * class instance in the handoff turns this red and its author has to justify it in the same
+	 * edit. The three uncovered sites ADR-0034 NAMES stay live and stay silent — three is what has
+	 * been named, not a completeness claim — and a SECOND `markUncompensated`
+	 * added behind one of them — inside `reversible-delete-zone-command.ts`, which already has
+	 * the shape — turns nothing red here. Closing the category would mean recording inside
+	 * `markUncompensated` itself; ADR-0034's deferred-check bullet carries that option and the
+	 * cost that made BP-02 slice 4 refuse it.
+	 *
+	 * Two halves to the set, and the comments below distinguish them because they are not the
+	 * same fact. `persistence.*` is the root's OWN stack of collaborators, exposed so that this
+	 * very file can `detonate` them — nine of them are, above — and reached by a view only
+	 * through a guarded service. `editorDeps.*` is what a leaf is handed directly, and is where
+	 * a bypass actually lives.
+	 */
+	it('pins every raw class instance the root hands out, so a new bypass surface cannot arrive quietly', () => {
+		const instances = surveyed()
+			.skipped.filter((skip) => skip.kind === 'class-instance')
+			.map((skip) => skip.path)
+			.toSorted();
+
+		expect(instances).toEqual([
+			// A Vue `shallowRef` holding what Copy last took. Data, not a door — no write reaches the vault through it.
+			'editorDeps.clipboard',
+			// `ObsidianEvidenceFiles`: resolves and opens an evidence link. A read/navigation port with no write door.
+			'editorDeps.commands.evidenceFiles',
+			// Raw `AssetRepository`. A LIVE bypass surface of the L-06 shape — a stamp raised behind it reaches no recorder.
+			'editorDeps.commands.requirementEdits.assets',
+			// `ReferenceLocks`: a lock set the link/unlink commands share, not a write door of its own.
+			'editorDeps.commands.requirementEdits.locks',
+			// Raw `RequirementRepository`. A LIVE bypass surface, same shape and same silence as `assets` above.
+			'editorDeps.commands.requirementEdits.requirements',
+			// Raw `ZoneRepository` — the bypass ADR-0034 names by name, the port `deleteZoneHistory` dispatches against.
+			'editorDeps.commands.zones',
+			// `AssetGeometrySidecar`, the asset design write port. Detonated above; every command over it leaves guarded.
+			'persistence.assetGeometry',
+			// `AssetRepositoryPort`. Detonated above; presentation reaches it only through guarded asset services.
+			'persistence.assets',
+			// `VaultChangeAdapter`: the vault-event pipeline into the index. Not a command surface at all.
+			'persistence.changeAdapter',
+			// `PlanGeometrySidecar`, slice 7's calibration port. Detonated above.
+			'persistence.geometry',
+			// `PlanGeometryStore`, the store the sidecar port sits over. A collaborator, never handed to a view.
+			'persistence.geometryStore',
+			// `ProjectIndex`: the in-memory index. Reads only; its writes are the change pipeline's, not a command's.
+			'persistence.index',
+			// `ProjectListFacts`: §8's plan count and last-worked instrument. A read collaborator of two query doors.
+			'persistence.listFacts',
+			// `ReferenceLocks` again, at the root's own stack. Same reason as the `requirementEdits` one.
+			'persistence.locks',
+			// `SequenceMarkerStore`: ADR-0019's delete/rebuild markers. Written through delete-resolution, itself guarded.
+			'persistence.markers',
+			// `LibraryOverlaps`: §83's overlap answer, shared by two read surfaces so they cannot disagree.
+			'persistence.overlaps',
+			// `AssetPriceOverrideRepositoryPort`. Detonated above; its three services all leave guarded.
+			'persistence.overrides',
+			// `PlanRepository`. Detonated above.
+			'persistence.plans',
+			// `ProjectRepository`. Detonated above.
+			'persistence.projects',
+			// `QuoteRepository`: the quote catalogue, reached through `quoteServices` — guarded doors, raw port here.
+			'persistence.quotes',
+			// `RequirementRepositoryPort`. Detonated above.
+			'persistence.requirements',
+			// `NamedRecordRepository<Supplier>`: the supplier catalogue, same shape as `quotes`.
+			'persistence.suppliers',
+			// `NamedRecordRepository<Trade>`: the trade catalogue, same shape as `quotes`.
+			'persistence.trades',
+			// `EchoWindow`: the repositories' own write-echo suppressor. Infrastructure plumbing, no door.
+			'persistence.vaultDeps.echo',
+			// `DiagnosticsLedger`: where read refusals land for §68's snapshot. Records, never writes the vault.
+			'persistence.vaultDeps.ledger',
+			// `MigrationRunner`: reached by every note read, and its writes travel out through the repositories above.
+			'persistence.vaultDeps.migrations',
+			// `ZoneRepository` at the root's own stack. Detonated above. The same port reaches a LEAF raw as
+			// `editorDeps.commands.zones`; both appear because `surveyed` runs `discover` once per bundle, each with
+			// its own `seen`, so the two entries are two HANDOFFS of one object rather than a duplicate.
+			'persistence.zones',
+		]);
+		// An instrument that reached nothing would report an empty set and look exactly like a
+		// clean handoff. This guards the PINNED ARRAY as much as the walk: emptying both halves
+		// to clear a drift would otherwise pass.
+		expect(instances.length).toBeGreaterThan(0);
 	});
 });

@@ -71,17 +71,23 @@ const props = defineProps<{
 	 * The graphic ids this leaf has LOCKED (AD09's `PartView.locked`), which the Arrange block hands
 	 * the domain as `immovable` so a composition cannot move a part the user pinned.
 	 *
-	 * Optional, and empty by default, for the reason `openLibrary` and `setMultiSelectionMode` are:
-	 * the component suites and the harness mount this panel with no runtime behind it. **It is not
-	 * bound yet** — `AssetDesignerRoot.vue` is integrator-owned and holds the `runtime.partView` this
-	 * would come from, so AD10 ships the rule and the request for the one line that wires it. Until
-	 * that line lands a locked part composes like any other, which is exactly the gap to close.
+	 * **REQUIRED, unlike `openLibrary` and `setMultiSelectionMode` beside it, and the difference is
+	 * what ABSENCE would mean.** Those two are optional because their absence says something true:
+	 * no runtime behind this mount, therefore no navigation to offer. Absence says nothing here —
+	 * "this leaf has no locks" and "nobody told me about the locks" are different states, and an
+	 * `?? new Set()` default collapses them into the permissive one. So a mount that forgot to bind
+	 * it would compose a locked part like any other, silently, with all four gates green and a
+	 * person the only thing that could ever notice.
+	 *
+	 * It shipped optional for exactly one commit and that is precisely what it did: `AssetDesignerRoot`
+	 * did not bind it, so C06's "locked elements must not move by implication" was live the whole
+	 * time the rule existed. Required costs four mount sites and makes the omission a build failure.
 	 */
-	lockedGraphics?: ReadonlySet<string>;
+	lockedGraphics: ReadonlySet<string>;
 }>();
 
-/** The locks this panel passes on, or none where the mount binds no `PartView`. */
-const locked = computed(() => props.lockedGraphics ?? new Set<string>());
+/** The locks this panel passes on. Required above, so there is no default to write and none to hide behind. */
+const locked = computed(() => props.lockedGraphics);
 
 /** How many graphics this design has — what decides whether composing a set is even possible. */
 const graphicCount = computed(() => props.design.shape?.details.length ?? 0);

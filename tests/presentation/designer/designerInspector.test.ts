@@ -83,6 +83,11 @@ function mountInspector(
 					}),
 			// Defaults to the primary alone, which is what a single-part selection IS (AD08).
 			selected: extras.selected ?? (selection === null ? [] : [selection]),
+			// Required rather than defaulted, deliberately: this file mounts the inspector for
+			// reasons that have nothing to do with locks, and an empty set is the honest answer
+			// for a leaf with none — but it has to be SAID, so a mount that meant to bind real
+			// locks cannot forget to. The component's own docblock carries why.
+			lockedGraphics: new Set<string>(),
 			design: buildDesign(options),
 			setHeight,
 			editDimensions,

@@ -359,6 +359,8 @@ describe('mounted by the inspector it actually ships in', () => {
 				startFromPreset: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 				logger: recorder,
 				selection: graphic('detail-2'),
+				// No locks in this case; the prop is required so that saying so is not optional.
+				lockedGraphics: new Set<string>(),
 				editShape,
 				select: vi.fn<(next: DesignerSelection | null) => void>(),
 				selected: [graphic('detail-1'), graphic('detail-2')],

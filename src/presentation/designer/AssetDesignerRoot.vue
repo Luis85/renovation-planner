@@ -573,6 +573,7 @@ onMounted(() => {
 					:select="designStore.select"
 					:open-library="context.openLibrary"
 					:selected="selected"
+					:locked-graphics="runtime.partView.locked.value"
 					:multi-selection-mode="runtime.multiSelectionMode.value"
 					:set-multi-selection-mode="(next: boolean) => (runtime.multiSelectionMode.value = next)"
 				/>

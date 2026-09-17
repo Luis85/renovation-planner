@@ -2,7 +2,7 @@
 
 Outcome: **implemented, with ONE deliberately red assertion awaiting a two-line integrator wire.**
 Owner / worktree / branch: queue worker · `.worktrees/adq` · `adq-reference-view`
-Base commit / candidate commit: `ae6bb2a63` / `<CANDIDATE>`
+Base commit / candidate commit: `ae6bb2a63` / `70937e5af`
 Accepted contract revision: `r1` (rulings **AD12-R1** and **AD12-R2**)
 Allowed scope and shared-file leases: the dispatch brief's exclusive list — `runtime.ts`,
 `DesignerCanvas.vue`, `DesignerViewMenu.vue` (all three integrator-sub-let),

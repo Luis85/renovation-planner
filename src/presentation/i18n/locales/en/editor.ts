@@ -3,7 +3,6 @@ import { openingEn } from './opening';
 import { curvesEn } from './curves';
 import { assetSymbolsEn } from './assetSymbols';
 import { assetEntryPathsEn } from './assetEntryPaths';
-import { assetMarqueeEn } from './assetMarquee';
 import { assetArrangeEn } from './assetArrange';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
@@ -45,7 +44,6 @@ export const editorEn = {
 	...curvesEn,
 	...assetSymbolsEn,
 	...assetEntryPathsEn,
-	...assetMarqueeEn,
 	...assetArrangeEn,
 	...groupsEn,
 	...stairsArrowsEn,

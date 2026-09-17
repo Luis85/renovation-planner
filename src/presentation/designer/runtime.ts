@@ -236,6 +236,17 @@ function selectToolDeps(
 			return design?.shape ? { shape: design.shape, geometryVersion: design.geometryVersion } : null;
 		},
 		selection: () => store.selection,
+		/**
+		 * The WHOLE selection, beside the primary rather than instead of it (AD08). Two readers need
+		 * the difference: a plain press inside a multi-part set must KEEP the set rather than collapse
+		 * it to what was pressed, and an interrupted sweep must put back what its own press cleared —
+		 * neither question can be answered from the primary alone.
+		 *
+		 * The tool holds no copy of it, which is C05's requirement rather than a preference: one list
+		 * and a derived primary, never two that can disagree. `store.selected` is that list, and this
+		 * reads it live on every ask.
+		 */
+		selected: () => store.selected,
 		mode: () => store.mode,
 		select: (next) => store.select(next),
 		extend: (next) => store.extend(next),

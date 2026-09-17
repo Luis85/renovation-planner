@@ -1,6 +1,7 @@
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { Point } from '../../../core/geometry/Point';
 import { curvedContains } from '../../../core/geometry/curveContains';
+import { segmentMeetsBox } from '../../../core/geometry/operations';
 import { detailIsClosed, detailPolyline, type AssetDetail } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { DesignerSelection } from './designerSelection';
@@ -28,29 +29,6 @@ export function marqueeBox(a: Point, b: Point): BoundingBox {
 		min: { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) },
 		max: { x: Math.max(a.x, b.x), y: Math.max(a.y, b.y) },
 	};
-}
-
-/**
- * Does the segment `a`–`b` meet the box? The slab test, which also answers point-in-box when the
- * two ends coincide (both deltas zero, so each axis is asked whether the point lies in its slab)
- * — which is why no separate vertex test is written: every vertex is an end of a segment.
- */
-function segmentMeetsBox(a: Point, b: Point, box: BoundingBox): boolean {
-	let near = 0;
-	let far = 1;
-	for (const axis of ['x', 'y'] as const) {
-		const delta = b[axis] - a[axis];
-		if (delta === 0) {
-			if (a[axis] < box.min[axis] || a[axis] > box.max[axis]) return false;
-			continue;
-		}
-		const first = (box.min[axis] - a[axis]) / delta;
-		const last = (box.max[axis] - a[axis]) / delta;
-		near = Math.max(near, Math.min(first, last));
-		far = Math.min(far, Math.max(first, last));
-		if (near > far) return false;
-	}
-	return true;
 }
 
 /** Every edge of a run, the closing one included when it is a ring. */

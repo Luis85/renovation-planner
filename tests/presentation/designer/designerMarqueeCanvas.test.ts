@@ -100,6 +100,37 @@ describe('a marquee on the mounted designer', () => {
 		rig.unmount();
 	});
 
+	/**
+	 * The gesture immediately after a sweep, and the one that used to undo it.
+	 *
+	 * **This case is about the RUNTIME's wiring as much as about the tool.** `DesignerSelectTool`
+	 * asks `deps.selected` for the whole set and falls back to the primary alone where nothing
+	 * wires it — a fallback that makes the preservation below unreachable rather than wrong, which
+	 * is precisely the failure no gate can see: the tool's own unit cases pass against their rig
+	 * either way. `runtime.ts`'s `selectToolDeps` is the only thing that wires it in the product,
+	 * and this is the only case that fails when it does not. Watched red by deleting that one line.
+	 *
+	 * `detail-1` spans x -400..0 by y -100..100, so its centre is 200 mm from the anchor and 250 mm
+	 * from the nearest handle drawn around `detail-2`, the primary — both clear of the 80 mm grab
+	 * radius, so the press lands on the graphic rather than on something drawn over it.
+	 */
+	it('keeps the swept set when a plain press lands inside it', async () => {
+		const rig = await selecting();
+		drag(rig, FROM, TO);
+		await settle();
+		const store = useAssetDesignStore(rig.pinia);
+		expect(store.selected).toHaveLength(2);
+
+		click(rig, { x: -200, y: 0 });
+		await settle();
+
+		expect(store.selected).toEqual([
+			{ kind: 'detail', id: 'detail-1' },
+			{ kind: 'detail', id: 'detail-2' },
+		]);
+		rig.unmount();
+	});
+
 	it('says how many parts are selected', async () => {
 		const rig = await selecting();
 

@@ -31,7 +31,7 @@ import { sameSelection, type DesignerSelection } from '../../../src/presentation
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
-import { toiletShape } from '../../helpers/assetShapes';
+import { shapeWithOpenGraphic, toiletShape } from '../../helpers/assetShapes';
 import { expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
@@ -511,5 +511,38 @@ describe('the inspector in the mounted designer', () => {
 		} finally {
 			rig.unmount();
 		}
+	});
+});
+
+/**
+ * An OPEN graphic is a part that EXISTS (`selectionExists`), so this section mounts for one — and
+ * every geometry field it draws reads `outlineOf`, which answers `null` for an open graphic by
+ * design. Before this guard the section threw on mount the moment a path could be selected, which
+ * the Parts panel is what makes possible.
+ *
+ * The name, the line and the ordering actions are kept: none of them asks about an interior. Only
+ * the centre, the size and the rotate-by field go, and they go until AD11 gives an open graphic its
+ * own authoring gestures.
+ */
+describe('an open graphic', () => {
+	const OPEN: DesignerSelection = { kind: 'detail', id: 'detail-3' };
+
+	it('draws its name, its line and its ordering actions', () => {
+		const { wrapper } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		expect(wrapper.find('[name="detail-name"]').exists()).toBe(true);
+		expect(wrapper.find('[name="detail-line"]').exists()).toBe(true);
+		expect(wrapper.findAll('.rp-designer-selection-button').map((button) => button.attributes('name'))).toEqual([
+			'bring-forward',
+			'send-backward',
+			'duplicate',
+			'delete',
+		]);
+	});
+
+	it('withholds every field that would measure an interior it has not got', () => {
+		const { wrapper } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		expect(wrapper.findAll('input[type="number"]')).toHaveLength(0);
 	});
 });

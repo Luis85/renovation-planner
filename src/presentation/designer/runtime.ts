@@ -26,6 +26,7 @@ import type { DesignerSelectToolDeps } from './tools/designer-select-tool';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import { designerCandidateSupply } from './grid/designerGrid';
 import { createEditShape, createWriteChain, type EditShape } from './selection/editShape';
+import { createPartView, type PartView } from './parts/partView';
 import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-state-refresh';
 import { wrapDispatcher } from '../editor/tools/wrap-dispatcher';
 import { useSaveStateStore } from '../editor/save-state/save-state-store';
@@ -140,6 +141,16 @@ export interface DesignerRuntime {
 	 * `PropertyLayerPanel` binds its own the same way.
 	 */
 	readonly multiSelectionMode: Ref<boolean>;
+	/**
+	 * The Parts panel's leaf-local view preferences (AD09): which graphics are hidden, which are
+	 * locked, which group rows are collapsed.
+	 *
+	 * Here beside `multiSelectionMode` and for its reason: EPHEMERAL UI about how this leaf is being
+	 * worked, never a fact about the design. It is read by the canvas (which graphics to draw) and by
+	 * the Select tool (which press may start a drag), so it belongs to the leaf rather than to the
+	 * panel that writes it — a panel-local set would leave both of those reading nothing.
+	 */
+	readonly partView: PartView;
 }
 
 /**
@@ -211,7 +222,13 @@ function selectToolDeps(
 	edits: ReversibleAssetDesignCommands,
 	assetId: AssetId,
 	chain: Pick<ReturnType<typeof createWriteChain>, 'writing' | 'settled'>,
-	multiSelectionMode: Ref<boolean>,
+	/**
+	 * The leaf's EPHEMERAL UI, as one argument rather than two: the sticky select-multiple mode and
+	 * the Parts panel's hidden and locked sets. Bundled because `selectToolDeps` sits at its
+	 * five-parameter budget and because the two belong together — neither is a fact about the design,
+	 * both are per-leaf, and both are read per press.
+	 */
+	ui: { readonly multiSelectionMode: Ref<boolean>; readonly partView: PartView },
 ): DesignerSelectToolDeps {
 	return {
 		design: () => {
@@ -222,7 +239,9 @@ function selectToolDeps(
 		mode: () => store.mode,
 		select: (next) => store.select(next),
 		extend: (next) => store.extend(next),
-		multiSelectionMode: () => multiSelectionMode.value,
+		multiSelectionMode: () => ui.multiSelectionMode.value,
+		locked: () => ui.partView.locked.value,
+		hidden: () => ui.partView.hidden.value,
 		setPreview: (shape) => store.setPreview(shape),
 		createCommand: (shape, expected) => edits.setShape({ assetId, shape, expected }),
 		reportRejected: reportDispatchFailure,
@@ -296,6 +315,7 @@ function writingFor(
 	readonly edits: ReversibleAssetDesignCommands;
 	readonly geometryLedger: WriteLedger;
 	readonly multiSelectionMode: Ref<boolean>;
+	readonly partView: PartView;
 } {
 	// TWO ledgers, because an asset is two resources under one id — `ReversibleAssetDesignDeps`
 	// states the whole argument, and one ledger has the note's revision presented to the sidecar.
@@ -306,6 +326,7 @@ function writingFor(
 		edits,
 		geometryLedger,
 		multiSelectionMode: ref(false),
+		partView: createPartView(),
 		...designWrites(dispatcher, context.logger, store, (shape, expected) => edits.setShape({ assetId, shape, expected })),
 	};
 }
@@ -428,7 +449,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * sidecar; the note ledger exists because the adapters take both and Task B8's height field
 	 * writes through the other.
 	 */
-	const { edits, chain, toolDispatcher, editShape, geometryLedger, multiSelectionMode } = writingFor(context, store, dispatcher, assetId);
+	const { edits, chain, toolDispatcher, editShape, geometryLedger, multiSelectionMode, partView } = writingFor(context, store, dispatcher, assetId);
 	/**
 	 * A FRESH context per activation, through the same assembler the Plan Editor uses — which
 	 * is the guarantee `ToolManager`'s header states its factory exists for, and which one
@@ -484,7 +505,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		reportInvalidInput: notifyOperationFailure,
 		// A completed trace or drawn detail returns to Select, which this surface registers since Decision 10.
 		returnToSelect: () => setTool('select'),
-		selectTool: selectToolDeps(store, edits, assetId, chain, multiSelectionMode),
+		selectTool: selectToolDeps(store, edits, assetId, chain, { multiSelectionMode, partView }),
 		...calibrationDeps(useDialogStore(), store),
 		...detailDeps(store),
 	});
@@ -583,6 +604,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		setTool,
 		editShape,
 		multiSelectionMode,
+		partView,
 	};
 }
 

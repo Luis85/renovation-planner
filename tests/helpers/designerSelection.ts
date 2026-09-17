@@ -51,6 +51,10 @@ export interface SelectToolRigOptions {
 	readonly settled?: () => Promise<void>;
 	/** The sticky select-multiple mode the tool asks per press (AD08). Default: off. */
 	readonly multiSelectionMode?: () => boolean;
+	/** Graphics the Parts panel has locked against editing (AD09). Default: none. */
+	readonly locked?: () => ReadonlySet<string>;
+	/** Graphics the Parts panel has hidden, which no press can land on (AD09). Default: none. */
+	readonly hidden?: () => ReadonlySet<string>;
 }
 
 export interface SelectToolRig {
@@ -92,6 +96,8 @@ export function selectToolRig(options: SelectToolRigOptions = {}): SelectToolRig
 		selection: () => selection,
 		mode: () => mode,
 		multiSelectionMode: options.multiSelectionMode ?? (() => false),
+		locked: options.locked ?? ((): ReadonlySet<string> => new Set()),
+		hidden: options.hidden ?? ((): ReadonlySet<string> => new Set()),
 		extend: (next) => {
 			extended.push(next);
 			selection = next;

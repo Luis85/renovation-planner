@@ -111,4 +111,19 @@ export const assetSymbolsEn = {
 	'designer.selection.angle.hint': 'An angle of 0 points right, and 90 points down',
 	// The status row while the grid is shown (snapping spec 2026-09-15 §2.6); withheld while the footprint is unscaled.
 	'designer.status.grid': 'Grid {step} mm',
+	// AD09's Parts panel: the list itself, its empty line, and the row controls. `designer.selection.*`
+	// already names the footprint, the clearance, the anchor and the facing, so those are not repeated.
+	'designer.parts': 'Parts',
+	'designer.parts.empty': 'This asset has no parts yet. Set its dimensions or start from a preset.',
+	'designer.parts.reference': 'Reference sheet',
+	'designer.parts.group': 'Group',
+	'designer.parts.label': 'Label',
+	'designer.parts.hide': 'Hide',
+	'designer.parts.show': 'Show',
+	'designer.parts.lock': 'Lock',
+	'designer.parts.unlock': 'Unlock',
+	'designer.parts.isolate': 'Isolate',
+	'designer.parts.show-all': 'Show all parts',
+	'designer.parts.hidden': 'Hidden',
+	'designer.parts.locked': 'Locked',
 } as const;

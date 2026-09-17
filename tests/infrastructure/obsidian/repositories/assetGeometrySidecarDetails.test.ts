@@ -13,6 +13,7 @@ import type { AssetGeometryDocument } from '../../../../src/application/ports/As
 import type { CurvedPolygon } from '../../../../src/core/geometry/CurvedPolygon';
 import { validateAssetShape, shapeFromDimensions, type AssetShape } from '../../../../src/domain/asset/AssetShape';
 import { openGraphic } from '../../../helpers/assetShapes';
+import { updateDetail } from '../../../../src/domain/asset/detailEdits';
 
 const seeded = () => {
 	const stack = createRepositoryStack();
@@ -137,5 +138,28 @@ describe('schema version 3 fields', () => {
 		expectOk(await sidecar.write(assetId, { calibration: null, shape }));
 
 		expect(expectOk(await sidecar.read(assetId)).document.shape?.details[0]).toMatchObject({ name: 'top', label: 'Lid' });
+	});
+
+	/**
+	 * AD09's acceptance criterion 2, end to end through the edit the Parts panel actually dispatches:
+	 * a rename SURVIVES the file, and the preset's semantic identifier is what it was.
+	 *
+	 * The case above round-trips a label a fixture built; this one round-trips one `updateDetail`
+	 * wrote, which is the only version that can catch a rename door writing the wrong field. Clearing
+	 * it is asserted in the same case because removal is the half a mapper is most likely to turn into
+	 * a stored empty string.
+	 */
+	it('round-trips a rename made through updateDetail, and its removal, leaving the semantic name alone', async () => {
+		const { sidecar, assetId } = seeded();
+		const renamed = expectOk(updateDetail(symbol(), 'detail-1', { label: 'Lid' }));
+
+		expectOk(await sidecar.write(assetId, { calibration: null, shape: renamed }));
+		const afterRename = expectOk(await sidecar.read(assetId)).document.shape;
+		expect(afterRename?.details[0]).toMatchObject({ name: 'top', label: 'Lid' });
+
+		expectOk(await sidecar.write(assetId, { calibration: null, shape: expectOk(updateDetail(afterRename as AssetShape, 'detail-1', { label: '' })) }));
+		const afterClearing = expectOk(await sidecar.read(assetId)).document.shape;
+		expect(afterClearing?.details[0]).not.toHaveProperty('label');
+		expect(afterClearing?.details[0].name).toBe('top');
 	});
 });

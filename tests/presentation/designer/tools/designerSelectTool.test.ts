@@ -435,3 +435,53 @@ describe('adding a part to the selection', () => {
 		expect(rig.selected).toEqual([{ kind: 'detail', id: 'detail-2' }]);
 	});
 });
+
+/**
+ * AD09's transient edit lock. A locked graphic is still SELECTABLE — that is how a user finds it,
+ * reads its fields and unlocks it — and it does not move: the press chooses it and starts no drag,
+ * so the pointer stream that would otherwise have dragged it writes nothing at all.
+ *
+ * Both halves matter. A lock that also refused the selection would make the Parts panel the only way
+ * back, and a lock that merely skipped the WRITE would let the canvas preview a move that never
+ * lands — the wrong picture this repository refuses everywhere else.
+ */
+const LOCKED = (): ReadonlySet<string> => new Set(['detail-1']);
+
+describe('a locked graphic', () => {
+	const inTank = justInsideBottom(TANK);
+
+	it('is still selected by a press, so it can be found and unlocked', () => {
+		const rig = selectToolRig({ locked: LOCKED });
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(inTank.x, inTank.y));
+
+		expect(rig.selected).toEqual([TANK_SELECTED]);
+	});
+
+	it('starts no drag, so a pointer stream that would have moved it previews and writes nothing', async () => {
+		const rig = selectToolRig({ locked: LOCKED });
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(inTank.x, inTank.y));
+		rig.tool.pointerMove(pointerAt(inTank.x + 200, inTank.y + 200));
+		rig.tool.pointerUp(pointerAt(inTank.x + 200, inTank.y + 200));
+		await flushGesture();
+
+		expect(rig.tool.hasDraft()).toBe(false);
+		expect(rig.previews).toEqual([]);
+		expect(rig.written).toEqual([]);
+	});
+
+	it('moves an UNLOCKED graphic under the same gesture, so the case above is the lock and not the rig', async () => {
+		const rig = selectToolRig();
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(inTank.x, inTank.y));
+		rig.tool.pointerMove(pointerAt(inTank.x + 200, inTank.y + 200));
+		rig.tool.pointerUp(pointerAt(inTank.x + 200, inTank.y + 200));
+		await flushGesture();
+
+		expect(rig.written).toHaveLength(1);
+	});
+});

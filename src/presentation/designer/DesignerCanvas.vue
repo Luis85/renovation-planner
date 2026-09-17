@@ -101,7 +101,7 @@ const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.
-const { toolManager, renderState, setTool, editShape, activeToolId } = useDesignerRuntime();
+const { toolManager, renderState, setTool, editShape, activeToolId, partView } = useDesignerRuntime();
 /**
  * An arrow key nudges the designer's selection (symbols spec, Decision 10) by `EditorSurface`'s own
  * `arrowVector` — 10 mm a press, 100 mm with Shift — as one conditional shape write per press, under
@@ -141,7 +141,10 @@ const background = computed(() => design.value?.background ?? null);
 const pixelsPerWorldUnit = computed(() => design.value?.calibration?.pixelsPerWorldUnit ?? 1);
 
 const footprint = computed(() => footprintOutline(shape.value, tokens.value, worldPerPixel.value));
-const details = computed(() => detailOutlines(shape.value, tokens.value, worldPerPixel.value));
+// The Parts panel's leaf-local visibility (AD09). An editing aid, not output: it drops a graphic
+// from this frame and reaches nothing the vault holds, so the plan's placement and the library's
+// mark go on drawing every graphic the shape has.
+const details = computed(() => detailOutlines(shape.value, tokens.value, worldPerPixel.value, partView.hidden.value));
 const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value, worldPerPixel.value));
 /**
  * An outline's handles and rotate arrow only under Select, the one tool that grabs them: under another tool a drawn handle

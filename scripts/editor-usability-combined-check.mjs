@@ -1,29 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { chromium } from 'playwright-core';
-import { createServer } from 'vite';
-import { resolveChromiumExecutable } from './chromium.mjs';
-import { tabTo } from './editor-area-browser.mjs';
+import { writeFile } from 'node:fs/promises';
+import { closeInspectorDrawer, settled, tabTo, taskbarMetrics, usabilityHarness } from './editor-area-browser.mjs';
 
 // Confirmation of the user's removal of selected-item Add detail. The Details rail owns navigation.
 const out = 'docs/user-experience/editor-usability-increment/astra-main-refresh/selection-details';
-await mkdir(out, { recursive: true });
-const server = process.env.RP_HARNESS_URL ? null : await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0, open: false } });
-await server?.listen();
-const base = process.env.RP_HARNESS_URL ?? server.resolvedUrls.local[0];
-const browser = await chromium.launch({ executablePath: resolveChromiumExecutable(), headless: true });
+const { server, browser, base } = await usabilityHarness(out);
 const results = [], errors = [];
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-async function stable(page) {
-	await page.evaluate(() => document.fonts.ready);
-	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => { requestAnimationFrame(resolve); }); }));
-}
-async function closePanel(page) {
-	const close = page.locator('.rp-inspector-drawer__close');
-	if (await close.isVisible()) { await close.click(); await close.waitFor({ state: 'hidden' }); }
-}
 function snapshot(page) {
 	return page.evaluate(() => {
 		const selection = window.editorFidelity.selection();
@@ -31,15 +16,11 @@ function snapshot(page) {
 	});
 }
 async function measure(page, name) {
-	await stable(page);
+	await settled(page);
 	assert.equal(await page.locator('[data-rp-canvas-detail], [data-rp-canvas-detail-mode], .rp-direct-actions').count(), 0, 'selected-item Add detail is removed');
-	const metrics = await page.locator('.rp-primary-actions').evaluate(bar => {
-		const canvas = bar.closest('.rp-plan-canvas').getBoundingClientRect();
-		return { canvas: canvas.toJSON(), buttons: [...bar.querySelectorAll('button')].map(button => {
-			const rect = button.getBoundingClientRect();
-			return { label: button.textContent, rect: rect.toJSON(), unobscured: button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)) };
-		}) };
-	});
+	// This script names a button by the words a user reads; the fidelity script names it by its
+	// accessible name. That argument is the whole of what used to make two copies of this block.
+	const metrics = await taskbarMetrics(page, 'text');
 	for (const button of metrics.buttons) {
 		assert.ok(button.rect.left >= metrics.canvas.left && button.rect.right <= metrics.canvas.right);
 		assert.ok(button.rect.width >= 44 && button.rect.height >= 44);
@@ -59,15 +40,15 @@ try {
 		if (await details.isVisible()) await details.click();
 		await page.locator('.rp-new-room__name').fill(language === 'en' ? 'Kitchen' : 'Küche');
 		await page.locator('.rp-new-room__create').click(); await page.locator('.rp-room-inspector').waitFor();
-		await closePanel(page);
+		await closeInspectorDrawer(page);
 		const before = await snapshot(page), plan = await measure(page, `${language}-plan-selection`);
-		await page.setViewportSize({ width: 460, height: 800 }); await stable(page); await closePanel(page); await stable(page);
+		await page.setViewportSize({ width: 460, height: 800 }); await settled(page); await closeInspectorDrawer(page); await settled(page);
 		const narrow = await measure(page, `${language}-narrow-plan`);
 		await page.locator('[data-rp-perspective="renovate"]').click();
 		await page.locator('[data-rp-perspective="renovate"][aria-checked="true"]').waitFor();
 		const renovate = await measure(page, `${language}-narrow-renovate`);
 		await tabTo(page, '[data-rp-rail="details"]'); await page.keyboard.press('Enter');
-		await page.locator('.rp-inspector-drawer').waitFor(); await stable(page);
+		await page.locator('.rp-inspector-drawer').waitFor(); await settled(page);
 		assert.equal(await page.locator('.rp-inspector-drawer').evaluate(el => el.contains(document.activeElement)), true, 'Details takes keyboard focus');
 		await page.screenshot({ path: `${out}/${language}-details-focused.png` });
 		await tabTo(page, '[data-rp-mode="existing"]'); await page.keyboard.press('Enter');

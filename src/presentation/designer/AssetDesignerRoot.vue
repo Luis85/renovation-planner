@@ -56,6 +56,7 @@ import { designerShortcut, selectionKeyActions } from './designerKeys';
 import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
+import DesignerPartsPanel from './parts/DesignerPartsPanel.vue';
 import AssetPresetForm from './presets/AssetPresetForm.vue';
 import { useViewPreferences } from '../editor/shell/useViewPreferences';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../editor/viewport/Viewport';
@@ -428,6 +429,25 @@ onMounted(() => {
 			<DesignerToolbar />
 		</div>
 		<div class="rp-designer-body">
+			<!--
+				AD09's Parts region, FIRST in the body so its visual position at every width matches
+				its focus order — the concept board's "Parts left, properties right" (AD01 §3), and
+				the same stacking order the narrow container query keeps.
+
+				`design !== null` for `.rp-designer-inspector`'s reason: a loading leaf and a hard
+				failure both blank the design, and the region survives as an empty one rather than
+				drawing a list of parts nobody has read.
+			-->
+			<div class="rp-designer-parts">
+				<DesignerPartsPanel
+					v-if="design !== null"
+					:design="design"
+					:selected="selected"
+					:select="designStore.select"
+					:edit-shape="runtime.editShape"
+					:view="runtime.partView"
+				/>
+			</div>
 			<!--
 				Task B4's `DesignerCanvas`, mounted. The region is ALWAYS drawn — the empty
 				state, the failure state and the loading line all live inside it rather than in

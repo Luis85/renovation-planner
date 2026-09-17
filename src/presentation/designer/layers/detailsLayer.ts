@@ -25,9 +25,20 @@ const DETAIL_STROKE_PX = 1;
 /** Also the dash `selectionLayer.ts` restrokes a selected dashed detail in, so it stays dashed while edited. */
 export const DETAIL_DASH_PX: readonly number[] = [4, 3];
 
-export function detailOutlines(shape: AssetShape | null, tokens: ThemeTokens, worldPerPixel: number): DetailOutlineConfig[] {
+/**
+ * `hidden` is the Parts panel's leaf-local visibility (AD09) and is an EDITING AID rather than
+ * output (C10): it drops a graphic from THIS frame's configs and reaches nothing else, so the
+ * stored shape — and with it plan placement, the library mark and every quantity derived from the
+ * asset — is exactly what it was. Nothing persists it and a reopened leaf draws everything again.
+ */
+export function detailOutlines(
+	shape: AssetShape | null,
+	tokens: ThemeTokens,
+	worldPerPixel: number,
+	hidden: ReadonlySet<string> = new Set(),
+): DetailOutlineConfig[] {
 	if (shape === null) return [];
-	return shape.details.map((detail) => {
+	return shape.details.filter((detail) => !hidden.has(detail.id)).map((detail) => {
 		const closed = detailIsClosed(detail);
 		return {
 			id: detail.id,

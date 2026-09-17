@@ -67,14 +67,26 @@ function distanceToSegment(start: Point, end: Point, point: Point): number {
 export function hitDesign(
 	shape: AssetShape,
 	point: Point,
-	state: { readonly selection: DesignerSelection | null; readonly mode: SelectionMode; readonly worldPerPixel: number },
+	state: {
+		readonly selection: DesignerSelection | null;
+		readonly mode: SelectionMode;
+		readonly worldPerPixel: number;
+		/**
+		 * Graphics the Parts panel has hidden (AD09). A hidden graphic is not on screen, so a press
+		 * cannot land on it and falls through to whatever IS drawn beneath — which is why the rule
+		 * lives here, in the function that owns the hit order, rather than as a guard in the tool that
+		 * would have to re-decide what the press would otherwise have hit.
+		 */
+		readonly hidden?: ReadonlySet<string>;
+	},
 ): DesignerHit {
 	const radius = VERTEX_GRAB_RADIUS_PX * state.worldPerPixel;
 	const handle = nearestHandle(selectionHandles(shape, state.selection, state.mode, state.worldPerPixel), point, radius);
 	if (handle !== null) return { kind: 'handle', role: handle.role };
 	if (distance(shape.anchor, point) <= radius) return part({ kind: 'anchor' });
 	if (distance(facingTip(shape, state.worldPerPixel), point) <= radius) return part({ kind: 'facing' });
-	const detail = shape.details.findLast((candidate) => hitsGraphic(candidate, point, radius));
+	const hidden = state.hidden ?? new Set<string>();
+	const detail = shape.details.findLast((candidate) => !hidden.has(candidate.id) && hitsGraphic(candidate, point, radius));
 	if (detail !== undefined) return part({ kind: 'detail', id: detail.id });
 	if (curvedContains(shape.footprint, point)) return part({ kind: 'footprint' });
 	if (shape.clearance !== null && curvedContains(shape.clearance, point)) return part({ kind: 'clearance' });

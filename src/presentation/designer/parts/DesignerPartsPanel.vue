@@ -1,0 +1,197 @@
+<script setup lang="ts">
+/**
+ * AD09's Parts panel: one row per part of the object being designed, so a small graphic can be
+ * found, named and isolated without precision clicking.
+ *
+ * **It is a FINDER over the canonical selection, not a second model of the object.** Every row
+ * comes from `partRows` over the shape this leaf already read; selecting a row calls the same
+ * `select` a canvas press calls, and the canvas's own selection lights the row back up. Nothing
+ * here holds a copy of what is selected (C05: one selected set and a derived primary), and the
+ * rows are rebuilt from the design on every read-back rather than mutated.
+ *
+ * **Groups create no second rendering order and no layer per row** (C06, criterion 6). A group row
+ * is a disclosure over rows that are already in the list; collapsing one hides those rows and
+ * changes nothing the canvas draws. `details` stays the one draw order — `partRows` reads it from
+ * the other end and reorders nothing.
+ *
+ * **Hiding and locking are leaf-local editing aids** (`partView.ts`, criterion 3). They are ids in
+ * a `Set`, never a write, so a hidden graphic is still in the stored shape and still reaches plan
+ * placement, the library mark and every quantity derived from the asset. Nothing here can reach a
+ * price or a procurement unit either — a part is a piece of one symbol, which is criterion 5 held
+ * by the panel having no such data rather than by a rule about not showing it.
+ *
+ * **Rename writes `label` and never `name`** (C02). The semantic key a preset, a test and
+ * `semanticLabel`'s own lookup resolve by is not the user's words for the same graphic.
+ *
+ * **The row component reads the `PartView` itself.** This template used to hand it eight booleans,
+ * each an inline expression repeating the same `row.detail !== null` guard the row already answers
+ * once — which is what put BOTH templates over fallow's cognitive budget. The question moved to the
+ * component that knows the answer rather than a suppression being written on either.
+ *
+ * Keyboard: the list is ONE tab stop, and Up/Down/Home/End move focus between rows — WAI-ARIA's
+ * roving-tabindex pattern. A row is a `<button>` rather than a listbox `option` because the
+ * selected row opens controls beneath it, and interactive controls inside an `option` is invalid
+ * ARIA that `tests/harness/accessibility*.test.ts` would be right to refuse.
+ */
+import { computed, ref } from 'vue';
+import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
+import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
+import { reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
+import { tr } from '../../i18n/strings';
+import type { ShapeEdit } from '../selection/editShape';
+import { partKey, type DesignerSelection } from '../selection/designerSelection';
+import { partRows, type PartRow } from './partRows';
+import type { PartView } from './partView';
+import DesignerPartRow from './DesignerPartRow.vue';
+
+const props = defineProps<{
+	design: AssetDesignDto;
+	/** Every selected part, in selection order (AD08) — every one of them lights its row. */
+	selected: readonly DesignerSelection[];
+	select: (next: DesignerSelection | null) => void;
+	editShape: (edit: ShapeEdit) => Promise<DispatchResult>;
+	view: PartView;
+}>();
+
+/** The row the roving tabindex is on. A KEY rather than an index, so a reorder or a rename moves it with its row. */
+const focusedKey = ref<string | null>(null);
+
+const rows = computed(() => partRows(props.design.shape, { hasReference: props.design.background !== null }));
+
+/** Collapsed group members are dropped from the list, which is the whole of what a group row does. */
+const shown = computed(() =>
+	rows.value.filter((row) => row.kind === 'group' || row.groupId === null || !props.view.collapsed.value.has(row.groupId)),
+);
+
+/**
+ * Every graphic id in DRAW order — read back off `rows` rather than off the shape, so there is no
+ * `shape === null` arm here that nothing can reach: a shapeless design produces no rows at all, and
+ * this list is never asked for. `rows` is topmost-first, so it is reversed back.
+ */
+const graphicIds = computed(() => rows.value.flatMap((row) => (row.kind === 'detail' ? [row.detail.id] : [])).toReversed());
+const selectedKeys = computed(() => new Set(props.selected.map((member) => partKey(member))));
+
+/** Every row that can take focus, in the order they are drawn — the reference sheet's plain text is not one. */
+const focusable = computed(() => shown.value.filter((row) => row.selection !== null || row.kind === 'group'));
+
+/**
+ * Where the one tab stop sits: the row that last had focus while it is still in the list, else the
+ * first selected row, else the first focusable one. Falling back rather than holding a stale key is
+ * what keeps the list reachable after the graphic that had focus is deleted from the inspector.
+ */
+const tabbableKey = computed((): string => {
+	const candidates = focusable.value;
+	const remembered = candidates.find((row) => row.key === focusedKey.value);
+	// `candidates[0]` without a guard: this is read from inside the `v-for` over `shown`, which the
+	// list renders only as the `v-else` of an EMPTY panel — so there is always a row here, and an
+	// empty-list arm would be a branch nothing could ever cover.
+	return (remembered ?? candidates.find((row) => selectedKeys.value.has(row.key)) ?? candidates[0]).key;
+});
+
+const list = ref<HTMLElement | null>(null);
+
+/**
+ * A row press: remember it for the roving tabindex, and select what it names.
+ *
+ * `row.selection` goes through as it is, `null` included, rather than behind a guard. Only the
+ * selectable rows bind this — a group header is a disclosure and the reference sheet is plain text —
+ * so the null case is unreachable AND harmless: `select(null)` is the store's own "nothing is
+ * selected", which is the right answer for pressing a row that names no part.
+ */
+function choose(row: PartRow): void {
+	focusedKey.value = row.key;
+	props.select(row.selection);
+}
+
+/** Where Up, Down, Home and End land from `from`, or `-1` for a key this list does not take. */
+function movedTo(key: string, from: number, length: number): number {
+	if (key === 'Home') return 0;
+	if (key === 'End') return length - 1;
+	const step = key === 'ArrowDown' ? 1 : key === 'ArrowUp' ? -1 : 0;
+	return step === 0 ? -1 : Math.min(length - 1, Math.max(0, Math.max(from, 0) + step));
+}
+
+/**
+ * Up/Down/Home/End over the rows, moving the roving tabindex with the focus.
+ *
+ * The element is found by its KEY rather than by position in the DOM, so a row that collapsed away
+ * between the keypress and this lookup is simply absent instead of handing focus to its neighbour by
+ * accident.
+ *
+ * **ONE guard, over the row rather than over the key.** It used to be two — an empty-list check and a
+ * "did this key mean anything" check — and the empty-list one could not fire at all, since the `<ul>`
+ * is a `v-else` over a list with rows in it. Indexing and then asking whether a row came back covers
+ * both, and covers them from both sides: an unowned key and an out-of-range index land in the same
+ * place. An unreachable guard is not free — it costs a branch it can never pay back.
+ */
+function onKeydown(event: KeyboardEvent): void {
+	const candidates = focusable.value;
+	const from = candidates.findIndex((row) => row.key === tabbableKey.value);
+	const next = candidates[movedTo(event.key, from, candidates.length)];
+	if (next === undefined) return;
+	event.preventDefault();
+	focusedKey.value = next.key;
+	list.value?.querySelector<HTMLElement>(`[data-key="${CSS.escape(next.key)}"] button`)?.focus();
+}
+
+function rename(id: string, label: string): void {
+	void props.editShape((shape) => updateDetail(shape, id, { label }));
+}
+
+function reorder(id: string, direction: 'forward' | 'backward'): void {
+	void props.editShape((shape) => reorderDetail(shape, id, direction));
+}
+</script>
+
+<template>
+	<!--
+		No class here: this `<section>` is the whole content of `AssetDesignerRoot.vue`'s
+		`.rp-designer-parts` div, which already carries the width, the padding, the background and
+		the border — exactly the split `DesignerInspector`'s own `<aside>` takes, and for the same
+		reason: an own class here would style nothing and `libraryComponentStyles.test.ts` would be
+		right to flag it undeclared. Kept as a landmark for its `aria-label`.
+	-->
+	<section :aria-label="tr('designer.parts')">
+		<h2 class="rp-designer-panel-title">
+			{{ tr('designer.parts') }}
+		</h2>
+		<!--
+			The way back from any hidden graphic, drawn only while something IS hidden (criterion 4):
+			one press restores everything, whether it was hidden one at a time or by an isolation.
+		-->
+		<button
+			v-if="view.hidden.value.size > 0"
+			type="button"
+			class="rp-designer-parts-show-all"
+			@click="view.showAll"
+		>
+			{{ tr('designer.parts.show-all') }}
+		</button>
+		<p
+			v-if="shown.length === 0"
+			class="rp-designer-parts-empty"
+		>
+			{{ tr('designer.parts.empty') }}
+		</p>
+		<ul
+			v-else
+			ref="list"
+			class="rp-designer-part-list"
+			@keydown="onKeydown"
+		>
+			<DesignerPartRow
+				v-for="row in shown"
+				:key="row.key"
+				:data-key="row.key"
+				:row="row"
+				:selected="selectedKeys.has(row.key)"
+				:tabbable="row.key === tabbableKey"
+				:view="view"
+				:graphic-ids="graphicIds"
+				:choose="() => choose(row)"
+				:reorder="reorder"
+				:rename="rename"
+			/>
+		</ul>
+	</section>
+</template>

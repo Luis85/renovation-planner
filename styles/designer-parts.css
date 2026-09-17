@@ -1,0 +1,148 @@
+/*
+ * AD09's Parts panel: the designer's third body region, between the toolbar's row and the canvas.
+ *
+ * A WIDTH rather than a flex basis, exactly as `.rp-designer-inspector` takes one in `designer.css`
+ * and for the same reason — the canvas keeps every pixel the two panels do not claim. Narrower than
+ * the inspector because a list of names needs less room than a column of labelled number fields.
+ *
+ * Obsidian variables only (SDD §84), so a themed vault stays themed; the build refuses a literal
+ * colour here. Every button rule that sets a property Obsidian's own `button:not(.clickable-icon)`
+ * sets is qualified with `.rp-designer-parts`, which puts it at (0,2,0) against that rule's (0,1,1)
+ * — `tests/build/buttonSpecificity.test.ts`'s category check, and the defect it has caught three
+ * times is a colour nobody chose appearing only in a vault.
+ */
+.rp-designer-parts {
+	flex: 0 0 auto;
+	width: 11rem;
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--size-4-2);
+	background-color: var(--background-secondary);
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.rp-designer-parts-empty {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.rp-designer-part-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.rp-designer-part {
+	margin-block-end: var(--size-2-1);
+}
+
+/* A group's members, indented under its header — the only thing membership changes about the list. */
+.rp-designer-part--nested {
+	padding-inline-start: var(--size-4-2);
+}
+
+/*
+ * The selectable row and the group's disclosure share a shape: a full-width, flat, left-aligned
+ * line of text. They are separate selectors rather than one list because only the row carries a
+ * pressed state, and a reader looking for that state should find it on the rule that has it.
+ */
+/* REVIEWED CLONE: the flat full-width row — the disclosure and the selectable row differ only in
+   their pressed state, and sharing the block would hide which of the two carries it. */
+.rp-designer-parts .rp-designer-part-row {
+	display: flex;
+	align-items: baseline;
+	gap: var(--size-4-1);
+	width: 100%;
+	padding: var(--size-2-1) var(--size-4-1);
+	font-size: var(--font-ui-small);
+	text-align: start;
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+}
+
+.rp-designer-parts .rp-designer-part-group {
+	width: 100%;
+	padding: var(--size-2-1) var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	text-align: start;
+	color: var(--text-muted);
+	background-color: transparent;
+	box-shadow: none;
+}
+
+/*
+ * The selected row. A background AND a leading rule, never colour alone: a row's selected state is
+ * the panel's half of "selecting a row selects the same part on canvas", and a user who cannot
+ * separate those two backgrounds would have no other signal. `aria-pressed` carries it to a screen
+ * reader, which is a third channel rather than a substitute for this one.
+ */
+.rp-designer-parts .rp-designer-part-row[aria-pressed="true"] {
+	background-color: var(--background-modifier-hover);
+	box-shadow: inset 2px 0 0 0 var(--text-accent);
+}
+
+.rp-designer-part-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Hidden and Locked, as words rather than as icons: an icon alone is a legend nobody is given. */
+.rp-designer-part-mark {
+	flex: 0 0 auto;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.rp-designer-part-static {
+	display: block;
+	padding: var(--size-2-1) var(--size-4-1);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.rp-designer-part-controls {
+	padding: var(--size-2-1) var(--size-4-1) var(--size-4-1);
+}
+
+.rp-designer-part-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-1);
+}
+
+.rp-designer-parts .rp-designer-part-action {
+	padding: var(--size-2-1) var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-normal);
+}
+
+/* `aria-disabled`, never `:disabled` — the button keeps focus and its press runs nothing. */
+.rp-designer-parts .rp-designer-part-action[aria-disabled="true"] {
+	color: var(--text-faint);
+}
+
+.rp-designer-parts .rp-designer-parts-show-all {
+	width: 100%;
+	margin-block-end: var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-normal);
+}
+
+/*
+ * **Flattening a button takes its focus ring with it.** The three rules above beat Obsidian's own
+ * `button:not(.clickable-icon)` on `box-shadow`, and that shadow is where a button's focus ring
+ * comes from — its global `:focus { outline: none }` has already taken the outline, so a keyboard
+ * user would be left with nothing at all. `tests/build/buttonFocusRing.test.ts` is the check, and
+ * it reported all three of these before this block existed. `--interactive-accent` is the token
+ * `styles/editor.css` already measured both schemes against.
+ */
+.rp-designer-parts .rp-designer-part-row:focus-visible,
+.rp-designer-parts .rp-designer-part-group:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}

@@ -41,6 +41,19 @@ export interface DesignerSelectToolDeps {
 	 * keyboard and a touch user can reach, not a modifier alone.
 	 */
 	readonly multiSelectionMode?: () => boolean;
+	/**
+	 * The Parts panel's leaf-local locks and hidden set, read PER PRESS (AD09).
+	 *
+	 * A LOCKED graphic is still chosen by a press — that is how a user finds it, reads its fields and
+	 * unlocks it — and starts no drag, so the same pointer stream that would have moved it previews
+	 * and writes nothing. A lock that refused the selection too would make the panel the only way
+	 * back; one that merely skipped the write would preview a move that never lands.
+	 *
+	 * A HIDDEN graphic is handed to `hitDesign`, which owns the hit ORDER, so a press falls through to
+	 * what is really drawn beneath rather than being swallowed here.
+	 */
+	readonly locked?: () => ReadonlySet<string>;
+	readonly hidden?: () => ReadonlySet<string>;
 	readonly setPreview: (shape: AssetShape | null) => void;
 	/** One reversible SetAssetShape write, conditional on `expected`. */
 	readonly createCommand: (shape: AssetShape, expected: EntityVersion) => UndoableCommand;
@@ -213,6 +226,7 @@ export class DesignerSelectTool implements EditorTool {
 			selection,
 			mode: this.deps.mode(),
 			worldPerPixel: context.viewport.worldPerScreenPixel(),
+			...(this.deps.hidden === undefined ? {} : { hidden: this.deps.hidden() }),
 		});
 		if (hit === null) {
 			this.deps.select(null);
@@ -379,6 +393,9 @@ export class DesignerSelectTool implements EditorTool {
 			return;
 		}
 		this.deps.select(selection);
+		// A locked graphic is CHOSEN and not dragged (AD09): no drag begins, so every later move and the
+		// release have nothing to compute and nothing to write.
+		if (selection.kind === 'detail' && this.deps.locked?.().has(selection.id) === true) return;
 		this.begin(context, design, selection, { kind: 'body' }, event.worldPoint);
 	}
 

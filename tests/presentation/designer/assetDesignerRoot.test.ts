@@ -117,6 +117,7 @@ async function mounted(ctx: AssetDesignerContext = context()) {
  */
 const REGIONS = [
 	['.rp-designer-toolbar', 'Task B5 mounts the designer toolbar into it'],
+	['.rp-designer-parts', 'AD09 mounts DesignerPartsPanel into it'],
 	['.rp-designer-canvas', 'Task B4 mounts DesignerCanvas into it'],
 	['.rp-designer-inspector', 'Task B8 mounts DesignerInspector into it'],
 	['.rp-designer-status', 'the save-state indicator draws in it, from this task'],

@@ -224,6 +224,19 @@ describe('the designer’s drawing vocabulary', () => {
 		expect(footprintEdge(WITH_DETAILS, TOKENS, UNIT_SCALE)).not.toHaveProperty('fill');
 	});
 
+	/**
+	 * AD09's visibility. Hiding is an EDITING AID (C10): it drops the graphic from this frame's
+	 * configs and touches nothing else, so the shape handed in is the shape the plan and the library
+	 * still read. The survivor is asserted as well as the absence — a filter that dropped everything
+	 * would satisfy "the hidden one is gone" on its own.
+	 */
+	it('omits a hidden graphic from the configs and leaves every other one alone', () => {
+		const visible = detailOutlines(WITH_DETAILS, TOKENS, UNIT_SCALE, new Set(['d1']));
+
+		expect(visible.map((detail) => detail.id)).toEqual(['d2']);
+		expect(visible[0]).toEqual(detailOutlines(WITH_DETAILS, TOKENS, UNIT_SCALE)[1]);
+	});
+
 	/** The canvas keys each detail node by its id, so a reorder moves nodes rather than repainting them. */
 	it('carries each detail’s id on its config', () => {
 		expect(detailOutlines(WITH_DETAILS, TOKENS, UNIT_SCALE).map((detail) => detail.id)).toEqual(['d1', 'd2']);

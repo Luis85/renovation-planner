@@ -1,182 +1,190 @@
 {
-  "schema_version": 1,
-  "reviewed_baseline": "d77e7c5eba5e6518b93a5be4606532ceab3a77eb",
-  "selected_baseline": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
-  "contract": {
-    "status": "accepted",
-    "revision": "r1"
-  },
-  "tasks": {
-    "AD00": {
-      "status": "verified",
-      "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [
-        "reports/AD00-baseline.md",
-        "npm run build exit 0",
-        "npm run lint exit 0",
-        "npm run analyze exit 0"
-      ],
-      "blocker": null
-    },
-    "AD01": {
-      "status": "verified",
-      "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [
-        "contracts/DECISIONS.md revision r1",
-        "contracts/AD01-SCREEN-STATES.md",
-        "three conflicts ruled by the product owner"
-      ],
-      "blocker": null
-    },
-    "AD02": {
-      "status": "integrated",
-      "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
-      "candidate_sha": "fa51ae88d",
-      "integrated_sha": "fa51ae88d",
-      "evidence": [
-        "R05/R06 shipped before this run (adec599f0, b9d014858, 2f8c84647, d253f727e)",
-        "no-op dimension guard + 2 cases in assetDimensions.test.ts, watched red"
-      ],
-      "blocker": null
-    },
-    "AD03": {
-      "status": "integrated",
-      "base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
-      "candidate_sha": "fa51ae88d",
-      "integrated_sha": "fa51ae88d",
-      "evidence": [
-        "five bypassing write doors queued on the leaf chain",
-        "designerWriteChain.test.ts undo-during-write case, watched red"
-      ],
-      "blocker": null
-    },
-    "AD04": {
-      "status": "integrated",
-      "base_sha": "fa51ae88d",
-      "candidate_sha": "2b296d938",
-      "integrated_sha": "2b296d938",
-      "evidence": [
-        "CurvedPath (branded), AssetDetail union, groups, schema v3",
-        "reports/AD04-model-and-schema.md"
-      ],
-      "blocker": null
-    },
-    "AD05": {
-      "status": "integrated",
-      "base_sha": "2b296d938",
-      "candidate_sha": "f1cbe86ef",
-      "integrated_sha": "f1cbe86ef",
-      "evidence": [
-        "geometryBrands.test-d.ts (five directives, two watched red)",
-        "canvas, hit test, snapping, preview and placement each kind-aware"
-      ],
-      "blocker": null
-    },
-    "AD06": {
-      "status": "integrated",
-      "base_sha": "f1cbe86ef",
-      "candidate_sha": "e3a9ecc6b",
-      "integrated_sha": "e3a9ecc6b",
-      "evidence": [
-        "the Inspector names the asset and opens the library, wiring case watched red"
-      ],
-      "blocker": "Use in plan deferred to AD13; no header chrome, per C12"
-    },
-    "AD07": {
-      "status": "planned",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
-    },
-    "AD08": {
-      "status": "integrated",
-      "base_sha": "e3a9ecc6b",
-      "candidate_sha": "26e68b589",
-      "integrated_sha": "116c7ced0",
-      "evidence": [
-        "a selected set with a derived primary, pruned per member",
-        "Shift-press and a sticky mode, both watched red",
-        "reports/RESUME.md"
-      ],
-      "blocker": "PARTIAL: marquee, the overlap chooser and per-part locks need AD09 and a drag-on-empty-canvas gesture"
-    },
-    "AD09": {
-      "status": "planned",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
-    },
-    "AD10": {
-      "status": "planned",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
-    },
-    "AD11": {
-      "status": "planned",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
-    },
-    "AD12": {
-      "status": "planned",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
-    },
-    "AD13": {
-      "status": "planned",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
-    },
-    "AD14": {
-      "status": "planned",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
-    },
-    "AD15": {
-      "status": "blocked",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": "No Obsidian and no pinned Chromium in this environment. Runbook section 10: the beta may not be labelled ready from here."
-    },
-    "AD16": {
-      "status": "blocked",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": "No Obsidian and no pinned Chromium in this environment. Runbook section 10: the beta may not be labelled ready from here."
-    },
-    "AD17": {
-      "status": "planned",
-      "base_sha": null,
-      "candidate_sha": null,
-      "integrated_sha": null,
-      "evidence": [],
-      "blocker": null
-    }
-  }
+	"schema_version": 1,
+	"reviewed_baseline": "d77e7c5eba5e6518b93a5be4606532ceab3a77eb",
+	"selected_baseline": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+	"contract": {
+		"status": "accepted",
+		"revision": "r1"
+	},
+	"tasks": {
+		"AD00": {
+			"status": "verified",
+			"base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [
+				"reports/AD00-baseline.md",
+				"npm run build exit 0",
+				"npm run lint exit 0",
+				"npm run analyze exit 0"
+			],
+			"blocker": null
+		},
+		"AD01": {
+			"status": "verified",
+			"base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [
+				"contracts/DECISIONS.md revision r1",
+				"contracts/AD01-SCREEN-STATES.md",
+				"three conflicts ruled by the product owner"
+			],
+			"blocker": null
+		},
+		"AD02": {
+			"status": "integrated",
+			"base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+			"candidate_sha": "fa51ae88d",
+			"integrated_sha": "fa51ae88d",
+			"evidence": [
+				"R05/R06 shipped before this run (adec599f0, b9d014858, 2f8c84647, d253f727e)",
+				"no-op dimension guard + 2 cases in assetDimensions.test.ts, watched red"
+			],
+			"blocker": null
+		},
+		"AD03": {
+			"status": "integrated",
+			"base_sha": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
+			"candidate_sha": "fa51ae88d",
+			"integrated_sha": "fa51ae88d",
+			"evidence": [
+				"five bypassing write doors queued on the leaf chain",
+				"designerWriteChain.test.ts undo-during-write case, watched red"
+			],
+			"blocker": null
+		},
+		"AD04": {
+			"status": "integrated",
+			"base_sha": "fa51ae88d",
+			"candidate_sha": "2b296d938",
+			"integrated_sha": "2b296d938",
+			"evidence": [
+				"CurvedPath (branded), AssetDetail union, groups, schema v3",
+				"reports/AD04-model-and-schema.md"
+			],
+			"blocker": null
+		},
+		"AD05": {
+			"status": "integrated",
+			"base_sha": "2b296d938",
+			"candidate_sha": "f1cbe86ef",
+			"integrated_sha": "f1cbe86ef",
+			"evidence": [
+				"geometryBrands.test-d.ts (five directives, two watched red)",
+				"canvas, hit test, snapping, preview and placement each kind-aware"
+			],
+			"blocker": null
+		},
+		"AD06": {
+			"status": "integrated",
+			"base_sha": "f1cbe86ef",
+			"candidate_sha": "e3a9ecc6b",
+			"integrated_sha": "e3a9ecc6b",
+			"evidence": [
+				"the Inspector names the asset and opens the library, wiring case watched red"
+			],
+			"blocker": "Use in plan deferred to AD13; no header chrome, per C12"
+		},
+		"AD07": {
+			"status": "planned",
+			"base_sha": null,
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [],
+			"blocker": null
+		},
+		"AD08": {
+			"status": "integrated",
+			"base_sha": "e3a9ecc6b",
+			"candidate_sha": "26e68b589",
+			"integrated_sha": "116c7ced0",
+			"evidence": [
+				"a selected set with a derived primary, pruned per member",
+				"Shift-press and a sticky mode, both watched red",
+				"reports/RESUME.md"
+			],
+			"blocker": "PARTIAL: marquee, the overlap chooser and per-part locks need AD09 and a drag-on-empty-canvas gesture"
+		},
+		"AD09": {
+			"status": "integrated",
+			"base_sha": "455e65ff3",
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [
+				"reports/AD09-parts-panel.md",
+				"a Parts panel over partRows/partView, wired into the canvas (hidden), the hit order (hidden) and the Select tool (locked)",
+				"two defects found and fixed: selectionExists pruned a selected open graphic; the selection inspector then threw on one",
+				"rename writes AssetDetail.label and never name; round-tripped through the sidecar",
+				"npm run build / oxlint / eslint . / vue-tsc / npm run analyze all exit 0",
+				"npm run test:coverage exit 0 in ONE run: 1021 of 1021 files, branches 98.05 against the 98 floor",
+				"coverage-final.json read per changed file; every new module has no uncovered arm"
+			],
+			"blocker": "no Obsidian and no pinned Chromium here, so the three-region layout is unphotographed and unwalked"
+		},
+		"AD10": {
+			"status": "planned",
+			"base_sha": null,
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [],
+			"blocker": null
+		},
+		"AD11": {
+			"status": "planned",
+			"base_sha": null,
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [],
+			"blocker": null
+		},
+		"AD12": {
+			"status": "planned",
+			"base_sha": null,
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [],
+			"blocker": null
+		},
+		"AD13": {
+			"status": "planned",
+			"base_sha": null,
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [],
+			"blocker": null
+		},
+		"AD14": {
+			"status": "planned",
+			"base_sha": null,
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [],
+			"blocker": null
+		},
+		"AD15": {
+			"status": "blocked",
+			"base_sha": null,
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [],
+			"blocker": "No Obsidian and no pinned Chromium in this environment. Runbook section 10: the beta may not be labelled ready from here."
+		},
+		"AD16": {
+			"status": "blocked",
+			"base_sha": null,
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [],
+			"blocker": "No Obsidian and no pinned Chromium in this environment. Runbook section 10: the beta may not be labelled ready from here."
+		},
+		"AD17": {
+			"status": "planned",
+			"base_sha": null,
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [],
+			"blocker": null
+		}
+	}
 }

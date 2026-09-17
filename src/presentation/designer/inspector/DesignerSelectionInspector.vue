@@ -47,11 +47,12 @@ import {
 } from '../../../domain/asset/shapeEdits';
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
-import { hasLocaleKey, trError } from '../../i18n/toUserMessage';
+import { trError } from '../../i18n/toUserMessage';
 import { duplicateAndSelect } from '../designerKeys';
 import type { ShapeEdit } from '../selection/editShape';
 import { selectionExists, type DesignerSelection } from '../selection/designerSelection';
 import { partBox, resizeToExtent, withPartBox } from '../selection/partExtent';
+import { semanticLabel } from '../parts/partNames';
 import DesignerFieldRow from './DesignerFieldRow.vue';
 import DesignerActionButton from './DesignerActionButton.vue';
 
@@ -124,7 +125,14 @@ function commit(edit: ShapeEdit): Promise<boolean> {
 	return show(props.editShape(edit));
 }
 
-/** The part's curve-aware box, for DISPLAY. `outlineOf` answers an outline here because `exists` holds. */
+/**
+ * The part's curve-aware box, for DISPLAY.
+ *
+ * The cast stands on TWO guards now, and the second is newer than this function: `exists` keeps a
+ * part the shape has not got from mounting the section at all, and `openGraphic` below keeps every
+ * caller of this away from an open graphic, which is the other thing `outlineOf` answers `null`
+ * for. This comment used to name only the first, which was true while a path could not be selected.
+ */
 function boxOf(part: OutlinePart): ReturnType<typeof partBox> {
 	return partBox(outlineOf(shape.value, part) as CurvedPolygon);
 }
@@ -173,10 +181,24 @@ const pendingPart = computed(() =>
 	props.selection.kind === 'anchor' ? shape.value.anchorPending : selectedDetails.value.some((item) => item.pending),
 );
 
+/**
+ * An OPEN graphic (AD04), which has no interior and therefore no box to measure, move or resize.
+ *
+ * Its section still draws — `selectionExists` counts it as a part that is there, which is what the
+ * Parts panel makes selectable — so the withholding is HERE rather than at the mount: the name, the
+ * line and the four ordering actions ask nothing about an area and are kept. Every numeric field
+ * below reads `outlineOf`, which answers `null` for a path on purpose, so drawing them threw.
+ *
+ * They come back when AD11 builds an open graphic's own gestures; until then this is the same
+ * refusal `outlineOf` already makes, said where the user can see the consequence.
+ */
+const openGraphic = computed(() => selectedDetails.value.some((item) => item.kind === 'open'));
+
 const fields = computed((): readonly NumberField[] => {
 	const selection = props.selection;
 	switch (selection.kind) {
 		case 'detail':
+			if (openGraphic.value) return [];
 			return pendingPart.value ? detailFields(selection).filter((field) => field.name === 'rotate-by') : detailFields(selection);
 		case 'footprint':
 			// A pending footprint's numbers are placeholder pixels; the Dimensions block below says so.
@@ -192,11 +214,6 @@ const fields = computed((): readonly NumberField[] => {
 		}
 	}
 });
-
-function detailLabel(name: string): string {
-	const key = `designer.detail.${name}`;
-	return hasLocaleKey(key) ? tr(key) : name;
-}
 
 function detailActions(id: string): Action[] {
 	const details = shape.value.details;
@@ -267,7 +284,7 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 				<input
 					type="text"
 					name="detail-name"
-					:value="detailLabel(item.name)"
+					:value="semanticLabel(item.name)"
 					@change="onName(item.id, $event)"
 				>
 			</label>

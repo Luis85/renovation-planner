@@ -112,3 +112,24 @@ it('hits an open graphic that carries a doubled vertex', () => {
 	const hit = hitDesign(shape, { x: -400, y: -250 }, { selection: null, mode: 'transform', worldPerPixel: 1 });
 	expect(hit).toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-9' } });
 });
+
+/**
+ * AD09: a hidden graphic is not on screen, so a press cannot land on it — and the press falls
+ * through to whatever really is drawn beneath, rather than selecting nothing.
+ *
+ * Asked HERE and not in the tool, because this function owns the hit ORDER: a tool-level guard would
+ * have had to re-decide what the press would otherwise have hit.
+ */
+describe('a hidden graphic', () => {
+	const inBowl = { x: 0, y: 200 };
+
+	it('takes the press while it is drawn', () => {
+		expect(hitDesign(TOILET, inBowl, { selection: null, mode: 'transform', worldPerPixel: 1 })).toEqual(part({ kind: 'detail', id: 'detail-2' }));
+	});
+
+	it('lets the press fall through to the footprint beneath it once it is hidden', () => {
+		expect(hitDesign(TOILET, inBowl, { selection: null, mode: 'transform', worldPerPixel: 1, hidden: new Set(['detail-2']) })).toEqual(
+			part({ kind: 'footprint' }),
+		);
+	});
+});

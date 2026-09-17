@@ -26,6 +26,19 @@
 		flex-direction: column;
 	}
 
+	/*
+	 * AD09's Parts panel stacks above the canvas at this width, in DOM order rather than through
+	 * `order`: a visual sequence that disagrees with the focus order is the defect `order` buys.
+	 * It takes the smallest share of the column — it is a finder, and the canvas is the subject —
+	 * and scrolls inside it, as `designer.css` already gives it.
+	 */
+	.renovation-asset-designer .rp-designer-parts {
+		flex: 1 1 0;
+		width: auto;
+		border-right: none;
+		border-bottom: 1px solid var(--background-modifier-border);
+	}
+
 	.renovation-asset-designer .rp-designer-canvas {
 		flex: 3 1 0;
 	}

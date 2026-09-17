@@ -65,16 +65,23 @@ export function renovationProjectOpenPlan(workspace: Workspace, logger: Logger):
  * raise two notices. That arm opens no modal for the flag to track, and the notice is the whole
  * of what happens.
  *
- * `openPlanPicker` in `planEditorCommands.ts` is these same three steps — the index entries, the
- * no-plans notice, the modal — and is NOT routed through here, because that file is outside
- * AD13's lease. So the clone `npm run analyze` can see is deliberately half-closed, and closing
- * it is one call-site swap rather than a design question.
+ * **`index` is a THUNK and not the index itself**, which is what lets the palette command share
+ * this. `saveSettings` replaces the whole composition root, so a door built once at registration
+ * and holding `root.persistence?.index` by value would go on asking a replaced index for the rest
+ * of the session — the same staleness `openPlanPicker` already avoided for `root.logger` by
+ * reading it per pick. Reading per PRESS and building the factory per SEAM is the only split that
+ * gives both properties: a flag narrow enough to mean something, and an index that is current.
+ *
+ * `registerPlanEditorCommands` builds one of these for `open-plan-editor`, so the palette command
+ * and this seam are one implementation of "ask which plan" rather than two — which is why there is
+ * no clone here for `npm run analyze` to find, and why a fix to the no-plans arm cannot reach one
+ * door and miss the other.
  */
-export function planPicker(app: App, index: ProjectIndex | undefined, then: (plan: ProjectIndexEntry) => void): () => void {
+export function planPicker(app: App, index: () => ProjectIndex | undefined, then: (plan: ProjectIndexEntry) => void): () => void {
 	let picking = false;
 	return () => {
 		if (picking) return;
-		const plans = entriesOfType(index, 'renovation-plan');
+		const plans = entriesOfType(index(), 'renovation-plan');
 		if (plans.length === 0) {
 			notify(tr('plan.none'));
 			return;
@@ -146,7 +153,7 @@ export function assetDesignerUsePlan(
 	rememberContinue: (context: ContinueContext) => void,
 ): () => void {
 	const openPlan = renovationProjectOpenPlan(app.workspace, logger);
-	const pick = planPicker(app, index, (plan) => {
+	const pick = planPicker(app, () => index, (plan) => {
 		// Detached, like every other door out of a modal callback, and awaited INSIDE rather than
 		// at the call site for `openPlanPicker`'s own reason: the verdict is what decides whether
 		// a Continue context is recorded, and `renovationProjectOpenPlan` cannot reject.

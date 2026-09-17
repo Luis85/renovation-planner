@@ -315,7 +315,12 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 
 	// Outside the refresh decorator, so `Saved` never appears while the canvas still shows the
 	// pre-command state; inside `wrapDispatcher`, which is the one object a leaf hands out.
-	const tracked = withSaveStateTracking(refreshed, useSaveStateStore());
+	// Held in a named local because the tool context below reads it too — `unrecoveredWrite` is
+	// this surface's whole write gate (see `writesBlocked` there). ONE statement rather than two,
+	// which is not cosmetic: `buildRuntime` sits on `max-lines-per-function`'s 100-line budget
+	// (comments are free, code lines are not), and naming this store as a second statement put it
+	// at 101. The file's own `snapService`/`workspace` line already takes this spelling.
+	const saveState = useSaveStateStore(), tracked = withSaveStateTracking(refreshed, saveState);
 
 	const { dispatcher, canUndo, canRedo } = wrapDispatcher(history, tracked);
 
@@ -331,9 +336,11 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 */
 	const assetId = context.assetId as AssetId;
 
-	// Both stores are resolved during SETUP and closed over, never inside the context factory
-	// below: a Pinia store may not be touched without an active instance, and that factory runs
-	// from a toolbar click long after `setup` has returned.
+	// Every store the context factory below closes over — these two and `saveState` above — is
+	// resolved during SETUP, never inside that factory: a Pinia store may not be touched without
+	// an active instance, and the factory runs from a toolbar click long after `setup` has
+	// returned. Reading a resolved store's members from inside it is fine and is what
+	// `writesBlocked` does.
 	const editor = useEditorStore();
 	const selection = useSelectionStore();
 
@@ -389,10 +396,23 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			writeLedger: geometryLedger,
 			renderState,
 			subject: { id: assetId, calibration: store.design?.calibration ?? null },
-			// The Plan Editor's trust path (design spec §2.2) has no counterpart here: this
-			// surface has no `ProjectStore` and no re-read that can go stale over an asset's own
-			// design, so nothing ever blocks a write on that account.
-			writesBlocked: () => false,
+			// **The STALE half of the Plan Editor's trust path (design spec §2.2) has no
+			// counterpart here, and the INCIDENT half does.** This surface has no `ProjectStore`
+			// and no re-read that can go stale over an asset's own design, so nothing blocks a
+			// write on that account — which is why this is the save-state flag alone and not a
+			// copy of the editor's three-term expression. But an open write incident is
+			// vault-wide (ADR-0034): `save-state-store.ts` seeds `unrecoveredWrite` from
+			// `activeWriteIncidentRegistry()` at setup and marks it on the gate's own refusal
+			// code, and this leaf mounts that same shared store. Until 2026-09-17 this read
+			// `() => false` and the designer was the one editing surface with no gate at all.
+			//
+			// **One line, and it reaches every registered tool at once** — the framework asks the
+			// context, the way `SelectTool` does in the editor. What it does NOT do is disable a
+			// single designer CONTROL: the inspector's fields, the toolbar and the preset form
+			// stay visually enabled and their dispatches are refused by the guarded doors
+			// underneath. That is an affordance gap, not a data-safety one, and closing it is its
+			// own increment.
+			writesBlocked: () => saveState.unrecoveredWrite,
 		}),
 	);
 	/**

@@ -1,4 +1,5 @@
 import { leftWritesBehind, type DispatchResult } from '../../../application/commands/DispatchOutcome';
+import { WRITES_PAUSED_CODE } from '../../../application/errors/guardAgainstThrowing';
 import { isErr } from '../../../core/result/Result';
 import type { RefreshedHistory } from '../tools/with-state-refresh';
 import type { useSaveStateStore } from './save-state-store';
@@ -48,15 +49,35 @@ export function withSaveStateTracking(
 				if (result.value === 'no-write') saveState.resolveNeutral();
 				else saveState.resolveOk();
 			}
-			// A refusal that never reached the repository wrote NOTHING, so it is neither a
-			// failure to report nor evidence that anything was saved. Resolving it as `ok` would
-			// let a validation refusal clear a `save-error` left by a real persistence failure.
-			else if (affectsSaveState(result.error)) {
+			else {
+				// **TWO refusals pause this leaf, and only one of them is this leaf's own doing.**
+				// `leftWritesBehind` is the stamp the site that wrote raised on its way out.
+				// `WRITES_PAUSED_CODE` is `guardCommand`'s own refusal, returned BEFORE the command
+				// ran, and it says the VAULT holds an open incident — which some other leaf, or an
+				// earlier session, may have raised (ADR-0034). Marked here because the seed in
+				// `save-state-store.ts` only reaches a store at SETUP: a leaf already mounted when
+				// a peer raises an incident has no notification to learn from, so its first refused
+				// write is where it catches up, rather than showing an enabled UI for the rest of
+				// the session.
+				//
+				// Matched on the exported CODE and never on the message: the sentence is a locale
+				// string and belongs to the translator.
+				//
+				// Asked OUTSIDE the `affectsSaveState` branch below, deliberately. The gate's
+				// refusal is a `Persistence` error today, so that predicate answers true for it
+				// either way — but "does this pause the leaf" and "does this colour the indicator"
+				// are two questions, and nesting the first inside the second would make the pause
+				// depend on a category reading that has nothing to do with it.
+				//
 				// `markUnrecovered` BEFORE `resolveErr`, so a consumer watching `state` finds the
 				// flag already set — the two are one fact about this refusal, not two.
-				if (leftWritesBehind(result.error)) saveState.markUnrecovered();
-				saveState.resolveErr();
-			} else saveState.resolveNeutral();
+				if (leftWritesBehind(result.error) || result.error.code === WRITES_PAUSED_CODE) saveState.markUnrecovered();
+				// A refusal that never reached the repository wrote NOTHING, so it is neither a
+				// failure to report nor evidence that anything was saved. Resolving it as `ok` would
+				// let a validation refusal clear a `save-error` left by a real persistence failure.
+				if (affectsSaveState(result.error)) saveState.resolveErr();
+				else saveState.resolveNeutral();
+			}
 			return result;
 		} catch (cause) {
 			// **A THROWN fault settles the batch too, and forgetting this is worse than

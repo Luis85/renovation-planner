@@ -322,9 +322,23 @@ export class PlanEditorView extends ItemView {
 	 * warning is cheaper than a false all-clear.
 	 *
 	 * **What it does NOT reach**, stated because the sentence is easy to widen: a SECOND Plan
-	 * Editor leaf on the same plan, which has its own view, its own Pinia and its own gate, and
-	 * is not gated by this one with or without a rebind. That is a pre-existing hole needing an
-	 * affected-identity model, not this field.
+	 * Editor leaf on the same plan. This field is per LEAF and reaches no other one, with or
+	 * without a rebind. That used to read "a pre-existing hole needing an affected-identity
+	 * model, not this field"; the hole was closed on 2026-09-17 (BP-02 slice 4) somewhere else
+	 * entirely, and it needed no identity model. `save-state-store.ts` SEEDS `unrecoveredWrite`
+	 * from the vault-scoped `WriteIncidentRegistry` at setup, so a second leaf opened while an
+	 * incident is open is gated by the VAULT's record rather than by this leaf's field — which
+	 * is the durable fact, and the one that also survives a restart. Read the two as different
+	 * subjects: this field carries THIS leaf's incident across a rebind, and the registry
+	 * carries the vault's across a process.
+	 *
+	 * **A seeded store does not write back here, and that is deliberate.** `mount`'s watcher
+	 * below is not `immediate`, so a store that was ALREADY true when the watcher was installed
+	 * — which is exactly what the seed produces — never sets this field. It must not: this field
+	 * is set-never-unset and rides `getState`, so recording a vault-wide incident in it would
+	 * keep this one leaf paused after the user had removed the incidents file and reloaded,
+	 * with nothing able to clear it. The vault's record is retired by the user; this leaf's
+	 * field is not retired at all, so only this leaf's own incident may enter it.
 	 *
 	 * And the same never-unset that makes a stale warning cheap makes it WRONG on a leaf
 	 * re-pointed at another plan: `sync()` remounts on a planId change and seeds the new plan's

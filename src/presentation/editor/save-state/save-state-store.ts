@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import { activeWriteIncidentRegistry } from '../../../application/incidents/WriteIncidentRegistry';
 import type { SaveState } from './save-state';
 
 /**
@@ -66,14 +67,52 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * checked claim — either way nothing manufactures an all-clear: a leaf that comes back
 	 * without the state comes back clean, exactly as one does today.
 	 *
-	 * Three things it does NOT reach. A SECOND Plan Editor leaf on the same plan — that leaf has
-	 * its own view, its own Pinia and its own gate — and neither Asset Designer nor the project
-	 * view's work section is seeded at all; each of those still holds a mount-local flag of its
-	 * own. And a write already IN FLIGHT when the settings are saved, whose compensation refuses
-	 * after the remount: that `markUnrecovered()` lands on the retired store, which no watcher
-	 * and no reader is left on. `PlanEditorView.rebind`'s docblock carries that window, beside
-	 * the two sibling residues of the same remount; every sentence here is about an incident
-	 * already raised when the save lands.
+	 * **What the flag MEANS widened on 2026-09-17 (BP-02 slice 4), and the sentence above is the
+	 * narrow half of it.** It used to say only "this leaf left a write behind". It now says
+	 * "writes are refused — because this leaf left one behind, OR because the vault holds an
+	 * open write incident (ADR-0034)". The second half arrives by SEEDING: the ref below is
+	 * initialised from `activeWriteIncidentRegistry()?.anyOpen()`, asked once while the store is
+	 * being created. Every `ItemView` mounts its own Vue app and its own Pinia (ADR-004), so a
+	 * leaf opened while an incident is open is gated from its first frame rather than from its
+	 * first refused write — which is what closes the second-leaf hole this paragraph used to
+	 * state, without any leaf knowing another exists.
+	 *
+	 * **The seed reaches every surface that calls `useSaveStateStore`, which is wider than the
+	 * Plan Editor.** Measured in the edit that added it rather than remembered:
+	 * `grep -rln "useSaveStateStore" src/ | wc -l` prints **26** files, this module included, and
+	 * the three that own a WRITE
+	 * GATE built on `unrecoveredWrite` are `presentation/editor/runtime.ts` (`unsafeHistory`),
+	 * `presentation/designer/runtime.ts` (its `EditorContext.writesBlocked`, which read a
+	 * hard-coded `false` until 2026-09-17) and `presentation/views/work/projectWorkActions.ts`
+	 * (`paused`). So the sentence this paragraph replaced — "neither Asset Designer nor the
+	 * project view's work section is seeded at all" — is false in BOTH clauses now, and by one
+	 * edit rather than three.
+	 *
+	 * **R1 is untouched by the seed**: it adds a way for the flag to START true and no way at
+	 * all for it to become false.
+	 *
+	 * **Asked once, because there is nothing to subscribe to.** `WriteIncidentRegistry.record`
+	 * publishes no event and holds a plain array, so a reader must poll or be seeded; seeding is
+	 * the half that costs nothing per frame. The consequence is stated rather than hidden: an
+	 * incident raised in ANOTHER leaf while this one is already mounted does not re-render this
+	 * one's controls. That leaf catches up at its next write instead — `guardCommand` refuses it
+	 * with `WRITES_PAUSED_CODE` and `withSaveStateTracking` marks on exactly that code. Making
+	 * the gate reactive needs a notification the registry does not have and is its own increment.
+	 *
+	 * **What the seed still does NOT reach, because it reads the DURABLE record and not this
+	 * process's other leaves.** An incident raised OUTSIDE a `guardCommand` call stack never
+	 * becomes a durable record at all (ADR-0034's Consequences: every reversible adapter's
+	 * `undo`/`redo` is outside the chokepoint, among others) — it marks the leaf that raised it,
+	 * through `leftWritesBehind` below, and no other leaf learns of it at that leaf's next write
+	 * or ever, because there is nothing for the gate to refuse on. That residue is ADR-0034's
+	 * stated coverage boundary, inherited here rather than introduced.
+	 *
+	 * And a write already IN FLIGHT when the settings are saved, whose compensation refuses after
+	 * the remount: that `markUnrecovered()` lands on the retired store, which no watcher and no
+	 * reader is left on. `PlanEditorView.rebind`'s docblock carries that window, beside the two
+	 * sibling residues of the same remount. Narrowed rather than closed by the seed — if that
+	 * compensation refused inside a guarded stack it recorded a durable incident, so the fresh
+	 * store's `false` is corrected at the leaf's next write.
 	 *
 	 * The reasoning for sticky-over-clearing still holds inside one mount's life: the only
 	 * in-session event that actually repairs a half-written vault is a successful retry of the
@@ -87,7 +126,7 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * `tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
 	 * dispatch path and walks the leaf's whole lifecycle with it.
 	 */
-	const unrecoveredWrite = ref(false);
+	const unrecoveredWrite = ref(activeWriteIncidentRegistry()?.anyOpen() ?? false);
 
 	/**
 	 * Settle the batch once its last dispatch has resolved, and reset for the next one.
@@ -124,12 +163,17 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 		},
 
 		/**
-		 * The refusal that follows left writes standing in the vault (`leftWritesBehind`).
+		 * A refusal this leaf must not write past: one that left writes standing in the vault
+		 * (`leftWritesBehind`), or `guardCommand`'s own `WRITES_PAUSED_CODE`, which says some
+		 * earlier write did and the vault-wide gate is shut.
 		 *
-		 * TWO callers: `withSaveStateTracking`, which is where the incident is raised, and
+		 * TWO callers, re-measured in the edit that widened the second condition —
+		 * `grep -rn "saveState\.markUnrecovered()" src/ | wc -l` prints **2**:
+		 * `withSaveStateTracking`, which is where either refusal is turned into this flag, and
 		 * `PlanEditorView.mount`, which seeds a fresh store with the incident that leaf was
 		 * already carrying. The second is why this stays an action rather than becoming
-		 * `withSaveStateTracking`'s private business.
+		 * `withSaveStateTracking`'s private business. The vault-scoped seed above needs no
+		 * caller at all: it is the ref's own initialiser.
 		 */
 		markUnrecovered(): void {
 			unrecoveredWrite.value = true;

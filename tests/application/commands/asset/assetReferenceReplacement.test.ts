@@ -13,10 +13,17 @@
  * repository and the real sidecar, and no fault injection, since neither case is about a write
  * failing.
  *
- * What this does NOT cover, because no such door exists: DELETING a reference.
- * `SetAssetBackgroundInput.path` is a `string` with no null arm, so an asset's sheet can be
- * swapped and never removed. AD12's report records that as a gap in the card rather than in the
- * code.
+ * What this covers is REPLACEMENT only. Deleting a reference is the same command's other arm —
+ * `SetAssetBackgroundInput.path` became a union whose `null` case removes the reference
+ * (AD12-R2) — and it is driven by `removeAssetBackground.test.ts`, including the two things a
+ * replacement case cannot ask: that the removal sits ABOVE both path-shaped pre-read refusals,
+ * and that the pending flags this file watches through a swap survive the sheet going away
+ * entirely.
+ *
+ * **This paragraph said the opposite until the removal arm landed** — *"no such door exists…
+ * `path` is a `string` with no null arm"* — which is CLAUDE.md's fixture-behind-the-change-it-
+ * was-the-reason-for rule met at a header instead of a fixture: the change that falsifies a
+ * neighbouring claim is the change that has to rewrite it, because nothing re-runs prose.
  */
 import { describe, expect, it } from 'vitest';
 import { SetAssetBackgroundCommand } from '../../../../src/application/commands/asset/SetAssetBackground';

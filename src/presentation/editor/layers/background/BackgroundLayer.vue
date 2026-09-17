@@ -86,6 +86,26 @@ const props = defineProps<{
 	 * inherits silently, and this one would be silence about a file the user just replaced.
 	 */
 	fileChanges: (listener: (path: string) => void) => () => void;
+	/**
+	 * How opaque the whole layer draws, `1` fully. The asset designer binds a leaf-local view
+	 * preference to it so a user can fade a spec sheet and trace over it (AD12-R1); the plan
+	 * editor passes nothing and gets the default.
+	 *
+	 * **OPTIONAL and defaulted, unlike every prop above**, and the difference is which way a
+	 * missing value fails. A forgotten `pixelsPerWorldUnit` draws a calibrated plan at the wrong
+	 * size and says nothing, so a default there is silence about a defect; a forgotten opacity
+	 * draws the layer exactly as every caller before this prop existed drew it, which is the
+	 * behaviour the plan editor must keep.
+	 *
+	 * **DECLARED rather than left to attribute fallthrough**, which is what the designer's binding
+	 * relied on first. Fallthrough does reach the Konva node — vue-konva's node factory builds
+	 * `{ ...attrs, ...props.config, ...listeners }` — but `props.config` spreads AFTER `attrs`, so
+	 * the day anyone puts `opacity` in the config literal below the binding loses silently; and
+	 * `inheritAttrs: false` or a second root node here would drop it outright. Vue also warns
+	 * about it on every mount, since `<VLayer>` renders no DOM element for the attribute to land
+	 * on. Declared, the config below is the only writer and `vue-tsc` holds the type.
+	 */
+	opacity?: number;
 }>();
 
 const emit = defineEmits<{ status: [status: BackgroundStatus]; referencePoints: [points: readonly Point[]] }>();
@@ -192,6 +212,7 @@ watch(referencePoints, points => emit('referencePoints', points), { immediate: t
 			name: props.name,
 			listening: false,
 			visible: props.visible,
+			opacity: props.opacity ?? 1,
 			...props.transform,
 		}"
 	>

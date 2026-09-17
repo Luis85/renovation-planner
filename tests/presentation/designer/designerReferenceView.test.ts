@@ -42,14 +42,23 @@ function backgroundLayer(stage: Konva.Stage): Konva.Layer {
 }
 
 describe('the reference’s opacity', () => {
+	/**
+	 * **The floor is asserted here and enforced by `min` alone**, which is the whole of what holds
+	 * it: `backgroundOpacity` is an unclamped `Ref<number>`, so anything reaching it past the
+	 * control could set 0. That is acceptable because the control is the only writer, and it is
+	 * asserted because otherwise the floor is a number in a template nothing reads. Why 0.1 and
+	 * not 0: a fully transparent sheet is indistinguishable from one that failed to load, and this
+	 * surface's two background notices would then be describing a picture nobody can see.
+	 */
 	it('fades the background layer the whole way down to the control’s floor', async () => {
 		const rig = await designerRig({ shape: toiletShape(), background: true });
 		try {
 			expect(backgroundLayer(rig.stage).opacity()).toBe(1);
+			expect(rig.wrapper.get(OPACITY).attributes('min')).toBe('0.1');
 
-			await rig.wrapper.get(OPACITY).setValue('0.4');
+			await rig.wrapper.get(OPACITY).setValue('0.1');
 
-			expect(backgroundLayer(rig.stage).opacity()).toBeCloseTo(0.4);
+			expect(backgroundLayer(rig.stage).opacity()).toBeCloseTo(0.1);
 		} finally {
 			rig.unmount();
 		}
@@ -153,14 +162,26 @@ describe('removing the reference', () => {
 	 * unwired callback is invisible to every one of this repository's six gates, and that exact
 	 * defect shipped last wave.
 	 *
-	 * It is written against the WHOLE mounted designer rather than a bare inspector, so it goes
-	 * green for either shape the integrator's two lines can take — a prop threaded down from
-	 * `AssetDesignerRoot`, or `useDesignerRuntime()` read in the inspector itself — and so that
-	 * what it proves once wired is the whole vertical: press the control, and the note no longer
-	 * carries the reference.
+	 * It is written against the WHOLE mounted designer rather than a bare inspector, so what it
+	 * proves once wired is the whole vertical: press the control, and the block that names the
+	 * sheet says there is none.
+	 *
+	 * **The shape is seeded `traced`/`footprintPending`, and that is load-bearing rather than
+	 * decoration.** `DesignerReferenceStatus` draws nothing at all unless `relevant` — a
+	 * background, a calibration or a pending flag — and this rig seeds `calibration: null` while
+	 * `toiletShape()` builds from `ASSET_PRESETS` with all three pending flags `false`. So on a
+	 * successful removal the whole `<section>` would disappear and `sheet.none` would be rendered
+	 * NOWHERE: the button-is-gone assertion would pass for the wrong reason and the sheet line
+	 * would fail. Measured, with the parent binding applied locally — `AssertionError: expected
+	 * 'PanSelectTrace footprintTrace clearan…' to contain 'None chosen'`. A pending flag is also
+	 * the state AD12-R2 is most specific about, since removing the sheet must leave it standing.
+	 * The sibling case above seeds the same pair for the same reason.
 	 */
 	it('reaches the real command from the real inspector, once the parent binds it', async () => {
-		const rig = await designerRig({ shape: toiletShape(), background: true });
+		const rig = await designerRig({
+			shape: { ...toiletShape(), footprintOrigin: 'traced', footprintPending: true },
+			background: true,
+		});
 		try {
 			const button = remove(rig.wrapper, '.rp-designer-inspector ');
 			expect(button.exists()).toBe(true);
@@ -170,6 +191,8 @@ describe('removing the reference', () => {
 
 			expect(remove(rig.wrapper, '.rp-designer-inspector ').exists()).toBe(false);
 			expect(rig.wrapper.text()).toContain(t('en', 'designer.reference.sheet.none'));
+			// AD12-R2's second answer, at the surface: the pixels stayed pixels.
+			expect(rig.wrapper.text()).toContain(t('en', 'designer.reference.pending.footprint'));
 		} finally {
 			rig.unmount();
 		}

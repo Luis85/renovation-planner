@@ -2,15 +2,19 @@
 
 Outcome: **implemented, with ONE deliberately red assertion awaiting a two-line integrator wire.**
 Owner / worktree / branch: queue worker · `.worktrees/adq` · `adq-reference-view`
-Base commit / candidate commit: `ae6bb2a63` / `70937e5af`
+Base commit / candidate commit: `ae6bb2a63` / `de2c8e9e3` (first candidate), **fix round after
+REQUEST CHANGES: see [Review round 1](#review-round-1--what-the-reviewer-found-and-what-changed)**
 Accepted contract revision: `r1` (rulings **AD12-R1** and **AD12-R2**)
-Allowed scope and shared-file leases: the dispatch brief's exclusive list — `runtime.ts`,
+Allowed scope and shared-file leases: the wave-4 row's exclusive list — `runtime.ts`,
 `DesignerCanvas.vue`, `DesignerViewMenu.vue` (all three integrator-sub-let),
 `layers/backgroundLayer.ts`, `inspector/DesignerReferenceStatus.vue`, `plugin/assetBackgroundPicker.ts`,
 `application/commands/asset/SetAssetBackground.ts`,
 `application/editor/asset/ReversibleAssetDesignCommands.ts`, the `{en,de}/assetReferenceView.ts`
-pair, and new test files. **Nothing outside that list is touched** — `git status` is nine files
-and every one is on it.
+pair, and new test files — **plus the two files the lease amendment at `d56de8198` added for the fix
+round**: `src/presentation/editor/layers/background/BackgroundLayer.vue` (ADDITIVE ONLY) and
+`tests/application/commands/asset/assetReferenceReplacement.test.ts` (a header claim this candidate
+falsified). **Nothing outside that list is touched** — `git diff --stat ae6bb2a63..HEAD` is the
+proof, and `DesignerInspector.vue` is deliberately not in it.
 
 ## Changed files and reason
 
@@ -24,6 +28,8 @@ and every one is on it.
 | `src/presentation/i18n/locales/{en,de}/assetReferenceView.ts` | the two new strings (the scaffold pair, filled) | yes |
 | `tests/application/commands/asset/removeAssetBackground.test.ts` | new — the removal arm | yes |
 | `tests/presentation/designer/designerReferenceView.test.ts` | new — opacity and the delete control | yes |
+| `src/presentation/editor/layers/background/BackgroundLayer.vue` | **fix round** — `opacity?: number` defaulting to `1`, in the layer config beside `visible`, so the designer's binding is a declared prop rather than attribute fallthrough. Additive: the plan editor passes nothing and draws exactly as before | yes, by the `d56de8198` amendment |
+| `tests/application/commands/asset/assetReferenceReplacement.test.ts` | **fix round** — its header said deleting a reference had no door because `path` was a bare `string`. This candidate falsified that; the paragraph now points at `removeAssetBackground.test.ts` | yes, by the `d56de8198` amendment |
 
 **Two leased files are deliberately UNCHANGED, and that is the reuse half of this card.**
 `ReversibleAssetDesignCommands.ts` needed nothing: `ReversibleAssetBackgroundEdit` is generic over
@@ -36,11 +42,11 @@ document, so there is nothing to pick.
 
 | Criterion | Result | Exact evidence | Remaining issue |
 |---|---|---|---|
-| AD12-R1 — background opacity exists, as a leaf-local view preference | **met** | `designerReferenceView.test.ts` › *fades the background layer the whole way down to the control's floor* — the Konva `.asset-background` layer node reads `1`, then `0.4` after the control is set | nobody has LOOKED at a faded sheet (see *Verification not performed*) |
+| AD12-R1 — background opacity exists, as a leaf-local view preference | **met** | `designerReferenceView.test.ts` › *fades the background layer the whole way down to the control's floor* — the control's `min` reads `0.1` and the Konva `.asset-background` layer node reads `1`, then `0.1` after the control is set to its floor | nobody has LOOKED at a faded sheet (see *Verification not performed*), and the layer that number reaches holds **no raster** in this rig (see *Carried risk*) |
 | AD12-R1 — it is `PartView`'s shape: transient, per leaf, written nowhere | **met** | *writes nothing — not the sidecar, and not this device's remembered choices*; the value is a plain `ref` in `buildRuntime`, reaching no command and no `useViewPreferences` key | the SIDECAR half of that case is a standing guard, not a demonstrated one (below) |
 | AD12-R1 — it lives in `DesignerViewMenu`, not the inspector | **met** | the row is in `DesignerViewMenu.vue`; `DesignerInspector.vue` is untouched | — |
 | AD12-R1 — no lock control is built | **met** | nothing named lock exists in the diff | — |
-| AD12-R2 — a reference can be removed, through the command that replaces one | **met** | `removeAssetBackground.test.ts` › *takes the reference off the note and clears the scale measured off it* | the CONTROL does not yet reach it: one red assertion, below |
+| AD12-R2 — a reference can be removed, through the command that replaces one | **built, and UNREACHABLE at this SHA** | `removeAssetBackground.test.ts` › *takes the reference off the note and clears the scale measured off it* — the command arm is real and driven. But `grep -rn removeBackground src/` prints seven lines, four in `DesignerReferenceStatus.vue` and three in `runtime.ts`, and **nothing consumes the runtime member**: no user can reach the gesture until the integrator binds it | the whole criterion is pending the `DesignerInspector.vue` wire below. It becomes tickable then and not before — the queue row must not be closed on this SHA |
 | AD12-R2 — the calibration is cleared, same order, same compensation | **met** | same case; the clear is the shared `write()` path and its compensation is unchanged | compensation not re-tested — deliberate, see the suite's own header |
 | AD12-R2 — the pending flags are untouched | **met** | *leaves every per-group pending flag exactly as it was* | the guarantee turns out to be STRUCTURAL: the flags are on the sidecar's shape and this command's only sidecar write is the calibration clear. Recorded in the case's docblock |
 | AD12-R2 — the removal arm sits above both cheap pre-read refusals | **met** | *succeeds when the referenced file has already been deleted* | — |
@@ -100,15 +106,20 @@ Every one reverted and restored afterwards; the tree is back at the candidate in
 AssertionError: expected false to be true // Object.is equality
 - Expected: true
 + Received: false
- ❯ tests/presentation/designer/designerReferenceView.test.ts:160:28
-    159|    const button = remove(rig.wrapper, '.rp-designer-inspector ');
-    160|    expect(button.exists()).toBe(true);
+ ❯ tests/presentation/designer/designerReferenceView.test.ts:166:28
+    165|    const button = remove(rig.wrapper, '.rp-designer-inspector ');
+    166|    expect(button.exists()).toBe(true);
 ```
 
-**This is correct and expected. The candidate is not broken.** `vue-tsc` is clean, `eslint` is
+**This is correct and expected. The candidate is not broken.** `vue-tsc` is clean, both linters are
 clean, and every other case in both new files passes. The control and its callback are built as if
 the wire existed; the wire is two lines in `DesignerInspector.vue`, a file this card does not own
 and must not edit.
+
+**It failed at the WRONG line in the first candidate, and that was a real defect rather than a
+detail** — see [Review round 1](#review-round-1--what-the-reviewer-found-and-what-changed),
+finding 1. The red is now the first assertion in the case, which is the one whose premise is the
+missing wire.
 
 ### The request — exact file, exact lines
 
@@ -132,7 +143,10 @@ must become:
 **Prop name:** `removeBackground` (kebab `remove-background` in the template).
 **Type:** `() => Promise<void>`.
 **What it must be bound to:** `DesignerRuntime.removeBackground` — this leaf's own. Either shape
-works and the assertion goes green for both:
+below works, and **the assertion was verified green against the first of them** (measured in the fix
+round: the binding applied locally, the file run, `Tests 7 passed (7)`, then reverted). The second
+shape is not measured, only read — it hands the same function to the same prop, so the case cannot
+tell them apart, but that is an argument and the sentence has to say which half was run:
 
 - **Cheapest (3 lines, one file):** `import { useDesignerRuntime } from '../runtime';` beside the
   existing imports, `const runtime = useDesignerRuntime();` beside `const props = defineProps<…>()`,
@@ -152,17 +166,27 @@ permanently. `tests/presentation/designer/designerReferenceView.test.ts`'s *draw
 nothing is bound to it* case would then be deleted in the same edit, since its premise becomes
 uncompilable.
 
-### A third request, smaller, and NOT required for anything to work
+### A third request, WITHDRAWN because the fix round did it
 
-`src/presentation/editor/layers/background/BackgroundLayer.vue` declares five props and no
-`opacity`. The designer's binding works **through Vue's attribute fallthrough** onto that
-component's root `<VLayer>`, which vue-konva applies to the Konva node — measured, not assumed:
-the layer node's `opacity()` really does read `0.4`. It is nonetheless an arrangement no type
-checks, so declaring `opacity?: number` there (defaulting to `1`) and putting it in the config
-object beside `visible` would make it explicit, and would give the Plan Editor the same capability.
-**Not urgent**, because what holds it today is a SCENE assertion that goes red the moment the
-fallthrough stops working, and `DesignerCanvas.vue`'s own comment names the mechanism where the
-next reader is standing.
+The first candidate's opacity binding relied on Vue's attribute fallthrough onto
+`BackgroundLayer.vue`'s root `<VLayer>`, and this section asked the integrator to make it a declared
+prop later. The lease amendment at `d56de8198` granted that file, so it is done rather than
+requested: `opacity?: number` defaulting to `1`, in the layer config beside `visible`. Additive —
+the plan editor passes nothing and gets `1`.
+
+**Three things the fix round learned about the arrangement it replaced**, worth keeping because they
+are the argument for not leaving a fallthrough in place anywhere:
+
+- Vue **warned on every mount** and nobody had read the warning:
+  `[Vue warn]: Extraneous non-props attributes (opacity) were passed to component but could not be
+  automatically inherited because component renders fragment or text or teleport root nodes`, with
+  `at <Layer config={name, listening, visible, x, y, scaleX, scaleY} opacity=1>`. The value reached
+  the Konva node anyway — vue-konva consumes `attrs` itself rather than through Vue's DOM
+  inheritance — which is exactly why the warning cost nothing and taught nobody.
+- That log line is also the direct evidence for the ordering hazard: `opacity` sat in `attrs`, NOT
+  in `config`, and vue-konva's factory spreads `{ ...attrs, ...props.config, ...listeners }`. A
+  later `opacity` in the config literal would have won silently.
+- Declaring it removed the warning: the same file, same cases, `Tests 7 passed (7)` with no stderr.
 
 ## Verification not performed
 
@@ -180,6 +204,11 @@ Named rather than left blank; every one is an environment this machine does not 
   `setAssetBackground.test.ts`'s much larger one (they share about six lines of stack setup), and
   whether the new `SetAssetBackgroundBase` interface — not exported, named in an exported type —
   reports as a `private-type-leak`. `vue-tsc` is happy; fallow's lens is a different one.
+  **`SetAssetBackgroundBase` is deliberately NOT exported pre-emptively**, and the reviewer agreed:
+  fallow's first suggested action on that finding is "export the referenced private type by name",
+  and CLAUDE.md records that advice being wrong twice in nineteen — once destroying a `unique symbol`
+  access lock, once trading two leaks for an `unused-exports` finding. The integrator measures it
+  with `npm run analyze` and acts on what it prints, rather than on what it is expected to print.
 - **`npm run test-build` and every manual case under `docs/tests/`** — no Obsidian on this machine.
   So nothing here is evidence about what Obsidian does.
 - **`npm run harness-shot`** — no pinned Chromium on this machine and no
@@ -200,10 +229,22 @@ Named rather than left blank; every one is an environment this machine does not 
 - **The removal's compensation and uncompensated arms** — deliberately not re-tested. They are the
   same lines `setAssetBackground.test.ts` already drives per-line; the new suite's header states the
   trade.
-- **German register** — `strings.test.ts` was not run in isolation (it rides the full suite). Both
-  new German strings are noun phrases with no verb at all (`Deckkraft der Vorlage`,
-  `Vorlage entfernen`), which is the spelling that keeps the Sie/du question from arising; that is a
-  precaution, not a passing check.
+- **German register** — `strings.test.ts` was not run in isolation (it rides the full suite), and
+  passing it would not settle the question anyway: its du-form check is an **enumerated, incomplete**
+  verb list, so a form it does not name is unjudged rather than blessed.
+
+  The two strings are `Deckkraft der Referenz` and `Referenz entfernen` — **"Referenz" and not
+  "Vorlage"**, because `de/assetReference.ts` already uses the first for this block's heading and
+  reserves the second for the document's NAME row, and both of these strings are about the reference
+  rather than about which file it is. (This paragraph said `Vorlage` in the first candidate, against
+  the code it was describing. The code is right; the report was wrong.)
+
+  **Why the register is safe, stated correctly this time.** `Deckkraft der Referenz` is a noun
+  phrase. `Referenz entfernen` is **not** — `entfernen` is an infinitive, so the earlier claim that
+  both are "noun phrases with no verb at all" was simply false. What makes it safe is that a German
+  **infinitive** is the neutral, Sie-compatible form German UI uses for an action label, as against
+  a du-imperative (`Entferne …`), which is the form this repository's register rule refuses. That is
+  the reasoning, and it is a reading of the rule rather than a check that ran.
 
 ## Data and integration implications
 
@@ -241,9 +282,130 @@ gets back both the reference and the calibration, because the inverse captures t
 and the whole sidecar document. The vault FILE is never touched by any of this — "Remove reference"
 is worded that way for exactly that reason, and the English string carries the note.
 
+## Review round 1 — what the reviewer found, and what changed
+
+Independent review of `de2c8e9e3` returned **REQUEST CHANGES** with six findings. Much of the
+candidate was agreed and is untouched: the removal arm's placement above both pre-read refusals, the
+input union, reusing the unchanged reversible inverse, the leaf-local opacity ref, both controls
+being `v-if` predicates rather than `:disabled`, the layering, and the `buildRuntime` collapse onto
+one `dispatchBackground`. Every fix below was verified by running the affected file.
+
+### 1 (blocking) — the deliberate red would not have gone GREEN when the wire landed
+
+**Confirmed independently before acting, by reading the three files rather than taking the finding
+on trust.** The chain: `designerRig` seeds the sidecar `{ calibration: null, shape }`
+(`designerRig.ts:269`); `toiletShape()` builds from `ASSET_PRESETS`, and
+`presetGeometry.ts:89-91` writes `footprintPending`/`clearancePending`/`anchorPending` all `false`
+with every detail `pending: false` too; so after a successful removal
+`DesignerReferenceStatus.vue:87`'s `relevant` — background OR calibration OR any pending flag — is
+`false`, the whole `<section v-if="relevant">` is not rendered, and
+`designer.reference.sheet.none` is written nowhere in `src/` except line 54 of that component,
+inside that section. The button-is-gone assertion would have passed for the wrong reason and the
+sheet-line assertion would have failed.
+
+**Measured, not reasoned.** With the two-line parent binding applied locally:
+
+```
+× reaches the real command from the real inspector, once the parent binds it
+AssertionError: expected 'PanSelectTrace footprintTrace clearan…' to contain 'None chosen'
+Expected: "None chosen"
+Received: "PanSelectTrace footprintTrace clearanceDraw rectangle… Placement point… Saved"
+ ❯ tests/presentation/designer/designerReferenceView.test.ts:172:31
+ Tests  1 failed | 6 passed (7)
+```
+
+**The fix** seeds that rig's shape `{ ...toiletShape(), footprintOrigin: 'traced',
+footprintPending: true }` — the same pair the sibling case at line ~122 already needed, and
+`'traced'` is required rather than decorative because `validateAssetShape` refuses a typed footprint
+that is pending (`AssetShape.ts:232`). A pending flag is also the state AD12-R2 is most specific
+about, so the case gained one line asserting the footprint-pending notice is still on screen after
+the sheet is gone: the removal took the reference and left the pixels flagged as pixels. With the
+binding still applied, `Tests 7 passed (7)`, exit 0. The binding was then **reverted**, and the
+declared red returned — now at the case's FIRST assertion, `designerReferenceView.test.ts:166`,
+`expected false to be true`, which is the assertion whose premise is the missing wire.
+
+### 2 (blocking) — a wrong count in shipped code
+
+`DesignerCanvas.vue`'s comment said `BackgroundLayer` "declares five props and no `opacity`". It
+declares **seven** — `name`, `reference`, `vault`, `transform`, `visible`, `pixelsPerWorldUnit`,
+`fileChanges` — read off its own `defineProps` rather than recalled. The number is **dropped**, not
+corrected: the load-bearing half is "no `opacity` prop", and a count is the thing in this repository
+that has gone stale four times in one session. (The comment is rewritten anyway, because finding 4
+made the prop declared.)
+
+### 3 (blocking) — a claim this candidate falsified and left standing
+
+`assetReferenceReplacement.test.ts`'s header said deleting a reference had no door, because
+`SetAssetBackgroundInput.path` was a bare `string`. True when written, false at `70937e5af`. The
+paragraph now says what the file covers (replacement) and points at `removeAssetBackground.test.ts`
+for the other arm, and keeps a sentence naming what it used to say — CLAUDE.md's
+fixture-behind-the-change-it-was-the-reason-for rule, met at a header rather than a fixture.
+
+### 4 (recommended, taken) — the opacity binding is structural now
+
+Covered above under *A third request, WITHDRAWN*. `opacity?: number` defaulting to `1` on
+`BackgroundLayer.vue`, in the config beside `visible`; `DesignerCanvas.vue`'s mechanism note
+rewritten for what is now true. The plan editor's mount is unchanged and `vue-tsc` now holds the
+designer's binding. It also silenced a `[Vue warn]` nobody had been reading.
+
+### 5 (required) — the 0.1 floor
+
+The case titled *fades the background layer the whole way down to the control's floor* was setting
+**0.4**. It now sets **0.1** and asserts `min` reads `'0.1'` first, so the title is honest and the
+floor is a number something reads. `backgroundOpacity` is still an unclamped `Ref<number>` and the
+control is still its only writer — stated in the case's own docblock rather than implied.
+
+### 6 (record) — the German strings
+
+Covered under *Verification not performed*. The report had quoted `Deckkraft der Vorlage` /
+`Vorlage entfernen` against code that says `Referenz`; the code is right. The report's reason was
+also wrong — `entfernen` is an infinitive, not a verbless noun phrase — and the locale file's own
+comment said the same thing, so **both** were corrected to the reasoning that actually makes the
+form safe: a German infinitive is the neutral Sie-compatible action label, as against a du-imperative.
+
+### Carried risk — three things not done, with why
+
+- **The opacity evidence is about an EMPTY layer.** The reviewer measured this and it is real:
+  `designerRig`'s `SPEC_SHEETS` is `['Specs/oven.pdf','Specs/other.png','Specs/a.png']` while the
+  rig seeds `Specs/oven.png`, in neither that list nor the fake vault, so the `.asset-background`
+  layer whose `opacity()` the case reads contains no raster. The number arrives; no picture dims.
+  The suggested remedy — one case in `designerBackground.test.ts`, which has a real-raster harness —
+  is **out of lease**: that file is neither "its own tests" in the wave-4 row nor one of the two the
+  `d56de8198` amendment granted, and the amendment granted exactly two files on purpose. What
+  partially offsets it is finding 4: the value now travels as a declared prop into the layer config,
+  so `vue-tsc` holds the binding and only Konva's own layer-opacity semantics are unwitnessed here.
+  **Recorded as uncovered, not as covered.**
+- **Removal-then-undo is still not driven end to end.** Argued from reading
+  `ReversibleAssetBackgroundEdit` — whole `Asset` and whole `AssetGeometryDocument` snapshotted
+  before `runForward`, `secondaryVersion` into the geometry ledger, restore note-then-sidecar under
+  both generation checks — and the reviewer confirmed that reading. It stays an argument.
+  `reversibleAssetDesign.test.ts` is likewise not in this card's lease.
+- **Nobody has looked at any of it.** No Obsidian, no pinned Chromium. Legibility at 0.1 or 0.4,
+  the range input at a 460 px sidebar, and whether a third View-menu row crowds the pane are all
+  unseen, and no gate in this repository can see them.
+
+### Fix-round checks
+
+| Command | Exit | Evidence |
+|---|---|---|
+| `npx vitest run tests/presentation/designer/designerReferenceView.test.ts` (parent binding applied locally) | **1**, then **0** | before the fix: 1 failed at `:172`, `to contain 'None chosen'`. After: `Tests 7 passed (7)`, no stderr |
+| same, binding reverted | **1** | `Tests 1 failed \| 6 passed (7)`, the declared red at `:166` — `expected false to be true` |
+| `npx vue-tsc -noEmit` | **0** | whole tree |
+| `npx oxlint` (whole repository) | **0** | clean |
+| `npx eslint` on the two touched SFCs | **0** | clean |
+| `npx vitest run tests/presentation/designer tests/presentation/editor/layers` | **1** | `Tests 1 failed \| 859 passed (860)` — the declared red and nothing else. `BackgroundLayer`'s new prop regresses neither surface |
+| `npx vitest run tests/presentation/editor/background.test.ts tests/presentation/editor/backgroundInEditor.test.ts tests/presentation/designer/designerBackground.test.ts tests/presentation/designer/designerViewMenu.test.ts tests/application/commands/asset/` | **0** | `Test Files 18 passed`, `Tests 198 passed` |
+
+`npm run check`, `npm run test:coverage` and `npm run analyze` were again NOT run, by the dispatch
+brief's instruction — two AD13 workers are on this box and a second heavy gate produces wrong reds.
+So `eslint .` over the whole tree and the coverage floors remain unverified, exactly as the first
+candidate recorded.
+
 ## Reviewer and integrator acceptance
 
-Reviewer outcome and findings:
+Reviewer outcome and findings: **round 1 — REQUEST CHANGES**, six findings plus two overstatements
+in this report. All addressed; see [Review round 1](#review-round-1--what-the-reviewer-found-and-what-changed).
+No finding was disputed: every one was reproduced or read against the code before being acted on.
 Integrated commit:
 Post-integration checks/evidence:
 Final status: integrated / verified / blocked

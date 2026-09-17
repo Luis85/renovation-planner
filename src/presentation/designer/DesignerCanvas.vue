@@ -250,14 +250,16 @@ onBeforeUnmount(() => stopPixelRatio());
 					(AD12-R1). It is a VIEW preference and reaches nothing the vault holds —
 					`runtime.ts` carries the whole account.
 
-					**It is not a DECLARED prop of that component**, and the mechanism is worth naming
-					rather than leaving to be rediscovered: `BackgroundLayer` declares five props and
-					no `opacity`, so this is Vue's attribute FALLTHROUGH onto its root `<VLayer>`,
-					which vue-konva applies to the Konva node. That works and is measured — the
-					layer node really does dim — but it is an arrangement no type checks, so what
-					holds it is `designerReferenceView.test.ts` asserting the SCENE rather than this
-					binding. `BackgroundLayer.vue` belongs to nobody this wave; declaring the prop
-					there explicitly is the follow-up, and this comment is the pointer to it.
+					**It is a DECLARED prop of that component, and it had to become one.** The first
+					version of this binding relied on Vue's attribute FALLTHROUGH onto the root
+					`<VLayer>`: that does reach the Konva node — vue-konva's node factory builds
+					`{ ...attrs, ...props.config, ...listeners }` and applies it — but `props.config`
+					spreads AFTER `attrs`, so putting `opacity` in that component's config literal
+					would have silently won over this binding, and `inheritAttrs: false` or a second
+					root node there would have dropped it. Vue warned on every mount besides, since
+					`<VLayer>` renders no DOM element to inherit an attribute. `BackgroundLayer.vue`
+					declares `opacity?: number` defaulting to `1` now, so the plan editor's mount is
+					unchanged and `vue-tsc` holds this line.
 				-->
 				<BackgroundLayer
 					:name="BACKGROUND_LAYER"

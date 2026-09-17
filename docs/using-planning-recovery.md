@@ -125,7 +125,7 @@ before using generated shopping content or automatic cost totals. Purchased and 
 quantities are separate allocations, not evidence of payment or completed work.
 
 Evidence remains an ordinary vault file. Moving a linked file or folder updates affected
-links through guarded Plan writes. A missing image can recover when its file becomes
+links through version-checked Plan writes. A missing image can recover when its file becomes
 available again. Unlink removes the relationship, not the user's file.
 
 ## Existing vaults

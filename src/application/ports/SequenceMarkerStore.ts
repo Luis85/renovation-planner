@@ -54,6 +54,14 @@ export interface SequenceMarkerStore {
 	 * be the manufactured absence SDD §87 rule 8 forbids.
 	 */
 	read(entityId: string): Promise<Result<SequenceMarker | null, PersistenceError>>;
+	/**
+	 * Records or replaces one entity's marker. REFUSES (`sequence.marker-write-blocked`) when an
+	 * entry this build cannot READ is already filed under that entity: opening a new destructive
+	 * sequence over an entity whose outstanding record cannot be completed here would put
+	 * readable content on top of the evidence a newer build needs, which is SDD §87 rule 7's
+	 * fail-closed case. `runDeleteResolution` already aborts on a refused pre-write marker, so
+	 * that refusal travels the path it already had.
+	 */
 	write(marker: SequenceMarker): Promise<Result<void, PersistenceError>>;
 	clear(entityId: string): Promise<Result<void, PersistenceError>>;
 }

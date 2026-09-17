@@ -46,10 +46,22 @@ export interface TextFileAdapter {
  * vault with nothing outstanding (SDD §87 rule 8) and — because `write` and `clear` rewrite
  * the envelope from that same validated map — destroyed the evidence on the very next
  * marker operation, rule 7 failing open. Now it comes back in `list()`'s `unreadable` half,
- * `read` refuses rather than answering `null`, and every rewrite carries it through
- * byte-shape unchanged. The one door that removes one is `clear(entityId)`: an explicit
- * clear is an intentional gesture, and nothing in the plugin calls it for an unreadable
- * entry — recovery walks the recognised half alone.
+ * `read` refuses rather than answering `null`, and every rewrite carries each unreadable
+ * ENTRY through byte-shape unchanged. Read that last clause narrowly: it is true of the
+ * ENTRIES and not of the ENVELOPE around them, whose top-level `schemaVersion` every write
+ * stamps with this build's. `readEnvelope` gates on nothing there, so nothing here notices —
+ * but a future build that gated on it would meet its own records under a version it did not
+ * write.
+ *
+ * **`clear(entityId)` is the only door that removes one.** Measured, in this edit, with
+ * `grep -n "unreadable\[" src/infrastructure/obsidian/plugin-data/SequenceMarkerFileStore.ts`:
+ * two hits, the assignment in `readEnvelope` that fills the half and the `delete` in `clear`.
+ * An explicit clear is an intentional gesture, and nothing in the plugin calls it for an
+ * unreadable entry — recovery walks the recognised half alone. A `write()` for that same id
+ * does NOT supersede it, which is what the first version of this slice got wrong: it refuses
+ * with `sequence.marker-write-blocked`, because opening a new destructive sequence over an
+ * entity whose outstanding record this build cannot finish is exactly SDD §87 rule 7's
+ * fail-closed case.
  *
  * That is the sibling `WriteIncidentFileStore`'s rule met in the shape a MARKER needs: an
  * incident can be a sentinel in the same list because nothing replays one, and a marker
@@ -91,7 +103,10 @@ export class SequenceMarkerFileStore implements SequenceMarkerStore {
 			// manufactured absence SDD §87 rule 8 forbids, at the door most likely to be read
 			// as "this entity has nothing outstanding".
 			if (entityId in parsed.value.unreadable) {
-				return err(persistenceError('sequence.marker-unreadable', 'That sequence marker was written by a version this build cannot read.'));
+				// Says only what is known. "Written by a version this build cannot read" would be
+				// false for the other half of the class — a record a hand edit bent out of shape
+				// at the CURRENT version, which the sibling test drives.
+				return err(persistenceError('sequence.marker-unreadable', 'That sequence marker could not be read.'));
 			}
 			return ok(parsed.value.markers[entityId] ?? null);
 		});
@@ -101,6 +116,19 @@ export class SequenceMarkerFileStore implements SequenceMarkerStore {
 		return this.queues.run('sequence-markers', async () => {
 			const parsed = await this.readEnvelope();
 			if (isErr(parsed)) return parsed;
+			// FAIL CLOSED (SDD §87 rule 7). An unreadable entry under this id means the vault
+			// holds an outstanding recovery record for this very entity that this build cannot
+			// complete; opening a NEW destructive sequence over it would put a record this build
+			// CAN read on top of the evidence a newer one needs. Refusing costs no new machinery:
+			// `runDeleteResolution` already aborts the whole operation when its pre-write marker
+			// cannot be written, so this surfaces through a path that is already tested.
+			//
+			// A distinct code rather than `sequence.marker-unreadable`, which says "what I read
+			// could not be parsed"; this says "I read it fine, and something older than it is
+			// still outstanding".
+			if (marker.entityId in parsed.value.unreadable) {
+				return err(persistenceError('sequence.marker-write-blocked', 'A recovery record for this item is outstanding and cannot be read by this build, so a new one is refused.'));
+			}
 			parsed.value.markers[marker.entityId] = marker;
 			return await this.writeEnvelope(parsed.value);
 		});
@@ -177,8 +205,15 @@ export class SequenceMarkerFileStore implements SequenceMarkerStore {
 
 	private async writeEnvelope(envelope: Envelope): Promise<Result<void, PersistenceError>> {
 		try {
-			// The unrecognised entries go back FIRST and verbatim, so a recognised write over
-			// the same id supersedes rather than colliding; nothing else can overwrite one.
+			// The unrecognised entries go back verbatim, and the two halves are DISJOINT by
+			// construction, so this spread cannot collide: `readEnvelope` files each id into
+			// exactly one half, `write` refuses an id the unreadable half holds, and `clear`
+			// removes an id from both. (The spread order is therefore not load-bearing — it is
+			// written unreadable-first so that if a fourth mutation door ever appears and gets
+			// this wrong, the recognised entry wins rather than a half-parsed one.)
+			//
+			// The ENVELOPE's own version is this build's on every write; only the entries are
+			// preserved. See the class docblock.
 			const markers = { ...envelope.unreadable, ...envelope.markers };
 			await this.adapter.write(this.path, JSON.stringify({ schemaVersion: SEQUENCE_MARKER_SCHEMA_VERSION, markers }));
 			return ok(undefined);

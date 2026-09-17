@@ -183,6 +183,28 @@ describe('SequenceMarkerFileStore and an entry this build cannot read', () => {
 		expect(written.markers).toEqual({ 'zone-future': FUTURE });
 	});
 
+	/**
+	 * The collision, and the one case the first version of this slice got wrong: `write()` used
+	 * to file the recognised marker into the validated half and leave the raw one in the
+	 * unreadable half, and `writeEnvelope`'s spread then let the recognised one win — so a
+	 * delete of the very entity whose outstanding record this build cannot read destroyed that
+	 * record silently, with no log and no refusal. It is reachable: `runDeleteResolution` opens
+	 * every sequence with `markers.write(marker)` keyed on the entity being deleted.
+	 */
+	it('refuses write() for that same id rather than superseding the record it cannot read', async () => {
+		const { files, store } = seeded({ 'zone-future': FUTURE });
+		const before = files.get(PATH);
+
+		const refusal = expectErr(await store.write(marker('zone-future')));
+
+		expect(refusal.code).toBe('sequence.marker-write-blocked');
+		// The bytes, not a later `list()`: the whole defect was a rewrite nobody could see.
+		expect(files.get(PATH)).toBe(before);
+		expect(expectOk(await store.list()).unreadable).toEqual([
+			{ entityId: 'zone-future', foundSchemaVersion: 99 },
+		]);
+	});
+
 	it('refuses read() for it rather than manufacturing an absence', async () => {
 		const { store } = seeded({ 'zone-future': FUTURE });
 		expect(expectErr(await store.read('zone-future')).code).toBe('sequence.marker-unreadable');

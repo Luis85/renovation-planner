@@ -30,9 +30,13 @@
  * screen says so first"*, through the `writesBlocked()` probe below. The FIRST half — that the
  * guarded doors underneath really do refuse — is checked by
  * `designerIncidentRefusal.test.ts` beside this file, which builds the design bundle through
- * the REAL `guardAssetDesign` and dispatches real gestures at it. Neither file holds the claim
- * alone, and that file also records the measured gap in it: the UNDO half writes through raw
- * ports and is not behind the gate.
+ * the REAL `guardAssetDesign` and dispatches real gestures at it. It holds that half as a
+ * CATEGORY rather than a sample: a loop over the guarded bundle's own members requires both
+ * doors of all nine commands to answer `WRITES_PAUSED_CODE`, with the `get` query excluded by
+ * name, and two of them are additionally driven end to end through the designer's real write
+ * door with the port read back. Neither file holds the whole sentence alone, and that file also
+ * records the measured gap in it: the UNDO half writes through raw ports and is not behind the
+ * gate.
  * The sentence lives here because the describe that moved out of `designerRefresh.test.ts`
  * carried it ("no registered tool ever asks"), the first pass at this slice deleted it and
  * replaced it with the opposite claim, and a reader arriving at the new file had no way to

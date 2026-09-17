@@ -7,7 +7,7 @@ import { affectsSaveState } from './affects-save-state';
 
 export type SaveStateTracker = Pick<
 	ReturnType<typeof useSaveStateStore>,
-	'beginSaving' | 'resolveOk' | 'resolveErr' | 'resolveNeutral' | 'markUnrecovered'
+	'beginSaving' | 'resolveOk' | 'resolveErr' | 'resolveNeutral' | 'markUnrecovered' | 'markVaultPaused'
 >;
 
 /**
@@ -50,18 +50,30 @@ export function withSaveStateTracking(
 				else saveState.resolveOk();
 			}
 			else {
-				// **TWO refusals pause this leaf, and only one of them is this leaf's own doing.**
-				// `leftWritesBehind` is the stamp the site that wrote raised on its way out.
-				// `WRITES_PAUSED_CODE` is `guardCommand`'s own refusal, returned BEFORE the command
-				// ran, and it says the VAULT holds an open incident — which some other leaf, or an
-				// earlier session, may have raised (ADR-0034). Marked here because the seed in
-				// `save-state-store.ts` only reaches a store at SETUP: a leaf already mounted when
-				// a peer raises an incident has no notification to learn from, so its first refused
-				// write is where it catches up, rather than showing an enabled UI for the rest of
-				// the session.
+				// **TWO refusals shut this leaf's gate, they are DIFFERENT FACTS, and each has its
+				// own door.** `leftWritesBehind` is the stamp the site that wrote raised on its way
+				// out: THIS leaf left a write standing, so `markUnrecovered`. `WRITES_PAUSED_CODE`
+				// is `guardCommand`'s own refusal, returned BEFORE the command ran, and it says the
+				// VAULT holds an open incident — which some other leaf, or an earlier session, may
+				// have raised (ADR-0034): `markVaultPaused`, never `markUnrecovered`.
+				//
+				// Calling `markUnrecovered` for a gate refusal is what the 2026-09-17 first pass
+				// did, and it was wrong in two visible ways: `PlanEditorView`'s watcher would have
+				// written a stranger's incident into this leaf's persisted view state, where
+				// nothing can ever clear it, and `DraftRecovery.vue` would have removed a READ
+				// retry that ADR-0034 explicitly keeps working.
+				//
+				// The vault door is needed at all because the seed in `save-state-store.ts` reaches
+				// a store only at SETUP: a leaf already mounted when a peer raises an incident has
+				// no notification to learn from, so its first refused write is where it catches up,
+				// rather than showing an enabled UI for the rest of the session.
 				//
 				// Matched on the exported CODE and never on the message: the sentence is a locale
 				// string and belongs to the translator.
+				//
+				// TWO independent `if`s and not an `else`, because the two questions are
+				// independent: nothing in either predicate excludes the other, and an `else` would
+				// silently make whichever was asked first the only answer a refusal could give.
 				//
 				// Asked OUTSIDE the `affectsSaveState` branch below, deliberately. The gate's
 				// refusal is a `Persistence` error today, so that predicate answers true for it
@@ -69,9 +81,10 @@ export function withSaveStateTracking(
 				// are two questions, and nesting the first inside the second would make the pause
 				// depend on a category reading that has nothing to do with it.
 				//
-				// `markUnrecovered` BEFORE `resolveErr`, so a consumer watching `state` finds the
-				// flag already set — the two are one fact about this refusal, not two.
-				if (leftWritesBehind(result.error) || result.error.code === WRITES_PAUSED_CODE) saveState.markUnrecovered();
+				// Both marks BEFORE `resolveErr`, so a consumer watching `state` finds the flag
+				// already set — they are one fact about this refusal, not two.
+				if (leftWritesBehind(result.error)) saveState.markUnrecovered();
+				if (result.error.code === WRITES_PAUSED_CODE) saveState.markVaultPaused();
 				// A refusal that never reached the repository wrote NOTHING, so it is neither a
 				// failure to report nor evidence that anything was saved. Resolving it as `ok` would
 				// let a validation refusal clear a `save-error` left by a real persistence failure.

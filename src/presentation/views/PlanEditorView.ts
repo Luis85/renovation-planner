@@ -332,13 +332,25 @@ export class PlanEditorView extends ItemView {
 	 * subjects: this field carries THIS leaf's incident across a rebind, and the registry
 	 * carries the vault's across a process.
 	 *
-	 * **A seeded store does not write back here, and that is deliberate.** `mount`'s watcher
-	 * below is not `immediate`, so a store that was ALREADY true when the watcher was installed
-	 * — which is exactly what the seed produces — never sets this field. It must not: this field
-	 * is set-never-unset and rides `getState`, so recording a vault-wide incident in it would
-	 * keep this one leaf paused after the user had removed the incidents file and reloaded,
-	 * with nothing able to clear it. The vault's record is retired by the user; this leaf's
-	 * field is not retired at all, so only this leaf's own incident may enter it.
+	 * **The vault's incident does not write back here, and that is a SHAPE rather than an
+	 * ordering.** `mount`'s watcher below watches `saveState.leafUnrecoveredWrite` — the store's
+	 * narrow fact, set by `markUnrecovered()` alone — and not the wider `unrecoveredWrite` gate,
+	 * which is also true whenever the vault holds an open incident. It must not watch the gate:
+	 * this field is set-never-unset and rides `getState`, so recording a vault-wide incident in
+	 * it would keep this one leaf paused after the user had removed the incidents file and
+	 * reloaded, with nothing able to clear it. The vault's record is retired by the user; this
+	 * leaf's field is not retired at all, so only this leaf's own incident may enter it.
+	 *
+	 * **The two are deliberately different questions, and the asymmetry runs BOTH ways.** This
+	 * field is narrower than the gate — a paused leaf may emit a view state with no
+	 * `unrecoveredWrite` key at all, which is correct and is what the vault's own durable record
+	 * is for. And it is not merely a filtered copy: this leaf's own incident still reaches it
+	 * while the vault is paused, because `leafUnrecoveredWrite` is a ref of its own that the
+	 * seed never touches. The first pass at this (2026-09-17) shared ONE ref between the two
+	 * questions and relied on the watcher not being `immediate`; the result was that a seeded
+	 * store made `markUnrecovered()` a no-op on an already-true ref, the watcher never ran, and
+	 * this leaf's own half-written write silently stopped reaching Obsidian's persisted layout.
+	 * `tests/presentation/views/planEditorIncident.test.ts` holds both directions as cases.
 	 *
 	 * And the same never-unset that makes a stale warning cheap makes it WRONG on a leaf
 	 * re-pointed at another plan: `sync()` remounts on a planId change and seeds the new plan's
@@ -458,7 +470,11 @@ export class PlanEditorView extends ItemView {
 		// needed writing.
 		const saveState = useSaveStateStore(pinia);
 		if (this.unrecoveredWrite) saveState.markUnrecovered();
-		this.stopIncidentWatch = watch(() => saveState.unrecoveredWrite, () => { this.unrecoveredWrite = true; }, { flush: 'sync' });
+		// **`leafUnrecoveredWrite` and NOT the `unrecoveredWrite` gate.** The gate is also true
+		// while the vault holds an open incident (ADR-0034), and this field is this LEAF's own
+		// record — see its docblock for both halves of why mixing them was a defect rather than a
+		// simplification.
+		this.stopIncidentWatch = watch(() => saveState.leafUnrecoveredWrite, () => { this.unrecoveredWrite = true; }, { flush: 'sync' });
 		// On the APP instance and not globally: each ItemView's Vue app is isolated
 		// (ADR-004), and a global `app.use` at plugin scope would leak vue-konva's component
 		// registration into every future view whether it draws a canvas or not.

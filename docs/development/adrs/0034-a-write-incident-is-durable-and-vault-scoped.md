@@ -76,7 +76,8 @@ user to read, and never a predicate a gate evaluates.**
 
 **The application layer raises and observes it, through the single chokepoint already there.**
 `guardCommand` (`src/application/errors/guardAgainstThrowing.ts`) is the one place a command's
-`Result` is inspected after every dispatch — **44 call sites in 13 files**, all under
+`Result` is inspected after every dispatch — **44 call sites in 13 files** (superseded below,
+2026-09-17: 46 in 14), all under
 `src/plugin/`, measured by `grep -rnE "guardCommand[<(]" src/plugin/`, already pass through it, and
 `PersistenceError` is already part of every guarded door's declared error union, so recognising an
 incident there widens no signature. The sibling door, `guardQuery`, adds 16 call sites in 3 files
@@ -88,7 +89,7 @@ variable is invisible to it; and a call SITE is not a guarded DOOR — `guardBot
 (`src/plugin/guardedServices.ts:365`) has 11 call sites of its own, each wrapping two doors
 (`execute` and `executeWithVersion`) through two `guardCommand` calls inside its body, both
 already counted in the 44. "44 call sites" and "44 doors" are therefore different claims, and
-this ADR uses only the former.
+this ADR uses only the former. (Both figures superseded below, 2026-09-17: 46 in 14.)
 
 **Correction, 2026-09-17 (BP-02 slice 4, task L-05): the count is now 46 call sites in 14 files,
 and that supersedes every "44" in this document.** The same quoted instrument, re-run:

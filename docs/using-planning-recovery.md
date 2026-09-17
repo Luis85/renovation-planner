@@ -35,16 +35,21 @@ An incomplete-write warning means a multi-file operation could neither finish no
 partial writes. Inspect the Plan note and related geometry against your backup before making
 further changes. This pauses writing everywhere in the vault, not only in the tab that raised
 it — most of what the plugin offers as a command or form is refused until the incident is
-resolved. Not everything is inside this pause. Undoing a zone deletion is the one action known
-to be outside it, and nothing in the plugin checks for another like it, so there may be others.
-For an action outside the pause the plugin may neither pause nor remember: if it leaves files
-half-written, it can fail without ever recording an incident, and the warning you are reading
-now would not appear for it at all. So do not read any single action still working as proof the
-incident has cleared, and do not treat a quiet failure as nothing having happened.
-Stop making changes anywhere in the vault and
-inspect the affected files against your backup instead. Reading, navigating and inspecting still work: that is deliberate,
-because comparing the affected files against your backup is the recovery, and a plugin that
-also blocked reading would take away the one tool you have for it.
+resolved. Not everything is inside this pause. The plugin applies it at one step — where it runs a
+command — so anything that writes without passing that step is not refused. Undo is where that
+mostly happens: undoing a zone deletion, undoing an asset assignment, and undoing a quantity or
+cost override each write straight to their notes and are not paused. Neither are the link
+updates the plugin makes when you rename or move a file the plan links to as evidence. Those are
+examples rather than a boundary: nothing in the plugin lists or checks what sits outside the
+pause, so do not read this as a complete list. For an action outside the pause the plugin may
+neither pause nor remember: if it leaves files half-written, it can fail without ever recording
+an incident, and the warning you are reading now would not appear for it at all. So do not read
+any single action still working as proof the incident has cleared, and do not treat a quiet
+failure in one of those actions as nothing having happened. Stop making changes anywhere in the
+vault and inspect the affected files against your backup instead. Reading, navigating and
+inspecting still work: that is deliberate, because comparing the affected files against your
+backup is the recovery, and a plugin that also blocked reading would take away the one tool you
+have for it.
 
 Nothing clears this on its own. A successful read does not repair those files, a later
 successful write elsewhere is not evidence that the affected ones were mended, and saving

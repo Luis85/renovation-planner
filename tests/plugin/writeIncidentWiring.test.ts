@@ -22,6 +22,28 @@ import type { DispatchResult } from '../../src/application/commands/DispatchOutc
 installObsidianDom();
 
 /**
+ * What a driven door ANSWERED, as one comparable value: its refusal code, or `true` where it
+ * resolved `ok`.
+ *
+ * It exists so the before-incident halves below can assert the code each door actually gives
+ * rather than `.not.toBe(WRITES_PAUSED_CODE)`, which passes for every wrong answer that is not
+ * that one string — a success, a different refusal, a door that never reached the command. The
+ * docblocks over those cases claim each door "reaches the command underneath and answers its own
+ * coded refusal", and that claim is only checked if the code is named.
+ */
+function codeOf(answered: DispatchResult): string | true {
+	return answered.ok ? true : answered.error.code;
+}
+
+/**
+ * What every zone-edit door below answers when no incident is open: the REPOSITORY's own
+ * refusal for a zone id that is not in the vault. Naming it is what makes the before-incident
+ * halves say the command underneath was actually reached — the gate cannot produce this code,
+ * and neither can a door that short-circuited above it.
+ */
+const ZONE_NOT_FOUND = 'zone.zone-not-found';
+
+/**
  * ADR-0034's wiring, at the composition site rather than at the unit.
  *
  * Four claims live here and nowhere else: the registry the guard reads is INSTALLED by
@@ -139,7 +161,9 @@ describe('write incident wiring', () => {
 	 *
 	 * The first half is the gate NOT being stuck shut, and it is the half that fails if the
 	 * cheapest wrong fix is taken: before any incident is recorded, all four doors reach the
-	 * command underneath and answer its own coded refusal rather than the paused code.
+	 * command underneath and answer its own coded refusal — `zone.zone-not-found`, asserted by
+	 * name rather than as "not the paused code", which would also pass for a success, for a
+	 * different refusal, and for a door that never reached the command at all.
 	 */
 	it("refuses the Inspector's two zone edits at both doors while an incident is open", async () => {
 		const { plugin } = await loadedPlugin();
@@ -160,11 +184,9 @@ describe('write incident wiring', () => {
 			}),
 		].flatMap((transaction) => [() => transaction.execute(), () => transaction.undo()]);
 
-		for (const drive of doors()) {
-			const answered = await drive();
-			expect(answered.ok).toBe(false);
-			expect(answered.ok === false && answered.error.code).not.toBe(WRITES_PAUSED_CODE);
-		}
+		const beforeCodes: (string | true)[] = [];
+		for (const drive of doors()) beforeCodes.push(codeOf(await drive()));
+		expect(beforeCodes).toEqual([ZONE_NOT_FOUND, ZONE_NOT_FOUND, ZONE_NOT_FOUND, ZONE_NOT_FOUND]);
 
 		await activeWriteIncidentRegistry()?.record({
 			category: 'Persistence',
@@ -199,8 +221,9 @@ describe('write incident wiring', () => {
 	 * reached for behind the store's back.
 	 *
 	 * Both halves, for the reason the case above gives: before any incident every door must
-	 * reach the command underneath (a gate stuck shut passes a refusal test by breaking the
-	 * feature), and after one every door must answer `WRITES_PAUSED_CODE`.
+	 * reach the command underneath and answer `zone.zone-not-found` by name (a gate stuck shut
+	 * passes a refusal test by breaking the feature), and after one every door must answer
+	 * `WRITES_PAUSED_CODE`.
 	 */
 	it("refuses an Inspector commit at the switch that decides, before and after an incident", async () => {
 		setActivePinia(createPinia());
@@ -236,10 +259,8 @@ describe('write incident wiring', () => {
 			return answers;
 		};
 
-		for (const answered of await driveBothDoors()) {
-			expect(answered.ok).toBe(false);
-			expect(answered.ok === false && answered.error.code).not.toBe(WRITES_PAUSED_CODE);
-		}
+		expect((await driveBothDoors()).map((answered) => codeOf(answered)))
+			.toEqual([ZONE_NOT_FOUND, ZONE_NOT_FOUND, ZONE_NOT_FOUND, ZONE_NOT_FOUND]);
 
 		await activeWriteIncidentRegistry()?.record({
 			category: 'Persistence',

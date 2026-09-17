@@ -37,6 +37,17 @@ import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from '../../src/plugin/guardedServices';
 import { guardZoneEdit } from '../../src/plugin/guardedZoneEdit';
 import { SessionWriteLedger } from '../../src/application/editor/WriteLedger';
+import { EditZoneDetailsCommand } from '../../src/application/commands/zone/EditZoneDetails';
+import { RenameZoneCommand } from '../../src/application/commands/zone/RenameZone';
+import { ReversibleRenameZoneCommand } from '../../src/application/commands/zone/reversible-rename-zone-command';
+import {
+	WriteIncidentRegistry,
+	installWriteIncidentRegistry,
+} from '../../src/application/incidents/WriteIncidentRegistry';
+import { InMemoryWriteIncidentStore } from '../helpers/InMemoryWriteIncidentStore';
+import { createRepositoryStack } from '../helpers/vault';
+import { makePlan, makeProject, makeZone } from '../helpers/entities';
+import { expectFound, expectOk } from '../helpers/domain';
 import { ok } from '../../src/core/result/Result';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { installObsidianDom } from '../helpers/dom';
@@ -291,6 +302,101 @@ describe("the Inspector's zone edits leave the composition root guarded", () => 
 		expect(await guarded.execute()).toEqual(ok('wrote'));
 		expect(await guarded.undo()).toEqual(ok('no-write'));
 		expect(called).toEqual(['execute', 'undo']);
+		expect(lines).toEqual([]);
+	});
+
+	/**
+	 * The same regression one layer deeper, JOINED: the guarded facade, over the real command,
+	 * over a real Markdown/sidecar repository, with a real registry installed and nothing open
+	 * in it — one successful edit travelling the whole path the plugin ships.
+	 *
+	 * **Why it is worth a case of its own.** Three cases held that property between them and
+	 * none of them joined it. The case above proves the wrapper passes an `ok` through, over a
+	 * FAKE command that touches no vault; `tests/plugin/writeIncidentWiring.test.ts` proves the
+	 * Inspector's switch reaches these factories, over a MISSING zone that never gets past the
+	 * repository's own `zone.zone-not-found`; and
+	 * `tests/presentation/editor/roomNamingPersistence.test.ts` proves the command writes, over
+	 * the RAW composition `inspector-wiring.ts` no longer builds. Whether some fourth case
+	 * elsewhere in `tests/` also joins all three is not something this docblock has measured —
+	 * what is measured is the three reds below, which is the claim that matters here.
+	 *
+	 * The registry is INSTALLED rather than left null on purpose: a null registry skips the
+	 * gate's arm altogether (`guardCommand` tests `incidents !== null` first), so the open-gate
+	 * arm would go undriven over a real write.
+	 *
+	 * Composed exactly as `planEditorDeps` composes the two — same constructor arguments, same
+	 * event names — because what is under test is that composition and not `guardZoneEdit` in
+	 * the abstract. `planEditorDeps` itself is not called here: it needs a `CompositionRoot`
+	 * over an Obsidian `Vault`, and this stack IS the repository half of one.
+	 *
+	 * **Watched red at each of the three links, 2026-09-17**, because a joined case that is
+	 * secretly joined to nothing looks exactly like a passing one:
+	 *
+	 * - recording an incident on the installed registry before the first door →
+	 *   `expected { ok: false, code: 'write-incident.writes-paused' } to equal ok('wrote')`.
+	 *   The GUARD is in the path.
+	 * - `detonate(stack.zones)` after seeding → `Error: the vault exploded`. The real
+	 *   REPOSITORY is in the path.
+	 * - the rename adapter swapped for `{ execute: () => ok('wrote'), undo: … }` →
+	 *   `expected 'Kitchen' to be 'Lounge'`. The name assertions read what the COMMAND wrote,
+	 *   not what it returned.
+	 */
+	it('writes and reverts a real zone through both guarded doors of both factories', async () => {
+		resetRecorder();
+		const stack = createRepositoryStack();
+		const project = makeProject();
+		const plan = makePlan({ projectId: project.id });
+		expectOk(await stack.projects.save(project, 'absent'));
+		expectOk(await stack.plans.save(plan, 'absent'));
+		const zone = makeZone({ projectId: project.id, planId: plan.id, name: 'Kitchen' });
+		expectOk(await stack.zones.save(zone, 'absent'));
+		const saved = async () => expectFound(await stack.zones.getById(zone.id));
+		const nameNow = async () => (await saved()).entity.name;
+
+		installWriteIncidentRegistry(new WriteIncidentRegistry(new InMemoryWriteIncidentStore(), recorder));
+		try {
+			const rename = guardZoneEdit(
+				new ReversibleRenameZoneCommand(new RenameZoneCommand(stack.zones, stack.events), new SessionWriteLedger(), {
+					zoneId: zone.id,
+					name: 'Lounge',
+					inverse: 'Kitchen',
+					expected: (await saved()).version,
+				}),
+				{ execute: 'command.renameZone.failed', undo: 'command.renameZone.undo.failed' },
+				recorder,
+			);
+			expect(await rename.execute()).toEqual(ok('wrote'));
+			expect(await nameNow()).toBe('Lounge');
+			expect(await rename.undo()).toEqual(ok('wrote'));
+			expect(await nameNow()).toBe('Kitchen');
+
+			const details = guardZoneEdit(
+				new EditZoneDetailsCommand(stack.zones, stack.events, new SessionWriteLedger(), {
+					zoneId: zone.id,
+					// Same zone TYPE both ways: `Zone.withDetails` refuses a Room/Area exchange
+					// outright (`zone.category-change`), so a type change here would test the
+					// domain rule rather than the chain this case exists to join. The `locked`
+					// flag is the second field, so the edit is not a rename in disguise.
+					forward: { name: 'Utility', zoneType: 'Room' as const, locked: true },
+					inverse: { name: 'Kitchen', zoneType: 'Room' as const, locked: false },
+					expected: (await saved()).version,
+				}),
+				{ execute: 'command.editZoneDetails.failed', undo: 'command.editZoneDetails.undo.failed' },
+				recorder,
+			);
+			expect(await details.execute()).toEqual(ok('wrote'));
+			expect(await nameNow()).toBe('Utility');
+			expect((await saved()).entity.locked).toBe(true);
+			expect(await details.undo()).toEqual(ok('wrote'));
+			expect(await nameNow()).toBe('Kitchen');
+			expect((await saved()).entity.locked).toBe(false);
+		} finally {
+			// Module-level state, the same rule `tests/application/errors/writeIncidentGate.test.ts`
+			// states: a global this case installs is a global this case removes, on the failing
+			// path too.
+			installWriteIncidentRegistry(null);
+		}
+
 		expect(lines).toEqual([]);
 	});
 });

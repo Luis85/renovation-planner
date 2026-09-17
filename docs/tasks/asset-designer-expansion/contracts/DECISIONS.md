@@ -117,6 +117,30 @@ Recorded at this length because the shape of the mistake is the point: a ruling 
 BEHAVIOUR is not finished until somebody has found the one function every affected path actually
 goes through, and the first plausible function was shared with a path the ruling exempts.
 
+### AD12-R1 — "lock reference" is already true by construction. No control is owed. Opacity is a real gap and is a different item. (2026-09-17)
+
+AD12's card item 1 asks for a guided sequence ending *"calibrate known length, lock reference,
+trace"*, and AD01 §1 S04 lists *"background lock/opacity: absent"*. The worker asked what locking
+would even mean here. **Measured rather than argued:** every designer layer is built by
+`designerLayerConfig` with `listening: false` — its own docblock states that for SDD §62 — and no
+tool in `src/presentation/designer/tools/` moves, scales or nudges the background. There is no
+gesture anywhere in this surface that can disturb a reference once it is set.
+
+So the property "lock reference" names **already holds**, and a lock control would be a switch whose
+off position is unreachable — the live control that does nothing this repository refuses, in its
+purest form. Nothing is owed and nothing is built. AD01 §1 S04's "lock" half is satisfied; its
+wording should be read as describing the concept board rather than a gap in the code.
+
+**The trigger is precise:** an increment that makes the background draggable or independently
+scalable — a "nudge the reference into place" gesture, most likely — creates the state a lock would
+protect, and owes the lock in the same change.
+
+**Opacity is NOT covered by this and is a genuine gap.** Fading a reference to trace over it is a
+real need, its off state is reachable, and it is absent. It is not AD12's to build: it needs
+`runtime.ts`, `DesignerCanvas.vue` and `DesignerViewMenu.vue`, none of which are in that card's
+lease, and it is a leaf-local view preference of exactly the kind `PartView` already holds. It sits
+in the integration queue as one item for the runtime's owner.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

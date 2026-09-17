@@ -28,7 +28,11 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { err, isErr, ok } from '../../../src/core/result/Result';
-import { markUncompensated, type DispatchResult } from '../../../src/application/commands/DispatchOutcome';
+import { markUncompensated, type DispatchOutcome, type DispatchResult } from '../../../src/application/commands/DispatchOutcome';
+import type { AppError } from '../../../src/core/errors/AppError';
+import { guardCommand, WRITES_PAUSED_CODE } from '../../../src/application/errors/guardAgainstThrowing';
+import type { VaultExceptionMapper } from '../../../src/application/errors/exceptionMapper';
+import { persistenceError } from '../../../src/application/errors';
 import { installWriteIncidentRegistry } from '../../../src/application/incidents/WriteIncidentRegistry';
 import { PlanEditorView, type PlanEditorDeps } from '../../../src/presentation/views/PlanEditorView';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../src/presentation/editor/runtime';
@@ -41,6 +45,7 @@ import { memoryDeviceStorage } from '../../helpers/deviceStorage';
 import { installEditorEnvironment, settle, sizedShellRoot } from '../../helpers/editor';
 import { FIXTURE_PLAN, FIXTURE_ZONES, fakeQueries } from '../../helpers/planFixtures';
 import { injectedPersistenceError } from '../../helpers/domain';
+import { recorder } from '../../helpers/logger';
 import { FakeLeaf } from '../../helpers/workspace';
 import { installOpenWriteIncident, installQuietWriteIncidents } from '../../helpers/writeIncidents';
 import type { Pinia } from 'pinia';
@@ -49,6 +54,12 @@ installEditorEnvironment();
 
 /** No-op subscription doors: no case here counts a listener, so none is counted. */
 const noSubscription = () => () => undefined;
+
+/**
+ * The boundary's own mapper, required by `guardCommand`'s signature the way production's is.
+ * Nothing here throws, so no case reaches it.
+ */
+const threw: VaultExceptionMapper = (cause) => ({ ...persistenceError('vault.threw', 'threw', cause), technicalFault: true });
 
 function deps(): PlanEditorDeps {
 	return {
@@ -378,5 +389,77 @@ describe('a vault-scoped incident gates the leaf without becoming the leaf’s o
 
 		expect(useSaveStateStore(piniaOf(view)).unrecoveredWrite).toBe(false);
 		expect(runtimeOfView(view).writesBlocked.value).toBe(false);
+	});
+
+	/**
+	 * **The leaf's OWN incident still reaches Obsidian's persisted layout while a vault incident
+	 * is open.** This is the regression a single shared ref produced: with one ref answering both
+	 * questions, the vault's seed left it already `true`, `markUnrecovered()` changed nothing,
+	 * `mount`'s watcher — which fires on a CHANGE — never ran, and BP-01's persisted field
+	 * silently stopped recording this leaf's own half-written write.
+	 *
+	 * **Which route this drives, and which it deliberately does not.** `failHalfWritten` above
+	 * cannot be used here: with the vault paused, `withStaleGate` refuses `run`, `undo` and
+	 * `redo` before the command executes, so the leaf's own gated dispatcher can produce no new
+	 * incident at all. The write that still can is one of the paths ADR-0034 names as OUTSIDE its
+	 * chokepoint — its Coverage section's remaining two, and the reversible-adapter `undo`
+	 * category of tracker limitation L-06. So this case composes the real decorator
+	 * (`withSaveStateTracking`) over this view's own live store with a real `markUncompensated`
+	 * stamp — the exact object `leftWritesBehind` reads — rather than poking the store's boolean
+	 * or pretending the gated dispatcher would have let it through. What is under test is the
+	 * store-to-view seam: that a leaf-own mark still travels into `getState()` while the vault's
+	 * own pause is standing.
+	 */
+	it('still records this leaf’s own half-written write in its view state while the vault is paused', async () => {
+		await installOpenWriteIncident();
+		const view = await opened();
+		expect(useSaveStateStore(piniaOf(view)).unrecoveredWrite).toBe(true);
+		expect(view.getState()).toEqual({ planId: FIXTURE_PLAN.id });
+
+		const ungated = withSaveStateTracking(
+			{
+				run: () => Promise.resolve(err(markUncompensated(injectedPersistenceError(), []))),
+				undo: () => Promise.resolve(ok<DispatchOutcome>('wrote')),
+				redo: () => Promise.resolve(ok<DispatchOutcome>('wrote')),
+			},
+			useSaveStateStore(piniaOf(view)),
+		);
+		expect(isErr(await ungated.run({} as never))).toBe(true);
+		await settle();
+
+		expect(view.getState()).toEqual({ planId: FIXTURE_PLAN.id, unrecoveredWrite: true });
+	});
+
+	/**
+	 * **The other direction, and the reason the two questions may not share a ref.** A refusal
+	 * carrying `guardCommand`'s own `WRITES_PAUSED_CODE` says the VAULT holds an incident — not
+	 * that this leaf wrote anything. Recording it in this leaf's field would persist someone
+	 * else's incident into this leaf's workspace layout, where nothing can ever clear it: the
+	 * field is set-never-unset, and the vault's record is retired by the user removing a file.
+	 *
+	 * The refusal is built by the real `guardCommand` against a real installed registry, so what
+	 * is paired here is the code the gate PRODUCES with the door the decorator OPENS.
+	 */
+	it('does not record another leaf’s incident in its view state when the gate refuses its next write', async () => {
+		installQuietWriteIncidents();
+		const view = await opened();
+
+		await installOpenWriteIncident();
+		const guarded = guardCommand<void, DispatchOutcome, AppError>(
+			{ execute: () => Promise.resolve(ok<DispatchOutcome>('wrote')) },
+			'command.test.failed',
+			recorder,
+			threw,
+		);
+		const refusal = await runtimeOfView(view).dispatcher.run({
+			execute: () => guarded.execute(undefined),
+			undo: () => guarded.execute(undefined),
+		});
+		await settle();
+
+		expect(isErr(refusal) && refusal.error.code).toBe(WRITES_PAUSED_CODE);
+		// Paused — the gate is the OR of both facts — and the leaf's own record stays empty.
+		expect(useSaveStateStore(piniaOf(view)).unrecoveredWrite).toBe(true);
+		expect(view.getState()).toEqual({ planId: FIXTURE_PLAN.id });
 	});
 });

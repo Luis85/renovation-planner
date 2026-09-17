@@ -46,3 +46,32 @@ export function installQuietWriteIncidents(): WriteIncidentRegistry {
 	installWriteIncidentRegistry(registry);
 	return registry;
 }
+
+/**
+ * **A registry over a store that DOES hold a durable incident, installed before `seed()` has
+ * run** — the state a leaf Obsidian restored from the workspace layout actually meets.
+ *
+ * `RenovationPlannerPlugin.startPersistence` calls `void this.stores.writeIncidents.seed()` at
+ * `onLayoutReady`, and that same function's own comment records that Obsidian restores its leaves
+ * BEFORE `onLayoutReady`. So a restored leaf's store asks `anyOpen()` of a registry whose list is
+ * still empty and seeds CLEAN, however full the file is.
+ *
+ * Distinct from `installQuietWriteIncidents` in exactly the way that matters: there the vault
+ * really is clean, here it is not and the registry has simply not looked yet. A helper that
+ * installed an empty store instead would pass for the wrong reason and could never go red.
+ *
+ * It does NOT simulate Obsidian's ordering — nothing in this repository can, and `FakeLeaf`
+ * records asks rather than performing them. It simulates the registry state that ordering
+ * produces, which is the half the code here decides.
+ */
+export async function installUnseededWriteIncidents(): Promise<WriteIncidentRegistry> {
+	const store = new InMemoryWriteIncidentStore();
+	const filled = new WriteIncidentRegistry(store, recorder);
+	await filled.record({
+		...persistenceError('zone.sidecar-write-uncompensated', 'left standing'),
+		uncompensatedWrite: [],
+	});
+	const restored = new WriteIncidentRegistry(store, recorder);
+	installWriteIncidentRegistry(restored);
+	return restored;
+}

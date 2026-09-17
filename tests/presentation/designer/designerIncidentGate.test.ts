@@ -1,14 +1,34 @@
 /**
  * @vitest-environment jsdom
  *
- * **The Asset Designer's write gate, which did not exist until 2026-09-17 (BP-02 slice 4).**
+ * **The value the Asset Designer's `EditorContext` carries — and the measured fact that NO
+ * REGISTERED TOOL EVER ASKS FOR IT.**
  *
- * `designer/runtime.ts` handed its tool framework `writesBlocked: () => false`, a constant,
- * under a comment that was right about the Plan Editor's STALE-read trust path having no
- * counterpart here and said nothing about incidents. It was therefore wrong for the fact
- * ADR-0034 added: an open write incident pauses every guarded write in the VAULT, and this
- * surface's forward doors are guarded (`composeGuarded`), so its tools were pre-checking
- * against a constant while the doors beneath them refused.
+ * Read that sentence before reading either case below as a gate. `designer/runtime.ts` handed
+ * its tool framework `writesBlocked: () => false`, a constant, under a comment that was right
+ * about the Plan Editor's STALE-read trust path having no counterpart here and said nothing
+ * about incidents. That constant was a lie about ADR-0034's vault-wide pause and is now the
+ * honest value. It changes no behaviour on this surface, because nothing reads it.
+ *
+ * Measured rather than remembered, in the edit that wrote this:
+ * `grep -rn "writesBlocked()" src/presentation/editor/` prints **23** call sites in SIX modules —
+ * `tools/select-tool.ts`, `elements/ElementMove.ts`, `elements/ElementResize.ts`,
+ * `elements/ElementRotation.ts`, `labels/LabelMove.ts`, `structure/OpeningResize.ts`. The grep is
+ * scoped to `editor/` on purpose: unscoped over `src/` it also counts the comments that spell the
+ * call, including this one, so it answers several more than the calls. In
+ * `src/presentation/designer/` the only occurrence that is not prose is the `writesBlocked:`
+ * property `runtime.ts` builds — `grep -rn "writesBlocked" src/presentation/designer/ | grep -v "//"`
+ * returns exactly that one line. `registerDesignerTools` registers `DesignerSelectTool`,
+ * `DrawPolygonTool`, `DrawDetailTool`, `SetAnchorTool`, `SetFacingTool` and `CalibrateTool`, and
+ * none of the six reading modules is among them.
+ *
+ * **So the Asset Designer is not gated at all** — not a tool, not a button, not the inspector,
+ * not the preset form. Every write it dispatches is refused by the guarded doors underneath and
+ * nothing on screen says so first. This file is the prerequisite's check, not the increment's.
+ * The sentence lives here because the describe that moved out of `designerRefresh.test.ts`
+ * carried it ("no registered tool ever asks"), the first pass at this slice deleted it and
+ * replaced it with the opposite claim, and a reader arriving at the new file had no way to
+ * discover the gap.
  *
  * Both cases reach the REAL context `buildRuntime` builds, through `ToolManager`'s own public
  * door, rather than reading the expression out of the module. A probe tool registered under
@@ -121,7 +141,7 @@ describe('the tool framework this leaf builds', () => {
 
 	beforeEach(resetRecorder);
 
-	it('answers false for writesBlocked while the vault holds no incident', async () => {
+	it('answers false for writesBlocked while the vault holds no incident, though no registered tool asks', async () => {
 		installQuietWriteIncidents();
 		const runtime = designerRuntime();
 		await flushPromises();
@@ -130,15 +150,15 @@ describe('the tool framework this leaf builds', () => {
 	});
 
 	/**
-	 * The case the constant could never answer. Every registered designer tool consults this one
-	 * function, so one expression gates the whole framework — and a tool that pre-checks it stops
-	 * offering a drag whose release the guarded door below would refuse anyway.
+	 * The case the constant could never answer: the value is now truthful.
 	 *
-	 * **What this does NOT assert, said here because the gap is real:** that a designer BUTTON is
-	 * disabled. The inspector's fields, the toolbar and the preset form stay visually enabled;
-	 * their dispatches are refused underneath. That is an affordance gap, not a data-safety one.
+	 * **What this does NOT assert, and the list is the whole surface:** that any designer tool
+	 * stops a gesture, that a button is disabled, that the inspector's fields are inert, or that
+	 * the preset form refuses. None of that happens — the header's grep is the measurement. The
+	 * probe tool below is the ONLY thing in this repository that reads this value, and it exists
+	 * in this file. That is what the case name says out loud.
 	 */
-	it('answers true for writesBlocked when the leaf mounts with an incident already open', async () => {
+	it('answers true for writesBlocked when the leaf mounts with an incident already open, and no registered tool ever asks', async () => {
 		await installOpenWriteIncident();
 		const runtime = designerRuntime();
 		await flushPromises();

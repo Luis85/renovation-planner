@@ -141,6 +141,18 @@ describe('an uncompensated repository write and the Plan editor incident', () =>
  * the two are spelled in different layers and nothing but this pairing holds them together.
  */
 describe('a leaf already open when the vault-wide gate refuses its next write', () => {
+	// **Its OWN Pinia, and this is not ceremony.** The file's other `beforeEach` is scoped inside
+	// the first describe, so without this one `useSaveStateStore()` below resolved against
+	// whatever Pinia the previous case left active — an already-exercised store — and the opening
+	// `expect(...unrecoveredWrite).toBe(false)` guard, whose whole job is to establish "this store
+	// was seeded clean, exactly as an already-open pane is", was asserted against it. Run alone
+	// the case died with `"getActivePinia()" was called but there was no active Pinia`. CLAUDE.md's
+	// own rule for this shape: a case whose pass depends on which sibling ran first is not a case
+	// anybody has checked.
+	beforeEach(() => {
+		setActivePinia(createPinia());
+	});
+
 	afterEach(() => {
 		installWriteIncidentRegistry(null);
 	});
@@ -162,6 +174,15 @@ describe('a leaf already open when the vault-wide gate refuses its next write', 
 
 		expect(refusal.code).toBe(WRITES_PAUSED_CODE);
 		expect(saveState.unrecoveredWrite).toBe(true);
+		// **The VAULT's fact and not this leaf's**, which is the half a single shared ref could not
+		// express. A gate refusal says an incident exists somewhere in the vault; it says nothing
+		// about whether THIS leaf ever wrote. Marking the leaf here persisted a stranger's incident
+		// into `PlanEditorView`'s view state, where nothing can clear it, and took a READ retry off
+		// `DraftRecovery.vue` — both driven as cases of their own, in
+		// `tests/presentation/views/planEditorIncident.test.ts` and
+		// `tests/presentation/editor/usability/i13-save-recovery.test.ts`.
+		expect(saveState.vaultWritesPaused).toBe(true);
+		expect(saveState.leafUnrecoveredWrite).toBe(false);
 		// The gate refuses BEFORE the command, so the leaf pauses over a vault this write never
 		// touched — a refusal after the write would be the same code over a different vault.
 		expect(wrote).not.toHaveBeenCalled();

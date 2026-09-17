@@ -28,6 +28,7 @@ const tracker = () => ({
 	resolveErr: vi.fn<() => void>(),
 	resolveNeutral: vi.fn<() => void>(),
 	markUnrecovered: vi.fn<() => void>(),
+	markVaultPaused: vi.fn<() => void>(),
 });
 
 /**
@@ -55,6 +56,9 @@ const recordingTracker = () => {
 		},
 		markUnrecovered: (): void => {
 			calls.push('markUnrecovered');
+		},
+		markVaultPaused: (): void => {
+			calls.push('markVaultPaused');
 		},
 	};
 };
@@ -393,6 +397,7 @@ describe('withSaveStateTracking', () => {
 			resolveErr: vi.fn<() => void>(),
 			resolveNeutral: vi.fn<() => void>(),
 			markUnrecovered: vi.fn<() => void>(),
+			markVaultPaused: vi.fn<() => void>(),
 		};
 		const history = {
 			run: vi.fn<() => Promise<DispatchResult>>(() => {

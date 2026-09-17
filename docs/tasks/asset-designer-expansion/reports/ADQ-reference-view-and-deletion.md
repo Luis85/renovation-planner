@@ -2,8 +2,11 @@
 
 Outcome: **implemented, with ONE deliberately red assertion awaiting a two-line integrator wire.**
 Owner / worktree / branch: queue worker · `.worktrees/adq` · `adq-reference-view`
-Base commit / candidate commit: `ae6bb2a63` / `de2c8e9e3` (first candidate), **fix round after
-REQUEST CHANGES: see [Review round 1](#review-round-1--what-the-reviewer-found-and-what-changed)**
+Base commit / candidate commit: `ae6bb2a63` / **`e48dc0386`** — the review-round-1 fix, which is
+where every source and test change ends. `de2c8e9e3` was the first candidate; this commit names the
+SHA and touches nothing else, so `e48dc0386` is the one to review and this one is the one to
+integrate. **Fix round after REQUEST CHANGES:** see
+[Review round 1](#review-round-1--what-the-reviewer-found-and-what-changed)
 Accepted contract revision: `r1` (rulings **AD12-R1** and **AD12-R2**)
 Allowed scope and shared-file leases: the wave-4 row's exclusive list — `runtime.ts`,
 `DesignerCanvas.vue`, `DesignerViewMenu.vue` (all three integrator-sub-let),

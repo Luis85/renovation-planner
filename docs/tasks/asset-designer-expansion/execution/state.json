@@ -189,20 +189,28 @@
 			"blocker": "Criterion 4 (clearance under resize) is NOT met and r1 parks only the refusal arm for a PENDING clearance. A persisted review state is OWED - AD01 S09 names AD12 as owner - and is unbuildable in any current lease: it needs the aggregate, the schemas, the mappers, a schema version, and a representation ruling AD01 never made. Both carried in INTEGRATION-QUEUE.md. No capture and no Obsidian."
 		},
 		"AD13": {
-			"status": "planned",
-			"base_sha": null,
+			"status": "in_progress",
+			"base_sha": "ae6bb2a63",
 			"candidate_sha": null,
 			"integrated_sha": null,
-			"evidence": [],
-			"blocker": null
+			"evidence": [
+				"wave 4 dispatched 2026-09-17 to TWO workers on ONE card: .worktrees/ad13a (branch ad13a-workflow, items 1/2/6-navigation, criteria 1/2/6) and .worktrees/ad13b (branch ad13b-duplicate, items 3/4/5, criteria 3/4/5)",
+				"the split is a dispatch decision and NOT a second task: one report, one ledger row, two candidate SHAs. No AD13a or AD13b key exists here deliberately",
+				"leases recorded in execution/LEASES.md wave 4 in the same commit that issued them (584bb2f19)"
+			],
+			"blocker": "not yet a blocker; no Obsidian and no pinned Chromium means criteria touching real-host navigation and layout cannot be verified from this environment"
 		},
 		"AD14": {
 			"status": "planned",
 			"base_sha": null,
 			"candidate_sha": null,
 			"integrated_sha": null,
-			"evidence": [],
-			"blocker": null
+			"evidence": [
+				"ruling AD14-R1 issued 2026-09-17 BEFORE dispatch, as the runbook requires: clearanceNeedsReview boolean on AssetShape, asset-geometry schema v4 allocated in the same edit, and a MEASURED clearance preserved rather than scaled under a whole-object scale",
+				"ADR-0034 carries the supersession C03 requires, and names the two fixtures to amend rather than delete",
+				"held for wave 5: depends on AD13, and the schema/aggregate files it needs are the ones wave 4 keeps held"
+			],
+			"blocker": "waiting on AD13. Not dispatched."
 		},
 		"AD15": {
 			"status": "blocked",
@@ -227,6 +235,19 @@
 			"integrated_sha": null,
 			"evidence": [],
 			"blocker": null
+		},
+		"ADQ": {
+			"status": "in_progress",
+			"base_sha": "ae6bb2a63",
+			"candidate_sha": null,
+			"integrated_sha": null,
+			"evidence": [
+				"NOT a work-package card: the two buildable integration-queue obligations, ruled and allocated 2026-09-17",
+				"background opacity (AD12-R1) as a leaf-local view preference on the PartView shape, in runtime.ts / DesignerCanvas.vue / DesignerViewMenu.vue",
+				"deleting a reference (AD12-R2) as one input arm on SetAssetBackground rather than a new command",
+				"dispatched to .worktrees/adq, branch adq-reference-view"
+			],
+			"blocker": "one known cross-lease wire: the delete control sits in DesignerReferenceStatus.vue whose props are threaded by DesignerInspector.vue, which AD13 nav holds. Travels as an integration change request plus an assertion that is deliberately RED in the candidate."
 		}
 	}
 }

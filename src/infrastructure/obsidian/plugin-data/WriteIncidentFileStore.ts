@@ -30,15 +30,21 @@ const LANE = 'write-incidents';
  *   and that gesture must not also destroy a live delete-resolution marker that is still
  *   waiting to roll something back.
  *
- * **The schema-version handling deliberately differs from its sibling, in the opposite
- * direction.** `SequenceMarkerFileStore` DISCARDS a record whose version it does not
- * recognise, with a log line and direction-blind — a recorded defect against SDD §87 rule 8
- * that a separate increment fixes there. Here a record this build cannot read is an UNKNOWN
- * OPEN incident: it still counts as open (`unreadableWriteIncident`), it is never silently
- * dropped, and its raw form is what a later `add` writes back, so nothing migrates it. Fail
- * closed — that store recovers by replaying, and being wrong about a record costs it a bad
- * restore; this one only ever says "a half-write happened", and being wrong about a record
- * costs the user a manufactured all-clear.
+ * **Both stores now fail closed on a record they cannot read, and they SHAPE that answer
+ * differently.** This one carries an unrecognised record as an UNKNOWN OPEN incident inside
+ * the same list (`unreadableWriteIncident`): it still counts as open, it is never silently
+ * dropped, and its raw form is what a later `add` writes back, so nothing migrates it. Its
+ * sibling `SequenceMarkerFileStore` preserves and rewrites its unrecognised entries exactly
+ * the same way, but answers them through a SEPARATE half of its listing rather than as a
+ * sentinel, because `recoverInterruptedSequences.recoverOne` replays and then CLEARS anything
+ * shaped like a `SequenceMarker` — a sentinel there would be walked as a recoverable marker
+ * and retired. Nothing replays an incident, so a sentinel is safe here and is not there.
+ * (That store USED to discard such a record, direction-blind, a defect against SDD §87
+ * rules 7 and 8 this paragraph recorded as deferred; BP-02 slice 3 fixed it.) The contrast
+ * is still worth drawing, because the CONSEQUENCE differs: that store recovers by replaying,
+ * and being wrong about a record costs it a bad restore; this one only ever says "a
+ * half-write happened", and being wrong about a record costs the user a manufactured
+ * all-clear.
  *
  * The records are a LIST rather than a map: two incidents may name the same entity, so there
  * is no key that would not collide.

@@ -39,6 +39,13 @@ any of it and does not touch the schema-version direction-blindness `SequenceMar
 already has (SDD §87 rule 7, "fail closed on unsupported schema versions") — that is a separate
 increment's subject, recorded but not fixed here.
 
+**Correction, 2026-09-17 (BP-02 slice 3): that separate increment landed.** An entry
+`SequenceMarkerFileStore` cannot read is now preserved verbatim across every rewrite and reported
+through the `unreadable` half of `SequenceMarkerListing`
+(`src/application/ports/SequenceMarkerStore.ts`), which recovery neither replays nor clears — the
+same fail-closed answer this ADR reasons about for incidents, shaped as a separate half rather
+than a sentinel because anything shaped like a `SequenceMarker` would be replayed and retired.
+
 ## Decision
 
 **A write incident is a refused write that left the vault half-written and whose compensating

@@ -80,6 +80,16 @@ specialized requirement-sequence recovery mechanism remains separate — it exis
 an interrupted delete and carries the deleted content to do it, where this record carries no
 content and rolls nothing back.
 
+That separate mechanism can hold a recovery record this build does not understand — one written
+by a newer version of the plugin, or one edited by hand into a shape it cannot read. Such a
+record is left exactly as it is. Nothing is replayed from it, because rolling back from a shape
+the plugin could not read could write the wrong content over your requirements; and nothing is
+removed, because a record it could not read is not a record it can declare finished. It is
+reported to the developer console when the plugin loads, and it is not shown anywhere in the
+plugin's own screens. The remedy is to run a build of the plugin at least as new as the one that
+wrote it: that build reads the record and completes the rollback. Until then nothing is lost and
+nothing is acted on, and the rest of your vault's recovery records are unaffected.
+
 An open draft in this state offers source-note inspection and Cancel. It does not offer a
 read retry or promise that reading will resume Apply. You can copy its retained text before
 cancelling and reviewing the affected files against your backup.

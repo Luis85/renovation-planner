@@ -20,6 +20,26 @@ interface Envelope {
 }
 
 /**
+ * **Both halves are NULL-PROTOTYPE maps, and that is the whole reason this function exists**
+ * rather than two `{}` literals at the two sites that need them. The keys are entity ids out
+ * of a file a user can edit, so `Object.prototype`'s own members are legal keys, and an
+ * inherited-member map gets both directions wrong: `id in map` answers `true` for
+ * `constructor`, `toString` or `hasOwnProperty` that the file never held — refusing a
+ * legitimate delete with `sequence.marker-write-blocked` — while `map[id] = value` for the key
+ * `__proto__` invokes the inherited SETTER and creates no own property at all, so that one
+ * entry landed in neither half, was reported by nothing and was rewritten away by the next
+ * unrelated write. `Object.create(null)` closes both: `in` and `delete` then see own keys
+ * only, and assignment always defines one. The object SPREAD in `writeEnvelope` is already
+ * safe either way — it defines own properties rather than assigning them.
+ */
+function emptyEnvelope(): Envelope {
+	return {
+		markers: Object.create(null) as Record<string, SequenceMarker>,
+		unreadable: Object.create(null) as Record<string, unknown>,
+	};
+}
+
+/**
  * The file surface the marker store persists through. Structural rather than Obsidian's
  * `DataAdapter` so a test can hand a few lines of fake; the vault's own adapter satisfies
  * it as-is.
@@ -53,9 +73,14 @@ export interface TextFileAdapter {
  * but a future build that gated on it would meet its own records under a version it did not
  * write.
  *
- * **`clear(entityId)` is the only door that removes one.** Measured, in this edit, with
- * `grep -n "unreadable\[" src/infrastructure/obsidian/plugin-data/SequenceMarkerFileStore.ts`:
- * two hits, the assignment in `readEnvelope` that fills the half and the `delete` in `clear`.
+ * **`clear(entityId)` is the only door that removes one, and that claim is held by BEHAVIOUR
+ * rather than by a text scan.** Every mutation door is driven against a seeded unreadable
+ * entry in `sequenceMarkerFileStore.test.ts` — an unrelated `write`, an unrelated `clear`, a
+ * colliding `write`, and a `__proto__`-keyed entry — each asserting the WRITTEN BYTES still
+ * carry it. The grep this paragraph used to quote (`unreadable\[`, two hits) was the wrong
+ * instrument and said so by being accurate: the rewrite path is spelled
+ * `{ ...envelope.unreadable }`, which that pattern cannot match at all, so a count taken with
+ * it was never a count of the set.
  * An explicit clear is an intentional gesture, and nothing in the plugin calls it for an
  * unreadable entry — recovery walks the recognised half alone. A `write()` for that same id
  * does NOT supersede it, which is what the first version of this slice got wrong: it refuses
@@ -161,7 +186,7 @@ export class SequenceMarkerFileStore implements SequenceMarkerStore {
 	private async readEnvelope(): Promise<
 		Result<Envelope, PersistenceError>
 	> {
-		if (!(await this.adapter.exists(this.path))) return ok({ markers: {}, unreadable: {} });
+		if (!(await this.adapter.exists(this.path))) return ok(emptyEnvelope());
 		let raw: unknown;
 		try {
 			raw = JSON.parse(await this.adapter.read(this.path));
@@ -179,8 +204,7 @@ export class SequenceMarkerFileStore implements SequenceMarkerStore {
 		if (typeof markers !== 'object' || markers === null) {
 			return err(persistenceError('sequence.marker-unreadable', 'The sequence marker file has an unreadable shape.'));
 		}
-		const validated: Record<string, SequenceMarker> = {};
-		const unreadable: Record<string, unknown> = {};
+		const { markers: validated, unreadable } = emptyEnvelope();
 		for (const [id, value] of Object.entries(markers)) {
 			// `typeof … === 'object' && !== null` rather than the `!== undefined` this carried:
 			// `null` is a legal JSON entry in a file the user can edit, and the property read

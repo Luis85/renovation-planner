@@ -115,6 +115,27 @@ describe('SequenceMarkerFileStore', () => {
 		writesFail = false;
 		expectOk(await store.write(marker('zone-x')));
 	});
+
+	/**
+	 * An EMPTY store, and every id here is a member of `Object.prototype`. Both halves used to
+	 * be `{}`, so `entityId in parsed.value.unreadable` answered `true` for a name the file had
+	 * never held: `read` refused a marker that was simply absent, and `write` refused a
+	 * legitimate delete outright. Ids are `<prefix>-<ULID>` today, so this needs a hand-edited
+	 * note — which is exactly the population BP-02 slice 3 is about.
+	 */
+	it('does not mistake an Object.prototype member for a held entry', async () => {
+		const files = new Map<string, string>();
+		const store = new SequenceMarkerFileStore(fakeAdapter(files), PATH, logger);
+
+		for (const id of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
+			expect(expectOk(await store.read(id))).toBeNull();
+			expectOk(await store.write(marker(id)));
+		}
+
+		expect(expectOk(await store.list()).markers.map((m) => m.entityId).toSorted()).toEqual(
+			['__proto__', 'constructor', 'hasOwnProperty', 'toString', 'valueOf'],
+		);
+	});
 });
 
 /**
@@ -203,6 +224,26 @@ describe('SequenceMarkerFileStore and an entry this build cannot read', () => {
 		expect(expectOk(await store.list()).unreadable).toEqual([
 			{ entityId: 'zone-future', foundSchemaVersion: 99 },
 		]);
+	});
+
+	/**
+	 * The one key for which "preserved and reported" was false. `unreadable[id] = value` on a
+	 * plain object invokes `Object.prototype`'s `__proto__` SETTER instead of creating an own
+	 * property, so the entry landed in neither half: `list()` reported nothing, and the next
+	 * unrelated write rewrote the file without it — BP-02 slice 3's original defect, alive for
+	 * exactly this id. The computed key is load-bearing: `{ __proto__: FUTURE }` written plainly
+	 * would set this literal's prototype rather than seed an entry.
+	 */
+	it('preserves and reports a __proto__ entry like any other it cannot read', async () => {
+		const { files, store } = seeded({ ['__proto__']: FUTURE, 'zone-ok': marker('zone-ok') });
+
+		expect(expectOk(await store.list()).unreadable).toEqual([{ entityId: '__proto__', foundSchemaVersion: 99 }]);
+
+		expectOk(await store.write(marker('zone-other')));
+
+		const written = JSON.parse(files.get(PATH) ?? '') as { markers: Record<string, unknown> };
+		expect(Object.keys(written.markers).toSorted()).toEqual(['__proto__', 'zone-ok', 'zone-other']);
+		expect(Object.getOwnPropertyDescriptor(written.markers, '__proto__')?.value).toEqual(FUTURE);
 	});
 
 	it('refuses read() for it rather than manufacturing an absence', async () => {

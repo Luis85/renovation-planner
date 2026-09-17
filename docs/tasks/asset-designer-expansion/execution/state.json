@@ -154,19 +154,27 @@
 			"blocker": null
 		},
 		"AD11": {
-			"status": "planned",
-			"base_sha": null,
+			"status": "in_progress",
+			"base_sha": "c5436082d",
 			"candidate_sha": null,
 			"integrated_sha": null,
-			"evidence": [],
+			"evidence": [
+				"dispatched 2026-09-17 to .worktrees/ad11, branch ad11-open-lines",
+				"leases in execution/LEASES.md, wave 3 table",
+				"the open model exists since AD04 and is unreachable: outlineOf answers null for an open graphic BY DESIGN, and this card is what relaxes that"
+			],
 			"blocker": null
 		},
 		"AD12": {
-			"status": "planned",
-			"base_sha": null,
+			"status": "in_progress",
+			"base_sha": "c5436082d",
 			"candidate_sha": null,
 			"integrated_sha": null,
-			"evidence": [],
+			"evidence": [
+				"dispatched 2026-09-17 to .worktrees/ad12, branch ad12-reference",
+				"leases in execution/LEASES.md, wave 3 table",
+				"r1 row 2 parked C07 refuse-the-resize behaviour; this card must NOT build it"
+			],
 			"blocker": null
 		},
 		"AD13": {

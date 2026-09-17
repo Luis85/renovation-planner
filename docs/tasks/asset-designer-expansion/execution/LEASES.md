@@ -16,6 +16,27 @@ could plausibly want it.
 | AD08r | `.worktrees/ad08r` · `ad08r-marquee` | `presentation/designer/selection/{designerSelection,hitTest,selectionDrag}.ts` plus a new marquee module in that directory, `presentation/designer/tools/designer-select-tool.ts`, `presentation/designer/layers/DesignerGestureLayer.vue`, `i18n/locales/{en,de}/assetMarquee.ts`, its own tests | `13f82f82e` / `r1` | issued | candidate committed and handed off |
 | AD10 | `.worktrees/ad10` · `ad10-arrange` | `domain/asset/detailEdits.ts` plus new composition modules in `domain/asset/`, `presentation/designer/inspector/{DesignerInspector,DesignerSelectionInspector}.vue` plus new components in that directory, `i18n/locales/{en,de}/assetArrange.ts`, `styles/designer-selection.css`, its own tests | `13f82f82e` / `r1` | issued | candidate committed and handed off |
 
+## Wave 3 — issued 2026-09-17, base `c5436082d`, contract revision `r1`
+
+Wave 2's three leases are RELEASED; all three cards are integrated and gated. Two workers now, on
+the two cards whose prerequisites wave 2 satisfied.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| AD11 | `.worktrees/ad11` · `ad11-open-lines` | `tools/draw-detail-tool.ts` plus a new open-line tool, `tools/registerDesignerTools.ts` (**integrator lease**), `domain/asset/AssetDetail.ts` (**integrator lease**, additive), `domain/asset/shapeEdits.ts` (**integrator lease** — `outlineOf`'s deliberate `null` is what this card relaxes), `inspector/DesignerSelectionInspector.vue`, `selection/partExtent.ts`, `i18n/locales/{en,de}/assetOpenLines.ts`, `styles/designer-object.css`, its own tests | `c5436082d` / `r1` | issued | candidate committed and handed off |
+| AD12 | `.worktrees/ad12` · `ad12-reference` | `layers/{clearanceLayer,anchorLayer,backgroundLayer}.ts`, `tools/{set-anchor-tool,set-facing-tool}.ts`, `application/commands/asset/CalibrateAsset.ts` and its neighbours, `inspector/DesignerInspector.vue` plus NEW `DesignerReference*`/`DesignerClearance*` components, `assetBackgroundPicker.ts`, `i18n/locales/{en,de}/assetReference.ts`, `styles/designer-selection.css`, its own tests | `c5436082d` / `r1` | issued | candidate committed and handed off |
+
+**Three integrator-owned files are sub-let to AD11 and the reason is worth stating**, because two of
+them are the model: `registerDesignerTools.ts` (a tool with no `DESIGNER_TOOL_LABELS` entry cannot be
+registered at all — the record type is total over that table's keys), `AssetDetail.ts` and
+`shapeEdits.ts`. AD11's whole subject is the open arm those files were shaped around, so holding them
+back would mean the card could ship a model with no gestures, which is what AD04 already did
+deliberately and what this card exists to finish.
+
+**The new-component NAME prefixes in AD12's row are load-bearing.** Both cards add components to
+`presentation/designer/inspector/`, which is one directory; the prefix is what keeps them from
+colliding without giving either worker the other's files.
+
 **Held by the integrator throughout, and not sub-let to anyone this wave:** `runtime.ts`,
 `AssetDesignerContext.ts`, `ports.ts`, `tools/registerDesignerTools.ts`,
 `stores/assetDesignStore.ts`, `DesignerCanvas.vue`, `DesignerToolbar.vue`,

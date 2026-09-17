@@ -596,6 +596,15 @@ describe('every service leaving the composition root is guarded', () => {
 		const owners = [...new Set(skipped.map((skip) => skip.path.slice(0, skip.path.lastIndexOf('.'))))].toSorted();
 
 		expect(skipped.filter((skip) => skip.kind !== 'function-with-arguments')).toEqual([]);
+		// The two the header names as the most probable next hole, arriving: BP-02 slice 4's
+		// guarded zone-edit factories take the leaf's `WriteLedger`, so they land HERE rather
+		// than in `discovered` and this walk drives neither. Named rather than left inside the
+		// owner below, because `editorDeps.commands` was already on that list for another
+		// member — so the owners assertion alone would not have noticed them arriving. Both
+		// doors of both are driven by `guardWiring.test.ts` (a vault fault under each) and
+		// `writeIncidentWiring.test.ts` (the ADR-0034 gate over each).
+		expect(skipped.map((skip) => skip.path)).toContain('editorDeps.commands.editZoneDetails');
+		expect(skipped.map((skip) => skip.path)).toContain('editorDeps.commands.renameZone');
 		expect(owners).toEqual([
 			'editorDeps',
 			// reviewNoteAction is exercised through actual repositories in guardedRenovation.test.ts.

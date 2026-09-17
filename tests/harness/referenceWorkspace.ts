@@ -19,7 +19,7 @@ import { ObsidianPlanGeometrySidecar } from '../../src/infrastructure/obsidian/r
 import { referencePlanServices } from '../../src/application/commands/plan/ConfigurePlanReference';
 import { structureServices } from '../../src/application/commands/spatial/StructureCommand';
 import { ObsidianReviewNotes } from '../../src/infrastructure/obsidian/repositories/ObsidianReviewNotes';
-import { makeDeleteZoneCommand } from '../helpers/slice10';
+import { makeDeleteZoneCommand, zoneEditCommands } from '../helpers/slice10';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../src/application/queries/GetZoneInspector';
@@ -112,6 +112,9 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			reviewNote: async (id, body) => { const result = await reviewNotes.generate(id, body); return result.ok ? ok(undefined) : result; },
 			structure: structureServices(geometry, stack.events), deleteZone: makeDeleteZoneCommand(stack.zones, stack.events, stack.requirements), requirementEdits: { ...base.commands.requirementEdits, requirements: stack.requirements },
 			createZone: new CreateZoneCommand(stack.zones, stack.plans, stack.events), moveObject: new MoveSpatialObjectCommand(stack.zones, stack.events), zoneInspector: new GetZoneInspector(stack.zones),
+			// Rebound with this workspace's own zones and bus, for the reason
+			// `areaNumericWorkspace` gives: the base bundle's pair refuses.
+			...zoneEditCommands(stack.zones, stack.events),
 		},
 		vault: {
 			getAbstractFileByPath: path => stack.vault.getAbstractFileByPath(path) as never,

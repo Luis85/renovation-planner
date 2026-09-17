@@ -35,6 +35,9 @@ import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from '../../src/plugin/guardedServices';
+import { guardZoneEdit } from '../../src/plugin/guardedZoneEdit';
+import { SessionWriteLedger } from '../../src/application/editor/WriteLedger';
+import { ok } from '../../src/core/result/Result';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { installObsidianDom } from '../helpers/dom';
 import { lines, recorder, resetRecorder } from '../helpers/logger';
@@ -190,5 +193,91 @@ describe('the calibration transaction leaves the composition root guarded', () =
 		expect(result.ok).toBe(false);
 		expect(result.ok === false && result.error.code).toBe('vault.unexpected-failure');
 		expect(lines.map((line) => line.event)).toEqual(['command.calibratePlan.undo.failed']);
+	});
+});
+
+/**
+ * The Inspector's two per-EDIT zone writes, guarded the same way and for the same reason.
+ *
+ * `EditZoneDetailsCommand` and `ReversibleRenameZoneCommand` were built in
+ * `presentation/editor/inspector-wiring.ts` straight against the raw `ZoneRepository` port
+ * until BP-02 slice 4 — ADR-0034's Coverage paragraph names both by file and line as outside
+ * the `guardCommand` chokepoint, which is tracker limitation L-05. Like `calibratePlan` they
+ * hold one edit's inverse, so they cross as FACTORIES and are guarded per call.
+ *
+ * BOTH doors of each, because `undo()` is the door ADR-0034's own Consequences correction
+ * records as the one every other reversible adapter still leaves open, and because an
+ * `execute` guarded beside a raw `undo` is a wrapper by every structural test anyone can
+ * write — the shape `guardCategory.test.ts`'s header exists to refuse.
+ *
+ * The door list is TWO per adapter, measured rather than assumed — every member indented one
+ * level in either class, listed with a literal tab in the pattern:
+ * `grep -nE "^<TAB>[a-z]" src/application/commands/zone/EditZoneDetails.ts
+ *  src/application/commands/zone/reversible-rename-zone-command.ts`
+ * printed 14 lines on 2026-09-17 — nine for `EditZoneDetails.ts` (four `EditZoneDetailsInput`
+ * fields, `private generation`, the constructor, `execute`, `undo`, `private async dispatch`)
+ * and five for the rename adapter (the same, minus the input fields). Exactly `execute()` and
+ * `undo()` are public per class; nothing else is callable from outside.
+ */
+describe("the Inspector's zone edits leave the composition root guarded", () => {
+	const ZONE_ID = 'zone-1' as never;
+	const EXPECTED = { revision: 1, observed: 'observed-1' as never };
+	const DETAILS_INPUT = {
+		zoneId: ZONE_ID,
+		forward: { name: 'Kitchen', zoneType: 'Room' as const },
+		inverse: { name: 'Küche', zoneType: 'Room' as const },
+		expected: EXPECTED,
+	};
+	const RENAME_INPUT = { zoneId: ZONE_ID, name: 'Kitchen', inverse: 'Küche', expected: EXPECTED };
+
+	function editorCommands() {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const persistence = root.persistence;
+		if (persistence === null) throw new Error('expected a composed persistence stack');
+		const deps = planEditorDeps(root, {} as never, {} as never, createEditorClipboard(), memoryDeviceStorage());
+		return { persistence, deps };
+	}
+
+	it.each([
+		['editZoneDetails', 'execute', 'command.editZoneDetails.failed'],
+		['editZoneDetails', 'undo', 'command.editZoneDetails.undo.failed'],
+		['renameZone', 'execute', 'command.renameZone.failed'],
+		['renameZone', 'undo', 'command.renameZone.undo.failed'],
+	] as const)('turns a thrown fault at %s#%s into a resolved refusal under its own event name', async (factory, door, event) => {
+		resetRecorder();
+		const { persistence, deps } = editorCommands();
+		detonate(persistence.zones);
+
+		const transaction = factory === 'editZoneDetails'
+			? deps.commands.editZoneDetails(new SessionWriteLedger(), DETAILS_INPUT)
+			: deps.commands.renameZone(new SessionWriteLedger(), RENAME_INPUT);
+		const result = await (door === 'execute' ? transaction.execute() : transaction.undo());
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.error.code).toBe('vault.unexpected-failure');
+		expect(lines.map((line) => line.event)).toEqual([event]);
+	});
+
+	/**
+	 * The regression that matters most, since the cheapest way to pass every case above is to
+	 * refuse unconditionally: with no incident open the wrapper CALLS the transaction and hands
+	 * its answer back untouched, at both doors.
+	 */
+	it('passes a clean write straight through at both doors', async () => {
+		resetRecorder();
+		const called: string[] = [];
+		const guarded = guardZoneEdit(
+			{
+				execute: () => { called.push('execute'); return Promise.resolve(ok('wrote' as const)); },
+				undo: () => { called.push('undo'); return Promise.resolve(ok('no-write' as const)); },
+			},
+			{ execute: 'test.execute.failed', undo: 'test.undo.failed' },
+			recorder,
+		);
+
+		expect(await guarded.execute()).toEqual(ok('wrote'));
+		expect(await guarded.undo()).toEqual(ok('no-write'));
+		expect(called).toEqual(['execute', 'undo']);
+		expect(lines).toEqual([]);
 	});
 });

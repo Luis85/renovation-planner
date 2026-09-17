@@ -18,7 +18,7 @@ import type { ToolId } from '../../src/presentation/editor/tools/editor-tool';
 import { expectOk } from './domain';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
-import { dispatchingEventBus, makeDeleteZoneCommand, noopCascadeNotify } from './slice10';
+import { dispatchingEventBus, makeDeleteZoneCommand, noopCascadeNotify, zoneEditCommands } from './slice10';
 import { RecalculateRequirementCommand } from '../../src/application/commands/requirement/RecalculateRequirement';
 import { registerOnZoneGeometryChanged } from '../../src/application/event-handlers/requirement/onZoneGeometryChanged';
 import { registerOnAssetUpdated } from '../../src/application/event-handlers/requirement/onAssetUpdated';
@@ -233,6 +233,9 @@ export async function rig(
 		// The same dispatching bus every command above already publishes on.
 		events,
 		zoneInspector: new GetZoneInspector(zonesRepo),
+		// The Inspector's two per-edit zone writes, over the SAME repository and bus every
+		// other command here writes through — raw, like the rest of this bundle.
+		...zoneEditCommands(zonesRepo, events),
 		// A FACTORY, as the interface requires, and one that REFUSES TO BE USED — deliberately,
 		// loudly, and after two rounds of trying to make it work.
 		//

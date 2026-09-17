@@ -9,6 +9,13 @@ import { err } from '../../src/core/result/Result';
 import { RecalculateRequirementCommand } from '../../src/application/commands/requirement/RecalculateRequirement';
 import { AssignAssetCommand } from '../../src/application/commands/requirement/AssignAsset';
 import { DeleteZoneCommand } from '../../src/application/commands/zone/DeleteZone';
+import { EditZoneDetailsCommand } from '../../src/application/commands/zone/EditZoneDetails';
+import type { EditZoneDetailsInput } from '../../src/application/commands/zone/EditZoneDetails';
+import { RenameZoneCommand } from '../../src/application/commands/zone/RenameZone';
+import type { RenameZoneInput } from '../../src/application/commands/zone/RenameZone';
+import { ReversibleRenameZoneCommand } from '../../src/application/commands/zone/reversible-rename-zone-command';
+import type { WriteLedger } from '../../src/application/editor/WriteLedger';
+import type { UndoableCommand } from '../../src/presentation/editor/tools/undoable-command';
 import type { ZoneRepository } from '../../src/application/ports/ZoneRepository';
 import type { RequirementRepository } from '../../src/application/ports/RequirementRepository';
 import type { DeleteZoneUndoDeps } from '../../src/application/commands/zone/reversible-delete-zone-command';
@@ -259,5 +266,26 @@ export async function assignedRequirementFixture(): Promise<
 		zoneId: zoneEntity.entity.id,
 		assetId: assetEntity.entity.id,
 		requirementId: assigned.value.requirement.id,
+	};
+}
+
+/**
+ * The Inspector's two per-edit zone factories, RAW — the same pair `planEditorDeps` composes
+ * guarded, built here out of whichever repository and bus the rig is driving.
+ *
+ * Raw rather than guarded on purpose, and consistent with every other command these rigs
+ * compose (`createZone`, `moveObject`, `deleteZone` are all bare classes here): what a mounted
+ * editor's suite drives is presentation's own handling of a refusal or a throw, and
+ * `editorFaults.test.ts` depends on a raw throw reaching it. The COMPOSED, guarded pair is the
+ * subject of `tests/plugin/guardWiring.test.ts` and `tests/plugin/writeIncidentWiring.test.ts`
+ * instead, where the composition root is the thing under test.
+ */
+export function zoneEditCommands(zones: ZoneRepository, events: EventBus): {
+	editZoneDetails: (ledger: WriteLedger, input: EditZoneDetailsInput) => UndoableCommand;
+	renameZone: (ledger: WriteLedger, input: RenameZoneInput & { readonly inverse: string }) => UndoableCommand;
+} {
+	return {
+		editZoneDetails: (ledger, input) => new EditZoneDetailsCommand(zones, events, ledger, input),
+		renameZone: (ledger, input) => new ReversibleRenameZoneCommand(new RenameZoneCommand(zones, events), ledger, input),
 	};
 }

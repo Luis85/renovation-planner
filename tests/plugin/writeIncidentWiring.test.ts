@@ -7,6 +7,10 @@ import { installObsidianDom } from '../helpers/dom';
 import { activeWriteIncidentRegistry } from '../../src/application/incidents/WriteIncidentRegistry';
 import { WRITES_PAUSED_CODE } from '../../src/application/errors/guardAgainstThrowing';
 import type { ZoneId } from '../../src/domain/zone/ZoneId';
+import { planEditorDeps } from '../../src/plugin/planEditorDeps';
+import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
+import { memoryDeviceStorage } from '../helpers/deviceStorage';
+import { SessionWriteLedger } from '../../src/application/editor/WriteLedger';
 
 // The notice host builds its markup with Obsidian's own `createSpan`/`createEl` globals.
 installObsidianDom();
@@ -109,6 +113,65 @@ describe('write incident wiring', () => {
 		const refused = await persistence?.deleteZone.execute({ zoneId: 'zone-01JAAA' as ZoneId });
 		expect(refused?.ok).toBe(false);
 		expect(refused?.ok === false && refused.error.code).toBe(WRITES_PAUSED_CODE);
+
+		plugin.onunload();
+	});
+
+	/**
+	 * The two doors ADR-0034 named as OUTSIDE the gate, now inside it — tracker limitation
+	 * L-05. The Inspector builds `EditZoneDetailsCommand` and `ReversibleRenameZoneCommand`
+	 * per edit, and until BP-02 slice 4 it built them straight against the raw
+	 * `ZoneRepository` port: an incident raised anywhere else in the vault left exactly these
+	 * two edits still writing while every other editor write was refused.
+	 *
+	 * Driven through `planEditorDeps` — the composition site — rather than through the
+	 * wrapper, because the claim is that the bundle handed to the editor carries the guarded
+	 * factories, which a unit on `guardZoneEdit` cannot say.
+	 *
+	 * BOTH doors of both factories, and the four are asserted the same way: a guarded
+	 * `execute` beside a raw `undo` is a wrapper by every structural test there is.
+	 *
+	 * The first half is the gate NOT being stuck shut, and it is the half that fails if the
+	 * cheapest wrong fix is taken: before any incident is recorded, all four doors reach the
+	 * command underneath and answer its own coded refusal rather than the paused code.
+	 */
+	it("refuses the Inspector's two zone edits at both doors while an incident is open", async () => {
+		const { plugin } = await loadedPlugin();
+		const deps = planEditorDeps(plugin.root, {} as never, {} as never, createEditorClipboard(), memoryDeviceStorage());
+		const expected = { revision: 1, observed: 'observed-1' as never };
+		const doors = () => [
+			deps.commands.editZoneDetails(new SessionWriteLedger(), {
+				zoneId: 'zone-01JAAA' as ZoneId,
+				forward: { name: 'Kitchen', zoneType: 'Room' as const },
+				inverse: { name: 'Küche', zoneType: 'Room' as const },
+				expected,
+			}),
+			deps.commands.renameZone(new SessionWriteLedger(), {
+				zoneId: 'zone-01JAAA' as ZoneId,
+				name: 'Kitchen',
+				inverse: 'Küche',
+				expected,
+			}),
+		].flatMap((transaction) => [() => transaction.execute(), () => transaction.undo()]);
+
+		for (const drive of doors()) {
+			const answered = await drive();
+			expect(answered.ok).toBe(false);
+			expect(answered.ok === false && answered.error.code).not.toBe(WRITES_PAUSED_CODE);
+		}
+
+		await activeWriteIncidentRegistry()?.record({
+			category: 'Persistence',
+			code: 'zone.write-uncompensated',
+			message: 'half-written',
+			uncompensatedWrite: [{ entityKind: 'zone', entityId: 'zone-01JAAA' }],
+		});
+
+		for (const drive of doors()) {
+			const refusedEdit = await drive();
+			expect(refusedEdit.ok).toBe(false);
+			expect(refusedEdit.ok === false && refusedEdit.error.code).toBe(WRITES_PAUSED_CODE);
+		}
 
 		plugin.onunload();
 	});

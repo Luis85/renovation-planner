@@ -137,11 +137,18 @@ describe('the designer’s inspector', () => {
 	 * Critique finding 4: under a selected detail's section, the asset's "Dimensions 380 × 700 mm" read as
 	 * that detail's size. The asset's own block now opens with its own heading, after the part's section.
 	 */
+	/**
+	 * NARROWED at AD12, from an assertion that the asset's heading was the ONLY one to one that it is
+	 * the FIRST — which is what this case's own name and its finding are about. The exhaustive form
+	 * was an enumeration of the inspector's siblings rather than of its subject, so the three blocks
+	 * AD12 added below the asset's block turned it red while the ordering it exists to hold was
+	 * untouched. The slice is what a section OPENS, so `[0]` and `slice(0, 2)` are the whole claim.
+	 */
 	it('heads the asset’s own block, after the selected part’s section when there is one', () => {
 		const headings = (selection: DesignerSelection | null) => mountInspector({}, selection).findAll('h3').map((heading) => heading.text());
 
-		expect(headings(null)).toEqual([t('en', 'designer.inspector.asset')]);
-		expect(headings({ kind: 'footprint' })).toEqual([t('en', 'designer.selection.footprint'), t('en', 'designer.inspector.asset')]);
+		expect(headings(null)[0]).toBe(t('en', 'designer.inspector.asset'));
+		expect(headings({ kind: 'footprint' }).slice(0, 2)).toEqual([t('en', 'designer.selection.footprint'), t('en', 'designer.inspector.asset')]);
 	});
 
 	it('draws no dimensions block at all for a shapeless asset', () => {

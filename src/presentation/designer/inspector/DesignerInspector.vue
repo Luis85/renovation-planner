@@ -28,6 +28,9 @@ import type { EditShape } from '../selection/editShape';
 import { partKey, type DesignerSelection } from '../selection/designerSelection';
 import DesignerSelectionInspector from './DesignerSelectionInspector.vue';
 import DesignerArrangePanel from './DesignerArrangePanel.vue';
+import DesignerReferenceStatus from './DesignerReferenceStatus.vue';
+import DesignerReferencePlacement from './DesignerReferencePlacement.vue';
+import DesignerClearanceHelper from './DesignerClearanceHelper.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
@@ -306,5 +309,26 @@ const dimensionsLabel = computed(() =>
 				>
 			</label>
 		</FieldError>
+		<!--
+			**Scale, placement and reserved space** (AD12), three siblings of the asset's own block
+			rather than rows inside it: each answers a different question — where the millimetres come
+			from, which point a plan positions this object by, and what it needs kept free around it —
+			and each decides on its own whether it has anything to say. `DesignerReferenceStatus` draws
+			nothing for an asset typed from dimensions with no sheet; the other two draw nothing until
+			there is a shape.
+
+			After the height, deliberately: height is descriptive metadata on the asset itself
+			(ADR-0014) and stays where it was, and nothing below it is an input to any vertical
+			calculation — AD12 introduces no clash check and this ordering is not the start of one.
+		-->
+		<DesignerReferenceStatus :design="design" />
+		<DesignerReferencePlacement
+			:design="design"
+			:edit-shape="editShape"
+		/>
+		<DesignerClearanceHelper
+			:design="design"
+			:edit-shape="editShape"
+		/>
 	</aside>
 </template>

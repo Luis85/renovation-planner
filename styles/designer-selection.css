@@ -138,3 +138,44 @@
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 }
+
+/*
+ * AD12's three blocks — the reference's status, the placement point and the clearance helper —
+ * each a sibling of the composition block above and spaced the same way. Grouped into one rule
+ * where `.rp-designer-arrange` and `.rp-designer-selection` are written out separately, because
+ * these three arrived together with one spacing decision between them: the day one of them needs
+ * its own, it leaves the list rather than three copies having to be found.
+ */
+.rp-designer-reference,
+.rp-designer-placement,
+.rp-designer-clearance {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: var(--size-4-4) 0 0;
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The term/value readouts inside those blocks — the sheet and its scale, the placement point and the
+ * front direction. Its OWN class rather than `designer.css`'s `.rp-designer-inspector-fields`, which
+ * is the ASSET's derived dimensions and is addressed as such: `designerInspector.test.ts` asserts that
+ * a shapeless asset draws no list under that class, and sharing it would have made a reference readout
+ * answer a question about dimensions. Same grid, two subjects.
+ */
+.rp-designer-reference-fields {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-4-1) var(--size-4-2);
+	margin: 0;
+	font-size: var(--font-ui-small);
+}
+
+.rp-designer-reference-fields dt {
+	color: var(--text-muted);
+}
+
+.rp-designer-reference-fields dd {
+	margin: 0;
+}

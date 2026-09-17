@@ -21,7 +21,7 @@ export const assetReferenceDe: Record<keyof typeof assetReferenceEn, string> = {
 	'designer.reference.pending.clearance': 'Der Freiraum liegt noch in Referenzpixeln vor',
 	'designer.reference.pending.anchor': 'Der Platzierungspunkt liegt noch in Referenzpixeln vor',
 	'designer.reference.pending.graphics': 'Einige Grafiken liegen noch in Referenzpixeln vor',
-	'designer.reference.pending.hint': 'Kalibriere eine bekannte Länge auf der Vorlage, um daraus Millimeter zu machen.',
+	'designer.reference.pending.hint': 'Kalibrieren Sie eine bekannte Länge auf der Vorlage, um daraus Millimeter zu machen.',
 	'designer.placement': 'Platzierung',
 	'designer.placement.point': 'Platzierungspunkt',
 	'designer.placement.centre': 'Mitte',
@@ -41,8 +41,8 @@ export const assetReferenceDe: Record<keyof typeof assetReferenceEn, string> = {
 	'designer.clearance.right': 'Rechts davon',
 	'designer.clearance.generate': 'Freiraum erzeugen',
 	'designer.clearance.hint':
-		'Diese vier Zahlen erzeugen eine neue Grenze. Es sind deine eigenen Vorgaben, kein Standard.',
+		'Diese vier Zahlen erzeugen eine neue Grenze. Es sind Ihre eigenen Vorgaben, kein Standard.',
 	'designer.clearance.replaces': 'Das ersetzt die Grenze, die dieses Objekt bereits hat.',
 	'designer.clearance.unsupported':
-		'Ein vierseitiger Helfer braucht einen rechteckigen Umriss und eine Front entlang einer Achse. Zeichne stattdessen eine Grenze nach.',
+		'Ein vierseitiger Helfer braucht einen rechteckigen Umriss und eine Front entlang einer Achse. Zeichnen Sie stattdessen eine Grenze nach.',
 };

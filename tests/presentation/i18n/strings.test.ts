@@ -255,15 +255,25 @@ describe('the German locale', () => {
 	 * `Überprüfen Sie` today, whose du-forms are exactly `Öffne` and `Überprüfe`. The trailing
 	 * guard is what keeps the Sie-forms out: `Öffnen` fails `(?!\p{L})` at its own `n`.
 	 *
-	 * **What stays a LIST is stated rather than quietly widened.** These ten are the du-forms of
-	 * verbs this locale actually uses; a dozen more Sie-forms in it (`Vergrößern`, `Löschen`,
-	 * `Verwerfen`, `Erstellen`, …) have du-forms nothing here refuses, so a register slip in one
-	 * of those is invisible. Closing that is a judgement about which verbs to enumerate, which is
-	 * a different question from the boundary this edit fixes, and the honest answer is that it is
-	 * open rather than covered.
+	 * **What stays a LIST is stated rather than quietly widened, and the list has now been widened
+	 * once, by evidence.** It held ten verbs and that was too few: the asset designer's expansion
+	 * added SEVEN du-form strings across three tables and this case caught exactly ONE of them
+	 * (`Zeichne`). The other six used `Entsperre`, `Hebe`, `nimm`, `Kalibriere`, `Zieh`, `setze`,
+	 * `Drehe`, `verschiebe` and the possessive `deine` — none enumerated, so all invisible. Worse
+	 * than invisible: a later author read those neighbours, concluded the repository had no house
+	 * register, and deliberately matched the du-form to be consistent with them. **A rule with a
+	 * partial instrument does not merely miss a violation, it teaches the next author the violation
+	 * is allowed.**
+	 *
+	 * So the list carries the du-forms of the verbs this locale actually uses, including the ones
+	 * that arrived with that expansion, plus the du-form possessives `dein`/`deine`/`deinen`/`deiner`
+	 * and the pronouns `dir`/`dich`, which no Sie-form sentence can contain. It is still a LIST and
+	 * still incomplete — a du-form of a verb nobody has written yet is not refused — and the honest
+	 * statement is that it is better rather than closed. Every addition below reported nothing on the
+	 * tree at the time it was added, which is how a floor is raised here.
 	 */
 	const INFORMAL_IMPERATIVE =
-		/(?<!\p{L})(Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Öffne|Überprüfe)(?!\p{L})/u;
+		/(?<!\p{L})(Gib|Wähle|Setze|setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Zieh|Öffne|Überprüfe|Entsperre|Hebe|nimm|Nimm|Kalibriere|Drehe|drehe|Verschiebe|verschiebe|Lösche|Erstelle|Verwirf|dein|deine|deinen|deiner|deinem|dir|dich)(?!\p{L})/u;
 
 	it('addresses the user formally throughout: no du-form imperative anywhere in de.ts', () => {
 		const offenders = Object.entries(de)

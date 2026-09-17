@@ -36,12 +36,12 @@ export const assetArrangeDe: Record<keyof typeof assetArrangeEn, string> = {
 	'designer.arrange.repeat.preview': '{count} Kopien, jede {step} mm weiter als die vorige',
 	'asset.too-few-parts': 'Für diese Anordnung sind mehr Teile nötig, als ausgewählt sind.',
 	'asset.duplicate-part': 'Ein Teil wurde in einer Anordnung zweimal genannt.',
-	'asset.locked-part': 'Ein ausgewähltes Teil ist gesperrt. Entsperre es oder nimm es aus der Auswahl.',
+	'asset.locked-part': 'Ein ausgewähltes Teil ist gesperrt. Entsperren Sie es oder nehmen Sie es aus der Auswahl.',
 	'asset.key-part-not-selected': 'Das Teil, das stehen bleiben soll, gehört nicht zur Auswahl.',
 	'asset.group-not-found': 'Diese Gruppe gibt es im Entwurf nicht mehr.',
-	'asset.overlapping-groups': 'Ein ausgewähltes Teil ist bereits in einer anderen Gruppe. Hebe diese zuerst auf.',
+	'asset.overlapping-groups': 'Ein ausgewähltes Teil ist bereits in einer anderen Gruppe. Heben Sie diese zuerst auf.',
 	'asset.repeat-count-out-of-range': 'Das sind mehr Kopien, als eine Wiederholung anlegen kann, oder keine ganze Zahl davon.',
 	'asset.repeat-spacing-invalid': 'Der Abstand einer Wiederholung muss eine Zahl in Millimetern sein.',
 	'asset.mixed-coordinate-spaces':
-		'Einige dieser Teile liegen noch in Hintergrundpixeln und andere sind vermessen, daher lassen sie sich nicht gemeinsam anordnen. Kalibriere zuerst die Zeichnung oder nimm eines davon aus der Auswahl.',
+		'Einige dieser Teile liegen noch in Hintergrundpixeln und andere sind vermessen, daher lassen sie sich nicht gemeinsam anordnen. Kalibrieren Sie zuerst die Zeichnung oder nehmen Sie eines davon aus der Auswahl.',
 };

@@ -50,8 +50,8 @@ import { duplicateAndSelect } from '../designerKeys';
 import type { ShapeEdit } from '../selection/editShape';
 import { selectionExists, type DesignerSelection } from '../selection/designerSelection';
 import { partMeasure, resizeToExtent, withPartBox, type PartBox } from '../selection/partExtent';
-import { semanticLabel } from '../parts/partNames';
 import DesignerFieldRow from './DesignerFieldRow.vue';
+import DesignerDetailFields from './DesignerDetailFields.vue';
 import DesignerActionButton from './DesignerActionButton.vue';
 
 const props = defineProps<{
@@ -283,35 +283,11 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 		>
 			{{ tr('designer.selection.open-graphic') }}
 		</p>
-		<template
-			v-for="item in selectedDetails"
-			:key="item.id"
-		>
-			<label class="rp-designer-field">
-				{{ tr('designer.selection.name') }}
-				<input
-					type="text"
-					name="detail-name"
-					:value="semanticLabel(item.name)"
-					@change="onName(item.id, $event)"
-				>
-			</label>
-			<label class="rp-designer-field">
-				{{ tr('designer.selection.line') }}
-				<select
-					name="detail-line"
-					:value="item.line"
-					@change="onLine(item.id, $event)"
-				>
-					<option value="solid">
-						{{ tr('designer.selection.line.solid') }}
-					</option>
-					<option value="dashed">
-						{{ tr('designer.selection.line.dashed') }}
-					</option>
-				</select>
-			</label>
-		</template>
+		<DesignerDetailFields
+			:details="selectedDetails"
+			:on-name="onName"
+			:on-line="onLine"
+		/>
 		<DesignerFieldRow
 			v-for="field in fields"
 			:key="field.name"

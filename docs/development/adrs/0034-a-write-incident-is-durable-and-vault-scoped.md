@@ -384,6 +384,11 @@ could name, not about whether the vault is safe.
   Consequences bullet's covered-examples list wrong where it names `undoDeleteResolution.rollBack`:
   it belongs on the uncovered side.** This list is still not a claim of completeness — it is three
   named sites out of a category nothing enumerates, and the check below sees none of them.
+  **Read that "three" on its own axis.** It counts `markUncompensated` SITES that reach neither
+  recorder. The Coverage paragraph above counts something else — three PATHS that bypass the
+  `guardCommand` chokepoint — and the L-05 correction there has since closed one of those three,
+  leaving two. Three different numbers, three different subjects: sites here, paths there, and
+  the two sets overlap without being the same set.
 - **Nothing currently checks that category, and building a check is deferred.** CLAUDE.md's rule
   is that a category invariant is checked at the forbidden thing rather than by listing the
   places — here, a check would have to refuse (or account for) a `markUncompensated` call whose
@@ -399,8 +404,9 @@ could name, not about whether the vault is safe.
   reaches 929 files including all of presentation. What was built instead is
   `tests/plugin/guardCategory.test.ts`'s class-instance skip census: every raw class instance the
   composition root hands out — which is what a raw write PORT is, and every uncovered site above
-  reaches the vault through one — is now recorded by name and pinned by exact value. **What that
-  buys is that the hole cannot get WIDER: a NEW raw port in the handoff turns the gate red. It
+  reaches the vault through one — is now RECORDED by name, and the ones handed to a LEAF are
+  pinned by exact value. **What that
+  buys is that the hole cannot get WIDER: a NEW raw port handed to a leaf turns the gate red. It
   does not close the hole.** The three uncovered sites named in the correction above stay live and
   stay silent — and "three" is the count of what has been NAMED, not a completeness claim — and a second
   `markUncompensated` added behind one of them turns nothing red. **The option that WOULD close the
@@ -413,6 +419,22 @@ could name, not about whether the vault is safe.
   coarse gate above turns a swallowed stamp into a vault-wide write block that does not happen
   today. Widening what raises the harshest mechanism this plugin has, on a branch nothing has ever
   run in a real Obsidian vault, is the trade a release owner should take explicitly.
+- **Correction, 2026-09-17 (BP-02 slice 4, task L-06 FIX ROUND): that census changed shape on the
+  same day, in both directions, and the bullet above is written to what it now checks.** It was
+  reviewed and two things were found. First, the pin covered the root's OWN collaborator stack as
+  well as the leaf handoffs — 21 of its 27 entries — under a case title claiming a bypass surface
+  had arrived; every one of those 21 arrived in its own commit, so the pin would have reddened on
+  ~21 past changes that added no bypass at all, and it added nothing to the guarantee, because a
+  port reaching a leaf is recorded on the leaf side regardless (`persistence.zones` and
+  `editorDeps.commands.zones` were one object, both pinned). The pin is LEAF handoffs only now.
+  Second, the walk it rests on visited a zero-argument factory's product only when that product
+  was itself a service, so a factory handing back a raw class instance — `roomHistory()` is one,
+  in the tree today — was still dropped in silence, which is the very shape the census exists to
+  record. That is closed, and the four products it makes visible are pinned with the rest. The
+  pinned set is **ten** entries where it was 27, measured by running the file, and the halves are
+  not comparable: this one is what a LEAF is handed. Nothing about the category changed — the
+  three named sites stay live and stay silent, and the hole still cannot get wider rather than
+  being closed.
 
 ## Revisit when
 

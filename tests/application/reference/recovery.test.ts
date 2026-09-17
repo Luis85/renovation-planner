@@ -449,11 +449,15 @@ describe('recoverInterruptedSequences', () => {
  * never hold an unparseable one. Recording `clear` rather than asserting on a log, because
  * "recovery did not retire it" is the behaviour and a log line is only evidence of one.
  *
- * **`read` answers the port's rule rather than a flat `null`**, even though
- * `recoverInterruptedSequences` never calls it: `ok(null)` for an id the listing files as
- * unreadable is precisely the manufactured absence R-S3-6 forbids, so a fake that answered it
- * would be kinder than the thing it stands in for and would be believed by the first case that
- * ever reaches this door. Unreached today; correct if it is reached.
+ * **`read` AND `write` answer the port's rule rather than a flat success**, even though
+ * `recoverInterruptedSequences` calls neither — it reaches `list` and `clear` only. `ok(null)`
+ * from `read` for an id the listing files as unreadable is precisely the manufactured absence
+ * R-S3-6 forbids, and `ok(undefined)` from `write` for that same id is the
+ * `sequence.marker-write-blocked` refusal BP-02 slice 3 added to the port, silently granted.
+ * Either would be kinder than the thing this stands in for and would be believed by the first
+ * case that ever reaches that door. Both unreached today; both correct if they are reached.
+ * `list` and `clear` are the two doors recovery does drive, and neither has a rule to be kind
+ * about: `list` hands back the listing it was built from, and `clear` records the ask.
  */
 function listingOf(listing: SequenceMarkerListing): { markers: SequenceMarkerStore; cleared: string[] } {
 	const cleared: string[] = [];
@@ -467,7 +471,17 @@ function listingOf(listing: SequenceMarkerListing): { markers: SequenceMarkerSto
 						? err(persistenceError('sequence.marker-unreadable', 'That sequence marker could not be read.'))
 						: ok(listing.markers.find((held) => held.entityId === entityId) ?? null),
 				),
-			write: () => Promise.resolve(ok(undefined)),
+			write: (held: SequenceMarker) =>
+				Promise.resolve(
+					listing.unreadable.some((entry) => entry.entityId === held.entityId)
+						? err(
+								persistenceError(
+									'sequence.marker-write-blocked',
+									'A recovery record for this item is outstanding and cannot be read by this build, so a new one is refused.',
+								),
+							)
+						: ok(undefined),
+				),
 			clear: (entityId: string) => {
 				cleared.push(entityId);
 				return Promise.resolve(ok(undefined));

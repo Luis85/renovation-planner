@@ -54,6 +54,23 @@ export interface AssetGroup {
 	readonly members: readonly string[];
 }
 
+/**
+ * This shape's groups, which is `[]` for a shape that has none.
+ *
+ * **One function because `groups` is OPTIONAL in the type and always present after validation**, and
+ * those two facts together had produced nine copies of `shape.groups ?? []` across the domain, the
+ * Parts panel and the sidecar. Every one of them carried a fallback arm that `validateAssetShape`
+ * can never take — it writes `groups: []` onto every shape it returns — so the arms were reachable
+ * only from a hand-built literal, and each cost a branch it could not pay back.
+ *
+ * The optionality itself is deliberate and stays: it is what lets every construction site written
+ * before groups existed go on compiling and read as no groups (AD04). What changes is that the
+ * question is asked once.
+ */
+export function assetGroups(shape: AssetShape): readonly AssetGroup[] {
+	return shape.groups ?? [];
+}
+
 export interface Dimensions {
 	readonly width: number;
 	readonly depth: number;

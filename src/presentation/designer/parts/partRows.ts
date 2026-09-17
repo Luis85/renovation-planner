@@ -1,4 +1,5 @@
 import type { AssetDetail } from '../../../domain/asset/AssetDetail';
+import { assetGroups } from '../../../domain/asset/AssetShape';
 import type { AssetGroup, AssetShape } from '../../../domain/asset/AssetShape';
 import { partKey, type DesignerSelection } from '../selection/designerSelection';
 
@@ -113,7 +114,7 @@ function graphicRows(details: readonly AssetDetail[], groups: readonly AssetGrou
 export function partRows(shape: AssetShape | null, options: { readonly hasReference: boolean }): PartRow[] {
 	if (shape === null) return [];
 	return [
-		...graphicRows(shape.details, shape.groups ?? []),
+		...graphicRows(shape.details, assetGroups(shape)),
 		special('footprint'),
 		...(shape.clearance === null ? [] : [special('clearance')]),
 		special('anchor'),

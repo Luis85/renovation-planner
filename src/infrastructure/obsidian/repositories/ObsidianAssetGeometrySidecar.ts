@@ -8,8 +8,7 @@ import type {
 	AssetGeometrySidecar,
 	AssetGeometrySnapshot,
 } from '../../../application/ports/AssetGeometrySidecar';
-import type { AssetShape } from '../../../domain/asset/AssetShape';
-import { validateAssetShape } from '../../../domain/asset/AssetShape';
+import { assetGroups, validateAssetShape, type AssetShape } from '../../../domain/asset/AssetShape';
 import type { Calibration } from '../../../domain/plan/Calibration';
 import { validateCalibration } from '../../../domain/plan/Calibration';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
@@ -161,7 +160,7 @@ const shapeToPersistence = (shape: AssetShape): StoredShape => ({
 		line: detail.line,
 		pending: detail.pending,
 	})),
-	groups: (shape.groups ?? []).map((group) => ({ id: group.id, ...(group.label === undefined ? {} : { label: group.label }), members: [...group.members] })),
+	groups: assetGroups(shape).map((group) => ({ id: group.id, ...(group.label === undefined ? {} : { label: group.label }), members: [...group.members] })),
 });
 
 /**

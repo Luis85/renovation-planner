@@ -8,7 +8,7 @@ import type { ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
 import { mapDetailOutline, type AssetDetail } from './AssetDetail';
-import { validateAssetShape, type AssetGroup, type AssetShape } from './AssetShape';
+import { assetGroups, validateAssetShape, type AssetGroup, type AssetShape } from './AssetShape';
 import { detailBox, highestDetailNumber, resolveParticipants } from './detailEdits';
 import { highestGroupNumber } from './groupEdits';
 
@@ -383,7 +383,7 @@ function withCopies(shape: AssetShape, originals: readonly AssetDetail[], spec: 
 	let detailNumber = highestDetailNumber(shape);
 	let groupNumber = highestGroupNumber(shape);
 	const details: AssetDetail[] = [...shape.details];
-	const groups: AssetGroup[] = [...(shape.groups ?? [])];
+	const groups: AssetGroup[] = [...assetGroups(shape)];
 	for (let copy = 1; copy <= spec.count; copy++) {
 		const by = vectorOn(spec.axis, step * copy);
 		const fresh = new Map<string, string>();
@@ -393,7 +393,7 @@ function withCopies(shape: AssetShape, originals: readonly AssetDetail[], spec: 
 			fresh.set(detail.id, id);
 			details.push({ ...mapDetailOutline(detail, (outline) => translate(outline, by)), id });
 		}
-		for (const group of shape.groups ?? []) {
+		for (const group of assetGroups(shape)) {
 			const members = group.members.flatMap((member) => {
 				const copied = fresh.get(member);
 				return copied === undefined ? [] : [copied];

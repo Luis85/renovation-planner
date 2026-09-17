@@ -1,7 +1,7 @@
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
-import { validateAssetShape, type AssetGroup, type AssetShape } from './AssetShape';
+import { assetGroups, validateAssetShape, type AssetGroup, type AssetShape } from './AssetShape';
 import { highestSuffix, resolveParticipants } from './detailEdits';
 
 /**
@@ -52,14 +52,14 @@ export function nextGroupId(shape: AssetShape): string {
 /** What `nextGroupId` counts from, exported so a repeat can allocate a run of group ids in one pass. */
 export function highestGroupNumber(shape: AssetShape): number {
 	return highestSuffix(
-		(shape.groups ?? []).map((group) => group.id),
+		assetGroups(shape).map((group) => group.id),
 		NUMBERED_GROUP,
 	);
 }
 
 /** The group a graphic belongs to, or `null` — the question every group control on a selection asks. */
 export function groupOfDetail(shape: AssetShape, id: string): AssetGroup | null {
-	return (shape.groups ?? []).find((group) => group.members.includes(id)) ?? null;
+	return assetGroups(shape).find((group) => group.members.includes(id)) ?? null;
 }
 
 /**
@@ -76,12 +76,12 @@ export function groupDetails(shape: AssetShape, ids: readonly string[]): Result<
 	const chosen = resolveParticipants(shape, ids, { minimum: 2 });
 	if (isErr(chosen)) return chosen;
 	const group: AssetGroup = { id: nextGroupId(shape), members: chosen.value.map((detail) => detail.id) };
-	return validateAssetShape({ ...shape, groups: [...(shape.groups ?? []), group] });
+	return validateAssetShape({ ...shape, groups: [...assetGroups(shape), group] });
 }
 
 /** The group removed; its members stay exactly where they are, in the order and the place they were. */
 export function ungroupDetails(shape: AssetShape, groupId: string): Result<AssetShape, ValidationError> {
-	const groups = shape.groups ?? [];
+	const groups = assetGroups(shape);
 	if (!groups.some((group) => group.id === groupId)) return err(groupNotFound(groupId));
 	return validateAssetShape({ ...shape, groups: groups.filter((group) => group.id !== groupId) });
 }
@@ -95,7 +95,7 @@ export function ungroupDetails(shape: AssetShape, groupId: string): Result<Asset
  * up.
  */
 export function moveGroupToEnd(shape: AssetShape, groupId: string, to: 'front' | 'back'): Result<AssetShape, ValidationError> {
-	const group = (shape.groups ?? []).find((found) => found.id === groupId);
+	const group = assetGroups(shape).find((found) => found.id === groupId);
 	if (group === undefined) return err(groupNotFound(groupId));
 	const members = new Set(group.members);
 	const moved = shape.details.filter((detail) => members.has(detail.id));

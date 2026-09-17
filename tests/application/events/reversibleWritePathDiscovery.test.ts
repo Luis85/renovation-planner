@@ -327,6 +327,14 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 	'src/presentation/views/PlanEditorView.ts::PlanEditorView': notAnAdapter(
 		'an ItemView; "undo" appears only in prose',
 	),
+	// Pulled into scope by the WORD and by nothing else: AD08's marquee gave `dropMarquee` a
+	// comment about a LATER gesture's undo, and this walk is textual and deliberately crude. It is
+	// the designer's counterpart of `select-tool.ts::SelectTool` below and has the same answer —
+	// it dispatches through `editShape`, which is where the one reversible write lives, and holds
+	// no execute/undo pair of its own.
+	'src/presentation/designer/tools/designer-select-tool.ts::DesignerSelectTool': notAnAdapter(
+		'implements EditorTool, not UndoableCommand — no execute/undo pair; "undo" appears only in prose',
+	),
 	'src/presentation/designer/tools/set-anchor-tool.ts::SetAnchorTool': notAnAdapter(
 		'implements EditorTool, not UndoableCommand — no execute/undo pair',
 	),

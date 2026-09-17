@@ -50,6 +50,16 @@ slice 4 will want your remaining budget.
 
 ### Slice 3 — an unreadable recovery marker must read as UNKNOWN, not as healthy absence
 
+**Correction, 2026-09-17 (BP-02 slice 3): the defect this section describes is fixed, and the
+present tense below is the state of the code when this prompt was written, not now.** Nothing is
+discarded and there is no `sequence.marker.discarded` log line any more. An entry
+`SequenceMarkerFileStore` cannot read is preserved verbatim across every rewrite, reported through
+the `unreadable` half of `SequenceMarkerListing`
+(`src/application/ports/SequenceMarkerStore.ts`), logged once per load from `list()` as
+`sequence.marker.unreadable`, refused rather than answered as an absence by `read()`, and neither
+replayed nor cleared by `recoverInterruptedSequences`. The body below is left as it was written —
+it is a dated record of what the session was asked to do.
+
 `SequenceMarkerFileStore.readEnvelope` (`src/infrastructure/obsidian/plugin-data/SequenceMarkerFileStore.ts:104`)
 tests `shape.schemaVersion === SEQUENCE_MARKER_SCHEMA_VERSION` — bare equality, and therefore
 **direction-blind**: a marker written by a FUTURE version is discarded exactly like a corrupt one,

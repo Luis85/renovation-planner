@@ -86,9 +86,19 @@ record is left exactly as it is. Nothing is replayed from it, because rolling ba
 the plugin could not read could write the wrong content over your requirements; and nothing is
 removed, because a record it could not read is not a record it can declare finished. It is
 reported to the developer console when the plugin loads, and it is not shown anywhere in the
-plugin's own screens. The remedy is to run a build of the plugin at least as new as the one that
-wrote it: that build reads the record and completes the rollback. Until then nothing is lost and
-nothing is acted on, and the rest of your vault's recovery records are unaffected.
+plugin's own screens. Deleting the same item again is refused while its record is outstanding,
+so that a rollback this build cannot finish is never written over.
+
+The remedy depends on which of the two it is, and only one of them has a newer build to wait for.
+A record written by a newer version of the plugin is read by that version: run a build at least as
+new as the one that wrote it, and it reads the record and completes the rollback. A record edited
+by hand into a shape nothing can read has no such remedy — no version will ever read it, because
+there is no version it was written by. Treat it the way you would a corrupted incident record:
+check the affected files against your backup first, then remove `sequence-markers.json` from the
+plugin's folder and reload the plugin or restart Obsidian. Removing that file ends every recovery
+record in it, including any the plugin could still have completed, and it repairs nothing on its
+own — your inspection is what does. Until you act, nothing is lost and nothing is acted on, and
+the rest of your vault's recovery records are unaffected.
 
 An open draft in this state offers source-note inspection and Cancel. It does not offer a
 read retry or promise that reading will resume Apply. You can copy its retained text before

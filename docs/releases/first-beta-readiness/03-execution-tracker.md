@@ -8,7 +8,7 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 |---|---|
 | Handoff baseline | `d77e7c5eba5e6518b93a5be4606532ceab3a77eb` |
 | Upstream reconciled | `main` advanced 14 commits to `f3a8864a9` (asset-designer consolidation, plan deletion) and was **merged** into this branch, not rebased — every review and ledger entry references this work by commit SHA. Zero file overlap; no conflict resolved by hand. |
-| Current working revision / branch | `f05d5d62f` on branch `renovation-planner-beta-handoff-e80bb5`. Nothing pushed; no pull request opened. Three sessions of work sit on top of the handoff baseline `d77e7c5eb` and the merged upstream `f3a8864a9`. |
+| Current working revision / branch | `2546d88d8` on branch `renovation-planner-beta-handoff-e80bb5`. Nothing pushed; no pull request opened. Three sessions of work sit on top of the handoff baseline `d77e7c5eb` and the merged upstream `f3a8864a9`. |
 | Worktree and dirty files | Worktree `.claude/worktrees/renovation-planner-beta-handoff-e80bb5`. Clean at session start. 95 other worktrees exist under `.worktrees/` and `D:/codex-worktrees/`; none was touched, reset, cleaned, or stashed. |
 | Responsible integrator | Unassigned — no human integrator has accepted this work. |
 | Selected beta scope / platforms | Unchanged from the handoff proposal: current editor capabilities, desktop editing, mobile read-only. Not yet confirmed by an owner. |
@@ -86,8 +86,8 @@ rings.
 |---|---|---|
 | 1 | The silent compensation paths stamp | **Complete** — `81f627b53..beda98597` |
 | 2 | Affected-entity-id identity on the stamp, a durable store, and the gate widening | **Complete** — `4599a388e..f05d5d62f`. ADR-0034 is the decision record ADR-0019 asked for. |
-| 3 | A future-version recovery marker must read as *unknown*, not as healthy absence | Not started; a bug against SDD §87 rule 8, not a new design claim |
-| 4 | L-01's second pane, the designer's hard-coded `writesBlocked: () => false`, and now L-05's two unguarded editor commands | Not started; its scope GREW during slice 2 |
+| 3 | A future-version recovery marker must read as *unknown*, not as healthy absence | **Complete** — `60a748423..037782ed0`, nine commits across the change and two fix rounds |
+| 4 | L-01's second pane, the designer's hard-coded `writesBlocked: () => false`, and now L-05's two unguarded editor commands | **One of three parts complete.** L-05 closed at `e6cdd914b..2546d88d8` (five commits, three review rounds). The second pane (L-01) and the Asset Designer are **designed, briefed and NOT started** — see the session 4 log. L-06 was ruled on and its task briefed, not started. |
 
 Slice 1 found all five census entries real and a sixth the census missed. It deliberately did
 **not** add a gate, and did not widen the stamp to carry entity ids — both are slice 2. Its
@@ -119,12 +119,15 @@ Record the decision-maker, date, affected scope, evidence, consequence, and revi
 | L-03 | **Limitation.** Neither gesture that produces two editor panes on one plan is simulable in this repository's test fakes | Established this session | 2026-09-16 | Two panes arise only from Obsidian's native `duplicateLeaf` (split, drag-to-split) and from restoring a saved layout — both bypass the plugin's own reveal logic, which dedupes by plan id. | Slice 4 cannot be driven end to end by the suite and needs a manual case, exactly as BP-01's restart claim did. |
 | Q-01 | **Open question.** Zone outline units are pinned to millimetres (ADR-009 / `WorldUnit`) but no origin convention for a zone outline is written in code or in the SDD | Raised this session | 2026-09-16 | BP-00 lane B. BP-04 action 2 requires the numeric form to state its coordinate system explicitly, which cannot be done until the origin is decided. | Blocks BP-04 from starting. Needs a recorded decision, not an inference from a form. |
 | L-04 | **Limitation.** `npm run check` cannot go green on this branch, and the cause is not this branch | Measured this session | 2026-09-16 | `npm run analyze` exits 1 with “dupes (4 clone groups), health (1 above threshold)”. Three clone groups are `scripts/editor-usability-combined-check.mjs` against `scripts/editor-usability-fidelity-check.mjs`, the fourth is an intra-file pair in `ObsidianPlanGeometrySidecar.ts`, and the health target is `renovationSummary.ts`. `git diff --name-only f3a8864a9..HEAD` over all four paths returns nothing — this branch has never touched one of them — and the last commit to touch each (`499303fc7`, `c444fa3c0`) is an ancestor of `origin/main`. `package.json` runs bare `npm run analyze` inside `check`. Dead files 0.0%, dead exports 0.0%. | **A red CI leg on this pull request must be read against this row before it is attributed to BP-02.** Clearing it is separate work on main's own duplication. |
-| L-05 | **Limitation.** Two Plan editor commands are not covered by the vault-wide gate | Found in review this session, deferred deliberately | 2026-09-16 | `EditZoneDetailsCommand` and `ReversibleRenameZoneCommand` are constructed unguarded against the raw repository at `inspector-wiring.ts:99` and `:101`, so `guardCommand` never sees them; `runtime.ts:607`'s `writesBlocked` is computed from project staleness or `unsafeHistory()`, and `unsafeHistory` reads the PER-LEAF Pinia flag rather than the vault-scoped registry. So an incident raised elsewhere leaves those two working. Every other editor write dispatches through the guarded services and IS refused. | Bound to slice 4, whose scope grew to include it. ADR-0034, the code comments and `docs/using-planning-recovery.md` all state it, and the guide names the two actions in user-facing words. |
+| L-05 | **Limitation, now CLOSED.** Two Plan editor commands were not covered by the vault-wide gate | Found in review 2026-09-16; closed 2026-09-17 | 2026-09-16 | `EditZoneDetailsCommand` and `ReversibleRenameZoneCommand` are constructed unguarded against the raw repository at `inspector-wiring.ts:99` and `:101`, so `guardCommand` never sees them; `runtime.ts:607`'s `writesBlocked` is computed from project staleness or `unsafeHistory()`, and `unsafeHistory` reads the PER-LEAF Pinia flag rather than the vault-scoped registry. So an incident raised elsewhere leaves those two working. Every other editor write dispatches through the guarded services and IS refused. | **Closed at `e6cdd914b..2546d88d8`.** Both adapters now cross guarded factories composed in `planEditorDeps.ts`, mirroring `calibratePlan`; `guardCommand` did not enter `presentation/`. BOTH doors of both are guarded — `execute` and `undo` — which also narrows, for these two only, the undo/redo category ADR-0034 records as open. ADR-0034 carries a dated 2026-09-17 correction and the user guide no longer names these two as outside the pause. **A first round of tests passed with the fix fully reverted**; they were replaced with a case entering at the real `createInspector`. |
 | D-08 | Nothing in the plugin retires a write incident — not a control, not a reload, not a later successful write | Decided this session, recorded in ADR-0034 | 2026-09-16 | Ruling R1 says the flag is set and never unset; two of the nine recorded declinations object specifically to a plugin-decided all-clear; and `docs/using-planning-recovery.md` already told users there is no “I have repaired this” control. Retirement is the user removing `write-incidents.json` after verifying against a backup, made discoverable by the diagnostics report. | **Deepens D-06 rather than easing it:** a reload used to clear a session-scoped incident and now does not, because the record outlives the process. Owner-reviewable, with a real cost to a user who has genuinely repaired their vault. |
 | L-06 | **Limitation.** A stamp raised outside a `guardCommand` call stack never becomes a durable incident, and nothing checks the category | Found by the final whole-increment review; deferred | 2026-09-16 | `reversible-delete-zone-command.ts` stamps inside the adapter's UNDO callback, reached through `inspector-wiring.ts` and `createZoneHistory.ts` and dispatched by `CommandHistory` in presentation against the raw `commands.zones` port — never through `guardCommand`, so that stamp is never recorded. The real boundary is a CATEGORY larger than the paths ADR-0034 lists by name. CLAUDE.md's own rule is that a category invariant is checked at the forbidden thing, not by listing the places. | ADR-0034 now states the category and records that no check exists. Building that check is its own increment; until it exists, a raise site added outside a guarded stack turns nothing red. |
 | L-07 | **Limitation.** The incident GATE is process-scoped while the incident RECORD is vault-scoped | Found by the final whole-increment review; stated, not fixed | 2026-09-16 | Two Obsidian windows on one vault hold separate registries, each seeded once at its own load, so an incident recorded in one never closes the other's gate. `WriteIncidentFileStore.add` is a read-modify-write serialised by a PER-PROCESS queue lane, so a concurrent add from another process can drop a record. | Recorded in ADR-0034 and in the store's docblock. Whether two windows on one vault is a supported configuration is an owner question, and it has never been exercised here. |
 | L-08 | **Limitation.** An unwritable or unreadable plugin folder silently defeats durability | Found by the final whole-increment review; stated, not fixed | 2026-09-16 | A failed envelope write logs `incident.write-failed` and nothing more: the session stays blocked, but the NEXT load finds no file and manufactures exactly the all-clear ADR-0034 refuses. Once the file is unreadable, `add` refuses at its read step, so no further incident ever persists. | Recorded in ADR-0034 and the store docblock narrowed to what is true. Durability rests on the plugin folder being writable; where it is not, an incident is session-scoped only. |
 | L-09 | **Limitation.** Deleting the incidents file takes effect only after a plugin reload | Found by the final whole-increment review; copy corrected rather than behaviour | 2026-09-16 | Nothing re-reads the incidents file after load: the open list is append-only and its seed is one-shot. Three surfaces told the user that deleting the file resumes writing, so a user who did that and retried received the identical refusal with no stated way out. The behaviour matches D-06, which already accepted that only a reload clears an incident; the copy simply never said so. | Both locales and the user guide now name the reload. **NOT exercised in a vault** — see the session 3 unverified list. |
+| L-10 | **Limitation.** An unreadable sequence marker is reported only in the console | Decided 2026-09-17 as slice 3's scope boundary | 2026-09-17 | `GetDiagnosticsSnapshot` could carry unreadable markers the way it carries write incidents, and deliberately does not: an unreadable entry cannot supply a `DiagnosticEntityKind`, because its `entityKind` is exactly what failed to parse, and that union is closed and hand-written. The level is `error`, always emitted by `createConsoleLogger` regardless of the verbose-logging setting — verified in that file rather than assumed. | A user whose vault holds a marker this build cannot read sees nothing in the plugin's own UI and must open devtools. The vault is undamaged and the record is preserved. Revisit when the diagnostics snapshot next changes shape. |
+| L-11 | **Limitation.** What is OUTSIDE the vault-wide pause is neither listed nor checked anywhere | Measured 2026-09-17; stated, not fixed | 2026-09-17 | Measured by reading all thirteen reversible adapters against the single gate: `grep -rn "activeWriteIncidentRegistry()" src/` prints six lines and exactly one is the gate, inside `guardCommand`, which returns one door. **Outside:** delete-zone undo, assign-asset undo, both override adapters, `evidenceRename.ts`'s host-rename listener, and ADR-0034's geometry sidecar. **Inside:** create-zone, move, the two zone edits closed this session, calibrate. **Unmeasured:** `ReversibleSetPlanBackground`'s undo and the four Asset designer edits. | `docs/using-planning-recovery.md` now names the SHAPE and says outright that nothing lists or checks the set — no "only", no count. Three consecutive review rounds narrowed that sentence to something still wider than the truth before anyone measured it. Closing the category is L-06's subject. |
+| L-12 | **Limitation.** One user-guide sentence about evidence links is in tension with the measured boundary | Found 2026-09-17 by the round that measured L-11; reported, not fixed | 2026-09-17 | The guide's Evidence paragraph says link updates on a rename go "through **guarded** Plan writes"; that path uses the raw `PlanRepository` port and is one of the things outside the pause. "Guarded" may have been meant as "version-checked" — those saves do carry the loaded version — so it is an intent call rather than a clear error. | One word closes it either way. Left for an owner or the next session rather than fixed by the controller, because a controller fix skips review. |
 
 ## Native / hardware availability
 
@@ -383,6 +386,102 @@ compensated delete, and one thing session 1 found that no earlier document recor
 `src/presentation/designer/runtime.ts:318` wires the Asset Designer to the same
 `withSaveStateTracking`, so a designer write **can** raise an incident, while `:395` hard-codes
 `writesBlocked: () => false`. A half-written asset is raised and read by nobody.
+
+### Session 4 — 2026-09-17 — upstream merge, BP-02 slice 3, and BP-02 slice 4's L-05
+
+**Upstream.** `origin/main` had advanced **24 commits** to `ed5c50b76` (the on-canvas opening-handles
+work). Fetched, then **merged** at `42d07b14a` — not rebased, because every review record and this
+tracker reference the work by commit SHA. File overlap between the two sides was measured with
+`comm -12` over the two `git diff --name-only` sets BEFORE merging, and was exactly one file
+(`docs/tests/suites/Smoke Test the Editor.md`); nothing was resolved by hand. Note for the next
+reader: main touched `src/presentation/editor/runtime.ts`, so line numbers quoted in this tracker, in
+ADR-0034 and in the session-4 kickoff prompt are stale for that file.
+
+**BP-02 slice 3 — complete, `60a748423..037782ed0`.** `SequenceMarkerFileStore.readEnvelope` tested
+`schemaVersion === CURRENT` with bare equality and was therefore direction-blind: a marker written by
+a FUTURE build was discarded exactly like a corrupt one. The defect was **worse than recorded** —
+`write()` and `clear()` rewrote the envelope from the validated map, so the next marker operation
+destroyed the unreadable record permanently, which is rule 7 failing open rather than only rule 8
+presenting wrongly. `list()` now answers `SequenceMarkerListing { markers, unreadable }`; an
+unrecognised entry is preserved verbatim, never replayed and never cleared; `read()` refuses rather
+than answering `null`; a `write()` whose id collides with an unreadable entry is refused under its
+own code rather than superseding it; and the envelope-level refusal is unchanged, with the reason now
+written where the next reader would conflate the two levels. No ADR — this is a bug against SDD §87
+rules 7 and 8, both already recorded — with a dated amendment added to ADR-0034 where that document
+deferred it.
+
+**BP-02 slice 4 — one of three parts, `e6cdd914b..2546d88d8`.** L-05 is closed; see its row above.
+The second pane (L-01), the Asset Designer's hard-coded `writesBlocked: () => false`, and L-06's
+check are **designed, ruled on and briefed, and none of them is started.**
+
+**Commands and outcomes, exit codes captured before any pipe.**
+
+| Command | Result |
+|---|---|
+| `git merge --no-ff origin/main` | 0 — 31 files, nothing resolved by hand |
+| `npm run build` | **0**, at `2546d88d8` |
+| `npx eslint .` | **0**, zero lines of output, at `2546d88d8` |
+| `npx vue-tsc -noEmit` | 0, every agent round |
+| `npx oxlint --deny-warnings` | 0, every agent round |
+| `npx vitest run tests/plugin tests/presentation/editor` | **0 — 450 files, 3613 tests** |
+| `npx vitest run tests/application tests/infrastructure tests/plugin` | 0 — 280 files, 3065 tests |
+| `npx vitest run tests/presentation/editor/structure tests/domain/spatial` | 0 — 44 files, 367 tests (the merge baseline) |
+| `npm run analyze` | **Not run** — L-04; it fails on `origin/main` itself |
+| `npm run test:coverage` | **Exit 1**, and the four floors are **MET** — see the paragraph below |
+
+**The coverage gate, measured for the first time in three sessions — floors met, run red, and the two
+facts are independent.** `npm run test:coverage` at `2546d88d8` reported **statements 99.21%
+(28610/28837), branches 98.06% (21031/21445), functions 99.24% (8311/8374), lines 99.65%
+(21030/21102)** against floors of 99/99/99/98 — **all four met**, and met CONSERVATIVELY, since 26
+tests did not execute and therefore contributed no coverage.
+
+The run itself exited **1**: 21 files, 26 tests, of which **22 were `Test timed out in 5000ms`** on a
+run that took **2363 seconds** against the ~160 seconds `CLAUDE.md` records for this suite. Attributed
+to the environment rather than to this work, by three checks rather than by one: **(a)** this
+session's own diff (`git diff --name-only 42d07b14a..HEAD`) intersects the 21 failing files in
+**nothing**; **(b)** an earlier quiet run of `vitest run tests/plugin tests/presentation/editor` —
+which contains most of them — was **exit 0 at 450 files / 3613 tests**; and **(c)** the three failures
+that were NOT timeouts were re-run alone and passed, **exit 0, 22 tests in 16.34s**. Those three
+(`scene.test.ts`'s two isolation cases and a `npm_package_version is not set`) are named in
+`CLAUDE.md`'s own list of module-level-state families — Konva's `stages` registry and the
+`npm_package_version` mutation — so they are a recorded hazard reappearing, not a new one.
+
+**A caveat on that exit code that is worth more than the number.** The command was written as
+`npm run test:coverage > log 2>&1; c=$?; echo "COVERAGE_EXIT=$c"`, and the harness reported the
+**wrapper** as "exited with code 0" while the captured `COVERAGE_EXIT` was **1**. That is the
+kickoff's `tail`-masks-`$?` warning in a second costume: a trailing `echo` masks it just as a pipe
+does. Capture the code into a variable and PRINT it; do not read the harness line.
+
+**Evidence locations.** Every brief, implementer report, review, fix report and re-review for this
+session is in `.superpowers/sdd/01-improvement-plan/` — gitignored, worktree-local, and the only
+copy that exists. `progress.md` there carries every ruling with its stated cost.
+
+**Two environment facts the next session needs.** The machine's `C:` drive reached **0 bytes free**
+mid-session and every `vitest` invocation failed `ENOSPC`; the remedy that worked was setting
+`TEMP`/`TMP`/`TMPDIR` to `D:/tmp-rp` with FORWARD slashes, since backslashes are mangled into a
+relative path. It stood at 9.5 GB free afterwards, and nothing reports this before a run fails.
+Separately, one 44-file "0 test, no error body" failure was first diagnosed as this repository's
+documented parallelism artifact and was **almost certainly that disk condition instead** — an empty
+error body is what a temp-write failure looks like from outside, and the familiar explanation was
+reached by matching a symptom rather than by reading the error.
+
+**What is implemented but unverified.** All of it. **Nothing on this branch has ever been run in a
+real Obsidian vault.** Specifically: what a user sees when a delete is refused over an unreadable
+marker was read out of `toUserMessage`'s lookup and asserted in jsdom, never on screen; the German
+copy minted this session is an agent's and has had no native-speaker review; two reversible adapters
+are named in L-11 as unmeasured; and `npm run analyze`'s opinion of this session's changes is unknown.
+
+**Native checks still not performed.** Every row of the native availability table above remains
+Unperformed — no desktop platform, no minimum-Obsidian-version check, no screen reader, no iOS, no
+Android, no trackpad, pen or touch.
+
+**The recurring defect of this session, recorded because it cost four review rounds.** Three times, a
+test was written one seam away from the code that decides, and each time it was found only by
+someone REVERTING the fix and watching what stayed green — never by adding more tests around the
+change. The worst instance: reverting `inspector-wiring.ts`'s two arms, reopening L-05 completely,
+left **450 files / 3611 tests green, exit 0**. A fourth instance of the same family, three separate
+times: a count stated in N places with N−1 updated. **Ask what stays green when the fix is undone,
+before asking whether the tests pass.**
 
 ## Candidate identity record
 

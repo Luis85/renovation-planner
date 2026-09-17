@@ -4,7 +4,10 @@
 	"selected_baseline": "f3a8864a9e9e14c3e39c9adf6c06bdf0f2fa6a52",
 	"contract": {
 		"status": "accepted",
-		"revision": "r1"
+		"revision": "r1",
+		"rulings": [
+			"AD08-R1 (2026-09-17): the Parts panel is C05 overlap alternative; no chooser is built"
+		]
 	},
 	"tasks": {
 		"AD00": {
@@ -87,24 +90,30 @@
 			"blocker": "Use in plan deferred to AD13; no header chrome, per C12"
 		},
 		"AD07": {
-			"status": "planned",
-			"base_sha": null,
+			"status": "in_progress",
+			"base_sha": "13f82f82e",
 			"candidate_sha": null,
 			"integrated_sha": null,
-			"evidence": [],
+			"evidence": [
+				"dispatched 2026-09-17 to worker worktree .worktrees/ad07, branch ad07-entry-paths",
+				"leases in execution/LEASES.md, wave 2 table"
+			],
 			"blocker": null
 		},
 		"AD08": {
-			"status": "integrated",
-			"base_sha": "e3a9ecc6b",
+			"status": "in_progress",
+			"base_sha": "13f82f82e",
 			"candidate_sha": "26e68b589",
 			"integrated_sha": "116c7ced0",
 			"evidence": [
 				"a selected set with a derived primary, pruned per member",
 				"Shift-press and a sticky mode, both watched red",
-				"reports/RESUME.md"
+				"reports/RESUME.md",
+				"remainder dispatched 2026-09-17 to .worktrees/ad08r, branch ad08r-marquee: marquee selection only",
+				"the overlap chooser is RULED OUT by DECISIONS.md ruling AD08-R1; the Parts panel is C05 alternative",
+				"per-part locks landed in AD09, so they are no longer part of this remainder"
 			],
-			"blocker": "PARTIAL: marquee, the overlap chooser and per-part locks need AD09 and a drag-on-empty-canvas gesture"
+			"blocker": "PARTIAL: marquee selection is outstanding and in progress. Per-part locks landed in AD09; the overlap chooser is refused by ruling AD08-R1 rather than owed."
 		},
 		"AD09": {
 			"status": "integrated",
@@ -123,11 +132,14 @@
 			"blocker": "no Obsidian and no pinned Chromium here, so the three-region layout is unphotographed and unwalked"
 		},
 		"AD10": {
-			"status": "planned",
-			"base_sha": null,
+			"status": "in_progress",
+			"base_sha": "13f82f82e",
 			"candidate_sha": null,
 			"integrated_sha": null,
-			"evidence": [],
+			"evidence": [
+				"dispatched 2026-09-17 to .worktrees/ad10, branch ad10-arrange",
+				"the model half already exists: AssetShape.groups, six refusals, schema v3, the Parts panel group rows. The OPERATIONS are what this card owes"
+			],
 			"blocker": null
 		},
 		"AD11": {

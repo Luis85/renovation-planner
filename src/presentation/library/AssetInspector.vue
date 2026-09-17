@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useLibraryDraftGuard } from './libraryDraftGuard';
-import { computed, useId, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { tr } from '../i18n/strings';
 import { useAssetLibraryContext } from './AssetLibraryContext';
@@ -9,6 +9,7 @@ import { useAssetSelectionStore } from '../stores/AssetSelectionStore';
 import AssetInspectorFields from './AssetInspectorFields.vue';
 import AssetInspectorShape from './AssetInspectorShape.vue';
 import AssetInspectorUsedIn from './AssetInspectorUsedIn.vue';
+import AssetUsageDuplicate from './AssetUsageDuplicate.vue';
 
 const props = defineProps<{ assetId: AssetId | null }>();
 
@@ -66,6 +67,21 @@ const canOpenDesigner = computed(
 const canOpenNote = computed(() => state.value === 'ready' || state.value === 'note-unreadable');
 
 const canDelete = computed(() => state.value === 'ready' && selection.usedInStatus === 'ready');
+
+/**
+ * Whether the duplicate panel is open — a plain `ref` and NOT part of the panel's `PanelState`,
+ * because it is not a state of the asset: the union above says what is known about the selected
+ * definition, and a gesture somebody started is a different axis. It is reset on every selection
+ * change below, so a panel left open cannot carry a name prefilled from the previous asset.
+ */
+const duplicating = ref(false);
+
+watch(
+	() => props.assetId,
+	() => {
+		duplicating.value = false;
+	},
+);
 
 const deleteReason = computed((): string | null =>
 	selection.usedInStatus === 'failed' ? tr('view.asset-library.used-in.failed') : null,
@@ -196,6 +212,15 @@ async function onOpenNote(): Promise<void> {
 				{{ tr('view.asset-library.open-note') }}
 			</button>
 			<button
+				v-if="state === 'ready' && !duplicating"
+				type="button"
+				class="rp-al-action"
+				data-action="duplicate-open"
+				@click="duplicating = true"
+			>
+				{{ tr('view.asset-library.duplicate') }}
+			</button>
+			<button
 				v-if="state === 'ready'"
 				type="button"
 				class="rp-al-action rp-al-action--delete"
@@ -212,5 +237,12 @@ async function onOpenNote(): Promise<void> {
 		>
 			{{ deleteReason }}
 		</p>
+		<AssetUsageDuplicate
+			v-if="duplicating && entry !== null && assetId !== null"
+			:asset-id="assetId"
+			:source-name="entry.name"
+			@cancel="duplicating = false"
+			@duplicated="duplicating = false"
+		/>
 	</aside>
 </template>

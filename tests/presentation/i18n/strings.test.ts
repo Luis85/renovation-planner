@@ -457,10 +457,22 @@ describe('interpolation', () => {
 	 * 78 → 87: §6.3's Plan pattern inspector field (ADR-0031) added nine keys —
 	 * `view.asset-library.plan-pattern` and eight `view.asset-library.pattern.*` values (`none`
 	 * plus the seven patterns) — a deliberate spec amendment, not a gap.
+	 *
+	 * 87 → 100: AD13's duplicate and usage-scope half added thirteen —
+	 * `view.asset-library.duplicate` plus six `view.asset-library.duplicate.*`, and six
+	 * `view.asset-library.used-in-plans*` for the plan-placement scope drawn before a duplicate.
+	 * They live in `{en,de}/assetDuplicate.ts` rather than in `{en,de}-assetLibrary.ts`, which is
+	 * the integrator-owned per-card split that wave's leases are built on, and they carry this
+	 * surface's own `view.asset-library.` prefix precisely so that they reach this pin: a key
+	 * named to dodge it would be a second naming convention for one surface's strings, bought to
+	 * avoid the one instrument that makes an addition deliberate. **The §8 amendment this pin
+	 * cannot check is OWED and not made** — `asset-library-overview-DESIGN-SPEC.md` is outside
+	 * AD13's lease, and the pin's own paragraph above records that the guarantee here is *the
+	 * count cannot move silently*, never *the spec was amended*.
 	 */
-	it('pins the Asset library inventory at 87 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(87);
-		expect(assetLibraryKeys(de)).toHaveLength(87);
+	it('pins the Asset library inventory at 100 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(100);
+		expect(assetLibraryKeys(de)).toHaveLength(100);
 	});
 });
 

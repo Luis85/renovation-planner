@@ -1,9 +1,23 @@
 import { ok, type Result } from '../core/result/Result';
 import type { Query } from '../application/queries/Query';
+import type { Command } from '../application/commands/Command';
 import type { Logger } from '../application/ports/Logger';
 import type { RepositoryError } from '../application/ports/repositoryErrors';
+import type { PersistenceError } from '../core/errors/AppError';
+import type { EventBus } from '../core/events/EventBus';
 import type { VaultExceptionMapper } from '../application/errors/exceptionMapper';
-import { guardQuery } from '../application/errors/guardAgainstThrowing';
+import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
+import {
+	DuplicateAssetCommand,
+	type DuplicateAssetErrors,
+	type DuplicateAssetInput,
+} from '../application/commands/asset/DuplicateAsset';
+import { ListPlansUsingAsset, type AssetPlanUsage } from '../application/queries/ListPlansUsingAsset';
+import type { ReferenceLocks } from '../application/reference/ReferenceLocks';
+import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
+import type { PlanRepository } from '../application/ports/PlanRepository';
+import type { ProjectRepository } from '../application/ports/ProjectRepository';
+import type { Asset } from '../domain/asset/Asset';
 import { ListCatalogueEntries, type CatalogueListing } from '../application/queries/ListCatalogueEntries';
 import {
 	ListAssetOutlines,
@@ -113,4 +127,52 @@ export function guardAssetLibrary(
 	);
 	const listOverridingProjects = guardQuery(overriding, 'query.listOverridingProjects.failed', logger, map);
 	return { assetLibrary: { listCatalogue, listOutlines, listOverridingProjects } };
+}
+
+/**
+ * AD13's two doors — `Duplicate as new asset` and the plan-usage scope drawn before an
+ * impactful change — composed and guarded together.
+ *
+ * **A SECOND function rather than three more members of `guardAssetLibrary` above, and the
+ * reason is a lease rather than a design.** That function is called from
+ * `composition-root.ts`, which AD01 §2 holds integrator-owned, so widening its `ports`
+ * argument would be an edit to a file this card may not touch. What it costs is one extra
+ * call site, in `assetLibraryDeps.ts` — the module that assembles this view's bundle and the
+ * only consumer either door has. What it does NOT cost is the guarding itself: both doors go
+ * through `guardCommand`/`guardQuery` under their own event names, so a throw below either
+ * one is mapped at the boundary exactly as it is for the three reads above, and
+ * `guardCategory.test.ts`'s detonation reaches them through the same wrappers.
+ *
+ * **Both are guarded plainly, with no `Result` adapter.** `ListPlansUsingAsset` answers a
+ * `Result` of its own: it walks the project and plan repositories rather than the index, so a
+ * whole listing that refuses is a real failure arm — which is exactly the property
+ * `guardCategory.test.ts` exists to enforce, and exactly what an index-driven first version of
+ * that query did not have (it answered an empty scope over a vault that threw).
+ */
+export function guardAssetDuplication(
+	ports: {
+		assets: AssetRepository;
+		assetGeometry: AssetGeometrySidecar;
+		events: EventBus;
+		locks: ReferenceLocks;
+		projects: ProjectRepository;
+		plans: PlanRepository;
+		planGeometry: PlanGeometrySidecar;
+	},
+	logger: Logger,
+	map: VaultExceptionMapper,
+): {
+	duplicateAsset: Command<DuplicateAssetInput, Result<Asset, DuplicateAssetErrors | PersistenceError>>;
+	listPlansUsingAsset: Query<AssetId, Result<AssetPlanUsage, RepositoryError | PersistenceError>>;
+} {
+	const duplicate = new DuplicateAssetCommand({
+		assets: ports.assets,
+		sidecar: ports.assetGeometry,
+		events: ports.events,
+		locks: ports.locks,
+	});
+	const usage = new ListPlansUsingAsset(ports.projects, ports.plans, ports.planGeometry);
+	const duplicateAsset = guardCommand(duplicate, 'command.duplicateAsset.failed', logger, map);
+	const listPlansUsingAsset = guardQuery(usage, 'query.listPlansUsingAsset.failed', logger, map);
+	return { duplicateAsset, listPlansUsingAsset };
 }

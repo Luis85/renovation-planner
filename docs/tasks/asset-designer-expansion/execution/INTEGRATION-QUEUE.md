@@ -70,7 +70,9 @@ Written 2026-09-17 during wave 2.
 
 ## AD12 — candidate `643ba6e5e` (branch `ad12-reference`)
 
-- [ ] **Background OPACITY**, ruled a real gap by AD12-R1 and assigned here because it is not in any
+- [ ] **ALLOCATED 2026-09-17 (session three)** to the queue worker of wave 4, with `runtime.ts`,
+      `DesignerCanvas.vue` and `DesignerViewMenu.vue` sub-let to it and the grant written into
+      `LEASES.md` in the same edit. **Background OPACITY**, ruled a real gap by AD12-R1 and parked here because it was not in any
       card's lease: a leaf-local view preference reaching `runtime.ts`, `DesignerCanvas.vue` and
       `DesignerViewMenu.vue`. `PartView` is the shape to follow — transient, per leaf, written
       nowhere. **Background LOCK is refused, not deferred**: every designer layer is
@@ -86,7 +88,19 @@ Written 2026-09-17 during wave 2.
       requesting it, and declared it. It changed "the asset's is the ONLY `h3`" to "it is the FIRST".
       Defensible — the case's title is about ordering — but a rewritten assertion is how a real
       regression gets absorbed, so read the before and after and agree or revert.
-- [ ] **PERSISTED REVIEW STATE is OWED and cannot be built in any current lease.** AD01 §1 S09 names
+- [ ] **RULED 2026-09-17 (session three) as AD14-R1, and ALLOCATED to AD14.** The representation is
+      one boolean `clearanceNeedsReview` on `AssetShape`, beside the three pending flags it is
+      modelled on; asset-geometry **schema v4** is allocated in the same edit, as C09 requires. The
+      ruling also answers the question underneath it, in C07's own words rather than a third option
+      invented beside them: a **measured** clearance is PRESERVED under a whole-object scale rather
+      than scaled, so the mismatch is visible on the canvas and not merely recorded, while a
+      **pending** one goes on scaling per r1 row 2. `ADR-0034` carries it in the repository's durable
+      record, because C03 requires a spec or ADR update to supersede this behaviour rather than an
+      unrecorded cleanup. **The row stays unchecked until the gate is green on the SHA that builds
+      it** — a ruling is not an implementation. The original statement of the obligation follows,
+      unaltered, because it is what the ruling had to answer:
+
+      **PERSISTED REVIEW STATE is OWED and cannot be built in any current lease.** AD01 §1 S09 names
       **AD12** as its owner, and AD12 could not reach it: a durable flag needs `AssetShape`, the DTO
       schemas, the mappers and the schema-version literal, plus a C09 version bump so an older build
       refuses the file rather than stripping the field. **It is also blocked on a decision nobody has
@@ -94,12 +108,32 @@ Written 2026-09-17 during wave 2.
       ruling first and a card second, and it must not be quietly dropped: the AD12 report originally
       called it "not owed", which the reviewer corrected, and that is the wording that would have
       lost it.
-- [ ] **Clearance under resize (criterion 4) is NOT met**, and r1 does not park all of it. `scaleDesign`
+- [ ] **DISCHARGED BY AD14-R1 as a DECISION, and carried by AD14 as work.** The arm taken is
+      preserve-and-flag, which is the first of the two C07 offers and the one r1's own reasoning
+      points at — *a refusal now would block a common gesture to guard a rare one*. Two regression
+      fixtures pin today's behaviour and are AMENDED deliberately rather than deleted:
+      `tests/domain/asset/shapeEdits.test.ts`'s literal scaled-clearance points and its
+      bounding-box case, plus `2026-09-16-asset-designer-consolidate-design.md` §7's line reading
+      *"every part — clearance and details included — is scaled about the anchor"*, which stops
+      being true of a measured clearance. The original statement follows:
+
+      **Clearance under resize (criterion 4) is NOT met**, and r1 does not park all of it. `scaleDesign`
       scales the clearance about the anchor unconditionally; C07's default is not to weaken one
       silently and C03 records the behaviour as one to supersede deliberately with a spec or ADR
       update. r1 row 2 disposes only of the REFUSE arm, and only for a PENDING clearance. Carried as
       an integration obligation rather than as an AD12 shortfall — nothing in that lease could fix it.
-- [ ] **There is no door to DELETE a reference** — `SetAssetBackgroundInput.path` is a bare string,
+- [ ] **RULED 2026-09-17 (session three) as AD12-R2, and ALLOCATED to the queue worker rather than
+      becoming its own card.** Measured rather than assumed: the domain already admits the state —
+      `Asset.background` is `AssetBackgroundRef | null`, `withChanges` resolves
+      `'background' in changes ? (changes.background ?? null) : this.background`, `checkBackground(null)`
+      answers `ok(null)` on its first line, and `sameBackground` inside the command already compares
+      two nullable references. Nothing needs designing; one input arm needs admitting, and the three
+      answers it would otherwise have to invent (clear the calibration, leave the pending flags
+      alone, put the removal arm ABOVE the two path-shaped pre-read refusals so removing a reference
+      to an already-deleted file succeeds) are each inherited from the command's own existing
+      account. The original statement follows:
+
+      **There is no door to DELETE a reference** — `SetAssetBackgroundInput.path` is a bare string,
       so replacement is expressible and removal is not. AD12's criterion about deleting a reference
       cannot be met without a new command arm with its own calibration and pending-flag answers.
       Decide whether that is owed here or is its own card.

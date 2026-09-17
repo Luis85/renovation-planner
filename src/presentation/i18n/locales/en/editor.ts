@@ -16,6 +16,10 @@ import { draftingEn } from './drafting';
 import { inputEn } from './input';
 import { groupsEn } from './groups';
 import { creationEn } from './creation';
+import { assetClearanceReviewEn } from './assetClearanceReview';
+import { assetReferenceViewEn } from './assetReferenceView';
+import { assetDuplicateEn } from './assetDuplicate';
+import { assetWorkflowEn } from './assetWorkflow';
 /**
  * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
  * the add-menu catalogue, the Inspector (its floor and room panels, its requirements
@@ -55,6 +59,10 @@ export const editorEn = {
 	...draftingEn,
 	...inputEn,
 	...creationEn,
+	...assetClearanceReviewEn,
+	...assetReferenceViewEn,
+	...assetDuplicateEn,
+	...assetWorkflowEn,
 	'editor.direct.mark-change': 'Mark change',
 	'editor.direct.length-value': 'Edit wall length, {value} m',
 	'editor.dimension.edit-width': 'Edit room width, {value} m',

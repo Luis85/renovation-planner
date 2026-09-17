@@ -7,7 +7,10 @@
 		"revision": "r1",
 		"rulings": [
 			"AD08-R1 (2026-09-17): the Parts panel is C05 overlap alternative; no chooser is built",
-			"AD10-R1 (2026-09-17, amended same day): a spatial composition refuses a mixed measured/pending selection; grouping does not; an all-pending selection is not mixed. The amendment narrowed it from five operations to four and moved the check off the shared participant resolver, which would have refused the grouping the ruling permits"
+			"AD10-R1 (2026-09-17, amended same day): a spatial composition refuses a mixed measured/pending selection; grouping does not; an all-pending selection is not mixed. The amendment narrowed it from five operations to four and moved the check off the shared participant resolver, which would have refused the grouping the ruling permits",
+			"AD12-R1 (2026-09-17): lock reference is already true by construction, so no control is owed; background opacity is a real gap and is queued. MISSING FROM THIS LEDGER for the whole of session two and added in session three - the ledger is not self-checking and a ruling recorded only in DECISIONS.md is one this file disagrees with",
+			"AD14-R1 (2026-09-17, session three): a durable clearance review state IS owed. One boolean clearanceNeedsReview on AssetShape, asset-geometry schema v4 allocated in the same edit, and a MEASURED clearance is preserved under a whole-object scale rather than scaled - C07s own named default. A pending clearance goes on scaling, per r1 row 2. Carried by AD14; recorded durably as ADR-0034 because C03 requires a spec/ADR update for superseding this behaviour",
+			"AD12-R2 (2026-09-17, session three): a reference may be DELETED through SetAssetBackground rather than through a new command. The domain already admits a null background; one input arm needs admitting. Allocated to the integration-queue worker beside background opacity"
 		]
 	},
 	"tasks": {

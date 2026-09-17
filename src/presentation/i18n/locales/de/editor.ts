@@ -16,6 +16,10 @@ import { draftingDe } from './drafting';
 import { inputDe } from './input';
 import { groupsDe } from './groups';
 import { creationDe } from './creation';
+import { assetClearanceReviewDe } from './assetClearanceReview';
+import { assetReferenceViewDe } from './assetReferenceView';
+import { assetDuplicateDe } from './assetDuplicate';
+import { assetWorkflowDe } from './assetWorkflow';
 import type {
  editorEn } from '../en/editor';
 
@@ -43,6 +47,10 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...draftingDe,
 	...inputDe,
 	...creationDe,
+	...assetClearanceReviewDe,
+	...assetReferenceViewDe,
+	...assetDuplicateDe,
+	...assetWorkflowDe,
 	'editor.direct.mark-change': 'Änderung markieren',
 	'editor.direct.length-value': 'Wandlänge bearbeiten, {value} m',
 	'editor.dimension.edit-width': 'Raumbreite bearbeiten, {value} m',

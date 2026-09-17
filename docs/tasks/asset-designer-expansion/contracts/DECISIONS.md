@@ -141,6 +141,174 @@ real need, its off state is reachable, and it is absent. It is not AD12's to bui
 lease, and it is a leaf-local view preference of exactly the kind `PartView` already holds. It sits
 in the integration queue as one item for the runtime's owner.
 
+### AD14-R1 — a durable clearance review flag IS owed. One boolean, schema v4, and a measured clearance stops scaling. (2026-09-17)
+
+C07's resize paragraph ends: *"Default resize policy: do not scale a clearance down silently.
+Preserve its absolute geometry and mark it as needing review, or refuse the resize until the user
+explicitly chooses a supported clearance action. AD01 chooses the minimal persistent review
+representation that fits current storage. Before that representation lands, refusal with a clear
+reason is safer than an ephemeral warning that vanishes on reopen."*
+
+**AD01 never chose the representation**, and AD01 §1 S09 named AD12 as the owner of the state — a
+card whose lease held no schema, no mapper and no aggregate, so it could not reach it from where it
+stood. This ruling chooses the representation and allocates the schema version so that **AD14** can
+build it, AD14 being the card that already owns the revision and snapshot question. It APPLIES C07
+and revises nothing; `r1` is untouched.
+
+**"Not owed" was considered and is refused, because the gap is live rather than speculative.** A
+user traces 600 mm of clearance in front of an oven, types a smaller width into Edit dimensions,
+and the boundary they authored becomes a different number with nothing on screen or in the file
+saying so. C06 already refuses the same shape one level down — *"locked elements must not move by
+implication"* — and a clearance is the most consequential thing in this aggregate to move by
+implication, because it is the only figure here a person plans a room around.
+
+#### What is there today, measured in this edit rather than recalled
+
+`scaleDesign` (`src/domain/asset/shapeEdits.ts:238`) scales the clearance about the anchor under no
+condition at all: `clearance: shape.clearance === null ? null : about(shape.clearance)`. Its only
+`src/` caller is `scaleDesignToDimensions` in the same file, whose only `src/` caller is
+`AssetDesignerRoot.vue:277`, behind the Edit dimensions dialog. `grep -rn "scaleDesign" src/` prints
+twelve lines and exactly two of them are those calls; the other ten are prose. **So the whole of the
+behaviour this ruling changes reaches a user through one gesture**, which is why it can be changed
+at the one function rather than guarded at every caller.
+
+#### The decision, in three parts
+
+**1. A measured clearance is PRESERVED through a whole-object scale rather than scaled.** This is
+C07's own named default and not a third option invented beside it, and the reason to prefer it over
+scale-and-flag is what each leaves on screen. Scale-and-flag fabricates a boundary the user never
+authored and then asks them to check a number that looks authored; at 600 mm becoming 500 mm, a
+glance accepts it. Preserve-and-flag leaves the authored 600 mm standing beside a smaller object,
+where it visibly no longer fits — **the wrongness is the notice**, and the flag is what makes it
+survive a reopen. In code this is smaller than the alternative rather than larger: the clearance arm
+stops calling `about`.
+
+**A PENDING clearance goes on scaling with everything else, unchanged.** That is `r1` row 2, which
+parks exactly this and only this, and its reasoning holds: a pending clearance's coordinates are
+background pixels, the whole capture shares one space, and scaling them weakens nothing that is yet
+a measurement. The flag is therefore never set on a pending clearance either.
+
+**2. The representation is one boolean, `clearanceNeedsReview`, on `AssetShape`,** beside the three
+pending flags it is modelled on. That is the minimal thing that fits current storage, which is what
+C07 asked AD01 for. The three alternatives, each refused for a stated reason:
+
+- **Reuse `clearancePending`.** Refused outright. That flag means *these coordinates are background
+  pixels*; overloading it would fire the unscaled warning over genuine millimetres and would let a
+  calibration clear a review. Two meanings in one field is the second-answer-to-one-question defect
+  this repository refuses everywhere it has a name for it.
+- **A review revision or timestamp compared against the sidecar's `revision`.** Refused on a
+  measurement: that counter bumps on **every** write to the document, so a clearance nobody had
+  touched would read as stale the moment an unrelated detail moved. A warning that always fires is
+  one nobody reads, which is worse than the gap. It also wants a clock, and nothing in `domain/`
+  has one.
+- **Keeping the pre-scale clearance so it can be restored.** That is shape history, which `r1` row 3
+  refuses outright (*"No shape history, no placement pinning"*), and it would cost the schema a
+  second geometry for a state undo already covers.
+
+**3. Schema version 4 is allocated here**, in this edit, as C09 requires (*"New durable
+groups/graphic kinds require the next available version. Re-resolve that number at execution"*). v3
+is current and shipped at AD04; nothing else in this branch has taken 4. The bump is REQUIRED for
+v2's and v3's own stated reason, and the direction matters: a Zod object strips unknown keys, so a
+v3-only build reading a v4 file would load it and **erase the flag on its next write, presenting an
+unreviewed clearance as reviewed** — silently, which is the one direction of this field that is
+unsafe. `z.literal(3)` makes that build refuse the file instead.
+
+`.default(false)` and never `.catch(false)`, which is `footprintPending`'s own rule generalised: an
+absent key is an older file and reads as not flagged, correct because a build that could not set the
+flag never left one unset by mistake; a **present** malformed value fails the read rather than being
+coerced. Defaults are for absent fields, never for malformed present ones.
+
+**No asset-geometry migration table is owed by this.** Every added field has a default meaning *this
+document predates the field*, so v4 is additive exactly as v3 was, and the
+`2026-09-16-asset-designer-consolidate-design.md` §6 trigger — *the first non-additive
+asset-geometry schema change* — still has not fired.
+
+#### Who sets it, who clears it, and what draws it
+
+**Set** in `scaleDesign`, and there alone: when the scale is not the identity, the shape has a
+clearance, and that clearance is not pending. Both directions flag, not shrinking only — a clearance
+is authored, and a user who typed 600 mm and then resized the object has a boundary they did not
+author at either size. One condition, and no *down on one axis and up on the other* question left
+for somebody to answer differently later. Rotation, reflection and translation set nothing: they are
+isometries and weaken no distance.
+
+**Cleared by any write whose SUBJECT is the clearance itself**, because a gesture aimed at the
+clearance IS the review. Stated as a rule and deliberately not as a list — **the list is obtained by
+`grep -rn "clearance" src/domain/asset/shapeEdits.ts src/application/commands/asset/` in the
+implementing edit and the code is written from what the grep printed**, this package having got a
+count wrong four separate times by writing the sentence first. At the time of this ruling that
+reaches `mapPartOutline`'s clearance arm, `SetAssetClearance`, the four-side helper's regeneration,
+and `removeClearance` — which already writes `clearancePending: false` for precisely this class of
+reason and writes the review flag false in the same line.
+
+**Plus an explicit `Reviewed` action in the inspector**, which is what *"mark it as needing review"*
+implies a person can answer. **It is drawn only while the flag is set.** A predicate that stops
+drawing it, never a `:disabled` — a control that is drawn and can only refuse is the live control
+that does nothing, and this expansion has shipped that defect three times in three different cards.
+
+#### Validation, and one guard deliberately NOT added
+
+A shape with no clearance may not carry the flag — the same refusal, the same argument and the same
+site as the existing `absent-clearance-cannot-be-pending` in `validatePlacement`: no command can
+produce it, so one in a sidecar is a hand edit, and quietly clearing it would report an unreviewed
+boundary as reviewed.
+
+**No refusal is added for `clearancePending && clearanceNeedsReview`.** A capture replaces the
+clearance and a calibration converts it, so the combination is unreachable, and an unreachable guard
+costs a branch it can never pay back. This tree carries roughly nine arms of margin above its branch
+floor; that is the budget such a guard would spend to say nothing.
+
+#### Undo needs no mechanism
+
+The flag rides on `AssetShape`, which the reversible design commands snapshot whole, so undoing the
+resize restores the unflagged shape for free. **Do not build a second one.**
+
+#### What this discharges, and what it owes in return
+
+**It discharges the integration queue's clearance-under-resize obligation.** AD12 criterion 4 is met
+by the preserve-and-flag arm, which is the first of the two C07 offers and the one `r1`'s own
+reasoning points at — *a refusal now would block a common gesture to guard a rare one*.
+
+**It owes C03's supersession treatment, because this one genuinely changes shipped behaviour.** C03
+names the unconditional clearance scale as *"an existing behavior to supersede deliberately, with a
+spec/ADR update and regression fixtures — not an unrecorded implementation mistake to clean up"*.
+So: **ADR-0034** carries the decision in the repository's own durable record rather than only in
+this package, and the fixtures that pin today's behaviour are AMENDED deliberately and never
+deleted — `tests/domain/asset/shapeEdits.test.ts:219` (the clearance's scaled points asserted
+literally) and its bounding-box case around `:245`, plus the `scaleDesignToDimensions` line in
+`2026-09-16-asset-designer-consolidate-design.md` §7 reading *"every part — clearance and details
+included — is scaled about the anchor"*, which stops being true of a measured clearance.
+
+### AD12-R2 — a reference may be DELETED, through the command that already replaces one. (2026-09-17)
+
+AD12's card owes deleting a reference and no door exists: `SetAssetBackgroundInput.path` is a bare
+`string`, so replacement is expressible and removal is not.
+
+**The domain already says yes.** `Asset.background` is `AssetBackgroundRef | null`, `withChanges`
+resolves `'background' in changes ? (changes.background ?? null) : this.background`, and
+`checkBackground(null)` answers `ok(null)` on its first line. `sameBackground` inside the command
+already takes two nullable references and compares them. **Nothing needs designing; one input arm
+needs admitting.** So this is not its own card — it is a small, well-bounded change to a command
+whose every neighbouring behaviour is already specified, and it goes to the queue worker beside
+background opacity, the two being one subject.
+
+**Three answers the arm inherits rather than invents, each from the command's own existing account:**
+
+- **The calibration is cleared**, for the reason replacement clears it and more sharply: a scale
+  measured off a document that is no longer referenced names nothing at all. Same order — clear the
+  sidecar first, then write the note — and the same compensation if the note write then fails, so a
+  failed removal cannot destroy a valid calibration for a change that never happened.
+- **The pending flags are untouched.** Coordinates captured in background pixels are still in
+  background pixels after the picture is taken away; removing a reference does not turn pixels into
+  millimetres, and a flag cleared here would present placeholder geometry as measured.
+- **The two cheap pre-read refusals do not apply to a removal.** `backgroundKindOf` and
+  `files.fileExists` both ask about a path, and a removal names none. Removing a reference to a file
+  that has already been deleted must SUCCEED — it is the one gesture that repairs that state — so
+  the removal arm sits above both, and a case pins it there.
+
+**The control is drawn only while a reference exists**, the same predicate rule AD14-R1 states for
+`Reviewed` and for the same reason.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

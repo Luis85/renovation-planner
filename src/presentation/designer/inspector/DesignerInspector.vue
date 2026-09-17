@@ -31,6 +31,7 @@ import DesignerArrangePanel from './DesignerArrangePanel.vue';
 import DesignerReferenceStatus from './DesignerReferenceStatus.vue';
 import DesignerReferencePlacement from './DesignerReferencePlacement.vue';
 import DesignerClearanceHelper from './DesignerClearanceHelper.vue';
+import DesignerUsePlan from './DesignerUsePlan.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
@@ -56,6 +57,15 @@ const props = defineProps<{
 	select: (next: DesignerSelection | null) => void;
 	/** The way back to the shared catalogue, or `undefined` where no door is bound (AD06). */
 	openLibrary?: () => void;
+	/**
+	 * The way FORWARD, into a plan (AD13), or `undefined` where no door is bound — passed
+	 * straight through to `DesignerUsePlan`, which owns both the predicate that decides whether
+	 * to draw a control for it and the account of how far the gesture reaches.
+	 *
+	 * Optional for `openLibrary`'s reason and not by habit: absence MEANS no navigation composed
+	 * behind this mount. `lockedGraphics` below is the counter-example and states why it is not.
+	 */
+	usePlan?: () => void;
 	/** Every selected part, in selection order — the last is the one whose fields show (AD08). */
 	selected: readonly DesignerSelection[];
 	/** Whether the sticky "select multiple" mode is on (AD08). */
@@ -264,6 +274,17 @@ const dimensionsLabel = computed(() =>
 		>
 			{{ tr('designer.inspector.open-library') }}
 		</button>
+		<!--
+			The way FORWARD (AD13), beside the way back rather than anywhere else: the two are the
+			same kind of thing — this surface's only navigations — and a user looking for one looks
+			where the other is. It decides on its own whether it has anything to draw, so the
+			states that cannot place an asset cost it nothing; `DesignerUsePlan` carries both
+			conditions and why each is a real downstream refusal rather than a guess.
+		-->
+		<DesignerUsePlan
+			:design="design"
+			:use-plan="usePlan"
+		/>
 		<!--
 			C05: adding to a selection needs a control a keyboard and a touch user can reach, not a
 			modifier alone. The Plan Editor's own "Select multiple elements" checkbox, in the panel

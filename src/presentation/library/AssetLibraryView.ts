@@ -1,4 +1,4 @@
-import { ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
+import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { createApp, ref, type App as VueApp, type Ref } from 'vue';
 import { createPinia } from 'pinia';
 import AssetLibraryRoot from './AssetLibraryRoot.vue';
@@ -6,6 +6,7 @@ import { ASSET_LIBRARY_CONTEXT, type AssetLibraryContext } from './AssetLibraryC
 import type { AssetLibraryDeps } from './AssetLibraryDeps';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from '../views/app-id-prefix';
+import { drawMobileRefusal } from '../views/mobileRefusal';
 
 /**
  * §2's asset-library view: the vault-wide catalogue, a SINGLETON exactly as the Renovation
@@ -169,10 +170,39 @@ export class AssetLibraryView extends ItemView {
 		return Promise.resolve();
 	}
 
+	/**
+	 * **The mobile gate (AD13, criterion 6), and this is the ONLY door it needs** — unlike
+	 * `PlanEditorView` and `AssetDesignerView`, which both put theirs in a `sync()` because
+	 * `setState` reaches their mount decision as well as `onOpen`. Here it does not:
+	 * `setState` writes two refs and never mounts (see its own docblock), and `rebind` remounts
+	 * only what is already mounted — which on mobile is nothing, because this is where mounting
+	 * is refused. Counted rather than assumed: `grep -n "this.mount()" src/presentation/library/
+	 * AssetLibraryView.ts` prints THREE lines and two of them are calls — `rebind`'s and this
+	 * method's — the third being this sentence, which names the call it counts.
+	 *
+	 * **Why the catalogue is refused rather than only its door into the designer.** Every action
+	 * this surface offers a user leads somewhere desktop-only — the designer above all (C12: "a
+	 * separate mobile decision" has not been accepted) — so a library drawn on a phone is a list
+	 * whose rows go nowhere. The refusal follows the designer's own two-site shape (the surface
+	 * says so; the command that opens it stays out of the palette) rather than inventing a third
+	 * kind of gate, and it reuses `drawMobileRefusal` so there is one sentence about this
+	 * product's device scope and not four.
+	 *
+	 * **What it does NOT cover, written at the width of the check:** `ViewRoot`'s own "Open
+	 * library" button, which is bound through `RenovationProjectDeps.openAssetLibrary` and is
+	 * ungated — exactly as that surface's "Open in designer" door is ungated today. A press
+	 * there on mobile opens a leaf that says desktop-only, which is the honest refusal and not a
+	 * broken surface; making those buttons disappear is the project view's own change.
+	 */
 	onOpen(): Promise<void> {
 		// The hook the stylesheet keys on to reset Obsidian's own pane paddings
 		// (styles/chrome.css), the same line every other view here carries.
 		this.containerEl.addClass('renovation-planner-container');
+		if (Platform.isMobile) {
+			this.unmount();
+			drawMobileRefusal(this.contentEl);
+			return Promise.resolve();
+		}
 		if (!this.mounted) this.mount();
 		return Promise.resolve();
 	}

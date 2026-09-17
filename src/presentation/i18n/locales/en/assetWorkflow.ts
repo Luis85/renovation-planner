@@ -14,4 +14,11 @@
  * is still incomplete. See `de/assetOpenLines.ts`'s header for what reading the neighbours instead
  * of the rule cost this package once.
  */
-export const assetWorkflowEn = {} as const;
+export const assetWorkflowEn = {
+	/**
+	 * The designer's hand-off into a plan (AD13). The label names the WORKFLOW rather than the
+	 * single step this build performs — see `DesignerUsePlan.vue`, whose docblock states exactly
+	 * how far the gesture currently reaches and what is owed to finish it.
+	 */
+	'designer.inspector.use-in-plan': 'Use in plan',
+} as const;

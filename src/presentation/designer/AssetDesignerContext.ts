@@ -128,6 +128,29 @@ export interface AssetDesignerDeps {
 	 * nothing. The browser harness and the component suites are exactly that surface.
 	 */
 	readonly openLibrary?: () => void;
+	/**
+	 * Take this asset into a plan (AD13) — the designer's forward door, where `openLibrary` above
+	 * is its backward one.
+	 *
+	 * Bound at the composition root to `assetDesignerUsePlan`, which continues into a Plan Editor
+	 * the user already has open and otherwise asks through the SAME `PlanSuggestModal` the palette
+	 * command uses. That seam is also where the rest of this door's account lives: which plan is
+	 * chosen, that a cancelled pick opens and writes nothing, and exactly how far the gesture
+	 * currently reaches.
+	 *
+	 * **Takes no asset id, and the absence is a FACT about the channel rather than an
+	 * omission.** The only route into an already-open Plan Editor is its `origin` view state,
+	 * whose type (`application/navigation/ProjectDestination`) names a room, a work item or a
+	 * cost and has no asset arm — so there is nothing this signature could honestly carry today.
+	 * `DesignerUsePlan.vue` carries the change that would give it one.
+	 *
+	 * OPTIONAL, like `openLibrary` above and for the identical reason — and the question is
+	 * answered rather than defaulted into: absence MEANS something here (no navigation composed
+	 * behind this mount, which is exactly what the browser harness and the component suites are),
+	 * so the control is not drawn rather than drawn dead. Contrast `DesignerInspector`'s
+	 * `lockedGraphics`, which is REQUIRED because its absence would mean nothing at all.
+	 */
+	readonly usePlan?: () => void;
 }
 
 /**

@@ -546,6 +546,7 @@ onMounted(() => {
 					:edit-shape="runtime.editShape"
 					:select="designStore.select"
 					:open-library="context.openLibrary"
+					:use-plan="context.usePlan"
 					:selected="selected"
 					:locked-graphics="runtime.partView.locked.value"
 					:multi-selection-mode="runtime.multiSelectionMode.value"

@@ -16,6 +16,8 @@ import {
 } from '../presentation/designer/designerCommands';
 import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
 import type { CompositionRoot } from './composition-root';
+import type { ContinueContext } from '../application/continueContext';
+import { assetDesignerUsePlan } from './renovationProjectOpenSeams';
 
 /**
  * Moved out of `composition-root.ts` at the merge of the per-project price override and the
@@ -60,11 +62,35 @@ import type { CompositionRoot } from './composition-root';
 export function assetDesignerDeps(
 	root: CompositionRoot,
 	app: App,
-	options: { indexScanCompleted: () => boolean; openLibrary: () => void },
+	options: {
+		indexScanCompleted: () => boolean;
+		openLibrary: () => void;
+		/**
+		 * Plugin-local, per-device state over `App.loadLocalStorage` — carried through exactly as
+		 * `renovationProjectDeps` carries it, and for the same reason: the store is memoised on
+		 * the plugin instance (its own coalescing depends on being one instance), so this module
+		 * may not build a second one. REQUIRED rather than defaulted, the same reason that
+		 * function states: a composition that forgot it would still compile and silently stop
+		 * recording where the user was.
+		 */
+		rememberContinue: (context: ContinueContext) => void;
+	},
 ): AssetDesignerDeps {
 	const persistence = root.persistence;
 	return {
 		openLibrary: options.openLibrary,
+		// AD13's forward door. Composed HERE rather than taken in `options` on two counts. The
+		// first is that everything it needs is already in this function's arguments — the index
+		// off `root.persistence`, the logger off `root` — so passing it in meant the caller
+		// reaching for the same two members one level up. The second is a line budget:
+		// `RenovationPlannerPlugin.ts` sits at its 400-line cap, the five-line `options` literal
+		// this replaced put it over, and the fix has to be an extraction rather than a
+		// suppression.
+		//
+		// Unconditional on `persistence`, unlike `queries` and `commands` below: an index that is
+		// `undefined` is the unrecovered-settings session, which `entriesOfType` answers for with
+		// the same "no plans" notice an empty vault gets. A refusing seam would draw nothing.
+		usePlan: assetDesignerUsePlan(app, persistence?.index, root.logger, options.rememberContinue),
 		picker: new ObsidianBackgroundPicker(app),
 		// Obsidian's real `Vault`, passed straight in: `BackgroundVault` is a `Pick` of it, so
 		// there is nothing to adapt and nothing that can drift from the API.

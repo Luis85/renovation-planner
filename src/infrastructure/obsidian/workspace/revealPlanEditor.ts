@@ -8,8 +8,15 @@ import { prepareEditorArrival } from './editorArrivalQueue';
  * Obsidian persists and restores, so it has an answer even for a leaf whose view has been
  * deferred and not constructed yet — which is exactly the case a vault reopened onto two
  * Plan Editors produces.
+ *
+ * **EXPORTED since AD13, for one reason and with one rule.** The designer's "Use in plan"
+ * continues into a Plan Editor the user already has open, so `plugin/` has to ask which plan a
+ * candidate leaf is showing — and it has to ask it the same way the matcher below does, or the
+ * two would answer differently for exactly the deferred leaf this function exists to read. One
+ * spelling, two readers. The rule: a caller in another layer READS through this and never
+ * decides activation for itself; opening is still `revealPlanEditor`'s alone.
  */
-function planIdOf(leaf: WorkspaceLeaf): string | undefined {
+export function planIdOf(leaf: WorkspaceLeaf): string | undefined {
 	const state = leaf.getViewState().state;
 	const planId = state?.['planId'];
 	return typeof planId === 'string' ? planId : undefined;

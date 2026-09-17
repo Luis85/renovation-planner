@@ -313,12 +313,27 @@ export default class RenovationPlannerPlugin extends Plugin {
 		});
 
 		/**
-		 * §2's fourth registration's own command: a plain callback, never a `checkCallback` —
-		 * `open-plan-editor` already paid for the lesson that a command gated on the active
-		 * note is a command absent from the palette in every vault that has none of the thing,
-		 * and the library needs no active note at all. No ribbon icon joins it: §2 refuses one
-		 * by name, the ribbon being shared real estate across every installed plugin and this
+		 * §2's fourth registration's own command. No ribbon icon joins it: §2 refuses one by
+		 * name, the ribbon being shared real estate across every installed plugin and this
 		 * surface being reached often but not constantly.
+		 *
+		 * **A plain callback, and NOT a `checkCallback` — read that narrowly, because the reason
+		 * has changed.** `open-plan-editor`'s lesson (a command gated on something the vault has
+		 * to contain is a command absent from the palette in every vault that has none of it) is
+		 * why this was written as a callback, and it still holds: the library needs no active note.
+		 * It is not why it stays one.
+		 *
+		 * AD13 gave `AssetLibraryView.onOpen` the same mobile refusal the Plan Editor and the
+		 * designer draw, and the DEVICE is a precondition of the kind `new-project` and
+		 * `open-asset-designer` both express as a `checkCallback` — so this command has the same
+		 * argument for one, and keeping it out of a mobile palette is the matching second site.
+		 * What stops that here is a LEASE and not a decision: two cases in
+		 * `tests/plugin/registration.test.ts` drive this command through `command?.callback?.()`,
+		 * that file belongs to nobody on this card, and optional chaining means they would go
+		 * silently inert rather than loudly wrong. AD13's report files the pair — the
+		 * `checkCallback` and those two call sites — as one change. The surface's own refusal is
+		 * the load-bearing half meanwhile, and the half that answers a leaf restored from a
+		 * workspace layout, where no command runs at all.
 		 */
 		this.addCommand({
 			id: 'open-asset-library',
@@ -769,8 +784,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// `openLibrary` is the SAME door the palette command and the project surface take (AD06); a
 		// second `revealView` call composed here would be a second answer to what opening the
 		// library means, which is the duplicate-tab defect `revealCandidate` exists to prevent.
-		const options = { indexScanCompleted: () => this.indexScanCompleted, openLibrary: () => { this.openAssetLibrary(); } };
-		return { ...assetDesignerDeps(this.root, this.app, options), ...assetDesignerDeviceSlots(this.app, this.manifest.id, this.root.logger) };
+		// `usePlan` (AD13) is composed inside `assetDesignerDeps` off the `root` this call passes,
+		// so it is still built per bundle — this method re-runs on every `rebind`, and the index
+		// and logger the seam closes over are the CURRENT root's. What crosses this seam is
+		// `rememberContinue` alone, because only the plugin owns the store behind it; it is the
+		// same closure `projectViewDeps` binds and is read per call for that binding's reason.
+		// The bundle's options are INLINE rather than a `const options` above, on two counts: the
+		// file is at its 400-line cap, and inlining is what contextually types `rememberContinue`'s
+		// parameter, so this reaches `ContinueContext` without importing it (the spelling
+		// `projectViewDeps` already uses one screen down).
+		return { ...assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted, openLibrary: () => { this.openAssetLibrary(); }, rememberContinue: (context) => void this.continueContextStore(this.root.logger).write(context) }), ...assetDesignerDeviceSlots(this.app, this.manifest.id, this.root.logger) };
 	}
 
 	/** ONE spelling of the Asset library's bundle, for the factory and the rebind. */

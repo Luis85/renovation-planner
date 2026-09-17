@@ -25,6 +25,14 @@
  * **So the Asset Designer is not gated at all** — not a tool, not a button, not the inspector,
  * not the preset form. Every write it dispatches is refused by the guarded doors underneath and
  * nothing on screen says so first. This file is the prerequisite's check, not the increment's.
+ *
+ * **That sentence has two halves and this file checks only the SECOND one** — *"nothing on
+ * screen says so first"*, through the `writesBlocked()` probe below. The FIRST half — that the
+ * guarded doors underneath really do refuse — is checked by
+ * `designerIncidentRefusal.test.ts` beside this file, which builds the design bundle through
+ * the REAL `guardAssetDesign` and dispatches real gestures at it. Neither file holds the claim
+ * alone, and that file also records the measured gap in it: the UNDO half writes through raw
+ * ports and is not behind the gate.
  * The sentence lives here because the describe that moved out of `designerRefresh.test.ts`
  * carried it ("no registered tool ever asks"), the first pass at this slice deleted it and
  * replaced it with the opposite claim, and a reader arriving at the new file had no way to

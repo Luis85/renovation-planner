@@ -116,6 +116,22 @@
 	font-weight: var(--font-semibold);
 }
 
+/*
+ * The composition block (AD10): the same column and the same separating rule the selected part's
+ * section wears, because the two are siblings in the inspector rather than one nested in the other.
+ * The declarations are `.rp-designer-selection`'s and are written out rather than shared through a
+ * grouped selector, so the day one of the two blocks needs its own spacing the other does not move
+ * with it — the trade `designer.css`'s flat-button comment already argues for.
+ */
+.rp-designer-arrange {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: 0 0 var(--size-4-4);
+	padding-bottom: var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
 /* The facing angle's direction hint (critique finding 25): a description under its field, quieter than the label. */
 .rp-designer-field-hint {
 	margin: 0;

@@ -24,9 +24,10 @@ import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { Logger } from '../../../application/ports/Logger';
 import { ok } from '../../../core/result/Result';
-import type { ShapeEdit } from '../selection/editShape';
+import type { EditShape } from '../selection/editShape';
 import { partKey, type DesignerSelection } from '../selection/designerSelection';
 import DesignerSelectionInspector from './DesignerSelectionInspector.vue';
+import DesignerArrangePanel from './DesignerArrangePanel.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
@@ -42,7 +43,13 @@ const props = defineProps<{
 	logger: Logger;
 	/** The part the canvas has selected, `null` for none; its section is keyed by part, so choosing another starts it fresh. */
 	selection: DesignerSelection | null;
-	editShape: (edit: ShapeEdit) => Promise<DispatchResult>;
+	/**
+	 * The leaf's one write door, at its OWN width rather than narrowed: an edit may answer `null` for
+	 * "nothing to do on the shape I was handed", which dispatches nothing and pushes no undo entry.
+	 * The composition block below needs that arm for contract C05's no-op rule; the selection
+	 * inspector takes the narrower `ShapeEdit` shape and this value still satisfies it.
+	 */
+	editShape: EditShape;
 	select: (next: DesignerSelection | null) => void;
 	/** The way back to the shared catalogue, or `undefined` where no door is bound (AD06). */
 	openLibrary?: () => void;
@@ -60,7 +67,21 @@ const props = defineProps<{
 	 * so it takes this one the same way.
 	 */
 	setMultiSelectionMode?: (next: boolean) => void;
+	/**
+	 * The graphic ids this leaf has LOCKED (AD09's `PartView.locked`), which the Arrange block hands
+	 * the domain as `immovable` so a composition cannot move a part the user pinned.
+	 *
+	 * Optional, and empty by default, for the reason `openLibrary` and `setMultiSelectionMode` are:
+	 * the component suites and the harness mount this panel with no runtime behind it. **It is not
+	 * bound yet** — `AssetDesignerRoot.vue` is integrator-owned and holds the `runtime.partView` this
+	 * would come from, so AD10 ships the rule and the request for the one line that wires it. Until
+	 * that line lands a locked part composes like any other, which is exactly the gap to close.
+	 */
+	lockedGraphics?: ReadonlySet<string>;
 }>();
+
+/** The locks this panel passes on, or none where the mount binds no `PartView`. */
+const locked = computed(() => props.lockedGraphics ?? new Set<string>());
 
 /** How many graphics this design has — what decides whether composing a set is even possible. */
 const graphicCount = computed(() => props.design.shape?.details.length ?? 0);
@@ -157,6 +178,19 @@ const dimensionsLabel = computed(() =>
 			:selection="selection"
 			:edit-shape="editShape"
 			:select="select"
+		/>
+		<!--
+			**The composition block** (AD10), a SIBLING of the section above rather than part of it:
+			that one acts on the focused part and this one on the whole selection, and a single
+			graphic can legitimately be in both (it can still be repeated, and its group can still be
+			moved to an end). It draws nothing when no graphic is selected, so it costs the other
+			selection kinds nothing.
+		-->
+		<DesignerArrangePanel
+			:design="design"
+			:selected="selected"
+			:edit-shape="editShape"
+			:locked="locked"
 		/>
 		<!--
 			The asset's own block gets a heading of its own, so its Dimensions never read as the size of the

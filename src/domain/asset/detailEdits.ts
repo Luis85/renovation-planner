@@ -1,3 +1,4 @@
+import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
 import type { Point } from '../../core/geometry/Point';
 import type { Vector } from '../../core/geometry/Vector';
@@ -29,17 +30,101 @@ export interface NewDetail {
 const NUMBERED_ID = /^detail-(\d+)$/;
 
 /**
+ * The highest numeric suffix among `ids` matching `pattern`, 0 for none — the arithmetic behind
+ * every `<prefix>-<n>` id this aggregate mints.
+ *
+ * Shared rather than written twice because GROUPS number the same way (`groupEdits.ts`), and a
+ * second copy of "one above the highest" is the pair that drifts into "one above the count" —
+ * which is the id recycling this rule exists to refuse. `pattern` is a module constant at each
+ * call site, so nothing here builds a regular expression at runtime.
+ */
+export function highestSuffix(ids: Iterable<string>, pattern: RegExp): number {
+	let highest = 0;
+	for (const id of ids) {
+		const match = pattern.exec(id);
+		if (match !== null) highest = Math.max(highest, Number(match[1]));
+	}
+	return highest;
+}
+
+/** What `nextDetailId` counts from, exported so a BATCH can allocate a run of ids in one pass. */
+export function highestDetailNumber(shape: AssetShape): number {
+	return highestSuffix(
+		shape.details.map((detail) => detail.id),
+		NUMBERED_ID,
+	);
+}
+
+/**
  * `detail-<n>` with n one above the highest numeric suffix among ids of that form, `detail-1` for
  * none. One above the HIGHEST rather than the count, so deleting `detail-1` of two cannot hand the
  * next detail the id `detail-2` still carries.
  */
 export function nextDetailId(shape: AssetShape): string {
-	let highest = 0;
-	for (const detail of shape.details) {
-		const match = NUMBERED_ID.exec(detail.id);
-		if (match !== null) highest = Math.max(highest, Number(match[1]));
+	return `detail-${String(highestDetailNumber(shape) + 1)}`;
+}
+
+/**
+ * A graphic's CURVE-AWARE bounding box, whichever kind it is — what every composition operation
+ * measures a part by (`arrangeDetails.ts`, and `fitFootprintToDetails` below).
+ *
+ * **Both kinds through one function, and the open arm is the reason it exists.** `boundingBoxOf`
+ * takes a `CurvedPolygon`, whose bulge array is one per POINT because its wrap edge is real; an
+ * open path carries one per SEGMENT, so handing its own array over answers `curve-edge-count` and
+ * refuses every CURVED open graphic. A trailing zero is the honest reading: it makes the absent
+ * wrap edge straight, and a straight edge between two points already in the list contributes no
+ * extent at all. Reading the POINTS alone instead would drop an arc's reach, which is exactly the
+ * measurement a box is asked for.
+ */
+export function detailBox(detail: AssetDetail): Result<BoundingBox, ValidationError> {
+	const measured = boundingBoxOf(closedReading(detail));
+	return isErr(measured) ? err(assetError('invalid-detail', measured.error.message)) : ok(measured.value);
+}
+
+/** A graphic's geometry in the shape `boundingBoxOf` reads; `detailBox` above explains the trailing zero. */
+function closedReading(detail: AssetDetail): CurvedPolygon {
+	const { points, bulges } = detail.outline;
+	if (bulges === undefined) return { points };
+	return { points, bulges: detail.kind === 'open' ? [...bulges, 0] : bulges };
+}
+
+/**
+ * The graphics `ids` names, in CANONICAL `details` order, or the first reason the whole operation
+ * is refused (C06: an invalid participant refuses the edit rather than being worked around).
+ *
+ * **Canonical order rather than selection order**, which is what gives every composition operation
+ * its stable tie-breaking: two parts sharing a centre distribute in the order the shape draws them,
+ * and that is a fact about the design rather than about the order the user happened to press.
+ *
+ * **`immovable` is how a leaf-local LOCK reaches a pure function** (AD09's `PartView.locked`). The
+ * domain knows nothing about a lock; it is handed the ids that must not move, and a chosen
+ * participant inside that set refuses the WHOLE operation rather than being dropped from it —
+ * dropping would rearrange the others around a part the user can see is locked, which is the
+ * half-applied edit C06 refuses. Nothing moves by IMPLICATION either, because a graphic that is not
+ * a participant is never written; that half holds even for a lock this function is never told about.
+ */
+export function resolveParticipants(
+	shape: AssetShape,
+	ids: readonly string[],
+	rules: { readonly minimum: number; readonly immovable?: ReadonlySet<string> },
+): Result<AssetDetail[], ValidationError> {
+	const chosen = new Set(ids);
+	if (chosen.size !== ids.length) {
+		return err(assetError('duplicate-part', 'A part was named twice in one operation.'));
 	}
-	return `detail-${String(highest + 1)}`;
+	if (ids.length < rules.minimum) {
+		return err(
+			assetError('too-few-parts', `This operation needs at least ${String(rules.minimum)} parts; got ${String(ids.length)}.`),
+		);
+	}
+	const known = new Set(shape.details.map((detail) => detail.id));
+	for (const id of ids) {
+		if (!known.has(id)) return err(partNotFound({ kind: 'detail', id }));
+		if (rules.immovable?.has(id) === true) {
+			return err(assetError('locked-part', `Part "${id}" is locked, so nothing may move it.`));
+		}
+	}
+	return ok(shape.details.filter((detail) => chosen.has(detail.id)));
 }
 
 function detailIndex(shape: AssetShape, id: string): Result<number, ValidationError> {
@@ -153,11 +238,12 @@ export function fitFootprintToDetails(shape: AssetShape): Result<AssetShape, Val
 	}
 	const corners: Point[] = [];
 	for (const detail of shape.details) {
-		// Over the graphic's POINTS rather than the graphic: an open path has no interior, but its
-		// box is the same question and the same answer. Arcs are read at their extrema either way,
-		// which `boundingBoxOf` does for a bulge array it is given.
-		const box = boundingBoxOf({ points: detail.outline.points, ...(detail.outline.bulges === undefined ? {} : { bulges: detail.outline.bulges }) });
-		if (isErr(box)) return err(assetError('invalid-detail', box.error.message));
+		// Through `detailBox` rather than `boundingBoxOf` directly. The reading that lived here
+		// handed an open path its OWN bulge array, which is a segment shorter than a ring's, so
+		// every CURVED open graphic was refused under `curve-edge-count` — a graphic nothing could
+		// draw yet when this line was written and one AD11 is about to make ordinary.
+		const box = detailBox(detail);
+		if (isErr(box)) return box;
 		corners.push(box.value.min, box.value.max);
 	}
 	const { min, max } = unwrap(boundingBoxOf({ points: corners }));

@@ -99,8 +99,14 @@ const threw: VaultExceptionMapper = (cause) => ({
  * category loop's dispatch is refused by the gate before `SetAssetBackgroundCommand` runs. So
  * this fake is never asked a question while the suite is green. Stated rather than left
  * implicit, because a probe that answered `true` for everything would be KINDER than the real
- * thing — and it IS reached with the gate disabled, where `setBackground` answered
- * `vault.threw` rather than a probe refusal.
+ * thing — and NO case in this file could tell the difference, not even with the gate disabled.
+ * Measured 2026-09-17, by recording every path the probe was asked about and disabling
+ * `guardCommand`'s incident block: both `setBackground` doors answered `vault.threw` and the
+ * probe recorded `asked: []`. The loop's input carries no `path`, so `backgroundKindOf(input.path)`
+ * throws before the probe is consulted — a `vault.threw` is what a throw BEFORE the probe looks
+ * like, not a probe refusal. The same run proved the probe is callable at all: a well-formed
+ * `{ path: 'sheets/spec.png', kind: 'image', page: null }` reached it and answered
+ * `asset.background-not-found`.
  */
 const noSpecSheets: VaultFileProbe = { fileExists: () => false };
 

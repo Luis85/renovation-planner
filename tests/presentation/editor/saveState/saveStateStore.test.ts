@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { installWriteIncidentRegistry } from '../../../../src/application/incidents/WriteIncidentRegistry';
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
+import { installOpenWriteIncident, installQuietWriteIncidents } from '../../../helpers/writeIncidents';
 
 type Store = ReturnType<typeof useSaveStateStore>;
 // Named references, not anonymous closures: the exhaustive walk below has to recognise WHICH
@@ -238,5 +240,68 @@ describe('the save-state store', () => {
 		first.beginSaving();
 		expect(first.state).toBe('saving');
 		expect(second.state).toBe('saved');
+	});
+});
+
+/**
+ * **The seed, which is the whole of how a leaf that did nothing wrong learns the vault is
+ * half-written** (ADR-0034, BP-02 slice 4). Every `ItemView` mounts its own Pinia, so a pane
+ * opened while an incident is open builds a fresh store — and unless that store asks the
+ * vault-scoped registry at setup, it starts clean and offers an enabled UI over a vault every
+ * guarded write is already being refused for.
+ *
+ * `setActivePinia(createPinia())` per case is what makes "a freshly created store" literal
+ * here: a Pinia store is created once per Pinia, so the registry has to be installed BEFORE
+ * `useSaveStateStore()` is first called against it. That ordering is the mechanism, not a
+ * fixture detail — a second pane is precisely a second Pinia asking the same question.
+ *
+ * **What these cases do NOT simulate, said plainly rather than worked around:** a second Plan
+ * Editor LEAF. `FakeWorkspace` has no split and no layout restore, `duplicateLeaf` exists
+ * nowhere in this repository, and no test anywhere drives two Plan Editor leaves on the same
+ * plan (tracker limitation L-03). A fake that pretended to duplicate a leaf would be kinder
+ * than Obsidian, which is this repository's most expensive recurring defect. The gesture is
+ * covered by a manual case instead — `docs/tests/cases/Two panes on one plan under an open
+ * write incident.md`, written and NOT yet run in a vault.
+ */
+describe('the save-state store seeded from an open write incident', () => {
+	beforeEach(() => {
+		setActivePinia(createPinia());
+	});
+
+	afterEach(() => {
+		installWriteIncidentRegistry(null);
+	});
+
+	it('starts with writes paused when the vault holds an open incident', async () => {
+		await installOpenWriteIncident();
+
+		expect(useSaveStateStore().unrecoveredWrite).toBe(true);
+	});
+
+	it('starts clean when a registry is installed with nothing open', () => {
+		installQuietWriteIncidents();
+
+		expect(useSaveStateStore().unrecoveredWrite).toBe(false);
+	});
+
+	it('starts clean when no registry is installed at all, which is every test rig and the harness', () => {
+		expect(useSaveStateStore().unrecoveredWrite).toBe(false);
+	});
+
+	/**
+	 * Ruling R1 over the seeded value: the flag is SET and never unset, and the seed adds a way
+	 * for it to start true rather than a way for it to become false. Driven with the one action
+	 * whose whole job is to report that a write landed whole, because that is the action a reader
+	 * would most expect to clear it — and the one E3 proved must not.
+	 */
+	it('keeps the seeded pause across a write that succeeds', async () => {
+		await installOpenWriteIncident();
+		const store = useSaveStateStore();
+
+		store.beginSaving();
+		store.resolveOk();
+
+		expect(store.state).toBe('saved');
+		expect(store.unrecoveredWrite).toBe(true);
 	});
 });

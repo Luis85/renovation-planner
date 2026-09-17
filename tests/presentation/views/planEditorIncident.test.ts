@@ -29,6 +29,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { err, isErr, ok } from '../../../src/core/result/Result';
 import { markUncompensated, type DispatchResult } from '../../../src/application/commands/DispatchOutcome';
+import { installWriteIncidentRegistry } from '../../../src/application/incidents/WriteIncidentRegistry';
 import { PlanEditorView, type PlanEditorDeps } from '../../../src/presentation/views/PlanEditorView';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../src/presentation/editor/runtime';
 import { useSaveStateStore } from '../../../src/presentation/editor/save-state/save-state-store';
@@ -41,6 +42,7 @@ import { installEditorEnvironment, settle, sizedShellRoot } from '../../helpers/
 import { FIXTURE_PLAN, FIXTURE_ZONES, fakeQueries } from '../../helpers/planFixtures';
 import { injectedPersistenceError } from '../../helpers/domain';
 import { FakeLeaf } from '../../helpers/workspace';
+import { installOpenWriteIncident, installQuietWriteIncidents } from '../../helpers/writeIncidents';
 import type { Pinia } from 'pinia';
 
 installEditorEnvironment();
@@ -329,5 +331,52 @@ describe('an unrecovered-write incident belongs to the leaf, not to the mount', 
 
 		expect(restored.getState()).toEqual({ planId: FIXTURE_PLAN.id });
 		expect(useSaveStateStore(piniaOf(restored)).unrecoveredWrite).toBe(false);
+	});
+});
+
+/**
+ * **The VAULT's incident and this LEAF's field are two different records, and the leaf must not
+ * absorb the first into the second** (ADR-0034, BP-02 slice 4).
+ *
+ * A leaf that mounts while the vault holds an open incident is gated from its first frame, by
+ * `save-state-store.ts` seeding `unrecoveredWrite` from `activeWriteIncidentRegistry()`. Its own
+ * `unrecoveredWrite` field must stay false, and that is a behaviour rather than an accident of
+ * ordering: the field is set-never-unset and rides `getState()` into Obsidian's persisted
+ * workspace layout, so a leaf that recorded the vault's incident in it would still be paused
+ * after the user had removed the incidents file and reloaded — with nothing anywhere able to
+ * clear it, since ADR-0034 refuses a plugin-decided all-clear.
+ *
+ * What makes it true is `mount`'s watcher not being `immediate`: the store is ALREADY true when
+ * the watcher is installed, so there is no change to observe. The docblock on
+ * `PlanEditorView.unrecoveredWrite` states that, and this case is what fails if the option is
+ * ever added.
+ */
+describe('a vault-scoped incident gates the leaf without becoming the leaf’s own', () => {
+	afterEach(() => {
+		installWriteIncidentRegistry(null);
+	});
+
+	it('pauses a leaf mounted under an open incident and leaves its view state clean', async () => {
+		await installOpenWriteIncident();
+
+		const view = await opened();
+
+		expect(useSaveStateStore(piniaOf(view)).unrecoveredWrite).toBe(true);
+		expect(runtimeOfView(view).writesBlocked.value).toBe(true);
+		// No `unrecoveredWrite` key at all — the same shape a leaf with nothing to say emits.
+		expect(view.getState()).toEqual({ planId: FIXTURE_PLAN.id });
+	});
+
+	/**
+	 * The control. Without it the case above passes on a build where the seed does nothing and
+	 * the pause came from somewhere else entirely — `writesBlocked` is an OR of three terms.
+	 */
+	it('leaves a leaf live when the registry holds nothing', async () => {
+		installQuietWriteIncidents();
+
+		const view = await opened();
+
+		expect(useSaveStateStore(piniaOf(view)).unrecoveredWrite).toBe(false);
+		expect(runtimeOfView(view).writesBlocked.value).toBe(false);
 	});
 });

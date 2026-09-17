@@ -15,7 +15,7 @@
  * `editorFaults.test.ts` covers the THROW half of this seam (`reportFault` catching an
  * unexpected fault); this file covers the resolved-but-failed half.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
 // Mock-only surface, imported BY NAME. `Notice` carries members
 // the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
@@ -24,6 +24,8 @@ import { nextTick } from 'vue';
 // the same statics — proven, not assumed — and the import now says which surface it
 // wants.
 import { Notice } from '../../helpers/obsidian-mock';
+import { installWriteIncidentRegistry } from '../../../src/application/incidents/WriteIncidentRegistry';
+import { installOpenWriteIncident, installQuietWriteIncidents } from '../../helpers/writeIncidents';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { actionButton, click, pointer, rig, type Rig } from '../../helpers/planEditorRig';
 import { mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle } from '../../helpers/editor';
@@ -376,6 +378,43 @@ describe('selectAndFrame (Task 12: list framing)', () => {
  * function the post-command queue itself calls, so a retry can only ever re-read.
  */
 describe('the trust path (design spec §2.2, §2.3, §2.9)', () => {
+	afterEach(() => {
+		// `installWriteIncidentRegistry` is module-level state and the reset is owed WITHIN this
+		// file; vitest's per-file module registry is what keeps it from reaching another.
+		installWriteIncidentRegistry(null);
+	});
+
+	/**
+	 * **The vault-scoped half of the same gate (ADR-0034, BP-02 slice 4).** `writesBlocked` is
+	 * `projectStore.stale || planning.failed || save.unrecoveredWrite`, and the last of those is
+	 * SEEDED from `activeWriteIncidentRegistry()` when the store is created — so a leaf that
+	 * mounts while the vault holds an open incident is paused from its first frame, with no
+	 * stale read and nothing this leaf itself did wrong. Installed BEFORE the mount because a
+	 * leaf's Pinia, and therefore its store, is built by the mount.
+	 *
+	 * `stale` is asserted false in the same case deliberately: `writesBlocked` is an OR of three
+	 * terms, and a `true` that came from the wrong one would be the same assertion passing for
+	 * the wrong reason.
+	 */
+	it('refuses writes from the first frame when the vault holds an open incident', async () => {
+		await installOpenWriteIncident();
+
+		const harness = await mountPlanEditorCanvas();
+
+		expect(useProjectStore(harness.pinia).stale).toBe(false);
+		expect(runtimeOf(harness).writesBlocked.value).toBe(true);
+		harness.unmount();
+	});
+
+	it('leaves writes open when a registry is installed with nothing in it', async () => {
+		installQuietWriteIncidents();
+
+		const harness = await mountPlanEditorCanvas();
+
+		expect(runtimeOf(harness).writesBlocked.value).toBe(false);
+		harness.unmount();
+	});
+
 	it('refuses a NEW write while stale and lets undo through, at the runtime dispatcher', async () => {
 		const harness = await mountPlanEditorCanvas();
 		const runtime = runtimeOf(harness);

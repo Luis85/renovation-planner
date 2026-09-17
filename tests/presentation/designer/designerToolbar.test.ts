@@ -304,6 +304,29 @@ describe('the shift hint', () => {
 		rig.unmount();
 	});
 
+	/**
+	 * An OPEN graphic is an outline selection under Transform, so it took the Shift hint the moment
+	 * the open-line tool made one selectable — and that sentence promises Shift keeps proportions and
+	 * snaps the rotation. A path has neither handle to act on: `selectionHandles` answers `[]` for
+	 * one, which is the same fact that keeps Edit points and Bend edges out of the mode group. One
+	 * predicate answers both, so the two surfaces cannot come to disagree about it.
+	 */
+	it('says nothing about Shift for an open graphic, which has no handle for it to act on', async () => {
+		const rig = await designerRig({ shape: shapeWithOpenGraphic() });
+		const store = useAssetDesignStore(rig.pinia);
+
+		await press(rig, 'designer.toolbar.select');
+		store.select({ kind: 'detail', id: 'detail-1' });
+		await settle();
+		// The closed sibling on the same shape still gets it, so this is about the KIND rather than
+		// about the shape or the tool.
+		expect(rig.wrapper.find('.rp-designer-hint').text()).toBe(t('en', 'designer.hint.shift-transform'));
+
+		store.select({ kind: 'detail', id: 'detail-3' });
+		await settle();
+		expect(rig.wrapper.find('.rp-designer-hint').exists()).toBe(false);
+	});
+
 	it('gives no Select hint under another tool, whatever is selected', async () => {
 		const rig = await designerRig({ shape: toiletShape() });
 		const hint = () => rig.wrapper.find('.rp-designer-hint');

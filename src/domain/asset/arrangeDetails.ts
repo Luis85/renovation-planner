@@ -28,12 +28,18 @@ import { highestGroupNumber } from './groupEdits';
  * the same measurement for one CLOSED part and cannot answer for a path, which is why nothing here
  * routes through it.
  *
- * **The two disagree about an OPEN graphic, and that is AD11's to reconcile rather than this
- * module's.** `selection/partExtent.ts`'s `outlineOf` answers `null` for a path, so every
- * SINGLE-part gesture in the designer refuses a line outright, while a composition here measures the
- * same line happily and moves it. Both readings are deliberate where they are; the contradiction is
- * between them, and closing it means deciding what a single-part width field means for something
- * with no interior.
+ * **The two used to disagree about an OPEN graphic, and AD11 closed it — not by widening the guard
+ * that held them apart.** `shapeEdits.outlineOf` still answers `null` for a path, deliberately, so
+ * no closed-only edit can reach one; what changed is that `selection/partExtent.ts`'s `partMeasure`
+ * stopped going through it for a DETAIL and routes every graphic through this same `detailBox`
+ * instead, whatever its kind. So a line now has a centre and a size in the inspector for the same
+ * reason it could always take part in an alignment here.
+ *
+ * **What stays refused is what a path genuinely has not got**, and that is a different list from
+ * "everything": no vertex handles, no bend, no box resize, nothing for Shift to constrain — all of
+ * them subjects of a HANDLE, and `selection/handles.ts` answers `[]` for a path before any of them
+ * is built. The designer draws neither the buttons nor the hint for those rather than offering a
+ * control that cannot act.
  *
  * **Order: nothing here reorders `details`.** Aligning, distributing and transforming rewrite
  * coordinates only; repeating APPENDS its copies, which is the one place the array grows. The

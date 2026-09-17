@@ -38,3 +38,26 @@ export function selectionExists(shape: AssetShape | null, selection: DesignerSel
 	// clearance is optional, so it is the one kind with a question to ask.
 	return selection.kind !== 'clearance' || shape.clearance !== null;
 }
+
+/**
+ * Is the selected part an OPEN graphic — a line rather than a ring?
+ *
+ * The question two surfaces ask for the same reason: a path has no interior, so `selectionHandles`
+ * answers `[]` for one and every control whose subject is a HANDLE has nothing to act on. The
+ * selection-mode group drops Edit points and Bend edges on this answer, and the status row drops the
+ * Shift hint, whose text promises to keep proportions and snap a rotation — both of them handle
+ * behaviours a path cannot offer.
+ *
+ * **One function because it was briefly two.** AD11 computed it inside `DesignerSelectionModes.vue`,
+ * and the identical question was then needed in `AssetDesignerRoot.vue`'s status hint — found by
+ * that card's own fix round, in a file it was not allowed to edit. A second copy is a second answer
+ * to "can this part be transformed", and the two would disagree the first time only one of them
+ * learned about a new open kind.
+ *
+ * Only a `detail` selection has anything to ask: the footprint and the clearance are `CurvedPolygon`
+ * by type and can never be the open case, and the anchor and the facing are not outlines at all.
+ */
+export function isOpenGraphicSelection(shape: AssetShape | null | undefined, selection: DesignerSelection | null): boolean {
+	if (shape === undefined || shape === null || selection === null || selection.kind !== 'detail') return false;
+	return shape.details.some((detail) => detail.id === selection.id && detail.kind === 'open');
+}

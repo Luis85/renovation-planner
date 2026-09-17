@@ -40,7 +40,7 @@
 import { computed } from 'vue';
 import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
-import type { SelectionMode } from './selection/designerSelection';
+import { isOpenGraphicSelection, type SelectionMode } from './selection/designerSelection';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 
 const store = useAssetDesignStore();
@@ -70,11 +70,7 @@ const OPEN_MODES: readonly ModeRow[] = [{ id: 'transform', label: 'designer.sele
  * `CurvedPolygon`s by type and can never be the open case, so only a `detail` selection has a
  * question to ask.
  */
-const openGraphic = computed((): boolean => {
-	const selection = store.selection;
-	if (selection === null || selection.kind !== 'detail') return false;
-	return store.design?.shape?.details.some((detail) => detail.id === selection.id && detail.kind === 'open') === true;
-});
+const openGraphic = computed((): boolean => isOpenGraphicSelection(store.design?.shape, store.selection));
 
 const modes = computed((): readonly ModeRow[] => (openGraphic.value ? OPEN_MODES : MODES));
 </script>

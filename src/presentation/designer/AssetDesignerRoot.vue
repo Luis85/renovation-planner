@@ -48,7 +48,7 @@ import { selectAssetDesignerEmptyState } from '../emptyStates/selectors';
 import { constrainsAngle } from '../editor/snapping/editorSnapping';
 import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
 import type { StringKey } from '../i18n/locales/en';
-import { isOutlineSelection } from './selection/designerSelection';
+import { isOpenGraphicSelection, isOutlineSelection } from './selection/designerSelection';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
 import { isMissingAsset, useAssetDesignStore } from './stores/assetDesignStore';
@@ -158,6 +158,12 @@ const hintKey = computed<StringKey | null>(() => {
 	if (id !== 'select') return null;
 	const focused = selection.value;
 	if (focused?.kind === 'facing') return 'editor.hint.constrain-angle';
+	// An OPEN graphic is an outline selection and has no handles, so it is excluded here for the
+	// reason `DesignerSelectionModes` drops two of its buttons: this hint promises that Shift keeps
+	// proportions and snaps the rotation, and a path offers neither — it has no box handle to
+	// constrain and no rotate handle to snap. Advertising a modifier that cannot act is the same
+	// defect as drawing a button that cannot, one surface over.
+	if (isOpenGraphicSelection(design.value?.shape, focused)) return null;
 	return isOutlineSelection(focused) && designStore.mode === 'transform' ? 'designer.hint.shift-transform' : null;
 });
 

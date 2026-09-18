@@ -744,6 +744,25 @@ a numerator while their files stay in the denominator, a contended run is biased
 clearing every floor anyway settles the question in the safe direction, which is why a second
 44-minute gate was not run.
 
+**Closing measurement — the session's production changes re-measured on a QUIET machine.**
+`npm run test:coverage`, captured exit **0**, 1253.92s: **1037 of 1037 files, 11182 tests passed,
+1 skipped, zero failures.** That is a fully green whole-suite run, and it is also the control that
+settles task zero's ten failures as contention rather than regression.
+
+| Metric | Task zero (contended) | Close (quiet) | Uncovered units, start to close | Headroom |
+|---|---|---|---|---|
+| Statements | 99.21% (28630/28856) | **99.22%** (28633/28858) | 226 to 225 | 63 |
+| Branches | 98.08% (21051/21461) | **98.08%** (21055/21465) | 410 to **410** | **19** |
+| Functions | 99.26% (8326/8388) | **99.27%** (8328/8389) | 62 to 61 | 22 |
+| Lines | 99.65% (21045/21117) | **99.65%** (21046/21118) | 72 to 72 | 139 |
+
+**Read the branch row in UNITS, which is the only way to see what happened.** The total rose by 4
+and the covered count rose by 4, so the uncovered branch count is **unchanged at 410**: every
+branch arm this session added is covered, and no uncovered arm was introduced. The percentage moved
+by less than the hundredth it prints, and would have shown the same figure had all four new arms
+been uncovered — which is precisely why the floors are not the instrument for this question.
+
+
 **A controller error, recorded at the time it was made.** The pre-flight measured the machine quiet
 and the controller then dispatched three reconnaissance agents alongside the live coverage run,
 taking it to 9 and then 13 node processes. That is what produced the ten contention failures and

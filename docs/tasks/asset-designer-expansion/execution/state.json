@@ -186,7 +186,7 @@
 				"the clearance helper is WITHHELD where unsupported rather than disabled, and re-derives from the shape its step was handed",
 				"integrator 8825bfb76: the pure frame moved to domain/asset/referenceFrame.ts, captureAwaitsScale one-answer claim narrowed, a docblock falsified in one press corrected"
 			],
-			"blocker": "Criterion 4 (clearance under resize) is NOT met and r1 parks only the refusal arm for a PENDING clearance. A persisted review state is OWED - AD01 S09 names AD12 as owner - and is unbuildable in any current lease: it needs the aggregate, the schemas, the mappers, a schema version, and a representation ruling AD01 never made. Both carried in INTEGRATION-QUEUE.md. No capture and no Obsidian."
+			"blocker": "Criterion 4 (clearance under resize) is MET as of AD14's integration at 7908969d3 - ruling AD14-R1 chose preserve-and-flag and AD14 built it, so this row's original text ('is NOT met') is stale and is replaced rather than left standing. What remains is environmental only: no Obsidian and no pinned Chromium, so nothing AD12 draws is photographed or walked."
 		},
 		"AD13": {
 			"status": "integrated",

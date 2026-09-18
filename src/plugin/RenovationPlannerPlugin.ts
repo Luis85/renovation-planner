@@ -273,9 +273,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-project',
 			name: tr('command.open-project'),
-			callback: () => {
-				this.openProject();
-			},
+			callback: () => { this.openProject(); },
 		});
 
 		/**
@@ -299,17 +297,13 @@ export default class RenovationPlannerPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-project-detail',
 			name: tr('command.open-project-detail'),
-			callback: () => {
-				this.openProjectDetail();
-			},
+			callback: () => { this.openProjectDetail(); },
 		});
 
 		this.addCommand({
 			id: 'show-diagnostics-report',
 			name: tr('command.show-diagnostics-report'),
-			callback: () => {
-				this.openDiagnosticsReport();
-			},
+			callback: () => { this.openDiagnosticsReport(); },
 		});
 
 		/**
@@ -317,29 +311,34 @@ export default class RenovationPlannerPlugin extends Plugin {
 		 * name, the ribbon being shared real estate across every installed plugin and this
 		 * surface being reached often but not constantly.
 		 *
-		 * **A plain callback, and NOT a `checkCallback` — read that narrowly, because the reason
-		 * has changed.** `open-plan-editor`'s lesson (a command gated on something the vault has
-		 * to contain is a command absent from the palette in every vault that has none of it) is
-		 * why this was written as a callback, and it still holds: the library needs no active note.
-		 * It is not why it stays one.
+		 * **A `checkCallback`, and the precondition is the DEVICE alone** — exactly
+		 * `open-plan-editor`'s shape and for the same reason, which is worth stating because the
+		 * obvious reading is the wrong one. `open-plan-editor`'s lesson is that a command gated on
+		 * something the VAULT has to contain is a command absent from the palette in every vault
+		 * that has none of it, and that lesson still holds here: this command asks nothing of the
+		 * vault and needs no active note. `Platform.isMobile` is not that kind of gate — nothing a
+		 * user does in a vault can change it — so gating on it hides the command exactly where the
+		 * surface behind it would refuse anyway, and nowhere else.
 		 *
 		 * AD13 gave `AssetLibraryView.onOpen` the same mobile refusal the Plan Editor and the
-		 * designer draw, and the DEVICE is a precondition of the kind `new-project` and
-		 * `open-asset-designer` both express as a `checkCallback` — so this command has the same
-		 * argument for one, and keeping it out of a mobile palette is the matching second site.
-		 * What stops that here is a LEASE and not a decision: two cases in
-		 * `tests/plugin/registration.test.ts` drive this command through `command?.callback?.()`,
-		 * that file belongs to nobody on this card, and optional chaining means they would go
-		 * silently inert rather than loudly wrong. AD13's report files the pair — the
-		 * `checkCallback` and those two call sites — as one change. The surface's own refusal is
-		 * the load-bearing half meanwhile, and the half that answers a leaf restored from a
-		 * workspace layout, where no command runs at all.
+		 * designer draw; this is the matching second site, so a mobile palette no longer offers a
+		 * door whose only answer is a refusal. The surface's own refusal remains the load-bearing
+		 * half, and is still the only half that answers a leaf restored from a workspace layout,
+		 * where no command runs at all.
+		 *
+		 * It shipped as a plain callback for one card, and the reason was a LEASE rather than a
+		 * decision: two cases in `tests/plugin/registration.test.ts` drove it through
+		 * `command?.callback?.()`, and optional chaining would have made them go silently inert
+		 * rather than loudly wrong. Those two call sites move to `checkCallback?.(false)` in this
+		 * same change, which is why the pair was filed as one.
 		 */
 		this.addCommand({
 			id: 'open-asset-library',
 			name: tr('command.open-asset-library'),
-			callback: () => {
-				this.openAssetLibrary();
+			checkCallback: (checking: boolean) => {
+				if (Platform.isMobile) return false;
+				if (!checking) this.openAssetLibrary();
+				return true;
 			},
 		});
 

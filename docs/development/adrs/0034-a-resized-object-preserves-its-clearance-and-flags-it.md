@@ -42,9 +42,18 @@ effect.
   is yet a measurement. That behaviour was parked deliberately with its own trigger in
   `2026-09-16-asset-designer-consolidate-design.md` §6 and this ADR does not disturb it.
 - **Cleared by any write whose subject is the clearance itself** — re-tracing it, the four-side
-  helper regenerating it, removing it — because a gesture aimed at the clearance is a review of it;
-  and by an explicit **Reviewed** action in the designer inspector, drawn only while the flag is
-  set.
+  helper regenerating it, removing it, and any transform of the boundary's own outline — because a
+  gesture aimed at the clearance is a review of it; and by an explicit **Reviewed** action in the
+  designer inspector, drawn only while the flag is set.
+
+  **The implementing change reached every one of those but the four-side helper**, which lives in
+  `DesignerClearanceHelper.vue` — a file in no wave-5 lease row — and is one line
+  (`clearanceNeedsReview: false` in its `validateAssetShape` call) away. The assertion that fails
+  without it ships deliberately red in
+  `tests/presentation/designer/designerClearanceReview.test.ts`, in the idiom the lease ledger
+  prescribes, so the gap is a failing check rather than a sentence. **This paragraph is here rather
+  than the wider claim standing alone** because a record that promises more than the code delivers
+  is the same defect as an unchecked comment and reads as settled.
 - **Isometries set nothing.** Translation, rotation and reflection preserve every distance, so they
   weaken no boundary.
 - **Authority:** the asset geometry sidecar (ADR-0014), on the shape. **Schema 4.** The field

@@ -70,6 +70,7 @@ function shapeFromPersistence(stored: StoredShape): Result<AssetShape, Repositor
 		footprintPending: stored.footprintPending,
 		clearancePending: stored.clearancePending,
 		anchorPending: stored.anchorPending,
+		clearanceNeedsReview: stored.clearanceNeedsReview,
 		clearance: stored.clearance === null ? null : toOutline(stored.clearance),
 		anchor: { x: stored.anchor.x, y: stored.anchor.y },
 		facing: stored.facing,
@@ -144,6 +145,11 @@ const shapeToPersistence = (shape: AssetShape): StoredShape => ({
 	footprintPending: shape.footprintPending,
 	clearancePending: shape.clearancePending,
 	anchorPending: shape.anchorPending,
+	// `=== true` because the DOMAIN field is optional and the STORED one is not. A shape that has
+	// been through `validateAssetShape` always carries the definite boolean, so this is belt and
+	// braces for a hand-built one — written as a comparison rather than as `?? false` because a
+	// nullish arm no validated shape can take would be a branch nothing could ever cover.
+	clearanceNeedsReview: shape.clearanceNeedsReview === true,
 	clearance: shape.clearance === null ? null : toStoredOutline(shape.clearance),
 	anchor: { x: shape.anchor.x, y: shape.anchor.y },
 	facing: shape.facing,

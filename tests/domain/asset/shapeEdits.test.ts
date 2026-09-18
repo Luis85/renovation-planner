@@ -4,6 +4,7 @@ import { circle } from '../../../src/domain/asset/presets/presetGeometry';
 import { dimensionsOf, type AssetShape } from '../../../src/domain/asset/AssetShape';
 import { solveScale } from '../../../src/domain/asset/scaleSolve';
 import {
+	markClearanceReviewed,
 	moveAnchor,
 	moveOutline,
 	moveVertex,
@@ -206,19 +207,99 @@ describe('removeClearance', () => {
 		expect([removed.clearance, removed.clearancePending]).toEqual([null, false]);
 	});
 
+	it('removes the REVIEW flag too, which validation refuses on an absent clearance for the same reason', () => {
+		const removed = expectOk(removeClearance(editableShape({ clearanceNeedsReview: true })));
+		expect([removed.clearance, removed.clearanceNeedsReview]).toEqual([null, false]);
+	});
+
 	it('refuses a shape with no clearance', () => {
 		expect(expectErr(removeClearance(editableShape({ clearance: null }))).code).toBe('asset.part-not-found');
 	});
 });
 
+/**
+ * AD14-R1's clear-the-flag rule, which it states as a RULE and deliberately not as a list: *cleared
+ * by any write whose SUBJECT is the clearance itself, because a gesture aimed at the clearance IS
+ * the review.* The two paths a clearance edit can take are `mapPartOutline` (whole-outline
+ * transforms) and `withOutline` via `editOutline` (a vertex, an edge's bulge), so both get a case —
+ * and the footprint's own edit gets the counter-case, because a rule that cleared on every edit
+ * would pass the first two and be wrong.
+ */
+describe('the clearance review flag', () => {
+	it('comes down when the clearance itself is transformed, through either path', () => {
+		const flagged = editableShape({ clearanceNeedsReview: true });
+		expect(expectOk(moveOutline(flagged, CLEARANCE, { dx: 10, dy: 0 })).clearanceNeedsReview).toBe(false);
+		expect(expectOk(moveVertex(flagged, CLEARANCE, 0, { x: -800, y: -300 })).clearanceNeedsReview).toBe(false);
+	});
+
+	it('stays up when the edit names another part, because that is not a review of the boundary', () => {
+		const flagged = editableShape({ clearanceNeedsReview: true });
+		expect(expectOk(moveOutline(flagged, FOOTPRINT, { dx: 10, dy: 0 })).clearanceNeedsReview).toBe(true);
+		expect(expectOk(moveOutline(flagged, TOP, { dx: 10, dy: 0 })).clearanceNeedsReview).toBe(true);
+		expect(expectOk(moveAnchor(flagged, { x: 5, y: 5 })).clearanceNeedsReview).toBe(true);
+		expect(expectOk(setFacing(flagged, Math.PI / 2)).clearanceNeedsReview).toBe(true);
+	});
+
+	it('markClearanceReviewed answers the notice and moves not one coordinate', () => {
+		const flagged = editableShape({ clearanceNeedsReview: true });
+		const reviewed = expectOk(markClearanceReviewed(flagged));
+		expect(reviewed.clearanceNeedsReview).toBe(false);
+		expect(reviewed.clearance?.points).toEqual(flagged.clearance?.points);
+		expect(reviewed.footprint.points).toEqual(flagged.footprint.points);
+	});
+});
+
 describe('scaleDesign', () => {
+	/**
+	 * **AMENDED at AD14, not replaced.** This case used to pin the clearance's SCALED points
+	 * literally — `[{ x: -1500, y: -150 }, { x: 1300, y: -150 }, { x: 1300, y: 350 }, { x: -1500, y: 350 }]`,
+	 * which is `editableShape`'s 1400 x 1000 boundary put through the same 2 x 0.5 the footprint
+	 * takes. That was correct behaviour for its whole life and stopped being correct at ruling
+	 * AD14-R1 / ADR-0034: a MEASURED clearance is an authored planning boundary, so it is preserved
+	 * at the size somebody drew and flagged for review rather than silently redrawn at a size
+	 * nobody chose. The literal is kept as the fixture's UNSCALED coordinates below, which is the
+	 * same list the shape went in with — the point of the case is still that every OTHER part
+	 * moved.
+	 */
 	it('scales every part about the anchor, which does not move, and carries pending flags', () => {
 		const scaled = expectOk(scaleDesign(editableShape({ anchor: { x: 100, y: 0 } }), 2, 0.5));
 		expect(scaled.anchor).toEqual({ x: 100, y: 0 });
 		expect(scaled.footprint.points).toEqual([{ x: -1100, y: -150 }, { x: 900, y: -150 }, { x: 900, y: 150 }, { x: -1100, y: 150 }]);
-		expect(scaled.clearance?.points).toEqual([{ x: -1500, y: -150 }, { x: 1300, y: -150 }, { x: 1300, y: 350 }, { x: -1500, y: 350 }]);
+		// PRESERVED, not scaled: `editableShape`'s own 1400 x 1000 clearance, unmoved (AD14-R1).
+		expect(scaled.clearance?.points).toEqual([{ x: -700, y: -300 }, { x: 700, y: -300 }, { x: 700, y: 700 }, { x: -700, y: 700 }]);
+		expect(scaled.clearanceNeedsReview).toBe(true);
 		expect(scaled.details[0].outline.points).toEqual([{ x: -900, y: -50 }, { x: -100, y: -50 }, { x: -100, y: 50 }, { x: -900, y: 50 }]);
 		expect(scaled.details[1].pending).toBe(true);
+	});
+
+	/**
+	 * The other half of `r1` row 2, which AD14 leaves exactly as it found it: a PENDING clearance's
+	 * coordinates are background pixels, the whole capture shares one space, and scaling them
+	 * weakens nothing that is yet a measurement. So it scales with everything else and the flag is
+	 * NOT set — the literal here is the one the case above gave up.
+	 */
+	it('goes on scaling a PENDING clearance, and flags nothing, because those are not millimetres yet', () => {
+		const scaled = expectOk(scaleDesign(editableShape({ anchor: { x: 100, y: 0 }, clearancePending: true }), 2, 0.5));
+		expect(scaled.clearance?.points).toEqual([{ x: -1500, y: -150 }, { x: 1300, y: -150 }, { x: 1300, y: 350 }, { x: -1500, y: 350 }]);
+		expect(scaled.clearanceNeedsReview ?? false).toBe(false);
+		expect(scaled.clearancePending).toBe(true);
+	});
+
+	it('flags a measured clearance when the object GROWS as well as when it shrinks', () => {
+		for (const [sx, sy] of [[2, 2], [0.5, 0.5], [2, 0.5]] as const) {
+			expect(expectOk(scaleDesign(editableShape(), sx, sy)).clearanceNeedsReview).toBe(true);
+		}
+	});
+
+	/**
+	 * The identity arm, which `scaleDesignToDimensions` really does apply — its width pass runs at
+	 * factor 1 whenever the typed width already matches. It must not SET the flag (nothing moved)
+	 * and, more sharply, it must not CLEAR one that is already up: re-typing the current size is
+	 * not an answer to a review.
+	 */
+	it('sets no flag for an identity scale, and does not clear one already set', () => {
+		expect(expectOk(scaleDesign(editableShape(), 1, 1)).clearanceNeedsReview ?? false).toBe(false);
+		expect(expectOk(scaleDesign(editableShape({ clearanceNeedsReview: true }), 1, 1)).clearanceNeedsReview).toBe(true);
 	});
 
 	it('keeps a circle’s bulges under a non-uniform scale, doubling its width', () => {
@@ -242,10 +323,34 @@ describe('scaleDesignToDimensions', () => {
 		const box = expectOk(boundingBoxOf(scaled.footprint));
 		expect([box.max.x - box.min.x, box.max.y - box.min.y]).toEqual([2000, 300]);
 		expect(scaled.anchor).toEqual({ x: 0, y: 0 });
-		// 1400 x 1000 clearance scaled by the same 2 x 0.5 the footprint took.
+		// **AMENDED at AD14, not replaced.** This line asserted `[2800, 500]` — the fixture's
+		// 1400 x 1000 clearance put through the same 2 x 0.5 the footprint took — for its whole
+		// life, and that was the shipped behaviour this card supersedes deliberately (AD14-R1,
+		// ADR-0034). A measured clearance is now PRESERVED at the size its author drew, so the
+		// numbers below are the fixture's own, and the review flag is what makes the mismatch
+		// survive a reopen rather than being an ephemeral warning.
 		const clearance = expectOk(boundingBoxOf(expectDefined(scaled.clearance, 'the clearance')));
-		expect([clearance.max.x - clearance.min.x, clearance.max.y - clearance.min.y]).toEqual([2800, 500]);
+		expect([clearance.max.x - clearance.min.x, clearance.max.y - clearance.min.y]).toEqual([1400, 1000]);
+		expect(scaled.clearanceNeedsReview).toBe(true);
 		expect(scaled.details[1].pending).toBe(true);
+	});
+
+	/**
+	 * The gesture this whole ruling is about, end to end: Edit dimensions on a design whose typed
+	 * width already matches leaves the width pass at factor 1 and only the depth moves — and the
+	 * flag still comes up, because the object the boundary was drawn around did change.
+	 */
+	it('flags the clearance when only ONE axis moves', () => {
+		const start = editableShape();
+		const scaled = expectOk(scaleDesignToDimensions(start, 1000, 300));
+		expect(widthOf(scaled)).toBeCloseTo(1000, 9);
+		expect(depthOf(scaled)).toBeCloseTo(300, 9);
+		expect(scaled.clearanceNeedsReview).toBe(true);
+	});
+
+	it('flags nothing when both typed dimensions are the ones the design already has', () => {
+		const scaled = expectOk(scaleDesignToDimensions(editableShape(), 1000, 600));
+		expect(scaled.clearanceNeedsReview ?? false).toBe(false);
 	});
 
 	it('lands a curved footprint the plain ratio would miss', () => {

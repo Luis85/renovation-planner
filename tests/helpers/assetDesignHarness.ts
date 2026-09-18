@@ -94,8 +94,12 @@ export const drawn = (): AssetShape => ({
 	facing: 0,
 	details: [],
 	// A shape that has been through `validateAssetShape` always carries the array, so a fixture
-	// compared against one that was READ BACK has to carry it too (AD04 §4).
+	// compared against one that was READ BACK has to carry it too (AD04 §4). The same sentence,
+	// met a second time at AD14: the validator normalises `clearanceNeedsReview` to a definite
+	// boolean, so a read-back shape carries `false` where this literal would otherwise carry
+	// nothing at all — and `toEqual` sees those as different.
 	groups: [],
+	clearanceNeedsReview: false,
 });
 
 /** A vault fault a test can inject, shaped exactly as the ports' own union permits. */

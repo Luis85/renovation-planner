@@ -330,7 +330,15 @@ describe('the designer’s dimensions dialog', () => {
 		const scaled = (await harness.document()).shape;
 		expectNear(scaled?.footprint.points, [[-380, -700], [380, -700], [380, 320], [-380, 320]]);
 		expect(scaled?.footprint.bulges).toEqual([0, 0, 1, 0]);
-		expectNear(scaled?.clearance?.points, [[-780, -700], [780, -700], [780, 1900], [-780, 1900]]);
+		// **AMENDED at AD14, not replaced.** This pinned `[[-780, -700], [780, -700], [780, 1900],
+		// [-780, 1900]]` — the toilet preset's own 780 x 1300 clearance put through the same 2 x 2
+		// the footprint takes — and that was the shipped behaviour ruling AD14-R1 / ADR-0034
+		// supersedes deliberately. The preset's clearance is MEASURED, so it is now preserved at the
+		// size its author drew and flagged for review; the numbers below are `toiletShape()`'s own,
+		// unmoved. The two fixtures the card named are in `tests/domain/asset/shapeEdits.test.ts`;
+		// this is the third, found by running the suite rather than by reading the card.
+		expectNear(scaled?.clearance?.points, [[-390, -350], [390, -350], [390, 950], [-390, 950]]);
+		expect(scaled?.clearanceNeedsReview).toBe(true);
 		expectNear(scaled?.details[0].outline.points, [[-380, -700], [380, -700], [380, -300], [-380, -300]]);
 		expectNear(scaled?.details[1].outline.points, [[-304, 54], [304, 54], [304, 346], [-304, 346]]);
 		expect(scaled?.details[1].outline.bulges).toEqual([1, 0, 1, 0]);

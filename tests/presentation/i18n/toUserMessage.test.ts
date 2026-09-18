@@ -426,6 +426,17 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.validation',
 		'domain/asset/AssetShape.ts',
 	],
+	// AD14's third flag coherence, minted at the same site as the one above. **Its copy lives in
+	// `en/assetClearanceReview.ts` rather than beside its sibling in `en.ts`**, which the table
+	// cannot see and does not need to: `hasLocaleKey` asks `key in en`, and a key spread through
+	// `en/editor.ts` satisfies that identically. The aggregators are integrator-owned, which is why
+	// it is in the card's own module.
+	[
+		'asset.absent-clearance-cannot-need-review',
+		'Validation',
+		'error.category.validation',
+		'domain/asset/AssetShape.ts',
+	],
 	// The symbols spec's detail validation (2026-09-13).
 	['asset.invalid-detail', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],
 	['asset.degenerate-detail', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],

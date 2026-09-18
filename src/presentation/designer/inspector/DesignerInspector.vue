@@ -31,6 +31,7 @@ import DesignerArrangePanel from './DesignerArrangePanel.vue';
 import DesignerReferenceStatus from './DesignerReferenceStatus.vue';
 import DesignerReferencePlacement from './DesignerReferencePlacement.vue';
 import DesignerClearanceHelper from './DesignerClearanceHelper.vue';
+import DesignerClearanceReview from './DesignerClearanceReview.vue';
 import DesignerUsePlan from './DesignerUsePlan.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
@@ -365,6 +366,18 @@ const dimensionsLabel = computed(() =>
 			:edit-shape="editShape"
 		/>
 		<DesignerClearanceHelper
+			:design="design"
+			:edit-shape="editShape"
+		/>
+		<!--
+			**The clearance review notice and its answer** (AD14), beneath the clearance block it is
+			about and LAST in the panel, because it is the only block here that appears and
+			disappears in response to an edit made elsewhere on this surface: nothing below it can be
+			pushed down when a resize sets the flag. Its notice and its button are one `<section>`,
+			so the two never separate. It draws nothing unless `clearanceNeedsReview` is set, which
+			leaves every other state of this panel exactly as it was.
+		-->
+		<DesignerClearanceReview
 			:design="design"
 			:edit-shape="editShape"
 		/>

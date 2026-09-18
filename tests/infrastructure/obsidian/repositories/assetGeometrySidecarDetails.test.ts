@@ -79,7 +79,7 @@ describe('asset geometry sidecar, schema version 2', () => {
 		expect(read.document.shape?.details).toEqual([]);
 		expectOk(await sidecar.write(assetId, read.document, read.version));
 
-		expect(JSON.parse(stack.vault.entries.get(path) ?? '{}').schemaVersion).toBe(3);
+		expect(JSON.parse(stack.vault.entries.get(path) ?? '{}').schemaVersion).toBe(4);
 	});
 
 	it('writes a straight outline with no bulges key', async () => {
@@ -124,7 +124,7 @@ describe('schema version 3 fields', () => {
 
 		expect(read.document.shape).toEqual(shape);
 		const stored = JSON.parse(stack.vault.entries.get(path) ?? '{}');
-		expect(stored.schemaVersion).toBe(3);
+		expect(stored.schemaVersion).toBe(4);
 		expect(stored.shape.details[2]).toMatchObject({ kind: 'open' });
 		expect(stored.shape.groups).toEqual([{ id: 'group-1', label: 'Front', members: ['detail-1', 'detail-3'] }]);
 	});

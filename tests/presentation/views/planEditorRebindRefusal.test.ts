@@ -13,8 +13,21 @@
  *
  * What it asserts: `writesBlocked` is true from the rebind until the fresh read makes the canvas
  * current again, a command dispatched into the window is REFUSED rather than executed, and the
- * one user-reachable write door open in that window — the reference/background control, the Add
- * menu and the canvas being absent — stays `aria-disabled` across it.
+ * reference/background control stays `aria-disabled` across it.
+ *
+ * **That last clause is about ONE control, not about a category**, and the sentence is written
+ * from what was counted rather than from what was expected. The `.vue` files under
+ * `src/presentation/editor/` carry 58 `data-rp-action` sites, 48 distinct names among the
+ * LITERAL ones — two more are
+ * bound dynamically (`FreeShapeRoomAction.vue`, `PersistentWarningStrip.vue`) and no text
+ * search resolves those, which is the first reason this is a count and not a category. The
+ * window itself draws fourteen controls in all,
+ * and only three of them are write doors — `undo` and `redo`, both natively `disabled` because
+ * a fresh history has nothing in it, and `reference`, the one this file reads. The other eleven
+ * are camera, panel and navigation controls that write nothing. **The CATEGORY is held
+ * somewhere else entirely**: a write reaches the vault through `runtime.dispatcher.run`, which
+ * is where this change put the refusal, so an unenumerated door would be refused there whatever
+ * its own attributes said — and the second case below is what checks that, by dispatching.
  *
  * What it does NOT assert: anything about Obsidian. `FakeLeaf` records asks rather than behaving,
  * and `view.rebind(deps())` stands in for the `saveSettings` chain that calls it.
@@ -33,7 +46,6 @@ import { installEditorEnvironment, settle, sizedShellRoot } from '../../helpers/
 import { FIXTURE_PLAN, FIXTURE_ZONES, fakeQueries } from '../../helpers/planFixtures';
 import { injectedPersistenceError } from '../../helpers/domain';
 import { FakeLeaf } from '../../helpers/workspace';
-import { installQuietWriteIncidents } from '../../helpers/writeIncidents';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 import type { Pinia } from 'pinia';
 
@@ -114,7 +126,6 @@ const wrote = (): Promise<DispatchResult> => Promise.resolve(ok('wrote'));
 
 describe('Plan Editor write refusal across a settings rebind', () => {
 	it('keeps refusing from the rebind until the fresh read makes the canvas current again', async () => {
-		installQuietWriteIncidents();
 		const view = await opened();
 		expect(reading(view)).toEqual({ blocked: false, stale: false, status: 'ready' });
 
@@ -149,7 +160,6 @@ describe('Plan Editor write refusal across a settings rebind', () => {
 	});
 
 	it('refuses a command dispatched into the window between the remount and the fresh hydrate', async () => {
-		installQuietWriteIncidents();
 		const view = await opened();
 
 		failing = true;

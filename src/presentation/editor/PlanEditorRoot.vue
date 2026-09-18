@@ -76,6 +76,23 @@ const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed }
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
 const pausedReason = computed(() => tr(unrecoveredWrite.value ? 'editor.unrecovered' : 'editor.paused.reason'));
+/**
+ * Whether either sentence `pausedReason` can say is TRUE right now — which is a narrower
+ * question than `runtime.writesBlocked`, and used to be the same one.
+ *
+ * BP-03 / F2 gave `writesBlocked` a `status !== 'ready'` term so no write lands while a plan
+ * is still being read (lifecycle contract row F2). `editor.paused.reason` names "the floor
+ * could not be re-read after the last change" and `editor.unrecovered` names a write that
+ * could not be undone; on an ordinary FIRST load neither has happened. Measured before the
+ * split: a healthy vault's first load rendered the re-read sentence for the whole of the read,
+ * and so did the `failed` terminal state. Wrong information, not wrong emphasis.
+ *
+ * So the three terms here are `writesBlocked`'s own, MINUS the status one — `stale`, plus both
+ * halves of its `unsafeHistory()`. Nothing about any control's disabled state changes: every
+ * paused control still reads `runtime.writesBlocked` directly, and this decides only whether
+ * the sentence explaining a pause is in the DOM.
+ */
+const pausedReasonApplies = computed(() => stale.value || runtime.planning.failed.value || unrecoveredWrite.value);
 
 /**
  * The overlay's props, or `null` for no overlay.
@@ -490,13 +507,26 @@ watch(() => renovationSession.perspective, perspective => { if (perspective !== 
 				-->
 				<!--
 					Design spec §2.9: the ONE hidden sentence every paused control's `aria-describedby`
-					points at, minted here as `runtime.pausedReasonId` (one `useId()` per leaf) and
-					rendered only while `runtime.writesBlocked` — a reference naming an id no element
-					carries is what axe reports as `aria-valid-attr-value`, so the two share this one
-					`v-if` rather than the sentence being always in the DOM.
+					points at, minted here as `runtime.pausedReasonId` (one `useId()` per leaf). It is
+					NOT always in the DOM: a reference naming an id no element carries is what axe
+					reports as `aria-valid-attr-value`.
+
+					The `v-if` is `pausedReasonApplies`, not `runtime.writesBlocked` — see that
+					computed for why, BP-03 / F2. That is a real split and it owes a statement of
+					what keeps the references honest across it: in the states where the two now
+					DISAGREE (`status !== 'ready'` with nothing stale), the canvas is not drawn, so
+					every consumer of `pausedReasonId` — the overlay's action below, and the
+					selection-, draft- and canvas-borne ones in `AddMenu`, `ZoneLockToggle`,
+					`TemporaryToolBanner`, `NewRoomInspector` and `pauseAttrs` — is unmounted with it.
+					That is an enumeration, which is exactly the kind of claim this repository has
+					been wrong about, so it is not what holds: the CHECK is
+					`tests/presentation/editor/pausedSurfaces.test.ts`'s first-load case, which reads
+					the whole subtree for any `aria-describedby` naming the id and requires the count
+					to be zero while the sentence is absent. Add a consumer that survives a
+					non-ready status and that case goes red.
 				-->
 				<p
-					v-if="runtime.writesBlocked.value"
+					v-if="pausedReasonApplies"
 					:id="runtime.pausedReasonId"
 					class="rp-visually-hidden"
 				>

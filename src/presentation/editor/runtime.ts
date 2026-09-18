@@ -623,8 +623,19 @@ function buildDispatcherChain(
 	 * leaves `status` at `'ready'` for a re-hydration (`if (status.value !== 'ready')`), so
 	 * the post-command refresh and the `onPlanChanged` refresh never pass through a non-ready
 	 * status. The states this adds are the first load, a load after a failure, `missing` and
-	 * `failed` — none of which draws a canvas: `PlanEditorRoot.vue` gates the canvas on
-	 * `status === 'ready'` and `editorArrival.ts` already spells this same predicate.
+	 * `failed` — none of which draws a canvas, and that one clause rests on one citation:
+	 * `PlanEditorRoot.vue` gates the canvas on `status === 'ready'`. `editorArrival.ts` is
+	 * evidence for something else and is cited here as that — the predicate is IDIOMATIC
+	 * rather than new, since its own refusal already reads
+	 * `project.status !== 'ready' || runtime.writesBlocked.value`. A consequence of this
+	 * change worth knowing there: that first operand is now wholly subsumed by its second.
+	 *
+	 * **What this predicate does NOT do is keep the paused SENTENCE honest.** The hidden
+	 * `editor.paused.reason` names a failed re-read after the last change, which is false in
+	 * every state this term adds, so `PlanEditorRoot.vue` renders that sentence on the
+	 * narrower `stale || planning.failed || unrecoveredWrite` instead of on this computed.
+	 * Blocked and blocked-for-a-stated-cause are two questions now; see that template's own
+	 * comment for what holds the `aria-describedby` references honest across the split.
 	 */
 	const writesBlocked = computed(() => projectStore.status !== 'ready' || projectStore.stale || unsafeHistory());
 	const gated = withIncidentGate(withStaleGate(tracked, () => writesBlocked.value || session.perspective === 'review', unsafeHistory));

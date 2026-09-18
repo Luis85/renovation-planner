@@ -112,6 +112,7 @@ import { ASSET_DESIGNER_CONTEXT } from '../AssetDesignerContext';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { createTicketedSection } from '../../library/ticketedSection';
+import DesignerUsagePlans from './DesignerUsagePlans.vue';
 
 const context = inject(ASSET_DESIGNER_CONTEXT);
 
@@ -178,32 +179,22 @@ const rows = computed(() =>
 		>
 			{{ tr('view.asset-library.used-in-plans.loading') }}
 		</p>
-		<template v-else>
-			<ul
-				v-if="rows.length > 0"
-				class="rp-designer-usage-plans"
-			>
-				<li
-					v-for="row in rows"
-					:key="row.planId"
-					:data-plan-id="row.planId"
-				>
-					{{ row.label }}
-				</li>
-			</ul>
-			<p
-				v-else
-				class="rp-designer-usage-note"
-			>
-				{{ tr('view.asset-library.used-in-plans.none') }}
-			</p>
-			<p
-				v-if="unreadable > 0"
-				class="rp-designer-usage-note"
-				data-usage-incomplete="true"
-			>
-				{{ tr('view.asset-library.used-in-plans.unreadable', { count: String(unreadable) }) }}
-			</p>
-		</template>
+		<!--
+			The READY arm is a CHILD rather than a nested `<template v-else>`, and `npm run analyze`
+			is what decided that: this template breached fallow's cognitive threshold at 18, because
+			the arm held a list-or-empty choice and a third conditional note inside an arm of a
+			three-way branch inside the `bound` guard. Nesting is what cognitive complexity counts.
+			Factored out rather than suppressed with `fallow-ignore-next-line`, which this
+			repository's record is explicit about for exactly this finding.
+
+			The split is along the seam that was already there: this file owns the gate, the four
+			states and their order; `DesignerUsagePlans` owns what a READY answer looks like and
+			decides nothing about whether it appears.
+		-->
+		<DesignerUsagePlans
+			v-else
+			:rows="rows"
+			:unreadable="unreadable"
+		/>
 	</section>
 </template>

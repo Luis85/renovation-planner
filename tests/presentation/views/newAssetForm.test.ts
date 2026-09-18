@@ -138,6 +138,10 @@ describe('NewAssetForm', () => {
 			unit: 'piece',
 			unitCostAmount: '450.00',
 			currency: 'EUR',
+			// AD07 Amendment 1's optional descriptive height, which this case's `toEqual` is the
+			// whole-input statement of: an untouched field sends `null`, not `0` and not nothing.
+			// `newAssetFormHeight.test.ts` is where the field itself is driven.
+			height: null,
 		});
 		expect(setFootprintFromDimensions).toHaveBeenCalledTimes(1);
 		expect(setFootprintFromDimensions).toHaveBeenCalledWith(

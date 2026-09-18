@@ -2,7 +2,11 @@
 
 Outcome: **implemented, with ONE deliberately red assertion awaiting a one-line integrator wire.**
 Owner / worktree / branch: wave-5 worker · `.worktrees/ad14` · `ad14-clearance-review`
-Base commit / candidate commit: `044e11f52` / **see the branch tip** (`git log -1 ad14-clearance-review`)
+Base commit / candidate commit: `044e11f52` / **`33da7438a`** — every source and test change ends
+there. `c9ea7758e` is the implementation and `33da7438a` the follow-up round (a docblock count
+written from the grep, and one `vue-tsc` error the capability gate introduced after the last
+type-check). The commit carrying THIS paragraph touches only this report, for the reason
+`RESUME.md` was corrected once already: a document cannot name a SHA it is inside.
 Accepted contract revision: `r1`, applying ruling **AD14-R1**, contract **C03**'s supersession
 clause, **C07**'s resize paragraph and **C11** as `r1` row 3 settles it.
 Allowed scope and shared-file leases: the wave-5 AD14 row — `domain/asset/AssetShape.ts`
@@ -234,6 +238,12 @@ it pins and what it does not.
 | `npx vitest run tests/domain tests/core tests/presentation/{views,editor,components}` | candidate | see the run log | |
 | `npx vitest run tests/harness tests/plugin tests/application tests/infrastructure` | candidate | **311 files / 3443 tests passed** | |
 | `npx vitest run tests/presentation/{designer,i18n,library}` | candidate | **86 of 87 files passed, 1244 of 1245 tests** — the one failure is the deliberate red below | |
+| `npx vitest run tests/domain tests/core` | candidate | 87 files / 1093 tests passed | |
+| `npx vitest run tests/presentation/{views,components}` | candidate | 75 files / 787 tests passed | |
+| `npx vitest run tests/presentation/editor` | candidate | **391 files / 3105 tests passed** | the editor draws a placed clearance (`assetShapeConfig.ts`) and reads no flag, so nothing there needed a change and nothing there broke |
+| `npx vitest run tests/build` | candidate | **46 files / 1292 tests passed** | this is the directory the report first listed as unrun; it was then run. `regionsReachable.test.ts` lives under `tests/presentation/designer/` and was run separately |
+| `npx vitest run tests/release` | candidate | 3 files / 19 tests passed | |
+| `npx vue-tsc -noEmit` (third run, after the capability gate landed) | candidate | **exit 1 at first** — `assetCapabilityClaims.test.ts(102,25): error TS2345: Argument of type 'string \| undefined' is not assignable to parameter of type 'string'` — then 0 | the gate file was written after the previous type-check; recorded rather than quietly fixed, because it is the reason `tests/**` is type-checked at all |
 | `npx vitest run tests/infrastructure/obsidian/repositories` | candidate | 40 files / 954 tests passed | after the v4 bump |
 | `npx eslint <the 11 changed src files> --max-warnings 0` | candidate | 0 | the layer bans, the write boundary and both text bans, over exactly the files this branch changes |
 | `npx eslint <the 8 changed/new test files> --max-warnings 0` | candidate | 0 | |
@@ -340,13 +350,12 @@ site named by the grep is inside this card's lease and is driven green.
     exits 1 on this box. Two things on this branch are the kind it reports: the newly exported `AssetGeometrySchemaV3` (exported for one
     test assertion, exactly as `AssetGeometrySchemaV1` already is) and `markClearanceReviewed`
     (exported from the domain, imported by the new SFC and by its test).
-- **The full suite in one run — NOT RUN.** It was run in four scoped passes to keep this shared box
-  under load. `tests/build`, `tests/release` and `tests/vault` were **not** run at all. `tests/build`
-  is the one to worry about: it holds `regionsReachable.test.ts` (which requires every `.vue` under
-  `src/presentation/designer/` to be import-reachable from `AssetDesignerView.ts` — the new
-  component is reached through `DesignerInspector.vue`, but that is an argument rather than a run),
-  `libraryComponentStyles.test.ts` (which refuses a class the assembled sheet does not declare — no
-  new class was minted, which is the reason to expect it green) and `styles.test.ts`.
+- **The full suite in ONE run — NOT RUN.** It was run in seven scoped passes to keep this shared box
+  under load, and every directory under `tests/` that holds a spec was covered by one of them
+  (`tests/contracts` holds shared modules and `tests/vault` holds fixture data; neither contains a
+  test file). What no scoped pass can tell you is whether the suite is green *together*: the
+  `--no-isolate` findings this repository already records are the reason that is a real distinction,
+  even though every project here keeps its isolation.
 - **Cross-platform** — Windows only. Nothing was run on Linux, and nothing on any Node version but
   this worktree's.
 - **A real v3→v4 upgrade in a real vault** — not performed. The migration is exercised only through

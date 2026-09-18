@@ -6,6 +6,7 @@ import type { AssetId } from '../../domain/asset/AssetId';
 import type { AssetShape } from '../../domain/asset/AssetShape';
 import { captureAwaitsScale } from '../../domain/asset/captureAwaitsScale';
 import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
+import type { SetAssetBackgroundInput } from '../../application/commands/asset/SetAssetBackground';
 import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import { boundsOfZones } from '../editor/viewport/zoneExtent';
 import { useEditorStore } from '../stores/EditorStore';
@@ -75,6 +76,38 @@ export interface DesignerRuntime {
 	 * cancelled pick (`null`) never reaches this at all.
 	 */
 	readonly setBackground: (document: DocumentRef) => Promise<void>;
+	/**
+	 * AD12-R2's gesture: take the reference away again, through the very command that replaces
+	 * one — `SetAssetBackgroundInput`'s `path: null` arm — so the calibration clear, the
+	 * compensation and the undo entry are the ones that already exist rather than a second set.
+	 * `setBackground`'s shape and for its reason: a click-bound dispatch with no field to show a
+	 * refusal under, so it swallows its own `Result`.
+	 *
+	 * It is safe on an asset that has no reference — `sameBackground(null, null)` answers
+	 * `no-write` — and no control calls it there anyway: `DesignerReferenceStatus` draws the
+	 * button only while `design.background !== null`, which is the predicate rule rather than a
+	 * `:disabled`.
+	 */
+	readonly removeBackground: () => Promise<void>;
+	/**
+	 * How opaque this leaf draws the reference, `1` fully (AD12-R1's genuine gap: fading a sheet
+	 * to trace over it).
+	 *
+	 * **A leaf-local VIEW preference, written nowhere** — `PartView`'s shape exactly. It reaches
+	 * no command, no note, no sidecar and no undo entry, it is not remembered per device beside
+	 * `gridVisible` and `snappingEnabled`, and it does not survive a reopened leaf: an editing aid
+	 * is not output (C10), and AD01 §2's standing rule is that presentation holds the ephemeral
+	 * state and the vault holds the documents.
+	 *
+	 * A `Ref` and not a getter for `multiSelectionMode`'s reason: `DesignerViewMenu` binds it with
+	 * `v-model`.
+	 *
+	 * **LOCK is not here and is not deferred.** Every designer layer is built by
+	 * `designerLayerConfig` with `listening: false` and no tool moves the background, so the
+	 * property a lock names already holds and a control for it would be a switch with an
+	 * unreachable off position (AD12-R1).
+	 */
+	readonly backgroundOpacity: Ref<number>;
 	/**
 	 * Task B8's gesture, the same shape as `setBackground` above and for the same reason: a
 	 * click-bound dispatch with no field to show a refusal under, so it swallows the `Result`
@@ -454,6 +487,9 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const { editor, selection, workspace, viewportAdapter, snapService } = leafStores();
 
 	const renderState = reactive(new RenderState());
+	// A view preference and nothing else — see `DesignerRuntime.backgroundOpacity`. Here rather
+	// than in `writingFor` because it writes nothing.
+	const backgroundOpacity = ref(1);
 	/**
 	 * TWO ledgers, because an asset is two resources under one id — see `DesignWriteLedgers`.
 	 * Only the geometry one is reachable from this surface's tools, every one of which writes the
@@ -542,18 +578,21 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	async function redo(): Promise<void> {
 		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, chain.enqueue(() => dispatcher.redo())));
 	}
+	// ONE dispatch for BOTH background gestures, because they differ only in the input: `path`
+	// naming a document points the designer at it, `path: null` takes it away (AD12-R2). Two copies
+	// of the enqueue-report-notify chain would be two places to change when the routing does — and
+	// `buildRuntime`'s 100-line budget is the gate that said so, measured at 108 with the copy.
+	async function dispatchBackground(input: SetAssetBackgroundInput): Promise<void> {
+		await notifyIfRefused(
+			reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, chain.enqueue(() => dispatcher.run(edits.setBackground(input)))),
+		);
+	}
 	// `document` and not `ref`: this module imports Vue's own `ref` since AD08's selection mode, and
 	// `no-shadow` fails the build on the collision — the same rename `onEmptyStateAction` made in
 	// `AssetDesignerRoot.vue` when the background status arrived there.
-	async function setBackground(document: DocumentRef): Promise<void> {
-		await notifyIfRefused(
-			reportDispatchFault(
-				context.logger,
-				DISPATCH_FAULT_EVENT,
-				chain.enqueue(() => dispatcher.run(edits.setBackground({ assetId, path: document.path, kind: document.kind, page: document.page }))),
-			),
-		);
-	}
+	const setBackground = (document: DocumentRef): Promise<void> =>
+		dispatchBackground({ assetId, path: document.path, kind: document.kind, page: document.page });
+	const removeBackground = (): Promise<void> => dispatchBackground({ assetId, path: null });
 	async function setFootprintFromDimensions(width: number, depth: number): Promise<void> {
 		await notifyIfRefused(
 			reportDispatchFault(
@@ -605,6 +644,8 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		undo,
 		redo,
 		setBackground,
+		removeBackground,
+		backgroundOpacity,
 		setFootprintFromDimensions,
 		applyShape,
 		commitHeight,

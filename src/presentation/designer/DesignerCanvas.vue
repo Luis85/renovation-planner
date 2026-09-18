@@ -101,7 +101,7 @@ const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.
-const { toolManager, renderState, setTool, editShape, activeToolId, partView } = useDesignerRuntime();
+const { toolManager, renderState, setTool, editShape, activeToolId, partView, backgroundOpacity } = useDesignerRuntime();
 /**
  * An arrow key nudges the designer's selection (symbols spec, Decision 10) by `EditorSurface`'s own
  * `arrowVector` — 10 mm a press, 100 mm with Shift — as one conditional shape write per press, under
@@ -244,6 +244,22 @@ onBeforeUnmount(() => stopPixelRatio());
 					— and `visible` is a literal because this surface has no layer-visibility
 					control to bind: layer visibility in the plan editor's `WorkspaceStore` is a
 					Plan Editor concern (its `gridVisible` is shared).
+
+					`opacity` is NOT a literal, and it is the one thing on this mount that is not:
+					`DesignerViewMenu`'s third row binds the leaf's own `backgroundOpacity` ref
+					(AD12-R1). It is a VIEW preference and reaches nothing the vault holds —
+					`runtime.ts` carries the whole account.
+
+					**It is a DECLARED prop of that component, and it had to become one.** The first
+					version of this binding relied on Vue's attribute FALLTHROUGH onto the root
+					`<VLayer>`: that does reach the Konva node — vue-konva's node factory builds
+					`{ ...attrs, ...props.config, ...listeners }` and applies it — but `props.config`
+					spreads AFTER `attrs`, so putting `opacity` in that component's config literal
+					would have silently won over this binding, and `inheritAttrs: false` or a second
+					root node there would have dropped it. Vue warned on every mount besides, since
+					`<VLayer>` renders no DOM element to inherit an attribute. `BackgroundLayer.vue`
+					declares `opacity?: number` defaulting to `1` now, so the plan editor's mount is
+					unchanged and `vue-tsc` holds this line.
 				-->
 				<BackgroundLayer
 					:name="BACKGROUND_LAYER"
@@ -251,6 +267,7 @@ onBeforeUnmount(() => stopPixelRatio());
 					:vault="context.vault"
 					:transform="transform"
 					:visible="true"
+					:opacity="backgroundOpacity"
 					:pixels-per-world-unit="pixelsPerWorldUnit"
 					:file-changes="context.onVaultFileChanged"
 					@status="(status) => emit('backgroundStatus', status)"

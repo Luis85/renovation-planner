@@ -4,12 +4,24 @@
  * over, whether that sheet has been calibrated, and which coordinate groups are still in the
  * sheet's own pixels.
  *
- * **It is a STATUS and offers no action, which is a lease fact rather than a design one.** The
- * three gestures it describes already have doors — the picker (`assetBackgroundPicker.ts`), the
- * toolbar's Calibrate tool and the drawing tools — and every one of them is bound in
- * `AssetDesignerRoot.vue`, which AD12 does not own. Adding a fourth activation beside them would
- * break CLAUDE.md's "one action, every input" rule anyway; what was missing was never a second
- * button but a place that says where the sequence has got to.
+ * **It carries exactly ONE action, and the three it merely describes still have their own doors.**
+ * The picker (`assetBackgroundPicker.ts`), the toolbar's Calibrate tool and the drawing tools are
+ * each bound in `AssetDesignerRoot.vue`, and repeating any of them here would break CLAUDE.md's
+ * "one action, every input" rule. What this block owns is the one gesture that had NO door
+ * anywhere: taking the reference away again (AD12-R2). It belongs beside the sentence naming the
+ * sheet because that sentence is the only place in the designer that says which sheet this is.
+ *
+ * **The Remove button is drawn only while there IS a sheet** — a predicate, never a `:disabled`,
+ * which is the repository's own rule about a control that can only refuse. It is not confirmed
+ * either: the gesture goes through `SetAssetBackground`'s reversible adapter like every other one
+ * here, so Ctrl+Z puts back both the reference and the calibration that went with it.
+ *
+ * **`removeBackground` is OPTIONAL and has no default**, which is a statement about a wire rather
+ * than about the feature. An optional callback with a permissive default is precisely how a rule
+ * shipped last wave that no gate could fire (`lockedGraphics`); with no default, an unbound parent
+ * draws no button at all and `designerReferenceView.test.ts` says so out loud. It should be made
+ * REQUIRED once `DesignerInspector.vue` binds it — a one-word change in a file this card does not
+ * own.
  *
  * **The pending lines are the guarantee behind AD12's third acceptance criterion.** Replacing a
  * background clears the CALIBRATION and leaves every per-group flag exactly as it was
@@ -30,7 +42,7 @@ import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 
-const props = defineProps<{ design: AssetDesignDto }>();
+const props = defineProps<{ design: AssetDesignDto; removeBackground?: () => Promise<void> }>();
 
 /**
  * The sheet's own name, and its page where it has one. The basename rather than the vault
@@ -66,6 +78,12 @@ const pending = computed((): StringKey[] => {
 	];
 });
 
+/**
+ * Both halves, and both are load-bearing: there is a reference to take away, and something is
+ * actually bound to take it away with. Either missing and no control is drawn.
+ */
+const canRemove = computed(() => props.design.background !== null && props.removeBackground !== undefined);
+
 const relevant = computed(
 	() => props.design.background !== null || props.design.calibration !== null || pending.value.length > 0,
 );
@@ -85,6 +103,15 @@ const relevant = computed(
 			<dt>{{ tr('designer.reference.scale') }}</dt>
 			<dd>{{ scale }}</dd>
 		</dl>
+		<button
+			v-if="canRemove"
+			type="button"
+			name="remove-reference"
+			class="rp-designer-selection-button"
+			@click="() => void props.removeBackground?.()"
+		>
+			{{ tr('designer.reference.remove') }}
+		</button>
 		<p
 			v-for="key in pending"
 			:key="key"

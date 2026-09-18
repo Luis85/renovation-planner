@@ -59,3 +59,59 @@
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 }
+
+/**
+ * **The usage scope** (AD13-R1): which plans place the definition this leaf is editing, stated
+ * under the asset's name and above every control that rewrites it.
+ *
+ * In THIS partial rather than in `designer.css`, and the reason is measured rather than tidy:
+ * that one is at 388 lines against a hard 400-line cap in `scripts/styles-assemble.mjs`, which
+ * FAILS the build rather than warning. This partial's own header scopes it to the Inspector's
+ * OBJECT block — which asset this is, the way back to the catalogue — and a statement of which
+ * plans place THIS asset is exactly that block. Appended, never reordered: this partial's
+ * position in `index.css` is load-bearing (see the header above), because these rules were
+ * authored at the end of `designer.css` and an equal-specificity pair is decided by order.
+ *
+ * Every colour is an Obsidian variable (SDD §84), so a themed vault stays themed.
+ */
+.rp-designer-inspector .rp-designer-usage-scope {
+	margin: 0 0 var(--size-4-2);
+}
+
+/**
+ * Its heading. An `h4` under the asset block's own `h3` rather than the `h3` every inspector
+ * SECTION takes, because this is part of that block and not a sibling of it — see the component's
+ * header. Normal text weight at the panel's own size: it labels the list below it, and the muted
+ * treatment its state lines take is for facts about the READ.
+ */
+.rp-designer-inspector .rp-designer-usage-title {
+	margin: 0 0 var(--size-4-1);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-normal);
+}
+
+/**
+ * The four state lines — loading, refused or unknown, an empty scope, and the count of notes that
+ * could not be read. One rule for all four, because they are one kind of thing: a fact about the
+ * READ rather than about the asset, which is the muted status line this panel already uses for
+ * `.rp-designer-selection-count` and `.rp-designer-open-graphic`.
+ */
+.rp-designer-inspector .rp-designer-usage-note {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/**
+ * The plans themselves. A bare list — no rule, no separator and no pointer affordance — because
+ * no row here is a control: opening a plan from the designer would be a second navigation door
+ * beside `Use in plan`, and a row that looked clickable and did nothing is the dead control this
+ * expansion has shipped three times.
+ */
+.rp-designer-inspector .rp-designer-usage-plans {
+	margin: 0;
+	padding: 0 0 0 var(--size-4-4);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}

@@ -32,6 +32,7 @@ import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
 import { recorder } from '../../helpers/logger';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 /** The root mounts a real Konva stage and an `EditorSurface`; jsdom supplies neither. */
 installCanvas();
@@ -84,7 +85,7 @@ function mountRoot(usePlan?: (...args: string[]) => void, dto = design()): VueWr
 		// is asked for; the stub used to ignore the argument and hand back a design carrying a
 		// freshly generated one, which is thinner than that and hid exactly what the binding case
 		// below asserts — that the control reads the asset off the DTO it is drawing.
-		queries: { getAssetDesign: () => Promise.resolve(ok(dto)) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(dto)), listPlansUsingAsset: unwiredPlanUsage },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		picker: null,

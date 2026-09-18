@@ -89,6 +89,7 @@ import { installCanvas } from './canvas';
 import { installObsidianDom } from './dom';
 import { installResizeObserver, placeAt, resizeTo } from './layout';
 import { settle } from './editor';
+import { unwiredPlanUsage } from './designerQueries';
 
 /**
  * The `PointerEvent.buttons` bit each `button` number stands for, per the DOM's own table —
@@ -292,7 +293,14 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 
 	const context: AssetDesignerContext = {
 		assetId,
-		queries: createAssetDesignerQueries({ get: new GetAssetDesignQuery(stack.assets, sidecar) }),
+		// The usage scope refuses here: this rig's stack is the ASSET side, and AD13-R1's scope
+		// walks the project and plan repositories, which nothing in a canvas-and-gestures rig
+		// seeds. `unwiredPlanUsage` says *I could not find out* rather than *no plan places this*,
+		// which is what an unwired bundle actually knows — see its own docblock.
+		queries: createAssetDesignerQueries(
+			{ get: new GetAssetDesignQuery(stack.assets, sidecar) },
+			{ execute: unwiredPlanUsage },
+		),
 		commands: options.unrecoveredSettings === true
 			? unavailableAssetDesignerCommands()
 			: createAssetDesignerCommands(commandDeps, bundle),

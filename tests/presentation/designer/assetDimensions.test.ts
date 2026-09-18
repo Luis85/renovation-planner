@@ -38,6 +38,7 @@ import { toiletShape } from '../../helpers/assetShapes';
 import { Notice } from '../../helpers/obsidian-mock';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installCanvas();
 installResizeObserver();
@@ -66,7 +67,7 @@ function context(harness: Awaited<ReturnType<typeof seeded>>): AssetDesignerCont
 	const query = new GetAssetDesignQuery(harness.stack.assets, harness.sidecar);
 	return {
 		assetId: String(harness.assetId),
-		queries: { getAssetDesign: (assetId) => query.execute(assetId as AssetId) },
+		queries: { getAssetDesign: (assetId) => query.execute(assetId as AssetId), listPlansUsingAsset: unwiredPlanUsage },
 		commands: { designEdits: () => harness.reversible },
 		logger: recorder,
 		picker: null,

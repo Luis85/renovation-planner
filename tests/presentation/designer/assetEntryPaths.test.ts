@@ -38,6 +38,7 @@ import { seeded } from '../../helpers/assetDesignHarness';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installCanvas();
 installResizeObserver();
@@ -68,7 +69,7 @@ function context(
 	const query = new GetAssetDesignQuery(harness.stack.assets, harness.sidecar);
 	return {
 		assetId: String(harness.assetId),
-		queries: { getAssetDesign: (assetId) => query.execute(assetId as AssetId) },
+		queries: { getAssetDesign: (assetId) => query.execute(assetId as AssetId), listPlansUsingAsset: unwiredPlanUsage },
 		commands: { designEdits: () => harness.reversible },
 		logger: recorder,
 		picker,

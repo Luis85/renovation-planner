@@ -56,6 +56,7 @@ import { emptyBackgroundVault } from '../../helpers/background';
 import { click, designerRig, move } from '../../helpers/designerRig';
 import { t } from '../../../src/presentation/i18n/strings';
 import { OPEN_POINTS, closedOutlineOf, shapeWithOpenGraphic } from '../../helpers/assetShapes';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 /** A palette resolved the way the designer resolves its own — never a literal colour. */
 const TOKENS = resolveThemeTokens(document.documentElement);
@@ -246,7 +247,7 @@ describe('the designer’s drawing vocabulary', () => {
 function context(design: AssetDesignDto): AssetDesignerContext {
 	return {
 		assetId: String(design.assetId),
-		queries: { getAssetDesign: () => Promise.resolve(ok(design)) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(design)), listPlansUsingAsset: unwiredPlanUsage },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		picker: null,

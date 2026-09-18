@@ -45,6 +45,7 @@ import { lines, recorder, resetRecorder } from '../../helpers/logger';
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { Notice } from '../../helpers/obsidian-mock';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installObsidianDom();
 /**
@@ -109,6 +110,7 @@ function harness(options: {
 	const context: AssetDesignerContext = {
 		assetId: THE_ASSET,
 		queries: {
+			listPlansUsingAsset: unwiredPlanUsage,
 			getAssetDesign: (assetId) => {
 				reads.push(assetId);
 				return options.answers?.() ?? Promise.resolve(ok(WITH_SHAPE));
@@ -596,7 +598,7 @@ describe('reaching the runtime from a region', () => {
 	it('hands a child the very runtime the root provided', () => {
 		const context: AssetDesignerContext = {
 			assetId: THE_ASSET,
-			queries: { getAssetDesign: () => Promise.resolve(ok(WITH_SHAPE)) },
+			queries: { getAssetDesign: () => Promise.resolve(ok(WITH_SHAPE)), listPlansUsingAsset: unwiredPlanUsage },
 			commands: unavailableAssetDesignerCommands(),
 			logger: recorder,
 			picker: null,

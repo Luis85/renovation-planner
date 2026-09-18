@@ -31,6 +31,7 @@ import { seeded } from '../../helpers/assetDesignHarness';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installCanvas();
 installResizeObserver();
@@ -63,6 +64,7 @@ function context(
 					geometryVersion: await harness.geometryVersion(),
 				});
 			},
+			listPlansUsingAsset: unwiredPlanUsage,
 		},
 		commands: { designEdits: () => harness.reversible },
 		logger: recorder,

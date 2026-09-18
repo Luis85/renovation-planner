@@ -99,6 +99,40 @@ describe('a designer leaf restored by the composed plugin', () => {
 	});
 
 	/**
+	 * **AD13-R1's usage scope, composed for real.** The compiler owns "a query was passed"; only a
+	 * case that opens a leaf through the PLUGIN's own factory and reads what the inspector draws
+	 * owns "the composed one". A root that handed the designer `unavailableAssetDesignerQueries`'s
+	 * arm — or that never called `guardAssetUsage` at all — compiles, mounts, and draws the
+	 * *scope unknown* sentence for ever, which looks exactly like a vault that refused.
+	 *
+	 * The observable is the EMPTY scope, because this vault holds one asset note and no project,
+	 * so a composed query's honest answer is *no plan places this asset*. That is a different
+	 * sentence from the refusal, and the two are the whole distinction this block exists to draw.
+	 *
+	 * After `layoutReady()` deliberately: the inspector is drawn from the design read, which only
+	 * lands once the index scan has run, and the scope's own gate asks the same flag. A build that
+	 * dropped the gate still passes here — `designerUsageScope.test.ts` is what owns the gate, with
+	 * a query that would answer plans before the scan.
+	 */
+	it('draws a composed usage scope in the inspector, not a refusal', async () => {
+		const { stack, assetId } = await vaultWithOneAsset();
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		workspace.layoutReady();
+		const view = designerOn(plugin);
+
+		await view.setState({ assetId }, {} as never);
+		await view.onOpen();
+		await settle();
+
+		const block = view.contentEl.querySelector('.rp-designer-usage-scope');
+		expect(block?.textContent).toContain(t('en', 'view.asset-library.used-in-plans'));
+		expect(block?.textContent).toContain(t('en', 'view.asset-library.used-in-plans.none'));
+		expect(block?.textContent).not.toContain(t('en', 'view.asset-library.used-in-plans.failed'));
+
+		await view.onClose();
+	});
+
+	/**
 	 * And the design-change arm reaches the leaf on the ROOT's bus. Asserted through a read that
 	 * ANSWERS DIFFERENTLY — the asset is deleted between the two reads — because "a handler was
 	 * registered" is exactly what a subscription wired to a fresh bus also satisfies. The delete

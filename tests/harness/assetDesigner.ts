@@ -1,4 +1,6 @@
 import { createAssetId } from '../../src/domain/asset/AssetId';
+import { createPlanId } from '../../src/domain/plan/PlanId';
+import { createProjectId } from '../../src/domain/project/ProjectId';
 import { dimensionsOf, type AssetShape } from '../../src/domain/asset/AssetShape';
 import { ASSET_PRESETS } from '../../src/domain/asset/presets/catalogue';
 import { defaultValues } from '../../src/domain/asset/presets/presetGeometry';
@@ -120,7 +122,24 @@ function assetDesignerHarnessDeps(presetId: string | null, pending: boolean): As
 		// A fresh DTO per call, not the constant — `planEditor.ts`'s `getPlan` carries the same
 		// rule: the real query builds its DTO from a note it just read, and handing back the
 		// module object would let a mutation through Pinia's reactive state edit the fixture.
-		queries: { getAssetDesign: () => Promise.resolve(ok(structuredClone(designFor(presetId, pending)))) },
+		queries: {
+			getAssetDesign: () => Promise.resolve(ok(structuredClone(designFor(presetId, pending)))),
+			// A POPULATED scope rather than a refusal (AD13-R1), because this page exists to be
+			// looked at: the state worth photographing is the one a user meets — two plans and a
+			// placement count — and the refusal line is a sentence any capture of the library's
+			// own panel already shows. Two plans and not one, so the capture measures a LIST's
+			// spacing rather than a single row's.
+			listPlansUsingAsset: () =>
+				Promise.resolve(
+					ok({
+						plans: [
+							{ planId: createPlanId(), planName: 'Ground floor', projectId: createProjectId(), placements: 2 },
+							{ planId: createPlanId(), planName: 'Loft conversion', projectId: createProjectId(), placements: 1 },
+						],
+						unreadable: 0,
+					}),
+				),
+		},
 		commands: unavailableAssetDesignerCommands(),
 		logger: inertLogger,
 		picker: inertPicker,

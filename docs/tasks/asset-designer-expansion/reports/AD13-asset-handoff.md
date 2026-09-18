@@ -7,7 +7,7 @@ are outside this row; they are ICR 1-H below. AD13 acceptance criterion 1 theref
 "unmet, with a trigger" to **"unmet, with a three-file trigger and the receiving half proven"**.
 
 Owner / worktree / branch: AD13 hand-off worker · `.worktrees/ad13c` · `ad13c-asset-handoff`
-Base commit / candidate commit: `044e11f52` / **`53ddcac35`** (code at `db43b4d40`; the two commits after it are this report)
+Base commit / candidate commit: `044e11f52` / **the branch tip of `ad13c-asset-handoff`** — see the fix-round section at the foot of this report for the round-2 candidate SHA
 Accepted contract revision: `r1`
 Allowed scope and shared-file leases: wave 5's `AD13 hand-off` row —
 `application/navigation/ProjectDestination.ts`,
@@ -44,14 +44,23 @@ files, every one of them in the row, plus this report under
 be "exposed to `editorArrival` through `spatialEditing.ts`/`runtime.ts`". It already is:
 `createSpatialEditing` returns `elementTask` as `Object.assign(createElementTask(...), { assets, promotion })`
 and `EditorRuntime.elementTask` is typed `SpatialEditing['elementTask']`, so `runtime.elementTask.assets`
-is public reach that four components already take (`grep -rn "elementTask\.assets" src/` printed nine
-lines across `AddMenu.vue`, `AssetLayer.vue`, `AssetPlacementDetails.vue` and `AssetPlacementForm.vue`
-before this change). Adding a member to `EditorRuntime` would have been a SECOND way to reach one
+is public reach that four components already take. **The count in the first version of this sentence
+was wrong and self-inflating, which is finding 5 of the review.** `grep -rn "elementTask\.assets" src/`
+prints **seven** lines at the base commit, across `AddMenu.vue`, `AssetLayer.vue`,
+`AssetPlacementDetails.vue` and `AssetPlacementForm.vue`. It prints **nine** at the candidate, and one
+of those nine is `editorArrival.ts`'s own docblock sentence about the count — verbatim the shape
+CLAUDE.md records for `grep -c "registerView"`. The conclusion is unchanged and correct: the reach
+already exists, so no edit is owed. Adding a member to `EditorRuntime` would have been a SECOND way to reach one
 task — the shape "one action, every input" refuses — so the ADDITIVE-ONLY grant is returned unused.
 
-**`tests/plugin/assetDesignerUsePlan.test.ts` is untouched** because it drives
-`assetDesignerUsePlan`, which lives in `src/plugin/renovationProjectOpenSeams.ts` — not in this row.
-A case asserting the origin would be red until ICR 1-H lands, so it belongs in that change.
+**`tests/plugin/assetDesignerUsePlan.test.ts` was untouched in round 1 and that was the review's
+most important finding (finding 3).** The reasoning above — "a case asserting the origin would be red
+until ICR 1-H lands, so it belongs in that change" — is exactly backwards: the ledger's idiom for a
+cross-lease wire is to submit the change request **and write the assertion that fails without it**, so
+the integrator applies the lines and that assertion is what turns green. Returning the file unused left
+nothing anywhere — no type error, no test, no lint rule — able to fail if ICR 1-H were never applied or
+applied wrongly, which is the unwired-callback shape this wave's sub-letting exists to prevent. The two
+cases are in the file now and are **RED at this candidate on purpose**; see the fix-round section.
 
 ## The `getState` question, answered
 
@@ -317,6 +326,23 @@ Never blank, and this environment makes the list long.
   that change lands.
 - **No migration, no schema and no performance work** is in this change, so none was run.
 
+**Round 2 (the fix round) adds to this list rather than shortening it.** Every item above still
+holds — no Obsidian, no pinned Chromium, no coverage gate — and three more are owed by this round
+specifically:
+
+- **The coverage FIGURE for the two branches this round moved.** 7a's case covers
+  `resolvePlaceable`'s unbound-query arm and 7b DELETES a branch, so the direction is two units of
+  headroom recovered — but `npm run test:coverage` may not be run on this machine, so that is
+  arithmetic rather than a measurement and no number is claimed.
+- **`npm run analyze`.** Not run. The `Object.keys` deletion removes no export and adds none, and
+  no new module was created, so no clone or dead-export statement is made either way.
+- **Everything ICR 1-H would prove end to end.** The ICR was applied, type-checked, run and
+  REVERTED. What is measured is that it compiles and that it turns this card's two new cases green
+  and the two named existing ones red. That an actual press of `Use in plan` in a vault arms the
+  placement tool is still proven by nothing, here or in CI, until the ICR lands for real and a
+  walkthrough is run.
+
+
 ## Data and integration implications
 
 Schema/migration change: **none.** `ProjectOrigin` is Obsidian's per-leaf ephemeral view state,
@@ -387,6 +413,255 @@ widens the task's public surface by exactly one member (`arm`), which `editorArr
 `dialogs.current !== null` refusal. That citation still resolves — `pickPlaceable` keeps that guard
 and the split did not move it — but it is worth re-reading in the same edit, since the function it
 names is one the same edit is reasoning about.
+
+## Fix round — what the review found, and what changed
+
+Nine findings, **REQUEST CHANGES**, addressed on top of `5a758f74b` without rebase or amend. The
+headline is finding 3: **`tests/plugin/assetDesignerUsePlan.test.ts` now carries two cases that are
+RED at this candidate and that ICR 1-H turns green.** That is deliberate and is the point of them;
+a reader running that file and finding two failures has found the instrument working, not a defect.
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | ICR 1-H does not compile as written — the `then` closure is built once at composition and has no lexical access to a per-press `assetId` | **Agreed and amended.** The corrected ICR is below in full and uses a closure-scoped slot. It was APPLIED to the three files, `npx vue-tsc --noEmit` was run (exit **0**), the seam suite was run, and all three files were reverted — so "compiles" here is a measurement rather than a reading |
+| 2 | ICR 1-H omits that it turns two EXISTING cases red, and that the preserved-selection claim has to be re-derived | **Agreed and amended.** Both reds reproduced verbatim below by applying the ICR; both named in the ICR with their repair, and the re-derivation is written into it |
+| 3 | Write the assertion that fails without ICR 1-H | **Agreed and done.** Two cases added; both watched RED at this candidate and watched GREEN under the applied ICR, verbatim text below |
+| 4 | False docblock claim in `DesignerUsePlan.vue`'s prop | **Agreed and corrected.** The false clause is deleted; the replacement states the opposite and names the gate that disproves it. `npx vue-tsc --noEmit` exits 0 at this candidate with the wiring absent — run, exit code read |
+| 5 | The `elementTask.assets` count is wrong and self-inflating | **Agreed and corrected** in `editorArrival.ts` and in this report's own repeat of it. Seven at base, nine at the candidate, one of the nine being the sentence itself |
+| 6 | `arm`'s docblock over-claims, and there may be a live control that can only refuse | **Narrowed, no guard**, per the integrator ruling — the divergence is NOT demonstrable; see below |
+| 7a | `resolvePlaceable`'s unbound-query arm is undriven | **Agreed and covered.** One case in `editorArrivalAssetHandoff.test.ts`, watched red |
+| 7b | `consumeAssetHandoff`'s `Object.keys(rest).length > 1` arm is unreachable | **Agreed and deleted**, per the ruling. `this.origin = undefined`, one branch recovered |
+| 8 | A sentence in `assetDesignerUsePlan`'s docblock became false | **Agreed.** Named explicitly in ICR 1-H, alongside the two others that go false with it |
+| 9 | The `revealRecord` extraction is a move, not a decomposition | **Kept stated.** `revealRecord` is at 16 of 16; the next `if` on that path reds. Unchanged by this round |
+
+### Finding 6, measured: the two conjuncts cannot diverge, so no guard was added
+
+`available` is `commands.renovation !== undefined && context.queries.assetShapes !== undefined`, and
+`arm` consults only the second — so on paper a leaf with shapes bound and `renovation` unbound arms
+a tool whose `write` then refuses silently. **In the real composition root that pair cannot come
+apart, and the evidence is one ternary.** `src/plugin/planEditorDeps.ts` decides both off the same
+`const persistence = root.persistence`:
+
+- `queries: persistence?.planEditorQueries ?? unavailablePlanEditorQueries()` — and
+  `unavailablePlanEditorQueries()` declares no `assetShapes` key at all.
+- `commands: persistence ? { ...planningEditorServices(root, vault, workspace), … } : …`, and
+  `planningEditorServices`'s first two lines are `const persistence = root.persistence;` /
+  `if (!persistence) return {};` — the same condition — after which `renovation:` is bound
+  unconditionally.
+
+The other half is bound unconditionally too: `composition-root.ts` builds `planEditorQueries` with
+`getAssetDesign: guarded.assetDesign.get`, and `createPlanEditorQueries` spreads `assetShapes` in
+whenever `getAssetDesign` is present. So `persistence` present binds both, `persistence` absent binds
+neither. A guard in `arm` would cost a branch nothing in `src/` can reach and it can never pay back —
+CLAUDE.md's own rule, with roughly nine arms of margin above the 98% floor. **The sentence was
+narrowed instead**, and it now names both conjuncts, says `arm` reads only one, says what would happen
+if they diverged, and says a test rig composing them independently CAN produce it while nothing in
+`src/` can. The smaller over-claim in the same docblock is corrected with it: the
+`ViewStateResult.history` verdict reaches `setState` only on the already-mounted arm
+(`parsed.planId === this.mountedPlanId && this.root`), and a hand-off that mounts the editor for the
+first time falls past that condition with its verdict read by nothing.
+
+### Reds watched in this round, verbatim
+
+**A. Finding 7a's case, with the guard it asserts removed** — `if (!context.queries.assetShapes) return null;`
+deleted from `resolvePlaceable` and the call non-null-asserted.
+`VITEST_MAX_WORKERS=1 npx vitest run tests/presentation/editor/editorArrivalAssetHandoff.test.ts` →
+exit 1, 1 of 5 failed:
+
+```
+FAIL  |suite| tests/presentation/editor/editorArrivalAssetHandoff.test.ts > refuses silently when the leaf has no asset-shape query at all
+TypeError: context.queries.assetShapes is not a function
+ ❯ resolvePlaceable src/presentation/editor/elements/assetPlacementTask.ts:34:41
+ ❯ Object.arm src/presentation/editor/elements/assetPlacementTask.ts:112:24
+ ❯ reveal src/presentation/editor/renovation/editorArrival.ts:65:91
+ ❯ Object.navigateToRecord [as navigate] src/presentation/editor/renovation/editorArrival.ts:30:10
+ ❯ tests/presentation/editor/editorArrivalAssetHandoff.test.ts:97:9
+```
+
+Guard restored: 5 of 5 pass.
+
+**B. Finding 3's two cases, at THIS candidate — the standing red this card hands off.**
+`VITEST_MAX_WORKERS=1 npx vitest run tests/plugin/assetDesignerUsePlan.test.ts` → exit 1,
+**2 failed | 13 passed (15)**:
+
+```
+FAIL  tests/plugin/assetDesignerUsePlan.test.ts > use in plan > carries the asset into the Plan Editor it continues into
+AssertionError: expected undefined to deeply equal { …(2) }
+
+- Expected:
+{
+  "assetId": "asset-01M2TPTQ4MVMW0ACXY3A9076D7",
+  "planId": "plan-01M2TPTQ4HN6SBK60BSZWRZM5B",
+}
+
++ Received:
+undefined
+
+ ❯ tests/plugin/assetDesignerUsePlan.test.ts:367:41
+
+FAIL  tests/plugin/assetDesignerUsePlan.test.ts > use in plan > carries the asset into the plan it picked
+AssertionError: expected undefined to deeply equal { …(2) }
++ Received:
+undefined
+
+ ❯ tests/plugin/assetDesignerUsePlan.test.ts:381:45
+```
+
+**C. The same file with ICR 1-H APPLIED**, to prove the assertion is the one the integrator turns
+green and to measure finding 2. Same command → exit 1, **2 failed | 13 passed (15)** again — but a
+DIFFERENT two: the pair above went green and these two, both pre-existing, went red.
+
+```
+FAIL  tests/plugin/assetDesignerUsePlan.test.ts > use in plan > continues into the one Plan Editor already open, asking nothing
+AssertionError: expected { Object (type, state) } to be { Object (type, state) } // Object.is equality
+
+- Expected
++ Received
+
+  {
++   "active": true,
+    "state": {
++     "origin": {
++       "assetId": "asset-01M2TPYGCYTQVM90WW1CBQ5235",
++       "planId": "plan-01M2TPYGCWZ1AKXQPECR9C6X0R",
++     },
+      "planId": "plan-01M2TPYGCWZ1AKXQPECR9C6X0R",
+    },
+    "type": "renovation-plan-editor",
+  }
+
+ ❯ tests/plugin/assetDesignerUsePlan.test.ts:131:22
+
+FAIL  tests/plugin/assetDesignerUsePlan.test.ts > use in plan > asks which plan when none is open, and opens the one picked
+AssertionError: expected { Object (type, active, ...) } to deeply equal { Object (type, active, ...) }
+
+- Expected
++ Received
+
+  {
+    "active": true,
+    "state": {
++     "origin": {
++       "assetId": "asset-01M2TPYGCYTQVM90WW1CBQ5235",
++       "planId": "plan-01M2TPYGCX39TRKMWB2C45HPNZ",
++     },
+      "planId": "plan-01M2TPYGCX39TRKMWB2C45HPNZ",
+    },
+    "type": "renovation-plan-editor",
+  }
+
+ ❯ tests/plugin/assetDesignerUsePlan.test.ts:193:26
+```
+
+The three ICR files were reverted afterwards; `git status` names only this row's six files.
+
+### Why no existing case went red at THIS candidate from the `wired` change
+
+`wired()` now annotates the built seam at the signature ICR 1-H gives it
+(`const send: (assetId: string) => void = assetDesignerUsePlan(…)`) and returns
+`usePlan: () => { send(ASSET); }`. `() => void` is assignable to `(assetId: string) => void`, so the
+line compiles on both sides of the widening and today's build drops the argument — which is why the
+run above is 13 passed and not 11. It also means the widening needs **no edit to any of the file's
+other cases**, which is the whole reason it was done in `wired` rather than in the new cases alone.
+
+## Integration change request 1-H, CORRECTED (supersedes the version above)
+
+**Three source files, plus two existing cases in a test file this row owns.** Every line below was
+applied, type-checked, run and reverted; the reds it produces are section C above.
+
+**1. `src/plugin/renovationProjectOpenSeams.ts`.** The seam returns `(assetId: string) => void`, and
+the picker arm reaches the asset through a **closure-scoped slot** rather than through the `then`
+callback's parameters. The callback is built ONCE at composition, so it has no lexical access to a
+per-press `assetId`; rebuilding `pick` per press is refused by `planPicker`'s own docblock
+("Rebuilding it per press would guard nothing at all").
+
+```ts
+): (assetId: string) => void {
+	const openPlan = renovationProjectOpenPlan(app.workspace, logger);
+	let armed: string | undefined;
+	const pick = planPicker(app, () => index, (plan) => {
+		const assetId = armed;
+		armed = undefined;
+		void (async (): Promise<void> => {
+			const outcome = await openPlan(plan.id, assetId === undefined ? { planId: plan.id } : { planId: plan.id, assetId });
+			if (outcome === 'opened' && plan.projectId !== undefined) rememberContinue({ projectId: plan.projectId, planId: plan.id });
+		})();
+	});
+	return (assetId: string) => {
+		const open = [ /* unchanged */ ];
+		const only = open.length === 1 ? open[0] : undefined;
+		if (only !== undefined) {
+			void openPlan(only, { planId: only, assetId });
+			return;
+		}
+		armed = assetId;
+		pick();
+	};
+}
+```
+
+**The slot is exactly as wide as the property, and that is an argument rather than a hope.**
+`planPicker`'s `picking` flag serialises presses, so at most one picker is open per closure; and
+`RenovationPlannerPlugin.assetDesignerViewDeps()` builds one bundle — and therefore one
+`assetDesignerUsePlan` closure, and one slot — per designer leaf, which its own comment states
+("composed inside `assetDesignerDeps` off the `root` this call passes, so it is still built per
+bundle"). So no two leaves share a slot, and one leaf's button names one asset. The ternary on
+`assetId === undefined` is defensive rather than required — `armed` is only ever set to a string
+before `pick()`, and this repository does not set `exactOptionalPropertyTypes` — but it keeps the
+function total without a cast.
+
+**Three docblock sentences in that file go FALSE with this change and must be rewritten in the same
+edit**, not one:
+
+- *"it does NOT arm that editor's placement tool with the asset"* — the whole "How far this gesture
+  reaches" paragraph.
+- *"the only channel into an open editor is `ProjectOrigin`, which is `application/`-owned and
+  carries `roomId`/`workId`/`costId` and no asset"* — **already false at this candidate**, before
+  ICR 1-H, because `ProjectOrigin.assetId` landed in it (review finding 8).
+- *"Continuing into an ALREADY OPEN editor preserves that editor's selection and camera … because
+  `revealCandidate` calls `setViewState` only on a leaf IT created"* — the MECHANISM changes. Once
+  an origin is passed, `revealPlanEditor` builds `prepareEditorArrival(origin)`, which calls
+  `setViewState` on whichever leaf was revealed, **including one that was already open**. The
+  property survives; its reason does not. **Re-derive it as:** `PlanEditorView.sync()` returns early
+  on `this.planId === this.mountedPlanId`, so a re-state naming the same plan remounts nothing — the
+  camera and selection live in the mounted tree, which is not rebuilt. AD13's second acceptance
+  criterion now rests on that early return, not on the reveal declining to re-state.
+
+**2. `src/presentation/designer/AssetDesignerContext.ts`** — `readonly usePlan?: () => void;` becomes
+`readonly usePlan?: (assetId: string) => void;` (one hit for `usePlan` in that file).
+
+**3. `src/presentation/designer/inspector/DesignerInspector.vue`** — the same one-token widening on
+its `usePlan?` prop. `AssetDesignerRoot.vue`, `AssetDesignerView.ts` and `assetDesignerDeps.ts` are
+pass-throughs and need no edit: `npx vue-tsc --noEmit` exits **0** with exactly those three files
+edited, measured.
+
+`DesignerUsePlan.vue` needs **no** change — it already passes `design.assetId`. Its prop docblock's
+closing sentence ("the only instrument that fails without the wiring is the case named in this card's
+report") is the sentence to rewrite when the wiring lands.
+
+**4. `tests/plugin/assetDesignerUsePlan.test.ts` — two existing cases turn RED and must be repaired
+in the same edit.** Both reds are in section C verbatim. Neither is a defect in the ICR; both are the
+arrival queue doing its job.
+
+- **`continues into the one Plan Editor already open, asking nothing`** asserts
+  `expect(open.state).toBe(before)` — object IDENTITY, chosen deliberately (its own docblock explains
+  why `toEqual` proved nothing). `FakeLeaf.setViewState` assigns a fresh state object, so the
+  identity cannot survive an arrival. **Repair:** assert the CONTENT instead —
+  `expect(open.state?.state).toEqual({ planId: GROUND, origin: { planId: GROUND, assetId: ASSET } })`
+  — and rewrite the case's docblock, which currently says "Revealed, never re-stated". The
+  no-remount property it was really guarding is pinned elsewhere, by `PlanEditorView`'s `sync` early
+  return; `tests/infrastructure/obsidian/workspace/revealPlanEditor.test.ts`'s
+  `does not re-set the view state of a leaf it found` still holds, because it passes no origin.
+- **`asks which plan when none is open, and opens the one picked`** asserts `created?.state` deep-equal
+  to `{ type, active: true, state: { planId: FIRST } }`. **Repair:** add
+  `origin: { planId: FIRST, assetId: ASSET }` inside `state`.
+
+**5. The two new cases in that same file are the acceptance test for this ICR** —
+`carries the asset into the Plan Editor it continues into` and `carries the asset into the plan it
+picked`. They are red at this candidate and green with the four items above applied, measured both
+ways. **An integration that leaves them red has not landed ICR 1-H.**
+
+**No second ICR**, and the `pickPlaceable` note under the round-1 section stands unchanged.
 
 ## Reviewer and integrator acceptance
 

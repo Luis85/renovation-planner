@@ -75,3 +75,28 @@ it.each([
 	expect(rig.runtime.activeToolId.value).not.toBe('place-asset');
 	expect(rig.runtime.elementTask.assets.draft.assetId).toBe('');
 });
+
+/**
+ * `resolvePlaceable`'s unbound-query arm, and `arm` is the only way into it: `pickPlaceable`
+ * refuses on the same condition BEFORE it calls `resolvePlaceable`, so the Add menu's picker can
+ * never reach it. What it models is the unrecovered-settings session — `planEditorDeps` hands
+ * that leaf `unavailablePlanEditorQueries()`, which declares no `assetShapes` at all — and the
+ * observable is SILENCE: no notice, because there is no answer to name a reason from.
+ *
+ * Removed from the LIVE queries object rather than composed absent, and that is a fact about the
+ * rig rather than a trick: `mountPlanEditor` assigns `options.queries` into the context by
+ * reference, and `resolvePlaceable` reads `context.queries.assetShapes` per call. The object is a
+ * fresh literal per `referenceWorkspace()`, so nothing here outlives this case.
+ */
+it('refuses silently when the leaf has no asset-shape query at all', async () => {
+	const rig = await setup();
+	const radiator = await rig.saveAsset('Radiator');
+	const warn = vi.spyOn(notices, 'notifyWarning').mockImplementation(() => undefined);
+	delete (rig.deps.queries as { assetShapes?: unknown }).assetShapes;
+
+	expect(await rig.navigate({ planId: rig.plan.id, assetId: radiator.id })).toBe(false); await settle();
+
+	expect(warn).not.toHaveBeenCalled();
+	expect(rig.runtime.activeToolId.value).not.toBe('place-asset');
+	expect(rig.runtime.elementTask.assets.draft.assetId).toBe('');
+});

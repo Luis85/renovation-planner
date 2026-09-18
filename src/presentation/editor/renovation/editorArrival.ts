@@ -43,9 +43,13 @@ export function useEditorArrival(context: PlanEditorContext, runtime: EditorRunt
   *
   * `runtime.elementTask.assets.arm` rather than a new member on `EditorRuntime`: that path is
   * already how this task is reached from outside itself — `grep -rn "elementTask\.assets" src/`
-  * printed nine lines across four components and this file before the count was written — so the
-  * hand-off arms the placement tool through the same door the Add menu's picker arms it through,
-  * and there is no second arming path to keep in step (CLAUDE.md, "one action, every input").
+  * printed SEVEN lines before this change, across `AddMenu.vue`, `AssetLayer.vue`,
+  * `AssetPlacementDetails.vue` and `AssetPlacementForm.vue`. It prints nine after it, and one of
+  * those nine is this very sentence: a count taken over a file whose own prose names the call
+  * answers one more than the calls, which is the shape CLAUDE.md already records for
+  * `grep -c "registerView"`. So the hand-off arms the placement tool through the same door the
+  * Add menu's picker arms it through, and there is no second arming path to keep in step
+  * (CLAUDE.md, "one action, every input").
   *
   * The return type is a UNION rather than `Promise<boolean>` because only the asset arm is
   * asynchronous: marking the whole function `async` would put the record arms behind a microtask

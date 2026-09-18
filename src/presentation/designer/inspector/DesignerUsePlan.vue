@@ -44,9 +44,12 @@ const props = defineProps<{
 	 * The way into a plan, or `undefined` where no door is bound — see `AssetDesignerContext.usePlan`.
 	 *
 	 * It takes the asset id because that is what the door NEEDS to build a `{ planId, assetId }`
-	 * origin, and declaring it here is what makes the remaining wiring a type error rather than a
-	 * silence. A `() => void` binding is assignable to it and simply ignores the argument, which
-	 * is exactly what is bound today.
+	 * origin. Declaring it here makes NOTHING a type error, which the first version of this
+	 * paragraph claimed it did: `() => void` is assignable to `(assetId: string) => void`, so
+	 * `DesignerInspector.vue`'s own `usePlan?: () => void` prop satisfies this one and
+	 * `npx vue-tsc --noEmit` exits 0 at this commit with the sender still absent — measured by
+	 * running it, not reasoned. The argument is accepted and dropped, and the only instrument
+	 * that fails without the wiring is the case named in this card's report.
 	 */
 	usePlan?: (assetId: string) => void;
 }>();

@@ -82,17 +82,32 @@ export function createAssetPlacementTask(context: PlanEditorContext, runtime: Pi
 	 * `ProjectOrigin.assetId` through `useEditorArrival`. Same resolution, same refusals, same
 	 * draft; no picker, because the question the picker asks has already been answered.
 	 *
-	 * It answers whether the tool is armed, which `choose` has no caller that needs: the arrival
-	 * reports its own verdict back to `PlanEditorView.setState` as `ViewStateResult.history`.
+	 * It answers whether the tool is armed, which `choose` has no caller that needs. The arrival
+	 * carries that verdict back to `PlanEditorView.setState` — and only ONE of that method's two
+	 * arms reads it: the already-mounted one, `parsed.planId === this.mountedPlanId && this.root`,
+	 * which turns a `false` into `ViewStateResult.history = false`. A hand-off that MOUNTS the
+	 * editor for the first time falls past that condition, and its verdict reaches nothing at all.
 	 *
 	 * `blocked` is deliberately NOT consulted, which is `choose`'s behaviour and not a new
 	 * decision: arming a tool writes nothing, and `write` below is what refuses while a save or a
 	 * paused projection is in flight.
 	 *
-	 * It answers `false` SILENTLY on one state and only one: a leaf whose `queries.assetShapes` is
-	 * unbound, which is the unrecovered-settings session `available` above already reports and in
-	 * which no placement of any kind is possible. Every other refusal carries its reason, through
-	 * the same `REFUSALS` map the picker uses.
+	 * It answers `false` SILENTLY on one state: a leaf whose `queries.assetShapes` is unbound,
+	 * which is the unrecovered-settings session and in which no placement of any kind is possible.
+	 * Every other refusal carries its reason, through the same `REFUSALS` map the picker uses.
+	 *
+	 * **`available` below is not that same condition and the two must not be read as one.** It is
+	 * the CONJUNCTION `commands.renovation !== undefined && queries.assetShapes !== undefined`,
+	 * and `arm` consults only the second conjunct — so a leaf with shapes bound and `renovation`
+	 * unbound arms a tool whose `write` then refuses silently. **No guard is written for that**,
+	 * because the pair cannot diverge in the composition root and an unreachable guard costs a
+	 * branch it can never pay back (CLAUDE.md's coverage rule). Read from `planEditorDeps.ts`
+	 * rather than assumed: ONE `root.persistence` ternary decides both, handing
+	 * `unavailablePlanEditorQueries()` — which declares no `assetShapes` — on the absent arm, and
+	 * on the present arm spreading `planningEditorServices(root, …)`, whose own first line returns
+	 * `{}` on exactly `!root.persistence` and otherwise always binds `renovation`. A caller that
+	 * composes the two independently (a test rig) can produce the divergence; nothing in `src/`
+	 * can, and this sentence is the record of the check rather than a promise.
 	 */
 	async function arm(assetId: string): Promise<boolean> {
 		const answer = await resolvePlaceable(assetId);

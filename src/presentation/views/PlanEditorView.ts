@@ -250,19 +250,25 @@ export class PlanEditorView extends ItemView {
 	 * `await` between the assignment above and this call, so `this.origin` never holds an
 	 * `assetId` across a suspension point where Obsidian could ask for the state.
 	 *
-	 * A record id (`roomId`/`workId`/`costId`) is deliberately left in place: re-focusing the
-	 * record a leaf was focused on is what a rebind and a restore have always done here, and
-	 * nothing about this change is an argument against it. What is NOT left is the shell an
-	 * asset-only hand-off leaves behind — `planId` alone names no destination at all, and
-	 * `useEditorArrival` answers one with `schedule.return-missing`, so persisting it would trade
-	 * a re-armed tool for a spurious warning on every restart. Measured rather than reasoned: the
-	 * first version of this method kept the shell and
-	 * `tests/presentation/views/planEditorHostReturn.test.ts`'s hand-off case failed on it.
+	 * An origin with NO asset in it is left entirely alone — the guard below returns before
+	 * touching it — so re-focusing the record a leaf was focused on is still what a rebind and a
+	 * restore do here, exactly as before the hand-off existed.
+	 *
+	 * An origin that DOES carry an asset is dropped whole, and the second review round is why it
+	 * is one assignment rather than a ternary over what is left. The first version kept the rest
+	 * when more than `planId` remained, which needs an origin carrying an `assetId` AND a record
+	 * id — a combination `editorArrival.reveal`'s own docblock says nothing in `src/` builds, and
+	 * whose `assetId`-wins rule says the record half was never going to be acted on anyway. So
+	 * that arm was a branch nothing could reach and nothing could pay back, and dropping the whole
+	 * origin is the same rule stated once: a hand-off is consumed, and what is left of it names no
+	 * destination. `planId` alone certainly does not — `useEditorArrival` answers that shell with
+	 * `schedule.return-missing`, which is the red
+	 * `tests/presentation/views/planEditorHostReturn.test.ts` reported against the version that
+	 * kept it.
 	 */
 	private consumeAssetHandoff(): void {
 		if (this.origin?.assetId === undefined) return;
-		const { assetId: _consumed, ...rest } = this.origin;
-		this.origin = Object.keys(rest).length > 1 ? rest : undefined;
+		this.origin = undefined;
 	}
 
 	onOpen(): Promise<void> {

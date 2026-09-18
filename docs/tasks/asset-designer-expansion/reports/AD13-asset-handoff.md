@@ -7,7 +7,7 @@ are outside this row; they are ICR 1-H below. AD13 acceptance criterion 1 theref
 "unmet, with a trigger" to **"unmet, with a three-file trigger and the receiving half proven"**.
 
 Owner / worktree / branch: AD13 hand-off worker · `.worktrees/ad13c` · `ad13c-asset-handoff`
-Base commit / candidate commit: `044e11f52` / **`db43b4d40`**
+Base commit / candidate commit: `044e11f52` / **`53ddcac35`** (code at `db43b4d40`; the two commits after it are this report)
 Accepted contract revision: `r1`
 Allowed scope and shared-file leases: wave 5's `AD13 hand-off` row —
 `application/navigation/ProjectDestination.ts`,

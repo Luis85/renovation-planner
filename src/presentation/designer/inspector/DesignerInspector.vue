@@ -80,7 +80,7 @@ const props = defineProps<{
 	 * Optional for `openLibrary`'s reason and not by habit: absence MEANS no navigation composed
 	 * behind this mount. `lockedGraphics` below is the counter-example and states why it is not.
 	 */
-	usePlan?: () => void;
+	usePlan?: (assetId: string) => void;
 	/** Every selected part, in selection order — the last is the one whose fields show (AD08). */
 	selected: readonly DesignerSelection[];
 	/** Whether the sticky "select multiple" mode is on (AD08). */

@@ -150,7 +150,7 @@ export interface AssetDesignerDeps {
 	 * so the control is not drawn rather than drawn dead. Contrast `DesignerInspector`'s
 	 * `lockedGraphics`, which is REQUIRED because its absence would mean nothing at all.
 	 */
-	readonly usePlan?: () => void;
+	readonly usePlan?: (assetId: string) => void;
 }
 
 /**

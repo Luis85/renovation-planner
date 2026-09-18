@@ -206,6 +206,9 @@ export class PlanEditorView extends ItemView {
 	 * `''` rather than omitting the key when there is no plan yet: a leaf restored from a
 	 * state with no `planId` is exactly the case `planIdFrom` rejects, and a key that is
 	 * sometimes absent makes that a different shape to reason about.
+	 *
+	 * The origin it writes never carries an `assetId`, and that is enforced at the field rather
+	 * than filtered here — see `consumeAssetHandoff`.
 	 */
 	getState(): Record<string, unknown> {
 		return { planId: this.planId ?? '', ...(this.origin ? { origin: this.origin } : {}) };
@@ -223,7 +226,49 @@ export class PlanEditorView extends ItemView {
 		if (parsed?.origin && parsed.planId === this.mountedPlanId && this.root && !(await this.root.navigateToRecord(parsed.origin))) { result.history = false; return; }
 		if (parsed !== null) { this.planId = parsed.planId; this.origin = parsed.origin; }
 		this.sync();
+		this.consumeAssetHandoff();
 		return Promise.resolve();
+	}
+
+	/**
+	 * Drop `origin.assetId` once it has been handed to the mounted tree, leaving the rest of the
+	 * origin alone.
+	 *
+	 * **The question this answers, and why the other defensible answer was not taken.** `getState`
+	 * above persists `this.origin` into Obsidian's workspace layout and nothing else ever clears
+	 * it, so an `{ planId, assetId }` origin would survive a restart and arm the placement tool
+	 * weeks later on a leaf a user reopened for something else. Excluding `assetId` from
+	 * `getState` closes exactly that door and no other: `this.origin` would still hold the asset
+	 * in memory, and `rebind` — a settings save — unmounts and remounts with `initialNavigation`,
+	 * so the tool would re-arm on a gesture that has nothing to do with the asset. Dropping it at
+	 * CONSUMPTION closes both with one rule, which is why `getState` is untouched.
+	 *
+	 * **One call site, and that is a property of the mechanism rather than a habit.** Mounting
+	 * happens only through `sync`, and `grep -n "this.sync()"` on this file prints three lines:
+	 * `rebind`, `setState` and `onOpen`. The first and third can only ever mount an origin a
+	 * previous `setState` already left behind, which this has already stripped. There is also no
+	 * `await` between the assignment above and this call, so `this.origin` never holds an
+	 * `assetId` across a suspension point where Obsidian could ask for the state.
+	 *
+	 * An origin with NO asset in it is left entirely alone — the guard below returns before
+	 * touching it — so re-focusing the record a leaf was focused on is still what a rebind and a
+	 * restore do here, exactly as before the hand-off existed.
+	 *
+	 * An origin that DOES carry an asset is dropped whole, and the second review round is why it
+	 * is one assignment rather than a ternary over what is left. The first version kept the rest
+	 * when more than `planId` remained, which needs an origin carrying an `assetId` AND a record
+	 * id — a combination `editorArrival.reveal`'s own docblock says nothing in `src/` builds, and
+	 * whose `assetId`-wins rule says the record half was never going to be acted on anyway. So
+	 * that arm was a branch nothing could reach and nothing could pay back, and dropping the whole
+	 * origin is the same rule stated once: a hand-off is consumed, and what is left of it names no
+	 * destination. `planId` alone certainly does not — `useEditorArrival` answers that shell with
+	 * `schedule.return-missing`, which is the red
+	 * `tests/presentation/views/planEditorHostReturn.test.ts` reported against the version that
+	 * kept it.
+	 */
+	private consumeAssetHandoff(): void {
+		if (this.origin?.assetId === undefined) return;
+		this.origin = undefined;
 	}
 
 	onOpen(): Promise<void> {

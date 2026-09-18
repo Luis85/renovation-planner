@@ -62,16 +62,29 @@ function design(options: { readonly dimensions?: null; readonly unscaled?: boole
 	};
 }
 
-function mountControl(options: Parameters<typeof design>[0] = {}, usePlan?: () => void): VueWrapper {
+function mountControl(options: Parameters<typeof design>[0] = {}, usePlan?: (assetId: string) => void, dto = design(options)): VueWrapper {
 	return mount(DesignerUsePlan, {
-		props: { design: design(options), ...(usePlan === undefined ? {} : { usePlan }) },
+		props: { design: dto, ...(usePlan === undefined ? {} : { usePlan }) },
 	});
 }
 
-function mountRoot(usePlan?: () => void): VueWrapper {
+/**
+ * Typed with a rest parameter so it is still assignable to `AssetDesignerContext.usePlan`, which
+ * is `() => void` until this package's remaining hand-off wiring lands — the mock records what the
+ * template passed either way, which is the whole point of asking here.
+ */
+function usePlanSpy() {
+	return vi.fn<(...args: string[]) => void>();
+}
+
+function mountRoot(usePlan?: (...args: string[]) => void, dto = design()): VueWrapper {
 	const context: AssetDesignerContext = {
-		assetId: 'asset-01JABC',
-		queries: { getAssetDesign: () => Promise.resolve(ok(design())) },
+		assetId: dto.assetId,
+		// ONE design, and the context's id IS its `assetId`. The real query answers about the id it
+		// is asked for; the stub used to ignore the argument and hand back a design carrying a
+		// freshly generated one, which is thinner than that and hid exactly what the binding case
+		// below asserts — that the control reads the asset off the DTO it is drawing.
+		queries: { getAssetDesign: () => Promise.resolve(ok(dto)) },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		picker: null,
@@ -95,13 +108,21 @@ describe('use in plan', () => {
 		expect(control(wrapper).text()).toBe(t('en', 'designer.inspector.use-in-plan'));
 	});
 
-	it('reaches the door it was handed', async () => {
-		const usePlan = vi.fn<() => void>();
-		const wrapper = mountControl({}, usePlan);
+	/**
+	 * The door is handed the ASSET, not merely pressed. That argument is what
+	 * `assetDesignerUsePlan` needs to build the `{ planId, assetId }` origin
+	 * `useEditorArrival` arms the plan editor's placement tool from, and it comes off the same
+	 * DTO the predicate above reads — never off a second idea of which asset this leaf is
+	 * showing.
+	 */
+	it('reaches the door it was handed, carrying this asset', async () => {
+		const usePlan = usePlanSpy();
+		const dto = design();
+		const wrapper = mountControl({}, usePlan, dto);
 
 		await control(wrapper).trigger('click');
 
-		expect(usePlan).toHaveBeenCalledTimes(1);
+		expect(usePlan).toHaveBeenCalledExactlyOnceWith(dto.assetId);
 	});
 
 	/**
@@ -133,15 +154,16 @@ describe('use in plan', () => {
 	 * leaf's own context and the assertion is made on what the mounted tree draws.
 	 */
 	it('is carried from the leaf context through the root to the inspector', async () => {
-		const usePlan = vi.fn<() => void>();
-		const wrapper = mountRoot(usePlan);
+		const usePlan = usePlanSpy();
+		const dto = design();
+		const wrapper = mountRoot(usePlan, dto);
 		await flushPromises();
 
 		const found = control(wrapper, '.rp-designer-inspector ');
 		expect(found.exists()).toBe(true);
 		await found.trigger('click');
 
-		expect(usePlan).toHaveBeenCalledTimes(1);
+		expect(usePlan).toHaveBeenCalledExactlyOnceWith(dto.assetId);
 	});
 
 	/** And the same tree with no door composed draws none — the harness's own state. */

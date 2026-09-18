@@ -151,18 +151,34 @@ export function assetDesignerUsePlan(
 	index: ProjectIndex | undefined,
 	logger: Logger,
 	rememberContinue: (context: ContinueContext) => void,
-): () => void {
+) : (assetId: string) => void {
 	const openPlan = renovationProjectOpenPlan(app.workspace, logger);
+	/**
+	 * The asset the current press is carrying, read by the picker's callback.
+	 *
+	 * **A closure-scoped slot rather than a parameter, because the picker is built ONCE** — that
+	 * is `planPicker`'s own rule ("Rebuilding it per press would guard nothing at all"), so its
+	 * callback cannot close over a per-press argument. The first version of this change request
+	 * asked for exactly that and would not have compiled. One slot is as wide as the property it
+	 * needs to hold: the `picking` guard inside `planPicker` already refuses a second press while
+	 * a modal is open, so two presses can never be in flight at once.
+	 *
+	 * Cleared on read, so a dismissed pick cannot leave an asset armed for whatever opens next.
+	 */
+	let armed: string | undefined;
 	const pick = planPicker(app, () => index, (plan) => {
+		const assetId = armed;
+		armed = undefined;
 		// Detached, like every other door out of a modal callback, and awaited INSIDE rather than
 		// at the call site for `openPlanPicker`'s own reason: the verdict is what decides whether
 		// a Continue context is recorded, and `renovationProjectOpenPlan` cannot reject.
 		void (async (): Promise<void> => {
-			const outcome = await openPlan(plan.id);
+			const outcome = await openPlan(plan.id, { planId: plan.id, ...(assetId === undefined ? {} : { assetId }) });
 			if (outcome === 'opened' && plan.projectId !== undefined) rememberContinue({ projectId: plan.projectId, planId: plan.id });
 		})();
 	});
-	return () => {
+	return (assetId: string) => {
+		armed = assetId;
 		const open = [
 			...new Set(
 				app.workspace
@@ -176,7 +192,8 @@ export function assetDesignerUsePlan(
 		// a branch it can never pay back (CLAUDE.md's coverage rule).
 		const only = open.length === 1 ? open[0] : undefined;
 		if (only !== undefined) {
-			void openPlan(only);
+			armed = undefined;
+			void openPlan(only, { planId: only, assetId });
 			return;
 		}
 		pick();

@@ -36,6 +36,8 @@ installObsidianDom();
 const GROUND = createEntityId('plan');
 const FIRST = createEntityId('plan');
 const PROJECT = createEntityId('project');
+/** The asset every press below carries — see `wired`. */
+const ASSET = createEntityId('asset');
 
 /**
  * An index holding two plans and a project, so the picker's own type filter is asked to reject
@@ -59,13 +61,18 @@ function wired(options: { readonly index?: ProjectIndex | undefined; readonly wo
 	// use the real fake still want its recorders.
 	const workspace = (options.workspace ?? new FakeWorkspace()) as FakeWorkspace;
 	const remembered: ContinueContext[] = [];
-	const usePlan = assetDesignerUsePlan(
+	// ANNOTATED at the signature ICR 1-H gives this seam, not at the one it has. `() => void` is
+	// assignable to `(assetId: string) => void`, so this line compiles on both sides of that
+	// change and the extra argument is simply dropped by today's build — which is exactly the
+	// silence the pending case below exists to break. Every case presses through the wrapper, so
+	// the widening needs no edit to any of them.
+	const send: (assetId: string) => void = assetDesignerUsePlan(
 		{ workspace } as never,
 		'index' in options ? options.index : index(),
 		recorder,
 		(context) => remembered.push(context),
 	);
-	return { workspace, usePlan, remembered };
+	return { workspace, usePlan: () => { send(ASSET); }, remembered };
 }
 
 /** The picker this call opened, typed to the two members these cases drive. */
@@ -121,7 +128,21 @@ describe('use in plan', () => {
 
 		expect(FuzzySuggestModal.opened).toHaveLength(0);
 		expect(workspace.revealed).toEqual([open]);
-		expect(open.state).toBe(before);
+		// **The state object is REPLACED now, and the preservation claim moved rather than died.**
+		// Before the asset hand-off this asserted `open.state` was the very object planted here,
+		// resting on `revealCandidate` calling `setViewState` only on a leaf it CREATED. Passing an
+		// origin makes `prepareEditorArrival` state the found leaf too, so identity is the wrong
+		// instrument. What must still hold is that nothing about WHICH plan this leaf shows
+		// changed, and that the only addition is the hand-off — so the plan id is asserted equal
+		// and the origin is asserted to be the one pressed.
+		expect(open.state).not.toBe(before);
+		expect(open.state?.state?.['planId']).toBe(GROUND);
+		expect(open.state?.state?.['origin']).toEqual({ planId: GROUND, assetId: ASSET });
+		// Selection and camera survive because `PlanEditorView.sync()` returns early when
+		// `planId === mountedPlanId`, NOT because the leaf was left un-stated. That is the
+		// mechanism this case rests on now, and it is asserted one layer down in
+		// `planEditorReopen.test.ts` rather than re-derived here.
+		//
 		// No leaf was created: `getLeaf` pushes onto `leaves`, and the planted one is all there is.
 		expect(workspace.leaves).toEqual([open]);
 	});
@@ -183,7 +204,14 @@ describe('use in plan', () => {
 		await flush();
 
 		const [created] = workspace.leaves;
-		expect(created?.state).toEqual({ type: PLAN_EDITOR_VIEW, active: true, state: { planId: FIRST } });
+		// The origin rides along now — the picked arm carries the asset exactly as the
+		// already-open arm above does, which is what makes the two halves of this gesture one
+		// behaviour rather than two.
+		expect(created?.state).toEqual({
+			type: PLAN_EDITOR_VIEW,
+			active: true,
+			state: { planId: FIRST, origin: { planId: FIRST, assetId: ASSET } },
+		});
 		expect(workspace.revealed).toEqual([created]);
 	});
 
@@ -329,5 +357,48 @@ describe('use in plan', () => {
 
 		expect(Notice.shown).toEqual([t('en', 'plan.none')]);
 		expect(workspace.leaves).toHaveLength(0);
+	});
+
+	/**
+	 * **ICR 1-H's assertion, and it is RED on purpose at this commit.** The three files that would
+	 * make it pass are outside this card's lease and are named in
+	 * `docs/tasks/asset-designer-expansion/reports/AD13-asset-handoff.md`; this is the instrument
+	 * that fails until they land and turns green when they do, which the ledger asks for in place of
+	 * a change request nothing can check.
+	 *
+	 * **What is asserted is the ORIGIN on the leaf, on both arms, because that is the whole of the
+	 * hand-off.** `renovationProjectOpenPlan` takes an `origin?: ProjectOrigin`, `revealPlanEditor`
+	 * turns one into a `prepareEditorArrival(origin)` and that queue writes
+	 * `{ ...state, active: true, state: { ...state.state, planId, origin } }` onto whichever leaf was
+	 * revealed. Today `assetDesignerUsePlan` passes no origin on either arm, so no arrival is
+	 * prepared, nothing is written, and `state.origin` is `undefined` — which is the red.
+	 *
+	 * Read on the LEAF rather than on a spy, for `planEditorHostReturn.test.ts`'s reason: the arrival
+	 * queue is a different mechanism from `revealCandidate`'s own `setViewState`, and asserting the
+	 * wrong one of the two is recorded as F3 of AD13's navigation half.
+	 */
+	it('carries the asset into the Plan Editor it continues into', async () => {
+		const { workspace, usePlan } = wired();
+		const open = workspace.withOpen(PLAN_EDITOR_VIEW, { planId: GROUND });
+
+		usePlan();
+		await flush();
+
+		expect(workspace.revealed).toEqual([open]);
+		expect(open.state?.state?.['origin']).toEqual({ planId: GROUND, assetId: ASSET });
+	});
+
+	/** The picker arm of the same claim: the asset has to survive the question, not only the reveal. */
+	it('carries the asset into the plan it picked', async () => {
+		const { workspace, usePlan } = wired();
+
+		usePlan();
+		const first = pickerAt(0).getItems().find((item) => item.id === FIRST);
+		if (first === undefined) throw new Error('the picker offered no first-floor plan');
+		pickerAt(0).choose(first);
+		await flush();
+
+		const [created] = workspace.leaves;
+		expect(created?.state?.state?.['origin']).toEqual({ planId: FIRST, assetId: ASSET });
 	});
 });

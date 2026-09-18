@@ -216,6 +216,49 @@ plan nor the worker, which is why it is written into the lease rather than left 
 no pinned Chromium in this environment, so the beta may not be labelled ready from here. AD17 is
 post-beta and out of scope.
 
+## Wave 6 — issued 2026-09-18 (session five), base is THIS commit, contract revision `r1`
+
+Every wave-5 lease is RELEASED: both cards are integrated and all six gates were green on
+`4521f6acf`. **Two workers**, on the two acceptance criteria this package left unmet in code —
+neither is a new work-package card, and neither gets a `state.json` key of its own. AD13-C3 sits
+under AD13's existing row the way the hand-off card did; AD07-H sits under AD07's, because it is
+that card's own Amendment 1 with its trigger fired.
+
+**The base is the commit that carries this table**, for wave 4's recorded reason. Both workers
+branch from a commit that CONTAINS this section and ruling **AD13-R1**, so the row and the ruling
+governing a worktree are present in that worktree from the moment it exists.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| AD13-C3 — the designer's usage scope (ruling AD13-R1) | `.worktrees/ad13c` · `ad13c3-designer-usage-scope` | `plugin/guardedAssetLibrary.ts`, `plugin/assetLibraryDeps.ts`, `plugin/assetDesignerDeps.ts`, `presentation/read-models/assetDesignerQueries.ts`, NEW `presentation/designer/inspector/DesignerUsageScope.vue`, `presentation/designer/inspector/DesignerInspector.vue` (**integrator lease, ADDITIVE ONLY** — the mount and its comment, nothing already there), `styles/designer-object.css` (**integrator lease, ADDITIVE ONLY**), NEW `presentation/i18n/locales/{en,de}/assetUsageScope.ts` plus the ONE import and ONE spread line each in `presentation/i18n/locales/{en,de}.ts` (**integrator lease, ADDITIVE ONLY**), its own tests | THIS commit / `r1` | DISPATCHED 2026-09-18 | candidate committed and handed off |
+| AD07-H — the optional descriptive height at creation (AD07 Amendment 1) | `.worktrees/ad14` · `ad07h-creation-height` | `application/commands/asset/CreateAsset.ts`, `presentation/views/NewAssetForm.vue`, NEW numeric-field-row component under `presentation/views/`, `presentation/i18n/locales/{en,de}/newAssetFootprint.ts`, `styles/` **only** the partial that already declares the New asset dialog's field rules and only if a rule is genuinely needed, its own tests | THIS commit / `r1` | DISPATCHED 2026-09-18 | candidate committed and handed off |
+
+**Disjointness was verified by listing both rows' files and intersecting them, not by intention.**
+The intersection is empty. The two locale modules each row names are DIFFERENT modules, which is the
+whole reason this repository splits locale copy per feature; only AD13-C3 touches `en.ts`/`de.ts` at
+all, and then by one import and one spread line, because `newAssetFootprintEn` is already spread
+there.
+
+**Three integrator-owned files are sub-let this wave, all to AD13-C3, and every grant is in this
+table rather than in a dispatch message** — the rule this ledger's opening sentence states and which
+this package has broken twice, once by scope and once by timing.
+
+**The style cap is measured, and it is why neither row names `styles/designer.css`.** That partial is
+at **388 lines** against `MAX_LINES = 400` in `scripts/styles-assemble.mjs` — twelve lines and the
+build fails rather than warns. `styles/designer-object.css` is at **61**, its own header scopes it to
+*"the designer Inspector's OBJECT block: which asset this is, the way back to the catalogue"*, and a
+statement of which plans place THIS asset is exactly that block. So AD13-C3's rules go there, and no
+`styles/index.css` edit is owed — a new partial would need that entry-file line, and an entry file
+importing a partial that does not yet exist fails the build in the worker's own tree.
+
+**`styles/designer-object.css`'s position in `index.css` is load-bearing** and its header says so:
+these rules were authored at the END of `designer.css`, so an equal-specificity pair is decided by
+order. Append to that partial; do not reorder it and do not move a rule into it from elsewhere.
+
+**AD15 and AD16 remain `blocked` and this wave does not change that.** Runbook §10: no Obsidian and
+no pinned Chromium in this environment, so the beta may not be labelled ready from here. AD17 is
+post-beta and out of scope.
+
 A worker that needs a file not in its row submits a precise integration change request in its report.
 It does not edit it, and it does not work around it by putting the logic somewhere it does own.
 

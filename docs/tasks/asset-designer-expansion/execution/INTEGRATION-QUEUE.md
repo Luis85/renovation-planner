@@ -223,7 +223,22 @@ this expansion has already recovered headroom twice by deleting rather than test
 
 ## AD13 — raised by the duplicate half's review, and NOT closed by it
 
-- [ ] **Usage scope is drawn in the LIBRARY, before a DUPLICATE — which is the one impactful
+- [ ] **RULED 2026-09-18 (session five) as AD13-R1, and ALLOCATED to wave 6 as card AD13-C3**
+      (`.worktrees/ad13c`, branch `ad13c3-designer-usage-scope`). **The row stays
+      unchecked until the gate is green on the SHA that builds it** — a ruling is not an
+      implementation, which is the same reason AD14-R1's row stayed unchecked for a session.
+      The ruling took the FIRST arm: the scope read reaches the designer. The
+      *"undo covers it"* arm was refused on a category difference rather than on a judgement about
+      undo — it is a per-leaf, in-session remedy reachable only by someone who already knows, while
+      a scope is a disclosure made before the gesture — and on a measurement: the designer is
+      reached from a plan through `EditorNavigation.asset` and from Obsidian's own restore of a
+      leaf, so *"they saw the scope in the library on the way in"* is not true by construction.
+      `DECISIONS.md` carries the reasoning, the shape (a passive statement, never a confirmation;
+      a second CONSUMER of `ListPlansUsingAsset` through an extracted `guardAssetUsage`, never a
+      second query) and the trigger for revisiting. The original statement of the obligation
+      follows, unaltered, because it is what the ruling had to answer:
+
+      **Usage scope is drawn in the LIBRARY, before a DUPLICATE — which is the one impactful
       change it provably does not affect.** A duplicate creates a new definition and leaves every
       plan that places the original untouched; the panel's own copy says so
       (*"Plans that place this asset keep the original"*). So the scope there is informational,
@@ -237,6 +252,40 @@ this expansion has already recovered headroom twice by deleting rather than test
       second query) or a ruling that a geometry edit needs no scope because undo covers it — and
       that ruling has to be made rather than inherited, because the two surfaces currently answer
       the same question differently by accident rather than by decision.
+
+## AD07 — the deferral whose trigger fired, swept 2026-09-18 (session five)
+
+- [ ] **AD07 Amendment 1's trigger has FIRED and the item is DISPATCHED rather than re-deferred**
+      (`.worktrees/ad14`, branch `ad07h-creation-height`). That amendment's trigger reads *"do this
+      when a single task holds BOTH leases at once: `CreateAsset.ts` and `NewAssetForm.vue`"*, and
+      wave 6's table grants exactly those two to one card. Nothing else changed — no new capability
+      was discovered and no constraint lifted itself; the trigger was one only an orchestrator could
+      fire, and leaving it standing would have been the deferral quietly becoming a drop.
+      **The row stays unchecked until the gate is green on the SHA that builds it.**
+
+## Swept and NOT re-opened, recorded so the next session does not re-derive them
+
+- [x] **AD06's *"Use in plan deferred to AD13"* is DISCHARGED**, not carried. `DesignerUsePlan.vue`
+      is mounted in the designer inspector and `assetDesignerUsePlan` builds a `{ planId, assetId }`
+      origin as of `4521f6acf`. `state.json`'s AD06 blocker is rewritten to the half that survives
+      (no header chrome, per C12) rather than left whole.
+- [x] **AD11's PRECISE_TOOLS doubt is NARROWED, and the narrowing was worth doing.** The blocker read
+      *"nothing verifies that PRECISE_TOOLS membership actually resolves to a crosshair"*, which is
+      two claims wearing one sentence. The WIRING half was checkable here and holds:
+      `grep -rn cursorClassFor src/ tests/` prints one non-test call site — `EditorSurface.vue` —
+      and `DesignerCanvas.vue` MOUNTS `EditorSurface`, passing `:active-tool-id`, so a designer tool
+      in that list does reach the class. (The first reading of that grep concluded the opposite, on
+      the call-site count alone, and was wrong: the designer reaches the function through a
+      component rather than through an import.) What is left is the KEYWORD half — that
+      `.rp-plan-canvas-precise` renders as a crosshair — which jsdom cannot resolve and a headless
+      capture cannot show, because nothing in a capture hovers. Trigger unchanged: a live Obsidian
+      session walking `docs/tests/cases/Canvas Navigation.md`.
+- [x] **`DesignerUsePlan.vue`'s docblock was STALE in two paragraphs and is corrected in the wave-6
+      base commit.** Both claimed the sender did not exist; ICR 1-H landed it at `4521f6acf`. The
+      prop's paragraph is kept rather than deleted, because its point survives the fix and matters
+      more now: `() => void` is assignable to `(assetId: string) => void`, so a narrowed declaration
+      anywhere along that chain drops the argument with `vue-tsc` still at exit 0 — the seam is held
+      by a case and never by the compiler.
 
 ## Standing, not per-candidate
 

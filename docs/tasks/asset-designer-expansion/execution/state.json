@@ -10,7 +10,8 @@
 			"AD10-R1 (2026-09-17, amended same day): a spatial composition refuses a mixed measured/pending selection; grouping does not; an all-pending selection is not mixed. The amendment narrowed it from five operations to four and moved the check off the shared participant resolver, which would have refused the grouping the ruling permits",
 			"AD12-R1 (2026-09-17): lock reference is already true by construction, so no control is owed; background opacity is a real gap and is queued. MISSING FROM THIS LEDGER for the whole of session two and added in session three - the ledger is not self-checking and a ruling recorded only in DECISIONS.md is one this file disagrees with",
 			"AD14-R1 (2026-09-17, session three): a durable clearance review state IS owed. One boolean clearanceNeedsReview on AssetShape, asset-geometry schema v4 allocated in the same edit, and a MEASURED clearance is preserved under a whole-object scale rather than scaled - C07s own named default. A pending clearance goes on scaling, per r1 row 2. Carried by AD14; recorded durably as ADR-0034 because C03 requires a spec/ADR update for superseding this behaviour",
-			"AD12-R2 (2026-09-17, session three): a reference may be DELETED through SetAssetBackground rather than through a new command. The domain already admits a null background; one input arm needs admitting. Allocated to the integration-queue worker beside background opacity"
+			"AD12-R2 (2026-09-17, session three): a reference may be DELETED through SetAssetBackground rather than through a new command. The domain already admits a null background; one input arm needs admitting. Allocated to the integration-queue worker beside background opacity",
+			"AD13-R1 (2026-09-18, session five): editing geometry in the designer OWES a usage scope, so criterion 3 must not be ticked on the library half alone. The 'undo covers it' arm is refused - undo is a per-leaf in-session remedy reachable only by someone who already knows, and a scope is a disclosure made before the gesture; the designer is also reachable from a plan and from a restored leaf without passing the library at all. It is a passive statement rather than a confirmation, and a SECOND CONSUMER of ListPlansUsingAsset through an extracted guardAssetUsage, never a second query. Allocated to wave 6 as AD13-C3"
 		]
 	},
 	"tasks": {
@@ -91,7 +92,7 @@
 			"evidence": [
 				"the Inspector names the asset and opens the library, wiring case watched red"
 			],
-			"blocker": "Use in plan deferred to AD13; no header chrome, per C12"
+			"blocker": "No header chrome, per C12. The 'Use in plan deferred to AD13' half of this blocker is DISCHARGED as of 4521f6acf: DesignerUsePlan.vue is mounted in the designer inspector and assetDesignerUsePlan now builds a { planId, assetId } origin through a closure-scoped slot, so AD13 criterion 1 is met end to end. Re-read rather than carried - a deferral whose owner has landed is a deferral to close"
 		},
 		"AD07": {
 			"status": "integrated",
@@ -106,7 +107,7 @@
 				"fix round addf941be: focus ring restored, preset rules moved to their own partial, roving tabindex, three vacuous-passing selectors narrowed, four false sentences corrected",
 				"integrator: empty-state copy in both locales (b4869f3b1), since locales/{en,de}.ts are integrator-owned"
 			],
-			"blocker": "Item 3 (optional descriptive height) DEFERRED with a trigger in the card amendments. The reason is NOT the 399/400 line budget the first report gave: CreateAssetInput carries no height field and CreateAsset.ts was in no lease. Height stays settable in the inspector immediately after creation."
+			"blocker": "Item 3 (optional descriptive height) was DEFERRED with a trigger in Amendment 1 - 'do this when a single task holds BOTH leases at once: CreateAsset.ts and NewAssetForm.vue'. THAT TRIGGER HAS FIRED: wave 6 grants both to one card (AD07-H, .worktrees/ad14, branch ad07h-creation-height). It is not a new state.json key, for the reason AD13's two-worker split states. The deferral is therefore neither standing nor quietly dropped."
 		},
 		"AD08": {
 			"status": "integrated",
@@ -171,7 +172,7 @@
 				"the review verdicted all eight out-of-lease edits JUSTIFIED, re-deriving the three riskiest itself",
 				"integrator 97ca96ff9: the same defect one file over - the status row advertised Shift on a part with no handle for it - predicate EXTRACTED rather than copied, watched red"
 			],
-			"blocker": "No capture and no Obsidian. Two new toolbar buttons, a one-button mode group and an inspector paragraph have had NO layout, contrast or hit-size check. Nothing verifies that PRECISE_TOOLS membership actually resolves to a crosshair - that keyword lives in styles/editor-cursors.css and a manual case is its only instrument."
+			"blocker": "No capture and no Obsidian. Two new toolbar buttons, a one-button mode group and an inspector paragraph have had NO layout, contrast or hit-size check. The PRECISE_TOOLS doubt is NARROWED in session five rather than carried whole: the WIRING was verified by reading and holds - cursorClassFor has exactly one call site (EditorSurface.vue, grepped across src/ and tests/), and DesignerCanvas.vue mounts EditorSurface passing :active-tool-id, so a designer tool in that list does reach the class. What is still unverified is only that .rp-plan-canvas-precise resolves to a rendered crosshair, which jsdom cannot see and a headless capture cannot show because nothing in it hovers. Trigger unchanged and restated: a live Obsidian session walking docs/tests/cases/Canvas Navigation.md."
 		},
 		"AD12": {
 			"status": "integrated",

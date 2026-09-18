@@ -309,6 +309,94 @@ background opacity, the two being one subject.
 **The control is drawn only while a reference exists**, the same predicate rule AD14-R1 states for
 `Reviewed` and for the same reason.
 
+### AD13-R1 — editing geometry in the designer OWES a usage scope. Undo is a remedy and a scope is a disclosure, and one does not stand in for the other. (2026-09-18)
+
+AD13's acceptance criterion 3 reads *"Editing a shared definition has explicit usage scope; a
+duplicate does not change the original."* C11 pairs the two in the same sentence: *"Show impact
+scope and provide Duplicate as new asset for intentional divergence."* **The library half shipped
+and the designer half did not**, and the asymmetry is the wrong way round.
+
+#### What each surface does today, measured in this edit rather than recalled
+
+`AssetUsageScope.vue` is drawn inside `AssetUsageDuplicate`, which `AssetInspector` draws on a
+`ready` entry — so the scope stands in front of **Duplicate**. `DuplicateAssetCommand` writes a new
+definition and touches no plan; the panel's own copy says so (*"Plans that place this asset keep the
+original"*). That disclosure is true, and it precedes the one gesture on this aggregate that
+provably changes nothing downstream.
+
+The designer is where a shared definition is actually EDITED, and it discloses nothing:
+`grep -rn "listPlansUsingAsset\|UsageScope\|used-in" src/presentation/designer/` prints **no lines**
+at this commit. `DesignerInspector.vue`'s asset block is the name, the dimensions, the unscaled
+note, three flat buttons, `DesignerUsePlan`, and then the AD12 and AD14 blocks. Every geometry
+command dispatched from this surface rewrites the definition every one of those plans draws.
+
+So C11's *"show impact scope"* is satisfied for the harmless gesture and unsatisfied for the harmful
+one. **That is an accident of which card reached which file, not a decision anybody took** — which
+is precisely why it is ruled here rather than inherited.
+
+#### The arm REFUSED: "a geometry edit needs no scope because undo covers it"
+
+Refused, and the reason is a category difference rather than a judgement about how good undo is.
+
+- **Undo is per-leaf and in-session.** It is `CommandHistory` on the designer runtime; closing the
+  leaf ends it. Nothing in the vault records that an edit widened past what its author expected.
+- **Undo is reachable only by someone who already knows.** The whole content of an impact scope is
+  telling a person the blast radius BEFORE they act. A user who does not know eleven plans place
+  this object never reaches for undo, because nothing looked wrong.
+- **"They saw the scope in the library on the way in" is not true by construction.** The designer is
+  reached from a plan through `EditorNavigation.asset` (*"Edit shared asset"*, composed in
+  `planEditorDeps.ts`, drawn at two predicated sites), and Obsidian restores a designer leaf from
+  its own workspace layout with no library visit at all. A guarantee held by a route the user need
+  not take is not a guarantee.
+
+#### The decision, in three parts
+
+1. **A usage scope is OWED in the designer, and criterion 3 is NOT met until it lands.** It must not
+   be ticked on the library half alone.
+2. **It is a passive STATEMENT, not a confirmation.** No dialog in front of a gesture, no
+   are-you-sure before a drag. C12 makes selection the resting mode and this repository has refused
+   a control that can only interrupt more than once; a scope that has to be dismissed would be read,
+   ignored, then unread. It states which plans place this object, standing while the user works, in
+   the designer inspector's own asset block.
+3. **It is a SECOND CONSUMER of `ListPlansUsingAsset`, never a second query.** One question gets one
+   answer here, exactly as `overlaps` and `listFacts` are one instrument each across two surfaces.
+   The four drawn states are `AssetUsageScope`'s own — loading, refused, ready, and ready with
+   `unreadable > 0` — because a designer that invented a fifth spelling of *some plans could not be
+   read* would be the second answer this part exists to prevent.
+
+#### Where the code goes, and the one thing to measure before writing it
+
+`ListPlansUsingAsset` is constructed and guarded exactly once, inside `guardAssetDuplication`
+(`src/plugin/guardedAssetLibrary.ts`), whose only caller is `assetLibraryDeps.ts`. The designer
+cannot call that function without also building a `DuplicateAssetCommand` nothing dispatches — a
+dead door composed to reach a live one. **Extract `guardAssetUsage(ports, logger, map)`** — the
+`ListPlansUsingAsset` construction plus its `guardQuery` under the existing
+`query.listPlansUsingAsset.failed` event name — and let `guardAssetDuplication` and
+`assetDesignerDeps.ts` both call it. Spelling the two lines a second time in the designer's
+composition was the cheaper edit and is refused for the reason part 3 gives.
+
+The read is **gated on `indexScanCompleted()`**, which `AssetDesignerDeps` already carries for its
+own hydration. `AssetUsageScope.vue`'s header states why: both repositories the query walks
+enumerate through `index.getIdsByType` and answer `ok` over an empty index, so before the initial
+scan the honest answer is *unknown* and the ungated one is *no plan places this asset* — at the one
+surface whose entire job is to state a blast radius. That header also names the exposure this
+ruling creates: *"the next caller of this query reintroduces the defect silently"*. This is that
+caller.
+
+`unavailableAssetDesignerQueries()` gains a refusing arm in the same edit, for the reason that
+function already states — a bundle that refuses totally, never a nullable member with a branch in
+every consumer.
+
+#### What this owes in return
+
+C09 is untouched: no durable field, no schema version, no migration. Nothing in `r1` changes and no
+ADR is owed — this APPLIES C11 rather than superseding anything.
+
+**The trigger for revisiting is a second editor of shared definitions**, not a widening of this one.
+If a future surface can rewrite an `Asset`'s geometry without being the designer, it owes the same
+disclosure in the same change, and the extracted `guardAssetUsage` is what makes that a one-line
+composition rather than a third construction of the query.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

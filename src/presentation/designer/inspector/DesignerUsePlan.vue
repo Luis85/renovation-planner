@@ -7,16 +7,18 @@
  * plan — the one already open when exactly one is, and otherwise the one picked from
  * `PlanSuggestModal`.
  *
- * **The channel that carries the asset the rest of the way now EXISTS, and the door bound behind
- * this prop does not use it yet.** `ProjectOrigin.assetId`, `PlanEditorView`'s parse of it and
- * `useEditorArrival`'s arm of `assetPlacementTask` all landed together (AD13 hand-off): an origin
- * of `{ planId, assetId }` set on a Plan Editor leaf arms `AssetPlacementTool` with that asset,
- * or refuses with the same reason the Add menu's picker would give. What is still outstanding is
- * the SENDER — `assetDesignerUsePlan` in `src/plugin/renovationProjectOpenSeams.ts` builds no
- * origin at all, and the two `usePlan` declarations between here and it are still `() => void`,
- * so the argument this template passes is accepted and dropped. Those three files are outside the
- * hand-off card's lease and its report names the exact change each needs. Until they land this
- * button's honest reach is the navigation, and nothing here claims more.
+ * **The channel that carries the asset the rest of the way is COMPLETE at both ends**, and this
+ * paragraph said the opposite for one commit. `ProjectOrigin.assetId`, `PlanEditorView`'s parse of
+ * it and `useEditorArrival`'s arm of `assetPlacementTask` landed as the AD13 hand-off card's
+ * receiving half: an origin of `{ planId, assetId }` set on a Plan Editor leaf arms
+ * `AssetPlacementTool` with that asset, or refuses with the same reason the Add menu's picker
+ * would give. The SENDER landed with the integration (ICR 1-H, `4521f6acf`) — `assetDesignerUsePlan`
+ * in `src/plugin/renovationProjectOpenSeams.ts` arms a closure-scoped slot before it opens the
+ * picker and spreads `{ planId, ...(assetId === undefined ? {} : { assetId }) }` into the origin
+ * it opens with. Written from a grep of the three declarations rather than from memory:
+ * `AssetDesignerContext.usePlan`, `DesignerInspector.vue`'s prop and this one all read
+ * `(assetId: string) => void` at this commit, so the argument this template passes is carried
+ * rather than dropped.
  *
  * **Drawn only where it can work, by a predicate, never by `:disabled`** — a control that is
  * drawn and can only refuse is the live control that does nothing, which this expansion has
@@ -44,12 +46,12 @@ const props = defineProps<{
 	 * The way into a plan, or `undefined` where no door is bound — see `AssetDesignerContext.usePlan`.
 	 *
 	 * It takes the asset id because that is what the door NEEDS to build a `{ planId, assetId }`
-	 * origin. Declaring it here makes NOTHING a type error, which the first version of this
-	 * paragraph claimed it did: `() => void` is assignable to `(assetId: string) => void`, so
-	 * `DesignerInspector.vue`'s own `usePlan?: () => void` prop satisfies this one and
-	 * `npx vue-tsc --noEmit` exits 0 at this commit with the sender still absent — measured by
-	 * running it, not reasoned. The argument is accepted and dropped, and the only instrument
-	 * that fails without the wiring is the case named in this card's report.
+	 * origin. **Declaring it here makes NOTHING a type error**, which is worth keeping now that the
+	 * sender exists, because it is why this seam needs a CASE rather than a compiler: `() => void`
+	 * is assignable to `(assetId: string) => void`, so a narrower declaration anywhere along the
+	 * chain would satisfy this prop and `vue-tsc` would still exit 0 with the argument silently
+	 * dropped. Measured by running it when the sender was absent, not reasoned. The instrument that
+	 * fails without the wiring is `tests/plugin/assetDesignerUsePlan.test.ts`, never the build.
 	 */
 	usePlan?: (assetId: string) => void;
 }>();

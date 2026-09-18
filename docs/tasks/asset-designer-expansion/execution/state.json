@@ -202,21 +202,23 @@
 				"integrator 644b9687f: ICR 3, the Use in plan button's class and its three selector-list rules, in one change because libraryComponentStyles.test.ts refuses a class the sheet does not declare. Watched failing: expected [ 'rp-designer-use-plan' ] to deeply equal []",
 				"integrator 66710b1eb: ICR 4, open-asset-library's mobile checkCallback plus the two registration.test.ts call sites and a re-added assetLibraryCommandGate.test.ts. Watched failing: all three cases gave 'expected undefined to be false/true'. Paid for by collapsing four command bodies, since the file was at 399 of 400 counted lines",
 				"integrator 593a38b55: ICR-equivalent relocation 1, listPlansUsingAsset moved from the command bundle to AssetLibraryQueryServices",
-				"ICR 2 (the outbound 'Edit shared asset' door) WITHDRAWN by the integrator: it already exists and predates this package (999b39230). EditorNavigation.asset is composed in planEditorDeps.ts and drawn at two predicated sites, with keys in both locales and assetPlacementInspector.test.ts asserting both. The report's premise that no such door exists in src/ was false"
+				"ICR 2 (the outbound 'Edit shared asset' door) WITHDRAWN by the integrator: it already exists and predates this package (999b39230). EditorNavigation.asset is composed in planEditorDeps.ts and drawn at two predicated sites, with keys in both locales and assetPlacementInspector.test.ts asserting both. The report's premise that no such door exists in src/ was false",
+				"ICR 1 (the asset hand-off channel) dispatched 2026-09-18 as its own wave-5 card: .worktrees/ad13c, branch ad13c-asset-handoff, base 044e11f52. Criterion 1 stays UNMET until it integrates"
 			],
 			"blocker": "Criterion 1 is UNMET with a trigger: the Use in plan gesture navigates but does not ARM the placement tool, so the user picks the asset again inside the editor. ICR 1 (the asset hand-off channel, FOUR files including PlanEditorView.getState's uncleared origin) is dispatched as wave 5's AD13 hand-off card. Criterion 3 must NOT be ticked on the library half alone - see the new obligation in INTEGRATION-QUEUE.md. No Obsidian and no pinned Chromium, so nothing drawn by either half is photographed or walked."
 		},
 		"AD14": {
-			"status": "planned",
-			"base_sha": null,
+			"status": "in_progress",
+			"base_sha": "044e11f52",
 			"candidate_sha": null,
 			"integrated_sha": null,
 			"evidence": [
 				"ruling AD14-R1 issued 2026-09-17 BEFORE dispatch, as the runbook requires: clearanceNeedsReview boolean on AssetShape, asset-geometry schema v4 allocated in the same edit, and a MEASURED clearance preserved rather than scaled under a whole-object scale",
 				"ADR-0034 carries the supersession C03 requires, and names the two fixtures to amend rather than delete",
-				"held for wave 5: depends on AD13, and the schema/aggregate files it needs are the ones wave 4 keeps held"
+				"dispatched 2026-09-18 (session four) to .worktrees/ad14, branch ad14-clearance-review, base 044e11f52 - a commit that CONTAINS its wave-5 lease row, which is the fix for wave 4's lease-timing failure",
+				"beyond the ruling it owes C11 r1 row 3's explicit capability gating WITH tests, and the two regression fixtures amended rather than deleted plus the one spec line that stops being true"
 			],
-			"blocker": "AD13 is integrated, so AD14 is unblocked and its wave-5 lease is written into LEASES.md. NOT yet dispatched in this session - see reports/RESUME.md."
+			"blocker": null
 		},
 		"AD15": {
 			"status": "blocked",

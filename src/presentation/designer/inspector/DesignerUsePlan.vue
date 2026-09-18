@@ -50,19 +50,20 @@ const placeable = computed(() => props.design.dimensions !== null && !props.desi
 
 <template>
 	<!--
-		**No class, and that is a DISCLOSED gap rather than a decision.** The three flat buttons
-		this one sits beside are styled by `.rp-designer-inspector .rp-designer-{edit-dimensions,
-		start-preset,open-library}` in `styles/designer.css`, which is not in AD13's navigation
-		lease — and `tests/build/libraryComponentStyles.test.ts` refuses a class the assembled
-		sheet does not declare, so naming one here would hand over a red gate. So this renders with
-		Obsidian's own default button chrome, which is functional and legible but does NOT match
-		its three siblings. The task report asks for the class and the three selector-list
-		additions in one change; `data-rp-action` is what the suites select on meanwhile, the same
-		attribute the multiple-selection checkbox above already uses.
+		**The class and its rules landed together, which was the whole of the ask.** This button is
+		the fourth flat inspector button, styled with its three siblings by
+		`.rp-designer-inspector .rp-designer-{edit-dimensions,start-preset,open-library,use-plan}`
+		in `styles/designer.css` — base, `:hover` and `:focus-visible`, three rules, one class name
+		added to each. It had to be one change: `tests/build/libraryComponentStyles.test.ts` refuses
+		a class the assembled sheet does not declare, so the class alone would have been a red gate
+		and the rules alone would have styled nothing. `data-rp-action` remains what the suites
+		select on, the same attribute the multiple-selection checkbox above uses — a class is for
+		appearance and an action attribute is for identity, and neither stands in for the other.
 	-->
 	<button
 		v-if="usePlan !== undefined && placeable"
 		type="button"
+		class="rp-designer-use-plan"
 		data-rp-action="use-in-plan"
 		@click="usePlan"
 	>

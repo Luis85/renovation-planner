@@ -270,7 +270,8 @@
    necessity; the argument is on `.rp-designer-tool-button`, above in this file. */
 .rp-designer-inspector .rp-designer-edit-dimensions,
 .rp-designer-inspector .rp-designer-start-preset,
-.rp-designer-inspector .rp-designer-open-library {
+.rp-designer-inspector .rp-designer-open-library,
+.rp-designer-inspector .rp-designer-use-plan {
 	width: 100%;
 	/* The reviewed clone starts at margin; target the declaration rather than the selector. */
 	/* fallow-ignore-next-line code-duplication */
@@ -289,14 +290,16 @@
 
 .rp-designer-inspector .rp-designer-edit-dimensions:hover,
 .rp-designer-inspector .rp-designer-start-preset:hover,
-.rp-designer-inspector .rp-designer-open-library:hover {
+.rp-designer-inspector .rp-designer-open-library:hover,
+.rp-designer-inspector .rp-designer-use-plan:hover {
 	background-color: var(--background-modifier-hover);
 }
 
 /* The ring, for the reason `editor.css`'s toolbar `:focus-visible` comment gives at length. */
 .rp-designer-inspector .rp-designer-edit-dimensions:focus-visible,
 .rp-designer-inspector .rp-designer-start-preset:focus-visible,
-.rp-designer-inspector .rp-designer-open-library:focus-visible {
+.rp-designer-inspector .rp-designer-open-library:focus-visible,
+.rp-designer-inspector .rp-designer-use-plan:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }

@@ -628,7 +628,7 @@ export const en = {
 	'form.new-asset.unit': 'Unit',
 	'form.new-asset.unit-cost': 'Unit cost',
 	'form.new-asset.currency': 'Currency',
-	// The width, depth and footprint/outline copy is `newAssetFootprintEn`, spread in above —
+	// The width, depth, height and footprint/outline copy is `newAssetFootprintEn`, spread in above —
 	// see that module's header for why it is a separate file.
 	// One label per `AssetCategory`, so the control never shows the raw union member
 	// (`building-element`). `ASSET_CATEGORY_LABELS` is the `Record` that makes a missing one

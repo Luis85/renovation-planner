@@ -356,7 +356,7 @@ describe('NewAssetForm', () => {
 	 * dialog succeed and close over an asset that still carries the old one. An edit accepted
 	 * by an input and discarded by the code behind it is worse than an edit refused.
 	 *
-	 * The five catalogue fields are frozen once the note exists, which says the true thing:
+	 * The six catalogue fields are frozen once the note exists, which says the true thing:
 	 * the entry is in the vault, and what this dialog has left to do is its footprint. The two
 	 * dimensions stay live, because they are exactly what the retry re-dispatches.
 	 */
@@ -415,7 +415,7 @@ describe('NewAssetForm', () => {
 	/**
 	 * **The half that matters most, and the one an `<input>`-only case would miss entirely.**
 	 *
-	 * The five frozen controls are inoperative rather than `:disabled`, and `aria-disabled` is
+	 * The six frozen controls are inoperative rather than `:disabled`, and `aria-disabled` is
 	 * advisory: it blocks nothing in the DOM. For the three text inputs `readonly` is a real
 	 * native refusal, so they are safe either way — but `readonly` does NOTHING to a
 	 * `<select>`, which is the reason this form reached for `:disabled` in the first place.

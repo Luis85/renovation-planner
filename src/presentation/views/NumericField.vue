@@ -28,7 +28,9 @@ import type { StringKey } from '../i18n/locales/en';
 
 defineProps<{
 	labelKey: StringKey;
-	/** The `data-field` attribute, which is how every test and `useDialogFormBusy` find this control. */
+	/** The `data-field` attribute, which is how every test finds this control. NOT how
+	 * `useDialogFormBusy` does: that one is handed the element as `event.target` by
+	 * `useFieldInput`, and `grep -rn "data-field" src/ | grep -v '\.vue:'` prints nothing. */
 	field: string;
 	message: string | null;
 	value: string;

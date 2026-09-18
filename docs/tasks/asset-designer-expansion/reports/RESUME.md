@@ -32,8 +32,15 @@ went stale the moment it was written. `git log --oneline` is the list. Ten commi
 
 ## Gates — all six green, and how to read the coverage leg
 
-**All six gates pass.** `build`, `oxlint --deny-warnings`, `eslint . --max-warnings 0`,
-`vue-tsc -noEmit` and `analyze` all exit 0 on `dba8a71d0`, the last commit to touch `src/`. `analyze` reports **0 dead files,
+**All six gates pass on `4521f6acf`, the wave-5 integration SHA** — `build`,
+`oxlint --deny-warnings`, `eslint . --max-warnings 0`, `vue-tsc -noEmit`, `test:coverage` and
+`analyze`, every one exit 0. **1050 test files, 11591 tests, 1 skipped, ZERO failures**, at
+**99.22 / 98.04 / 99.26 / 99.67** against floors 99/98/99/98, in 23.5 minutes. `analyze` reports
+0 dead files, 0 dead exports of 2392, no private type leaks, no duplication and 0 complexity
+findings above threshold.
+
+The paragraphs below describe an EARLIER SHA and are kept because the contention lesson in them is
+the durable part, not the SHA. `analyze` reports **0 dead files,
 0 dead exports of 2390, no private type leaks, no duplication and 0 complexity findings above
 threshold**.
 
@@ -64,35 +71,39 @@ survived the `loadAssetEntity` extraction that way and were caught by the full g
 the cheap loop that exists to catch them. Prefer the editor tools for source edits, or run
 `npx oxlint <files>` by hand after a scripted one.
 
-## Wave 5 is WRITTEN but NOT DISPATCHED
+## Wave 5 is DISPATCHED, REVIEWED and INTEGRATED — the package's last two cards
 
-`execution/LEASES.md` carries a complete wave-5 table with two disjoint rows, and it is committed
-**in the commit its workers branch from** — which is the fix for wave 4's own lease-timing failure,
-recorded in that same file. Dispatch needs no further lease work.
+Both cards were cut from `044e11f52`, a commit that CONTAINS their lease rows, which is the fix for
+wave 4's lease-timing failure. Verified disjoint mechanically before either was merged: zero files
+in common.
 
-- **AD13 hand-off** (`.worktrees/ad13c` · `ad13c-asset-handoff`) — ICR 1, the asset hand-off
-  channel. FOUR files: `ProjectDestination.ts` (`assetId?` on `ProjectOrigin` plus `'assetId'` in
-  `projectOriginFrom`'s key list), `editorArrival.ts` (an `assetId` arm in `reveal` BEFORE the
-  record lookup), `assetPlacementTask.ts` (`choose` split into picker vs known-id, exposed through
-  `spatialEditing.ts`), and `PlanEditorView.ts`. **The fourth is the one to brief loudly:**
-  `getState()` persists `this.origin` and nothing clears it, so an `{ planId, assetId }` origin
-  would survive a restart and re-arm the placement tool weeks later. The worker picks between
-  excluding `assetId` from `getState` and clearing it once `useEditorArrival` consumes it, and owes
-  the case that fails without its choice. **This is what makes AD13 criterion 1 met**; until it
-  lands the criterion stays recorded UNMET with a trigger.
-- **AD14** (`.worktrees/ad14` · `ad14-clearance-review`) — the last card in scope. Ruling
-  **AD14-R1** already decided its hard question. It owes: `clearanceNeedsReview` on `AssetShape`,
-  asset-geometry **schema v4** allocated in the same edit, a MEASURED clearance PRESERVED under a
-  whole-object scale while a PENDING one goes on scaling, a `Reviewed` inspector action drawn only
-  while the flag is set, **ADR-0034**, C11 r1 row 3's explicit capability gating WITH tests, and
-  the two regression fixtures AMENDED rather than deleted (`shapeEdits.test.ts`'s literal
-  scaled-clearance points and its bounding-box case, plus
-  `2026-09-16-asset-designer-consolidate-design.md` §7's *"every part — clearance and details
-  included — is scaled about the anchor"*). Its `styles/designer.css` grant is **ADDITIVE ONLY and
-  has twelve lines of room** — the partial is at 388 against a 400 cap.
+- **AD13 hand-off** — candidate `2e228e4d3`, integrated at **`4521f6acf`** together with ICR 1-H.
+  Review returned REQUEST CHANGES with nine findings; a fix round addressed all nine.
+  **AD13 acceptance criterion 1 is now MET end to end.**
+- **AD14** — candidate `55cd03dee`, integrated at **`7908969d3`** with its change request applied in
+  the same commit. Review returned APPROVE FOR INTEGRATION plus six accuracy findings, all fixed.
 
-Both worktrees need `node_modules` robocopied from the integration worktree; do **not** run
-`npx playwright install chromium` (it emptied `node_modules` once).
+**Every wave-4 and wave-5 lease is RELEASED.** `.worktrees/ad13c` and `.worktrees/ad14` hold their
+branches and can be reused for the next wave the way these two reused wave-4 checkouts.
+
+## What is left, and none of it is code this environment can close
+
+1. **AD13 criterion 3 must NOT be ticked on the library half alone.** Usage scope is drawn before a
+   DUPLICATE, which provably changes nothing for the plans it lists — the panel's own copy says the
+   original is kept. The gesture that DOES change them is editing an asset's geometry, in the
+   designer, where no scope precedes it. Closing it needs either the scope read reaching the
+   designer (`ListPlansUsingAsset` now lives in `AssetLibraryQueryServices`, so that is a second
+   consumer rather than a second query) or a ruling that a geometry edit needs no scope because undo
+   covers it. That ruling has to be MADE: the two surfaces currently answer one question differently
+   by accident.
+2. **AD15 and AD16 stay `blocked`**, and nothing in this session changed that. Runbook §10: no
+   Obsidian and no pinned Chromium, so the beta may not be labelled ready from here.
+3. **Nothing drawn by any card in this package has been photographed or walked.** The sharpest
+   single exposure is AD14's new clearance-review block: a second bordered section directly beneath
+   the clearance helper's, no heading of its own, carrying the longest sentence in the designer
+   inspector — and invisible to every `accessibility*.test.ts`, because it draws nothing unless the
+   flag is set. A live-vault pass and a 460 px capture should start there.
+4. `npm audit` — its own CI job, not run here.
 
 ## What changed in the plan, with reasons
 

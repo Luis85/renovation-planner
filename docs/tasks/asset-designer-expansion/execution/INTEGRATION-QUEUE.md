@@ -88,7 +88,7 @@ Written 2026-09-17 during wave 2.
       requesting it, and declared it. It changed "the asset's is the ONLY `h3`" to "it is the FIRST".
       Defensible — the case's title is about ordering — but a rewritten assertion is how a real
       regression gets absorbed, so read the before and after and agree or revert.
-- [ ] **RULED 2026-09-17 (session three) as AD14-R1, and ALLOCATED to AD14.** The representation is
+- [x] **DONE** (`7908969d3`) — **RULED 2026-09-17 (session three) as AD14-R1, and ALLOCATED to AD14.** The representation is
       one boolean `clearanceNeedsReview` on `AssetShape`, beside the three pending flags it is
       modelled on; asset-geometry **schema v4** is allocated in the same edit, as C09 requires. The
       ruling also answers the question underneath it, in C07's own words rather than a third option
@@ -108,7 +108,7 @@ Written 2026-09-17 during wave 2.
       ruling first and a card second, and it must not be quietly dropped: the AD12 report originally
       called it "not owed", which the reviewer corrected, and that is the wording that would have
       lost it.
-- [ ] **DISCHARGED BY AD14-R1 as a DECISION, and carried by AD14 as work.** The arm taken is
+- [x] **DONE** (`7908969d3`) — **DISCHARGED BY AD14-R1 as a DECISION, and carried by AD14 as work.** The arm taken is
       preserve-and-flag, which is the first of the two C07 offers and the one r1's own reasoning
       points at — *a refusal now would block a common gesture to guard a rare one*. Two regression
       fixtures pin today's behaviour and are AMENDED deliberately rather than deleted:
@@ -178,7 +178,7 @@ this expansion has already recovered headroom twice by deleting rather than test
 
 ## AD13 hand-off — candidate `5a758f74b` (branch `ad13c-asset-handoff`)
 
-- [ ] **ICR 1-H — the SENDING half of the asset hand-off, three files, none in that card's lease.**
+- [x] **DONE** (`4521f6acf`) — **ICR 1-H — the SENDING half of the asset hand-off, three files, none in that card's lease.**
       The candidate built the RECEIVING half and proved it; nothing yet puts an `assetId` into the
       origin, so **AD13 criterion 1 is still unmet end to end**. The request, as filed:
       `plugin/renovationProjectOpenSeams.ts`'s `assetDesignerUsePlan` returns
@@ -211,7 +211,7 @@ this expansion has already recovered headroom twice by deleting rather than test
       if this request is never applied or is applied wrongly. Take the corrected ICR from the fix
       round's amended report, never from the paragraph above.
 
-- [ ] **A FILE CONTENTION this must wait on, named before it bites.** ICR 1-H edits
+- [x] **RESOLVED by sequencing** — **A FILE CONTENTION this had to wait on, named before it bit.** ICR 1-H edits
       `presentation/designer/inspector/DesignerInspector.vue`, and **wave 5's AD14 row holds an
       ADDITIVE-ONLY lease on that same file** for its `Reviewed` control's mount line. Two edits to
       one file is the thing this ledger exists to prevent, and being the integrator is not an

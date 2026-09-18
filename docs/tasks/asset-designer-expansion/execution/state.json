@@ -192,7 +192,7 @@
 			"status": "integrated",
 			"base_sha": "ae6bb2a63",
 			"candidate_sha": "c09348cba (nav) + 7f6cf4cce (dup)",
-			"integrated_sha": "cca169291 (nav) + 23930a0de (dup)",
+			"integrated_sha": "cca169291 (nav) + 23930a0de (dup) + 4521f6acf (hand-off, with ICR 1-H)",
 			"evidence": [
 				"wave 4 dispatched 2026-09-17 to TWO workers on ONE card: .worktrees/ad13a (branch ad13a-workflow, items 1/2/6-navigation, criteria 1/2/6) and .worktrees/ad13b (branch ad13b-duplicate, items 3/4/5, criteria 3/4/5)",
 				"the split is a dispatch decision and NOT a second task: one report, one ledger row, two candidate SHAs. No AD13a or AD13b key exists here deliberately",
@@ -205,22 +205,27 @@
 				"ICR 2 (the outbound 'Edit shared asset' door) WITHDRAWN by the integrator: it already exists and predates this package (999b39230). EditorNavigation.asset is composed in planEditorDeps.ts and drawn at two predicated sites, with keys in both locales and assetPlacementInspector.test.ts asserting both. The report's premise that no such door exists in src/ was false",
 				"ICR 1 (the asset hand-off channel) dispatched 2026-09-18 as its own wave-5 card: .worktrees/ad13c, branch ad13c-asset-handoff, base 044e11f52. Criterion 1 stays UNMET until it integrates",
 				"hand-off card (ICR 1) candidate 2e228e4d3 on ad13c-asset-handoff: receiving half built and proven, independent review returned REQUEST CHANGES with nine findings, fix round addressed all nine. NOT YET INTEGRATED - it carries two DELIBERATELY RED cases in tests/plugin/assetDesignerUsePlan.test.ts which are ICR 1-H's acceptance test, and an integration that leaves them red has not landed the ICR",
-				"the review's first finding was that ICR 1-H DID NOT COMPILE as filed - assetDesignerUsePlan builds its picker once at composition, so the callback has no lexical access to a per-press assetId. The fix round rewrote it around a closure-scoped slot and VERIFIED it by applying the change, running vue-tsc to exit 0, and reverting. Take the request from that report, never from the superseded paragraph in INTEGRATION-QUEUE.md"
+				"the review's first finding was that ICR 1-H DID NOT COMPILE as filed - assetDesignerUsePlan builds its picker once at composition, so the callback has no lexical access to a per-press assetId. The fix round rewrote it around a closure-scoped slot and VERIFIED it by applying the change, running vue-tsc to exit 0, and reverting. Take the request from that report, never from the superseded paragraph in INTEGRATION-QUEUE.md",
+				"criterion 1 MET end to end at 4521f6acf: the hand-off merge plus ICR 1-H in one commit, which turned the candidate's two deliberate cases green. ICR 1-H was applied in its CORRECTED shape (a closure-scoped slot) because the version first filed could not compile, and two pre-existing seam cases that changed meaning were repaired rather than relaxed - the review predicted both reds before either worker met them"
 			],
-			"blocker": "Criterion 1 is UNMET with a trigger: the Use in plan gesture navigates but does not ARM the placement tool, so the user picks the asset again inside the editor. ICR 1 (the asset hand-off channel, FOUR files including PlanEditorView.getState's uncleared origin) is dispatched as wave 5's AD13 hand-off card. Criterion 3 must NOT be ticked on the library half alone - see the new obligation in INTEGRATION-QUEUE.md. No Obsidian and no pinned Chromium, so nothing drawn by either half is photographed or walked."
+			"blocker": "Criterion 3 must NOT be ticked on the library half alone - usage scope is drawn before a DUPLICATE, which provably changes nothing for the plans it lists, while the gesture that does change them (editing geometry in the designer) has no scope at all. Recorded as an open obligation in INTEGRATION-QUEUE.md. No Obsidian and no pinned Chromium, so nothing either half draws is photographed or walked."
 		},
 		"AD14": {
-			"status": "in_progress",
+			"status": "integrated",
 			"base_sha": "044e11f52",
-			"candidate_sha": null,
-			"integrated_sha": null,
+			"candidate_sha": "55cd03dee",
+			"integrated_sha": "7908969d3",
 			"evidence": [
 				"ruling AD14-R1 issued 2026-09-17 BEFORE dispatch, as the runbook requires: clearanceNeedsReview boolean on AssetShape, asset-geometry schema v4 allocated in the same edit, and a MEASURED clearance preserved rather than scaled under a whole-object scale",
 				"ADR-0034 carries the supersession C03 requires, and names the two fixtures to amend rather than delete",
 				"dispatched 2026-09-18 (session four) to .worktrees/ad14, branch ad14-clearance-review, base 044e11f52 - a commit that CONTAINS its wave-5 lease row, which is the fix for wave 4's lease-timing failure",
-				"beyond the ruling it owes C11 r1 row 3's explicit capability gating WITH tests, and the two regression fixtures amended rather than deleted plus the one spec line that stops being true"
+				"beyond the ruling it owes C11 r1 row 3's explicit capability gating WITH tests, and the two regression fixtures amended rather than deleted plus the one spec line that stops being true",
+				"independent review returned APPROVE FOR INTEGRATION conditional on one change request, with six non-blocking accuracy findings; the reviewer also ran 49 spec files the worker's seven passes had missed (597 passed), discharging its own finding rather than only filing it",
+				"the change request (DesignerClearanceHelper's generate() writing clearanceNeedsReview: false) was applied in the integration commit and is what turned the candidate's deliberate red green",
+				"the ruling's grep-rather-than-list instruction earned its keep: the grep found TWO clear sites the ruling's examples omitted - SetAssetFootprint's inherited shape, and sameClearance without which an identical-coordinate re-trace is declined as a no-op and the notice never clears - and one example site that does not exist",
+				"four accuracy findings corrected, each re-measured by the integrator rather than taken from the review: a three-writes claim off by one, a 61/41 count taken before the card's own files existed against 66/43, a German Sie precedent appearing exactly once in locales/ inside the comment claiming it, and an ADR naming two amended fixtures where three were"
 			],
-			"blocker": null
+			"blocker": "No Obsidian and no pinned Chromium: the new clearance-review block has been seen at no width and in no colour scheme, and its notice is the longest sentence in the designer inspector. No accessibility scan reaches it either, since it draws nothing unless flagged. That is the one thing a live-vault or 460px capture pass should look at before beta."
 		},
 		"AD15": {
 			"status": "blocked",

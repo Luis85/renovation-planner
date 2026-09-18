@@ -665,7 +665,38 @@ ways. **An integration that leaves them red has not landed ICR 1-H.**
 
 ## Reviewer and integrator acceptance
 
-Reviewer outcome and findings:
-Integrated commit:
-Post-integration checks/evidence:
-Final status: integrated / verified / blocked
+**Reviewer outcome and findings:** round 1 **REQUEST CHANGES**, nine findings; fix round addressed
+all nine. The three most valuable were about this report's own change request rather than its code:
+ICR 1-H **would not have compiled** as filed, it omitted that it reddens two existing cases, and the
+assertion that fails without it had not been written — so nothing anywhere could have failed if the
+wire were never applied or applied wrongly.
+
+**Integrated commit:** `4521f6acf`, which merges the candidate AND applies ICR 1-H in one commit.
+That is what turned the two deliberately red cases green; an integration leaving them red would not
+have landed the wire.
+
+**Post-integration checks/evidence.**
+
+- **AD13 acceptance criterion 1 is MET END TO END.** Pressing *Use in plan* now carries the asset
+  into the Plan Editor and arms the placement tool with it, instead of navigating and leaving the
+  user to pick the same asset a second time.
+- **ICR 1-H was applied in its CORRECTED shape.** `assetDesignerUsePlan` holds a closure-scoped
+  slot, set before the pick and cleared on read so a dismissed pick cannot leave an asset armed for
+  whatever opens next; `planPicker`'s own `picking` guard is what makes one slot wide enough. The
+  originally filed version asked the picker callback to read a per-press `assetId`, which cannot
+  compile because that callback is built once at composition.
+- **Two pre-existing seam cases changed MEANING and were repaired, not relaxed.** Passing an origin
+  makes `prepareEditorArrival` state an already-open leaf too, so *"continues into the one Plan
+  Editor already open, asking nothing"* could no longer assert state identity. It now asserts the
+  plan id is unchanged and the origin is exactly the one pressed; the selection-and-camera
+  guarantee moved to where it actually lives, `PlanEditorView.sync()`'s early return. The review
+  predicted both reds before either worker met them.
+- `tests/plugin/assetDesignerUsePlan.test.ts` 15/15; the hand-off's own suites 73 files / 763 tests.
+- **All six gates exit 0 on `4521f6acf`**: 1050 test files, 11591 tests, 1 skipped, zero failures,
+  at 99.22 / 98.04 / 99.26 / 99.67 against 99/98/99/98; `analyze` clean with 0 dead exports of 2392.
+
+**Final status: integrated.** NOT verified — no Obsidian and no pinned Chromium here, so
+`npm run test-build` was never run, no manual case under `docs/tests/` was walked, and the gesture
+has never been performed in a real vault. `FakeLeaf` records asks rather than behaving, so both
+doors this change reasons about — a real settings-save `rebind` and a real workspace-layout restore
+— are modelled rather than exercised.

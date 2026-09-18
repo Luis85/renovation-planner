@@ -409,7 +409,43 @@ it is deliberate. A vault that must go back needs a restored backup or a hand ed
 
 ## Reviewer and integrator acceptance
 
-Reviewer outcome and findings:
-Integrated commit:
-Post-integration checks/evidence:
-Final status: integrated / verified / blocked
+**Reviewer outcome and findings:** **APPROVE FOR INTEGRATION**, conditional on the one change
+request, with six non-blocking accuracy findings. The reviewer also ran **49 spec files this
+report's seven passes had missed** (597 passed, 1 skipped), discharging its own finding rather than
+only filing it — the normalisation touches every validated shape, so a `toEqual` in an unrun
+directory would have gone red.
+
+**Integrated commit:** `7908969d3`, which merges the candidate AND applies the change request.
+
+**Post-integration checks/evidence.**
+
+- **The change request turned the deliberate red green.** `DesignerClearanceHelper`'s `generate()`
+  now writes `clearanceNeedsReview: false`, because regenerating the boundary IS the review. The
+  reviewer verified it independently as the last unreached clearing site, and its stated blast
+  radius — a stale notice, never lost data — was confirmed by reading the call site.
+- **The ruling's grep-rather-than-list instruction earned its keep**, which is worth recording for
+  the next ruling written that way. The grep found **two clear sites the ruling's own examples
+  omitted** — `SetAssetFootprint`'s inherited shape, and `sameClearance`, without which re-tracing a
+  boundary at identical coordinates is declined as a no-op and the notice never clears — and **one
+  example site that does not exist**. Coding from the ruling's list would have shipped a notice a
+  user cannot dismiss.
+- **Four accuracy findings fixed, each RE-MEASURED by the integrator rather than taken from the
+  review.** All four confirmed: `shapeEdits.ts` claimed three clearance writes and called them the
+  whole of what the grep prints, when the fourth arrived in the same change; `AssetShape.ts` carried
+  61 sites across 41 files, measured before this card's own files existed, against 66 across 43 now;
+  the German table cited `Überprüfen Sie` as a `de.ts` precedent when that string appears **exactly
+  once** in `locales/` — inside the comment claiming it — where the form actually chosen has nine
+  real hits; and ADR-0034 named two amended fixtures where three were.
+- `tests/presentation/designer/` + `tests/domain/asset/` + the geometry DTO: 77 files / 1248 tests.
+- **All six gates exit 0 on `4521f6acf`** (the wave-5 integration SHA carrying both cards): 1050
+  test files, 11591 tests, 1 skipped, zero failures, at 99.22 / 98.04 / 99.26 / 99.67 against
+  99/98/99/98; `analyze` clean, 0 dead exports of 2392, no leaks, no duplication, 0 complexity
+  findings above threshold.
+
+**Final status: integrated.** NOT verified — no Obsidian and no pinned Chromium. The reviewer named
+the specific exposure and it is the sharpest one this wave leaves: the new block is a **second**
+bordered `.rp-designer-clearance` section directly beneath the helper's, with no heading of its own,
+carrying **the longest sentence in the designer inspector**. Nothing here can measure its wrapping,
+spacing or contrast, and no `accessibility*.test.ts` reaches it either — it draws nothing unless the
+flag is set, so every existing designer scan passes straight over it. A live-vault pass and a 460 px
+capture should look at that block before beta.

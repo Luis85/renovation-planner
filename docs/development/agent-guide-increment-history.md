@@ -2218,6 +2218,25 @@ of them." The rules that lasted:
   `projectIndexRebuilt()` had "exactly one publisher" until the publishing increment gave the
   create-zone adapter a refused-reverse-lookup fallback that raises it too — a second publisher
   off this path, so the conclusion stands and only the count was wrong.)
+
+  **REFUTED LATER — 2026-09-18, BP-03/F1. The paragraph above is left as written because it is
+  the record of what was believed at the time; read it as superseded, not as current.** A rig
+  driving the real plugin, the real composition root and the real `applySettings` →
+  `rebindOpenViews` chain with a `vault.create` held open measured three of its claims FALSE.
+  "`VaultChangeAdapter` indexes the note while publishing nothing" is false in both arms —
+  the behaviour SPLITS on whether Obsidian's metadata cache has parsed the note when the
+  adapter processes the `create`: warm, it indexes AND publishes `ProjectIndexEntryChanged`,
+  the tree hydrates and the row appears unprompted, so the list is not stale at all; cold, it
+  does neither, and "stale until the leaf is reopened" is wrong in the other direction —
+  reopening the leaf does NOT fix it, since `ListProjects` resolves through the Project Index
+  and a fresh leaf reads the same empty index; it clears only at a full index rebuild, in
+  practice a plugin reload. **Which arm production takes is UNVERIFIED** and needs a run in a
+  real vault, which has never happened on this branch. Confirmed and NOT refuted: the project
+  IS created, under the previous default projects folder, and `ProjectCreated` reaches the
+  retired root's bus. The corrected account lives in `DialogHost.vue`'s `onBeforeUnmount`
+  docblock, with the same split in `formBusy.test.ts`'s last case,
+  `docs/tasks/16-form-and-inline-validation-feedback.md`'s amendment, and row F1 of
+  `docs/releases/first-beta-readiness/04-lifecycle-contract.md`.
 - **The half of a staleness that no COMMAND can raise, and the docblock that called it
   unfixable was pointing at the fix.** `projectListChangeSource` gained `ProjectCreated` in
   one round and still missed every project note added by hand, copied in, or arriving through

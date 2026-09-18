@@ -187,8 +187,29 @@ this expansion has already recovered headroom twice by deleting rather than test
       `presentation/designer/inspector/DesignerInspector.vue` each widen `usePlan` by one token.
       The matching case belongs in `tests/plugin/assetDesignerUsePlan.test.ts`, which that card held
       and deliberately left untouched because it would be red until this lands.
-      **Under independent review as of 2026-09-18** — specifically whether the request is correct,
-      COMPLETE and minimal, since a wrong request costs a whole round.
+      **REVIEWED 2026-09-18, and the request as filed DOES NOT COMPILE — do not apply the version
+      quoted above.** This row is left standing rather than corrected in place, because the whole
+      value of the review step is visible only if the bad version and the finding sit together.
+
+      `assetDesignerUsePlan` builds its picker ONCE at composition —
+      `const pick = planPicker(app, () => index, (plan) => { … })` — so the callback has no lexical
+      access to a per-press `assetId`, and `planPicker`'s own docblock refuses rebuilding it per
+      press. The corrected shape is a closure-scoped slot (`let armed: string | undefined`) set in
+      the returned function before `pick()` and read and cleared in the callback; the existing
+      `picking` flag already serialises presses, so one slot is exactly as wide as the property.
+
+      **It also reddens two EXISTING cases** in `tests/plugin/assetDesignerUsePlan.test.ts` that the
+      request did not mention — *"continues into the one Plan Editor already open, asking nothing"*
+      and *"asks which plan when none is open, and opens the one picked"* — because
+      `prepareEditorArrival` calls `setViewState` on whichever leaf was revealed, including an
+      already-open one. And `assetDesignerUsePlan`'s claim that continuing into an open editor
+      preserves selection and camera has to be RE-DERIVED: it then rests on `PlanEditorView.sync()`'s
+      `planId === mountedPlanId` early return rather than on the reveal not re-stating.
+
+      **The fix round is building the assertion that fails without this**, which the ledger's own
+      cross-lease idiom required and the first candidate skipped — so until it lands, NOTHING fails
+      if this request is never applied or is applied wrongly. Take the corrected ICR from the fix
+      round's amended report, never from the paragraph above.
 
 - [ ] **A FILE CONTENTION this must wait on, named before it bites.** ICR 1-H edits
       `presentation/designer/inspector/DesignerInspector.vue`, and **wave 5's AD14 row holds an

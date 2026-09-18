@@ -10,7 +10,7 @@ Branch `renovation-planner-asset-designer-bc5539`, worktree
 
 ## Where the work stands
 
-`HEAD` is **`593a38b55`**. Six commits this session, each verified as described below:
+`HEAD` is **`dba8a71d0`**. Nine commits this session, each verified as described below:
 
 | SHA | What |
 |---|---|
@@ -20,48 +20,46 @@ Branch `renovation-planner-asset-designer-bc5539`, worktree
 | `644b9687f` | AD13 ICR 3 — the `Use in plan` button's class and its rules |
 | `66710b1eb` | AD13 ICR 4 — `open-asset-library`'s mobile gate |
 | `593a38b55` | `listPlansUsingAsset` relocated into the query bundle |
+| `fd9bab2e3` | Ledger, integration queue, both AD13 report halves, the ADQ report, wave-5 leases, this file |
+| `f2a09d940` | The two `analyze` findings this wave introduced, cleared by factoring |
+| `dba8a71d0` | The unused imports that extraction left behind |
 
 **AD13 and ADQ are both `integrated` in `state.json`, and neither is `verified`.** AD14 is
 `planned` and unblocked. AD15 and AD16 remain `blocked` and were not touched.
 
-## The verification shortfall — read this before trusting any gate claim
+## Gates — all six green, and how to read the coverage leg
 
-**No full six-gate run completed on this session's final SHA.** This is the single most important
-thing on this page and it is a real shortfall, not a formality.
+**All six gates pass.** `build`, `oxlint --deny-warnings`, `eslint . --max-warnings 0`,
+`vue-tsc -noEmit` and `analyze` all exit 0 on `dba8a71d0` (HEAD). `analyze` reports **0 dead files,
+0 dead exports of 2390, no private type leaks, no duplication and 0 complexity findings above
+threshold**.
 
-What WAS run, and passed, on the relevant trees:
+**`test:coverage` exited 0 on `f2a09d940`** — the commit one before HEAD, which differs only by
+five unused imports — with **1046 of 1046 test files passing, 11552 tests, 0 failures**, in
+**20.3 minutes**, at **99.22 / 98.05 / 99.26 / 99.67** against floors 99/98/99/98.
 
-- `npm run build`, `npx oxlint --deny-warnings`, `npx eslint . --max-warnings 0`,
-  `npx vue-tsc -noEmit` — all exit 0 on `23930a0de`.
-- `npx vue-tsc -noEmit` — exit 0 on the tree after every subsequent commit, re-run four times.
-- `npm run test:coverage` on `23930a0de` — **exit 1**, with coverage floors MET at
-  **99.21 / 98.04 / 99.25 / 99.66** against 99/98/99/98, and 13 failed tests in 9 files.
-  **All 14 failures were TIMEOUTS; zero were assertions**, plus one
-  `[vitest-pool]: Failed to start forks worker … Timeout waiting for worker to respond`. No failing
-  file was one this session touched.
-- Targeted suites after each commit: the three designer inspector suites (94 passed), the
-  reference view (7 passed), the library + read-models + two stores (396 passed), the registration
-  pair (35 passed), the style gate (11 passed).
+**On HEAD the same leg exited 1, and it is contention rather than a red tree — proven, not
+assumed.** 17 failures, **all timeouts, zero assertions**, over a 43-minute run. All 13 named files
+were re-run alone on a quiet box and **all 13 passed, 688 tests, exit 0**. The floors were met even
+in the degraded run (99.21 / 98.03 / 99.24 / 99.67). The two bad runs this session produced
+DISJOINT failure sets, which is the signature CLAUDE.md already records for this.
 
-What was NOT run: `npm run analyze` at any point this session, and `npm run test:coverage` on
-anything after `23930a0de`. **The solo re-runs of the nine timed-out files were started and did not
-finish** — the first file produced no result in 25 minutes and the run was killed.
+**Why the box behaves this way, because it will happen again.** It has **7.8 GB of RAM** and another
+Claude session works concurrently in the `renovation-planner-beta-handoff-e80bb5` worktree. With
+both running, free RAM fell to **0.1 GB** and the machine paged rather than computed: one test case
+took **20.5 minutes**, and the first coverage attempt ran **7h50m** for 192 of 1043 files before
+being killed — a ~43-hour projection. Alone, the same suite is 20 minutes.
 
-**Why, and it is not the code.** This machine has **7.8 GB of RAM** and another Claude session is
-working concurrently in the `renovation-planner-beta-handoff-e80bb5` worktree. With both running,
-free RAM fell to **0.1 GB** and the box paged rather than computed: one test case took **20.5
-minutes**, and the first coverage attempt ran **7h50m** and completed 192 of 1043 files before
-being killed — a ~43-hour projection. Restarting at `VITEST_MAX_WORKERS=2` cut the rate from
-147 s/file to 7.2 s/file and the run finished in 4.3 hours. Two facts follow:
+**Check the box before starting anything heavy:**
+`Get-CimInstance Win32_Process -Filter "Name='node.exe'"`. Zero node processes means the window is
+open. Two CLAUDE.md figures are stale and were re-measured here: **the suite is 1046 test files**,
+not 362/459, and `test:coverage` is 20 minutes at best on this machine rather than ~200 s.
 
-- **`test:coverage` here is hours, not the ~200 s CLAUDE.md records**, and that file's own rule
-  applies to itself: re-measure before reasoning from its numbers.
-- **The suite is 1043 test files**, not the 362/459 CLAUDE.md states.
-
-**What the next session owes first:** re-run the nine files alone on a quiet box, then the full six
-gates on `HEAD`. Until that is done, treat "integrated" as meaning exactly that and nothing more.
-Do not start a heavy run while the other worktree is busy — check with
-`Get-CimInstance Win32_Process -Filter "Name='node.exe'"` first.
+**One process lesson worth carrying.** `scripts/lint-edited.mjs` hooks `PostToolUse` on Edit and
+Write only, so a refactor done with `sed` or a python script is INVISIBLE to it. Five unused imports
+survived the `loadAssetEntity` extraction that way and were caught by the full gate instead of by
+the cheap loop that exists to catch them. Prefer the editor tools for source edits, or run
+`npx oxlint <files>` by hand after a scripted one.
 
 ## Wave 5 is WRITTEN but NOT DISPATCHED
 

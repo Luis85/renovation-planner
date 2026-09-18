@@ -48,6 +48,10 @@ function answeringQueries(
 		listReferencing: () => Promise.resolve(ok([])),
 		listOverridingProjects: () => Promise.resolve(ok([])),
 		listReassignmentTargets: () => Promise.resolve(ok([])),
+		// Answers an EMPTY scope rather than rejecting, because the inspector draws this section
+		// on every selection: a rejecting door would put every case in this harness into the
+		// usage refusal state. `assetUsageDuplicate.test.ts` overrides it per case.
+		listPlansUsingAsset: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 	};
 }
 

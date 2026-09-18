@@ -56,9 +56,35 @@ export function assetLibraryDeps(
 			},
 			path,
 		);
+	/**
+	 * AD13's pair, composed ONCE and then split across the two bundles by KIND: the duplicate is
+	 * a command and the usage scope is a read, so they do not both belong in one of them. They
+	 * arrive together because `guardAssetDuplication` guards them together, and that function
+	 * exists because widening `guardAssetLibrary`'s ports means editing `composition-root.ts` —
+	 * see its own docblock. The integrator tried that widening and backed it out: `composeGuarded`
+	 * has no `PlanGeometrySidecar` in scope at all, so folding the two functions would mean
+	 * CONSTRUCTING one inside a function whose own comment says it builds nothing beneath its
+	 * ports. One extra call site is the cheaper of the two.
+	 */
+	const duplication =
+		persistence === null
+			? null
+			: guardAssetDuplication(
+					{
+						assets: persistence.assets,
+						assetGeometry: persistence.assetGeometry,
+						events: root.eventBus,
+						locks: persistence.locks,
+						projects: persistence.projects,
+						plans: persistence.plans,
+						planGeometry: persistence.geometry,
+					},
+					root.logger,
+					VAULT_EXCEPTION_MAPPER,
+				);
 	return {
 		queries:
-			persistence === null
+			persistence === null || duplication === null
 				? unavailableAssetLibraryQueries()
 				: createAssetLibraryQueries({
 						...persistence.assetLibrary,
@@ -71,9 +97,13 @@ export function assetLibraryDeps(
 						getDesign: persistence.assetDesign.get,
 						listReferencing: persistence.requirementQueries.listRequirementsReferencing,
 						listReassignmentTargets: persistence.requirementQueries.listReassignmentTargets,
+						// AD13's usage scope — a READ, so it is here rather than in the command
+						// bundle where it shipped for one commit. The branch tests `duplication` too, so
+						// it narrows here without a non-null assertion: both answer one question.
+						listPlansUsingAsset: duplication.listPlansUsingAsset,
 					}),
 		commands:
-			persistence === null
+			persistence === null || duplication === null
 				? unavailableAssetLibraryCommands()
 				: {
 						updateAsset: persistence.updateAsset,
@@ -84,26 +114,10 @@ export function assetLibraryDeps(
 						// door, reached here rather than shared because the two bundles are
 						// siblings, not one type (`AssetLibraryCommandServices`'s own docblock).
 						createAsset: persistence.createAsset,
-						// AD13's two doors, composed HERE rather than in `composition-root.ts`'s
-						// `guardAssetLibrary` call. `guardedAssetLibrary.guardAssetDuplication`
-						// carries why that line is drawn where it is; what matters at this call
-						// site is that every port it takes is one this root already holds, so
-						// nothing new is constructed beneath them and the `assets`,
-						// `assetGeometry`, `projects`, `plans` and `geometry` these reach are
-						// the same instances every other door here shares.
-						...guardAssetDuplication(
-							{
-								assets: persistence.assets,
-								assetGeometry: persistence.assetGeometry,
-								events: root.eventBus,
-								locks: persistence.locks,
-								projects: persistence.projects,
-								plans: persistence.plans,
-								planGeometry: persistence.geometry,
-							},
-							root.logger,
-							VAULT_EXCEPTION_MAPPER,
-						),
+						// AD13's `Duplicate as new asset`. Its sibling read went to the query bundle
+						// above; every port either takes is one this root already holds, so nothing
+						// new is constructed beneath them.
+						duplicateAsset: duplication.duplicateAsset,
 						setAssetFootprintFromDimensions: persistence.assetDesign.setFootprintFromDimensions,
 						defaultCurrency: persistence.defaultCurrency,
 					},

@@ -84,7 +84,7 @@ watch(
 		section.clear();
 		scanned.value = context.indexScanCompleted();
 		if (!scanned.value) return;
-		void section.run(() => context.commands.listPlansUsingAsset.execute(assetId));
+		void section.run(() => context.queries.listPlansUsingAsset(assetId));
 	},
 	{ immediate: true },
 );

@@ -18,6 +18,8 @@ import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import type { Asset } from '../../../src/domain/asset/Asset';
 import type { AssetLibraryCommandServices } from '../../../src/presentation/library/AssetLibraryDeps';
+import type { AssetLibraryQueryServices } from '../../../src/presentation/read-models/assetLibraryQueries';
+import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
 import type { DuplicateAssetInput } from '../../../src/application/commands/asset/DuplicateAsset';
 import { anEntry } from '../../helpers/assetLibraryRootHarness';
 import { makeAsset } from '../../helpers/entities';
@@ -45,27 +47,27 @@ function usage(overrides: Partial<AssetPlanUsage> = {}): AssetPlanUsage {
 
 /** Exactly the doors the bundle declares, so a mock cannot be kinder than the command it stands for. */
 type DuplicateDoor = (input: DuplicateAssetInput) => Promise<Result<Asset, AppError>>;
-type UsageDoor = (assetId: AssetId) => Promise<Result<AssetPlanUsage, AppError>>;
+type UsageDoor = (assetId: AssetId) => Promise<Result<AssetPlanUsage, RepositoryError>>;
 
 /** The answering pair: a usage read that settles, and a duplicate that records what it was asked. */
 function doors(options: { scope?: AssetPlanUsage | 'pending'; duplicate?: Mock<DuplicateDoor> } = {}) {
 	const duplicate = options.duplicate ?? vi.fn<DuplicateDoor>(() => Promise.resolve(ok(makeAsset())));
 	const scope = options.scope ?? usage();
-	const commands: Partial<AssetLibraryCommandServices> = {
-		listPlansUsingAsset: {
-			// `'pending'` is a read that never answers, which is the in-flight state and the one
-			// thing no settled promise can stand in for.
-			execute:
-				scope === 'pending'
-					? (): Promise<never> =>
-							new Promise<never>(() => {
-								// Deliberately never settles.
-							})
-					: () => Promise.resolve(ok(scope)),
-		},
-		duplicateAsset: { execute: duplicate },
+	const commands: Partial<AssetLibraryCommandServices> = { duplicateAsset: { execute: duplicate } };
+	// The usage scope is a READ and overrides the QUERY bundle. It moved there at integration;
+	// a bare function rather than `{ execute }` is what that bundle's members are.
+	const queries: Partial<AssetLibraryQueryServices> = {
+		// `'pending'` is a read that never answers, which is the in-flight state and the one
+		// thing no settled promise can stand in for.
+		listPlansUsingAsset:
+			scope === 'pending'
+				? (): Promise<never> =>
+						new Promise<never>(() => {
+							// Deliberately never settles.
+						})
+				: () => Promise.resolve(ok(scope)),
 	};
-	return { duplicate, commands };
+	return { duplicate, commands, queries };
 }
 
 async function opened(options: Parameters<typeof doors>[0] = {}) {
@@ -75,6 +77,7 @@ async function opened(options: Parameters<typeof doors>[0] = {}) {
 		entries: [entry],
 		assetId: entry.assetId,
 		commands: wired.commands,
+		queries: wired.queries,
 	});
 	await inspector.panel.get('[data-action="duplicate-open"]').trigger('click');
 	await settle();
@@ -126,7 +129,7 @@ describe('the duplicate panel', () => {
 		const inspector = await mountInspector({
 			entries: [entry],
 			assetId: entry.assetId,
-			commands: { listPlansUsingAsset: { execute: () => Promise.resolve(err(REFUSAL)) } },
+			queries: { listPlansUsingAsset: () => Promise.resolve(err(REFUSAL)) },
 		});
 		await inspector.panel.get('[data-action="duplicate-open"]').trigger('click');
 		await settle();
@@ -146,7 +149,7 @@ describe('the duplicate panel', () => {
 		const inspector = await mountInspector({
 			entries: [entry],
 			assetId: entry.assetId,
-			commands: { listPlansUsingAsset: { execute: usageRead } },
+			queries: { listPlansUsingAsset: usageRead },
 			indexScanCompleted: () => false,
 		});
 		await inspector.panel.get('[data-action="duplicate-open"]').trigger('click');

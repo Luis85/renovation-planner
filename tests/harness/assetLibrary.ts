@@ -2,6 +2,7 @@ import { ok } from '../../src/core/result/Result';
 import { currencyOf, type Currency } from '../../src/core/money/Money';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
+import type { PlanId } from '../../src/domain/plan/PlanId';
 import type { RequirementId } from '../../src/domain/requirement/RequirementId';
 import type { MeasurementUnit } from '../../src/core/units/MeasurementUnit';
 import type { Point } from '../../src/core/geometry/Point';
@@ -356,6 +357,18 @@ function harnessQueries(empty: boolean): AssetLibraryQueryServices {
 		// Nothing on this page can reach a reassignment: every write refuses before the flow gets
 		// that far. An empty list is what a catalogue with no other area-kind asset answers.
 		listReassignmentTargets: () => Promise.resolve(ok([])),
+		// A REAL scope rather than an empty one, because this is the page a capture photographs:
+		// the duplicate panel's *Used in plans* section is only worth a picture with rows in it,
+		// and an empty vault draws the *no plan places this asset* line instead. `unreadable` is
+		// non-zero on the non-empty page so the partial-scope caveat is drawn too.
+		listPlansUsingAsset: () =>
+			Promise.resolve(
+				ok(
+					empty
+						? { plans: [], unreadable: 0 }
+						: { plans: [{ planId: 'pln-ground' as PlanId, planName: 'Ground floor', projectId: 'prj-hamburg-b' as ProjectId, placements: 2 }], unreadable: 1 },
+				),
+			),
 	};
 }
 

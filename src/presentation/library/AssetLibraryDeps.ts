@@ -10,8 +10,6 @@ import type { SetAssetHeightInput } from '../../application/commands/asset/SetAs
 import type { DeleteAssetInput, DeleteAssetErrors } from '../../application/commands/asset/DeleteAsset';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
 import type { DuplicateAssetInput } from '../../application/commands/asset/DuplicateAsset';
-import type { AssetPlanUsage } from '../../application/queries/ListPlansUsingAsset';
-import type { Query } from '../../application/queries/Query';
 import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { ResolvedSequence } from '../../application/reference/deleteResolution';
 import type { AssetLibraryChange } from '../../application/events/assetLibraryChangeSource';
@@ -22,16 +20,19 @@ import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueri
 
 /**
  * The doors of the Asset library that are not plain catalogue reads: the gestures §3.5's
- * inspector offers, the three §3.1's toolbar needs for `New asset`, and the two AD13 adds.
+ * inspector offers, the three §3.1's toolbar needs for `New asset`, and AD13's duplicate.
  *
- * **It is not purely "the write side" and never quite was.** `defaultCurrency` below is a
- * settings echo, and AD13's `listPlansUsingAsset` is a READ. That read belongs, on shape, in
- * `AssetLibraryQueryServices` beside the other six; it is here because
- * `read-models/assetLibraryQueries.ts` is integrator-owned and this bundle is the part of the
- * library's dependency shape AD13's duplicate half holds a lease on. Recorded rather than
- * disguised: the relocation is one member move plus one line in `createAssetLibraryQueries`,
- * and it is named in this card's report as an integration change request so the next reader
- * does not have to reconstruct why a read is sitting in this interface.
+ * **It is not purely "the write side" and never quite was**: `defaultCurrency` below is a
+ * settings echo rather than a gesture.
+ *
+ * **AD13's `listPlansUsingAsset` is NO LONGER here, and that is the point of this paragraph.**
+ * It shipped in this bundle for one commit because it is a READ and
+ * `read-models/assetLibraryQueries.ts` is integrator-owned, so the card that built it could not
+ * put it where it belonged; the card said so and filed the move as an integration change
+ * request rather than disguising it. The integrator moved it, so this interface is back to one
+ * kind of thing and the surface has one home for reads. Kept as a sentence rather than deleted
+ * because the next read written under the same lease pressure will face the same choice, and
+ * the answer is the same: put it where it goes, or name the move.
  *
  * **SIX now, not three** — this section used to say "three, and every one of them already
  * exists", true of the Inspector alone. §3.1 hands off to the identical `NewAssetForm` /
@@ -63,14 +64,6 @@ export interface AssetLibraryCommandServices {
 	 * second read.
 	 */
 	readonly duplicateAsset: Command<DuplicateAssetInput, Result<Asset, AppError>>;
-	/**
-	 * AD13's usage scope: which plans place this definition (item 3).
-	 *
-	 * A `Query` rather than a bare function, so `unavailableAssetLibraryCommands` refuses it
-	 * through the identical `{ execute: refuse }` every other member here takes — a bare
-	 * function would need its own refusing spelling for no gain.
-	 */
-	readonly listPlansUsingAsset: Query<AssetId, Result<AssetPlanUsage, AppError>>;
 	readonly setAssetFootprintFromDimensions: Command<SetAssetFootprintFromDimensionsInput, DispatchResult>;
 	/** The creation form's currency prefill — `RenovationProjectCommandServices`'s own field. */
 	readonly defaultCurrency: Currency;
@@ -226,11 +219,9 @@ export function unavailableAssetLibraryCommands(): AssetLibraryCommandServices {
 		// The `New asset` pair, refused for `renovationProjectCommands.ts`'s own reason: without
 		// settings there is no library folder for the note to land in.
 		createAsset: { execute: refuse },
-		// AD13's pair. The usage read refuses like every write here rather than answering an
-		// empty scope: "no plan places this" and "I could not find out" are the difference
-		// between a safe duplicate and a blind one, which is `AssetInspectorUsedIn`'s own rule.
+		// AD13's duplicate. Its usage READ is not here: it lives in
+		// `AssetLibraryQueryServices`, where the other reads are.
 		duplicateAsset: { execute: refuse },
-		listPlansUsingAsset: { execute: refuse },
 		setAssetFootprintFromDimensions: { execute: refuse },
 		// The refusal bundle writes nothing, so its prefill is never persisted; a valid code is
 		// all the form needs — `renovationProjectCommands.ts`'s own identical default.

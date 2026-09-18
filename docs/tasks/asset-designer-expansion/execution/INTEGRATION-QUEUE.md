@@ -176,6 +176,30 @@ Read each before adding a case: **an unreachable guard costs a branch it can nev
 this expansion has already recovered headroom twice by deleting rather than testing (AD09 six,
 `rovingIndex`/`assetGroups` nine more). With nine arms of margin, the next card has very little room.
 
+## AD13 hand-off — candidate `5a758f74b` (branch `ad13c-asset-handoff`)
+
+- [ ] **ICR 1-H — the SENDING half of the asset hand-off, three files, none in that card's lease.**
+      The candidate built the RECEIVING half and proved it; nothing yet puts an `assetId` into the
+      origin, so **AD13 criterion 1 is still unmet end to end**. The request, as filed:
+      `plugin/renovationProjectOpenSeams.ts`'s `assetDesignerUsePlan` returns
+      `(assetId: string) => void` and passes `{ planId, assetId }` on both arms, and
+      `presentation/designer/AssetDesignerContext.ts` plus
+      `presentation/designer/inspector/DesignerInspector.vue` each widen `usePlan` by one token.
+      The matching case belongs in `tests/plugin/assetDesignerUsePlan.test.ts`, which that card held
+      and deliberately left untouched because it would be red until this lands.
+      **Under independent review as of 2026-09-18** — specifically whether the request is correct,
+      COMPLETE and minimal, since a wrong request costs a whole round.
+
+- [ ] **A FILE CONTENTION this must wait on, named before it bites.** ICR 1-H edits
+      `presentation/designer/inspector/DesignerInspector.vue`, and **wave 5's AD14 row holds an
+      ADDITIVE-ONLY lease on that same file** for its `Reviewed` control's mount line. Two edits to
+      one file is the thing this ledger exists to prevent, and being the integrator is not an
+      exemption — it is how the AD10 wire and the ADQ wire both became one-commit problems.
+      **Apply ICR 1-H only after AD14's candidate is integrated**, or after that lease is released.
+      The other two files in the request are in nobody's row and could go earlier, but splitting the
+      change would leave `usePlan` widened at one end and not the other, which `vue-tsc` refuses —
+      so it is one commit, after AD14.
+
 ## AD13 — raised by the duplicate half's review, and NOT closed by it
 
 - [ ] **Usage scope is drawn in the LIBRARY, before a DUPLICATE — which is the one impactful

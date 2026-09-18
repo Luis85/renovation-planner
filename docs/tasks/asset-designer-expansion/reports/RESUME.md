@@ -115,12 +115,22 @@ paragraph** — it carries the exit codes and the SHA each gate ran on. No SHA i
 because a commit that records a gate run cannot contain its own SHA and that line has gone stale in
 this file before.
 
-**Read that table for WHICH gate ran on WHICH SHA, because they are not all the same one.** Four
-gates (`build`, `oxlint`, `vue-tsc`, `eslint .`) ran on the AD07-H integration SHA before AD13-C3
-was merged, and the full six ran after. If the table shows the six-gate row unfilled, **the coverage
-and analyze legs were not run** and that is the first thing the next session owes — this session
-held them rather than starting a 23-minute coverage run into another Claude session's concurrent
-one, which this package has already recorded as producing a wrong red rather than a slow one.
+**All six exited 0 on the final SHA**, run serially on a quiet box, coverage before analyze because
+analyze reads the map the suite writes: **1052 test files, 11615 tests, 1 skipped, zero failures**,
+**99.22 / 98.05 / 99.26 / 99.67** against floors 99/98/99/98, and analyze clean with 0 dead exports
+of 2393 and 0 complexity findings above threshold.
+
+**`analyze` failed first, and how it failed is the part worth carrying.** One finding above
+threshold — `DesignerUsageScope.vue`'s template at cognitive 18 — factored into
+`DesignerUsagePlans.vue` rather than suppressed. But its failure line named
+`src/presentation/editor/renovation/renovationSummary.ts`, a file this branch never touched: that
+name comes from the pre-existing 53-entry refactoring-target list, not from the finding that failed
+the gate. **A tool's summary line is not its finding.**
+
+**The per-file coverage read found nothing, which is the good outcome and still had to be done.**
+Every file this wave changed has zero uncovered branches, functions and statements. Branches sit at
+98.05% against a 98 floor — 430 uncovered of 22065, so roughly **eleven arms of margin** for the
+whole repository. The next card has very little room.
 
 `npm audit`: **2 high**, both reaching only through `eslint-plugin-obsidianmd`'s dev tree.
 `npm audit --omit=dev` reports **0 vulnerabilities** — nothing in the shipped bundle.

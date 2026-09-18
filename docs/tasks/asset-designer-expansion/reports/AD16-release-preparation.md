@@ -130,13 +130,43 @@ not that the working files are flattened into prose.
 | `npx eslint . --max-warnings 0` | `f43b84ff2` | **0** | |
 | `npm audit` | 2026-09-18 | 2 high | Both through `eslint-plugin-obsidianmd` |
 | `npm audit --omit=dev` | 2026-09-18 | **0 vulnerabilities** | The disposition |
-| The six gates | final wave-6 SHA | *filled below when run* | |
+| `npm run build` | **`f28a63095`** | **0** | The final wave-6 SHA |
+| `npx oxlint --deny-warnings` | `f28a63095` | **0** | |
+| `npx eslint . --max-warnings 0` | `f28a63095` | **0** | |
+| `npx vue-tsc -noEmit` | `f28a63095` | **0** | |
+| `npm run test:coverage` | `f28a63095` | **0** | **1052 test files, 11615 tests, 1 skipped, ZERO failures**, 1120s. **99.22 / 98.05 / 99.26 / 99.67** against floors 99/98/99/98 |
+| `npm run analyze` | `f28a63095` | **0** | 0 dead files, **0 dead exports of 2393**, no private type leaks, no duplication, **0 complexity findings above threshold**, maintainability 86.8 |
 
-**Read that table precisely: four gates ran on the AD07-H integration SHA and the full six run on
-the final one.** Coverage and analyze were deliberately not run twice, because another Claude
-session was mid-`test:coverage` on the same 7.8 GB machine and this package has already recorded
-what that produces — a 43-hour projection and seventeen failures that were all timeouts and no
-assertions. Running a gate into known contention produces a WRONG red, not a slow one.
+**All six ran serially, in that order, on a quiet box** — zero other node processes — and coverage
+ran before analyze because analyze reads the map the suite writes.
+
+**Four gates also ran on `f43b84ff2`, the AD07-H integration SHA, and exited 0 there**: `build`,
+`oxlint`, `vue-tsc` and `eslint .`. Coverage and analyze were NOT run on that SHA, deliberately —
+another Claude session was mid-`test:coverage` on the same 7.8 GB machine, and this package has
+already recorded what that produces: a 43-hour projection and seventeen failures that were all
+timeouts and no assertions. **Running a gate into known contention produces a WRONG red, not a slow
+one.** This session waited instead.
+
+**`analyze` exited 1 on the first attempt and the fix is `f28a63095` itself.** One finding above
+threshold, and it was this wave's: `DesignerUsageScope.vue`'s template at **cognitive 18** — a
+`bound` guard wrapping a three-way state branch whose last arm held a list-or-empty choice and a
+third conditional note. Factored into `DesignerUsagePlans.vue` rather than suppressed with the
+`fallow-ignore-next-line complexity` that was available, because the complexity was real and
+because this repository's record is explicit that AD09's two SFC findings and AD07's three template
+breaches were every one of them fixed by moving code.
+
+**Note what the failure line said and did not say.** It read *"Failed: health (1 above threshold):
+start with `src/presentation/editor/renovation/renovationSummary.ts`"* — a file this branch never
+touched. That name comes from the pre-existing 53-entry refactoring-target list, not from the
+finding that failed the gate. **A tool's summary line is not its finding**, and reading that one at
+face value would have sent a session into a plan-editor file for a defect in a designer one.
+
+**The per-file coverage read, which the thresholds cannot do.** `coverage-final.json` was read for
+every file this wave changed — `DesignerUsageScope`, `DesignerUsagePlans`, `NumericField`,
+`guardedAssetLibrary`, `assetDesignerQueries`, `CreateAsset.ts`, `NewAssetForm` — and **every one
+has zero uncovered branches, functions and statements**. That matters because branches sit at
+98.05% against a 98 floor: 430 uncovered of 22065, so the margin is about **eleven arms** for the
+whole repository, and one untested arm in a slack metric is invisible to the gate.
 
 ## Verification not performed
 

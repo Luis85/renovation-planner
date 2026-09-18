@@ -1,132 +1,149 @@
-# RESUME — session four's hand-off
+# RESUME — session five's hand-off
 
-**Rewritten 2026-09-18, replacing session two's packet wholesale.** That version predated three
-integrations and two rulings and was stale in a way a reader could not detect, which is why this
-file is rewritten rather than appended to.
+**Rewritten 2026-09-18, replacing session four's packet wholesale**, for that file's own stated
+reason: a hand-off that is appended to goes stale in a way a reader cannot detect.
 
 Branch `renovation-planner-asset-designer-bc5539`, worktree
 `D:\Projects\renovation-planner\.claude\worktrees\renovation-planner-asset-designer-bc5539`.
-**Nothing has been pushed, merged to `main`, or tagged.** `main` is untouched.
+**Nothing has been pushed, merged to `main`, or tagged.** `main` is untouched at `f3a8864a9`.
 
-## Where the work stands
+## Read this first: there is no code obligation left in this package
 
-**`HEAD` is the last commit on this branch** — deliberately not named here, because the commit
-that records a session's gate run cannot contain its own SHA, and the first version of this line
-went stale the moment it was written. `git log --oneline` is the list. Ten commits this session:
+**Every acceptance criterion AD00–AD14 states is now met.** The two that were outstanding when this
+session started are closed:
 
-| SHA | What |
-|---|---|
-| `23930a0de` | AD13 duplicate half integrated, with the design-spec §8 Amendment 6 and the Amendment 2 correction in the same commit |
-| `cde0e8444` | ADQ integrated (background opacity + reference deletion), carrying its one deliberate red |
-| `c64acda60` | The wire — that red turned green, and `removeBackground` made required |
-| `644b9687f` | AD13 ICR 3 — the `Use in plan` button's class and its rules |
-| `66710b1eb` | AD13 ICR 4 — `open-asset-library`'s mobile gate |
-| `593a38b55` | `listPlansUsingAsset` relocated into the query bundle |
-| `fd9bab2e3` | Ledger, integration queue, both AD13 report halves, the ADQ report, wave-5 leases, this file |
-| `f2a09d940` | The two `analyze` findings this wave introduced, cleared by factoring |
-| `dba8a71d0` | The unused imports that extraction left behind |
-| `21e39e269` | This file's gate section, rewritten once all six were green |
+- **AD13 criterion 3** — ruled as **AD13-R1** and then built. The designer draws a usage scope.
+- **AD07 item 3** — the optional descriptive height at creation. Its deferral carried a trigger
+  only an orchestrator could fire, and this session fired it.
 
-**AD13 and ADQ are both `integrated` in `state.json`, and neither is `verified`.** AD14 is
-`planned` and unblocked. AD15 and AD16 remain `blocked` and were not touched.
+What remains is **entirely environmental**, and no amount of further work in this environment
+changes it. Do not go looking for a card to write.
 
-## Gates — all six green, and how to read the coverage leg
+## What is left, in the order it should be done
 
-**All six gates pass on `4521f6acf`, the wave-5 integration SHA** — `build`,
-`oxlint --deny-warnings`, `eslint . --max-warnings 0`, `vue-tsc -noEmit`, `test:coverage` and
-`analyze`, every one exit 0. **1050 test files, 11591 tests, 1 skipped, ZERO failures**, at
-**99.22 / 98.04 / 99.26 / 99.67** against floors 99/98/99/98, in 23.5 minutes. `analyze` reports
-0 dead files, 0 dead exports of 2392, no private type leaks, no duplication and 0 complexity
-findings above threshold.
+1. **Open the plugin in Obsidian** (`npm run test-build`) and walk the three manual cases this
+   session wrote: `docs/tests/cases/Compose an asset from parts.md`,
+   `Calibrate a sheet and reserve space.md`, `Take an asset from the library into a plan.md`.
+   102 steps; 57 are marked `suite` and each names the test it stands on, so a human's time belongs
+   on the other 45.
+2. **Capture at 460 px**, which is the width an Obsidian sidebar leaf actually has and the one that
+   has already hidden a layout defect here that 1280 could not show:
+   `npm run harness-shot -- --width=460`. **Start at the clearance-review block** — the reason is
+   in the next section.
+3. **Decide the one deferred locale key** — a designer-owned impact sentence, with its measured
+   homes already recorded in `execution/INTEGRATION-QUEUE.md`. Whoever can SEE the panel is better
+   placed to decide whether it needs a second sentence than anyone writing blind.
+4. **Close the three thinnest matrix rows** (T25, T40, T42) — named in
+   `reports/AD15-validation-matrix.md` with their gaps.
+5. **`npm audit fix`** — a lockfile-only change, deliberately not made while three worktrees shared
+   this branch. Production is already clean.
 
-The paragraphs below describe an EARLIER SHA and are kept because the contention lesson in them is
-the durable part, not the SHA. `analyze` reports **0 dead files,
-0 dead exports of 2390, no private type leaks, no duplication and 0 complexity findings above
-threshold**.
+**Only after 1 and 2** can AD15 and AD16 move off `blocked`, and only then may anyone consider
+whether the beta is ready. **It is not ready now and this session did not label it so** (runbook
+§10).
 
-**`test:coverage` exited 0 on `f2a09d940`** — the commit one before HEAD, which differs only by
-five unused imports — with **1046 of 1046 test files passing, 11552 tests, 0 failures**, in
-**20.3 minutes**, at **99.22 / 98.05 / 99.26 / 99.67** against floors 99/98/99/98.
+## The sharpest unverified thing, and it should be looked at first
 
-**On `dba8a71d0` the same leg exited 1, and it is contention rather than a red tree — proven, not
-assumed.** 17 failures, **all timeouts, zero assertions**, over a 43-minute run. All 13 named files
-were re-run alone on a quiet box and **all 13 passed, 688 tests, exit 0**. The floors were met even
-in the degraded run (99.21 / 98.03 / 99.24 / 99.67). The two bad runs this session produced
-DISJOINT failure sets, which is the signature CLAUDE.md already records for this.
+`DesignerClearanceReview.vue` draws a `<section class="rp-designer-clearance">` **directly beneath**
+`DesignerClearanceHelper.vue`'s section of the **same class**. That class carries
+`border-top: 1px solid var(--background-modifier-border)` in `styles/designer-selection.css`, so two
+bordered blocks stack — and **the lower one has no heading of its own**, while carrying the longest
+sentence in the designer Inspector.
 
-**Why the box behaves this way, because it will happen again.** It has **7.8 GB of RAM** and another
-Claude session works concurrently in the `renovation-planner-beta-handoff-e80bb5` worktree. With
-both running, free RAM fell to **0.1 GB** and the machine paged rather than computed: one test case
-took **20.5 minutes**, and the first coverage attempt ran **7h50m** for 192 of 1043 files before
-being killed — a ~43-hour projection. Alone, the same suite is 20 minutes.
+**No accessibility scan reaches it.** `grep -rn clearanceNeedsReview tests/harness/` prints nothing:
+it draws only when the flag is set and no harness fixture sets one, so its `role="status"` live
+region and its button's accessible name have been graded by nothing.
 
-**Check the box before starting anything heavy:**
-`Get-CimInstance Win32_Process -Filter "Name='node.exe'"`. Zero node processes means the window is
-open. Two CLAUDE.md figures are stale and were re-measured here: **the suite is 1046 test files**,
-not 362/459, and `test:coverage` is 20 minutes at best on this machine rather than ~200 s.
+Both halves of that were measured this session, not inherited. `Calibrate a sheet and reserve
+space.md` carries the steps, including a `judgement` step that asks for prose rather than a verdict,
+because whether the notice reads as belonging to the block above it is a question no instrument
+settles.
 
-**One process lesson worth carrying.** `scripts/lint-edited.mjs` hooks `PostToolUse` on Edit and
-Write only, so a refactor done with `sed` or a python script is INVISIBLE to it. Five unused imports
-survived the `loadAssetEntity` extraction that way and were caught by the full gate instead of by
-the cheap loop that exists to catch them. Prefer the editor tools for source edits, or run
-`npx oxlint <files>` by hand after a scripted one.
+**The second thing to look at** is the new designer usage block's own position: the reviewer's
+stated residual concern is that at a sidebar's width it may push the asset's dimensions and its
+three action buttons down by up to six lines. Unmeasured.
 
-## Wave 5 is DISPATCHED, REVIEWED and INTEGRATED — the package's last two cards
+## What this session did
 
-Both cards were cut from `044e11f52`, a commit that CONTAINS their lease rows, which is the fix for
-wave 4's lease-timing failure. Verified disjoint mechanically before either was merged: zero files
-in common.
+**Wave 6, two cards, both integrated, each reviewed by an agent that did not write it.**
 
-- **AD13 hand-off** — candidate `2e228e4d3`, integrated at **`4521f6acf`** together with ICR 1-H.
-  Review returned REQUEST CHANGES with nine findings; a fix round addressed all nine.
-  **AD13 acceptance criterion 1 is now MET end to end.**
-- **AD14** — candidate `55cd03dee`, integrated at **`7908969d3`** with its change request applied in
-  the same commit. Review returned APPROVE FOR INTEGRATION plus six accuracy findings, all fixed.
+| Card | Candidate | Integrated | Review |
+|---|---|---|---|
+| AD13-C3 — the designer's usage scope | `3f73023d0` | `87a31c1d5`, CRs at `ea9215053` | APPROVE, conditional on 3 |
+| AD07-H — the height at creation | `6b6e42087` | `0cd6504b8`, CRs at `f43b84ff2` | APPROVE, conditional on 5 |
 
-**Every wave-4 and wave-5 lease is RELEASED.** `.worktrees/ad13c` and `.worktrees/ad14` hold their
-branches and can be reused for the next wave the way these two reused wave-4 checkouts.
+Both cut from `f947d8079`, a commit that **contains** their lease table — wave 4's recorded failure,
+fixed. Disjointness verified by intersecting `git diff --name-only`, not by intention: empty.
 
-## What is left, and none of it is code this environment can close
+**Ruling AD13-R1** was made before either card was dispatched, as the runbook requires.
 
-1. **AD13 criterion 3 must NOT be ticked on the library half alone.** Usage scope is drawn before a
-   DUPLICATE, which provably changes nothing for the plans it lists — the panel's own copy says the
-   original is kept. The gesture that DOES change them is editing an asset's geometry, in the
-   designer, where no scope precedes it. Closing it needs either the scope read reaching the
-   designer (`ListPlansUsingAsset` now lives in `AssetLibraryQueryServices`, so that is a second
-   consumer rather than a second query) or a ruling that a geometry edit needs no scope because undo
-   covers it. That ruling has to be MADE: the two surfaces currently answer one question differently
-   by accident.
-2. **AD15 and AD16 stay `blocked`**, and nothing in this session changed that. Runbook §10: no
-   Obsidian and no pinned Chromium, so the beta may not be labelled ready from here.
-3. **Nothing drawn by any card in this package has been photographed or walked.** The sharpest
-   single exposure is AD14's new clearance-review block: a second bordered section directly beneath
-   the clearance helper's, no heading of its own, carrying the longest sentence in the designer
-   inspector — and invisible to every `accessibility*.test.ts`, because it draws nothing unless the
-   flag is set. A live-vault pass and a 460 px capture should start there.
-4. `npm audit` — its own CI job, not run here.
+**Documentation and evidence**, all of which needed no host:
 
-## What changed in the plan, with reasons
+- `docs/using-asset-designer.md` — 365 lines, AD16 item 4, written from the code.
+- `reports/AD15-validation-matrix.md` — all 42 behaviour rows, 12 fixtures, 6 scenarios and 7
+  performance targets graded. **21 passed, 20 partial, 1 structural.**
+- `reports/AD16-release-preparation.md` — the filled release checklist, decision **blocked**.
+- Three manual cases, and the suite's step census re-run with its own greps: **505 steps, 47 cases.**
+- Seven `CHANGELOG.md` entries — AD09 through AD14 and the queue card had **none at all**.
+- A section in `docs/development/agent-guide-increment-history.md`, which is AD16 item 6.
 
-- **AD13 ICR 2 is WITHDRAWN — no card, no work.** Its premise ("no such door exists in `src/`") was
-  false. `EditorNavigation.asset` is declared, composed in `planEditorDeps.ts`, and drawn at two
-  predicated sites (`AssetPlacementDetails.vue` and `useCanvasMenuActions.ts`), with keys in both
-  locales and `assetPlacementInspector.test.ts` asserting both including the missing-asset arm. It
-  shipped in `999b39230`, before this package. The survey had looked for the proposed WIRING rather
-  than for the function.
-- **The ADQ wire took the prop-drilled shape, not the recommended one.** `useDesignerRuntime()`
-  inside `DesignerInspector` makes it un-mountable outside a leaf, and a pre-existing case mounts it
-  bare deliberately; that case failed with *"The asset designer was mounted without a
-  DesignerRuntime"*. It also needed a FOURTH file no plan named — seven bare mounts in AD12's panel
-  suite.
-- **Relocation 2 was backed out after being built.** Folding `guardAssetDuplication` into
-  `guardAssetLibrary` needs a `PlanGeometrySidecar` that `composeGuarded` does not have.
-- **A new obligation is queued:** usage scope is drawn before a DUPLICATE, which changes nothing,
-  while the impactful gesture — editing geometry in the designer — has no scope at all. **AD13
-  criterion 3 must not be ticked on the library half alone.**
+## Five claims that were checked and turned out FALSE
 
-## Standing constraints
+Recorded because each was believed by somebody competent, and the pattern is more useful than the
+individual fixes.
 
-`export TEMP=D:/tmp-claude TMP=D:/tmp-claude` before anything that spawns node. One heavy command
-at a time. Never pipe a gate through `tail`. Never bare `git stash`. No Obsidian and no pinned
-Chromium here, so `npm run test-build`, every manual case under `docs/tests/`, and every capture
-remain impossible — and **the beta may not be labelled ready from this environment** (runbook §10).
+1. **Ruling AD13-R1 named a control that does not exist** — *"Edit shared asset"*. The shipped
+   string is **"Open in designer"**. The integrator had carried the label from a withdrawal note
+   describing the door that was proposed rather than the one that shipped.
+2. **`AssetGeometryStore.ts` said the schema knows versions 1 and 2.** It knows 1 through 4.
+3. **`DesignerUsePlan.vue` claimed in two paragraphs that the asset hand-off's sender did not
+   exist.** It landed at `4521f6acf`, in the previous session.
+4. **A survey reported NONE FOUND for C11's capability gating.** `assetCapabilityClaims.test.ts`
+   exists and is good; the word "frozen" sits in a `describe` rather than in a case title. **A grep
+   over test titles is not a census of tests.**
+5. **`DesignerUsageScope.vue` said a grep printed one line when it printed two** — the second being
+   that sentence. Caught by review. The invariant held; the sentence did not.
+
+And one the integrator got wrong about itself: **the AD15 report's grade tally was written before it
+was counted and was wrong in all four figures**, inside the report about checking things. Corrected
+from a mechanical count, in the open.
+
+## Gates
+
+**The authority is the Executed checks table in `reports/AD16-release-preparation.md`, not this
+paragraph** — it carries the exit codes and the SHA each gate ran on. No SHA is repeated here,
+because a commit that records a gate run cannot contain its own SHA and that line has gone stale in
+this file before.
+
+**Read that table for WHICH gate ran on WHICH SHA, because they are not all the same one.** Four
+gates (`build`, `oxlint`, `vue-tsc`, `eslint .`) ran on the AD07-H integration SHA before AD13-C3
+was merged, and the full six ran after. If the table shows the six-gate row unfilled, **the coverage
+and analyze legs were not run** and that is the first thing the next session owes — this session
+held them rather than starting a 23-minute coverage run into another Claude session's concurrent
+one, which this package has already recorded as producing a wrong red rather than a slow one.
+
+`npm audit`: **2 high**, both reaching only through `eslint-plugin-obsidianmd`'s dev tree.
+`npm audit --omit=dev` reports **0 vulnerabilities** — nothing in the shipped bundle.
+
+## Standing constraints for the next session
+
+- `export TEMP=D:/tmp-claude TMP=D:/tmp-claude` before anything that spawns node.
+- **Check the box before anything heavy**:
+  `powershell -NoProfile -Command "(Get-Process node -ErrorAction SilentlyContinue|Measure-Object).Count"`.
+  This session waited rather than running a coverage leg into another session's — running a gate
+  into known contention produces a WRONG red, not a slow one, and the signature is **disjoint
+  failure sets**.
+- Never pipe a gate through `tail`. One real assertion failure hid behind exactly that.
+- Never bare `git stash` — the stack is shared across worktrees.
+- Do NOT run `npx playwright install chromium`; it emptied `node_modules` once.
+- A scripted edit (`sed`, python) is invisible to `scripts/lint-edited.mjs`, which hooks only Edit
+  and Write. Run `npx oxlint <files>` and `npx eslint <files>` by hand after one — this session did,
+  twice.
+- `.worktrees/ad13c` and `.worktrees/ad14` hold wave 6's branches and carry `node_modules`. Reuse
+  one with `git switch -c` rather than copying.
+
+## What must not be done from here
+
+**Do not label the beta ready.** Runbook §10 forbids it where an Obsidian session cannot be run, and
+it cannot be run here. Do not push, tag or publish: AD16 item 5 requires the user's release
+authorization, which was not given and was not sought. AD17 is post-beta and out of scope.

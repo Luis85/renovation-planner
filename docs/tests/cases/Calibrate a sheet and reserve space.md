@@ -1,0 +1,143 @@
+---
+type: Test case
+parent: "[[Smoke Test the Editor]]"
+order: 82
+sources:
+  - SDD §12
+  - SDD §84
+  - ADR-0014
+  - ADR-0015
+  - ADR-0034
+  - C04
+  - C07
+  - AD12-R1
+  - AD12-R2
+  - AD14-R1
+status: Ready
+---
+# Calibrate a sheet and reserve space
+
+The asset designer expansion's REFERENCE half, walked end to end in a real vault: the spec
+sheet an object is traced over and the opacity that lets you see through it (AD12 item 1, ruling
+AD12-R1); the calibration that turns reference pixels into millimetres and the per-group
+statements that say which coordinates are still waiting for one (contract C07); taking a
+reference away again, including the case that matters most — removing one whose file has already
+been deleted (ruling AD12-R2); the placement point and front direction a plan positions the
+object by (AD12 item 2, contract C04); the four-side clearance helper (AD12 item 4); and the
+clearance review notice a preserved boundary carries after a resize (AD14, ruling AD14-R1,
+ADR-0034).
+
+[[Design an Asset]] is the canonical procedure for this surface. Its steps 7, 15 to 19 and 21
+already walk choosing a background, the recalibration confirmation and the fact that an asset's
+calibration touches no Plan; **this file does not repeat any of them** and starts from an asset
+that already has a sheet.
+
+Preconditions: `npm run test-build`, this folder open as a vault, the plugin enabled, and THREE
+assets made from the Renovation project view's **New asset** button.
+
+- **Asset A** — `editor-background-png-test.png` chosen as its background from the empty state's
+  **Choose a background** button, and nothing traced on it yet.
+- **Asset B** — no background at all, **Set dimensions** 800 × 400, and **Start from preset →
+  Toilet** applied. Everything on it is measured.
+- **Asset C** — `editor-background-pdf-test.pdf` as its background, for step 3 alone.
+
+Where a step needs a traced, uncalibrated asset it says so and builds it from asset A.
+
+**Why a human still matters here.** Six things put this material out of every gate's reach:
+
+- **The clearance review block has never been scanned for accessibility by anything.**
+  `grep -rn clearanceNeedsReview tests/harness/` prints NOTHING: it draws only while the flag is
+  set and no harness fixture sets it, so its `role="status"` live region and its button's
+  accessible name sit outside every `accessibility*.test.ts` in this repository. Steps 30 and 31
+  are the only instruments for either.
+- **Two bordered blocks stack, and the lower one has no heading.**
+  `DesignerClearanceReview.vue` draws a `<section class="rp-designer-clearance">` directly
+  beneath `DesignerClearanceHelper.vue`'s section of the SAME class, and that class carries
+  `border-top: 1px solid var(--background-modifier-border)` in `styles/designer-selection.css`.
+  Whether a reader can tell the notice belongs to the Clearance block above it, rather than
+  reading as a fourth unnamed block, is a question only an eye can answer — step 29.
+- **It carries the longest sentence in the designer Inspector**, in a column that stacks under
+  the canvas at a sidebar's width and scrolls inside two fifths of the leaf's height
+  (`styles/designer-narrow.css`). Step 32 is the 460 px look.
+- **A sheet rendering, and a PDF page rendering, are the one thing no fake stands in for.**
+  Production asks Obsidian for its own copy of pdf.js and the suite runs a different one.
+- **A dangling reference needs a real file explorer.** AD12-R2's central promise — that removing
+  a reference whose file is gone must SUCCEED — is pinned by
+  `tests/application/commands/asset/removeAssetBackground.test.ts`, against a probe. Step 14 is
+  the first time it meets a file Obsidian actually deleted.
+- **Opacity is written nowhere at all.** It is a leaf-local `ref` on the runtime, so the only
+  instrument for "it is not remembered" is closing a real leaf and opening it again.
+
+## Steps
+
+Each step carries a `Reachable by` verdict — the cheapest instrument that could discharge it as
+written. [[Smoke Test the Editor]]'s *The triage column* section defines the five values and
+what they do not claim.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 1 | `suite` | On asset A, look in the Inspector below the height field | A section headed **Reference** with two rows: **Sheet**, reading `editor-background-png-test.png` — the file's own name, not its vault path — and **Scale**, reading "Not calibrated" | The one place in the designer that says WHICH sheet this is. Nothing else on this surface answers it, and a leading folder path is the part of a path that is never the answer. `designerReferencePanels.test.ts` "names the sheet for an asset with nothing traced on it yet" |
+| 2 | `suite` | Look at the same place on asset B | There is no Reference section at all — not a row of "none", not an empty heading | A block of nothing on every asset typed from dimensions. Typing a width and a depth is a whole path through this designer that never touches a reference. `designerReferencePanels.test.ts` "draws nothing at all for an asset typed from dimensions with no sheet" |
+| 3 | `obsidian` | On asset C, look at the Reference section's Sheet row | It names the file AND its page — `editor-background-pdf-test.pdf, page 1` — rather than the file alone | An asset traced off page 4 of a catalogue being read as traced off page 1. The page is part of WHICH sheet this is, which is why it is in the Sheet row's value rather than a third row. This is also the only place on this surface a real PDF page is rendered by Obsidian's own pdf.js rather than the suite's copy |
+| 4 | `browser` | On asset A, open **View** in the toolbar | Three rows: Show grid, Snap to objects, and **Reference opacity** with a slider | AD12-R1's one genuine gap. The same ruling refuses a *lock* row outright — every designer layer is `listening: false` and no tool moves the background, so a lock's off position is unreachable — and the presence of exactly one of the two is the decision being looked at |
+| 5 | `suite` | Open View on asset B | There is no Reference opacity row | A control over no sheet — the live control that does nothing, withheld by a predicate rather than a `:disabled`. `designerReferenceView.test.ts` "is not drawn at all for an asset with no sheet" |
+| 6 | `browser` | Drag the Reference opacity slider all the way to its left end | The sheet fades but never disappears — its floor is 0.1, not 0 — and nothing drawn OVER it fades with it | A fully transparent sheet being indistinguishable from one that failed to load, which would leave this surface's two background notices saying nothing about a picture the user cannot see |
+| 7 | `obsidian` | Set the opacity to about a third, tick Show grid, close asset A's designer tab, and reopen it | The sheet is FULLY OPAQUE again, and Show grid is still ticked | Opacity being a leaf-local view preference held as a plain `ref` — no command, no note, no sidecar, no undo entry, and not this device's remembered choices either, where the two rows above it ARE remembered. `designerReferenceView.test.ts` "writes nothing — not the sidecar, and not this device's remembered choices" |
+| 8 | `suite` | On asset A, trace a footprint, trace a clearance, set an anchor and draw one rectangle — all over the uncalibrated sheet — then read the Reference section | FOUR separate lines, one per captured group: "The outline is still in reference pixels", "The clearance is still in reference pixels", "The placement point is still in reference pixels", "Some graphics are still in reference pixels" — followed by "Calibrate a known length on the sheet to turn these into millimetres." | One sentence per pending group rather than one sentence listing them, because a list joined in a template is a translated fragment concatenated with another. Before AD12 the Inspector warned about the footprint alone and said nothing about a pending clearance, anchor or graphic. `designerReferencePanels.test.ts` "names every coordinate group still in reference pixels, not just the footprint" |
+| 9 | `obsidian` | Calibrate asset A against the fixture's 1000 mm scale bar and read the Reference section again | Scale reads "Calibrated", all four pending lines and the hint are gone, and the Sheet row is unchanged | A calibration changing exactly the groups it owns (C07). The Scale row is the only readout anywhere that says a scale EXISTS as opposed to what it is |
+| 10 | `suite` | On asset A, now measured, draw one more rectangle and press Calibrate again, picking two new points and a different distance | No confirmation dialog appears first, the newly drawn rectangle rescales, and every part that was already measured stays exactly the size it was | `rescaled()`'s per-flag rule: a second calibration converts what is still pending and leaves measured millimetres alone, so re-measuring a sheet cannot silently double an object somebody already sized. `tests/application/commands/asset/calibrateAssetDetails.test.ts` "rescales a pending detail, keeps its curves and clears its flag" and "leaves a measured detail exactly where it is" |
+| 11 | `suite` | Look at the Reference section on asset A and on asset B | Asset A carries a **Remove reference** button; asset B has no Reference section and therefore no such button | A control drawn only where it can work, by a predicate and never by `:disabled` — the same rule the opacity row and the Reviewed button below follow. `designerReferenceView.test.ts` "offers the gesture while there is a sheet, and calls it once" and "draws no control for an asset with no sheet, even with the gesture bound" |
+| 12 | `obsidian` | On an asset with a sheet, a calibration and something still pending, press **Remove reference** | The sheet leaves the canvas, Sheet reads "None chosen", Scale reads "Not calibrated" — and every pending line is STILL there, unchanged | AD12-R2's second inherited answer. Taking the picture away does not turn pixels into millimetres, so a flag cleared here would present placeholder geometry as measured. The calibration goes because a scale measured off a document nobody references names nothing at all |
+| 13 | `obsidian` | Press Ctrl+Z (Cmd+Z on macOS) | Both the sheet AND the calibration come back together | The removal going through `SetAssetBackground`'s reversible adapter like every other gesture here, rather than being a one-way door. It is deliberately not confirmed, and undo is the whole reason that is safe |
+| 14 | `obsidian` | With asset A's designer open, delete `editor-background-png-test.png` from the vault in Obsidian's file explorer; then press **Remove reference** | It **succeeds**: the reference goes, the block returns to its no-sheet state, and NO refusal notice appears at any point | **The step this case exists for.** AD12-R2 puts the removal arm ABOVE both cheap pre-read refusals (`backgroundKindOf` and `files.fileExists`), because a removal names no path and this is the one gesture that repairs a dangling reference. A build that checked the file first would make the broken state permanent. `tests/application/commands/asset/removeAssetBackground.test.ts` "succeeds when the referenced file has already been deleted" pins it against a probe; this is the first time a real deleted file has been in front of it |
+| 15 | `suite` | On asset B, read the **Placement** section | Two rows — **Placement point** reading "Centre" or "Custom", and **Front direction** reading one of "Toward the right of the drawing", "Toward the bottom of the drawing", "Toward the left of the drawing" or "Toward the top of the drawing" — two buttons, **Centre** and **Back centre**, and a hint reading "Back centre is the middle of the side opposite the front arrow." | C04's refusal to let a mockup settle a direction label. Every word here is computed from `AssetShape.facing` — the same number the arrow is drawn from — so "back centre" is opposite the arrow by construction at any rotation. `designerReferencePanels.test.ts` "reads the anchor as the preset it is sitting on" and "reads an anchor on neither preset as a custom point" |
+| 16 | `suite` | Press **Back centre**, then compare the anchor dot with the facing arrow; then press Undo | The dot lands on the middle of the side OPPOSITE the arrow, the Back centre button reads as pressed, nothing else on the drawing moves, and Undo puts the dot back | The preset writing through the same `moveAnchor` the anchor's own numeric fields write through — one gesture, not a third way of moving the same point. `designerReferencePanels.test.ts` "moves the anchor to the back of the facing frame, and changes nothing else" |
+| 17 | `suite` | Press **Back centre** a second time, then look at Undo | Nothing happens and Undo is no closer to having an extra entry — one Undo still returns the anchor to where it was before step 16 | C05's no-op rule at a control whose resting state is one press away at all times. `designerReferencePanels.test.ts` "writes nothing when the anchor is already on the preset pressed" |
+| 18 | `browser` | Click **Set facing** and drag diagonally — roughly 45° — then read Front direction | It falls back to an angle rather than a word: "45° from the right of the drawing", with the degrees measured from a named direction rather than left as a bare bearing | A direction readout that silently rounded an off-axis front to the nearest word would be a label disagreeing with the arrow beside it. `designerReferencePanels.test.ts` "falls back to an angle measured from a named direction for a front between two axes" |
+| 19 | `suite` | On a traced, UNCALIBRATED asset, press **Centre**, then click Select and click the anchor dot | The dot moves to the middle of the outline, and the Inspector's Anchor section now withholds its two position fields, showing instead "This part was captured before a scale existed, so its measurements are hidden until the asset is calibrated." | A derived anchor taking the FOOTPRINT's coordinate space. An anchor computed off an outline still in sheet pixels IS in sheet pixels; leaving the flag alone would be C07's silent combination of two spaces, and the calibration would then leave the anchor behind. `designerReferencePanels.test.ts` "marks a derived anchor pending exactly when the footprint it came from is" |
+| 20 | `suite` | On asset B, read the **Clearance** section | A heading "Clearance"; a hint reading "These four numbers generate a new boundary. They are your own allowances, not a standard."; four fields labelled **In front**, **Behind**, **To its left** and **To its right**, all empty; and a **Generate clearance** button | C07's rule that the helper SAY it is generating a boundary, and that nothing on this surface certifies anything — there is no "fits", no "compliant" and no "verified" anywhere in this block. `designerReferencePanels.test.ts` "offers four fields for a rectangular outline whose front lies on an axis" |
+| 21 | `suite` | Type 600 into In front, 100 into Behind, 50 into each side, and press **Generate clearance** | A rectangular boundary appears standing off each side of the footprint by its own number, with the 600 on the side the facing ARROW points to — not on the top of the drawing | `DesignerReferenceFrame`'s derivation: "In front" is relative to the arrow while "To its left" is the object's own left, and the two readings of one arrow are exactly the confusion C04 refuses to let a mockup settle. `designerReferencePanels.test.ts` "generates a boundary standing off each side by its own number" |
+| 22 | `suite` | Look at the four fields and at the line above the button now that a boundary exists | The four fields are still EMPTY — the helper never reads an existing boundary back into four numbers — and a line reads "This replaces the boundary this object already has." | C07's *"keep arbitrary traced boundaries … do not infer four setbacks from an arbitrary curved polygon"*. A helper that populated its fields from a traced boundary would be inventing four numbers nobody authored. `designerReferencePanels.test.ts` "never turns an existing boundary into four numbers, and warns that generating replaces it" |
+| 23 | `suite` | On an asset with a TRACED curved footprint, look at the Clearance section; then on asset B, set the facing to about 45° and look again | Both times there are no fields at all and one line reads "A four-sided helper needs a rectangular outline and a front pointing along an axis. Trace a boundary instead." | The helper being WITHHELD rather than disabled where the geometry is not supported, and BOTH halves being real: four setbacks mean nothing against a traced curve, and "left" and "right" mean nothing while the front points between two axes. `designerReferencePanels.test.ts` "withholds every field for a curved outline and says what it needs" and "withholds every field while the front points between two axes" |
+| 24 | `suite` | On asset B (800 × 400), type −500 into both To its left and To its right and press Generate clearance | Nothing is written and a refusal appears beside the button saying the boundary is not valid | The panel validating NOTHING itself: the numbers reach `validateAssetShape` through the same door every other edit takes. A guard in the panel would be a second answer to a question the domain already answers, and would leave that validator's own arm unreachable. `designerReferencePanels.test.ts` "shows the domain's refusal for allowances that collapse the boundary" |
+| 25 | `browser` | With asset B carrying the boundary from step 21, press **Edit dimensions**, type width 400 and depth 200, and save | The footprint and both details shrink about the anchor and **the clearance does not move at all** — the boundary stands around a visibly smaller object, no longer describing the space beside it | ADR-0034 and ruling AD14-R1's whole argument, which is a picture rather than a rule: scale-and-flag would fabricate a boundary nobody authored and then ask the user to check a number that looks authored, which at 600 mm becoming 500 mm a glance accepts. Preserve-and-flag makes the wrongness the notice. `designerClearanceReview.test.ts` "appears in the real inspector after a real resize, and the real press answers it" |
+| 26 | `suite` | Read the block that has appeared at the very bottom of the Inspector | One sentence, exactly: "This clearance was kept at the size you drew it when the object was resized. Check that it still describes the space you need." — and below it a button reading "Mark clearance as reviewed" | The notice saying what HAPPENED rather than warning about what might, and the action being the answer C07's *"mark it as needing review"* implies a person can give. `designerClearanceReview.test.ts` "says what happened and offers the action once the flag is set" |
+| 27 | `suite` | Look at the Inspector on any asset whose clearance has NOT been resized, and on the third asset with no shape at all | No review block anywhere — no dimmed button, no empty section, no heading | The block being drawn by a predicate rather than a `:disabled`. A control that is drawn and can only refuse is the live control that does nothing, which this expansion has shipped three times in three different cards. `designerClearanceReview.test.ts` "draws nothing while the flag is down, which is every ordinary state of this panel" and "draws nothing for a design with no shape at all, rather than reading through a null" |
+| 28 | `browser` | At the default leaf width, look at the review block's position relative to the **Clearance** block above it | Record what you see. Both are `<section class="rp-designer-clearance">`, so both carry the same top border from `styles/designer-selection.css`, and the lower one has no heading of its own — so two ruled blocks stack with one heading between them | A notice separated from its subject by a rule. Nothing in the suite or in any capture can see this: `designerStyles.test.ts` reads declarations, not the picture two of them make together |
+| 29 | `judgement` | Now answer the question step 28 collected the evidence for: **does the notice read as belonging to the Clearance block above it, or as a fourth unnamed block?** | Record the answer in prose, with which of the two it read as on first glance and whether the answer changed once you had read the sentence. There is no pass condition here and no instrument that can supply one | The one thing about this block that no gate, no capture and no assertion can settle. It is written as a judgement deliberately: a step claiming "it clearly belongs to the clearance" would be an appearance nobody has seen, which this suite refuses to write |
+| 30 | `browser` | Still at the default width, look at how the sentence sets | The notice wraps to a readable number of lines inside the Inspector column, no word is clipped, the Inspector does not scroll SIDEWAYS, and the button below it is visible without scrolling the Inspector to its bottom | It is the longest sentence in the designer Inspector, in the narrowest column this surface has. jsdom lays nothing out and there is no capture of this block at any width, because no harness fixture sets the flag |
+| 31 | `browser` | **Narrow the leaf to about 460 CSS pixels**, or drag it into a sidebar, with the review block showing | Below 35rem the Parts panel stacks above the canvas and the Inspector below it, each at a fixed share of the column; the Inspector scrolls INSIDE its share; and scrolling it to the bottom reaches the whole notice and the whole button, neither clipped nor pushed outside the scrollable area, with no horizontal scrolling at any point | `styles/designer-narrow.css`'s container query at the width an Obsidian sidebar leaf actually has — the width that has already hidden a layout defect in this repository the default 1280 could not show (`Design an Asset` steps 23 and 41). The longest sentence in the panel meeting the shortest column it will ever have |
+| 32 | `obsidian` | With a screen reader running, trigger a resize that sets the flag (step 25) without looking away; then Tab to the button | The notice is ANNOUNCED when it appears — it is a `role="status"` live region — and the button is reachable by Tab and announced as "Mark clearance as reviewed" | **Nothing has ever graded either.** `grep -rn clearanceNeedsReview tests/harness/` prints no lines: the block draws only while the flag is set and no harness fixture sets it, so every `accessibility*.test.ts` in this repository scans a tree this section is absent from. A live region nobody hears and a button with no accessible name would both be invisible to the whole gate |
+| 33 | `suite` | Press **Mark clearance as reviewed**, then press Undo | The whole section disappears, not one coordinate anywhere on the object moves — the clearance is exactly where it was — and Undo brings both the notice and the button back | The action writing a flag DOWN and nothing else. AD14-R1 needs no undo mechanism of its own: the flag rides on `AssetShape`, which the reversible commands snapshot whole. `designerClearanceReview.test.ts` "writes the flag down and moves not one coordinate when it is pressed" |
+| 34 | `obsidian` | Set the flag again (repeat step 25), then close the designer tab and reopen the asset WITHOUT pressing the button | The notice is still there | The whole reason AD14-R1 chose a durable boolean and schema v4 over an ephemeral warning: C07's own sentence says a warning that vanishes on reopen is worse than a refusal. Nothing but a real close and reopen tests it |
+| 35 | `suite` | With the flag set, ignore the button and instead type four numbers into the Clearance helper above and press **Generate clearance** | The review section disappears along with the old boundary — regenerating IS the review | The rule that ANY write whose subject is the clearance answers the review, stated as a rule rather than as a list. This is the site AD14's own grep could not reach, and the card shipped the assertion that fails without it. `designerClearanceReview.test.ts` "clears the review flag when it regenerates the boundary" and `tests/application/commands/asset/assetClearanceReview.test.ts` "comes down when a new boundary is traced, because that write IS the review" |
+| 36 | `suite` | On a traced, UNCALIBRATED asset whose clearance is still in reference pixels, press Edit dimensions and type a smaller width and depth | The clearance scales with everything else and NO review notice appears | Revision r1 row 2: a pending clearance's coordinates are background pixels, the whole capture shares one space, and scaling them weakens nothing that is yet a measurement. A build that flagged this one would fire the notice on every uncalibrated resize, and a warning that always fires is one nobody reads |
+
+## Deliberately NOT checked
+
+- **That an asset's calibration touches no Plan.** [[Design an Asset]] step 19 is that look, with
+  a real Plan Editor open beside the thing being calibrated, and re-walking it here would be
+  checking one object twice under two names.
+- **The recalibration confirmation dialog.** [[Design an Asset]] steps 15 and 22 own both arms of
+  `hasGeometryToRescale` — the warning where something is pending and its absence where nothing
+  is.
+- **A background LOCK.** Ruling AD12-R1 refuses to build one and says why: every designer layer
+  is `listening: false` and no tool in `src/presentation/designer/tools/` moves, scales or nudges
+  the background, so the property a lock names already holds and a control for it would be a
+  switch whose off position is unreachable. The trigger is an increment that makes the background
+  draggable; there is nothing here to check until then.
+- **Replacing a background with another.** The picker is not reachable again once a sheet exists,
+  which [[Design an Asset]]'s own *Deliberately NOT checked* list already records. Step 14
+  removes one instead, which is the door AD12-R2 added.
+- **Whether the clearance helper's numbers are right for any real appliance.** C07 is explicit
+  that a clearance is an authored planning boundary and never a regulatory approval, and no
+  sample dimension anywhere in this plugin is a requirement for real construction.
+- **Colour contrast and hit-target size.** The standing exception every case in this suite
+  carries — and worth restating here, because step 32 is about a live region and a name, which
+  `axe-core` grades, and not about how the notice looks, which it does not.
+
+## Runs
+
+| Date | Build | Outcome |
+| --- | --- | --- |
+| — | — | Not yet run in a vault. Every row above is an expectation derived from the code, from `docs/tasks/asset-designer-expansion/contracts/DECISIONS.md` (rulings AD12-R1, AD12-R2 and AD14-R1), from ADR-0034 and from the AD12 and AD14 task reports under `docs/tasks/asset-designer-expansion/reports/`, rather than from a walk. Nothing in this case has been opened in Obsidian, and the clearance review block has never been photographed at any width. |

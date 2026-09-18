@@ -1,0 +1,127 @@
+---
+type: Test case
+parent: "[[Smoke Test the Editor]]"
+order: 81
+sources:
+  - SDD §12
+  - SDD §62
+  - ADR-0015
+  - C05
+  - C06
+  - AD08-R1
+  - AD10-R1
+status: Ready
+---
+# Compose an asset from parts
+
+The asset designer expansion's COMPOSITION half, walked end to end in a real vault: the Parts
+panel that finds, names, hides, locks and isolates a graphic without precision clicking (AD09,
+and ruling AD08-R1's answer to C05's overlap question); the three ways a selection of several
+parts is built (AD08 — Shift, the sticky checkbox and a marquee); the Arrange block that groups,
+orders, aligns, distributes, moves, scales and repeats them (AD10, contract C06); the two
+refusals AD10-R1 rules on; and AD11's two new drawing tools. [[Design an Asset]] is the
+canonical procedure for this surface and this file assumes it — it does not repeat the shell,
+the toolbar's older tools, the presets or the selection modes.
+
+Preconditions: `npm run test-build`, this folder open as a vault, the plugin enabled, and TWO
+assets made from the Renovation project view's **New asset** button.
+
+- **Asset A**, no background at all. Open its designer, press **Set dimensions** and type width
+  800, depth 400. Then draw THREE rectangles inside the footprint with **Draw rectangle**,
+  clear of one another. Every graphic on it is measured and nothing is pending.
+- **Asset B**, with `editor-background-png-test.png` chosen as its sheet and **never
+  calibrated**. Apply **Start from preset → Toilet** (a tank and a bowl, both measured, because
+  a preset draws millimetres), then draw one rectangle over the sheet with **Draw rectangle**.
+  That rectangle is captured in reference pixels while the preset's two parts are not, which is
+  the mixed selection step 27 needs and the only state in this plugin that produces one by hand.
+
+**Why a human still matters here.** Five things put this material out of every gate's reach:
+
+- **A three-region shell at a real leaf's width.** `regionsReachable.test.ts` proves every
+  `.vue` under `src/presentation/designer/` is reachable BY IMPORT and `assetDesignerRoot.test.ts`
+  that each region is drawn; neither measures one. `styles/designer-narrow.css` restacks the
+  Parts panel ABOVE the canvas and the Inspector below it under 35rem, which no assertion here
+  reads and only step 33 looks at.
+- **A live pointer.** A marquee's rubber band, a drag that crosses a part a second time and a
+  line's open preview are all states between a press and a release. `jsdom` lays nothing out and
+  every fixed capture is taken with the pointer still.
+- **Focus BEHAVIOUR versus focus assignment.** The Parts list is one tab stop with a roving
+  tabindex; `designerPartsPanel.test.ts` drives the arrow keys, which is assignment, and nothing
+  anywhere dispatches a real `Tab`.
+- **Hiding and locking are leaf-local and write nothing** (`parts/partView.ts`). The instrument
+  for "writes nothing" that a user would believe is closing the tab and opening it again, which
+  needs Obsidian's own workspace.
+- **A refusal is a sentence, and a sentence is read rather than asserted.** AD10-R1's mixed
+  coordinate-space refusal has its CODE driven in `tests/domain/asset/arrangeDetails.test.ts`;
+  nothing drives that code through the panel, so the words in front of a user at that moment
+  have never been seen.
+
+## Steps
+
+Each step carries a `Reachable by` verdict — the cheapest instrument that could discharge it as
+written. [[Smoke Test the Editor]]'s *The triage column* section defines the five values and
+what they do not claim.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 1 | `browser` | On asset A, look at the leaf as a whole | FOUR regions across the middle and two along the edges: a toolbar on top, a **Parts** panel down the left of the canvas, the canvas, an **Inspector** down the right, and a status bar. The Parts panel is wide enough to read a row without truncation | A region present and unusable. `regionsReachable.test.ts` proves reachability by IMPORT and `assetDesignerRoot.test.ts` that the region is drawn — neither can report that it drew 40px wide |
+| 2 | `browser` | Look at the Parts panel's rows | A heading reads "Parts", and below it three rows all reading "Rectangle" — the semantic name, since none has a label yet — with the graphic drawn topmost FIRST | `partRows` reading `details` from the far end. A panel listing draw order the right way up would put the part under everything at the top of the list, which reads as correct until two parts overlap |
+| 3 | `suite` | Press the second row, then press the same rectangle on the canvas | Both select the same part: the row shows as pressed, the canvas draws that rectangle's handles, and the Inspector's Detail section names it. Neither gesture changes what the other did | AD08-R1's whole argument — the panel is C05's overlap ALTERNATIVE precisely because a row press calls the same `select` a canvas press calls, and two selection models would be two answers to "which part did you mean". `designerPartsPanel.test.ts` "selects the part its row names" and "marks the row of every part the canvas has selected" |
+| 4 | `suite` | With that row selected, type `Left leg` into the **Label** field under it and press Tab | The row now reads "Left leg" and the other two still read "Rectangle"; nothing on the canvas moves | `updateDetail` writing `label` and never `name` (C02). The semantic key is what a preset, `semanticLabel` and `assetShapeConfig` resolve by; renaming through it would silently restyle the drawing. `designerPartsPanel.test.ts` "writes a user label and leaves the semantic name alone" |
+| 5 | `suite` | Press **Hide** on that row | The rectangle leaves the canvas, its row stays in the list carrying a "Hidden" mark, its button now reads **Show**, and a **Show all parts** button appears at the top of the panel | The way back from a hidden graphic being drawn only once something IS hidden. `designerPartsPanel.test.ts` "keeps a hidden graphic in the list, marked, with Show on its own row" and "offers Show all only once something is hidden, and clears everything when pressed" |
+| 6 | `suite` | Press **Lock** on a second row | That row gains a "Locked" mark and its button reads **Unlock**. The graphic is still drawn and still selectable | A lock that hid a part, or one that made it unselectable. A press has to be able to reach a locked part — reading its fields and unlocking it is the way out — so the lock stops it being MOVED and nothing else |
+| 7 | `suite` | Press **Isolate** on the third row, then **Show all parts** | Isolate leaves that one graphic drawn and marks every other row Hidden; Show all parts restores every one of them in a single press, the one hidden at step 5 included | `PartView.isolate` hiding the complement rather than holding a second "isolated" mode. One press has to undo an isolation and a hand-made hiding together, or the user is left hunting for which route hid what |
+| 8 | `obsidian` | Close asset A's designer tab, then reopen it from the Renovation project view or the asset library | Nothing is hidden, nothing is locked, no row carries a mark, and all three rectangles are drawn exactly where they were | Hiding and locking being leaf-local editing aids that write NOTHING (`partView.ts`, AD09 criterion 3). A version that persisted either would put a graphic a user hid into plan placement, the library mark and every quantity derived from the asset — invisibly, since the designer would go on drawing it correctly |
+| 9 | `browser` | Press Tab repeatedly from the toolbar until focus enters the Parts panel, then press Down, Down, End, Home, and Tab again | The whole list is ONE tab stop: Tab enters it once and the next Tab leaves it. Down moves focus from row to row and stops at the last rather than wrapping; End jumps to the last row and Home to the first; the tab stop follows the focused row | WAI-ARIA's roving-tabindex pattern in a real browser. `designerPartsPanel.test.ts` drives every arrow key, which is focus ASSIGNMENT; nothing in this repository dispatches a real `Tab`, so "one tab stop" is asserted by nothing |
+| 10 | `suite` | Select the topmost row and press **Bring forward** | The button is visibly dimmed rather than removed, the press does nothing, and focus stays on the button instead of jumping to the top of the pane | `aria-disabled` and a press that runs nothing, never `:disabled` — Chromium drops focus to `<body>` when a focused control disables itself. `designerPartsPanel.test.ts` "marks Bring forward disabled on the topmost graphic and runs nothing when it is pressed" |
+| 11 | `suite` | Create a third asset with no width, no depth and no background, and look at its Parts panel | One line reads "This asset has no parts yet. Set its dimensions or start from a preset." and there is no list and no Show all parts button | The empty state naming the two doors that exist rather than leaving a blank column. `designerPartsPanel.test.ts` "says so, once, when the asset has no shape to list parts of" |
+| 12 | `suite` | Back on asset A, look in the Inspector for the multiple-selection control | A checkbox labelled "Select multiple parts" is present. Confirm on the third asset (no parts) that it is NOT drawn | The control being offered only where there is more than one graphic to compose. A checkbox over a single part is the live control that does nothing this surface refuses everywhere else |
+| 13 | `suite` | Tick "Select multiple parts", then press two different rectangles on the canvas in turn | Both stay outlined, a line above the Inspector's sections reads "2 parts selected", and an **Arrange** heading appears below the Detail section | The sticky mode being a real additive route and not only a modifier (C05's "visible keyboard/touch-accessible control"). `designerMarqueeCanvas.test.ts` "adds under the sticky select-multiple control, with no modifier held" and "says how many parts are selected" |
+| 14 | `suite` | Untick it, then hold Shift and press the second and third rectangles | The count line reads "3 parts selected" — Shift adds without the checkbox | The other additive route. `designerMarqueeCanvas.test.ts` "adds to the selection under a held Shift instead of replacing it" |
+| 15 | `browser` | Clear the selection, then drag a rectangle on empty canvas from RIGHT to LEFT so it clips two rectangles without enclosing either. Release. Then draw the same rectangle LEFT to RIGHT | A rubber band follows the pointer while the button is down and disappears on release; both graphics are selected each time, and the two directions produce the identical set — the one that merely clips counts as in | C05's "no accidental dependency on drag direction" and intersection rather than enclosure. `marquee.test.ts` drives both as pure geometry ("selects the same parts left-to-right and right-to-left", "includes a graphic the box merely CLIPS"); the band itself is a live pointer, which no fixed capture holds |
+| 16 | `suite` | With three parts selected, plain-press (no Shift, checkbox unticked) one of the three | The set is unchanged, member for member, and the Inspector goes on showing the part it was already showing rather than switching to the one pressed | AD08's F5 fix. A press inside an existing multi-selection that replaced it would make every set one slip away from being lost. `designerMarqueeCanvas.test.ts` "keeps the swept set when a plain press lands inside it" |
+| 17 | `browser` | With three selected, drag one of the three and release. **Record what happened** | Expect only the part PRESSED to move, with the handles still drawn around the primary. This is a recorded wart rather than a defect to report — AD08's F5 names it in the report and in `choosePart`'s own docblock — so the step is here to confirm the wart is what ships and to say how bad it looks | Multi-part dragging being explicitly out of scope while the selection is not. The judgement wanted is whether a set that visibly moves one member reads as broken; nothing but an eye can answer it |
+| 18 | `suite` | Select exactly two rectangles and read the Arrange block | A heading "Arrange"; a **Group** button; an "Align to" dropdown offering "The selection bounds" and "*<the focused part's name>*, which stays put"; and six buttons — Align left, Centre across, Align right, Align top, Centre down, Align bottom. NO distribution buttons | Which parts a control NEEDS deciding whether it is drawn, never a `:disabled`. `designerArrangePanel.test.ts` "offers grouping and the six alignments at two graphics, and no distribution" and "names the focused part in the key-object option" |
+| 19 | `suite` | Select three, and look again | Four more buttons appear: "Even centres across", "Even centres down", "Even gaps across", "Even gaps down" — centres and gaps named in the label itself | C06's requirement that distribution STATE centres versus edge gaps. A button whose meaning lives in a docblock states nothing. `designerArrangePanel.test.ts` "offers the four distributions only at three, naming centres and gaps in the labels" |
+| 20 | `suite` | Press "Even gaps across", then press Undo | The middle rectangle moves and the two outer ones do not; Undo puts it back as ONE entry | Distribution retaining its endpoints (C06). `designerArrangePanel.test.ts` "distributes the interior and leaves the endpoints untouched" |
+| 21 | `suite` | Press "Align left" twice in a row, then press Undo ONCE | The first press aligns all three; the second changes nothing visible; one Undo restores all three to where they were before the first press | C05's no-op rule at the panel rather than at the command: a second press that dispatched would push an undo entry that undoes nothing, so Undo would appear dead. `designerArrangePanel.test.ts` "writes once for two presses of the same alignment" |
+| 22 | `suite` | With the three still selected, press **Group**, then look at the Parts panel and at the Arrange block | The panel gains a row headed "Group" with a disclosure, and the three rectangles are indented under it; the Arrange block no longer offers Group and now offers **Ungroup**, **Bring group to front** and **Send group to back** | Group being withheld once every selected graphic is grouped, because the only outcome left for it is the `overlapping-groups` refusal. `designerArrangePanel.test.ts` "writes one group over the selected graphics in canonical order, with one dispatch" and "withholds Group where every selected graphic is already in a group" |
+| 23 | `suite` | Collapse the group's disclosure | The three member rows fold away and the canvas draws EXACTLY what it drew — no reorder, no restyle, nothing hidden | C06 criterion 6: group membership is editing metadata, not a second z-order authority and not a layer. `designerPartsPanel.test.ts` "folds its members away without writing anything or changing what the canvas draws" |
+| 24 | `suite` | Expand it again, select all three, type `50` into "Move across in millimetres" and commit; then type `0` into the same field and commit | The first commit moves all three 50 mm right and the field returns to 0. The second changes nothing and adds NO undo entry — one Undo after both returns them to where they started | The resting value being the displayed one, so committing a no-op is one blur away at all times. `designerArrangePanel.test.ts` "moves every selected graphic and puts the field back to zero" |
+| 25 | `suite` | Type `2` into "Scale by a factor" and commit | The three grow about the centre of their shared box rather than each about its own middle, and the field returns to 1 | `arrangeDetails.aboutCentre` — a set turning or scaling as one body. `designerArrangePanel.test.ts` "puts the scale field back to one, since a factor of one is the resting state" |
+| 26 | `suite` | In **Repeat**, set Copies 3, Spacing 100, Direction Across, Spacing measures "Centre to centre" and read the preview line; then switch Spacing measures to "The gap between copies" and read it again | The first reads "3 copies, each 100 mm on from the one before". The second reads a LARGER step — 100 plus the selection's own width across — under the same typed spacing | C06's insistence that repeat say whether spacing is an edge gap or a centre distance, answered by reporting the step it RESOLVED to rather than echoing what was typed. `designerArrangePanel.test.ts` "previews the step it will apply, and says a different one for each spacing mode" |
+| 27 | `suite` | Press "Add the copies", then press Undo once | Three copies appear along the axis, the Parts panel gains three rows, and one Undo removes all three together | A repeat being one history entry with ids minted once (C06's duplicate/repeat rule). `designerArrangePanel.test.ts` "adds the copies on one press, with ids above the highest the design carried" |
+| 28 | `suite` | Lock one of the three in the Parts panel, select all three, and press "Align left" | Nothing moves at all — not even the two that are unlocked — and an alert below the Arrange block reads "A selected part is locked. Unlock it, or leave it out of the selection." | C06's "locked elements must not move by implication", enforced by refusing the WHOLE operation rather than quietly dropping the locked member. A half-aligned design is the outcome this refusal exists to make impossible. `designerArrangePanel.test.ts` "refuses the arrangement and writes nothing" |
+| 29 | `suite` | On **asset B**, select the bowl (measured) and the rectangle drawn over the uncalibrated sheet (reference pixels) together, and press "Align left" | Nothing moves, and an alert reads "Some of these parts are still in background pixels and others are measured, so they cannot be arranged together. Calibrate the drawing first, or leave one of them out." | Ruling AD10-R1's spatial half — C07's *"composite transforms must not silently combine incompatible coordinate spaces"*, where *silently* is the operative word. The refusal CODE is driven by `tests/domain/asset/arrangeDetails.test.ts` (`asset.mixed-coordinate-spaces`); nothing drives it through this panel, so this is the first time the sentence has been read by anyone |
+| 30 | `suite` | With that same mixed pair still selected, press **Group** | Grouping SUCCEEDS: a group row appears in the Parts panel holding both, and no refusal is shown | The other half of AD10-R1, and the half a single shared check would have destroyed. A group carries no coordinates, so `groupEdits` may take a mix — and the ruling records that the obvious site for the refusal (`resolveParticipants`) is shared with grouping, which is exactly why this step exists as its own row |
+| 31 | `browser` | Look at the toolbar across the top of asset A | Twelve tool buttons, in order: Pan, Select, Trace footprint, Trace clearance, Draw rectangle, Draw rounded rectangle, Draw circle, Draw line, Trace detail, Set anchor, Set facing, Calibrate — then Undo and Redo, then View. Every label stays fully spelled out, wrapping onto a second row rather than truncating | A tool registered nowhere. `CalibrateTool` was written, tested and absent from this list for two whole slices with all four gates green; AD11's "Draw line" and "Draw rounded rectangle" are the newest members of the same table and have never been seen in Obsidian |
+| 32 | `suite` | Click **Draw line**, click three points across the footprint, and press Enter; then press Undo | One open graphic is written, it becomes the selection, the toolbar returns to Select, and Undo removes it as one entry | `DrawLineTool` writing an `OpenDetail` — a stroke with no interior — rather than a thin polygon standing in for one. `designerDrawOpenLines.test.ts` "writes one OPEN graphic with the clicked vertices, selects it and returns to Select" and "is one undo entry" |
+| 33 | `browser` | Draw a second line, and watch the preview between the second and third clicks | The rubber band runs from the last placed vertex to the pointer and there is NO closing edge back to the first vertex at any moment | A preview promising geometry the write does not contain. `designerDrawOpenLines.test.ts` asserts the render model's `previewClosed`; whether the closing edge is absent on screen is a paint |
+| 34 | `suite` | Click Select and click the line | The mode control offers **Transform** and nothing else — no Edit points, no Bend edges — its tooltip reads "A line has no resize or rotate handles: drag it to move it, or set its centre, size and rotation in the fields below", and a line in the Detail section reads "A line has no inside, so solid and dashed set its pattern only — neither fills it." | AD11's review finding 1: those two modes drew no handles at all for a path and sat enabled on the card's very first gesture. Dropped rather than `:disabled`, which is the same answer the Arrange panel gives to "this part cannot do that" |
+| 35 | `suite` | With the line selected, change **Line** from Solid to Dashed | The stroke becomes dashed and NO fill appears at any point — the shape stays a stroke | C10's "open paths remain strokes". A control that filled an open path would be the one place this model's two graphic kinds collapse into one |
+| 36 | `suite` | Click **Draw rounded rectangle** and drag a box; then click it again and drag a box of zero width | The first writes one solid graphic whose four corners are quarter circles; the second writes nothing at all and leaves the tool active rather than returning to Select | `roundedRectOutline` answering `null` for a degenerate drag. `designerDrawOpenLines.test.ts` "writes one solid detail with four exact quarter-circle corners" and "writes nothing for a drag with no width, and stays on the tool" |
+| 37 | `browser` | Narrow the leaf to about 460 px, or drag it into a sidebar | The Parts panel stacks ABOVE the canvas and the Inspector BELOW it, each in DOM order; the canvas keeps a measured height rather than collapsing; every Parts row and every Arrange button stays readable without scrolling sideways | `styles/designer-narrow.css`'s 35rem container query, at the width an Obsidian sidebar leaf actually has. AD09's own report names this as the check most likely to find a defect in that card, and it has not been run |
+| 38 | `obsidian` | Toggle the plugin off and back on, then reopen asset A's designer | The group, its membership, the labels, every copy the repeat added and every coordinate are exactly as you left them; the console shows no `Several Konva instances detected` | Group membership and labels living in the `.rpgeo` sidecar rather than in memory. The Parts panel holds three kinds of state and only two of them are supposed to survive — step 8 is the other half of this pair |
+
+## Deliberately NOT checked
+
+- **A mixed selection that is ALL pending.** AD10-R1 is explicit that the refusal is about MIXING
+  and never about being unscaled, so a selection whose members all sit in reference pixels
+  arranges normally. There is no step for it because the only way to reach that state by hand is
+  asset B with its preset removed, and the behaviour it would demonstrate is "nothing special
+  happens".
+- **Bring group to front on a mixed selection.** The ruling binds FOUR operations, not five —
+  `moveGroupToEnd` takes a group id rather than a selection and writes no coordinates — and a
+  step asserting that nothing is refused would pass identically against a build that had never
+  heard of the distinction.
+- **The overlap chooser.** AD08-R1 refuses to build one: the Parts panel IS C05's alternative,
+  and the trigger for revisiting is a surface that draws the canvas without the panel. Step 3 is
+  where the alternative is checked.
+- **Colour contrast and hit-target size.** The standing exception every case in this suite
+  carries.
+
+## Runs
+
+| Date | Build | Outcome |
+| --- | --- | --- |
+| — | — | Not yet run in a vault. Every row above is an expectation derived from the code, from `docs/tasks/asset-designer-expansion/contracts/DECISIONS.md` (rulings AD08-R1 and AD10-R1) and from the AD08, AD09, AD10 and AD11 task reports under `docs/tasks/asset-designer-expansion/reports/`, rather than from a walk. Nothing in this case has been opened in Obsidian or photographed. |

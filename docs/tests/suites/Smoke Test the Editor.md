@@ -94,11 +94,36 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 131 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 59 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 180 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 190 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 75 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 211 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 14 |
-| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 13 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 15 |
+
+**505 steps across 47 cases — 487 table rows plus the same 18 list steps in
+[[Canvas Navigation]] — re-run in the edit that added the asset designer expansion's three
+cases.** `suite` 131 → 190, `browser` 59 → 75, `obsidian` 180 → 211, `desktop` unchanged at 14,
+`judgement` 13 → 15. Both greps below were re-run against this tree and print 487 + 18.
+
+**The three new cases account for 102 of the 108 new steps, and the other six are the drift this
+paragraph exists to catch.** [[Compose an asset from parts]], [[Calibrate a sheet and reserve
+space]] and [[Take an asset from the library into a plan]] contribute `suite` 57, `browser` 15,
+`obsidian` 28 and `judgement` 2 — counted with the greps over those three files alone rather than
+taken from their author's report. Subtracting them leaves **+6 rows in cases that already
+existed**, added by increments between the last census and this one that never re-ran it:
+`suite` +2, `browser` +1, `obsidian` +3, `judgement` +1. That is the third time this file has
+recorded exactly that, which is the argument for the greps being here rather than the count being
+remembered.
+
+**Read the new cases' `suite` proportion as information rather than as a defect.** Fifty-seven of
+their 102 steps are marked `suite`, which says that most of what this expansion drew IS already
+asserted somewhere in `tests/` and that a walkthrough's scarce human time belongs on the other
+forty-five. Every one of those rows names the test it is standing on, inside the row; three of them
+deliberately state a GAP instead — the "No plan places this asset" arm, the designer's absent usage
+scope, and the mixed-coordinate-space refusal, which is asserted at the domain and driven through
+no panel.
+
+**The previous measurement's own account follows, kept as history.**
 
 **397 steps, unchanged, re-tiered rather than re-counted in the edit that closed the final
 selection-polish review's M5: [[Design an Asset]] row 24a moves from `browser` to `obsidian`**,
@@ -737,3 +762,25 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   square handles; dragging any handle resizes about the opposite corner; Shift keeps proportions;
   a placement's own size in the Inspector overwrites its library default, and Reset removes that
   override. Its steps carry no `Reachable by` verdicts yet (see the head of this file).
+- [[Compose an asset from parts]] — the asset designer expansion's composition half: the Parts
+  panel, multiple selection by three routes, the whole Arrange block including Repeat's
+  centre-to-centre versus gap choice, and the two newest tools. Its two deliberate refusals are
+  what a walkthrough is for — a locked part refuses the WHOLE arrangement rather than being left
+  out of it, and a selection mixing reference pixels with millimetres is refused with its reason.
+  The second of those is asserted in the domain and driven through no panel, which its own row
+  says rather than claiming coverage it has not got.
+- [[Calibrate a sheet and reserve space]] — the reference, placement and clearance blocks, and the
+  one case in this suite where the sharpest step is a `judgement`. `DesignerClearanceReview.vue`
+  draws a `<section class="rp-designer-clearance">` directly beneath the clearance helper's section
+  of the SAME class, both carrying `border-top` from `styles/designer-selection.css`, and the lower
+  one has no heading of its own. Whether a reader can tell the notice belongs to the block above it
+  is a question no instrument settles, and **no accessibility scan reaches that block at all** —
+  `grep -rn clearanceNeedsReview tests/harness/` prints nothing, because it draws only when the
+  flag is set and no harness fixture sets it. It also carries the 460 px step, which is the width
+  an Obsidian sidebar leaf actually has and the one that has already hidden a layout defect here.
+- [[Take an asset from the library into a plan]] — the library→designer→plan workflow: the usage
+  scope before a duplicate, Duplicate itself with the proof that the original and its placements
+  are untouched, Use in plan and the arrival it arms, Open in designer coming back, and the mobile
+  gate. Eighteen of its twenty-eight steps need Obsidian, which is the highest proportion in this
+  suite and is the point: this case is almost entirely about navigation between real workspace
+  leaves, and `FakeLeaf` records asks rather than behaving.

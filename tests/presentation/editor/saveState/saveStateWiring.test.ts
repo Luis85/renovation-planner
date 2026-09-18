@@ -32,11 +32,23 @@ import { readFileSync } from 'node:fs';
  * bindings, not the runtime values. What it cannot see is written down rather than implied —
  * a renamed local that is threaded correctly fails this test, and a decorator that ignores
  * its argument passes it.
+ *
+ * **It reads BOTH files the chain could be spelled in, concatenated, rather than the one it is
+ * spelled in today.** The whole composition moved out of `runtime.ts` into `dispatcherChain.ts`
+ * when `runtime.ts` crossed its `max-lines` cap, and a path pointing at the file the code LEFT
+ * is the worst failure this file has available: four of its six cases are `not.toMatch`, which
+ * an empty read satisfies, so a stale path turns most of this gate vacuously green instead of
+ * red. Concatenating is what makes the negatives mean "nowhere in the chain's two homes" rather
+ * than "not in whichever one I named". A third home would still need adding here, which is the
+ * limit and is why it is stated.
  */
-const runtime = readFileSync('src/presentation/editor/runtime.ts', 'utf8');
-
-/** Collapse whitespace so a reformat or a line break does not decide the outcome. */
-const source = runtime.replace(/\s+/gu, ' ');
+const source = [
+	'src/presentation/editor/dispatcherChain.ts',
+	'src/presentation/editor/runtime.ts',
+]
+	.map((path) => readFileSync(path, 'utf8'))
+	// Collapse whitespace so a reformat or a line break does not decide the outcome.
+	.join('\n').replace(/\s+/gu, ' ');
 
 describe('save-state wiring', () => {
 	it('composes the tracker in the runtime', () => {

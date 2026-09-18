@@ -60,6 +60,22 @@ function withBoundary<I, T, E extends AppError>(
 export const WRITES_PAUSED_CODE = 'write-incident.writes-paused';
 
 /**
+ * The one refusal a paused vault answers with, minted in ONE place.
+ *
+ * It has two callers and they sit in different layers — this module's `guardCommand`, which
+ * refuses a forward COMMAND, and `presentation/editor/tools/with-incident-gate.ts`, which
+ * refuses an UNDO the command chokepoint never sees. A second hand-spelled copy is how the two
+ * drift into answering different things for the same vault state, and the code above is the
+ * thing `toUserMessage` keys its copy off in both locales.
+ */
+export function writesPausedRefusal(): PersistenceError {
+	return persistenceError(
+		WRITES_PAUSED_CODE,
+		'Writing is paused: an earlier write left the vault half-written and was not undone.',
+	);
+}
+
+/**
  * ADR-0034's gate, on the COMMAND door only.
  *
  * While any write incident is open — a write landed, its compensating undo also failed, and
@@ -105,10 +121,7 @@ export function guardCommand<I, T, E extends AppError>(
 		execute: async (input) => {
 			const incidents = activeWriteIncidentRegistry();
 			if (incidents !== null && incidents.anyOpen()) {
-				const refusal = persistenceError(
-					WRITES_PAUSED_CODE,
-					'Writing is paused: an earlier write left the vault half-written and was not undone.',
-				);
+				const refusal = writesPausedRefusal();
 				logger.error(event, { cause: refusal });
 				return err(refusal);
 			}

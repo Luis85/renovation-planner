@@ -46,6 +46,7 @@ import { createRoomFromDraft, type RoomCreationOutcome } from './add/roomCreatio
 import { createProjectionRefresh } from './tools/with-editor-state-refresh';
 import { withStateRefresh, type RefreshedHistory } from './tools/with-state-refresh';
 import { withStaleGate } from './tools/with-stale-gate';
+import { withIncidentGate } from './tools/with-incident-gate';
 import { wrapDispatcher } from './tools/wrap-dispatcher';
 import { useSaveStateStore } from './save-state/save-state-store';
 import { singleFlight } from '../composables/single-flight';
@@ -605,7 +606,7 @@ function buildDispatcherChain(
 	const tracked = withSaveStateTracking(dispatcher, save);
 	const unsafeHistory = (): boolean => planning.failed.value || save.unrecoveredWrite;
 	const writesBlocked = computed(() => projectStore.stale || unsafeHistory());
-	const gated = withStaleGate(tracked, () => writesBlocked.value || session.perspective === 'review', unsafeHistory);
+	const gated = withIncidentGate(withStaleGate(tracked, () => writesBlocked.value || session.perspective === 'review', unsafeHistory));
 	const historyState = wrapDispatcher(history, gated);
 	const wrappedDispatcher = historyState.dispatcher;
 	const canUndo = computed(() => !unsafeHistory() && historyState.canUndo.value);

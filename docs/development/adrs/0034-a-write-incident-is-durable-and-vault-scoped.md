@@ -474,6 +474,62 @@ could name, not about whether the vault is safe.
   three named sites stay live and stay silent, and the hole still cannot get wider rather than
   being closed.
 
+## Amendment 1, 2026-09-18 — an UNDO is refused while the vault is paused
+
+**Decided by a release owner on 2026-09-18**, against the reading this record's own Context
+invites, and recorded here because that reading has to be answered rather than ignored.
+
+**What this record argued, implicitly.** The Context grounds the whole mechanism in
+`markUncompensated` — a refused write "at the moment a compensating undo itself fails". A reader
+can reasonably take from that a principle this record never states: that an undo is the REPAIR,
+and repairs should stay possible while writes are paused. The Decision section's gate is on
+"every guarded COMMAND", and an inverse dispatches no command, so the question simply never came
+up in the original text.
+
+**What was measured, which is what makes the question answerable.** BP-02's session 6 found that
+the reversible adapters' inverses — the asset designer's and the zone adapters' alike — write
+their captured snapshot back through the RAW `assets.save` / `sidecar.write` / zone ports. None
+passes `guardCommand`. So while the vault was paused, an undo LANDED, writing a pre-incident
+snapshot over files whose state this plugin has already recorded as untrustworthy, conditioned on
+a ledger version whose meaning the incident is precisely what calls into question.
+
+**The decision.** An undo and a redo are refused while any incident is open, with the same
+`WRITES_PAUSED_CODE` a forward command is refused with. `writesPausedRefusal()` is now minted in
+ONE place (`guardAgainstThrowing.ts`) and used by both `guardCommand` and the new
+`presentation/editor/tools/with-incident-gate.ts`, so the two cannot drift into answering
+different things about the same vault state.
+
+**Why refusing the repair is acceptable here, stated plainly rather than glossed.** The in-app
+undo was never the documented remedy for a write incident. D-06 and D-08 (tracker
+`03-execution-tracker.md`) already decide that nothing in the plugin retires an incident and that
+recovery is the user removing `write-incidents.json` and reloading;
+`docs/using-planning-recovery.md` already tells them so. An undo stack is per-leaf and ephemeral,
+it does not survive the reload that remedy requires, and it cannot reach the half-written files a
+different leaf's gesture left. So what this amendment removes is not a repair path but the
+APPEARANCE of one — and an undo that silently overwrote a recorded-untrustworthy file while
+presenting as a repair is the worse of the two failures.
+
+**Where the gate sits, and what it therefore does not cover.** It is a decorator on the
+dispatcher, applied to both surfaces' chains. An adapter's `undo()` called DIRECTLY still reaches
+the ports; in production nothing does that, every caller going through `CommandHistory`. That is
+a narrower guarantee than "no inverse can write while paused", and the narrower sentence is the
+one this record makes. Bringing the inverses themselves inside a guard is a larger change —
+`guardCommand` wraps a `Command<I, R>` and an inverse is not one — and is not taken here.
+
+**The affordance is deliberately NOT live.** `canUndo`/`canRedo` remain computed from the
+save-state store, which learns of a pause only at seeding or at this leaf's own next refusal
+(limitation L-14). A `computed` that called the registry directly would be read once and cached
+until an unrelated dependency invalidated it, which is a button that lies in whichever direction
+the last invalidation left it. So a user may still press an enabled Undo into a paused vault;
+what they cannot do is have it land.
+
+**What this amendment corrects in the record above.** The coverage bullet dated 2026-09-17 says
+the designer's "buttons, inspector fields, toolbar and preset form all stay live and their
+dispatches are refused underneath", and the 2026-09-18 correction beneath it narrows that to the
+forward path. Neither sentence contemplated the undo, because neither had measured it. The undo
+is now refused at the dispatcher on both surfaces; the DIRECT adapter call is not, and
+`tests/presentation/designer/designerIncidentRefusal.test.ts` still measures exactly that.
+
 ## Revisit when
 
 - An integrity signal exists that can distinguish a repaired vault from an unrepaired one. A

@@ -13,9 +13,10 @@ import { readFileSync } from 'node:fs';
  * tracker outside it would miss nothing today and miss everything the moment the wrapping
  * changes.
  *
- * The trust path's gate (design spec §2.2) added a THIRD link since this test was written:
- * `wrapDispatcher` now receives `gated`, not `tracked`, directly — `gated` is
- * `withStaleGate(tracked, …)`, so `tracked` is still what the gate itself is built from. The
+ * The trust path's gate (design spec §2.2) added a THIRD link since this test was written, and
+ * BP-02's L-16 a FOURTH: `wrapDispatcher` receives `gated`, not `tracked`, directly — `gated` is
+ * `withIncidentGate(withStaleGate(tracked, …))`, so `tracked` is still what the stale gate
+ * itself is built from, and the incident gate is outside it. The
  * property this file is FOR — a refusal must open no saving batch — is exactly why the gate
  * sits after the tracker rather than before it, so the two new assertions below hold both
  * halves of that ordering rather than only the old tracked/wrapDispatcher pair.
@@ -59,8 +60,31 @@ describe('save-state wiring', () => {
 	 * from the chain entirely and fed `wrapDispatcher` the bare `tracked` value again.
 	 */
 	it('the stale gate is built from the tracked dispatcher, not from the untracked one', () => {
-		expect(source).toMatch(/const gated = withStaleGate\( *tracked *,/u);
+		// Addresses the CALL rather than the assignment. The pin used to read
+		// `const gated = withStaleGate( tracked ,` and broke the day a fourth link wrapped it,
+		// while the thing it exists to protect — that the gate is built from the TRACKED
+		// dispatcher — was still true. A pin on the spelling of a line is not a pin on its
+		// meaning.
+		expect(source).toMatch(/withStaleGate\( *tracked *,/u);
 		expect(source).not.toMatch(/withStaleGate\( *dispatcher *,/u);
+	});
+
+	/**
+	 * BP-02 L-16's link, and it is a FOURTH one rather than a replacement. `withIncidentGate`
+	 * asks the write-incident registry LIVE at every dispatch, which is the only predicate in
+	 * this chain that can be right about an incident opened after the leaf's store was seeded —
+	 * `vaultPaused` is read from the registry once, at store creation, and set afterwards only by
+	 * `withSaveStateTracking` on a refusal THIS leaf received.
+	 *
+	 * It wraps the stale gate rather than sitting inside it, so a paused vault answers
+	 * `WRITES_PAUSED_CODE` — whose copy exists in both locales — rather than
+	 * `STALE_WRITE_REFUSED`, which tells a user their last read-back failed. Both halves are
+	 * asserted for the reason the case above gives: either alone is satisfied by a build that
+	 * dropped a link and fed `wrapDispatcher` the value again.
+	 */
+	it('the incident gate wraps the stale gate, and wrapDispatcher receives the result', () => {
+		expect(source).toMatch(/withIncidentGate\( *withStaleGate\(/u);
+		expect(source).toMatch(/wrapDispatcher\( *history *, *gated *\)/u);
 	});
 
 	it('hands wrapDispatcher the GATED dispatcher, not the tracked-but-ungated one', () => {

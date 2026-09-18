@@ -85,7 +85,6 @@ import { provideDesignerRuntime, type DesignerRuntime } from '../../../src/prese
 import type { EditorContext } from '../../../src/presentation/editor/tools/editor-context';
 import type { EditorTool } from '../../../src/presentation/editor/tools/editor-tool';
 import type { UndoableCommand } from '../../../src/presentation/editor/tools/undoable-command';
-import { STALE_WRITE_REFUSED } from '../../../src/presentation/editor/tools/with-stale-gate';
 import { assetDesign } from '../../helpers/assetDesign';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { installObsidianDom } from '../../helpers/dom';
@@ -258,13 +257,67 @@ describe('the dispatcher this leaf hands out (BP-02 L-16)', () => {
 	});
 
 	/**
-	 * **The sequence is forced, not chosen.** A leaf that MOUNTS with an incident open seeds
-	 * `vaultPaused` true, and the only reachable state with a filled history and a paused vault
-	 * is this one: the leaf works while the vault is clean, a peer pauses it, and this leaf
-	 * catches up at its next write — there is no notification, so the refused write is where it
-	 * learns. Every step is production's own mechanism: `guardCommand` raises the code,
-	 * `withSaveStateTracking` turns it into `markVaultPaused()`, `withStaleGate` reads the result.
+	 * The same pause reached the OTHER way — through this leaf's own refused write rather than
+	 * through the live registry read — and it is kept because the two paths are different
+	 * mechanisms, not because either stands for the other.
+	 *
+	 * **This docblock used to say "the sequence is forced, not chosen", claiming this was the
+	 * only reachable state with a filled history and a paused vault. That was false, and the
+	 * case above is the counter-example.** It was true only of a chain whose every predicate
+	 * read the save-state store: `vaultPaused` is seeded once and `withSaveStateTracking` marks
+	 * it only on a refusal this leaf itself received, so without an intervening write there was
+	 * nothing to tell this leaf and the undo landed. `withIncidentGate` asks the registry at
+	 * dispatch instead, which is what makes the no-intervening-write sequence reachable — and
+	 * what made it refusable.
+	 *
+	 * Every step here is still production's own mechanism: `guardCommand` raises the code,
+	 * `withSaveStateTracking` turns it into `markVaultPaused()`. What this case no longer
+	 * demonstrates is the REFUSAL, which `withIncidentGate` now makes first: both this case and
+	 * the one above answer `WRITES_PAUSED_CODE`, where this one used to answer
+	 * `STALE_WRITE_REFUSED` from the stale gate beneath. That is the more accurate of the two —
+	 * `editor.stale-write-refused` tells a user their last read-back failed, which is not what
+	 * happened — and it already has copy in both locales.
 	 */
+	/**
+	 * **The case L-16 actually names, and the one the case below cannot see.** No intervening
+	 * write: a gesture lands while the vault is clean, a peer leaf half-writes it, and the user
+	 * reaches straight for Undo. Nothing tells this leaf's store — `vaultPaused` is seeded once,
+	 * while the store is created, and `withSaveStateTracking` marks it only on a refusal this
+	 * leaf itself received — so every store-backed predicate in the chain still answers `false`
+	 * here. What refuses is `withIncidentGate`, which asks the registry at the moment of the
+	 * dispatch.
+	 *
+	 * **Watched red before `withIncidentGate` existed**, by deleting the intervening refused
+	 * write from the case below: the undo resolved `ok('wrote')` — `Expected error, got ok:
+	 * \"wrote\"` — which is the hole L-16 records. Remove the gate from the chain and it says so
+	 * again.
+	 */
+	it('refuses undo with NO intervening write, which is the sequence L-16 names', async () => {
+		installQuietWriteIncidents();
+		const runtime = designerRuntime();
+		await flushPromises();
+
+		expect(expectOk(await runtime.dispatcher.run(noopWriteCommand()))).toBe('wrote');
+
+		await installOpenWriteIncident();
+
+		expect(expectErr(await runtime.dispatcher.undo()).code).toBe(WRITES_PAUSED_CODE);
+	});
+
+	/** Redo takes the other arm of the same live read, and a gate on one is not a gate on both. */
+	it('refuses redo with NO intervening write', async () => {
+		installQuietWriteIncidents();
+		const runtime = designerRuntime();
+		await flushPromises();
+
+		expect(expectOk(await runtime.dispatcher.run(noopWriteCommand()))).toBe('wrote');
+		expect(expectOk(await runtime.dispatcher.undo())).toBe('wrote');
+
+		await installOpenWriteIncident();
+
+		expect(expectErr(await runtime.dispatcher.redo()).code).toBe(WRITES_PAUSED_CODE);
+	});
+
 	it('refuses undo once an incident opens behind a gesture already on the history', async () => {
 		installQuietWriteIncidents();
 		const runtime = designerRuntime();
@@ -279,7 +332,7 @@ describe('the dispatcher this leaf hands out (BP-02 L-16)', () => {
 
 		const undone = await runtime.dispatcher.undo();
 
-		expect(expectErr(undone).code).toBe(STALE_WRITE_REFUSED);
+		expect(expectErr(undone).code).toBe(WRITES_PAUSED_CODE);
 		// The AFFORDANCE half. It read `true` above the pause and reads `false` here, which is
 		// what makes this an observation of the gate rather than of an empty stack.
 		expect(runtime.canUndo.value).toBe(false);
@@ -298,7 +351,7 @@ describe('the dispatcher this leaf hands out (BP-02 L-16)', () => {
 		await installOpenWriteIncident();
 		expect(expectErr(await runtime.dispatcher.run(guardedGesture())).code).toBe(WRITES_PAUSED_CODE);
 
-		expect(expectErr(await runtime.dispatcher.redo()).code).toBe(STALE_WRITE_REFUSED);
+		expect(expectErr(await runtime.dispatcher.redo()).code).toBe(WRITES_PAUSED_CODE);
 		expect(runtime.canRedo.value).toBe(false);
 	});
 });

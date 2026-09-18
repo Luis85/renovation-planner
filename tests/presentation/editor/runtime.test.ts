@@ -27,7 +27,6 @@ import { Notice } from '../../helpers/obsidian-mock';
 import { installWriteIncidentRegistry } from '../../../src/application/incidents/WriteIncidentRegistry';
 import { guardCommand, WRITES_PAUSED_CODE } from '../../../src/application/errors/guardAgainstThrowing';
 import { persistenceError } from '../../../src/application/errors';
-import { STALE_WRITE_REFUSED } from '../../../src/presentation/editor/tools/with-stale-gate';
 import { installOpenWriteIncident, installQuietWriteIncidents } from '../../helpers/writeIncidents';
 import { recorder } from '../../helpers/logger';
 import { expectErr, expectOk } from '../../helpers/domain';
@@ -479,6 +478,34 @@ describe('the trust path (design spec §2.2, §2.3, §2.9)', () => {
 	 * `guardCommand` is the REAL wrapper, refusing with its own `WRITES_PAUSED_CODE`, and
 	 * `withSaveStateTracking` is what turns that code into `markVaultPaused()`.
 	 */
+	/**
+	 * **The sequence L-16 names, on this surface too — and the reason the first attempt at that
+	 * limitation was scoped to the designer by mistake.** The case below reaches its pause
+	 * through an intervening REFUSED WRITE, which is what tells this leaf's store
+	 * (`withSaveStateTracking` marks `markVaultPaused()` on `WRITES_PAUSED_CODE`). Take that
+	 * write away and every store-backed predicate here still answers `false`, because
+	 * `vaultPaused` is seeded once while the store is created and the registry notifies nobody
+	 * (L-14). The Plan Editor was therefore NOT gated for a user who lands a gesture, has the
+	 * vault paused under them by a peer, and reaches straight for Undo.
+	 *
+	 * `withIncidentGate` asks the registry at the moment of the dispatch, which is the only
+	 * predicate in this chain that can be right about an incident opened behind it. Watched red
+	 * by removing that decorator from the chain: the undo resolves `ok('wrote')`.
+	 */
+	it('refuses undo with NO intervening write, which is the sequence L-16 names', async () => {
+		installQuietWriteIncidents();
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+
+		expect(expectOk(await runtime.dispatcher.run(noopWriteCommand()))).toBe('wrote');
+
+		await installOpenWriteIncident();
+
+		expect(expectErr(await runtime.dispatcher.undo()).code).toBe(WRITES_PAUSED_CODE);
+
+		harness.unmount();
+	});
+
 	it('refuses undo once an incident opens behind a gesture already on the history', async () => {
 		installQuietWriteIncidents();
 		const harness = await mountPlanEditorCanvas();
@@ -497,7 +524,7 @@ describe('the trust path (design spec §2.2, §2.3, §2.9)', () => {
 
 		const undone = await runtime.dispatcher.undo();
 
-		expect(expectErr(undone).code).toBe(STALE_WRITE_REFUSED);
+		expect(expectErr(undone).code).toBe(WRITES_PAUSED_CODE);
 		// **Both halves, and this one is the AFFORDANCE.** `EditorRuntime.canUndo` is
 		// `!unsafeHistory() && historyState.canUndo`, so the Undo button goes disabled on the
 		// same fact the dispatcher refuses on — the user is not offered a gesture that would be

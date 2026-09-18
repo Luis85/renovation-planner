@@ -28,6 +28,7 @@ import { designerCandidateSupply } from './grid/designerGrid';
 import { createEditShape, createWriteChain, type EditShape } from './selection/editShape';
 import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-state-refresh';
 import { withStaleGate } from '../editor/tools/with-stale-gate';
+import { withIncidentGate } from '../editor/tools/with-incident-gate';
 import { wrapDispatcher } from '../editor/tools/wrap-dispatcher';
 import { useSaveStateStore } from '../editor/save-state/save-state-store';
 import { withSaveStateTracking } from '../editor/save-state/with-save-state-tracking';
@@ -271,21 +272,35 @@ function detailDeps(store: ReturnType<typeof useAssetDesignStore>): Pick<Designe
 /**
  * This leaf's whole dispatcher chain, and the SAME links in the SAME order the Plan Editor's
  * runtime composes (`editor/runtime.ts`, whose own header spells it): `CommandHistory` →
- * `withStateRefresh` → `withSaveStateTracking` → `withStaleGate` (AFTER the tracker, so a
- * refusal opens no saving batch; BEFORE `wrapDispatcher`, so the undo/redo flags still refresh)
- * → `wrapDispatcher`.
+ * `withStateRefresh` → `withSaveStateTracking` → `withStaleGate` → `withIncidentGate` (both
+ * AFTER the tracker, so a refusal opens no saving batch; both BEFORE `wrapDispatcher`, so the
+ * undo/redo flags still refresh) → `wrapDispatcher`. The incident gate is OUTSIDE the stale
+ * gate, so a paused vault answers `WRITES_PAUSED_CODE` rather than `STALE_WRITE_REFUSED`,
+ * whose copy tells a user their last read-back failed — which is not what happened.
  *
  * Extracted rather than spelled inline for `calibrationDeps`' reason: `buildRuntime` sits AT
  * `max-lines-per-function`'s 100-line budget, and the gate does not fit beside it.
  *
- * **`unsafeHistory` is what BP-02's L-16 is about.** `saveState.unrecoveredWrite` is
- * `leafOwn || vaultPaused`; `vaultPaused` is seeded from `activeWriteIncidentRegistry()` while
- * the store is created and set afterwards by `withSaveStateTracking` on `guardCommand`'s own
- * `WRITES_PAUSED_CODE`. So an open write incident anywhere in the vault (ADR-0034) now refuses
- * this leaf's Undo and Redo. It has to be refused HERE and cannot be refused underneath:
+ * **Two gates, and they answer different questions — the split is BP-02's L-16.**
+ * `withIncidentGate` is the outer one and asks `activeWriteIncidentRegistry()` LIVE at every
+ * dispatch; `withStaleGate`'s `unsafeHistory` reads `saveState.unrecoveredWrite`, which is
+ * `leafOwn || vaultPaused`.
+ *
+ * **The store predicate alone was tried first and is not sufficient, measured rather than
+ * argued.** `vaultPaused` is seeded from the registry ONCE, while the store is created, and is
+ * set afterwards only by `withSaveStateTracking` on a refusal THIS leaf received. A probe
+ * asserting a sentinel so the values print: a store built while an incident is open reads
+ * `unrecoveredWrite: true`; a store built clean reads `false` both before AND after an incident
+ * is opened behind it. So the sequence L-16 names — a gesture lands, a peer leaf half-writes the
+ * vault, the user reaches straight for Undo with no write of their own in between — was NOT
+ * refused by a store-backed gate, on this surface or on the Plan Editor's. The live read is what
+ * closes it, and `designerIncidentGate.test.ts` carries both sequences as separate cases.
+ *
+ * It has to be refused HERE and cannot be refused underneath:
  * `ReversibleAssetDesignCommands`' inverses write the captured snapshot back through the RAW
  * `assets.save` / `sidecar.write` ports, and neither passes `guardCommand` — the gap
- * `designerIncidentRefusal.test.ts` measured, and still measures at that level.
+ * `designerIncidentRefusal.test.ts` measured, and still measures at that level, since an inverse
+ * called DIRECTLY bypasses this dispatcher entirely.
  *
  * **`isStale` is `() => false`, and the honest reason is that the fact EXISTS and is
  * deliberately left unwired — not that this surface has no such fact.** `assetDesignStore`
@@ -307,7 +322,7 @@ function designerDispatcher(
 ): Pick<DesignerRuntime, 'dispatcher' | 'canUndo' | 'canRedo'> {
 	const tracked = withSaveStateTracking(withStateRefresh(history, refresh), saveState);
 	const unsafeHistory = (): boolean => saveState.unrecoveredWrite;
-	const stepping = wrapDispatcher(history, withStaleGate(tracked, () => false, unsafeHistory));
+	const stepping = wrapDispatcher(history, withIncidentGate(withStaleGate(tracked, () => false, unsafeHistory)));
 	// The AFFORDANCE half, gated on the same fact and in the same spelling `editor/runtime.ts`
 	// uses for its own `canUndo`/`canRedo`: the toolbar's Undo and Redo go disabled on exactly
 	// what the dispatcher refuses on, so a user is never offered a gesture that would be

@@ -7,7 +7,7 @@ are outside this row; they are ICR 1-H below. AD13 acceptance criterion 1 theref
 "unmet, with a trigger" to **"unmet, with a three-file trigger and the receiving half proven"**.
 
 Owner / worktree / branch: AD13 hand-off worker · `.worktrees/ad13c` · `ad13c-asset-handoff`
-Base commit / candidate commit: `044e11f52` / `<candidate>`
+Base commit / candidate commit: `044e11f52` / **`db43b4d40`**
 Accepted contract revision: `r1`
 Allowed scope and shared-file leases: wave 5's `AD13 hand-off` row —
 `application/navigation/ProjectDestination.ts`,
@@ -230,15 +230,31 @@ The stub now answers about the id it is given.
 
 ## Executed checks
 
-| Command or manual action | Commit / environment | Exit code or observed result | Evidence |
+**One caveat about the evidence in this table, found late and worth more than it cost.** The first
+round of these runs redirected their output into `/tmp/tN.log`, and on this machine `/tmp` is
+SHARED between every agent working on this repository. It is not a theory: a log this card wrote
+to `/tmp/t11.log` came back holding two failures in
+`tests/presentation/designer/designerReferenceView.test.ts`, a file this card never ran, at a
+timestamp inside the window this card's run was still queued. So a green read out of a shared path
+is not evidence of anything. **Each row below therefore names its PROVENANCE**: `foreground` means
+this session read the process's own output directly, `scratchpad` means a log written under this
+session's private scratchpad directory, and `shared /tmp` means a row this caveat applies to — kept
+rather than deleted, and superseded by the scratchpad re-run beneath it. The remedy for the next
+worker is one line: redirect to the scratchpad, never to `/tmp`.
+
+Every RED in the section above is unaffected: each one was read as the failing assertion text
+naming this card's own test file and its own line, which is not something another agent's run
+could have produced.
+
+| Command or manual action | Provenance | Exit code or observed result | Evidence |
 |---|---|---|---|
-| `npx vue-tsc --noEmit` | candidate, Windows, Node from this worktree | **0** | whole program, `src/**` + `tests/**` |
-| `npx vitest run tests/presentation/editor/{assetPlacement.e2e,assetPlacementInspector,itemPromotion.e2e,transformBox.e2e,editorArrival,editorArrivalAssetHandoff}.test.ts` | candidate | **0** | 6 files, 47 tests passed — the `choose`/`replace`/`pickPlaceable` paths the split touches, plus the arrival's existing record arms |
-| `npx vitest run tests/presentation/views/{planEditorHostReturn,planEditorView,planEditorReopen}.test.ts tests/application/navigation tests/plugin/assetDesignerUsePlan.test.ts tests/presentation/designer/designerUsePlan.test.ts` | candidate | **0** | 6 files, 62 tests passed |
-| `npx vitest run tests/presentation/designer tests/presentation/editor/recordNavigation.test.ts tests/presentation/editor/editorArrivalRecoveryCompletion.test.ts tests/presentation/views/projectDetailArrival.test.ts` | candidate | **0** | 63 files, 871 tests passed — the whole designer surface plus the remaining navigation suites |
-| `npx vitest run` over the five files the last two fixes touched (`designerUsePlan`, `editorArrivalAssetHandoff`, `editorArrival`, `planEditorHostReturn`, `tests/application/navigation`) | candidate | **0** | 5 files, 36 tests passed — re-run after the `require-await` and stub-typing corrections below |
-| `npx oxlint <the nine changed files>` | candidate | **0** | it reported `require-await` on `reveal` first (`Async function has no \`await\` expression`); the fix is the union return type, not a suppression |
-| `npx eslint <the nine changed files>` | candidate | **0** — after a real red, below | the layer bans, the write boundary, `I18N_LITERAL_BAN`, `NOTICE_TEXT_BAN`, the size and complexity budgets and the Obsidian ruleset, for the changed files only |
+| `npx vue-tsc --noEmit` | **foreground** | **0** | whole program, `src/**` + `tests/**`; run again after the `revealRecord` extraction |
+| `npx vitest run tests/presentation/editor/{assetPlacement.e2e,assetPlacementInspector,itemPromotion.e2e,transformBox.e2e,editorArrival,editorArrivalAssetHandoff}.test.ts` | shared /tmp | **0** | 6 files, 47 tests passed — the `choose`/`replace`/`pickPlaceable` paths the split touches, plus the arrival's existing record arms |
+| `npx vitest run tests/presentation/views/{planEditorHostReturn,planEditorView,planEditorReopen}.test.ts tests/application/navigation tests/plugin/assetDesignerUsePlan.test.ts tests/presentation/designer/designerUsePlan.test.ts` | shared /tmp | **0** | 6 files, 62 tests passed |
+| `npx vitest run tests/presentation/designer tests/presentation/editor/recordNavigation.test.ts tests/presentation/editor/editorArrivalRecoveryCompletion.test.ts tests/presentation/views/projectDetailArrival.test.ts` | shared /tmp | **0** | 63 files, 871 tests passed — the whole designer surface plus the remaining navigation suites |
+| `npx vitest run` over the five files the last two fixes touched (`designerUsePlan`, `editorArrivalAssetHandoff`, `editorArrival`, `planEditorHostReturn`, `tests/application/navigation`) | shared /tmp | **0** | 5 files, 36 tests passed — re-run after the `require-await` and stub-typing corrections below |
+| `npx oxlint <the nine changed files>` | **foreground** | **0** | it reported `require-await` on `reveal` first (`Async function has no \`await\` expression`); the fix is the union return type, not a suppression |
+| `npx eslint <the nine changed files>` | **foreground** | **0** — after a real red, below | the layer bans, the write boundary, `I18N_LITERAL_BAN`, `NOTICE_TEXT_BAN`, the size and complexity budgets and the Obsidian ruleset, for the changed files only |
 | `npm run check` | — | **not run** | Deliberate, per this session's operating rules: the box is shared and a full gate thrashes `coverage/.tmp` and the `tests/build/` ESLint boots. CI on the pull request is where it runs |
 
 ### One gate red that was NOT a watched invariant, recorded because it changed the code
@@ -279,10 +295,9 @@ Never blank, and this environment makes the list long.
   ESLint ran over the changed files only; the coverage floors were not measured at all, so whether
   the new branches (`arm`'s two arms, `reveal`'s asset arm, `consumeAssetHandoff`'s two) move the
   branch figure is unknown from here. `npm run analyze` did not run either, so no statement is made
-  about dead exports or clone families — and note that `pickPlaceable` is still returned from
-  `createAssetPlacementTask` and now has no `src/` caller other than `choose` in the same module,
-  which is exactly the shape fallow reports on. It has test callers, which is why it is left alone
-  rather than removed on a guess.
+  about dead exports or clone families. The one shape that looked like a candidate —
+  `pickPlaceable` going dead after the split — was checked by grep and is not one; the Integration
+  change requests section carries what the grep printed.
 - **The end-to-end gesture**, because the sender does not exist yet (ICR 1-H). What is proven is
   that an origin of `{ planId, assetId }` set on a Plan Editor leaf arms the tool. That an actual
   press of `Use in plan` produces such an origin is not proven by anything, here or in CI, until
@@ -346,12 +361,19 @@ was traced in this change and none of them is in this row.
    wrote, not `revealCandidate`'s — the two are different mechanisms and F3 of AD13's navigation
    half is the record of asserting the wrong one.
 
-**ICR 2-H — `pickPlaceable` may now be dead to `src/`.** After the split its only `src/` caller is
-`choose`, in the same module, and it is still returned from `createAssetPlacementTask` for the
-tests that drive it. `npm run analyze` did not run here. If it reports it, the honest fix is to
-stop returning it and have those tests drive `choose` — not a fallow suppression. Flagged rather
-than done, because removing a returned member is a change to a shared surface and this row's job
-was the channel.
+**No second ICR.** One was drafted about `pickPlaceable` possibly becoming dead after the split and
+is withdrawn on a grep rather than left standing:
+`grep -n "pickPlaceable" src/presentation/editor/elements/assetPlacementTask.ts` prints four lines —
+the declaration, `choose`, `replace` and the returned member — which is exactly what it printed
+before this change, so nothing about its reachability moved. The two functions the split ADDS,
+`resolvePlaceable` and `startDraft`, are module-private and appear in no return, so this change
+widens the task's public surface by exactly one member (`arm`), which `editorArrival` calls.
+
+**One note for whoever takes ICR 1-H, not a request.** `src/plugin/renovationProjectOpenSeams.ts`'s
+`planPicker` docblock already cites `assetPlacementTask.pickPlaceable` by name for its
+`dialogs.current !== null` refusal. That citation still resolves — `pickPlaceable` keeps that guard
+and the split did not move it — but it is worth re-reading in the same edit, since the function it
+names is one the same edit is reasoning about.
 
 ## Reviewer and integrator acceptance
 

@@ -33,6 +33,7 @@ import DesignerReferencePlacement from './DesignerReferencePlacement.vue';
 import DesignerClearanceHelper from './DesignerClearanceHelper.vue';
 import DesignerClearanceReview from './DesignerClearanceReview.vue';
 import DesignerUsePlan from './DesignerUsePlan.vue';
+import DesignerUsageScope from './DesignerUsageScope.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
@@ -243,6 +244,20 @@ const dimensionsLabel = computed(() =>
 		<p class="rp-designer-asset-name">
 			{{ design.name }}
 		</p>
+		<!--
+			**The usage scope** (AD13-R1): which plans place this definition, stated where the user
+			can see it before they change it. Directly under the asset's NAME and above every
+			control that rewrites it — Edit dimensions, Start from preset, and every geometry
+			command the canvas dispatches — because an impact scope drawn after the gesture it is
+			about is a receipt rather than a disclosure.
+
+			It takes nothing from this panel: the query and the index gate are per-LEAF, so it
+			reads them off the designer context and decides on its own what it has to say. A mount
+			outside a leaf draws nothing rather than throwing, which is what keeps the four suites
+			that mount this inspector bare mounting it — `DesignerUsageScope`'s own header carries
+			the grep behind that count and why injecting is what forced the question.
+		-->
+		<DesignerUsageScope />
 		<!--
 			`design.dimensions` is `null` exactly when the asset has no footprint — the same field
 			`GetAssetDesign`'s own docblock says is "never `{ width: 0, depth: 0 }`" — so the block

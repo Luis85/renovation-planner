@@ -40,6 +40,7 @@ import { unavailableAssetDesignerCommands } from '../../../src/presentation/desi
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 /**
  * The canvas region holds a real Konva stage since Task B4, so this file mounts one: jsdom has
@@ -70,7 +71,7 @@ let closeRequests = 0;
 function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerContext {
 	return {
 		assetId: ASSET_ID,
-		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())), listPlansUsingAsset: unwiredPlanUsage },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		// This file is about the shell's regions and the shape/failure states, not the
@@ -191,7 +192,9 @@ describe('what the designer draws inside its canvas region', () => {
 	 */
 	it('overlays the no-shape empty state inside the canvas, never in place of it', async () => {
 		const { wrapper } = await mounted(
-			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+			context({
+				queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))), listPlansUsingAsset: unwiredPlanUsage },
+			}),
 		);
 
 		const overlay = wrapper.find('.rp-designer-canvas .rp-empty-state');
@@ -208,7 +211,9 @@ describe('what the designer draws inside its canvas region', () => {
 	 */
 	it('draws an action button on the no-shape state, because Task B8 built what it hands off to', async () => {
 		const { wrapper } = await mounted(
-			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+			context({
+				queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))), listPlansUsingAsset: unwiredPlanUsage },
+			}),
 		);
 
 		expect(wrapper.find('.rp-empty-state__action').exists()).toBe(true);
@@ -231,7 +236,9 @@ describe('what the designer draws inside its canvas region', () => {
 	 */
 	it('yields the overlay to an active tool, keeping the canvas it floats over', async () => {
 		const { wrapper } = await mounted(
-			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+			context({
+				queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))), listPlansUsingAsset: unwiredPlanUsage },
+			}),
 		);
 		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
 
@@ -250,7 +257,9 @@ describe('what the designer draws inside its canvas region', () => {
 	 */
 	it('brings the overlay back when the user returns to camera mode', async () => {
 		const { wrapper } = await mounted(
-			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+			context({
+				queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))), listPlansUsingAsset: unwiredPlanUsage },
+			}),
 		);
 
 		toolButton(wrapper, 'designer.toolbar.trace-footprint').click();
@@ -276,7 +285,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () =>
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() =>
 						Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' })),
 				},
 			}),
@@ -296,7 +306,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () => {
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() => {
 						attempt += 1;
 						return attempt === 1
 							? Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' }))
@@ -340,7 +351,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () =>
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() =>
 					Promise.resolve(err({ category: 'Reference' as const, code: 'asset.not-found', message: 'gone' })),
 				},
 			}),
@@ -360,7 +372,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () => {
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() => {
 						attempts += 1;
 						return Promise.resolve(err({ category: 'Reference' as const, code: 'asset.not-found', message: 'gone' }));
 					},
@@ -384,7 +397,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () => {
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() => {
 						attempts += 1;
 						return Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' }));
 					},
@@ -419,6 +433,7 @@ describe('a design the canvas can no longer confirm', () => {
 			{
 				getAssetDesign: () =>
 					Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' })),
+				listPlansUsingAsset: unwiredPlanUsage,
 			},
 			ASSET_ID,
 			{ indexScanCompleted: true, keepPreviousOnFailure: true },

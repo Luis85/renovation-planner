@@ -7,6 +7,7 @@ import type { DesignerSelection } from '../../../src/presentation/designer/selec
 import type { AssetDesignerQueryServices } from '../../../src/presentation/read-models/assetDesignerQueries';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { assetDesign } from '../../helpers/assetDesign';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 import { toiletShape } from '../../helpers/assetShapes';
 
 /**
@@ -19,7 +20,7 @@ const OPTIONS = { indexScanCompleted: true } as const;
 const VAULT_FAILED: AssetDesignError = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'the vault could not be read' };
 
 function answering(shape: AssetShape | null): AssetDesignerQueryServices {
-	return { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape }))) };
+	return { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape }))), listPlansUsingAsset: unwiredPlanUsage };
 }
 
 beforeEach(() => {
@@ -76,7 +77,11 @@ describe('the designer selection in the design store', () => {
 		const store = useAssetDesignStore();
 		await store.hydrate(answering(toiletShape()), 'asset-1', OPTIONS);
 		store.select({ kind: 'anchor' });
-		await store.hydrate({ getAssetDesign: () => Promise.resolve(err(VAULT_FAILED)) }, 'asset-1', OPTIONS);
+		await store.hydrate(
+			{ getAssetDesign: () => Promise.resolve(err(VAULT_FAILED)), listPlansUsingAsset: unwiredPlanUsage },
+			'asset-1',
+			OPTIONS,
+		);
 		expect([store.status, store.selection]).toEqual(['failed', null]);
 	});
 });

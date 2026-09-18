@@ -18,6 +18,8 @@ import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerCo
 import type { CompositionRoot } from './composition-root';
 import type { ContinueContext } from '../application/continueContext';
 import { assetDesignerUsePlan } from './renovationProjectOpenSeams';
+import { guardAssetUsage } from './guardedAssetLibrary';
+import { VAULT_EXCEPTION_MAPPER } from './guardedServices';
 
 /**
  * Moved out of `composition-root.ts` at the merge of the per-project price override and the
@@ -95,10 +97,30 @@ export function assetDesignerDeps(
 		// Obsidian's real `Vault`, passed straight in: `BackgroundVault` is a `Pick` of it, so
 		// there is nothing to adapt and nothing that can drift from the API.
 		vault: app.vault,
+		// The second argument is ruling AD13-R1's usage scope, composed through `guardAssetUsage` —
+		// the SAME function `guardAssetDuplication` calls for the library's own scope panel, which
+		// is the whole of part 3 of that ruling: one question, one instrument, two surfaces.
+		// Calling `guardAssetDuplication` from here instead would build a `DuplicateAssetCommand`
+		// nothing in the designer dispatches.
+		//
+		// Every port it needs is one this root already holds, and nothing is constructed beneath
+		// them. `VAULT_EXCEPTION_MAPPER` is the one instance every guarded group shares, reached
+		// here the way `assetLibraryDeps` reaches it.
 		queries:
 			persistence === null
 				? unavailableAssetDesignerQueries()
-				: createAssetDesignerQueries(persistence.assetDesign),
+				: createAssetDesignerQueries(
+						persistence.assetDesign,
+						guardAssetUsage(
+							{
+								projects: persistence.projects,
+								plans: persistence.plans,
+								planGeometry: persistence.geometry,
+							},
+							root.logger,
+							VAULT_EXCEPTION_MAPPER,
+						),
+					),
 		// The write side (design slice B5), composed from the GUARDED design bundle plus the
 		// three ports its reversible adapters restore through. Presentation holding a port is
 		// the bargain `PlanEditorCommandServices.zones` already makes and for the same reason:

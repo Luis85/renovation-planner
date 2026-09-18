@@ -33,6 +33,7 @@ import { installResizeObserver } from '../../helpers/layout';
 import { recorder } from '../../helpers/logger';
 import { settle } from '../../helpers/async';
 import { FakeLeaf } from '../../helpers/workspace';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installObsidianDom();
 /**
@@ -54,6 +55,7 @@ function leafDeps(bus: ReturnType<typeof createEventBus>, reads: string[]): Asse
 				reads.push(assetId);
 				return Promise.resolve(ok(assetDesign({ assetId: createAssetId() })));
 			},
+			listPlansUsingAsset: unwiredPlanUsage,
 		},
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,

@@ -35,6 +35,7 @@ import { installObsidianDom } from '../../helpers/dom';
 import { installResizeObserver, placeAt, resizeTo } from '../../helpers/layout';
 import { recorder } from '../../helpers/logger';
 import { settle } from '../../helpers/editor';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 const ZONE_STROKE = '--text-normal';
 
@@ -45,7 +46,7 @@ function context(): AssetDesignerContext {
 	const design = assetDesign();
 	return {
 		assetId: String(design.assetId),
-		queries: { getAssetDesign: () => Promise.resolve(ok(design)) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(design)), listPlansUsingAsset: unwiredPlanUsage },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		picker: null,

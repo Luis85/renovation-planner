@@ -10,7 +10,9 @@ Branch `renovation-planner-asset-designer-bc5539`, worktree
 
 ## Where the work stands
 
-`HEAD` is **`dba8a71d0`**. Nine commits this session, each verified as described below:
+**`HEAD` is the last commit on this branch** — deliberately not named here, because the commit
+that records a session's gate run cannot contain its own SHA, and the first version of this line
+went stale the moment it was written. `git log --oneline` is the list. Ten commits this session:
 
 | SHA | What |
 |---|---|
@@ -23,6 +25,7 @@ Branch `renovation-planner-asset-designer-bc5539`, worktree
 | `fd9bab2e3` | Ledger, integration queue, both AD13 report halves, the ADQ report, wave-5 leases, this file |
 | `f2a09d940` | The two `analyze` findings this wave introduced, cleared by factoring |
 | `dba8a71d0` | The unused imports that extraction left behind |
+| `21e39e269` | This file's gate section, rewritten once all six were green |
 
 **AD13 and ADQ are both `integrated` in `state.json`, and neither is `verified`.** AD14 is
 `planned` and unblocked. AD15 and AD16 remain `blocked` and were not touched.
@@ -30,7 +33,7 @@ Branch `renovation-planner-asset-designer-bc5539`, worktree
 ## Gates — all six green, and how to read the coverage leg
 
 **All six gates pass.** `build`, `oxlint --deny-warnings`, `eslint . --max-warnings 0`,
-`vue-tsc -noEmit` and `analyze` all exit 0 on `dba8a71d0` (HEAD). `analyze` reports **0 dead files,
+`vue-tsc -noEmit` and `analyze` all exit 0 on `dba8a71d0`, the last commit to touch `src/`. `analyze` reports **0 dead files,
 0 dead exports of 2390, no private type leaks, no duplication and 0 complexity findings above
 threshold**.
 
@@ -38,7 +41,7 @@ threshold**.
 five unused imports — with **1046 of 1046 test files passing, 11552 tests, 0 failures**, in
 **20.3 minutes**, at **99.22 / 98.05 / 99.26 / 99.67** against floors 99/98/99/98.
 
-**On HEAD the same leg exited 1, and it is contention rather than a red tree — proven, not
+**On `dba8a71d0` the same leg exited 1, and it is contention rather than a red tree — proven, not
 assumed.** 17 failures, **all timeouts, zero assertions**, over a 43-minute run. All 13 named files
 were re-run alone on a quiet box and **all 13 passed, 688 tests, exit 0**. The floors were met even
 in the degraded run (99.21 / 98.03 / 99.24 / 99.67). The two bad runs this session produced

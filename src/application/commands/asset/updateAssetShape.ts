@@ -15,11 +15,10 @@ import type {
 	AssetGeometrySidecar,
 	AssetGeometrySnapshot,
 } from '../../ports/AssetGeometrySidecar';
-import type { EntityVersion } from '../../ports/versioning';
+import type { EntityVersion, Loaded } from '../../ports/versioning';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import { assetError, assetNotFound } from '../../../domain/asset/Asset.errors';
 import type { AssetRepository } from '../../ports/AssetRepository';
-import type { Loaded } from '../../ports/versioning';
 import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 
 /** What every design command is given: an asset, and what it may condition its write on. */

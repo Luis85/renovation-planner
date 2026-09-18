@@ -4,7 +4,6 @@ import type { RepositoryError } from '../../ports/repositoryErrors';
 import { Asset } from '../../../domain/asset/Asset';
 import { createAssetId, type AssetId } from '../../../domain/asset/AssetId';
 import { assetCreated } from '../../../domain/asset/Asset.events';
-import { assetNotFound } from '../../../domain/asset/Asset.errors';
 import type { AssetGeometryDocument } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
 import type { Command } from '../Command';

@@ -2,7 +2,7 @@ import { err, isErr, ok } from '../../../core/result/Result';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetBackgroundRef } from '../../../domain/asset/Asset';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
-import { assetError, assetNotFound } from '../../../domain/asset/Asset.errors';
+import { assetError } from '../../../domain/asset/Asset.errors';
 import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import {

@@ -1,8 +1,7 @@
-import { err, isErr, ok } from '../../../core/result/Result';
+import { isErr, ok } from '../../../core/result/Result';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
-import { assetNotFound } from '../../../domain/asset/Asset.errors';
 import type { Command } from '../Command';
 import { plainDispatch, type DispatchResult, type VersionedDispatchResult } from '../DispatchOutcome';
 import type { AssetRepository } from '../../ports/AssetRepository';

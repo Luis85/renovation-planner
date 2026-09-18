@@ -171,9 +171,13 @@ Wave 4's three leases are RELEASED: AD13 nav, AD13 dup and the Queue card are al
 their branches are closed. **Two workers**, on the last card in scope plus the one AD13 integration
 change request that is a card rather than an integrator edit.
 
-**The base is the commit that carries this table**, which is the whole point of the paragraph above
-and is why no SHA is named here: naming one would mean writing it after the fact, which is the
-failure being corrected. Both workers branch from the commit in which this section first appears.
+**The base is the commit that carries this table** — that is the whole point of the paragraph above,
+and it is why no SHA is named here: naming one would mean writing it after the fact, which is the
+failure being corrected. Both workers branch from a commit that CONTAINS this section, so the row
+governing a worktree is present in that worktree from the moment it exists. In practice they were
+cut from the branch tip once all six gates were green on it, which satisfies that and is strictly
+better than the commit this table first appeared in: the tip also carries the integrator's wire,
+the two ICR discharges and the `analyze` fixes, all of which touch files these rows name.
 
 | Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
 |---|---|---|---|---|---|

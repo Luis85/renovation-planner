@@ -98,16 +98,22 @@
 			"status": "integrated",
 			"base_sha": "13f82f82e",
 			"candidate_sha": "adaf941be",
-			"integrated_sha": "f8c565590",
+			"integrated_sha": "f8c565590 + 0cd6504b8 (AD07-H, item 3)",
 			"evidence": [
 				"reports/AD07-entry-paths.md",
 				"three entry paths at the empty state, a searchable preset gallery, one tab stop with arrows",
 				"independent review returned REQUEST CHANGES on a REAL red gate (tests/build/buttonFocusRing), reproduced by the integrator before the fix round",
 				"the pressed preset lost Obsidian focus ring entirely: a box-shadow rule over a host ring that IS a box-shadow",
 				"fix round addf941be: focus ring restored, preset rules moved to their own partial, roving tabindex, three vacuous-passing selectors narrowed, four false sentences corrected",
-				"integrator: empty-state copy in both locales (b4869f3b1), since locales/{en,de}.ts are integrator-owned"
+				"integrator: empty-state copy in both locales (b4869f3b1), since locales/{en,de}.ts are integrator-owned",
+				"wave 6 (session five): AD07-H dispatched to .worktrees/ad14, branch ad07h-creation-height, base f947d8079 - a commit that CONTAINS its lease row. Candidate 6b6e42087, integrated at 0cd6504b8 with the review's change requests applied at f43b84ff2",
+				"item 3 MET: CreateAssetInput.height reaches Asset.create unchanged, so checkHeight stays the one rule. A blank height sends null rather than 0 - checkHeight accepts zero deliberately, so the confusion would have been silent at every layer",
+				"NumericField.vue is Amendment 1's named extraction: NewAssetForm 399 to 389 counted lines WITH the third field already in it, measured by eslint --rule max-lines at max:1 rather than wc -l. Its readonly prop is REQUIRED, and its three mount sites genuinely disagree, so a permissive default would have been wrong at one of them",
+				"asset.invalid-height is deliberately NOT routed: the control is type=number, so a non-finite entry is emptied before it is read. A driven case pins that rather than an assertion of absence, which would stay green on the day it stops being true. The worker could not check Chromium and said so",
+				"independent review returned APPROVE FOR INTEGRATION conditional on five prose change requests, and ran five test files the worker had not (formBusy, assetLibraryRoot, assetLibraryRootDoors, renovationProjectCommandWiring, emptyStates/content) - all green",
+				"integrator re-measured every change request with the review's own suggested grep and found ONE MORE than the review did: newAssetForm.test.ts carries two stale 'five catalogue' docblocks, not one. use-dialog-form-busy's count was DROPPED rather than incremented, because that passage is a narrative and a number inside a narrative is one nothing re-runs"
 			],
-			"blocker": "Item 3 (optional descriptive height) was DEFERRED with a trigger in Amendment 1 - 'do this when a single task holds BOTH leases at once: CreateAsset.ts and NewAssetForm.vue'. THAT TRIGGER HAS FIRED: wave 6 grants both to one card (AD07-H, .worktrees/ad14, branch ad07h-creation-height). It is not a new state.json key, for the reason AD13's two-worker split states. The deferral is therefore neither standing nor quietly dropped."
+			"blocker": "No Obsidian and no pinned Chromium, so nothing AD07 draws - the preset gallery, the three overlay buttons on the empty state, and now the height field and its extracted row - is photographed or walked. Item 3 (optional descriptive height) is MET as of wave 6's AD07-H at f43b84ff2 and this row no longer carries it as a deferral: Amendment 1's trigger was 'one task holds both CreateAsset.ts and NewAssetForm.vue', which only an orchestrator could fire, and wave 6 fired it."
 		},
 		"AD08": {
 			"status": "integrated",
@@ -193,7 +199,7 @@
 			"status": "integrated",
 			"base_sha": "ae6bb2a63",
 			"candidate_sha": "c09348cba (nav) + 7f6cf4cce (dup)",
-			"integrated_sha": "cca169291 (nav) + 23930a0de (dup) + 4521f6acf (hand-off, with ICR 1-H)",
+			"integrated_sha": "cca169291 (nav) + 23930a0de (dup) + 4521f6acf (hand-off, with ICR 1-H) + 87a31c1d5 (AD13-C3, criterion 3)",
 			"evidence": [
 				"wave 4 dispatched 2026-09-17 to TWO workers on ONE card: .worktrees/ad13a (branch ad13a-workflow, items 1/2/6-navigation, criteria 1/2/6) and .worktrees/ad13b (branch ad13b-duplicate, items 3/4/5, criteria 3/4/5)",
 				"the split is a dispatch decision and NOT a second task: one report, one ledger row, two candidate SHAs. No AD13a or AD13b key exists here deliberately",
@@ -207,9 +213,14 @@
 				"ICR 1 (the asset hand-off channel) dispatched 2026-09-18 as its own wave-5 card: .worktrees/ad13c, branch ad13c-asset-handoff, base 044e11f52. Criterion 1 stays UNMET until it integrates",
 				"hand-off card (ICR 1) candidate 2e228e4d3 on ad13c-asset-handoff: receiving half built and proven, independent review returned REQUEST CHANGES with nine findings, fix round addressed all nine. NOT YET INTEGRATED - it carries two DELIBERATELY RED cases in tests/plugin/assetDesignerUsePlan.test.ts which are ICR 1-H's acceptance test, and an integration that leaves them red has not landed the ICR",
 				"the review's first finding was that ICR 1-H DID NOT COMPILE as filed - assetDesignerUsePlan builds its picker once at composition, so the callback has no lexical access to a per-press assetId. The fix round rewrote it around a closure-scoped slot and VERIFIED it by applying the change, running vue-tsc to exit 0, and reverting. Take the request from that report, never from the superseded paragraph in INTEGRATION-QUEUE.md",
-				"criterion 1 MET end to end at 4521f6acf: the hand-off merge plus ICR 1-H in one commit, which turned the candidate's two deliberate cases green. ICR 1-H was applied in its CORRECTED shape (a closure-scoped slot) because the version first filed could not compile, and two pre-existing seam cases that changed meaning were repaired rather than relaxed - the review predicted both reds before either worker met them"
+				"criterion 1 MET end to end at 4521f6acf: the hand-off merge plus ICR 1-H in one commit, which turned the candidate's two deliberate cases green. ICR 1-H was applied in its CORRECTED shape (a closure-scoped slot) because the version first filed could not compile, and two pre-existing seam cases that changed meaning were repaired rather than relaxed - the review predicted both reds before either worker met them",
+				"criterion 3 MET at 87a31c1d5 (AD13-C3, wave 6): ruling AD13-R1 first, then the card. DesignerUsageScope.vue draws in the Inspector's asset block - a passive statement, no control of any kind, AssetUsageScope's own four state strings rather than a fifth spelling, and the read gated on indexScanCompleted",
+				"guardAssetUsage extracted out of guardAssetDuplication under the existing query.listPlansUsingAsset.failed event name, so ListPlansUsingAsset is constructed exactly once and the designer is a SECOND CONSUMER rather than a second query. assetLibraryDeps needed no edit - the extraction sits behind an unchanged signature",
+				"the new bundle member is REQUIRED, which cost thirteen designer suites plus the rig one line each, and tests/helpers/designerQueries.ts hands back production's own settings.unrecovered refusal rather than an empty answer - a fake that is not kinder than the real thing",
+				"independent review returned APPROVE FOR INTEGRATION conditional on three change requests. Two were accuracy and are applied at ea9215053; the third is deferred with its measurements in INTEGRATION-QUEUE.md",
+				"the review caught this branch making the category claim this repository records: a docblock saying the grep for the query's construction prints ONE line when it prints TWO, the second being that sentence. It also disproved a paragraph claiming the pre-scan state is reachable at this mount - it is not, because the inspector is drawn on v-if and the design store holds a pre-scan miss - which mattered because a true version of it would have described a real defect"
 			],
-			"blocker": "Criterion 3 must NOT be ticked on the library half alone - usage scope is drawn before a DUPLICATE, which provably changes nothing for the plans it lists, while the gesture that does change them (editing geometry in the designer) has no scope at all. Recorded as an open obligation in INTEGRATION-QUEUE.md. No Obsidian and no pinned Chromium, so nothing either half draws is photographed or walked."
+			"blocker": "Criterion 3 is MET as of 87a31c1d5 and this row no longer carries it as an obligation. What remains is environmental only: no Obsidian and no pinned Chromium, so nothing either half draws is photographed or walked. The designer usage block in particular has been seen at no width and in no colour scheme, and the reviewer's stated residual concern is that it may push the dimensions and the three action buttons down by up to six lines at a sidebar's width. A designer-owned impact sentence is DEFERRED with its measurements recorded in INTEGRATION-QUEUE.md; criterion 3 is met without it, by the worker's and the reviewer's independent agreement."
 		},
 		"AD14": {
 			"status": "integrated",

@@ -7,7 +7,7 @@ are outside this row; they are ICR 1-H below. AD13 acceptance criterion 1 theref
 "unmet, with a trigger" to **"unmet, with a three-file trigger and the receiving half proven"**.
 
 Owner / worktree / branch: AD13 hand-off worker · `.worktrees/ad13c` · `ad13c-asset-handoff`
-Base commit / candidate commit: `044e11f52` / **the branch tip of `ad13c-asset-handoff`** — see the fix-round section at the foot of this report for the round-2 candidate SHA
+Base commit / candidate commit: `044e11f52` / **the branch tip of `ad13c-asset-handoff`**, which is round 2's fix commit. Named as the tip rather than as a SHA on purpose: a report that quotes its own commit needs a second commit to do it, and the round-1 version of this line spent one that way. `git log --oneline 044e11f52..ad13c-asset-handoff` is the list
 Accepted contract revision: `r1`
 Allowed scope and shared-file leases: wave 5's `AD13 hand-off` row —
 `application/navigation/ProjectDestination.ts`,

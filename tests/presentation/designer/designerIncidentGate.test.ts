@@ -22,9 +22,19 @@
  * `DrawPolygonTool`, `DrawDetailTool`, `SetAnchorTool`, `SetFacingTool` and `CalibrateTool`, and
  * none of the six reading modules is among them.
  *
- * **So the Asset Designer is not gated at all** — not a tool, not a button, not the inspector,
- * not the preset form. Every write it dispatches is refused by the guarded doors underneath and
- * nothing on screen says so first. This file is the prerequisite's check, not the increment's.
+ * **So no FORWARD write on this surface is gated** — not a tool, not an inspector field, not the
+ * preset form. Each is refused by the guarded doors underneath and nothing on screen says so
+ * first. This file was the prerequisite's check for that, not the increment's.
+ *
+ * **Until BP-02's L-16 that sentence had no "forward" in it, and read "the Asset Designer is not
+ * gated at all — not a tool, not a button, not the inspector, not the preset form."** The BUTTON
+ * clause stopped being true: `designer/runtime.ts`'s `designerDispatcher` now puts `withStaleGate`
+ * between `withSaveStateTracking` and `wrapDispatcher`, exactly where the Plan Editor has it, so
+ * this leaf's Undo and Redo are refused while `saveState.unrecoveredWrite` holds — and
+ * `canUndo`/`canRedo` disable the two toolbar controls on the same fact. The third describe below
+ * is that measurement, at the dispatcher, which is the level the gate actually lives at. Note
+ * what did NOT change: `withStaleGate`'s `isStale` predicate is `() => false` here, so `run` is
+ * refused by nothing on this surface and the first two describes' subject is untouched.
  *
  * **That sentence has two halves and this file checks only the SECOND one** — *"nothing on
  * screen says so first"*, through the `writesBlocked()` probe below. The FIRST half — that the
@@ -61,6 +71,9 @@ import { createPinia } from 'pinia';
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h, onMounted } from 'vue';
 import { ok } from '../../../src/core/result/Result';
+import type { DispatchOutcome } from '../../../src/application/commands/DispatchOutcome';
+import { guardCommand, WRITES_PAUSED_CODE } from '../../../src/application/errors/guardAgainstThrowing';
+import { persistenceError } from '../../../src/application/errors';
 import { installWriteIncidentRegistry } from '../../../src/application/incidents/WriteIncidentRegistry';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import {
@@ -71,7 +84,10 @@ import { unavailableAssetDesignerCommands } from '../../../src/presentation/desi
 import { provideDesignerRuntime, type DesignerRuntime } from '../../../src/presentation/designer/runtime';
 import type { EditorContext } from '../../../src/presentation/editor/tools/editor-context';
 import type { EditorTool } from '../../../src/presentation/editor/tools/editor-tool';
+import type { UndoableCommand } from '../../../src/presentation/editor/tools/undoable-command';
+import { STALE_WRITE_REFUSED } from '../../../src/presentation/editor/tools/with-stale-gate';
 import { assetDesign } from '../../helpers/assetDesign';
+import { expectErr, expectOk } from '../../helpers/domain';
 import { installObsidianDom } from '../../helpers/dom';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { recorder, resetRecorder } from '../../helpers/logger';
@@ -145,6 +161,41 @@ function contextOf(runtime: DesignerRuntime): EditorContext {
 	return captured.current;
 }
 
+/**
+ * An ordinary gesture that WROTE, driven straight at `runtime.dispatcher` rather than through a
+ * canvas gesture: the gate below sits on the ONE dispatcher every door on this leaf funnels
+ * through, so asserting it here asserts it at every door.
+ *
+ * Its `undo` resolves ok UNCONDITIONALLY, and that is the faithful part rather than a
+ * convenience. `ReversibleAssetDesignCommands`' real inverses write the captured snapshot back
+ * through the RAW `assets.save` / `sidecar.write` ports, neither of which passes `guardCommand`
+ * — measured next door in `designerIncidentRefusal.test.ts`. So an inverse that refused itself
+ * would be HARSHER than production and would leave the case green with the gate removed.
+ */
+function noopWriteCommand(): UndoableCommand {
+	return {
+		execute: () => Promise.resolve(ok<DispatchOutcome>('wrote')),
+		undo: () => Promise.resolve(ok<DispatchOutcome>('wrote')),
+	};
+}
+
+/**
+ * A gesture whose `execute` goes through the REAL `guardCommand`, so the refusal a paused vault
+ * produces is production's own rather than a code typed into this file. It is how a mounted leaf
+ * LEARNS the vault paused: nothing notifies it, and `withSaveStateTracking` calls
+ * `markVaultPaused()` on exactly this code. The identical stand-in stands one surface over in
+ * `tests/presentation/editor/runtime.test.ts`.
+ */
+function guardedGesture(): UndoableCommand {
+	const guarded = guardCommand<undefined, DispatchOutcome, never>(
+		{ execute: () => Promise.resolve(ok<DispatchOutcome>('wrote')) },
+		'test.guarded-gesture',
+		recorder,
+		(cause) => ({ ...persistenceError('vault.threw', 'threw', cause), technicalFault: true }),
+	);
+	return { execute: () => guarded.execute(undefined), undo: () => guarded.execute(undefined) };
+}
+
 describe('the tool framework this leaf builds', () => {
 	afterEach(() => {
 		installWriteIncidentRegistry(null);
@@ -176,5 +227,78 @@ describe('the tool framework this leaf builds', () => {
 		await flushPromises();
 
 		expect(contextOf(runtime).writesBlocked()).toBe(true);
+	});
+});
+
+/**
+ * **BP-02's L-16: the one thing on this surface that IS gated, at the level the gate lives.**
+ *
+ * `designerDispatcher` composes `withStaleGate` between `withSaveStateTracking` and
+ * `wrapDispatcher`, and that decorator refuses `undo`/`redo` on its `unsafeHistory()` predicate
+ * — here `saveState.unrecoveredWrite`, which is `leafOwn || vaultPaused`. So an open write
+ * incident anywhere in the vault (ADR-0034) refuses this leaf's Undo.
+ *
+ * **Why the gate has to be at the dispatcher and cannot be underneath.** The inverses of
+ * `ReversibleAssetDesignCommands` write the captured snapshot back through the raw
+ * `assets.save` / `sidecar.write` ports, and neither passes `guardCommand` —
+ * `designerIncidentRefusal.test.ts`'s last describe measures exactly that and still does after
+ * this change, because calling an inverse DIRECTLY still reaches those ports. What makes the
+ * distinction safe is that no production caller does: the only three places in
+ * `src/presentation/designer/` that call an inverse at all are `registerDesignerTools.ts`'s
+ * detail write and its two polygon traces, and each of the three hands the inverse to
+ * `CommandHistory` inside an `UndoableCommand` rather than invoking it. `grep -rn "\.undo("
+ * src/presentation/designer/` prints FIVE lines and no more: those three, plus the two that ARE
+ * this door — `runtime.ts:521`'s `dispatcher.undo()` and `DesignerToolbar.vue:89`'s
+ * `runtime.undo()`, the button that calls it.
+ */
+describe('the dispatcher this leaf hands out (BP-02 L-16)', () => {
+	afterEach(() => {
+		installWriteIncidentRegistry(null);
+		resetRecorder();
+	});
+
+	/**
+	 * **The sequence is forced, not chosen.** A leaf that MOUNTS with an incident open seeds
+	 * `vaultPaused` true, and the only reachable state with a filled history and a paused vault
+	 * is this one: the leaf works while the vault is clean, a peer pauses it, and this leaf
+	 * catches up at its next write — there is no notification, so the refused write is where it
+	 * learns. Every step is production's own mechanism: `guardCommand` raises the code,
+	 * `withSaveStateTracking` turns it into `markVaultPaused()`, `withStaleGate` reads the result.
+	 */
+	it('refuses undo once an incident opens behind a gesture already on the history', async () => {
+		installQuietWriteIncidents();
+		const runtime = designerRuntime();
+		await flushPromises();
+
+		expect(expectOk(await runtime.dispatcher.run(noopWriteCommand()))).toBe('wrote');
+		expect(runtime.canUndo.value).toBe(true);
+
+		// A peer leaf half-writes the vault; this leaf catches up on its own next write.
+		await installOpenWriteIncident();
+		expect(expectErr(await runtime.dispatcher.run(guardedGesture())).code).toBe(WRITES_PAUSED_CODE);
+
+		const undone = await runtime.dispatcher.undo();
+
+		expect(expectErr(undone).code).toBe(STALE_WRITE_REFUSED);
+		// The AFFORDANCE half. It read `true` above the pause and reads `false` here, which is
+		// what makes this an observation of the gate rather than of an empty stack.
+		expect(runtime.canUndo.value).toBe(false);
+	});
+
+	/** Redo takes the same arm of the same decorator, and a gate on one is not a gate on both. */
+	it('refuses redo once an incident opens behind an undone gesture', async () => {
+		installQuietWriteIncidents();
+		const runtime = designerRuntime();
+		await flushPromises();
+
+		expect(expectOk(await runtime.dispatcher.run(noopWriteCommand()))).toBe('wrote');
+		expect(expectOk(await runtime.dispatcher.undo())).toBe('wrote');
+		expect(runtime.canRedo.value).toBe(true);
+
+		await installOpenWriteIncident();
+		expect(expectErr(await runtime.dispatcher.run(guardedGesture())).code).toBe(WRITES_PAUSED_CODE);
+
+		expect(expectErr(await runtime.dispatcher.redo()).code).toBe(STALE_WRITE_REFUSED);
+		expect(runtime.canRedo.value).toBe(false);
 	});
 });

@@ -31,7 +31,9 @@
  * that file stays green; the loop below goes red, which is how this sentence was checked.
  *
  * The UNDO half is not covered by the file's sentence at all — see the last describe, which
- * measures it going the other way.
+ * measures an inverse called DIRECTLY and finds it lands. Since BP-02's L-16 that is no longer
+ * the whole story about undo on this surface, and the describe's own docblock says where the
+ * rest of it lives.
  *
  * The designer has exactly ONE write door for this to be about:
  * `grep -rn "\.commands\." src/presentation/designer/` prints the single line
@@ -52,15 +54,37 @@
  * `AssetGeometrySidecar`. They are different adapter classes over different ports, and a gate
  * proven on one says nothing about the other.
  *
- * **The measured gap this file records: the UNDO half is not gated.**
+ * **What this file measures about UNDO, stated at the level it actually measures.**
  * `ReversibleAssetDesignCommands`' inverses do not dispatch a command at all — they write the
  * captured snapshot back through the RAW ports in their `ReversibleAssetDesignDeps`
  * (`sidecar.write(...)` and `assets.save(...)` in
  * `src/application/editor/asset/ReversibleAssetDesignCommands.ts`), and neither port passes
- * `guardCommand`. So an incident opened between a forward write and its undo does not stop the
- * undo from landing. The two `undo()` cases below assert exactly that, by name and by reading
- * the port back. They are written to what the instrument printed, not to what would be
- * desirable; if the undo is ever brought inside the gate, they go red and say so.
+ * `guardCommand`. So an inverse CALLED DIRECTLY still lands with an incident open, and the two
+ * `undo()` cases below assert exactly that, by name and by reading the port back.
+ *
+ * **That used to be the whole finding, under the sentence "the UNDO half is not gated", and
+ * BP-02's L-16 changed what is true above it without changing one byte of what is true here.**
+ * The gate went in at the DISPATCHER — `designer/runtime.ts`'s `designerDispatcher` composes
+ * `withStaleGate` between `withSaveStateTracking` and `wrapDispatcher`, so `dispatcher.undo()`
+ * and `dispatcher.redo()` are refused with `STALE_WRITE_REFUSED` while
+ * `saveState.unrecoveredWrite` holds, and `canUndo`/`canRedo` disable the toolbar's two
+ * controls on the same fact. `tests/presentation/designer/designerIncidentGate.test.ts`'s third
+ * describe is that measurement, watched red against this same tree before the link went in.
+ *
+ * **So these two cases stayed GREEN through that change, and their staying green is the
+ * finding rather than a hole in it.** A gate at the dispatcher cannot reach a caller that
+ * bypasses the dispatcher, and the reason that is SAFE is a fact about production rather than
+ * about this file: no production caller invokes an inverse. `grep -rn "\.undo("
+ * src/presentation/designer/` prints five lines and no more — `registerDesignerTools.ts:197`
+ * (the detail write) and `:257`/`:269` (the footprint and clearance traces), each of which hands
+ * the inverse to `CommandHistory` inside an `UndoableCommand` rather than calling it, plus
+ * `runtime.ts:521`'s `dispatcher.undo()` and `DesignerToolbar.vue:89`'s `runtime.undo()`, which
+ * are the gated door and the button on it. The Plan Editor's `inspector-wiring.ts:57` has the
+ * same wrapping shape and is NOT on this surface's list: `grep -rn "inspector-wiring" src/`
+ * shows `editor/runtime.ts` as its only importer.
+ *
+ * What would make these two cases red is a gate moved DOWN to the ports — which is a different
+ * increment with a different argument, and is not what L-16 did.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { isErr, type Result } from '../../../src/core/result/Result';
@@ -299,13 +323,19 @@ describe('the asset designer dispatching through the REAL guarded design bundle'
 	});
 
 	/**
-	 * **The gap, measured.** An incident opened between a gesture and its undo does NOT stop the
-	 * undo: the inverses write through the raw `assets.save` / `sidecar.write` ports in
-	 * `ReversibleAssetDesignDeps`, and neither passes `guardCommand`. Both cases below name the
-	 * outcome in the case name and assert the value the port really holds afterwards.
+	 * **An inverse called DIRECTLY still reaches the raw ports, and nothing below the dispatcher
+	 * refuses it.** The inverses write through `assets.save` / `sidecar.write` in
+	 * `ReversibleAssetDesignDeps`, and neither passes `guardCommand`. Both cases below call
+	 * `gesture.undo()` themselves — no `CommandHistory`, no dispatcher — and assert the value the
+	 * port really holds afterwards.
+	 *
+	 * **What refuses an undo in production is the DISPATCHER**, since BP-02's L-16:
+	 * `designerDispatcher`'s `withStaleGate` link, measured in `designerIncidentGate.test.ts`.
+	 * These two cases are a seam below that gate on purpose — the header says which production
+	 * callers make that seam safe, and none of them is a direct call.
 	 */
-	describe('the UNDO half, which reaches the ports directly and is NOT behind the gate', () => {
-		it('lands the note restore anyway when an incident opens between the write and the undo', async () => {
+	describe('the UNDO half — an inverse called DIRECTLY, below the dispatcher that now refuses it', () => {
+		it('lands the note restore when the inverse is called directly, which no production caller does', async () => {
 			installQuietWriteIncidents();
 			const { harness, edits } = await guardedDesigner();
 			const gesture = edits.setHeight({ assetId: harness.assetId, height: NEW_HEIGHT });
@@ -318,7 +348,7 @@ describe('the asset designer dispatching through the REAL guarded design bundle'
 			expect(await harness.height()).toBe(SEEDED_HEIGHT);
 		});
 
-		it('lands the sidecar restore anyway when an incident opens between the write and the undo', async () => {
+		it('lands the sidecar restore when the inverse is called directly, which no production caller does', async () => {
 			installQuietWriteIncidents();
 			const { harness, edits } = await guardedDesigner();
 			const gesture = edits.setAnchor({ assetId: harness.assetId, anchor: NEW_ANCHOR });

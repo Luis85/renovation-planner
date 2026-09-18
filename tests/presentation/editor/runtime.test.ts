@@ -25,7 +25,11 @@ import { nextTick } from 'vue';
 // wants.
 import { Notice } from '../../helpers/obsidian-mock';
 import { installWriteIncidentRegistry } from '../../../src/application/incidents/WriteIncidentRegistry';
+import { guardCommand, WRITES_PAUSED_CODE } from '../../../src/application/errors/guardAgainstThrowing';
+import { persistenceError } from '../../../src/application/errors';
+import { STALE_WRITE_REFUSED } from '../../../src/presentation/editor/tools/with-stale-gate';
 import { installOpenWriteIncident, installQuietWriteIncidents } from '../../helpers/writeIncidents';
+import { recorder } from '../../helpers/logger';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { actionButton, click, pointer, rig, type Rig } from '../../helpers/planEditorRig';
 import { mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle } from '../../helpers/editor';
@@ -94,6 +98,24 @@ function noopWriteCommand(): UndoableCommand {
 		execute: () => Promise.resolve(ok<DispatchOutcome>('wrote')),
 		undo: () => Promise.resolve(ok<DispatchOutcome>('wrote')),
 	};
+}
+
+/**
+ * A gesture whose `execute` goes through the REAL `guardCommand`, so the refusal a paused vault
+ * produces is production's own rather than a code typed into this file. It is the shape every
+ * guarded door in `src/plugin/` hands out, reduced to the one member `UndoableCommand` needs.
+ *
+ * `undo` deliberately calls the same guarded door: an inverse is a write too, and a stand-in
+ * that undid unconditionally would be KINDER than the reversible commands this stands for.
+ */
+function guardedGesture(): UndoableCommand {
+	const guarded = guardCommand<undefined, DispatchOutcome, never>(
+		{ execute: () => Promise.resolve(ok<DispatchOutcome>('wrote')) },
+		'test.guarded-gesture',
+		recorder,
+		(cause) => ({ ...persistenceError('vault.threw', 'threw', cause), technicalFault: true }),
+	);
+	return { execute: () => guarded.execute(undefined), undo: () => guarded.execute(undefined) };
 }
 
 /**
@@ -436,6 +458,52 @@ describe('the trust path (design spec §2.2, §2.3, §2.9)', () => {
 		useProjectStore(harness.pinia).stale = false;
 		await settle();
 		expect(runtime.writesBlocked.value).toBe(false);
+
+		harness.unmount();
+	});
+
+	/**
+	 * **The vault pause reaches UNDO, and the order below is the only one that can reach it.**
+	 *
+	 * `withStaleGate`'s third parameter refuses `undo`/`redo` on `unsafeHistory()`, which is
+	 * `planning.failed || save.unrecoveredWrite` — and `unrecoveredWrite` is
+	 * `leafOwn || vaultPaused`. So an open write incident refuses this leaf's undo, not only its
+	 * writes. That is the claim; this case is the measurement.
+	 *
+	 * **The sequence is forced, not chosen.** An incident open at mount seeds `vaultPaused` true,
+	 * which makes `writesBlocked` true, which makes the SAME gate refuse `run` — so nothing can
+	 * ever be pushed onto the history in that order and there would be no gesture to undo. The
+	 * only reachable state with both a filled history and a paused vault is the one driven here:
+	 * the leaf works while the vault is clean, a peer pauses it, and this leaf catches up at its
+	 * next write. That catch-up is the production path and not a poke at the store —
+	 * `guardCommand` is the REAL wrapper, refusing with its own `WRITES_PAUSED_CODE`, and
+	 * `withSaveStateTracking` is what turns that code into `markVaultPaused()`.
+	 */
+	it('refuses undo once an incident opens behind a gesture already on the history', async () => {
+		installQuietWriteIncidents();
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+
+		expect(expectOk(await runtime.dispatcher.run(noopWriteCommand()))).toBe('wrote');
+		expect(runtime.canUndo.value).toBe(true);
+		expect(runtime.writesBlocked.value).toBe(false);
+
+		// A peer leaf half-writes the vault. Nothing notifies this one — the registry publishes
+		// no event — so the gate is still open until the next write asks.
+		await installOpenWriteIncident();
+		const refused = await runtime.dispatcher.run(guardedGesture());
+		expect(expectErr(refused).code).toBe(WRITES_PAUSED_CODE);
+		expect(runtime.writesBlocked.value).toBe(true);
+
+		const undone = await runtime.dispatcher.undo();
+
+		expect(expectErr(undone).code).toBe(STALE_WRITE_REFUSED);
+		// **Both halves, and this one is the AFFORDANCE.** `EditorRuntime.canUndo` is
+		// `!unsafeHistory() && historyState.canUndo`, so the Undo button goes disabled on the
+		// same fact the dispatcher refuses on — the user is not offered a gesture that would be
+		// declined. It read `true` three lines above the pause and reads `false` here, which is
+		// what makes this an observation of the gate rather than of an empty stack.
+		expect(runtime.canUndo.value).toBe(false);
 
 		harness.unmount();
 	});

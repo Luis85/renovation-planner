@@ -605,7 +605,28 @@ function buildDispatcherChain(
 	const save = useSaveStateStore();
 	const tracked = withSaveStateTracking(dispatcher, save);
 	const unsafeHistory = (): boolean => planning.failed.value || save.unrecoveredWrite;
-	const writesBlocked = computed(() => projectStore.stale || unsafeHistory());
+	/**
+	 * **`status !== 'ready'` is the first term because a refusal does not survive a remount
+	 * and cannot be re-derived after one** (BP-03 / F2, lifecycle contract rule 3). A settings
+	 * change is `unmount(); sync()` with a fresh `createPinia()`, so an active stale read-back
+	 * is destroyed with its store; `handleFailedRead` then sets `stale` only while
+	 * `status === 'ready'`, and a fresh store starts `'idle'` — so the SAME refusing read
+	 * routes to `fail()` instead and the refusal is gone. Both terminal states are safe
+	 * (an error screen, or a legitimately current canvas); the exposure measured was the
+	 * TRANSIT, one whole vault read wide, in which `writesBlocked` was false and a dispatch
+	 * into it executed.
+	 *
+	 * Blocking on `'idle'` alone does not close it: `hydrate` sets `status = 'loading'` on
+	 * its first line, so `'idle'` lasts one synchronous tick and `'loading'` lasts the read.
+	 *
+	 * **It costs ordinary editing nothing, by construction rather than by luck.** `hydrate`
+	 * leaves `status` at `'ready'` for a re-hydration (`if (status.value !== 'ready')`), so
+	 * the post-command refresh and the `onPlanChanged` refresh never pass through a non-ready
+	 * status. The states this adds are the first load, a load after a failure, `missing` and
+	 * `failed` — none of which draws a canvas: `PlanEditorRoot.vue` gates the canvas on
+	 * `status === 'ready'` and `editorArrival.ts` already spells this same predicate.
+	 */
+	const writesBlocked = computed(() => projectStore.status !== 'ready' || projectStore.stale || unsafeHistory());
 	const gated = withIncidentGate(withStaleGate(tracked, () => writesBlocked.value || session.perspective === 'review', unsafeHistory));
 	const historyState = wrapDispatcher(history, gated);
 	const wrappedDispatcher = historyState.dispatcher;

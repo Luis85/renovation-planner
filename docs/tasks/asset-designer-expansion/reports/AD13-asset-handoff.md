@@ -255,7 +255,16 @@ could have produced.
 | `npx vitest run` over the five files the last two fixes touched (`designerUsePlan`, `editorArrivalAssetHandoff`, `editorArrival`, `planEditorHostReturn`, `tests/application/navigation`) | shared /tmp | **0** | 5 files, 36 tests passed — re-run after the `require-await` and stub-typing corrections below |
 | `npx oxlint <the nine changed files>` | **foreground** | **0** | it reported `require-await` on `reveal` first (`Async function has no \`await\` expression`); the fix is the union return type, not a suppression |
 | `npx eslint <the nine changed files>` | **foreground** | **0** — after a real red, below | the layer bans, the write boundary, `I18N_LITERAL_BAN`, `NOTICE_TEXT_BAN`, the size and complexity budgets and the Obsidian ruleset, for the changed files only |
+| `VITEST_MAX_WORKERS=1 npx vitest run tests/presentation/editor/editorArrivalAssetHandoff.test.ts tests/presentation/views/planEditorHostReturn.test.ts tests/presentation/editor/editorArrival.test.ts` | **scratchpad** | **0** | 3 files, 14 tests passed, 139s. The authoritative run for the hand-off's own cases and the arrival's existing record arms, taken at the candidate commit AFTER the `revealRecord` extraction |
+| `VITEST_MAX_WORKERS=1 npx vitest run tests/presentation/editor/{assetPlacement.e2e,assetPlacementInspector,itemPromotion.e2e,transformBox.e2e}.test.ts tests/presentation/designer/designerUsePlan.test.ts tests/application/navigation tests/plugin/assetDesignerUsePlan.test.ts tests/presentation/views/{planEditorView,planEditorReopen}.test.ts` | **scratchpad** | **0** | 9 files, 95 tests passed, 279s. The `choose`/`replace`/`pickPlaceable` paths the split touches, the control's own suite, the origin parser, the untouched seam suite and the two other Plan Editor view suites |
 | `npm run check` | — | **not run** | Deliberate, per this session's operating rules: the box is shared and a full gate thrashes `coverage/.tmp` and the `tests/build/` ESLint boots. CI on the pull request is where it runs |
+
+**`VITEST_MAX_WORKERS=1` on the two scratchpad rows is a CONTENTION measure and not a claim about
+the tests.** The same five files under default parallelism, on a box carrying 15 other node
+processes, produced one `Test timed out in 5000ms` on this card's own heaviest case and, on a
+second attempt, `[vitest-pool]: Failed to start forks worker` with no test run at all. Neither is a
+defect and no budget was raised: re-run alone, both pass. It is the hazard CLAUDE.md names for
+`tests/build/`, met in a different directory.
 
 ### One gate red that was NOT a watched invariant, recorded because it changed the code
 
@@ -291,6 +300,10 @@ Never blank, and this environment makes the list long.
   `npx playwright install chromium` is forbidden on this machine. So no layout, spacing, contrast
   or hit-size look at anything — including `DesignerUsePlan`'s button, whose markup this change
   edits.
+- **`tests/presentation/designer` as a whole** at the candidate commit. It was run (63 files, 871
+  tests green) BEFORE the `revealRecord` extraction and its log went to the shared `/tmp`, so it is
+  not claimed here; `designerUsePlan.test.ts` alone was re-run on the scratchpad. The extraction
+  touches no designer file, so the risk is low and the statement is still narrower than the run.
 - **`npm run check` in full**, and therefore `eslint .`, the coverage floors and `npm run analyze`.
   ESLint ran over the changed files only; the coverage floors were not measured at all, so whether
   the new branches (`arm`'s two arms, `reveal`'s asset arm, `consumeAssetHandoff`'s two) move the

@@ -513,17 +513,25 @@ watch(() => renovationSession.perspective, perspective => { if (perspective !== 
 
 					The `v-if` is `pausedReasonApplies`, not `runtime.writesBlocked` — see that
 					computed for why, BP-03 / F2. That is a real split and it owes a statement of
-					what keeps the references honest across it: in the states where the two now
-					DISAGREE (`status !== 'ready'` with nothing stale), the canvas is not drawn, so
-					every consumer of `pausedReasonId` — the overlay's action below, and the
-					selection-, draft- and canvas-borne ones in `AddMenu`, `ZoneLockToggle`,
-					`TemporaryToolBanner`, `NewRoomInspector` and `pauseAttrs` — is unmounted with it.
-					That is an enumeration, which is exactly the kind of claim this repository has
-					been wrong about, so it is not what holds: the CHECK is
+					what keeps the references honest across it, and the honest answer is that no
+					enumeration does. A first draft of this comment listed the consumers of
+					`pausedReasonId` and gave one mechanism for all of them ("the canvas is not
+					drawn, so they unmount with it"); a re-review found the list short by two
+					(`AssetAssignControl` and `RequirementRow`, the latter fed by `RoomInspector`)
+					and the mechanism true of only part of it — the canvas-borne consumers do
+					unmount with the `status === 'ready'` gate above, while the inspector-borne ones
+					sit in a region that mounts in EVERY status and are absent only because the
+					store has no plan and no selection. So neither a list nor a single mechanism is
+					claimed here. What holds is the CHECK:
 					`tests/presentation/editor/pausedSurfaces.test.ts`'s first-load case, which reads
 					the whole subtree for any `aria-describedby` naming the id and requires the count
-					to be zero while the sentence is absent. Add a consumer that survives a
-					non-ready status and that case goes red.
+					to be zero while the sentence is absent.
+
+					**Read that check narrowly.** It drives ONE non-ready state — `loading`, the
+					first read still in flight, with no plan, no selection and no inspector body —
+					so what reddens it is a consumer that renders THERE, measured. A consumer that
+					needs a plan or a selection, or that appears only in `failed` or `missing`, is
+					outside that case and is checked by nothing.
 				-->
 				<p
 					v-if="pausedReasonApplies"

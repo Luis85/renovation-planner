@@ -16,11 +16,14 @@
  * reference/background control stays `aria-disabled` across it.
  *
  * **That last clause is about ONE control, not about a category**, and the sentence is written
- * from what was counted rather than from what was expected. The `.vue` files under
- * `src/presentation/editor/` carry 58 `data-rp-action` sites, 48 distinct names among the
- * LITERAL ones — two more are
- * bound dynamically (`FreeShapeRoomAction.vue`, `PersistentWarningStrip.vue`) and no text
- * search resolves those, which is the first reason this is a count and not a category. The
+ * from what was counted rather than from what was expected. The 209 `.vue` files under
+ * `src/presentation/editor/` carry 53 `data-rp-action` ATTRIBUTE sites in all: 51 literal ones,
+ * spelling 48 distinct names (`add-work`, `decision-record` and `work-record` each appear twice),
+ * plus 2 bound from an expression (`FreeShapeRoomAction.vue`, `PersistentWarningStrip.vue`) that
+ * no text search resolves, which is the first reason this is a count and not a category. A bare
+ * grep for the token answers 58 rather than 53, and 58 is what an earlier draft of this sentence
+ * and an independent review both reported: five of its hits are `querySelector` SELECTOR strings,
+ * which read a marking rather than carrying one. The
  * window itself draws fourteen controls in all,
  * and only three of them are write doors — `undo` and `redo`, both natively `disabled` because
  * a fresh history has nothing in it, and `reference`, the one this file reads. The other eleven

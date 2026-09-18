@@ -35,7 +35,7 @@ dispatches.
 | `src/plugin/assetLibraryDeps.ts` | **NOT changed.** The extraction is behind `guardAssetDuplication`, whose signature and return shape are unchanged, so this file needed no edit | n/a |
 | NEW `src/presentation/designer/inspector/DesignerUsageScope.vue` | the block | yes |
 | `src/presentation/designer/inspector/DesignerInspector.vue` | ONE import line, ONE `<DesignerUsageScope />` mount and its explaining comment. Nothing else in that file | yes (additive sub-let) |
-| `styles/designer-object.css` | appended four rules (`usage-scope`, `usage-title`, `usage-note`, `usage-plans`). 61 → 113 lines against the 400 cap; `styles/designer.css` untouched; nothing reordered and nothing moved in | yes (additive sub-let) |
+| `styles/designer-object.css` | appended four rules (`usage-scope`, `usage-title`, `usage-note`, `usage-plans`). 61 → 117 lines against the 400 cap; `styles/designer.css` untouched; nothing reordered and nothing moved in | yes (additive sub-let) |
 | `src/presentation/i18n/locales/{en,de}.ts` | **NOT changed** — see the change request | n/a |
 | NEW `{en,de}/assetUsageScope.ts` | **NOT created** — see the change request | n/a |
 | NEW `tests/presentation/designer/designerUsageScope.test.ts` | nine cases, through the real `DesignerInspector` | yes |

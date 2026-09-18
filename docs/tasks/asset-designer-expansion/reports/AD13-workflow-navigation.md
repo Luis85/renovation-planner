@@ -268,6 +268,35 @@ library and the project surface). It belongs in the plan editor's element inspec
 `PlanEditorDeps` member and one composition-root binding in `planEditorDeps.ts`. No new mechanism:
 the door, the coalescing and the fault mapping all exist.
 
+**WITHDRAWN BY THE INTEGRATOR (session four): this door already exists and is already drawn. No
+work is owed and none was done.** The request's premise — *"A control on a selected asset placement
+that calls `renovationProjectOpenAsset(...)`"* being absent — is false, and it was false before this
+package began. Measured rather than argued, in the order a reader can re-run:
+
+- `EditorNavigation` (`src/presentation/editor/PlanEditorContext.ts`) already declares
+  `asset?(assetId: string): Promise<void>`, with the docblock *"Open (or reveal) an asset's designer
+  leaf — a placement's Inspector."*
+- `editorWorkspaceNavigation.ts` binds it to `renovationProjectOpenAsset(workspace, logger)`, and
+  `planEditorDeps.ts` composes that bundle as `navigation`. So a real vault's Plan Editor has it.
+- It is drawn at **two** sites, and both use the predicate rule rather than `:disabled`:
+  `AssetPlacementDetails.vue`'s `v-if="context.navigation?.asset && answer?.kind !== 'missing'"`
+  over `data-rp-action="open-asset-designer"`, and `useCanvasMenuActions.ts`'s `designerActions`,
+  which returns `[]` when the navigation is unbound or the asset is missing.
+- `editor.asset.open-designer` exists in **both** locales (`{en,de}/assetPlacement.ts`).
+- `tests/presentation/editor/assetPlacementInspector.test.ts` asserts both sites, including the
+  missing-asset arm: `expect(asset).toHaveBeenCalledWith(radiator.id)` for the Inspector button and
+  `expect(action().exists()).toBe(false)` for a placement whose asset is gone.
+- `git log -S "open-asset-designer"` names `999b39230`, *"feat(editor): asset placement inspector
+  with replace, designer and material"* — well before this expansion.
+
+**Why it was missed, said plainly, because the shape repeats.** The survey looked for the door under
+the names this card was thinking in — a `PlanEditorDeps` member, a `planEditorDeps.ts` binding — and
+the door exists under a different one, as a member of an already-composed `navigation` bundle. A
+grep for the FUNCTION (`renovationProjectOpenAsset`) would have found it in one step and a grep for
+the proposed WIRING did not, which is this repository's own rule about measuring a set with an
+instrument that can see all of it, met from the direction where the thing being measured already
+exists. Neither the worker nor the reviewer caught it; the integrator did, while sizing the card.
+
 **ICR 3 — three CSS selector-list additions, and one line in a file I do own.**
 `styles/designer.css` styles the inspector's flat buttons as
 `.rp-designer-inspector .rp-designer-{edit-dimensions,start-preset,open-library}` in three rules
@@ -345,7 +374,34 @@ callback, which only affects whether it appears in a mobile palette.
 
 ## Reviewer and integrator acceptance
 
-Reviewer outcome and findings:
-Integrated commit:
-Post-integration checks/evidence:
-Final status: integrated / verified / blocked
+**Reviewer outcome and findings:** REQUEST CHANGES, five findings; fix round complete and
+integrated. The reviewer also found the FOURTH file of ICR 1 (`PlanEditorView.getState`'s uncleared
+origin) that neither the plan nor the worker had.
+
+**Integrated commit:** `cca169291` (session three).
+
+**Post-integration checks/evidence.** All six gates exited 0 at `cca169291`. The integrator then
+discharged three of this half's five change requests:
+
+- **ICR 3** — `644b9687f`. The class and its three selector-list rules together. Watched failing
+  with the rules reverted and the class kept: *"names no class nothing styles, beyond the two
+  documented exemptions"* gave `expected [ 'rp-designer-use-plan' ] to deeply equal []`.
+  `styles/designer.css` 385 → 388 against its 400 cap, the figure this report predicted.
+- **ICR 4** — `66710b1eb`. The mobile `checkCallback`, the two `registration.test.ts` call sites,
+  and `assetLibraryCommandGate.test.ts` re-added rather than reconstructed. Watched failing with
+  the plain callback restored: all three cases gave `expected undefined to be false/true`, there
+  being no `checkCallback` to call. Paid for by collapsing four command bodies to the one-line
+  braced form, the file having been at 399 of 400 counted lines.
+- **ICR 5** — `cca169291`, in the same session that raised it.
+
+**ICR 2 is WITHDRAWN, not done** — the door already existed. The withdrawal and its measurements
+are written at ICR 2 above rather than only here.
+
+**ICR 1 is NOT done and is the reason criterion 1 stays unmet.** It is dispatched as wave 5's
+*AD13 hand-off* card, with all four files in its lease, and the `getState` question is written into
+the lease as the worker's to ANSWER rather than to inherit.
+
+**Final status: integrated.** NOT verified: no Obsidian and no pinned Chromium in this environment,
+so `npm run test-build` was never run, no manual case under `docs/tests/` was walked, and nothing
+this half draws — the `Use in plan` button included, now that it is finally styled — has had a
+layout, contrast or hit-size check.

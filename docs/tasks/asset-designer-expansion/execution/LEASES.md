@@ -149,6 +149,69 @@ repeated: one shared table is a file three workers append to, and one empty pair
 makes the rows above disjoint without anybody negotiating. **A pair whose card adds no strings is
 deleted at integration**, as `assetMarquee`'s was.
 
+**Wave 4's own lease-timing failure, recorded rather than fixed silently, because it is a WEAKER
+form of the `EmptyState.vue` failure this ledger already corrects once above.** The table above was
+committed at `584bb2f19` — **three minutes AFTER `ae6bb2a63`, which is the base all three wave-4
+workers branched from**. So every lease was real, agreed and written down, and **invisible in every
+tree it governed**: a worker checking its own worktree for its row found a file whose wave-4 section
+did not exist yet, and each could only re-describe its lease from the prose of its dispatch message.
+That is the same defect as a grant recorded only in a dispatch brief, arriving through a different
+door — the ledger was right and unreachable instead of wrong.
+
+Nothing about wave 4 is withdrawn; the leases held and the three candidates were disjoint, which was
+verified mechanically at integration (`git diff --name-only ae6bb2a63..<sha>` for each, pairwise
+empty). **The rule it produces binds from here on: a wave's lease table goes IN its base commit or
+BEFORE it, never after.** Wave 5 below is the first table to satisfy it — it is committed in the
+commit its workers branch from, so the row is present in every worktree that the row governs from
+the moment that worktree exists.
+
+## Wave 5 — issued 2026-09-18 (session four), base is THIS commit, contract revision `r1`
+
+Wave 4's three leases are RELEASED: AD13 nav, AD13 dup and the Queue card are all integrated and
+their branches are closed. **Two workers**, on the last card in scope plus the one AD13 integration
+change request that is a card rather than an integrator edit.
+
+**The base is the commit that carries this table**, which is the whole point of the paragraph above
+and is why no SHA is named here: naming one would mean writing it after the fact, which is the
+failure being corrected. Both workers branch from the commit in which this section first appears.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| AD13 hand-off (ICR 1) | `.worktrees/ad13c` · `ad13c-asset-handoff` | `application/navigation/ProjectDestination.ts`, `presentation/editor/renovation/editorArrival.ts`, `presentation/editor/elements/assetPlacementTask.ts`, `presentation/editor/elements/spatialEditing.ts`, `presentation/editor/runtime.ts` (**ADDITIVE ONLY** — expose the arming primitive, change nothing already there), `presentation/views/PlanEditorView.ts` (**integrator lease** — the `getState` origin question below), `presentation/designer/inspector/DesignerUsePlan.vue` (**integrator lease**, docblock + the origin it passes), its own tests plus `tests/plugin/assetDesignerUsePlan.test.ts` | this commit / `r1` | issued | candidate committed and handed off |
+| AD14 | `.worktrees/ad14` · `ad14-clearance-review` | `domain/asset/AssetShape.ts` (**integrator lease**), `domain/asset/shapeEdits.ts`, `infrastructure/persistence/dto/assetGeometry.ts` (**integrator lease**), the `SCHEMA_VERSION` literal in `infrastructure/persistence/AssetGeometryStore.ts` (**integrator lease**), the asset-geometry mappers, `application/commands/asset/SetAssetClearance.ts` and the clearance arms `grep` names, NEW `presentation/designer/inspector/DesignerClearanceReview.vue`, `presentation/designer/inspector/DesignerInspector.vue` (**integrator lease, ADDITIVE ONLY** — one mount line), `styles/designer.css` (**integrator lease, ADDITIVE ONLY** — see the cap warning below), `i18n/locales/{en,de}/assetClearanceReview.ts`, NEW `docs/development/adrs/ADR-0034-*.md` (**integrator lease**), its own tests | this commit / `r1` | issued | candidate committed and handed off |
+
+**Disjointness was verified by listing both rows' files and intersecting them, not by intention.**
+The intersection is empty. Neither row touches anything the other names, and neither touches a file
+the integrator is editing in this same session — the three that would otherwise collide
+(`DesignerInspector.vue`, `DesignerUsePlan.vue`, `styles/designer.css`) all receive their integrator
+edit BEFORE this wave is dispatched, which is what makes an ADDITIVE-ONLY grant on them safe.
+
+**Six integrator-owned files are sub-let this wave, and every grant is in the table above rather
+than in a dispatch message** — the rule this ledger's opening sentence states and which has now been
+broken twice in this package's history, once by scope (`EmptyState.vue`) and once by timing (wave 4).
+
+**`styles/designer.css` carries a hard cap and AD14 must know the number before it starts.** The
+partial is at **388 lines after this session's ICR 3 edit**, against `MAX_LINES = 400` in
+`scripts/styles-assemble.mjs` — so there are **twelve lines of room and no more**, and the build
+fails rather than warns. The intended shape fits easily: the `Reviewed` control is one more flat
+inspector button, so it joins the three existing
+`.rp-designer-inspector .rp-designer-{edit-dimensions,start-preset,open-library,use-plan}` selector
+lists at three lines total. Anything larger is an integration change request for a new partial, not
+a judgement call, because `styles/index.css` is integrator-owned and a partial no entry file imports
+fails the build too.
+
+**The `getState` question is AD13 hand-off's to ANSWER, not to inherit.** `PlanEditorView.getState()`
+persists `this.origin` into Obsidian's workspace layout and nothing clears it, so an
+`{ planId, assetId }` origin would survive a restart and re-arm the placement tool weeks later on a
+leaf reopened for something else. Either exclude `assetId` from `getState` or clear it once
+`useEditorArrival` has consumed it — both are defensible, the worker picks one, and whichever it
+picks needs the case that fails without it. This was found by AD13 nav's REVIEWER and by neither the
+plan nor the worker, which is why it is written into the lease rather than left in a report.
+
+**AD15 and AD16 remain `blocked` and this wave does not change that.** Runbook §10: no Obsidian and
+no pinned Chromium in this environment, so the beta may not be labelled ready from here. AD17 is
+post-beta and out of scope.
+
 A worker that needs a file not in its row submits a precise integration change request in its report.
 It does not edit it, and it does not work around it by putting the logic somewhere it does own.
 

@@ -354,9 +354,57 @@ to learn about them.
 
 ## Reviewer and integrator acceptance
 
-Reviewer outcome and findings:
-Integrated commit:
-Post-integration checks/evidence:
-Final status: integrated / verified / blocked
+**Reviewer outcome and findings:** REQUEST CHANGES, five findings (two blocking, three required)
+plus two overstatements in this report. All addressed in the fix round at `7f6cf4cce`; none
+disputed.
+
+**Integrated commit:** `23930a0de`, carrying the §8 spec amendment in the same commit.
+
+**Post-integration checks/evidence.**
+
+- **`asset-library-overview-DESIGN-SPEC.md` §8 Amendment 6** records the thirteen keys — six
+  `used-in-plans*` and seven `duplicate*` — the pin moving 87 → 100, why the plan-placement scope
+  is its own key group rather than an extension of `used-in`, that `.failed` covers a refusing
+  listing AND an unscanned index, and why the fourteenth key was refused. That section declares
+  its inventory exhaustive for visible copy, so the amendment was owed the moment these keys
+  landed; the worker correctly filed it as owed rather than making it from outside its lease.
+- **Amendment 2 was CORRECTED in the same edit**, because Amendment 6 ships German using the word
+  that amendment appeared to forbid. Its claim that `Grundriss` is *"`de.ts`'s established word
+  for a PLAN"* is too broad. The rule the repository actually holds is a SURFACE rule that `de.ts`
+  states in its own comments — *"Das Wort `Grundriss` bleibt dem Plan-Editor vorbehalten"* and
+  *"Auf den Projektoberflächen heißt eine Planungseinheit `Plan`"* — so `Grundriss` is the drawing
+  surface and `Plan` is the planning entity, and this half's `Plan`/`Pläne` is right. Both greps
+  were re-run before the sentence was written: comment lines excluded, on the tree before these
+  keys landed, `locales/de/` holds **23** `Grundriss*` against **55** standalone
+  `Plan`/`Pläne`/`Plänen`, and `de.ts` holds **20** of each. The one hit that contradicts the split
+  (`plan.none`, which counts ENTITIES with `Grundrisse`) is named in the amendment rather than
+  dropped.
+- **Per-file coverage read**, `coverage/coverage-final.json` for the changed files: five uncovered
+  arms, all defensive. `DuplicateAsset.ts:116`'s `if (isErr(saved)) return saved;` is the one worth
+  a case — a catalogue save that refuses is a data-integrity path, not cosmetics. The others are
+  `AssetUsageDuplicate.vue:62`'s `if (busy.value) return;` re-entrancy guard (a double-press on
+  *Create copy*), a template conditional in `AssetUsageScope.vue`, and one pre-existing arm in
+  `plugin/assetLibraryDeps.ts` that is not this card's. Recorded rather than fixed: none is a
+  threshold failure and the branch metric sits at 98.04 against its 98 floor, which is about nine
+  arms of margin.
+- **Relocation 1 done** at `593a38b55`: `listPlansUsingAsset` moved to `AssetLibraryQueryServices`,
+  exactly as this report's first integration change request specified. **Relocation 2 was attempted
+  and BACKED OUT**, and the reason is a measurement: folding `guardAssetDuplication` into
+  `guardAssetLibrary` needs `composeGuarded` to pass a `PlanGeometrySidecar`, and that function has
+  none in scope. Folding would mean constructing a fifth instance inside a function whose own
+  comment says it builds nothing beneath its ports. The request was marked optional and it is the
+  optional half that turned out not to hold — a worker's suggested fix is a hypothesis, like a
+  static analyser's.
+
+**A NEW obligation this half's review raised, now in `INTEGRATION-QUEUE.md`.** The usage scope is
+drawn in the library before a DUPLICATE, which provably changes nothing for the plans it lists —
+the panel's own copy says the original is kept. The gesture that does change what those plans draw
+is editing the asset's GEOMETRY, in the designer, where no scope precedes it. **AD13 criterion 3
+must not be ticked on the library half alone.**
+
+**Final status: integrated.** NOT verified: no Obsidian and no pinned Chromium, so the duplicate
+panel and the *Used in plans* section are unphotographed and unwalked. The full six-gate run for
+this SHA is reported in this session's own notes, including which of its legs could not be
+completed on a contended machine.
 
 Only the integrator/reviewer fills final acceptance. A worker's completion statement is not this field.

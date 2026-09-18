@@ -189,16 +189,22 @@
 			"blocker": "Criterion 4 (clearance under resize) is NOT met and r1 parks only the refusal arm for a PENDING clearance. A persisted review state is OWED - AD01 S09 names AD12 as owner - and is unbuildable in any current lease: it needs the aggregate, the schemas, the mappers, a schema version, and a representation ruling AD01 never made. Both carried in INTEGRATION-QUEUE.md. No capture and no Obsidian."
 		},
 		"AD13": {
-			"status": "in_progress",
+			"status": "integrated",
 			"base_sha": "ae6bb2a63",
-			"candidate_sha": null,
-			"integrated_sha": null,
+			"candidate_sha": "c09348cba (nav) + 7f6cf4cce (dup)",
+			"integrated_sha": "cca169291 (nav) + 23930a0de (dup)",
 			"evidence": [
 				"wave 4 dispatched 2026-09-17 to TWO workers on ONE card: .worktrees/ad13a (branch ad13a-workflow, items 1/2/6-navigation, criteria 1/2/6) and .worktrees/ad13b (branch ad13b-duplicate, items 3/4/5, criteria 3/4/5)",
 				"the split is a dispatch decision and NOT a second task: one report, one ledger row, two candidate SHAs. No AD13a or AD13b key exists here deliberately",
-				"leases recorded in execution/LEASES.md wave 4 in the same commit that issued them (584bb2f19)"
+				"leases recorded in execution/LEASES.md wave 4 - but three minutes AFTER the base commit both workers branched from, so the table was invisible in every tree it governed. Recorded in LEASES.md as wave 4's own lease-timing failure; wave 5's table is committed IN its base commit",
+				"nav half integrated at cca169291 (session three), all six gates exit 0",
+				"dup half integrated at 23930a0de (session four), with asset-library-overview-DESIGN-SPEC.md section 8 Amendment 6 in the same commit: thirteen keys, the pin 87 to 100, and the correction to Amendment 2's over-broad Grundriss claim",
+				"integrator 644b9687f: ICR 3, the Use in plan button's class and its three selector-list rules, in one change because libraryComponentStyles.test.ts refuses a class the sheet does not declare. Watched failing: expected [ 'rp-designer-use-plan' ] to deeply equal []",
+				"integrator 66710b1eb: ICR 4, open-asset-library's mobile checkCallback plus the two registration.test.ts call sites and a re-added assetLibraryCommandGate.test.ts. Watched failing: all three cases gave 'expected undefined to be false/true'. Paid for by collapsing four command bodies, since the file was at 399 of 400 counted lines",
+				"integrator 593a38b55: ICR-equivalent relocation 1, listPlansUsingAsset moved from the command bundle to AssetLibraryQueryServices",
+				"ICR 2 (the outbound 'Edit shared asset' door) WITHDRAWN by the integrator: it already exists and predates this package (999b39230). EditorNavigation.asset is composed in planEditorDeps.ts and drawn at two predicated sites, with keys in both locales and assetPlacementInspector.test.ts asserting both. The report's premise that no such door exists in src/ was false"
 			],
-			"blocker": "not yet a blocker; no Obsidian and no pinned Chromium means criteria touching real-host navigation and layout cannot be verified from this environment"
+			"blocker": "Criterion 1 is UNMET with a trigger: the Use in plan gesture navigates but does not ARM the placement tool, so the user picks the asset again inside the editor. ICR 1 (the asset hand-off channel, FOUR files including PlanEditorView.getState's uncleared origin) is dispatched as wave 5's AD13 hand-off card. Criterion 3 must NOT be ticked on the library half alone - see the new obligation in INTEGRATION-QUEUE.md. No Obsidian and no pinned Chromium, so nothing drawn by either half is photographed or walked."
 		},
 		"AD14": {
 			"status": "planned",
@@ -210,7 +216,7 @@
 				"ADR-0034 carries the supersession C03 requires, and names the two fixtures to amend rather than delete",
 				"held for wave 5: depends on AD13, and the schema/aggregate files it needs are the ones wave 4 keeps held"
 			],
-			"blocker": "waiting on AD13. Not dispatched."
+			"blocker": "AD13 is integrated, so AD14 is unblocked and its wave-5 lease is written into LEASES.md. NOT yet dispatched in this session - see reports/RESUME.md."
 		},
 		"AD15": {
 			"status": "blocked",
@@ -237,17 +243,21 @@
 			"blocker": null
 		},
 		"ADQ": {
-			"status": "in_progress",
+			"status": "integrated",
 			"base_sha": "ae6bb2a63",
-			"candidate_sha": null,
-			"integrated_sha": null,
+			"candidate_sha": "b4d48ffd6",
+			"integrated_sha": "cde0e8444",
 			"evidence": [
 				"NOT a work-package card: the two buildable integration-queue obligations, ruled and allocated 2026-09-17",
 				"background opacity (AD12-R1) as a leaf-local view preference on the PartView shape, in runtime.ts / DesignerCanvas.vue / DesignerViewMenu.vue",
 				"deleting a reference (AD12-R2) as one input arm on SetAssetBackground rather than a new command",
-				"dispatched to .worktrees/adq, branch adq-reference-view"
+				"independent review returned REQUEST CHANGES with six findings; all addressed, none disputed",
+				"integrated at cde0e8444 carrying its one deliberately RED assertion, then wired at c64acda60 which turned it green: designerReferenceView.test.ts runs 7 passed",
+				"the wire took the PROP-DRILLED shape, not the useDesignerRuntime shape the report recommended. Measured: the injection makes DesignerInspector un-mountable outside a leaf, and designerReferencePanels.test.ts mounts it bare deliberately - that case failed with 'The asset designer was mounted without a DesignerRuntime'",
+				"a FOURTH file no plan named: making removeBackground required broke seven bare mounts in AD12's panel suite plus three mounts of the inspector, all bound rather than the prop relaxed",
+				"canRemove lost its removeBackground !== undefined conjunct in the same commit, an arm the required prop makes unreachable"
 			],
-			"blocker": "one known cross-lease wire: the delete control sits in DesignerReferenceStatus.vue whose props are threaded by DesignerInspector.vue, which AD13 nav holds. Travels as an integration change request plus an assertion that is deliberately RED in the candidate."
+			"blocker": "No Obsidian and no pinned Chromium: the opacity slider and the Remove control have had no layout, contrast or hit-size check, and docs/tests/cases/ remains unwalked."
 		}
 	}
 }

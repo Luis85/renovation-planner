@@ -409,6 +409,54 @@ candidate recorded.
 Reviewer outcome and findings: **round 1 — REQUEST CHANGES**, six findings plus two overstatements
 in this report. All addressed; see [Review round 1](#review-round-1--what-the-reviewer-found-and-what-changed).
 No finding was disputed: every one was reproduced or read against the code before being acted on.
-Integrated commit:
-Post-integration checks/evidence:
-Final status: integrated / verified / blocked
+
+**Integrated commit:** `cde0e8444` (the candidate, merged unchanged), plus the wire commit that
+follows it and turns this candidate's deliberate red green.
+
+**Post-integration checks/evidence.** The deliberate red went GREEN with the wire, which is the
+whole point of it: `tests/presentation/designer/designerReferenceView.test.ts` runs **7 passed**,
+including *"reaches the real command from the real inspector, once the parent binds it"*. `vue-tsc
+-noEmit` exits 0 over the whole tree, `src/` and `tests/` together.
+
+**The integrator took the SECOND of the two shapes this report offered for the wire, not the first,
+and the reason is a measurement rather than a preference.** This report recommended the cheapest
+form — `useDesignerRuntime()` inside `DesignerInspector.vue`, three lines in one file — and noted it
+was the half actually run. It was applied exactly as written and it turned a case red that neither
+this report nor its reviewer had reason to look at:
+
+```
+FAIL tests/presentation/designer/designerReferencePanels.test.ts
+     > mounted in the real inspector > draws all three blocks, bound to the leaf's own write door
+Error: The asset designer was mounted without a DesignerRuntime.
+ ❯ useDesignerRuntime src/presentation/designer/runtime.ts:674:9
+ ❯ setup src/presentation/designer/inspector/DesignerInspector.vue:110:17
+```
+
+Reading an injection in that component makes it **un-mountable outside a designer leaf**, and
+AD12's panel suite deliberately mounts the real inspector bare — its own header says why, *"because
+a component proven bare and bound to nothing is the shape this repository refuses"*. So the cheap
+shape bought one saved binding at the cost of the component's testability in isolation. The
+prop-drilled shape was taken instead: `removeBackground: () => Promise<void>` on
+`DesignerInspector`'s own `defineProps`, bound at `AssetDesignerRoot.vue` beside
+`:set-height="runtime.commitHeight"` and `:edit-shape="runtime.editShape"` — which is where every
+other collaborator this panel has already comes from, so it is the established shape and not a new
+one. `DesignerInspector`'s prop docblock carries the measurement so the next reader does not
+re-take the decision from the report alone.
+
+**A FOURTH file the wire needed, named by no plan.** Making `removeBackground` required broke seven
+bare mounts of `DesignerReferenceStatus` in `designerReferencePanels.test.ts` — AD12's file, not
+this card's — with `TS2322: Property 'removeBackground' is missing`. That is the required-prop gate
+doing exactly the job this report argued for it, one file earlier than expected. Fixed by binding a
+module-scope no-op at all seven, never by relaxing the prop. Three mounts of `DesignerInspector`
+across three suites needed the same.
+
+**`canRemove` lost a conjunct in the same commit.** It read
+`design.background !== null && removeBackground !== undefined`; with the prop required the second
+arm is unreachable, and an unreachable guard costs a branch it can never pay back against a tree
+with roughly nine arms of margin. The *"draws no control when nothing is bound to it"* case was
+deleted rather than rewritten with a cast, since a cast would have tested the cast; a comment stands
+where it was, saying `vue-tsc` now holds what it held.
+
+**Final status: integrated.** NOT verified: no Obsidian and no pinned Chromium here, so the opacity
+slider and the Remove control have had no layout, contrast or hit-size check, and
+`docs/tests/cases/` remains unwalked. See this session's report on the full-gate shortfall.

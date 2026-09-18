@@ -1,118 +1,120 @@
-# Resume packet - asset-designer expansion
+# RESUME — session four's hand-off
 
-Rewritten 2026-09-17 at the end of the SECOND execution session, replacing the first session's
-packet. Per the runbook's section 9 rule: a handover, not a completion claim.
+**Rewritten 2026-09-18, replacing session two's packet wholesale.** That version predated three
+integrations and two rulings and was stale in a way a reader could not detect, which is why this
+file is rewritten rather than appended to.
 
-## Where the work is
+Branch `renovation-planner-asset-designer-bc5539`, worktree
+`D:\Projects\renovation-planner\.claude\worktrees\renovation-planner-asset-designer-bc5539`.
+**Nothing has been pushed, merged to `main`, or tagged.** `main` is untouched.
 
-**Branch:** `renovation-planner-asset-designer-bc5539` (worktree
-`.claude/worktrees/renovation-planner-asset-designer-bc5539`). **Nothing has been pushed, merged or
-tagged. `main` is untouched.**
+## Where the work stands
 
-Five worker worktrees remain under `.worktrees/` (`ad07`, `ad08r`, `ad10`, `ad11`, `ad12`), each on
-its own branch with its candidate history intact. They are gitignored and safe to remove once the
-branch is merged; keeping them is what makes every review boundary re-readable.
+`HEAD` is **`593a38b55`**. Six commits this session, each verified as described below:
 
-## What this session did
-
-| Card | Status | Integrated | Review |
-|---|---|---|---|
-| AD07 presets, measurements, reference entry paths | integrated | `f8c565590` + `b4869f3b1` | REQUEST CHANGES, then fixed |
-| AD08 remainder (marquee) | integrated | `1896123c0` + `187b1de5d` | REQUEST CHANGES, then fixed |
-| AD10 grouping, align, distribute, repeat | integrated | `ca6bce144` + `c107b2bda` | REQUEST CHANGES, then fixed |
-| AD11 open lines and rounded shapes | integrated | `1940aad0e` + `97ca96ff9` | REQUEST CHANGES, then fixed |
-| AD12 reference, clearance, placement | integrated | `e50fe6f22` + `8825bfb76` | APPROVE, seven findings |
-
-**Execution mode: genuinely delegated.** Five implementation workers and five independent reviewers,
-each in its own worktree on its own branch, each given the package's own worker or reviewer prompt
-verbatim plus an exact lease. Every card was reviewed by an agent that did not write it. **All five
-came back with findings, and four came back REQUEST CHANGES.**
-
-## The gates, on the final tree
-
-| Gate | Result |
+| SHA | What |
 |---|---|
-| `npm run build` | **0** |
-| `npx oxlint --deny-warnings` | **0** |
-| `npx eslint . --max-warnings 0` | **0** |
-| `npx vue-tsc -noEmit` | **0** |
-| `npm run analyze` | **0**, zero above threshold |
-| `npm run test:coverage` | **0**, 99.22 / 98.04 / 99.28 / 99.67 against 99/98/99/98 |
+| `23930a0de` | AD13 duplicate half integrated, with the design-spec §8 Amendment 6 and the Amendment 2 correction in the same commit |
+| `cde0e8444` | ADQ integrated (background opacity + reference deletion), carrying its one deliberate red |
+| `c64acda60` | The wire — that red turned green, and `removeBackground` made required |
+| `644b9687f` | AD13 ICR 3 — the `Use in plan` button's class and its rules |
+| `66710b1eb` | AD13 ICR 4 — `open-asset-library`'s mobile gate |
+| `593a38b55` | `listPlansUsingAsset` relocated into the query bundle |
 
-The suite went green **in one run with no timeouts**, which had not happened once before on this box
-this session. Do not read that as the machine being fixed; read it as the machine being quiet.
+**AD13 and ADQ are both `integrated` in `state.json`, and neither is `verified`.** AD14 is
+`planned` and unblocked. AD15 and AD16 remain `blocked` and were not touched.
 
-## What the reviews caught that the gates could not
+## The verification shortfall — read this before trusting any gate claim
 
-Recorded because it is the argument for keeping the review step when it is expensive:
+**No full six-gate run completed on this session's final SHA.** This is the single most important
+thing on this page and it is a real shortfall, not a formality.
 
-- **A keyboard user could not see focus on the selected preset** - a `box-shadow` rule over a host
-  focus ring that IS a `box-shadow`. A red gate, reproduced independently before acting.
-- **The sticky select-multiple control did not apply to the marquee at all**, so the one route C05
-  requires in order to avoid a modifier did not work for the new gesture.
-- **`lockedGraphics` shipped optional with a permissive default and the root never bound it**, so
-  AD10's locked-part rule could never fire. Invisible to all four gates.
-- **A no-op align wrote a revision and pushed an undo entry** that appeared to do nothing.
-- **Three selection-mode buttons were inert on an open graphic** on the very first gesture AD11
-  delivers - the exact shape this package had already refused once, in AD12-R1.
+What WAS run, and passed, on the relevant trees:
 
-## Three rulings issued, all in `contracts/DECISIONS.md`
+- `npm run build`, `npx oxlint --deny-warnings`, `npx eslint . --max-warnings 0`,
+  `npx vue-tsc -noEmit` — all exit 0 on `23930a0de`.
+- `npx vue-tsc -noEmit` — exit 0 on the tree after every subsequent commit, re-run four times.
+- `npm run test:coverage` on `23930a0de` — **exit 1**, with coverage floors MET at
+  **99.21 / 98.04 / 99.25 / 99.66** against 99/98/99/98, and 13 failed tests in 9 files.
+  **All 14 failures were TIMEOUTS; zero were assertions**, plus one
+  `[vitest-pool]: Failed to start forks worker … Timeout waiting for worker to respond`. No failing
+  file was one this session touched.
+- Targeted suites after each commit: the three designer inspector suites (94 passed), the
+  reference view (7 passed), the library + read-models + two stores (396 passed), the registration
+  pair (35 passed), the style gate (11 passed).
 
-`r1` remains settled and untouched; these APPLY it rather than revise it.
+What was NOT run: `npm run analyze` at any point this session, and `npm run test:coverage` on
+anything after `23930a0de`. **The solo re-runs of the nine timed-out files were started and did not
+finish** — the first file produced no result in 25 minutes and the run was killed.
 
-- **AD08-R1** - the Parts panel IS C05's overlap alternative; no chooser is built. Trigger: a leaf
-  too narrow to draw the panel.
-- **AD10-R1** - a spatial composition refuses a selection mixing measured and pending graphics;
-  grouping does not; an all-pending selection is not mixed. **Amended the same day**: it named five
-  operations where only four can be bound, and pointed at a fix site shared with the path it
-  exempts. Read the amendment, not only the rule.
-- **AD12-R1** - "lock reference" is already true by construction, so no control is owed. Opacity is
-  a real gap and is queued.
+**Why, and it is not the code.** This machine has **7.8 GB of RAM** and another Claude session is
+working concurrently in the `renovation-planner-beta-handoff-e80bb5` worktree. With both running,
+free RAM fell to **0.1 GB** and the box paged rather than computed: one test case took **20.5
+minutes**, and the first coverage attempt ran **7h50m** and completed 192 of 1043 files before
+being killed — a ~43-hour projection. Restarting at `VITEST_MAX_WORKERS=2` cut the rate from
+147 s/file to 7.2 s/file and the run finished in 4.3 hours. Two facts follow:
 
-## The next dependency-ready tasks
+- **`test:coverage` here is hours, not the ~200 s CLAUDE.md records**, and that file's own rule
+  applies to itself: re-measure before reasoning from its numbers.
+- **The suite is 1043 test files**, not the 362/459 CLAUDE.md states.
 
-**AD13** (library to designer to plan), then **AD14** (historical output). AD13's prerequisites
-AD05, AD07 and AD12 are all integrated. AD14 needs AD13.
+**What the next session owes first:** re-run the nine files alone on a quiet box, then the full six
+gates on `HEAD`. Until that is done, treat "integrated" as meaning exactly that and nothing more.
+Do not start a heavy run while the other worktree is busy — check with
+`Get-CimInstance Win32_Process -Filter "Name='node.exe'"` first.
 
-Before dispatching AD13, read `execution/INTEGRATION-QUEUE.md`. It carries four obligations nobody
-can currently discharge, two of which AD13 meets head-on:
+## Wave 5 is WRITTEN but NOT DISPATCHED
 
-- **A persisted review state is OWED** (AD01 section 1, S09 names AD12 as its owner) and is
-  unbuildable in any current lease: it needs the aggregate, the DTO schemas, the mappers, a schema
-  version, and a representation C07 delegated to AD01 which AD01 never chose. **It needs a ruling
-  first and a card second.** The AD12 report originally called it "not owed"; that wording would
-  have lost it.
-- **Clearance under resize (AD12 criterion 4) is NOT met.** `scaleDesign` scales a clearance
-  unconditionally; r1 parks only the refusal arm, and only for a pending clearance.
-- **There is no door to DELETE a reference** - `SetAssetBackgroundInput.path` is a bare string.
-- **Background opacity** is a real gap in nobody's lease (runtime, canvas, view menu).
+`execution/LEASES.md` carries a complete wave-5 table with two disjoint rows, and it is committed
+**in the commit its workers branch from** — which is the fix for wave 4's own lease-timing failure,
+recorded in that same file. Dispatch needs no further lease work.
 
-## The blocker that does not go away with more time
+- **AD13 hand-off** (`.worktrees/ad13c` · `ad13c-asset-handoff`) — ICR 1, the asset hand-off
+  channel. FOUR files: `ProjectDestination.ts` (`assetId?` on `ProjectOrigin` plus `'assetId'` in
+  `projectOriginFrom`'s key list), `editorArrival.ts` (an `assetId` arm in `reveal` BEFORE the
+  record lookup), `assetPlacementTask.ts` (`choose` split into picker vs known-id, exposed through
+  `spatialEditing.ts`), and `PlanEditorView.ts`. **The fourth is the one to brief loudly:**
+  `getState()` persists `this.origin` and nothing clears it, so an `{ planId, assetId }` origin
+  would survive a restart and re-arm the placement tool weeks later. The worker picks between
+  excluding `assetId` from `getState` and clearing it once `useEditorArrival` consumes it, and owes
+  the case that fails without its choice. **This is what makes AD13 criterion 1 met**; until it
+  lands the criterion stays recorded UNMET with a trigger.
+- **AD14** (`.worktrees/ad14` · `ad14-clearance-review`) — the last card in scope. Ruling
+  **AD14-R1** already decided its hard question. It owes: `clearanceNeedsReview` on `AssetShape`,
+  asset-geometry **schema v4** allocated in the same edit, a MEASURED clearance PRESERVED under a
+  whole-object scale while a PENDING one goes on scaling, a `Reviewed` inspector action drawn only
+  while the flag is set, **ADR-0034**, C11 r1 row 3's explicit capability gating WITH tests, and
+  the two regression fixtures AMENDED rather than deleted (`shapeEdits.test.ts`'s literal
+  scaled-clearance points and its bounding-box case, plus
+  `2026-09-16-asset-designer-consolidate-design.md` §7's *"every part — clearance and details
+  included — is scaled about the anchor"*). Its `styles/designer.css` grant is **ADDITIVE ONLY and
+  has twelve lines of room** — the partial is at 388 against a 400 cap.
 
-**No Obsidian and no pinned Chromium.** Unchanged from the first session, and now much more
-consequential: this session built **five surfaces nobody has ever looked at** - a fourteen-thumbnail
-preset gallery in a dialog, three stacked overlay buttons on an empty state, a fifteen-button
-Arrange block, a reference and clearance column, and two new toolbar tools with a one-button mode
-group beside them.
+Both worktrees need `node_modules` robocopied from the integration worktree; do **not** run
+`npx playwright install chromium` (it emptied `node_modules` once).
 
-Layout is what a capture measures and no layout engine in this repository does. This project's
-captures have caught **ten defects `npm run check` could not**. None of that instrument ran.
-`-- --width=460` is the one to take first: it is also AD08-R1's own stated trigger for ever
-revisiting the overlap chooser.
+## What changed in the plan, with reasons
 
-**AD15 and AD16 stay `blocked` and must stay blocked from here.** Runbook section 10: implemented
-work and exact remaining verification may be handed over, but the beta may not be labelled ready.
+- **AD13 ICR 2 is WITHDRAWN — no card, no work.** Its premise ("no such door exists in `src/`") was
+  false. `EditorNavigation.asset` is declared, composed in `planEditorDeps.ts`, and drawn at two
+  predicated sites (`AssetPlacementDetails.vue` and `useCanvasMenuActions.ts`), with keys in both
+  locales and `assetPlacementInspector.test.ts` asserting both including the missing-asset arm. It
+  shipped in `999b39230`, before this package. The survey had looked for the proposed WIRING rather
+  than for the function.
+- **The ADQ wire took the prop-drilled shape, not the recommended one.** `useDesignerRuntime()`
+  inside `DesignerInspector` makes it un-mountable outside a leaf, and a pre-existing case mounts it
+  bare deliberately; that case failed with *"The asset designer was mounted without a
+  DesignerRuntime"*. It also needed a FOURTH file no plan named — seven bare mounts in AD12's panel
+  suite.
+- **Relocation 2 was backed out after being built.** Folding `guardAssetDuplication` into
+  `guardAssetLibrary` needs a `PlanGeometrySidecar` that `composeGuarded` does not have.
+- **A new obligation is queued:** usage scope is drawn before a DUPLICATE, which changes nothing,
+  while the impactful gesture — editing geometry in the designer — has no scope at all. **AD13
+  criterion 3 must not be ticked on the library half alone.**
 
-## Three things this session learned that the next one should not relearn
+## Standing constraints
 
-1. **A fallow CRAP finding is meaningless without knowing when the coverage under it was written.**
-   Learned twice in one sitting: three findings cleared themselves once the suite had run, and then
-   a refactor shifted line numbers and made the map stale again for exactly the file it touched.
-2. **Never generalise from a truncated log.** A real assertion failure spent an hour disguised as a
-   load timeout because a coverage run had been piped through `tail`, so only two of three failures
-   were ever visible.
-3. **A rule whose instrument enumerates what it refuses teaches the next author that anything
-   unenumerated is allowed.** The German register check listed ten verbs; this wave wrote seven
-   du-form strings and it caught one. A later worker then read the invisible neighbours and matched
-   them deliberately, reasoning the repository had no house register. Widening the list found an
-   eighth violation that predated the whole expansion.
+`export TEMP=D:/tmp-claude TMP=D:/tmp-claude` before anything that spawns node. One heavy command
+at a time. Never pipe a gate through `tail`. Never bare `git stash`. No Obsidian and no pinned
+Chromium here, so `npm run test-build`, every manual case under `docs/tests/`, and every capture
+remain impossible — and **the beta may not be labelled ready from this environment** (runbook §10).

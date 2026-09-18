@@ -70,7 +70,7 @@ Written 2026-09-17 during wave 2.
 
 ## AD12 — candidate `643ba6e5e` (branch `ad12-reference`)
 
-- [ ] **ALLOCATED 2026-09-17 (session three)** to the queue worker of wave 4, with `runtime.ts`,
+- [x] **DONE** (`cde0e8444`) — **ALLOCATED 2026-09-17 (session three)** to the queue worker of wave 4, with `runtime.ts`,
       `DesignerCanvas.vue` and `DesignerViewMenu.vue` sub-let to it and the grant written into
       `LEASES.md` in the same edit. **Background OPACITY**, ruled a real gap by AD12-R1 and parked here because it was not in any
       card's lease: a leaf-local view preference reaching `runtime.ts`, `DesignerCanvas.vue` and
@@ -122,8 +122,11 @@ Written 2026-09-17 during wave 2.
       silently and C03 records the behaviour as one to supersede deliberately with a spec or ADR
       update. r1 row 2 disposes only of the REFUSE arm, and only for a PENDING clearance. Carried as
       an integration obligation rather than as an AD12 shortfall — nothing in that lease could fix it.
-- [ ] **RULED 2026-09-17 (session three) as AD12-R2, and ALLOCATED to the queue worker rather than
-      becoming its own card.** Measured rather than assumed: the domain already admits the state —
+- [x] **DONE** (`cde0e8444`, reachable at `c64acda60`) — **RULED 2026-09-17 (session three) as AD12-R2, and ALLOCATED to the queue worker rather than
+      becoming its own card.** The row is ticked only now, and not at `cde0e8444`, for the
+      reason the review gave: until `DesignerInspector.vue` bound `removeBackground`,
+      `grep -rn removeBackground src/` printed the runtime member, the control and nothing
+      joining them, so no user could reach the gesture at all. The wire is `c64acda60`. Measured rather than assumed: the domain already admits the state —
       `Asset.background` is `AssetBackgroundRef | null`, `withChanges` resolves
       `'background' in changes ? (changes.background ?? null) : this.background`, `checkBackground(null)`
       answers `ok(null)` on its first line, and `sameBackground` inside the command already compares
@@ -172,6 +175,23 @@ should take deliberately rather than inherit:
 Read each before adding a case: **an unreachable guard costs a branch it can never pay back**, and
 this expansion has already recovered headroom twice by deleting rather than testing (AD09 six,
 `rovingIndex`/`assetGroups` nine more). With nine arms of margin, the next card has very little room.
+
+## AD13 — raised by the duplicate half's review, and NOT closed by it
+
+- [ ] **Usage scope is drawn in the LIBRARY, before a DUPLICATE — which is the one impactful
+      change it provably does not affect.** A duplicate creates a new definition and leaves every
+      plan that places the original untouched; the panel's own copy says so
+      (*"Plans that place this asset keep the original"*). So the scope there is informational,
+      and that is fine as far as it goes. **The gesture that genuinely changes what those plans
+      draw is editing the asset's GEOMETRY**, which happens in the DESIGNER, where no usage scope
+      precedes it at all. C11's *"show impact scope"* is therefore met for the harmless gesture
+      and unmet for the harmful one.
+      **AD13's criterion 3 must not be ticked on the library half alone.** Closing this needs
+      either the scope read reaching the designer (`ListPlansUsingAsset` is now in
+      `AssetLibraryQueryServices`, so a designer equivalent is a second consumer rather than a
+      second query) or a ruling that a geometry edit needs no scope because undo covers it — and
+      that ruling has to be made rather than inherited, because the two surfaces currently answer
+      the same question differently by accident rather than by decision.
 
 ## Standing, not per-candidate
 

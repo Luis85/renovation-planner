@@ -263,6 +263,48 @@ this expansion has already recovered headroom twice by deleting rather than test
       fire, and leaving it standing would have been the deferral quietly becoming a drop.
       **The row stays unchecked until the gate is green on the SHA that builds it.**
 
+## AD13-C3's one change request — DEFERRED with a trigger, and every measurement it needs is here
+
+- [ ] **A designer-owned impact sentence — *editing this asset changes every plan that places it* —
+      was drafted, could not be placed, and is deferred rather than dropped.** What ships states the
+      scope (the `Used in plans` heading and the per-plan list). What is missing is the sentence
+      naming the CONSEQUENCE, which is arguably the payload of a disclosure.
+
+      **Criterion 3 is met without it**, and both the worker and the independent reviewer say so
+      independently. This is an improvement, not a compliance gap, which is why it is a queue row
+      rather than a blocked integration.
+
+      **The measurements are done, so nobody re-derives them.** Counted lines against the 400-line
+      `max-lines`, taken per file with `eslint --rule max-lines` at `max:1` rather than `wc -l`:
+      **`en.ts` 400, `de.ts` 399, `en/editor.ts` 359, `de/editor.ts` 361.** So the wave-6 lease's
+      "ONE import and ONE spread line each in `{en,de}.ts`" is genuinely untakeable — `en.ts` has
+      ZERO headroom — and the reviewer's proposed home is right: a new `{en,de}/assetUsageScope.ts`
+      pair spread through `{en,de}/editor.ts`, which every other designer locale module already
+      routes through (`designer.inspector.use-in-plan` in `assetWorkflow.ts`,
+      `designer.clearance.review.*` in `assetClearanceReview.ts`). Four lines, no aggregator
+      pressure, no extraction.
+
+      **Refuse the worker's own alternative** (`{en,de}/assetDuplicate.ts`): that module's keys are
+      all `view.asset-library.*`, and `strings.test.ts`'s retired-toolbar section is this repository
+      already refusing exactly that borrowing — the designer had taken three `editor.toolbar.*` keys
+      and R6 renamed them to `designer.toolbar.*` because borrowing left no way to express which
+      surface owns the copy. The reviewer found this and it is the right call.
+
+      **Note what is NOT an instance of that rule**, because it looks like one: the four state
+      sentences this panel draws ARE `view.asset-library.used-in-plans.*`, borrowed deliberately.
+      AD13-R1 part 3 requires exactly that — one vocabulary for one question across two surfaces,
+      so *some plans could not be read* has a single spelling. A new key would be the fifth spelling
+      that ruling exists to prevent. The impact sentence is different: it is a designer-only claim
+      with no library counterpart, so it needs a designer-owned key.
+
+      **The trigger is the live-vault pass, not a later card.** This is user-facing copy in two
+      languages for a panel nobody has seen at any width or in either colour scheme. Whoever runs
+      `npm run harness-shot -- --width=460` and opens the designer in Obsidian is better placed to
+      decide whether the block needs a second sentence than anyone is writing blind — and the same
+      pass has to look at whether this block pushes the dimensions and the three action buttons
+      down by up to six lines at a sidebar's width, which is unmeasured and is the reviewer's own
+      stated residual concern about its position.
+
 ## Swept and NOT re-opened, recorded so the next session does not re-derive them
 
 - [x] **AD06's *"Use in plan deferred to AD13"* is DISCHARGED**, not carried. `DesignerUsePlan.vue`

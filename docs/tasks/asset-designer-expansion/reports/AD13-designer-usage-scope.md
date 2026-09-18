@@ -58,7 +58,7 @@ one surface whose job is to state a blast radius.
 |---|---|---|---|
 | AD13-R1 part 1 — a usage scope exists in the designer | met | `designerUsageScope.test.ts` "names the plans that place this asset, under a heading that says what they are"; `assetDesignerWiring.test.ts` "draws a composed usage scope in the inspector, not a refusal" | — |
 | part 2 — a passive STATEMENT, not a confirmation | met | "draws no control of any kind" — `block.findAll('button, a, input, select, textarea, [role="button"]')` is empty | — |
-| part 3 — a SECOND CONSUMER, never a second query | met | `grep -rn "new ListPlansUsingAsset" src/` prints one line (`guardedAssetLibrary.ts:171`); two callers | — |
+| part 3 — a SECOND CONSUMER, never a second query | met | constructed once, in `guardAssetUsage`; two callers. **The grep prints TWO lines, not one** — the construction and the docblock sentence about it — which the review caught and this row originally got wrong | — |
 | part 3 — the four states are `AssetUsageScope.vue`'s own, no fifth spelling | met | four cases; every string is a `view.asset-library.used-in-plans.*` key, no new key exists | — |
 | the read is GATED on `indexScanCompleted()` | met | "does not read at all before the index scan has run, and says the scope is unknown" — asserts BOTH that nothing was asked and that *unknown* is drawn | — |
 | `unavailableAssetDesignerQueries()` gains a refusing arm in the same edit | met | "refuses the usage scope as a persistence failure" + "declares an arm for every member, by exact key set" | — |

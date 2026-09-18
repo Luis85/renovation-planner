@@ -17,12 +17,18 @@
  *
  * **A SECOND CONSUMER of `ListPlansUsingAsset`, never a second query** (part 3). `guardAssetUsage`
  * in `src/plugin/guardedAssetLibrary.ts` composes and guards it once, under the existing
- * `query.listPlansUsingAsset.failed` event name. `grep -rn 'new ListPlansUsingAsset' src/` prints
- * that one line; its two callers are `guardAssetDuplication` (for `assetLibraryDeps`) and
- * `assetDesignerDeps` directly. The four states below are `AssetUsageScope.vue`'s own — loading,
- * refused, ready, and ready with `unreadable > 0` — and they reuse its STRINGS as well as its
- * shape, so *some plans could not be read* has one spelling across the two surfaces rather than
- * two.
+ * `query.listPlansUsingAsset.failed` event name. Its two callers are `guardAssetDuplication` (for
+ * `assetLibraryDeps`) and `assetDesignerDeps` directly. The four states below are
+ * `AssetUsageScope.vue`'s own — loading, refused, ready, and ready with `unreadable > 0` — and
+ * they reuse its STRINGS as well as its shape, so *some plans could not be read* has one spelling
+ * across the two surfaces rather than two.
+ *
+ * **A grep for `new ListPlansUsingAsset` under `src/` returns TWO lines: that construction and
+ * this sentence.** The first version of this paragraph said it printed one, which was false the
+ * moment it was written, because the line it had not counted was itself. The invariant is still
+ * one construction; the sentence about it was not. A claim about what a grep prints has to be
+ * written from what the grep printed AFTER the change that makes the claim — which is the shape
+ * this repository records as a category, met here from the inside.
  *
  * **NOT ONE NEW STRING, and that is a measurement rather than a preference.** This block was drafted
  * with one designer-only sentence — *editing this asset changes every plan that places it* — in a
@@ -48,10 +54,24 @@
  * `AssetUsageScope.vue`'s header named that exposure exactly: *"the next caller of this query
  * reintroduces the defect silently."* This is that caller, and it asks.
  *
- * **Unlike at that mount, the pre-scan state is REACHABLE here.** There it is held by
- * `AssetLibraryStore.hydrate` withholding a `ready` entry until the scan has run; nothing
- * withholds this panel. `AssetDesignerRoot` draws the inspector from the design read, which is
- * dispatched at mount and does not consult the index at all.
+ * **The pre-scan state is ALMOST unreachable through this mount too, and the gate is here for
+ * exactly the reason it is there: the property is held by files this one does not own.** The
+ * first version of this paragraph said the opposite — *"nothing withholds this panel;
+ * `AssetDesignerRoot` draws the inspector from the design read, which is dispatched at mount and
+ * does not consult the index at all"* — and both halves of that are false. `AssetDesignerRoot`
+ * draws `<DesignerInspector v-if="design !== null">`, and `AssetDesignStore.hydrate` HOLDS a
+ * pre-scan `asset.not-found` rather than failing on it (`assetDesignStore.ts`, the
+ * `isMissingAsset(found.error) && !options.indexScanCompleted` arm, whose own comment explains
+ * that Obsidian restores leaves BEFORE `onLayoutReady`). So this panel is normally created only
+ * after the scan — and that `v-if` is also what gives this component a FRESH setup when the
+ * design finally lands, which is the whole reason capturing `scanned` once with no watch is safe.
+ *
+ * **"Almost" is doing real work in that sentence and is not hedging.** The store's arm holds a
+ * pre-scan MISS; it does not hold a pre-scan HIT. `indexScanCompleted` is a fact about the initial
+ * scan having run, not about the index containing this entry, so a design read answered from an
+ * index populated by a vault-change event before `onLayoutReady` would mount this panel with the
+ * scan still incomplete. That arm is narrow, it is nobody's else's to keep narrow, and it is
+ * precisely the arm this gate covers.
  *
  * **What it draws for that state is the REFUSAL sentence, deliberately reusing it rather than
  * minting a fifth.** *The plans that place this asset could not be read, so the scope below is
@@ -69,7 +89,7 @@
  *
  * **It injects the context rather than taking props, and draws NOTHING when there is none.**
  * `DesignerInspector` is prop-driven and FOUR suites mount it bare to prove its blocks are bound —
- * `grep -l 'mount(DesignerInspector' tests/presentation/designer` prints five files and the fifth
+ * `grep -rl 'mount(DesignerInspector' tests/presentation/designer` prints five files and the fifth
  * is this block's own, which provides a context — so `useAssetDesignerContext()`, which throws,
  * would make the panel un-mountable outside a leaf: the exact failure `DesignerInspector`'s own
  * `removeBackground` prop docblock records, measured there rather than argued. Absence of an

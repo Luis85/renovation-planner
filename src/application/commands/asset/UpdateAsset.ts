@@ -12,6 +12,7 @@ import type { AssetCategory } from '../../../domain/asset/AssetCategory';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { PlanPattern } from '../../../domain/asset/PlanPattern';
+import { loadAssetEntity } from './updateAssetShape';
 import { assetUpdated, assetDesignChanged } from '../../../domain/asset/Asset.events';
 import { assetNotFound } from '../../../domain/asset/Asset.errors';
 import { checkExpectedVersion, type Expected, type EntityVersion } from '../../ports/versioning';
@@ -75,9 +76,8 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 	) {}
 
 	async execute(input: UpdateAssetInput): Promise<Result<Asset, UpdateAssetErrors>> {
-		const loaded = await this.assets.getById(input.assetId);
+		const loaded = await loadAssetEntity(this.assets, input.assetId);
 		if (isErr(loaded)) return loaded;
-		if (loaded.value === null) return err(assetNotFound(input.assetId));
 		const current: Asset = loaded.value.entity;
 		if (input.expected !== undefined) {
 			const conflict = checkExpectedVersion('asset', input.assetId, loaded.value.version, input.expected);

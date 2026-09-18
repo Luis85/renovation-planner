@@ -7,6 +7,7 @@ import type { Command } from '../Command';
 import { plainDispatch, type DispatchResult, type VersionedDispatchResult } from '../DispatchOutcome';
 import type { AssetRepository } from '../../ports/AssetRepository';
 import type { EntityVersion } from '../../ports/versioning';
+import { loadAssetEntity } from './updateAssetShape';
 
 export interface SetAssetHeightInput {
 	readonly assetId: AssetId;
@@ -72,9 +73,8 @@ export class SetAssetHeightCommand implements Command<SetAssetHeightInput, Dispa
 	 * undo cannot rediscover safely afterwards (`VersionedDispatch` carries that account).
 	 */
 	async executeWithVersion(input: SetAssetHeightInput): Promise<VersionedDispatchResult> {
-		const loaded = await this.assets.getById(input.assetId);
+		const loaded = await loadAssetEntity(this.assets, input.assetId);
 		if (isErr(loaded)) return loaded;
-		if (loaded.value === null) return err(assetNotFound(input.assetId));
 		const { entity: current, version } = loaded.value;
 
 		const candidate = current.withChanges({ height: input.height });

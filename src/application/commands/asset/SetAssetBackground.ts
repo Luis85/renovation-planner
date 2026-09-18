@@ -15,7 +15,7 @@ import {
 import type { AssetGeometryDocument } from '../../ports/AssetGeometrySidecar';
 import type { VaultFileProbe } from '../../ports/VaultFileProbe';
 import type { EntityVersion } from '../../ports/versioning';
-import type { AssetShapeDeps } from './updateAssetShape';
+import { loadAssetEntity, type AssetShapeDeps } from './updateAssetShape';
 
 /**
  * The extension → kind mapping this command validates a caller's claim against — its own copy
@@ -41,21 +41,6 @@ function sameBackground(a: AssetBackgroundRef | null, b: AssetBackgroundRef | nu
 	return a.path === b.path && a.kind === b.kind && a.page === b.page;
 }
 
-/** What BOTH of this command's arms carry: which asset, and the versions the caller already read. */
-interface SetAssetBackgroundBase {
-	readonly assetId: AssetId;
-	/** The NOTE's version this gesture read, if the caller already has one (an undo does). */
-	readonly expected?: EntityVersion;
-	/**
-	 * The SIDECAR's version this gesture read, if the caller already has one — the reversible
-	 * adapter does, and without it the calibration clear below is conditioned on the command's
-	 * OWN read, a second read a peer can land between: the peer's edit is merged here, the
-	 * adapter's inverse predates it, and the undo restores over it with no refusal. The same
-	 * two-read window `updateAssetShape` closes for every one-resource command with `expected`.
-	 */
-	readonly expectedGeometry?: EntityVersion;
-}
-
 /**
  * One background-picking gesture, or the REMOVAL of the reference an asset already carries
  * (AD12-R2).
@@ -74,12 +59,31 @@ interface SetAssetBackgroundBase {
  * unsupported kind is this command's job rather than a precondition on its input type. A
  * `BackgroundPicker` result satisfies this shape without narrowing, since its own `kind` is
  * already `'image' | 'pdf'`.
+ *
+ * **The shared half is written INLINE rather than as a named `SetAssetBackgroundBase`**, which it
+ * was for one commit. A private interface named in an exported signature is a `private-type-leak`
+ * — an `error` in `.fallowrc.json`, because no caller can annotate a value it cannot import. The
+ * report's first suggested fix is to export the name, and that is the wrong one here for the
+ * reason `ReversibleOverrideBase` records: nothing outside this module would import it, so the
+ * leak would simply become an `unused-exports` finding. Inlining removes the leak and adds no
+ * export, at the cost of one type where there were two.
  */
-export type SetAssetBackgroundInput = SetAssetBackgroundBase &
-	(
-		| { readonly path: string; readonly kind: string; readonly page: number | null }
-		| { readonly path: null; readonly kind?: undefined; readonly page?: undefined }
-	);
+export type SetAssetBackgroundInput = {
+	readonly assetId: AssetId;
+	/** The NOTE's version this gesture read, if the caller already has one (an undo does). */
+	readonly expected?: EntityVersion;
+	/**
+	 * The SIDECAR's version this gesture read, if the caller already has one — the reversible
+	 * adapter does, and without it the calibration clear below is conditioned on the command's
+	 * OWN read, a second read a peer can land between: the peer's edit is merged here, the
+	 * adapter's inverse predates it, and the undo restores over it with no refusal. The same
+	 * two-read window `updateAssetShape` closes for every one-resource command with `expected`.
+	 */
+	readonly expectedGeometry?: EntityVersion;
+} & (
+	| { readonly path: string; readonly kind: string; readonly page: number | null }
+	| { readonly path: null; readonly kind?: undefined; readonly page?: undefined }
+);
 
 /**
  * Point an asset's designer at the spec sheet it is drawn over, and clear the calibration
@@ -224,9 +228,8 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 	): Promise<VersionedDispatchResult> {
 		const { assets, sidecar, events } = this.deps;
 
-		const loaded = await assets.getById(input.assetId);
+		const loaded = await loadAssetEntity(assets, input.assetId);
 		if (isErr(loaded)) return loaded;
-		if (loaded.value === null) return err(assetNotFound(input.assetId));
 		const { entity: current, version: noteVersion } = loaded.value;
 
 		// Validated (and re-validated: `Asset.create` never trusts the candidate that reaches

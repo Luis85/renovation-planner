@@ -10,6 +10,7 @@ import AssetInspectorFields from './AssetInspectorFields.vue';
 import AssetInspectorShape from './AssetInspectorShape.vue';
 import AssetInspectorUsedIn from './AssetInspectorUsedIn.vue';
 import AssetUsageDuplicate from './AssetUsageDuplicate.vue';
+import AssetInspectorActions from './AssetInspectorActions.vue';
 
 const props = defineProps<{ assetId: AssetId | null }>();
 
@@ -194,49 +195,19 @@ async function onOpenNote(): Promise<void> {
 		>
 			{{ failure }}
 		</p>
-		<div class="rp-al-actions">
-			<button
-				v-if="canOpenDesigner"
-				type="button"
-				class="rp-al-action rp-al-action--designer"
-				@click="onOpenDesigner"
-			>
-				{{ tr('view.asset-library.open-designer') }}
-			</button>
-			<button
-				v-if="canOpenNote"
-				type="button"
-				class="rp-al-action rp-al-action--note"
-				@click="void onOpenNote()"
-			>
-				{{ tr('view.asset-library.open-note') }}
-			</button>
-			<button
-				v-if="state === 'ready' && !duplicating"
-				type="button"
-				class="rp-al-action"
-				data-action="duplicate-open"
-				@click="duplicating = true"
-			>
-				{{ tr('view.asset-library.duplicate') }}
-			</button>
-			<button
-				v-if="state === 'ready'"
-				type="button"
-				class="rp-al-action rp-al-action--delete"
-				v-bind="deleteAttributes"
-				@click="onDelete"
-			>
-				{{ tr('view.asset-library.delete') }}
-			</button>
-		</div>
-		<p
-			v-if="state === 'ready' && deleteReason !== null"
-			:id="deleteReasonId"
-			class="rp-al-actions__reason"
-		>
-			{{ deleteReason }}
-		</p>
+		<AssetInspectorActions
+			:can-open-designer="canOpenDesigner"
+			:can-open-note="canOpenNote"
+			:can-duplicate="state === 'ready' && !duplicating"
+			:can-delete="state === 'ready'"
+			:delete-attributes="deleteAttributes"
+			:delete-reason="state === 'ready' ? deleteReason : null"
+			:delete-reason-id="deleteReasonId"
+			@open-designer="onOpenDesigner"
+			@open-note="void onOpenNote()"
+			@duplicate="duplicating = true"
+			@remove="onDelete"
+		/>
 		<AssetUsageDuplicate
 			v-if="duplicating && entry !== null && assetId !== null"
 			:asset-id="assetId"

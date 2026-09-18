@@ -9,7 +9,7 @@ import type { AssetGeometryDocument } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
 import type { Command } from '../Command';
 import { markUncompensated } from '../DispatchOutcome';
-import type { AssetShapeDeps } from './updateAssetShape';
+import { loadAssetEntity, type AssetShapeDeps } from './updateAssetShape';
 
 /**
  * What one `Duplicate as new asset` gesture supplies (AD13 item 4, C11).
@@ -95,11 +95,10 @@ export class DuplicateAssetCommand
 	private async copy(input: DuplicateAssetInput): Promise<Result<Asset, DuplicateAssetErrors>> {
 		const { assets, sidecar, events } = this.deps;
 
-		const loaded = await assets.getById(input.assetId);
+		// A failed READ is not "asset missing" (C08); `loadAssetEntity` is the one place that
+		// distinction is made, for the three other commands that used to spell it here too.
+		const loaded = await loadAssetEntity(assets, input.assetId);
 		if (isErr(loaded)) return loaded;
-		// A failed READ is not "asset missing" (C08), which is why these two arms stay apart —
-		// the relabel `assetNotFound`'s own docblock records this repository paying for twice.
-		if (loaded.value === null) return err(assetNotFound(input.assetId));
 
 		// Read BEFORE the first write, so a damaged source sidecar refuses with nothing written
 		// at all rather than leaving a metadata-only copy to compensate away.

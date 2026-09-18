@@ -42,9 +42,18 @@ effect.
   is yet a measurement. That behaviour was parked deliberately with its own trigger in
   `2026-09-16-asset-designer-consolidate-design.md` §6 and this ADR does not disturb it.
 - **Cleared by any write whose subject is the clearance itself** — re-tracing it, the four-side
-  helper regenerating it, removing it — because a gesture aimed at the clearance is a review of it;
-  and by an explicit **Reviewed** action in the designer inspector, drawn only while the flag is
-  set.
+  helper regenerating it, removing it, and any transform of the boundary's own outline — because a
+  gesture aimed at the clearance is a review of it; and by an explicit **Reviewed** action in the
+  designer inspector, drawn only while the flag is set.
+
+  **The implementing change reached every one of those but the four-side helper**, which lives in
+  `DesignerClearanceHelper.vue` — a file in no wave-5 lease row — and is one line
+  (`clearanceNeedsReview: false` in its `validateAssetShape` call) away. The assertion that fails
+  without it ships deliberately red in
+  `tests/presentation/designer/designerClearanceReview.test.ts`, in the idiom the lease ledger
+  prescribes, so the gap is a failing check rather than a sentence. **This paragraph is here rather
+  than the wider claim standing alone** because a record that promises more than the code delivers
+  is the same defect as an unchecked comment and reads as settled.
 - **Isometries set nothing.** Translation, rotation and reflection preserve every distance, so they
   weaken no boundary.
 - **Authority:** the asset geometry sidecar (ADR-0014), on the shape. **Schema 4.** The field
@@ -81,9 +90,11 @@ effect.
 - After a resize, a measured clearance no longer hugs the object. That is the intended picture and
   it will read as a defect to somebody who has not met this rule; the inspector's review notice is
   what explains it.
-- Two fixtures that pinned the old behaviour are amended rather than deleted:
+- Three fixtures that pinned the old behaviour are amended rather than deleted:
   `tests/domain/asset/shapeEdits.test.ts`'s literal scaled-clearance points and its bounding-box
-  case. `2026-09-16-asset-designer-consolidate-design.md` §7's line *"every part — clearance and
+  case, and the toilet-preset clearance in `tests/presentation/designer/assetDimensions.test.ts`.
+  This bullet said "two" and named the first file only, because the ruling it was written from
+  named two; the third was found by the change itself. `2026-09-16-asset-designer-consolidate-design.md` §7's line *"every part — clearance and
   details included — is scaled about the anchor"* stops being true of a measured clearance and is
   corrected there.
 - No asset-geometry migration table is owed: schema 4 is additive, so the trigger recorded for that

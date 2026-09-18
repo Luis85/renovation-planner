@@ -158,6 +158,11 @@ describe('shapeFromDimensions', () => {
 			// A validated shape always carries the array, even where the document it came from
 			// predates groups entirely (AD04 §4): the validator answers `[]` for an absent one.
 			groups: [],
+			// And the flag, for the identical reason at AD14: `clearanceNeedsReview` is OPTIONAL in
+			// the type so that 61 construction sites stay valid, and `validateAssetShape` normalises
+			// it — so a shape that has been through the validator always carries the definite
+			// boolean. This exhaustive pin is where that is stated rather than assumed.
+			clearanceNeedsReview: false,
 		});
 	});
 
@@ -204,6 +209,11 @@ describe('shapeFromOutline', () => {
 			// A validated shape always carries the array, even where the document it came from
 			// predates groups entirely (AD04 §4): the validator answers `[]` for an absent one.
 			groups: [],
+			// And the flag, for the identical reason at AD14: `clearanceNeedsReview` is OPTIONAL in
+			// the type so that 61 construction sites stay valid, and `validateAssetShape` normalises
+			// it — so a shape that has been through the validator always carries the definite
+			// boolean. This exhaustive pin is where that is stated rather than assumed.
+			clearanceNeedsReview: false,
 		});
 	});
 
@@ -244,6 +254,32 @@ describe('validateAssetShape', () => {
 			clearancePending: true,
 		});
 		expect(isOk(result)).toBe(true);
+	});
+
+	/**
+	 * AD14's review flag, refused on the same argument and at the same site as the pending one
+	 * above: no command can produce it, so one in a sidecar is a hand edit, and quietly clearing
+	 * it would report a boundary nobody has reviewed as reviewed.
+	 */
+	it('refuses a review flag on a shape that has no clearance', () => {
+		const result = validateAssetShape({ ...typedShape, clearance: null, clearanceNeedsReview: true });
+		expect(isErr(result) && result.error.code).toBe('asset.absent-clearance-cannot-need-review');
+	});
+
+	it('accepts the review flag once there is a boundary to review', () => {
+		const result = validateAssetShape({ ...typedShape, clearance: { points: square }, clearanceNeedsReview: true });
+		expect(isOk(result)).toBe(true);
+	});
+
+	/**
+	 * The pending refusal is asked FIRST, so a shape carrying both flags over an absent clearance
+	 * answers that one. Pinned because the two live in one function behind a shared
+	 * `clearance !== null` early return, and a reordering would silently change which code a
+	 * hand-edited sidecar reports.
+	 */
+	it('reports the pending refusal first when a shape with no clearance carries both flags', () => {
+		const result = validateAssetShape({ ...typedShape, clearance: null, clearancePending: true, clearanceNeedsReview: true });
+		expect(isErr(result) && result.error.code).toBe('asset.absent-clearance-cannot-be-pending');
 	});
 
 	it('refuses a two-point footprint, which is not a polygon at all', () => {

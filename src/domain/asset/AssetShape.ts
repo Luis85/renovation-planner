@@ -25,6 +25,42 @@ export interface AssetShape {
 	readonly clearancePending: boolean;
 	readonly anchorPending: boolean;
 	readonly clearance: CurvedPolygon | null;
+	/**
+	 * **A MEASURED clearance this object was resized around, kept at the size its author drew
+	 * and flagged instead of scaled** (AD14-R1, ADR-0034). Set in `scaleDesign` and nowhere else;
+	 * cleared by any write whose SUBJECT is the clearance itself, because a gesture aimed at the
+	 * boundary IS the review.
+	 *
+	 * **NOT a fourth pending flag, despite sitting beside three.** `clearancePending` means
+	 * *these coordinates are background pixels*; this one means *these millimetres are the ones
+	 * you drew, and the object around them is no longer the object you drew them for*. A
+	 * calibration clears the first and deliberately leaves this one alone — `CalibrateAsset`'s
+	 * `rescaled` spreads the shape and names neither, which is what makes that true without a
+	 * line of its own.
+	 *
+	 * **OPTIONAL in the type, unlike those three, and that is measured rather than stylistic.**
+	 * `grep -rn "clearancePending:" src/ tests/` prints 66 lines across 43 files — most of them
+	 * constructions, the rest this interface's own field, the Zod schema and `StoredShape`. The
+	 * first version of this sentence said 61 across 41 and called them all construction sites: the
+	 * number was measured before this card's own files were written, which is the shape CLAUDE.md
+	 * names for a count that includes its own change,
+	 * most of them in suites this card does not own; a required field would make every one of
+	 * them a compile error for a flag that reads `false` at all of them. That is `groups`' own
+	 * argument one field up, and it costs the same thing: a reader asks `=== true` rather than
+	 * reading a definite boolean.
+	 *
+	 * **Six reads carry that `=== true`, counted by `grep -rn "clearanceNeedsReview" src/` in this
+	 * edit rather than remembered**: `validatePlacement` and the normalisation below, `scaleDesign`,
+	 * `sameClearance` in `SetAssetClearance`, `shapeToPersistence` in the sidecar mapper, and
+	 * `DesignerClearanceReview.vue`'s predicate. (The first draft of this sentence said "two", which
+	 * is what the grep exists to stop.) Six two-word comparisons is not a case for an
+	 * `assetGroups`-style accessor — that one exists because its callers each carried a FALLBACK ARM
+	 * the validator can never take, and `=== true` has no arm at all.
+	 *
+	 * The SIDECAR still stores it as a definite boolean — `.default(false)` at schema v4, so an
+	 * absent key is an older file and a present malformed one fails the read.
+	 */
+	readonly clearanceNeedsReview?: boolean;
 	readonly anchor: Point;
 	/** Radians, measured anticlockwise from +x, normalised to [0, 2π). */
 	readonly facing: number;
@@ -193,11 +229,12 @@ export function normaliseFacing(radians: number): number {
  * through, so a shape that has been through this function has one spelling per direction
  * and no caller has to remember to fold it.
  *
- * It also refuses the two states the per-attribute pending model makes incoherent: a
- * typed footprint marked pending, and a pending flag on an absent clearance. Both are
- * REFUSALS rather than repairs, for the same reason a two-vertex polygon is refused — no
- * command can produce either, so one in a sidecar is a hand edit, and quietly clearing
- * the flag would suppress the unscaled warning over placeholder-space geometry.
+ * It also refuses the three states the per-attribute flag model makes incoherent: a
+ * typed footprint marked pending, a pending flag on an absent clearance, and (AD14) a review
+ * flag on an absent clearance. All three are REFUSALS rather than repairs, for the same reason
+ * a two-vertex polygon is refused — no command can produce any of them, so one in a sidecar is
+ * a hand edit, and quietly clearing the flag would suppress the unscaled warning over
+ * placeholder-space geometry or report an unreviewed boundary as reviewed.
  *
  * Curved edges are checked for self-intersection only when an edge actually curves
  * (`validateCurvedBoundary`), so a straight outline gets exactly the validation it had
@@ -218,9 +255,13 @@ function validateClearance(clearance: CurvedPolygon | null): Result<CurvedPolygo
 }
 
 /**
- * The anchor, the facing and the two pending-flag coherences — the questions that are about the
+ * The anchor, the facing and the three flag coherences — the questions that are about the
  * shape's own fields rather than about a polygon. Split from `validateAssetShape` for the
- * complexity budget the group check pushed it over; every rule and every code is unchanged.
+ * complexity budget the group check pushed it over.
+ *
+ * The count is three since AD14, and the third is `clearanceNeedsReview`'s: the two clearance
+ * rules share a single `clearance !== null` early return rather than re-asking it, which is what
+ * keeps the split's original complexity argument true.
  */
 function validatePlacement(shape: AssetShape): Result<void, ValidationError> {
 	if (!Number.isFinite(shape.anchor.x) || !Number.isFinite(shape.anchor.y)) {
@@ -232,8 +273,19 @@ function validatePlacement(shape: AssetShape): Result<void, ValidationError> {
 	if (shape.footprintOrigin === 'typed' && shape.footprintPending) {
 		return err(assetError('typed-footprint-cannot-be-pending', 'A typed footprint is authored in millimetres and never awaits a scale.'));
 	}
-	return shape.clearance === null && shape.clearancePending
-		? err(assetError('absent-clearance-cannot-be-pending', 'A shape with no clearance has no clearance coordinates awaiting a scale.'))
+	if (shape.clearance !== null) return ok(undefined);
+	if (shape.clearancePending) {
+		return err(assetError('absent-clearance-cannot-be-pending', 'A shape with no clearance has no clearance coordinates awaiting a scale.'));
+	}
+	// The same refusal, the same argument and the same site as the one above (AD14-R1): no command
+	// can produce it, so one in a sidecar is a hand edit, and quietly clearing the flag would
+	// report a boundary nobody has reviewed as reviewed. A refusal, never a repair.
+	//
+	// **`clearancePending && clearanceNeedsReview` gets NO guard of its own, deliberately.** A
+	// capture replaces the clearance and a calibration converts it, so the combination is
+	// unreachable — and an unreachable guard costs a branch it can never pay back.
+	return shape.clearanceNeedsReview === true
+		? err(assetError('absent-clearance-cannot-need-review', 'A shape with no clearance has no boundary to review.'))
 		: ok(undefined);
 }
 
@@ -261,6 +313,11 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 		...shape,
 		footprint: footprint.value,
 		clearance,
+		// NORMALISED here for `groups` reason one field over: the type is optional so that 61
+		// existing construction sites stay valid, and a shape that has been through this function
+		// always carries the definite boolean anyway — which is what lets the sidecar's round trip
+		// compare a written shape against the one it reads back.
+		clearanceNeedsReview: shape.clearanceNeedsReview === true,
 		anchor: { x: shape.anchor.x, y: shape.anchor.y },
 		facing: normaliseFacing(shape.facing),
 		details: details.value,

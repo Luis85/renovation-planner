@@ -135,29 +135,59 @@ const AssetShapeSchemaV3 = AssetShapeSchemaV2.extend({
 	groups: z.array(GroupSchemaV3).default([]),
 });
 
-const AssetGeometrySchemaV3 = AssetGeometrySchemaV2.extend({
+/**
+ * Exported for the same reason `AssetGeometrySchemaV1` is, and for no other: v4's whole argument is
+ * about what a v3-ONLY build does with a v4 file, and the only honest way to check that is to ask
+ * the v3 schema itself (`assetGeometry.test.ts`). Nothing in `src/` parses with it — `AssetGeometrySchema`
+ * below is what the store uses and what every read goes through.
+ */
+export const AssetGeometrySchemaV3 = AssetGeometrySchemaV2.extend({
 	schemaVersion: z.literal(3),
 	shape: AssetShapeSchemaV3.nullable(),
 });
 
 /**
- * A v1 or v2 document is a valid v3 one once it says so: `details` defaults to `[]`, `bulges` is
- * optional, `kind` defaults to closed, `label` is optional and `groups` defaults to `[]`. Nothing
- * is rewritten and nothing is inferred — every added field has a default that means "this document
- * predates the field", which is the only kind of migration that cannot lose data.
+ * Version 4 (AD14-R1): a measured clearance this object has been resized around is PRESERVED at
+ * the size its author drew rather than scaled, and carries a durable flag saying so.
  *
- * The bump is REQUIRED rather than tidy, for the reason v2's own note gives: a Zod object strips
- * unknown keys, so a v2-only build reading a v3 file would load it and erase every group and every
- * open graphic on its next write. `z.literal(2)` makes that build refuse the file instead.
+ * `.default(false)` and NOT `.catch(false)` — `footprintPending`'s own rule above, generalised, and
+ * this field is the sharper instance of it. An absent key is an older file and reads as not
+ * flagged, which is correct because a build that could not set the flag never left one unset by
+ * mistake; a PRESENT malformed value fails the read rather than being coerced, because coercing it
+ * presents an unreviewed boundary as reviewed. Defaults are for absent fields, never for malformed
+ * present ones.
+ *
+ * The bump is REQUIRED rather than tidy, and the DIRECTION is the argument: a Zod object strips
+ * unknown keys, so a v3-only build reading a v4 file would load it and erase the flag on its next
+ * write — silently presenting an unreviewed clearance as reviewed, which is the one direction of
+ * this field that is unsafe. `z.literal(3)` makes that build refuse the file instead.
+ */
+const AssetShapeSchemaV4 = AssetShapeSchemaV3.extend({ clearanceNeedsReview: z.boolean().default(false) });
+
+const AssetGeometrySchemaV4 = AssetGeometrySchemaV3.extend({
+	schemaVersion: z.literal(4),
+	shape: AssetShapeSchemaV4.nullable(),
+});
+
+/**
+ * A v1, v2 or v3 document is a valid v4 one once it says so: `details` defaults to `[]`, `bulges` is
+ * optional, `kind` defaults to closed, `label` is optional, `groups` defaults to `[]` and
+ * `clearanceNeedsReview` defaults to `false`. Nothing is rewritten and nothing is inferred — every
+ * added field has a default that means "this document predates the field", which is the only kind
+ * of migration that cannot lose data.
+ *
+ * **No asset-geometry migration table is owed by that** — v4 is additive exactly as v3 was, so
+ * `2026-09-16-asset-designer-consolidate-design.md` §6's trigger (the first NON-additive
+ * asset-geometry schema change) still has not fired.
  */
 function raiseLegacyVersions(input: unknown): unknown {
 	if (typeof input !== 'object' || input === null) return input;
 	const version = (input as { schemaVersion?: unknown }).schemaVersion;
-	return version === 1 || version === 2 ? { ...input, schemaVersion: 3 } : input;
+	return version === 1 || version === 2 || version === 3 ? { ...input, schemaVersion: 4 } : input;
 }
 
-/** Every version this build reads, answered as version 3. The store parses with this and nothing else. */
-export const AssetGeometrySchema = z.preprocess(raiseLegacyVersions, AssetGeometrySchemaV3);
+/** Every version this build reads, answered as version 4. The store parses with this and nothing else. */
+export const AssetGeometrySchema = z.preprocess(raiseLegacyVersions, AssetGeometrySchemaV4);
 
 /**
  * The parsed document's shape, for the store and the adapter that raise it.
@@ -168,4 +198,4 @@ export const AssetGeometrySchema = z.preprocess(raiseLegacyVersions, AssetGeomet
  * holds. Inferred rather than hand-written: a second spelling of a Zod schema's output is
  * a second answer to what is in the file.
  */
-export type AssetGeometryDTO = z.infer<typeof AssetGeometrySchemaV3>;
+export type AssetGeometryDTO = z.infer<typeof AssetGeometrySchemaV4>;

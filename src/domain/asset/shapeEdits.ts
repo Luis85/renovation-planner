@@ -30,6 +30,17 @@ import { solveScale } from './scaleSolve';
  * **Pending flags are carried, never re-decided**: an edit to a group captured in background pixels
  * leaves it in pixel space, and only the calibration that converts it clears the flag.
  * `removeClearance` writes one, because validation refuses a pending flag on an absent clearance.
+ *
+ * **`clearanceNeedsReview` is the one flag this module DECIDES** (AD14-R1). `scaleDesign` is the
+ * only function that sets it, and the edits whose subject is the clearance clear it —
+ * `mapPartOutline`'s and `withOutline`'s clearance arms and `removeClearance`, plus
+ * `markClearanceReviewed` below, which clears it as its whole PURPOSE rather than as a
+ * consequence of replacing the geometry. The first version of this sentence said "the three" and
+ * called them the whole of what the grep prints as a write; it was off by one at the moment it
+ * was written, because the fourth arrived in the same change. No count is kept here now — the
+ * grep is the list. The clears outside this module are in `SetAssetClearance` and
+ * `SetAssetFootprint`; `CalibrateAsset` deliberately touches it nowhere, because a calibration's
+ * subject is a coordinate space and not a boundary.
  */
 
 /** Which outline an edit names: the footprint, the clearance, or a detail by id. */
@@ -140,7 +151,12 @@ function mapPartOutline(
 ): Result<AssetShape, ValidationError> {
 	if (part.kind === 'footprint') return validateAssetShape({ ...shape, footprint: map(shape.footprint) });
 	if (part.kind === 'clearance') {
-		return shape.clearance === null ? err(partNotFound(part)) : validateAssetShape({ ...shape, clearance: map(shape.clearance) });
+		// The review flag comes down because the SUBJECT of this write is the clearance — a
+		// gesture aimed at the boundary IS the review (AD14-R1). The same line sits in
+		// `withOutline` below, which is the other path a clearance edit can take.
+		return shape.clearance === null
+			? err(partNotFound(part))
+			: validateAssetShape({ ...shape, clearance: map(shape.clearance), clearanceNeedsReview: false });
 	}
 	if (!shape.details.some((detail) => detail.id === part.id)) return err(partNotFound(part));
 	return validateAssetShape({
@@ -152,7 +168,9 @@ function mapPartOutline(
 /** The shape with one part's outline replaced; a detail keeps its id, name, line and pending flag. */
 function withOutline(shape: AssetShape, part: OutlinePart, outline: CurvedPolygon): AssetShape {
 	if (part.kind === 'footprint') return { ...shape, footprint: outline };
-	if (part.kind === 'clearance') return { ...shape, clearance: outline };
+	// `clearanceNeedsReview: false` for `mapPartOutline`'s reason above: a vertex moved or an edge
+	// bent on the clearance is a gesture aimed at the boundary, which IS the review (AD14-R1).
+	if (part.kind === 'clearance') return { ...shape, clearance: outline, clearanceNeedsReview: false };
 	// `detail.kind !== 'open'` and not a guard clause: `outlineOf` above has already answered null
 	// for an open graphic, so `editOutline` refused this part before reaching here. The condition is
 	// what makes that true at the type level as well — an open detail cannot be handed a polygon.
@@ -223,26 +241,74 @@ export function setFacing(shape: AssetShape, radians: number): Result<AssetShape
 	return validateAssetShape({ ...shape, facing: radians });
 }
 
-/** The clearance removed with its pending flag. The footprint has no counterpart: without one there is no shape. */
+/**
+ * The clearance removed with BOTH its flags. The footprint has no counterpart: without one there
+ * is no shape.
+ *
+ * `clearanceNeedsReview` comes down here for `clearancePending`'s own reason and for one more:
+ * validation refuses either flag on an absent clearance, and a removal is the most complete write
+ * whose subject IS the clearance — there is nothing left to review (AD14-R1).
+ */
 export function removeClearance(shape: AssetShape): Result<AssetShape, ValidationError> {
 	if (shape.clearance === null) return err(partNotFound({ kind: 'clearance' }));
-	return validateAssetShape({ ...shape, clearance: null, clearancePending: false });
+	return validateAssetShape({ ...shape, clearance: null, clearancePending: false, clearanceNeedsReview: false });
+}
+
+/**
+ * The review answered: the flag comes down and not one coordinate moves (AD14-R1).
+ *
+ * **No guard, and that is deliberate rather than an omission.** A `null` clearance cannot carry the
+ * flag — `validateAssetShape` refuses that outright — and the inspector draws the control only
+ * while the flag is set, so both a `part-not-found` arm and a no-op arm would be branches nothing
+ * could ever drive. `removeClearance` above has a guard because its own `clearance: null` write is
+ * what would otherwise succeed against nothing.
+ *
+ * **Undo needs nothing here.** This flag rides on `AssetShape`, which the reversible design commands
+ * snapshot whole, so undoing a Reviewed press restores the flagged shape for free.
+ */
+export function markClearanceReviewed(shape: AssetShape): Result<AssetShape, ValidationError> {
+	return validateAssetShape({ ...shape, clearanceNeedsReview: false });
 }
 
 /**
  * Every outline scaled about the ANCHOR, so the point a plan positions the asset by stays where it
- * is, by one raw factor per axis. `scaleDesignToDimensions` below is the caller for the dimensions
- * gesture: it uses this as the per-axis `apply` a secant solve calls with successive factors, one
- * axis at a time, rather than calling it directly with a ratio.
+ * is, by one raw factor per axis — **except a MEASURED clearance, which is preserved and flagged**
+ * (AD14-R1, ADR-0034, superseding `2026-09-16-asset-designer-consolidate-design.md` §7's
+ * "every part — clearance and details included — is scaled about the anchor").
+ * `scaleDesignToDimensions` below is the caller for the dimensions gesture: it uses this as the
+ * per-axis `apply` a secant solve calls with successive factors, one axis at a time, rather than
+ * calling it directly with a ratio.
+ *
+ * **Why preserve rather than scale-and-flag.** A clearance is authored: somebody decided 600 mm in
+ * front of the oven. Scaling it fabricates a boundary nobody chose and then asks the user to check
+ * a number that looks chosen — at 600 becoming 500, a glance accepts it. Preserving leaves the
+ * authored 600 standing beside a smaller object, where it visibly no longer fits: **the wrongness
+ * is the notice**, and the flag is only what makes it survive a reopen.
+ *
+ * **A PENDING clearance goes on scaling with everything else** (contract revision `r1`, row 2).
+ * Its coordinates are background pixels, the whole capture shares one space, and scaling them
+ * weakens nothing that is yet a measurement — so the flag is never set on one either.
+ *
+ * **BOTH directions flag, and only a non-identity scale flags.** A user who typed 600 mm and then
+ * resized the object has a boundary they did not author at either size, so there is no *shrinking
+ * only* rule and no *down on one axis, up on the other* question left for somebody to answer
+ * differently later. An identity scale — which `scaleDesignToDimensions` really does apply, on the
+ * axis whose typed value equals the current one — sets nothing and, just as importantly, clears
+ * nothing: the `||` below is what stops re-typing the same size from answering a review.
+ *
+ * Rotation, reflection and translation set it nowhere: they are isometries and weaken no distance.
  */
 export function scaleDesign(shape: AssetShape, sx: number, sy: number): Result<AssetShape, ValidationError> {
 	const refused = scaleRefusal(sx, sy);
 	if (refused !== null) return err(refused);
 	const about = <T extends CurvedPolygon | CurvedPath>(outline: T): T => scaled(outline, sx, sy, shape.anchor);
+	const preserved = shape.clearance !== null && !shape.clearancePending;
+	const moved = sx !== 1 || sy !== 1;
 	return validateAssetShape({
 		...shape,
 		footprint: about(shape.footprint),
-		clearance: shape.clearance === null ? null : about(shape.clearance),
+		clearance: shape.clearance === null || preserved ? shape.clearance : about(shape.clearance),
+		clearanceNeedsReview: shape.clearanceNeedsReview === true || (preserved && moved),
 		details: shape.details.map((detail) => mapDetailOutline(detail, (outline) => scaled(outline, sx, sy, shape.anchor))),
 	});
 }

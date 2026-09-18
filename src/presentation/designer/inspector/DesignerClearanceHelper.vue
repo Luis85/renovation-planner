@@ -79,6 +79,11 @@ async function generate(): Promise<void> {
 			...design,
 			clearance: { points: clearanceRectangle(current, turn, setbacks) },
 			clearancePending: design.footprintPending,
+			// Regenerating the boundary IS the review: this gesture replaces the clearance
+			// outright, so whatever a resize flagged about the old one is answered. The site
+			// AD14's own grep could not reach, because this file is in no wave-5 row — the card
+			// filed it as a change request and shipped the assertion that fails without it.
+			clearanceNeedsReview: false,
 		});
 	});
 	refusal.value = result.ok ? null : result.error;

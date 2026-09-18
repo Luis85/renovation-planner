@@ -14,4 +14,22 @@
  * is still incomplete. See `de/assetOpenLines.ts`'s header for what reading the neighbours instead
  * of the rule cost this package once.
  */
-export const assetClearanceReviewEn = {} as const;
+export const assetClearanceReviewEn = {
+	/**
+	 * The notice, and it says what HAPPENED rather than warning about what might: the boundary on
+	 * screen is the one the user drew, standing beside an object that is no longer the size it was
+	 * drawn for. AD14-R1's own argument is that the wrongness is visible — this sentence only
+	 * explains it.
+	 */
+	'designer.clearance.review.notice':
+		'This clearance was kept at the size you drew it when the object was resized. Check that it still describes the space you need.',
+	'designer.clearance.review.action': 'Mark clearance as reviewed',
+	/**
+	 * A refusal no command can produce, so it reaches a user only through a hand-edited sidecar —
+	 * `absent-clearance-cannot-be-pending`'s exact position. It lives in THIS table rather than
+	 * beside its sibling in `en.ts` for a lease reason and not a taxonomic one: the aggregators are
+	 * integrator-owned, and `hasLocaleKey` asks `key in en`, which a key spread through
+	 * `en/editor.ts` satisfies identically.
+	 */
+	'asset.absent-clearance-cannot-need-review': 'There is no clearance to review.',
+} as const;

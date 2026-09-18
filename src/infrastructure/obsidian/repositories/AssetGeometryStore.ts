@@ -51,9 +51,9 @@ const ABSENT_VERSION: EntityVersion = { revision: 0, observed: observeSidecar(''
 /**
  * The version this build EMITS, named once so the empty document and the write cannot disagree —
  * they were two literal `2`s and a bump had to remember both. What it READS is wider and is
- * `AssetGeometrySchema`'s business: v1, v2 and v3 in, v3 out (AD04 §5).
+ * `AssetGeometrySchema`'s business: v1, v2, v3 and v4 in, v4 out (AD14-R1; v3 was AD04 §5).
  */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 const emptyDocument = (assetId: AssetId): AssetGeometryDTO => ({
 	schemaVersion: SCHEMA_VERSION,

@@ -539,6 +539,7 @@ onMounted(() => {
 					v-if="design !== null"
 					:design="design"
 					:set-height="runtime.commitHeight"
+					:remove-background="runtime.removeBackground"
 					:edit-dimensions="editDimensions"
 					:start-from-preset="startFromPreset"
 					:logger="context.logger"

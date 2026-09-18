@@ -42,6 +42,20 @@ import FieldError from '../../components/FieldError.vue';
 const props = defineProps<{
 	design: AssetDesignDto;
 	setHeight: (height: number | null) => Promise<DispatchResult>;
+	/**
+	 * Take the reference sheet away (AD12-R2), passed straight through to `DesignerReferenceStatus`.
+	 *
+	 * **REQUIRED, and prop-drilled from `AssetDesignerRoot` rather than read off the runtime**, which
+	 * was the other shape on offer and is measured rather than argued: reading
+	 * `useDesignerRuntime()` here makes this component throw on any mount without a leaf's runtime
+	 * injected, and `designerReferencePanels.test.ts` deliberately mounts the real inspector bare to
+	 * prove the three blocks are BOUND. That case went red on the injection form with
+	 * *"The asset designer was mounted without a DesignerRuntime"*, which is the component becoming
+	 * un-mountable outside a leaf in exchange for saving one binding. Every other collaborator here
+	 * — `setHeight`, `editShape`, `lockedGraphics` — already arrives as a prop off the same runtime,
+	 * so this is the established shape and not a new one.
+	 */
+	removeBackground: () => Promise<void>;
 	editDimensions: () => Promise<void>;
 	startFromPreset: () => Promise<void>;
 	logger: Logger;
@@ -342,7 +356,10 @@ const dimensionsLabel = computed(() =>
 			(ADR-0014) and stays where it was, and nothing below it is an input to any vertical
 			calculation — AD12 introduces no clash check and this ordering is not the start of one.
 		-->
-		<DesignerReferenceStatus :design="design" />
+		<DesignerReferenceStatus
+			:design="design"
+			:remove-background="removeBackground"
+		/>
 		<DesignerReferencePlacement
 			:design="design"
 			:edit-shape="editShape"

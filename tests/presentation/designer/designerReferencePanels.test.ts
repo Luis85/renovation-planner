@@ -37,6 +37,14 @@ const CALIBRATION: Calibration = {
 	pixelsPerWorldUnit: 1,
 };
 
+/**
+ * `DesignerReferenceStatus.removeBackground` is REQUIRED, so every mount must bind one. None of the
+ * cases in this file presses Remove — they are all about what the block SAYS — so this is a no-op
+ * rather than a spy: a `vi.fn()` nobody asserts on reads as an assertion somebody forgot to write.
+ * The gesture itself is driven, through the real inspector, in `designerReferenceView.test.ts`.
+ */
+const removeBackground = async (): Promise<void> => {};
+
 /** The fixture shape, which `assetDesign` always supplies — read once so cases can vary one flag. */
 function baseShape(design: AssetDesignDto = assetDesign()): AssetShape {
 	if (design.shape === null) throw new Error('the fixture carries a shape');
@@ -86,13 +94,13 @@ async function type(wrapper: VueWrapper, name: string, value: string): Promise<v
 describe('the reference status block', () => {
 	it('draws nothing at all for an asset typed from dimensions with no sheet', () => {
 		const design = assetDesign({ background: null, calibration: null });
-		const wrapper = mount(DesignerReferenceStatus, { props: { design } });
+		const wrapper = mount(DesignerReferenceStatus, { props: { design, removeBackground } });
 		expect(wrapper.find('.rp-designer-reference').exists()).toBe(false);
 	});
 
 	it('names the sheet and its page, so a trace off page 4 of a catalogue is not read as page 1', () => {
 		const design = assetDesign({ background: { path: 'Specs/deep/catalogue.pdf', kind: 'pdf', page: 4 } });
-		const wrapper = mount(DesignerReferenceStatus, { props: { design } });
+		const wrapper = mount(DesignerReferenceStatus, { props: { design, removeBackground } });
 		expect(wrapper.text()).toContain(t('en', 'designer.reference.sheet.page', { name: 'catalogue.pdf', page: '4' }));
 	});
 
@@ -100,7 +108,7 @@ describe('the reference status block', () => {
 		[null, 'designer.reference.scale.none' as const],
 		[CALIBRATION, 'designer.reference.scale.set' as const],
 	])('says whether the sheet carries a scale', (calibration, key) => {
-		const wrapper = mount(DesignerReferenceStatus, { props: { design: assetDesign({ calibration }) } });
+		const wrapper = mount(DesignerReferenceStatus, { props: { design: assetDesign({ calibration }), removeBackground } });
 		expect(wrapper.text()).toContain(t('en', key));
 	});
 
@@ -118,14 +126,14 @@ describe('the reference status block', () => {
 			anchorPending: true,
 			details: [{ id: 'd1', name: 'top', outline: { points: [{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 5, y: 5 }] }, line: 'solid', pending: true }],
 		};
-		const wrapper = mount(DesignerReferenceStatus, { props: { design: assetDesign({ shape }) } });
+		const wrapper = mount(DesignerReferenceStatus, { props: { design: assetDesign({ shape }), removeBackground } });
 		expect(wrapper.findAll('.rp-designer-unscaled')).toHaveLength(4);
 		expect(wrapper.text()).toContain(t('en', 'designer.reference.pending.hint'));
 	});
 
 	it('names the sheet for an asset with nothing traced on it yet', () => {
 		const design = assetDesign({ shape: null });
-		const wrapper = mount(DesignerReferenceStatus, { props: { design } });
+		const wrapper = mount(DesignerReferenceStatus, { props: { design, removeBackground } });
 		expect(wrapper.find('.rp-designer-reference').exists()).toBe(true);
 		expect(wrapper.findAll('.rp-designer-unscaled')).toHaveLength(0);
 	});
@@ -134,12 +142,12 @@ describe('the reference status block', () => {
 	it('draws while a group is pending even with no sheet and no scale recorded', () => {
 		const shape: AssetShape = { ...baseShape(), footprintOrigin: 'traced', footprintPending: true };
 		const design = assetDesign({ background: null, calibration: null, shape });
-		const wrapper = mount(DesignerReferenceStatus, { props: { design } });
+		const wrapper = mount(DesignerReferenceStatus, { props: { design, removeBackground } });
 		expect(wrapper.find('.rp-designer-reference').exists()).toBe(true);
 	});
 
 	it('names none, and offers no hint, for a design whose every group is measured', () => {
-		const wrapper = mount(DesignerReferenceStatus, { props: { design: assetDesign({ calibration: CALIBRATION }) } });
+		const wrapper = mount(DesignerReferenceStatus, { props: { design: assetDesign({ calibration: CALIBRATION }), removeBackground } });
 		expect(wrapper.findAll('.rp-designer-unscaled')).toHaveLength(0);
 		expect(wrapper.text()).not.toContain(t('en', 'designer.reference.pending.hint'));
 	});
@@ -414,6 +422,7 @@ describe('mounted in the real inspector', () => {
 				editDimensions: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 				startFromPreset: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 				logger: recorder,
+				removeBackground,
 				selection: null,
 				lockedGraphics: new Set<string>(),
 				editShape,

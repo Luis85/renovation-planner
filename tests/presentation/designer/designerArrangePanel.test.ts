@@ -358,6 +358,8 @@ describe('mounted by the inspector it actually ships in', () => {
 				editDimensions: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 				startFromPreset: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 				logger: recorder,
+				// Required, and never pressed here: this case is about the arrange block.
+				removeBackground: async (): Promise<void> => {},
 				selection: graphic('detail-2'),
 				// No locks in this case; the prop is required so that saying so is not optional.
 				lockedGraphics: new Set<string>(),

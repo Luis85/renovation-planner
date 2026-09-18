@@ -93,6 +93,8 @@ function mountInspector(
 			editDimensions,
 			startFromPreset,
 			logger: recorder,
+			// Required, and never pressed by these cases: `designerReferenceView.test.ts` drives the gesture.
+			removeBackground: async (): Promise<void> => {},
 			selection,
 			// Never called by these cases: `designerSelectionInspector.test.ts` owns what a selection commits.
 			editShape: vi.fn<() => Promise<DispatchResult>>().mockResolvedValue(ok('no-write')),

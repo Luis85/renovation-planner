@@ -137,20 +137,15 @@ describe('removing the reference', () => {
 		expect(remove(wrapper).exists()).toBe(false);
 	});
 
-	/**
-	 * **The unwired case, drawn as nothing rather than as a button that throws.** `removeBackground`
-	 * is optional with NO default, so a parent that has not bound it draws no control at all — the
-	 * opposite of the optional-with-a-permissive-default shape that shipped a whole rule nothing
-	 * could fire last wave.
+	/*
+	 * **The unwired case was DELETED at integration, and this note is why rather than a silence.**
+	 * It asserted that a parent binding no `removeBackground` draws no control — true while the prop
+	 * was optional, and uncompilable the moment it became required, which is the same commit that
+	 * bound it in `DesignerInspector.vue`. What that case was really guarding is now guarded by
+	 * `vue-tsc` instead: an unbound parent is a build failure, not a quietly missing button. A type
+	 * error is the stronger of the two instruments, so the case is gone rather than rewritten to
+	 * mount with a cast, which would have tested the cast.
 	 */
-	it('draws no control when nothing is bound to it', () => {
-		const wrapper = mount(DesignerReferenceStatus, {
-			props: { design: assetDesign({ background: { path: 'Specs/oven.png', kind: 'image', page: null } }) },
-		});
-
-		expect(wrapper.find('.rp-designer-reference').exists()).toBe(true);
-		expect(remove(wrapper).exists()).toBe(false);
-	});
 
 	/**
 	 * **THIS CASE IS DELIBERATELY RED IN THIS CARD'S CANDIDATE.**

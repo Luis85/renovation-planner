@@ -16,12 +16,17 @@
  * either: the gesture goes through `SetAssetBackground`'s reversible adapter like every other one
  * here, so Ctrl+Z puts back both the reference and the calibration that went with it.
  *
- * **`removeBackground` is OPTIONAL and has no default**, which is a statement about a wire rather
- * than about the feature. An optional callback with a permissive default is precisely how a rule
- * shipped last wave that no gate could fire (`lockedGraphics`); with no default, an unbound parent
- * draws no button at all and `designerReferenceView.test.ts` says so out loud. It should be made
- * REQUIRED once `DesignerInspector.vue` binds it — a one-word change in a file this card does not
- * own.
+ * **`removeBackground` is REQUIRED**, and that is the whole guarantee: `vue-tsc` refuses a parent
+ * that does not bind it, which is a stronger instrument than any test, and it closes the
+ * optional-with-a-permissive-default shape that shipped `lockedGraphics` as a rule no gate could
+ * fire. It was optional for exactly as long as `DesignerInspector.vue` — a file the card that
+ * built this one did not own — had not yet bound it, and it stopped being optional in the same
+ * commit that bound it, because dropping the marker first is what turns `vue-tsc` red.
+ *
+ * **`canRemove` therefore asks about the SHEET and nothing else.** The `removeBackground !== undefined`
+ * conjunct it used to carry went out with the marker rather than being left standing: with the prop
+ * required that arm can never be taken, and an unreachable guard costs a branch it can never pay
+ * back — against a tree with roughly nine arms of margin above its branch floor.
  *
  * **The pending lines are the guarantee behind AD12's third acceptance criterion.** Replacing a
  * background clears the CALIBRATION and leaves every per-group flag exactly as it was
@@ -42,7 +47,7 @@ import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 
-const props = defineProps<{ design: AssetDesignDto; removeBackground?: () => Promise<void> }>();
+const props = defineProps<{ design: AssetDesignDto; removeBackground: () => Promise<void> }>();
 
 /**
  * The sheet's own name, and its page where it has one. The basename rather than the vault
@@ -82,7 +87,7 @@ const pending = computed((): StringKey[] => {
  * Both halves, and both are load-bearing: there is a reference to take away, and something is
  * actually bound to take it away with. Either missing and no control is drawn.
  */
-const canRemove = computed(() => props.design.background !== null && props.removeBackground !== undefined);
+const canRemove = computed(() => props.design.background !== null);
 
 const relevant = computed(
 	() => props.design.background !== null || props.design.calibration !== null || pending.value.length > 0,
@@ -108,7 +113,7 @@ const relevant = computed(
 			type="button"
 			name="remove-reference"
 			class="rp-designer-selection-button"
-			@click="() => void props.removeBackground?.()"
+			@click="() => void props.removeBackground()"
 		>
 			{{ tr('designer.reference.remove') }}
 		</button>

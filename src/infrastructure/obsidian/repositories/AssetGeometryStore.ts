@@ -91,7 +91,10 @@ const emptyDocument = (assetId: AssetId): AssetGeometryDTO => ({
  * because the runner is keyed by `DiagnosticEntityKind` and adding `asset-geometry` to that
  * closed union widens the diagnostics snapshot — a decision this task does not own. A
  * future-version sidecar is still REFUSED, by `AssetGeometrySchema`, which knows versions 1
- * and 2, and still never loaded; only the category and the sentence are less precise. Pinned by the
+ * through 4 — grepped in this edit rather than remembered, since the sentence said "1 and 2"
+ * for two allocations after it stopped being true: `schemaVersion: z.literal(n)` appears for
+ * 1, 2, 3 and 4 in `dto/assetGeometry.ts`, and its upgrade arm carries 1, 2 and 3 forward to
+ * 4 — and still never loaded; only the category and the sentence are less precise. Pinned by the
  * 'refuses a sidecar written by a newer build' case rather than left as a claim here.
  */
 export class AssetGeometryStore {

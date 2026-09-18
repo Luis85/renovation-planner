@@ -344,8 +344,13 @@ Refused, and the reason is a category difference rather than a judgement about h
   telling a person the blast radius BEFORE they act. A user who does not know eleven plans place
   this object never reaches for undo, because nothing looked wrong.
 - **"They saw the scope in the library on the way in" is not true by construction.** The designer is
-  reached from a plan through `EditorNavigation.asset` (*"Edit shared asset"*, composed in
-  `planEditorDeps.ts`, drawn at two predicated sites), and Obsidian restores a designer leaf from
+  reached from a plan through `EditorNavigation.asset` — composed in `planEditorDeps.ts`, drawn at
+  two predicated sites, and labelled **"Open in designer"** (`editor.asset.open-designer`). The
+  first version of this ruling called it *"Edit shared asset"*, a label `grep` finds nowhere in
+  `src/`: it was carried over from the ICR 2 withdrawal note in `INTEGRATION-QUEUE.md`, which
+  described the door that was PROPOSED rather than the one that shipped. Corrected against the
+  locale module, and left visible here because a ruling quoting a control that does not exist is
+  the failure this package keeps paying for. Obsidian also restores a designer leaf from
   its own workspace layout with no library visit at all. A guarantee held by a route the user need
   not take is not a guarantee.
 

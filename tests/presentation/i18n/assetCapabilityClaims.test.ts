@@ -99,6 +99,8 @@ describe('the asset surfaces promise no frozen or approved handover (C11, revisi
 	it('offers review of a clearance without claiming anybody certified it', () => {
 		expect(en['designer.clearance.review.action']).toBe('Mark clearance as reviewed');
 		expect(CLAIMS.en.test(en['designer.clearance.review.notice'])).toBe(false);
-		expect(CLAIMS.de.test(de['designer.clearance.review.notice'])).toBe(false);
+		// `?? ''` because `de` is a partial map over `StringKey` at the type level — `strings.test.ts`
+		// is what asserts it is total at runtime, and this file does not restate that claim.
+		expect(CLAIMS.de.test(de['designer.clearance.review.notice'] ?? '')).toBe(false);
 	});
 });

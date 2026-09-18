@@ -43,8 +43,15 @@ export interface AssetShape {
 	 * most of them in suites this card does not own; a required field would make every one of
 	 * them a compile error for a flag that reads `false` at all of them. That is `groups`' own
 	 * argument one field up, and it costs the same thing: a reader asks `=== true` rather than
-	 * reading a definite boolean. There are two such readers (`validatePlacement` below and
-	 * `scaleDesign`), which is why no `assetGroups`-style accessor is worth minting for it.
+	 * reading a definite boolean.
+	 *
+	 * **Six reads carry that `=== true`, counted by `grep -rn "clearanceNeedsReview" src/` in this
+	 * edit rather than remembered**: `validatePlacement` and the normalisation below, `scaleDesign`,
+	 * `sameClearance` in `SetAssetClearance`, `shapeToPersistence` in the sidecar mapper, and
+	 * `DesignerClearanceReview.vue`'s predicate. (The first draft of this sentence said "two", which
+	 * is what the grep exists to stop.) Six two-word comparisons is not a case for an
+	 * `assetGroups`-style accessor — that one exists because its callers each carried a FALLBACK ARM
+	 * the validator can never take, and `=== true` has no arm at all.
 	 *
 	 * The SIDECAR still stores it as a definite boolean — `.default(false)` at schema v4, so an
 	 * absent key is an older file and a present malformed one fails the read.

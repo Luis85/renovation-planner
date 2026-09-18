@@ -17,7 +17,8 @@
  * an absent clearance, so `clearanceNeedsReview === true` already implies there is a boundary.
  *
  * **`=== true` rather than a bare read**, because `AssetShape.clearanceNeedsReview` is optional —
- * that field's own docblock measures why, and names this component as one of its two readers.
+ * that field's own docblock measures why, and lists this predicate among the six reads that spell
+ * it that way.
  *
  * **A refusal goes to `notifyIfRefused`, not to a paragraph here.** This action has no input for a
  * user to correct: `markClearanceReviewed` cannot fail pre-write on a shape that is already valid,

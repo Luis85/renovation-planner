@@ -3,20 +3,20 @@
  * AD13's forward door: take the asset this leaf is designing into a plan.
  *
  * **What it does today, stated at the width of the check rather than at the width of its
- * label.** Pressing it opens the Plan Editor on a plan — the one already open when exactly one
- * is, and otherwise the one picked from `PlanSuggestModal` — and stops there, leaving the user
- * in the surface where this plugin's ONE placement path lives (`AssetPlacementTool`, armed by
- * `assetPlacementTask.choose`). It does not arm that tool with this asset.
+ * label.** Pressing it hands this asset's id to `usePlan`, which opens the Plan Editor on a
+ * plan — the one already open when exactly one is, and otherwise the one picked from
+ * `PlanSuggestModal`.
  *
- * **That last sentence is a missing CHANNEL and not a missing gesture**, which is why the
- * control ships rather than waiting. The only route into a Plan Editor leaf that is already open
- * is its `origin` view state — `prepareEditorArrival` writes it, `PlanEditorView.setState` parses
- * it and `useEditorArrival` acts on it — and `ProjectOrigin` names a room, a work item or a cost
- * with no asset arm at all, so an asset id put into it is stripped by `projectOriginFrom` and the
- * bare `{ planId }` that survives makes `useEditorArrival` warn about a record it cannot find.
- * Three files outside AD13's navigation lease own that channel; the task report names the exact
- * change each needs. Until it lands, this button's honest reach is the navigation, and nothing
- * here claims more.
+ * **The channel that carries the asset the rest of the way now EXISTS, and the door bound behind
+ * this prop does not use it yet.** `ProjectOrigin.assetId`, `PlanEditorView`'s parse of it and
+ * `useEditorArrival`'s arm of `assetPlacementTask` all landed together (AD13 hand-off): an origin
+ * of `{ planId, assetId }` set on a Plan Editor leaf arms `AssetPlacementTool` with that asset,
+ * or refuses with the same reason the Add menu's picker would give. What is still outstanding is
+ * the SENDER — `assetDesignerUsePlan` in `src/plugin/renovationProjectOpenSeams.ts` builds no
+ * origin at all, and the two `usePlan` declarations between here and it are still `() => void`,
+ * so the argument this template passes is accepted and dropped. Those three files are outside the
+ * hand-off card's lease and its report names the exact change each needs. Until they land this
+ * button's honest reach is the navigation, and nothing here claims more.
  *
  * **Drawn only where it can work, by a predicate, never by `:disabled`** — a control that is
  * drawn and can only refuse is the live control that does nothing, which this expansion has
@@ -40,8 +40,15 @@ import { tr } from '../../i18n/strings';
 
 const props = defineProps<{
 	design: AssetDesignDto;
-	/** The way into a plan, or `undefined` where no door is bound — see `AssetDesignerContext.usePlan`. */
-	usePlan?: () => void;
+	/**
+	 * The way into a plan, or `undefined` where no door is bound — see `AssetDesignerContext.usePlan`.
+	 *
+	 * It takes the asset id because that is what the door NEEDS to build a `{ planId, assetId }`
+	 * origin, and declaring it here is what makes the remaining wiring a type error rather than a
+	 * silence. A `() => void` binding is assignable to it and simply ignores the argument, which
+	 * is exactly what is bound today.
+	 */
+	usePlan?: (assetId: string) => void;
 }>();
 
 /** `assetShapeAnswer`'s `placeable` arm, asked of the DTO this panel already holds. */
@@ -65,7 +72,7 @@ const placeable = computed(() => props.design.dimensions !== null && !props.desi
 		type="button"
 		class="rp-designer-use-plan"
 		data-rp-action="use-in-plan"
-		@click="usePlan"
+		@click="usePlan(design.assetId)"
 	>
 		{{ tr('designer.inspector.use-in-plan') }}
 	</button>

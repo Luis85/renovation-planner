@@ -384,3 +384,32 @@ the shipped diffs inherited the error — only this table's own base commit did.
 This is the guide's "measure a set with an instrument that can see all of it" rule met from the
 integrator's side: `grep -rln "const SHAPE = editableShape"` answers a question about a SPELLING,
 and it was used as the evidence for a question about a VALUE.
+
+**Every wave-8 lease is RELEASED as of 2026-09-19.** Both cards are merged, each was reviewed by an
+agent that did not write it, each review returned APPROVE conditional, and every condition was
+applied in a fix round by the card's own worker before the merge — W8-A at `dded01474` (three prose
+corrections), W8-B at `265b3505` (five docblock narrowings plus one integrator finding). Integrated
+at `160fab6f5` and `ced90913c`.
+
+Disjointness was verified by intersecting `git diff --name-only` on the FIX-ROUND shas as well as
+the candidates: empty both times. Neither card touched `src/`, `styles/` or `docs/` —
+`git diff --name-only <base>..<sha> -- src styles docs` returns nothing for both.
+
+**Three corrections travelled UPWARD this wave, which is the part worth keeping.** W8-A's worker
+corrected the integrator's `SHAPE` census (four, not five) and then corrected its own reviewer with
+a grep (`selection/marquee.test.ts` drives neither rig; it calls the pure `swept` function).
+W8-B's worker corrected the integrator on `CLAUDE.md` — the `-- --width=460` spelling is correct
+inside its own *given an entry id* paragraph, and that worker's header had lifted it out of
+context — which led to the integrator withdrawing an unmeasured causal claim in `1e6f37b6c`. A wave
+where the corrections only ever flow downward is one where nobody below is reading.
+
+**The one `src/`-adjacent change this wave is the integrator's and is not a worker's**:
+`styles/designer-presets.css`, fixing a defect a USER found in the live vault that no gate here can
+see. It is pinned by `tests/build/buttonBoxNeutralised.test.ts`, watched failing on all three
+declarations.
+
+**One item is carried forward rather than taken**: moving W8-B's declaration case into
+`designerStyles.test.ts`, where it would cost no DOM. Both the reviewer and the worker think it
+belongs there; the worker's own caveat is that doing so leaves the mounted guard as the weaker case
+standing alone and invites the question of whether that file earns its 47 s. That is a cost
+question and a card of its own, not an end-of-wave edit.

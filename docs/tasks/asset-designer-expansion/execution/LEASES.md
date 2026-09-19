@@ -320,3 +320,51 @@ One integrator-owned `src/` edit was taken this wave and is NOT a worker’s: `d
 `designer-select-tool.ts`, which named three interruption mechanisms where `EditorSurface` drives two, and whose
 third clause described the opposite of what happens. It was found by T25’s reviewer and verified independently
 before the edit.
+
+## Wave 8 — issued 2026-09-19 (session seven), base is THIS commit, contract revision `r1`
+
+Every wave-7 lease is RELEASED, as that table's own closing paragraph records. **Two workers, not
+three**, and the reduction is a measurement rather than restraint: the hand-off named four
+remaining items, and items 2 and 3 turn out to be ONE card, because they touch the same two files.
+
+`RESUME.md` item 2 factors `band`, `selecting`, `held`, `SHAPE`, `FROM` and `TO` out of
+`designerCanvasGestureOwnership.test.ts` and `designerMarqueeCanvas.test.ts`; item 3 closes T25's
+two residual gaps, whose subject IS the first of those files. Split across two workers they would
+collide on both files and on `tests/helpers/designerRig.ts`, and the second would want helpers the
+first is still moving. Merged, disjointness holds by construction again — for a different reason
+than wave 7's, and the reason has to be stated because the clause it replaces is gone.
+
+**Wave 7's "exactly ONE new file per card" clause does NOT hold this wave, deliberately.** Card
+W8-A edits three existing files, one of which (`tests/helpers/designerRig.ts`) is a shared helper
+every designer test imports. That is an explicit GRANT out of the integrator-owned pool, written
+into this table in the same edit that makes it. What replaces the clause as the disjointness
+guarantee: W8-B creates exactly one new file and names no file W8-A names, so the two file sets
+are disjoint by inspection and are still verified mechanically with `git diff --name-only` before
+any merge.
+
+**Both cards remain TEST-ONLY, and the coverage argument is unchanged.** Branches sit at 98.07%
+against a 98 floor — 427 uncovered of 22232, about sixteen arms for the whole repository. A test
+adds coverage and can never subtract it. A card that discovers it needs a `src/` edit STOPS and
+reports rather than taking one; `src/` is integrator-owned and a worker's proposed source fix is a
+hypothesis until the integrator has measured it.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| **W8-A** — factor the designer gesture rig's duplicated helpers, and close T25's two residual gaps | `.worktrees/ad07` (reused, carries `node_modules`), branch `ad15-w8-gesture-rig` | EDIT `tests/helpers/designerRig.ts`, `tests/presentation/designer/designerCanvasGestureOwnership.test.ts`, `tests/presentation/designer/designerMarqueeCanvas.test.ts`. No other file, in `tests/` or `src/` | wave 8 base, `r1` | issued | reviewed by an agent that did not write it, conditions applied, disjointness verified |
+| **W8-B** — resolve the designer's container query by hand against the mounted tree | `.worktrees/ad10` (reused, carries `node_modules`), branch `ad15-w8-container-query` | CREATE one new `*.test.ts` under `tests/presentation/designer/`. No other file, in `tests/` or `src/` | wave 8 base, `r1` | issued | reviewed by an agent that did not write it, conditions applied, disjointness verified |
+
+**Integrator-owned and sub-let to nobody this wave**: every file under `src/`, `styles/`,
+`docs/`, `package-lock.json`, and every file under `tests/` not named in the table above.
+
+**W8-B's honest framing is part of its lease.** `designerResponsiveShell.test.ts` already records
+that the blind spot this card closes is EMPTY today — the `@container rp-designer (width < 35rem)`
+block declares no `display`, `visibility` or `content-visibility` at all, which that file states
+and which was re-read against `styles/designer-narrow.css` before this lease was issued. So the
+card is a guard against a FUTURE `display: none`, and its report must say so rather than implying
+it found a defect. A worker that concludes the assertion would be theatre says so and stops; that
+is a finding, not a failure to deliver.
+
+**AD15 and AD16: the live-vault blocker is DISCHARGED this session and the beta is still not
+labelled ready.** The user walked the pass themselves and reported on it; runbook §10's condition
+was "an actual Obsidian session cannot be run", and it now can and has been. Whether the beta
+ships is the user's call and is not taken here.

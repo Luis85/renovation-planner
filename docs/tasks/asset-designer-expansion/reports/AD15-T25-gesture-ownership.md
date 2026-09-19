@@ -2,8 +2,8 @@
 
 Outcome: implemented
 Owner / worktree / branch: T25 worker / `.worktrees/ad07` / `ad15-t25-gestures`
-Base commit / candidate commit: `7edff8c4c` / see commit on `ad15-t25-gestures`
-Accepted contract revision: AD15 validation matrix row T25
+Base commit / candidate commit: `7edff8c4c` / first candidate `11b9cb6f1`, fix-round candidate the second commit on `ad15-t25-gestures`
+Accepted contract revision: AD15 validation matrix row T25, plus the fix round's four review conditions and its one added case
 Allowed scope and shared-file leases: one new file,
 `tests/presentation/designer/designerCanvasGestureOwnership.test.ts`, plus this report as the
 stated exception. No `src/` file and no other `tests/` file was modified in the committed tree.
@@ -21,7 +21,14 @@ Row T25: every designer case reached an interruption by calling `tool.cancel()` 
 `tool.abandonGesture()` directly on the tool object, and the mapping from a real `pointercancel`
 or a `blur` to `abandonGesture` survived only as a label string in a test title. `DesignerCanvas.vue`
 mounts the same `EditorSurface` the plan editor does, so the shared component is covered through the
-plan editor's fixture — but nothing asserted the DESIGNER mounts it with the wiring intact.
+plan editor's fixture.
+
+**The gap is narrower than the row's "the wiring", and the fix round corrected the file's header to
+say so.** `designerMarqueeCanvas.test.ts` already dispatches real `PointerEvent`s at `rig.canvasEl`
+and `designerEscapeRouting.test.ts` a real `keydown` Escape at the same element, both asserting
+designer-side outcomes — so a press and a key already travel through the props `DesignerCanvas`
+hands `EditorSurface`, and a mis-bind there is already red somewhere. What had no designer-side
+dispatch at all is the three INTERRUPTION doors, and that is what this file closes.
 
 The new file fires three real DOM events at the real mounted designer surface (`designerRig`) and
 observes what `DesignerSelectTool.abandonGesture` leaves behind, rather than spying on a call:
@@ -32,15 +39,25 @@ observes what `DesignerSelectTool.abandonGesture` leaves behind, rather than spy
    `onMounted` makes). `blur` does not bubble, so 2 and 3 are independent instruments — confirmed by
    the red-watch, where breaking one left the other green.
 
-Each case asserts both halves: the `.selection-marquee` rectangle is gone from the Konva stage, and
-the selection the press cleared is put back in `assetDesignStore.selected`; plus that the sidecar
-document is byte-identical to the one that went in.
+Each of those three asserts both halves: the `.selection-marquee` rectangle is gone from the Konva
+stage, and the selection the press cleared is put back in `assetDesignStore.selected`; plus that the
+sidecar document is byte-identical to the one that went in.
+
+A fourth case, added in the fix round, asserts what the interruption UNLOCKS rather than what the
+tool tidied away: a wheel is refused while the sweep runs and zooms the camera once the
+`pointercancel` has landed. `ToolManager.cancelInterruptedGesture()` is the only thing that clears
+`#gestureInFlight`, and `EditorSurface.onWheel` returns early on `gestureInFlight()` — so an
+interruption that is never HEARD leaves the camera and the keyboard refused indefinitely with the
+band already gone and nothing on screen to say why. The three cases above all read state the TOOL
+cleared; this one reads a door the MANAGER reopened.
 
 The claim in the file's header about no prior designer case firing these events is written from a
 grep run in the same edit, after the file existed — `grep -rn pointercancel tests/presentation/designer/`
 reached two prose mentions and one test title over a direct `tool.abandonGesture()` call and no
-dispatch; every `blur` under that directory was an `input.trigger('blur')` on an Inspector text
-field. The header states exactly that and no wider claim.
+dispatch. `grep -rn blur` over the same directory printed thirteen hits, of which every DISPATCH —
+five — was an `input.trigger('blur')` on a number field in the Inspector or the dimensions form,
+never the canvas; the other eight were five test titles and three prose comments. The header states
+exactly that and no wider claim.
 
 ## Acceptance coverage
 
@@ -50,7 +67,23 @@ field. The header states exactly that and no wider claim.
 | A container `blur` at the designer surface abandons it | Pass, watched red | `@blur="onBlur"` neutered → `AssertionError: expected Rect{ _id: 87, …(15) } to be undefined`, `Tests 1 failed \| 3 passed` | None |
 | A window `blur` abandons it | Pass, watched red | `onBeforeUnmount(listenOnOwner(element, 'window', 'blur', onBlur));` removed → `AssertionError: expected Rect{ _id: 138, …(15) } to be undefined`, `Tests 1 failed \| 3 passed` | None |
 | The restore half of each case is load-bearing, not decoration | Pass, watched red | `dropMarquee(context, true)` → `false` in `designer-select-tool.ts` → `AssertionError: expected [] to deeply equal [ …(2) ]`, `Tests 3 failed \| 1 passed` | None |
-| A mis-bind in `DesignerCanvas.vue` turns this file red | Pass, watched red | `:active-tool-id="editorRefs.activeToolId"` → `:active-tool-id="activeToolId"` (the hazard that component's own docblock names) → all four cases red with `Error: the designer mounted no canvas; the read must have refused` and `TypeError: Cannot read properties of null (reading 'value')` at `EditorSurface.vue:193` | The red is a MOUNT failure, not an assertion failure — see below |
+| An interruption UNLOCKS the camera, so the event was really heard | Pass, watched red | `@pointercancel` neutered → `AssertionError: expected 0.1 not to be 0.1 // Object.is equality`, `Tests 2 failed \| 2 passed` | None |
+
+**Every red-watch in this table ran against a FOUR-case version of the file, and every count in it
+ends `(4)` — but they are two DIFFERENT four-case versions.** Breaks A–D were taken on the
+predecessor of this fix round: the three interruption cases plus the case since dropped, which is
+why `11b9cb6f1`'s own green run reads `3 passed (3)` and no red here does. Break F was taken on the
+file this round commits: the same three plus the new camera case. So the first four rows are not
+evidence taken against either committed artifact in its exact shape — they are evidence about the
+three interruption assertions, which are byte-identical across all three versions, and that is the
+whole of what they are evidence for. The greens in the Executed checks table were taken on the
+committed files and are labelled with which.
+
+**Break E is withdrawn as evidence about this file.** Mis-binding `:active-tool-id` in
+`DesignerCanvas.vue` makes `cursorClass` throw on `EditorSurface`'s first render, so every designer
+mount test in the tree crashes identically — this file's reds under it are a global mount failure
+and not a property this file holds. The observation is kept below because it is worth knowing that
+the mis-bind is loud rather than silent; it is not a red-watch for these assertions.
 
 ## Verbatim red output, per case
 
@@ -145,8 +178,37 @@ AssertionError: expected [] to deeply equal [ …(2) ]
       Tests  3 failed | 1 passed (4)
 ```
 
+Break F — `@pointercancel="onPointerCancel"` neutered again, against the committed four-case file,
+for the new camera case:
+
+```
+ FAIL  |suite| tests/presentation/designer/designerCanvasGestureOwnership.test.ts > an interrupted designer gesture, interrupted through the DOM > lets the camera go again: the wheel zooms once the gesture has been abandoned
+AssertionError: expected 0.1 not to be 0.1 // Object.is equality
+ ❯ tests/presentation/designer/designerCanvasGestureOwnership.test.ts:176:36
+    174|   await settle();
+    175|
+    176|   expect(editor.viewport.zoom).not.toBe(before);
+       |                                    ^
+    177|   rig.unmount();
+    178|  });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 2 passed (4)
+```
+
+The camera stayed at `DEFAULT_ZOOM` because `#gestureInFlight` was never cleared, which is the
+reviewer's prediction confirmed: `cancelInterruptedGesture()` is the only thing that clears it and
+`onWheel` returns early on `gestureInFlight()`. The case's first half — the wheel refused WHILE the
+sweep runs — passes in the green run, so the second half is evidence about the flag being cleared
+rather than about the guard never existing.
+
 Break E — `:active-tool-id="editorRefs.activeToolId"` → `:active-tool-id="activeToolId"` in
-`src/presentation/designer/DesignerCanvas.vue`:
+`src/presentation/designer/DesignerCanvas.vue`. **Withdrawn as evidence** (see the acceptance
+table): `cursorClass` throws on `EditorSurface`'s first render under this break, so this is a global
+designer-mount failure that roughly every designer mount test in the tree catches identically. It is
+recorded only because it shows the mis-bind is loud rather than silent:
 
 ```
  FAIL  |suite| ... > takes the band away and puts the selection back: the pointer is taken away
@@ -166,27 +228,43 @@ Every break was made in the working tree only and restored with `git checkout --
 
 ## A case that asserted nothing, and was dropped rather than shipped
 
-A fourth case was written — *"is over: the press after a cancellation is an ordinary one"*: fire
+A case was written — *"is over: the press after a cancellation is an ordinary one"*: fire
 down/move/`pointercancel`, then drag a fresh marquee and assert it selects both graphics. Under
 Break A it stayed **GREEN**, because `DesignerSelectTool` drops a stale marquee at the start of the
 next press regardless of whether the cancellation was ever heard. It asserted nothing the three
 surviving cases do not already assert, so it was removed and the file's header records why. Nothing
 in this file therefore covers the gesture that FOLLOWS an interruption on this surface.
 
+**The fix round's new camera case is not that case returning.** The dropped one asked about the next
+PRESS, which a tool tidies up for itself; the new one asks about the wheel and the keyboard, which
+only `cancelInterruptedGesture()` reopens. Break F is the difference: the dropped case could not be
+made to fail and this one fails on exactly the same break.
+
 ## Executed checks
 
 | Command or manual action | Commit / environment | Exit code or observed result | Evidence |
 |---|---|---|---|
-| `npx vitest run tests/presentation/designer/designerCanvasGestureOwnership.test.ts` | candidate, `.worktrees/ad07`, Windows, node from the worktree's `node_modules` | exit 0 — `Test Files 1 passed (1)`, `Tests 3 passed (3)`, `Duration 37.47s` | `D:/tmp-claude/t25-green.log` |
-| Same command under each of Breaks A–E | working tree only, each reverted | reds quoted verbatim above | `t25-red-pointercancel.log`, `t25-red-elementblur.log`, `t25-red-windowblur.log`, `t25-red-restore.log`, `t25-red-activetool.log` |
-| `npx oxlint tests/presentation/designer/designerCanvasGestureOwnership.test.ts` | candidate | exit 0, no findings | shell exit status |
-| `npx eslint tests/presentation/designer/designerCanvasGestureOwnership.test.ts` | candidate | exit 0, no findings | shell exit status |
-| `npx vue-tsc -noEmit` | candidate, whole tree | exit 0, no output | `D:/tmp-claude/t25-tsc.log` |
-| `git status --porcelain` after restoring every break | candidate | one line: `?? tests/presentation/designer/designerCanvasGestureOwnership.test.ts` | shell output |
+| `npx vitest run …/designerCanvasGestureOwnership.test.ts` | **fix round, committed file** | exit 0 — `Test Files 1 passed (1)`, `Tests 4 passed (4)`, `Duration 18.82s` | `D:/tmp-claude/t25b-green.log` |
+| Same command under Break F (`@pointercancel` neutered) | fix round, working tree only, reverted | `Tests 2 failed \| 2 passed (4)` — red quoted verbatim above | `D:/tmp-claude/t25b-red-wheel.log` |
+| Same command under each of Breaks A–D | **predecessor `11b9cb6f1`'s working tree**, each reverted | reds quoted verbatim above, each `… (4)` | `t25-red-pointercancel.log`, `t25-red-elementblur.log`, `t25-red-windowblur.log`, `t25-red-restore.log` |
+| Same command under Break E | predecessor's working tree, reverted | withdrawn as evidence — see the acceptance table | `t25-red-activetool.log` |
+| `npx vitest run …` on the predecessor's three-case file | `11b9cb6f1` | exit 0 — `Test Files 1 passed (1)`, `Tests 3 passed (3)`, `Duration 37.47s` | `D:/tmp-claude/t25-green.log` |
+| `npx oxlint …/designerCanvasGestureOwnership.test.ts` | fix round, committed file | exit 0, no findings | shell exit status |
+| `npx eslint …/designerCanvasGestureOwnership.test.ts` | fix round, committed file | exit 0, no findings | shell exit status |
+| `npx vue-tsc -noEmit` | fix round, whole tree | exit 0, no output | `D:/tmp-claude/t25b-tsc.log` |
+| `npx vue-tsc -noEmit` | `11b9cb6f1`, whole tree | exit 0, no output | `D:/tmp-claude/t25-tsc.log` |
+| `git status --porcelain` after restoring every break | both rounds | only this file and this report | shell output |
 
-An earlier run of the file carried four cases and printed `Test Files 1 passed (1)` /
-`Tests 4 passed (4)`; the committed file is the three-case version, which is the `3 passed` line
-above.
+**Which version of the file each red was taken against, because the table alone would mislead.**
+Breaks A–E ran against a FOUR-case file that was NOT the one `11b9cb6f1` committed: it carried the
+three interruption cases plus the case since dropped, which is why every count in those stanzas ends
+`(4)` while that commit's green run reads `3 passed (3)`. Break F ran against the file this fix round
+commits, which is four cases again — the three plus the new camera case. No red in this report was
+taken against `11b9cb6f1`'s committed three-case artifact; the reds are about the three interruption
+assertions, which are byte-identical across all three versions, and that is the whole of what they
+are evidence for.
+
+Both linters, `vue-tsc` and the green run were all re-run on the committed fix-round file.
 
 ## Verification not performed
 
@@ -213,6 +291,15 @@ above.
   and asserts nothing about which one a host chooses to fire.
 - **`npm run harness` / `npm run harness-shot`** — not run. Nothing here changes what is drawn, and
   a capture asserts nothing.
+- **The KEY half of `gestureInFlight()`** — not driven. The new camera case fires a wheel, which
+  `EditorSurface.onWheel` gates directly; the keyboard's arm is one layer down in
+  `./keyDoors.ts` and nothing here asserts it. One door was enough to prove the flag is cleared, and
+  the case's docblock says it claims no more than that.
+- **The clone family the reviewer named** — `band`, `selecting`, `SHAPE`, `FROM`, `TO` and a
+  docblock are verbatim duplicates of `designerMarqueeCanvas.test.ts`, whose natural home is
+  `tests/helpers/designerRig.ts`. Deliberately NOT factored: that helper is integrator-owned and not
+  sub-let this wave. `npm run analyze` did not run here, so whether the pair crosses the clone
+  detector's floor is unmeasured from this worktree.
 - **A second designer tool** — not driven. All three cases run against `DesignerSelectTool`'s
   marquee, because it is the one interruption with an observable on both the Konva stage and the
   store. The multi-click draw tools' `abandonGesture` is reached through the same
@@ -251,6 +338,12 @@ This is reported rather than acted on, per the lease: no `src/` file is mine thi
 docblock narrowing is a hypothesis until the integrator has measured it against the plan editor's
 own cases, which share that component. If it is taken, the narrowing is to the two doors
 `EditorSurface` demonstrably drives, with the third named as what it is.
+
+**The fix round's reviewer strengthened this and the integrator has taken ownership of the edit.**
+`setPointerCapture` fires at both press doors, so a release outside the leaf retargets to the stage
+and COMMITS the gesture — meaning that third clause describes the opposite of what happens rather
+than merely lacking a door. Recorded here so the finding and its strengthening sit in one place; the
+`src/` edit is the integrator's.
 
 ## Reviewer and integrator acceptance
 

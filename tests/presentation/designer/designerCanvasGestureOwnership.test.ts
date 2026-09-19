@@ -7,17 +7,25 @@
  * `DesignerCanvas.vue` delegates every pointer, wheel and key door to `EditorSurface` — its own
  * docblock's *"`EditorSurface` is shared, not copied"* — so the doors themselves are the plan
  * editor's subject (`tests/presentation/editor/canvasGestureOwnership.test.ts` dispatches the
- * `pointercancel`, `canvasKeyboardGestures.test.ts` the window `blur`). What no case asked until
- * this file is whether the SECOND surface mounts that component with the wiring intact: the props
- * `DesignerCanvas` hands it — `tool-manager` above all — are what carry a real DOM event through to
- * the designer's own tool, and a drop or a mis-bind there leaves both surfaces' own suites green.
+ * `pointercancel`, `canvasKeyboardGestures.test.ts` the window `blur`).
+ *
+ * **What was missing is narrower than "the wiring", and the narrow claim is the true one.** The
+ * first version of this header said a drop or a mis-bind in `DesignerCanvas.vue` left both
+ * surfaces' suites green, and that is false as written: `designerMarqueeCanvas.test.ts` already
+ * dispatches real `PointerEvent`s at `rig.canvasEl` and asserts `assetDesignStore.selected`, and
+ * `designerEscapeRouting.test.ts` already dispatches a real `keydown` Escape at the same element
+ * and asserts the routing — so a press and a key already travel through the props this component
+ * hands `EditorSurface`, and a mis-bind is already red somewhere. What had no designer-side
+ * dispatch at all is the three INTERRUPTION doors.
  *
  * Written from a grep rather than from memory, and narrow to what it printed: before this file,
  * `grep -rn pointercancel tests/presentation/designer/` reached no dispatch at all — two prose
  * mentions and one test TITLE (`designerSelectMarquee.test.ts`'s *"pointercancel, blur or a release
- * outside the leaf"*, over a direct `tool.abandonGesture()` call) — and every `blur` under that
- * directory was an `input.trigger('blur')` on an Inspector text field, never the canvas. The
- * mapping was a label, which is prose and not an assertion.
+ * outside the leaf"*, over a direct `tool.abandonGesture()` call). `grep -rn blur` over the same
+ * directory printed thirteen hits, of which every DISPATCH — five — was an `input.trigger('blur')`
+ * on a number field in the Inspector or the dimensions form, never the canvas; the other eight were
+ * five test titles and three prose comments. The mapping was a label, which is prose and not an
+ * assertion.
  *
  * So the subject here is the CHAIN and not the tool: a real event at the real mounted element,
  * observed through what `DesignerSelectTool.abandonGesture` leaves behind — the band gone from the
@@ -25,10 +33,19 @@
  * watched failing on their own: the band against each door disabled in turn, the restore against
  * `dropMarquee(context, false)`.
  *
- * **A fourth case was written and dropped rather than shipped quietly**: *"the press after a
- * cancellation is an ordinary one"* stayed GREEN with the `pointercancel` door disabled, because
- * the next press drops a stale marquee itself before doing anything else. It asserted nothing this
- * file does not already assert, so there is nothing here about the gesture AFTER the interruption.
+ * **The last case is about what the interruption UNLOCKS rather than what it tidies away**, and it
+ * is the one that asks whether the event was heard at all. `cancelInterruptedGesture()` is what
+ * clears `ToolManager`'s `#gestureInFlight`, and `EditorSurface` returns early on
+ * `gestureInFlight()` at its wheel door and again in `./keyDoors.ts` — so a sweep whose
+ * interruption is never heard leaves the camera and the keyboard refused for the rest of the
+ * session, with the band already gone and nothing on screen to say why. The three cases above all
+ * read state the TOOL cleared; this one reads a door the MANAGER reopened.
+ *
+ * **A case was written and dropped rather than shipped quietly**: *"the press after a cancellation
+ * is an ordinary one"* stayed GREEN with the `pointercancel` door disabled, because the next press
+ * drops a stale marquee itself before doing anything else. It asserted nothing this file does not
+ * already assert, so there is nothing here about the gesture AFTER the interruption. That is a
+ * different question from the one below, which is about the gesture never having ended.
  *
  * **No `pointerup` follows any of the three**, and that is the grammar rather than a shortcut a rig
  * rule would refuse: a cancellation IS the end of that pointer, and a focus loss is exactly the
@@ -41,6 +58,7 @@ import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
 import { t } from '../../../src/presentation/i18n/strings';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { editableShape } from '../../helpers/assetShapes';
 import { designerRig, drag, type DesignerRig } from '../../helpers/designerRig';
 import { settle } from '../../helpers/editor';
@@ -71,6 +89,17 @@ function held(rig: DesignerRig, type: string, world: { x: number; y: number }, b
 	const at = rig.at(world);
 	rig.canvasEl.dispatchEvent(
 		new PointerEvent(type, { button: 0, buttons, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }),
+	);
+}
+
+/**
+ * A zoom at the pane's own coordinates: a nonzero `deltaY` and no `shiftKey`, which is what
+ * `onWheel` routes to the zoom branch rather than to the horizontal pan one.
+ */
+function wheel(rig: DesignerRig): void {
+	const at = rig.at(FROM);
+	rig.canvasEl.dispatchEvent(
+		new WheelEvent('wheel', { deltaX: 0, deltaY: -100, clientX: at.x, clientY: at.y, bubbles: true, cancelable: true }),
 	);
 }
 
@@ -115,6 +144,36 @@ describe('an interrupted designer gesture, interrupted through the DOM', () => {
 		expect(useAssetDesignStore(rig.pinia).selected).toEqual(swept);
 		// A cancelled sweep is no command and no history entry (AD08's "Escape/pointercancel is none").
 		expect(await rig.document()).toEqual(before);
+		rig.unmount();
+	});
+
+	/**
+	 * The camera is refused WHILE the sweep runs and free once it is interrupted, asserted in that
+	 * order — because the second half alone would pass against a surface that never gated the wheel
+	 * at all, which is a different program and not the one this case is about.
+	 *
+	 * A wheel rather than a key, because it is the shorter of the two doors `gestureInFlight()`
+	 * shuts: `onWheel` returns on it directly, where the keyboard's arm is one layer down in
+	 * `./keyDoors.ts`. Either would do; nothing here claims the key door is covered by this.
+	 */
+	it('lets the camera go again: the wheel zooms once the gesture has been abandoned', async () => {
+		const rig = await selecting();
+		const editor = useEditorStore(rig.pinia);
+		const before = editor.viewport.zoom;
+
+		held(rig, 'pointerdown', FROM, 1);
+		held(rig, 'pointermove', SHORT, 1);
+		await settle();
+		wheel(rig);
+		await settle();
+		expect(editor.viewport.zoom).toBe(before);
+
+		held(rig, 'pointercancel', SHORT, 0);
+		await settle();
+		wheel(rig);
+		await settle();
+
+		expect(editor.viewport.zoom).not.toBe(before);
 		rig.unmount();
 	});
 });

@@ -548,11 +548,19 @@ aimed at one surface and at the concept gallery, and neither replaces it either)
   (`npm run harness-shot prototype:ZonePanel` — the qualified id from `entries.ts`, not the
   basename the index displays) it captures that one prototype or component from the index
   instead of the fixed shots, in both colour schemes, with the index's own sidebar
-  dropped so the picture measures the screen. `-- --width=460` captures a narrow pane as
-  well, which is the width an Obsidian sidebar leaf actually has and the one that has already
-  hidden a layout defect the default 1280 could not show. The `--` is load-bearing: npm claims
-  a bare `--width` as its own config, and the command refuses that spelling rather than
-  capturing at the wrong width and exiting 0.
+  dropped so the picture measures the screen. `-- --width=460` captures that ENTRY at a narrow
+  pane as well, which is the width an Obsidian sidebar leaf actually has and the one that has
+  already hidden a layout defect the default 1280 could not show. **There are TWO refusals here
+  and naming only one of them has now misled two sessions in a row.** The `--` is load-bearing:
+  npm claims a bare `--width` as its own config, and the command refuses that spelling rather
+  than capturing at the wrong width and exiting 0. And `--width` needs an ENTRY ID BESIDE IT —
+  `resolveShots` refuses it alone, "because the fixed shots carry their own", which
+  `scripts/harness-shot.mjs` states in its own comment. So `npm run harness-shot -- --width=460`
+  with no entry captures nothing. That bare form was given as an instruction by one session's
+  hand-off, refused when the next session finally ran it (`reports/RESUME.md` records it as the
+  first of four things that turned out FALSE), and then written into a test docblock a session
+  after that. **An instruction nobody has run is a plan, not a procedure** — and a sentence that
+  explains one refusal reads as if it were the only one.
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
 

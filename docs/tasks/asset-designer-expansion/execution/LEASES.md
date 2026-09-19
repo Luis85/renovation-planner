@@ -368,3 +368,19 @@ is a finding, not a failure to deliver.
 labelled ready.** The user walked the pass themselves and reported on it; runbook §10's condition
 was "an actual Obsidian session cannot be run", and it now can and has been. Whether the beta
 ships is the user's call and is not taken here.
+
+**The integrator's own census in the wave 8 base commit message is WRONG, and the correction is
+recorded here because a commit message cannot be edited.** It says `SHAPE`'s spelling "appears in
+five" files. It appears in five, but one of them —
+`tests/presentation/designer/tools/designerSelectSnapping.test.ts` — is
+`editableShape({ details: [...] })`, a DIFFERENT shape under the same name. The clone is
+**four**: the two leased files plus `selection/selectionDrag.test.ts` and `selection/marquee.test.ts`.
+W8-A's worker measured that and corrected it, and W8-A's independent reviewer re-measured it a
+third time and agreed (`git grep "const SHAPE" 07d961321 -- tests/` prints six, of which exactly
+four are a bare `editableShape()`; the sixth is `selection/partMeasure.test.ts`'s
+`shapeWithOpenGraphic()`). None of the prose in either candidate states a number, so nothing in
+the shipped diffs inherited the error — only this table's own base commit did.
+
+This is the guide's "measure a set with an instrument that can see all of it" rule met from the
+integrator's side: `grep -rln "const SHAPE = editableShape"` answers a question about a SPELLING,
+and it was used as the evidence for a question about a VALUE.

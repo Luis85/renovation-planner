@@ -13,32 +13,10 @@
  * this file mounts through `designerRig`.
  */
 import { describe, expect, it } from 'vitest';
-import type Konva from 'konva';
-import { t } from '../../../src/presentation/i18n/strings';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { editableShape } from '../../helpers/assetShapes';
-import { click, designerRig, drag, type DesignerRig } from '../../helpers/designerRig';
+import { band, click, drag, FROM, held, selecting, SHORT, TO, type DesignerRig } from '../../helpers/designerRig';
 import { settle } from '../../helpers/editor';
-
-/** Its clearance reaches x 700 by y 700, so (1000, 1000) is empty canvas and (-1000, -1000) is too. */
-const SHAPE = editableShape();
-const FROM = { x: 1000, y: 1000 };
-const TO = { x: -1000, y: -1000 };
-
-const band = (rig: DesignerRig): Konva.Node | undefined => rig.stage.findOne('.selection-marquee');
-
-/** The designer with the Select tool reached the way a user reaches it: by pressing its toolbar button. */
-async function selecting(shape = SHAPE): Promise<DesignerRig> {
-	const rig = await designerRig({ shape });
-	rig.toolbarButton(t('en', 'designer.toolbar.select')).click();
-	await settle();
-	return rig;
-}
-
-/** One pointer event with `buttons` as a device sets it, for the cases that assert BETWEEN a move and its release. */
-function held(rig: DesignerRig, type: string, at: { x: number; y: number }, buttons: number): void {
-	rig.canvasEl.dispatchEvent(new PointerEvent(type, { button: 0, buttons, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }));
-}
 
 /** A Parts panel row by the key `partRows` gives it. Throws rather than answering an empty wrapper. */
 function row(rig: DesignerRig, key: string): Element {
@@ -80,11 +58,14 @@ describe('a marquee on the mounted designer', () => {
 	 */
 	it('draws the rubber band where the pointer put it', async () => {
 		const rig = await selecting();
+		// The same two world points the gesture below is made of, read through the camera once so the
+		// rectangle can be pinned in pixels. Nothing moves the camera between here and the assertion:
+		// `SHORT` is exactly the corner that reaches no edge, which is what it exists for.
 		const from = rig.at(FROM);
-		const to = rig.at({ x: 900, y: 900 });
+		const to = rig.at(SHORT);
 
-		held(rig, 'pointerdown', from, 1);
-		held(rig, 'pointermove', to, 1);
+		held(rig, 'pointerdown', FROM, 1);
+		held(rig, 'pointermove', SHORT, 1);
 		await settle();
 
 		const drawn = band(rig);
@@ -94,7 +75,7 @@ describe('a marquee on the mounted designer', () => {
 		expect(drawn?.getAttr('width')).toBeCloseTo(Math.abs(to.x - from.x), 6);
 		expect(drawn?.getAttr('height')).toBeCloseTo(Math.abs(to.y - from.y), 6);
 
-		held(rig, 'pointerup', to, 0);
+		held(rig, 'pointerup', SHORT, 0);
 		await settle();
 		expect(band(rig)).toBeUndefined();
 		rig.unmount();
@@ -232,16 +213,15 @@ const selectionOf = (rig: DesignerRig): readonly unknown[] => useAssetDesignStor
 describe('a sweep with a part selected under it', () => {
 	it('composes the whole set, not what the store’s toggle left of it', async () => {
 		const rig = await selecting();
-		const at = (point: { x: number; y: number }): { x: number; y: number } => rig.at(point);
 
-		held(rig, 'pointerdown', at(FROM), 1);
-		held(rig, 'pointermove', at(TO), 1);
+		held(rig, 'pointerdown', FROM, 1);
+		held(rig, 'pointermove', TO, 1);
 		await settle();
 		(row(rig, 'detail:detail-1') as HTMLElement).click();
 		await settle();
 		expect(selectionOf(rig)).toEqual([TANK]);
 
-		held(rig, 'pointerup', at(TO), 0);
+		held(rig, 'pointerup', TO, 0);
 		await settle();
 
 		expect(selectionOf(rig)).toEqual([TANK, BOWL]);

@@ -84,9 +84,15 @@ export class SessionStores {
 	 * A CLEAN registry is still released: there is no refusal to keep, so the removal rule has
 	 * nothing to argue with. What that leaves open, unchanged from before this term existed: a
 	 * guarded write dispatched after `onunload` in a session that had nothing open fails with
-	 * its uncompensated writes unrecorded. Closing that means never releasing, which is wider
-	 * than rule 3 asks for; the trade is costed in
-	 * `.superpowers/sdd/01-improvement-plan/s8-f3-fix-report.md`.
+	 * its uncompensated writes unrecorded. Closing that means never releasing at all, which is
+	 * wider than rule 3 asks for.
+	 *
+	 * **The remedy, if that window turns out to be reachable in a vault** — it needs a
+	 * still-mounted view to dispatch after unload AND that write to half-fail: drop the
+	 * `anyOpen()` guard below and re-aim the cases that assert a clean dispose releases. The
+	 * price is that a disposed session's registry answers for the vault from module scope until
+	 * the next `SessionStores` is constructed — the constructor above installs unconditionally,
+	 * so the window is exactly "after unload, before the next load".
 	 */
 	dispose(): void {
 		if (activeWriteIncidentRegistry() !== this.writeIncidents) return;

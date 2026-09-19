@@ -110,9 +110,11 @@ Note the preset gallery is now board-shaped in itself: the thumbnail card was fi
 
 ### 4. The canvas is the smallest column at ordinary leaf widths
 
-Measured at three widths: **880 px @1280 (69 % of the shell) → 360 px @760 (47 %) → 180 px @580
-(31 %)**. Both rails are fixed — `.rp-designer-parts` 176 px, `.rp-designer-inspector` 224 px at
-every width measured — so the canvas absorbs 100 % of the loss. `designer-narrow.css` stacks the
+Measured at three widths, and **re-measured independently by the integrator, reproducing the audit
+exactly**: `.rp-designer-parts` / canvas / `.rp-designer-inspector` are **176 / 880 / 224 at 1280
+(canvas 68.8 % of the shell) → 176 / 360 / 224 at 760 (47.4 %) → 176 / 180 / 224 at 580 (31.0 %)**.
+Both rails are fixed at every width measured, so the canvas absorbs 100 % of the loss. At 580 the
+body is still `flex-direction: row` — the stack has not engaged. `designer-narrow.css` stacks the
 columns only below **35 rem (560 px)**, which puts the worst case immediately ABOVE its own
 breakpoint, where the canvas is narrower than the inspector alone.
 
@@ -123,9 +125,16 @@ but only for `display`-shaped hiding, which is a different question from proport
 
 ### 5. A wrapping text toolbar, against the Plan Editor's own convention
 
-14–15 text buttons. Measured: 1174 px of buttons in a 1264 px toolbar at 1280 (the View menu
-already wraps); **2 rows at 760 px; 4 rows and 107 px — a tenth of the leaf height — at 580 px**.
-The widest single label, `Draw rounded rectangle`, is 157 px.
+**14** text buttons — re-counted by the integrator against the running harness, not inherited.
+Toolbar height goes **65.9 px at 1280 → 69 px at 760 → 107 px at 580**, and the buttons occupy
+**1 row → 2 rows → 3 rows** over the same span. The widest single label, `Draw rounded rectangle`,
+is **157 px** on its own.
+
+**One figure from the first audit is corrected here rather than carried:** it reported *four* rows
+at 580 px. Three is what a distinct-`top` count over the buttons returns. The 107 px height it
+reported is right, so the conclusion — a tenth of the leaf height spent on a wrapped text toolbar —
+survives the correction, but the row count did not and a number nobody re-ran is how the last four
+of these got into the ledger.
 
 `grep -rn "HostIcon" src/presentation/designer/` returns **0**, against 20+ files under
 `src/presentation/editor/`. C12 asks to *"match the current Plan Editor's interaction
@@ -140,6 +149,11 @@ not iconography as such.
 Measured with a plain footprint selected: `scrollHeight 887` against `clientHeight 625` in a 224 px
 column — **42 % below the fold before any clearance or review block appears**. Placement,
 Reference, Clearance and the clearance-review answer are all below it.
+
+That figure is STATE-DEPENDENT and the sentence has to say so: with nothing selected the integrator
+measured `scrollHeight` and `clientHeight` both at 710 in the same column, so the panel overflows
+only once a part is selected. Anyone re-measuring must select a footprint first or they will
+conclude there is no problem.
 
 Both boards tab this panel; they disagree on the tab set (see above), so the split is a decision
 this package has to take rather than copy.

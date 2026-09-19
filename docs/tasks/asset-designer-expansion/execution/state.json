@@ -247,8 +247,14 @@
 			"base_sha": null,
 			"candidate_sha": null,
 			"integrated_sha": null,
-			"evidence": [],
-			"blocker": "No Obsidian and no pinned Chromium in this environment. Runbook section 10: the beta may not be labelled ready from here."
+			"evidence": [
+				"Wave 7 (2026-09-19, session six) closed the three thinnest rows of reports/AD15-validation-matrix.md, one card each, each reviewed by an agent that did not write it. T25 designerCanvasGestureOwnership.test.ts, T40 designerWriteIsolation.test.ts, T42 designerResponsiveShell.test.ts. Candidates 416314f7f, 90f5b478d, 69775e5e9, each verified against its lease with git diff --name-only and intersected pairwise: empty.",
+				"Matrix re-graded and RE-COUNTED by field extraction rather than by impression: 22 passed, 19 partial, 1 structural, 42 rows. Only T40 moved to passed. T25 and T42 were NARROWED and stay partial; T42 carries an explicit instruction that it may never be graded passed from an environment with no pinned Chromium, because jsdom applies no container query and nothing in the suite sees the compact LAYOUT.",
+				"The 460px question the session-five hand-off raised is MEASURED rather than open: at 460 the designer inspector renders the usage scope above the dimensions and the actions, and on a two-plan asset with no dimensions the last action sits at the fold - but .rp-designer-inspector is overflow-y: auto, so the cost is prominence and not reachability. The deferred locale key was decided against on that measurement; the ruling is in execution/INTEGRATION-QUEUE.md.",
+				"The hand-off instruction \"npm run harness-shot -- --width=460\" is REFUSED by the script - --width applies to a named entry and the fixed table already carries two 460px designer shots. 117 captures were taken, exit 0.",
+				"Browser half of the manual pass, recorded in the two cases that have one. Four of eight browser steps in \"Compose an asset from parts\" pass, including step 9 in full (real Tab and arrow keys: one tab stop, no wrap at either end, End/Home, roving tabindex following focus) - the step that case says nothing in this repository can perform. Every browser step in \"Calibrate a sheet and reserve space\" is STRUCTURALLY out of reach: tests/harness/assetDesigner.ts sets background: null deliberately and says so, ?reference is a plan-editor knob, and grep -rn clearanceNeedsReview tests/harness/ still prints nothing."
+			],
+			"blocker": "Corrected 2026-09-19 (session six): the previous blocker said \"No Obsidian and no pinned Chromium in this environment\" and half of that was false. Obsidian IS installed on this machine (AppData/Local/Obsidian/Obsidian.exe, checked rather than assumed). What is actually blocking is that no agent here can walk a 45-step human case: the live-vault pass was handed to the user, who will run it. The Chromium half stands and is now measured - playwright-core pins revision 1234 and the cache holds 1223, so every capture this session cites went through RP_CHROMIUM_EXECUTABLE against the 1223 build, which the script announces is not the pinned one. Runbook section 10: the beta may not be labelled ready from here, and this session did not label it so."
 		},
 		"AD16": {
 			"status": "blocked",
@@ -256,7 +262,7 @@
 			"candidate_sha": null,
 			"integrated_sha": null,
 			"evidence": [],
-			"blocker": "No Obsidian and no pinned Chromium in this environment. Runbook section 10: the beta may not be labelled ready from here."
+			"blocker": "Corrected 2026-09-19 (session six): the previous blocker said \"No Obsidian and no pinned Chromium in this environment\" and half of that was false. Obsidian IS installed on this machine (AppData/Local/Obsidian/Obsidian.exe, checked rather than assumed). What is actually blocking is that no agent here can walk a 45-step human case: the live-vault pass was handed to the user, who will run it. The Chromium half stands and is now measured - playwright-core pins revision 1234 and the cache holds 1223, so every capture this session cites went through RP_CHROMIUM_EXECUTABLE against the 1223 build, which the script announces is not the pinned one. Runbook section 10: the beta may not be labelled ready from here, and this session did not label it so."
 		},
 		"AD17": {
 			"status": "planned",

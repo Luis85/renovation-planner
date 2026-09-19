@@ -289,9 +289,9 @@ reason the clause is there.
 
 | Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
 |---|---|---|---|---|---|
-| **T25** — the designer's DOM-level gesture cancellation | `.worktrees/ad15-t25`, branch `ad15-t25-gestures` | CREATE `tests/presentation/designer/designerCanvasGestureOwnership.test.ts`. No other file, in `tests/` or `src/` | wave 7 base, `r1` | issued | integrated, reviewed by an agent that did not write it, six gates green on the integration SHA |
-| **T40** — quantity and cost isolation under a GRAPHIC write | `.worktrees/ad15-t40`, branch `ad15-t40-isolation` | CREATE `tests/application/commands/asset/designerWriteIsolation.test.ts`. No other file, in `tests/` or `src/` | wave 7 base, `r1` | issued | as above |
-| **T42** — the designer's compact pane, rendered rather than declared | `.worktrees/ad15-t42`, branch `ad15-t42-compact` | CREATE `tests/presentation/designer/designerResponsiveShell.test.ts`. No other file, in `tests/` or `src/` | wave 7 base, `r1` | issued | as above |
+| **T25** — the designer's DOM-level gesture cancellation | `.worktrees/ad07` (reused, carries `node_modules`), branch `ad15-t25-gestures` | CREATE `tests/presentation/designer/designerCanvasGestureOwnership.test.ts`. No other file, in `tests/` or `src/` | wave 7 base, `r1` | **RELEASED** — integrated `416314f7f` | reviewed, conditions applied in a fix round |
+| **T40** — quantity and cost isolation under a GRAPHIC write | `.worktrees/ad08r` (reused), branch `ad15-t40-isolation` | CREATE `tests/application/commands/asset/designerWriteIsolation.test.ts`. No other file, in `tests/` or `src/` | wave 7 base, `r1` | **RELEASED** — integrated `90f5b478d` | reviewed, conditions applied in a fix round |
+| **T42** — the designer's compact pane, rendered rather than declared | `.worktrees/ad10` (reused), branch `ad15-t42-compact` | CREATE `tests/presentation/designer/designerResponsiveShell.test.ts`. No other file, in `tests/` or `src/` | wave 7 base, `r1` | **RELEASED** — integrated `69775e5e9` | reviewed, conditions applied in a fix round |
 
 **Integrator-owned and sub-let to nobody this wave**: every file under `src/`, `styles/`,
 `docs/tasks/asset-designer-expansion/`, `package-lock.json`, and every EXISTING file under
@@ -304,3 +304,19 @@ is absent — `playwright-core` pins revision 1234 and the cache holds 1223. The
 session cites were taken through `RP_CHROMIUM_EXECUTABLE` against that 1223 build, which the
 script itself announces is not the pinned one, so they are approximate and every report that cites
 one says so. The beta may not be labelled ready from here.
+
+**Every wave-7 lease is RELEASED as of 2026-09-19.** All three cards are merged, each was reviewed by an agent
+that did not write it, each review returned APPROVE conditional, and every condition was applied in a fix round by
+the card’s own worker before the merge. Disjointness was verified on the FIX-ROUND shas as well as on the
+candidates, by intersecting `git diff --name-only` pairwise: empty in all three pairs, both times. No worker
+touched `src/` or `styles/`; `git diff --name-only <base>..<sha> -- src styles` is empty for all three.
+
+**The worktree column was corrected after the fact and the correction is the point.** It first named three trees
+that do not exist (`ad15-t25`, `ad15-t40`, `ad15-t42`); the wave actually reused `ad07`, `ad08r` and `ad10`,
+which already carry `node_modules`, with `git switch -c` off the base. A lease table naming a tree nobody worked
+in is the wave-4 failure in a different costume — real, and invisible to anyone reading it.
+
+One integrator-owned `src/` edit was taken this wave and is NOT a worker’s: `dropMarquee`’s docblock in
+`designer-select-tool.ts`, which named three interruption mechanisms where `EditorSurface` drives two, and whose
+third clause described the opposite of what happens. It was found by T25’s reviewer and verified independently
+before the edit.

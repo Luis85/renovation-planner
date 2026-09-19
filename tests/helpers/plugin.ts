@@ -1,7 +1,7 @@
 import type { FileManager, MetadataCache, TAbstractFile, TFile, Vault } from 'obsidian';
 import RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
 import type { Plugin as MockPlugin } from './obsidian-mock';
-import { FakeWorkspace } from './workspace';
+import { FakeLeaf, FakeWorkspace } from './workspace';
 
 /**
  * What the plugin reaches through the host surfaces — a STRUCTURAL contract, not the fake's
@@ -287,4 +287,62 @@ export async function loadedPlugin(
 		/** How many vault listeners are still registered — what a released subscription leaves. */
 		vaultListenerCount: (): number => byReference.size,
 	};
+}
+
+/**
+ * What a test can ask of a view the PLUGIN built, rather than of a class it named.
+ *
+ * `openViewOnLeaf` goes through a `ViewFactory`, whose declared return is `unknown` — every
+ * registered view is a different class and the mock's registry is deliberately type-agnostic
+ * about them. Declaring the four members here is what keeps the alternative out: a second
+ * `as never` at each of the dozen call sites, which is a cast added because the helper's own
+ * shape was thinner than the thing it stands for.
+ *
+ * `setState` is optional because `RenovationProjectView` is opened with no state at all, and
+ * `getState` is here rather than asserted per call site because every `View` Obsidian knows
+ * has one and two rebind cases ask a rebound view which subject it is still showing.
+ */
+export interface OpenedView {
+	onOpen: () => Promise<void>;
+	setState?: (state: unknown, result: unknown) => Promise<void>;
+	getState: () => Record<string, unknown>;
+	deps: Record<string, unknown>;
+}
+
+/**
+ * Obsidian's own part: build the registered view for a leaf, put it ON the leaf, and give the
+ * leaf the view state that makes `getLeavesOfType` answer for it. All three, because a fake
+ * that only built the view leaves `rebindOpenViews` nothing to find — the thin-fake shape this
+ * repository keeps paying for.
+ *
+ * **Here and not in `tests/helpers/workspace.ts`, which is where `FakeLeaf` lives.** That
+ * file's header states it imports nothing from `src/presentation/` and gives a measured reason
+ * (a re-export that reached a `.vue` file turned into a coverage false positive in every
+ * node-environment file that imported it for `FakeWorkspace` alone). Every factory in
+ * `plugin.views` constructs a real view, so a helper that calls one drags exactly that weight
+ * — which this file already carries, importing `RenovationPlannerPlugin` outright. `LoadedPlugin`
+ * above is what names `views` as a visible member, so nothing here casts to reach it.
+ *
+ * **Not `FakeWorkspace.withOpen`, and the difference is the reason this is a second helper
+ * rather than a widening of that one.** `withOpen` sets `leaf.state` directly and never calls
+ * the plugin's registered factory, so a view paired with it is constructed with hand-assembled
+ * dependencies. Going through `plugin.views.get(type)` is what resolves `projectViewDeps(leaf)`
+ * / `planEditorViewDeps()` from the CURRENT root, which is the per-root binding a rebind or an
+ * unload test is about — and teaching `withOpen` to do that would put a plugin and a
+ * `src/presentation/` reach into the file that states it must have neither.
+ */
+export async function openViewOnLeaf(
+	plugin: LoadedPlugin,
+	workspace: FakeWorkspace,
+	type: string,
+	state?: Record<string, unknown>,
+): Promise<{ leaf: FakeLeaf; view: OpenedView }> {
+	const leaf = new FakeLeaf();
+	await leaf.setViewState({ type, state });
+	const view = plugin.views.get(type)?.(leaf) as OpenedView;
+	leaf.view = view;
+	workspace.leaves.push(leaf);
+	if (state !== undefined) await view.setState?.(state, {});
+	await view.onOpen();
+	return { leaf, view };
 }

@@ -27,11 +27,10 @@ import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/P
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
 import { ASSET_LIBRARY_VIEW, AssetLibraryView } from '../../src/presentation/library/AssetLibraryView';
 import { useSaveStateStore } from '../../src/presentation/editor/save-state/save-state-store';
-import { loadedPlugin } from '../helpers/plugin';
-import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
+import { loadedPlugin, openViewOnLeaf } from '../helpers/plugin';
+import { FakeLeaf } from '../helpers/workspace';
 import { resetRecorder } from '../helpers/logger';
 import { settle } from '../helpers/async';
-import type RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
 
 /**
  * A mounted `PlanEditorView`'s Pinia, reached the way `runtime.ts`'s own stores are: Pinia's
@@ -52,40 +51,6 @@ installObsidianDom();
 // whether or not that editor ever gets as far as a canvas — and jsdom implements no
 // `ResizeObserver` at all. The two editor cases below mount one; nothing here reads a width.
 installResizeObserver();
-
-/**
- * Obsidian's own part: build the registered view for a leaf, put it ON the leaf, and give
- * the leaf the view state that makes `getLeavesOfType` answer for it. All three, because a
- * fake that only built the view leaves `rebindOpenViews` nothing to find — the thin-fake
- * shape this repository keeps paying for.
- */
-async function openViewOnLeaf(
-	plugin: RenovationPlannerPlugin,
-	workspace: FakeWorkspace,
-	type: string,
-	state?: Record<string, unknown>,
-) {
-	const leaf = new FakeLeaf();
-	await leaf.setViewState({ type, state });
-	// `views` is the plugin's own registry and not part of its public surface — reached here on
-	// purpose, because a rebind test has to get at the view instance the plugin built.
-	const views = (plugin as unknown as { views: Map<string, (leaf: never) => unknown> }).views;
-	// `getState` is declared here rather than asserted at each call site: every `View` Obsidian
-	// knows has one, the fake is playing Obsidian's part, and two cases below ask a rebound view
-	// which subject it is still showing. It used to be a second `as never` per case — a cast
-	// added because the helper's own shape was thinner than the thing it stands for.
-	const view = views.get(type)?.(leaf as never) as never as {
-		onOpen: () => Promise<void>;
-		setState?: (state: unknown, result: unknown) => Promise<void>;
-		getState: () => Record<string, unknown>;
-		deps: Record<string, unknown>;
-	};
-	leaf.view = view;
-	workspace.leaves.push(leaf);
-	if (state !== undefined) await view.setState?.(state, {});
-	await view.onOpen();
-	return { leaf, view };
-}
 
 /**
  * G10: the outgoing root's cascade subscriptions were never disposed on a swap, and its

@@ -265,3 +265,42 @@ It does not edit it, and it does not work around it by putting the logic somewhe
 No leases are held from the first execution session; one agent held everything and released it.
 
 Use independent disposable test data and harness ports. Release a lease only after its owner has committed/handed off or explicitly suspended changes; do not reassign a dirty shared file implicitly.
+
+## Wave 7 — issued 2026-09-19 (session six), base is THIS commit, contract revision `r1`
+
+Every wave-6 lease is RELEASED: both cards are integrated and all six gates were green on
+`f28a63095`. **Three workers**, on the three thinnest rows of `reports/AD15-validation-matrix.md`.
+None is a new work-package card and none gets a `state.json` key of its own; each closes a
+VALIDATION gap in a package whose code obligations are met, so each sits under AD15's row.
+
+**The base is the commit that carries this table**, for wave 4's recorded reason — a lease that
+lands three minutes after the tree it governs is a lease that is real and invisible.
+
+**Every one of these cards is TEST-ONLY, and that is the lease's load-bearing clause.** Each
+worker creates exactly ONE new file and touches no other. A card that discovers it needs a `src/`
+edit STOPS and reports rather than taking one: `src/` is integrator-owned this wave, and a
+worker's proposed source fix is a hypothesis until the integrator has measured it. Disjointness is
+therefore by construction and is still verified mechanically before any merge.
+
+**Why test-only is also the coverage answer.** Branches sit at 98.05% against a 98 floor — about
+eleven arms for the whole repository. A test adds coverage and can never subtract it, so no card
+in this wave can move a floor in the wrong direction. A `src/` edit could, which is the second
+reason the clause is there.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| **T25** — the designer's DOM-level gesture cancellation | `.worktrees/ad15-t25`, branch `ad15-t25-gestures` | CREATE `tests/presentation/designer/designerCanvasGestureOwnership.test.ts`. No other file, in `tests/` or `src/` | wave 7 base, `r1` | issued | integrated, reviewed by an agent that did not write it, six gates green on the integration SHA |
+| **T40** — quantity and cost isolation under a GRAPHIC write | `.worktrees/ad15-t40`, branch `ad15-t40-isolation` | CREATE `tests/application/commands/asset/designerWriteIsolation.test.ts`. No other file, in `tests/` or `src/` | wave 7 base, `r1` | issued | as above |
+| **T42** — the designer's compact pane, rendered rather than declared | `.worktrees/ad15-t42`, branch `ad15-t42-compact` | CREATE `tests/presentation/designer/designerResponsiveShell.test.ts`. No other file, in `tests/` or `src/` | wave 7 base, `r1` | issued | as above |
+
+**Integrator-owned and sub-let to nobody this wave**: every file under `src/`, `styles/`,
+`docs/tasks/asset-designer-expansion/`, `package-lock.json`, and every EXISTING file under
+`tests/`. A worker that wants one asks; the grant is written into this table in the same edit that
+makes it, or it does not exist.
+
+**AD15 and AD16 remain `blocked` and this wave does not change that.** Runbook §10: Obsidian is
+installed on this machine but no agent here can walk a 45-step human case, and the pinned Chromium
+is absent — `playwright-core` pins revision 1234 and the cache holds 1223. The captures this
+session cites were taken through `RP_CHROMIUM_EXECUTABLE` against that 1223 build, which the
+script itself announces is not the pinned one, so they are approximate and every report that cites
+one says so. The beta may not be labelled ready from here.

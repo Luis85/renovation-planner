@@ -27,15 +27,30 @@ application write path**, and that is a measurement rather than a reading:
   `SetAssetShape.ts`, an import and a construction in `guardedServices.ts`, and two prose mentions
   (`arrangeDetails.ts`, `DesignerArrangePanel.vue`). No second command takes a whole `AssetShape`.
 
-So writing four near-identical cases would have bought one path measured four times. What earns a
-row beside the shared one is a writer that reaches the sidecar DIFFERENTLY, and there are two:
+So writing four near-identical cases would have bought one path measured four times. Two rows sit
+beside the shared one because each reaches the sidecar by a different route. **Both descriptions
+were too wide in the first draft of this report and are narrowed here against the greps that
+contradicted them** (review round 1, conditions 2):
 
 - `SetAssetFootprintCommand` — goes through `updateAssetShape` but supplies its OWN `ShapeChange`
-  and its own `unchanged`, so its candidate and its no-write decision are different code.
+  and its own `unchanged`, so its candidate and its no-write decision are different code. It is
+  **one of five** commands of that description, not one of two. `grep -rn "updateAssetShape(" src/`
+  prints seven lines: the definition in `updateAssetShape.ts`, and call sites in
+  `SetAssetAnchor.ts`, `SetAssetFacing.ts`, `SetAssetShape.ts`, `SetAssetClearance.ts` and
+  `SetAssetFootprint.ts` twice. Excluding `SetAssetShape` (whose change is a constant and whose
+  `unchanged` is `ALWAYS_CHANGED`), the five are the two footprint commands, the clearance, the
+  anchor and the facing. The card names none of the other four as a graphic-write kind, so one row
+  covers the shape of the category.
 - `CalibrateAssetCommand` — does not go through `updateAssetShape` at all; it composes its own
-  `AssetGeometryDocument` and publishes its own `AssetDesignChanged`. `updateAssetShape.ts`'s own
-  docblock states that, and it is the one sidecar writer where a new author could have reached the
-  note without the shared function noticing.
+  `AssetGeometryDocument` and publishes its own `AssetDesignChanged`. It is the **first** sidecar
+  writer outside `updateAssetShape`, which is the claim `updateAssetShape.ts`'s own docblock makes,
+  and not the only one. `grep -rn "sidecar\.write" src/` prints seven calls in five modules:
+  `updateAssetShape.ts`, `CalibrateAsset.ts`, `DuplicateAsset.ts`, `SetAssetBackground.ts` (twice)
+  and `ReversibleAssetDesignCommands.ts` (twice). None of the three extra modules performs a
+  geometry, detail, group or repeat write — a duplication, a spec-sheet swap and two undo restores
+  — so the card loses no coverage; the sentence simply may not read as if they did not exist.
+
+Neither grep counts this report: both are scoped to `src/`.
 
 The file is therefore five `it.each` rows over one shared body: a geometry write
 (`SetAssetFootprint`), a detail write (`addDetail`), a group write (`groupDetails`), a repeat write
@@ -45,15 +60,29 @@ The file is therefore five `it.each` rows over one shared body: a geometry write
 
 - The asset is the one `assignedRequirementFixture()` builds — 45.00 EUR/m², waste 0.10, unit
   `m2` — assigned to a 10 m² zone, so every figure claimed untouched is a figure that is actually
-  there. Nothing compares an absent value against an absent value.
+  there.
+- **Every catalogue and requirement read goes through `expectFound`, not `expectOk`** (review round
+  1, condition 4). `getById` answers `Result<Loaded<T> | null, …>`, so `expectOk` leaves the null arm
+  live and every assertion below it reads through `?.` — and if BOTH sides were absent, six
+  assertions would compare `undefined` to `undefined` and pass. That is not hypothetical here: the
+  flagged spelling reports `Tests 5 passed (5)` against a fixture whose catalogue reads find
+  nothing, measured below. `expectFound` fails at the read instead, with the question it was asking.
 - `registerOnAssetUpdated` is wired to the fixture's own dispatching bus, so a build that announced
-  `AssetUpdated` from a graphic write really would drive the recalculation cascade.
+  `AssetUpdated` from a graphic write really would drive `onAssetUpdated`. **What that does NOT
+  reach is the figures**, and the file's docblock now says so: `assetMatchesCalculatedFrom` compares
+  `unitCost` and `unit` only, so a graphic write leaves `changed` empty and the cascade is handed
+  `[]`. `after.version.revision` is the load-bearing requirement assertion; `quantity` and
+  `estimatedCost` are a narrower net, because a recalculation from unchanged inputs produces
+  identical figures.
 - Each row carries a `landed(document)` probe that re-reads the stored sidecar document and names
-  the thing the edit was about (the footprint's points moved; `['bowl','tank','shelf']`; the group's
-  members; four details after a two-copy repeat; `knownDistance` 200). **If the write silently
-  no-opped, `landed` fails** — watched red under mutation 1, where the shared write path was changed
-  to store the document it read instead of the one it built, and all five rows reddened on `landed`
-  while `execute` still answered `'wrote'`.
+  the thing the edit was about (the footprint's stored points equal the widened outline;
+  `['bowl','tank','shelf']`; the group's members; four details after a two-copy repeat;
+  `knownDistance` 200). **Every one of the five is POSITIVE** (review round 1, condition 3): the
+  footprint probe was `not.toEqual(SEED.footprint.points)`, which also passes when `document.shape`
+  is `null` and the expression is `undefined` — so the one row able to certify a vanished design was
+  the one row asserting a negative. **If the write silently no-opped, `landed` fails** — watched red
+  under mutation 1, where the shared write path was changed to store the document it read instead of
+  the one it built, and all five rows reddened on `landed` while `execute` still answered `'wrote'`.
 - `events.clear()` immediately before the write means the published-event assertion is over exactly
   the events this write raised: `['AssetDesignChanged']` and nothing else.
 
@@ -65,7 +94,7 @@ The file is therefore five `it.each` rows over one shared body: a geometry write
 | A detail write touches no catalogue or requirement figure | Pass | Row `a detail write (addDetail via SetAssetShape)` | — |
 | A group write touches no catalogue or requirement figure | Pass | Row `a group write (groupDetails via SetAssetShape)` | — |
 | A repeat write touches no catalogue or requirement figure | Pass | Row `a repeat write (repeatDetails via SetAssetShape)` | — |
-| The one sidecar writer outside `updateAssetShape` | Pass | Row `a calibration write (CalibrateAsset, which takes no updateAssetShape)` | — |
+| The first sidecar writer outside `updateAssetShape` | Pass | Row `a calibration write (CalibrateAsset, which takes no updateAssetShape)` | — |
 | Every assertion watched failing | Pass | Nine mutation runs below; no assertion was left unfalsified | — |
 
 ## Executed checks
@@ -73,9 +102,10 @@ The file is therefore five `it.each` rows over one shared body: a geometry write
 | Command or manual action | Commit / environment | Exit code or observed result | Evidence |
 |---|---|---|---|
 | `npx vitest run tests/application/commands/asset/designerWriteIsolation.test.ts` | candidate, clean tree | 0 | `Test Files 1 passed (1)` / `Tests 5 passed (5)`, 1.63s |
-| `npx oxlint <the file>` | candidate | 0, no findings | silent |
-| `npx eslint <the file>` | candidate | 0, no findings | silent |
-| `npx vue-tsc -noEmit` | candidate, whole tree | 0 | no output |
+| the same, after review round 1 | follow-up commit, clean tree | 0 | `Test Files 1 passed (1)` / `Tests 5 passed (5)`, 1.50s |
+| `npx oxlint <the file>` | candidate and follow-up | 0, no findings | silent |
+| `npx eslint <the file>` | candidate and follow-up | 0, no findings | silent |
+| `npx vue-tsc -noEmit` | candidate and follow-up, whole tree | 0 | no output |
 | `git status --porcelain` after every mutation restore | candidate | only `?? tests/application/commands/asset/designerWriteIsolation.test.ts` | no `src/` residue |
 
 ### Mutation runs — every assertion watched red
@@ -242,6 +272,93 @@ guarded save never happened and the run was green — a green that said nothing 
 It was replaced by `.div(2)` (mutation 4). A mutation run that comes back green is a mutation to
 check before it is a test to trust.
 
+## Review round 1 — the four conditions, and the two new reds
+
+Candidate `b787021a3` was approved conditional on four changes. All four are in the follow-up
+commit; nothing in `src/` was touched, and the card's coverage is unchanged (no row added, none
+removed).
+
+1. **The docblock contradicted this report's own Finding 1.** It claimed the registered cascade
+   "really would move the Requirement this file re-reads", which mutation 7 had already measured as
+   false. The docblock now carries the honest version — the `assetMatchesCalculatedFrom` filter, the
+   empty `changed`, the `[]` handed to `runRecalculationCascade`, and the sentence Finding 2 earns
+   about which requirement assertion is load-bearing — in the shape `setAssetHeight.test.ts` already
+   uses for a height. **The caveat belongs in the file a future reader opens, not only in a report
+   nothing re-runs.**
+2. **Two category claims narrowed to what the greps print.** Both greps were re-run after the change
+   and both are scoped to `src/`, so neither counts the sentence making the claim. The full output
+   is quoted in the measurement section above: seven `updateAssetShape(` lines (a category of five,
+   not two) and seven `sidecar.write` calls in five modules (Calibrate is the FIRST such writer, not
+   the only one).
+3. **The footprint probe is positive now.** Verbatim red, and the reason the change matters — the
+   same mutation, the same tree, the two spellings:
+
+   Mutation: the shared write path produces no shape (`{ ...document, shape: null }`).
+
+   *New spelling, `toEqual(WIDER)`:*
+
+   ```
+   AssertionError: expected undefined to deeply equal [ { x: -300, y: -450 }, …(3) ]
+
+   - Expected:
+   [
+     {
+       "x": -300,
+       "y": -450,
+     },
+   …
+    Test Files  1 failed (1)
+         Tests  4 failed | 1 passed (5)
+   ```
+
+   *Flagged spelling, `not.toEqual(SEED.footprint.points)`, same mutation:*
+
+   ```
+    Test Files  1 failed (1)
+         Tests  3 failed | 2 passed (5)
+   ```
+
+   The geometry row is one of the two that PASS under the old spelling, on a tree where the write
+   produced no shape at all. That is the row this file existed to make honest.
+
+4. **`expectFound` at all four reads.** Verbatim red, again with both spellings against one
+   mutation — both catalogue reads pointed at an id that was never created:
+
+   *House spelling, `expectFound`:*
+
+   ```
+   Error: Expected the entity to be found, got null.
+    ❯ expectFound tests/helpers/domain.ts:103:9
+      101|
+      102|  if (value === null) {
+      103|   throw new Error('Expected the entity to be found, got null.');
+         |         ^
+      104|  }
+      105|  return value;
+    ❯ tests/application/commands/asset/designerWriteIsolation.test.ts:198:24
+
+    Test Files  1 failed (1)
+         Tests  5 failed (5)
+   ```
+
+   *Flagged spelling, `expectOk` plus `?.`, same mutation:*
+
+   ```
+    Test Files  1 passed (1)
+         Tests  5 passed (5)
+   ```
+
+   **Five green cases over a fixture whose catalogue reads find nothing** — the comparison of two
+   blanks, reproduced rather than argued. An intermediate attempt is worth recording because it did
+   NOT reproduce it: deleting the asset after `assetBefore` had been read left one side real and the
+   other absent, so the assertions failed rather than passing. Both sides have to be blank for the
+   hazard to appear, which is exactly why it is hard to notice.
+
+One correction to the earlier evidence in this report: mutation 1's quoted geometry-row failure
+(`expected [ … ] to not deeply equal [ … ]`) is the output of the SUPERSEDED negative probe. The
+same mutation against the positive probe is quoted under condition 3 above. The other four rows'
+mutation-1 output is unaffected.
+
 ## Verification not performed
 
 - **`npm run check`, `npm run test:coverage`, `npm run analyze`, `npm run lint`, and any bare
@@ -252,9 +369,12 @@ check before it is a test to trust.
   only instrument and it is the integrator's.
 - **The browser harness, `npm run harness-shot`, `npm run test-build`, and every manual case.**
   This is an application-layer node test that draws nothing; no surface changed.
-- **Any `src/` behaviour change.** None was made, so there is nothing to verify. The nine mutations
-  above existed only inside a run and were restored with `git checkout -- src/`; `git status
-  --porcelain` after the final restore shows only the new test file.
+- **Any `src/` behaviour change.** None was made in either round, so there is nothing to verify. The
+  mutations existed only inside a run and were restored — the `src/` ones with
+  `git checkout -- src/`, the two test-file ones from a copy taken before mutating and verified
+  byte-identical with `diff` afterwards, because `git checkout --` would have discarded the
+  round-1 fixes along with them. `git status --porcelain` after the final restore shows only the
+  test file's own modification.
 - **A re-run under load / a serial re-run.** Not needed — the file ran in 1.6–2.5s every time, and
   no failure observed in this task was a timeout. No timeout budget was raised anywhere.
 - **The real `ObsidianAssetGeometrySidecar` over a fake vault.** The file drives

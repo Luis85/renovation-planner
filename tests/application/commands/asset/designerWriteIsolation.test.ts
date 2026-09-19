@@ -13,21 +13,44 @@
  * `guardedServices.ts` builds over `SetAssetShapeCommand` — `grep -rn "SetAssetShapeCommand" src/`
  * prints five lines: the class declaration, an import and a construction in `guardedServices.ts`,
  * and two prose mentions, so no second command takes a whole `AssetShape`. Detail, group and
- * repeat are three inputs
- * to one command, and the rows that earn their place beside them are the two writers that reach
- * the sidecar DIFFERENTLY: `SetAssetFootprintCommand`, which hands `updateAssetShape` its own
- * `ShapeChange` and its own `unchanged`, and `CalibrateAssetCommand`, which composes its own
- * document and takes `updateAssetShape` not at all.
+ * repeat are three inputs to one command, and the two rows beside them are the writers that reach
+ * the sidecar by a DIFFERENT route.
+ *
+ * Read both of those rows narrowly, because the obvious wider sentence is false either way.
+ * `SetAssetFootprintCommand` is one of FIVE commands that hand `updateAssetShape` their own
+ * `ShapeChange` and their own `unchanged` — `grep -rn "updateAssetShape(" src/` prints seven
+ * lines, the definition plus six call sites, and the five are the two footprint commands, the
+ * clearance, the anchor and the facing (the sixth is `SetAssetShape` itself). And
+ * `CalibrateAssetCommand` is not the only sidecar writer outside `updateAssetShape`, it is the
+ * FIRST — the claim `updateAssetShape.ts`'s own docblock makes. `grep -rn "sidecar\.write" src/`
+ * prints seven calls in five modules: this pair, plus `DuplicateAsset.ts`,
+ * `SetAssetBackground.ts` (twice) and `ReversibleAssetDesignCommands.ts` (twice). None of those
+ * three is a geometry, detail, group or repeat write, which is why the card loses nothing by
+ * their absence here — but the sentence may not read as if they did not exist.
  *
  * **Each row asserts the write LANDED in the same case that asserts nothing else moved.** A
  * figure that did not change is what a refused write, a `no-write` and a fixture with nothing in
  * it all look like, so `landed` reads the stored document back and names the thing the edit was
- * about. Without it the strongest claim here would be that nothing happened at all.
+ * about, POSITIVELY — a `not.toEqual` over `document.shape?.…` also passes when the shape is gone
+ * and the expression is `undefined`, which is the one way this file could certify a vanished
+ * design. Without `landed` the strongest claim here would be that nothing happened at all.
  *
- * The recalculation cascade is REGISTERED on the fixture's own bus, so a build that announced
- * `AssetUpdated` from a graphic write really would drive it and really would move the Requirement
- * this file re-reads. The published-event assertion is the near half of the same question and the
- * requirement revision is the far half.
+ * **The recalculation cascade is REGISTERED on the fixture's own bus, and what that buys is
+ * narrower than it looks.** A build announcing `AssetUpdated` from a graphic write would drive
+ * `onAssetUpdated` for real, and that is what the published-event whitelist catches. It would NOT
+ * move the figures this file re-reads: `onAssetUpdated` filters through
+ * `assetMatchesCalculatedFrom`, which compares `unitCost` and `unit` only, so a graphic write
+ * moves neither, `changed` comes out empty and `runRecalculationCascade` is handed `[]`. Measured
+ * as a mutation, not reasoned: publishing `assetUpdated` from both write paths reddened the event
+ * whitelist and left all three requirement assertions green.
+ *
+ * Two consequences worth stating rather than leaving to be rediscovered. `after.version.revision`
+ * is the load-bearing requirement assertion — a cascade that RAN writes a revision even when it
+ * recalculates to the same numbers. `quantity` and `estimatedCost` are a narrower net than they
+ * read as, because a recalculation from unchanged inputs produces identical figures; they catch
+ * the day an input changes, not the day the cascade merely fires. So this file is weak evidence
+ * today and strong evidence the day somebody makes a graphic fact an input to a figure — the
+ * same shape `setAssetHeight.test.ts` states about a height.
  */
 import { describe, expect, it } from 'vitest';
 import { CalibrateAssetCommand } from '../../../../src/application/commands/asset/CalibrateAsset';
@@ -43,7 +66,7 @@ import { shapeFromDimensions, type AssetShape } from '../../../../src/domain/ass
 import { addDetail } from '../../../../src/domain/asset/detailEdits';
 import { groupDetails } from '../../../../src/domain/asset/groupEdits';
 import { InMemoryAssetGeometrySidecar } from '../../../helpers/asset-geometry-sidecar';
-import { expectOk } from '../../../helpers/domain';
+import { expectFound, expectOk } from '../../../helpers/domain';
 import { recorder } from '../../../helpers/logger';
 import { assignedRequirementFixture, noopCascadeNotify } from '../../../helpers/slice10';
 
@@ -124,7 +147,7 @@ const WRITES: readonly GraphicWrite[] = [
 		name: 'a geometry write (SetAssetFootprint)',
 		write: (h) => h.setFootprint.execute({ assetId: h.assetId, points: WIDER, measured: true }),
 		landed: (document) => {
-			expect(document.shape?.footprint.points).not.toEqual(SEED.footprint.points);
+			expect(document.shape?.footprint.points).toEqual(WIDER);
 		},
 	},
 	{
@@ -172,24 +195,24 @@ describe('a graphic write is read by nothing that calculates', () => {
 		'$name changes no unit cost, no waste factor, no unit and no requirement figure',
 		async (row) => {
 			const h = await seeded();
-			const assetBefore = expectOk(await h.fixture.assets.getById(h.assetId));
-			const before = expectOk(await h.fixture.requirements.getById(h.fixture.requirementId));
+			const assetBefore = expectFound(await h.fixture.assets.getById(h.assetId));
+			const before = expectFound(await h.fixture.requirements.getById(h.fixture.requirementId));
 			// From here on, every event on this bus is one this write published.
 			h.fixture.events.clear();
 
 			expect(expectOk(await row.write(h))).toBe('wrote');
 
 			row.landed(await h.document());
-			const assetAfter = expectOk(await h.fixture.assets.getById(h.assetId));
-			expect(assetAfter?.entity.unitCost).toEqual(assetBefore?.entity.unitCost);
-			expect(assetAfter?.entity.wasteFactorDefault.toString()).toBe(assetBefore?.entity.wasteFactorDefault.toString());
-			expect(assetAfter?.entity.unit).toBe(assetBefore?.entity.unit);
-			expect(assetAfter?.version.revision).toBe(assetBefore?.version.revision);
+			const assetAfter = expectFound(await h.fixture.assets.getById(h.assetId));
+			expect(assetAfter.entity.unitCost).toEqual(assetBefore.entity.unitCost);
+			expect(assetAfter.entity.wasteFactorDefault.toString()).toBe(assetBefore.entity.wasteFactorDefault.toString());
+			expect(assetAfter.entity.unit).toBe(assetBefore.entity.unit);
+			expect(assetAfter.version.revision).toBe(assetBefore.version.revision);
 
-			const after = expectOk(await h.fixture.requirements.getById(h.fixture.requirementId));
-			expect(after?.entity.quantity.calculated.value.toString()).toBe(before?.entity.quantity.calculated.value.toString());
-			expect(after?.entity.estimatedCost.calculated.amount).toBe(before?.entity.estimatedCost.calculated.amount);
-			expect(after?.version.revision).toBe(before?.version.revision);
+			const after = expectFound(await h.fixture.requirements.getById(h.fixture.requirementId));
+			expect(after.entity.quantity.calculated.value.toString()).toBe(before.entity.quantity.calculated.value.toString());
+			expect(after.entity.estimatedCost.calculated.amount).toBe(before.entity.estimatedCost.calculated.amount);
+			expect(after.version.revision).toBe(before.version.revision);
 			expect(h.fixture.events.published.map((event) => event.type)).toEqual(['AssetDesignChanged']);
 		},
 	);

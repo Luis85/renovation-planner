@@ -561,11 +561,27 @@ export class DesignerSelectTool implements EditorTool {
 	}
 
 	/**
-	 * Forget a sweep and take its rectangle off the canvas. Every interruption C05 names reaches
-	 * this — Escape and a tool switch (`cancel`), a `pointercancel`, a focus loss and a release
-	 * outside the leaf (`abandonGesture`, which `EditorSurface` drives for all three), and view
-	 * teardown (`deactivate`) — and so does the start of the next press, so a sweep whose release
-	 * never arrived leaves nothing drawn over the one that follows.
+	 * Forget a sweep and take its rectangle off the canvas. Escape and a tool switch reach it
+	 * through `cancel`; a `pointercancel` and a focus loss reach it through `abandonGesture`; and
+	 * view teardown reaches it through `deactivate`. So does the start of the next press, so a
+	 * sweep whose release never arrived leaves nothing drawn over the one that follows.
+	 *
+	 * **A release outside the leaf is deliberately NOT in that list, and this paragraph exists
+	 * because the sentence above it named one.** That sentence said `EditorSurface` drove
+	 * `abandonGesture` for three inputs where it drives two: `toolManager.cancelInterruptedGesture()`
+	 * has exactly two call sites there, in `onPointerCancel` and in `releaseInterruptedInputs`, and
+	 * `onPointerLeave` abandons only `panOverride` and the camera drag without ever reaching the
+	 * tool manager. Both counts are greps over `EditorSurface.vue`, not memory.
+	 *
+	 * What happens instead is the OPPOSITE of an interruption: `onPointerDown` calls
+	 * `setPointerCapture` on both of its arms, so a release outside the leaf is delivered back to
+	 * the captured container and the gesture COMMITS. A reader who trusted the old sentence would
+	 * have gone hunting for a door that cannot exist while capture is held.
+	 *
+	 * It was wrong from the commit that wrote it — AD08's marquee, 2026-09-17 — and found two days
+	 * later by the independent reviewer of the card that finally dispatched a real `pointercancel`
+	 * at this surface. Nothing between could see it: the claim is about another module's call
+	 * graph, which no test of this one reads.
 	 *
 	 * None of them writes anything: a cancelled sweep is no command and no history entry, which is
 	 * AD08's *"Escape/pointercancel is none"*.

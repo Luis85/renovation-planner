@@ -22,22 +22,36 @@
  * instrument in this repository that measures a rendered layout at all. Read a green run here
  * as "the compact layout removes nothing", never as "the compact layout looks right".
  *
- * **Why the widths are nevertheless a real axis rather than decoration.** No module under
- * `src/presentation/designer/` reads a width at all — `grep -rn
- * "ResizeObserver\|clientWidth\|matchMedia\|innerWidth\|getBoundingClientRect"
- * src/presentation/designer/` prints nothing, re-run when this sentence is next doubted. The
- * one width anything in the designer's tree measures belongs to `EditorSurface` — shared with
- * the plan editor, under `src/presentation/editor/surface/` — which observes its OWN container
- * to size the Konva stage and decides no region and no control from it. So the designer's
- * compact layout is CSS only, and the guarantee worth pinning is INVARIANCE: the primary
- * actions and the error survive every width because no width-driven branch exists to drop
- * them. That is a falsifiable claim, not a tautology. The two channels a
- * branch would read a width through are both supplied here — `clientWidthFor` gives the shell
- * root a width BEFORE `onMounted`, and `resizeTo` gives it one and tells every observer
+ * **Why the widths are nevertheless a real axis rather than decoration.** No module the
+ * designer MOUNTS decides anything from a width. The instrument for that is an import-graph
+ * walk from `AssetDesignerView.ts` (`tests/helpers/importGraph.ts`, which throws on a relative
+ * specifier it cannot resolve rather than dropping it), not a grep: a grep scoped to
+ * `src/presentation/designer/` prints nothing, and it is scoped narrower than the claim, so a
+ * reader who widens it tree-wide will get hits and think this sentence broken. Walked, the
+ * reached set names exactly two: `EditorSurface.vue`'s `ResizeObserver`, which measures its OWN
+ * container to size the Konva stage and decides no region and no control from it, and
+ * `followPixelRatio.ts`'s `matchMedia('(resolution: Ndppx)')`, which is a device-pixel-ratio
+ * query and not a width at all.
+ *
+ * So the designer's compact layout is CSS only, and the guarantee worth pinning is INVARIANCE:
+ * the primary actions and the error survive every width because no width-driven branch exists
+ * to drop them. **Today that means the three widths produce an identical tree, and the case
+ * below would pass against a component that ignored width entirely** — which is the honest way
+ * to read a green run, and is not the same as the case being unable to fail. The two channels
+ * such a branch would read a width through are both supplied here — `clientWidthFor` gives the
+ * shell root a width BEFORE `onMounted`, and `resizeTo` gives it one and tells every observer
  * watching it afterwards — which is `tests/presentation/editor/shell/responsiveShell.test.ts`'s
- * arrangement for the plan editor, the surface that really does read one. A width taken from
- * `window.innerWidth`, from `matchMedia` or from `getBoundingClientRect` would be invisible to
- * both, and so would a control hidden by a `display: none` under the container query.
+ * arrangement for the plan editor, the surface that really does read one. Both were watched
+ * red against a temporary width branch on the root before this file was believed.
+ *
+ * A width taken from `window.innerWidth`, from `matchMedia` or from `getBoundingClientRect`
+ * would be invisible to both, and so would a control hidden by a `display: none` under the
+ * container query. **That second blind spot is EMPTY today, and saying so is what makes the
+ * invariance claim hold in a real browser as well as in jsdom**: the whole of
+ * `designer-narrow.css`'s narrow block declares `flex-direction`, `flex`, `width`,
+ * `border-top`, `border-right`, `border-bottom` and `border-left`, and the file contains no
+ * `display`, `visibility` or `content-visibility` at all. It stays named because it is a blind
+ * spot about the FUTURE — the day a rule hides something there, nothing in this file notices.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { err } from '../../../src/core/result/Result';
@@ -51,10 +65,15 @@ import { settle } from '../../helpers/settle';
 
 /**
  * 520 is below the 35rem threshold `designer-narrow.css` keys its container query on — 560 px
- * at Obsidian's 16 px root — and is about the width of the sidebar leaf that critique finding 6
- * was written about. 900 and 1400 are above it, one a split pane and one a full tab. Three
- * widths rather than two because the row asks for three, and because a branch keyed on a band
- * rather than a threshold would be right at two of them.
+ * at Obsidian's 16 px root. It is NOT the sidebar leaf's width: that is **460**, which
+ * `designer-narrow.css`'s own header names and which `npm run harness-shot -- --width=460`
+ * captures, and it is the width this repository records as having already hidden a layout
+ * defect the default 1280 could not show. 520 is the AD15 matrix row's number, nothing more.
+ * Not testing at 460 as well costs nothing here and the reason is worth stating rather than
+ * assuming: both sit below the same threshold, and jsdom applies no container query, so the
+ * two are the same tree in this environment. 900 and 1400 are above it, one a split pane and
+ * one a full tab. Three widths rather than two because the row asks for three, and because a
+ * branch keyed on a band rather than a threshold would be right at two of them.
  */
 const WIDTHS = [520, 900, 1400] as const;
 
@@ -138,15 +157,27 @@ function reachableButtons(rig: DesignerRig): string[] {
 describe('the asset designer rendered at a leaf’s width', () => {
 	/**
 	 * The designer's front door: a shapeless asset draws `DesignerEntryPaths` into the empty
-	 * state's `#actions` slot, and those buttons are the only way into a design at all. Every
-	 * one of them is asserted rather than the first, because a compact layout that kept one
-	 * entry path and dropped two would satisfy any single-control check.
+	 * state's `#actions` slot. They are the way into a design FROM THE EMPTY STATE, not the only
+	 * way into one at all — `DesignerInspector.vue` renders the same `designer.inspector.start-preset`
+	 * door on `.rp-designer-start-preset`, which is what `grep -rn "start-preset"
+	 * src/presentation/designer/` prints beside this one; a first draft of this docblock said
+	 * "only" and was wrong.
+	 *
+	 * **The LABELS are pinned, not the mere presence of something.** A first version asserted
+	 * `actions.length > 0` under a sentence claiming it asserted every path, which deleting
+	 * either control left green — exactly the hole the sentence named. This rig gives no picker
+	 * and no background, so the state is `noBackground` and the overlay's own `actionLabel` is
+	 * withheld (`AssetDesignerRoot`'s `overlay`, slice 14's Amendment 1); the two controls left
+	 * are both `DesignerEntryPaths`', in DOM order.
 	 */
 	it.each(WIDTHS)('keeps every entry path on the no-shape state reachable at %ipx', async (width) => {
 		const rig = await designerAt(width, { shape: null });
 
 		const actions = [...rootOf(rig).querySelectorAll<HTMLElement>('.rp-empty-state__action')];
-		expect(actions.length).toBeGreaterThan(0);
+		expect(actions.map((action) => (action.textContent ?? '').trim())).toEqual([
+			t('en', 'empty.asset.no-shape.action'),
+			t('en', 'designer.inspector.start-preset'),
+		]);
 		for (const action of actions) expect(reachable(action)).toEqual(REACHABLE);
 	});
 
@@ -154,7 +185,10 @@ describe('the asset designer rendered at a leaf’s width', () => {
 	 * An error and the action that answers it, at each width. The failure panel lives INSIDE
 	 * `.rp-designer-canvas`, which is the region the narrow layout re-shares as a fixed flex
 	 * share — so "the read refused and the user can still retry" is exactly the claim a compact
-	 * layout could break, and exactly the one nothing rendered until this file.
+	 * layout could break, and exactly the one nothing rendered AT A WIDTH until this file. The
+	 * RENDERING of it is not new: `assetDesignerRoot.test.ts` already mounts this failure, finds
+	 * the same action, clicks it and asserts the re-read. The width is what is new here, and the
+	 * first draft of this sentence claimed more than that.
 	 */
 	it.each(WIDTHS)('keeps a refused read’s failure and its retry reachable at %ipx', async (width) => {
 		const rig = await designerAt(width);
@@ -196,7 +230,10 @@ describe('the asset designer rendered at a leaf’s width', () => {
 	/**
 	 * The case with the teeth, and the reason the three above are a width test rather than the
 	 * same test run three times: ONE mounted tree walked across the threshold in both
-	 * directions, asserting that the set of enabled, named buttons does not change. A branch
+	 * directions, asserting that the set of enabled, named buttons does not change. Against the
+	 * component as it stands the four readings are identical because nothing reads a width at
+	 * all — the header says so outright, and this is a POLICY PIN in the sense
+	 * `responsiveShell.test.ts`'s own R3 case uses the phrase. A branch
 	 * that dropped a control below 35rem fails here by naming the control it dropped, and the
 	 * return to 520 catches the other half — a transition that rebuilt the shell and did not
 	 * restore it.

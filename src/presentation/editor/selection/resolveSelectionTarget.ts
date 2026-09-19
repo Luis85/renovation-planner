@@ -7,11 +7,13 @@ import { rotationControlContains } from '../elements/rotationControl';
 import { hasPointHandles } from '../elements/ElementMove';
 import { arcProjection } from '../../../core/geometry/circularArc';
 import type { LabelHit } from '../labels/labelLayout';
+import type { OpeningGrip, OpeningHandle } from '../structure/openingHandles';
 
 export type SelectionTarget =
 	| { readonly kind: 'handle'; readonly id: string; readonly vertexIndex: number }
 	| { readonly kind: 'rotation'; readonly id: string }
 	| { readonly kind: 'resize'; readonly id: string; readonly handleIndex: number }
+	| { readonly kind: 'opening-handle'; readonly id: string; readonly grip: OpeningGrip }
 	| { readonly kind: 'label'; readonly id: string }
 	| { readonly kind: 'body'; readonly id: string }
 	| null;
@@ -73,6 +75,26 @@ function resizeAt(input: {
 	return handleIndex < 0 ? null : { kind: 'resize', id: handles.id, handleIndex };
 }
 
+/**
+ * A handle of the one selected opening — its width grips, its move grip, its step arrows and its
+ * side chevrons.
+ *
+ * Exported because `SelectTool.targetAt` has to ask the SAME question before it decides whether a
+ * Shift press is a multi-select or a coarse step, and a second predicate spelled beside this one is
+ * a second place for "what would a press here grab" to disagree with itself.
+ */
+export function openingHandleAt(input: {
+	readonly selectedIds: readonly string[];
+	readonly worldPoint: Point;
+	readonly handleToleranceWorld: number;
+	readonly openingHandles?: { readonly id: string; readonly handles: readonly OpeningHandle[] };
+}): SelectionTarget {
+	const set = input.openingHandles;
+	if (!set || input.selectedIds.length !== 1 || input.selectedIds[0] !== set.id) return null;
+	const hit = set.handles.find(handle => distance(handle.point, input.worldPoint) <= input.handleToleranceWorld);
+	return hit ? { kind: 'opening-handle', id: set.id, grip: hit.grip } : null;
+}
+
 function labelAt(input: {
 	readonly candidates: readonly SpatialObjectCandidate[];
 	readonly selectedIds: readonly string[];
@@ -112,8 +134,8 @@ function badgeAt(input: {
 /**
  * The ONE answer to "what would a click here select" (design spec §6.1). Hover asks it to
  * predict, the click asks it to act, so the two cannot disagree. Priority: a single selection's
- * vertex handle, then its transform box handle, or a multi-selection badge, then a selected
- * item's caption, then the topmost containing body, then nothing.
+ * vertex handle, then its opening handle, then its transform box handle, or a multi-selection
+ * badge, then a selected item's caption, then the topmost containing body, then nothing.
  * Bodies rank Object → Opening → Wall → other elements → Hatch → Room/Area. Candidates arrive
  * bottom-first; stable sorting preserves paint order within a kind, scanned top-first.
  * Alt bypasses handles and cycles bodies from the current selection, wrapping.
@@ -126,6 +148,8 @@ export function resolveSelectionTarget(input: {
 	readonly rotationHandle?: { readonly id: string; readonly bounds: BoundingBox };
 	/** The selected element's padded transform box handles, world points in handle order. */
 	readonly resizeHandles?: { readonly id: string; readonly points: readonly Point[] };
+	/** The selected opening's own handles, world points with the grip each one means. */
+	readonly openingHandles?: { readonly id: string; readonly handles: readonly OpeningHandle[] };
 	/** Alt selects the next overlapping body, bypassing handles. */
 	readonly cycle?: boolean;
 	readonly badgeToleranceWorld?: number;
@@ -136,7 +160,7 @@ export function resolveSelectionTarget(input: {
 	if (!input.cycle) {
 		// The facade supplies only a visible, permitted hover handle; pressing it owns selection.
 		if (input.rotationHandle && rotationControlContains(input.rotationHandle.bounds, input.worldPoint)) return { kind: 'rotation', id: input.rotationHandle.id };
-		const decoration = input.selectedIds.length > 1 ? badgeAt(input) : handleAt(input) ?? resizeAt(input);
+		const decoration = input.selectedIds.length > 1 ? badgeAt(input) : handleAt(input) ?? openingHandleAt(input) ?? resizeAt(input);
 		if (decoration !== null) return decoration;
 		const label = labelAt(input);
 		if (label !== null) return label;

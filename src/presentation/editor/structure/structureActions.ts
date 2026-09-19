@@ -27,6 +27,7 @@ import { createWallRotationActions } from './wallRotationActions';
 import { createStructureBulkEdit, type StructureReviewState, type StructureServices } from './structureBulkEdit';
 import { createWallPointAction } from './wallPointAction';
 import { createWallThicknessActions } from './wallThicknessActions';
+import { createOpeningHandleActions } from './openingHandleActions';
 import { createWallFaceHighlight } from './wallFaceHighlight';
 function removalIds(id: string | readonly string[]): readonly string[] { return typeof id === 'string' ? [id] : [...new Set(id)]; }
 function removalSummary(structure: Structure, selected: readonly string[], openings: number, rooms: number): string {
@@ -58,7 +59,7 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 	const blocked = computed(() => removalBlocked.value || session.perspective !== 'plan');
 	const rotation = createWallRotationActions(context, runtime, ledger, { active, preview, blocked });
 	const bulk = createStructureBulkEdit(context, runtime, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
-	const wallPoint = createWallPointAction(context, { active, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
+	const wallPoint = createWallPointAction(context, { active, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite }), openingHandleActions = createOpeningHandleActions(context, { active, preview, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite });
 	const faceHighlight = createWallFaceHighlight();
 	const thickness = createWallThicknessActions(context, { active, preview, blocked, unavailable: geometryUnavailable, prepareBaseline, reviewedWrite }, faceHighlight.show);
 	let alive = true, editGeneration = 0, editing = false;
@@ -152,5 +153,5 @@ export function createStructureActions(context: PlanEditorContext, runtime: Pick
 		const wall = project.structure.walls.find(item => item.id === id);
 		preview.value = alive && wall && end ? editWall(project.structure, { ...wall, end }) : null;
 	}
-	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, thickness, faceHighlight, ...rotation, ...bulk, ...wallPoint };
+	return { edit, moveOpeningToPoint, remove, preview, previewWall, active, thickness, faceHighlight, ...rotation, ...bulk, ...wallPoint, ...openingHandleActions };
 }

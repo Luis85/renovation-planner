@@ -88,7 +88,7 @@ export class RenderState {
 	 * every site, which is stated here because nothing in any gate can enforce it: an id with a
 	 * stale kind beside it renders the wrong cursor over the right target.
 	 */
-	hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | 'resize' | null = null;
+	hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | 'resize' | 'opening-handle' | null = null;
 	previewPolygon: readonly Point[] | null = null;
 	/**
 	 * Whether `previewPolygon` CLOSES. `true` for every writer but one, which is why it is a flag

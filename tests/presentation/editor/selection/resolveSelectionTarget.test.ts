@@ -133,6 +133,30 @@ describe('resolveSelectionTarget', () => {
 		// Without one it is no badge rather than an unbounded one, so the body answers instead.
 		expect(resolveSelectionTarget(input)).toEqual({ kind: 'body', id: 'below' });
 	});
+
+	it('resolves a press on a selected opening handle, by grip', () => {
+		const handles = [{ grip: 'width-start' as const, point: { x: 100, y: 0 } }, { grip: 'side-left' as const, point: { x: 150, y: -120 } }];
+		const input = { candidates: [], selectedIds: ['opening-a'], worldPoint: { x: 103, y: 0 }, handleToleranceWorld: 8,
+			openingHandles: { id: 'opening-a', handles } };
+		expect(resolveSelectionTarget(input)).toEqual({ kind: 'opening-handle', id: 'opening-a', grip: 'width-start' });
+		expect(resolveSelectionTarget({ ...input, worldPoint: { x: 150, y: -118 } })).toEqual({ kind: 'opening-handle', id: 'opening-a', grip: 'side-left' });
+	});
+
+	it('ignores opening handles out of reach, for another id, or with the selection not on that opening', () => {
+		const handles = [{ grip: 'move' as const, point: { x: 100, y: 0 } }];
+		const handleBase = { candidates: [], worldPoint: { x: 100, y: 0 }, handleToleranceWorld: 8 };
+		expect(resolveSelectionTarget({ ...handleBase, selectedIds: ['opening-a'], worldPoint: { x: 120, y: 0 }, openingHandles: { id: 'opening-a', handles } })).toBeNull();
+		expect(resolveSelectionTarget({ ...handleBase, selectedIds: ['wall-a'], openingHandles: { id: 'opening-a', handles } })).toBeNull();
+		expect(resolveSelectionTarget({ ...handleBase, selectedIds: ['opening-a', 'wall-a'], openingHandles: { id: 'opening-a', handles } })).toBeNull();
+		expect(resolveSelectionTarget({ ...handleBase, selectedIds: ['opening-a'] })).toBeNull();
+	});
+
+	it('lets Alt cycle bodies past an opening handle', () => {
+		const handles = [{ grip: 'move' as const, point: { x: 100, y: 0 } }];
+		const target = resolveSelectionTarget({ candidates: [], selectedIds: ['opening-a'], worldPoint: { x: 100, y: 0 },
+			handleToleranceWorld: 8, cycle: true, openingHandles: { id: 'opening-a', handles } });
+		expect(target).toBeNull();   // no candidates to cycle to, and the handle was bypassed
+	});
 });
 
 describe('resolveSelectionTarget caption grabs', () => {

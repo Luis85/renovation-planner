@@ -13,8 +13,14 @@ export interface ArrowKeyPress {
 	readonly shiftKey: boolean;
 }
 
-const NUDGE_STEP_MM = 10;
-const NUDGE_STEP_SHIFT_MM = 100;
+/**
+ * How far one arrow-key press — or one press of a selected opening's step arrow — moves what is
+ * selected, in world millimetres. Exported so the two doors take the SAME distance rather than two
+ * numbers that happen to agree today.
+ */
+export const NUDGE_STEP_MM = 10;
+/** The same step with Shift held, at either door. */
+export const NUDGE_STEP_SHIFT_MM = 100;
 
 /**
  * Arrow-key nudge vectors, in WORLD millimetres (§85's one operation slice 5 left

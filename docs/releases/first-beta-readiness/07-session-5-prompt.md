@@ -110,6 +110,20 @@ closed", and every sentence you write about it must say so.**
   nobody can verify, since `ConstructionMaterialCommand` RETIRES a stamp rather than re-raising it
   and recording at stamp time would turn that into a vault-wide write block. If you want to reverse
   this, it needs an ADR-0034 amendment and an owner, not a subagent's judgement.
+
+  **REFUTED LATER — 2026-09-19, session 9. The bullet above is left as written because it is the
+  record of what was believed at the time; read it as superseded, not as current.** One clause in
+  it is false: `ConstructionMaterialCommand` does not retire the stamp. `putBack` retires the
+  COMMAND and returns `err(error)` with the stamp intact, its other arm raises a fresh
+  `markUncompensated`, and `src/plugin/guardedRenovation.ts` (wired at
+  `src/plugin/planningEditorServices.ts`) wraps both its doors in `guardCommand`, so that stamp
+  already becomes a durable incident today. **Confirmed and NOT refuted: the ruling itself
+  stands.** Recording inside `markUncompensated` still makes a pure stamping function effectful,
+  still widens gating nobody has verified in a vault, and reversing it still needs an ADR-0034
+  amendment and an owner. What fails is only the worked example, and no other example has been
+  costed. The corrected account lives in ADR-0034's 2026-09-19 correction, in
+  `docs/releases/first-beta-readiness/05-owner-decisions.md`, and in row L-06 of
+  `docs/releases/first-beta-readiness/03-execution-tracker.md`.
 - **No fake that pretends to duplicate a leaf.** `duplicateLeaf` has zero hits in the repository and
   `FakeWorkspace` has no split and no layout restore (L-03). The second-pane gesture gets a MANUAL
   case with an unrun Runs table, not a fake.

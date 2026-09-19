@@ -473,6 +473,32 @@ could name, not about whether the vault is safe.
   not comparable: this one is what a LEAF is handed. Nothing about the category changed — the
   three named sites stay live and stay silent, and the hole still cannot get wider rather than
   being closed.
+- **Correction, 2026-09-19 (session 9, tracker limitation L-06): the WORKED EXAMPLE in the
+  deferred-check bullet above is FALSE. The direction of the cost it was offered to demonstrate
+  is not.** `ConstructionMaterialCommand` does not swallow that stamp. Three links, each read at
+  source. First, `putBack` in
+  `src/application/commands/renovation/ConstructionMaterialCommand.ts`: on the
+  `leftWritesBehind(error)` path it sets `this.retired = true` and then `return err(error)` — it
+  retires the COMMAND, not the stamp, and re-raises the stamped error intact; its other arm (a
+  put-back that itself fails) raises a FRESH `markUncompensated`, so neither arm swallows.
+  Second, the wiring: `src/plugin/planningEditorServices.ts` composes
+  `constructionAwareRenovation` through `guardedRenovation`, which wraps BOTH `execute` and
+  `undo` in `guardCommand` (`src/plugin/guardedRenovation.ts`). Third, `withBoundary` in
+  `src/application/errors/guardAgainstThrowing.ts` returns a failed `Result` unchanged
+  (`return result;`), so `guardCommand`'s own `leftWritesBehind(result.error)` test on the way
+  out is reached. **That stamp already becomes a durable incident today**, which is the opposite
+  of what the example asserts. This is not drift: `git blame` puts the `return err(error)` line
+  at `e225634b4` (2026-09-12), before the correction that reasons from it, so it was wrong when
+  it was written.
+  **What SURVIVES, and must not be read as withdrawn:** recording inside `markUncompensated`
+  would still make a pure stamping function effectful against module state, and would still
+  widen the harshest mechanism this plugin has on a branch nothing has ever run in a real
+  Obsidian vault. The DIRECTION of the cost stands — recording at stamp time would newly block
+  the vault for the sites that genuinely reach no recorder, which is precisely what the option
+  is FOR. What fails is the single concrete demonstration of it, and **no other example has been
+  costed**: this correction removes a false reason to hesitate, not the reason to hesitate.
+  Taking the option still needs an ADR-0034 amendment and a release owner, unchanged. The
+  owner-facing version is in `docs/releases/first-beta-readiness/05-owner-decisions.md`.
 
 ## Amendment 1, 2026-09-18 — an UNDO is refused while the vault is paused
 

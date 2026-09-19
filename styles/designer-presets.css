@@ -48,6 +48,48 @@
 	outline-offset: 2px;
 }
 
+/*
+ * THE THUMBNAIL HAS TO FIT IN THE BUTTON, and until this rule existed it did not.
+ *
+ * Found by a user walking the live vault, reported as "the preview images for presets look strange
+ * as they are inside buttons and overlapping them", and reproduced against this stylesheet and the
+ * vendored `obsidian.css` in the browser harness before a line was changed. Obsidian's own `button`
+ * rule — not this project's — sets `height: var(--input-height)` (30px), `display: inline-flex`,
+ * `flex-direction: row` and `white-space: nowrap`, and `.rp-preset-choice` overrode none of them
+ * while putting a 48px picture and a label inside one.
+ *
+ * Measured, at a 300px form: the button computed 30px tall against a 48px thumbnail, so the picture
+ * hung NINE pixels out of it at the top and nine at the bottom, over the gallery's 4px grid gap and
+ * into the neighbouring row. The row direction did the rest — the thumbnail's `width: 100%` shrank
+ * against a `nowrap` label, to 43px on a short one, 62px on another and to exactly ZERO on
+ * "Peninsula worktop with return", whose label then overflowed the button by 16px. A thumbnail that
+ * is 48 by 0 is the "look strange" half and the overhang is the "overlapping" half; they are one
+ * cause.
+ *
+ * Three declarations, each answering one of those defaults, and none of them cosmetic. `height:
+ * auto` lets the button be as tall as what it holds; `column` stacks the picture over its label,
+ * which is also the reading order; `normal` lets a long label wrap instead of spilling. With them
+ * the same three buttons measure 77px, 77px and 94px tall with the thumbnail inside on all four
+ * sides and no text overflow — measured the same way, in the same session.
+ *
+ * **No gate here can see any of it**, which is why a user found it: jsdom computes no layout, so
+ * every `.rp-preset-choice` case in `tests/presentation/designer/assetPresetForm.test.ts` passes
+ * either way — that file's 20 tests are green with this rule and without it, measured.
+ * `tests/build/buttonBoxNeutralised.test.ts` therefore checks the DECLARATIONS rather than the
+ * picture, and says so in its own header — it is a narrower claim than "the thumbnail fits" and is
+ * written as one. That file was watched failing on all three declarations with this rule reverted.
+ */
+.rp-preset-gallery .rp-preset-choice {
+	height: auto;
+	flex-direction: column;
+	white-space: normal;
+}
+
+/*
+ * `flex: none` because a column flex item with a fixed height is still shrinkable, and a
+ * `minmax(6rem, 1fr)` column plus a wrapped label is exactly the pressure that shrinks one.
+ */
 .rp-preset-gallery .rp-asset-preset-preview {
 	height: 48px;
+	flex: none;
 }

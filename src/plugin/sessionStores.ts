@@ -65,8 +65,32 @@ export class SessionStores {
 	 * if B loaded after A but before A unloaded. The gate then answers "nothing open" over a
 	 * vault B's own incidents say is half-written. Comparing identity first is what keeps this
 	 * to releasing exactly what this instance added, never a later instance's replacement.
+	 *
+	 * **An OPEN registry is not released at all, and that is the lifecycle contract's rule 3 —
+	 * a refusal is not cleared by a teardown.** `onunload` unmounts no Vue app and detaches no
+	 * leaf, so every view is still mounted and still able to dispatch when this runs. Releasing
+	 * an open registry there disarms all three of its readers at once: `guardCommand` skips its
+	 * refusal arm (`incidents !== null && incidents.anyOpen()`), `withIncidentGate`'s `paused()`
+	 * answers `false` through its `?? false`, and `void incidents?.record(…)` stops recording.
+	 * Measured on a rig driving the plugin's own registered view factory: the identical
+	 * `createZone` was refused with `write-incident.writes-paused` before `onunload` and wrote a
+	 * note after it, and an Undo refused before ran its inverse after
+	 * (`tests/plugin/unloadWithViewOpen.test.ts`).
+	 *
+	 * The sentence above about session B is true verbatim of that case too — the gate answering
+	 * "nothing open" over a vault this session's own incidents say is half-written — reached
+	 * from teardown rather than from an overlap.
+	 *
+	 * A CLEAN registry is still released: there is no refusal to keep, so the removal rule has
+	 * nothing to argue with. What that leaves open, unchanged from before this term existed: a
+	 * guarded write dispatched after `onunload` in a session that had nothing open fails with
+	 * its uncompensated writes unrecorded. Closing that means never releasing, which is wider
+	 * than rule 3 asks for; the trade is costed in
+	 * `.superpowers/sdd/01-improvement-plan/s8-f3-fix-report.md`.
 	 */
 	dispose(): void {
-		if (activeWriteIncidentRegistry() === this.writeIncidents) installWriteIncidentRegistry(null);
+		if (activeWriteIncidentRegistry() !== this.writeIncidents) return;
+		if (this.writeIncidents.anyOpen()) return;
+		installWriteIncidentRegistry(null);
 	}
 }

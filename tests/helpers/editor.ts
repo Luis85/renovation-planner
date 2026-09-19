@@ -452,7 +452,27 @@ export async function mountPlanEditorCanvas(options: EditorHarnessOptions = {}):
  * no need for a probe component injected into its fixed template.
  */
 export function runtimeOf(harness: EditorHarness): EditorRuntime {
-	const instance = (harness.wrapper.vm as unknown as { $: { provides: Record<symbol, unknown> } }).$;
+	return runtimeInProxy(harness.wrapper.vm);
+}
+
+/**
+ * The same runtime, from a Plan Editor the PLUGIN mounted rather than one this file did.
+ *
+ * `PlanEditorView.mount` is `createApp(PlanEditorRoot)` and keeps what `app.mount(host)`
+ * answered in a private `root` — the root component's public instance proxy, which is the same
+ * kind of object `runtimeOf` reaches through `wrapper.vm`, so both go through one lookup.
+ *
+ * The cast is what `root` being private costs. A test about an unload or a rebind boundary has
+ * to reach the runtime the plugin's OWN factory built, and a harness that hands the view its
+ * own dependencies cannot have the bug such a test is about.
+ */
+export function runtimeOfPluginView(view: unknown): EditorRuntime {
+	return runtimeInProxy((view as { root: unknown }).root);
+}
+
+/** The provides lookup both doors share, so neither can drift onto a different key. */
+function runtimeInProxy(proxy: unknown): EditorRuntime {
+	const instance = (proxy as { $: { provides: Record<symbol, unknown> } }).$;
 	const runtime = instance.provides[EDITOR_RUNTIME as unknown as symbol];
 	if (runtime === undefined) {
 		throw new Error('expected the mounted tree to have provided an EditorRuntime');

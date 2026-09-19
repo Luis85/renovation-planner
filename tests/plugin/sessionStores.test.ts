@@ -72,6 +72,29 @@ describe('SessionStores', () => {
 		expect(activeWriteIncidentRegistry()).toBeNull();
 	});
 
+	/**
+	 * Lifecycle contract rule 3 — a refusal is not cleared by a teardown — at the unit, where
+	 * the branch lives. `onunload` unmounts no Vue app and detaches no leaf, so a released
+	 * registry disarms `guardCommand`'s refusal arm, `withIncidentGate`'s `paused()` and the
+	 * recording arm over views that are still mounted and still dispatching.
+	 * `tests/plugin/unloadWithViewOpen.test.ts` drives that consequence through the plugin's own
+	 * view factory; this case pins the decision the consequence rests on.
+	 */
+	it('keeps an OPEN registry installed on dispose, because a refusal outlives the teardown', async () => {
+		const stores = new SessionStores(fakeAdapter(), 'plugins/renovation-planner', recorder);
+		await stores.writeIncidents.record({
+			category: 'Persistence',
+			code: 'zone.write-uncompensated',
+			message: 'half-written',
+			uncompensatedWrite: [],
+		});
+
+		stores.dispose();
+
+		expect(activeWriteIncidentRegistry()).toBe(stores.writeIncidents);
+		expect(activeWriteIncidentRegistry()?.anyOpen()).toBe(true);
+	});
+
 	it('does not release a LATER session\'s registry — dispose only releases its own', () => {
 		const a = new SessionStores(fakeAdapter(), 'plugins/renovation-planner', recorder);
 		const b = new SessionStores(fakeAdapter(), 'plugins/renovation-planner', recorder);

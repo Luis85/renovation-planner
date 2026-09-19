@@ -49,12 +49,17 @@ const ZONE_NOT_FOUND = 'zone.zone-not-found';
  * Four claims live here and nowhere else: the registry the guard reads is INSTALLED by
  * loading the plugin, it is seeded from the plugin directory at the same load step
  * `recoverInterruptedSequences` runs in, an open incident refuses a COMPOSED guarded command,
- * and `onunload` takes the module-level global back off. The last is the rule this repository
- * already paid for with `window.Konva`: a global this code installs is a global this code
- * removes.
+ * and `onunload` takes the module-level global back off WHEN THERE IS NOTHING OPEN. That last
+ * one is two rules meeting: a global this code installs is a global this code removes — the
+ * rule this repository already paid for with `window.Konva` — and the lifecycle contract's
+ * rule 3, a refusal is not cleared by a teardown. `onunload` unmounts no Vue app and detaches
+ * no leaf, so releasing an OPEN registry would disarm the gate over views that are still
+ * mounted and still dispatching; `tests/plugin/unloadWithViewOpen.test.ts` drives that half
+ * through the plugin's own view factory, and the pair of cases below is the same split seen
+ * from the composition site.
  */
 describe('write incident wiring', () => {
-	it('installs the registry the guard reads, and releases it on unload', async () => {
+	it('installs the registry the guard reads, and releases a clean one on unload', async () => {
 		const { plugin } = await loadedPlugin();
 
 		expect(activeWriteIncidentRegistry()).not.toBeNull();
@@ -93,10 +98,30 @@ describe('write incident wiring', () => {
 		expect(after?.writeIncidents.open).toHaveLength(1);
 		expect(after?.writeIncidents.open[0]?.affected).toEqual([{ entityKind: 'zone', entityId: 'zone-01JAAA' }]);
 
+		// And unloading does NOT take that report away, because the incident is open: the
+		// diagnostics report is one of the three readers `SessionStores.dispose()` used to
+		// disarm, and the file it names is still the only retirement ADR-0034 offers.
 		plugin.onunload();
 
-		// The other arm of the accessor, and the one a root composed without a session takes:
-		// released global, so the query answers the empty constant rather than throwing.
+		const afterUnload = await persistence?.queries.diagnostics.execute();
+		expect(afterUnload?.writeIncidents.open).toHaveLength(1);
+		expect(afterUnload?.writeIncidents.path).toMatch(/write-incidents\.json$/);
+	});
+
+	/**
+	 * The OTHER arm of `guardedServices.ts`'s `activeWriteIncidentRegistry()?.report() ??
+	 * NO_WRITE_INCIDENTS` — the one a root composed without a session takes, reached here by
+	 * unloading a session that had nothing open. It is a separate case rather than the tail of
+	 * the one above because the two now need different premises: that case has to hold an
+	 * incident open to see the report at all, and an open incident is exactly what keeps the
+	 * registry installed.
+	 */
+	it('answers the empty constant once a clean session has released the registry', async () => {
+		const { plugin } = await loadedPlugin();
+		const persistence = plugin.root.persistence;
+
+		plugin.onunload();
+
 		const released = await persistence?.queries.diagnostics.execute();
 		expect(released?.writeIncidents).toEqual({ path: '', open: [] });
 	});

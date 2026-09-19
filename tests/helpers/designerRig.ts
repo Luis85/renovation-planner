@@ -80,6 +80,7 @@ import type { Point } from '../../src/core/geometry/Point';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { AssetShape } from '../../src/domain/asset/AssetShape';
 import { DEFAULT_VIEWPORT, STAGE_PIXELS, worldToScreen } from '../../src/presentation/editor/viewport/Viewport';
+import { t } from '../../src/presentation/i18n/strings';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
 import { createRepositoryStack } from './vault';
 import { makeAsset } from './entities';
@@ -90,6 +91,7 @@ import { installObsidianDom } from './dom';
 import { installResizeObserver, placeAt, resizeTo } from './layout';
 import { settle } from './editor';
 import { unwiredPlanUsage } from './designerQueries';
+import { editableShape } from './assetShapes';
 
 /**
  * The `PointerEvent.buttons` bit each `button` number stands for, per the DOM's own table —
@@ -438,4 +440,70 @@ export function tracePolygon(rig: DesignerRig, vertices: readonly Point[]): void
 	const first = vertices.at(0);
 	if (first === undefined) throw new Error('a polygon needs at least one vertex to close onto');
 	click(rig, first);
+}
+
+/**
+ * **The Select tool's shared vocabulary**, used by every case whose subject is a sweep: the tool
+ * reached the way a user reaches it, the two empty-canvas corners a sweep runs between, the band it
+ * draws, and the one event helper that can leave a press unreleased.
+ *
+ * They live HERE rather than in each file that needs them for a reason narrower than "duplication is
+ * bad": fallow's duplication check does not read a `*.test.ts` file at all — its run prints `skipped
+ * N files matching default duplicates ignores`, and N has equalled the count of test files at both
+ * values it has been measured at. So a clone between two test files is invisible to every gate this
+ * repository has, permanently, while `tests/helpers/` is scanned. Moving them makes them one
+ * definition AND a definition something can see go wrong.
+ */
+
+/**
+ * One pointer event with `buttons` as a device sets it, for the cases that assert BETWEEN a move and
+ * its release — the only helper here that can send a press without one, which is exactly what an
+ * interruption case needs and what `click` and `drag` deliberately refuse.
+ *
+ * It routes through `pointer` rather than dispatching a `PointerEvent` of its own. Two answers to
+ * "send a pointer event" is how one of them quietly stops deriving `buttons` the way this file's
+ * header requires; `pointer` already takes `buttons` as an option for the chord case, so this is
+ * that door opened to a caller rather than a second door beside it.
+ *
+ * The point is a WORLD point, like every other gesture helper here, so a case names millimetres and
+ * the live camera decides the pixel.
+ */
+export function held(rig: DesignerRig, type: string, world: Point, buttons: number): void {
+	const at = rig.at(world);
+	pointer(rig.canvasEl, type, at.x, at.y, { buttons });
+}
+
+/** The rubber band on the Konva stage, or `undefined` once the sweep has taken it away. */
+export function band(rig: DesignerRig): Konva.Node | undefined {
+	return rig.stage.findOne('.selection-marquee');
+}
+
+/**
+ * Two corners of EMPTY canvas for `editableShape()`, whose clearance reaches x 700 by y 700 — so a
+ * press at either is a marquee rather than a press on the clearance band, and the rectangle between
+ * them meets both graphics.
+ */
+export const FROM: Point = { x: 1000, y: 1000 };
+export const TO: Point = { x: -1000, y: -1000 };
+
+/**
+ * A SHORT sweep's far corner: ten screen pixels from `FROM` at the rig's default camera, past the
+ * four-pixel threshold that makes a press a sweep and nowhere near the pane's edge — so no edge
+ * scroll moves the camera under the rectangle while an assertion is being made. `TO` is the long
+ * sweep and its rectangle is deliberately unpinnable for that reason.
+ */
+export const SHORT: Point = { x: 900, y: 900 };
+
+/**
+ * The designer with Select reached the way a user reaches it: by pressing its toolbar button.
+ *
+ * The shape defaults to `editableShape()` rather than to a constant shared across files: the fixture
+ * is a factory and every rig gets its own instance, which is what keeps one file's gesture from
+ * reaching another file's object.
+ */
+export async function selecting(shape: AssetShape = editableShape()): Promise<DesignerRig> {
+	const rig = await designerRig({ shape });
+	rig.toolbarButton(t('en', 'designer.toolbar.select')).click();
+	await settle();
+	return rig;
 }

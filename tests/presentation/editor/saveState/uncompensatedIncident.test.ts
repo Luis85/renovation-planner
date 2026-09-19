@@ -36,7 +36,7 @@ const threw: VaultExceptionMapper = (cause) => ({ ...persistenceError('vault.thr
  * `zone.sidecar-remove-uncompensated` with `markUncompensated`; the Plan editor is the one
  * surface that wraps its dispatcher in `withSaveStateTracking`, which asks
  * `leftWritesBehind` and calls `markUnrecovered()` — and `markUnrecovered` is what blocks
- * further edits in that tab (`runtime.ts`'s `unsafeHistory`/`writesBlocked`). The four other
+ * further edits in that tab (`dispatcherChain.ts`'s `unsafeHistory`/`writesBlocked`). The four other
  * newly-stamped paths reach no such surface today, so this case is not a sample of a family:
  * it is the only member with a reader.
  *

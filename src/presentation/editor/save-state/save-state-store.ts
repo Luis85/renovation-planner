@@ -80,21 +80,32 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 *
 	 * **`unrecoveredWrite` is the GATE**, the OR, and the name every write-blocking consumer
 	 * already reads. Measured in the edit that split the refs rather than remembered:
-	 * `grep -rl "unrecoveredWrite" src/ --include=*.ts --include=*.vue | wc -l` prints **11**
+	 * `grep -rl "unrecoveredWrite" src/ --include=*.ts --include=*.vue | wc -l` prints **12**
 	 * files, this module included — a FILE count, so unlike the two caller greps below it is not
-	 * inflated by the sentence quoting it. Of the other ten, SEVEN read this gate —
-	 * `presentation/editor/runtime.ts` (`unsafeHistory`), `presentation/designer/runtime.ts`
+	 * inflated by the sentence quoting it. Of the other eleven, SEVEN read this gate —
+	 * `presentation/editor/dispatcherChain.ts` (`unsafeHistory`),
+	 * `presentation/designer/runtime.ts`
 	 * (the `EditorContext.writesBlocked` it builds), `presentation/views/work/
 	 * projectWorkActions.ts` (`paused`), `presentation/views/work/ProjectWorkState.vue`,
 	 * `presentation/editor/PlanEditorRoot.vue` (the paused reason, and the input it hands
 	 * `editorWarnings`), `presentation/editor/elements/elementActions.ts` and
 	 * `presentation/editor/elements/rotationActions.ts` (each an `inputBlocked`). The remaining
-	 * three do NOT read it: `presentation/editor/forms/DraftRecovery.vue` reads
+	 * FOUR do NOT read it: `presentation/editor/forms/DraftRecovery.vue` reads
 	 * `leafUnrecoveredWrite`, `presentation/editor/shell/warnings.ts` reads its own INPUT field
-	 * of that name, and `presentation/views/PlanEditorView.ts` owns a PRIVATE field of that name
-	 * and watches `leafUnrecoveredWrite`. The docblock this replaced said "the three that own a
+	 * of that name, `presentation/views/PlanEditorView.ts` owns a PRIVATE field of that name
+	 * and watches `leafUnrecoveredWrite`, and `presentation/editor/tools/with-incident-gate.ts`
+	 * names this gate only in PROSE — its whole argument (BP-02's L-16) is that a predicate
+	 * reading this store answers the wrong question for undo and redo, so it asks the registry
+	 * instead. The docblock this replaced said "the three that own a
 	 * WRITE GATE"; that was an undercount of the behavioural consumers, and this sentence is
 	 * written from the grep above rather than from it.
+	 *
+	 * **Re-grepped 2026-09-19 rather than carried forward, and it had drifted twice.** The
+	 * `11` was already one short when it was written — `with-incident-gate.ts` landed with
+	 * L-16 and was never counted — and the reader named here was
+	 * `presentation/editor/runtime.ts` until `buildDispatcherChain` (and `unsafeHistory` with
+	 * it) moved into its own module for that file's `max-lines` cap. `runtime.ts` no longer
+	 * contains the string at all.
 	 *
 	 * **The other half of the old R1 note — "sticky for the MOUNT's life" — is not where the
 	 * leaf's incident lives.** `leafOwn` is built fresh with every `createPinia()`, so on its own

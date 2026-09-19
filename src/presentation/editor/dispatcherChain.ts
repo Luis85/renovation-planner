@@ -28,8 +28,9 @@ import type { PlanEditorContext } from './PlanEditorContext';
  * saving batch) → `wrapDispatcher` (BEFORE which the gate sits, so the undo/redo flags still
  * refresh). `writesBlocked` is the one computed both this leaf's shell and
  * `EditorContext.writesBlocked` read; `pausedReasonId` is one `useId()` per leaf (§2.9) — legal
- * here because this runs synchronously from `buildRuntime`, itself called from
- * `PlanEditorRoot`'s `setup()`, with no `await` between any of those calls and this one.
+ * here because this runs synchronously from `buildRuntime`, itself the first statement of
+ * `provideEditorRuntime`, itself called from `PlanEditorRoot`'s `setup()`. FOUR hops, named
+ * rather than compressed to three, with no `await` between any of those calls and this one.
  *
  * `inspectorRef` travels back out because its `current` is not assigned until AFTER the
  * Inspector store exists, which needs `wrappedDispatcher` to be built first — the same

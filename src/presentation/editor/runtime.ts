@@ -189,7 +189,13 @@ export interface EditorRuntime {
 	 */
 	readonly refreshProjection: () => Promise<void>;
 	/**
-	 * The trust path (design spec §2.2, §2.9): a computed over `ProjectStore.stale`. Every
+	 * The trust path (design spec §2.2, §2.9): a computed over THREE terms, built in
+	 * `dispatcherChain.ts` — `projectStore.status !== 'ready' || projectStore.stale ||
+	 * unsafeHistory()`, the last being `planning.failed || save.unrecoveredWrite`. This sentence
+	 * read "a computed over `ProjectStore.stale`" until 2026-09-19 — an understatement from the
+	 * day the status term landed (BP-03 / F2), and one a reader of this file could no longer
+	 * correct for themselves once the definition moved out of it. `dispatcherChain.ts`'s own
+	 * docblock on the computed is the authority for WHY each term is there. Every
 	 * paused control in the shell reads this directly (it is already inside the Vue tree);
 	 * `EditorContext.writesBlocked` is the one non-Vue consumer's own door onto the identical
 	 * fact, threaded through `createEditorContext` rather than duplicated.
@@ -199,7 +205,10 @@ export interface EditorRuntime {
 	 * One `useId()` per leaf (design spec §2.9), minted while this runtime is built rather than
 	 * in the component that renders it: `buildRuntime` already runs inside `PlanEditorRoot`'s
 	 * `setup()` (SDD §12's Vue app per leaf) — the one place `useId()` may be called at all —
-	 * and every paused control's `aria-describedby` needs the SAME id the hidden reason sentence
+	 * reached through `provideEditorRuntime`, which that setup calls and which calls
+	 * `buildRuntime` as its first statement. FOUR synchronous hops rather than the three this
+	 * sentence used to compress them to; the intermediate one is named because a reader checking
+	 * the legality has to walk it. And every paused control's `aria-describedby` needs the SAME id the hidden reason sentence
 	 * carries, a value threaded once through the runtime rather than re-derived per consumer.
 	 * The call itself sits in `dispatcherChain.ts`, which `buildRuntime` invokes synchronously
 	 * with no `await` in between, so it is inside that same setup.

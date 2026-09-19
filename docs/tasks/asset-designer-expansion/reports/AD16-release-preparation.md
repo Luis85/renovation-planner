@@ -136,6 +136,17 @@ not that the working files are flattened into prose.
 | `npx vue-tsc -noEmit` | `f28a63095` | **0** | |
 | `npm run test:coverage` | `f28a63095` | **0** | **1052 test files, 11615 tests, 1 skipped, ZERO failures**, 1120s. **99.22 / 98.05 / 99.26 / 99.67** against floors 99/98/99/98 |
 | `npm run analyze` | `f28a63095` | **0** | 0 dead files, **0 dead exports of 2393**, no private type leaks, no duplication, **0 complexity findings above threshold**, maintainability 86.8 |
+| `npm run build` | **`0e23880a4`** | **0** | The wave-7 integration SHA (session six) |
+| `npx oxlint --deny-warnings` | `0e23880a4` | **0** | |
+| `npx eslint . --max-warnings 0` | `0e23880a4` | **0** | |
+| `npm run test:coverage` | `0e23880a4` | **0** | **1055 test files, 11634 tests, 1 skipped, ZERO failures**, 1391s. **99.22 / 98.05 / 99.26 / 99.67** against floors 99/98/99/98 — byte-identical to the wave-6 run, which is the EXPECTED result: all three wave-7 cards were test-only, so the denominator could not move, and the numerator did not either, meaning the 19 new tests reached no previously-uncovered arm. Branches 21635/22065, so 430 uncovered and ~11 arms of margin, unchanged |
+| `npm run analyze` | `0e23880a4` | **0** | 0 above threshold, dead files **0 of 1202**, dead exports **0 of 2393**, maintainability 86.8. **Read the duplication line narrowly**: the run reports `skipped 1055 files matching default duplicates ignores`, and `find tests -name "*.test.ts" | wc -l` is exactly 1055, so `No code duplication found` covers `src/`, `scripts/` and `tests/helpers/` and NOT the suite |
+| `npm run audit` | `0e23880a4` | **0** | `--omit=dev --audit-level=high`, **0 vulnerabilities**. `npm audit fix` was taken this session: 2 high to 0, lockfile only, `package.json` untouched |
+| `npm run test-build` | `0e23880a4` | **0** | Built into `.obsidian/plugins/renovation-planner` and listed as enabled, to prepare the user’s live-vault walkthrough. **Building it is not walking it** — the 30 remaining `obsidian` and `judgement` steps are with the user and nothing here claims them |
+
+**The six gates above ran on `0e23880a4`; every commit after it is documentation only**, so the
+run still stands for `src/`. That sentence is the reason this table records a SHA per row rather
+than a date.
 
 **All six ran serially, in that order, on a quiet box** — zero other node processes — and coverage
 ran before analyze because analyze reads the map the suite writes.

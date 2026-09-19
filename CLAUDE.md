@@ -437,7 +437,15 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   outside every scan this file performs. A live vault
   (`npm run test-build`) remains the only place appearance is verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
-  and dependency hygiene.
+  and dependency hygiene. **Read the duplication half narrowly: it does not look at a
+  `*.test.ts` file at all.** The run prints `skipped N files matching default duplicates
+  ignores`, and on 2026-09-19 that N was **1055** against `find tests -name "*.test.ts" | wc -l`
+  of exactly 1055 — so `✓ No code duplication found` is a statement about `src/`, `scripts/` and
+  `tests/helpers/`, not about the suite. That boundary is why the `stackFoundation` extraction
+  below was findable at all: `vault.ts` and `fixtureVault.ts` are helpers rather than test files,
+  so fallow reads them. **A clone between two `*.test.ts` files is invisible to every gate this
+  repository has, permanently**, which is an argument for putting a shared test behaviour in
+  `tests/helpers/` beyond the usual one — there it becomes one definition AND a scanned one.
 
 **There are TWO repository stacks and ONE thing they are.** `createRepositoryStack`
 (in-memory, `tests/helpers/vault.ts`) and `openFixtureVault` (disk-backed,

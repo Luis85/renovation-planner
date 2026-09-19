@@ -265,7 +265,11 @@ this expansion has already recovered headroom twice by deleting rather than test
 
 ## AD13-C3's one change request — DEFERRED with a trigger, and every measurement it needs is here
 
-- [ ] **A designer-owned impact sentence — *editing this asset changes every plan that places it* —
+- [x] **DECIDED 2026-09-19 (session six): the sentence is NOT added. The ruling, with the
+      measurement that decides it, is at the end of this row.** The obligation as filed follows,
+      unaltered, because the decision is only readable against what it answers.
+
+      **A designer-owned impact sentence — *editing this asset changes every plan that places it* —
       was drafted, could not be placed, and is deferred rather than dropped.** What ships states the
       scope (the `Used in plans` heading and the per-plan list). What is missing is the sentence
       naming the CONSEQUENCE, which is arguably the payload of a disclosure.
@@ -304,6 +308,56 @@ this expansion has already recovered headroom twice by deleting rather than test
       pass has to look at whether this block pushes the dimensions and the three action buttons
       down by up to six lines at a sidebar's width, which is unmeasured and is the reviewer's own
       stated residual concern about its position.
+
+### The ruling, 2026-09-19 — NOT ADDED, and why the trigger firing is what settles it
+
+**The trigger fired.** It was *"whoever runs `npm run harness-shot -- --width=460` and opens the
+designer in Obsidian is better placed to decide than anyone writing blind"*. Half of that happened:
+the 460px captures were taken this session and are on disk; no Obsidian session was run. So this
+ruling rests on a picture and not on a vault, and it says so rather than claiming the whole trigger.
+
+**Two corrections to the instruction itself, both found by running it.** `npm run harness-shot --
+--width=460` is REFUSED by the script — `--width` applies to a named entry and the fixed shots
+carry their own, which `scripts/harness-shot.mjs` states in its own comment. The bare invocation is
+what captures the sidebar-width shots, and it already had two: `asset-designer-narrow` and
+`asset-designer-select-narrow`, both at 460. And the Chromium is **not the pinned one** —
+`playwright-core` pins revision 1234 and this machine's cache holds 1223, so the capture went
+through `RP_CHROMIUM_EXECUTABLE` and the script announced the substitution. Read the pictures as
+approximate; the conclusion below rests on ORDER and on the presence of a scroller, neither of
+which a build difference moves.
+
+**What the picture shows, measured rather than inferred.** `DesignerInspector.vue` renders
+`<DesignerUsageScope />` ABOVE its `design.dimensions` fields, which are above the action buttons —
+so the reviewer's stated chain is the real one, read off the template rather than guessed. In
+`asset-designer-narrow.png` (460px, an asset used in two plans, no dimensions set yet) the order on
+screen is the asset name, `Used in plans` with one row per plan, then `Set dimensions`, then
+`Start from preset` **at the bottom edge of the pane**. That is the reviewer's residual concern,
+confirmed, on the FAVOURABLE fixture — an asset with dimensions set pushes the actions further.
+
+**And what it shows that changes the verdict**: `.rp-designer-inspector` carries
+`overflow-y: auto` (`styles/designer.css`). The pane scrolls. So the cost is PROMINENCE, not
+reachability — a distinction worth keeping, because the two have different remedies and only one
+of them is a defect.
+
+**Therefore: not added.** Three reasons, in the order they decide it.
+
+1. **The block already discloses what the sentence would claim.** It names every plan and its
+   placement count. *Editing this asset changes every plan that places it* is the inference from a
+   list the user is looking at, not a fact the list withholds.
+2. **Criterion 3 is met without it** — the worker and an independent reviewer said so separately,
+   and this is recorded above as an improvement rather than a compliance gap.
+3. **Its measured cost lands on the one thing the picture shows is already tight.** It would be the
+   longest sentence in the inspector, at the top of it, above the dimensions and the actions, at
+   the width where the last action is already at the fold. An improvement that pays for itself by
+   pushing a primary action further down is not obviously an improvement.
+
+**The trigger, so this is a decision and not a drop.** Add it if a live-vault session finds a user
+surprised by cross-plan impact — that is evidence this position cannot produce and a picture cannot
+settle. Add it WITHOUT this cost if it ever has a home that is not the top of the inspector: the
+confirmation of a destructive or wide-reaching edit is where a consequence sentence is read rather
+than skipped, and that home charges no layout at rest. The measured locale homes recorded above
+(`{en,de}/assetUsageScope.ts` spread through `{en,de}/editor.ts`, four lines, `en.ts` at 400/400 and
+therefore untakeable) stay correct for whichever of those two arrives.
 
 ## Swept and NOT re-opened, recorded so the next session does not re-derive them
 

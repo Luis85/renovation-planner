@@ -206,8 +206,12 @@
 /*
  * Task B8's region. A width rather than a flex basis, and a border on the leading edge, so the
  * canvas keeps every pixel the inspector does not claim — the shape `editor.css` gives the plan
- * editor's own panels. Narrower than the Plan Editor's 17rem: this panel holds one field and a
- * two-line dimensions block rather than a Requirements list.
+ * editor's own panels. Narrower than the Plan Editor's 17rem — and the reason once given for
+ * that, "one field and a two-line dimensions block rather than a Requirements list", is stale:
+ * `DesignerInspector.vue` composes eight child panels now, counted from its own imports. What
+ * still justifies 14rem is that none of them is scanned horizontally, so the `overflow-y: auto`
+ * below absorbs the growth the width does not. Measured at 460px on a two-plan asset with no
+ * dimensions yet, the last action sits at the fold — a prominence cost, not a reachability one.
  */
 .rp-designer-inspector {
 	flex: 0 0 auto;

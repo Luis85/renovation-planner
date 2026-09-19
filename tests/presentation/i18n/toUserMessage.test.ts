@@ -5,6 +5,7 @@ import { toUserMessage, trError } from '../../../src/presentation/i18n/toUserMes
 import { t } from '../../../src/presentation/i18n/strings';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import type { AppError, ErrorCategory } from '../../../src/core/errors/AppError';
+import { WRITES_PAUSED_CODE } from '../../../src/application/errors/guardAgainstThrowing';
 
 /**
  * The message/log separation (SDD §66–68): what a user reads comes from the locale
@@ -726,5 +727,35 @@ describe('trError', () => {
 		const refusal = { category: 'Persistence', code: 'settings.unrecovered', message: 'dev' } as const;
 
 		expect(trError(refusal)).toBe(toUserMessage('en', refusal));
+	});
+});
+
+/**
+ * ADR-0034's refusal copy. The load-bearing fact is the SPELLING: `toUserMessage` resolves a
+ * code directly only when a locale key of exactly that name exists, so `WRITES_PAUSED_CODE`
+ * and the two `write-incident.writes-paused` rows are one string in three files. Drift makes
+ * the refusal fall through to the Persistence category sentence — still a sentence, still
+ * green under every other gate, and no longer about what happened.
+ *
+ * The en/de PARITY of the key and the German register are `strings.test.ts`'s subject, over
+ * the whole table; what this case adds is the code-to-key wiring and the two content refusals
+ * ADR-0034 states: no repair offer, and no promise that the plugin will clear itself.
+ */
+describe('the write-incident refusal copy', () => {
+	const paused = { category: 'Persistence', code: WRITES_PAUSED_CODE, message: 'dev' } as const;
+
+	it('resolves the code as a key in both locales rather than falling through to the category', () => {
+		expect(toUserMessage('en', paused)).toBe(t('en', WRITES_PAUSED_CODE));
+		expect(toUserMessage('de', paused)).toBe(t('de', WRITES_PAUSED_CODE));
+		expect(toUserMessage('en', paused)).not.toBe(t('en', 'error.category.persistence'));
+		expect(toUserMessage('de', paused)).not.toBe(t('de', 'error.category.persistence'));
+	});
+
+	it('names the user’s own remedy and promises no repair', () => {
+		for (const language of ['en', 'de']) {
+			const copy = toUserMessage(language, paused);
+			expect(copy).toContain('write-incidents.json');
+			expect(copy).not.toMatch(/repair|fix|automatic|repariert|automatisch/i);
+		}
 	});
 });

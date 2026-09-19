@@ -425,7 +425,7 @@ describe('plan repository failure branches', () => {
 		expect(expectErr(await stack.plans.getById(planId)).code).toBe('plan.sidecar-unreadable');
 	});
 
-	it('a delete whose compensation also fails still reports the original failure and logs it', async () => {
+	it('a delete whose compensation also fails reports itself as uncompensated and logs it', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
 		const read = expectFound(await stack.plans.getById(planId));
@@ -437,8 +437,12 @@ describe('plan repository failure branches', () => {
 		stack.vault.failures.add(`create:${notePath}`);
 		const result = await stack.plans.delete(planId, read.version);
 
-		expect(expectErr(result).code).toBe('plan.delete-failed');
+		expect(expectErr(result).code).toBe('plan.delete-uncompensated');
+		expect(leftWritesBehind(expectErr(result))).toBe(true);
 		expect(stack.logged.some((line) => line.event === 'plan.delete-compensation-failed')).toBe(true);
+		// The note is gone and the sidecar is still there: the whole reason the code has to say so.
+		expect(stack.vault.entries.has(notePath)).toBe(false);
+		expect(stack.vault.entries.has(sidecarPath)).toBe(true);
 	});
 
 	it('listByProject skips entries of other kinds without reading them as plans', async () => {
@@ -452,7 +456,7 @@ describe('plan repository failure branches', () => {
 		expect(plans.map((loaded) => loaded.entity.id)).toEqual([planId]);
 	});
 
-	it('a failed insert logs when even the sidecar rollback refuses', async () => {
+	it('a failed insert reports itself as uncompensated when even the sidecar rollback refuses', async () => {
 		const stack = createRepositoryStack();
 		const projectId = createProjectId();
 		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
@@ -468,8 +472,14 @@ describe('plan repository failure branches', () => {
 		stack.vault.failures.add(`create:${notePath}`);
 		stack.vault.failures.add(`delete:${sidecarPathOf(stack, projectId, planId)}`);
 
-		expect((await stack.plans.save(plan, 'absent')).ok).toBe(false);
+		const saved = await stack.plans.save(plan, 'absent');
+		expect(saved.ok).toBe(false);
+		if (saved.ok) return;
+		expect(saved.error.code).toBe('plan.write-uncompensated');
+		expect(leftWritesBehind(saved.error)).toBe(true);
 		expect(stack.logged.some((line) => line.event === 'plan.insert-compensation-failed')).toBe(true);
+		// The orphan sidecar the compensation could not take away.
+		expect(stack.vault.entries.has(sidecarPathOf(stack, projectId, planId))).toBe(true);
 	});
 });
 
@@ -500,8 +510,17 @@ describe('zone repository failure branches', () => {
 		stack.vault.failures.add(`create:${notePath}`);
 		const result = await stack.zones.delete(zoneId, read?.version);
 
-		expect(expectErr(result).code).toBe('zone.sidecar-remove-failed');
+		expect(expectErr(result).code).toBe('zone.sidecar-remove-uncompensated');
+		expect(leftWritesBehind(expectErr(result))).toBe(true);
+		expect(expectErr(result).message).not.toContain('was restored');
 		expect(stack.logged.some((line) => line.event === 'zone.delete-compensation-failed')).toBe(true);
+		// The residue itself, the way the plan twin above asserts its own: the note is gone
+		// and the geometry entry the mutation could not remove is still in the sidecar.
+		expect(stack.vault.entries.has(notePath)).toBe(false);
+		expect(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId))).toContain(zoneId);
+		expect(result).toMatchObject({
+			error: { uncompensatedWrite: [{ entityKind: 'zone', entityId: zoneId }, { entityKind: 'plan', entityId: planId }] },
+		});
 	});
 
 	/**
@@ -538,6 +557,13 @@ describe('zone repository failure branches', () => {
 		expect(saved.error.message).not.toContain('was compensated');
 		// The note is still on disk: the whole reason the code has to say so.
 		expect(stack.vault.getAbstractFileByPath(notePath)).not.toBeNull();
+		// BP-02 slice 2 task 2: `compensateFailedSidecarWrite`'s caller now threads the plan id
+		// through (`saveQueued`'s own `zone.planId`), so the stamp names BOTH inconsistent
+		// files rather than only the zone — matching what `delete()`'s sibling stamp already
+		// named inline.
+		expect(saved).toMatchObject({
+			error: { uncompensatedWrite: [{ entityKind: 'zone', entityId: zone.id }, { entityKind: 'plan', entityId: planId }] },
+		});
 	});
 
 	it('an INSERT whose sidecar write fails but whose note trash succeeds keeps the compensated code and no stamp', async () => {

@@ -10,6 +10,9 @@ import { planNorthServices } from '../application/commands/plan/SetPlanNorth';
 import { guardedPlanNorth } from './guardedPlanNorth';
 import type { Vault, Workspace } from 'obsidian';
 import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
+import { EditZoneDetailsCommand } from '../application/commands/zone/EditZoneDetails';
+import { RenameZoneCommand } from '../application/commands/zone/RenameZone';
+import { ReversibleRenameZoneCommand } from '../application/commands/zone/reversible-rename-zone-command';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
@@ -23,6 +26,7 @@ import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
 import { notifyWarning } from '../presentation/notices/notify';
 import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from './guardedServices';
+import { guardZoneEdit } from './guardedZoneEdit';
 import { planEditorOpenNote } from './renovationProjectOpenSeams';
 import type { CompositionRoot } from './composition-root';
 import { editorWorkspaceNavigation } from './editorWorkspaceNavigation';
@@ -147,6 +151,25 @@ export function planEditorDeps(
 							new ReversibleCalibratePlanCommand(persistence.plans, persistence.geometry, root.eventBus),
 							root.logger,
 							VAULT_EXCEPTION_MAPPER,
+						),
+					// The Inspector's two per-EDIT zone writes, guarded per call for the SAME reason
+					// as the line above: the factory is the only door either has. Until BP-02 slice
+					// 4 `inspector-wiring.ts` built both against `persistence.zones` directly, so
+					// neither passed through `guardCommand` — ADR-0034's Coverage paragraph names
+					// both, and an incident raised anywhere else in the vault left exactly these two
+					// edits writing while every other editor write was refused (tracker L-05).
+					// BOTH doors each: `undo` is the half ADR-0034 records as open everywhere else.
+					editZoneDetails: (ledger, input) =>
+						guardZoneEdit(
+							new EditZoneDetailsCommand(persistence.zones, root.eventBus, ledger, input),
+							{ execute: 'command.editZoneDetails.failed', undo: 'command.editZoneDetails.undo.failed' },
+							root.logger,
+						),
+					renameZone: (ledger, input) =>
+						guardZoneEdit(
+							new ReversibleRenameZoneCommand(new RenameZoneCommand(persistence.zones, root.eventBus), ledger, input),
+							{ execute: 'command.renameZone.failed', undo: 'command.renameZone.undo.failed' },
+							root.logger,
 						),
 				}
 			: unavailablePlanEditorCommands(),

@@ -20,12 +20,26 @@
  * than remembered, because each of those branches incremented this count on its own and both
  * sentences read right in isolation: the two increments added `overrides` and `assetGeometry`
  * respectively. The array below is the measurement —
- * `awk '/Detonated BEFORE the/{f=1} f&&/^\t\t\]\)/{f=0} f' tests/plugin/guardCategory.test.ts
- * | grep -oE 'persistence\.[a-zA-Z]+' | sort` prints one line per entry, and it printed nine.
+ * `awk '/^\t\tfor \(const collaborator of \[/{f=1} f&&/^\t\t\]\) \{/{f=0} f'
+ * tests/plugin/guardCategory.test.ts | grep -oE 'persistence\.[a-zA-Z]+' | sort` prints one
+ * line per entry, and it printed nine.
  *
- * Four hand-written lists live in this file — that detonation array, `SERVICE_CARVE_OUTS`,
- * `DOOR_CARVE_OUTS`, and the skip test's `owners`. The last three are each asserted by exact
- * key set, so a drift is named at an assertion. The detonation array is the one that is NOT,
+ * **The COMMAND is what BP-02 slice 4's fix round changed, not the number.** The version
+ * quoted here until then opened its range on `/Detonated BEFORE the/`, which matches THIS
+ * HEADER as well as the code — so the range started at the quotation, ran past
+ * `SERVICE_CARVE_OUTS` and swept up `persistence.queries`, printing TEN beside a sentence
+ * saying nine. Nine was right and the instrument was not. Both patterns are anchored to a
+ * TAB-indented code line now, which a header line (` * …`) cannot match.
+ *
+ * FIVE hand-written lists live in this file — that detonation array, `SERVICE_CARVE_OUTS`,
+ * `DOOR_CARVE_OUTS`, the skip test's `owners`, and the class-instance set pinned by
+ * `it('pins every raw class instance the root hands a LEAF, …')`. FIVE, not the four this
+ * sentence said until BP-02 slice 4 task L-06 added the last of them.
+ * The count is re-derived by NAMING them, which is
+ * the only instrument there is for it — a grep cannot tell a maintained list from an
+ * expectation — so the five names above are the measurement and this sentence is wrong the
+ * moment one of them is not in it. The last four are each asserted by exact value, so a drift
+ * is named at an assertion. The detonation array is the one that is NOT,
  * deliberately: `index`, `vaultDeps`, `migrations`, `geometryStore`, `locks`, `markers` and
  * `changeAdapter` are left intact, which costs nothing only because of the fail-closed
  * property below — a service whose collaborators were not detonated answers a SUCCESS, and a
@@ -51,23 +65,43 @@
  * - **repository PORTS.** `PlanEditorCommandServices.zones` and the requirement/asset ports
  *   leave the root raw. Guarding a port is a different mechanism — every method, not one
  *   `execute` — and a port carries no `execute…` member, so the walk passes it by
- *   structurally rather than by exception. Closing that gap belongs to another slice, and
- *   this file would need a second question to hold it.
+ *   structurally rather than by exception.
+ *
+ *   **The second question this bullet used to ask for now EXISTS, and it is smaller than the
+ *   gap.** BP-02 slice 4 task L-06 made that structural pass-by a RECORDED skip
+ *   (`class-instance`) and pinned the resulting set by exact value in the last case below.
+ *   What that holds: a NEW raw class instance handed to a LEAF — a new bypass surface — turns
+ *   the gate red and its author has to justify it in the same edit, whether it is a field of a
+ *   bundle or the product of a zero-argument factory. What it does NOT hold: the ports already
+ *   on that list stay raw and stay unguarded, so the three live bypasses
+ *   ADR-0034 records under tracker limitation L-06 are unchanged, and a `markUncompensated`
+ *   stamp added behind one of them turns nothing red here. Nor does it hold anything about the
+ *   root's OWN collaborators, which that case's fix round deliberately dropped from the pin —
+ *   its docblock carries why, and what that drop does and does not cost.
+ *   **The hole cannot get wider; it is not closed.**
  * - **a service hiding inside a class instance.** The walk descends into bundles (plain
  *   objects and arrays) and never into a class instance that is not itself a service,
  *   because repositories, the index, the change adapter and the migration runner are
  *   collaborators whose innards are nobody's business here. A command composed as a FIELD
- *   of such an object is invisible.
+ *   of such an object is invisible — recorded as a `class-instance` skip at the object's own
+ *   path, which names where the walk stopped and never what is inside.
  * - **a door-bearing object with no `execute…` member at all.** `isService` recognises a
  *   member whose name begins with `execute`, which covers `execute` and
  *   `executeWithVersion`, the two entry-point spellings this codebase has. An object whose
  *   only door were `undo`, or `run`, would not be recognised as a service — though `undo`
  *   IS driven once a service is recognised, since `reachableDoors` returns every reachable
  *   member (methods and accessors alike) rather than the ones matching that prefix.
- * - **anything past depth 8, a function that takes arguments, and a factory whose call
- *   throws.** Those three are RECORDED rather than silently skipped — see `Skip` — because
- *   a recorded skip is something review can see. The most probable next hole is the second:
- *   `calibratePlan` is zero-argument today, and a factory usually takes one.
+ * - **anything past depth 8, a function that takes arguments, a factory whose call throws,
+ *   and a class instance that is not a service.** Those FOUR are RECORDED rather than
+ *   silently skipped — see `SkipKind` — because a recorded skip is something review can see.
+ *   The fourth is the newest and the only one pinned by exact value, and it reaches a
+ *   FACTORY'S PRODUCT since BP-02 slice 4's fix round: until then `discover` walked a product
+ *   only `if (isService(produced))`, so a zero-argument factory handing back a raw class
+ *   instance was dropped in silence — the same shape the fourth kind exists to record, with
+ *   `roomHistory()` already in the tree. Measured rather than argued: that probe passed at 13
+ *   passed, exit 0, before the branch changed and reddens the pin after it. The most probable
+ *   next hole is the second: `calibratePlan` is zero-argument today, and a factory usually
+ *   takes one.
  *
  * Two halves, and the first matters as much as the second: an instrument that reached
  * nothing would report no findings and look exactly like a guarded composition. `discover`
@@ -120,7 +154,7 @@ interface Finding {
 	readonly problem: string;
 }
 
-type SkipKind = 'function-with-arguments' | 'factory-threw' | 'depth-limit';
+type SkipKind = 'function-with-arguments' | 'factory-threw' | 'depth-limit' | 'class-instance';
 
 interface Skip {
 	readonly path: string;
@@ -194,11 +228,14 @@ function isService(value: unknown): value is Record<string, unknown> {
  *   which is what lets a raw command class be caught rather than skipped;
  * - a plain object or an array is a BUNDLE and is descended into, because that is what the
  *   root composes its groups out of (`queries`, `requirementQueries`, `commands`);
- * - a class instance that is not a service is NOT descended into — see the header;
- * - a zero-argument FUNCTION is called and its answer walked, because a factory is a door
- *   too: `calibratePlan` is handed to the editor as one and never passes through
- *   `PersistenceServices`. A function taking arguments, and a call that throws, are
- *   RECORDED as skips rather than silently dropped.
+ * - a class instance that is not a service is NOT descended into, and is RECORDED as a
+ *   `class-instance` skip rather than dropped — see the header;
+ * - a zero-argument FUNCTION is called and its answer walked — whatever that answer is,
+ *   because a factory is a door too: `calibratePlan` is handed to the editor as one and never
+ *   passes through `PersistenceServices`. A product that is a raw class instance is recorded
+ *   as a `class-instance` skip at `path()` like any other, which it was NOT until BP-02 slice
+ *   4's fix round. A function taking arguments, and a call that throws, are RECORDED as skips
+ *   rather than silently dropped.
  */
 function discover(root: unknown, rootPath: string): Discovery {
 	const discovered: { path: string; service: object }[] = [];
@@ -222,7 +259,19 @@ function discover(root: unknown, rootPath: string): Discovery {
 				skipped.push({ path, kind: 'factory-threw' });
 				return;
 			}
-			if (isService(produced)) visit(produced, `${path}()`, depth + 1);
+			// UNCONDITIONALLY, because the `if (isService(produced))` that used to stand here was
+			// the same silent drop the `class-instance` kind exists to record, one branch away:
+			// a zero-argument factory handing back a raw class instance was neither collected nor
+			// recorded, and `calibratePlan` proves that shape is already in the tree. `visit`
+			// decides what the product is — a service is collected, a bundle is descended into, a
+			// class instance is RECORDED at `${path}()`. A zero-argument QUERY hands back a
+			// Promise, which is a class instance, so THREE of those are on the pinned set below
+			// rather than excluded by an `if` nobody would see. Three, not the four this comment
+			// said until BP-02 slice 4's final round: four is the count of walked PRODUCTS, and the
+			// fourth — `structure.roomHistory()` — is synchronous. Measured,
+			// `grep -n "roomHistory" src/application/commands/spatial/StructureCommand.ts` prints
+			// `roomHistory: () => new RoomBoundaryHistory(geometry)` (exit 0).
+			visit(produced, `${path}()`, depth + 1);
 			return;
 		}
 		if (!isObject(value) || seen.has(value)) return;
@@ -242,7 +291,14 @@ function discover(root: unknown, rootPath: string): Discovery {
 			discovered.push({ path, service: value });
 			return;
 		}
-		if (!isPlainObject(value)) return;
+		if (!isPlainObject(value)) {
+			// A class instance that is not itself a service. RECORDED rather than dropped, because
+			// this is where a raw write PORT leaves the composition root — the bypass surface
+			// ADR-0034's L-06 category is reached through. A recorded skip is something review can
+			// see; a silent `return` is how the next one arrives unremarked.
+			skipped.push({ path, kind: 'class-instance' });
+			return;
+		}
 		for (const [key, member] of Object.entries(value)) {
 			visit(member, `${path}.${key}`, depth + 1);
 		}
@@ -417,6 +473,11 @@ describe('the instrument that checks the boundary', () => {
 
 		expect(discovery.discovered.map((entry) => entry.path)).toEqual(['root.queries.one']);
 		expect(await auditDoors(discovery)).toEqual([]);
+		// The port is passed by, and SAYS SO. This is the fixture half of the class-instance
+		// skip: `discover` really does record a raw class instance at the path it sits on,
+		// which is what makes the pinned real-composition set below an instrument rather than
+		// an empty array that would look identical to a clean handoff.
+		expect(discovery.skipped).toEqual([{ path: 'root.zones', kind: 'class-instance' }]);
 	});
 
 	/** The two holes the walk has, RECORDED — a skip review can see beats a silent return. */
@@ -439,6 +500,21 @@ describe('the instrument that checks the boundary', () => {
 	});
 });
 
+/**
+ * **A fake THINNER than the real thing, and the pinned set below is a fact about it as well as
+ * about the root.** Obsidian hands class instances here; this hands object literals, which the
+ * walk reads as BUNDLES and descends into rather than recording as `class-instance` skips.
+ *
+ * Measured both ways rather than reasoned about. Under the previous, wider set — the one that
+ * carried the root's own `persistence.*` collaborators — replacing these three with class
+ * instances moved it from 27 to 30 (`persistence.vaultDeps.vault`, `.fileManager`,
+ * `.metadataCache`), which the previous round's reviewer found and nothing in the file said.
+ * Under the LEAF-only set it moves nothing: re-running this file with all three as class
+ * instances leaves it at 13 passed, exit 0, because every path it moved sits under
+ * `persistence.` and is filtered out. So ruling 1a dissolved that finding for the pin rather
+ * than fixing it — a property of today's wiring (no member of this stack reaches a leaf raw),
+ * not a rule, which is why it is written here rather than deleted.
+ */
 const vaultStack = () =>
 	({
 		vault: { getAbstractFileByPath: () => null, getFiles: () => [], getMarkdownFiles: () => [] },
@@ -590,12 +666,62 @@ describe('every service leaving the composition root is guarded', () => {
 	 * method to a bundle already on this list changes nothing, while an argument-taking
 	 * factory appearing somewhere new — `editorDeps.commands` is where one would go —
 	 * changes it and review has to look.
+	 *
+	 * `class-instance` is the fourth kind and arrived with BP-02 slice 4 task L-06. It is
+	 * tolerated HERE and pinned by exact value in the case below, which is a stronger
+	 * assertion than an owner set rather than a weaker one — so `owners` is now derived from
+	 * the `function-with-arguments` skips alone, which is what this docblock has always said
+	 * it was ("the objects those functions live on").
+	 *
+	 * **That filter is CONVENIENT, not necessary, and the sentence standing here until BP-02
+	 * slice 4's fix round said it would have "lost the exact-value pin", which is false.**
+	 * Measured by deleting the `.filter((skip) => skip.kind === 'function-with-arguments')`
+	 * line above and running `npx vitest run tests/plugin/guardCategory.test.ts` (exit 1): ONE
+	 * case reddens — this one, gaining `editorDeps.commands.requirementEdits`, `persistence`
+	 * and `persistence.vaultDeps` — and the pin below passes, because it is a different case
+	 * and never reads `owners`. So the alternative was three more owner entries. The filter
+	 * stays for the reason this docblock already gives, not for a cost it does not have.
 	 */
 	it('records where it gave up, and gave up nowhere that could hide a service', () => {
 		const { skipped } = surveyed();
-		const owners = [...new Set(skipped.map((skip) => skip.path.slice(0, skip.path.lastIndexOf('.'))))].toSorted();
+		const owners = [
+			...new Set(
+				skipped
+					.filter((skip) => skip.kind === 'function-with-arguments')
+					.map((skip) => skip.path.slice(0, skip.path.lastIndexOf('.'))),
+			),
+		].toSorted();
 
-		expect(skipped.filter((skip) => skip.kind !== 'function-with-arguments')).toEqual([]);
+		// TWO tolerated kinds, by exact name, so a THIRD appearing still turns this red.
+		// `function-with-arguments` is tolerated because whether such a function is a factory is
+		// unknowable without calling it, and calling it is what this walk deliberately does not
+		// do — its owners are asserted below instead. `class-instance` is tolerated because a
+		// collaborator's innards are nobody's business here — and it is tolerated blindly only
+		// for the root's OWN stack: the case below pins the LEAF handoffs of that kind by exact
+		// value and says nothing about the `persistence.*` ones, which is a narrowing BP-02 slice
+		// 4's fix round made on purpose and argues for where the pin is. `factory-threw` and
+		// `depth-limit` stay forbidden outright, because either could hide a real service.
+		expect(
+			skipped.filter((skip) => skip.kind !== 'function-with-arguments' && skip.kind !== 'class-instance'),
+		).toEqual([]);
+		// The two the header names as the most probable next hole, arriving: BP-02 slice 4's
+		// guarded zone-edit factories take the leaf's `WriteLedger`, so they land HERE rather
+		// than in `discovered` and this walk drives neither. Named rather than left inside the
+		// owner below, because `editorDeps.commands` was already on that list for another
+		// member — so the owners assertion alone would not have noticed them arriving. Both
+		// doors of both are driven by `guardWiring.test.ts` (a vault fault under each) and
+		// `writeIncidentWiring.test.ts` (the ADR-0034 gate over each).
+		//
+		// **These two assertions are a PRESENCE check and nothing more — do not cite them as
+		// the instrument that proves either factory is GUARDED.** Measured, not reasoned:
+		// composing both factories WITHOUT `guardZoneEdit` leaves this file at 13 passed,
+		// exit 0. THIRTEEN re-measured 2026-09-17 by unwrapping both `guardZoneEdit` call sites in
+		// `planEditorDeps.ts` and re-running; the "12" this line carried was a true snapshot of a
+		// file that then had one case fewer. What they hold is that both members exist on that bundle and take an
+		// argument; if either ever becomes zero-argument it moves to `discovered` and these
+		// redden. The two behavioural files named above are what would notice a lost guard.
+		expect(skipped.map((skip) => skip.path)).toContain('editorDeps.commands.editZoneDetails');
+		expect(skipped.map((skip) => skip.path)).toContain('editorDeps.commands.renameZone');
 		expect(owners).toEqual([
 			'editorDeps',
 			// reviewNoteAction is exercised through actual repositories in guardedRenovation.test.ts.
@@ -630,5 +756,138 @@ describe('every service leaving the composition root is guarded', () => {
 			'persistence.planEditorQueries',
 			'persistence.vaultDeps.logger',
 		]);
+	});
+
+	/**
+	 * The file header's "second question", and **it is not an answer to ADR-0034's L-06
+	 * category** — read the next two paragraphs before citing it as one.
+	 *
+	 * A `markUncompensated` stamp becomes a DURABLE write incident only if the dispatch that
+	 * produced it reaches one of the two recorders (`guardAgainstThrowing.ts`'s
+	 * `void incidents?.record(…)` and `evidenceRename.ts`'s
+	 * `activeWriteIncidentRegistry()?.record(…)` — measured,
+	 * `grep -rn "record(result.error as AppError & UncompensatedWrite)" src/` prints exactly
+	 * those two lines). A stamp raised behind a RAW PORT the root hands to presentation reaches
+	 * neither, which is how `reversible-delete-zone-command.ts`'s undo half stamps and nothing
+	 * records it. Those raw ports are class instances, so the walk above passes them by — and
+	 * now says so at the path it passed them at.
+	 *
+	 * **What this buys is that the hole cannot get WIDER, not that it is closed.** A NEW raw
+	 * class instance handed to a LEAF turns this red and its author has to justify it in the same
+	 * edit — including one handed back by a zero-argument FACTORY, which was a silent drop of its
+	 * own until BP-02 slice 4's fix round made `discover` walk a factory's product whatever it is.
+	 * The three uncovered sites ADR-0034 NAMES stay live and stay silent — three is what has
+	 * been named, not a completeness claim — and a SECOND `markUncompensated`
+	 * added behind one of them — inside `reversible-delete-zone-command.ts`, which already has
+	 * the shape — turns nothing red here. Closing the category would mean recording inside
+	 * `markUncompensated` itself; ADR-0034's deferred-check bullet carries that option and the
+	 * cost that made BP-02 slice 4 refuse it.
+	 *
+	 * **The set is the LEAF handoffs and nothing else, and that is a narrowing made on purpose.**
+	 * The `persistence.*` half — 21 entries until BP-02 slice 4's fix round — was the root's OWN
+	 * stack of collaborators, exposed so that this very file can `detonate` them and reached by a
+	 * view only through a guarded service. Dropping it loses no handoff **the LEAF-SIDE WALK
+	 * REACHES**, because `surveyed()` runs `discover` once per bundle with its own `seen`: a port
+	 * that walk reaches is recorded on the leaf side whether or not it also sits on the root's
+	 * stack, which `persistence.zones` and `editorDeps.commands.zones` demonstrated by both
+	 * appearing for ONE object (`planEditorDeps.ts` composes `zones: persistence.zones`).
+	 * **One word narrower than the sentence standing here until BP-02 slice 4's final round, and
+	 * the word is load-bearing: it DOES lose handoffs that walk does not reach.** The fourth limit
+	 * bullet below carries the shape, measured. What the 21 cost was
+	 * churn under a false title: each arrived in its own commit, so this pin would have reddened
+	 * on ~21 past changes that added a collaborator — not a bypass surface — to the root. Do not
+	 * restore them here; a root-collaborator census is a different question and would want its own
+	 * assertion so that a red says which of the two facts moved.
+	 *
+	 * Three limits on the claim, at the claim rather than further down:
+	 *
+	 * - **Two of the FOUR view-deps bundles are not walked at all** — not the "three of five" this
+	 *   bullet claimed until BP-02 slice 4's final round, which contradicted the two it then named
+	 *   and counted `persistence`, which is not a view-deps bundle, into the five. FOUR is
+	 *   measured: `grep -rhoE "^export function [a-zA-Z]*Deps\(" src/plugin/` prints
+	 *   `assetDesignerDeps`, `assetLibraryDeps`, `planEditorDeps` and `renovationProjectDeps`
+	 *   (exit 0). `surveyed()` walks `persistence` plus two of them, `planEditorDeps` and
+	 *   `assetLibraryDeps`; `renovationProjectDeps` and
+	 *   `assetDesignerDeps` are not, so a raw port handed out THERE is invisible to this pin. The
+	 *   reason they have missed nothing yet is in `surveyed()`'s own comment, and it is a reason
+	 *   rather than a guarantee.
+	 * - **Intra-bundle aliasing records only the FIRST path.** Two fields of one bundle pointing
+	 *   at the same instance produce one entry, because `seen` is per bundle and not per path — so
+	 *   this set is a set of OBJECTS reached, named by where the walk met each first, and a second
+	 *   name for one of them arrives silently. Measured by the reviewer of the previous round.
+	 * - **A port handed out by an ARGUMENT-TAKING factory is outside this pin, and ruling 1a
+	 *   WIDENED that gap rather than opening it.** Measured 2026-09-17 by planting one:
+	 *   `probePort: new (class ReviewProbeWriter { write(): void {} })()` in the `persistence`
+	 *   literal of `composition-root.ts`, reached by the leaf ONLY through
+	 *   `makeProbe: (_id: string) => persistence.probePort` on `planEditorDeps`' `commands` bundle,
+	 *   so presentation genuinely receives the raw port.
+	 *   `npx vitest run tests/plugin/guardCategory.test.ts` is exit 0, 13 passed — SILENT — while
+	 *   the pre-1a set caught it (exit 1, `+ "persistence.probePort"`). Take ONE parameter off that
+	 *   factory and the same probe reddens HERE (exit 1, `+ "editorDeps.commands.makeProbe()"`):
+	 *   ARITY is the whole of the boundary, which is why the case title names it rather than
+	 *   saying "hands a leaf". The walk records the argument-taking spelling as a
+	 *   `function-with-arguments` skip, so that shape is bounded by a RECORDED skip kind and not by
+	 *   this pin; the owners assertion cannot backstop it either, because `editorDeps.commands` is
+	 *   ALREADY an owner. What ruling 1a lost is an accident of where an object happened to live —
+	 *   the same port constructed inline in `planEditorDeps` and handed through the same
+	 *   argument-taking factory was missed before 1a too — and not a guarantee.
+	 * - **The set is a fact about this file's FAKE vault stack as well as about the root.**
+	 *   `vaultStack()` hands back object literals where Obsidian hands class instances; under the
+	 *   previous, wider set that alone moved it from 27 to 30. It does not move THIS set — see the
+	 *   comment at `vaultStack` — because everything it moved sat under `persistence.`, and that
+	 *   is a property of today's wiring rather than a rule.
+	 */
+	it("pins every raw class instance the leaf-side walk REACHES — a field, or a ZERO-argument factory's product", () => {
+		const instances = surveyed()
+			.skipped.filter((skip) => skip.kind === 'class-instance')
+			// LEAF handoffs only — see the docblock. A prefix rather than a list of the leaf
+			// bundles by name, so that a bundle added to `surveyed()` later lands IN the pin and
+			// its author has to justify what it hands out, rather than being quietly outside it.
+			.filter((skip) => !skip.path.startsWith('persistence.'))
+			.map((skip) => skip.path)
+			.toSorted();
+
+		expect(instances).toEqual([
+			// A Vue `shallowRef` holding what Copy last took. Data, not a door — no write reaches the vault through it.
+			'editorDeps.clipboard',
+			// `ObsidianEvidenceFiles`: resolves and opens an evidence link. A read/navigation port with no write door.
+			'editorDeps.commands.evidenceFiles',
+			// Raw `AssetRepository`. A LIVE bypass surface of the L-06 shape — a stamp raised behind it reaches no recorder.
+			'editorDeps.commands.requirementEdits.assets',
+			// `ReferenceLocks`: a lock set the link/unlink commands share, not a write door of its own.
+			'editorDeps.commands.requirementEdits.locks',
+			// Raw `RequirementRepository`. A LIVE bypass surface, same shape and same silence as `assets` above.
+			'editorDeps.commands.requirementEdits.requirements',
+			// `RoomBoundaryHistory`, built fresh per call by `guardedStructure`'s `roomHistory`. A raw
+			// WRITE-capable collaborator — its `restore` calls `geometry.write` — reached by presentation
+			// through `createZoneHistory.ts`, and it carries no `execute…` door so nothing here drives it.
+			// It raises no stamp of its own (`grep -c markUncompensated
+			// src/application/commands/spatial/RoomBoundaryHistory.ts` prints 0), so it is a bypass
+			// SURFACE rather than a live bypass today. Invisible until this round walked a factory's
+			// product whatever it is.
+			'editorDeps.commands.structure.roomHistory()',
+			// The PROMISE a zero-argument guarded query hands back — `namedCatalogueServices`' `list` is
+			// `() => list.execute(undefined)`, and the walk calls it. Data in flight, not a door: the
+			// guard is on the `execute` inside it, which the `persistence` side drives. Pinned rather
+			// than filtered out, because an `if (!(x instanceof Promise))` in the walk is exactly the
+			// silent skip this round removed.
+			'editorDeps.commands.tradeCatalogue.list()',
+			// Raw `ZoneRepository` — the bypass ADR-0034 names by name, the port `deleteZoneHistory` dispatches against.
+			'editorDeps.commands.zones',
+			// A Promise again: `planEditorQueries.listAssets` is `async`, so calling it hands back one.
+			// Same reasoning as `tradeCatalogue.list()` above.
+			'editorDeps.queries.listAssets()',
+			// A Promise again: `assetLibraryQueries`' `listCatalogue` is `() => queries.listCatalogue.execute()`.
+			'libraryDeps.queries.listCatalogue()',
+		]);
+		// An instrument that reached nothing would report an empty set and look exactly like a
+		// clean handoff. This guards the PINNED ARRAY as much as the walk: emptying the array to
+		// clear a drift AND a leaf filter that matched everything would otherwise pass — the PAIR,
+		// not either alone, which is what this comment said until BP-02 slice 4's final round.
+		// Measured 2026-09-17, all three exit 1: a filter excluding everything alone reddens the
+		// `toEqual` above (`expected [] to deeply equal [ 'editorDeps.clipboard', …(9) ]`), a
+		// filter letting everything through alone reddens it too (`…(31)` against `…(9)`), and
+		// only the two together reach this line (`expected 0 to be greater than 0`).
+		expect(instances.length).toBeGreaterThan(0);
 	});
 });

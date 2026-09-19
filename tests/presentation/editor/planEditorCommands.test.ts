@@ -61,6 +61,23 @@ describe('unavailablePlanEditorCommands', () => {
 	});
 
 	/**
+	 * The Inspector's two zone edits, refusing at BOTH doors — the pair `inspector-wiring.ts`
+	 * calls for every `'details'` and `'name'` edit since BP-02 slice 4 moved them behind a
+	 * factory. Four cases rather than two, because `undo` is a door of its own and the whole
+	 * point of that slice was that a guarded `execute` beside a raw second door reads as
+	 * covered. The arguments are never looked at: the refusal is unconditional.
+	 */
+	it.each(['editZoneDetails', 'renameZone'] as const)(
+		'refuses %s at both doors when settings could not be recovered',
+		async (factory) => {
+			const transaction = commands[factory](undefined as never, undefined as never);
+
+			expect(await transaction.execute()).toMatchObject({ ok: false, error: { code: 'settings.unrecovered' } });
+			expect(await transaction.undo()).toMatchObject({ ok: false, error: { code: 'settings.unrecovered' } });
+		},
+	);
+
+	/**
 	 * Design slice 10's Requirements panel edits. These are the REAL command classes,
 	 * constructed over ports whose every member refuses — so what is asserted here is that
 	 * a panel gesture in an unrecovered session fails with the same `settings.unrecovered`

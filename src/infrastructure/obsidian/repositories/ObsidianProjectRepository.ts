@@ -35,7 +35,15 @@ import { fileAt } from './NoteVaultDeps';
  * note-backed repositories — ONE file per entity, and no sidecar.
  *
  * **Its failure story is "the write failed, nothing was written" — but only since design
- * slice 16, and this header spent two slices recording why it was not.** The insert path
+ * slice 16, only while the rollback itself succeeds, and this header spent two slices
+ * recording why the first half was not true either.** A rollback that cannot remove a folder
+ * this call created answers `project.write-uncompensated`, logged (one line per stranded
+ * folder) but, per ADR-0034, deliberately NOT stamped with `markUncompensated`: the note was
+ * never written, so the vault's DATA stays coherent and "half-written" is true only of the
+ * folder tree, and a later slice's incident record pauses every guarded write in the vault
+ * while it holds one — the wrong trade for a stray empty folder nothing else depends on. See
+ * the call site for the full reasoning. `undoEnsureFolder` reporting a folder it deliberately
+ * left alone is a different case again and is not logged as a failure either. The insert path
  * calls `ensureFolder` before `vault.create`, and the `catch` around the pair used to
  * compensate nothing, so a create that failed after the folder was made left an EMPTY FOLDER
  * behind. No note is written, reads resolve by id, and a folder name reaches no UI (filename
@@ -160,6 +168,24 @@ export class ObsidianProjectRepository {
 				const stranded = await undoEnsureFolder(this.deps.vault, this.deps.fileManager, createdFolders);
 				for (const failure of stranded) {
 					this.deps.logger.error('project.insert-compensation-failed', { id: project.id, path: failure.path, cause: failure.cause });
+				}
+				if (stranded.length > 0) {
+					// A folder this call created and could not take away again — but NOT stamped
+					// with `markUncompensated` (ADR-0034, narrowing `DispatchOutcome.ts`'s own
+					// "one member stretches that word" paragraph into a decision): the note was
+					// never written, so the vault's DATA is coherent and "half-written" is true
+					// only of the folder tree. A later slice's incident record pauses every
+					// guarded write in the vault while it holds a record — blocking every other
+					// project's and plan's writes over a stray empty folder nothing else depends
+					// on is the wrong trade. The log line above (one per stranded folder, via
+					// `this.deps.logger.error`) survives untouched; only the stamp goes.
+					return err(
+						persistenceError(
+							'project.write-uncompensated',
+							`Could not create the note for project ${project.id}, and ${stranded.length} folder(s) created for it could NOT be removed again; inspect them by hand.`,
+							cause,
+						),
+					);
 				}
 				return err(persistenceError('project.write-failed', `Could not create the note for project ${project.id}.`, cause));
 			}

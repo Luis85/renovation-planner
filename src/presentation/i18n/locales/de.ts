@@ -22,6 +22,10 @@ import { planDe } from './de/plan';
  * vocabulary — the counterpart of `en/editor.ts`, spread into this object below
  * (`...editorDe,`) — and its own header explains why it is typed `Record` rather than this
  * table's `Partial`.
+ *
+ * **Erneut geteilt bei `de/errorFallback.ts`**, zusammen mit `en/errorFallback.ts` und aus
+ * demselben Grund: diese Tabelle lag mit 401 Zeilen über dem Limit. Ausgelagert sind genau
+ * dieselben Schlüssel wie im Englischen — alle `error.suffix.*` und alle `error.category.*`.
  */
 import type { StringKey } from './en';
 import { deAssetLibrary } from './de-assetLibrary';
@@ -29,6 +33,8 @@ import { editorDe } from './de/editor';
 import { renovationDe } from './de/renovation';
 import { deMobile } from './de/mobile';
 import { newAssetFootprintDe } from './de/newAssetFootprint';
+import { errorFallbackDe } from './de/errorFallback';
+import { writeIncidentDe } from './de/writeIncident';
 
 export const de: Partial<Record<StringKey, string>> = {
 	...itemColorDe,
@@ -40,6 +46,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	...editorDe,
 	...deMobile,
 	...newAssetFootprintDe,
+	...errorFallbackDe,
+	...writeIncidentDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.price-apply': 'Übernehmen',
@@ -222,14 +230,14 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Ein Raum wurde geschrieben, aber seine Form konnte nicht gespeichert werden, und die Notiz konnte nicht wieder entfernt werden. Prüfen Sie die Notiz des Raums, bevor Sie weiter bearbeiten.',
 	'zone.sidecar-update-uncompensated':
 		'Ein Raum wurde geändert, aber seine Form konnte nicht gespeichert werden, und die Notiz konnte nicht wiederhergestellt werden. Prüfen Sie die Notiz des Raums, bevor Sie weiter bearbeiten.',
+	// Sie-Form wie der Rest dieser Datei. Nennt beide Abhilfen, die
+	// `docs/using-planning-recovery.md` nach Ursache trennt — siehe den englischen Kommentar
+	// für den Grund, warum an dieser Stelle nicht zwischen den beiden Ursachen unterschieden
+	// werden kann.
+	'sequence.marker-write-blocked':
+		'Diese Änderung wurde abgelehnt. Für diesen Eintrag ist noch ein Wiederherstellungsdatensatz offen, den dieser Build nicht lesen kann, daher wurde nichts darüber geschrieben. Verwenden Sie einen Build, der mindestens so neu ist wie derjenige, der den Datensatz geschrieben hat, oder prüfen Sie die betroffenen Dateien gegen Ihre Sicherung und entfernen Sie dann sequence-markers.json aus dem Plugin-Ordner und laden Sie das Plugin neu.',
 	'error.asset.unit-cost.unparseable': 'Geben Sie einen Betrag ein, zum Beispiel 34.95.',
 	'error.asset.waste.unparseable': 'Geben Sie einen Bruchteil zwischen 0 und 1 ein, zum Beispiel 0.08.',
-	'error.suffix.schema-version-unsupported':
-		'Diese Notiz wurde von einer neueren Version dieses Plugins geschrieben. Aktualisieren Sie das Plugin, um sie zu öffnen.',
-	'error.suffix.revision-conflict':
-		'Dieser Eintrag wurde zwischenzeitlich an anderer Stelle geändert. Bitte neu laden und erneut versuchen.',
-	'error.suffix.external-modification':
-		'Dieser Eintrag wurde außerhalb des Plugins bearbeitet. Bitte neu laden und erneut versuchen.',
 	// Die Absagen des Preisbereichs, nach dem exakten `AppError.code` ihrer Fundstellen benannt.
 	// Zwei davon überschreiben absichtlich einen Suffix-Eintrag: `toUserMessage` fragt zuerst
 	// `hasLocaleKey(error.code)`, und auf dieser Oberfläche gibt es nichts neu zu laden.
@@ -247,21 +255,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'asset-price.entity-invalid': 'Diese Preisnotiz konnte nicht gelesen werden.',
 	'asset-price.frontmatter-invalid': 'Diese Preisnotiz konnte nicht gelesen werden.',
 	'asset-price.negative-unit-cost': 'Ein Preis kann nicht negativ sein.',
-	'error.suffix.migration-failed': 'Diese Notiz konnte nicht in das aktuelle Format umgewandelt werden.',
-	'error.suffix.schema-version-malformed':
-		'Die Version dieser Notiz konnte nicht gelesen werden, daher wurde sie nicht geöffnet.',
-	'error.suffix.project-folder-unresolved':
-		'Diese Notiz konnte nicht gespeichert werden, weil der Ordner des zugehörigen Projekts nicht gefunden wurde.',
-	'error.suffix.note-id-mismatch':
-		'Diese Notiz gehört zu einem anderen Eintrag, daher wurde sie nicht geöffnet. Lade den Vault neu, um den Index neu aufzubauen.',
-	'error.category.domain': 'Die Projektdaten sind ungültig.',
-	'error.category.validation': 'Diese Daten haben nicht die erwartete Form.',
-	'error.category.persistence': 'Der Vault konnte nicht gelesen oder geschrieben werden.',
-	'error.category.geometry': 'Ein Geometriewert ist ungültig.',
-	'error.category.import': 'Der Import ist fehlgeschlagen.',
-	'error.category.migration': 'Diese Notiz kann mit dieser Version des Plugins nicht gelesen werden.',
-	'error.category.reference': 'Dieser Eintrag existiert nicht mehr.',
-	'error.category.calculation': 'Eine Menge konnte nicht berechnet werden.',
 	'dialog.confirm': 'Bestätigen',
 	'dialog.cancel': 'Abbrechen',
 	'dialog.delete-reference.referenced-by': 'Referenziert von',

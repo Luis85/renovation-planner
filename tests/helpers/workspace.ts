@@ -51,8 +51,22 @@ export class FakeLeaf implements WorkspaceLeaf {
 	 * the sitting one a foreign state, and this routes on any `state.type` at all. Measured
 	 * unreachable from both ends — production sets a view state only on a leaf it has just
 	 * created (`reveal.ts` and `revealView.ts` say so) or on its own view's leaf under its own
-	 * type, and `rootSwapRebind.test.ts` is the only file in the suite that ever assigns
-	 * `FakeLeaf.view`. It costs nothing today; a type test would cost a fake that has to know
+	 * type, and no test routes a state of one type into a view of another.
+	 *
+	 * **That second half USED to read "`rootSwapRebind.test.ts` is the only file in the suite
+	 * that ever assigns `FakeLeaf.view`", and it was already false when it was written.**
+	 * `grep -rn "\.view = " tests/` prints nine assignment sites in six files:
+	 * `tests/harness/assetLibrary.ts`, `tests/harness/downstreamWorkspace.ts` (twice — once as
+	 * `this.view` inside `BrowserLeaf extends FakeLeaf`), `tests/plugin/registration.test.ts`
+	 * (twice), `tests/plugin/rootSwapRebind.test.ts` (twice),
+	 * `tests/presentation/editor/projectLibraryFlows.test.ts` and
+	 * `tests/presentation/library/assetLibraryViewState.test.ts`. The ARGUMENT survives the
+	 * repair and is why the sentence is narrowed rather than deleted: what makes the routing
+	 * unreachable is the TYPE agreeing, not one file owning the assignment, and every one of
+	 * those nine hands the leaf a view of the type the leaf is later stated under. Counted
+	 * rather than remembered, per CLAUDE.md's standing rule about an "only" claim — and the
+	 * count is what that rule exists for, since this one read as settled for as long as it
+	 * stood. It costs nothing today; a type test would cost a fake that has to know
 	 * which types exist. Reported by the scoped re-review of the round that added the routing,
 	 * against a first draft whose "because Obsidian's own call does both" was flatly wider than
 	 * what the code keeps.

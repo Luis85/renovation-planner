@@ -8,6 +8,8 @@ import { editorEn } from './en/editor';
 import { renovationEn } from './en/renovation';
 import { enMobile } from './en/mobile';
 import { newAssetFootprintEn } from './en/newAssetFootprint';
+import { errorFallbackEn } from './en/errorFallback';
+import { writeIncidentEn } from './en/writeIncident';
 
 /**
  * The English table is the COMPLETE one: a key exists because this file answers it, and
@@ -35,6 +37,12 @@ import { newAssetFootprintEn } from './en/newAssetFootprint';
  * SUBSET of the `editor.*` prefix — its own header names the four keys that stayed here
  * instead) and is spread into this object below (`...editorEn,`), so `StringKey = keyof
  * typeof en` stays exact and no consumer of a key changes.
+ *
+ * **Split again at `en/errorFallback.ts`**, on the same wall and for the same reason: the
+ * `error.suffix.uncompensated` row took this file to 402 lines. What moved is the two GENERIC
+ * tiers `toUserMessage` falls back through — every `error.suffix.*` and every
+ * `error.category.*` — and nothing else, so the error copy keyed by a single minted code
+ * stays here beside the surface that raises it. Its own header carries the rest.
  */
 export const en = {
 	...itemColorEn,
@@ -46,6 +54,8 @@ export const en = {
 	...editorEn,
 	...enMobile,
 	...newAssetFootprintEn,
+	...errorFallbackEn,
+	...writeIncidentEn,
 	'command.open-project': 'Open renovation project',
 	'command.open-project-detail': 'Go to renovation project',
 	'view.project.price-apply': 'Apply',
@@ -212,6 +222,20 @@ export const en = {
 		'A room was written but its shape could not be saved, and the note could not be removed again. Inspect the room’s note before editing further.',
 	'zone.sidecar-update-uncompensated':
 		'A room was changed but its shape could not be saved, and the note could not be restored. Inspect the room’s note before editing further.',
+	// BP-02 slice 3, and the one refusal in that slice a user can actually reach: the vault
+	// holds an outstanding recovery record for this very item that this build cannot read, so
+	// `SequenceMarkerFileStore.write` refuses to open a new destructive sequence over it.
+	//
+	// Keyed by the exact `AppError.code` and living HERE rather than in `en/errorFallback.ts`,
+	// which holds the two generic tiers and nothing minted. Without this row the code fell
+	// through to `error.category.persistence` — 'The vault could not be read or written.' —
+	// which is false twice over: the vault read fine and was deliberately NOT written.
+	//
+	// It offers BOTH remedies `docs/using-planning-recovery.md` splits by cause, because
+	// nothing at this door can tell a record written by a newer version from one a hand edit
+	// bent out of shape, and only the first of those has a build to wait for.
+	'sequence.marker-write-blocked':
+		'That change was refused. A recovery record for this item is still outstanding and this build cannot read it, so nothing was written over it. Run a build at least as new as the one that wrote the record, or check the affected files against your backup and then remove sequence-markers.json from the plugin folder and reload the plugin.',
 	// The Asset library inspector's two unconvertible drafts — `moneyOf` and `new Decimal(...)`
 	// both THROW on a malformed literal, so these are `useFieldCommit`'s own `validate` refusals
 	// rather than a command's, and there is no `AppError` for `routeError` to place. Under
@@ -219,10 +243,6 @@ export const en = {
 	// COPY, and a parse refusal is the same family `error.requirement.*.unparseable` already is.
 	'error.asset.unit-cost.unparseable': 'Enter an amount, such as 34.95.',
 	'error.asset.waste.unparseable': 'Enter a fraction between 0 and 1, such as 0.08.',
-	'error.suffix.schema-version-unsupported':
-		'This note was written by a newer version of this plugin. Update the plugin to open it.',
-	'error.suffix.revision-conflict': 'This entry changed elsewhere in the meantime. Reload and try again.',
-	'error.suffix.external-modification': 'This entry was edited outside the plugin. Reload and try again.',
 	// The price section's own refusals, keyed by the exact `AppError.code` their RAISE SITES
 	// mint. `toUserMessage` asks `hasLocaleKey(error.code)` FIRST and only then walks
 	// `CODE_SUFFIX_KEYS`, so a code listed here beats a suffix that also matches it — which is
@@ -261,37 +281,6 @@ export const en = {
 	// `project.negative-amount`'s, which no caller can set at all: a code held out of reach by a
 	// GUARD degrades to the wrong sentence the day the guard moves, and this costs two strings.
 	'asset-price.negative-unit-cost': 'A price cannot be negative.',
-	'error.suffix.migration-failed': 'This note could not be converted to the current format.',
-	// THREE more suffixes, and the class they belong to is no longer described here at all: it
-	// is ASSERTED, by `toUserMessage.test.ts`'s 'every per-kind suffix raised in
-	// src/infrastructure/ resolves to something other than its category sentence'. The prose
-	// this replaces quoted a grep and read FOUR off it; the same grep prints SIX, and one of the
-	// six is not a code at all (a logger EVENT name), which is the half no text scan can settle
-	// and why that case carries a named exclusion table rather than a number.
-	//
-	// Both are SUFFIXES rather than per-kind entries because each is raised from ONE site
-	// parameterised by kind, so a direct `asset-price.` entry would answer it for one kind and
-	// leave `plan.`, `zone.` and the rest on the generic category sentence — which is where they
-	// were until this row: measured, `schema-version-malformed` appeared nowhere in this file.
-	// PRE-EXISTING, and one row fixes it for every kind.
-	'error.suffix.schema-version-malformed':
-		"This note's version could not be read, so it was not opened.",
-	'error.suffix.project-folder-unresolved':
-		'This note could not be saved, because the folder of the project it belongs to could not be found.',
-	// Raised when a note's own `id` names a different entity from the one the index sent us
-	// looking for it, which is a STALE INDEX rather than an unreadable vault — so the category
-	// sentence it fell back to ("The vault could not be read or written") named the wrong thing
-	// to do about it as well as the wrong cause.
-	'error.suffix.note-id-mismatch':
-		'This note belongs to a different entry, so it was not opened. Reload the vault to rebuild the index.',
-	'error.category.domain': 'Something about the project data is invalid.',
-	'error.category.validation': 'This data is not in the expected form.',
-	'error.category.persistence': 'The vault could not be read or written.',
-	'error.category.geometry': 'A geometry value is invalid.',
-	'error.category.import': 'Importing failed.',
-	'error.category.migration': 'This note cannot be read with this version of the plugin.',
-	'error.category.reference': 'That entry no longer exists.',
-	'error.category.calculation': 'A quantity could not be calculated.',
 	'dialog.confirm': 'Confirm',
 	'dialog.cancel': 'Cancel',
 	'dialog.delete-reference.referenced-by': 'Referenced by',

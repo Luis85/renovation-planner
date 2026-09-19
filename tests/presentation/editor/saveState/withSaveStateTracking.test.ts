@@ -28,6 +28,7 @@ const tracker = () => ({
 	resolveErr: vi.fn<() => void>(),
 	resolveNeutral: vi.fn<() => void>(),
 	markUnrecovered: vi.fn<() => void>(),
+	markVaultPaused: vi.fn<() => void>(),
 });
 
 /**
@@ -55,6 +56,9 @@ const recordingTracker = () => {
 		},
 		markUnrecovered: (): void => {
 			calls.push('markUnrecovered');
+		},
+		markVaultPaused: (): void => {
+			calls.push('markVaultPaused');
 		},
 	};
 };
@@ -195,7 +199,7 @@ describe('affectsSaveState', () => {
 	it.each(['Reference', 'Domain', 'Validation', 'Calculation'] as const)(
 		'counts a stamped %s refusal, which left writes standing despite its pre-write category',
 		(category) => {
-			expect(affectsSaveState(markUncompensated(errorOf(category)))).toBe(true);
+			expect(affectsSaveState(markUncompensated(errorOf(category), []))).toBe(true);
 		},
 	);
 
@@ -270,7 +274,7 @@ describe('withSaveStateTracking', () => {
 	 */
 	it('stamps an unrecovered write on the store when the refusal left writes behind', async () => {
 		const recorded = recordingTracker();
-		const history = historyResolving(err(markUncompensated(errorOf('Persistence'))));
+		const history = historyResolving(err(markUncompensated(errorOf('Persistence'), [])));
 		await withSaveStateTracking(history, recorded).run(command);
 		expect(recorded.calls).toEqual(['beginSaving', 'markUnrecovered', 'resolveErr']);
 	});
@@ -393,6 +397,7 @@ describe('withSaveStateTracking', () => {
 			resolveErr: vi.fn<() => void>(),
 			resolveNeutral: vi.fn<() => void>(),
 			markUnrecovered: vi.fn<() => void>(),
+			markVaultPaused: vi.fn<() => void>(),
 		};
 		const history = {
 			run: vi.fn<() => Promise<DispatchResult>>(() => {

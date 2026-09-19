@@ -18,8 +18,10 @@ import { DEFAULT_SETTINGS } from '../../../src/plugin/settings/settings';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { DiagnosticsReportModal } from '../../../src/plugin/diagnostics/DiagnosticsReportModal';
 import { showDiagnosticsReport } from '../../../src/plugin/diagnostics/showDiagnosticsReport';
+import { NO_WRITE_INCIDENTS } from '../../../src/application/incidents/WriteIncidentRegistry';
 import { recorder } from '../../helpers/logger';
 import type { PluginCommandHost } from '../../../src/plugin/commandHost';
+import type { DiagnosticsSnapshot } from '../../../src/application/queries/GetDiagnosticsSnapshot';
 
 vi.mock('../../../src/infrastructure/logging/consoleLogger', async () =>
 	(await import('../../helpers/logger')).consoleLoggerMock(),
@@ -109,13 +111,22 @@ describe('what showDiagnosticsReport hands the modal', () => {
 					index: { getPath: (id: string) => (id === ISSUE.entityId ? SINK : undefined) },
 					queries: {
 						diagnostics: {
-							execute: () =>
+							// Annotated as `Promise<DiagnosticsSnapshot>` -- narrower than the outer
+							// `as unknown as PluginCommandHost` cast below, which cannot see a missing
+							// field here. That cast is why the compiler did not say so when ADR-0034 added
+							// `writeIncidents` as required: this literal reached the real renderer, which
+							// read `.open` off `undefined` and threw -- a fake thinner than the real thing,
+							// caught by the suite rather than by the type it was cast to. Typing the
+							// literal itself, rather than trusting the cast around it, is what makes the
+							// NEXT required field a build error here too.
+							execute: (): Promise<DiagnosticsSnapshot> =>
 								Promise.resolve({
 									pluginVersion: '0.1.0',
 									obsidianVersion: '1.13.0',
 									schemaVersions: { zone: 1 },
 									migrationState: { pending: [], lastApplied: null },
 									validationIssues: [ISSUE],
+									writeIncidents: NO_WRITE_INCIDENTS,
 								}),
 						},
 					},

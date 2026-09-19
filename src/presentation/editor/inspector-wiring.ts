@@ -1,7 +1,4 @@
-import { EditZoneDetailsCommand } from '../../application/commands/zone/EditZoneDetails';
 import { ReversibleMoveZoneCommand } from './tools/reversible-move-zone-command';
-import { RenameZoneCommand } from '../../application/commands/zone/RenameZone';
-import { ReversibleRenameZoneCommand } from '../../application/commands/zone/reversible-rename-zone-command';
 import { ok, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { DispatchOutcome, DispatchResult } from '../../application/commands/DispatchOutcome';
@@ -95,10 +92,15 @@ export function createInspector(
 		// the property this `switch` actually rests on and cannot.
 		toCommand: (edit: InspectorEdit) => {
 			switch (edit.kind) {
+				// The two FACTORIES, not the adapter classes: both are composed guarded in
+				// `src/plugin/planEditorDeps.ts`, which is where a guarding decision belongs —
+				// `VaultExceptionMapper` lives in `plugin/`, and nothing else in presentation
+				// decides what is guarded. Constructing them here against `commands.zones` is
+				// what ADR-0034's Coverage paragraph named as outside the write-incident gate.
 				case 'details':
-					return new EditZoneDetailsCommand(context.commands.zones, context.commands.events, ledger, edit);
+					return context.commands.editZoneDetails(ledger, edit);
 				case 'name':
-					return new ReversibleRenameZoneCommand(new RenameZoneCommand(context.commands.zones, context.commands.events), ledger, edit);
+					return context.commands.renameZone(ledger, edit);
 				case 'geometry':
 					// The explicit form conditions its FIRST write on its baseline too. Undo/redo
 					// keep the adapter's shared-ledger expectation, just like canvas gestures.

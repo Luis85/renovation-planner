@@ -6,6 +6,17 @@ import DraftRecovery from '../../../../src/presentation/editor/forms/DraftRecove
 import PersistentWarningStrip from '../../../../src/presentation/editor/shell/PersistentWarningStrip.vue';
 import { editorWarnings } from '../../../../src/presentation/editor/shell/warnings';
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
+import { withSaveStateTracking } from '../../../../src/presentation/editor/save-state/with-save-state-tracking';
+import { CommandHistory } from '../../../../src/presentation/editor/tools/command-history';
+import { guardCommand } from '../../../../src/application/errors/guardAgainstThrowing';
+import { persistenceError } from '../../../../src/application/errors';
+import { installWriteIncidentRegistry } from '../../../../src/application/incidents/WriteIncidentRegistry';
+import { ok } from '../../../../src/core/result/Result';
+import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
+import type { AppError } from '../../../../src/core/errors/AppError';
+import type { VaultExceptionMapper } from '../../../../src/application/errors/exceptionMapper';
+import { recorder } from '../../../helpers/logger';
+import { installOpenWriteIncident } from '../../../helpers/writeIncidents';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { FIXTURE_PLAN } from '../../../helpers/planFixtures';
 import { mountPlanEditorCanvas, type CanvasHarness } from '../../../helpers/editor';
@@ -20,7 +31,19 @@ beforeEach(() => {
 afterEach(() => {
 	canvases.splice(0).forEach(canvas => canvas.wrapper.unmount());
 	wrappers.splice(0).forEach(wrapper => wrapper.unmount());
+	installWriteIncidentRegistry(null);
 });
+
+/** Required by `guardCommand`'s signature the way production's is; nothing here throws. */
+const threw: VaultExceptionMapper = (cause) => ({ ...persistenceError('vault.threw', 'threw', cause), technicalFault: true });
+
+function mountedRecovery(): { wrapper: VueWrapper; retry: ReturnType<typeof vi.fn> } {
+	const retry = vi.fn<() => Promise<void>>().mockResolvedValue();
+	const openSource = vi.fn<() => Promise<void>>().mockResolvedValue();
+	const wrapper = mount(DraftRecovery, { props: { retry, openSource } });
+	wrappers.push(wrapper);
+	return { wrapper, retry };
+}
 
 it('I13 names reference scale only when this loaded plan has a reference background', async () => {
 	const noReference = await mountPlanEditorCanvas();
@@ -73,4 +96,70 @@ it('I13 announces only changed warning rows while retaining their safe read acti
 	expect(strip.attributes('aria-relevant')).toBe('additions text');
 	expect(strip.get('[data-rp-warning="stale"]').findAll('[data-rp-action]').map(action => action.attributes('data-rp-action')))
 		.toEqual(['retry', 'open-source-note']);
+});
+
+/**
+ * **A vault-wide write pause must not take the READ retry away.** ADR-0034 gates COMMANDS and
+ * says so in as many words — a gate that blocked reads "would make the vault uninspectable at
+ * exactly the moment inspecting it is the only remedy on offer", and `docs/using-planning-
+ * recovery.md` is what tells the user to inspect.
+ *
+ * `DraftRecovery` reads this leaf's OWN unrecovered write at all four of its sites (an early
+ * return in `tryAgain`, the `data-rp-recovery-state` attribute, the message key and the retry
+ * button's `v-if`). Every one of them is about a draft THIS leaf failed to confirm, so none of
+ * them may answer to an incident raised on another plan, another project or in an earlier
+ * session. The control is this file's `I13 keeps an unconfirmed write distinct from a read-failed
+ * draft and never restores its read retry`, where this leaf's OWN `markUnrecovered()` does
+ * suppress the retry and does swap the copy — without it, these two cases would pass on a build
+ * where the panel had simply stopped reading the store at all.
+ */
+it('I13 keeps the read retry while the vault is paused by an incident this leaf did not raise', async () => {
+	await installOpenWriteIncident();
+	const { wrapper, retry } = mountedRecovery();
+
+	// **The precondition gets its own assertion, because every assertion below it is NEGATIVE.**
+	// "The panel is unchanged" is also exactly what a build where the vault fact never arrived
+	// looks like, so without this line the case would certify the gap it exists to guard.
+	// Measured rather than argued, 2026-09-17: with the store's seed reverted to `ref(false)` AND
+	// `with-save-state-tracking.ts`'s `markVaultPaused` call short-circuited — so the vault fact
+	// reaches this leaf through neither door — `npx vitest run <this file>` exits 1 with
+	// `2 failed | 3 passed`, and BOTH failures are THIS line
+	// (`AssertionError: expected false to be true`). Every panel assertion below it stayed green
+	// under that mutation, which is the whole reason this line exists.
+	expect(useSaveStateStore().unrecoveredWrite).toBe(true);
+	expect(wrapper.attributes('data-rp-recovery-state')).toBe('read-failed');
+	expect(wrapper.text()).toContain(t('en', 'planning.recovery.draft'));
+	expect(wrapper.findAll('button')).toHaveLength(2);
+	await wrapper.get('button').trigger('click');
+	expect(retry).toHaveBeenCalledOnce();
+});
+
+/**
+ * The same claim reached through the CATCH-UP door rather than through the seed: a leaf that was
+ * already open when a peer raised the incident learns of it at its next refused write, through
+ * `withSaveStateTracking` and the real `guardCommand`. That door records the VAULT's fact, so
+ * this panel's copy and its retry are untouched by it.
+ */
+it('I13 keeps the read retry after the vault-wide gate refuses this leaf’s next write', async () => {
+	const { wrapper, retry } = mountedRecovery();
+	const history = withSaveStateTracking(new CommandHistory(), useSaveStateStore());
+
+	await installOpenWriteIncident();
+	const guarded = guardCommand<void, DispatchOutcome, AppError>(
+		{ execute: () => Promise.resolve(ok<DispatchOutcome>('wrote')) },
+		'command.test.failed',
+		recorder,
+		threw,
+	);
+	await history.run({ execute: () => guarded.execute(undefined), undo: () => guarded.execute(undefined) });
+	await wrapper.vm.$nextTick();
+
+	// The same guard as the case above, over the catch-up door rather than the seed: the refusal
+	// has to have reached the store before "the panel is unchanged" means anything.
+	expect(useSaveStateStore().unrecoveredWrite).toBe(true);
+	expect(wrapper.attributes('data-rp-recovery-state')).toBe('read-failed');
+	expect(wrapper.text()).toContain(t('en', 'planning.recovery.draft'));
+	expect(wrapper.findAll('button')).toHaveLength(2);
+	await wrapper.get('button').trigger('click');
+	expect(retry).toHaveBeenCalledOnce();
 });

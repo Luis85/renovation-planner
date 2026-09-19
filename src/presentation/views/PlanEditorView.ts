@@ -1,9 +1,10 @@
 import { projectOriginFrom, type ProjectOrigin } from '../../application/navigation/ProjectDestination';
 import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
-import { createApp, type App as VueApp } from 'vue';
+import { createApp, watch, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import PlanEditorRoot from '../editor/PlanEditorRoot.vue';
+import { useSaveStateStore } from '../editor/save-state/save-state-store';
 import {
 	PLAN_EDITOR_CONTEXT,
 	type PlanEditorContext,
@@ -40,6 +41,8 @@ export const PLAN_EDITOR_ICON = 'map';
 interface PlanEditorViewState {
 	readonly planId: string;
 	readonly origin?: ProjectOrigin;
+	/** See the field of the same name on the view — an open unrecovered-write incident. */
+	readonly unrecoveredWrite: boolean;
 }
 
 /**
@@ -139,7 +142,11 @@ function planIdFrom(state: unknown): PlanEditorViewState | null {
 	if (typeof state !== 'object' || state === null) return null;
 	const planId = (state as Record<string, unknown>)['planId'];
 	const origin = projectOriginFrom((state as Record<string, unknown>)['origin']);
-	return typeof planId === 'string' && planId.length > 0 ? { planId, ...(origin?.planId === planId ? { origin } : {}) } : null;
+	// A literal `true` and nothing else. Anything a hand-edited layout or another version of
+	// this plugin left there reads as no incident, which is the only direction this value may
+	// be wrong in cheaply: inventing one blocks a leaf nobody blocked.
+	const unrecoveredWrite = (state as Record<string, unknown>)['unrecoveredWrite'] === true;
+	return typeof planId === 'string' && planId.length > 0 ? { planId, unrecoveredWrite, ...(origin?.planId === planId ? { origin } : {}) } : null;
 }
 
 export class PlanEditorView extends ItemView {
@@ -181,6 +188,17 @@ export class PlanEditorView extends ItemView {
 	 * partial and is not one — the write is this plugin's own, so `VaultChangeAdapter`'s echo
 	 * window suppresses it by design and no index event is ever raised to carry it.
 	 * `docs/tasks/16`'s sixteenth-round section has the full account.
+	 *
+	 * **A THIRD residue of that same window, recorded here for the same reason: the incident.**
+	 * `unmount()` below stops the watcher before the app goes, and `withSaveStateTracking`
+	 * captured its store at construction — so a write already in flight when the settings are
+	 * saved can have its compensation refuse AFTER the remount, and its `markUnrecovered()`
+	 * lands on the retired store with no watcher to carry it back and no reader to draw it,
+	 * while the fresh store has already seeded `false`. A half-written vault with no warning.
+	 * This was lost before the incident moved onto this view too — it is not a regression, and
+	 * it is not fixable without deferring the rebind, which is declined above. So read every
+	 * "a settings save keeps the warning" sentence in this file, in `save-state-store.ts` and
+	 * in the SDD as being about an incident already RAISED when the save lands.
 	 */
 	rebind(deps: PlanEditorDeps): void {
 		this.deps = deps;
@@ -206,9 +224,31 @@ export class PlanEditorView extends ItemView {
 	 * `''` rather than omitting the key when there is no plan yet: a leaf restored from a
 	 * state with no `planId` is exactly the case `planIdFrom` rejects, and a key that is
 	 * sometimes absent makes that a different shape to reason about.
+	 *
+	 * `unrecoveredWrite` takes the OPPOSITE spelling — present only when there is an incident
+	 * — because `false` is the absence of one and every reader of this state is already
+	 * written to that: `revealPlanEditor`'s `{ planId }`, `planEditorCommands`' `getState()
+	 * ['planId']`, and the cases that assert the whole object.
+	 *
+	 * **Obsidian is what persists this state, so an incident outlives a restart if and only if
+	 * Obsidian hands that state back to the new leaf** — it does not run here and `FakeLeaf`
+	 * records asks rather than performing them, so that half is Obsidian's behaviour and not a
+	 * checked claim; `save-state-store.ts` and
+	 * `tests/presentation/views/planEditorIncident.test.ts` hedge the identical claim and this
+	 * sentence matches them rather than out-promising them. Narrower still: this view never
+	 * PUBLISHES its state — `AssetLibraryView.publishViewState` issues a `setViewState` of its
+	 * own whenever its state changes, and nothing here does that when the watcher below flips
+	 * the flag — so what is persisted is whatever this method answered at the last layout
+	 * save. Keeping the flag is the conservative direction either way and is deliberate (a
+	 * dropped one would be an all-clear over a vault nobody repaired), and it is still not
+	 * crash recovery — nothing here knows WHAT was left half-written.
 	 */
 	getState(): Record<string, unknown> {
-		return { planId: this.planId ?? '', ...(this.origin ? { origin: this.origin } : {}) };
+		return {
+			planId: this.planId ?? '',
+			...(this.origin ? { origin: this.origin } : {}),
+			...(this.unrecoveredWrite ? { unrecoveredWrite: true } : {}),
+		};
 	}
 
 	/**
@@ -220,6 +260,22 @@ export class PlanEditorView extends ItemView {
 	 */
 	async setState(state: unknown, result: ViewStateResult): Promise<void> {
 		const parsed = planIdFrom(state);
+		// The incident is OR-ed in and never assigned: `revealPlanEditor` sets `{ planId }` on a
+		// leaf it created, and Obsidian re-enters here on a restore. Assigning would let either
+		// arrival say "all clear" about a vault this view knows is half-written, and only a
+		// write that actually succeeded may say that.
+		//
+		// Ahead of the navigation refusal below rather than beside the `planId` assignment,
+		// so that "never assigned" is unconditional in fact and not only in prose: that path
+		// returns, and an arriving incident dropped on it would be an all-clear this view was
+		// handed. Unreachable today (the refusal needs `parsed.origin` on the plan already
+		// mounted), which is exactly why it would stay wrong quietly.
+		//
+		// KNOWN AND DEFERRED: setting the field does not seed the LIVE store when the leaf is
+		// already mounted, because `sync()` returns early on `planId === mountedPlanId`, so an
+		// incident arriving this way shows up only at the next remount. Also unreachable today,
+		// and its fix is inside `sync()`'s mount-identity logic, which a later work package owns.
+		if (parsed?.unrecoveredWrite) this.unrecoveredWrite = true;
 		if (parsed?.origin && parsed.planId === this.mountedPlanId && this.root && !(await this.root.navigateToRecord(parsed.origin))) { result.history = false; return; }
 		if (parsed !== null) { this.planId = parsed.planId; this.origin = parsed.origin; }
 		this.sync();
@@ -245,6 +301,70 @@ export class PlanEditorView extends ItemView {
 
 	private planId: string | null = null;
 	private origin: ProjectOrigin | undefined;
+
+	/**
+	 * **This leaf's open unrecovered-write incident — a write that landed half-way and whose
+	 * compensation refused.** Here rather than in the Pinia store that still reports it,
+	 * because `rebind` builds a fresh Pinia on every settings save: the flag lived for the
+	 * MOUNT and a user who saved any preference — units, currency, verbose logging — with the
+	 * warning on screen was shown an all-clear over a vault nobody had repaired (ruling R1,
+	 * and `tests/plugin/rootSwapRebind.test.ts` pinned the loss before it pinned the fix).
+	 *
+	 * View-owned and per LEAF, the way `planId` above already is, and carried through the same
+	 * `getState`/`setState`: Obsidian reuses this object across a rebind, so the field outlives
+	 * the mount, and two Plan Editors on two plans still hold two incidents. Keying by view
+	 * TYPE would collapse them.
+	 *
+	 * **Set, never unset.** `mount` seeds each new store from it and watches the store to learn
+	 * about a new one; nothing here clears it, because only a write that actually succeeded may
+	 * clear a save error and neither this view nor the store it seeds can tell a write that
+	 * repaired the half-written rows from any other write that happened to land. A stale
+	 * warning is cheaper than a false all-clear.
+	 *
+	 * **What it does NOT reach**, stated because the sentence is easy to widen: a SECOND Plan
+	 * Editor leaf on the same plan. This field is per LEAF and reaches no other one, with or
+	 * without a rebind. That used to read "a pre-existing hole needing an affected-identity
+	 * model, not this field"; the hole was closed on 2026-09-17 (BP-02 slice 4) somewhere else
+	 * entirely, and it needed no identity model. `save-state-store.ts` SEEDS its `vaultPaused`
+	 * ref — one of the two terms of the `unrecoveredWrite` gate, exported as `vaultWritesPaused`;
+	 * the gate itself is a computed and has no writer at all — from the vault-scoped
+	 * `WriteIncidentRegistry` at setup, so a second leaf opened while an
+	 * incident is open is gated by the VAULT's record rather than by this leaf's field — which
+	 * is the durable fact, and the one that also survives a restart. Read the two as different
+	 * subjects: this field carries THIS leaf's incident across a rebind, and the registry
+	 * carries the vault's across a process.
+	 *
+	 * **The vault's incident does not write back here, and that is a SHAPE rather than an
+	 * ordering.** `mount`'s watcher below watches `saveState.leafUnrecoveredWrite` — the store's
+	 * narrow fact, set by `markUnrecovered()` alone — and not the wider `unrecoveredWrite` gate,
+	 * which is also true whenever the vault holds an open incident. It must not watch the gate:
+	 * this field is set-never-unset and rides `getState`, so recording a vault-wide incident in
+	 * it would keep this one leaf paused after the user had removed the incidents file and
+	 * reloaded, with nothing able to clear it. The vault's record is retired by the user; this
+	 * leaf's field is not retired at all, so only this leaf's own incident may enter it.
+	 *
+	 * **The two are deliberately different questions, and the asymmetry runs BOTH ways.** This
+	 * field is narrower than the gate — a paused leaf may emit a view state with no
+	 * `unrecoveredWrite` key at all, which is correct and is what the vault's own durable record
+	 * is for. And it is not merely a filtered copy: this leaf's own incident still reaches it
+	 * while the vault is paused, because `leafUnrecoveredWrite` is a ref of its own that the
+	 * seed never touches. The first pass at this (2026-09-17) shared ONE ref between the two
+	 * questions and relied on the watcher not being `immediate`; the result was that a seeded
+	 * store made `markUnrecovered()` a no-op on an already-true ref, the watcher never ran, and
+	 * this leaf's own half-written write silently stopped reaching Obsidian's persisted layout.
+	 * `tests/presentation/views/planEditorIncident.test.ts` holds both directions as cases.
+	 *
+	 * And the same never-unset that makes a stale warning cheap makes it WRONG on a leaf
+	 * re-pointed at another plan: `sync()` remounts on a planId change and seeds the new plan's
+	 * store from plan A's incident, blocking writes the user is entitled to make. Unreachable
+	 * today — `revealPlanEditor` filters candidates by `planIdOf` and the arrival queue re-sets
+	 * the same id, so no caller changes a mounted leaf's plan — and named here for the reason
+	 * `setState` names its own sibling gap: it would stay wrong quietly.
+	 */
+	private unrecoveredWrite = false;
+
+	/** Stops the mounted store's watcher — see `mount`. `null` while nothing is mounted. */
+	private stopIncidentWatch: (() => void) | null = null;
 	private root: { navigateToRecord: (origin: ProjectOrigin) => Promise<boolean> } | null = null;
 
 	/**
@@ -332,7 +452,31 @@ export class PlanEditorView extends ItemView {
 
 		const app = createApp(PlanEditorRoot);
 		app.config.idPrefix = nextAppIdPrefix();
-		app.use(createPinia());
+		const pinia = createPinia();
+		app.use(pinia);
+		// **Both directions of this leaf's incident, before anything in the tree reads the
+		// store.** Seeding is what makes a rebind keep the warning; the watcher is what makes
+		// the NEXT rebind keep one raised since. `withSaveStateTracking` is the one caller that
+		// RAISES an incident, and it runs inside this app, so the store is where the view has to
+		// hear about it — a callback on the context would be a second seam for one boolean. The
+		// call just below is the other caller, seeding a fresh store from what this leaf already
+		// carried; see `rebind`'s own doc comment above and
+		// `tests/presentation/views/planEditorIncident.test.ts` for the full account.
+		//
+		// `flush: 'sync'` because a rebind is not required to give Vue a tick first, and a
+		// watcher that had not run yet would seed the next mount from a stale field: under the
+		// default `pre` flush the queued job is DISPOSED by `unmount`'s `stopIncidentWatch()`
+		// and never runs at all. `planEditorIncident.test.ts`'s 'learns an incident raised in
+		// the same tick as the rebind' is the case that fails without this argument — every
+		// other case there awaits between the raise and the save, which is exactly why it
+		// needed writing.
+		const saveState = useSaveStateStore(pinia);
+		if (this.unrecoveredWrite) saveState.markUnrecovered();
+		// **`leafUnrecoveredWrite` and NOT the `unrecoveredWrite` gate.** The gate is also true
+		// while the vault holds an open incident (ADR-0034), and this field is this LEAF's own
+		// record — see its docblock for both halves of why mixing them was a defect rather than a
+		// simplification.
+		this.stopIncidentWatch = watch(() => saveState.leafUnrecoveredWrite, () => { this.unrecoveredWrite = true; }, { flush: 'sync' });
 		// On the APP instance and not globally: each ItemView's Vue app is isolated
 		// (ADR-004), and a global `app.use` at plugin scope would leak vue-konva's component
 		// registration into every future view whether it draws a canvas or not.
@@ -345,6 +489,10 @@ export class PlanEditorView extends ItemView {
 	}
 
 	private unmount(): void {
+		// Stopped for the reason the app is unmounted at all: the watcher holds the retired
+		// store, and a second mount would otherwise leave one watcher per rebind alive.
+		this.stopIncidentWatch?.();
+		this.stopIncidentWatch = null;
 		this.vueApp?.unmount();
 		this.vueApp = null;
 		this.root = null;

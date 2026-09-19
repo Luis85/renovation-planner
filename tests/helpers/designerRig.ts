@@ -443,9 +443,18 @@ export function tracePolygon(rig: DesignerRig, vertices: readonly Point[]): void
 }
 
 /**
- * **The Select tool's shared vocabulary**, used by every case whose subject is a sweep: the tool
- * reached the way a user reaches it, the two empty-canvas corners a sweep runs between, the band it
- * draws, and the one event helper that can leave a press unreleased.
+ * **The Select tool's shared vocabulary for the cases that MOUNT the designer**: the tool reached
+ * the way a user reaches it, the two empty-canvas corners a sweep runs between, the band it draws,
+ * and the one event helper that can leave a press unreleased.
+ *
+ * **Not "every case whose subject is a sweep"**, which is what this sentence said first and which a
+ * grep falsifies: `grep -rn "from '.*designerRig'" tests/presentation/designer/` prints NINETEEN
+ * files, and three sweep-subject ones are not among them. `tools/designerSelectMarquee.test.ts` and
+ * `tools/designerSelectTool.test.ts` drive `selectToolRig` — the tool against a harness context,
+ * with no Vue, no Konva stage and no DOM event — so none of this reaches them; and
+ * `selection/marquee.test.ts` drives neither rig, asking the pure `swept` function directly. The
+ * vocabulary below is the MOUNTED surface's, and a case under `tools/` or `selection/` that looks
+ * like it should share it is usually a case that has no canvas to share it with.
  *
  * They live HERE rather than in each file that needs them for a reason narrower than "duplication is
  * bad": fallow's duplication check does not read a `*.test.ts` file at all — its run prints `skipped

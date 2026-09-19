@@ -43,11 +43,15 @@
  * reopened, one each, because the two doors are separate expressions in separate modules and a
  * change can drop either alone.
  *
- * **The file's last `describe` is the one thing here that is NOT an interruption**, and it sits
- * here for exactly that reason: a release outside the leaf COMMITS. It is written against
- * `DesignerSelectTool.dropMarquee`'s docblock, which corrected the opposite claim, and its own
- * docblock carries what jsdom's missing pointer capture lets it check and what it therefore does
- * not claim.
+ * **The file's last `describe` is the only case whose SUBJECT is that a release outside the leaf
+ * COMMITS**, which is a narrower sentence than the one written first — *"the one thing here that is
+ * not an interruption"* — and narrower because that one is falsifiable three lines into the block
+ * above. Every interruption row is seeded by `drag(rig, FROM, TO)`, whose release lands at screen
+ * (-52, -52) and therefore outside the pane; it commits, and `expect(swept).toHaveLength(2)` is the
+ * assertion that says so. So an outside release is already load-bearing here and always was — what
+ * was missing is a case that NAMES it, against `DesignerSelectTool.dropMarquee`'s docblock, which
+ * corrected the opposite claim. That case's own docblock carries what jsdom's missing pointer
+ * capture lets it check and what it therefore does not claim.
  *
  * **A case was written and dropped rather than shipped quietly**: *"the press after a cancellation
  * is an ordinary one"* stayed GREEN with the `pointercancel` door disabled, because the next press
@@ -80,9 +84,10 @@ function wheel(rig: DesignerRig): void {
 }
 
 /**
- * The `+` key at the canvas, which `canvasKeyDoors`' `onKeyDown` routes to `zoomShortcut` — the LAST
- * branch of the one short-circuit chain `gestureInFlight()` opens, and so the cheapest observable
- * thing on the far side of that arm.
+ * The `+` key at the canvas, which `canvasKeyDoors`' `onKeyDown` routes to `zoomShortcut` — the
+ * statement the one short-circuit chain GUARDS rather than a branch of it, reached only once
+ * `gestureInFlight()` answers false, and so the cheapest observable thing on the far side of that
+ * arm.
  *
  * Dispatched AT `rig.canvasEl` because `isCanvasKey` tests `event.target === container`: these
  * shortcuts belong to the canvas only while the canvas is what has focus.
@@ -223,6 +228,18 @@ describe('an interrupted designer gesture, interrupted through the DOM', () => {
  * The outside-ness is ASSERTED rather than reasoned from the camera arithmetic in this file's
  * header: if `TO` ever lands inside the pane, this case must go red rather than quietly become a
  * case about an ordinary release.
+ *
+ * **This case CONTRADICTS a sibling, and the pointer belongs here because that sibling cannot
+ * carry it.** `tests/presentation/designer/tools/designerSelectMarquee.test.ts` still says the
+ * refuted thing twice — in the docblock above its `it.each` (*"`pointercancel` / focus loss / a
+ * release outside the leaf, which `EditorSurface` all route to `abandonGesture`"*) and in that
+ * table's own label, `'pointercancel, blur or a release outside the leaf'`. Both are verbatim the
+ * sentence `dropMarquee`'s docblock was corrected for. Its CASES are sound — they call
+ * `tool.abandonGesture()` directly and assert what an abandonment leaves, which is true of the two
+ * inputs that really do reach it; it is the third item in each list that names a door
+ * `EditorSurface` does not have. Named here rather than fixed there because that file is another
+ * lease, and because ADR-0015's rule applies: a contradiction findable from only one side is one
+ * the next reader resolves the wrong way.
  */
 describe('a sweep released outside the leaf', () => {
 	it('commits the selection rather than abandoning it', async () => {

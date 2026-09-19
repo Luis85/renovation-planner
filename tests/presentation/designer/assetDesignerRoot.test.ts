@@ -35,6 +35,7 @@ import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { EMPTY_STATE_CONTENT } from '../../../src/presentation/emptyStates/content';
 import { assetDesign } from '../../helpers/assetDesign';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { recorder } from '../../helpers/logger';
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { emptyBackgroundVault } from '../../helpers/background';
@@ -160,6 +161,52 @@ describe('the designer shell', () => {
 		const { wrapper } = await mounted();
 
 		expect(wrapper.find('.rp-designer-status .rp-save-state-label').exists()).toBe(true);
+	});
+
+	/**
+	 * **AD18 item 1: the camera's scale, which this surface shipped without.**
+	 *
+	 * The designer has a real camera — a Pan tool, a wheel door, `MIN_ZOOM` — and until this
+	 * readout existed nothing anywhere stated its scale, on a surface whose whole job is
+	 * millimetres. The concept boards draw it beside undo/redo; `StatusBar` has drawn it for the
+	 * Plan Editor all along, which is why the spelling is that file's rather than a new one.
+	 *
+	 * Asserted through the RENDERED text rather than through `zoomPercent`, because the defect
+	 * this closes was that the number reached no one — a computed nothing draws is the same
+	 * nothing it replaced.
+	 *
+	 * **The resting figure is 10%, not 100%, and that is `DEFAULT_ZOOM` rather than a bug.** This
+	 * camera is 0.1 — a tenth of a screen pixel per world millimetre — so a bare mount reads 10%.
+	 * A leaf a user actually opens does NOT sit there: `DesignerCanvas` frames the asset, which is
+	 * why `designerRig` puts the default back through `options.camera` for cases that need it. The
+	 * first draft of this case asserted 100% from habit and was corrected by running it.
+	 */
+	it('states the camera scale in its status region, and follows the camera', async () => {
+		const { wrapper, pinia } = await mounted();
+
+		expect(wrapper.get('.rp-designer-status .rp-designer-zoom').text())
+			.toBe(t('en', 'designer.status.zoom', { percent: '10' }));
+
+		useEditorStore(pinia).viewport = { ...useEditorStore(pinia).viewport, zoom: 0.425 };
+		await nextTick();
+
+		// Whole percent, `StatusBar`'s rule: 42.5 rounds rather than printing a jittering digit.
+		expect(wrapper.get('.rp-designer-zoom').text())
+			.toBe(t('en', 'designer.status.zoom', { percent: '43' }));
+	});
+
+	/**
+	 * **A scale over a leaf with no design is a fact about nothing**, so the readout takes the
+	 * same `design !== null` gate the Inspector region takes — and `AssetDesignStore.fail` blanks
+	 * `design` for a loading leaf and a refused read alike, which is what makes one gate cover
+	 * both. The STATUS REGION itself survives either way; `keeps every region when the read
+	 * refuses` above is the assertion for that, and this one must not be read as contradicting it.
+	 */
+	it('states no scale when the read refuses, while keeping the region', async () => {
+		const { wrapper } = await mounted(context({ queries: unavailableAssetDesignerQueries() }));
+
+		expect(wrapper.find('.rp-designer-status').exists()).toBe(true);
+		expect(wrapper.find('.rp-designer-zoom').exists()).toBe(false);
 	});
 
 	/**

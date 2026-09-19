@@ -179,6 +179,24 @@ const gridStep = computed<number | null>(() => {
 });
 
 /**
+ * The camera's scale for the status row, from the SAME `editorStore.viewport` the canvas draws with
+ * and `gridStep` above already reads.
+ *
+ * **Whole percent**, exactly as `StatusBar`'s own `zoomPercent` does it for the Plan Editor, and for
+ * that file's stated reason: a readout that jitters in its last digit is one people stop reading.
+ *
+ * Gated on `design !== null` at the template rather than here, which is the same gate the Inspector
+ * region takes — a scale stated over a leaf that is loading or failed is a fact about nothing, and
+ * `AssetDesignStore.fail` blanks `design` for both.
+ *
+ * **Why this exists at all**, since the surface shipped without it: the designer has a real camera —
+ * a Pan tool, a wheel door, `MIN_ZOOM` — and nothing anywhere stated its scale, on a surface whose
+ * whole job is millimetres. The dimension labels and the legend the concept boards draw are
+ * recoverable from the Inspector; the zoom was recoverable from nowhere. AD18 item 1.
+ */
+const zoomPercent = computed(() => Math.round(editorStore.viewport.zoom * 100));
+
+/**
  * The KEY, held separately from its resolved props so `onEmptyStateAction` below can ask
  * which entry is showing without re-deriving it — the same split `overlay` used to collapse
  * into one step before Task B7 gave one of the two entries something to DO.
@@ -589,6 +607,10 @@ onMounted(() => {
 				v-if="hintKey !== null"
 				class="rp-designer-hint"
 			>{{ tr(hintKey) }}</span>
+			<span
+				v-if="design !== null"
+				class="rp-designer-zoom"
+			>{{ tr('designer.status.zoom', { percent: String(zoomPercent) }) }}</span>
 			<span
 				v-if="gridStep !== null"
 				class="rp-designer-grid-step"

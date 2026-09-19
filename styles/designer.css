@@ -386,7 +386,12 @@
 	color: var(--text-muted);
 }
 
-/* The grid step: a standing fact about the view, muted like the hint beside it. */
-.rp-designer-grid-step {
+/*
+ * The grid step and the zoom: standing facts about the view, muted like the hint beside them.
+ * One rule rather than two identical ones, because they are the same KIND of thing and a reader
+ * who changes the treatment of one means both.
+ */
+.rp-designer-grid-step,
+.rp-designer-zoom {
 	color: var(--text-muted);
 }

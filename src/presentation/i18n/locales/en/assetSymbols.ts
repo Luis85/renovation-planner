@@ -111,6 +111,9 @@ export const assetSymbolsEn = {
 	'designer.selection.angle.hint': 'An angle of 0 points right, and 90 points down',
 	// The status row while the grid is shown (snapping spec 2026-09-15 §2.6); withheld while the footprint is unscaled.
 	'designer.status.grid': 'Grid {step} mm',
+	// Beside it, and shown whenever a design is drawn: the camera's scale. `StatusBar`'s spelling for
+	// the Plan Editor, so the two surfaces read alike (AD18 item 1).
+	'designer.status.zoom': 'Zoom {percent}%',
 	// AD09's Parts panel: the list itself, its empty line, and the row controls. `designer.selection.*`
 	// already names the footprint, the clearance, the anchor and the facing, so those are not repeated.
 	'designer.parts': 'Parts',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+import { descendants, functionNamed, parseScript } from '../../../helpers/parsedSource';
 
 /**
  * The wiring, asserted as a fact about the composition rather than about behaviour. A
@@ -16,10 +17,10 @@ import { readFileSync } from 'node:fs';
  * The trust path's gate (design spec §2.2) added a THIRD link since this test was written, and
  * BP-02's L-16 a FOURTH: `wrapDispatcher` receives `gated`, not `tracked`, directly — `gated` is
  * `withIncidentGate(withStaleGate(tracked, …))`, so `tracked` is still what the stale gate
- * itself is built from, and the incident gate is outside it. The
- * property this file is FOR — a refusal must open no saving batch — is exactly why the gate
- * sits after the tracker rather than before it, so the two new assertions below hold both
- * halves of that ordering rather than only the old tracked/wrapDispatcher pair.
+ * itself is built from, and the incident gate is outside it. The property this file is FOR — a
+ * refusal must open no saving batch — is exactly why the gate sits after the tracker rather than
+ * before it, so both halves of that ordering are held rather than only the old
+ * tracked/`wrapDispatcher` pair.
  *
  * **The ARGUMENTS, never the textual order.** An earlier draft compared `indexOf` positions,
  * which is the "address code by position" defect this repository writes down: it passed for
@@ -28,57 +29,106 @@ import { readFileSync } from 'node:fs';
  * `wrapDispatcher` receives. Both of the two mistakes its own docblock claimed to prevent
  * could stay green.
  *
- * Still a source-shape check and not a behavioural one, which is a real limit: it holds the
- * bindings, not the runtime values. What it cannot see is written down rather than implied —
- * a renamed local that is threaded correctly fails this test, and a decorator that ignores
- * its argument passes it.
+ * **It asks the PARSER, and only about `buildDispatcherChain`'s own body.** Until 2026-09-19
+ * this file read `dispatcherChain.ts` and `runtime.ts` as one string with all whitespace
+ * collapsed, which made comment text and code text indistinguishable to every assertion — and
+ * that was not a theoretical hazard: with the incident gate genuinely removed from the chain,
+ * ONE comment line added to `runtime.ts` spelling the pattern turned the whole file green,
+ * measured; and the tracker's call AND its import could be deleted outright while the case
+ * about it stayed green on the strength of a single prose line in `runtime.ts`. It also ran the
+ * other way — a legitimate `// Never write wrapDispatcher(history, tracked) here.` reddened a
+ * gate over correct code. A comment is not a node, so neither channel exists now. The docblock
+ * that justified the concatenation is gone with it: both of its premises measured false (it
+ * counted four `not.toMatch` cases where there were three, and claimed a stale path would go
+ * "vacuously green" where replaying the six cases against the wrong file turned 6 of 6 red).
  *
- * **It reads BOTH files the chain could be spelled in, concatenated, rather than the one it is
- * spelled in today.** The whole composition moved out of `runtime.ts` into `dispatcherChain.ts`
- * when `runtime.ts` crossed its `max-lines` cap, and a path pointing at the file the code LEFT
- * is the worst failure this file has available: four of its six cases are `not.toMatch`, which
- * an empty read satisfies, so a stale path turns most of this gate vacuously green instead of
- * red. Concatenating is what makes the negatives mean "nowhere in the chain's two homes" rather
- * than "not in whichever one I named". A third home would still need adding here, which is the
- * limit and is why it is stated.
+ * **What it sees**: exactly one call of each named decorator inside that one function, the
+ * source text of each call's arguments, and what each `const` in that body is initialised from.
+ * A second, duplicate call of any of these five is a failure rather than a match, which the
+ * substring version could not say. If `buildDispatcherChain` is renamed, moved to another
+ * module or turned into an arrow constant, this file throws at load naming the function and the
+ * file it looked in — the loudest failure available here, and the one the concatenation was
+ * specifically built to tolerate.
+ *
+ * **What it cannot see**, still a source-shape check and not a behavioural one: it holds the
+ * bindings, not the runtime values. A renamed local that is threaded correctly fails this test,
+ * and a decorator that ignores its argument passes it. It matches a callee spelled as a bare
+ * identifier, so the same function reached through a namespace or an alias
+ * (`gates.withStaleGate(…)`, `const g = withStaleGate`) reads as absent. And it asks one
+ * function in one file: a chain rebuilt in a helper this body calls is outside it.
  */
-const source = [
-	'src/presentation/editor/dispatcherChain.ts',
-	'src/presentation/editor/runtime.ts',
-]
-	.map((path) => readFileSync(path, 'utf8'))
-	// Collapse whitespace so a reformat or a line break does not decide the outcome.
-	.join('\n').replace(/\s+/gu, ' ');
+const CHAIN_FILE = 'src/presentation/editor/dispatcherChain.ts';
+const CHAIN_FN = 'buildDispatcherChain';
+
+const script = parseScript(CHAIN_FILE);
+const chain = functionNamed(script, CHAIN_FN);
+if (chain === undefined) {
+	throw new Error(`${CHAIN_FILE} declares no function \`${CHAIN_FN}\`. The dispatcher chain has moved and this gate is reading a file that no longer builds it.`);
+}
+
+/** The one member of `nodes`, or a failure naming what was looked for and how many there were. */
+const only = <T>(nodes: readonly T[], what: string): T => {
+	const [first, ...rest] = nodes;
+	if (first === undefined || rest.length > 0) {
+		throw new Error(`Expected exactly one ${what} in \`${CHAIN_FN}\` (${CHAIN_FILE}); found ${nodes.length}.`);
+	}
+	return first;
+};
+
+const text = (node: ts.Node): string => node.getText(script.file);
+
+/** The single call of `callee` in the chain's body. A comment spelling it is not a call. */
+const call = (callee: string): ts.CallExpression =>
+	only(descendants(chain, ts.isCallExpression).filter((node) => text(node.expression) === callee), `\`${callee}(…)\` call`);
+
+/** Each argument of `node`, as its own source text. */
+const argsOf = (node: ts.CallExpression): string[] => node.arguments.map(text);
+
+/** The callee of `node` when it is a call, else `null`, so a non-call binding fails on absence. */
+const calleeOf = (node: ts.Expression): string | null => (ts.isCallExpression(node) ? text(node.expression) : null);
+
+/** What the single `const <name> = …` in the chain's body is initialised from. */
+const boundTo = (name: string): ts.Expression => {
+	const declaration = only(
+		descendants(chain, ts.isVariableDeclaration).filter((node) => ts.isIdentifier(node.name) && node.name.text === name),
+		`\`const ${name} = …\` binding`,
+	);
+	if (declaration.initializer === undefined) throw new Error(`\`${name}\` is declared with no initializer in \`${CHAIN_FN}\`.`);
+	return declaration.initializer;
+};
 
 describe('save-state wiring', () => {
-	it('composes the tracker in the runtime', () => {
-		expect(source).toContain('withSaveStateTracking');
-		expect(source).toContain('useSaveStateStore(');
+	/**
+	 * The old first case asserted the two names appeared SOMEWHERE, which the tracker's complete
+	 * removal — call and import both — survived. Asserting the call's arguments instead says what
+	 * that case meant: the tracker is composed, once, over the refresh decorator and over the
+	 * store, and the bare `history` is what the refresh decorator itself is built from.
+	 */
+	it('composes the tracker once, over the refresh decorator and the save-state store', () => {
+		expect(argsOf(call('withSaveStateTracking'))).toEqual(['dispatcher', 'save']);
+		expect(calleeOf(boundTo('dispatcher'))).toBe('withStateRefresh');
+		expect(argsOf(call('withStateRefresh'))[0]).toBe('history');
+		expect(calleeOf(boundTo('save'))).toBe('useSaveStateStore');
 	});
 
-	it('hands the tracker the REFRESH decorator, not the bare history', () => {
-		expect(source).toMatch(/withSaveStateTracking\( *dispatcher *,/u);
-		expect(source).not.toMatch(/withSaveStateTracking\( *history *,/u);
-	});
-
-	it('binds the tracker to a name, so the two assertions above address one value', () => {
-		expect(source).toMatch(/const tracked = withSaveStateTracking\(/u);
+	it('binds the tracker to a name, so the two cases below address one value', () => {
+		expect(calleeOf(boundTo('tracked'))).toBe('withSaveStateTracking');
 	});
 
 	/**
 	 * Design spec §2.2: the stale gate sits AFTER the tracker (so a refusal opens no saving
-	 * batch) and BEFORE `wrapDispatcher` (so the undo/redo flags still refresh). Both halves
-	 * are asserted, because either one alone is satisfied by a build that dropped the gate
-	 * from the chain entirely and fed `wrapDispatcher` the bare `tracked` value again.
+	 * batch) and BEFORE `wrapDispatcher` (so the undo/redo flags still refresh). Equality over
+	 * the one call is both halves of the old pair at once — a build that dropped the gate from
+	 * the chain has no call to read, and one that fed it the untracked `dispatcher` fails on the
+	 * argument.
+	 *
+	 * Addresses the CALL rather than the assignment. The pin used to read
+	 * `const gated = withStaleGate( tracked ,` and broke the day a fourth link wrapped it, while
+	 * the thing it exists to protect — that the gate is built from the TRACKED dispatcher — was
+	 * still true. A pin on the spelling of a line is not a pin on its meaning.
 	 */
 	it('the stale gate is built from the tracked dispatcher, not from the untracked one', () => {
-		// Addresses the CALL rather than the assignment. The pin used to read
-		// `const gated = withStaleGate( tracked ,` and broke the day a fourth link wrapped it,
-		// while the thing it exists to protect — that the gate is built from the TRACKED
-		// dispatcher — was still true. A pin on the spelling of a line is not a pin on its
-		// meaning.
-		expect(source).toMatch(/withStaleGate\( *tracked *,/u);
-		expect(source).not.toMatch(/withStaleGate\( *dispatcher *,/u);
+		expect(argsOf(call('withStaleGate'))[0]).toBe('tracked');
 	});
 
 	/**
@@ -90,18 +140,16 @@ describe('save-state wiring', () => {
 	 *
 	 * It wraps the stale gate rather than sitting inside it, so a paused vault answers
 	 * `WRITES_PAUSED_CODE` — whose copy exists in both locales — rather than
-	 * `STALE_WRITE_REFUSED`, which tells a user their last read-back failed. Both halves are
-	 * asserted for the reason the case above gives: either alone is satisfied by a build that
-	 * dropped a link and fed `wrapDispatcher` the value again.
+	 * `STALE_WRITE_REFUSED`, which tells a user their last read-back failed.
+	 *
+	 * The old sixth case asserted `wrapDispatcher(history, gated)` in the same words as the
+	 * fifth and added two negatives that could only fire once that shared positive had already
+	 * failed; no mutation ever reddened it alone. It is folded in here, where equality over the
+	 * one `wrapDispatcher` call says what its three assertions said together.
 	 */
 	it('the incident gate wraps the stale gate, and wrapDispatcher receives the result', () => {
-		expect(source).toMatch(/withIncidentGate\( *withStaleGate\(/u);
-		expect(source).toMatch(/wrapDispatcher\( *history *, *gated *\)/u);
-	});
-
-	it('hands wrapDispatcher the GATED dispatcher, not the tracked-but-ungated one', () => {
-		expect(source).toMatch(/wrapDispatcher\( *history *, *gated *\)/u);
-		expect(source).not.toMatch(/wrapDispatcher\( *history *, *tracked *\)/u);
-		expect(source).not.toMatch(/wrapDispatcher\( *history *, *dispatcher *\)/u);
+		expect(call('withIncidentGate').arguments.map(calleeOf)).toEqual(['withStaleGate']);
+		expect(calleeOf(boundTo('gated'))).toBe('withIncidentGate');
+		expect(argsOf(call('wrapDispatcher'))).toEqual(['history', 'gated']);
 	});
 });

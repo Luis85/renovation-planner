@@ -937,8 +937,8 @@ The rules this suite is actually held to:
   argument is a regex literal counted once, as the literal), each hit then classified by what its
   subject IS. On 2026-09-13 that found 414 hits in 127 files. Most
   read a RUNTIME value — a rendered text, a thrown message, a note's frontmatter the code under
-  test wrote, an id, a path, a URL knob, whitespace — and are not source-text gates. **Thirty-six
-  files still read source or config TEXT through one**, none touched by this branch, in three
+  test wrote, an id, a path, a URL knob, whitespace — and are not source-text gates. **Thirty-five
+  files still read source or config TEXT through one**, in three
   groups: twenty-one stylesheet-or-SFC-text pins (`prototype-styles`, `libraryComponentStyles`,
   `styles.test.ts` — fourteen of whose twenty-six hits are the assembler's own messages and
   twelve read the assembled sheet's text — eight its `@container` preludes, two its
@@ -948,8 +948,8 @@ The rules this suite is actually held to:
   `projectFilterStyles`, `projectListStyles`, `continueRowStyles`, `projectListOverlap`,
   `assetPriceList`, `viewRootOpenLibrary`, `projectList` under `tests/presentation/views/`;
   `assetMark` and `narrowComposition.ts` under `tests/presentation/library/`;
-  `tests/helpers/buttonRules.ts`; `prototype-promotion` and `entryBoundary`), ten TypeScript
-  source scans (`saveStateWiring`, `toolManager`, `eventVocabularyCensus`, `toUserMessage`,
+  `tests/helpers/buttonRules.ts`; `prototype-promotion` and `entryBoundary`), nine TypeScript
+  source scans (`toolManager`, `eventVocabularyCensus`, `toUserMessage`,
   `spatialMessage`, `declarations`, `reversibleWritePathDiscovery`, `creationCatalogue`,
   `editorContext`, `appIdPrefix`) and five config-or-document reads (`manifest.test.ts` over
   the workflow YAML, `lint-edited.test.ts` over the hook command in `.claude/settings.json`,
@@ -960,6 +960,14 @@ The rules this suite is actually held to:
   imports, a named function's body), `tests/helpers/importGraph.ts` (edges, and what the reached
   files name), `tests/helpers/selectors.ts`'s `stylesheetRules` and `classesNamed` (CSS through
   lightningcss), and `tests/helpers/environmentDirective.ts`.
+
+  `saveStateWiring` left that list on 2026-09-19, and what it cost to leave it is the argument
+  for the rest: its six `toMatch` pins ran over TWO files joined and whitespace-collapsed, so a
+  COMMENT in either satisfied an assertion about code — measured, with the incident gate removed
+  from the real dispatcher and one comment line restoring the gate to green, and measured the
+  other way too, with a legitimate `// Never write wrapDispatcher(history, tracked) here.`
+  reddening correct code. Four AST cases replace the six, through
+  `parsedSource.ts`'s `functionNamed` and the call and binding nodes inside that one function.
 
   What this branch converted, each watched red first: `harness-shot.test.ts`'s ~55 pins over
   `scripts/harness-shot.mjs` (the `SHOTS` table evaluated through the script's own constants,

@@ -22,6 +22,13 @@
  * a GUARD against a future hiding declaration, not a discovery, and every sentence in this file
  * is written that way.
  *
+ * **Which of the two real-sheet cases is the stronger one is stated at each of them, and it is
+ * not the mounted one.** Reading the block's DECLARATIONS catches strictly more than applying
+ * them to the tree does, because a rule can hide a region that contains no focusable control —
+ * `.rp-designer-canvas` is exactly that region, measured. The mounted case earns its place on a
+ * failure MESSAGE that names controls, on the per-rule `unmatched` check, and on unconditional
+ * rules the declaration case never looks at; it does not earn it on reach.
+ *
  * An assertion over an empty set passes for the wrong reason, so the guard is surrounded by
  * cases that prove it is not vacuous, in `regionsReachable.test.ts`'s pattern:
  *
@@ -36,7 +43,7 @@
  *
  * Each of those was watched red, and one of them is the reason the resolver resolves the
  * container NAME rather than only the width: renaming the block's container to one the sheet
- * declares nowhere left the first version of this file green in all eighteen cases, while in a
+ * declares nowhere left the first version of this file green in every one of its cases, while in a
  * browser the block had stopped reaching the designer at all. It now empties the admitted set
  * and the "finds the narrow block" case reports it. What is still outside this file is a
  * consistent rename of BOTH halves — `designerStyles.test.ts` is where the literal name
@@ -46,8 +53,22 @@
  * declaration reaching these regions from `designer.css` or from a theme is outside it. It
  * resolves a width feature against a container name and THROWS on any other condition shape,
  * rather than dropping one it cannot read. And it settles nothing about appearance: jsdom lays
- * nothing out, so "not hidden by this sheet" is not "visible" — `npm run harness-shot --
- * --width=460` remains the only instrument here that measures a rendered layout.
+ * nothing out, so "not hidden by this sheet" is not "visible".
+ *
+ * **What DOES look at this surface below the threshold is a FIXED capture, not a `--width`
+ * invocation, and the distinction is a fact about the script rather than a preference.**
+ * `resolveShots` (`scripts/entryShots.mjs`) reads a positional argument as a harness-index
+ * ENTRY id and refuses a width with no entry beside it — `--width applies to a named entry, and
+ * the fixed shots carry their own` — so `npm run harness-shot -- --width=460` throws and
+ * captures nothing. The fixed shots carry it instead: `harness-shot.mjs`'s `SHOTS` table has
+ * `asset-designer-narrow` and its siblings at `width: 460`, which a bare `npm run harness-shot`
+ * writes, and 460 is under the 560 px threshold resolved below, so those captures are this
+ * block applied by a real engine. `npm run harness` with `?view=asset-designer` in a browser is
+ * the other, and the only place the query is resolved by a browser rather than by this file.
+ * Both were read (`resolveShots`, and the table grepped for the designer entries carrying a
+ * `width`) rather than run: there is no pinned Chromium on the machine this was written on, and
+ * an instruction nobody has run is a plan rather than a procedure — which is exactly how the
+ * `--width` spelling above got into a hand-off in the first place.
  */
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -83,8 +104,16 @@ const COMPARE: Record<string, (a: number, b: number) => boolean> = {
 };
 
 /**
- * The container names `css` DECLARES, which is what decides whether a `@container` block
- * addressing a name reaches anything at all.
+ * Every container name `css` mentions in a `container-name` declaration, ANYWHERE in the sheet.
+ *
+ * That is an APPROXIMATION of the browser's rule and the difference is worth stating. A browser
+ * resolves a named `@container` against the nearest ANCESTOR OF THE MATCHED ELEMENT that
+ * declares that name AND carries a `container-type`; this looks at neither the ancestry nor
+ * `container-type`. Both gaps make it ADMIT rules a browser might not apply — the safe
+ * direction for a guard, since an over-admitted rule can only produce a finding to look at,
+ * never hide one — and both are closed in practice by the sheet itself, which puts
+ * `container-type` and `container-name` on one root rule that is an ancestor of every selector
+ * the block uses.
  *
  * Only the `container-name` longhand is read — the spelling `designer-narrow.css` uses and the
  * one `designerStyles.test.ts` pins the literal `rp-designer` on. A sheet rewritten to the
@@ -112,13 +141,19 @@ function containerNames(css: string): Set<string> {
  * `StyleRule.condition` is the PARSED query serialized — `stylesheetRules` says so — so this
  * reads a tree rather than the source text, and `''` (no condition) always applies. It handles
  * exactly one shape: a `@container`, named or unnamed, whose query is a single width range
- * against a `px` or `rem` length. Anything else THROWS naming the condition, because a
- * condition silently treated as inapplicable would drop its rules out of the resolved set and
- * leave this file green about rules it never looked at.
+ * against a `px` or `rem` length. Anything else throws, because a condition silently treated as
+ * inapplicable would drop its rules out of the resolved set and leave this file green about
+ * rules it never looked at.
+ *
+ * **"Throws NAMING the condition" is true of every shape but one.** `stylesheetRules` composes
+ * NESTED at-rule conditions as `[outer, inner].toSorted().join(' and ')` — two JSON documents
+ * joined by a word — so a rule inside two conditions reaches `JSON.parse` as something that is
+ * not JSON and fails with its `SyntaxError` rather than with the message below. Still fail
+ * closed, and the correction is to the sentence rather than to the code.
  *
  * The NAME is resolved as well as the width, and that was measured rather than assumed: the
  * first version of this ignored it, so retitling the block's container to one nothing declares
- * left all eighteen cases green while the block had stopped reaching the designer in a real
+ * left every case in the file green while the block had stopped reaching the designer in a real
  * browser. An unnamed query addresses the nearest container whatever it is called, so it
  * applies regardless of `names`.
  */
@@ -147,6 +182,11 @@ function satisfies(condition: string, width: number, names: ReadonlySet<string>)
 	if (scale === undefined) return refuse(`unsupported length unit '${unit}'`);
 	if (compare === undefined) return refuse(`unsupported operator '${String(feature.operator)}'`);
 
+	// The one SILENT fallback in an otherwise refusing resolver: a length whose unit parsed but
+	// whose magnitude did not becomes 0, so `width < 0` is false and the rule is dropped rather
+	// than reported. Left rather than turned into a throw because the backstop is already here
+	// and is louder — a dropped narrow rule empties `narrowOnly` and reddens the
+	// "finds the narrow block" case, which names the block rather than one declaration.
 	return compare(width, (length.value?.value?.value ?? 0) * scale);
 }
 
@@ -163,10 +203,19 @@ const narrowOnly = (css: string): StyleRule[] => {
 };
 
 /**
- * The three ways a declaration takes a control off the screen entirely, each recognised by the
- * PARSER's own reading of a reference rule rather than by a value spelled out here — the trick
- * `designerStyles.test.ts` uses, and the reason `content-visibility` (which lightningcss parses
- * as a custom property, measured) needs no special case.
+ * The three PROPERTIES this file recognises as hiding a subject, at four values — not the set
+ * of ways a control can leave the screen, which is much larger and is not what this pretends
+ * to cover. `opacity: 0`, a zero width or height, positioning off-screen and `clip-path` all
+ * take a control away and NONE of them is recognised here.
+ *
+ * Each value is matched by the PARSER's own reading of a reference rule rather than by a value
+ * spelled out in code — the trick `designerStyles.test.ts` uses. That makes the match exact
+ * rather than lenient, and exactness cuts both ways: `content-visibility` is not a property
+ * lightningcss knows, so it parses as a CUSTOM one whose value is a raw token (measured), and
+ * `content-visibility: HIDDEN` therefore serialises differently and is MISSED here. The
+ * declaration case at the bottom of this file keys on the property name alone and catches that
+ * spelling; `hiddenControls` does not. (`!important` is not a gap — probed, the declaration's
+ * JSON is identical either way.)
  */
 const HIDING: readonly [string, string][] = [
 	['display', 'none'],
@@ -185,7 +234,17 @@ const hidingValues = new Set(
 const hidesWith = (rule: StyleRule): string[] =>
 	rule.declarations.filter((d) => hidingValues.has(JSON.stringify(d))).map((d) => propertyOf(d));
 
-/** Everything a user can put the focus on — the controls a hidden region would take away. */
+/**
+ * Six element kinds, named exactly — NOT "everything a user can put the focus on", which this
+ * would have to spell `[tabindex]`, `[contenteditable]`, `audio[controls]`, `video[controls]`,
+ * `iframe` and `area[href]` to mean.
+ *
+ * That is not academic on this surface: `DesignerInspector.vue` and
+ * `DesignerSelectionInspector.vue` put `tabindex="-1"` on the inspector `<aside>`, and
+ * `DesignerPartRow`, `DesignerPartGroupRow` and `AssetPresetGallery` bind a roving `:tabindex`.
+ * Those are all `<button>`s today, so this list happens to reach them — by the markup's current
+ * shape rather than by anything this sentence promises.
+ */
 const CONTROLS = 'button, input, select, textarea, summary, a[href]';
 
 /** A control named the way a failure should report it, never empty. */
@@ -199,7 +258,16 @@ function nameOf(element: Element): string {
 	return text === '' ? `<${element.tagName.toLowerCase()} class="${element.className}">` : text;
 }
 
-/** The elements of `root`'s tree a rule reaches, through jsdom's own selector engine. */
+/**
+ * The elements BELOW `root` a rule reaches, through jsdom's own selector engine.
+ *
+ * Below, not including: `querySelectorAll` never answers with the element it was asked of, so a
+ * future narrow rule whose subject is `.renovation-asset-designer` itself reaches zero here.
+ * That fails LOUDLY rather than quietly — the rule lands in `unmatched` and the case below names
+ * its selector — which is why this is a documented bound rather than a bug to fix. Ancestors
+ * outside `root` still participate in matching, which is what lets a descendant selector
+ * naming the root class match at all.
+ */
 const reaches = (rule: StyleRule, root: HTMLElement): Element[] =>
 	rule.selectors.flatMap((selector) => [...root.querySelectorAll(show(selector))]);
 
@@ -362,6 +430,10 @@ describe('the asset designer’s narrow block applied to the mounted tree', () =
 	 * retitled container empties it, measured), its rules could stop matching the tree (a
 	 * renamed region class, measured), and the rules could stop reaching a control — after which
 	 * no `display: none` anyone writes there would be caught.
+	 *
+	 * The third half is asserted over the UNION of the block's rules, so three of the four could
+	 * stop reaching a control and this stays green. The `unmatched` check above is the one that
+	 * is per-rule, and it is why a renamed class is named rather than counted.
 	 */
 	it('finds the narrow block, matches it against the tree, and reaches controls through it', () => {
 		const narrow = narrowOnly(NARROW_SHEET);
@@ -379,18 +451,34 @@ describe('the asset designer’s narrow block applied to the mounted tree', () =
 	});
 
 	/**
-	 * The guard. It is EMPTY today by construction — the block declares `flex-direction`,
-	 * `flex`, `width` and four `border-*` properties and nothing that hides anything — and the
-	 * case is here for the day a rule does, at which point it names the control that went away
-	 * rather than reporting that a number changed.
+	 * The mounted reading, and it is the WEAKER of the two cases below — which the first draft of
+	 * this file had exactly backwards, calling it the one the file exists for.
+	 *
+	 * `hiddenControls` reports a hiding rule only when its subject contains something matching
+	 * `CONTROLS`, and `.rp-designer-canvas` contains nothing that does: `DesignerCanvas` renders
+	 * `EditorSurface` → `VStage`, which is `<canvas>` elements and overlay `<div>`s, and the two
+	 * children that WOULD carry a control, `ViewFailure` and `EmptyState`, are arms a loaded
+	 * design does not take. **Measured, not reasoned**: adding `display: none` on
+	 * `.rp-designer-canvas` to the narrow block left this case GREEN and reddened only the
+	 * declaration case below — and hiding the canvas is the worst single regression this layout
+	 * can suffer. So every hiding declaration this case can catch, the next one catches too.
+	 *
+	 * What it buys that the next one does not, which is why it stays: a failure that NAMES the
+	 * controls taken away rather than a property, the `unmatched` selector check above that only
+	 * a mounted tree can make, and reach over an UNCONDITIONAL hiding rule added to this
+	 * partial — which `narrowOnly` excludes and the declaration case therefore never sees.
 	 */
 	it('takes no control away from a leaf at the narrow width', () => {
 		expect(hiddenControls(NARROW_SHEET, root, LEAF)).toEqual([]);
 	});
 
 	/**
-	 * And the same sheet read as the properties it actually declares, so the sentence above is a
-	 * measurement rather than a memory: no rule in the block hides anything, whatever it reaches.
+	 * **The case that actually guards the sheet**, and the reason the paragraph above is a
+	 * measurement rather than a memory. It reads the block's declarations by PROPERTY NAME, so
+	 * it is blind to nothing the case above sees: a rule reaching no control, a subject holding
+	 * only canvases, and a value spelled `HIDDEN` that `hidingValues` would not match.
+	 *
+	 * It is three lines and needs no DOM at all.
 	 */
 	it('declares no display, visibility or content-visibility in the narrow block', () => {
 		const declared = narrowOnly(NARROW_SHEET).flatMap((rule) => rule.declarations.map((d) => propertyOf(d)));

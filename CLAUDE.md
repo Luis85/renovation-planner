@@ -439,8 +439,11 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene. **Read the duplication half narrowly: it does not look at a
   `*.test.ts` file at all.** The run prints `skipped N files matching default duplicates
-  ignores`, and on 2026-09-19 that N was **1055** against `find tests -name "*.test.ts" | wc -l`
-  of exactly 1055 — so `✓ No code duplication found` is a statement about `src/`, `scripts/` and
+  ignores`, and that N has matched `find tests -name "*.test.ts" | wc -l` exactly at **both**
+  values it has been measured at on 2026-09-19 — 1055 before merging `origin/main` and **1061**
+  after, the merge having brought six more test files. Two agreeing measurements at different
+  values are what make this a MECHANISM rather than a coincidence, which one could not.
+  So `✓ No code duplication found` is a statement about `src/`, `scripts/` and
   `tests/helpers/`, not about the suite. That boundary is why the `stackFoundation` extraction
   below was findable at all: `vault.ts` and `fixtureVault.ts` are helpers rather than test files,
   so fallow reads them. **A clone between two `*.test.ts` files is invisible to every gate this

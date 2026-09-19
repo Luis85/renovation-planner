@@ -144,9 +144,19 @@ not that the working files are flattened into prose.
 | `npm run audit` | `0e23880a4` | **0** | `--omit=dev --audit-level=high`, **0 vulnerabilities**. `npm audit fix` was taken this session: 2 high to 0, lockfile only, `package.json` untouched |
 | `npm run test-build` | `0e23880a4` | **0** | Built into `.obsidian/plugins/renovation-planner` and listed as enabled, to prepare the user’s live-vault walkthrough. **Building it is not walking it** — the 30 remaining `obsidian` and `judgement` steps are with the user and nothing here claims them |
 
-**The six gates above ran on `0e23880a4`; every commit after it is documentation only**, so the
-run still stands for `src/`. That sentence is the reason this table records a SHA per row rather
-than a date.
+| `npm run build` | **`126231f82`** | **0** | The `origin/main` merge (opening handles, 24 commits) |
+| `npx oxlint --deny-warnings` | `126231f82` | **0** | |
+| `npx eslint . --max-warnings 0` | `126231f82` | **0** | |
+| `npm run test:coverage` | `126231f82` | **0** | **1061 test files, 11707 tests, 1 skipped, ZERO failures**. **99.23 / 98.07 / 99.27 / 99.67** against floors 99/98/99/98 — every figure UP from the pre-merge run, because the merge brought main's own code and its six test files. Branches 21805/22232, so 427 uncovered against 430 before |
+| `npm run analyze` | `126231f82` | **0** | 0 above threshold, dead files **0 of 1207**, dead exports **0 of 2414**, MI 86.8. The duplication skip re-measured at **1061**, matching `find tests -name "*.test.ts" | wc -l` exactly for the SECOND time at a DIFFERENT value — which is what makes that an identity rather than a coincidence |
+| `npm run audit` | `126231f82` | **0** | `--omit=dev --audit-level=high`, **0 vulnerabilities** |
+
+**The six gates were run TWICE: on `0e23880a4`, and again on the `origin/main` merge `126231f82`**,
+because a tree that auto-merges is still a tree nothing has gated. The one conflict was a
+documentation list both branches appended to; the three source files that auto-merged
+(`cursor.ts`, `keyboard.ts`, `render-state.ts`) were read rather than trusted and touch disjoint
+regions. Every commit after `126231f82` is documentation only, so that run still stands for
+`src/`. This is the reason the table records a SHA per row rather than a date.
 
 **All six ran serially, in that order, on a quiet box** — zero other node processes — and coverage
 ran before analyze because analyze reads the map the suite writes.

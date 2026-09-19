@@ -8,7 +8,7 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 |---|---|
 | Handoff baseline | `d77e7c5eba5e6518b93a5be4606532ceab3a77eb` |
 | Upstream reconciled | Merged twice, never rebased — every review and ledger entry references this work by commit SHA. First: `main` advanced 14 commits to `f3a8864a9` (asset-designer consolidation, plan deletion), zero file overlap. Second, in session 4: 24 further commits to `ed5c50b76` (the opening-handles work), merged at `42d07b14a` with a **one-file** overlap measured by `comm -12` over the two `git diff --name-only` sets before the merge was run, so it was known-cheap beforehand. Session 5 re-checked and `main` had **not** moved: `git rev-parse origin/main` and `git merge-base HEAD origin/main` both print `ed5c50b76`, so main is an ancestor of HEAD and there was nothing to merge. |
-| Current working revision / branch | `1979aa7f6` on branch `renovation-planner-beta-handoff-e80bb5`. Nothing pushed; no pull request opened. Seven sessions of work sit on top of the handoff baseline `d77e7c5eb` and the merged upstream `ed5c50b76`. Session 7 re-checked upstream before starting and `main` had still not moved: `git rev-parse origin/main` and `git merge-base HEAD origin/main` both print `ed5c50b76`, so main remains an ancestor and there was nothing to merge. |
+| Current working revision / branch | `c5456b239` on branch `renovation-planner-beta-handoff-e80bb5`. Nothing pushed; no pull request opened. Seven sessions of work sit on top of the handoff baseline `d77e7c5eb` and the merged upstream `ed5c50b76`. Session 7 re-checked upstream before starting and `main` had still not moved: `git rev-parse origin/main` and `git merge-base HEAD origin/main` both print `ed5c50b76`, so main remains an ancestor and there was nothing to merge. |
 | Worktree and dirty files | Worktree `.claude/worktrees/renovation-planner-beta-handoff-e80bb5`. Clean at session start. 95 other worktrees exist under `.worktrees/` and `D:/codex-worktrees/`; none was touched, reset, cleaned, or stashed. |
 | Responsible integrator | Unassigned — no human integrator has accepted this work. |
 | Selected beta scope / platforms | Unchanged from the handoff proposal: current editor capabilities, desktop editing, mobile read-only. Not yet confirmed by an owner. |
@@ -17,7 +17,7 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 | Candidate source and bundle hashes | Not created. No production build was made. |
 | Native acceptance | Not performed. No Obsidian was run. |
 | Publication authorization | Not granted. |
-| Next executable action | Recorded at the end of the session log below. As of 2026-09-18 it is **BP-03** — protect drafts and in-flight commands, opened with discovery rather than implementation. |
+| Next executable action | Recorded at the end of the session log below. As of 2026-09-19 it is **a release-owner decision on what `onunload` owns** (L-21), which is what five of BP-03 F3's six rows are blocked behind. BP-03's five numbered gaps are otherwise all closed or accepted. |
 | Reviews performed | Across six sessions. Session 6: one task review and one scoped re-review, both independent seats told to answer their seat's question by EXPERIMENT rather than by reading. Both returned findings that were real — the first that a pointer to `guardCategory.test.ts` could not carry the claim handed to it (that file names `WRITES_PAUSED_CODE` zero times and stays green with the gate removed), the second that a docblock clause this branch had just written was measured FALSE. Session 6 also had the CONTROLLER re-run every measurement it was given, including both reverts, and the controller's own census found eleven sites where a review had named five (L-17). Session 5 alone: two task reviews, two scoped re-reviews and two final rounds, every one an independent subagent seat instructed to re-run the instruments rather than accept a report. Both task reviews returned FIX, and in each case the reviewer overturned something the CONTROLLER had ruled rather than something an implementer had written — see L-13 and the session 5 log. Across three earlier sessions: Session 3 alone: five task reviews, six scoped re-reviews and a final whole-session review, every one an independent subagent seat instructed to re-run the instruments rather than accept a report. Three of its five task reviews returned spec ❌, and two findings were real defects rather than wording — an unbounded re-seed of the incident registry on every settings save, and a module global released without checking it was still the one that load claimed. |
 
 ## Package register
@@ -29,7 +29,7 @@ Prepared: 2026-09-16. This is a starting template, not an execution report. Map 
 | BP-00 | Reconcile baseline and ownership | P0 | None | Discovery | **Complete** | This session / unmapped | Five discovery lanes; every finding classified below. Scoped baseline green. |
 | BP-01 | Preserve recovery incidents across remounts | P0 | BP-00 | Confirmed defect | **Complete** | This session / increment-history ruling R1 | Fixed at `67f5acf9c`, narrowed at `41d803611` and `2af92f8fd`; task review clean. Second-pane gating deferred to BP-02 — limitation L-01 — so BP-01's own acceptance set is not met in full. |
 | BP-02 | Durable incident detection and recovery | P0 | BP-01 | Safety hardening | **All four slices complete; the package's own limitations L-06, L-11, L-14, L-15, L-16, L-17 and L-18 remain open, and L-13 is reclassified rather than closed** | This session / ADR-0019 requires a decision record for slice 2 | Discovery resolved the package's opening conflict: durable detection is **outside** the recorded refusal. Slice 1 (silent compensation paths now stamp) is at `81f627b53..beda98597`. Slice 2 — ADR-0034, affected-entity identity, the durable record and the coarse gate — is at `4599a388e..f05d5d62f` and closes L-02. Slice 3 (the sequence-marker store's direction-blind read, which also destroyed the unreadable record on the next write) is at `60a748423..5580e53b5`. Slice 4 landed in three parts: L-05's two unguarded Inspector zone commands at `e6cdd914b..2546d88d8`, the write gate reading the vault's own record at `36a4c92f7..4966cbe7b`, and L-06's pinned leaf-handoff census at `e7c24d91b..9d08aeed4`. **Completing the slices did not close the package**: L-06 is narrowed rather than closed, and slice 4 opened L-13, L-14 and L-15. Session 6 then MEASURED L-13 rather than acting on it (`0248de6cf..4a9c14d68`, three commits, no production line changed) and it reclassified: the designer's forward writes were already refused, so what that row named as a surface bypass does not exist on the forward path. The same measurement opened **L-16** — the designer's undo half writes through raw ports and lands while the vault is paused — which is what G1 is blocked on now. L-12 was closed at `e118f61d4` on an owner's ruling; L-17 and L-18 are accuracy findings the measurement turned up beside its subject. |
-| BP-03 | Protect drafts and in-flight commands | P0/P1 | BP-01; final after BP-02 | Verification | **Action 1 complete. F2 closed; F1 measured and accepted by ruling; F3, F4 and F5 outstanding** | Session 7 / unmapped | Lifecycle contract at `docs/releases/first-beta-readiness/04-lifecycle-contract.md` (`cecfbbcbc`), stating six rules and five numbered gaps F1 to F5. F2 — a settings rebind silently cleared an active write refusal and a dispatch into the window landed — fixed at `0ffd15466`, corrected at `3392c20c4` and `fb78d444c`. F1 measured on a real rig and ruled option D at `c5b2817e2` and `1979aa7f6`, recorded as L-19. **Next action:** F3 — promote `openViewOnLeaf` out of `tests/plugin/rootSwapRebind.test.ts` into `tests/helpers/`, which unlocks the four UNTESTABLE plugin-unload cells; then F4 and F5. |
+| BP-03 | Protect drafts and in-flight commands | P0/P1 | BP-01; final after BP-02 | Verification that became a fix | **All five gaps closed or accepted. F3 found a real P0 and fixed it; its test column is locked at 1 of 6, the other five blocked behind L-21** | Sessions 7 and 8 / unmapped | Lifecycle contract at `04-lifecycle-contract.md` (`cecfbbcbc`), six rules and five gaps F1 to F5. F2 fixed at `0ffd15466`, corrected at `3392c20c4` and `fb78d444c`. F1 measured and ruled option D at `c5b2817e2` and `1979aa7f6`, recorded as L-19. **F3 found that `onunload` releases the write-incident registry while every view is still mounted and dispatch-capable, disarming all three of its readers at once** — fixed at `f5a7f219e`, locked by `tests/plugin/unloadWithViewOpen.test.ts`, with `openViewOnLeaf` promoted to `tests/helpers/plugin.ts` at `45c88a73e`. F4 and F5 measured clean across all five arms and locked at `4da7258ee` and `c5456b239`. **Next action:** none in this package. L-21 is an owner decision, not work. |
 | BP-04 | Precise non-drag corner editing | P1 | BP-00; integrate after BP-03 | Interaction addition | Not started | Unassigned / unmapped | — |
 | BP-05 | Selection, transform, cancel and history | P1 | BP-03; coordinate BP-04 | Verification/polish | Not started | Unassigned / unmapped | — |
 | BP-06 | Empty-plan and reference journeys | P1 | BP-03 | Verification | Not started | Unassigned / unmapped | — |
@@ -135,7 +135,8 @@ Record the decision-maker, date, affected scope, evidence, consequence, and revi
 | L-17 | **Limitation.** A production docblock family miscounts the asset-design bundle, in eleven places | Measured 2026-09-18 by the controller, after a review named five sites in two files | 2026-09-18 | `AssetDesignCommandBundle` declares NINE commands, and the guarded `assetDesign` object returns those nine plus a `get` query — ten members. The prose says eight. Counted rather than read — a case-insensitive word-boundary search for `eight`, `nine`, `eighth` and `ninth` over the four files that describe the bundle (the alternation is spelled out here rather than pasted, because a raw regex in a table cell breaks the cell) prints **eleven** sites in FOUR files — `ReversibleAssetDesignCommands.ts` at `:48`, `:63`, `:78`, `:560`; `guardedServices.ts` at `:216`, `:217`, `:236`, `:248`, `:501`; `designerCommands.ts` at `:123`, `:128`. The root is locatable: `:63`'s "six doors" geometry list omits `setShape`, so this is one off-by-one propagated, not eleven independent slips. | Prose only, no behaviour. **NOT fixed here, deliberately**: `:63` is a wrong GROUPING rather than a typo, so repairing it correctly means re-deriving which adapter inverts `setShape` — a task with its own review, not a find-and-replace, and folding it into a session whose subject is a gate measurement would bury it. Recorded so the next reader counts rather than reads. The review that surfaced it named five sites in two files; the census found eleven in four, which is CLAUDE.md's own rule met again — a reviewer's list is a reading, not a census. |
 | L-18 | **Limitation.** `SetAssetHeightCommand` accepts an absent height and clears the field | Found 2026-09-18 as a side effect of the category loop; confirmed by an independent reviewer | 2026-09-18 | With the write gate disabled, `setHeight` given `{ assetId }` and no `height` resolved ok and left the note's height `null` — the only one of the nine doors that did not refuse the loop's deliberately incomplete input. The mechanism is `Asset.withChanges`: `'height' in changes ? (changes.height ?? null)` reads an explicit `undefined` as "clear this field". | **Not reachable in production today** — `height` is a required `number \| null` and both call sites supply it, so the compiler stands where a runtime check does not. A latent shape rather than a live defect, and visible at all only because the category loop dispatches incomplete input at a gate that refuses first. Decide where that validation belongs if a third call site ever arrives. |
 | L-19 | **Limitation, ACCEPTED by ruling.** A settings change landing inside a live project create leaves the write unreported, and in one of two arms the rebound list never shows it | Ruled by session 7 (ledger ruling R-S7-11) after measurement | 2026-09-18 | Measured on a real rig — real plugin, real composition root, real `applySettings` then `rebindOpenViews`, real view, with `vault.create` suspended to hold the window open. **Confirmed:** the project IS created under the PREVIOUS default projects folder, and its creation event reaches the retired root's bus. **The documented cost was wrong in both directions**, because the answer SPLITS on whether Obsidian's metadata cache has parsed the note when the adapter processes the create. Warm arm: the adapter indexes AND publishes, the row appears unprompted, nothing is stale. Cold arm: it does neither, and reopening the leaf does NOT fix it — `ListProjects` resolves through the index, so it clears only at a full rebuild, in practice a plugin reload. Which arm production takes is **UNVERIFIED** and needs a vault run. Three alternatives were costed and refused: deferring the rebind (the original refusal holds — the seam does not exist, and deferring only lengthens the interval in which the retired root, the one writing to the wrong folder, is live); a distinct dialog result (**refuted as safe** — no exhaustive switch over a dialog result exists anywhere in `src/presentation/`, so a new value compiles clean and falls through to SUCCESS at 46 call sites across 34 files); and closing the cold arm in the index pipeline (free in the warm arm, widest blast radius in the cold one, for a path nobody has shown production takes). | **An open release-owner question, surfaced rather than absorbed:** in the cold arm the user is told nothing, the project exists under the old folder, the list never shows it, and reopening does not help — so they may create it again and end up with two. Whether that blocks G1 is the owner's call, not the controller's. The deciding experiment is ONE vault run and it is on the native-verification list. Five documents carried the refuted account; four are corrected and the fifth, a dated historical record, carries an appended refutation pointer rather than a rewrite. |
-| L-20 | **Limitation of the verification METHOD, found this session and closed for the code only.** A session closing on `npm run check:fast` cannot see `eslint .`, and this branch was lint-red for a whole session because of it | Found 2026-09-18 by session 7 | 2026-09-18 | `src/presentation/editor/runtime.ts` crossed the 400-line `max-lines` cap at `3a46e78e6` — session 6's L-16 fix — as an **error**, so `npm run lint` was red. Measured across revisions with `--max-warnings 0`: `origin/main` exits 0 and is clean; `3a46e78e6`, `cecfbbcbc` and the branch head all reported `File has too many lines (401). Maximum allowed is 400`. `git log origin/main..HEAD` over that path prints exactly two commits and the earlier is `3a46e78e6`. Nothing noticed because session 6's closing verification was `npm run check:fast -- tests/presentation`, and CLAUDE.md states in terms that `check:fast` omits `eslint .` — where the layer bans, the write boundary and both text bans live — and the coverage floors entirely. | **Closed for the code** at `4cc2543e5`, by extracting `buildDispatcherChain` into `src/presentation/editor/dispatcherChain.ts`, taking the file from 401 to 350 code lines; `npm run lint` now exits **0** on this branch, verified by the controller. **NOT closed for the method:** the next session that closes on `check:fast` alone reopens it. A session's closing verification must either include `eslint .` or say plainly that it did not. |
+| L-20 | **Limitation of the verification METHOD, found this session and closed for the code only.** A session closing on `npm run check:fast` cannot see `eslint .`, and this branch was lint-red for a whole session because of it | Found 2026-09-18 by session 7 | 2026-09-18 | `src/presentation/editor/runtime.ts` crossed the 400-line `max-lines` cap at `3a46e78e6` — session 6's L-16 fix — as an **error**, so `npm run lint` was red. Measured across revisions with `--max-warnings 0`: `origin/main` exits 0 and is clean; `3a46e78e6`, `cecfbbcbc` and the branch head all reported `File has too many lines (401). Maximum allowed is 400`. `git log origin/main..HEAD` over that path prints exactly two commits and the earlier is `3a46e78e6`. Nothing noticed because session 6's closing verification was `npm run check:fast -- tests/presentation`, and CLAUDE.md states in terms that `check:fast` omits `eslint .` — where the layer bans, the write boundary and both text bans live — and the coverage floors entirely. | **Closed for the code** at `4cc2543e5`, by extracting `buildDispatcherChain` into `src/presentation/editor/dispatcherChain.ts`, taking the file from 401 to 350 code lines; `npm run lint` now exits **0** on this branch, verified by the controller. **NOT closed for the method:** the next session that closes on `check:fast` alone reopens it. A session's closing verification must either include `eslint .` or say plainly that it did not. **Session 8 complied** — its closing `npm run lint` ran `oxlint --deny-warnings && eslint . --max-warnings 0` to a captured exit of 0. Compliance by one session is not closure of the method; the rule still has no gate under it. |
+| L-21 | **Limitation, and an OPEN release-owner question. What does `onunload` own?** A still-mounted view can dispatch a write to the vault after the plugin has unloaded, and succeed silently | Surfaced 2026-09-19 by session 8, during BP-03 F3 | 2026-09-19 | `onunload` sets `unloaded`, drains five disposers, and does nothing else — it unmounts **no** Vue app and detaches **no** leaf, so every open view is still mounted and still able to dispatch when it returns. Session 8 found and FIXED the sharp end of that (a released write-incident registry disarming all three of its readers, so writes refused before the unload landed after it — see the session 8 log and `f5a7f219e`). What the fix deliberately does NOT settle is the general case: with no incident open, a guarded write dispatched after `onunload` still runs, and a half-failed one still goes unrecorded. An async tail — `serial-queue`, a debounced field commit — reaches that path with no user gesture at all. | **Five of BP-03 F3's six test rows are blocked behind this**, and were deliberately left unwritten rather than rushed: the other lifecycle rules measure as NOT violated at this boundary, so cases asserting that would CERTIFY the post-unload write — which is CLAUDE.md's own recorded hazard about a test that stays green on exactly the day somebody forgets. Whether it blocks G1 is the owner's call. **UNVERIFIED and needs a vault run:** whether Obsidian leaves a dispatch-capable leaf alive after `onunload`, and in what order it tears down. Nothing on this branch has ever been run in an Obsidian vault. |
 
 ## Native / hardware availability
 
@@ -838,6 +839,120 @@ empty `command pending` row and the below-floor width crossing, both reachable w
 `defer()` idiom.
 
 
+### Session 8 — 2026-09-19 — BP-03 F3, F4 and F5, and the review session 7 deferred
+
+Branch `renovation-planner-beta-handoff-e80bb5`, `8e390f520` to `c5456b239`, **nine commits, nothing
+pushed**. Upstream re-checked before starting: `git rev-parse origin/main` and
+`git merge-base HEAD origin/main` both print `ed5c50b76`, so main remains an ancestor and there was
+nothing to merge.
+
+**Task zero was the review session 7 ruled unnecessary, and it found three things that ruling priced
+as one.** R-S7-10 had accepted a controller spot-review of the `buildDispatcherChain` extraction
+(`4cc2543e5`) and recorded the residual as "a moved docblock that is now false … bounded: it is
+prose, in two files". All three clauses were wrong. The independent review confirmed the move IS
+verbatim — one changed character, `function` to `export function` — and then found that
+`saveStateWiring.test.ts` read TWO files joined and whitespace-collapsed, which makes comment text
+and code text indistinguishable to every assertion. Measured: with the incident gate genuinely
+removed from the dispatcher, ONE added comment line turned the gate green; and a legitimate
+warning comment naming a forbidden spelling reddened correct code. The docblock justifying the
+concatenation was false in both premises — it counted four `not.toMatch` cases where there are
+three, and claimed a stale path would go "vacuously green" where replaying the six cases against
+the wrong file turns 6 of 6 RED. A third finding was in PRODUCTION source, not prose:
+`save-state-store.ts` named `runtime.ts` as a reader of `unrecoveredWrite` after the symbol moved.
+
+Fixed by converting the gate to an AST check over the chain builder’s own body through
+`tests/helpers/parsedSource.ts` (`13ec00696`), which is the conversion CLAUDE.md’s own regex census
+already named as next for this file. Six cases became four; no property was lost and two were
+gained. Controller-verified by re-driving the false-green mutation: **exit 1, an AssertionError
+naming what it looked for and how many it found, not a timeout.**
+
+**F3 stopped at its STOP on a real P0, which is the second consecutive session where a row the plan
+called verification held a defect.** `onunload` drains five disposers and does nothing else — it
+unmounts no Vue app and detaches no leaf. One disposer releases the write-incident registry, and
+`null` disarms all three of its readers at once: `guardCommand` skips its refusal arm entirely,
+the incident gate answers `false` through its `?? false` default, and the recording arm stops
+recording. Driven on a rig using the plugin’s own registered view factory against a real
+repository stack: an identical `createZone` was refused before `onunload` and wrote a note after it,
+and an Undo refused before ran its inverse after. **The docblock beside the code already stated the
+invariant it broke** — it describes an earlier version of this bug and its consequence, that the
+gate then answers "nothing open" over a vault whose own incidents say it is half-written, which is
+true verbatim of the teardown case the earlier fix did not cover.
+
+Two fix options were costed and **the briefed option B was refuted by measurement**: a
+permanently-refusing sentinel would refuse a write in a never-half-written vault using the only copy
+that exists, and L-15 forbids minting a variant. The deciding measurement the controller had said it
+could not answer by reading — does the recording arm still reach disk after the session is disposed
+— came back YES, because the store’s adapter is Obsidian’s own and nothing in `onunload` touches
+it. What landed is neither option as briefed: keep the identity guard, add one term, **do not
+release an OPEN registry; a clean one still releases.** The residual is stated in the docblock rather
+than hidden.
+
+**F4 and F5 found no defect and locked five arms that were already clean.** A draft survives the
+width round trip on the same node and commits to the requirement it was typed for; a part-drawn
+polygon leaves the zone repository untouched; a selection moved to another room after the width
+returns discards rather than relocates. Perspective already refuses while saving; width needs no
+refusal; and the rebind arm is DISTINCT from F1 rather than its residual. F5 runs over real
+repositories because the shell suite’s own harness refuses every write, which would have made
+"nothing was written" vacuous — a fake-too-kind catch the round made on itself.
+
+**Five separate claims were refuted by measurement this session, and three of them were the
+controller’s.** The controller’s `openViewOnLeaf` count (9, actually 11 — the recon grep was piped
+through `head`), its `onunload` file count (11, actually 8 — it counted prose mentions), and its
+`FakeLeaf.view` census (2, actually nine sites in six files — it grepped one file and called it a
+census). All three are the same defect and CLAUDE.md names it: *measure a set with an instrument
+that can see all of it, and test the instrument first.* The briefs told every implementer to
+re-drive them, which is the only reason all three were caught.
+
+The other two were implementers refuting themselves: the fix round’s corrected `unrecoveredWrite`
+count was invalidated one commit later BY the correction that cited it (12 to 13), caught by
+re-grepping after the edit rather than before; and F4/F5 withdrew its own first docblock claim when
+the mutation it named stayed green. **8 mutation runs there, 6 red, 2 rejected as green** — and the
+two rejections are why the two refutations exist.
+
+**A controller check worth repeating: the completion summary and the shipped docblock disagreed.**
+F4/F5’s summary named one mechanism for the draft discard; the committed docblock named another.
+Both were driven. The summary’s mechanism, removed, left all three cases GREEN at exit 0; the
+docblock’s mutation produced an AssertionError on the named case alone with both siblings green,
+exactly as it predicts. **The artifact that ships was the correct one.** The docblock is what the
+next reader meets, so it is the claim that earns the check.
+
+#### Closing verification, quiet machine, every exit captured to a file before any pipe
+
+| Command | Captured exit | Result |
+|---|---|---|
+| `npm run lint` | **0** | oxlint with warnings denied, then `eslint .` with max-warnings 0. **`eslint .` DID run** — L-20’s method half, complied with rather than closed |
+| `npm run test:coverage` | **0** | **1040 files, 11191 passed**, 1 skipped, zero failures, 1050.68s |
+| `npm run analyze` | **not run** | L-04 — fails on `origin/main` itself |
+
+Statements 99.22% (28636/28861), branches 98.09% (21059/21467), functions 99.27% (8328/8389), lines
+99.65% (21048/21120), against floors of 99/99/99/98 in `vitest.config.ts` — all four met. **Counted
+in UNITS, which is the rule the percentage cannot satisfy:** uncovered branches fell from 410 to
+**408** while the total rose by 2, so headroom against the 98% floor went from 19 branches to **21**.
+This session added no uncovered arm and recovered two.
+
+**A correction to session 7’s closing line.** It recorded the floors as "99.22 / 98.08 / 99.27 /
+99.65" labelled *statements/functions/lines/branches*. That label is MIS-ORDERED: 98.08 was branches
+and 99.65 was lines. The measured order is statements, branches, functions, lines. Corrected here
+rather than in that session’s own log, which is a dated record.
+
+#### Not done, and not to be represented otherwise
+
+- **Five of F3’s six unload rows are unwritten**, deliberately — see L-21. Writing them as the code
+  stands would certify a behaviour nobody has decided is correct.
+- **Two assertions in `pendingDispatchDisruption.test.ts` have no available mutation** and are named
+  in the file as locks rather than as demonstrated reds. Honest spelling, and still two assertions
+  nobody has watched fail.
+- **Nothing on this branch has ever been run in an Obsidian vault.** No native, device,
+  screen-reader or performance verification was performed or is claimed. L-19’s arm question and
+  L-21’s ordering question each need one vault run.
+- **`npm run analyze` was not run** and its L-04 failure is unchanged.
+
+#### Next executable action
+
+**A release-owner decision on L-21** — may a still-mounted view write to the vault once `onunload`
+has run? It is not work and not the controller’s to take. Five BP-03 test rows and, with L-19, the
+G1 evaluation stand behind it.
+
 ## Candidate identity record
 
 Keep a new record for each production candidate. Evidence belongs to the recorded artifact, not merely the current branch name.
@@ -864,7 +979,7 @@ Keep a new record for each production candidate. Evidence belongs to the recorde
 | Gate | State | Required evidence / decision |
 |---|---|---|
 | G0 — baseline known | **Passed** | BP-00 complete: source identity recorded, every finding classified, scoped baseline green and unmodified, ownership recorded as unassigned. |
-| G1 — data trust | Not evaluated — **BP-03 is partially complete and the L-06 category remains**; L-13 and L-16 are closed, L-19 is an accepted limitation carrying an open release-owner question | BP-01's rebind survival is implemented and tested. BP-03's F2 is closed with a measured regression; F1 is measured, ruled and documented but its arm question needs one vault run; F3 to F5 are outstanding. L-19's cold arm is a duplicate-project risk and an owner must decide whether it blocks. |
+| G1 — data trust | Not evaluated — **BP-03's five gaps are now closed or accepted, and the L-06 category remains**; L-13 and L-16 are closed; L-19 and L-21 are accepted limitations, each carrying an open release-owner question | BP-01's rebind survival is implemented and tested. BP-03: F2 closed with a measured regression; F1 measured, ruled and documented, its arm question needing one vault run; **F3 found and fixed a real P0 and its column is locked at 1 of 6**; F4 and F5 measured clean and locked. Two owner calls stand between here and an evaluation — L-19's cold arm is a duplicate-project risk, and L-21 asks whether a still-mounted view may write to the vault at all once `onunload` has run. Neither is the controller's to decide and neither has been run in a vault. |
 | G2 — core journey | Not evaluated | BP-04–BP-07 |
 | G3 — support and first use | Not evaluated | BP-08–BP-11 |
 | G4 — actual candidate | Not evaluated | BP-12–BP-13 |

@@ -85,25 +85,37 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the twenty-three cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the twenty-four cases whose
 steps are a table and carry the column, and an inline token after the step number in
 [[Canvas Navigation]], whose procedure is a list. (That number said *fifteen* through five case
 additions and then *twenty* through more, because it is prose beside a grep nobody re-ran for it.
 It is no longer `ls docs/tests/cases/*.md` minus the one list-form case, which is why it kept
-going stale: that print is **46** on 2026-09-17 and most of those cases carry no verdict column
+going stale: that print is **47** on 2026-09-20 and most of those cases carry no verdict column
 at all. Measured at the column instead —
 `grep -rlE '^\| [0-9]+[a-z]? \| \`(suite|browser|obsidian|desktop|judgement)\` \|' docs/tests/cases/*.md | wc -l`
-prints **23**, the same instrument the census below counts rows with.) The verdict names the **cheapest instrument that could discharge that
+prints **24** on 2026-09-20, the same instrument the census below counts rows with.) The verdict names the **cheapest instrument that could discharge that
 step as written**. It is a claim about the step's own pass condition, not a report on what is
 tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 133 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 60 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 196 |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 15 |
-| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 14 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 138 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 62 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 205 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 17 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 15 |
+
+**437 steps — 419 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-20
+by running both greps below in the edit that added
+[[Edit a zone corner by typing its position]].** Per tier: `suite` 138, `browser` 62, `obsidian` 205, `desktop` 17, `judgement` 15 —
+each tier counted with the same two greps narrowed to that token, and the five summing to 437.
+The new case contributes nineteen rows, spread across all five tiers (`suite` 5, `browser` 2,
+`obsidian` 9, `desktop` 2, `judgement` 1), so every tier moves by exactly what that case added
+and the table above matches the greps row for row — additive per tier and not merely in total,
+which is what says the edit re-tiered nothing outside its own case. The previous table read the
+figures in the paragraph below and the two agreed, so no disagreement was carried forward.
+
+**The previous measurement's own account follows, kept as history.**
 
 **418 steps — 400 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-17
 by running both greps below in the edit that added [[Two panes on one plan under an open write

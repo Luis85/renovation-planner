@@ -25,11 +25,24 @@
  * behind it are already read once, in `DesignerReferenceStatus`, and reading them twice is how two
  * answers to one question start.
  *
- * **The current step is the FIRST one not done, and there is no current step once all five are.**
- * Not "the last done plus one": the steps can complete OUT OF ORDER — an asset typed from
- * dimensions has a footprint and no sheet — and a cursor derived from the furthest progress would
- * skip the row that is actually owed. Once every step is done nothing is marked, because a
- * finished sequence has no next thing to do and marking the last row would say otherwise.
+ * **The current step is the first one that is neither DONE nor OPTIONAL.** Not "the last done plus
+ * one": the steps can complete OUT OF ORDER — an asset typed from dimensions has a footprint and no
+ * sheet — and a cursor derived from the furthest progress would skip the row that is actually owed.
+ * Once no such step is left nothing is marked, because a finished sequence has no next thing to do
+ * and marking a row would say otherwise.
+ *
+ * **`Add details` is the one OPTIONAL step, by ruling AD18-R4 — do not "fix" this back to
+ * first-not-done.** Interior linework is optional; plenty of assets are a bare outline. So it still
+ * TICKS when details exist, and it is skipped when choosing which step is current: a sheet-traced
+ * asset that is finished except for details has NO current step, where first-not-done would have
+ * read as permanently unfinished. The ruling records what lost — leaving it as-is (the cursor then
+ * aims a typed-from-dimensions asset at the step that user deliberately skipped) and ending the
+ * sequence at `Verify the dimensions` (a struck row could then sit below an unstruck optional one
+ * with nothing marked at all).
+ *
+ * **Optionality lives in the same PAIR as the key and the condition**, for the reason the pair
+ * itself exists: a parallel list of which steps are optional is a second source that drifts by one
+ * index, silently.
  *
  * **`aria-current="step"` on the row itself, never an `aria-label` on a role-less element.** The
  * accessibility gate found exactly that defect on the Plan Editor. The rows are real `<li>`s in a
@@ -61,20 +74,20 @@ interface TraceStep {
 
 const steps = computed((): readonly TraceStep[] => {
 	const shape = props.design.shape;
-	// Built as pairs rather than as a key list beside a boolean list, so a step's label and its
-	// condition cannot drift apart by one index — the failure a parallel-array spelling makes
-	// silent.
+	// Built as whole rows rather than a key list beside a boolean list, so a step's label, its
+	// condition and its optionality cannot drift apart by one index — the failure a parallel-array
+	// spelling makes silent.
 	const progress = [
-		{ key: 'designer.trace.image', done: props.design.background !== null },
-		{ key: 'designer.trace.scale', done: props.design.calibration !== null },
-		{ key: 'designer.trace.footprint', done: shape !== null },
-		{ key: 'designer.trace.details', done: shape !== null && shape.details.length > 0 },
+		{ key: 'designer.trace.image', done: props.design.background !== null, optional: false },
+		{ key: 'designer.trace.scale', done: props.design.calibration !== null, optional: false },
+		{ key: 'designer.trace.footprint', done: shape !== null, optional: false },
+		{ key: 'designer.trace.details', done: shape !== null && shape.details.length > 0, optional: true },
 		// `dimensions` is `null` exactly when there is no footprint to measure (`GetAssetDesign`
 		// derives it from the shape, and refuses rather than nulling an unmeasurable one), so this
 		// does not have to ask about the shape a second time.
-		{ key: 'designer.trace.dimensions', done: props.design.dimensions !== null && props.pendingCount === 0 },
+		{ key: 'designer.trace.dimensions', done: props.design.dimensions !== null && props.pendingCount === 0, optional: false },
 	] as const;
-	const current = progress.findIndex((step) => !step.done);
+	const current = progress.findIndex((step) => !step.done && !step.optional);
 	return progress.map((step, index) => ({ ...step, current: index === current }));
 });
 </script>

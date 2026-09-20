@@ -11,6 +11,52 @@ before this session too. Session six's packet said *"Nothing has been pushed"* a
 false when written; `main` is untouched at `f3a8864a9`, which is the part of that sentence that was
 true.
 
+## READ THIS FIRST: CI IS RED on `d6a7778fd`, and the cause is diagnosed but NOT fixed
+
+Run `gh pr checks 230`. All four `verify` legs fail; `audit` and GitGuardian pass. **The suite and
+the linters are GREEN** — build, oxlint, `eslint .` and `test:coverage` all pass. **`npm run analyze`
+is what fails**, on two findings:
+
+```
+✗ 101 lines (0.1%) duplicated across 6 files
+✗ 1 above threshold · 8109 analyzed · maintainability 86.8 (good)
+Failed: dupes (4 clone groups), health (1 above threshold):
+  start with src/presentation/editor/renovation/renovationSummary.ts
+```
+
+**None of the reported files was touched by this branch** — verified with
+`git diff --name-only ecae21ab2..HEAD` against every one of them. The reported clone groups are
+`styles/designer.css:120-143` + `styles/editor-shell.css` (32 lines, 3 instances, `dup:6f96bf57`)
+and three pre-existing `src/presentation/editor/` groups.
+
+**The mechanism is the trap `.fallowrc.json`'s own comment documents, and it was predicted.**
+W9-A's reviewer raised it as finding M4 and said only an `analyze` run could settle it; neither the
+worker nor the reviewer was allowed to run one, and the local box was held by another session all
+day, so it reached CI unverified. That config comment says a key is *"the id fallow PRINTS plus
+`:<instance count>`"* and that the `-N` group index *"renumbers whenever any group appears or
+disappears, INCLUDING because another key hid one."* `ignoredClones` holds exactly one key,
+`dup:7fd5d625:2`. The run reports `note: hid 1 reviewed clone group` — W9-A's new
+`.rp-designer-title-bar` block in `styles/designer-header.css`, suppressed by its
+`fallow-ignore-next-line` — and the group that remains now prints a DIFFERENT id and instance
+count than the stored key, so a clone this repository had already reviewed is reported again.
+
+**What is diagnosis and what is still unknown.** The duplication half is traced to a mechanism the
+config already warns about; it has NOT been reproduced locally, because no `npm run analyze` has
+been run on this tree. The complexity half — `renovationSummary.ts`, one function above
+threshold — is **not explained at all**: that file is untouched by this branch and by wave 9.
+Fallow measures complexity AGAINST COVERAGE, so a coverage change elsewhere can move it; that is a
+hypothesis, not a finding.
+
+**Do not "fix" this by relaxing a threshold, widening `ignore`, or deleting a check.** The honest
+repair is to re-run `npm run analyze` locally on a quiet box, read what it actually prints, and
+update the reviewed-clone KEY to what the report now shows — the same ratchet discipline every
+floor here was set by.
+
+**Before anything heavy, check WHAT is running and not just how many**:
+`Get-CimInstance Win32_Process -Filter "Name='node.exe'"` shows the command lines. A count alone
+did not reveal that another worktree, `renovation-planner-beta-handoff-e80bb5`, was mid-`npm run
+check` for most of session seven.
+
 ## The thing that was blocking everything is DONE, and it is not what a reader expects
 
 **The live-vault pass was walked by the user, in a real Obsidian vault, on the `test-build` of

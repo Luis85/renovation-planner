@@ -97,6 +97,7 @@ export const assetSymbolsDe: Record<keyof typeof assetSymbolsEn, string> = {
 	'designer.selection.mode.bend.tip': 'Den Griff in der Mitte einer Kante ziehen, um diese Kante zu biegen',
 	'designer.inspector.asset': 'Objekt',
 	'designer.inspector.open-library': 'Assetbibliothek öffnen',
+	'designer.header': 'Kopfzeile des Asset-Designers',
 	'designer.inspector.tabs': 'Inspektorbereiche',
 	'designer.inspector.tab.object': 'Objekt',
 	'designer.inspector.tab.reference': 'Referenz',

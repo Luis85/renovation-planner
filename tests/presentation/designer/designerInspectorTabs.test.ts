@@ -177,8 +177,12 @@ describe('the split between the two panels', () => {
 		expect(panelOf(wrapper.element, object).querySelector('.rp-designer-placement')).not.toBeNull();
 	});
 
-	/** The asset's own block — its scope, its dimensions and its height — is the Object tab's. */
-	it('puts the asset block and its usage scope in the Object panel', () => {
+	/**
+	 * The asset's own block is the Object tab's. Named for the two controls it actually reaches —
+	 * the usage scope is NOT one of them, because a bare mount leaves `DesignerUsageScope` with no
+	 * context and it draws nothing; `designerUsageScope.test.ts` is where that block is asserted.
+	 */
+	it('puts the dimensions control and the height field in the Object panel', () => {
 		const wrapper = mountInspector();
 		const objectPanel = panelOf(wrapper.element, tabs(wrapper.element)[0]);
 
@@ -246,14 +250,25 @@ describe('roving tabindex', () => {
 
 	/**
 	 * The `<aside>` keeps `tabindex="-1"` — a focus TARGET for `DesignerSelectionInspector`'s delete
-	 * hand-off, never a Tab stop. A strip that had made the panel focusable would put a second stop
-	 * in front of every control below it.
+	 * hand-off, never a Tab stop. The strip does not take that role away from it.
 	 */
 	it('leaves the inspector’s own focus target alone', () => {
-		const wrapper = mountInspector();
+		expect(mountInspector().find('aside').attributes('tabindex')).toBe('-1');
+	});
 
-		expect(wrapper.find('aside').attributes('tabindex')).toBe('-1');
-		expect(wrapper.element.querySelector('[role="tabpanel"][tabindex]')).toBeNull();
+	/**
+	 * **Each PANEL is a Tab stop, which the APG asks for exactly when a panel may hold no focusable
+	 * content — and the Reference one does not, for an asset typed from dimensions with no sheet.**
+	 * Without it a keyboard user selects Reference and the next Tab leaves the Inspector entirely,
+	 * with nothing focused and nothing announced in between. axe does not grade this rule, so this
+	 * case is the only thing holding it.
+	 */
+	it('makes every panel focusable, because one of them can be empty', () => {
+		const root: HTMLElement = mountInspector().element;
+
+		const panels = Array.from(root.querySelectorAll<HTMLElement>('[role="tabpanel"]'));
+		expect(panels).toHaveLength(2);
+		expect(panels.map((panel) => panel.tabIndex)).toEqual([0, 0]);
 	});
 });
 

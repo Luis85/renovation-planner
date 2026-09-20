@@ -31,11 +31,14 @@
  * harness and not about "every suite": `designerHeader.test.ts` binds `openLibrary` in the case
  * that presses it, which is what proves the control works when a door IS composed behind it.)
  *
- * **`SaveStateIndicator` is OUTSIDE the `design !== null` gate, and the two others are inside
- * it.** A leaf whose read is still in flight, or refused, has no name to state and no asset to
- * take into a plan — but it still has a save state, and it used to draw one from the status
- * region. Gating all three together would have taken that away from exactly the states most
- * likely to need it.
+ * **What the `design !== null` gate covers is TWO of the four, not three of them.** The name and
+ * `DesignerUsePlan` are inside it: a leaf whose read is in flight or refused has no name to state
+ * and no asset to take into a plan. `SaveStateIndicator` is outside it because a save state is
+ * true of every state, and it drew one from the status region before AD18 moved it up here. So is
+ * the library door, and for a different reason: it is gated on `openLibrary` instead, which is
+ * about the COMPOSITION behind this mount rather than about the read — a user whose read refused
+ * is exactly the user who wants the way back to the catalogue. Both of those are pinned by
+ * `states the save state and the library door for a leaf with no design`.
  *
  * **No account, logo, compass or marketing chrome** (C12, and AD06 item 1's own words). The four
  * things above are the whole of it.
@@ -58,10 +61,15 @@ defineProps<{
 <template>
 	<!--
 		A `<header>` rather than a div, which is `EditorContextBar`'s shipped spelling for the same
-		region one surface over. It carries no `aria-label`: the `<h1>` inside names it, and an
-		`aria-label` on a landmark that already has a heading announces the same thing twice.
+		region one surface over, and LABELLED for that file's reason. The first version of this
+		comment said the heading inside named it; that is false twice over — HTML-AAM does not name
+		a `banner` landmark from a descendant heading, and for a leaf whose read is in flight or
+		refused there is no heading in here at all.
 	-->
-	<header class="rp-designer-title-bar">
+	<header
+		class="rp-designer-title-bar"
+		:aria-label="tr('designer.header')"
+	>
 		<button
 			v-if="openLibrary !== undefined"
 			type="button"
@@ -75,13 +83,19 @@ defineProps<{
 			unreachable-in-practice second copy of it costs a branch it can never pay back —
 			CLAUDE.md's own rule about the coverage margin, applied where the margin is thin.
 
-			The `<h1>` is this surface's first heading; the Inspector's and the Parts panel's are
-			both `<h2>`, so the outline reads asset → panel → section with nothing skipped.
+			**An `<h2>`, which is the house convention rather than this surface's accident.**
+			`grep -rn "<h1" src/` prints exactly two lines and both of them are in THIS comment —
+			no element in the whole of `src/` opens one — and `ProjectDetail.vue`, the closest
+			analogue at a leaf naming its own subject, draws `.rp-project-detail__name` as an `h2`.
+			A plugin leaf sitting beside Obsidian's own markdown headings is not the place to claim
+			the document's top level. The outline reads h2 asset, h2 parts, h2 inspector, h3 Asset,
+			h4 Used in plans, with nothing skipped, and `designerHeader.test.ts` asserts the first
+			half of that over the mounted leaf.
 		-->
 		<template v-if="design !== null">
-			<h1 class="rp-designer-asset-name">
+			<h2 class="rp-designer-asset-name">
 				{{ design.name }}
-			</h1>
+			</h2>
 			<DesignerUsePlan
 				:design="design"
 				:use-plan="usePlan"

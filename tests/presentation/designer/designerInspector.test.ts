@@ -66,11 +66,10 @@ function buildDesign(options: {
 function mountInspector(
 	options: Parameters<typeof buildDesign>[0] = {},
 	selection: DesignerSelection | null = null,
-	extras: { openLibrary?: () => void; selected?: readonly DesignerSelection[]; mode?: Ref<boolean> } = {},
+	extras: { selected?: readonly DesignerSelection[]; mode?: Ref<boolean> } = {},
 ) {
 	return mount(DesignerInspector, {
 		props: {
-			...(extras.openLibrary === undefined ? {} : { openLibrary: extras.openLibrary }),
 			// A value down and a setter up, which is how the component takes it: `v-model` on a prop
 			// is a mutation of one, and `vue/no-mutating-props` refuses it.
 			...(extras.mode === undefined

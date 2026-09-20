@@ -193,16 +193,40 @@ const dimensionsLabel = computed(() =>
  *   the strip, the arrows and Home/End move within it. The `<aside>`'s own `tabindex="-1"` is
  *   untouched: it is a focus TARGET for `DesignerSelectionInspector`'s delete hand-off, never a Tab
  *   stop, and the strip does not take that role away.
+ *
+ * **Each PANEL carries `tabindex="0"`, which the APG asks for exactly when a panel may hold no
+ * focusable content — and this one may.** `DesignerReferenceStatus` draws nothing at all for an
+ * asset typed from dimensions with no sheet, so without this a keyboard user selects Reference and
+ * the next Tab leaves the Inspector entirely, with nothing focused and nothing announced in between.
+ * axe does not check this rule, so it is here on the APG's authority rather than a gate's. It costs
+ * one extra Tab stop per panel, which is the trade the APG already makes.
+ *
+ * **What `rovingIndex(…, horizontal: true)` COSTS, stated rather than waved past.** It consumes
+ * ArrowUp and ArrowDown as well as Left and Right, and `preventDefault`s them. The APG's horizontal
+ * tablist takes Left/Right/Home/End only, so this swallows two keys it should not — and on a rail
+ * whose whole problem is that it scrolls, that removes arrow-key scrolling while a TAB has focus.
+ * The scope is exactly that: the handler is on the tablist, so the keys still scroll from anywhere
+ * else in the panel, and Page Up/Down, Home/End on the panel and the wheel are untouched. The
+ * shared helper takes one boolean and has no third setting, so narrowing it to Left/Right would
+ * mean either a second parameter on a function two other callers share or a hand-rolled index here;
+ * both are a change to code this card does not own. Recorded as a cost rather than as "nothing".
  * - The `design !== null` gate is `AssetDesignerRoot`'s and stays there, so
  *   `.rp-designer-inspector` is still an EMPTY region for a loading or failed leaf rather than an
  *   empty tab strip.
  *
- * **`v-show`, not `v-if`, on the panels**, for two reasons that agree. `DesignerUsageScope` reads
- * its plan usage ONCE at setup with no watch, so unmounting it on every tab switch would re-run
- * that query and re-flash its loading line; and a directive is not a branch, where two `v-if`s
- * would be two more arms against a coverage margin the wave lease measures in single units.
- * `display: none` takes a hidden panel out of the accessibility tree and out of the tab order
- * exactly as `hidden` would.
+ * **`v-show`, not `v-if`, on the panels, and the reason is STATE rather than arithmetic.**
+ * `DesignerUsageScope` reads its plan usage ONCE at setup with no watch, so unmounting it on every
+ * tab switch would re-run that query and re-flash its loading line; and the height field holds an
+ * uncommitted draft inside `useFieldCommit`, which an unmount would discard silently under a user
+ * who glanced at the sheet mid-edit. `display: none` takes a hidden panel out of the accessibility
+ * tree and out of the tab order exactly as `hidden` would.
+ *
+ * **It is NOT a branch saving, and the first version of this paragraph said it was.** Two `v-if`s
+ * would each add an arm, but any case that switches tabs exercises both arms of both, so the saving
+ * is zero. Counted rather than asserted: this template carried SIX `v-if`s at this card's base and
+ * carries FIVE now — only `openLibrary`'s left, with the control it gated — against which this
+ * strip adds the `:tabindex` ternary and `onTabKeydown`'s `next === undefined` guard. Net ONE more
+ * branch site in this file, every arm of it covered.
  */
 const TABS = ['object', 'reference'] as const;
 const activeTab = ref<(typeof TABS)[number]>('object');
@@ -217,9 +241,9 @@ const panelId = { object: useId(), reference: useId() };
  * both of these are already rendered.
  *
  * `horizontal` is `true` because this strip is a row; that also admits Up and Down, which is the
- * shared helper's shape rather than this component's choice and costs nothing here. `from` can
- * never be `-1` — `activeTab` is always a member of `TABS` — which is the precondition
- * `rovingIndex`'s own header asks every caller to meet.
+ * shared helper's shape rather than this component's choice and is NOT free — the header above
+ * carries what it costs. `from` can never be `-1` — `activeTab` is always a member of `TABS` —
+ * which is the precondition `rovingIndex`'s own header asks every caller to meet.
  */
 function onTabKeydown(event: KeyboardEvent): void {
 	const next = TABS[rovingIndex(event.key, TABS.indexOf(activeTab.value), TABS.length, true)];
@@ -281,6 +305,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 			v-show="activeTab === 'object'"
 			:id="panelId.object"
 			class="rp-designer-tabpanel"
+			tabindex="0"
 			role="tabpanel"
 			:aria-labelledby="tabId.object"
 		>
@@ -336,13 +361,16 @@ function onTabKeydown(event: KeyboardEvent): void {
 				assume. It still reads as being about the asset: `<h3>Asset</h3>` is what sits directly
 				above it now, and this block's own `<h4>Used in plans</h4>` reads as a subsection of that
 				heading — which a paragraph of plain text never was. So no heading was added here, and no
-				            second copy of the name.
+				second copy of the name. `designerUsageScope.test.ts` pins that adjacency, because the
+				argument above is about the TEMPLATE and nothing was asserting it.
 
 				It takes nothing from this panel: the query and the index gate are per-LEAF, so it
 				reads them off the designer context and decides on its own what it has to say. A mount
-				outside a leaf draws nothing rather than throwing, which is what keeps the four suites
-				that mount this inspector bare mounting it — `DesignerUsageScope`'s own header carries
-				the grep behind that count and why injecting is what forced the question.
+				outside a leaf draws nothing rather than throwing, which is what keeps the FIVE suites
+				that mount this inspector bare mounting it — `grep -rl 'mount(DesignerInspector' tests/`
+				prints six files and `designerUsageScope.test.ts` is the one that provides a context, so
+				five is what is left. `DesignerUsageScope`'s own header carries why injecting is what
+				forced the question.
 			-->
 			<DesignerUsageScope />
 			<!--
@@ -484,6 +512,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 			v-show="activeTab === 'reference'"
 			:id="panelId.reference"
 			class="rp-designer-tabpanel"
+			tabindex="0"
 			role="tabpanel"
 			:aria-labelledby="tabId.reference"
 		>

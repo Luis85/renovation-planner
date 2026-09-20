@@ -463,9 +463,10 @@ onMounted(() => {
 		<!--
 			AD18 item 2's header region, FIRST in the shell: the asset's name, the way back to the
 			catalogue, the save state and the way into a plan. `DesignerHeader` decides on its own
-			what it can say about a leaf whose read is in flight or refused, which is why this one
-			region mounts its component unconditionally where the Parts and Inspector regions gate
-			theirs — the save state is true of every state and the other three are not.
+			what it can say about a leaf whose read is in flight or refused, which is why this region
+			mounts its component unconditionally where the Parts and Inspector regions gate theirs —
+			the save state is true of every state and the other three are not. It is not alone in
+			mounting unconditionally: the toolbar region does too, and always has.
 		-->
 		<div class="rp-designer-header">
 			<DesignerHeader

@@ -78,10 +78,18 @@
  * matched (C12: the two editing surfaces behave alike).
  */
 /* REVIEWED CLONE (`.rp-context-bar__button`): the flat button is per-component by necessity; argument in `styles/designer.css`. */
-/* fallow-ignore-next-line code-duplication */
 .rp-designer-title-bar .rp-designer-open-library,
 .rp-designer-title-bar .rp-designer-use-plan {
 	flex: 0 0 auto;
+	/*
+	 * The directive sits HERE and not above the selector, because the clone starts at `padding` and
+	 * `fallow-ignore-next-line` means the next line literally — `designer-selection.css`'s
+	 * `.rp-designer-selection-button` and `designer.css`'s `.rp-designer-edit-dimensions` are the
+	 * two blocks with a leading declaration and both put it inside. A directive above the selector
+	 * would be reported STALE while the finding went on counting, which is the failure CLAUDE.md's
+	 * own gotcha records twice.
+	 */
+	/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
@@ -167,4 +175,15 @@
  */
 .rp-designer-tabpanel {
 	padding-bottom: var(--size-4-2);
+}
+
+/*
+ * A panel is a Tab stop (`tabindex="0"`, the APG's answer for a panel that may hold no focusable
+ * content — the Reference one does not when the asset has no sheet), so it needs a visible ring
+ * like every other stop here. Inset, because a panel spans the rail and an outset ring would be
+ * clipped by the Inspector's own `overflow-y: auto`.
+ */
+.rp-designer-tabpanel:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
 }

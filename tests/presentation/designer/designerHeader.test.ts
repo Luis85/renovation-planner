@@ -75,12 +75,17 @@ describe('the designer header', () => {
 	});
 
 	/**
-	 * A heading rather than a paragraph, which the Inspector's copy was. This surface had no `<h1>`
-	 * at all, so its outline began at the panels' `<h2>`s; the asset is what the whole leaf is
-	 * about, and naming it as the first heading is what makes the rest read as its sections.
+	 * A heading rather than the paragraph the Inspector's copy was, at `<h2>` — the level every
+	 * other panel heading on this surface starts at, and the level `ProjectDetail.vue` names its own
+	 * subject at (`.rp-project-detail__name` is an `h2`). No element anywhere in `src/` opens an
+	 * `h1`; `DesignerHeader.vue`'s own comment carries what that grep prints and why.
+	 *
+	 * **This case checks the TAG and nothing else**, because it mounts the header alone: whether it
+	 * is the FIRST heading is a fact about the whole leaf, and `is the first heading in the mounted
+	 * designer` below is where that is asked.
 	 */
-	it('names it as this surface’s first heading', () => {
-		expect(mountHeader().find('.rp-designer-asset-name').element.tagName).toBe('H1');
+	it('draws the name as an h2', () => {
+		expect(mountHeader().find('.rp-designer-asset-name').element.tagName).toBe('H2');
 	});
 
 	it('offers the library door, and calls it', async () => {
@@ -98,18 +103,34 @@ describe('the designer header', () => {
 	});
 
 	/**
-	 * **The save state is OUTSIDE the design gate and the other three are inside it**, which is the
-	 * whole reason this component takes a nullable design rather than being drawn behind a `v-if`
-	 * the way the Parts and Inspector regions are. A leaf whose read is in flight or refused has no
-	 * name to state and no asset to take into a plan; it still has a save state, and it drew one
-	 * from the status region before AD18 moved it up here.
+	 * **TWO of the four are outside the design gate, not one**, which is the whole reason this
+	 * component takes a nullable design rather than being drawn behind a `v-if` the way the Parts
+	 * and Inspector regions are. A leaf whose read is in flight or refused has no name to state and
+	 * no asset to take into a plan, so those two are inside it. The save state is outside because it
+	 * is true of every state, and drew from the status region before AD18 moved it up here; the
+	 * library door is outside because it is gated on the DOOR being bound instead, which is a fact
+	 * about the composition rather than about the read — and a user whose read refused is exactly
+	 * the user who wants the way back.
 	 */
-	it('states the save state for a leaf with no design, and names no asset', () => {
-		const wrapper = mountHeader({ design: null });
+	it('states the save state and the library door for a leaf with no design', () => {
+		const wrapper = mountHeader({ design: null, openLibrary: () => undefined });
 
 		expect(wrapper.find('.rp-save-state-label').exists()).toBe(true);
+		// The way BACK is gated on the door being bound, never on the read — a user whose read
+		// refused is exactly the user who wants it.
+		expect(wrapper.find('.rp-designer-open-library').exists()).toBe(true);
 		expect(wrapper.find('.rp-designer-asset-name').exists()).toBe(false);
 		expect(wrapper.find('[data-rp-action="use-in-plan"]').exists()).toBe(false);
+	});
+
+	/**
+	 * **A `<header>` is a `banner` landmark and HTML-AAM does not name one from a heading inside
+	 * it** — and for a leaf whose read is in flight or refused there is no heading in it at all. So
+	 * the label is explicit, as `EditorContextBar`'s is. No axe rule grades this, which is why the
+	 * case exists.
+	 */
+	it('names its own landmark rather than leaning on the heading inside it', () => {
+		expect(mountHeader().find('header').attributes('aria-label')).toBe(t('en', 'designer.header'));
 	});
 
 	it('labels the library door from the locale rather than from a literal', () => {
@@ -125,13 +146,43 @@ describe('the designer header', () => {
  * copy, which is precisely the failure the ruling was taken to prevent.
  */
 describe('one answer to “which asset is this”', () => {
-	it('names the asset exactly once in the whole mounted designer, in the header region', async () => {
+	/**
+	 * **Counted in rendered TEXT, not in elements carrying a class**, which is the difference
+	 * between a category check and a check on the spelling this card happened to use: a restored
+	 * copy under a different class, or a bare `{{ design.name }}` with no class at all, is caught
+	 * here and would not have been by `querySelectorAll('.rp-designer-asset-name')`.
+	 *
+	 * Nothing else in this tree renders the asset's own name — the Parts panel draws part labels and
+	 * the usage scope draws plan names, and this context's `unwiredPlanUsage` refuses anyway — so
+	 * one occurrence is the whole of what should be there.
+	 */
+	it('renders the asset’s name exactly once in the whole mounted designer, in the header region', async () => {
 		const wrapper = mountRoot();
 		await flushPromises();
+		const root: HTMLElement = wrapper.element;
 
-		const named = wrapper.element.querySelectorAll('.rp-designer-asset-name');
-		expect(named).toHaveLength(1);
-		expect(wrapper.element.querySelector('.rp-designer-header .rp-designer-asset-name')).not.toBeNull();
+		const occurrences = (root.textContent ?? '').split(assetDesign().name).length - 1;
+		expect(occurrences).toBe(1);
+		expect(root.querySelector('.rp-designer-header .rp-designer-asset-name')).not.toBeNull();
+	});
+
+	/**
+	 * **The asset is the FIRST heading, and the outline starts at `<h2>`.** Asked of the whole
+	 * mounted leaf rather than of the header alone, because "first" is not a property an isolated
+	 * mount has. The `h1` absence is the half a reader would not predict and is the house
+	 * convention rather than this surface's accident — a plugin leaf beside Obsidian's own markdown
+	 * headings does not claim the document's top level. Note the scope this case actually has: it
+	 * asserts no `h1` inside the MOUNTED DESIGNER, which is narrower than "anywhere in `src/`".
+	 */
+	it('is the first heading in the mounted designer, and the tree carries no h1', async () => {
+		const wrapper = mountRoot();
+		await flushPromises();
+		const root: HTMLElement = wrapper.element;
+
+		const headings = Array.from(root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6'));
+		expect(headings[0]?.classList.contains('rp-designer-asset-name')).toBe(true);
+		expect(headings[0]?.tagName).toBe('H2');
+		expect(root.querySelector('h1')).toBeNull();
 	});
 
 	/**

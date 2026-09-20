@@ -105,6 +105,10 @@ export const assetSymbolsEn = {
 	// The asset-level block's own heading, so its Dimensions never read as the selected part's (critique finding 4).
 	'designer.inspector.asset': 'Asset',
 	'designer.inspector.open-library': 'Open the asset library',
+	// The header's landmark name (AD18 item 2). A `<header>` is a `banner` landmark and is NOT named
+	// by a heading inside it under HTML-AAM — and for a leaf whose read is in flight or refused there
+	// is no heading in it at all. `EditorContextBar` labels its own bar for the same reason.
+	'designer.header': 'Asset designer header',
 	// The Inspector's two tabs (AD18-R2). `Object` carries the thing being drawn, its placement and
 	// the space it needs kept free; `Reference` the sheet it is traced over and that sheet's scale.
 	// There is deliberately no third: the designer has no styling controls, and board 01's `Style`

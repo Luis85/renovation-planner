@@ -17,7 +17,9 @@ import OutlinePointsForm from './OutlinePointsForm.vue';
  * The forward polygon carries POINTS ONLY. `MoveSpatialObjectCommand` runs it through
  * `preservePointCurves`, which retains the saved bulges by index while the point count is
  * unchanged — so a curved Zone survives a typed correction, and adding or removing a corner
- * (which this form cannot do) is what that function refuses instead of guessing.
+ * (which this form cannot do) is what that function refuses instead of guessing, driven end to
+ * end by `tests/application/commands/curvedGeometry.test.ts`'s `observes curve-only peer
+ * changes and refuses ambiguous point-only topology changes without writing`.
  */
 export function createZoneOutlineAction(context: PlanEditorContext, runtime: RoomEditRuntime & Pick<EditorRuntime, 'renderState'>) {
 	const action = createRoomEditAction(context, runtime, {

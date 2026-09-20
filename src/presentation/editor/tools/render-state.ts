@@ -90,6 +90,29 @@ export class RenderState {
 	 */
 	hoveredTargetKind: 'body' | 'handle' | 'rotation' | 'label' | 'resize' | 'opening-handle' | null = null;
 	previewPolygon: readonly Point[] | null = null;
+	/**
+	 * WHICH corner of the single selected zone a numeric editor has the user on, by index into
+	 * that zone's own `points` — BP-04 action 3, "highlight only the chosen corner". The
+	 * `InteractionLayer` draws that one vertex handle larger than its siblings; nothing else
+	 * reads it, and no tool writes it.
+	 *
+	 * **A SECOND field rather than a richer `previewPolygon`**, for the reason `hoveredTargetKind`
+	 * is one beside `hoveredObjectId` (R8, 2026-09-04): every other reader of the preview asks
+	 * only "which points", and `previewPolygon` has a SECOND writer — `SelectTool` puts the
+	 * translated ghost of a dragged zone in it, exactly as `PolygonSketch`'s docblock above
+	 * records for the field next door — so widening it would have changed a third tool's picture
+	 * for one consumer's benefit.
+	 *
+	 * The index is into the SAVED outline, which is what `InteractionLayer.editableVertices`
+	 * draws, so the mark stays on the corner as loaded while the dashed preview shows where the
+	 * typed value would put it. It cannot ride the preview instead: `previewPolygon` is expanded
+	 * through `polygonPolyline` before it is drawn, so a curved zone's drawn points do not
+	 * correspond to its corner indices at all.
+	 *
+	 * Transient like every other field here — a corner number is a UI identifier BP-04 forbids
+	 * persisting, and this is the only place one is ever held.
+	 */
+	highlightedVertex: number | null = null;
 	marquee: BoundingBox | null = null;
 	snapGuides: LineSegment[] = [];
 	/**
@@ -119,6 +142,7 @@ export class RenderState {
 		this.rotationHoverSuppressed = false;
 		this.hoveredTargetKind = null;
 		this.previewPolygon = null;
+		this.highlightedVertex = null;
 		this.marquee = null;
 		this.snapGuides = [];
 		this.measurement = null;

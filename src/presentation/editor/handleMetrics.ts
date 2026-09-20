@@ -41,6 +41,20 @@
 export const VERTEX_HANDLE_RADIUS_PX = 4;
 
 /**
+ * The radius of that same vertex while a numeric editor has the user ON it — BP-04 action 3's
+ * "highlight only the chosen corner". Its own constant rather than a reuse of
+ * `VERTEX_GRAB_RADIUS_PX`, which happens to sit between these two: that one is a distance a
+ * CLICK may land within and this one is a mark that is DRAWN, and the module comment refuses
+ * conflating two meanings that share a number.
+ *
+ * Size is the channel, not colour alone — SDD §85 forbids colour being the only one, and it is
+ * also the only channel a jsdom test can see (`interactionLayer.test.ts`'s own header records
+ * that every theme token falls back to the same ink there). The fill changes too, for a reader
+ * looking at the canvas rather than at an assertion.
+ */
+export const VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX = 7;
+
+/**
  * How close, in screen pixels, a primary click must land to a vertex of the SELECTED zone
  * to start a vertex drag rather than a body drag or a deselect. Larger than the drawn
  * radius by design; see the module comment.

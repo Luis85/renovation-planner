@@ -39,6 +39,7 @@ import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps, treePlanDeps } from './detailPlanKnob';
 import { roomsDeps } from './roomsKnob';
+import { runtimeOfPluginView } from '../helpers/editorRuntime';
 import { driveItemKnob, type ItemGesture } from './itemKnob';
 
 /**
@@ -468,6 +469,21 @@ export interface PlanEditorHarnessOptions {
 	readonly numericArea?: boolean;
 	readonly roomResize?: boolean;
 	readonly roomNaming?: boolean;
+	/**
+	 * `?outline` — BP-04's numeric outline editor, open on `?select`'s zone, for a capture of the
+	 * chosen-corner list and of the corner it marks on the canvas. `?outline=<n>` goes one step
+	 * further and CHOOSES corner `n` (1-based, the number the list itself shows), which is the
+	 * only way a capture can show action 3's highlight at all: nothing is highlighted until a
+	 * corner is chosen, and no gate in this repository can see a Konva fill or radius on screen.
+	 *
+	 * **Opened PROGRAMMATICALLY, and that is a harness door rather than a UI one.** That action
+	 * has no production reach yet (limitation L-24: nothing in the plugin's UI opens it; slice B
+	 * is the reach and is blocked on owner copy), so unlike `?area` and `?room` this knob cannot
+	 * drive the controls a user would — there are none. The CHOOSING half is different and is
+	 * driven exactly as a user would, through the row's own button. A capture taken through it
+	 * shows what the surface LOOKS like, and says nothing about anybody being able to get to it.
+	 */
+	readonly outline?: string;
 	readonly reference?: boolean;
 	/** A seeded zone's id (e.g. `harness-kitchen`) to select and frame once the editor is ready. */
 	readonly select?: string;
@@ -742,6 +758,40 @@ async function enterAreaTaskOnceReady(root: HTMLElement): Promise<void> {
  * success and rethrows the original error on failure. `mountPlanEditorHarness` collects one of
  * these per knob it starts and replays them from inside `view.onClose`.
  */
+/**
+ * Drives `?outline`: waits for `?select`'s zone to actually be selected — the Inspector carrying
+ * that id is the DOM's own answer to that, and the two knobs run concurrently — then opens the
+ * numeric outline editor on it.
+ *
+ * **`void`, not `await`.** `editZoneOutline` is the edit lifecycle's `open`, which does not
+ * resolve until the dialog CLOSES; awaiting it here would hang this knob for the whole capture
+ * and then be reported against `view.onClose`. The dialog's own markup is what is waited on
+ * instead, so a knob that reached nothing still fails as itself.
+ */
+async function openZoneOutlineOnceReady(view: PlanEditorView, root: HTMLElement, zoneId: string, corner: string): Promise<void> {
+	await settleUntil(
+		() => root.querySelector(`.rp-room-inspector[data-rp-id="${zoneId}"]`) !== null,
+		`the ?outline knob's selected zone "${zoneId}"`,
+	);
+	void runtimeOfPluginView(view).zoneOutline.editZoneOutline(zoneId as ZoneId);
+	await settleUntil(
+		() => root.querySelector('[data-rp-form="outline-points"]') !== null,
+		`the ?outline knob's numeric outline editor for "${zoneId}"`,
+	);
+
+	// `?outline` alone opens and stops; `?outline=<n>` chooses that corner. A number below 1 or
+	// past the end clicks nothing and the wait below fails as this knob, which is the point:
+	// clicking nothing and capturing anyway would photograph an unchosen list under a name
+	// promising a chosen one.
+	const chosen = Number.parseInt(corner, 10);
+	if (Number.isNaN(chosen)) return;
+	if (chosen > 0) root.querySelectorAll<HTMLButtonElement>('[data-rp-corner="choose"]')[chosen - 1]?.click();
+	await settleUntil(
+		() => root.querySelector('[data-rp-corner="choose"][aria-pressed="true"]') !== null,
+		`the ?outline knob's chosen corner ${corner}`,
+	);
+}
+
 function guardKnob(promise: Promise<void>): Promise<() => void> {
 	return promise.then(
 		() => () => undefined,
@@ -765,7 +815,7 @@ export function mountPlanEditorHarness(
 	const base = harnessDeps({ stale: options.stale });
 	const workspace = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN, new URLSearchParams(location.search).has('planning')) : null;
 	const downstream = workspace && new URLSearchParams(location.search).has('downstream') ? downstreamWorkspace(workspace, leafEl) : null;
-	const deps = downstream?.deps ?? (workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base);
+	const deps = downstream?.deps ?? (workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true || options.outline !== undefined) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base);
 	const detailed = options.detail === true ? detailPlanDeps(deps) : deps;
 	const locked = options.locked === undefined ? detailed : lockedZoneDeps(detailed, options.locked.split(','));
 	const detailedZones = options.detailed === undefined ? locked : detailedZoneDeps(locked, options.detailed.split(','));
@@ -809,6 +859,7 @@ export function mountPlanEditorHarness(
 	if (options.room !== undefined) knobs.push(guardKnob(enterRoomTaskOnceReady(leafEl, options.room)));
 	if (options.tree === true) knobs.push(guardKnob(openLayersOnceReady(leafEl)));
 	if (options.item !== undefined) knobs.push(guardKnob(driveItemKnob(leafEl, options.item)));
+	if (options.outline !== undefined && options.select !== undefined) knobs.push(guardKnob(openZoneOutlineOnceReady(view, leafEl, options.select, options.outline)));
 
 	// Every caller's teardown is `await view.onClose()` (`grep -rn "view.onClose()" tests/harness`
 	// today prints 8 files), so wrapping it here surfaces a late knob failure as THAT case's own

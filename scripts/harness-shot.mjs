@@ -486,6 +486,24 @@ const SHOTS = [
 		selector: [PLAN_CANVAS, '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail', DETAIL_ANCESTRY_CRUMB],
 		width: 460,
 	},
+	// BP-04's numeric outline editor with its chosen-corner list (slice A2). `harness-terrace` is
+	// the one seeded zone that is not a rectangle — five corners, so the list has a length worth
+	// photographing and the form carries ten inputs rather than eight. The narrow shot is the
+	// instrument for BP-04's own test case 12, "constrained-layout focus": 460px is the width an
+	// Obsidian sidebar leaf actually has, and a modal full of coordinate pairs is exactly the
+	// shape that stops fitting there.
+	//
+	// **`outline=1` rather than a bare `outline`, and the CHOSEN state is the point.** Action 3's
+	// highlight does not exist until a corner is chosen, jsdom can neither draw nor measure a
+	// Konva radius or fill, and corner 1 of the terrace is the one vertex of it that a 1280px
+	// capture leaves clear of the dialog. Each waits on `aria-pressed="true"` rather than on the
+	// list, so a shot cannot certify a chosen corner while photographing an unchosen one.
+	//
+	// The knob OPENS that editor programmatically — nothing in the plugin's UI reaches it yet
+	// (limitation L-24). These are pictures of the surface, not evidence of a route to it.
+	{ name: 'plan-editor-outline', query: '?view=plan-editor&select=harness-terrace&outline=1&theme=light', selector: '[data-rp-corner="choose"][aria-pressed="true"]' },
+	{ name: 'plan-editor-outline-dark', query: '?view=plan-editor&select=harness-terrace&outline=1', selector: '[data-rp-corner="choose"][aria-pressed="true"]' },
+	{ name: 'plan-editor-outline-narrow', query: '?view=plan-editor&select=harness-terrace&outline=1&theme=light', selector: '[data-rp-corner="choose"][aria-pressed="true"]', width: 460 },
 	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
 	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
 	// Property-tree polish (2026-09-12): the `?tree` knob's four-plan property, so the tree's

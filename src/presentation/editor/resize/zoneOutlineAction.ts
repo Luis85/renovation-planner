@@ -8,11 +8,16 @@ import { zoneTypeLabel } from '../shell/zoneTypeLabel';
 import OutlinePointsForm from './OutlinePointsForm.vue';
 
 /**
- * BP-04 slice A: correcting a measured corner by typing its position, for any Zone, without
- * redrawing it and without dragging. The WHOLE outline at once — `OutlinePointsForm` draws one
- * fieldset per point and holds no chosen-corner state; BP-04's "choose a numbered corner" and
- * its matching highlight are slice A2's work in `tools/render-state.ts` and
- * `layers/InteractionLayer.vue`, and nothing here anticipates them.
+ * BP-04 slices A and A2: correcting a measured corner by typing its position, for any Zone,
+ * without redrawing it and without dragging. Every corner's fields are rendered at once — slice
+ * A's shape, and still the shape, because a chosen corner here moves FOCUS rather than hiding
+ * its siblings. Slice A2 added the `highlight` prop below, which is what draws the numbered
+ * chosen-corner list on the shared form and what puts the chosen corner's mark on the canvas
+ * (`tools/render-state.ts`'s `highlightedVertex`, drawn by `layers/InteractionLayer.vue`).
+ *
+ * **BP-04 is not closed by this file.** Slice B — the production door that reaches it — is still
+ * outstanding (limitation L-24: nothing in the UI opens this action), and is blocked on owner
+ * copy.
  *
  * The forward polygon carries POINTS ONLY. `MoveSpatialObjectCommand` runs it through
  * `preservePointCurves`, which retains the saved bulges by index while the point count is
@@ -44,6 +49,11 @@ export function createZoneOutlineAction(context: PlanEditorContext, runtime: Roo
 				// conflict arm rather than disk.
 				dispatch: (polygon: Polygon) => commit({ kind: 'geometry', zoneId: entity.id, forward: polygon, inverse: entity.geometry, expected: version }),
 				preview: (polygon: Polygon | null) => { runtime.renderState.previewPolygon = polygon?.points ?? null; },
+				// BP-04 slice A2's half: passing this prop AT ALL is what draws the chosen-corner
+				// list, so the list and the highlight cannot arrive without each other. The index
+				// is into this zone's saved outline, which is what `InteractionLayer` draws its
+				// vertex handles from.
+				highlight: (index: number | null) => { runtime.renderState.highlightedVertex = index; },
 			},
 		}),
 	});

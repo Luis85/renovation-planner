@@ -156,6 +156,60 @@ describe('the numeric outline editor over every zone type', () => {
 		r.harness.unmount();
 	});
 
+	/**
+	 * BP-04's "choose a numbered corner", and its action 3's highlight. The list is one row per
+	 * corner rather than a mode that HIDES the other fieldsets: every field stays reachable, and
+	 * choosing a corner moves focus into it — which is what makes the keyboard path choose-then-
+	 * type. The canvas half (what the highlighted handle actually looks like) is
+	 * `interactionLayer.test.ts`'s and a capture's; this asserts the index that reaches it.
+	 */
+	it('numbers every corner, and choosing one focuses its field and marks it on the canvas', async () => {
+		const r = await rig(reshaped('Garden'));
+		const runtime = runtimeOf(r.harness);
+		await open(r);
+		const rows = form(r).findAll('[data-rp-corner-list] li');
+		expect(rows).toHaveLength(ZONE_A_DTO.points.length);
+		expect(rows[2].text()).toContain('Corner 3: X 4.4 m, Y 3.4 m');
+		expect(runtime.renderState.highlightedVertex).toBeNull();
+		// The list sits ABOVE the fieldsets, and `DialogHost` focuses `focusableWithin()[0]`, so
+		// opening this dialog now lands on the chooser rather than on corner 1's X field. That is
+		// the contract's own order — choose a corner, then enter its position — and it is asserted
+		// rather than left as a side effect of where the markup went.
+		expect(document.activeElement).toBe(rows[0].get('[data-rp-corner="choose"]').element);
+
+		await rows[2].get('[data-rp-corner="choose"]').trigger('click');
+		await settle();
+
+		expect(runtime.renderState.highlightedVertex).toBe(2);
+		expect(document.activeElement).toBe(form(r).get<HTMLInputElement>('[name="2.x"]').element);
+		expect(form(r).get('[role="status"]').text()).toContain('Corner 3');
+		expect(rows[2].get('[data-rp-corner="choose"]').attributes('aria-pressed')).toBe('true');
+		expect(rows[0].get('[data-rp-corner="choose"]').attributes('aria-pressed')).toBe('false');
+
+		// A second choice replaces the first rather than accumulating.
+		await rows[0].get('[data-rp-corner="choose"]').trigger('click');
+		await settle();
+		expect(runtime.renderState.highlightedVertex).toBe(0);
+		expect(rows[2].get('[data-rp-corner="choose"]').attributes('aria-pressed')).toBe('false');
+		r.harness.unmount();
+	});
+
+	it('leaves no mark on the canvas once the dialog closes', async () => {
+		const r = await rig(reshaped('Garden'));
+		const runtime = runtimeOf(r.harness);
+		await open(r);
+		await form(r).findAll('[data-rp-corner-list] li')[1].get('[data-rp-corner="choose"]').trigger('click');
+		await settle();
+		expect(runtime.renderState.highlightedVertex).toBe(1);
+
+		await r.harness.wrapper.get('.rp-dialog [data-rp-action="cancel"]').trigger('click');
+		await settle();
+
+		expect(formOpen(r)).toBe(false);
+		expect(runtime.renderState.highlightedVertex).toBeNull();
+		r.harness.unmount();
+	});
+
 	it.each(['saving', 'unrecovered', 'wrong tool', 'multiple', 'none'] as const)('stays shut on %s', async reason => {
 		const r = await rig(reshaped('Garden'));
 		const runtime = runtimeOf(r.harness), selection = useSelectionStore(r.harness.pinia);

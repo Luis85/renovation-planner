@@ -5,7 +5,8 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext, type DeviceStorage } from '../../src/presentation/editor/PlanEditorContext';
 import { createEditorClipboard, type EditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
-import { EDITOR_RUNTIME, type EditorRuntime } from '../../src/presentation/editor/runtime';
+import type { EditorRuntime } from '../../src/presentation/editor/runtime';
+import { runtimeInProxy } from './editorRuntime';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
 import { DEFAULT_VIEWPORT } from '../../src/presentation/editor/viewport/Viewport';
 import {
@@ -456,29 +457,15 @@ export function runtimeOf(harness: EditorHarness): EditorRuntime {
 }
 
 /**
- * The same runtime, from a Plan Editor the PLUGIN mounted rather than one this file did.
+ * The same runtime, from a Plan Editor the PLUGIN mounted rather than one this file did, and
+ * the provides lookup both doors share so neither can drift onto a different key.
  *
- * `PlanEditorView.mount` is `createApp(PlanEditorRoot)` and keeps what `app.mount(host)`
- * answered in a private `root` — the root component's public instance proxy, which is the same
- * kind of object `runtimeOf` reaches through `wrapper.vm`, so both go through one lookup.
- *
- * The cast is what `root` being private costs. A test about an unload or a rebind boundary has
- * to reach the runtime the plugin's OWN factory built, and a harness that hands the view its
- * own dependencies cannot have the bug such a test is about.
+ * Both live in `./editorRuntime` now and are re-exported here, for the reason `settle` above is
+ * and `fakeQueries` is: `tests/harness/planEditor.ts` needs `runtimeOfPluginView` for the
+ * `?outline` knob and may not import Konva, Pinia or `@vue/test-utils`, all of which this file
+ * pulls in. That module's own header carries the rest.
  */
-export function runtimeOfPluginView(view: unknown): EditorRuntime {
-	return runtimeInProxy((view as { root: unknown }).root);
-}
-
-/** The provides lookup both doors share, so neither can drift onto a different key. */
-function runtimeInProxy(proxy: unknown): EditorRuntime {
-	const instance = (proxy as { $: { provides: Record<symbol, unknown> } }).$;
-	const runtime = instance.provides[EDITOR_RUNTIME as unknown as symbol];
-	if (runtime === undefined) {
-		throw new Error('expected the mounted tree to have provided an EditorRuntime');
-	}
-	return runtime as EditorRuntime;
-}
+export { runtimeOfPluginView } from './editorRuntime';
 
 /** Every Konva layer in the stage, by the `name` its component set. */
 export function layerNames(stage: Konva.Stage): string[] {

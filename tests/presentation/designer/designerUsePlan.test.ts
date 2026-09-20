@@ -154,13 +154,17 @@ describe('use in plan', () => {
 	 * on this very surface once, by `DesignerInspector.lockedGraphics`. So the door goes into the
 	 * leaf's own context and the assertion is made on what the mounted tree draws.
 	 */
-	it('is carried from the leaf context through the root to the inspector', async () => {
+	it('is carried from the leaf context through the root to the header', async () => {
 		const usePlan = usePlanSpy();
 		const dto = design();
 		const wrapper = mountRoot(usePlan, dto);
 		await flushPromises();
 
-		const found = control(wrapper, '.rp-designer-inspector ');
+		// `.rp-designer-header ` since AD18 moved this control out of the Inspector and into the
+		// header beside `Open library` (`DesignerHeader.vue`). The ancestor is named rather than
+		// dropped for the reason it was named before: a control drawn in SOME region is not the
+		// same claim as a control drawn in the region its ruling put it in.
+		const found = control(wrapper, '.rp-designer-header ');
 		expect(found.exists()).toBe(true);
 		await found.trigger('click');
 

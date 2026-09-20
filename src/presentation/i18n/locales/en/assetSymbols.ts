@@ -105,6 +105,13 @@ export const assetSymbolsEn = {
 	// The asset-level block's own heading, so its Dimensions never read as the selected part's (critique finding 4).
 	'designer.inspector.asset': 'Asset',
 	'designer.inspector.open-library': 'Open the asset library',
+	// The Inspector's two tabs (AD18-R2). `Object` carries the thing being drawn, its placement and
+	// the space it needs kept free; `Reference` the sheet it is traced over and that sheet's scale.
+	// There is deliberately no third: the designer has no styling controls, and board 01's `Style`
+	// tab would ship empty.
+	'designer.inspector.tabs': 'Inspector sections',
+	'designer.inspector.tab.object': 'Object',
+	'designer.inspector.tab.reference': 'Reference',
 	'designer.selection.toggle-mode': 'Select multiple parts',
 	'designer.selection.count': '{count} parts selected',
 	// Under the facing's angle field, as its description: `facingTip` adds the sine to y, and y grows DOWN the screen.

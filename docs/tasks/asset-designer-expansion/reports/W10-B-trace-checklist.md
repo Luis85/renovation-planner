@@ -2,8 +2,8 @@
 
 Outcome: **implemented**
 Owner / worktree / branch: W10-B / `.worktrees/ad10` / `ad18-trace-checklist`
-Base commit / candidate commit: `862f663b1` / **`00dff9914`**
-Accepted contract revision: `r1` — rulings **AD12-R1** (deletes board 02's `Lock reference` step and
+Base commit / candidate commit: `862f663b1` / **`00dff9914`**, then the fix round at `bc12d1d84` plus this report (see the fix-round section at the end; that is the candidate, not `00dff9914`)
+Accepted contract revision: `r1` — rulings **AD12-R1**, **AD18-R4** (taken during the fix round: `Add details` never becomes the current step) (deletes board 02's `Lock reference` step and
 only that one) and **AD18-R2** (the Inspector is tabbed `Object | Reference`, which is what makes
 `DesignerReferenceStatus` the whole Reference panel and therefore what makes an empty one a defect).
 Allowed scope and shared-file leases: EDIT `DesignerReferenceStatus.vue`, `styles/designer-trace.css`,
@@ -20,7 +20,8 @@ and are untouched — verified by `git status`, which lists six paths and none o
 | `src/presentation/i18n/locales/en/designerTrace.ts` | Seven keys: five step labels, the list heading, the one hidden state word | yes (EDIT) |
 | `src/presentation/i18n/locales/de/designerTrace.ts` | The German half, typed against the English keys | yes (EDIT) |
 | `styles/designer-trace.css` | Block spacing, the `<ol>`, and the two state rules | yes (EDIT) |
-| `tests/presentation/designer/designerTraceChecklist.test.ts` | **New.** 12 cases: the checklist, the panel-closure, and the style declarations | yes (CREATE under `tests/`) |
+| `tests/presentation/designer/designerTraceChecklist.test.ts` | **New.** 14 cases after the fix round: the checklist, the panel-closure, the style declarations, the `setProps` invariant and AD18-R4 | yes (CREATE under `tests/`) |
+| `tests/harness/accessibilityDesignerReference.test.ts` | **New, fix round.** axe over the Reference tab with the tab actually selected, plus the instrument check that proves the scan reaches it | yes (CREATE under `tests/`) |
 
 ## What was built, and why it is five steps
 
@@ -48,12 +49,18 @@ rather than copied.
    refuses one layer down (it will not re-derive a stored flag from a join). A read cursor cannot go
    stale and cannot be wrong about a peer leaf's edit. It costs the ability to tick a step a user
    did without leaving a trace, and there is no such step among the five.
-2. **The current step is the FIRST one not done**, not the furthest tick plus one. Refused because
-   the steps complete OUT OF ORDER: an asset typed from dimensions has a footprint and its
-   measurements and no sheet at all, and a cursor derived from furthest progress points at `Add
-   details` while the row actually owed is `Choose a sheet`. That exact swap is the second and third
-   cases, and it is one of the reverts watched red below. Once every step is done **nothing** is
-   marked, because a finished sequence has no next thing to do.
+2. **The current step is the first one that is neither done nor OPTIONAL**, not the furthest tick
+   plus one. Refused because the steps complete OUT OF ORDER: an asset typed from dimensions has a
+   footprint and its measurements and no sheet at all, and a cursor derived from furthest progress
+   points at `Add details` while the row actually owed is `Choose a sheet`. That exact swap is one
+   of the reverts watched red below. Once no such step is left **nothing** is marked, because a
+   finished sequence has no next thing to do.
+
+   **The "nor optional" half is ruling AD18-R4**, taken during the fix round: `Add details` still
+   TICKS when detail graphics exist and is skipped when choosing the cursor, so a sheet-traced asset
+   finished except for details has no current step rather than reading as permanently unfinished.
+   Optionality lives in the same row as the key and the condition, for the reason the row itself
+   exists. The component docblock carries the ruling by name and what lost.
 3. **The checklist is a SIBLING of the facts block, not a child of it.** This is what closes the
    second half of the card (below). A child would have inherited the `relevant` predicate and drawn
    nothing in the one state the panel was empty. The other candidate — deleting `relevant` so the
@@ -96,8 +103,10 @@ Real `<ol>` of real `<li>`s, so position and total are announced by the list rat
 this file invents; `aria-current="step"` on the current row. No `aria-label` on a role-less element —
 that exact defect is the one the accessibility gate found on the Plan Editor. Done-ness is a
 strike-through in CSS and a `data-rp-done` attribute, and **neither reaches a screen reader**, so a
-finished row also carries `designer.trace.done` in a `.rp-visually-hidden` span (the existing shared
-utility, at its third caller). There is deliberately no matching word for a step still to do: an
+finished row also carries `designer.trace.done` in a `.rp-visually-hidden` span — the existing
+shared utility. **The first version of this sentence called that "its third caller" from memory and
+was wrong;** `grep -rn "rp-visually-hidden" src/` prints **nine sites in nine files**, this one
+included, so it is the ninth rather than the third. There is deliberately no matching word for a step still to do: an
 unmarked checklist item already reads as undone, and a "to do" word would put a second announcement
 on every row with nothing to announce.
 
@@ -117,6 +126,8 @@ DECLARATION by the last two cases; see "Verification not performed" for what tha
 | The Reference tab panel is no longer empty for a dimensions-typed asset with no sheet | met | *draws the guide where the panel used to draw nothing at all* — asserts BOTH halves: `.rp-designer-reference` still absent, five rows present, `Choose a sheet` current | the stale comment in `DesignerInspector.vue` |
 | Heading order (axe grades it) | met | *gives the guide its own h3, after the facts block's* — both `h3`, deliberately the same level because the facts block is the one that disappears | — |
 | Done/current distinguished by more than colour | met, as a DECLARATION only | *distinguishes … by something other than colour* (×2) | legibility unverifiable here |
+| AD18-R4: `Add details` ticks but never becomes current | met | *never makes the optional Add details the current step (AD18-R4)*, and the `setProps` case whose middle state is that same design | — |
+| The new ARIA is graded by axe, with the tab selected | met | `accessibilityDesignerReference.test.ts`: 3 passed, including the planted-violation instrument check | jsdom grades no contrast, focus ring or hit size |
 | Existing behaviour unchanged | met | `designerReferencePanels` / `designerReferenceView` / `designerInspectorTabs` / `designerInspector` / `regionsReachable`: 84 passed | — |
 
 ## Watched failing first — verbatim
@@ -205,14 +216,15 @@ suite measures — a narrower run can only miss arms, never invent them.
 
 | File | Statements | Functions | Branch arms |
 |---|---|---|---|
-| `DesignerTraceChecklist.vue` | 13/13 | 4/4 | **8/8** |
+| `DesignerTraceChecklist.vue` | 13/13 | 4/4 | **10/10** |
 | `DesignerReferenceStatus.vue` | 25/25 | 8/8 | 26/26 |
 | `en/designerTrace.ts` | 1/1 | — | — |
 | `de/designerTrace.ts` | 1/1 | — | — |
 
-**All eight new branch arms are covered.** They are: the two `&&` short-circuits in the `steps`
-computed (`shape !== null && shape.details.length > 0`, `dimensions !== null && pendingCount === 0`),
-the `aria-current` ternary, and the `v-if` on the hidden `Done` span — each two arms. The card's
+**All ten new branch arms are covered.** They are: the three `&&` short-circuits in the `steps`
+computed (`shape !== null && shape.details.length > 0`, `dimensions !== null && pendingCount === 0`,
+and AD18-R4's `!step.done && !step.optional`), the `aria-current` ternary, and the `v-if` on the
+hidden `Done` span — each two arms. The figure was **8/8** before the fix round added the ruling. The card's
 warning that "a five-step checklist with a current-step highlight is a lot of new branches" is the
 reason the component is written the way it is: the step table is built as `{ key, done }` PAIRS with
 no parallel indexing and no per-step `v-if`, and `:data-rp-done="step.done"` renders `"true"`/`"false"`
@@ -249,11 +261,13 @@ worktree's reach or explicitly the integrator's.
   capture was taken, so no picture of this exists.
 - **`npm run test-build` and a vault** — not run; no Obsidian here. Appearance in a real vault, and
   the real `setIcon`/theme behaviour around this rail, are unverified.
-- **axe over a state where the checklist has a CURRENT row** — the accessibility files that passed
-  scan the designer's mounted surfaces, but I did not confirm which design state each of them seeds,
-  so I cannot claim axe graded a tree containing an `aria-current="step"` row specifically. What I
-  can claim is that those files stayed green with the new markup in the tree. axe in jsdom does not
-  check colour contrast, focus visibility or hit size in any case.
+- ~~**axe over a state where the checklist has a CURRENT row**~~ — **CLOSED in the fix round, and
+  the original bullet understated the problem.** It said I had not confirmed which state the
+  accessibility suites seed. The confirmed answer was: NONE of them grade this markup in ANY state,
+  because `DesignerInspector`'s `activeTab` defaults to `'object'`, the panels are `v-show`, and axe
+  skips a CSS-hidden subtree. `tests/harness/accessibilityDesignerReference.test.ts` closes it and
+  demonstrates the gap rather than describing it. axe in jsdom still does not check colour contrast,
+  focus visibility or hit size.
 - **German copy reviewed by a German speaker** — not done. The strings are typed against the English
   keys (so none can be missing) and follow the vocabulary already in `de/assetReference.ts`, but
   nobody who reads German has read them.
@@ -302,6 +316,140 @@ Reference panel. No data is left behind and no user state depends on it.
    words "no sheet yet" present, that is a copy decision rather than a defect, and the facts block's
    existing `designer.reference.sheet.none` (`None chosen`) is the string that already says it —
    though it draws only once the block itself is relevant, which in that state it is not.
+
+## Fix round — five items, after the independent review
+
+Code at **`bc12d1d84`**, on top of `297179e4f`; this report sits on top of that, and its own SHA is the candidate. The review verified the central claims and found
+four things; a fifth (ruling **AD18-R4**) arrived mid-round and is folded into the same commit.
+
+### 1. axe had graded NONE of this markup — closed
+
+The disclaimer in the original report was too kind to itself. The confirmed mechanism:
+`DesignerInspector`'s `activeTab` defaults to `'object'` and the panels are `v-show`, so the
+Reference panel carries `display: none` in every scan, and **axe skips a CSS-hidden subtree**. No
+`accessibility*.test.ts` selects the tab. So the `<ol>`/`<li>`/`aria-current="step"`/visually-hidden
+combination — the most new ARIA this card added — was outside the gate entirely.
+
+`tests/harness/accessibilityDesignerReference.test.ts` closes it: `runOptions` shared through
+`./axeOptions` (no second copy of the rules this suite cannot grade), `designerRig` for the real
+designer, the tab found by its WORDS rather than by index, and the panel asserted visible and
+five-rows-deep BEFORE the scan so a clean result cannot come from scanning nothing. Two states,
+because they are different markup: with a sheet, and with none — the state that used to be empty.
+
+**Its second case is the instrument check, and it demonstrates the gap rather than describing it.**
+One mount, one planted violation on a checklist row, two scans: the default Object tab reports
+nothing about plainly broken markup, and selecting Reference reports it. A dangling
+`aria-labelledby` was tried first and is refused in the file with its measurement — axe answers
+`incomplete` for a missing reference, not `violations`, so that probe would have landed in the
+wrong bucket. The probe is an invalid `aria-*` attribute instead.
+
+### 2. A `setProps` case for "read off the design, never stored"
+
+The invariant was asserted in the docblock and checked by nothing: every case mounted fresh. The
+new case drives both directions through `setProps`, which is the shape the real surface takes — the
+design arrives as a NEW DTO on the same mounted tree, never as a remount, so a cursor cached at
+setup would survive a peer leaf's calibration.
+
+### 3. Two counts rewritten from a grep instead of from memory
+
+- `.rp-visually-hidden` — **nine sites in nine files** (`grep -rn "rp-visually-hidden" src/`), mine
+  the ninth. The report had said "third caller". Corrected in place above.
+- The `CALIBRATION` import comment claimed it was "the one calibration this suite has, rather than a
+  third hand-spelled copy". Wrong on both halves: `grep -rln "knownDistance:" tests/` prints **36
+  files** that spell one of their own, `designerReferencePanels.test.ts` — which mounts the very
+  component the same block mounts — among them. The comment now says what the import actually buys:
+  one copy fewer, not the one definition.
+
+### 4. Left alone, as instructed
+
+The now-false case name in `designerReferencePanels.test.ts` and the second stale premise in
+`DesignerInspector.vue` (the `tabindex="0"` paragraph justifying itself with "draws nothing at all
+for an asset typed from dimensions with no sheet" — the attribute is still right, its stated reason
+is dead). Both are the integrator's. The `<ol>` marker question is also untouched: `::marker` takes
+Obsidian's own colour and `line-through` does not reach it, which are appearance claims for a
+browser rather than guesses from here.
+
+### 5. Ruling AD18-R4 — `Add details` never becomes the current step
+
+Folded into the same commit. It still ticks when detail graphics exist; it is skipped when choosing
+which step is current. `optional` lives in the same row as the key and the condition — a parallel
+list would reintroduce the by-one-index drift the row shape exists to prevent.
+
+**The coordinator's reading was checked against the code rather than taken, and it held on all
+three points.** A sheet-traced asset finished except for details now has NO current step, which is
+the all-done rule reached by another route. A typed-from-dimensions asset is UNCHANGED — image and
+scale are both undone and both non-optional — and the existing out-of-order case stayed green; its
+docblock now records WHY it is still correct rather than leaving a green run to imply it. The case
+that pinned the old rule was re-graded, not deleted.
+
+### Watched failing first — the fix round, verbatim
+
+**5. The `setProps` invariant, against a component that snapshots its props at setup:**
+
+```
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |suite| tests/presentation/designer/designerTraceChecklist.test.ts > the guided trace checklist > re-reads the design on every change rather than remembering where the user was
+AssertionError: expected [ 'Calibrate the scale' ] to deeply equal [ 'Add details' ]
+      Tests  1 failed | 12 passed (13)
+```
+
+**6. The accessibility file with both `tab.click()` calls removed** — the first two cases go red on
+the visibility guard placed before the scan, which is that guard doing its job, and the instrument
+case goes red on the half that proves reachability:
+
+```
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |suite| tests/harness/accessibilityDesignerReference.test.ts > the designer’s Reference tab > reports no violations with the guide visible (sheet: true)
+AssertionError: expected 'none' not to be 'none' // Object.is equality
+ FAIL  |suite| tests/harness/accessibilityDesignerReference.test.ts > the designer’s Reference tab > reports no violations with the guide visible (sheet: false)
+AssertionError: expected 'none' not to be 'none' // Object.is equality
+ FAIL  |suite| tests/harness/accessibilityDesignerReference.test.ts > the designer’s Reference tab > grades the checklist only once the tab is selected, and not before
+AssertionError: expected [] to have a length of 1 but got +0
+      Tests  3 failed (3)
+```
+
+**7. The `<ol>` replaced by a `<div>` in the component** — the strongest of the seven, because it
+proves the new file grades MY markup rather than only a planted attribute, and this is a real
+violation no gate in this repository could see before the file existed:
+
+```
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |suite| tests/harness/accessibilityDesignerReference.test.ts > the designer’s Reference tab > reports no violations with the guide visible (sheet: true)
+AssertionError: expected [ { id: 'listitem', …(6) } ] to deeply equal []
+- Expected
++ Received
++     "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/listitem?application=axeAPI",
++     "id": "listitem",
+```
+
+**8. AD18-R4, watched red BEFORE the skip existed** — the two cases that had to fail first, and the
+second message names `Add details` as the current step, which is exactly what the ruling removes:
+
+```
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |suite| tests/presentation/designer/designerTraceChecklist.test.ts > the guided trace checklist > never makes the optional Add details the current step (AD18-R4)
+AssertionError: expected <li …(3)></li> to be null
+ FAIL  |suite| tests/presentation/designer/designerTraceChecklist.test.ts > the guided trace checklist > re-reads the design on every change rather than remembering where the user was
+AssertionError: expected [ 'Add details' ] to deeply equal []
+      Tests  2 failed | 12 passed (14)
+```
+
+### Fix-round checks
+
+| Command | Result |
+|---|---|
+| `npx vue-tsc -noEmit` | 0 |
+| `npx oxlint --deny-warnings` over the changed files | 0 |
+| `npx eslint --max-warnings 0` over the changed files | 0 |
+| `npx vitest run designerTraceChecklist` | **14 passed** |
+| `npx vitest run accessibilityDesignerReference` | **3 passed** |
+| `npx vitest run` over the four neighbours | **55 passed** |
+| narrow coverage over five files, scratchpad directory | `DesignerTraceChecklist.vue` **10/10 branch arms**, 13/13 statements, 4/4 functions; `DesignerReferenceStatus.vue` 26/26 branch |
+
+**Still not run, unchanged from the original list**: `npm run check`, `npm run test:coverage`,
+`npm run analyze`, the unfiltered suite, `harness`, `harness-shot`, `test-build`, and every
+appearance claim. The new accessibility file grades ROLES, NAMES and ARIA in jsdom; it measures no
+colour, no focus ring and no hit size, and it draws nothing.
 
 ## Reviewer and integrator acceptance
 

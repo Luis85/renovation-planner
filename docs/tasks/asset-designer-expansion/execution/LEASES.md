@@ -413,3 +413,41 @@ declarations.
 belongs there; the worker's own caveat is that doing so leaves the mounted guard as the weaker case
 standing alone and invites the question of whether that file earns its 47 s. That is a cost
 question and a card of its own, not an end-of-wave edit.
+
+## Wave 9 — issued 2026-09-20 (session seven), base is THIS commit, contract revision `r1`
+
+Every wave-8 lease is RELEASED. **One worker, one card**, and the singleness is forced rather than
+chosen: AD18 items 2 and 4 both restructure `DesignerInspector.vue` — the header TAKES the asset
+name out of it (AD18-R1) and the tabs reorganise what is left (AD18-R2) — so two workers would
+collide on that file and on `styles/designer.css`. One card, one tree, no disjointness question to
+verify.
+
+**This is the wave's real change of kind: it is the first `src/` card since wave 6.** Waves 7 and 8
+were test-only, and both leases leaned on that — "a test adds coverage and can never subtract it".
+**That clause does NOT hold here.** Branches sat at 98.07 % against a 98 floor at the last
+measurement, about sixteen arms for the whole repository, and a new `v-if` is a new branch. The
+card must plan each test WITH its code and read `coverage-final.json` for the CHANGED FILES rather
+than trusting the threshold, which cannot see one untested arm in a slack metric.
+
+**No coverage figure has been measured since session six and none may be carried forward as
+current** — session seven ran no `test:coverage` at all, because another session held the box.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| **W9-A** — the designer header (AD18 item 2 / AD06 item 1) and the tabbed Inspector (AD18 item 4) | `.worktrees/ad08r` (reused, carries `node_modules`), branch `ad18-header-and-tabs` | EDIT `src/presentation/designer/AssetDesignerRoot.vue`, `src/presentation/designer/inspector/DesignerInspector.vue`, `styles/designer.css`, `src/presentation/i18n/locales/en/assetSymbols.ts`, `src/presentation/i18n/locales/de/assetSymbols.ts`. CREATE components under `src/presentation/designer/` and partials under `styles/` as needed, plus any test file under `tests/`. Nothing else | wave 9 base, `r1` | issued | reviewed by an agent that did not write it, conditions applied, coverage read per changed file |
+
+**Integrator-owned and sub-let to nobody**: every other file under `src/`, `styles/`, `docs/`,
+`package-lock.json`, and every EXISTING test file the card does not need. A file the card discovers
+it needs is ASKED for, and the grant is written into this table in the same edit that makes it.
+
+**Two rulings govern this card and both were taken before it** — `contracts/DECISIONS.md`'s AD18-R1
+and AD18-R2. Each names the traps as well as the outcome, and the traps are the part to read twice:
+the clearance-review notice is a `role="status"` live region that a user has already reported
+reading as belonging to the Clearance block above it, so a tab separating the two would destroy the
+one judgement answer this package owns.
+
+**`regionsReachable.test.ts` is why a new component cannot be merely created.** It walks the real
+import graph from `AssetDesignerView.ts` and requires every `.vue` under `src/presentation/designer/`
+to be reachable; `assetDesignerRoot.test.ts` asserts each region is drawn. A header component that
+is written and not mounted fails the first; a region dropped while its component survives elsewhere
+fails the second.

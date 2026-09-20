@@ -747,18 +747,6 @@ async function enterAreaTaskOnceReady(root: HTMLElement): Promise<void> {
 }
 
 /**
- * Wraps a knob's fire-and-forget promise so a rejection that lands after its caller has moved
- * on cannot escape as a process-level unhandled rejection naming no test.
- *
- * The `.then` below attaches a handler in the SAME microtask turn the knob starts — the part
- * that actually matters, since attaching one only LATER, after the promise has already
- * rejected with nothing listening, does not retroactively un-report it. The rejection is
- * captured rather than rethrown here, so the promise this function returns can never itself
- * become a second unhandled rejection: it always resolves, to a thunk that is a no-op on
- * success and rethrows the original error on failure. `mountPlanEditorHarness` collects one of
- * these per knob it starts and replays them from inside `view.onClose`.
- */
-/**
  * Drives `?outline`: waits for `?select`'s zone to actually be selected — the Inspector carrying
  * that id is the DOM's own answer to that, and the two knobs run concurrently — then opens the
  * numeric outline editor on it.
@@ -792,6 +780,18 @@ async function openZoneOutlineOnceReady(view: PlanEditorView, root: HTMLElement,
 	);
 }
 
+/**
+ * Wraps a knob's fire-and-forget promise so a rejection that lands after its caller has moved
+ * on cannot escape as a process-level unhandled rejection naming no test.
+ *
+ * The `.then` below attaches a handler in the SAME microtask turn the knob starts — the part
+ * that actually matters, since attaching one only LATER, after the promise has already
+ * rejected with nothing listening, does not retroactively un-report it. The rejection is
+ * captured rather than rethrown here, so the promise this function returns can never itself
+ * become a second unhandled rejection: it always resolves, to a thunk that is a no-op on
+ * success and rethrows the original error on failure. `mountPlanEditorHarness` collects one of
+ * these per knob it starts and replays them from inside `view.onClose`.
+ */
 function guardKnob(promise: Promise<void>): Promise<() => void> {
 	return promise.then(
 		() => () => undefined,

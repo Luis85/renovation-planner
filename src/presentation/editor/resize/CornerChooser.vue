@@ -34,7 +34,17 @@ function cornerPosition(point: Point, index: number): string {
 function chooseLabel(index: number): string { return tr('editor.area.edit-corner', { n: String(index + 1) }); }
 </script>
 <template>
-	<p role="status">
+	<!--
+		Addressed by a hook of its own rather than by `[role="status"]`: `OutlinePointsForm.vue`
+		renders a SECOND status region above this one (its `latest` line, live whenever the zone
+		changed under the dialog), so a role selector takes whichever happens to be first in the
+		DOM. Measured — with that sibling rendering, `zoneOutline.e2e.test.ts` read it instead of
+		this one and reported `expected '' to contain 'Corner 3'`.
+	-->
+	<p
+		role="status"
+		data-rp-corner-status
+	>
 		{{ chosenLabel }}
 	</p>
 	<ol

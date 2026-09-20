@@ -784,6 +784,34 @@ describe('the headless harness capture script', () => {
 	});
 
 	/**
+	 * BP-04's three outline shots (slice A2), pinned the way every knob-driven family above is
+	 * rather than by the name census alone. Two properties neither the census nor a name can
+	 * see. `outline=1` is what CHOOSES a corner — a bare `?outline` opens the dialog and
+	 * highlights nothing, so losing the `=1` photographs an unchosen list under a name
+	 * promising action 3's highlight. And `width` is the whole reason the third row exists: it
+	 * is BP-04's own test case 12, "constrained-layout focus", and 460 is an Obsidian sidebar
+	 * leaf's real width.
+	 *
+	 * **Measured rather than argued**: with `width` dropped, the narrow row is a byte-identical
+	 * duplicate of the wide one under a second name, and the whole of `tests/build` — 46 files,
+	 * 1280 tests — stayed green. That is the same silent wrong-picture outcome the detail-state
+	 * case below names, and this family shipped with nothing holding it.
+	 */
+	it('takes the three outline shots through the ?outline knob, and the narrow one at a sidebar width', () => {
+		for (const name of ['plan-editor-outline', 'plan-editor-outline-dark', 'plan-editor-outline-narrow']) {
+			expect(planEditorQuery(name).get('outline')).toBe('1');
+			expect(planEditorQuery(name).get('select')).toBe('harness-terrace');
+			// A PRESSED row button, which only the choosing half of the knob produces — the
+			// list itself is on screen the moment the dialog opens.
+			expect(shot(name).selector).toBe('[data-rp-corner="choose"][aria-pressed="true"]');
+		}
+		expect(planEditorQuery('plan-editor-outline-dark').has('theme')).toBe(false);
+		expect(shot('plan-editor-outline').width).toBeUndefined();
+		expect(shot('plan-editor-outline-dark').width).toBeUndefined();
+		expect(shot('plan-editor-outline-narrow').width).toBe(460);
+	});
+
+	/**
 	 * R13: the one width the 460px capture cannot show, and the one shot that MEASURES rather
 	 * than only draws — jsdom lays nothing out, so `measure` reads the real shell's scrollWidth
 	 * against its clientWidth in a browser through the importable `overflowFinding`/`shellMetrics`

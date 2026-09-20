@@ -476,6 +476,11 @@ describe('the interaction layer chosen-corner highlight', () => {
 		runtime.renderState.highlightedVertex = 2;
 		await settle();
 		const marked = vertexRadii(harness);
+		// The ORDERING first, against what this same layer drew a moment ago, because the
+		// equality below compares the rendered radius to the constant the renderer itself
+		// read and so cannot see the direction. `handleMetrics.test.ts` holds that direction
+		// at the constants; this holds it at the pixels actually drawn.
+		expect(marked[2]).toBeGreaterThan(resting[2]);
 		expect(marked[2]).toBe(VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX);
 		expect(marked.filter((radius) => radius === VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX)).toHaveLength(1);
 		expect(marked.length).toBe(resting.length);

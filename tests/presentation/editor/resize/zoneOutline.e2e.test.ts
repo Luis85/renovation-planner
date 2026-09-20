@@ -182,7 +182,10 @@ describe('the numeric outline editor over every zone type', () => {
 
 		expect(runtime.renderState.highlightedVertex).toBe(2);
 		expect(document.activeElement).toBe(form(r).get<HTMLInputElement>('[name="2.x"]').element);
-		expect(form(r).get('[role="status"]').text()).toContain('Corner 3');
+		// The chooser's own region BY NAME. `[role="status"]` matched the first such element,
+		// and this form has a second one above it — the `latest` line — so the assertion read
+		// whichever the DOM ordered first the moment that sibling rendered.
+		expect(form(r).get('[data-rp-corner-status]').text()).toContain('Corner 3');
 		expect(rows[2].get('[data-rp-corner="choose"]').attributes('aria-pressed')).toBe('true');
 		expect(rows[0].get('[data-rp-corner="choose"]').attributes('aria-pressed')).toBe('false');
 

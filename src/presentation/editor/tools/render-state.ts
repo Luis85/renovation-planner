@@ -105,9 +105,25 @@ export class RenderState {
 	 *
 	 * The index is into the SAVED outline, which is what `InteractionLayer.editableVertices`
 	 * draws, so the mark stays on the corner as loaded while the dashed preview shows where the
-	 * typed value would put it. It cannot ride the preview instead: `previewPolygon` is expanded
-	 * through `polygonPolyline` before it is drawn, so a curved zone's drawn points do not
-	 * correspond to its corner indices at all.
+	 * typed value would put it.
+	 *
+	 * **Riding `previewPolygon` instead was available, and is refused for a FLICKER rather than
+	 * for an impossibility.** This clause used to say the preview's points are expanded through
+	 * `polygonPolyline` before they are drawn and so do not correspond to corner indices. That
+	 * is false of the FIELD in the plan editor: every writer THERE stores unexpanded CORNER
+	 * points (`zoneOutlineAction.ts`, `roomResizeAction.ts`, `roomDimensionAction.ts` and
+	 * `rotationActions.ts` assign `polygon?.points` or an equivalent; `SelectTool` assigns its
+	 * translated corner array), and the expansion happens at DRAW time inside
+	 * `InteractionLayer`'s `previewFlat`. The one writer that does store an expanded polyline
+	 * is the designer's `DrawDetailTool`, which shares this class and never reaches this field.
+	 *
+	 * What is true is that the field goes NULL part-way through typing one value:
+	 * `outlineProposal` answers `polygon: null` for any box that is not yet a complete number
+	 * (`"1."`, `"-"`, an emptied field — `parseCoordinateMetres` refuses all three), and
+	 * `OutlinePointsForm`'s `watchEffect(() => props.preview(proposal.value.polygon))` pushes
+	 * that null straight here. A preview-riding mark would therefore jump back to the saved
+	 * corner and out again on the way through every edit, where a mark anchored to the saved
+	 * outline just says where the corner IS while the dashed ghost says where it would go.
 	 *
 	 * Transient like every other field here — a corner number is a UI identifier BP-04 forbids
 	 * persisting, and this is the only place one is ever held.

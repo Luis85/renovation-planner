@@ -116,6 +116,53 @@ const locked = computed(() => props.lockedGraphics);
 const graphicCount = computed(() => props.design.shape?.details.length ?? 0);
 
 /**
+ * The two conditions below are computeds rather than the expressions they replace in the
+ * template, and the reason is the GATE rather than taste. `fallow`'s `maxCognitive` is 15, and
+ * AD18-R2's two tabpanels took this template to 17 — every boolean operator inside a `v-if`
+ * counts, and these two carried four of them between them. Naming them moves the operators into
+ * two one-line functions that are nowhere near any threshold, which is the move this repository
+ * has taken at every other complexity finding it has met (`AssetInspectorActions.vue`,
+ * `UnreadableStrip.vue` and `DesignerUsagePlans.vue` each refuse the
+ * `fallow-ignore-next-line complexity` the report itself offers, and say so where they refuse it).
+ *
+ * Neither changes what draws. They are the same expressions, moved.
+ */
+
+/**
+ * The unscaled warning only means anything beside real dimensions, so both facts gate it together.
+ *
+ * **The first term is REDUNDANT against `GetAssetDesign`, and is kept rather than dropped.** That
+ * query sets `dimensions` from the footprint exactly when `shape !== null`, and
+ * `dimensionsUnscaled` is `shape?.footprintPending ?? false` — so a `true` second term already
+ * implies a non-null first. `getAssetDesign.test.ts` pins that producing invariant directly
+ * (`dimensionsUnscaled` is `false` on a design with no shape, and its own comment records that the
+ * field "IS `footprintPending`, with no second term"). Measured rather than reasoned: deleting the
+ * first term here and running `designerInspector`, `assetDimensions` and `designerReferencePanels`
+ * leaves all 70 cases GREEN, because the state it guards cannot be reached through the query.
+ *
+ * It stays because the DTO is a plain type a test can hand-build, and because dropping it is a
+ * behaviour change that belongs in its own commit rather than in one whose subject is the gate.
+ */
+const showUnscaledDimensions = computed(() => props.design.dimensions !== null && props.design.dimensionsUnscaled);
+
+/**
+ * Whether the multiple-selection toggle can be drawn: the host has to have passed the setter, and
+ * either there is more than one graphic to compose or the mode is already on — it STAYS while on,
+ * for that control's own reason, since the mode also governs canvas presses and must never be left
+ * unreachable.
+ *
+ * **Hoisting it costs the call site its narrowing, and that is why the handler below calls
+ * `setMultiSelectionMode?.(…)`.** While the `undefined` check sat inline in the `v-if`, `vue-tsc`
+ * narrowed the prop for everything inside the element; a computed hides that, and the bare call
+ * fails with `error TS2722: Cannot invoke an object which is possibly 'undefined'` (measured — it
+ * turned `npm run check` red before the `?.` was added). The optional call is a no-op in the only
+ * state that draws this control, since the computed is false whenever the prop is absent.
+ */
+const showMultiSelectToggle = computed(
+	() => props.setMultiSelectionMode !== undefined && (graphicCount.value > 1 || props.multiSelectionMode === true),
+);
+
+/**
  * Both codes are `SetAssetHeightCommand`'s own — `Asset.ts`'s `checkHeight`, through
  * `withChanges` — read from the raise sites rather than guessed from the field's name (this
  * repository's own rule for every `FieldErrorMap` in the plugin).
@@ -387,7 +434,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 				<dd>{{ Math.round(design.dimensions.width) }} × {{ Math.round(design.dimensions.depth) }} mm</dd>
 			</dl>
 			<p
-				v-if="design.dimensions !== null && design.dimensionsUnscaled"
+				v-if="showUnscaledDimensions"
 				class="rp-designer-unscaled"
 			>
 				{{ tr('designer.inspector.dimensions.unscaled') }}
@@ -420,14 +467,14 @@ function onTabKeydown(event: KeyboardEvent): void {
 				canvas presses, so it must never be left unreachable.
 			-->
 			<label
-				v-if="setMultiSelectionMode !== undefined && (graphicCount > 1 || multiSelectionMode === true)"
+				v-if="showMultiSelectToggle"
 				class="rp-designer-multi-select"
 			>
 				<input
 					type="checkbox"
 					data-rp-action="multiple-selection"
 					:checked="multiSelectionMode === true"
-					@change="setMultiSelectionMode(($event.target as HTMLInputElement).checked)"
+					@change="setMultiSelectionMode?.(($event.target as HTMLInputElement).checked)"
 				>
 				{{ tr('designer.selection.toggle-mode') }}
 			</label>

@@ -1,229 +1,202 @@
-# RESUME — session seven's hand-off
+# RESUME — session eight's hand-off
 
-**Rewritten 2026-09-19, replacing session six's packet wholesale**, for that file's own stated
+**Rewritten 2026-09-20, replacing session seven's packet wholesale**, for that file's own stated
 reason: a hand-off that is appended to goes stale in a way a reader cannot detect.
 
 Branch `renovation-planner-asset-designer-bc5539`, worktree
 `D:\Projects\renovation-planner\.claude\worktrees\renovation-planner-asset-designer-bc5539`.
-HEAD `e84da5ae2`. **The branch IS pushed** — PR
-[#230](https://github.com/Luis85/renovation-planner/pull/230), still DRAFT, and it was pushed
-before this session too. Session six's packet said *"Nothing has been pushed"* and that was already
-false when written; `main` is untouched at `f3a8864a9`, which is the part of that sentence that was
-true.
+HEAD `51fdaed89`, **pushed**. PR [#230](https://github.com/Luis85/renovation-planner/pull/230),
+still DRAFT. `main` is untouched at `f3a8864a9`; this branch's merge base is `ed5c50b76`.
 
-## READ THIS FIRST: CI IS RED on `d6a7778fd`, and the cause is diagnosed but NOT fixed
+## CI IS GREEN. Do not go looking for the red the last packet led with.
 
-Run `gh pr checks 230`. All four `verify` legs fail; `audit` and GitGuardian pass. **The suite and
-the linters are GREEN** — build, oxlint, `eslint .` and `test:coverage` all pass. **`npm run analyze`
-is what fails**, on two findings:
+`gh pr checks 230` on `51fdaed89`: all four `verify` legs pass, plus `audit` and GitGuardian.
+1068 test files, `✗ 0 above threshold`, duplication 4 clone groups.
 
-```
-✗ 101 lines (0.1%) duplicated across 6 files
-✗ 1 above threshold · 8109 analyzed · maintainability 86.8 (good)
-Failed: dupes (4 clone groups), health (1 above threshold):
-  start with src/presentation/editor/renovation/renovationSummary.ts
-```
+**The red that session seven handed over was diagnosed wrongly in BOTH halves, and the correction
+is the single most useful thing in this file.**
 
-**None of the reported files was touched by this branch** — verified with
-`git diff --name-only ecae21ab2..HEAD` against every one of them. The reported clone groups are
-`styles/designer.css:120-143` + `styles/editor-shell.css` (32 lines, 3 instances, `dup:6f96bf57`)
-and three pre-existing `src/presentation/editor/` groups.
+### Duplication does not gate. It never did.
 
-**The mechanism is the trap `.fallowrc.json`'s own comment documents, and it was predicted.**
-W9-A's reviewer raised it as finding M4 and said only an `analyze` run could settle it; neither the
-worker nor the reviewer was allowed to run one, and the local box was held by another session all
-day, so it reached CI unverified. That config comment says a key is *"the id fallow PRINTS plus
-`:<instance count>`"* and that the `-N` group index *"renumbers whenever any group appears or
-disappears, INCLUDING because another key hid one."* `ignoredClones` holds exactly one key,
-`dup:7fd5d625:2`. The run reports `note: hid 1 reviewed clone group` — W9-A's new
-`.rp-designer-title-bar` block in `styles/designer-header.css`, suppressed by its
-`fallow-ignore-next-line` — and the group that remains now prints a DIFFERENT id and instance
-count than the stored key, so a clone this repository had already reviewed is reported again.
+`duplicates.threshold` defaults to `0`, which fallow's schema documents as *"no limit"* — not as
+zero tolerance, which is exactly what a `✗` beside a duplication count reads like. Proof rather than
+argument: `main`'s own **green** CI at `ed5c50b76` prints `● Duplicates (7 clone groups)` and
+`✗ 80 lines (0.1%) duplicated across 7 files`. This branch's **green** CI at `c3527450b` prints
+4 groups and `✗ 101 lines` — the same duplication output the red run had.
 
-**What is diagnosis and what is still unknown.** The duplication half is traced to a mechanism the
-config already warns about; it has NOT been reproduced locally, because no `npm run analyze` has
-been run on this tree. The complexity half — `renovationSummary.ts`, one function above
-threshold — is **not explained at all**: that file is untouched by this branch and by wave 9.
-Fallow measures complexity AGAINST COVERAGE, so a coverage change elsewhere can move it; that is a
-hypothesis, not a finding.
+So the `ignoredClones` key-renumbering trap that session seven blamed, and that W9-A's reviewer
+raised as finding M4, is real as a mechanism and **was not operating**. The branch had in fact taken
+clone groups from **7 to 4**, fixing three in `scripts/editor-usability-*.mjs` and one in
+`ObsidianPlanGeometrySidecar.ts`.
 
-**Do not "fix" this by relaxing a threshold, widening `ignore`, or deleting a check.** The honest
-repair is to re-run `npm run analyze` locally on a quiet box, read what it actually prints, and
-update the reviewed-clone KEY to what the report now shows — the same ratchet discipline every
-floor here was set by.
+**Read the `Failed:` line and the `N above threshold` count. A `✗` on the duplication summary is not
+one of them.** That is now written at `.fallowrc.json` itself (`bb1677d66`) so a third session cannot
+repeat it.
 
-**Before anything heavy, check WHAT is running and not just how many**:
-`Get-CimInstance Win32_Process -Filter "Name='node.exe'"` shows the command lines. A count alone
-did not reveal that another worktree, `renovation-planner-beta-handoff-e80bb5`, was mid-`npm run
-check` for most of session seven.
+### The `Failed:` line's tail names a file that is not the problem
 
-## The thing that was blocking everything is DONE, and it is not what a reader expects
+It ends *"start with `<file>`"*, naming the top of fallow's **53 refactoring targets** — a quick-win
+ROI ranking that fails nothing and is usually a file the branch never touched.
+`renovationSummary.ts` was that file, twice, and it is untouched by this branch.
 
-**The live-vault pass was walked by the user, in a real Obsidian vault, on the `test-build` of
-`ecae21ab2`.** Runbook §10's condition — *"if tests or an actual Obsidian session cannot be run"* —
-no longer holds, and **AD15 is off `blocked`**.
+### What actually failed
 
-**It is NOT a filled Runs table, and nothing in this repository pretends it is.** The user gave a
-whole-surface verdict (*"looks good to me"*) and one named defect. **No individual `obsidian` step
-in any of the three cases was confirmed one by one**, and each case's new Runs row says so in its
-own words rather than implying otherwise. The stale *"not yet run in a vault"* placeholder in each
-was amended rather than deleted, so the correction stays visible.
+One `health` finding: `DesignerInspector.vue`'s `<template>` at cognitive **17** against
+`maxCognitive` **15** — W9-A's own `Object | Reference` tabs, since every boolean operator inside a
+`v-if` counts. Repaired at `c3527450b` by hoisting two compound conditions into named computeds. No
+suppression, following `AssetInspectorActions.vue`, `UnreadableStrip.vue` and
+`DesignerUsagePlans.vue`, which each refuse `fallow-ignore-next-line complexity` where they refuse it.
 
-What WAS answered, because it was asked directly:
+**One trap worth inheriting**: a first local run showed **2** findings against CI's 1, the extra being
+`editDimensions` at CRAP 71.3. That was **stale coverage** — 7740 functions matched against CI's
+7762, so it fell back to the static estimate. A figure read off a stale `coverage/coverage-final.json`
+looks exactly like a real regression. Run `test:coverage` before `analyze`, always.
 
-| Question | Answer |
-|---|---|
-| *Calibrate a sheet and reserve space* step 29 — does the clearance-review notice read as belonging to the Clearance block, or as a fourth unnamed block? | **Belonged to Clearance.** The step's other half — whether that first-glance reading changed once the sentence was read — was not answered and stays open |
-| The designer at a sidebar leaf's width | **Usable** |
-| Is the beta ready? | **"Not ready — keep working."** This is the user's call under §10 and is recorded as given, not interpreted |
+## Wave 10 — two cards, both merged, both reviewed
 
-Steps 17 and 23, the other two `judgement` steps, were **not put to the user** and stay open.
-
-## The defect the user found, which no gate here could
-
-> *"the preview images for presets look strange as they are inside buttons and overlapping them"*
-
-Real, reproduced, measured, fixed (`fe82a15bf`). `.rp-preset-choice` never overrode Obsidian's own
-`button` rule — `height: var(--input-height)` (30px), `flex-direction: row`, `white-space: nowrap`.
-Measured in the browser against the real assembled stylesheet and the vendored `obsidian.css`, at a
-300px form:
-
-| | before | after |
-|---|---|---|
-| button height vs a 48px thumbnail | **30px** — the picture hung **9px out, top and bottom**, across the 4px grid gap into the next row | 77px, thumbnail inside on all four sides |
-| thumbnail width, short label | 43px / 62px | 116px |
-| thumbnail width, `Peninsula worktop with return` | **0px**, label overflowing by 16px | 116px, label wraps |
-
-Three other project buttons already meet that host rule and neutralise it — `.rp-evidence-filters`,
-`.rp-evidence-gallery`, `.rp-item-color`'s swatch. The preset choice was the fourth site and the
-only one doing nothing.
-
-**Why no gate saw it, and this is the durable lesson:** jsdom computes no layout, so all 20 cases in
-`assetPresetForm.test.ts` are green with the fix and without it. `tests/build/buttonBoxNeutralised.test.ts`
-therefore checks the DECLARATIONS and says so — a narrower claim than "the thumbnail fits". It was
-watched failing on all three declarations. **Its first draft reached NOTHING** while three
-assertions passed vacuously underneath, caught by its own non-empty case; the premise was false,
-because a CSS selector need not name the element it descends through.
-
-## Wave 8 — two cards, both merged
-
-Two, not three: the hand-off's items 2 and 3 touch the same two files, so they were one card.
+Authorized by the user at the start of this session: AD18 sequencing items **3+6**, **5** and **7**.
 
 | Card | Candidate | Fix round | Integrated |
 |---|---|---|---|
-| **W8-A** — share the designer sweep vocabulary; close T25's two residual gaps | `ef1ba2dff` | `dded01474` | `160fab6f5` |
-| **W8-B** — resolve the container query against the mounted tree | `6d0bb73c1` | `265b3505` | `ced90913c` |
+| **W10-A** — icon toolbar (item 3) and canvas proportion 560–900 (item 6) | `84d76fde1` | `4dec45fca` | `14cd708e7` |
+| **W10-B** — guided trace checklist (item 7) and the empty Reference panel | `297179e4f` | `653bddce9` | `2f87284dc` |
 
-Both test-only. Neither touched `src/`, `styles/` or `docs/`. Disjointness verified on the
-fix-round shas as well as the candidates: empty both times.
+Leases verified disjoint with `git diff --name-only` **and on both fix-round shas**; intersection
+empty every time. Each card reviewed by an agent that did not write it.
 
-**W8-B's card premise was wrong and its worker fixed the RESOLVER rather than the sentence.**
-Resolving only the width meant retitling the block to `@container rp-other` left all eighteen cases
-green while in a browser it had stopped reaching the designer entirely.
+**Item 5, the `Add` rail, is AUTHORIZED and was SEQUENCED, not dropped.** Ruling AD18-R3: the
+Basic-shape buttons MOVE into the rail. That puts items 3 and 5 on `DesignerToolbar.vue` together, so
+they cannot hold disjoint leases in one wave. **It is wave 11's card and the ground is prepared** —
+see below.
 
-**The sharpest finding of the wave**, reasoned by W8-B's reviewer and then MEASURED by its worker:
-the mounted guard case is **strictly weaker** than the three-line declaration case beside it.
-`hiddenControls` fires only on a rule whose subject contains a focusable control, and
-`.rp-designer-canvas` contains none — so `display: none` on the canvas, the worst regression that
-layout can suffer, leaves the guard green. Confirmed by adding it in a scratch run.
+## Rulings taken this session, all in `contracts/DECISIONS.md` AND in `state.json`
 
-**Three corrections travelled UPWARD**, which is the part worth keeping: W8-A's worker corrected the
-integrator's `SHAPE` census (four, not five — one is a different shape under the same name) and then
-corrected its own reviewer with a grep; W8-B's worker corrected the integrator on `CLAUDE.md`, which
-led to an unmeasured causal claim being withdrawn (`1e6f37b6c`).
+- **AD18-R3** — shape buttons move into the `Add` rail; not duplicated, not left behind.
+- **AD18-R4** — `Add details` ticks but never becomes the CURRENT step, because it is optional and
+  first-not-done otherwise pins the pointer to it forever. **Decided against a described render
+  rather than a drawn one** — nobody had rendered the checklist at the time, and that is recorded
+  where the ruling is. If the picture changes the user's mind, that note is where to look.
 
-## The gates, and this is NOT how earlier waves closed
+**AD18-R1 and AD18-R2 were in `DECISIONS.md` and NOT in the ledger** — the exact failure that ledger
+already records against AD12-R1, one wave later. Both added with their real dates and the lateness
+stated. **Check both files when you take a ruling.**
 
-**The full local `npm run check` was NOT run, deliberately, and the reason is a finding.** Another
-session is running one right now in a different worktree — `renovation-planner-beta-handoff-e80bb5`,
-visible as `npm run check` plus an `eslint . --max-warnings 0` at 1.8 GB. Node process count reached
-**nine**. CLAUDE.md's own rule covers exactly this: agents working in parallel run `check:fast`, and
-the full gate runs **in CI on the pull request**, so there is no local gate to contend with.
+## What the browser settled, and why you must use it
 
-What was run, on the integration SHA:
+`npm run harness` plus the in-app browser is the ONLY instrument here that applies layout. jsdom lays
+nothing out and there is no pinned Chromium. It settled four things no gate could:
 
-| Check | Result |
+| | Measured |
 |---|---|
-| `npx vitest run tests/presentation/designer tests/build/buttonBoxNeutralised.test.ts tests/build/lint-scope.test.ts` | **0 — 67 files, 923 tests**, 212s (against the workers' ~100s, which is the contention) |
-| CI `verify`, four legs | **RUNNING** at hand-off time on `e84da5ae2` — run `35467140329`. `audit` and GitGuardian already pass |
+| Canvas proportion at 580 | **128 / 290 / 162** — canvas 31.0 % → **50.0 %**, matching W10-A exactly |
+| Toolbar at 580 | **107 px → 69 px**, tool rows 3 → 2 |
+| `DesignerViewMenu`'s `<summary>` | `display: list-item` — the rule narrowing holds |
+| Trace checklist fold | inspector `scrollHeight 778 === clientHeight 778` at 1280×900, rail 224 px |
 
-**Check `gh pr checks 230` FIRST and treat a red leg as the report to act on.** No coverage figure
-was measured this session; do not carry session six's forward as if it were current.
+It also found a defect nothing else could: **`font-weight` inherits to `::marker` but `color` does
+not**, because Obsidian's sheet sets `ol > li::marker { color: var(--list-marker-color) }` and an
+explicit declaration beats inheritance. The current step brightened its words and left its number
+behind. One declaration, verified in both schemes (`baec02e8d`).
 
-## What the user asked for next, and it is a new body of work
+**Two mistakes I made with it, so you do not**: setting `documentElement.style.width` is NOT a
+viewport change — use a real resize; and two element tops 2 px apart are ONE misaligned row, not two,
+which is the same distinct-`top` overcount AD18's own note warns about.
 
-> *"overall it also does not look like the design-concepts I provided in
-> `docs/user-experience/renovation-planner-asset-designer-plan`"*
-> *"proceed implementing the design when wave 8 and AD15/16 are finished"*
+## Two documents were corrected by measurement, not by code
 
-**`reports/AD18-concept-fidelity.md` is the plan and is where to start.** Eight gaps ranked by cost,
-each measured against the running harness. It also lists the **ten board elements that are
-deliberately absent and correct** — the logo and banner, a second Save button, the library as a
-permanent sidebar, the green "fits well" card, fixed clearance numbers, the compass, fixed blue
-styling, the freehand icon, the artwork, and board 02's Lock reference step. **Implementing any of
-those back would be worse than doing nothing.**
+- **AD18's *"`Used in plans` wraps badly at 224 px"* is not reproducible.** At a 224 px rail it is
+  **one line**; the second appears between 224 and 210. So W10-A's rail caps **INTRODUCE** that wrap
+  across 560–800 rather than deepening an existing one — and W10-A's reviewer had reasoned from the
+  wrong premise to a conclusion that was directionally right. The amendment is in AD18 itself. The
+  copy defect in the same bullet (`placement(s)`, untranslated plural) stands unamended.
+- **`designerNarrowQueryResolved.test.ts`'s "blind spot is EMPTY"** is narrowed: W10-A ships the
+  first `display: none` reaching a designer toolbar control at a narrow leaf, from a third partial
+  that guard does not read. Nothing is red and nothing should be. Widening it to every
+  `designer*.css` partial was considered and **refused in the same paragraph**, because the first
+  thing such a sweep reports is the deliberate rule, and that is a different instrument.
 
-Order, with the two that need no decision first:
+## Wave 11 — the ground is prepared, and here is exactly what is waiting
 
-1. **Zoom readout.** Confirmed small: `editorStore.viewport` is already in `AssetDesignerRoot.vue`
-   for `gridStep`, `StatusBar.vue` has the exact computed (`Math.round(viewport.zoom * 100)`), and
-   `designer.status.grid` sits in `en`/`de` `assetSymbols.ts` where `designer.status.zoom` goes.
-   One computed, one span, two locale keys.
-2. **The restrained header** — AD06 item 1, re-opened. `EditorContextBar.vue` is the pattern.
-3. Icon toolbar · 4. Tabbed inspector · 5. Add rail · 6. Canvas proportion · 7. Guided trace.
+**Item 5, the `Add` rail.** `DESIGNER_TOOL_ICONS` now lives in
+`src/presentation/designer/tools/designerToolIcons.ts`, beside `DESIGNER_TOOL_LABELS`, carrying a
+`group: 'tool' | 'shape'` field — filter it on `'shape'` for the four drawing tools. **It was moved
+there for a reason you would otherwise rediscover the hard way**: it was a `<script setup>` const, and
+a script-setup binding is not a module export, so the rail could never have imported it. The report
+claiming otherwise was false rather than loosely worded.
 
-**Two questions are the user's and are NOT taken**, both flagged in AD18: whether a header restating
-the asset name means the inspector stops drawing it (two places answering *"which asset is this"* is
-the shape this repository refuses elsewhere), and which inspector tab set to build — **the boards
-contradict each other**, three tabs on board 01 and two on board 02.
+Wave 11 then deletes `SHAPE_MODES` and `.rp-designer-shape-tools`, and `LEADING_MODES` /
+`TRAILING_MODES` collapse into one loop. The shape keys are already named `designer.shapes.*` rather
+than `designer.toolbar.*`, so they outlive the toolbar they are currently drawn in.
 
-## AD06 is re-opened, and the reason is a misread citation
-
-`state.json` justified the missing header as *"No header chrome, per C12"*. **C12 says
-*"No account, logo, compass or marketing header"*** — a ban on MARKETING chrome, which is the same
-thing AD06 item 1's own *"no account/logo chrome"* already excludes. The two documents agree a
-restrained header is wanted; the blocker generalised a narrow ban into a total one and the card was
-closed on that reading. Status is now `in_progress`; the delivered half (`DesignerInspector.vue`
-draws `.rp-designer-asset-name`) stays and is named.
+**How to lease a wave here**, learned twice: `{en,de}/editor.ts` is the ONE composition point for
+feature locale copy, so create each card's locale table EMPTY in the wave base and wire it yourself —
+two cards each adding an import and a spread line is one file in two rows. Same for a new `styles/`
+partial and its `@import`: `scripts/styles-assemble.mjs` refuses a partial no entry file imports, so
+the two are one action and cannot be leased apart.
 
 ## Carried forward, not taken
 
-- **Move W8-B's declaration case to `designerStyles.test.ts`**, where it needs no DOM. Both the
-  reviewer and the worker think it belongs there; the worker's caveat is that it leaves the mounted
-  guard as the weaker case standing alone and invites the question of whether that file earns its
-  47s. A cost question and a card of its own.
-- **A third `held` clone** in `tests/presentation/designer/designerDrawDetails.test.ts`, taking
-  pre-converted SCREEN corners. The next lease touching that file should import the rig's `held`.
-- **`tools/designerSelectMarquee.test.ts` carries the refuted sentence twice** — its `it.each`
-  docblock and that table's label both say `EditorSurface` routes *"a release outside the leaf"* to
-  `abandonGesture`. Its CASES are sound; only the third item in each list is wrong. W8-A points at
-  it from the other side.
-- **The designer harness fixture** (`background: null`, no `clearanceNeedsReview`) — still the
-  reason seven `browser` steps and the whole clearance-review block are outside every instrument.
-  `tests/harness/assetDesigner.ts`'s header argues the current choice; this is a request to change
-  a decision.
+- **`assetDimensions.test.ts` says "`DesignerInspector` was the ONLY reader of `dimensionsUnscaled`
+  in the tree."** `DesignerSelectionInspector.vue` reads it too. A stale "only".
+- **An unreachable guard in `DesignerInspector.vue`**: `dimensions === null && dimensionsUnscaled`
+  cannot happen — `GetAssetDesign` sets `dimensions` exactly when `shape !== null` while
+  `dimensionsUnscaled` is `footprintPending`. Removing it is a real way to recover a branch arm, and
+  it is a behaviour change that wants its own commit. The reason is written at the code.
+- **German `Vorlage` means BOTH reference sheet and shape preset** — 18 hits across six locale files,
+  confirmed by the reviewer. `Vorlage wählen` in the trace guide can read as "pick a preset" in a
+  designer that has a real preset gallery. W10-B took the neighbouring panel's spelling rather than
+  minting a third, which is right for its lease; renaming a family is its own card.
+- **Three icon glyphs have no harness fixture** — `circle`, `squircle`, `anchor`. The pin exists and
+  is non-vacuous. The fixture permission is **insufficient for its own purpose**: an SVG under
+  `tests/fixtures/editor-icons/` renders nothing without `tests/helpers/editorIconNodes.ts`, which is
+  a generated node map. Grant both or neither.
+- **Whether Obsidian's installed catalogue answers `squircle`, `circle`, `anchor`, `land-plot` and
+  `square-dashed` at all.** `HostIcon` never substitutes, so an unanswered name is an empty button in
+  a vault as well as in the harness. Only `npm run test-build` can answer it.
+- **Icon-only at EVERY width** is a ten-line follow-up that needs two integrator-owned files:
+  `designerRig.ts` resolves toolbar buttons by `.text()` (17 test files depend on it) and
+  `designerToolbar.test.ts` asserts `.text()` in three places. W10-A shipped the Plan Editor's own
+  labelled-≥80rem answer instead and said why.
+- **80 rem is 1280 px of LEAF, not of window**, so in a real vault the labelled state is effectively
+  unreachable. Arguably what the card wanted; nobody has decided it.
+- W8-B's declaration case still wants moving to `designerStyles.test.ts`; `designer-object.css` still
+  carries a dead `.rp-designer-inspector .rp-designer-asset-name` rule and a stale file header;
+  `designerDrawDetails.test.ts` still has a third `held` clone; `designerSelectMarquee.test.ts` still
+  says twice that EditorSurface routes "a release outside the leaf" to `abandonGesture`, wrong in the
+  third item of each list only.
 
-## Standing constraints
+## This machine
 
-- `export TEMP=D:/tmp-claude TMP=D:/tmp-claude` before anything that spawns node.
-- **Check the box before anything heavy**, and check WHAT is running, not just how many:
-  `Get-CimInstance Win32_Process -Filter "Name='node.exe'"` shows the command lines. A count alone
-  would not have revealed that another worktree was mid-`npm run check`.
-- Workers get narrow `npx vitest run <paths>` only. Never pipe a gate through `tail`.
-- Never bare `git stash` — the stack is shared across worktrees.
-- Do NOT run `npx playwright install chromium`; it emptied `node_modules` once. **There is no
-  pinned Chromium** — `playwright-core` pins 1234, the cache holds 1223, and
-  `RP_CHROMIUM_EXECUTABLE` is the sanctioned door with the caveat travelling.
-- **`npm run harness-shot -- --width=460` with no entry id is REFUSED**
-  (`entryShots.mjs`: *"--width applies to a named entry, and the fixed shots carry their own"*).
-  This has now been written down as though it worked twice. CLAUDE.md names both refusals since
-  `8be2444de`.
-- A scripted edit (sed, python) is invisible to `scripts/lint-edited.mjs`. Lint by hand after one.
-- `SendMessage` works; a fix round sent to the card's ORIGINAL worker keeps its whole context. All
-  three fix rounds this session went that way.
+7.8 GB RAM, **SHARED**. Check WHAT is running, not how many — and this is not advice, it happened
+again: a full `npm run check` here went red on pure timeouts while another worktree
+(`renovation-planner-beta-handoff-e80bb5`) was mid-`test:coverage`.
 
-## What must not be done from here
+```
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId,CommandLine | Format-List"
+```
 
-**Do not label the beta ready** — the user was asked directly and said not ready. **Do not mark
-PR #230 ready for review** without asking. Do not tag or publish: AD16 item 5 needs the user's
-release authorization, which was sought and refused. AD17 is post-beta and out of scope.
+CLAUDE.md's rule is the remedy and it works: **`check:fast` locally, full `npm run check` in CI.**
+That is what this integration did — `vue-tsc`, `oxlint`, `eslint . --max-warnings 0`, `npm run build`
+and 1035 narrow tests locally, with `test:coverage` and `analyze` left to the pipeline, which passed.
+
+- Prefix every node-spawning command: `export TEMP=D:/tmp-claude TMP=D:/tmp-claude`
+- Never pipe a gate through `tail`; write the full log to a file. **And make the wrapper propagate
+  the exit code** — `cmd > log; echo "EXIT=$?" >> log` reports the *echo's* status. That reported a
+  failed gate as green here once.
+- Never bare `git stash` — the stack is shared. Use a WIP commit.
+- A scripted edit is invisible to `scripts/lint-edited.mjs`. Run `npx oxlint`/`npx eslint` by hand.
+- Do NOT run `npx playwright install chromium`; it emptied `node_modules` once.
+- Worktrees `ad07` (`ad18-icon-toolbar`) and `ad10` (`ad18-trace-checklist`) carry `node_modules` and
+  are reusable with `git switch -c`.
+- **SendMessage works.** Both fix rounds went back to the card's ORIGINAL worker, which keeps full
+  context. Both produced better fixes than a fresh agent would have.
+
+## The one instruction that earned the most
+
+Every candidate got an independent reviewer that did not write it. This session that caught: a
+`TOOL_ICONS` table advertised for wave 11 that **could never have been imported**; two counts written
+from memory (52 against a measured 44, and "third caller" against nine); an axe gap where a card's
+new ARIA sat behind `display:none` and was graded by nothing; and two stale sentences a card's own
+report had missed. Corrections travelled in every direction — a worker corrected its reviewer, a
+reviewer corrected a worker, and the integrator corrected a reviewer with a browser measurement it
+had asked for.

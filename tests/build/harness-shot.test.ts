@@ -637,6 +637,7 @@ describe('the headless harness capture script', () => {
 			'plan-editor-panels-collapsed-dark',
 			'plan-editor-selected',
 			'plan-editor-selected-dark',
+			'plan-editor-selected-narrow',
 			'plan-editor-stale',
 			'plan-editor-stale-narrow',
 			'plan-editor-structural',
@@ -837,6 +838,17 @@ describe('the headless harness capture script', () => {
 	it('takes the selected-zone and Add-menu shots through the knobs that reach them, and the narrow shot at a sidebar width', () => {
 		expect(planEditorQuery('plan-editor-selected').get('select')).toBe('harness-kitchen');
 		expect(shot('plan-editor-selected').selector).toBe('.rp-room-inspector');
+		// R-S12-6's row, and all three of its properties are load-bearing. `width` is the whole
+		// reason it exists — without it the row is a byte-identical duplicate of the wide one
+		// under a second name, the defect session 11 had to pin the outline family's width
+		// against. `details` is what puts the Inspector on SCREEN at that width; `select` alone
+		// leaves the region attached and `display: none`. And the selector is scoped inside
+		// `.rp-inspector-drawer` because a bare `.rp-room-inspector` is satisfied by that hidden
+		// region and would exit 0 on a picture of the canvas.
+		expect(planEditorQuery('plan-editor-selected-narrow').get('select')).toBe('harness-kitchen');
+		expect(planEditorQuery('plan-editor-selected-narrow').has('details')).toBe(true);
+		expect(shot('plan-editor-selected-narrow').width).toBe(460);
+		expect(shot('plan-editor-selected-narrow').selector).toBe('.rp-inspector-drawer [data-rp-action="edit-outline"]');
 		expect(planEditorQuery('plan-editor-add-menu').has('add')).toBe(true);
 		expect(shot('plan-editor-add-menu').selector).toBe('.rp-add-menu');
 		expect(shot('plan-editor-narrow').width).toBe(460);

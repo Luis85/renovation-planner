@@ -78,6 +78,7 @@ describe('the numeric outline editor over every zone type', () => {
 	it('previews without writing, applies once, and reverses to the exact prior geometry', async () => {
 		const r = await rig(reshaped('Terrace'));
 		const runtime = runtimeOf(r.harness), before = await read(r);
+		const dispatch = vi.spyOn(runtime.dispatcher, 'run');
 		await open(r);
 		await form(r).get('[name="2.y"]').setValue('4');
 		expect(runtime.renderState.previewPolygon?.[2]).toEqual({ x: 4400, y: 4000 });
@@ -87,8 +88,15 @@ describe('the numeric outline editor over every zone type', () => {
 		await settleUntil(() => !r.harness.wrapper.find('[data-rp-form="outline-points"]').exists(), 'saved outline');
 		expect((await read(r)).entity.geometry.points[2]).toEqual({ x: 4400, y: 4000 });
 		expect(runtime.renderState.previewPolygon).toBeNull();
+		// BP-04's "one history entry", which the undo/redo pair below cannot see: two IDENTICAL
+		// entries reverse to the same polygon, so the geometry reads would pass over either. One
+		// DISPATCH, and one entry left on the stack after it — the second half is the one that
+		// catches a command dispatched twice, since `toHaveBeenCalledTimes` alone would still
+		// pass a single dispatch that pushed two.
+		expect(dispatch).toHaveBeenCalledTimes(1);
 		await runtime.undo();
 		expect((await read(r)).entity.geometry).toEqual(before.entity.geometry);
+		expect(runtime.canUndo.value).toBe(false);
 		await runtime.redo();
 		expect((await read(r)).entity.geometry.points[2]).toEqual({ x: 4400, y: 4000 });
 		r.harness.unmount();

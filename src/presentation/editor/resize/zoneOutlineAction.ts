@@ -15,9 +15,15 @@ import OutlinePointsForm from './OutlinePointsForm.vue';
  * chosen-corner list on the shared form and what puts the chosen corner's mark on the canvas
  * (`tools/render-state.ts`'s `highlightedVertex`, drawn by `layers/InteractionLayer.vue`).
  *
- * **BP-04 is not closed by this file.** Slice B — the production door that reaches it — is still
- * outstanding (limitation L-24: nothing in the UI opens this action), and is blocked on owner
- * copy.
+ * **Slice B landed the reach, so limitation L-24 ("nothing in the UI opens this action") is
+ * closed by the doors existing rather than by a gate that watches for them.** Two call
+ * `editZoneOutline` below and neither re-decides `accepts`: `ZoneOutlineAction.vue` beside this
+ * file, mounted from `SpatialInspectorActions`, and `useCanvasMenuActions`' `edit-outline` entry.
+ * `tests/presentation/editor/resize/zoneOutlineReach.e2e.test.ts` walks from each control to the
+ * opened dialog, so deleting either door turns it red — measured both ways, 2026-09-20. That is
+ * the whole of what a check here sees. It does NOT see that these are the only two (that is a
+ * grep over `editZoneOutline`, which is how the "one function" claim is held), and nothing on
+ * this branch has been run in an Obsidian vault.
  *
  * The forward polygon carries POINTS ONLY. `MoveSpatialObjectCommand` runs it through
  * `preservePointCurves`, which retains the saved bulges by index while the point count is

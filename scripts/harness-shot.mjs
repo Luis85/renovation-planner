@@ -499,8 +499,9 @@ const SHOTS = [
 	// capture leaves clear of the dialog. Each waits on `aria-pressed="true"` rather than on the
 	// list, so a shot cannot certify a chosen corner while photographing an unchosen one.
 	//
-	// The knob OPENS that editor programmatically — nothing in the plugin's UI reaches it yet
-	// (limitation L-24). These are pictures of the surface, not evidence of a route to it.
+	// The knob OPENS that editor programmatically, so these three are pictures of the surface and
+	// not evidence of a route to it. The route exists since BP-04 slice B (two doors, closing
+	// limitation L-24) and `plan-editor-selected-narrow` below is where one of them is photographed.
 	{ name: 'plan-editor-outline', query: '?view=plan-editor&select=harness-terrace&outline=1&theme=light', selector: '[data-rp-corner="choose"][aria-pressed="true"]' },
 	{ name: 'plan-editor-outline-dark', query: '?view=plan-editor&select=harness-terrace&outline=1', selector: '[data-rp-corner="choose"][aria-pressed="true"]' },
 	{ name: 'plan-editor-outline-narrow', query: '?view=plan-editor&select=harness-terrace&outline=1&theme=light', selector: '[data-rp-corner="choose"][aria-pressed="true"]', width: 460 },
@@ -569,6 +570,18 @@ const SHOTS = [
 		query: '?view=plan-editor&select=harness-kitchen&theme=light',
 		selector: '.rp-room-inspector',
 	},
+	// The same Inspector at an Obsidian sidebar's width (R-S12-6): BP-04 slice B's `Edit corners`
+	// button is one row in a column of rows, and 460px is the width at which a row of buttons
+	// stops fitting. TWO knobs, because at that width the Inspector is an overlay:
+	// `ResponsiveEditorShell` `v-show`s the whole region away unless `overlay === 'inspector'`,
+	// so every control in it is attached and `display: none`, and `?select` alone leaves it that
+	// way — its rail press is guarded on the room-list row being `null`, which an attached-but-
+	// hidden row is not (measured in Chromium, 2026-09-20: `display: none`, zero-area rect).
+	// `?details` is the press. The wait is scoped INSIDE `.rp-inspector-drawer` and onto the
+	// button, for the same reason the two `?tree` narrow rows above scope theirs inside the
+	// Layers overlay: a bare `.rp-room-inspector` is satisfied by the hidden region and would
+	// exit 0 on a picture of the canvas.
+	{ name: 'plan-editor-selected-narrow', query: '?view=plan-editor&select=harness-kitchen&details&theme=light', selector: '.rp-inspector-drawer [data-rp-action="edit-outline"]', width: 460 },
 	{ name: 'plan-editor-add-menu', query: '?view=plan-editor&add&theme=light', selector: '.rp-add-menu' },
 	{
 		name: 'plan-editor-multiple',

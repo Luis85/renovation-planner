@@ -33,6 +33,17 @@ async function inspector(kind: 'room' | 'area') {
 	return { ...r, id };
 }
 const outlineForm = (wrapper: { find(selector: string): { exists(): boolean } }) => wrapper.find('[data-rp-form="outline-points"]').exists();
+type Editor = Awaited<ReturnType<typeof renovationEditor>>;
+async function contextMenu(r: Editor) {
+	r.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle();
+}
+/** A second zone beside the rig's Room, of a type that is not one — selected, with its menu open. */
+async function selectGarden(r: Editor) {
+	const garden = expectOk(await r.deps.commands.createZone.execute({ planId: r.plan.id, name: 'Garden', zoneType: 'Garden',
+		geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
+	await r.runtime.refreshProjection(); r.selection.select([garden.id]); await settle();
+	await contextMenu(r);
+}
 
 it('reaches the outline editor from the Inspector on a Room and writes the typed corner', async () => {
 	const r = await inspector('room');
@@ -64,18 +75,35 @@ it('reaches the same editor from the Inspector on an Area, and greys the button 
 	expect(r.harness.wrapper.get('[data-rp-action="edit-outline"]').attributes('aria-disabled')).toBe('true');
 });
 
-it('offers the menu entry on every zone type and opens the editor from it', async () => {
+/**
+ * Both halves of "every zone type", because the entry is a SIBLING of `zoneEditActions`' Room/Area
+ * `rename` ternary rather than an arm of it, and nothing else in the tree can tell the difference:
+ * moving it inside the Room arm leaves the Inspector cases (which drive their own `accepts`-free
+ * component), `contextMenuActions.test.ts`'s id pin (taken on a Room) and every other file green.
+ * A Garden is the non-Room member driven here — one member and not the category, which
+ * `zoneOutlineAction.ts`'s `accepts: () => true` is the code's own claim for.
+ */
+it('offers the menu entry on a Room and on a non-Room, and opens the editor from each', async () => {
 	const r = await renovationEditor(true); mounted.push(r);
 	r.changePlan(); await settle();
 	r.selection.select([r.room.id]); await settle();
-	r.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle();
+	await contextMenu(r);
 	const entry = r.wrapper.get('[data-rp-context-action="edit-outline"]');
 
 	expect(entry.text()).toContain('Edit corners');
 	expect(entry.attributes('aria-disabled')).toBeUndefined();
 	await entry.trigger('click');
-	await settleUntil(() => r.wrapper.find('[data-rp-form="outline-points"]').exists(), 'the outline form from the context menu');
+	await settleUntil(() => outlineForm(r.wrapper), 'the outline form from the context menu');
 	expect(r.wrapper.get('.rp-dialog').text()).toContain('Edit Studio');
+
+	r.dialogs.resolve('cancel'); await settle();
+	await selectGarden(r);
+	const gardenEntry = r.wrapper.get('[data-rp-context-action="edit-outline"]');
+
+	expect(gardenEntry.text()).toContain('Edit corners');
+	await gardenEntry.trigger('click');
+	await settleUntil(() => outlineForm(r.wrapper), "the outline form from a Garden's context menu");
+	expect(r.wrapper.get('.rp-dialog').text()).toContain('Edit Garden');
 });
 
 /**
@@ -97,7 +125,7 @@ it('greys the menu entry in Renovate, offers neither door in Review, and opens n
 	r.selection.select([r.room.id]); await settle();
 	await r.runtime.renovation.perspective('renovate'); await settle();
 	expect(r.wrapper.find('[data-rp-action="edit-outline"]').exists()).toBe(false);
-	r.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle();
+	await contextMenu(r);
 	const entry = r.wrapper.get('[data-rp-context-action="edit-outline"]');
 
 	expect(entry.attributes('aria-disabled')).toBe('true');
@@ -108,7 +136,7 @@ it('greys the menu entry in Renovate, offers neither door in Review, and opens n
 	expect(r.wrapper.find('[data-rp-form="outline-points"]').exists()).toBe(false);
 
 	await r.runtime.renovation.perspective('review'); await settle();
-	r.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle();
+	await contextMenu(r);
 	expect(r.wrapper.find('[data-rp-context-action="edit-outline"]').exists()).toBe(false);
 	expect(r.wrapper.find('[data-rp-action="edit-outline"]').exists()).toBe(false);
 });

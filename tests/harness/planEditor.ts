@@ -519,6 +519,8 @@ export interface PlanEditorHarnessOptions {
 	 * the tree is opened too, since a hidden tree is nothing a capture can look at.
 	 */
 	readonly tree?: boolean;
+	/** Presses the constrained rail's Details button, which is the only thing that puts the Inspector on screen at that width. */
+	readonly details?: boolean;
 	/** `collapsed`, `layers` or `inspector`: collapses those full-layout side panels once drawn. */
 	readonly panels?: string;
 	/** Over `reference` (whose `&item` seeds the items): draws an item or promotes a seeded one (`itemKnob.ts`). */
@@ -631,6 +633,29 @@ async function openLayersOnceReady(root: HTMLElement): Promise<void> {
 		"the ?tree knob's three-level tree, or the rail that holds it, to render",
 	);
 	root.querySelector<HTMLButtonElement>('[data-rp-rail="layers"]')?.click();
+}
+
+/**
+ * Drives the `?details` knob: the Details side of `openLayersOnceReady`. In `constrained` the
+ * whole Inspector region is `v-show`n away until `overlay === 'inspector'`, so every control in
+ * it is ATTACHED and `display: none`; in `full` the rail never renders and nothing is pressed.
+ * `open()` on the rail calls `workspace.openOverlay`, which is not a toggle, so a second press
+ * from another knob cannot shut what this one opened.
+ *
+ * **Its own knob rather than a step inside `selectZoneOnceReady`, and the reason is measured.**
+ * That function's rail press is guarded by `querySelector('.rp-room-list__row') === null`, which
+ * an attached-but-hidden row satisfies — so it never fires at 460, and its docblock's "the rail
+ * is pressed only when the row is not already on screen" is true of ATTACHMENT rather than of
+ * screen. Making it fire would open the drawer under `plan-editor-outline-narrow` and
+ * `plan-editor-stale-narrow` as well, two captures whose subject is what sits behind the modal
+ * and the warning strip.
+ */
+async function openDetailsOnceReady(root: HTMLElement): Promise<void> {
+	await settleUntil(
+		() => root.querySelector('.rp-editor-shell[data-layout="full"], [data-rp-rail="details"]') !== null,
+		"the ?details knob's rail, or a layout with no rail to press",
+	);
+	root.querySelector<HTMLButtonElement>('[data-rp-rail="details"]')?.click();
 }
 
 /**
@@ -858,6 +883,7 @@ export function mountPlanEditorHarness(
 	if (options.numericArea === true) knobs.push(guardKnob(enterNumericArea(leafEl)));
 	if (options.room !== undefined) knobs.push(guardKnob(enterRoomTaskOnceReady(leafEl, options.room)));
 	if (options.tree === true) knobs.push(guardKnob(openLayersOnceReady(leafEl)));
+	if (options.details === true) knobs.push(guardKnob(openDetailsOnceReady(leafEl)));
 	if (options.item !== undefined) knobs.push(guardKnob(driveItemKnob(leafEl, options.item)));
 	if (options.outline !== undefined && options.select !== undefined) knobs.push(guardKnob(openZoneOutlineOnceReady(view, leafEl, options.select, options.outline)));
 

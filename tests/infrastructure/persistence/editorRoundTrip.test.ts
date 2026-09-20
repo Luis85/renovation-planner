@@ -6,7 +6,9 @@ import { createPlanId } from '../../../src/domain/plan/PlanId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../src/domain/zone/ZoneId';
 import { createPolygon } from '../../../src/core/geometry/Polygon';
+import { createCurvedPolygon } from '../../../src/core/geometry/CurvedPolygon';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
+import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
 import { stackFoundation } from '../../helpers/repositoryStack';
 import { ObsidianZoneRepository } from '../../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { ObsidianPlanRepository } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
@@ -219,6 +221,64 @@ describe('editor round trip: Project, Plan and a Room-classified Zone', () => {
 		expect(expectFound(await new ObsidianPlanRepository(reopened.deps, reopened.store).getById(planId)).entity.name).toBe(
 			'Ground floor',
 		);
+	});
+
+	/**
+	 * **BP-04's named test 10, "fresh repository reload", at the layer that owns it.** Every other
+	 * BP-04 assertion reads back through `InMemoryZoneRepository`, which holds entity objects and
+	 * serializes nothing, and `planEditorRig.ts` states in terms that its rig does not model the
+	 * geometry-sidecar join — so until this case nothing had seen a TYPED corner reach the note
+	 * and its sidecar and come back.
+	 *
+	 * Three properties of the outline editor's own write are what make it worth a case rather
+	 * than a repeat of the `CreateZoneCommand` reopen above, and each is the thing the editor can
+	 * produce that the create path cannot:
+	 *
+	 * - a **negative** coordinate, which `editor.area.coordinates-hint` promises is allowed;
+	 * - a **sub-millimetre** sibling the user did not retype, which `outlineProposal` passes
+	 *   through unrounded while the retyped corner rounds to whole millimetres;
+	 * - a **bulge** the form never sends, retained by `preservePointCurves` at the command.
+	 *
+	 * The command is the real one the dialog dispatches (`MoveSpatialObjectCommand`, through
+	 * `ReversibleMoveZoneCommand` in production) with a points-only polygon, exactly as
+	 * `zoneOutlineAction.ts`'s `forward` carries. What is NOT modelled here is the dialog, the
+	 * history adapter and the version guard: this case's subject is the FORMAT, and the doors are
+	 * `zoneOutlineReach.e2e.test.ts`'s.
+	 */
+	it('reopening over the same vault bytes reads back a typed corner, its retained curve and its unrounded negative sibling', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		const planId = createPlanId();
+		const zoneId = createZoneId();
+		expectOk(await stack.projects.save(makeProject({ id: projectId, name: 'Willow House' }), 'absent'));
+		expectOk(await stack.plans.save(makePlan({ id: planId, projectId, name: 'Ground floor' }), 'absent'));
+		const original = expectOk(
+			createCurvedPolygon({
+				points: [{ x: 1234.4, y: -765.4 }, { x: 4400, y: 0 }, { x: 4400, y: 3400 }, { x: 0, y: 3400 }],
+				bulges: [0, 0.4, 0, 0],
+			}),
+		);
+		expectOk(
+			await stack.zones.save(makeZone({ id: zoneId, projectId, planId, name: 'Terrace', zoneType: 'Terrace', geometry: original }), 'absent'),
+		);
+
+		// The typed correction: corner 3 retyped to 4.5 m — an endpoint of the curved edge — with
+		// every other corner passed through as loaded, and no bulges in the forward polygon.
+		const typed = [original.points[0], original.points[1], { x: 4500, y: 3400 }, original.points[3]];
+		expectOk(await new MoveSpatialObjectCommand(stack.zones, new RecordingEventBus()).execute({ zoneId, geometry: { points: typed } }));
+
+		// The reopen, exactly as the case above: `catchUp()` for the parse lag this fake models,
+		// then a second stack over the same bytes with the scan the plugin runs at load.
+		stack.metadataCache.catchUp();
+		const reopened = stackFoundation(
+			{ vault: stack.vault, fileManager: stack.fileManager, metadataCache: stack.metadataCache },
+			stack.projectFolder,
+		);
+		reopened.rebuildIndex();
+
+		const read = expectFound(await new ObsidianZoneRepository(reopened.deps, reopened.store).getById(zoneId));
+		expect(read.entity.geometry.points).toEqual(typed);
+		expect(read.entity.geometry.bulges).toEqual([0, 0.4, 0, 0]);
 	});
 
 	it('keeps a user-authored body across a plugin save', async () => {

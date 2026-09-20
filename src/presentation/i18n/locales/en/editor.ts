@@ -6,6 +6,8 @@ import { assetEntryPathsEn } from './assetEntryPaths';
 import { assetArrangeEn } from './assetArrange';
 import { assetOpenLinesEn } from './assetOpenLines';
 import { assetReferenceEn } from './assetReference';
+import { designerToolbarIconsEn } from './designerToolbarIcons';
+import { designerTraceEn } from './designerTrace';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
@@ -53,6 +55,8 @@ export const editorEn = {
 	...assetArrangeEn,
 	...assetOpenLinesEn,
 	...assetReferenceEn,
+	...designerToolbarIconsEn,
+	...designerTraceEn,
 	...groupsEn,
 	...stairsArrowsEn,
 	...structuralEn,

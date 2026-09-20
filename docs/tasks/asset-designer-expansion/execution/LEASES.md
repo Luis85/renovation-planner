@@ -480,3 +480,54 @@ that makes them**, which is the rule the `styles/index.css` note above was the e
 Both are narrow and neither is a widening of the card. The second exists because the alternative —
 the integrator fixing a count in a file the worker is not allowed to touch — splits a sentence from
 the measurement that produced it, which is the failure this repository names most often.
+
+## Wave 10 — AD18 items 3, 6 and 7, dispatched 2026-09-20
+
+**Base is THIS commit**, which is what carries the table — per this file's own rule that a wave's
+lease table goes in its base commit or before it. Its parent is `c3527450b`, the analyze repair.
+
+**What the user authorized, and what they did not.** Asked directly at the start of session eight,
+they took AD18 items 3+6 together, item 5 and item 7 — using the SEQUENCING TABLE's numbering
+(3 icon toolbar, 5 Add rail, 6 canvas proportion, 7 guided trace checklist), which is the numbering
+the hand-off used and NOT the one the "gaps" section of `AD18-concept-fidelity.md` uses for the
+same items. That document numbers the same work 5, 3 and 4 respectively in its prose section. The
+authorization is unambiguous because each option named the WORK; the numbers are not, and the next
+reader should quote the work rather than the number.
+
+**Item 5 is authorized and is NOT in this wave, and that is a sequencing decision rather than a
+narrowing of scope.** Asked as its own question, the user ruled that the Basic-shape buttons MOVE
+into the Add rail. That makes item 5 and item 3 two cards over one file — `DesignerToolbar.vue` —
+so they cannot hold disjoint leases in one wave. Item 5 goes to wave 11, on top of W10-A.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| **W10-A** — the icon toolbar (AD18 item 3) and canvas proportion at 560–900 px (AD18 item 6) | `.worktrees/ad07` (reused, carries `node_modules`), branch `ad18-icon-toolbar` | EDIT `src/presentation/designer/DesignerToolbar.vue`, `styles/designer.css` (**cap warning: 397 lines against 400**), `styles/designer-selection.css`, `styles/designer-narrow.css`, `src/presentation/i18n/locales/{en,de}/designerToolbarIcons.ts`, and `styles/index.css` (**integrator lease, ADDITIVE ONLY** — the `@import` line for a partial this card creates, and nothing else in that file). CREATE components under `src/presentation/designer/`, partials under `styles/`, and any test file under `tests/`. May ADD a missing icon fixture under `tests/fixtures/editor-icons/`. Nothing else | wave 10 base, `r1` | issued | reviewed by an agent that did not write it, conditions applied, coverage read per changed file |
+| **W10-B** — the guided trace checklist (AD18 item 7) and the empty Reference tab panel | `.worktrees/ad10` (reused, carries `node_modules`), branch `ad18-trace-checklist` | EDIT `src/presentation/designer/inspector/DesignerReferenceStatus.vue`, `styles/designer-trace.css` (**created empty in this commit; its `@import` is already wired, so this card must NOT touch `styles/index.css`**), `src/presentation/i18n/locales/{en,de}/designerTrace.ts`. CREATE components under `src/presentation/designer/inspector/` and any test file under `tests/`. Nothing else | wave 10 base, `r1` | issued | reviewed by an agent that did not write it, conditions applied, coverage read per changed file |
+
+**Disjointness, checked rather than intended.** The intersection of the two rows is empty. The two
+locale modules are DIFFERENT modules, which is why this repository splits locale copy per feature;
+`{en,de}/editor.ts` is the one composition point and it is the INTEGRATOR's, which is why both
+tables were created EMPTY and wired in this commit rather than left for the cards — two cards each
+adding an import and a spread line to `editor.ts` is one file in two rows.
+
+**The same reasoning produced `styles/designer-trace.css`.** Both obvious homes for W10-B's rules
+are in W10-A's row: `designer-selection.css` declares `.rp-designer-reference` AND
+`.rp-designer-tools`/`.rp-designer-tool-button`, and `designer.css` is at the cap. So the partial
+and its `@import` were created together by the integrator — `scripts/styles-assemble.mjs` refuses a
+partial no entry file imports, so the two are one action and cannot be leased apart. That is wave
+9's recorded lesson applied BEFORE the fact rather than after it.
+
+**Integrator-owned and sub-let to nobody**: every other file under `src/`, `styles/`, `docs/`,
+`package-lock.json`, `{en,de}/editor.ts`, and every EXISTING test file neither card needs. A file a
+card discovers it needs is ASKED for, and the grant is written into this table in the same edit
+that makes it.
+
+**The coverage clause from wave 9 still holds and is not softened**: both cards add `src/` code, a
+new `v-if` is a new branch, and the branch floor is 98. Plan each test WITH its code and read
+`coverage-final.json` for the CHANGED FILES; the threshold cannot see one untested arm in a slack
+metric. Measured at the wave base: `npm run check` green, 1065 test files, 11757 passed.
+
+**Neither card may report a layout claim as verified from the suite.** jsdom lays nothing out, so a
+wrapped toolbar, a fold and a column share are all invisible to it. `designerStyles.test.ts` pins
+what a rule DECLARES and wave 8's resolver pins what a container query RESOLVES to; neither is a
+measurement of the rendered result. The integrator has an in-app browser and will render both.

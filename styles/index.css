@@ -80,6 +80,7 @@
 @import "./designer-parts.css";
 @import "./designer-presets.css";
 @import "./designer-selection.css";
+@import "./designer-trace.css";
 @import "./designer-narrow.css";
 @import "./diagnostics.css";
 @import "./asset-library.css";

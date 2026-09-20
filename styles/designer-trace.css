@@ -1,0 +1,17 @@
+/*
+ * AD18 item 7 — the guided trace checklist, and the Reference tab panel's empty state.
+ *
+ * **Created by the integrator before wave 10 was dispatched, and empty on purpose.** The rules are
+ * card W10-B's to write; the FILE and its `@import` line in `styles/index.css` are the
+ * integrator's, because `scripts/styles-assemble.mjs` refuses a partial no entry file imports — so
+ * a partial and its import are one action and cannot be leased apart (wave 9 recorded exactly that
+ * lesson after a card edited `index.css` outside its table).
+ *
+ * It exists as its own partial rather than as rules appended to a sibling because the two obvious
+ * siblings are both in the OTHER card's lease row: `designer-selection.css` already declares
+ * `.rp-designer-reference`, and it also declares `.rp-designer-tools` and
+ * `.rp-designer-tool-button`, which is W10-A's icon toolbar. One file in two rows is the thing
+ * this package's lease table exists to prevent.
+ *
+ * `styles/designer.css` was not an option either: it is 397 lines against the 400-line cap.
+ */

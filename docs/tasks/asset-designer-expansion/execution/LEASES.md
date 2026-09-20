@@ -551,7 +551,7 @@ section carries the preset door and the Inspector drops its copy).
 
 | Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
 |---|---|---|---|---|---|
-| **W11-A** — the `Add` rail (AD18 item 5), under AD18-R3, AD18-R5 and AD18-R6 | `.worktrees/ad07` (reused, carries `node_modules`), branch `ad18-add-rail` cut from this commit | EDIT `src/presentation/designer/AssetDesignerRoot.vue`, `src/presentation/designer/DesignerToolbar.vue`, `src/presentation/designer/inspector/DesignerInspector.vue`, `styles/designer-add.css` (**created empty in this commit; its `@import` is already wired, so this card must NOT touch `styles/index.css`**), `styles/designer-toolbar.css`, `styles/designer.css` (**cap: 397 lines against 400 — deletions welcome, additions must go in `designer-add.css`**), `src/presentation/i18n/locales/{en,de}/designerAdd.ts`, and `tests/helpers/designerRig.ts` (**narrow grant, `toolbarButton` only** — see the hazard below). CREATE components under `src/presentation/designer/`, and any test file under `tests/`. EDIT any EXISTING test file that its own change turns red. Nothing else | wave 11 base, `r1` | issued | reviewed by an agent that did not write it, conditions applied, coverage read per changed file |
+| **W11-A** — the `Add` rail (AD18 item 5), under AD18-R3, AD18-R5 and AD18-R6 | `.worktrees/ad07` (reused, carries `node_modules`), branch `ad18-add-rail` cut from this commit | EDIT `src/presentation/designer/AssetDesignerRoot.vue`, `src/presentation/designer/DesignerToolbar.vue`, `src/presentation/designer/inspector/DesignerInspector.vue`, `styles/designer-add.css` (**created empty in this commit; its `@import` is already wired, so this card must NOT touch `styles/index.css`**), `styles/designer-toolbar.css`, `styles/designer.css` (**cap: 397 lines against 400 — deletions welcome, additions must go in `designer-add.css`**), `src/presentation/i18n/locales/{en,de}/designerAdd.ts`, and `tests/helpers/designerRig.ts` (**narrow grant, `toolbarButton` only** — see the hazard below). CREATE components under `src/presentation/designer/`, and any test file under `tests/`. EDIT any EXISTING test file that its own change turns red. Nothing else | wave 11 base, `r1` | **released, integrated `912c51bae`** | met: reviewed by an agent that did not write it (twelve findings, ten returned and fixed at `1fdb75f36`), conditions applied, coverage left to CI |
 
 **Integrator-owned and sub-let to nobody**: `{en,de}/editor.ts`, `styles/index.css`, every other file
 under `src/`, `styles/` and `docs/`, and `package-lock.json`. A file the card discovers it needs is
@@ -592,3 +592,26 @@ text names as an unmeasured cost of that ruling — and whether the shape button
 invisible to it. `designerStyles.test.ts` pins what a rule DECLARES and wave 8's resolver pins what
 a container query RESOLVES to; neither is a measurement of a rendered result. The integrator has an
 in-app browser and will render it.
+
+### Wave 11 closed
+
+Candidate `f9b43fa27`, fix round `1fdb75f36`, merged `912c51bae`, integrator repairs `f33c14d88`.
+
+**Disjointness was not checkable this wave and that is worth saying rather than claiming it was.**
+One card holds no intersection with another card, so the check this file prescribes — intersect
+`git diff --name-only <base>..<sha>` across rows — has nothing to intersect. What replaced it is a
+LEASE COMPLIANCE read: the changed-file list against the single row. Everything matched except
+`tests/harness/assetDesigner.ts`, a harness fixture rather than a `.test.ts`, which the row's
+*"EDIT any EXISTING test file that your own change turns red"* does not cleanly cover — and it did
+not turn red, it failed SILENTLY, which is the whole reason it needed editing. **Granted after the
+fact, deliberately and recorded as such**: the reviewer confirmed `assetDesignerSelectKnob.test.ts`
+does go red without it, so the file was genuinely load-bearing, and the edit closed a fake kinder
+than the real thing. A lease that had anticipated it would have said "any existing test file or
+harness fixture".
+
+**The `tests/helpers/designerRig.ts` hazard this wave's table predicted was real and its figures
+were wrong.** The row says *"43 call sites across 26 test files"*; it conflates two greps, which
+the card caught and the reviewer confirmed independently. At the base `grep -rn "toolbarButton("
+tests/` is 43 lines in **17** files, and 26 is `grep -rln "designerRig" tests/`. Both commands are
+printed side by side in that row, which is where the conflation came from. The hazard itself
+behaved exactly as predicted: a thrown resolver, not a failed assertion.

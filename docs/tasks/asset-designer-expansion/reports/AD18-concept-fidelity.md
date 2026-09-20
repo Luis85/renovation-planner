@@ -136,6 +136,32 @@ reported is right, so the conclusion — a tenth of the leaf height spent on a w
 survives the correction, but the row count did not and a number nobody re-ran is how the last four
 of these got into the ledger.
 
+**AMENDED 2026-09-20, wave 11 base: the three row counts above are PRE-ICON figures, and the
+labelled state no longer matches its own breakpoint.** W10-A shipped the icon toolbar and set
+`styles/designer-toolbar.css`'s `@container (width < 80rem)` rule from the measurements in this
+paragraph — they are what its comment cites, and it states the consequence as *"all fourteen at
+`top: 32`"* at 1280. Rendered at the wave-11 base in a real browser, with a real viewport resize:
+**ten of the fourteen sit at `top: 32` and four wrap to `top: 70`** — `Set facing`, `Calibrate`,
+`Undo`, `Redo` — with `DesignerViewMenu`'s `<summary>` at `top: 72`. Two tool rows, three visual
+rows, and `.rp-designer-toolbar` measures **69 px** rather than the 65.9 px recorded above.
+
+**The cause is not a careless measurement; it is a measurement taken of the toolbar BEFORE the
+change that was being made to it.** The widest label recorded above, `Draw rounded rectangle` at
+**157 px**, measures **179 px** now — the glyph plus `gap: var(--size-4-1)`, about +22 px on every
+button — and fourteen of those is what pushes the labelled row over. So the rule shows the text at
+exactly the width where the text used to fit. The row counts at 760 and 580 are improved rather than
+falsified, because at those widths the labels are hidden and the icons are what is measured: **32 px
+and one row at 760** against 69 px and two here, **69 px and two rows at 580** against 107 px and
+three. The card's gain is real; the claim about its own boundary is not.
+
+This repository's rule is that the sentence is written from what the measurement printed AFTER the
+change. This is that rule caught one wave late, and the correction is recorded here rather than in
+`designer-toolbar.css` because that file is card W11-A's lease at the time of writing. **Whether
+AD18 item 5 repairs it is arithmetic and not yet a rendering**: removing the four shape buttons
+frees 502.0 px of button and four gaps, leaving the ten remaining plus the summary at about 1059.6 px
+against 1264 px available — one row, if it holds. It is owed a rendered check on the candidate, and
+this sentence is deliberately not written as though that check had happened.
+
 `grep -rn "HostIcon" src/presentation/designer/` returns **0**, against 20+ files under
 `src/presentation/editor/`. C12 asks to *"match the current Plan Editor's interaction
 conventions"*, and `DesignerToolbar.vue`'s own docblock records that the Plan Editor's text toolbar

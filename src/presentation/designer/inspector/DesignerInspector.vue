@@ -59,7 +59,6 @@ const props = defineProps<{
 	 */
 	removeBackground: () => Promise<void>;
 	editDimensions: () => Promise<void>;
-	startFromPreset: () => Promise<void>;
 	logger: Logger;
 	/** The part the canvas has selected, `null` for none; its section is keyed by part, so choosing another starts it fresh. */
 	selection: DesignerSelection | null;
@@ -453,13 +452,16 @@ function onTabKeydown(event: KeyboardEvent): void {
 			>
 				{{ dimensionsLabel }}
 			</button>
-			<button
-				type="button"
-				class="rp-designer-start-preset"
-				@click="() => void startFromPreset()"
-			>
-				{{ tr('designer.inspector.start-preset') }}
-			</button>
+			<!--
+				**The way into a PRESET left this panel too (AD18-R6)** and is in the `Add` rail,
+				beside the shape buttons — one place answering "how do I start this object" instead
+				of two standing controls at opposite edges of the leaf. `startFromPreset` itself is
+				unchanged and still lives in `AssetDesignerRoot`; what moved is the button, and the
+				prop it needed went with it. `DesignerEntryPaths`'s copy of the same gesture stays,
+				because an empty state and a standing control are never both on screen for one asset
+				in one state — which is the distinction that makes AD18-R6 a rule rather than a
+				preference.
+			-->
 			<!--
 				**The way BACK and the way FORWARD both left this panel in AD18** and are in the header
 				(`DesignerHeader.vue`), which is where AD06 item 1 asks for them. They are still one pair

@@ -147,7 +147,10 @@ export interface DesignerRig {
 	document(): Promise<AssetGeometryDocument>;
 	/** The stage pixel a world point sits at under the LIVE camera. */
 	at(world: Point): { x: number; y: number };
-	/** A toolbar button by its rendered label. Throws rather than answering `undefined`. */
+	/**
+	 * A tool button by its rendered label, from the toolbar OR the `Add` rail — the four drawing
+	 * tools live in the second since AD18-R3. Throws rather than answering `undefined`.
+	 */
 	toolbarButton(label: string): HTMLButtonElement;
 	/** Which tool the leaf's manager has active, through the mirror `setTool` writes. */
 	activeToolId(): string | null;
@@ -370,7 +373,21 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 			return { x: screen.x, y: screen.y };
 		},
 		toolbarButton: (label) => {
-			const found2 = wrapper.findAll('.rp-designer-tools button').find((button) => button.text() === label);
+			// BOTH homes of a tool button, because AD18-R3 gave the four drawing tools a second one.
+			// The name is kept, and the reason is a measurement: `grep -rn "toolbarButton(" tests/`
+			// prints 47 lines in 18 files at this commit (`grep -rln`), THREE of them in this file —
+			// the declaration, the `select` press in `selecting()` below, and this sentence, whose
+			// own text contains the string it is counting. So every caller asks for a control by its
+			// LABEL, which is the thing that did not move. What the name now MEANS
+			// is "the button that activates this tool, wherever the shell draws it":
+			// `.rp-designer-tools` for the ten the toolbar kept, `.rp-designer-add` for the four
+			// the `Add` rail took. A caller that asked for a
+			// shape by label went on compiling and started throwing when the button moved, which is
+			// a SELECTOR failure dressed as a missing label — jsdom applies no CSS, so
+			// `designer-toolbar.css`'s `display: none` on the text never touches `.text()`.
+			// The union is what makes it resolvable from one helper; `designerAddRail.test.ts`
+			// drives one button from each home through this resolver so neither half can rot.
+			const found2 = wrapper.findAll('.rp-designer-tools button, .rp-designer-add button').find((button) => button.text() === label);
 			if (found2 === undefined) throw new Error(`no designer toolbar button labelled ${label}`);
 			return found2.element as HTMLButtonElement;
 		},

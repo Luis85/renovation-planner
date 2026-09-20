@@ -4,8 +4,9 @@
  * on three wrapped rows of text while the canvas — the only region that absorbs any loss — was
  * down to 180px, narrower than the inspector beside it.
  *
- * A partial of its own rather than more of `designer.css`, which stands at 397 lines against the
- * assembler's 400-line cap. Obsidian variables only (SDD §84), so a themed vault stays themed;
+ * A partial of its own rather than more of `designer.css`, which stands at 398 lines against the
+ * assembler's 400-line cap (`wc -l`, re-measured at AD18 item 5). Obsidian variables only (SDD
+ * §84), so a themed vault stays themed;
  * the build refuses a literal colour here.
  */
 
@@ -16,8 +17,10 @@
  * the icon needs — the padding, colour, border and focus ring stay where they already are, so
  * there is one place to read a button's appearance and one more to read its box.
  *
- * **`button` is in the selector deliberately, and it is not tidying.** A FIFTEENTH element in
- * this toolbar carries `.rp-designer-tool-button` and is not a button: `DesignerViewMenu.vue`'s
+ * **`button` is in the selector deliberately, and it is not tidying.** One element in this toolbar
+ * carries `.rp-designer-tool-button` and is not a button — named rather than counted, because the
+ * ordinal this sentence used to carry ("a FIFTEENTH element") was falsified by AD18 item 5 lifting
+ * four buttons out, and a name survives what a census does not: `DesignerViewMenu.vue`'s
  * `<summary>`, whose own rules live in `editor-view.css` (`list-style: none` plus an `::after`
  * chevron) and whose file is not this card's. An unqualified rule would hand that summary
  * `display: inline-flex` as a side effect of a change about icons, turning its chevron into a
@@ -33,31 +36,51 @@
 
 /*
  * THE LABEL IS DRAWN AT 80rem AND WIDER AND NOWHERE ELSE, and 80rem is a MEASUREMENT rather than
- * a taste: 1280px is the one width the labelled toolbar was measured to occupy a single row of
- * TOOL buttons at — all fourteen at `top: 32` — against two rows at 760px and three at 580px
- * (`top` 32/70/108). So the rule shows the text exactly where it was measured to fit and hides it
- * everywhere it was measured to wrap.
+ * a taste — but read the next three paragraphs in order, because the measurement it was set from
+ * was falsified before this rule was a week old and is true again only since AD18 item 5.
  *
- * **Read AD18's toolbar HEIGHTS against those row counts with care; they measure different things
- * and that document does not say so.** 65.9px at 1280, 69px at 760 and 107px at 580 make the
- * second row cost 3.1px, which is impossible for a row — the integrator resolved it by rendering:
- * a FIFTEENTH element carries `.rp-designer-tool-button` and is not a tool, `DesignerViewMenu`'s
- * `<summary>`, and at 1280 it wraps to `top: 70` on its own. So 1280 is one tool row and two
- * visual rows, and at 760 that summary sits 2px under the second tool row. The row counts are
- * what this rule rests on, and they are the half that was never in doubt. The
- * losing side is worth writing down: always-on icons would be one state instead of two, and were
- * refused because 14 unlabelled glyphs are a learnability cost this surface has no tooltip test
+ * **WHERE THE NUMBER CAME FROM, kept because it is the record.** AD18 measured the labelled
+ * toolbar PRE-ICON: all fourteen tool buttons on one row at 1280px, against two rows at 760 and
+ * three at 580 (`top` 32/70/108), with region heights of 65.9px, 69px and 107px. So the rule was
+ * written to show the text exactly where it had been measured to fit and hide it everywhere it
+ * had been measured to wrap, and 80rem is 1280px at Obsidian's 16px root.
+ *
+ * **WHAT FALSIFIED IT, and it was this file's own card rather than sloppiness.** AD18 measured
+ * before the icons that AD18 item 3 was adding. A glyph plus `gap: var(--size-4-1)` costs about
+ * 22px a button, and the widest label — `Draw rounded rectangle` — went from AD18's 157px to
+ * 179px. The integrator rendered the wave-11 base (`720fe6b21`) and found 1280 was no longer one
+ * row: ten buttons at `top: 32`, FOUR wrapping to `top: 70` — `Set facing`, `Calibrate`, `Undo`
+ * and `Redo`, named rather than counted — with `DesignerViewMenu`'s `<summary>` at 72 and the
+ * region at 69px. Two tool rows and three visual rows, where the comment claimed one and two.
+ *
+ * **WHAT MADE IT TRUE, which is AD18 item 5 and not a change to this rule.** AD18-R3 moved the
+ * four Basic-shape buttons into the `Add` rail, taking their width out of this row. The
+ * integrator rendered the candidate (`f9b43fa27`) and measured, at 1280 with the labels SHOWN:
+ * every remaining tool button at `top: 33`, the summary at `top: 34`, the region **32px**. One
+ * row, and one visual row. Across the band: 69 → 32 at 1280, 32 → 32 at 760, 69 → 32 at 580,
+ * 69 → 65.9 at 460 — one tool row at every one of the four. **At 460 the region is still 65.9px
+ * over a single button row, so something there takes a second visual row and this comment does
+ * not say what**; nobody has chased it and a guess would be the same defect as the one above.
+ *
+ * Every figure in the last two paragraphs is the INTEGRATOR's, in a real browser, at the commit
+ * each names. Nothing in this repository renders: jsdom applies no container query and computes
+ * no width, so `designerIconToolbar.test.ts` reads what this rule DECLARES and never what it does.
+ *
+ * The losing side is worth writing down: always-on icons would be one state instead of two, and
+ * were refused because unlabelled glyphs are a learnability cost this surface has no tooltip test
  * and no rendered check to price — where `aria-label`, which `DesignerToolButton.vue` carries at
- * every width, is what Obsidian draws its own tooltip from.
+ * every width, is what Obsidian draws its own tooltip from. **The `Add` rail took the other side
+ * of that trade for itself** (`styles/designer-add.css` hides its labels at every width, and
+ * argues it there), so both states now ship, one per container.
  *
  * `display: none` and not the `.rp-visually-hidden` clip, because the accessible name is
  * `aria-label` in both states: clipping the text would leave it in the accessibility tree
  * SECOND, contributing nothing, where hiding it outright says what is meant.
  *
- * **Nothing here renders, so nothing here is verified.** jsdom applies no container query and
- * computes no width; `designerIconToolbar.test.ts` reads what this rule DECLARES. The width at
- * which the icon row itself starts to wrap is not known and is what a rendered pass should
- * measure — the two numbers above bracket it but do not name it.
+ * **This rule is NOT scoped to `.rp-designer-tools` and the omission is load-bearing**, so it
+ * reaches the rail's labels below 80rem too. That is harmless rather than accidental: the rail's
+ * own rule is the identical declaration at the identical (0,2,0) specificity, so wherever the two
+ * overlap they agree. `designer-add.css` carries that argument at the rule that depends on it.
  */
 @container rp-designer (width < 80rem) {
 	.renovation-asset-designer .rp-designer-tool-label {
@@ -66,16 +89,16 @@
 }
 
 /*
- * The four drawing tools as one named group (`role="group"` in `DesignerToolbar.vue`). A flex row
- * of its own, sharing the toolbar's gap so the grouping is invisible to the eye and present to a
- * screen reader — the group EXISTS so that AD18 item 5 can lift it into the `Add` rail whole, and
- * a visible frame drawn now would have to be undrawn then.
+ * `.rp-designer-shape-tools` WAS here, and AD18 item 5 took it. Wave 10 wrote the four drawing
+ * tools into one named group so that this card could lift it into the `Add` rail whole, and said
+ * so in this rule's own comment; the group is in `DesignerAddPanel.vue` now under
+ * `.rp-designer-add-shapes`, and its rules are in `styles/designer-add.css`. The class is gone
+ * from the tree rather than left as a selector matching nothing — `grep -rn
+ * "rp-designer-shape-tools" src/ styles/ tests/` prints THREE lines after this edit and no
+ * element and no rule among them: these two sentences, and `designerIconToolbar.test.ts`'s
+ * assertion that the toolbar draws no such element. Written from what the grep printed rather
+ * than from what it was expected to print — the first draft of this paragraph said "nothing".
  */
-.rp-designer-shape-tools {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-}
 
 /*
  * ITEM 6: THE RAILS ARE CAPPED AT A SHARE OF THE LEAF, SO THE CANVAS NEVER FALLS BELOW HALF.

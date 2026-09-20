@@ -356,7 +356,6 @@ describe('mounted by the inspector it actually ships in', () => {
 				design: assetDesign({ shape: threeBoxes() }),
 				setHeight: vi.fn<(height: number | null) => Promise<DispatchResult>>().mockResolvedValue(ok('wrote')),
 				editDimensions: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-				startFromPreset: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 				logger: recorder,
 				// Required, and never pressed here: this case is about the arrange block.
 				removeBackground: async (): Promise<void> => {},

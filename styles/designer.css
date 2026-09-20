@@ -271,15 +271,18 @@
  * `.rp-editor-inspector-delete` shipped once and this file's own toolbar rules already avoid.
  */
 /*
- * TWO of these four selectors left in AD18: `.rp-designer-open-library` and
- * `.rp-designer-use-plan` are drawn in the header now (`DesignerHeader.vue`), where
- * `styles/designer-header.css` gives them a quieter treatment. They are dropped here rather than
- * left as selectors matching nothing.
+ * ONE of the original four selectors is left, and each of the three went to the panel that took
+ * its button: `.rp-designer-open-library` and `.rp-designer-use-plan` to the header
+ * (`DesignerHeader.vue`, `styles/designer-header.css`), and `.rp-designer-start-preset` to the
+ * `Add` rail (`DesignerAddPanel.vue`, `styles/designer-add.css`) at AD18-R6. Each is dropped
+ * here rather than left as a selector matching nothing — `grep -rn "rp-designer-start-preset"
+ * src/ styles/` prints six lines in this edit: the rail's button, the rail's three rules, and
+ * these two sentences. Nothing under `.rp-designer-inspector` is among them, which is the claim,
+ * and the prose lines are counted in rather than left out of the sentence describing the grep.
  */
 /* REVIEWED CLONE: the bordered variant with a leading `width`/`margin` — the flat button is per-component by
    necessity; the argument is on `.rp-designer-tool-button`, above in this file. */
-.rp-designer-inspector .rp-designer-edit-dimensions,
-.rp-designer-inspector .rp-designer-start-preset {
+.rp-designer-inspector .rp-designer-edit-dimensions {
 	width: 100%;
 	/* The reviewed clone starts at margin; target the declaration rather than the selector. */
 	/* fallow-ignore-next-line code-duplication */
@@ -296,14 +299,12 @@
 	cursor: pointer;
 }
 
-.rp-designer-inspector .rp-designer-edit-dimensions:hover,
-.rp-designer-inspector .rp-designer-start-preset:hover {
+.rp-designer-inspector .rp-designer-edit-dimensions:hover {
 	background-color: var(--background-modifier-hover);
 }
 
 /* The ring, for the reason `editor.css`'s toolbar `:focus-visible` comment gives at length. */
-.rp-designer-inspector .rp-designer-edit-dimensions:focus-visible,
-.rp-designer-inspector .rp-designer-start-preset:focus-visible {
+.rp-designer-inspector .rp-designer-edit-dimensions:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }

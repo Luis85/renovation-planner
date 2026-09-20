@@ -171,7 +171,6 @@ describe('the clearance review block', () => {
 				design: assetDesign({ shape: resized }),
 				setHeight: vi.fn<(height: number | null) => Promise<DispatchResult>>().mockResolvedValue(ok('wrote')),
 				editDimensions: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-				startFromPreset: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 				removeBackground: async (): Promise<void> => {},
 				logger: recorder,
 				selection: null,

@@ -22,19 +22,42 @@ import { describe, expect, it } from 'vitest';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { DESIGNER_TOOL_LABELS } from '../../../src/presentation/designer/tools/registerDesignerTools';
+import { DESIGNER_TOOL_ICONS } from '../../../src/presentation/designer/tools/designerToolIcons';
 import { designerRig } from '../../helpers/designerRig';
 import { propertyOf, show, stylesheetRules, type StyleRule } from '../../helpers/selectors';
 
-/** The drawing tools the user's wave-10 ruling moves into AD18 item 5's `Add` rail. */
+/**
+ * The drawing tools, which AD18-R3 MOVED into item 5's `Add` rail. Kept in this file because the
+ * glyph cases below span both homes: once a label is hidden the glyph is the only thing telling
+ * two controls apart, and that claim was never about one container — it is about the surface.
+ */
 const SHAPE_TOOLS = ['draw-rect', 'draw-rounded-rect', 'draw-circle', 'draw-line'] as const;
 
-/** Every button the toolbar draws, in order: camera mode, the tool table, then the history pair. */
-const EXPECTED_LABELS: readonly StringKey[] = [
+/**
+ * Every button the TOOLBAR draws, in order: camera mode, the tool table minus the drawing tools,
+ * then the history pair.
+ *
+ * The drawing tools are dropped by asking `DESIGNER_TOOL_ICONS` which rows are `'shape'` rather
+ * than by naming them a second time, so the day a fifth shape is added this list loses it exactly
+ * as the toolbar does. `SHAPE_TOOLS` above is the hand-written half and is deliberately NOT used
+ * here: one of the two has to be independent of the code, or the case becomes a tautology.
+ */
+const TOOLBAR_LABELS: readonly StringKey[] = [
 	'designer.toolbar.pan',
-	...(Object.values(DESIGNER_TOOL_LABELS) as StringKey[]),
+	...(Object.entries(DESIGNER_TOOL_LABELS).flatMap(([id, label]) =>
+		DESIGNER_TOOL_ICONS[id as keyof typeof DESIGNER_TOOL_ICONS].group === 'shape' ? [] : [label],
+	) as StringKey[]),
 	'designer.toolbar.undo',
 	'designer.toolbar.redo',
 ];
+
+/**
+ * Every control that draws a tool GLYPH, wherever the shell puts it — the toolbar's row and the
+ * `Add` rail's shape group. `.rp-designer-add-shapes` rather than `.rp-designer-add`, because the
+ * rail's preset door is a `<button>` in that section with no glyph at all and would make the two
+ * counts below disagree for a reason that has nothing to do with icons.
+ */
+const GLYPH_BEARING = '.rp-designer-tools .rp-host-icon, .rp-designer-add-shapes .rp-host-icon';
 
 function onlyRule(css: string): StyleRule {
 	const [rule] = stylesheetRules(css);
@@ -67,15 +90,19 @@ describe('every toolbar button is an icon with a name', () => {
 	 * The label that WAS a button's text is now its text AND its `aria-label`, and the second is
 	 * what survives the width at which the first is hidden. Asserted over the whole toolbar rather
 	 * than over the tool table alone, because Pan is not in that table and Undo and Redo are not
-	 * tools at all — three of the fourteen, and exactly the three a case driven off
-	 * `DESIGNER_TOOL_LABELS` would miss.
+	 * tools at all — three of them, and exactly the three a case driven off `DESIGNER_TOOL_LABELS`
+	 * would miss.
+	 *
+	 * The `Add` rail's four are NOT here since AD18-R3 moved them; `designerAddRail.test.ts` makes
+	 * the same claim about the same markup in its new home, because `DesignerToolButton` is what
+	 * both draw and a regression in it would land in both places.
 	 */
-	it('names every button with the label it used to spell as text, and draws one glyph in each', async () => {
+	it('names every toolbar button with the label it used to spell as text, and draws one glyph in each', async () => {
 		const rig = await designerRig();
 		const buttons = rig.wrapper.findAll('.rp-designer-tools button');
 
-		expect(buttons.map((button) => button.attributes('aria-label'))).toEqual(EXPECTED_LABELS.map((label) => t('en', label)));
-		expect(buttons.map((button) => button.findAll('.rp-host-icon').length)).toEqual(EXPECTED_LABELS.map(() => 1));
+		expect(buttons.map((button) => button.attributes('aria-label'))).toEqual(TOOLBAR_LABELS.map((label) => t('en', label)));
+		expect(buttons.map((button) => button.findAll('.rp-host-icon').length)).toEqual(TOOLBAR_LABELS.map(() => 1));
 		rig.unmount();
 	});
 
@@ -85,12 +112,17 @@ describe('every toolbar button is an icon with a name', () => {
 	 * edit, and the one a reader adding a twelfth tool would reach for — would ship two controls
 	 * that look identical and do different things. Nothing else in this repository can see that:
 	 * the labels would still differ, so every existing toolbar case stays green.
+	 *
+	 * **Asked across BOTH homes since AD18-R3**, which is the widening the ruling forces rather
+	 * than a convenience: the rail draws its four with their text hidden at every width, so an
+	 * icon reused between a rail button and a toolbar button would ship exactly the defect this
+	 * case exists for, in the one place where neither control has any text at all.
 	 */
-	it('asks for a distinct glyph per button, which is all that tells them apart once the text is hidden', async () => {
+	it('asks for a distinct glyph per button across both homes, which is all that tells them apart once the text is hidden', async () => {
 		const rig = await designerRig();
-		const icons = rig.wrapper.findAll('.rp-designer-tools .rp-host-icon').map((icon) => icon.attributes('data-icon'));
+		const icons = rig.wrapper.findAll(GLYPH_BEARING).map((icon) => icon.attributes('data-icon'));
 
-		expect(icons).toHaveLength(EXPECTED_LABELS.length);
+		expect(icons).toHaveLength(TOOLBAR_LABELS.length + SHAPE_TOOLS.length);
 		expect(new Set(icons).size).toBe(icons.length);
 		rig.unmount();
 	});
@@ -108,8 +140,10 @@ describe('every toolbar button is an icon with a name', () => {
 	 */
 	it('records the three requested glyphs the harness has no fixture for, and no others', async () => {
 		const rig = await designerRig();
+		// Both homes, or two of the three — `circle` and `squircle` are shape tools — would leave
+		// with the buttons and the set would shrink for a reason that is not about fixtures at all.
 		const missing = rig.wrapper
-			.findAll('.rp-designer-tools .rp-host-icon')
+			.findAll(GLYPH_BEARING)
 			.map((icon) => icon.attributes('data-icon-missing'))
 			.filter((name) => name !== undefined);
 
@@ -136,23 +170,24 @@ describe('every toolbar button is an icon with a name', () => {
 
 describe('the Basic shapes group', () => {
 	/**
-	 * The four drawing tools sit in ONE named group, and the group holds exactly them.
+	 * **It is not in the toolbar any more (AD18-R3), and this case says so rather than being
+	 * deleted.** Wave 10 drew the four drawing tools into one named group inside
+	 * `.rp-designer-tools` precisely so wave 11 could lift it; the lift is a MOVE, so the
+	 * toolbar's side of it is an absence, and an absence nobody asserts is how a duplicate gets
+	 * re-added later with every other case still green.
 	 *
-	 * It exists for wave 11 rather than for this card — the user's ruling is that these buttons
-	 * MOVE into AD18 item 5's `Add` rail — so what is pinned is the MEMBERSHIP against the tool
-	 * table, not the position. `DesignerToolbar.vue` cuts the group out of one ordered list by
-	 * index and its own docblock names the assumption that makes that safe: the `'shape'` rows are
-	 * contiguous in `DESIGNER_TOOL_LABELS`. A tool moved between them would be drawn INSIDE this
-	 * group with nothing else wrong anywhere — no order changes, no button disappears — which is
-	 * why the assumption is read here rather than trusted there.
+	 * Where the group went, what it holds and that its membership still matches the tool table is
+	 * `designerAddRail.test.ts`'s subject — that file carries the positive half, and it carries it
+	 * against `DESIGNER_TOOL_ICONS` rather than against a template, for the reason this case's
+	 * predecessor named: a tool re-grouped in the table must move the group, not sit inside it.
 	 */
-	it('holds exactly the four drawing tools, under a name of its own', async () => {
+	it('is gone from the toolbar, which AD18-R3 moved into the Add rail', async () => {
 		const rig = await designerRig();
-		const group = rig.wrapper.find('.rp-designer-tools > .rp-designer-shape-tools');
 
-		expect(group.attributes('role')).toBe('group');
-		expect(group.attributes('aria-label')).toBe(t('en', 'designer.shapes.group'));
-		expect(group.findAll('button').map((button) => button.attributes('aria-label'))).toEqual(SHAPE_TOOLS.map((id) => t('en', DESIGNER_TOOL_LABELS[id])));
+		expect(rig.wrapper.find('.rp-designer-shape-tools').exists()).toBe(false);
+		expect(rig.wrapper.findAll('.rp-designer-tools [role="group"]').map((group) => group.attributes('aria-label'))).not.toContain(
+			t('en', 'designer.shapes.group'),
+		);
 		rig.unmount();
 	});
 });
@@ -176,7 +211,10 @@ describe('what the stylesheet declares', () => {
 	 * The icon and the text are one row, so the glyph sits beside the label rather than above it —
 	 * and the selector is ELEMENT-QUALIFIED, which is the load-bearing half.
 	 *
-	 * A fifteenth element in this toolbar carries `.rp-designer-tool-button` and is not a button:
+	 * One element in this toolbar carries `.rp-designer-tool-button` and is not a button — named
+	 * rather than counted, because the ordinal this sentence used to carry ("a fifteenth element")
+	 * was falsified by AD18-R3 lifting four buttons into the `Add` rail, and the stylesheet's own
+	 * copy of it was falsified in the same commit:
 	 * `DesignerViewMenu.vue`'s `<summary>`, styled by `editor-view.css` with `list-style: none` and
 	 * an `::after` chevron. Unqualified, this rule would give that summary `display: inline-flex`
 	 * as a side effect of a change about icons. The second assertion is what refuses the widening:

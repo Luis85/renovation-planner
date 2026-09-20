@@ -426,7 +426,6 @@ describe('mounted in the real inspector', () => {
 				design: assetDesign({ shape, calibration: CALIBRATION }),
 				setHeight: vi.fn<(height: number | null) => Promise<DispatchResult>>().mockResolvedValue(ok('wrote')),
 				editDimensions: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-				startFromPreset: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 				logger: recorder,
 				removeBackground,
 				selection: null,

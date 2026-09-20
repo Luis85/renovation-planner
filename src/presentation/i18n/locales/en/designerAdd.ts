@@ -27,5 +27,23 @@
  * So what lands here is the section's own chrome: its heading, and the preset door AD18-R6 moves
  * out of the Inspector. If the card finds it needs nothing at all, an empty table that ships is a
  * true statement about the copy this feature adds, and the header above is the record of why.
+ *
+ * **It turned out to need exactly ONE key, and the prediction above is the reason to say which.**
+ * The heading is new copy and has nowhere else to come from. The preset door reuses
+ * `designer.inspector.start-preset` — the SAME string it carried in the Inspector, and the same
+ * one `DesignerEntryPaths` already reuses, so the gesture's two spellings say the same words as
+ * well as calling the same function. That key's name is stale in exactly the way the four shape
+ * keys are, and is left alone for the same reason.
+ *
+ * `designer.shapes.group` stays where wave 10 minted it (`designerToolbarIcons.ts`): the group
+ * label outlived the toolbar exactly as that card intended, and moving the ENTRY between locale
+ * modules would be churn with no reader.
  */
-export const designerAddEn = {} as const;
+export const designerAddEn = {
+	/**
+	 * The rail's `Add` section — its `<h2>` and its `aria-label`, the same string in both, which is
+	 * what WCAG 2.5.3 asks of a visible label and an accessible name that could otherwise disagree.
+	 * One word, because it names half a rail beside `Parts` and the two are read as a pair.
+	 */
+	'designer.add': 'Add',
+} as const;

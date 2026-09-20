@@ -451,3 +451,16 @@ import graph from `AssetDesignerView.ts` and requires every `.vue` under `src/pr
 to be reachable; `assetDesignerRoot.test.ts` asserts each region is drawn. A header component that
 is written and not mounted fails the first; a region dropped while its component survives elsewhere
 fails the second.
+
+**Wave 9 grant, recorded AFTER the fact and the lateness is the point.** `styles/index.css` is not
+in W9-A's EDIT list, and the card edited it — one line, importing the new `styles/designer-header.css`
+partial. The card TEXT required exactly that (*"a new partial may be required, and `styles/index.css`
+must import it"*), so the omission was in the table rather than in the work, and the worker disclosed
+it in its own report rather than letting it pass.
+
+It is written down here because this table's own rule is that a grant *"is written into this table in
+the same edit that makes it, or it does not exist"*. This one was not, so recording it late is the
+honest repair and leaving it unrecorded would make the rule decorative. **The lesson for the next
+lease: a card that says "create a partial" has already granted the file that imports it, and the
+EDIT list has to say so.** `scripts/styles-assemble.mjs` refuses a partial no entry file imports, so
+the two are one action and cannot be leased apart.

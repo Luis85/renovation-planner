@@ -221,3 +221,64 @@ cannot see a wrapped toolbar, a fold, or a column share. The instruments that ca
 A test can pin what a rule DECLARES (`designerStyles.test.ts`) and, since wave 8, what a container
 query RESOLVES to against a mounted tree (`designerNarrowQueryResolved.test.ts`). Neither is a
 measurement of the rendered result, and no item here should be reported as verified on one.
+
+---
+
+## Items 1, 2 and 4 are DELIVERED, and item 2 was RENDERED before this was written
+
+Item 1 (zoom readout) `cf305ad88`; items 2 and 4 (header, `Object | Reference` tabs) merged at
+`f0500806b` under rulings AD18-R1 and AD18-R2.
+
+**The card itself could not see either surface drawn** — no pinned Chromium, and jsdom lays nothing
+out — and its report said so. The integrator then drew both in a real browser against the running
+harness, which is the one instrument here that applies layout. **Everything below is a rendered
+measurement, not a template read.**
+
+### What renders correctly
+
+| At 1280 | Measured |
+|---|---|
+| Header region / title bar | 1280 × 32 / 1264 × 19.5 |
+| Asset name | 1201.5 px, NOT clipped |
+| Tab strip | 207 × 31, `Object` `aria-selected="true"` `tabindex="0"`, `Reference` `tabindex="-1"` |
+| Tab panels | both `tabindex="0"`, `aria-controls` and `aria-labelledby` cross-linked, `Reference` at `display: none` |
+| Header landmark | `<header aria-label="Asset designer header">` |
+| Heading outline | `h2` Kitchen island → `h2` Parts → `h2` Inspector → `h3` Asset → `h4` Used in plans. **No `h1` anywhere** |
+
+**Item 4's problem is measurably solved at this state**: `.rp-designer-inspector` reports
+`scrollHeight` 678 against `clientHeight` **678** — it no longer overflows, where the untabbed
+panel was 887 px of content in a 625 px column. Read that narrowly: it is the resting state with
+nothing selected, not the worst case the 887 figure came from.
+
+At 460 px the body stacks to `flex-direction: column`, the header stays 32 px, the name is unclipped
+and the document takes no horizontal scroll.
+
+### The reviewer's highest-risk case, measured — REAL but BOUNDED
+
+W9-A's reviewer named one thing no instrument here could reach: `tests/harness/assetDesigner.ts`
+binds neither `openLibrary` nor `usePlan`, so **the only header a capture can ever photograph is
+name + save state**, and the worry was that at a 460 px sidebar leaf those two buttons against a
+shrinkable name could reduce the asset name "to an ellipsis and a letter or two".
+
+Measured by injecting both buttons into the rendered title bar at 460 px, in the real markup order:
+
+| Name | Name box | Clipped? |
+|---|---|---|
+| `Kitchen island` (14 chars) | 140 px | no |
+| `Kitchen island with breakfast bar` (33) | 140 px | **yes**, ellipsis, ~21 chars visible |
+| 66 characters | 140 px | **yes**, ellipsis, ~21 chars visible |
+
+Title bar stays 30 px, nothing overflows, no horizontal scroll. So the degradation is GRACEFUL and
+the feared outcome does not occur — about twenty-one characters survive, not two.
+
+**What is still worth a decision**: the two buttons take **143.6 + 81.6 = 225 px of 460**, more than
+the 140 px left to the name they sit beside, at exactly the width where identifying the asset is
+hardest. That is not a defect against any ruling and no gate can see it; it is a proportion
+question, and it belongs with **item 3 (icon toolbar)** and **item 6 (canvas proportion at
+560–900 px)** rather than being fixed alone — the same answer that would shrink those labels to
+icons would fix this.
+
+**The injection is a probe, not a fixture.** It proves what the layout does with those two controls
+present; it does not make them present in any capture. Closing that properly means the harness
+fixture binding both doors, which is AD18's own outstanding item and is a decision about
+`tests/harness/assetDesigner.ts`'s deliberate `background: null` / unbound-deps posture.

@@ -172,12 +172,22 @@ describe('what the stylesheet declares', () => {
 		expect(declared(rules, '.renovation-asset-designer .rp-designer-tool-label', 'display')).toEqual([]);
 	});
 
-	/** The icon and the text are one row, so the glyph sits beside the label rather than above it. */
-	it('lays the button out as an icon beside its text', () => {
+	/**
+	 * The icon and the text are one row, so the glyph sits beside the label rather than above it —
+	 * and the selector is ELEMENT-QUALIFIED, which is the load-bearing half.
+	 *
+	 * A fifteenth element in this toolbar carries `.rp-designer-tool-button` and is not a button:
+	 * `DesignerViewMenu.vue`'s `<summary>`, styled by `editor-view.css` with `list-style: none` and
+	 * an `::after` chevron. Unqualified, this rule would give that summary `display: inline-flex`
+	 * as a side effect of a change about icons. The second assertion is what refuses the widening:
+	 * the unqualified spelling must declare nothing.
+	 */
+	it('lays the button out as an icon beside its text, and reaches no element that is not a button', () => {
 		const rules = TOOLBAR_SHEET();
 
-		expect(declared(rules, '.rp-designer-tools .rp-designer-tool-button', 'display')).toEqual(parsed('display', 'inline-flex'));
-		expect(declared(rules, '.rp-designer-tools .rp-designer-tool-button', 'align-items')).toEqual(parsed('align-items', 'center'));
+		expect(declared(rules, '.rp-designer-tools button.rp-designer-tool-button', 'display')).toEqual(parsed('display', 'inline-flex'));
+		expect(declared(rules, '.rp-designer-tools button.rp-designer-tool-button', 'align-items')).toEqual(parsed('align-items', 'center'));
+		expect(declared(rules, '.rp-designer-tools .rp-designer-tool-button', 'display')).toEqual([]);
 	});
 
 	/**

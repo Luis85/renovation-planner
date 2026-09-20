@@ -31,7 +31,9 @@
  * conventions". It answers THREE lines now, and one of them is this sentence: the import and the
  * element both live in `DesignerToolButton.vue`, which is the one component in this directory
  * that draws a glyph. What the width decides is spelled in `styles/designer-toolbar.css` and
- * argued there, not here.
+ * argued there, not here; WHICH glyph each tool wears is `tools/designerToolIcons.ts`, a module
+ * rather than a `const` in this file because a `<script setup>` binding is not a module export
+ * and AD18 item 5's `Add` rail has to be able to import it.
  *
  * **No button here carries a `title`.** Its label is its accessible name — as visible text and
  * as `aria-label`, the same string — so a tooltip repeating it shows a sighted user nothing new
@@ -47,6 +49,7 @@ import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
 import type { ToolId } from '../editor/tools/editor-tool';
 import { DESIGNER_TOOL_LABELS } from './tools/registerDesignerTools';
+import { DESIGNER_TOOL_ICONS } from './tools/designerToolIcons';
 import { useDesignerRuntime } from './runtime';
 import { isOutlineSelection } from './selection/designerSelection';
 import { useAssetDesignStore } from './stores/assetDesignStore';
@@ -56,44 +59,6 @@ import DesignerViewMenu from './DesignerViewMenu.vue';
 
 const runtime = useDesignerRuntime();
 const designStore = useAssetDesignStore();
-
-/**
- * The glyph each tool wears, and which half of the toolbar it belongs to.
- *
- * **TOTAL over `DESIGNER_TOOL_LABELS`'s keys by TYPE**, which is the mechanism that table's own
- * docblock leans on and the reason this is a record rather than a list: a tool added there with
- * no entry here is a build error in this file, not a button that draws an empty box. The
- * `satisfies` enforces both directions — a missing key fails the `Record`, an invented one fails
- * as an excess property.
- *
- * **`group` exists for wave 11 rather than for this card.** The user's wave-10 ruling is that
- * the Basic-shape buttons MOVE into AD18 item 5's `Add` rail; that rail does not exist yet, so
- * the four are iconified in place and gathered into one named group here. Wave 11 changes where
- * the `'shape'` rows are DRAWN and nothing about what they are — which is why the discriminator
- * is a field of this table rather than a list written out in the template.
- *
- * Three of these names have no harness fixture: `tests/fixtures/editor-icons/` holds no
- * `circle`, no `squircle` and no `anchor`, so `npm run harness` marks those three
- * `data-icon-missing` rather than drawing a different glyph, which is that directory's stated
- * rule. In a vault they resolve through Obsidian's own `setIcon` like every other name here;
- * whether the installed host catalogue answers `squircle` in particular is verified nowhere in
- * this repository, the same caveat that README already records for `clipboard-paste` and
- * `building`. `designerIconToolbar.test.ts` pins that missing set EXACTLY, so adding a fixture
- * turns a test red rather than passing unnoticed.
- */
-const TOOL_ICONS = {
-	select: { icon: 'mouse-pointer-2', group: 'tool' },
-	'trace-footprint': { icon: 'land-plot', group: 'tool' },
-	'trace-clearance': { icon: 'square-dashed', group: 'tool' },
-	'draw-rect': { icon: 'rectangle-horizontal', group: 'shape' },
-	'draw-rounded-rect': { icon: 'squircle', group: 'shape' },
-	'draw-circle': { icon: 'circle', group: 'shape' },
-	'draw-line': { icon: 'minus', group: 'shape' },
-	'trace-detail': { icon: 'pencil', group: 'tool' },
-	'set-anchor': { icon: 'anchor', group: 'tool' },
-	'set-facing': { icon: 'arrow-up-right', group: 'tool' },
-	calibrate: { icon: 'ruler', group: 'tool' },
-} as const satisfies Readonly<Record<keyof typeof DESIGNER_TOOL_LABELS, { icon: IconName; group: 'tool' | 'shape' }>>;
 
 /**
  * The mode buttons as DATA, one row per selectable mode — `null` being camera mode, which has
@@ -112,7 +77,7 @@ const TOOL_ICONS = {
 const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey; readonly icon: IconName; readonly shape: boolean }[] = [
 	{ id: null, label: 'designer.toolbar.pan', icon: 'hand', shape: false },
 	...Object.entries(DESIGNER_TOOL_LABELS).map(([id, label]) => {
-		const entry = TOOL_ICONS[id as keyof typeof TOOL_ICONS];
+		const entry = DESIGNER_TOOL_ICONS[id as keyof typeof DESIGNER_TOOL_ICONS];
 		return { id: id as ToolId, label: label as StringKey, icon: entry.icon as IconName, shape: entry.group === 'shape' };
 	}),
 ];

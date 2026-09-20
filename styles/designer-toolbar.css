@@ -15,8 +15,17 @@
  * `button:not(.clickable-icon)` scores (0,1,1) and outranks a bare class), and adding only what
  * the icon needs — the padding, colour, border and focus ring stay where they already are, so
  * there is one place to read a button's appearance and one more to read its box.
+ *
+ * **`button` is in the selector deliberately, and it is not tidying.** A FIFTEENTH element in
+ * this toolbar carries `.rp-designer-tool-button` and is not a button: `DesignerViewMenu.vue`'s
+ * `<summary>`, whose own rules live in `editor-view.css` (`list-style: none` plus an `::after`
+ * chevron) and whose file is not this card's. An unqualified rule would hand that summary
+ * `display: inline-flex` as a side effect of a change about icons, turning its chevron into a
+ * flex item for no reason anybody asked for. Element-qualified, this reaches exactly the controls
+ * that draw a glyph, and `designerIconToolbar.test.ts` pins the spelling — widening it back turns
+ * that case red rather than being noticed in a vault.
  */
-.rp-designer-tools .rp-designer-tool-button {
+.rp-designer-tools button.rp-designer-tool-button {
 	display: inline-flex;
 	align-items: center;
 	gap: var(--size-4-1);
@@ -24,9 +33,18 @@
 
 /*
  * THE LABEL IS DRAWN AT 80rem AND WIDER AND NOWHERE ELSE, and 80rem is a MEASUREMENT rather than
- * a taste: 1280px is the one width AD18 measured the labelled toolbar to occupy a single row at
- * (65.9px), against two rows at 760px (69px) and three at 580px (107px). So the rule shows the
- * text exactly where it was measured to fit and hides it everywhere it was measured to wrap. The
+ * a taste: 1280px is the one width the labelled toolbar was measured to occupy a single row of
+ * TOOL buttons at — all fourteen at `top: 32` — against two rows at 760px and three at 580px
+ * (`top` 32/70/108). So the rule shows the text exactly where it was measured to fit and hides it
+ * everywhere it was measured to wrap.
+ *
+ * **Read AD18's toolbar HEIGHTS against those row counts with care; they measure different things
+ * and that document does not say so.** 65.9px at 1280, 69px at 760 and 107px at 580 make the
+ * second row cost 3.1px, which is impossible for a row — the integrator resolved it by rendering:
+ * a FIFTEENTH element carries `.rp-designer-tool-button` and is not a tool, `DesignerViewMenu`'s
+ * `<summary>`, and at 1280 it wraps to `top: 70` on its own. So 1280 is one tool row and two
+ * visual rows, and at 760 that summary sits 2px under the second tool row. The row counts are
+ * what this rule rests on, and they are the half that was never in doubt. The
  * losing side is worth writing down: always-on icons would be one state instead of two, and were
  * refused because 14 unlabelled glyphs are a learnability cost this surface has no tooltip test
  * and no rendered check to price — where `aria-label`, which `DesignerToolButton.vue` carries at
@@ -83,6 +101,18 @@
  * **A second breakpoint was the alternative and is refused**: a stepped rail width would be
  * right at one width in the band and wrong at the rest of it, and it would add a third state to
  * a shell that already has two.
+ *
+ * **WHAT THIS COSTS, ON THE RAIL SIDE, BECAUSE THE CANVAS DOES NOT GAIN FROM NOWHERE.** Across
+ * 560-800px the inspector goes from a fixed 224px to 157-224px and the Parts panel from 176px to
+ * 123-176px. That is a NARROWER inspector in exactly the band this block targets, and it lands on
+ * a panel already known to be too narrow: AD18's "Two smaller things found in the same pass"
+ * records `Used in plans` wrapping badly AT 224px — `Loft conversion — 1 placement(s)` over two
+ * lines with the hyphen orphaned — so this makes a known-bad wrap worse rather than introducing a
+ * new one. The trade was taken anyway: the canvas is the subject of the surface and was the
+ * smallest column of the three, where the inspector's cost is a line of wrapped text in a panel
+ * that already scrolls (`designer.css`'s `overflow-y: auto`). **How much worse is NOT estimated
+ * here** — nothing in this repository lays text out, so the wrap is a rendered measurement and a
+ * number written from arithmetic would be a guess wearing a decimal point.
  *
  * The 35rem floor is `designer-narrow.css`'s own stacking breakpoint, spelled as the complement
  * of it so the two blocks are DISJOINT: below it the body is a column and both rails take

@@ -1,0 +1,226 @@
+/**
+ * @vitest-environment jsdom
+ *
+ * AD18 item 3 (the icon toolbar) and item 6 (canvas proportion at 560-900px).
+ *
+ * **What this file can and cannot see, stated first because the items are about APPEARANCE.**
+ * jsdom lays nothing out: it applies no container query, resolves no `cqi` and computes no used
+ * width, so not one case here is a measurement of a rendered toolbar. What the mounted cases read
+ * is the MARKUP — the accessible name, the glyph each button asked the host for, the grouping —
+ * and what the stylesheet cases read is what a rule DECLARES, through lightningcss
+ * (`tests/helpers/selectors.ts`), exactly as `designerStyles.test.ts` does. Whether the labelled
+ * toolbar still occupies one row at 80rem, and whether the capped rails leave the canvas the half
+ * the arithmetic promises, are questions for a browser.
+ *
+ * The four small readers below (`onlyRule`, `spelled`, `parsed`, `declared`) are a deliberate
+ * clone of `designerStyles.test.ts`'s, and the clone is deliberate because that file is not this
+ * card's to edit; a shared helper with two callers would be the right home for them and is the
+ * follow-up. `npm run analyze` cannot see it either way — fallow reads no `*.test.ts` file.
+ */
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { t } from '../../../src/presentation/i18n/strings';
+import type { StringKey } from '../../../src/presentation/i18n/locales/en';
+import { DESIGNER_TOOL_LABELS } from '../../../src/presentation/designer/tools/registerDesignerTools';
+import { designerRig } from '../../helpers/designerRig';
+import { propertyOf, show, stylesheetRules, type StyleRule } from '../../helpers/selectors';
+
+/** The drawing tools the user's wave-10 ruling moves into AD18 item 5's `Add` rail. */
+const SHAPE_TOOLS = ['draw-rect', 'draw-rounded-rect', 'draw-circle', 'draw-line'] as const;
+
+/** Every button the toolbar draws, in order: camera mode, the tool table, then the history pair. */
+const EXPECTED_LABELS: readonly StringKey[] = [
+	'designer.toolbar.pan',
+	...(Object.values(DESIGNER_TOOL_LABELS) as StringKey[]),
+	'designer.toolbar.undo',
+	'designer.toolbar.redo',
+];
+
+function onlyRule(css: string): StyleRule {
+	const [rule] = stylesheetRules(css);
+	if (rule === undefined) throw new Error(`no rule parsed from: ${css}`);
+	return rule;
+}
+
+/** How `show` spells a selector, read off the parser rather than retyped. */
+const spelled = (selector: string): string => onlyRule(`${selector} { color: inherit; }`).selectors.map(show).join(', ');
+
+/** How the parser reads `property: value`, as the one-item list `declared` answers for a single rule. */
+const parsed = (property: string, value: string): unknown[] =>
+	onlyRule(`.reference { ${property}: ${value}; }`).declarations.map((declaration) => declaration.value);
+
+/** Every value `property` takes in the rules whose selector list names `selector`, under `condition`. */
+function declared(rules: readonly StyleRule[], selector: string, property: string, condition = ''): unknown[] {
+	const wanted = spelled(selector);
+	return rules
+		.filter((rule) => rule.condition === condition && rule.selectors.map(show).includes(wanted))
+		.flatMap((rule) => rule.declarations.filter((declaration) => propertyOf(declaration) === property).map((declaration) => declaration.value));
+}
+
+/** The serialized form of a container condition, taken from the parser rather than written out. */
+const container = (query: string): string => onlyRule(`@container ${query} { .reference { color: inherit; } }`).condition;
+
+const TOOLBAR_SHEET = (): StyleRule[] => stylesheetRules(readFileSync('styles/designer-toolbar.css', 'utf8'));
+
+describe('every toolbar button is an icon with a name', () => {
+	/**
+	 * The label that WAS a button's text is now its text AND its `aria-label`, and the second is
+	 * what survives the width at which the first is hidden. Asserted over the whole toolbar rather
+	 * than over the tool table alone, because Pan is not in that table and Undo and Redo are not
+	 * tools at all — three of the fourteen, and exactly the three a case driven off
+	 * `DESIGNER_TOOL_LABELS` would miss.
+	 */
+	it('names every button with the label it used to spell as text, and draws one glyph in each', async () => {
+		const rig = await designerRig();
+		const buttons = rig.wrapper.findAll('.rp-designer-tools button');
+
+		expect(buttons.map((button) => button.attributes('aria-label'))).toEqual(EXPECTED_LABELS.map((label) => t('en', label)));
+		expect(buttons.map((button) => button.findAll('.rp-host-icon').length)).toEqual(EXPECTED_LABELS.map(() => 1));
+		rig.unmount();
+	});
+
+	/**
+	 * **No two buttons wear the same glyph.** Once the text is hidden the glyph is the ONLY thing
+	 * that tells two buttons apart on screen, so a table that reused one — the cheapest possible
+	 * edit, and the one a reader adding a twelfth tool would reach for — would ship two controls
+	 * that look identical and do different things. Nothing else in this repository can see that:
+	 * the labels would still differ, so every existing toolbar case stays green.
+	 */
+	it('asks for a distinct glyph per button, which is all that tells them apart once the text is hidden', async () => {
+		const rig = await designerRig();
+		const icons = rig.wrapper.findAll('.rp-designer-tools .rp-host-icon').map((icon) => icon.attributes('data-icon'));
+
+		expect(icons).toHaveLength(EXPECTED_LABELS.length);
+		expect(new Set(icons).size).toBe(icons.length);
+		rig.unmount();
+	});
+
+	/**
+	 * **Which glyphs the browser harness has no fixture for, EXACTLY.**
+	 * `tests/fixtures/editor-icons/` is a pinned, licensed subset and its README's rule is that an
+	 * unknown request is MARKED (`data-icon-missing`) rather than answered with a different icon —
+	 * so these three draw as empty buttons in `npm run harness` and `npm run harness-shot` while
+	 * resolving normally in a vault, where `setIcon` reaches Obsidian's own catalogue.
+	 *
+	 * Pinned as an exact set rather than a count so that it moves in both directions: adding one of
+	 * the three fixtures (which needs `tests/helpers/editorIconNodes.ts`, the generated node map)
+	 * turns this red, and so does a new tool quietly introducing a fourth gap.
+	 */
+	it('records the three requested glyphs the harness has no fixture for, and no others', async () => {
+		const rig = await designerRig();
+		const missing = rig.wrapper
+			.findAll('.rp-designer-tools .rp-host-icon')
+			.map((icon) => icon.attributes('data-icon-missing'))
+			.filter((name) => name !== undefined);
+
+		expect(missing.toSorted()).toEqual(['anchor', 'circle', 'squircle']);
+		rig.unmount();
+	});
+
+	/**
+	 * Undo and Redo announce no pressed state, which is the ABSENT arm of `DesignerToolButton`'s
+	 * optional prop and not a `false` one: they are actions, and `aria-pressed="false"` would tell
+	 * a screen reader they are toggles that happen to be off.
+	 */
+	it('gives the history pair no pressed state at all, where a mode button has one either way', async () => {
+		const rig = await designerRig();
+		const pressed = (label: StringKey): string | undefined => rig.toolbarButton(t('en', label)).getAttribute('aria-pressed') ?? undefined;
+
+		expect(pressed('designer.toolbar.undo')).toBeUndefined();
+		expect(pressed('designer.toolbar.redo')).toBeUndefined();
+		expect(pressed('designer.toolbar.pan')).toBe('true');
+		expect(pressed('designer.toolbar.select')).toBe('false');
+		rig.unmount();
+	});
+});
+
+describe('the Basic shapes group', () => {
+	/**
+	 * The four drawing tools sit in ONE named group, and the group holds exactly them.
+	 *
+	 * It exists for wave 11 rather than for this card — the user's ruling is that these buttons
+	 * MOVE into AD18 item 5's `Add` rail — so what is pinned is the MEMBERSHIP against the tool
+	 * table, not the position. `DesignerToolbar.vue` cuts the group out of one ordered list by
+	 * index and its own docblock names the assumption that makes that safe: the `'shape'` rows are
+	 * contiguous in `DESIGNER_TOOL_LABELS`. A tool moved between them would be drawn INSIDE this
+	 * group with nothing else wrong anywhere — no order changes, no button disappears — which is
+	 * why the assumption is read here rather than trusted there.
+	 */
+	it('holds exactly the four drawing tools, under a name of its own', async () => {
+		const rig = await designerRig();
+		const group = rig.wrapper.find('.rp-designer-tools > .rp-designer-shape-tools');
+
+		expect(group.attributes('role')).toBe('group');
+		expect(group.attributes('aria-label')).toBe(t('en', 'designer.shapes.group'));
+		expect(group.findAll('button').map((button) => button.attributes('aria-label'))).toEqual(SHAPE_TOOLS.map((id) => t('en', DESIGNER_TOOL_LABELS[id])));
+		rig.unmount();
+	});
+});
+
+describe('what the stylesheet declares', () => {
+	/**
+	 * The label is hidden below 80rem and the rule lives under that container query and no other.
+	 * Both halves matter: a `display: none` that escaped its query would hide the text at every
+	 * width, and a query naming a container nothing declares would apply nowhere — the failure
+	 * `designerNarrowQueryResolved.test.ts` records having shipped once already.
+	 */
+	it('draws the button text only at 80rem and wider', () => {
+		const rules = TOOLBAR_SHEET();
+		const narrow = container('rp-designer (width < 80rem)');
+
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-tool-label', 'display', narrow)).toEqual(parsed('display', 'none'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-tool-label', 'display')).toEqual([]);
+	});
+
+	/**
+	 * The icon and the text are one row, so the glyph sits beside the label rather than above it —
+	 * and the selector is ELEMENT-QUALIFIED, which is the load-bearing half.
+	 *
+	 * A fifteenth element in this toolbar carries `.rp-designer-tool-button` and is not a button:
+	 * `DesignerViewMenu.vue`'s `<summary>`, styled by `editor-view.css` with `list-style: none` and
+	 * an `::after` chevron. Unqualified, this rule would give that summary `display: inline-flex`
+	 * as a side effect of a change about icons. The second assertion is what refuses the widening:
+	 * the unqualified spelling must declare nothing.
+	 */
+	it('lays the button out as an icon beside its text, and reaches no element that is not a button', () => {
+		const rules = TOOLBAR_SHEET();
+
+		expect(declared(rules, '.rp-designer-tools button.rp-designer-tool-button', 'display')).toEqual(parsed('display', 'inline-flex'));
+		expect(declared(rules, '.rp-designer-tools button.rp-designer-tool-button', 'align-items')).toEqual(parsed('align-items', 'center'));
+		expect(declared(rules, '.rp-designer-tools .rp-designer-tool-button', 'display')).toEqual([]);
+	});
+
+	/**
+	 * ITEM 6. The two rail caps sum to HALF the container, which is the whole of why the canvas
+	 * can no longer fall below half — and the sum is asserted over the same two numbers the
+	 * expected declarations are BUILT from, so the stylesheet and the arithmetic cannot drift
+	 * apart: raising a cap without lowering the other turns both halves red.
+	 *
+	 * The floor is spelled as the complement of `designer-narrow.css`'s 35rem stacking query so
+	 * the two blocks are disjoint — a cap reaching into the stacked layout would pin a rail that
+	 * is supposed to be full width — and that disjointness is what makes `styles/index.css`'s
+	 * import order irrelevant here.
+	 */
+	it('caps both rails at half the leaf between them, above the width where the body stacks', () => {
+		const rules = TOOLBAR_SHEET();
+		const partsCap = 22;
+		const inspectorCap = 28;
+		const wide = container('rp-designer (width >= 35rem)');
+
+		expect(partsCap + inspectorCap).toBe(50);
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-parts', 'width', wide)).toEqual(parsed('width', `min(11rem, ${partsCap}cqi)`));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'width', wide)).toEqual(parsed('width', `min(14rem, ${inspectorCap}cqi)`));
+	});
+
+	/**
+	 * And no rule here sets a rail's width OUTSIDE that query. An unconditional cap would reach
+	 * the stacked layout, where `designer-narrow.css` gives both rails `width: auto` at the same
+	 * specificity — leaving which one wins to the order two `@import` lines happen to be in.
+	 */
+	it('sets neither rail width unconditionally, so the stacked layout is nobody else’s business', () => {
+		const rules = TOOLBAR_SHEET();
+
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-parts', 'width')).toEqual([]);
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'width')).toEqual([]);
+	});
+});

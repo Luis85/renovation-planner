@@ -24,20 +24,37 @@
  * a plan: the camera is ephemeral UI (SDD §15) and never a command, so "no active tool" is what
  * pans and zooms here.
  *
- * **No button here carries a `title`.** Each one's text IS its accessible name, so a tooltip repeating
- * it shows a sighted user nothing new and may be announced twice (selection polish critique, finding 24).
- * The mode buttons' `title`s describe a gesture, which is why `DesignerSelectionModes` keeps them. Undo and
- * Redo are ONE group, `.rp-designer-history`, which `designer.css` ends on whichever row it wraps to — the
- * `flex: 1` spacer it replaces stopped pushing once the toolbar wrapped (finding 5).
+ * **Every button draws a native icon now (AD18 item 3), and its text is drawn beside that icon
+ * or hidden, depending on the leaf's width.** `grep -rn "HostIcon" src/presentation/designer/`
+ * answered 0 before this card, against 40 files under `src/presentation/editor/`
+ * (`grep -rln`) — the measurement behind C12's "match the current Plan Editor's interaction
+ * conventions". It answers THREE lines now, and one of them is this sentence: the import and the
+ * element both live in `DesignerToolButton.vue`, which is the one component in this directory
+ * that draws a glyph. What the width decides is spelled in `styles/designer-toolbar.css` and
+ * argued there, not here; WHICH glyph each tool wears is `tools/designerToolIcons.ts`, a module
+ * rather than a `const` in this file because a `<script setup>` binding is not a module export
+ * and AD18 item 5's `Add` rail has to be able to import it.
+ *
+ * **No button here carries a `title`.** Its label is its accessible name — as visible text and
+ * as `aria-label`, the same string — so a tooltip repeating it shows a sighted user nothing new
+ * and may be announced twice (selection polish critique, finding 24). That reason survived
+ * iconification rather than being quietly re-taken: Obsidian draws its own tooltip from
+ * `aria-label`, so the icon-only state is not a state with no tooltip. The mode buttons'
+ * `title`s describe a gesture, which is why `DesignerSelectionModes` keeps them. Undo and Redo
+ * are ONE group, `.rp-designer-history`, which `designer.css` ends on whichever row it wraps
+ * to — the `flex: 1` spacer it replaces stopped pushing once the toolbar wrapped (finding 5).
  */
+import type { IconName } from 'obsidian';
 import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
 import type { ToolId } from '../editor/tools/editor-tool';
 import { DESIGNER_TOOL_LABELS } from './tools/registerDesignerTools';
+import { DESIGNER_TOOL_ICONS } from './tools/designerToolIcons';
 import { useDesignerRuntime } from './runtime';
 import { isOutlineSelection } from './selection/designerSelection';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import DesignerSelectionModes from './DesignerSelectionModes.vue';
+import DesignerToolButton from './DesignerToolButton.vue';
 import DesignerViewMenu from './DesignerViewMenu.vue';
 
 const runtime = useDesignerRuntime();
@@ -57,10 +74,30 @@ const designStore = useAssetDesignStore();
  * the one unchecked step in the chain and it is why `designerToolbar.test.ts` clicks every
  * button and asserts the manager's active tool, rather than counting them.
  */
-const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[] = [
-	{ id: null, label: 'designer.toolbar.pan' },
-	...Object.entries(DESIGNER_TOOL_LABELS).map(([id, label]) => ({ id: id as ToolId, label: label as StringKey })),
+const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey; readonly icon: IconName; readonly shape: boolean }[] = [
+	{ id: null, label: 'designer.toolbar.pan', icon: 'hand', shape: false },
+	...Object.entries(DESIGNER_TOOL_LABELS).map(([id, label]) => {
+		const entry = DESIGNER_TOOL_ICONS[id as keyof typeof DESIGNER_TOOL_ICONS];
+		return { id: id as ToolId, label: label as StringKey, icon: entry.icon as IconName, shape: entry.group === 'shape' };
+	}),
 ];
+
+/**
+ * The three runs the template draws, cut out of ONE list by index rather than filtered into
+ * three — so every mode is drawn exactly once whatever the table says, which three filters
+ * could not promise: a row matching two predicates would draw twice and a row matching none
+ * would vanish, and vanishing is design slice 7's defect over again.
+ *
+ * What the slices DO assume is that the `'shape'` rows are contiguous in `DESIGNER_TOOL_LABELS`.
+ * They are, and a tool moved between them would be drawn inside the shape group with nothing
+ * else wrong — so `designerIconToolbar.test.ts` reads the group's membership against the table
+ * rather than trusting this paragraph.
+ */
+const SHAPE_START = MODES.findIndex((mode) => mode.shape);
+const SHAPE_END = MODES.findLastIndex((mode) => mode.shape) + 1;
+const LEADING_MODES = MODES.slice(0, SHAPE_START);
+const SHAPE_MODES = MODES.slice(SHAPE_START, SHAPE_END);
+const TRAILING_MODES = MODES.slice(SHAPE_END);
 </script>
 
 <template>
@@ -69,35 +106,53 @@ const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[
 		role="toolbar"
 		:aria-label="tr('designer.toolbar')"
 	>
-		<button
-			v-for="mode in MODES"
+		<DesignerToolButton
+			v-for="mode in LEADING_MODES"
 			:key="mode.label"
-			type="button"
-			class="rp-designer-tool-button"
+			:label="mode.label"
+			:icon="mode.icon"
 			:class="{ 'rp-designer-tool-active': runtime.activeToolId.value === mode.id }"
 			:aria-pressed="runtime.activeToolId.value === mode.id"
 			@click="runtime.setTool(mode.id)"
+		/>
+		<div
+			class="rp-designer-shape-tools"
+			role="group"
+			:aria-label="tr('designer.shapes.group')"
 		>
-			{{ tr(mode.label) }}
-		</button>
+			<DesignerToolButton
+				v-for="mode in SHAPE_MODES"
+				:key="mode.label"
+				:label="mode.label"
+				:icon="mode.icon"
+				:class="{ 'rp-designer-tool-active': runtime.activeToolId.value === mode.id }"
+				:aria-pressed="runtime.activeToolId.value === mode.id"
+				@click="runtime.setTool(mode.id)"
+			/>
+		</div>
+		<DesignerToolButton
+			v-for="mode in TRAILING_MODES"
+			:key="mode.label"
+			:label="mode.label"
+			:icon="mode.icon"
+			:class="{ 'rp-designer-tool-active': runtime.activeToolId.value === mode.id }"
+			:aria-pressed="runtime.activeToolId.value === mode.id"
+			@click="runtime.setTool(mode.id)"
+		/>
 		<DesignerSelectionModes v-if="runtime.activeToolId.value === 'select' && isOutlineSelection(designStore.selection)" />
 		<div class="rp-designer-history">
-			<button
-				type="button"
-				class="rp-designer-tool-button"
+			<DesignerToolButton
+				label="designer.toolbar.undo"
+				icon="undo-2"
 				:disabled="!runtime.canUndo.value"
 				@click="runtime.undo()"
-			>
-				{{ tr('designer.toolbar.undo') }}
-			</button>
-			<button
-				type="button"
-				class="rp-designer-tool-button"
+			/>
+			<DesignerToolButton
+				label="designer.toolbar.redo"
+				icon="redo-2"
 				:disabled="!runtime.canRedo.value"
 				@click="runtime.redo()"
-			>
-				{{ tr('designer.toolbar.redo') }}
-			</button>
+			/>
 		</div>
 		<DesignerViewMenu />
 	</div>

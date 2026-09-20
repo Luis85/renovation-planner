@@ -464,3 +464,19 @@ honest repair and leaving it unrecorded would make the rule decorative. **The le
 lease: a card that says "create a partial" has already granted the file that imports it, and the
 EDIT list has to say so.** `scripts/styles-assemble.mjs` refuses a partial no entry file imports, so
 the two are one action and cannot be leased apart.
+
+**Two wave-9 grants, issued 2026-09-20 during W9-A's fix round and written here in the same edit
+that makes them**, which is the rule the `styles/index.css` note above was the exception to:
+
+- `tests/presentation/designer/designerUsageScope.test.ts` — so AD18-R1's required check stops being
+  held by prose. The ruling obliges the mover to check the usage-scope block still reads as being
+  about the asset once the name is gone; the card's argument is correct in the template and NOTHING
+  asserts it, so a block inserted between the `Asset` heading and `DesignerUsageScope` would leave
+  every test green. That file already mounts with a context, so the block actually draws there.
+- `src/presentation/designer/inspector/DesignerUsageScope.vue` — so the stale count the card
+  self-reported (five mount sites, now six) is corrected in the same edit as the grep that measures
+  it, rather than left for an integrator to patch separately from the evidence.
+
+Both are narrow and neither is a widening of the card. The second exists because the alternative —
+the integrator fixing a count in a file the worker is not allowed to touch — splits a sentence from
+the measurement that produced it, which is the failure this repository names most often.

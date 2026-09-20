@@ -124,8 +124,14 @@ describe('every tool the toolbar offers', () => {
 	 * Select is back (symbols spec, Decision 10) — with its candidates (`hitDesign`) and its gesture
 	 * (`DesignerSelectTool`), the condition `registerDesignerTools.ts` set for returning it. This list
 	 * is updated deliberately with that change and stays EXACT.
+	 *
+	 * **The four drawing tools are NOT in it since AD18-R3**, and their absence here is half a
+	 * claim: this case says the toolbar does not draw them, and `designerAddRail.test.ts` says the
+	 * `Add` rail does, exactly once each. Deleting four names from a list is the shape of change
+	 * that can silently mean "these buttons are gone", which is why the other half is a case and
+	 * not this sentence.
 	 */
-	it('offers Pan, Select, every design tool, Undo and Redo, in that order', async () => {
+	it('offers Pan, Select, every non-drawing design tool, Undo and Redo, in that order', async () => {
 		const rig = await designerRig();
 		const labels = rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.text());
 		expect(labels).toEqual([
@@ -133,10 +139,6 @@ describe('every tool the toolbar offers', () => {
 			t('en', 'designer.toolbar.select'),
 			t('en', 'designer.toolbar.trace-footprint'),
 			t('en', 'designer.toolbar.trace-clearance'),
-			t('en', 'designer.toolbar.draw-rect'),
-			t('en', 'designer.toolbar.draw-rounded-rect'),
-			t('en', 'designer.toolbar.draw-circle'),
-			t('en', 'designer.toolbar.draw-line'),
 			t('en', 'designer.toolbar.trace-detail'),
 			t('en', 'designer.toolbar.set-anchor'),
 			t('en', 'designer.toolbar.set-facing'),

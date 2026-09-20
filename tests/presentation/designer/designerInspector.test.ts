@@ -26,12 +26,10 @@ import { editableShape } from '../../helpers/assetShapes';
 
 let setHeight: ReturnType<typeof vi.fn<(height: number | null) => Promise<DispatchResult>>>;
 let editDimensions: ReturnType<typeof vi.fn<() => Promise<void>>>;
-let startFromPreset: ReturnType<typeof vi.fn<() => Promise<void>>>;
 
 beforeEach(() => {
 	setHeight = vi.fn<(height: number | null) => Promise<DispatchResult>>().mockResolvedValue(ok('wrote'));
 	editDimensions = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-	startFromPreset = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 });
 
 /**
@@ -90,7 +88,6 @@ function mountInspector(
 			design: buildDesign(options),
 			setHeight,
 			editDimensions,
-			startFromPreset,
 			logger: recorder,
 			// Required, and never pressed by these cases: `designerReferenceView.test.ts` drives the gesture.
 			removeBackground: async (): Promise<void> => {},
@@ -191,13 +188,20 @@ describe('the designer’s inspector', () => {
 		expect(editDimensions).toHaveBeenCalledTimes(1);
 	});
 
-	it('offers a preset as a way to start or replace a design', async () => {
+	/**
+	 * **AD18-R6: the preset door LEFT this panel**, and this case is the ruling written to a check
+	 * rather than the old one deleted. That ruling refuses two STANDING controls answering one
+	 * question — the rail owns the way into a preset and the Inspector drops its copy — and a
+	 * second door re-added here would be exactly as green as no door at all if nothing asked.
+	 *
+	 * Where the door went and that it still works is `designerAddRail.test.ts`'s subject; this file
+	 * can only speak for the panel it mounts, which is why the sentence is an absence and not a
+	 * claim about the surface as a whole.
+	 */
+	it('draws no preset door of its own, which AD18-R6 moved into the Add rail', () => {
 		const wrapper = mountInspector();
 
-		expect(wrapper.find('.rp-designer-start-preset').text()).toBe(t('en', 'designer.inspector.start-preset'));
-		await wrapper.find('.rp-designer-start-preset').trigger('click');
-
-		expect(startFromPreset).toHaveBeenCalledTimes(1);
+		expect(wrapper.find('.rp-designer-start-preset').exists()).toBe(false);
 	});
 
 	it('commits a height on blur and keeps the typed value when the command refuses', async () => {

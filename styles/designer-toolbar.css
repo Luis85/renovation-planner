@@ -66,16 +66,16 @@
 }
 
 /*
- * The four drawing tools as one named group (`role="group"` in `DesignerToolbar.vue`). A flex row
- * of its own, sharing the toolbar's gap so the grouping is invisible to the eye and present to a
- * screen reader — the group EXISTS so that AD18 item 5 can lift it into the `Add` rail whole, and
- * a visible frame drawn now would have to be undrawn then.
+ * `.rp-designer-shape-tools` WAS here, and AD18 item 5 took it. Wave 10 wrote the four drawing
+ * tools into one named group so that this card could lift it into the `Add` rail whole, and said
+ * so in this rule's own comment; the group is in `DesignerAddPanel.vue` now under
+ * `.rp-designer-add-shapes`, and its rules are in `styles/designer-add.css`. The class is gone
+ * from the tree rather than left as a selector matching nothing — `grep -rn
+ * "rp-designer-shape-tools" src/ styles/ tests/` prints THREE lines after this edit and no
+ * element and no rule among them: these two sentences, and `designerIconToolbar.test.ts`'s
+ * assertion that the toolbar draws no such element. Written from what the grep printed rather
+ * than from what it was expected to print — the first draft of this paragraph said "nothing".
  */
-.rp-designer-shape-tools {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-}
 
 /*
  * ITEM 6: THE RAILS ARE CAPPED AT A SHARE OF THE LEAF, SO THE CANVAS NEVER FALLS BELOW HALF.

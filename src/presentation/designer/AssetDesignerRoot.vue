@@ -56,6 +56,7 @@ import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerHeader from './DesignerHeader.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
+import DesignerAddPanel from './DesignerAddPanel.vue';
 import DesignerPartsPanel from './parts/DesignerPartsPanel.vue';
 import DesignerEntryPaths from './DesignerEntryPaths.vue';
 import AssetPresetForm from './presets/AssetPresetForm.vue';
@@ -487,15 +488,30 @@ onMounted(() => {
 		</div>
 		<div class="rp-designer-body">
 			<!--
-				AD09's Parts region, FIRST in the body so its visual position at every width matches
-				its focus order — the concept board's "Parts left, properties right" (AD01 §3), and
-				the same stacking order the narrow container query keeps.
+				AD09's rail, FIRST in the body so its visual position at every width matches its
+				focus order — the concept board's "Parts left, properties right" (AD01 §3), and the
+				same stacking order the narrow container query keeps.
 
-				`design !== null` for `.rp-designer-inspector`'s reason: a loading leaf and a hard
-				failure both blank the design, and the region survives as an empty one rather than
-				drawing a list of parts nobody has read.
+				**It holds TWO panels since AD18 item 5, stacked and not tabbed (AD18-R5), and the
+				region div is still the one `.rp-designer-parts` the rest of the stylesheet knows.**
+				That is deliberate: `designer-parts.css` gives this div the rail's width, padding,
+				background and border, and `designer-narrow.css` and `designer-toolbar.css` each
+				name it again for the stacked layout and for item 6's cap. A wrapper element
+				introduced here would move all four of those and buy nothing the `Add` panel needs.
+				The class therefore names less than the div now holds, which is the honest cost of
+				not moving three container queries; a rename is its own change.
+
+				`design !== null` on the Parts panel alone, for `.rp-designer-inspector`'s reason: a
+				loading leaf and a hard failure both blank the design, and the region survives as an
+				empty one rather than drawing a list of parts nobody has read. **`DesignerAddPanel`
+				takes no such gate** — a shape button activates a tool, and the tools exist whether
+				or not a design has been read — which is AD18-R5's whole argument for stacking
+				rather than tabbing: a condition on one child and none on the other is a shape this
+				file already had, where a tab pair would have had to answer what `Parts` shows while
+				`design` is `null`.
 			-->
 			<div class="rp-designer-parts">
+				<DesignerAddPanel :start-from-preset="startFromPreset" />
 				<DesignerPartsPanel
 					v-if="design !== null"
 					:design="design"
@@ -574,7 +590,6 @@ onMounted(() => {
 					:set-height="runtime.commitHeight"
 					:remove-background="runtime.removeBackground"
 					:edit-dimensions="editDimensions"
-					:start-from-preset="startFromPreset"
 					:logger="context.logger"
 					:selection="selection"
 					:edit-shape="runtime.editShape"

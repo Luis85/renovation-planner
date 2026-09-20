@@ -16,3 +16,155 @@
  *
  * Imported above `designer-narrow.css`, which stays last so the stacking overrides still win.
  */
+
+/*
+ * The section itself: a block above `DesignerPartsPanel`, inside the one `.rp-designer-parts`
+ * region div that `designer-parts.css` already gives the rail's width, padding, background and
+ * scroll. Nothing here sets a width or a flex share, deliberately — `designer-narrow.css` stacks
+ * that div and `designer-toolbar.css` caps it, and a second opinion here would compete with both.
+ *
+ * A rule on the leading edge of the Parts panel below it rather than a border here, for the reason
+ * `designer.css` gives the unscaled warning: the two panels are one column, and a border under the
+ * last thing in the first panel is the same line as a border over the first thing in the second.
+ * It is written here because this is the element that knows it has a sibling under it.
+ */
+.rp-designer-add {
+	margin-block-end: var(--size-4-3);
+	padding-block-end: var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The four drawing tools, wrapping. `flex-wrap` for `.rp-designer-tools`'s measured reason one
+ * file over — a row that must reflow instead of overflow — and it matters more here: the rail's
+ * own declared width is `min(11rem, 22cqi)`, which is narrower at every leaf width than the
+ * toolbar this group came from.
+ */
+.rp-designer-add-shapes {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+/*
+ * ICON ONLY, AT EVERY WIDTH, WHICH IS THE ONE THING THAT DIFFERS FROM THE TOOLBAR'S TREATMENT.
+ *
+ * `styles/designer-toolbar.css` hides `.rp-designer-tool-label` below 80rem and draws it above,
+ * and that 80rem is a measurement of the TOOLBAR's row count — it says nothing about this rail.
+ * Applying it here would draw four labelled buttons at 80rem and wider inside a column whose own
+ * declared cap is `min(11rem, 22cqi)`; the integrator measured the widest of the four labels,
+ * `Draw rounded rectangle`, at 179px rendered at the wave-11 base, against 11rem = 176px of rail
+ * before its padding. So the labelled state is one this rail has no width for at any leaf size the
+ * cap admits, and it is declined rather than inherited.
+ *
+ * **Nothing here renders and nothing here is verified**: that 179px is a figure from the
+ * integrator's browser at the BASE, not from this branch, and jsdom resolves no `cqi`. What this
+ * rule guarantees is what it declares. The accessible name is untouched either way —
+ * `DesignerToolButton` carries the same string as `aria-label`, which is what Obsidian draws its
+ * own tooltip from, so this is a visual state and not a naming one.
+ *
+ * Unconditional rather than inside a query: it is a superset of the toolbar partial's narrow rule,
+ * at equal specificity and with the identical declaration, so the two cannot disagree wherever
+ * they overlap.
+ */
+.rp-designer-add .rp-designer-tool-label {
+	display: none;
+}
+
+/*
+ * The icon's own box. `designer-toolbar.css`'s equivalent is qualified with `.rp-designer-tools`
+ * and so reaches nothing here; ELEMENT-qualified for that file's stated reason — a `<summary>`
+ * carrying this class exists in the toolbar, and keeping both spellings the same shape is what
+ * lets a reader move between them.
+ */
+.rp-designer-add button.rp-designer-tool-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+/*
+ * REVIEWED CLONE of `designer.css`'s `.rp-designer-tools .rp-designer-tool-button`: this project's
+ * flat button is written once per COMPONENT and cannot be written once for all of them. That
+ * file's own paragraph is the canonical argument — a shared `.rp-flat-button` scores (0,1,0) and
+ * loses outright to Obsidian's `button:not(.clickable-icon)` at (0,1,1), so each rule must be a
+ * two-class compound naming its own component's class, and a selector list gathering them across
+ * PARTIALS would put each component's `:hover`/`:focus-visible` overrides at the mercy of
+ * `styles/index.css`'s import order.
+ */
+/* fallow-ignore-next-line code-duplication */
+.rp-designer-add .rp-designer-tool-button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+/*
+ * THE FOCUS RING, restored explicitly. The rule above sets `box-shadow: none`, which outranks
+ * Obsidian's `button:focus-visible`, and Obsidian's global `:focus { outline: none }` has already
+ * taken the outline — so without this a keyboard user would have no indicator at all. The accent
+ * rather than Obsidian's own, for the contrast measurement `designer.css` records against the 3:1
+ * WCAG 2.2 (1.4.11) floor.
+ */
+.rp-designer-add .rp-designer-tool-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-designer-add .rp-designer-tool-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/*
+ * The active tool wears the accent as an OUTLINE and not a fill, for `designer.css`'s measured
+ * reason: `--text-on-accent` is white and `--interactive-accent` measures under the 4.5:1 AA floor
+ * against it, so a filled accent button here could not carry a readable glyph. Three channels rather
+ * than the toolbar's four — the tint, the accent border and `aria-pressed` — because the label this
+ * rail does not draw is what carried the fourth.
+ */
+.rp-designer-add .rp-designer-tool-active,
+.rp-designer-add .rp-designer-tool-active:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-active-hover);
+	border-color: var(--interactive-accent);
+}
+
+/*
+ * The preset door (AD18-R6), which the Inspector drew until this card. It keeps the bordered
+ * full-width treatment it had there — the same control, moved — so a user who knew it in the
+ * inspector recognises it in the rail.
+ *
+ * REVIEWED CLONE of `designer.css`'s `.rp-designer-inspector .rp-designer-edit-dimensions`, which
+ * is the rule this one used to share a selector list WITH. It is a separate rule now for the same
+ * reason the flat button is: the two live in different partials, and a list spanning them would
+ * make each one's `:hover` and `:focus-visible` depend on import order.
+ */
+/* fallow-ignore-next-line code-duplication */
+.rp-designer-add .rp-designer-start-preset {
+	width: 100%;
+	margin: 0;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-designer-add .rp-designer-start-preset:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* The ring, for the reason the tool button's own `:focus-visible` comment gives above. */
+.rp-designer-add .rp-designer-start-preset:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}

@@ -192,9 +192,16 @@ const HELD_DRAGS = {
 /** Three clicks and no closing one: an open outline, which writes nothing until it is closed. */
 const TRACED_VERTICES = [[0.4, 0.4], [0.6, 0.4], [0.6, 0.6]] as const;
 
-/** Presses the REAL toolbar button with that label, in whatever language `?lang=` set. */
+/**
+ * Presses the REAL tool button with that label, in whatever language `?lang=` set.
+ *
+ * BOTH homes, exactly as `designerRig`'s `toolbarButton` resolves: AD18-R3 moved the four drawing
+ * tools into the `Add` rail, and `&draw=` names two of them (`draw-rect`, `draw-circle`). A
+ * selector naming the toolbar alone would leave every draw capture photographing a designer with
+ * no gesture — silently, since this function already answers an unfound button by doing nothing.
+ */
 function pressTool(view: AssetDesignerView, label: StringKey): void {
-	Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button'))
+	Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button, .rp-designer-add button'))
 		.find((candidate) => candidate.textContent?.trim() === tr(label))
 		?.click();
 }

@@ -121,6 +121,11 @@ const REGIONS = [
 	['.rp-designer-header', 'AD18 mounts DesignerHeader into it'],
 	['.rp-designer-toolbar', 'Task B5 mounts the designer toolbar into it'],
 	['.rp-designer-parts', 'AD09 mounts DesignerPartsPanel into it'],
+	// The `Add` half of the rail (AD18 item 5). It is a section INSIDE the rail div above rather
+	// than a fourth body column — AD18-R5 stacks the two — so it appears here as its own entry for
+	// the reason every entry is here: the list is what notices a region going missing, and
+	// `.rp-designer-parts` would go on existing with the Add panel silently unmounted.
+	['.rp-designer-add', 'AD18 item 5 mounts DesignerAddPanel into it'],
 	['.rp-designer-canvas', 'Task B4 mounts DesignerCanvas into it'],
 	['.rp-designer-inspector', 'Task B8 mounts DesignerInspector into it'],
 	['.rp-designer-status', 'the Shift hint, the zoom and the grid step draw in it'],

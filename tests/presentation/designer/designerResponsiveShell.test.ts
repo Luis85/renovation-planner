@@ -158,10 +158,12 @@ describe('the asset designer rendered at a leaf’s width', () => {
 	/**
 	 * The designer's front door: a shapeless asset draws `DesignerEntryPaths` into the empty
 	 * state's `#actions` slot. They are the way into a design FROM THE EMPTY STATE, not the only
-	 * way into one at all — `DesignerInspector.vue` renders the same `designer.inspector.start-preset`
+	 * way into one at all — `DesignerAddPanel.vue` renders the same `designer.inspector.start-preset`
 	 * door on `.rp-designer-start-preset`, which is what `grep -rn "start-preset"
 	 * src/presentation/designer/` prints beside this one; a first draft of this docblock said
-	 * "only" and was wrong.
+	 * "only" and was wrong. **That second door was the INSPECTOR's until AD18-R6 moved it into the
+	 * `Add` rail** — the grep prints one standing copy either way, so the sentence's shape survives
+	 * the move and only the file name changes.
 	 *
 	 * **The LABELS are pinned, not the mere presence of something.** A first version asserted
 	 * `actions.length > 0` under a sentence claiming it asserted every path, which deleting

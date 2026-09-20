@@ -165,6 +165,9 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.add.door.description': 'Eine Öffnung zwischen zwei Räumen',
 	'editor.add.window.label': 'Fenster',
 	'editor.add.window.description': 'Eine Öffnung für Licht und Luft',
+	// Owner-supplied, 2026-09-20 (L-15 is satisfied for this string and this string only). It is
+	// exactly the plural of `editor.area.edit-corner` below, which is what corroborates it.
+	'editor.area.outline': 'Eckpunkte bearbeiten',
 	'editor.area.coordinates': 'Eckpunkte numerisch eingeben',
 	'editor.area.coordinates-hint': 'Positionen in Metern ab dem Planursprung (0, 0): X steigt nach rechts, Y nach unten. Null und negative Werte sind erlaubt. Dezimalpunkt oder Komma verwenden; die Eingabe wird auf ganze Millimeter gerundet.',
 	'editor.area.corner': 'Eckpunkt {n}',

@@ -181,6 +181,14 @@ export const editorEn = {
 	'editor.add.door.description': 'An opening between two rooms',
 	'editor.add.window.label': 'Window',
 	'editor.add.window.description': 'An opening for light and air',
+	// BP-04 slice B's one new string, owner-supplied on 2026-09-20. The label of the door that
+	// opens the numeric outline editor, at BOTH doors (the zone context menu and the Inspector),
+	// exactly as `editor.area.details` labels `createAreaDetailsAction`'s two. Named `outline`
+	// rather than `edit-corners` because `editor.area.edit-corner` — SINGULAR and parameterised
+	// by `{n}` — is one of six `corner`-stemmed keys three lines below, and a seventh differing
+	// from one of them by a single `s` is a mix-up no gate can see; `outline` also names the
+	// module that produces it (`zoneOutlineAction.ts`, `runtime.zoneOutline`).
+	'editor.area.outline': 'Edit corners',
 	'editor.area.coordinates': 'Enter corner coordinates',
 	'editor.area.coordinates-hint': 'Positions in metres from the plan origin (0, 0), with X increasing to the right and y downwards. Zero and negative values are allowed. Use a decimal point or comma; input rounds to whole millimetres.',
 	'editor.area.corner': 'Corner {n}',

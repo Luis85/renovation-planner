@@ -138,11 +138,19 @@ function reorder(id: string, direction: 'forward' | 'backward'): void {
 
 <template>
 	<!--
-		No class here: this `<section>` is the whole content of `AssetDesignerRoot.vue`'s
-		`.rp-designer-parts` div, which already carries the width, the padding, the background and
-		the border — exactly the split `DesignerInspector`'s own `<aside>` takes, and for the same
-		reason: an own class here would style nothing and `libraryComponentStyles.test.ts` would be
-		right to flag it undeclared. Kept as a landmark for its `aria-label`.
+		No class here. `AssetDesignerRoot.vue`'s `.rp-designer-parts` div carries the width, the
+		padding, the background and the border, so an own class here would style nothing and
+		`libraryComponentStyles.test.ts` would be right to flag it undeclared — exactly the split
+		`DesignerInspector`'s own `<aside>` takes, for the same reason. Kept as a landmark for its
+		`aria-label`.
+
+		**This `<section>` stopped being the WHOLE content of that div at AD18 item 5**, which is
+		what this comment used to claim: `DesignerAddPanel` is stacked above it in the same region
+		under AD18-R5. The split is unchanged and so is the reason for it — the div still owns the
+		box — but the two siblings are no longer symmetrical about it, and `DesignerAddPanel` DOES
+		carry a class, because `styles/designer-add.css` declares rules for one. A class is owed
+		where rules exist for it and refused where none do; that is the rule, and "this is the only
+		child" never was.
 	-->
 	<section :aria-label="tr('designer.parts')">
 		<h2 class="rp-designer-panel-title">

@@ -64,8 +64,11 @@ async function markReviewed(): Promise<void> {
 			**`.rp-designer-selection-button`, and NO new selector — this card spends none of the
 			twelve lines `styles/designer.css` has left.** Its lease anticipated one more flat
 			inspector button joining
-			`.rp-designer-{edit-dimensions,start-preset,open-library,use-plan}` at three lines. That
-			is the wrong family, measured against where this control actually sits: those four are
+			`.rp-designer-{edit-dimensions,start-preset,open-library,use-plan}` at three lines —
+			a family that has since been taken apart, each member following its button out of the
+			inspector, so that `designer.css` now spells only `.rp-designer-edit-dimensions` there
+			(`DesignerUsePlan.vue` records where the others went). The refusal below is unaffected
+			and reads the same either way. That family was
 			panel-level actions standing directly in the `<aside>`, full width with a bottom margin,
 			while this one is inside a `.rp-designer-clearance` section — and the button already in
 			that exact section, `DesignerClearanceHelper`'s `generate-clearance`, is a

@@ -22,12 +22,15 @@ import type { DESIGNER_TOOL_LABELS } from './registerDesignerTools';
  * as an excess property. Both arms were driven with `@ts-expect-error` probes at W10-A's review
  * rather than reasoned about.
  *
- * **`group` exists for wave 11 rather than for the card that added it.** The user's wave-10
- * ruling is that the Basic-shape buttons MOVE into the `Add` rail; that rail does not exist yet,
- * so the four are drawn in the toolbar inside one named group. Wave 11 changes where the
- * `'shape'` rows are DRAWN and nothing about what they are — which is why the discriminator is a
- * field of this table rather than a list written out in a template. The tool table itself does
- * not move, so a tool stays registered and reachable however its button travels.
+ * **`group` existed for wave 11 rather than for the card that added it, and wave 11 has
+ * landed.** The user's wave-10 ruling (AD18-R3) is that the Basic-shape buttons MOVE into the
+ * `Add` rail. They did: `DesignerAddPanel.vue` filters this table on `group === 'shape'` and
+ * `DesignerToolbar.vue` filters on its complement, so the four are drawn in the rail and the rest
+ * in the toolbar, and every registered tool is drawn exactly once because the two predicates
+ * partition a two-valued field. `designerAddRail.test.ts` pins that against THIS table rather
+ * than against either template. The tool table itself did not move, so a tool stays registered
+ * and reachable however its button travels — which was the point of putting the discriminator
+ * here instead of writing a list out in a template.
  *
  * Three of these names have no harness fixture: `tests/fixtures/editor-icons/` holds no `circle`,
  * no `squircle` and no `anchor`, so `npm run harness` marks those three `data-icon-missing`
@@ -39,10 +42,15 @@ import type { DESIGNER_TOOL_LABELS } from './registerDesignerTools';
  * red rather than passing unnoticed.
  *
  * **Every glyph is distinct, and that is a rule rather than an accident**: once the label is
- * hidden (`styles/designer-toolbar.css`, below 80rem) the glyph is the only thing that tells two
- * buttons apart on screen, and reusing one would ship two controls that look identical and do
- * different things with every label-reading test still green. `designerIconToolbar.test.ts` is
- * what refuses it.
+ * hidden the glyph is the only thing that tells two buttons apart on screen, and reusing one
+ * would ship two controls that look identical and do different things with every label-reading
+ * test still green. `designerIconToolbar.test.ts` is what refuses it.
+ *
+ * **TWO partials hide a label now, under different conditions, which is why that sentence no
+ * longer names one.** `styles/designer-toolbar.css` hides it below 80rem;
+ * `styles/designer-add.css` hides the rail's at EVERY width. So the `'shape'` rows are in the
+ * state this rule guards against permanently and the others only at a narrow leaf — distinctness
+ * got strictly harder to satisfy at AD18 item 5, not easier.
  */
 export const DESIGNER_TOOL_ICONS = {
 	select: { icon: 'mouse-pointer-2', group: 'tool' },

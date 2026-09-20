@@ -62,13 +62,23 @@ const placeable = computed(() => props.design.dimensions !== null && !props.desi
 
 <template>
 	<!--
-		**The class and its rules landed together, which was the whole of the ask.** This button is
-		the fourth flat inspector button, styled with its three siblings by
-		`.rp-designer-inspector .rp-designer-{edit-dimensions,start-preset,open-library,use-plan}`
-		in `styles/designer.css` — base, `:hover` and `:focus-visible`, three rules, one class name
-		added to each. It had to be one change: `tests/build/libraryComponentStyles.test.ts` refuses
-		a class the assembled sheet does not declare, so the class alone would have been a red gate
-		and the rules alone would have styled nothing. `data-rp-action` remains what the suites
+		**The class and its rules landed together, which was the whole of the ask**, and it had to
+		be one change: `tests/build/libraryComponentStyles.test.ts` refuses a class the assembled
+		sheet does not declare, so the class alone would have been a red gate and the rules alone
+		would have styled nothing.
+
+		**WHERE those rules live has moved twice since, and this comment named the old place for
+		two waves.** It said this was "the fourth flat inspector button, styled with its three
+		siblings by `.rp-designer-inspector .rp-designer-{edit-dimensions,start-preset,open-library,use-plan}`
+		in `styles/designer.css`". That family has been taken apart, each member following its
+		button: AD18 moved this component into the header, where `DesignerHeader.vue` mounts it and
+		`styles/designer-header.css` styles it as `.rp-designer-title-bar .rp-designer-use-plan`
+		beside `.rp-designer-open-library`; and AD18-R6 moved `.rp-designer-start-preset` to the
+		`Add` rail. `grep -rn "rp-designer-use-plan" styles/` prints FIVE lines in this edit: three
+		selectors in `designer-header.css` (base, `:hover`, `:focus-visible`), and two comment
+		lines, one in each partial, recording the move — none of the five under
+		`.rp-designer-inspector`. The component still lives under `inspector/`,
+		which is the last thing about the old arrangement that is still true. `data-rp-action` remains what the suites
 		select on, the same attribute the multiple-selection checkbox above uses — a class is for
 		appearance and an action attribute is for identity, and neither stands in for the other.
 	-->

@@ -17,8 +17,16 @@
  * the visible text and for `aria-label`, so iconifying a button adds no copy at all. What has no
  * key yet is the shape GROUP the toolbar now draws around the four drawing tools, and it is named
  * `designer.shapes.*` rather than `designer.toolbar.*` deliberately: the user's wave-10 ruling
- * moves those buttons into AD18 item 5's `Add` rail, so the group outlives the toolbar it is
- * currently drawn in and a toolbar-shaped key would be wrong the moment wave 11 lands.
+ * moves those buttons into AD18 item 5's `Add` rail, so the group outlives the toolbar it was
+ * then drawn in and a toolbar-shaped key would be wrong the moment wave 11 landed.
+ *
+ * **It landed.** `DesignerAddPanel.vue` draws the group now and this key travelled with it
+ * unchanged, which is the whole of what naming it this way bought. **The prediction was right
+ * about exactly one key and was later read as though it covered four.** The four BUTTON labels
+ * are still `designer.toolbar.draw-rect` / `-rounded-rect` / `-circle` / `-line` in
+ * `DESIGNER_TOOL_LABELS`; they are drawn in the rail under toolbar-shaped names, and wave 11
+ * deliberately did not rename them — `en/designerAdd.ts` carries that argument. A locale key is
+ * data nothing is bound to, so a stale one is churn to fix rather than breakage to leave.
  */
 export const designerToolbarIconsEn = {
 	'designer.shapes.group': 'Basic shapes',

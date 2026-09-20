@@ -115,8 +115,9 @@
  * paragraph to sever: `.rp-task-banner__cancel`/`__finish` in `editor-task-bar.css` and
  * `.rp-overlay-panel__close`/`.rp-inspector-drawer__close` in `editor-layout.css`.
  */
-/* fallow-ignore-next-line code-duplication */
 .rp-designer-tools .rp-designer-tool-button {
+	/* Above the DECLARATION, never the selector; `designer-add.css` carries the measurement. */
+	/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);

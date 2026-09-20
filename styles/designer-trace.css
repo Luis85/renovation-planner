@@ -13,9 +13,10 @@
  * `.rp-designer-tool-button`, which is W10-A's icon toolbar. One file in two rows is the thing
  * this package's lease table exists to prevent.
  *
- * `styles/designer.css` was not an option either: it was 397 lines against the 400-line cap when
- * this was written, and is 398 since AD18 item 5. The argument is the cap, not the figure — read
+ * `styles/designer.css` was not an option either: it sat a few lines under the 400-line cap when
+ * this was written and has moved twice since. The argument is the CAP, not the figure — read
  * `wc -l styles/designer.css` rather than any number written down here or in a sibling partial.
+ * Three partials stated 397 and all three were falsified by one comment added to that file.
  */
 
 /*

@@ -2,8 +2,9 @@
  * The asset designer's header bar and the Inspector's tab strip — AD18 items 2 and 4.
  *
  * Its OWN partial rather than more of `styles/designer.css`, measured rather than preferred: that
- * file stood at 397 lines against `scripts/styles-assemble.mjs`'s 400-line cap (398 since AD18
- * item 5; still under it, and the reason below is the cap rather than the number), so these rules do
+ * file stood close under `scripts/styles-assemble.mjs`'s 400-line cap — 397 lines then, and it has
+ * moved twice since, so read `wc -l styles/designer.css` rather than any figure written here or in
+ * a sibling partial. The reason below is the CAP, not the number — so these rules do
  * not fit in it. That is the same budget that produced `designer-object.css`, `editor-status.css`
  * and `editor-requirements.css`.
  *

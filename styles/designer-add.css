@@ -9,9 +9,10 @@
  * is the same application, for a wave that happens to have one card. It is done anyway, because
  * the reason is the assembler's rule rather than the number of cards.
  *
- * Its own partial rather than more of a sibling: `styles/designer.css` stands at 398 lines against
- * the assembler's 400-line cap (`wc -l`, in the edit that made it 398 — it was 397 when this
- * header was written, and this card's own comment rewrite is the one line), `designer-parts.css`
+ * Its own partial rather than more of a sibling: `styles/designer.css` sits a handful of lines
+ * under the assembler's 400-line cap and has moved three times in this wave alone, so read
+ * `wc -l styles/designer.css` — FIVE partials have carried a figure for that file and every one of
+ * them was falsified by somebody adding a comment to it. `designer-parts.css`
  * describes the panel the Add section sits
  * ABOVE rather than the section itself, and `designer-presets.css` describes the modal gallery,
  * which this card does not move.
@@ -95,8 +96,15 @@
  * PARTIALS would put each component's `:hover`/`:focus-visible` overrides at the mercy of
  * `styles/index.css`'s import order.
  */
-/* fallow-ignore-next-line code-duplication */
 .rp-designer-add .rp-designer-tool-button {
+	/*
+	 * INSIDE the block, above the declaration the clone starts at, because
+	 * `fallow-ignore-next-line` means the next line LITERALLY and the SELECTOR line sits
+	 * between a directive above it and the first declaration. Placed above the selector this
+	 * suppressed nothing, which is measured rather than reasoned: CI at `1343cf4e5` reported
+	 * this very block as a clone instance one line below where the directive was.
+	 */
+	/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);

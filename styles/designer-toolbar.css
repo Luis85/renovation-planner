@@ -4,8 +4,9 @@
  * on three wrapped rows of text while the canvas — the only region that absorbs any loss — was
  * down to 180px, narrower than the inspector beside it.
  *
- * A partial of its own rather than more of `designer.css`, which stands at 398 lines against the
- * assembler's 400-line cap (`wc -l`, re-measured at AD18 item 5). Obsidian variables only (SDD
+ * A partial of its own rather than more of `designer.css`, which sits just under the assembler's
+ * 400-line cap — `wc -l` it rather than trusting this sentence, which has been wrong twice.
+ * Obsidian variables only (SDD
  * §84), so a themed vault stays themed;
  * the build refuses a literal colour here.
  */

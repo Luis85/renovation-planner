@@ -38,14 +38,32 @@
  * **One `<p>` per pending group rather than one sentence listing them**, because a list joined
  * in a template is a translated fragment concatenated with another — what `strings.ts` refuses.
  *
- * It draws nothing for an asset that has no sheet, no calibration and nothing pending: typing a
- * width and a depth is a whole path through this designer that never touches a reference, and a
- * block of "none" rows would be noise on every asset that took it.
+ * **The FACTS block draws nothing for an asset that has no sheet, no calibration and nothing
+ * pending**, and that is still right: typing a width and a depth is a whole path through this
+ * designer that never touches a reference, and a block of "none" rows would be noise on every asset
+ * that took it.
+ *
+ * **What was wrong is that the whole component then drew nothing, and since AD18-R2 this component
+ * is the entire Reference TAB PANEL.** `DesignerInspector.vue`'s own template comment recorded that
+ * gap: an asset typed from dimensions with no sheet selected the Reference tab and got an empty
+ * panel. So `DesignerTraceChecklist` is a SIBLING of the facts block rather than a child of it —
+ * it draws in every state, which is what makes the panel never empty, and in exactly the state that
+ * was blank it is the whole answer: step one, `Choose a sheet`, marked as the current step. That is
+ * a better sentence than the line the gap note asked for, because it says what to do rather than
+ * only what is missing.
+ *
+ * **The facts block stays FIRST.** A user who has a sheet came here for the sheet; the guide is
+ * what is left once those facts are read, and in the state where there are no facts it is the only
+ * thing drawn anyway. Both sections head themselves with an `<h3>` — the SAME level, deliberately,
+ * because the facts block is the one that disappears: a guide headed `<h4>` would be the panel's
+ * first heading in exactly that state, which is the jump axe's `heading-order` reports.
+ * `designerTraceChecklist.test.ts` pins the pair in order.
  */
 import { computed } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
+import DesignerTraceChecklist from './DesignerTraceChecklist.vue';
 
 const props = defineProps<{ design: AssetDesignDto; removeBackground: () => Promise<void> }>();
 
@@ -131,4 +149,17 @@ const relevant = computed(
 			{{ tr('designer.reference.pending.hint') }}
 		</p>
 	</section>
+	<!--
+		Outside the `v-if` on purpose (AD18 item 7). The guide is the one thing this panel owes an
+		asset that has no reference at all, so it is a second root rather than a section inside the
+		one that is allowed to disappear.
+
+		`pending.length` rather than the list: the checklist's last step asks only whether ANY
+		coordinate group is still in sheet pixels, and the four sentences naming which ones are the
+		block above's job.
+	-->
+	<DesignerTraceChecklist
+		:design="design"
+		:pending-count="pending.length"
+	/>
 </template>

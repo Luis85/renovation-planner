@@ -15,3 +15,52 @@
  *
  * `styles/designer.css` was not an option either: it is 397 lines against the 400-line cap.
  */
+
+/*
+ * The guide's own block, spaced exactly like the three AD12 blocks `designer-selection.css`
+ * groups (`.rp-designer-reference`, `.rp-designer-placement`, `.rp-designer-clearance`): it is a
+ * sibling of those in the same rail and a fourth spacing would read as a different kind of thing.
+ * Restated here rather than joined to that group's selector list because that file is card W10-A's
+ * lease, and a rule split across two partials is worse than a repeated one.
+ */
+.rp-designer-trace {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: var(--size-4-4) 0 0;
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * An `<ol>`, so the step NUMBERS come from the list itself and no template counts them. The
+ * inline padding is what leaves the markers room inside a 224 px rail.
+ */
+.rp-designer-trace-steps {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	margin: 0;
+	padding-inline-start: var(--size-4-5);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+/*
+ * Finished, current and still-to-do, in three declarations and no colour-only cue: the strike is
+ * what a colour-blind reader sees on a finished step and the weight is what they see on the
+ * current one. Neither reaches a screen reader, which is why the row carries `aria-current` and a
+ * visually hidden `Done`.
+ *
+ * Keyed off `aria-current` rather than a second data attribute: the state is already in the
+ * markup for the accessibility tree, and a class beside it would be a second place to forget.
+ */
+.rp-designer-trace-step[data-rp-done="true"] {
+	color: var(--text-faint);
+	text-decoration: line-through;
+}
+
+.rp-designer-trace-step[aria-current="step"] {
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
+}

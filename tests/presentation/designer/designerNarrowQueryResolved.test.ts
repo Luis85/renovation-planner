@@ -15,12 +15,30 @@
  * declared correctly and reach nothing, and a rule can reach a control while declaring
  * something no case in `designerStyles.test.ts` asked about.
  *
- * **The blind spot is EMPTY today and this file found no defect.** The narrow block declares
- * `flex-direction`, `flex`, `width` and four `border-*` properties and contains no `display`,
- * `visibility` or `content-visibility` at all — which `designerResponsiveShell.test.ts` already
- * states and which the `describe` below re-measures rather than trusting. So the claim here is
- * a GUARD against a future hiding declaration, not a discovery, and every sentence in this file
- * is written that way.
+ * **The blind spot is EMPTY IN THE PARTIAL THIS FILE READS, and that is no longer the same claim
+ * as "empty on this surface".** The narrow block declares `flex-direction`, `flex`, `width` and
+ * four `border-*` properties and contains no `display`, `visibility` or `content-visibility` at
+ * all — which `designerResponsiveShell.test.ts` already states and which the `describe` below
+ * re-measures rather than trusting. So the claim here is a GUARD against a future hiding
+ * declaration, not a discovery, and every sentence in this file is written that way.
+ *
+ * **What changed, recorded here rather than left for the next reader to discover.** AD18 item 3
+ * shipped the FIRST `display: none` in this repository that reaches a designer toolbar control at
+ * a narrow leaf: `styles/designer-toolbar.css` hides `.rp-designer-tool-label` under
+ * `@container rp-designer (width < 80rem)`, so at 520 px a label is hidden by a partial this file
+ * does not read. Nothing here is red and nothing should be — the control keeps its accessible name
+ * through `aria-label` at every width, and a label is not itself a control, which is the whole
+ * reason that design is allowed. But the sentence above used to read as "no rule hides anything on
+ * this surface", and that is now false; it is narrowed to what this file actually measures.
+ *
+ * **Widening the read to every `styles/designer*.css` partial was considered and is NOT taken
+ * here**, because it changes what this instrument IS. This file resolves ONE partial's container
+ * query and throws on a condition shape it cannot read; a sweep over six partials would have to
+ * decide what to do with rules that legitimately hide things, and the first thing it would report
+ * is the deliberate label rule above. That is a different instrument with a different argument, and
+ * building it inside a sentence-correcting edit would be the widening-without-a-decision this
+ * repository refuses. The honest state is: the guard is real, its scope is one partial, and the
+ * surface now has a hiding declaration outside it.
  *
  * **Which of the two real-sheet cases is the stronger one is stated at each of them, and it is
  * not the mounted one.** Reading the block's DECLARATIONS catches strictly more than applying

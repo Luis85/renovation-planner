@@ -185,6 +185,29 @@ the concepts is of an object the user cannot make.
 - **`Used in plans` wraps badly at 224 px** — `Loft conversion — 1 placement(s)` renders over two
   lines with the hyphen orphaned, and the copy is the untranslated plural spelling
   `placement(s)`. Visible in both themes.
+
+  **AMENDED 2026-09-20, wave 10 integration: the 224 px half of that sentence is NOT reproducible,
+  and the wrap threshold is measured.** Rendered in a browser against the running harness, which is
+  the only instrument here that lays text out: at a **224 px** rail the row is **one line** (row box
+  191 × 16) with room to spare. Narrowing the rail directly, the second line appears between **224
+  and 210 px** — one line at a 191 px row box, two at 177 px. So at the width this bullet names, it
+  does not wrap.
+
+  What IS true is the copy defect: `placement(s)` is an untranslated plural spelling, and that half
+  stands unamended. The orphaned hyphen was not re-checked, because the state it was reported in
+  does not occur at the stated width.
+
+  **This matters beyond the bullet, because W10-A's review reasoned FROM it.** That review read this
+  sentence and concluded the item-6 rail caps make "a known-bad thing 30 % worse". The measurement
+  says something different and slightly worse: the caps put the rail at 157–224 px across 560–800,
+  so they **INTRODUCE** the second line across that whole band rather than deepening an existing
+  one. It remains a 1 → 2 line reflow with no overflow and no clipping, against a canvas that goes
+  from 31.0 % to 50.0 % of the shell at 580 — the trade is still worth taking, and it is now
+  measured rather than estimated at both ends.
+
+  Where the original reading may have come from, left as a question rather than a claim: a 460 px
+  leaf, where `designer-narrow.css` stacks the columns and the inspector is no longer 224 px at all.
+  Nobody has re-measured that width, so nobody should say.
 - **`Show grid` defaults off.** A measurement surface opens with no visible scale reference and no
   zoom readout at the same time. Neither alone is a defect; together they are what makes the empty
   canvas read as a blank void rather than a drawing board.

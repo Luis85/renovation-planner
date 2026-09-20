@@ -187,8 +187,9 @@
 
 /* REVIEWED CLONE: the bordered variant, `.rp-unsupported-width__action` — the flat button is per-component by
    necessity; the argument is on `.rp-designer-tool-button` in `styles/designer.css`. */
-/* fallow-ignore-next-line code-duplication */
 .rp-unsupported-width .rp-unsupported-width__action {
+	/* Above the DECLARATION, never the selector; `styles/designer-add.css` carries the measurement. */
+	/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);

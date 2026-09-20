@@ -93,9 +93,9 @@
  */
 /*
  * REVIEWED CLONE, and the canonical statement of why — every other instance points here.
- * `fallow-ignore-next-line code-duplication` below, at this and at four sibling rules
- * (`.rp-context-bar__button`, `.rp-primary-actions__button`, `.rp-layer-list__action`,
- * `.rp-unsupported-width__action`, `.rp-designer-edit-dimensions`).
+ * `fallow-ignore-next-line code-duplication` below — ELEVEN directives on TEN rules across seven
+ * partials, counted and not listed, because this sentence said "four" while spelling five and then
+ * predated two more. `grep -rn "fallow-ignore-next-line code-duplication" styles/` is the list.
  *
  * This project's flat button is written once per COMPONENT and cannot be written once for all
  * of them. A shared `.rp-flat-button` scores (0,1,0) and loses outright to Obsidian's own

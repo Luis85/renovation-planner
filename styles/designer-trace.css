@@ -64,3 +64,30 @@
 	color: var(--text-normal);
 	font-weight: var(--font-medium);
 }
+
+/*
+ * **The current step's NUMBER, which does not follow its label and has to be told.** Measured in a
+ * browser against the real assembled sheet and Obsidian's own, at a 224 px rail in both schemes —
+ * the only instrument here that can see it, since jsdom lays nothing out.
+ *
+ * `font-weight` reaches `::marker` by inheritance already (measured: the current row's marker
+ * computes 500 with no rule of its own). `color` does NOT, and not because inheritance is refused:
+ * Obsidian's own sheet sets `ol > li::marker { color: var(--list-marker-color) }`, and an explicit
+ * declaration beats an inherited value. So the row above brightened its words and left its number
+ * behind — `rgb(218,218,218)` against `rgb(102,102,102)` in dark, and a starker `#222222` against
+ * `#ababab` in light, which is the weakest possible rendering of the one cue this block exists to
+ * give.
+ *
+ * **The done state deliberately gets NO matching rule.** `--list-marker-color` measures identical
+ * to `--text-faint` in both of Obsidian's default schemes (`rgb(102,102,102)` dark, `#ababab`
+ * light), so a finished row's number already reads as faint as its struck label, and a rule here
+ * would be one that changes nothing today. Where the two diverge is a custom theme, and there the
+ * host's own marker colour is the answer this project defers to rather than overrides.
+ *
+ * What this still cannot fix, stated rather than left to be discovered: `text-decoration` does not
+ * apply to `::marker` at all, so the strike crosses a finished row's WORDS and never its number.
+ * The label carries that cue alone.
+ */
+.rp-designer-trace-step[aria-current="step"]::marker {
+	color: var(--text-normal);
+}

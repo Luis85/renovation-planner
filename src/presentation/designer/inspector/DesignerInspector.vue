@@ -242,9 +242,16 @@ const dimensionsLabel = computed(() =>
  *   stop, and the strip does not take that role away.
  *
  * **Each PANEL carries `tabindex="0"`, which the APG asks for exactly when a panel may hold no
- * focusable content — and this one may.** `DesignerReferenceStatus` draws nothing at all for an
- * asset typed from dimensions with no sheet, so without this a keyboard user selects Reference and
- * the next Tab leaves the Inspector entirely, with nothing focused and nothing announced in between.
+ * focusable content — and this one may.** The attribute is still right and its ORIGINAL REASON IS
+ * DEAD, which is worth separating because the next reader who checks the old one will find it false
+ * and may take the attribute with it. That reason was that `DesignerReferenceStatus` drew nothing at
+ * all for an asset typed from dimensions with no sheet; since AD18 item 7 it draws a five-row trace
+ * checklist in exactly that state, so the panel is never empty any more.
+ *
+ * What keeps the attribute is the weaker but still sufficient claim: the checklist is an `<ol>` of
+ * `<li>`s and the facts block is a `<dl>` of text, so the Reference panel can hold no FOCUSABLE
+ * content even when it is full. Without `tabindex="0"` a keyboard user selects Reference and the
+ * next Tab leaves the Inspector entirely, with nothing focused and nothing announced in between.
  * axe does not check this rule, so it is here on the APG's authority rather than a gate's. It costs
  * one extra Tab stop per panel, which is the trade the APG already makes.
  *
@@ -549,11 +556,18 @@ function onTabKeydown(event: KeyboardEvent): void {
 			The reference sheet and its scale — the half a user is not looking at while drawing, which
 			is what makes it a tab of its own rather than a section (AD18-R2).
 
-			`DesignerReferenceStatus` decides on its own whether it has anything to say, and for an
-			asset typed from dimensions with no sheet the answer is nothing — so this panel is EMPTY
-			in that state. That is the one place this card left short of the ruling's spirit: the
-			honest fix is a line inside that component saying there is no sheet yet, and that file is
-			outside this card's lease.
+			**This panel used to be EMPTY for an asset typed from dimensions with no sheet, and it is
+			not any more** (AD18 item 7). `DesignerReferenceStatus` still decides on its own whether
+			its FACTS block has anything to say — and for that asset the answer is still nothing — but
+			the trace checklist is a SIBLING of that block rather than a child, so it draws in every
+			state. In the state that was blank it is the whole answer, with `Choose a sheet` marked
+			current.
+
+			The fix W9-A predicted here was "a line inside that component saying there is no sheet
+			yet". It is recorded as PREDICTED AND NOT TAKEN: a guided five-step sequence answers the
+			same question and also says what to do next, so no such line and no such key exists. The
+			prediction is left visible rather than deleted, because a card that names its own gap
+			precisely enough for the next card to close it is the mechanism working.
 		-->
 		<div
 			v-show="activeTab === 'reference'"

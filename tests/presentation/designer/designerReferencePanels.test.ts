@@ -92,7 +92,13 @@ async function type(wrapper: VueWrapper, name: string, value: string): Promise<v
 }
 
 describe('the reference status block', () => {
-	it('draws nothing at all for an asset typed from dimensions with no sheet', () => {
+	// The FACTS BLOCK is what draws nothing here, and since AD18 item 7 that is no longer the whole
+	// component: the trace checklist is a SIBLING of this block, so the Reference panel itself draws
+	// five rows in exactly this state. This case measures the block's own predicate, which is
+	// unchanged and still right — a block of "none" rows would be the noise its docblock always said
+	// it would be. The name used to say "draws nothing at all" and stopped being true the moment the
+	// checklist landed beside it.
+	it('draws no reference FACTS block for an asset typed from dimensions with no sheet', () => {
 		const design = assetDesign({ background: null, calibration: null });
 		const wrapper = mount(DesignerReferenceStatus, { props: { design, removeBackground } });
 		expect(wrapper.find('.rp-designer-reference').exists()).toBe(false);

@@ -197,13 +197,30 @@ const TRACED_VERTICES = [[0.4, 0.4], [0.6, 0.4], [0.6, 0.6]] as const;
  *
  * BOTH homes, exactly as `designerRig`'s `toolbarButton` resolves: AD18-R3 moved the four drawing
  * tools into the `Add` rail, and `&draw=` names two of them (`draw-rect`, `draw-circle`). A
- * selector naming the toolbar alone would leave every draw capture photographing a designer with
- * no gesture — silently, since this function already answers an unfound button by doing nothing.
+ * selector naming the toolbar alone would have left every draw capture photographing a designer
+ * with no gesture.
+ *
+ * **And a button this cannot find is REFUSED, loudly, rather than skipped** — which is the half
+ * that made the selector hazard dangerous in the first place. `?.click()` answered a miss by doing
+ * nothing, so `harness-shot` would have written `asset-designer-draw-rect.png` showing an idle
+ * canvas and exited 0, with the picture then read as evidence about a gesture nobody performed.
+ * That is a fake kinder than the real thing, and `drawInHarness` immediately below already refuses
+ * an unknown `&draw=` value for the identical reason in its own words — this repository was
+ * testing the loud refusal one level up and permitting silence one level down, one function apart.
+ *
+ * `console.error` rather than a throw, matching that function: `harness-shot` records a console
+ * error as a failure, and a throw here would take down the whole page render instead of the one
+ * capture. `designerRig.toolbarButton` throws because a suite has somewhere to put a stack trace.
  */
 function pressTool(view: AssetDesignerView, label: StringKey): void {
-	Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button, .rp-designer-add button'))
-		.find((candidate) => candidate.textContent?.trim() === tr(label))
-		?.click();
+	const found = Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button, .rp-designer-add button')).find(
+		(candidate) => candidate.textContent?.trim() === tr(label),
+	);
+	if (found === undefined) {
+		console.error(`no designer tool button labelled "${tr(label)}" in the toolbar or the Add rail`);
+		return;
+	}
+	found.click();
 }
 
 /**

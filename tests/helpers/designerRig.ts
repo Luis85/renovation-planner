@@ -375,9 +375,10 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		toolbarButton: (label) => {
 			// BOTH homes of a tool button, because AD18-R3 gave the four drawing tools a second one.
 			// The name is kept, and the reason is a measurement: `grep -rn "toolbarButton(" tests/`
-			// prints 46 lines in 18 files at this commit (`grep -rln`), two of them this file's own
-			// declaration and the `select` press in `openTool` below — so every caller asks for a
-			// control by its LABEL, which is the thing that did not move. What the name now MEANS
+			// prints 47 lines in 18 files at this commit (`grep -rln`), THREE of them in this file —
+			// the declaration, the `select` press in `selecting()` below, and this sentence, whose
+			// own text contains the string it is counting. So every caller asks for a control by its
+			// LABEL, which is the thing that did not move. What the name now MEANS
 			// is "the button that activates this tool, wherever the shell draws it":
 			// `.rp-designer-tools` for the ten the toolbar kept, `.rp-designer-add` for the four
 			// the `Add` rail took. A caller that asked for a

@@ -9,8 +9,10 @@
  * is the same application, for a wave that happens to have one card. It is done anyway, because
  * the reason is the assembler's rule rather than the number of cards.
  *
- * Its own partial rather than more of a sibling: `styles/designer.css` stands at 397 lines against
- * the assembler's 400-line cap, `designer-parts.css` describes the panel the Add section sits
+ * Its own partial rather than more of a sibling: `styles/designer.css` stands at 398 lines against
+ * the assembler's 400-line cap (`wc -l`, in the edit that made it 398 — it was 397 when this
+ * header was written, and this card's own comment rewrite is the one line), `designer-parts.css`
+ * describes the panel the Add section sits
  * ABOVE rather than the section itself, and `designer-presets.css` describes the modal gallery,
  * which this card does not move.
  *
@@ -145,10 +147,30 @@
  * reason the flat button is: the two live in different partials, and a list spanning them would
  * make each one's `:hover` and `:focus-visible` depend on import order.
  */
-/* fallow-ignore-next-line code-duplication */
 .rp-designer-add .rp-designer-start-preset {
 	width: 100%;
 	margin: 0;
+	/*
+	 * ONE directive, and it sits HERE rather than above the selector, because
+	 * `fallow-ignore-next-line` means the next line LITERALLY and this block has two
+	 * component-specific declarations before the clone starts — CLAUDE.md's own gotcha, recorded
+	 * as having been made twice already, and `designer-header.css` states the same split at
+	 * length.
+	 *
+	 * **ONE rather than the TWO `designer.css`'s `.rp-designer-edit-dimensions` carries**, and the
+	 * difference is the `margin` value rather than a judgement about tidiness. That block's first
+	 * directive suppresses a family whose shared run starts at `margin: 0 0 var(--size-4-4)`; this
+	 * one declares `margin: 0`, which is a different declaration, so it cannot join that run. No
+	 * other block in `styles/` puts `margin: 0` directly after `width: 100%` either — measured in
+	 * this edit, and it is the only such pair in the directory — so the only family this rule can
+	 * enter is the flat button's, whose run starts at `padding`.
+	 *
+	 * That reasoning is not verified here: `npm run analyze` is the integrator's, so if it turns
+	 * out wrong fallow reports THIS directive as stale while going on counting a `margin`-family
+	 * finding — the good failure mode, and the one CLAUDE.md credits with catching both previous
+	 * instances. A second directive above `margin:` is the fix if that happens.
+	 */
+	/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);

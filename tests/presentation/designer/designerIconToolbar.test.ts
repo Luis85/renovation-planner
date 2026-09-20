@@ -211,7 +211,10 @@ describe('what the stylesheet declares', () => {
 	 * The icon and the text are one row, so the glyph sits beside the label rather than above it —
 	 * and the selector is ELEMENT-QUALIFIED, which is the load-bearing half.
 	 *
-	 * A fifteenth element in this toolbar carries `.rp-designer-tool-button` and is not a button:
+	 * One element in this toolbar carries `.rp-designer-tool-button` and is not a button — named
+	 * rather than counted, because the ordinal this sentence used to carry ("a fifteenth element")
+	 * was falsified by AD18-R3 lifting four buttons into the `Add` rail, and the stylesheet's own
+	 * copy of it was falsified in the same commit:
 	 * `DesignerViewMenu.vue`'s `<summary>`, styled by `editor-view.css` with `list-style: none` and
 	 * an `::after` chevron. Unqualified, this rule would give that summary `display: inline-flex`
 	 * as a side effect of a change about icons. The second assertion is what refuses the widening:

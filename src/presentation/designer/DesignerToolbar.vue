@@ -37,12 +37,14 @@
  * (`grep -rln`) — the measurement behind C12's "match the current Plan Editor's interaction
  * conventions". It answers THREE lines now, and one of them is this sentence: the import and the
  * element both live in `DesignerToolButton.vue`, which is the one component in this directory
- * that draws a glyph. What the width decides FOR THIS TOOLBAR is spelled in
- * `styles/designer-toolbar.css` and argued there, not here — and it decides nothing for the
- * `Add` rail, which hides its labels at every width in `styles/designer-add.css` for a reason of
- * its own. WHICH glyph each tool wears is `tools/designerToolIcons.ts`, a module rather than a
- * `const` in this file because a `<script setup>` binding is not a module export and AD18 item
- * 5's `Add` rail has to be able to import it — which, since this card, it does.
+ * that draws a glyph. What the width decides is spelled in `styles/designer-toolbar.css` and
+ * argued there, not here — and note that its rule is NOT scoped to `.rp-designer-tools`, so
+ * below 80rem it reaches the `Add` rail's labels as well; the rail hides its own at every width
+ * in `styles/designer-add.css`, at the same specificity and with the same declaration, and that
+ * file is where the overlap is argued. Neither sentence belongs here. WHICH glyph each tool wears
+ * is `tools/designerToolIcons.ts`, a module rather than a `const` in this file because a
+ * `<script setup>` binding is not a module export and AD18 item 5's `Add` rail has to be able to
+ * import it — which, since this card, it does.
  *
  * **No button here carries a `title`.** Its label is its accessible name — as visible text and
  * as `aria-label`, the same string — so a tooltip repeating it shows a sighted user nothing new

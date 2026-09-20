@@ -10,9 +10,15 @@
  * but every one of those cases stays green if the rail is never drawn at all, because none of them
  * asserts it is there. That is the half this file adds: the controls are FOUND first, then graded.
  *
- * Read the word "accessibility" no wider than `accessibility.test.ts`'s header allows: jsdom has no
- * rendering engine, so colour contrast, a visible focus indicator and hit-target size are disabled
- * in `runOptions` and are not verified anywhere in this repository. The rail's buttons draw no text
+ * Read the word "accessibility" no wider than `accessibility.test.ts`'s header allows, and note
+ * that the three things this scan cannot say are missing for TWO different reasons rather than one.
+ * Colour contrast and hit-target size are axe RULES, turned off in `runOptions` because jsdom has
+ * no rendering engine to measure either (`LAYOUT_DEPENDENT_RULES` names exactly `color-contrast`,
+ * `color-contrast-enhanced` and `target-size`). Whether a focus indicator is VISIBLE is not on that
+ * list and never could be: axe has no rule for it, so no configuration here could enable it and
+ * none disabled it. `accessibility.test.ts`'s header says "does NOT verify" for that reason, which
+ * is the shape a claim takes when the mechanism is absent rather than switched off. None of the
+ * three is verified anywhere in this repository. The rail's buttons draw no text
  * at any width (`styles/designer-add.css`), which makes their `aria-label` the whole accessible
  * name — that attribute is checkable here, and how the glyph beside it READS is not.
  */

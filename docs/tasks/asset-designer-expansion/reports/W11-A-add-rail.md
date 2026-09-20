@@ -2,7 +2,10 @@
 
 Outcome: implemented
 Owner / worktree / branch: card W11-A / `.worktrees/ad07` / `ad18-add-rail`
-Base commit / candidate commit: `720fe6b21` / `802210cf5`
+Base commit / candidate commit: `720fe6b21` / `f9b43fa27`, plus the fix-round commit named in the
+fix-round section at the foot of this report. **`802210cf5` appeared here in the first version and is
+not a commit anybody should integrate** — it is the same tree minus this file, superseded by the
+amend that added the report. Every row below names `f9b43fa27` or later.
 Accepted contract revision: `r1`, under rulings AD18-R3, AD18-R5 and AD18-R6 (AD18-R1 and AD08-R1 read as cited reasoning)
 Allowed scope and shared-file leases: the wave-11 table's EDIT list, CREATE under `src/presentation/designer/`
 and `tests/`, plus the explicit one-file grant for this report. Two files were edited outside the named EDIT
@@ -138,7 +141,7 @@ AssertionError: expected true to be false // Object.is equality
 |---|---|---|
 | `grep -rn "rp-designer-shape-tools" src/ styles/ tests/` | `styles/designer-toolbar.css` | **3** lines — its own two prose lines and the toolbar's absence assertion. The first draft said "nothing"; corrected from what the grep printed |
 | `grep -rn "rp-designer-start-preset" src/ styles/` | `styles/designer.css` | **6** lines — the rail's button, the rail's three rules, and that comment's own two lines. No `.rp-designer-inspector` hit |
-| `grep -rn "toolbarButton(" tests/` | `tests/helpers/designerRig.ts` | **46** lines in **18** files (`grep -rln`), two of them the helper's own declaration and its `openTool` press. At the base: 43 in 17. **The card's "43 call sites across 26 test files" conflates two greps** — the 26 is `grep -rln "designerRig" tests/`, which is a different set |
+| `grep -rn "toolbarButton(" tests/` | `tests/helpers/designerRig.ts` | **47** lines in **18** files (`grep -rln`), THREE of them in that file — the declaration, the `select` press in `selecting()`, and the comment stating the count, whose own text contains the string. At the base: 43 in 17. **Corrected in the fix round from 46 and from a helper named `openTool`, which does not exist**; see finding 3/4 below. **The card's "43 call sites across 26 test files" also conflates two greps** — the 26 is `grep -rln "designerRig" tests/`, a different set |
 | `grep -rn "HostIcon" src/presentation/designer/` | `DesignerToolbar.vue` | still **3**; the rail draws `DesignerToolButton`, which is the one component importing it. The docblock's count needed no edit; its *scope* sentence did |
 | `grep -rn "start-preset" src/presentation/designer/` | `designerResponsiveShell.test.ts` | five lines: one standing door (the rail's), one empty-state door, two stale prose hits in files outside this lease |
 
@@ -191,14 +194,22 @@ AssertionError: expected true to be false // Object.is equality
   (removing 502.0px of button plus four gaps leaves 1059.6px against 1264px available). **That is arithmetic and
   I did not render it**, so no repaired sentence was written from it; the integrator owns re-measuring and the
   pre-icon figures are untouched as the record of where the breakpoint came from.
-- **Contrast, focus-indicator visibility and hit-target size** of every new control — the three rules
-  `axeOptions.ts` disables because jsdom has no rendering engine. The focus rings are asserted to be DECLARED,
-  never to be visible.
-- **`fallow`'s duplication verdict on the two REVIEWED CLONE blocks** in `styles/designer-add.css`. Both carry a
-  `fallow-ignore-next-line code-duplication` directive placed on the line above the declaration the clone starts
-  at, following `designer.css`'s own worked example — but `npm run analyze` is the integrator's, so **whether
-  either suppression is placed correctly or reports STALE is unverified.** That is the likeliest thing in this
-  diff to turn the analyze leg red.
+- **Contrast and hit-target size** of every new control — two axe RULES, disabled in `runOptions` because
+  jsdom has no rendering engine to measure either. **Whether a focus indicator is VISIBLE is a third thing and
+  is NOT one of them**: axe has no rule for it, so nothing here could enable or disable it, and this bullet
+  said "the three rules `axeOptions.ts` disables" in its first version — corrected in the fix round (finding
+  10), along with the same error in `accessibilityDesignerAdd.test.ts`'s header. The focus rings are asserted
+  to be DECLARED, never to be visible.
+- **`fallow`'s duplication verdict on the two REVIEWED CLONE blocks** in `styles/designer-add.css`, and the
+  sentence that stood here was FALSE of both. It claimed each directive sat "above the declaration the clone
+  starts at": one sat above the SELECTOR and was right only by accident, since that block's first declaration
+  is `padding` and the two positions coincide; the other sat above the selector of a block whose first two
+  declarations are `width` and `margin`, which is CLAUDE.md's recorded gotcha exactly. The fix round moved it
+  inside, above `padding:`, as ONE directive with a stated argument for why `margin: 0` cannot join the
+  margin family `designer.css`'s counterpart needs a second directive for. **That argument is reasoning, not a
+  measurement** — `npm run analyze` is the integrator's — so if it is wrong fallow reports the directive STALE
+  while counting a `margin`-family finding, which is the good failure mode and the remedy is a second
+  directive above `margin:`. Still the likeliest thing in this diff to turn the analyze leg red.
 - **A vault.** Nothing was run in Obsidian.
 
 ## Data and integration implications
@@ -254,6 +265,112 @@ name and is NOT a one-line change: `designer-parts.css` sets the rail's width, p
 it, `designer-narrow.css` gives it its stacked flex share, and `designer-toolbar.css` caps it at
 `min(11rem, 22cqi)` — three partials, none of them in this lease, and two of them inside container queries whose
 disjointness is itself an argued property. Doing it here would have been three unleased edits for a name.
+
+## Fix round — the twelve findings against `f9b43fa27`
+
+Ten were mine, one (finding 8) is the integrator's own and is untouched here, and one (finding 12) was a
+sha in this file. What changed, in one commit on top:
+
+| # | Finding | What was done |
+|---|---|---|
+| 1 | `.rp-designer-start-preset`'s fallow directive sat above the SELECTOR, where the block's first declarations are `width` and `margin` | Moved inside, above `padding:`. **ONE** directive, not the two `designer.css`'s counterpart carries: that block's first directive suppresses a family whose run starts at `margin: 0 0 var(--size-4-4)`, this one declares `margin: 0`, and no other block in `styles/` pairs `width: 100%` with `margin: 0` — measured in the edit. The reasoning and its failure mode are written at the directive |
+| 2 | `pressTool` answered an unfound button with `?.click()` while its own new docblock named the defect | It refuses on the console now, matching `drawInHarness` one function below, and `assetDesignerSelectKnob.test.ts` gained the sibling of that function's existing refusal case. Watched red; verbatim below. No fixed shot depended on the silence — `harness-shot.test.ts`, `harness-shot-designer.test.ts` and the select-knob file all pass |
+| 3 | `designerRig.ts` said 46 lines; it prints 47 | 47. The comment's own line contains `toolbarButton(` and is counted — the correction I made right twice elsewhere and missed in the one file the lease granted narrowly |
+| 4 | That comment named `openTool`, which does not exist | `selecting()`. `grep -rn "openTool" tests/ src/` now prints nothing |
+| 5 | Three population claims in `designer-toolbar.css` ("a FIFTEENTH element" twice, "all fourteen at `top: 32`") | The ordinal is gone from both — the element is NAMED instead, with a clause saying the ordinal was falsified and why a name outlives a census. The 80rem block is rewritten in three paragraphs: where the number came from (AD18's pre-icon figures, KEPT), what falsified it (the icons, about +22px a button, 157→179px, the integrator's base render), and what made it true (this card, the integrator's candidate render). Buttons by name throughout |
+| 6 | The same stale "a fifteenth element" in `designerIconToolbar.test.ts` | Same fix, and it records that the stylesheet's copy was falsified in the same commit |
+| 7 | Four partials say `designer.css` is 397 lines; `wc -l` is 398 | My two corrected to 398 with the instrument named. **Not compressed**, per the instruction: 398 < 400, and every new RULE went to `designer-add.css` |
+| 9 | `DesignerToolbar.vue` said the 80rem rule "decides nothing for the `Add` rail"; `designer-add.css` says it does | The stylesheet is right — that rule is `.renovation-asset-designer .rp-designer-tool-label`, unscoped — so the component's sentence is replaced by the true one, pointing at the partial where the rule lives |
+| 10 | The axe header called focus-indicator visibility one of the rules `runOptions` disables | Rewritten as two mechanisms: two axe RULES turned off, and one thing axe has no rule for at all. `accessibility.test.ts`'s "does NOT verify" is cited as the right shape |
+| 11 | The stylesheet case locked the WHOLE partial against any conditional rule | Narrowed to the rules that NAME `.rp-designer-add .rp-designer-tool-label`: their conditions must be exactly `['']`. A future `@container` about the rail's own width no longer reddens a case about the label |
+| 12 | This report's candidate sha | Corrected, with a line saying why `802210cf5` must not be integrated |
+
+### The eleventh watched-red, verbatim
+
+Finding 2's refusal, reverted to `found?.click()`:
+
+```
+ FAIL  |suite| tests/harness/assetDesignerSelectKnob.test.ts > refuses a &draw= tool whose button it cannot find, rather than capturing an idle canvas
+AssertionError: expected "error" to be called with arguments: [ StringContaining "Draw rectangle" ]
+
+Number of calls: 0
+```
+
+`Number of calls: 0` is the silence itself, which is why that line is the whole finding.
+
+That case reaches the arm by removing `.rp-designer-add-shapes` between the mount and the knobs, which is
+deterministic rather than raced: `driveHarness` waits on `editor.stageSize.width > 0` and nothing sets that
+until the test's own `resizeTo`. It is also the only honest way in, since every label the knob can name is
+rendered today.
+
+### The integrator's rendered numbers, now written into the stylesheet
+
+Every figure below is the INTEGRATOR's, in a real browser, at the commit named — not mine, and not
+re-measured here. They are recorded in `styles/designer-toolbar.css` at the rule they are about.
+
+| container | toolbar height, base `720fe6b21` → candidate `f9b43fa27` | tool-button rows |
+|---|---|---|
+| 1280 | 69 → **32** | 2 → **1** |
+| 760 | 32 → 32 | 1 → 1 |
+| 580 | 69 → **32** | 2 → **1** |
+| 460 | 69 → **65.9** | 2 → **1** |
+
+At 1280 with labels shown, every remaining tool button is at `top: 33` and the View menu's `<summary>` at
+`top: 34`. At the base the four that wrapped to `top: 70` were `Set facing`, `Calibrate`, `Undo` and `Redo`.
+**At 460 the region is still 65.9px over one button row, and neither the comment nor this report says why** —
+nobody chased it, and a guess would be the same defect the rewrite exists to fix.
+
+The rail rendered: labels hidden at every width as declared, four 36px buttons on a 40px pitch, the door full
+width, `.rp-designer-add` at 159×97.9 (1280), 150.2×131.9 (760), 110.6×131.9 (580, shapes wrapping 2×2) and
+444×97.9 (460). **No horizontal overflow at any width** (`scrollWidth === clientWidth` on
+`.rp-designer-parts` at its tightest). AD18-R5's declared cost, measured: `.rp-designer-parts` at 460 goes
+from exactly full to **26.5px of scroll** (166/140), it scrolls rather than clips, and **all five Add controls
+are above the fold** — what falls below is the parts empty-state message, not a control. Still the shapeless
+weakest case. AD18-R6 also bought something nobody predicted: deleting the Inspector's button took that
+panel's 460px overflow from 54px to 7px.
+
+**One integrator observation is recorded here as withdrawn rather than carried**: a first pass flagged a
+clipped Add button. It was a false positive — `overflow: visible`, nothing clipped — and the 3px is the
+harness's own `::after` missing-fixture marker, `squircle` being a longer word than `circle`. A harness
+artifact, not a layout defect, written down so the next reader does not re-find it as one.
+
+### The dead label span — asked, not fixed
+
+The integrator asks whether `DesignerToolButton` should still emit `<span class="rp-designer-tool-label">` in
+the rail, where `styles/designer-add.css` hides it at every width. **My answer: yes, leave it, and the
+sentence that justifies it is the thing that needs narrowing rather than the markup.**
+
+Three reasons, in the order they decide it. **It is not dead in the sense that matters** — `display: none`
+removes it from the accessibility tree as well as from the picture, and the accessible name comes from
+`aria-label` either way, so the span contributes nothing and costs nothing in either tree. **Removing it means
+teaching the component about its container**, which is the one thing that component is built not to know: it
+takes a label and a glyph and nothing about state, on purpose and after a recorded correction (`pressed` and
+`disabled` were props once, and an absent `boolean` prop cast to `false` made Undo announce itself as a toggle
+that happens to be off). A `showLabel` prop or a slot would put a layout decision inside a component whose
+whole value is that the stylesheet owns them — and it would be a second authority on a question
+`designer-add.css` already answers, which is the shape three of this wave's own rulings refuse. **And the
+rail's treatment is not settled**: it is one CSS rule today, reversible in one line if a rendered pass says
+labelled buttons should come back at some width. Deleting the span would make that a component change instead.
+
+So the fix is the sentence. `DesignerToolButton.vue`'s *"Both spellings of the label are LIVE, at different
+widths, which is why neither is dead markup"* was true of the only container that existed when it was written
+and is now true of one of two. The honest narrowing is that the span is live in the TOOLBAR at 80rem and
+wider, that the `Add` rail hides it at every width and relies on `aria-label` alone, and that this is
+therefore a component whose visible-label state its CONTAINERS decide. That is the integrator's edit to make
+(finding 8), and on this evidence it is a narrowed sentence rather than a follow-up card.
+
+### Executed in the fix round
+
+| Command | Result |
+|---|---|
+| `npx vitest run tests/build/harness-shot.test.ts tests/build/harness-shot-designer.test.ts tests/harness/assetDesignerSelectKnob.test.ts tests/presentation/designer/designerAddRail.test.ts tests/presentation/designer/designerIconToolbar.test.ts tests/harness/accessibilityDesignerAdd.test.ts` | 6 files, 98 tests, exit 0 |
+| The finding-2 revert-and-watch cycle | red as quoted, restored |
+| `npx vue-tsc -noEmit`, `npx oxlint`, `npx eslint` over every file touched in this round | exit 0 |
+
+Unchanged from the main report: no `npm run` gate was run here either — `check`, `test:coverage` and
+`analyze` remain the integrator's, and the coverage read for the changed files is still outstanding. The
+fix round adds one new `src/`-adjacent branch, `pressTool`'s `found === undefined` arm, and both of its arms
+are driven — the refusal by the new case and the hit by every other `&draw=` and `&select=` case in that file.
 
 ## Reviewer and integrator acceptance
 

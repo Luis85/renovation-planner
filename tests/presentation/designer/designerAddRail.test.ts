@@ -239,12 +239,24 @@ describe('what the Add rail’s stylesheet declares', () => {
 	 *
 	 * Declared and unrendered: jsdom applies no container query and computes no width, so this is a
 	 * statement about the stylesheet and never about a rendered rail.
+	 *
+	 * **Scoped to the rules that NAME this selector, not to the partial.** A first version asserted
+	 * `rules.filter((rule) => rule.condition !== '')` was empty, which locked the whole file against
+	 * ever carrying a conditional rule — so a legitimate future `@container` about the rail's own
+	 * width would have reddened a case named for the label, and that is likely rather than
+	 * hypothetical in a column the integrator measured at 110.6–159px across the band. The case's
+	 * name is the claim and the assertion is now exactly it.
 	 */
 	it('hides the rail’s button text with no container query around it', () => {
 		const rules = partial();
+		const wanted = spelled('.rp-designer-add .rp-designer-tool-label');
+		const conditions = rules.filter((rule) => rule.selectors.map(show).includes(wanted)).map((rule) => rule.condition);
 
 		expect(declared(rules, '.rp-designer-add .rp-designer-tool-label', 'display')).toEqual(parsed('display', 'none'));
-		expect(rules.filter((rule) => rule.condition !== '')).toEqual([]);
+		// One rule names it, and that rule sits under no condition. Listing the conditions rather
+		// than counting them means an added `@container` copy of this selector fails by showing its
+		// own prelude, which a length assertion would report as a bare number.
+		expect(conditions).toEqual(['']);
 	});
 
 	/**

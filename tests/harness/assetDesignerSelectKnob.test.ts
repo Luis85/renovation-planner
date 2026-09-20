@@ -140,3 +140,37 @@ it('refuses a &draw= tool it does not know, loudly, and still marks the view', a
 	expect(error).toHaveBeenCalledWith(expect.stringContaining('wiggle'));
 	expect(editor.activeToolId).toBeNull();
 });
+
+/**
+ * **The OTHER way a `&draw=` capture can come out empty, and it was silent until AD18 item 5.**
+ * `pressTool` used to answer a button it could not find with `?.click()` on `undefined` — nothing —
+ * so a tool whose button had MOVED left `harness-shot` writing `asset-designer-draw-rect.png` of an
+ * idle canvas and exiting 0. AD18-R3 moved four buttons, which is exactly that hazard arriving, and
+ * the fix is the refusal the case above already pins for an unknown tool NAME: the repository was
+ * testing the loud failure one level up and permitting the silent one a function below it.
+ *
+ * Driven by removing the rail's shape group before the knobs run, which is deterministic rather
+ * than raced: `driveHarness` waits on `editor.stageSize.width > 0`, and nothing sets that until the
+ * `resizeTo` below — so the DOM edit lands strictly between the mount and the press. That is also
+ * the only honest way to reach this arm, since every label the knob can name is rendered today.
+ */
+it('refuses a &draw= tool whose button it cannot find, rather than capturing an idle canvas', async () => {
+	const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+	installCanvas();
+	installResizeObserver();
+	const harness = mountAssetDesignerHarness(document.body, 'toilet', { draw: 'draw-rect' });
+	mounted.push(harness);
+	const { view } = harness;
+	await settleUntil(() => view.contentEl.querySelector('.rp-plan-canvas') !== null, 'the designer canvas');
+	// The `Add` rail is where AD18-R3 put `draw-rect`; taking the group away is a button that moved
+	// again, which is the regression this refusal exists for.
+	view.contentEl.querySelector('.rp-designer-add-shapes')?.remove();
+	const canvas = view.contentEl.querySelector<HTMLElement>('.rp-plan-canvas') as HTMLElement;
+	placeAt(canvas, 0, 0, 800, 600);
+	resizeTo(canvas, 800, 600);
+	await landed(view);
+
+	const host = view.contentEl.querySelector('.renovation-asset-designer-view') as HTMLElement & { __vue_app__: App };
+	expect(error).toHaveBeenCalledWith(expect.stringContaining(tr('designer.toolbar.draw-rect')));
+	expect(useEditorStore(host.__vue_app__.config.globalProperties.$pinia).activeToolId).toBeNull();
+});

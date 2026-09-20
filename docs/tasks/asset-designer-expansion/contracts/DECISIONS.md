@@ -455,6 +455,35 @@ rather than compete with. And `DesignerInspector` is drawn only when `design !==
 what keeps `.rp-designer-inspector` an empty REGION for a loading or failed leaf; a tab control
 must not move that gate.
 
+### AD18-R3 — the Basic-shape buttons MOVE into the `Add` rail; they are not duplicated there. (2026-09-20)
+
+**Taken by the user**, asked directly at the start of session eight, before either card was
+dispatched — because it decides the SCOPE of the icon-toolbar card rather than only the rail's.
+
+AD18's sequencing table records that item 5 (the `Add` rail) *"needs a decision taken before code"*,
+and names it exactly: *"a decision about what happens to the toolbar's shape buttons"*. §4 row 1 is
+an ADOPT row — *"Large central canvas, Add/Parts on the left, contextual properties on the right"* —
+and the complaint item 3 records is that the novice's two entry paths, "start from a preset" and
+"draw a shape", are two unrelated mechanisms in two unrelated places. Leaving the shapes in the
+toolbar answers the icon complaint and leaves that one standing.
+
+**The losing option, because it is not obviously wrong.** Keeping the shapes in the toolbar as icons
+costs less and keeps the two cards nearly disjoint, and a drawing tool is arguably a TOOL rather
+than a thing to add. It is refused because it would leave §4 row 1 half-adopted after the very wave
+whose subject is that row, and because a rail that offers presets but not shapes teaches a user that
+"Add" means "preset".
+
+**Duplicating them in both places is refused outright** and needs no measurement: two answers to one
+question is the shape this repository refuses everywhere it has a name for it, and it is the same
+refusal AD18-R1 already made about the asset's name.
+
+**What this rules OUT of wave 10, which is a sequencing consequence rather than a narrowing.** Item 5
+and item 3 now both edit `DesignerToolbar.vue`, so they cannot hold disjoint leases in one wave.
+Item 3 ships first with all fourteen buttons iconified, including the shapes; item 5 lifts that group
+out in wave 11 and inherits its locale keys, which is why W10-A's keys are named for the SHAPE rather
+than for the toolbar. The intermediate state — iconified shapes still in the toolbar — is a shipped
+state, not a broken one.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

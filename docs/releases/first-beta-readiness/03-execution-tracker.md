@@ -1523,14 +1523,32 @@ reviewer had already "re-derived". The door count is **7 dispatch sites / 4 cons
 **L-29 is new** — a self-intersecting **straight** outline is refused by nothing at all. **L-30
 is new** — the corner dialog's submit button reads **"Apply name"**.
 
+#### An observation from opening the captures, for BP-05/BP-07 rather than for BP-04
+
+`plan-editor-selected-narrow.png` (460 px, the row added this session) and
+`plan-editor-selected.png` (1280) were opened by the controller. The agents' reports are
+confirmed — `Edit corners` fits on one line at 460, no wrap, no overflow, and it draws with no
+button chrome. **What no report carried is the comparison.** The Details panel uses four
+affordance levels side by side: `Change room size` is a **filled primary button**, `Enclose with
+walls and group` an outlined one, `More actions` plain text **with a chevron**, and `Rename room`
+and **`Edit corners`** plain text with neither. **So the entry point to the whole of BP-04 has
+the weakest affordance in the panel and sits directly beneath its heaviest** — identical at both
+widths, so not a narrow-layout artifact.
+
+**Not a regression and not a defect**: it matches `Rename room` exactly and BP-04's acceptance
+says nothing about affordance. But it compounds with the **32 px** box height the fix agent
+volunteered, which is under the hit-target guideline and invisible to every scan here. A
+low-affordance, small-target row is the discoverability half of "reachable", and reachability is
+this package's whole subject. **Three agents looked at these captures and none reported the
+ranking**, because each was asked whether the button was correct and answered that honestly; the
+comparison only appears when the whole panel is in view.
+
 #### Not done, and not claimed
 
 - **Nothing has been run in an Obsidian vault.** No native, device, screen-reader, contrast or
   performance verification was performed or is claimed by anyone this session. **A harness
   capture is a browser render, not a vault run**, and an axe scan in jsdom is not a conformance
-  claim — it grades neither contrast, nor a visible focus indicator, nor hit-target size. The new
-  inspector button's box is **32 px high, under the hit-target guideline and invisible to every
-  scan here**, volunteered by the fix agent rather than asked for.
+  claim — it grades neither contrast, nor a visible focus indicator, nor hit-target size.
 - **L-23, L-29 and L-30 are measured and recorded, NOT fixed.** L-23's remedy is a behaviour
   change at a trust boundary and needs a recorded trade; L-30 is copy.
 - **Action 1 of BP-04 — a short interaction specification — has no document**, and the

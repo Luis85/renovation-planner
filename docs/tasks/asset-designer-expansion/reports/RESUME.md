@@ -132,7 +132,11 @@ At the integration sha `f33c14d88`:
   invisible to `scripts/lint-edited.mjs`.
 - CI `npm run check` green on all six at `1343cf4e5` — four `verify` legs, audit, GitGuardian.
   `0 above threshold`, dead files 0, dead exports 0, maintainability 86.8, 1222 files.
-- A LOCAL `test:coverage` was then run to prove the directive fix and **exited 1 with 34 failures,
+- CI `npm run check` green again at `df1c7157e` and at `7c0cf4f95`, verified BY RUN ID. **A watcher
+  that polls until the word "pending" disappears reports the PREVIOUS run's result** — it exited on
+  the gap before GitHub registered the new run, and the green it printed was not the commit's.
+  Watch `gh run view <id> --json status,headSha,conclusion` instead.
+- A LOCAL `test:coverage` was run to prove the first directive fix and **exited 1 with 34 failures,
   33 of them `Test timed out`**, every one under `tests/presentation/editor/` or `tests/harness/`
   and none touching a stylesheet. Three were re-run ALONE and all passed, exit 0 — including the
   one non-timeout failure, which was a cascade inside a file whose first case had already timed
@@ -141,7 +145,10 @@ At the integration sha `f33c14d88`:
 - **Because that coverage run failed, `coverage-final.json` may be partial, so the HEALTH section of
   the analyze run beside it is not trustworthy.** The duplication section reads no coverage at all,
   which is the only reason the clone-group result above stands. Say which section you are trusting
-  and why.
+  and why. The LATER run, for the remaining four directives, was clean on a quiet machine —
+  `test:coverage` exit 0 with 1070 files and 11806 tests, `analyze` exit 0, `0 above threshold` —
+  so that one's health section IS trustworthy. Two runs of the same command, one trustworthy half
+  and one not, is the reason to record which.
 
 **One gate was started and KILLED, and the reason is a mistake worth inheriting.** A `check:fast`
 was running in `.worktrees/ad07` when the fix round was dispatched into that same worktree — so the
@@ -170,9 +177,32 @@ the block the card AND its reviewer both cleared is present. Both reasoned that 
 declaration is `padding`, so above-the-selector and above-the-declaration are the same line. They
 are not.
 
-**Four misplaced directives remain, in `editor-shell.css` (two), `editor.css` and
-`editor-layout.css`.** Outside anything wave 11 was authorized to touch, so they are recorded
-rather than swept. That is the next card if anyone wants it, and it is one line each.
+**All of them are fixed now.** The user authorized the remaining four after the wave closed, and
+`7c0cf4f95` moved them — `.rp-context-bar__button` and `.rp-primary-actions__button` in
+`editor-shell.css`, `.rp-layer-list__action` in `editor.css`, `.rp-unsupported-width__action` in
+`editor-layout.css`. **Every directive under `styles/` now sits above a declaration: ELEVEN of them,
+on TEN rules across SEVEN partials** (`.rp-designer-edit-dimensions` carries two, its margin and
+padding families being separate clones).
+
+**The CSS clone group is gone from the report entirely.** Group `6f96bf57` held four instances,
+then two, and now does not appear: CI at `7c0cf4f95` prints **3 clone groups** and
+`✗ 34 lines (0.0%) duplicated across 4 files`, against 4 groups and 119 lines across 7 files at
+`1343cf4e5`. Every group left is TypeScript; there is no CSS group. **Nothing is reported as a
+stale or unused suppression**, which was the risk worth checking before moving a directive onto a
+line that might have no finding under it.
+
+**Two of the four were not measurable and the sentence has to say so.** `.rp-layer-list__action`
+and `.rp-unsupported-width__action` appear in no clone group and are not in `ignoredClones` — which
+holds exactly one key, the ZoneSummary prototype pair — so their blocks are simply not detected as
+clones of the family. Their directives suppressed nothing AND had nothing to suppress; moving them
+is correctness by rule. The `editor-shell.css` pair is what actually removed the group.
+
+**"Seven of twelve" was wrong and the real figure is eleven directives.** The twelfth match was
+PROSE inside a block comment naming the directive, not a directive — a grep counting its own
+documentation, which this session did four times. `designer.css`'s canonical paragraph had the same
+disease and is repaired: it said the directive sat at *"this and four sibling rules"* and then
+listed five, written before the rail added two more. It names no list now, because the grep is the
+list.
 
 **Two lessons from fixing it, both paid in this session.** Adding the explanatory comment to
 `designer.css` pushed it to 405 lines, over the 400 cap — caught by `npm run build`. And that

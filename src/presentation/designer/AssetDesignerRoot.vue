@@ -41,7 +41,6 @@ import { scaleDesignToDimensions } from '../../domain/asset/shapeEdits';
 import { notifyIfRefused } from '../editor/report-failure';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
-import SaveStateIndicator from '../editor/save-state/SaveStateIndicator.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState, type EmptyStateProps } from '../emptyStates/resolve';
 import { selectAssetDesignerEmptyState } from '../emptyStates/selectors';
@@ -54,6 +53,7 @@ import { provideDesignerRuntime } from './runtime';
 import { isMissingAsset, useAssetDesignStore } from './stores/assetDesignStore';
 import { designerShortcut, selectionKeyActions } from './designerKeys';
 import DesignerCanvas from './DesignerCanvas.vue';
+import DesignerHeader from './DesignerHeader.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
 import DesignerPartsPanel from './parts/DesignerPartsPanel.vue';
@@ -461,6 +461,21 @@ onMounted(() => {
 <template>
 	<div class="renovation-asset-designer">
 		<!--
+			AD18 item 2's header region, FIRST in the shell: the asset's name, the way back to the
+			catalogue, the save state and the way into a plan. `DesignerHeader` decides on its own
+			what it can say about a leaf whose read is in flight or refused, which is why this region
+			mounts its component unconditionally where the Parts and Inspector regions gate theirs —
+			the save state is true of every state and the other three are not. It is not alone in
+			mounting unconditionally: the toolbar region does too, and always has.
+		-->
+		<div class="rp-designer-header">
+			<DesignerHeader
+				:design="design"
+				:open-library="context.openLibrary"
+				:use-plan="context.usePlan"
+			/>
+		</div>
+		<!--
 			Design slice B5's toolbar, mounted. The REGION is this div and the component is its
 			child, which is the shape the canvas and the status regions already take — and it is
 			what lets the two instruments catch different mistakes: `assetDesignerRoot.test.ts`
@@ -564,8 +579,6 @@ onMounted(() => {
 					:selection="selection"
 					:edit-shape="runtime.editShape"
 					:select="designStore.select"
-					:open-library="context.openLibrary"
-					:use-plan="context.usePlan"
 					:selected="selected"
 					:locked-graphics="runtime.partView.locked.value"
 					:multi-selection-mode="runtime.multiSelectionMode.value"
@@ -601,6 +614,13 @@ onMounted(() => {
 			announced status change — it is a standing note about a modifier, not an event. Giving
 			the designer's save state a live region of its own is a decision about THAT surface,
 			which this task does not take.
+
+			**The save state left this region in AD18** and is in the header above, which is where
+			AD06 item 1 asks for it and where a user looking for "is my work safe" looks first. It
+			is not drawn in both: a second indicator reading the same store would be a second answer
+			to one question. What is left here is the three standing facts about the VIEW — what
+			Shift does, the camera's scale, the grid's step — which is a coherent region rather than
+			a remainder.
 		-->
 		<div class="rp-designer-status">
 			<span
@@ -615,7 +635,6 @@ onMounted(() => {
 				v-if="gridStep !== null"
 				class="rp-designer-grid-step"
 			>{{ tr('designer.status.grid', { step: String(gridStep) }) }}</span>
-			<SaveStateIndicator />
 		</div>
 		<!--
 			Last child, and a sibling of the regions rather than nested in one: the host makes

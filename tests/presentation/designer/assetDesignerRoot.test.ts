@@ -118,11 +118,12 @@ async function mounted(ctx: AssetDesignerContext = context()) {
  * fails here by name rather than as an anonymous missing selector.
  */
 const REGIONS = [
+	['.rp-designer-header', 'AD18 mounts DesignerHeader into it'],
 	['.rp-designer-toolbar', 'Task B5 mounts the designer toolbar into it'],
 	['.rp-designer-parts', 'AD09 mounts DesignerPartsPanel into it'],
 	['.rp-designer-canvas', 'Task B4 mounts DesignerCanvas into it'],
 	['.rp-designer-inspector', 'Task B8 mounts DesignerInspector into it'],
-	['.rp-designer-status', 'the save-state indicator draws in it, from this task'],
+	['.rp-designer-status', 'the Shift hint, the zoom and the grid step draw in it'],
 ] as const;
 
 describe('the designer shell', () => {
@@ -156,11 +157,17 @@ describe('the designer shell', () => {
 	/**
 	 * Slice 13's indicator, in THIS shell too — one per designer leaf, because it reads the
 	 * leaf's own Pinia store and two open designers must indicate independently.
+	 *
+	 * **In the HEADER region since AD18**, which is where AD06 implementation item 1 asks for it.
+	 * The second half of this case is the half that matters: it is not drawn in both places, and a
+	 * case that only found it in its new home would stay green on the day somebody leaves a copy
+	 * behind. `designerHeader.test.ts` makes the same count over the whole mounted tree.
 	 */
-	it('draws the save-state indicator in its status region', async () => {
+	it('draws the save-state indicator in its header region, and not in the status one', async () => {
 		const { wrapper } = await mounted();
 
-		expect(wrapper.find('.rp-designer-status .rp-save-state-label').exists()).toBe(true);
+		expect(wrapper.find('.rp-designer-header .rp-save-state-label').exists()).toBe(true);
+		expect(wrapper.find('.rp-designer-status .rp-save-state-label').exists()).toBe(false);
 	});
 
 	/**

@@ -8,9 +8,9 @@
  * bare**, which is `assetUsageDuplicate.test.ts`'s rule on the other surface and matters more
  * here: the whole card is that a block EXISTS on a surface that had none, and a bare mount passes
  * with the block mounted nowhere. One case mounts the inspector with no context at all, which is
- * the state four other suites in this directory are in — `grep -l 'mount(DesignerInspector'
- * tests/presentation/designer` prints five files and this is the only one that provides one — and
- * the reason this component injects rather than throwing.
+ * the state FIVE other suites are in — `grep -rl 'mount(DesignerInspector' tests/` prints six
+ * files and this is the only one of them that provides a context — and the reason this component
+ * injects rather than throwing.
  *
  * The inspector's other props are the ones `designerReferencePanels.test.ts` already spells for
  * its own bare mount; nothing here asserts on any of them.
@@ -265,5 +265,28 @@ describe('the designer’s usage scope', () => {
 		await flushPromises();
 
 		expect(wrapper.find('.rp-designer-usage-scope').exists()).toBe(true);
+	});
+
+	/**
+	 * **AD18-R1's own condition, pinned rather than argued.** That ruling moved the asset's NAME
+	 * out of this panel and into the header, and required whoever moved it to check that this block
+	 * still reads as being about the asset without the name directly above it. It does, because the
+	 * `Asset` `<h3>` is what sits there now and this block's own `<h4>Used in plans</h4>` reads as a
+	 * subsection of that heading. That argument is about the TEMPLATE, and until this case nothing
+	 * asserted it: the day somebody slips a block between the two, the reading the ruling asked for
+	 * is gone and every gate stays green.
+	 *
+	 * `previousElementSibling` rather than an index into the children, because Vue renders each of
+	 * the Inspector's comments as a DOM node and that lookup skips them — and because a position is
+	 * correct only until the next insertion above it, which is the failure this case exists for.
+	 */
+	it('sits directly under the asset heading, with no block between them (AD18-R1)', async () => {
+		const wrapper = inspector(context({ scope: ok(twoPlans()) }));
+		await flushPromises();
+
+		const previous = wrapper.find('.rp-designer-usage-scope').element.previousElementSibling;
+
+		expect(previous?.tagName).toBe('H3');
+		expect(previous?.textContent?.trim()).toBe(t('en', 'designer.inspector.asset'));
 	});
 });

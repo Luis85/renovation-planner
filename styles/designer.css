@@ -270,12 +270,16 @@
  * (0,1,1), which outranks a bare class at (0,1,0) regardless of source order — the exact defect
  * `.rp-editor-inspector-delete` shipped once and this file's own toolbar rules already avoid.
  */
+/*
+ * TWO of these four selectors left in AD18: `.rp-designer-open-library` and
+ * `.rp-designer-use-plan` are drawn in the header now (`DesignerHeader.vue`), where
+ * `styles/designer-header.css` gives them a quieter treatment. They are dropped here rather than
+ * left as selectors matching nothing.
+ */
 /* REVIEWED CLONE: the bordered variant with a leading `width`/`margin` — the flat button is per-component by
    necessity; the argument is on `.rp-designer-tool-button`, above in this file. */
 .rp-designer-inspector .rp-designer-edit-dimensions,
-.rp-designer-inspector .rp-designer-start-preset,
-.rp-designer-inspector .rp-designer-open-library,
-.rp-designer-inspector .rp-designer-use-plan {
+.rp-designer-inspector .rp-designer-start-preset {
 	width: 100%;
 	/* The reviewed clone starts at margin; target the declaration rather than the selector. */
 	/* fallow-ignore-next-line code-duplication */
@@ -293,17 +297,13 @@
 }
 
 .rp-designer-inspector .rp-designer-edit-dimensions:hover,
-.rp-designer-inspector .rp-designer-start-preset:hover,
-.rp-designer-inspector .rp-designer-open-library:hover,
-.rp-designer-inspector .rp-designer-use-plan:hover {
+.rp-designer-inspector .rp-designer-start-preset:hover {
 	background-color: var(--background-modifier-hover);
 }
 
 /* The ring, for the reason `editor.css`'s toolbar `:focus-visible` comment gives at length. */
 .rp-designer-inspector .rp-designer-edit-dimensions:focus-visible,
-.rp-designer-inspector .rp-designer-start-preset:focus-visible,
-.rp-designer-inspector .rp-designer-open-library:focus-visible,
-.rp-designer-inspector .rp-designer-use-plan:focus-visible {
+.rp-designer-inspector .rp-designer-start-preset:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }

@@ -66,11 +66,10 @@ function buildDesign(options: {
 function mountInspector(
 	options: Parameters<typeof buildDesign>[0] = {},
 	selection: DesignerSelection | null = null,
-	extras: { openLibrary?: () => void; selected?: readonly DesignerSelection[]; mode?: Ref<boolean> } = {},
+	extras: { selected?: readonly DesignerSelection[]; mode?: Ref<boolean> } = {},
 ) {
 	return mount(DesignerInspector, {
 		props: {
-			...(extras.openLibrary === undefined ? {} : { openLibrary: extras.openLibrary }),
 			// A value down and a setter up, which is how the component takes it: `v-model` on a prop
 			// is a mutation of one, and `vue/no-mutating-props` refuses it.
 			...(extras.mode === undefined
@@ -267,30 +266,13 @@ describe('the designer’s inspector', () => {
 });
 
 
-/**
- * AD06: the panel says WHICH object this is, and offers the way back to the catalogue.
- *
- * The name matters because nothing else on the surface carries it — `getDisplayText` titles every
- * designer leaf "Asset designer" whatever asset it holds, which is the Plan Editor's convention and
- * not this view's to change alone, and a per-asset view is the one you can have three of at once.
+/*
+ * **The three cases that used to sit here — the asset's name, the library door and the unbound-door
+ * refusal — MOVED to `designerHeader.test.ts` in AD18**, because ruling AD18-R1 moved both controls
+ * into the header. They were moved rather than copied: a case left behind asserting this panel
+ * still draws them would be the second answer to "which asset is this" that the ruling exists to
+ * prevent, and that file now counts the name over the whole mounted tree rather than in one region.
  */
-describe('identifying the object and getting back to the library', () => {
-	it('names the asset it is designing', () => {
-		expect(mountInspector().find('.rp-designer-asset-name').text()).toBe('Base cabinet 600');
-	});
-
-	it('offers the library door, and calls it', async () => {
-		const openLibrary = vi.fn<() => void>();
-		const wrapper = mountInspector({}, null, { openLibrary });
-		await wrapper.find('.rp-designer-open-library').trigger('click');
-		expect(openLibrary).toHaveBeenCalledTimes(1);
-	});
-
-	/** Slice 14's Amendment 1: no door bound, no control — never a live one that does nothing. */
-	it('draws no library control where no door is bound', () => {
-		expect(mountInspector().find('.rp-designer-open-library').exists()).toBe(false);
-	});
-});
 
 /**
  * AD08 / C05: the panel says how many parts are selected, and carries the control that lets a

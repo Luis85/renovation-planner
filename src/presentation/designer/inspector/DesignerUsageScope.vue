@@ -88,9 +88,9 @@
  * repository refuses everywhere it has a name for it.
  *
  * **It injects the context rather than taking props, and draws NOTHING when there is none.**
- * `DesignerInspector` is prop-driven and FOUR suites mount it bare to prove its blocks are bound —
- * `grep -rl 'mount(DesignerInspector' tests/presentation/designer` prints five files and the fifth
- * is this block's own, which provides a context — so `useAssetDesignerContext()`, which throws,
+ * `DesignerInspector` is prop-driven and FIVE suites mount it bare to prove its blocks are bound —
+ * `grep -rl 'mount(DesignerInspector' tests/` prints six files, and this block's own is the one of
+ * the six that provides a context — so `useAssetDesignerContext()`, which throws,
  * would make the panel un-mountable outside a leaf: the exact failure `DesignerInspector`'s own
  * `removeBackground` prop docblock records, measured there rather than argued. Absence of an
  * `AssetDesignerContext` MEANS this component is not inside a designer leaf: there is no query to

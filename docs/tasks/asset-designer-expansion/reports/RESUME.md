@@ -130,8 +130,18 @@ At the integration sha `f33c14d88`:
   11806 passed, 1 skipped, zero failure text. The base was 1068 files.
 - `oxlint` and `eslint` run BY HAND over every scripted edit; both exit 0. A scripted edit is
   invisible to `scripts/lint-edited.mjs`.
-- `test:coverage` and `analyze` deliberately NOT run locally, per CLAUDE.md's workflow rule, and
-  left to CI on the pull request.
+- CI `npm run check` green on all six at `1343cf4e5` — four `verify` legs, audit, GitGuardian.
+  `0 above threshold`, dead files 0, dead exports 0, maintainability 86.8, 1222 files.
+- A LOCAL `test:coverage` was then run to prove the directive fix and **exited 1 with 34 failures,
+  33 of them `Test timed out`**, every one under `tests/presentation/editor/` or `tests/harness/`
+  and none touching a stylesheet. Three were re-run ALONE and all passed, exit 0 — including the
+  one non-timeout failure, which was a cascade inside a file whose first case had already timed
+  out. Contention, exactly as this file's machine section predicts, on a tree CI had just run green
+  with coverage. **Nothing was quarantined and no budget was raised.**
+- **Because that coverage run failed, `coverage-final.json` may be partial, so the HEALTH section of
+  the analyze run beside it is not trustworthy.** The duplication section reads no coverage at all,
+  which is the only reason the clone-group result above stands. Say which section you are trusting
+  and why.
 
 **One gate was started and KILLED, and the reason is a mistake worth inheriting.** A `check:fast`
 was running in `.worktrees/ad07` when the fix round was dispatched into that same worktree — so the
@@ -139,12 +149,36 @@ gate was reading a mutating tree. Killed rather than believed. **Do not dispatch
 worktree a gate is reading.** What survived from it is real: `oxlint --deny-warnings` and
 `vue-tsc -noEmit` had both passed before the suite started.
 
-**The fallow directive finding is PLAUSIBLE, not confirmed, until CI's analyze leg reports.** The
-card judged ONE directive sufficient rather than the two its counterpart in `designer.css` carries,
-reasoning that `margin: 0` cannot join the family the first of those suppresses, and **wrote its own
-failure mode into the comment**: if that is wrong, fallow reports the directive STALE while going on
-counting a margin-family finding, and the remedy named there is a second directive above `margin:`.
-That is the good failure mode. Check the analyze leg first if CI is red.
+**CI went green on all six at `1343cf4e5`, and reading the analyze section of that PASSING leg
+found a defect no gate here can report.** This is the most transferable thing in this hand-off.
+
+**A `fallow-ignore-next-line code-duplication` directive above a SELECTOR suppresses nothing.** The
+directive means the next line LITERALLY, and the selector line sits between it and the first
+declaration. `styles/designer-header.css` already states that rule; **seven of the twelve such
+directives under `styles/` break it anyway**, and duplication does not gate, so four unsuppressed
+clone instances rode a green run without comment.
+
+Measured, not argued. CI reported group `6f96bf57` with FOUR instances —
+`designer-add.css:100-117`, `designer.css:120-143`, `editor-shell.css:72-103` and `:135-145`. Line
+100 is the `padding:` declaration; the directive was at 98 and the selector at 99. Moving the two
+designer directives inside their blocks took that group to TWO instances, the untouched
+`editor-shell.css` pair. Exactly the two changed disappeared, which makes it an experiment.
+
+**The contrast that proves it was already in the tree**: W11-A's fix round moved the
+`start-preset` directive inside its block, and `start-preset` is ABSENT from the clone report while
+the block the card AND its reviewer both cleared is present. Both reasoned that its first
+declaration is `padding`, so above-the-selector and above-the-declaration are the same line. They
+are not.
+
+**Four misplaced directives remain, in `editor-shell.css` (two), `editor.css` and
+`editor-layout.css`.** Outside anything wave 11 was authorized to touch, so they are recorded
+rather than swept. That is the next card if anyone wants it, and it is one line each.
+
+**Two lessons from fixing it, both paid in this session.** Adding the explanatory comment to
+`designer.css` pushed it to 405 lines, over the 400 cap — caught by `npm run build`. And that
+falsified three "398" sentences written an hour earlier in the same session. **FIVE partials have
+carried a line-count figure for `designer.css` and every one was falsified by somebody adding a
+comment to that file.** None of them carries a number now; they say `wc -l`.
 
 ## Carried forward, not taken
 

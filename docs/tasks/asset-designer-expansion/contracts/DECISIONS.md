@@ -484,6 +484,36 @@ out in wave 11 and inherits its locale keys, which is why W10-A's keys are named
 than for the toolbar. The intermediate state — iconified shapes still in the toolbar — is a shipped
 state, not a broken one.
 
+### AD18-R4 — `Add details` ticks, but never becomes the CURRENT step. (2026-09-20)
+
+**Taken by the user**, asked directly during W10-B's fix round, against a rendered description rather
+than a rendered picture — which the next reader should know, because nobody had drawn the checklist
+when this was decided.
+
+W10-B's trace checklist marks "the first step not done" as current. Four of its five steps are things
+an asset must have; **`Add details` is optional in reality**, so on an otherwise finished asset the
+pointer sits on it forever, with `Verify the dimensions` already struck through ABOVE it. The state
+the card exists to fix reads worse: a typed-from-dimensions asset draws `Choose a sheet [current] /
+Calibrate the scale / ~~Trace the footprint~~ / Add details / ~~Verify the dimensions~~`.
+
+**The ruling: optionality is a property of the STEP.** `Add details` still ticks when detail graphics
+exist, and is skipped when choosing which step is current. A sheet-traced asset with no details
+therefore marks NO current step — which is the rule the component already states for the all-done
+case, *"a finished sequence has no next thing to do"*, reaching the case it had missed.
+
+**Both losing options, because neither is silly.** Leaving it is defensible if the pointer means
+"the next thing you COULD do" rather than "the next thing owed" — it was already built, tested and
+green, and this ruling costs a re-grade of a passing case. It loses because a finished asset reads as
+unfinished and the pointer lands on the step a user deliberately skipped. Completing the sequence at
+`Verify the dimensions` reads simplest, and loses because it lets a struck row sit below an unstruck
+optional one with nothing marked at all.
+
+**One implementation constraint, because it is the failure this component already guards against.**
+Optionality goes in the same pair the key and the condition already live in. That component's own
+comment explains why the steps are built as pairs rather than as a key list beside a boolean list —
+a label and its condition drifting apart by one index is the failure a parallel-array spelling makes
+silent — and a separate "optional" list would reintroduce exactly it.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

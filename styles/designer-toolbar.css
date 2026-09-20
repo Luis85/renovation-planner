@@ -1,0 +1,103 @@
+/*
+ * AD18 item 3 (the icon toolbar) and item 6 (canvas proportion at 560-900px). Two items in one
+ * partial because they are one squeeze measured twice: at a 580px leaf the toolbar spent 107px
+ * on three wrapped rows of text while the canvas — the only region that absorbs any loss — was
+ * down to 180px, narrower than the inspector beside it.
+ *
+ * A partial of its own rather than more of `designer.css`, which stands at 397 lines against the
+ * assembler's 400-line cap. Obsidian variables only (SDD §84), so a themed vault stays themed;
+ * the build refuses a literal colour here.
+ */
+
+/*
+ * The button is an icon and a label side by side. Qualified with `.rp-designer-tools` like every
+ * other rule on this class (`designer.css` carries the full argument: Obsidian's own
+ * `button:not(.clickable-icon)` scores (0,1,1) and outranks a bare class), and adding only what
+ * the icon needs — the padding, colour, border and focus ring stay where they already are, so
+ * there is one place to read a button's appearance and one more to read its box.
+ */
+.rp-designer-tools .rp-designer-tool-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+/*
+ * THE LABEL IS DRAWN AT 80rem AND WIDER AND NOWHERE ELSE, and 80rem is a MEASUREMENT rather than
+ * a taste: 1280px is the one width AD18 measured the labelled toolbar to occupy a single row at
+ * (65.9px), against two rows at 760px (69px) and three at 580px (107px). So the rule shows the
+ * text exactly where it was measured to fit and hides it everywhere it was measured to wrap. The
+ * losing side is worth writing down: always-on icons would be one state instead of two, and were
+ * refused because 14 unlabelled glyphs are a learnability cost this surface has no tooltip test
+ * and no rendered check to price — where `aria-label`, which `DesignerToolButton.vue` carries at
+ * every width, is what Obsidian draws its own tooltip from.
+ *
+ * `display: none` and not the `.rp-visually-hidden` clip, because the accessible name is
+ * `aria-label` in both states: clipping the text would leave it in the accessibility tree
+ * SECOND, contributing nothing, where hiding it outright says what is meant.
+ *
+ * **Nothing here renders, so nothing here is verified.** jsdom applies no container query and
+ * computes no width; `designerIconToolbar.test.ts` reads what this rule DECLARES. The width at
+ * which the icon row itself starts to wrap is not known and is what a rendered pass should
+ * measure — the two numbers above bracket it but do not name it.
+ */
+@container rp-designer (width < 80rem) {
+	.renovation-asset-designer .rp-designer-tool-label {
+		display: none;
+	}
+}
+
+/*
+ * The four drawing tools as one named group (`role="group"` in `DesignerToolbar.vue`). A flex row
+ * of its own, sharing the toolbar's gap so the grouping is invisible to the eye and present to a
+ * screen reader — the group EXISTS so that AD18 item 5 can lift it into the `Add` rail whole, and
+ * a visible frame drawn now would have to be undrawn then.
+ */
+.rp-designer-shape-tools {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+/*
+ * ITEM 6: THE RAILS ARE CAPPED AT A SHARE OF THE LEAF, SO THE CANVAS NEVER FALLS BELOW HALF.
+ *
+ * Measured before: `.rp-designer-parts` / canvas / `.rp-designer-inspector` were 176 / 880 / 224
+ * at 1280 (canvas 68.8%), 176 / 360 / 224 at 760 (47.4%) and 176 / 180 / 224 at 580 (31.0%).
+ * Both rails were fixed at every width, so the canvas — `flex: 1` over a zero basis — absorbed
+ * 100% of the loss, and at 580 it was narrower than the inspector alone. §4 row 1 is an ADOPT
+ * row and it asks for "a large central canvas"; AD06's own criterion ("controls do not overlap
+ * the drawing or disappear offscreen") passed throughout, which is why no gate saw this.
+ *
+ * `22cqi + 28cqi = 50cqi` is the whole mechanism: the two caps sum to half the container, so
+ * `width - (parts + inspector) >= width / 2` at every width this block applies to. The `min()`
+ * keeps each rail's measured resting width wherever the leaf can afford it — both caps bite only
+ * below 800px, so 1280 is unchanged — and shrinks them in proportion below that. At 580 that is
+ * 128 / 290 / 162: the canvas goes from 31.0% to 50.0%.
+ *
+ * **Flex-shrink cannot do this and that was measured, not assumed.** The canvas takes
+ * `flex: 1`, whose basis is 0, so the sum of the three bases is 400px against a 580px container
+ * — POSITIVE free space, which the canvas grows into and no shrink factor is ever consulted for.
+ * A rail that shrinks has to be sized as a function of the container, which is what `cqi` is.
+ *
+ * **A second breakpoint was the alternative and is refused**: a stepped rail width would be
+ * right at one width in the band and wrong at the rest of it, and it would add a third state to
+ * a shell that already has two.
+ *
+ * The 35rem floor is `designer-narrow.css`'s own stacking breakpoint, spelled as the complement
+ * of it so the two blocks are DISJOINT: below it the body is a column and both rails take
+ * `width: auto`, and a cap that reached in there would pin a stacked rail to 22% of the leaf.
+ * Disjoint rather than ordered deliberately — `styles/index.css`'s import order then decides
+ * nothing here, which is the precedence this repository refuses to rely on elsewhere.
+ *
+ * Declared and unrendered, like everything above: jsdom resolves no `cqi` and no `min()`.
+ */
+@container rp-designer (width >= 35rem) {
+	.renovation-asset-designer .rp-designer-parts {
+		width: min(11rem, 22cqi);
+	}
+
+	.renovation-asset-designer .rp-designer-inspector {
+		width: min(14rem, 28cqi);
+	}
+}

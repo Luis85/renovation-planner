@@ -10,5 +10,16 @@
  * The icon toolbar is where most of these will land: `HostIcon.vue` draws the glyph and the label
  * that used to be the button's text becomes its `aria-label`, so the copy does not disappear with
  * the words — it moves to the accessible name.
+ *
+ * **It turned out to need ONE key, and the reason is worth stating because the sentence above
+ * predicted more.** Every tool's label already exists — `designer.toolbar.*`, spread here from
+ * `assetSymbols.ts` and `assetOpenLines.ts` — and `DesignerToolButton.vue` reads the SAME key for
+ * the visible text and for `aria-label`, so iconifying a button adds no copy at all. What has no
+ * key yet is the shape GROUP the toolbar now draws around the four drawing tools, and it is named
+ * `designer.shapes.*` rather than `designer.toolbar.*` deliberately: the user's wave-10 ruling
+ * moves those buttons into AD18 item 5's `Add` rail, so the group outlives the toolbar it is
+ * currently drawn in and a toolbar-shaped key would be wrong the moment wave 11 lands.
  */
-export const designerToolbarIconsEn = {} as const;
+export const designerToolbarIconsEn = {
+	'designer.shapes.group': 'Basic shapes',
+} as const;

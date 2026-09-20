@@ -402,6 +402,59 @@ If a future surface can rewrite an `Asset`'s geometry without being the designer
 disclosure in the same change, and the extracted `guardAssetUsage` is what makes that a one-line
 composition rather than a third construction of the query.
 
+### AD18-R1 — the header OWNS the asset's name; the Inspector drops its copy. (2026-09-20)
+
+**Taken by the user**, asked directly, before the header was built.
+
+AD06 item 1 asks for *"a restrained header with asset name, library return, actual save state, and
+contextual Use in plan action"*. The Inspector already draws that name as
+`.rp-designer-asset-name`, added in AD13 because nothing on the surface answered *"which asset is
+this"* — its own comment records that `getDisplayText` titles every designer leaf identically and
+that changing it alone would make this surface and the Plan Editor disagree.
+
+So building the header creates a second answer to one question, which is the shape this repository
+refuses everywhere it has a name for it. **The header takes it and the Inspector drops it.** The
+Inspector keeps the usage scope, the fields and the actions; the name moves up.
+
+**What the losing option was, because it is not obviously wrong.** Keeping both reads as "identity
+at a glance, plus the anchor the usage-scope block sits under" — `AssetUsageScope` is drawn beneath
+that name deliberately, so that an impact disclosure sits above the controls that rewrite the
+thing. Whoever moves the name must check that block still reads as being about the asset without
+the name directly above it, and say so in the card. If it does not, the answer is a heading for the
+scope block, NOT a second copy of the name.
+
+**This ruling changes no contract text.** C12's *"No account, logo, compass or marketing header"*
+bans marketing chrome and is not a ban on a header; AD06's own item 1 excludes the same chrome in
+its own words. The `state.json` blocker that read *"No header chrome, per C12"* generalised the one
+into the other, and is corrected with AD06's re-opening.
+
+### AD18-R2 — the Inspector is tabbed `Object | Reference`, two tabs, and neither board is copied. (2026-09-20)
+
+**Taken by the user**, asked directly, because the concept boards CONTRADICT each other and neither
+can be cited as the target: `01-overall-look-and-feel.png` draws three tabs, `Object | Style |
+Reference`; `02-interaction-concepts.png` draws two, `Object | Properties`. A ruling is owed
+precisely where §4's correction table is silent and the images disagree.
+
+**Two tabs, `Object` and `Reference`**, chosen against what the surface actually has rather than
+against either picture. The object, its placement and its clearance are one subject; the reference
+sheet and its calibration are another, and are the half a user is not looking at while drawing.
+**There is no `Style` tab**, because the designer has no styling controls — board 01 draws a tab
+that would ship near-empty, and an empty tab is a promise the surface does not keep.
+
+The problem it solves is measured rather than asserted: with one part selected the Inspector is
+**887 px of content in a 625 px column**, 42 % below the fold before any clearance or review block
+appears, in a 224 px rail. Placement, Reference, Clearance and the clearance-review answer are all
+under it.
+
+**Three things the implementing card must not get wrong.** The clearance-review notice is a
+`role="status"` live region and step 29 of *Calibrate a sheet and reserve space* records a user
+reading it as belonging to the Clearance block above it — a tab that separates the two would
+destroy the one judgement this package has an answer for. The Parts panel's roving tabindex and the
+Inspector's own `tabindex="-1"` are an existing keyboard model that a tab control has to join
+rather than compete with. And `DesignerInspector` is drawn only when `design !== null`, which is
+what keeps `.rp-designer-inspector` an empty REGION for a loading or failed leaf; a tab control
+must not move that gate.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

@@ -84,6 +84,7 @@ export interface EditorRuntime {
 	readonly labelActions: SpatialEditing['labelActions'];
 	readonly groupActions: SpatialEditing['groupActions'];
 	readonly areaDetails: EditorFormActions['areaDetails'];
+	readonly zoneOutline: EditorFormActions['zoneOutline'];
 	readonly planning: ReturnType<typeof createPlanningRefresh>;
 	readonly renovation: ReturnType<typeof createRenovationActions>;
 	readonly structureTask: StructureEditing['structureTask'];

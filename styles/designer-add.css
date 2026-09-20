@@ -1,0 +1,18 @@
+/*
+ * AD18 item 5 — the `Add` section of the left rail, and what the toolbar loses to it.
+ *
+ * **Created by the integrator before wave 11 was dispatched, and empty on purpose.** The rules are
+ * card W11-A's to write; the FILE and its `@import` line in `styles/index.css` are the
+ * integrator's, because `scripts/styles-assemble.mjs` refuses a partial no entry file imports — so
+ * a partial and its import are one action and cannot be leased apart. Wave 9 learned that after a
+ * card had already edited `index.css` outside its table, and wave 10 applied it beforehand; this
+ * is the same application, for a wave that happens to have one card. It is done anyway, because
+ * the reason is the assembler's rule rather than the number of cards.
+ *
+ * Its own partial rather than more of a sibling: `styles/designer.css` stands at 397 lines against
+ * the assembler's 400-line cap, `designer-parts.css` describes the panel the Add section sits
+ * ABOVE rather than the section itself, and `designer-presets.css` describes the modal gallery,
+ * which this card does not move.
+ *
+ * Imported above `designer-narrow.css`, which stays last so the stacking overrides still win.
+ */

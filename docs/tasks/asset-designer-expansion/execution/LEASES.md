@@ -531,3 +531,64 @@ metric. Measured at the wave base: `npm run check` green, 1065 test files, 11757
 wrapped toolbar, a fold and a column share are all invisible to it. `designerStyles.test.ts` pins
 what a rule DECLARES and wave 8's resolver pins what a container query RESOLVES to; neither is a
 measurement of the rendered result. The integrator has an in-app browser and will render both.
+
+## Wave 11 — AD18 item 5, the `Add` rail, dispatched 2026-09-20
+
+**Base is THIS commit**, per this file's rule that a wave's lease table goes in its base commit or
+before it. Its parent is `cd7a42474`, session eight's hand-off.
+
+**ONE card, and that is a finding rather than a shortage of work.** AD18-R3 moves the Basic-shape
+buttons out of the toolbar and into the rail, so the toolbar's deletion and the rail's creation are
+one atomic change — the four shapes must be drawn in exactly one place at every commit, and a wave
+that split them would have an intermediate state with the shapes in both or in neither. Three
+workers is a maximum, not a quota. The user was asked whether to run a second card on the
+carried-forward corrections and declined for this wave.
+
+**Two rulings were taken before dispatch**, in `contracts/DECISIONS.md` and in `execution/state.json`
+in the same edit, which is the discipline AD12-R1 and then AD18-R1/R2 each cost this package once:
+**AD18-R5** (the rail STACKS `Add` above `Parts`, it is not a tab pair) and **AD18-R6** (the `Add`
+section carries the preset door and the Inspector drops its copy).
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| **W11-A** — the `Add` rail (AD18 item 5), under AD18-R3, AD18-R5 and AD18-R6 | `.worktrees/ad07` (reused, carries `node_modules`), branch `ad18-add-rail` cut from this commit | EDIT `src/presentation/designer/AssetDesignerRoot.vue`, `src/presentation/designer/DesignerToolbar.vue`, `src/presentation/designer/inspector/DesignerInspector.vue`, `styles/designer-add.css` (**created empty in this commit; its `@import` is already wired, so this card must NOT touch `styles/index.css`**), `styles/designer-toolbar.css`, `styles/designer.css` (**cap: 397 lines against 400 — deletions welcome, additions must go in `designer-add.css`**), `src/presentation/i18n/locales/{en,de}/designerAdd.ts`, and `tests/helpers/designerRig.ts` (**narrow grant, `toolbarButton` only** — see the hazard below). CREATE components under `src/presentation/designer/`, and any test file under `tests/`. EDIT any EXISTING test file that its own change turns red. Nothing else | wave 11 base, `r1` | issued | reviewed by an agent that did not write it, conditions applied, coverage read per changed file |
+
+**Integrator-owned and sub-let to nobody**: `{en,de}/editor.ts`, `styles/index.css`, every other file
+under `src/`, `styles/` and `docs/`, and `package-lock.json`. A file the card discovers it needs is
+ASKED for, and the grant is written into this table in the same edit that makes it.
+
+**The lease hazard this wave has, which no previous one did.** `tests/helpers/designerRig.ts`'s
+`toolbarButton(label)` resolves a control by `wrapper.findAll('.rp-designer-tools button')` and then
+by `.text()`. There are **43** call sites across **26** test files (`grep -rn "toolbarButton("
+tests/ | wc -l`, `grep -rln "designerRig" tests/ | wc -l`, taken at this commit). Moving the four
+shape buttons OUT of `.rp-designer-tools` breaks every caller that asks for one by label, and those
+failures will look like the card's own bug rather than like the helper's scope. The helper is
+therefore IN the lease — narrowly, for that resolver — and the card owes a sentence in its report
+saying what the resolver now means. Note the failure is a SELECTOR failure and not a text one:
+jsdom applies no CSS, so `styles/designer-toolbar.css`'s `display: none` on the label below 80rem
+never affects `.text()`.
+
+**Two hand-off claims this base corrects, both read against the code rather than inherited.**
+
+- *"Board 02 also puts a search field over the preset categories"* implies one is missing. **It is
+  not.** `AssetPresetForm.vue` has carried a `type="search"` bound to `query` since AD07, with
+  group-dropping, a `designer.preset.no-matches` message and a roving tab stop that survives the
+  search re-flowing the gallery. What item 5 moves is the DOOR to that modal, not the search.
+- *"Shape keys are named `designer.shapes.*`, not `designer.toolbar.*`, so they outlive the
+  toolbar"* is **true of exactly one key**. `designer.shapes.group` is the shape GROUP's label,
+  minted by W10-A for precisely that reason. The four BUTTON labels are `designer.toolbar.draw-rect`
+  / `-rounded-rect` / `-circle` / `-line` in `DESIGNER_TOOL_LABELS` and are unchanged. They are
+  deliberately NOT renamed here — `en/designerAdd.ts`'s header carries the argument — so the card
+  should expect those key names to look stale and must not spend its lease on a rename.
+
+**The coverage clause still holds and is not softened**: this card adds `src/` code, a new `v-if`
+is a new branch, and the branch floor is 98. Plan each test WITH its code and read
+`coverage-final.json` for the CHANGED FILES; the threshold cannot see one untested arm in a slack
+metric.
+
+**This card may not report a layout claim as verified from the suite.** jsdom lays nothing out, so
+the rail's height, what the `Add` section costs the stacked rail below 35rem — which AD18-R5's own
+text names as an unmeasured cost of that ruling — and whether the shape buttons still fit are all
+invisible to it. `designerStyles.test.ts` pins what a rule DECLARES and wave 8's resolver pins what
+a container query RESOLVES to; neither is a measurement of a rendered result. The integrator has an
+in-app browser and will render it.

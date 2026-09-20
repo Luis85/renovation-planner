@@ -514,6 +514,74 @@ comment explains why the steps are built as pairs rather than as a key list besi
 a label and its condition drifting apart by one index is the failure a parallel-array spelling makes
 silent — and a separate "optional" list would reintroduce exactly it.
 
+### AD18-R5 — the left rail STACKS `Add` above `Parts`; it is not a tab pair. (2026-09-20)
+
+**Taken by the user**, asked at the start of session nine, before W11-A was dispatched — because it
+decides the rail's structure and therefore what the card builds.
+
+AD18 item 5 records the gap partly as a count: *"there is no Add panel, no tab control
+(`[role="tab"]` count in the rendered shell: 0)"*, and board 01 draws `Add` and `Parts` as a tab
+pair. **That count stays 0 under this ruling, deliberately, and the sentence in AD18 is a
+description of the board rather than a requirement this ruling fails to meet.** §4 row 1 — one of
+only two ADOPT rows — asks to *"adopt the composition and adapt it to actual Obsidian leaf
+dimensions"*, and at the 123–176 px this rail measures across 560–1280 (W10-A's `min(11rem, 22cqi)`
+cap), that adaptation is exactly the question this ruling answers.
+
+**Why stacked wins, and the reason is a gate rather than a taste.** `AssetDesignerRoot.vue` draws
+`.rp-designer-parts` under `v-if="design !== null"`, so the region survives as an EMPTY one for a
+loading leaf and for a hard failure — `assetDesignStore.fail` blanks `design` for both — rather than
+drawing a list of parts nobody has read. AD18-R2 named that same hazard for the Inspector in its own
+words: *"a tab control must not move that gate"*. A tab pair here would have to answer what the
+`Parts` tab shows while `design` is `null`, and the cheapest answers all move the gate. An `Add`
+section is unconditional — the shape buttons activate tools, which exist whether or not a design
+has been read — so stacking puts a condition on one child and none on the other, which is what the
+file already does.
+
+**The second reason is AD08-R1.** That ruling blesses the Parts panel as C05's overlap alternative
+*"reachable without a modifier"*, and refuses building a chooser partly because it would be a second
+selection surface. Putting the panel behind a tab does not make it unreachable, but it does put a
+press between a user and the thing that is currently the only way to select a part lying under
+another. A ruling that costs another ruling's guarantee something should say so; this one declines
+to spend it.
+
+**The losing side, because it is not silly.** Tabs are what board 01 draws, they make the tab count
+non-zero, and they give the rail one panel's height instead of two — which matters below 35 rem,
+where `designer-narrow.css` already stacks the rail ABOVE the canvas at `flex: 1 1 0` and a taller
+rail takes its share out of the drawing. That is a real cost of this ruling and it is not measured:
+nothing in this repository lays out, so what the `Add` section costs the stacked rail at a 460 px
+leaf is a RENDERED measurement the card cannot take and the integrator owes.
+
+### AD18-R6 — the `Add` section carries the preset door, and the Inspector drops its copy. (2026-09-20)
+
+**Taken by the user**, asked in the same question as AD18-R5 and before dispatch.
+
+`startFromPreset` REPLACES the whole design — it dispatches `runtime.applyShape` and passes
+`replaces: Boolean(design.value?.shape)` so the form can warn — which is the fact that decides this.
+Board 02 draws the preset gallery inline in the left rail; **that arm is refused on semantics before
+any measurement**, because a panel labelled `Add` whose gallery wipes the user's drawing is a false
+label, and no rail width would make it true.
+
+**What ships instead**: the `Add` section carries a door calling the same `startFromPreset`, and
+`DesignerInspector.vue`'s `.rp-designer-start-preset` button is DELETED rather than left beside it.
+That is AD18-R1's refusal applied to a second thing — the header owns the asset's name and the
+Inspector dropped its copy; the rail owns the way into a preset and the Inspector drops its copy —
+and it is the same refusal AD18-R3 made about the shape buttons. **The presets stay a modal**, so
+AD18 item 5's complaint that *"presets are a modal behind an inspector button"* is answered in its
+second half only, and this ruling does not pretend otherwise.
+
+**`DesignerEntryPaths`'s copy of the same gesture STAYS, and the distinction is what makes this a
+rule rather than a preference.** That component draws inside the empty-state overlay: it is a RANKED
+FIRST-RUN action offered where there is no design yet, and its own docblock records that each path
+*"calls the very function that path's ranked caller calls, so the two spellings of one gesture
+cannot drift"*. What AD18-R1 and AD18-R3 refuse is two STANDING controls answering one question at
+the same time; an empty state and a standing control are never both on screen for the same asset in
+the same state.
+
+**The losing side.** Keeping the Inspector's button costs nothing to build and is defensible on
+`DesignerEntryPaths`'s own precedent — two callers of one function already ship. It loses because
+those two are an empty state and a panel, where these two would both be standing rails visible at
+once, which is the shape this repository refuses everywhere it has a name for it.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

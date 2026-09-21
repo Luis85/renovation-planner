@@ -542,13 +542,18 @@ export class SelectTool implements EditorTool {
 		// The whole GESTURE arrives rather than its zone and inverse, for the one fact the
 		// validator turns on: a vertex drag RESHAPES the outline, so it is judged for the
 		// self-crossing L-29 reproduces (a bowtie's signed area is the difference of its
-		// lobes, so the zone bills the wrong money). A body drag is a rigid translation —
-		// `moved` translates by one delta and adds ONE `snapTranslation` correction to every
-		// point — and can neither create nor remove a crossing, so judging it there would
-		// only refuse MOVING a zone a vault already holds. Neither arm judges AREA:
+		// lobes, so the zone bills the wrong money). Neither arm judges AREA:
 		// `crossingFreeOutline` is `createPolygon` plus the crossing rule and nothing else,
 		// because the zero-area drag is a policy question this slice does not answer.
-		const polygonResult = gesture.kind === 'vertex' ? crossingFreeOutline(forwardPoints) : createPolygon(forwardPoints);
+		//
+		// The test names the EXEMPT kind rather than the gated one, and that is the whole
+		// reason it is spelled this way round. `body` is the narrow, argued case — a rigid
+		// translation, `moved` by one delta plus ONE `snapTranslation` correction applied to
+		// every point, which can neither create nor remove a crossing, so gating it would
+		// only refuse MOVING a zone a vault already holds. Gating is the safe default, and
+		// `Gesture` has two members today; asking `=== 'vertex'` instead would hand a THIRD
+		// reshaping kind the UNGATED arm with nothing here or in `vue-tsc` to report it.
+		const polygonResult = gesture.kind === 'body' ? createPolygon(forwardPoints) : crossingFreeOutline(forwardPoints);
 		if (!polygonResult.ok) {
 			context.renderState.previewPolygon = null;
 			// Pre-dispatch: no command exists yet, so no indicator has heard about this.

@@ -6,6 +6,7 @@ import { DrawPolygonTool } from '../../../../src/presentation/editor/tools/draw-
 import { SelectTool } from '../../../../src/presentation/editor/tools/select-tool';
 import type { Point } from '../../../../src/core/geometry/Point';
 import type { Polygon } from '../../../../src/core/geometry/Polygon';
+import { createCurvedPolygon } from '../../../../src/core/geometry/CurvedPolygon';
 import { ok } from '../../../../src/core/result/Result';
 import type { SpatialElementKind } from '../../../../src/domain/spatial/SpatialElement';
 import { flushGesture as flush, pointerAt as at, toolContext } from '../../../helpers/tool-context';
@@ -38,6 +39,13 @@ describe('outlineCrosses', () => {
 		// "not at a shared corner": a corner landing exactly on a non-adjacent edge touches it
 		// at that edge's interior but at its OWN endpoint, and encloses its area honestly.
 		['corner dragged onto a non-adjacent edge', [p(0, 0), p(4000, 0), p(4000, 3000), p(2000, 0)]],
+		// The TOLERANCE, which every other fixture here is too tidy to see. Measured: edges 0
+		// and 1 are ADJACENT and share the corner (4000,500), and `circularEdgeIntersections`
+		// answers (4000, 500.0000000000001) for them — 1.14e-13 mm off that corner on both
+		// edges, against an epsilon of 1e-7. Force the epsilon to 0 (or spell `> 0`) and both
+		// `interior` checks pass, so an honest plan is refused. Until this row that was held
+		// only by one assertion in `resize/outlineProposal.test.ts`, about typed precision.
+		['an honest outline whose corner arithmetic does not land exactly', [p(1234, -765.4), p(4000, 500), p(3000, 2000), p(0, 3000)]],
 	])('accepts %s', (_name, points) => {
 		expect(outlineCrosses(points)).toBe(false);
 	});
@@ -47,6 +55,23 @@ describe('outlineCrosses', () => {
 		['the L-29 corner drag', L29],
 	])('refuses %s', (_name, points) => {
 		expect(outlineCrosses(points)).toBe(true);
+	});
+
+	/**
+	 * The compensation the docblock claims, DRIVEN — it was asserted with no curved fixture
+	 * anywhere in the slice. Two opposed semicircles each rise 500 mm into an 800 mm gap, so
+	 * the arcs cross while the chords are an ordinary rectangle: this predicate accepts it and
+	 * `createCurvedPolygon` refuses it. The instrument discriminates rather than always
+	 * refusing — measured at 1200 mm, where the same bulges clear each other and core answers
+	 * `ok`. What is driven is CORE, not a door: no door here hands a curved outline to
+	 * `preservePointCurves` and then to `createCurvedPolygon` in one case, so the route
+	 * between the two remains reasoning rather than a measurement.
+	 */
+	it('judges chords, and core refuses the arcs it cannot see', () => {
+		const points = [p(0, 0), p(1000, 0), p(1000, 800), p(0, 800)];
+		expect(outlineCrosses(points)).toBe(false);
+		expect(createCurvedPolygon({ points, bulges: [-1, 0, -1, 0] }))
+			.toMatchObject({ ok: false, error: { code: 'curve-self-intersection' } });
 	});
 });
 
@@ -67,9 +92,11 @@ describe('crossingFreeOutline', () => {
 });
 
 /**
- * `areaOutline` FIRST, and the order is load-bearing: a collinear outline keeps the
- * `polygon-zero-area` code every door already raises for it, so the zero-area drag is not
- * closed as collateral under a self-intersection code.
+ * `areaOutline` FIRST — and the collinear row below CANNOT see that, which is why the last row
+ * exists. `outlineCrosses` accepts every collinear outline by construction, so a merely
+ * collinear one keeps `polygon-zero-area` under either order. The order is observable on
+ * exactly one family: an outline that is zero-area AND self-crossing, which reports
+ * `polygon-zero-area` here and `polygon-self-intersection` with the two steps swapped.
  */
 describe('simpleAreaOutline', () => {
 	it('passes an honest outline through unchanged', () => {
@@ -81,12 +108,22 @@ describe('simpleAreaOutline', () => {
 	it.each([
 		{ points: [p(0, 0), p(1000, 0)], code: 'polygon-too-few-points' },
 		{ points: [p(0, 0), p(1000, 0), p(2000, 0)], code: 'polygon-zero-area' },
+		// The ONE fixture the ordering is observable on: the fourth corner sits on the line
+		// `4y = 3x - 12000`, where the shoelace sum vanishes, and the edge back to it crosses
+		// the first edge at (2000, 0). Both rules refuse it; the order decides under which code.
+		{ points: [p(0, 0), p(4000, 0), p(4000, 3000), p(0, -3000)], code: 'polygon-zero-area' },
 	])('leaves $code to areaOutline', ({ points, code }) => {
 		expect(simpleAreaOutline(points)).toMatchObject({ ok: false, error: { code } });
 	});
 });
 
-/** DOOR 2 — the `validateOutline` option `registerEditorTools.ts` hands both drawing tools. */
+/**
+ * DOOR 2's TOOL half: a `DrawPolygonTool` honours whatever `validateOutline` it is given —
+ * which this case HANDS it, so it says nothing about the registration. That
+ * `registerEditorTools.ts` gives both polygon entries `simpleAreaOutline` is pinned by
+ * `tests/presentation/editor/polygonOutlineWiring.test.ts`, through the real mounted editor;
+ * reverting both entries used to leave 52 files and 847 tests green.
+ */
 describe('a drawing gesture that closes into a bowtie', () => {
 	it('is refused before a command exists and keeps the buffer', async () => {
 		const h = harness();
@@ -154,9 +191,16 @@ describe('SelectTool.commit', () => {
 
 	// L-23 — the zero-area vertex drag — is a policy question this slice does not answer, so
 	// door 1 composes `createPolygon` with the crossing rule and NOT `simpleAreaOutline`, which
-	// would refuse this under `polygon-zero-area`. The triangle is the fixture that can see it:
-	// no single-vertex drag of a RECTANGLE can reach zero area, so the collinear drag below is
-	// the only one of the two that discriminates.
+	// would refuse this under `polygon-zero-area`. The triangle is the fixture that can see it,
+	// and the rectangle row is not: RECTANGLE's fourth corner landing on the diagonal keeps the
+	// area, so only the triangle row discriminates the two validators.
+	//
+	// It is NOT that a rectangle cannot reach zero area — an earlier version of this comment
+	// said so and it is false. With three corners fixed the shoelace is LINEAR in the fourth
+	// and vanishes along `4y = 3x - 12000`; every landing on that line is self-crossing except
+	// `(4000,0)`, where the corner coincides with an existing one. So RECTANGLE could have
+	// discriminated too, at that single degenerate point. The triangle is the cleaner fixture,
+	// not the only possible one.
 	it.each([
 		['a corner onto the diagonal, keeping the area', RECTANGLE, p(1000, 1000), p(0, 3000), p(2000, 1500)],
 		['a corner onto the opposite edge, collapsing the area to zero', TRIANGLE, p(500, 500), p(0, 3000), p(2000, 0)],

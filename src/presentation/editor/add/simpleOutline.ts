@@ -23,12 +23,24 @@ import { areaOutline } from './areaOutline';
  * Refusing collinearity here instead would close the zero-area drag as collateral, under a
  * self-intersection code, which is a policy change this module is not.
  *
+ * **"At an endpoint" is `curveTolerance(points)`, not zero, and that is load-bearing.** Two
+ * adjacent edges of an honest outline can report their SHARED corner a hair off itself —
+ * measured at 1.14e-13 mm, against an epsilon of 1e-7 — so forcing the epsilon to 0, or
+ * spelling `> 0`, refuses a real plan. `simpleOutline.test.ts` carries that fixture. The cost
+ * in the other direction is a corner dragged 1e-8 mm past the opposite edge being accepted,
+ * which is a ~1e-16 mm² area error and correct rather than a miss worth closing.
+ *
  * **It judges CHORDS, not arcs.** Every door below carries points only; a curved zone's bulges
  * are re-attached downstream by `preservePointCurves`, so on a curved zone this reads the
  * straight chord between each pair of corners. Accepted deliberately: the silent-miss direction
- * (chords simple, arcs crossing) is still caught by core's `validateCurvedBoundary` once the
- * bulges are back on, and the false-refusal direction is rare and recoverable. This is not a
- * curve check.
+ * (chords simple, arcs crossing) is caught by core's `validateCurvedBoundary` once the bulges
+ * are back on — driven at CORE by `simpleOutline.test.ts`'s rectangle whose two opposed
+ * semicircles each rise 500 mm into an 800 mm gap, which this predicate accepts and
+ * `createCurvedPolygon` refuses under `curve-self-intersection`. What is NOT driven is the
+ * route: no case hands a curved outline through `preservePointCurves` into
+ * `createCurvedPolygon` in one go. The false-refusal direction is rare and recoverable. This
+ * is not a curve check. Note also that door 4's `SpatialElement`s carry no bulges at all, so
+ * for that door the compensating mechanism is vacuous rather than reached.
  */
 export function outlineCrosses(points: readonly Point[]): boolean {
 	const epsilon = curveTolerance(points);
@@ -62,9 +74,16 @@ export function crossingFreeOutline(points: readonly Point[]): Result<Polygon, G
 }
 
 /**
- * `areaOutline` FIRST and then the crossing rule: a collinear outline keeps its
- * `polygon-zero-area` code and nothing that reads that code moves. Every door that already
- * required a measurable surface takes this one.
+ * `areaOutline` FIRST and then the crossing rule. Every door that already required a
+ * measurable surface takes this one.
+ *
+ * The order is observable on exactly ONE family: an outline that is zero-area AND
+ * self-crossing, which reports `polygon-zero-area` here and `polygon-self-intersection` with
+ * the two steps swapped. It is NOT what keeps a merely collinear outline on its
+ * `polygon-zero-area` code — this docblock said that for two commits and it was false.
+ * `outlineCrosses` accepts every collinear outline by construction, so those answer the same
+ * either way, and swapping the steps left 76 test files and 997 tests green until
+ * `simpleOutline.test.ts` grew the discriminating fixture `[(0,0),(4000,0),(4000,3000),(0,-3000)]`.
  */
 export function simpleAreaOutline(points: readonly Point[]): Result<Polygon, GeometryError> {
 	const outline = areaOutline(points);

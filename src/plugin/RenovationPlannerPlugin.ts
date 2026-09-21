@@ -1100,9 +1100,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * warning row was becoming the third. Adding an input means calling this method; it never
 	 * means composing `showDiagnosticsReport` beside it.
 	 *
-	 * Written no wider than its check: `tests/plugin/diagnostics/diagnosticsReportDoors.test.ts`
-	 * drives the doors it names and counts the modals they open, so it catches a door that
-	 * composed its own report and can say nothing about a door nobody gave it a case for.
+	 * The rule above is a rule and not a check. `tests/plugin/diagnostics/diagnosticsReportDoors.test.ts`
+	 * drives the doors it names and counts the modals they open, so it catches a door that stops
+	 * opening one or opens two — and it can say nothing about a door nobody gave it a case for,
+	 * nor about one that composed its own report, since the fake counts a modal whoever built
+	 * it. Measured, by making a door compose its own and watching that file stay green.
 	 *
 	 * `runDetached` rather than a bare `void`, and the difference from `openProjectDetail`
 	 * below is the reason rather than a preference: that one calls `navigateToProject`, which

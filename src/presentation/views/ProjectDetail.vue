@@ -26,6 +26,7 @@ import HostIcon from '../components/HostIcon.vue';
 import PlanList from './PlanList.vue';
 import ProjectEntryGuidance from './ProjectEntryGuidance.vue';
 import ProjectPrices from './ProjectPrices.vue';
+import UnreadablePlansNotice from './UnreadablePlansNotice.vue';
 import { statusLabel } from './statusLabel';
 import { tr } from '../i18n/strings';
 
@@ -103,8 +104,8 @@ const isNew = computed(() => props.plans.length === 0 && props.unreadablePlans =
 const planRowsAbsent = computed(() => (props.plansFailure ?? null) !== null || props.plans.length === 0);
 
 /**
- * The SOME arm, named once and read twice — by the notice below, to pick its sentence, and by
- * the diagnostics button, to decide whether to draw at all.
+ * The SOME arm, named once and read twice — by `plansNotice` below, to pick its sentence, and
+ * as `UnreadablePlansNotice`'s `canOpenReport`, to decide whether the button draws at all.
  *
  * It is one expression rather than two because the button's gate IS the arm: only
  * `some-plans-unreadable` names the report, so a button gated on `plansNotice !== null` would
@@ -241,24 +242,16 @@ defineExpose({ focusEntry });
 					</button>
 				</div>
 
-				<p
-					v-if="plansNotice !== null"
+				<!-- The band is declared here rather than inside the component, so the schedule
+				     surface's copy of the same pair stays bare. `canOpenReport` is the SOME arm
+				     and never the notice's own existence: `all-plans-unreadable` names no
+				     report. -->
+				<UnreadablePlansNotice
 					class="rp-view-notice"
-					role="status"
-				>
-					{{ plansNotice }}
-				</p>
-				<!-- Gated on the SOME arm, never on the notice's own existence, and a SIBLING
-				     of the `<p>` rather than a child so an assertion reading `.rp-view-notice`
-				     still reads the sentence alone. -->
-				<button
-					v-if="somePlansUnreadable"
-					type="button"
-					data-rp-action="open-diagnostics"
-					@click="$emit('openDiagnostics')"
-				>
-					{{ tr('command.show-diagnostics-report') }}
-				</button>
+					:notice="plansNotice"
+					:can-open-report="somePlansUnreadable"
+					@diagnostics="$emit('openDiagnostics')"
+				/>
 
 				<div
 					v-if="missingPlan"

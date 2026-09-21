@@ -1,9 +1,16 @@
 /**
  * @vitest-environment jsdom
  *
- * Every door into the diagnostics report, one function behind them — this repository's
- * one-action-every-input rule, checked rather than asserted. A second entry point with its own
- * composition looks correct alone and drifts the moment either is edited.
+ * The doors into the diagnostics report this file names, driven, and counted by the modals they
+ * open.
+ *
+ * **Read that as narrowly as it is written.** What these cases check is that each listed door
+ * opens exactly one report. They do NOT check that the doors share one composition, and they
+ * say nothing at all about a door nobody gave them a case for: `Modal.opened` counts a
+ * `DiagnosticsReportModal` whoever built it, so a door composing its own passes here —
+ * measured, by making `assetLibraryViewDeps` do exactly that and watching every case stay
+ * green. One-action-every-input is what the code is written to, and it is stated as the rule
+ * at `RenovationPlannerPlugin.openDiagnosticsReport`; this file is not its check.
  *
  * **No count is written in this file's prose, and that is deliberate.** This header read *"Two
  * doors"* for the whole of the life of the third one, beside a `describe` that said three and
@@ -11,12 +18,11 @@
  * The one number left is derived from the list of drivers below, so it cannot disagree with
  * what the case actually drives.
  *
- * **What a "door" is here, because the word is doing real work.** It is a COMPOSITION that
- * reaches the report, not a control a user can press: the case drives the palette command's
- * callback, the settings row's action, and each view bundle's injected member read off the
- * REGISTERED factory. No warning row and no button is clicked here — the Plan Editor's row has
- * never been — because the property under test is that every composition lands on the one
- * public method. Which controls press which member is each surface's own case.
+ * **What a "door" is here, because the word is doing real work.** It is a SEAM that reaches the
+ * report, not a control a user can press: the case drives the palette command's callback, the
+ * settings row's action, and each view bundle's injected member read off the REGISTERED
+ * factory. No warning row and no button is clicked here — the Plan Editor's row has never been.
+ * Which controls press which member is each surface's own case.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 // From the MOCK module by path, not from `'obsidian'`. `tests/**` is type-checked against the
@@ -93,11 +99,11 @@ describe('the doors into the diagnostics report', () => {
 	});
 
 	/**
-	 * Every door OPENS one, which is the property that matters and the one a spy on the module
-	 * export could not settle: a spy that binds to nothing reports `not.toHaveBeenCalled()` for
+	 * Every door OPENS one, which is the property this can settle and the one a spy on the
+	 * module export could not: a spy that binds to nothing reports `not.toHaveBeenCalled()` for
 	 * every build ever written. `Modal.opened` is the fake's own record, so a door that composed
-	 * its own modal separately would still be counted here — and that is the point, because the
-	 * drift this rule guards against is two compositions, not two call sites.
+	 * its own modal separately is counted here too — that is the blind spot, stated where the
+	 * mechanism is rather than promised away by the case's name.
 	 *
 	 * A view's door is its injected member, read through the registered factory:
 	 * `presentation/` may not import `plugin/`, so what a warning row or a repair strip presses
@@ -108,7 +114,7 @@ describe('the doors into the diagnostics report', () => {
 	 * The expected count is `doors.length` rather than a literal, so adding a driver to the
 	 * list is the whole edit — there is no second number to keep in step with it.
 	 */
-	it('each opens the report, and none composes its own', async () => {
+	it('each opens exactly one report', async () => {
 		const doors: readonly (() => void)[] = [
 			() => plugin.commands.find((command) => command.id === 'show-diagnostics-report')?.callback?.(),
 			// `action` receives the row's index within its group, per `SettingDefinitionAction`. The

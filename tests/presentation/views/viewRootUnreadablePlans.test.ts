@@ -87,7 +87,9 @@ describe('the project detail state reports plans it could not read', () => {
 		const { wrapper } = mountDetail(() => ok({ plans: [PLANS[0] as PlanSummaryDto], unreadable: 1 }));
 		await flushPromises();
 
-		expect(wrapper.get('.rp-view-notice').text()).toBe(
+		// `.rp-view-notice p`, not the band: the band holds the diagnostics button beside the
+		// sentence, so only the live region is the sentence alone.
+		expect(wrapper.get('.rp-view-notice p').text()).toBe(
 			t('en', 'view.project.some-plans-unreadable', { count: '1' }),
 		);
 	});
@@ -170,11 +172,11 @@ describe('the diagnostics door beside the unreadable-plans notice', () => {
 		const { wrapper } = mountDetail(() => ok({ plans: [], unreadable: 1 }));
 		await flushPromises();
 
-		expect(wrapper.get('.rp-view-notice').text()).toBe(t('en', 'view.project.all-plans-unreadable'));
+		expect(wrapper.get('.rp-view-notice p').text()).toBe(t('en', 'view.project.all-plans-unreadable'));
 		expect(wrapper.findAll(DIAGNOSTICS)).toHaveLength(0);
 	});
 
-	// That the button is a SIBLING of the `<p>` rather than a child is held by the first case
-	// in the describe above, which reads `.rp-view-notice` and expects the sentence ALONE —
-	// nesting the button inside it turns that case red.
+	// That the button is OUTSIDE the live region is held by the `.rp-view-notice p` reads in
+	// the describe above: moving it inside the `<p>` turns three cases red across three files,
+	// measured.
 });

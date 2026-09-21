@@ -189,7 +189,9 @@ describe('ProjectDetail', () => {
 			props: { project: PROJECT, plans: rows, unreadablePlans: 2, emptyState: null, ...PRICE_PROPS },
 		});
 
-		expect(wrapper.get('.rp-view-notice').text()).toBe(t('en', key));
+		// `.rp-view-notice p`, not the band: the band holds the diagnostics button beside the
+		// sentence, so only the live region is the sentence alone.
+		expect(wrapper.get('.rp-view-notice p').text()).toBe(t('en', key));
 	});
 
 	/**

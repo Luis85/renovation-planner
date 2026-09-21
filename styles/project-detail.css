@@ -206,18 +206,6 @@
 }
 
 /*
- * A `<button>` that is a direct child of the column above stretches to the whole pane, and the
- * 1280 capture is what showed it: the diagnostics door under the unreadable-plans notice ran
- * the full width while every other button on this surface is content-sized. It is the rule
- * `.rp-project-downstream__retry` already carries for the same reason, keyed here on the
- * attribute both project surfaces' copies of that door share rather than on a class each would
- * need its own of.
- */
-.rp-project-detail__body > [data-rp-action='open-diagnostics'] {
-	align-self: start;
-}
-
-/*
  * The compact row the HIDDEN guidance state and the downstream pair both take: guidance hidden
  * removes the explanations and keeps the actions, and with nothing between them a column of
  * three buttons is a menu where a row is a toolbar. It wraps, because the labels do not fit a

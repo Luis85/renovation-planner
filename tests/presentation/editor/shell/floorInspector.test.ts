@@ -48,11 +48,19 @@ describe('the floor state', () => {
 		expect(primary.element.previousElementSibling?.tagName).toBe('H3');
 	});
 
-	it('marks counts partial when zones were unreadable', async () => {
+	/**
+	 * The EXACT rendered string, on a bare-count row and on the unit-carrying one. `toContain('2')`
+	 * stood here and was green either way: the annotation already opens with that digit, so it could
+	 * not see the glue between the value and the annotation at all. A bare space rendered
+	 * `1 2 could not be read` — a value ending in a digit against an annotation starting with one.
+	 */
+	it('marks counts partial when zones were unreadable, and brackets the annotation off the value', async () => {
 		harness = await mountPlanEditorCanvas({ unreadableZones: 2 });
+		const unreadable = t('en', 'editor.inspector.partial', { count: '2' });
 
 		expect(harness.wrapper.find('[data-rp-stat="rooms"]').classes()).toContain('rp-floor-inspector__stat--partial');
-		expect(harness.wrapper.find('[data-rp-stat="rooms"]').text()).toContain('2');
+		expect(harness.wrapper.find('[data-rp-stat="rooms"]').text()).toBe(`1 (${unreadable})`);
+		expect(harness.wrapper.find('[data-rp-stat="total-area"]').text()).toBe(`15 m² (${unreadable})`);
 	});
 
 	it('lists every room and every area as a button, and a row selects and frames its record', async () => {

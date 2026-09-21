@@ -5,8 +5,9 @@ deliberately given no new case, with the evidence chain under it rebuilt after r
 Owner / worktree / branch: W14-C · `.worktrees/ad11` · `w14c-fixtures-and-mirror`
 Base commit: `7069a3d8b`
 Candidate commit (first round): `8fc9d34a8`
-Candidate commit (fix round): **`PENDING`** — filled in by the one-line commit on top of it,
-because a commit cannot name its own hash. The branch tip is the candidate.
+Candidate commit (fix round): **`280843300`** — the commit this report describes. The branch
+tip is the one-line commit that filled this field in, because a commit cannot name its own hash;
+it changes nothing but this line.
 Accepted contract revision: wave 14 base, `r1`
 Allowed scope and shared-file leases: CREATE under `tests/vault/legacy-schema/`; EDIT
 `tests/vault/legacy-schema/README.md`, `tests/infrastructure/persistence/dto/assetGeometry.test.ts`,

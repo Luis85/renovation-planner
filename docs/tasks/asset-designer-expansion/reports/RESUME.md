@@ -1,242 +1,156 @@
-# RESUME — session ten's hand-off
+# RESUME — session eleven's hand-off
 
-**Rewritten 2026-09-21, replacing session nine's packet wholesale**, for the reason that file gave
-for doing the same: a hand-off that is appended to goes stale in a way a reader cannot detect.
+**Rewritten 2026-09-21, replacing session ten's packet wholesale**, for the reason every packet
+before it gave for doing the same: a hand-off that is appended to goes stale in a way a reader
+cannot detect.
 
 Branch `renovation-planner-asset-designer-bc5539`, worktree
 `D:\Projects\renovation-planner\.claude\worktrees\renovation-planner-asset-designer-bc5539`.
-PR [#230](https://github.com/Luis85/renovation-planner/pull/230), still **DRAFT** — the user has not
-been asked to make it ready and nobody should on their own initiative.
-
-**Correction to every previous packet about where `main` is.** They said *"main is untouched at
-`f3a8864a9`"*. That is false: `git merge-base --is-ancestor f3a8864a9 ed5c50b76` answers YES, so
-`f3a8864a9` is an ANCESTOR. `origin/main` is at **`ed5c50b76`** — PR #229 merged into it — and the
-`main` ref in this checkout is stale at `f3a8864a9`. Fetch before you read it. This branch's merge
-base with `origin/main` IS `origin/main`, so the branch contains all of main and nothing needs
-rebasing.
-
-## Two exit-code traps, and I fell into the second one twice
-
-**Read the analyze section of a PASSING leg**, and do not read a `✗` on the duplication summary as a
-gate: `duplicates.threshold` defaults to `0`, which fallow documents as "no limit". Read the
-`N above threshold` count. This correction is three sessions old and has caught three sessions.
-
-**NEW, and this one cost me two false greens in one session.** This recipe is wrong:
-
-```bash
-cmd > log 2>&1; ec=$?; echo "EXIT=$ec"
-```
-
-The compound's own status is the **echo's**, which is always 0. In the foreground you see the printed
-line and are fine; **backgrounded, the runner reports the echo's 0 and the notification says "exit
-code 0" whatever the gate did.** I reported a green gate twice on a run that exited 1. What works:
-read `$?` with nothing between, or `${PIPESTATUS[0]}` after a pipe, and in every case **read the
-log's own `Test Files` line** rather than any exit code.
-
-## Wave 12 — the unreachable guard. ONE card, merged, CI green on all six.
+PR [#230](https://github.com/Luis85/renovation-planner/pull/230), still **DRAFT** — the user has
+not been asked to make it ready and nobody should on their own initiative. The user was asked
+directly whether the beta was ready and said **"not ready, keep working"**.
 
 | | |
 |---|---|
-| Base | `82838abe3` |
-| Candidate | `078e3dc84` |
-| Fix round | `871802a74` |
-| Integrator repair | `9dc85914b` |
-| Ledger | `9db772339` — CI run `35573801811`, all jobs success |
+| HEAD | `4bc2ba5b7` — pushed, tree clean |
+| Gates | CI run `35632664115` on `4bc2ba5b7`: `verify` ×4 plus `audit` plus GitGuardian, **all success**, read by run id |
+| `origin/main` | `ed5c50b76`. The **local `main` ref is stale at `f3a8864a9`** — fetch before reading it. Merge base with `origin/main` IS `origin/main`, so nothing needs rebasing |
 
-`DesignerInspector.vue`'s `showUnscaledDimensions` is now `props.design.dimensionsUnscaled` alone.
-The first term was unreachable and the docblock had said so for a wave while keeping it.
+## What session eleven did, and the one thing it did NOT do
 
-**The wave started as TWO cards and the second was WITHDRAWN before dispatch** under ruling
-**AD18-R7**, not narrowed. AD18's `placement(s)` bullet asks for a change the code argues against in
-writing: `en/assetDuplicate.ts`'s header says the `(s)` spelling is house convention copied from a
-real precedent, and refuses a plural mechanism because `t` has none. The bullet is wrong twice — it
-says *untranslated* where German has `Platzierung(en)`, and it names one member of a three-key
-convention as though it stood alone. **A card asking for the wrong thing cannot be closed by testing
-harder.**
+The user authorized, in these words, *"do both, start with the 10 rows"*. The ten rows shipped as
+wave 14. **The second half was this session: write the T12 and U05 manual cases and hand the user a
+walk.** Both cases are written, reviewed, fix-rounded and merged. **The walk was handed over and has
+NOT been walked.** Nothing in this session moved a matrix row on evidence from a vault, and both new
+cases say so in their Runs tables and their reports.
 
-### The lesson worth inheriting from wave 12
+**The walk is in the session transcript rather than in a file**, as a per-step checklist with one
+expected result each — the format that took the user 20 minutes last session and moved U04. If it
+is needed again, rebuild it from the two cases' `obsidian`, `desktop` and `judgement` rows; the
+recommended ten-step subset was **A1, B7, B8, B9, B11, B12a–B12d, B30**.
 
-**A past-tense claim that reads as present-tense is a defect, and "it was false" is the wrong fix.**
-`assetDimensions.test.ts` and `AssetDesignerRoot.vue` both said *"`DesignerInspector` was the ONLY
-reader of `dimensionsUnscaled`"*. The session-nine hand-off called it stale; the integrator told the
-card it was false; the card wrote *"It was false"* into the tree; the independent reviewer then
-called the second copy *"verified false"* — **four readers, four wrong answers, reached
-independently**.
-
-`git log -S` puts both sentences in `d852733bd`, and at that commit's parent
-`git grep -n "dimensionsUnscaled" d852733bd^ -- src/` prints the producer twice, one locale comment
-and **one reader**. The claim was EXACT. It stopped holding inside the very commit that wrote it,
-twelve lines below itself. Both copies now name `d852733bd`, carry the misreading as the diagnosis,
-and give a command instead of a count. `AssetDesignerRoot.vue`'s is KEPT, because it is true.
-
-**When you meet an "only" that looks stale, run `git log -S` before you call it false.**
-
-## Wave 13 — harness fixtures for the three unrendered glyphs. ONE card, merged.
+## Wave 15 — two cards, two cases, merged
 
 | | |
 |---|---|
-| Base | `758e91d56` |
-| Candidate | `129dcbfb8` |
-| Fix round | `25aad5294` |
-| Ledger | `58da44576` — CI run `35584286453` |
+| Base | `098067d3c` (the lease table is IN it) |
+| Candidates | `25d8d3c3f` (A) / `755aa0cd5` (B) |
+| Fix rounds | `3c06a6f4d` / `30d280d41` |
+| Merged | `e691028e1` / `ba9962549` |
+| Integrator | `4bc2ba5b7` — census, `## Cases`, matrix, ledger |
 
-**The user walked a real vault and the strongest open risk in this package is DISCHARGED.** All five
-icon-only buttons draw a glyph in Obsidian — `rectangle-horizontal`, `squircle`, `circle`, `minus` in
-the Add rail, `anchor` on the toolbar. `HostIcon` never substitutes and the rail is icon-only at every
-width, so an unanswered name would have been a blank button with no text behind it. **Narrow it: the
-Obsidian VERSION was not recorded**, so it is one installed catalogue, one machine, one date.
+`docs/tests/cases/Two designers on one asset.md` (order 84, 16 steps) and
+`docs/tests/cases/Recover an asset design rather than lose it.md` (order 87, 36 steps).
+Disjointness verified across the **fix-round** shas, not only the candidates: four paths, two per
+card, `uniq -d` empty.
 
-They then asked for the fixtures. The three SVGs were fetched **by the integrator, not the card** —
-provenance is a shared-file concern — from the Lucide revision the fixture README pins
-(`2bfb9bb1bae5d74f6a9f81640ddd8bccc2c71860`), verified byte-identical in the candidate with `cmp`, and
-checked for LF / no BOM / trailing newline because `tests/build/encoding.test.ts` refuses a BOM.
+**These are documentation-only changes, so all six gates are green BY CONSTRUCTION** — `npm run
+check` never reads `docs/`. The two independent reviews were the only quality control this wave
+had, and they earned it: between them they caught two pass conditions that would have made the
+walker report defects that are not real, a citation claiming coverage its test does not give, and a
+count that was false when written.
 
-**The card proved the "grant both or neither" rule instead of repeating it**: with all three SVGs on
-disk and no node-map entries, the old missing-set assertion was still GREEN. The SVG half alone
-renders nothing. That claim had been prose since session nine and had never been demonstrated.
+## The finding worth inheriting: a refusal that turned back into a procedure
 
-### The lesson worth inheriting from wave 13 — the best finding of the session
+W15-B first **refused** half of U05, arguing that `GetAssetDesign` reads exactly two resources and
+every geometry write reads both of them first, so no fault can break the read-back without having
+already refused the write. That argument is correct about every obvious fault and was falsified by
+an asymmetry: **nothing on the WRITE path derives what the READ path derives.**
+`validateAssetShape` calls `dimensionsOf` zero times; `GetAssetDesign` derives it twice. So a
+schema-valid clearance whose SPAN is not representable is written happily and refused on the way
+back.
 
-**Inverting an assertion can remove the last positive producer of the thing it asserts.**
+**Three corrections travelled upward inside that one item, which is the shape to expect rather than
+the exception:**
 
-`designerIconToolbar.test.ts` asserted the exact missing set `['anchor','circle','squircle']`. The
-card inverted it to the empty set, correctly — but that case was the **last place under `tests/`
-asserting `data-icon-missing` is ever produced.** Every other occurrence is a negative
-(`toBeUndefined()`, `exists()).toBe(false)`).
+1. The **reviewer** found the asymmetry the card had dismissed, and named a suite spike it could
+   not run read-only.
+2. **The spike already existed as a test.** `getAssetDesign.test.ts` carries *"refuses a clearance
+   whose span overflows rather than reporting Infinity"* with the exact needle fixture, and its
+   docblock names the trap a hand-built spike would have fallen into — an axis-aligned rectangle
+   spanning ±1e308 trips `asset.degenerate-clearance` one guard earlier and never reaches
+   `dimensionsOf`. So CLAUDE.md's **run-`ls`-before-believing-a-gap rule caught a REVIEWER this
+   time, not a card** — a reviewer's honest *"I cannot settle this read-only"* is still a claim
+   about the tree and wants checking.
+3. **The integrator then got it wrong and the CARD corrected it.** The integrator's spike result
+   said a drag would land the write. It will not: after a failed refresh the store still holds the
+   previous design, so `createEditShape` passes a stale `geometryVersion` as `expected` and every
+   drag, arrow key and Inspector field is refused as `external-modification` — C08's
+   *refused/conflicted* outcome, already covered elsewhere in the case. The write lands only through
+   a door supplying **no** expected version: `runForward` reads `this.input.expected ?? version` and
+   `dispatchBackground` supplies none, which makes the gesture **Remove reference**. Steps 12a–12d
+   use it.
 
-The reviewer found it by exhaustive grep and, being read-only, said plainly it could not execute the
-proof. **The integrator executed it**: deleting `parent.dataset.iconMissing = canonicalName;` from
-`tests/helpers/obsidianIcons.ts` left **10 files and 197 tests GREEN** while turning eight cases
-vacuous at once.
+**Nobody has executed that sequence.** The rows are written so that *"the write did not land"* is a
+recordable finding, and the case, its Runs table and its report all say so.
 
-**The card then refused the forwarded suggestion and argued a better site**, which is what a fix
-round is for. The guard went in `tests/helpers/obsidianIcons.test.ts`, beside the module that WRITES
-the marker, rather than in the node-map file — because the hole opened precisely because the only
-positive statement lived in a CONSUMER that a later wave was right to empty, and another consumer
-repeats the shape. Same mutation after the fix: 1 failed of 198, and the failure is the new guard.
+## Matrix corrections made this session
 
-**An unrequested test file was kept on merit, not waved through.** `tests/helpers/editorIconNodes.test.ts`
-compares every map entry against its SVG, closing a gap the README's *"mechanically transcribed"* left
-open — there is no generator (`grep -rn editorIconNodes scripts/` prints nothing). The reviewer was
-asked to judge it and did, with measurements; one of its cases was DELETED as redundant against its
-own neighbour.
+- **T12 cited the wrong file.** `designerCrossLeaf.test.ts` has six cases across two describes — bus
+  delivery, per-asset filtering, a closed leaf, listener disposal, repeated open/close — and **no
+  conflict case at all**; its only two matches for `conflict|expected` sit inside a docblock about
+  leaked Konva stages. Reached independently by the card, its reviewer and the integrator, each by
+  listing every `it(`. The behaviour **was** asserted all along, in `designerWriteChain.test.ts` and
+  `designerSelectTool.test.ts`. **True about a behaviour, wrong about a file** — the same shape wave
+  14 recorded for T30, one wave later.
+- **T12** → `partial — a written case now exists, unwalked`. **U05** → `not-run — a written case now
+  exists`, with its post-write-refresh clause graded **discharged by a procedure rather than
+  narrowed**.
+- U05's old reason said it needed *"two real leaves"*. It does not — the case works in one leaf
+  throughout, and T12 owns the two-leaf scenario.
 
-### What the suite cannot do and was done by hand
+## Two stale counts found by re-deriving the census, and how they differed
 
-`npm run harness` plus the in-app browser at the merge: **14 icon bearers, ZERO `data-icon-missing`**,
-and the three new ones carrying the right node shapes. Cloned into a 72px probe and screenshotted,
-the five draw a rectangle, a rounded square, a circle, a dash and an anchor. A test proves the entry
-is reached and reproduces the upstream nodes; **it cannot prove the picture is a circle.** Both the
-card and the reviewer named that as the sharpest gap. It is closed. Server stopped afterwards.
+The suite's step census was re-run by grep on the merged tree: **557** steps, `suite` 207,
+`browser` 75, `obsidian` 243, `desktop` 15, `judgement` 17. The prediction matched on every row,
+which is the additive check that says neither card edited a verdict outside its own new file.
 
-**One measurement stopped reproducing because of this wave.** Wave 11 explained a 3px difference as
-the harness rendering the word `squircle` where it had no fixture — correct then, unobservable now.
-`W11-A-add-rail.md` carries a dated amendment. **Found by the reviewer reading for stale claims
-OUTSIDE its own diff**, which is the part of the review brief that keeps earning its place.
+**Every step figure was exactly right. Both case counts beside them were wrong.** The census
+sentence said *"across 47 cases"* and matched none of the three populations it could have meant —
+48 case files, 31 bullets, 26 carrying a verdict. And the triage paragraph's *"twenty cases whose
+steps are a table"* was wrong in its **value** and in its stated **derivation**, which claimed to be
+`ls` minus one and therefore counted the 22 files that carry no verdict column at all. The two greps
+get re-run; the numbers beside them did not. Both are derived now, each with its command written
+beside it, and the table-form loop was **executed as the document prints it** and answered 27.
 
-## Gates
+## Three `src/` findings, surfaced and deliberately NOT fixed
 
-- Wave 12 at `9db772339`: CI run `35573801811`, `verify` ×4 plus `audit`, all success, read by run id.
-- Wave 13 at `58da44576`: CI run `35584286453`, read by run id — `headSha` matched, `verify` ×4 plus
-  `audit` all success, and `gh pr checks 230` shows all **six** pass including GitGuardian.
-- Local `check:fast` at `58da44576` exited **1** with three failures, **all timeouts**:
-  `tests/build/lint-edited.test.ts` twice (68951ms and 62552ms against a 60000ms budget) and
-  `tests/presentation/editor/rotationInspectorRoutes.test.ts` (5149ms against 5000ms). Re-run ALONE:
-  `lint-edited` 11 passed exit 0, `rotationInspectorRoutes` 2 passed exit 0 with tests 3.77s.
-  Contention. **Nothing quarantined, no budget raised.**
-- `rotationInspectorRoutes.test.ts` timed out under load in BOTH waves. It is the first file to
-  suspect under contention and it has never failed alone.
-- **`lint-edited.test.ts`'s two SFC cases are the ones to watch.** CLAUDE.md calls that 60s budget
-  *"the instrument for whether this hook is still cheap enough to sit in the edit loop at all"*, and
-  they now exceed it under load. Alone the whole file is 86.72s of test time for 11 cases. Not acted
-  on; recorded because the trend is the signal, not the timeout.
+The user was asked before dispatch and chose **"record in the cases only"** — no ruling opened, no
+`src/` change. They are here so a later session does not rediscover and re-propose them.
 
-## Wave 14 — seven AD15 rows that needed no vault. THREE cards, merged.
+1. **The designer's header reads `Saved` while its own strip says the canvas may be out of date.**
+   `DesignerHeader.vue` mounts `SaveStateIndicator`, which derives `saved-refresh-needed` from
+   `useProjectStore().stale` and `planningReadState`; `AssetDesignerView` gives the designer its own
+   Pinia where neither is ever hydrated. That component's docblock says it reads *"THIS Plan
+   Editor's own store"*. **`save-state.saved-refresh-needed` cannot be produced by the asset
+   designer at all** — a case expecting it would be wrong about the build rather than finding a
+   defect in it. Against C08's *"Saved must not imply that a stale canvas is current"* this is the
+   sharpest open question in the package. **B9 and B11 are the steps that look at it.**
+2. **`unrecoveredWrite` is set by the designer and drawn nowhere.** Eight readers — six Plan Editor,
+   two in the Renovation project view's work surface, one of which draws it as a `role="alert"`
+   paragraph — and nothing under `src/presentation/designer/`. **B19 and B20.**
+3. **A comment rather than behaviour:** `runtime.ts`'s `writesBlocked` premise says this surface has
+   *"no re-read that can go stale over an asset's own design"*, contradicted by
+   `assetDesignStore.stale` and the notice that draws from it. The behaviour is correct and pinned
+   by `designerRefresh.test.ts`; the sentence is the bug. One sentence, unowned.
 
-| | |
-|---|---|
-| Base | `7069a3d8b` |
-| Candidates | `bf6ac792d` / `c6561b3e6` / `8fc9d34a8` |
-| Fix rounds | `25b79d72b` / `2ef0f85ed` / `548141a60` |
-| Merged | `ae48ce810` / `d7cce7f42` / `c2fa762d2` |
-| Regrade + ledger | `8deda6182` — CI run `35619780998` |
+## Carried forward — verify against the tree, do not inherit
 
-**Ten AD15 rows moved and only five needed a test.** T07, T30, T41, F08 and T16 to `passed`;
-T21, T28, T37 and T20 to `structural`; T01 to `passed`; T13 `partial` with its sentence narrowed.
-**Every card refused at least one row.** A wave that had dutifully written ten tests would have
-written five that certify gaps.
+Everything on session ten's list that was not discharged is still open and still unowned:
+`Show grid` defaulting off (one field shared with the Plan Editor, so flipping it flips both);
+German `Vorlage` meaning both reference sheet and shape preset; `tests/harness/assetDesigner.ts`
+binding neither `openLibrary` nor `usePlan` and its deliberate `background: null`; item 8's
+ownership; the 460 px toolbar's unexplained second row; 80rem being 1280px of LEAF; and
+`designer-object.css`'s dead rule with the three smaller test-hygiene items beside it.
 
-**Disjointness was checked across FIX-ROUND shas, not just candidates** — and that mattered: W14-C
-gained two paths from a mid-wave lease extension. Eleven non-docs paths, `uniq -d` empty.
-
-### The three findings worth inheriting, all against DOCUMENTS rather than code
-
-- **A row can be true about a FILE and false about a BEHAVIOUR.** T30 said *"`assetShapeConfig.test.ts`
-  has no OPEN-graphic case"* — true — and concluded the plan renderer's handling *"is unasserted"* —
-  false. `placedOpenGraphic.test.ts` had asserted more of it since AD11, four directory entries away,
-  importing the same helper. The card's own diagnosis is the durable part: **"I read the file the
-  lease named and never ran `ls` on its directory."**
-- **Check the REQUIREMENT, not the matrix's paraphrase of it.** W14-B dropped half of T41 calling §6
-  a heap measurement; `ACCEPTANCE-AND-QA.md` line 168 asks for *"No monotonic retained-listener/**observer**
-  growth"*, and `connectedObservers()` already existed in `tests/helpers/layout.ts` with six callers,
-  in a file the card already imported from. The card reached that misquote **by correcting the
-  integrator's lossy brief with the matrix** — right to push back, one rung short of the source.
-- **A fixture asserted only on its defaults is the tidied-fixture trap it claims to close.** W14-C's
-  first round left `footprintOrigin`, `facing`, `anchor` and `calibration` free to drift. Each case
-  now asserts `snapshot.document` WHOLE with `toEqual`, so a new `AssetShape` field turns all three
-  red — the brittleness is the property wanted.
-
-### Two corrections that ran UPWARD, to the integrator
-
-- Reviewer W14-A caught that the `detailPolyline` docblock fix landed in **one of three** places and
-  credited the card with a finding **the suite already held** (`assetPlacement.test.ts` since
-  `f1cbe86ef`). Both were right; `e06d9346b` finishes the grep the first commit should have run.
-- W14-A corrected the integrator's predicted mutation count: **2 failed, not 3** — a case counts once
-  however many assertions inside it fire.
-
-### CRLF: 20 files, and it will break a scripted edit
-
-`git ls-files --eol` says `i/lf w/crlf` for about twenty files under `src/` and `tests/`. **The index
-is LF and git normalises on commit, so nothing ships wrong** — but an exact-string replacement written
-with `
-` silently fails on those files, which cost two failed edits before anyone looked. Read with
-`newline=''`, detect `
-`, and build the replacement with the newline the file actually uses.
-
-## Carried forward — each verified against the tree TODAY, not inherited
-
-- **`Show grid` defaults off** — unowned, unauthorized, and **bigger than AD18's bullet implies**:
-  `WorkspaceStore.ts`'s `const gridVisible = ref(false)` is ONE field shared with the Plan Editor, and
-  `DesignerCanvas.vue` says so in its own comment. Flipping the default flips the Plan Editor too;
-  designer-only means decoupling shared state. Also, half the bullet's argument ("no scale reference
-  AND no zoom readout") was discharged when item 1 shipped the zoom readout. Re-read it, do not
-  inherit it.
-- **German `Vorlage` means BOTH reference sheet and shape preset** — `grep -rn Vorlage src/` prints
-  **21 hits across 7 files** today (the session-nine figure of 18/6 was low). Needs a German-language
-  decision on which meaning keeps the word before any card.
-- **`tests/harness/assetDesigner.ts` binds neither `openLibrary` nor `usePlan`** — verified still
-  unbound. No capture can photograph the full header. Touching it means touching that fixture's
-  deliberate `background: null` posture, so it needs a ruling, not just a card.
-- **Item 8, the vanity fixture** — assigned to AD15, not AD18. Confirm ownership before touching.
-- At a 460px leaf the toolbar is 65.9px on ONE button row; a second visual row is taken by something
-  unidentified and recorded as unexplained in the CSS. **Do not assert a cause.**
-- 80rem is 1280px of LEAF, not window, so the labelled toolbar state is effectively unreachable in a
-  real vault. Nobody has decided whether that is fine.
-- `designer-object.css` still carries the dead `.rp-designer-inspector .rp-designer-asset-name` rule
-  (verified present) and a stale header; W8-B's declaration case wants moving to
-  `designerStyles.test.ts`; `designerDrawDetails.test.ts` has a third `held` clone;
-  `designerSelectMarquee.test.ts` says twice that EditorSurface routes "a release outside the leaf"
-  to `abandonGesture`, wrong in the third item of each list only.
-
-**Discharged this session, so do NOT carry them forward again**: the three unrendered glyphs and
-whether Obsidian answers them; `assetDimensions.test.ts`'s stale "only"; the unreachable guard in
-`DesignerInspector.vue`; AD18's `placement(s)` bullet.
+**Added this session:** `reversibleAssetDesignWindows.test.ts` is the strongest two-leaf evidence in
+the repository and **is claimed by no matrix row** — worth a row rather than a card.
 
 ## Nothing is authorized
 
-Every AD18 item the user authorized has shipped. **AD18's "deliberately absent" table lists ten board
-elements that must NOT be implemented back** — implementing one is worse than doing nothing. Propose,
-get a decision, then plan a wave. The unowned candidates are the carried-forward list above.
+AD18's **"deliberately absent"** table lists ten board elements that must NOT be implemented back;
+implementing one is worse than doing nothing. The carried-forward list is candidates, not a queue.
+Propose, get a decision, then plan a wave.
 
 ## This machine
 
@@ -247,31 +161,27 @@ powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='no
 ```
 
 - Prefix every node-spawning command: `export TEMP=D:/tmp-claude TMP=D:/tmp-claude`
-- `check:fast` locally, full `npm run check` in CI. Four sessions running.
+- `check:fast` locally, full `npm run check` in CI. **Six sessions running.**
 - Workers run narrow `npx vitest run <paths>` only. `check` / `test:coverage` / `analyze` are the
   integrator's. Run `test:coverage` BEFORE `analyze`.
-- **Never dispatch a worker into a worktree a gate is reading**, and never edit one either.
-- Watch CI **by run id**: `gh run view <id> --json status,headSha,conclusion,jobs`.
-- A scripted edit is invisible to `scripts/lint-edited.mjs`. Run `npx oxlint` and `npx eslint` by
-  hand; **oxlint prints NOTHING on a clean run** — read the exit code.
-- **The in-app browser is the ONLY instrument here that applies layout**, and it settled a question no
-  gate could for the fourth session running. `npm run harness` + `preview_start`. Kill the server after.
-  Trap met this session: `navigate` dropped the query string, and the icon probe returned `count: 0` —
-  **an instrument that reaches nothing looks exactly like a clean result.** Assert it found something.
-- Do NOT run `npx playwright install chromium`; it emptied `node_modules` once. No pinned Chromium.
-- `.fallowrc.json` is JSONC; `JSON.parse` and python's `json` both choke on it. Grep it as text.
-- Worktrees under `.worktrees/` carry `node_modules` and are reusable with `git switch -c`: `ad07`,
-  `ad08r`, `ad10` (wave 12), `ad11` (wave 13), `ad13b`, `ad13c`, `ad14`, `adq`.
-- **`SendMessage` works and is the right tool for a fix round.** Four sessions running, sending
-  findings back to the card's ORIGINAL worker has beaten dispatching a fresh agent — and twice this
-  session the card pushed back and was right.
+- Watch CI **by run id**: `gh run view <id> --json status,headSha,conclusion,jobs`. Do not push
+  repeatedly in quick succession; it cancels in-flight runs.
+- The exit-code trap still stands: `cmd > log; ec=$?; echo ...` reports the ECHO's status. Read
+  `$?` with nothing between, and read the log's own `Test Files` line.
+- CRLF: about twenty files under `src/` and `tests/` are `i/lf w/crlf`; `docs/` is LF throughout,
+  checked this session with `git ls-files --eol` before every scripted edit. A shell heredoc is a
+  poor instrument for a long document with backticks and quotes in it — this file was written with
+  an editor tool after a heredoc failed on its own content.
+- Worktrees under `.worktrees/` carry `node_modules` and are reusable with `git switch -c`: `ad07`
+  (wave 15 A), `ad08r`, `ad10` (wave 15 B), `ad11`, `ad13b`, `ad13c`, `ad14`, `adq`.
+- **`SendMessage` to the card's ORIGINAL worker is still the right tool for a fix round.** Five
+  sessions running. Both cards pushed back this session and both were right — W15-A rejected the
+  integrator's *"steps 5–13 are unwalkable"* range because four of those rows survive off step 14,
+  and W15-B corrected the integrator's spike outright.
 
-## The one rule this session paid for twice
+## The rule this session paid for
 
-**Corrections must travel upward, and the integrator is not exempt.** The card corrected the
-integrator's brief about how many cases pin an invariant, and was right. The integrator corrected the
-hand-off, the card AND the reviewer about the `only reader` sentence — having been the one who told
-the card it was false. The reviewer withdrew one of its own findings mid-report. The integrator
-reported a green gate twice from a defective exit-code capture and corrected itself both times.
-
-**A wave where corrections only flow downward is one where nobody below is reading.**
+**An instrument that already exists looks exactly like a gap when you read the file instead of the
+directory** — and that is not a rule about cards. It caught a reviewer this time, on the single
+highest-consequence claim in the wave, and the integrator only found it by grepping `tests/` before
+building the spike it had been asked for.

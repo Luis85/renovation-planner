@@ -776,3 +776,49 @@ icon bearers, zero missing, and a 72px probe screenshot confirming the five draw
 rounded square, a circle, a dash and an anchor. A test proves the entry is reached and reproduces the
 upstream nodes; it cannot prove the picture is a circle.
 
+
+## Wave 14 — AD15 partial rows that need no host, dispatched 2026-09-21
+
+**Authorized by the user** after the integrator split AD15's partial rows into those needing a
+vault and those needing only a test. **Ten rows were proposed and SEVEN are dispatched**, because
+three turned out not to be test work at all. That triage is the wave's first deliverable and it
+happened before any card was written:
+
+- **T20 is STRUCTURAL, not a missing test.** `validateMembers` in `AssetShape.ts` checks each member
+  against `known`, the set of GRAPHIC ids. A group id is not in that set, so a group naming another
+  group is already refused as `dangling-group-member` — by the case that exists. Nesting is neither
+  separately expressible nor separately refusable, and a "refuses a nested group" case would be the
+  dangling path under a misleading name.
+- **T13 needs a `src/` change, not a test.** `AssetRepository` and `AssetGeometrySidecar` both import
+  the SAME `EntityVersion` from `./versioning`. A compiler-level refusal means branding a type across
+  two ports and their call sites.
+- **T01 may be a feature gap.** A replacement warning exists at `en.ts` — but it is the UNSCALED one,
+  gated on `dimensionsUnscaled`. Presets warn and clearance warns; whether a MEASURED footprint is
+  replaced silently is an open question.
+
+All three are put to the user as rulings rather than guessed at.
+
+| Card | Worktree | Lease | Contract | Status | Conditions |
+|---|---|---|---|---|---|
+| **W14-A** — AD15 rows **T28** and **T30**, the plan-symbol output half | `.worktrees/ad07`, branch `w14a-plan-symbol-output` | EDIT `tests/presentation/editor/elements/assetShapeConfig.test.ts`. CREATE any test file under `tests/`. EDIT any EXISTING test file or harness fixture its own change turns red. **No `src/` change** | wave 14 base, `r1` | dispatched | reviewed by an agent that did not write it |
+| **W14-B** — AD15 rows **T07**, **T21** and **T41**, designer presentation | `.worktrees/ad10`, branch `w14b-designer-presentation` | EDIT `tests/presentation/designer/designerArrangePanel.test.ts`, `tests/presentation/designer/layers.test.ts`, `tests/presentation/designer/designerCrossLeaf.test.ts`. CREATE any test file under `tests/`. EDIT any EXISTING test file or harness fixture its own change turns red. **No `src/` change** | wave 14 base, `r1` | dispatched | reviewed by an agent that did not write it |
+| **W14-C** — AD15 rows **F08/T16** and **T37**, fixtures and mirror | `.worktrees/ad11`, branch `w14c-fixtures-and-mirror` | CREATE files under `tests/vault/legacy-schema/`. EDIT `tests/vault/legacy-schema/README.md`, `tests/infrastructure/persistence/dto/assetGeometry.test.ts`, `tests/domain/asset/referenceFrame.test.ts`. CREATE any test file under `tests/`. EDIT any EXISTING test file or harness fixture its own change turns red. **No `src/` change** | wave 14 base, `r1` | dispatched | reviewed by an agent that did not write it |
+
+**Disjointness holds by file and was checked before dispatch**, not after: A owns one file under
+`tests/presentation/editor/elements/`, B owns three under `tests/presentation/designer/`, C owns
+`tests/vault/legacy-schema/`, one file under `tests/infrastructure/` and one under `tests/domain/`.
+No path appears in two rows. It will be re-checked by intersecting
+`git diff --name-only <base>..<sha>` across all three candidates AND their fix-round shas.
+
+**`AD15-validation-matrix.md` is NOT leased to any card.** The integrator regrades it, because three
+cards each editing the same table is the merge this package has already paid for once, and because a
+row's grade is a judgement about evidence rather than part of writing the test.
+
+### The instruction every card carries, and it is the point of this wave
+
+**If a row turns out to be STRUCTURAL rather than a missing test, say so and do not force a test.**
+Three of the ten already were. A row whose behaviour is unreachable, or already covered under
+another name, earns a written argument and a regrade — never a case that asserts the absence of a
+state the types cannot express, which CLAUDE.md warns costs a branch it can never pay back. **A card
+that reports "this row needs no test, and here is why" has succeeded, not failed.**
+

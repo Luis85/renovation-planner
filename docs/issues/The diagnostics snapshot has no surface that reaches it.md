@@ -185,3 +185,50 @@ report — the shape ADR-0015 already uses for a contradiction findable from onl
 - `src/presentation/editor/shell/PersistentWarningStrip.vue` — the `v-if` on the actions group.
 - `src/plugin/diagnostics/DiagnosticsReportModal.ts:161-162` — the report renders each note's
   vault path as an inert `createSpan`, so neither end of this seam is clickable today.
+
+## Amendment — 2026-09-21 (second) — the Plan Editor half is CLOSED in code
+
+Appended, not edited: the amendment above stated the seam and explicitly proposed no fix. This
+one records what was then built, so the note stops describing a gap that no longer exists on one
+of its two sides.
+
+**`unreadable-zones` now carries an action** (`b226b6c67`, with its fix round at `f7ec76c22`).
+The row's button is labelled with the palette command's own `command.show-diagnostics-report`,
+already present in both locales, so **no locale string was minted**. `presentation/` still may not
+import `src/plugin/`; what the button presses is a callback injected by the composition root,
+landing on the same public `RenovationPlannerPlugin.openDiagnosticsReport()` that the palette
+command and the settings ACTION row already call — *one action, every input*, now with three
+doors rather than two. `planEditorDeps` declines the member in its return type
+(`Omit<PlanEditorDeps, 'openDiagnosticsReport'>`), which makes "this function composes no plugin
+action" a compiler-checked fact rather than a convention.
+
+**`background-missing` and `background-unreadable` deliberately still carry none**, and the reason
+is stronger than the amendment above had it. It is not that their message names no surface: it is
+that `DiagnosticEntityKind` (`src/application/ports/diagnostics.ts`) has **no background member**
+and no ledger call site records one, so a diagnostics button on either row would open a report
+**structurally incapable of mentioning the background**. That reason is now written into
+`warnings.ts`'s own docblock, which previously listed all three rows as having "nothing to do
+about it yet".
+
+**What this amendment does NOT close, stated so the note is not read as finished:**
+
+- **The project-list half of the inversion is untouched.** It still has the report and no sentence
+  pointing at it.
+- **Four other shipped strings tell the user to open the diagnostics report and give them no way
+  to do it** — `view.project.some-plans-unreadable` (two renderers), `zone.listing-incomplete`,
+  `asset.listing-incomplete`, and `view.asset-library.some-unreadable` (whose button opens a
+  *note*, not the report). Measured 2026-09-21. This note's framing of "the sentence" as singular
+  was narrower than the tree; the seam this slice built makes the rest cheaper, not done.
+- **`DiagnosticsReportModal` still renders each note's vault path as an inert `createSpan`**, so
+  the far end of the seam remains unclickable. Unchanged by this work.
+- **Nothing here has been run in an Obsidian vault.** The row and its button were verified in the
+  browser harness (`?view=plan-editor&unreadable=N`, a knob this work added because the zone read
+  was hard-coded to zero refusals and no capture could draw the row at all) and by jsdom tests
+  including one axe scan. A harness capture is a browser render, not a vault run.
+
+- `src/presentation/editor/shell/warnings.ts` — the `unreadable-zones` push, its `actions` array,
+  and the rewritten `EditorWarning.actions` docblock.
+- `src/plugin/RenovationPlannerPlugin.ts` — `planEditorViewDeps()` injects the callback;
+  `openDiagnosticsReport()`'s docblock now states the rule rather than listing the doors.
+- `tests/harness/unreadableKnob.test.ts` — pins which harness knobs survive being combined, after
+  the first version of this work left a docblock claiming more than any check could see.

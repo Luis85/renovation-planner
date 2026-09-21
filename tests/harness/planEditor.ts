@@ -41,6 +41,7 @@ import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps, treePlanDeps } from '
 import { roomsDeps } from './roomsKnob';
 import { runtimeOfPluginView } from '../helpers/editorRuntime';
 import { driveItemKnob, type ItemGesture } from './itemKnob';
+import { loadedZones } from './unreadableKnob';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -317,20 +318,15 @@ function staleTriggerDeleteZoneCommand(): PlanEditorCommandServices['deleteZone'
  * `unreadable` arms the `?unreadable=N` knob: `findZonesByPlan` answers that refusal count, so
  * the `unreadable-zones` warning row — and the **Show diagnostics report** button it carries —
  * can be drawn at all. It was unreachable before, because the count was hard-coded to `0`.
- *
- * **What this knob deliberately does NOT do, stated rather than left to be discovered:** it
- * does not remove a zone. A real refusal returns the zones that LOADED plus a count of the
- * notes that did not, so a real vault at `unreadable=2` would draw two fewer polygons than
- * this page does. Pruning the list here would also have to prune `HARNESS_STRUCTURE`'s walls
- * and `zoneInspectorAnswering`'s answers to stay coherent, and would break any capture
- * combining this knob with `?select=` on a pruned id. So the fake is honest about the ROW and
- * approximate about everything else the zone list feeds — the canvas is not the only one, and
- * no list of the others is kept here because nothing would re-run it. Read a capture taken
- * through it that way.
+ * It also REMOVES those N zones from the answer (`unreadableKnob.ts`, which owns which two and
+ * refuses an `N` above them); the count alone made this fake kinder than a real listing.
  */
 export function harnessDeps(options: { readonly stale?: boolean; readonly unreadable?: number } = {}): PlanEditorDeps {
 	const stale = options.stale === true;
 	const unreadable = Math.max(0, options.unreadable ?? 0);
+	// Synchronous, so an `N` above the fixture's maximum refuses here rather than inside a
+	// promise nothing awaits.
+	const loaded = loadedZones(HARNESS_ZONES, unreadable);
 	// Closure-scoped rather than truly module-level: each capture is a fresh page navigation
 	// in a real browser, so module state resets on its own, and a counter that lived here
 	// instead would carry a call from one mount into the next if this page ever mounted the
@@ -360,8 +356,13 @@ export function harnessDeps(options: { readonly stale?: boolean; readonly unread
 			// right one. See [[Project-hydration fakes ignore the requested project ID]].
 			getProject: (id) => Promise.resolve(ok(id === HARNESS_PROJECT.id ? structuredClone(HARNESS_PROJECT) : null)),
 			listPlans: () => Promise.resolve(ok([structuredClone(HARNESS_PLAN)])),
+			// `zones` is the pruned list; **`structure` is NOT, and that is not a compromise.**
+			// The real query (`planEditorQueries.ts`) reads `structure` out of the per-plan
+			// GEOMETRY SIDECAR — one shared document, read independently of which zone notes
+			// loaded — so a real vault at `unreadable=2` hands back the whole structure beside
+			// two zones. Pruning it here would be a NEW infidelity, not a smaller one.
 			findZonesByPlan: () =>
-				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable, structure: structuredClone(HARNESS_STRUCTURE) })),
+				Promise.resolve(ok({ zones: structuredClone(loaded), unreadable, structure: structuredClone(HARNESS_STRUCTURE) })),
 			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`
 			// for why EMPTY rather than refused, and for what a refusal bundle costs a READ.
 			...emptyRequirementReads(),
@@ -411,7 +412,10 @@ export function harnessDeps(options: { readonly stale?: boolean; readonly unread
 		 */
 		commands: {
 			...unavailablePlanEditorCommands(),
-			zoneInspector: zoneInspectorAnswering(HARNESS_ZONES),
+			// The LOADED list, not the fixture: the real Inspector query reads the zone note, and a
+			// refused one has none to read. `zoneInspectorAnswering` answers `ok(null)` for an id
+			// it does not hold, which is what that read really does.
+			zoneInspector: zoneInspectorAnswering(loaded),
 			...(stale
 				? {
 						deleteZone: staleTriggerDeleteZoneCommand(),
@@ -562,9 +566,10 @@ export interface PlanEditorHarnessOptions {
 	 */
 	readonly stale?: boolean;
 	/**
-	 * `?unreadable=N` — the zone read answers N refused notes, which is the only way the
-	 * `unreadable-zones` warning row and its **Show diagnostics report** button can be drawn
-	 * at all. See `harnessDeps`'s own parameter for what this fake does NOT do.
+	 * `?unreadable=N` — the zone read answers N refused notes AND drops those N zones, which is
+	 * the only way the `unreadable-zones` warning row and its **Show diagnostics report** button
+	 * can be drawn at all. `unreadableKnob.ts` owns which zones those are and refuses an `N`
+	 * above them rather than clamping.
 	 */
 	readonly unreadable?: number;
 	/** A fresh detail plan: no zones, a parent-zone guide and one ancestor (`detailPlanKnob.ts`). */
@@ -630,10 +635,17 @@ async function selectZoneOnceReady(root: HTMLElement, zoneId: string): Promise<v
 		);
 	}
 
+	// THROWS for a row it cannot find, copied from `selectMultipleOnceReady`'s own line rather
+	// than invented here — `guardKnob` wraps both and `view.onClose` replays both, which
+	// `knobRejectionIsolation.test.ts` proves for the multi-id path and this file's own
+	// `?unreadable=2&select=harness-terrace` drive confirms for this one. `row?.click()` was a
+	// silent no-op, and the zone prune is what made it reachable: a capture naming a refused zone
+	// would otherwise photograph the UNSELECTED editor under a selected shot's name and exit 0.
 	const row = [...root.querySelectorAll<HTMLButtonElement>('.rp-room-list__row')].find(
 		(candidate) => candidate.dataset.rpId === zoneId,
 	);
-	row?.click();
+	if (row === undefined) throw new Error(`No selection row for ${zoneId}`);
+	row.click();
 }
 
 /**

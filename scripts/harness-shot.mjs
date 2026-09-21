@@ -692,18 +692,6 @@ const SHOTS = [
 	// stale pair above takes, and the selector waits on the ROW'S OWN BUTTON for that pair's
 	// stated reason: a wait on `.rp-warning-strip` would certify the strip mounted rather than
 	// that this row drew.
-	//
-	// **READ THESE TWO PICTURES WITH ONE CAVEAT, and it is about the fake rather than the code.**
-	// The canvas behind the strip still draws every seeded zone while the strip says two could not
-	// be read and "are not drawn". `?unreadable=N` sets the COUNT and removes no zone; a real
-	// vault at `unreadable=2` would draw two fewer polygons. `tests/harness/planEditor.ts`'s
-	// `harnessDeps` carries the full argument for why it stops there — pruning the list would have
-	// to prune `HARNESS_STRUCTURE`'s walls and `zoneInspectorAnswering`'s answers with it — and
-	// this note is repeated here rather than left only there because a picture is met by people
-	// who never open that file. These two shots are evidence about the ROW: its wording, its
-	// severity mark, its button's label, and how the three reflow at 460. They are evidence about
-	// NOTHING ELSE IN FRAME — the canvas is not the only region this page draws from that
-	// unpruned list, and the earlier version of this caveat named only the canvas.
 	{ name: 'plan-editor-unreadable', query: '?view=plan-editor&unreadable=2&theme=light', selector: UNREADABLE_ROW_BUTTON },
 	{ name: 'plan-editor-unreadable-narrow', query: '?view=plan-editor&unreadable=2', selector: UNREADABLE_ROW_BUTTON, width: 460 },
 	// A LIST rather than one selector (R14, 2026-09-04): the canvas alone attaches before the

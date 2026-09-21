@@ -1,6 +1,13 @@
 import { expectDefined } from '../../../helpers/domain';
 import { describe, expect, it } from 'vitest';
+import { ref } from 'vue';
 import { roomDimensions, dimensionProposal, dimensionTexts } from '../../../../src/presentation/editor/resize/roomDimensions';
+import { createRoomDimensionDraft } from '../../../../src/presentation/editor/resize/roomDimensionDraft';
+import type { RoomEditControls } from '../../../../src/presentation/editor/roomEditLifecycle';
+import { makeZone } from '../../../helpers/entities';
+import { createProjectId } from '../../../../src/domain/project/ProjectId';
+import { createPlanId } from '../../../../src/domain/plan/PlanId';
+import { recorder } from '../../../helpers/logger';
 const points = [{ x: -1000, y: 500 }, { x: 3000, y: 500 }, { x: 3000, y: 3500 }, { x: -1000, y: 3500 }];
 const box = { min: points[0], max: points[2] };
 describe('bounded rectangular room dimensions', () => {
@@ -58,6 +65,30 @@ describe('bounded rectangular room dimensions', () => {
 		const original = [{ x: 0, y: 0 }, { x: 2900, y: 0 }, { x: 2900, y: 1900 }, { x: 0, y: 1900 }];
 		const result = dimensionProposal(original, expectDefined(roomDimensions(original), 'rectangle'), { width: '0.001', depth: '0.001' });
 		expect(result.polygon?.points[2]).toEqual({ x: 1, y: 1 }); expect(result.areaMm2).toBe(1);
+	});
+
+	/**
+	 * The second of `editor.resize.invalid`'s two CORRECT sites — the first is the dialog's own
+	 * `[role="alert"]`, pinned in `roomResize.e2e.test.ts`. Both were pinned by nothing, and
+	 * swapping the key at both for `error.category.geometry` left 179 tests green (b512f2db6's
+	 * comment leans on them staying correct). `InlineRoomDimension.vue` binds this computed
+	 * straight to `<FieldError :message>`, so its VALUE is the sentence the user reads.
+	 *
+	 * The arm needs a refusal that is not the edited axis's own — the collapse geometry above is
+	 * the one this form can reach: the width parses, and the resized corner lands back on the
+	 * anchor because 1 mm is under the ulp at 1e20.
+	 */
+	it('names the whole room, not the field, when a parsed dimension still describes no room', async () => {
+		const collapsing = [{ x: 1e20, y: 0 }, { x: 1e20 + 1e6, y: 0 }, { x: 1e20 + 1e6, y: 1e6 }, { x: 1e20, y: 1e6 }];
+		const zone = makeZone({ projectId: createProjectId(), planId: createPlanId(), geometry: { points: collapsing } });
+		const controls: RoomEditControls = { busy: ref(false), blocked: ref(false), latest: ref(null), current: ref(true),
+			commit: () => { throw new Error('a refused proposal must never dispatch'); } };
+		const draft = createRoomDimensionDraft({ entity: zone, version: 'v1' as never }, controls,
+			{ axis: 'width', box: expectDefined(roomDimensions(collapsing), 'rectangle'), logger: recorder, finish: () => {}, preview: () => {} });
+		draft.input('0.001');
+		expect(draft.error.value).toBeNull();
+		await draft.submit();
+		expect(draft.error.value).toBe('Enter valid dimensions that can describe this room.');
 	});
 
 });

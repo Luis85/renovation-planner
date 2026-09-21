@@ -16,6 +16,7 @@
  * delivered.
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import Konva from 'konva';
 import { ok } from '../../../src/core/result/Result';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { createAssetDesignChangeSource } from '../../../src/application/events/assetDesignChangeSource';
@@ -46,6 +47,9 @@ installResizeObserver();
 
 const THE_ASSET = createAssetId();
 const OTHER_ASSET = createAssetId();
+
+/** How many open/close cycles the repeated-lifecycle case below drives; its docblock argues the number. */
+const CYCLES = 10;
 
 /** One bundle for every leaf in a case, so two leaves really do share one composed bus. */
 function leafDeps(bus: ReturnType<typeof createEventBus>, reads: string[]): AssetDesignerDeps {
@@ -172,5 +176,60 @@ describe('two designer leaves and one bus', () => {
 		await settle();
 
 		expect(reads).toEqual([]);
+	});
+
+	/**
+	 * The same question asked REPEATEDLY (task §6), and its two assertions were watched failing
+	 * under two different mutations, because they answer for two different resources:
+	 *
+	 * - `AssetDesignerView.unmount` skipping `this.vueApp?.unmount()` on every close after the
+	 *   first reddened this case with twenty leaked reads — and the two closed-leaf cases above
+	 *   with two. So the subscription arm is not this case's alone; what it adds there is that
+	 *   the leak ACCUMULATES, which two cycles cannot distinguish from a fixed cost.
+	 * - A stage built imperatively in `DesignerCanvas` and never destroyed reddened this case
+	 *   ALONE, `expected 17 to be 7` — every other case in this file passed, because no other
+	 *   case in the suite counts stages at all. That is the arm this case exists for, and the
+	 *   `17`/`7` is also why the expectation is a delta: those seven were this file's earlier
+	 *   cases leaking under the same mutation.
+	 *
+	 * **What this case can observe, and it is a short list.** The bus's subscriptions, through
+	 * the query the closed leaves would have issued; and `Konva.stages`, the module-level
+	 * registry every mounted stage adds itself to and every destroyed one removes itself from.
+	 * Both are counted as a DELTA against what was there when the case started, never against
+	 * zero: that registry is process-global, so an absolute expectation would be an assertion
+	 * about which file ran first in this worker.
+	 *
+	 * **What it cannot observe**, so the sentence above is the whole claim: heap growth, a
+	 * detached DOM subtree still referenced, a timer, and anything jsdom does not implement.
+	 * §6's "monotonic growth over 50 cycles" is a HEAP measurement and no gate here can take
+	 * one — `npm run perf` is deliberately absent. What is left is a leak COUNT, and a per-cycle
+	 * leak is linear in the cycles, so ten discriminates it exactly as fifty would at a fifth of
+	 * the cost (the loop is ~0.7s of a 5s case budget, measured on this machine).
+	 *
+	 * **Its subject is isolation, so read it with CLAUDE.md's `--no-isolate` warning beside it**:
+	 * `Konva.stages` is one of the four module-level states named there. Under per-file isolation
+	 * — which `vitest.config.ts` gives every file in the `suite` project — the delta is this
+	 * file's own. Under a shared registry it would not be, and the case would be measuring the
+	 * scheduler.
+	 */
+	it('stacks nothing across repeated open and close cycles', async () => {
+		const bus = createEventBus(() => undefined);
+		const reads: string[] = [];
+		const bundle = leafDeps(bus, reads);
+		const stagesBefore = Konva.stages.length;
+
+		for (let cycle = 0; cycle < CYCLES; cycle++) {
+			const view = await open(bundle, THE_ASSET);
+			await view.onClose();
+		}
+		await settle();
+		reads.length = 0;
+
+		await bus.publish(assetDesignChanged({ assetId: THE_ASSET }));
+		await bus.publish(projectIndexRebuilt());
+		await settle();
+
+		expect(reads).toEqual([]);
+		expect(Konva.stages.length).toBe(stagesBefore);
 	});
 });

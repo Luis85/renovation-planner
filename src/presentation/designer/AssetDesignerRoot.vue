@@ -253,8 +253,14 @@ const overlay = computed<EmptyStateProps | null>(() => {
  * inspector puts a warning over — "traced before a scale existed, so these numbers are not real
  * measurements yet" — and offering them back as the default made *Edit dimensions → Save* write
  * them as a `typed` rectangle in true millimetres, in two clicks, with the warning then
- * correctly gone because the footprint really is typed now. Nothing anywhere said so:
- * `DesignerInspector` was the only reader of that flag in the whole tree.
+ * correctly gone because the footprint really is typed now. Nothing anywhere said so —
+ * `DesignerInspector` was then the only reader of that flag, which was EXACT at `d852733bd^`
+ * and stopped holding inside `d852733bd` itself, the commit that wrote this paragraph and added
+ * `editDimensions`'s own read a few lines below it. The past tense is the one it earned, and it
+ * is kept rather than corrected into a number: what falsifies such a sentence is not being wrong
+ * but being unreadable, and three separate readers in a row took this one for a statement about
+ * the tree in front of them. For who reads the flag TODAY, run `grep -rn "dimensionsUnscaled"
+ * src/` — and read each hit, because it also prints prose that only names the field.
  *
  * Both halves, and each closes a different thing. The form is left EMPTY, so no gesture
  * promotes an unscaled number by accident — the ratio between two placeholder pixel counts is

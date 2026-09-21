@@ -695,3 +695,53 @@ corrected the hand-off, the card and the reviewer about the `only reader` senten
 was true when written, and the integrator had been the one who told the card otherwise. Both copies
 now carry the diagnosis and a command instead of a count.
 
+
+## Wave 13 — harness fixtures for the three unrendered glyphs, dispatched 2026-09-21
+
+**Authorized by the user in the same message that discharged the risk**: they walked a real vault,
+reported all five icon-only buttons drawing a glyph, and asked for the fixtures *"to be able to run
+proper tests"*.
+
+**The integrator fetched the three SVGs rather than leaving it to the card**, because provenance is
+a shared-file concern. `tests/fixtures/editor-icons/README.md` pins Lucide revision
+`2bfb9bb1bae5d74f6a9f81640ddd8bccc2c71860`, and all three were fetched from exactly that revision
+(HTTP 200 each) and checked for encoding: LF, no BOM, trailing newline, matching
+`rectangle-horizontal.svg` byte-for-byte in style. That last check is not ceremony —
+`tests/build/encoding.test.ts` refuses a BOM, and this repository has already lost a lint run to one.
+
+| Card | Worktree | Lease | Contract | Status | Conditions |
+|---|---|---|---|---|---|
+| **W13-A** — the three harness icon fixtures | `.worktrees/ad11` (reused, carries `node_modules`), branch `w13a-icon-fixtures` cut from this commit | CREATE `tests/fixtures/editor-icons/{circle,squircle,anchor}.svg`. EDIT `tests/fixtures/editor-icons/README.md`, `tests/helpers/editorIconNodes.ts`, `tests/presentation/designer/designerIconToolbar.test.ts`. EDIT `src/presentation/designer/tools/designerToolIcons.ts` **COMMENT TEXT ONLY — no executable line may change**. EDIT any EXISTING test file or harness fixture that its own change turns red. CREATE any test file under `tests/`. Nothing else | wave 13 base, `r1` | dispatched | reviewed by an agent that did not write it; the inverted assertion watched red BEFORE the fixtures land and green after |
+
+### The hazard that is also the instrument
+
+`tests/presentation/designer/designerIconToolbar.test.ts` **asserts the absence as an exact set**:
+
+```js
+expect(missing.toSorted()).toEqual(['anchor', 'circle', 'squircle']);
+```
+
+It goes red, **by design** — its own docblock says so: *"Pinned as an exact set rather than a count
+so that it moves in both directions: adding one of the three fixtures (which needs
+`tests/helpers/editorIconNodes.ts`, the generated node map) turns this red, and so does a new tool
+quietly introducing a fourth gap."* That is a case written in anticipation of this wave.
+
+**It must be RE-SITED, never deleted.** Half its purpose survives intact and is the half that still
+has work to do: a new tool introducing a gap. The set becomes empty and the case's subject becomes
+"this surface has no unrendered glyph", which is a stronger claim than the one it replaces.
+
+### What the lease has to say out loud
+
+- **The node map has NO generator.** `grep -rn editorIconNodes scripts/` prints nothing; the README
+  calls the entries *"mechanically transcribed"*, which means by hand. Both halves are required —
+  an SVG without a map entry renders nothing and the fixture permission alone is insufficient for
+  its own purpose, which the session-nine hand-off states as *"grant both or neither"*.
+- **`designerToolIcons.ts` carries two sentences the user's vault walk falsified** — that the three
+  are marked `data-icon-missing` in the harness, and that whether the catalogue answers `squircle`
+  *"is verified nowhere in this repository"*. The first is what this card changes; the second was
+  changed by a person in a vault. Hence the comment-only grant on a `src/` file.
+- **Record the vault verification narrowly.** The Obsidian VERSION was not recorded, so it is one
+  installed catalogue, one machine, one date — more than existed before, less than a pinned claim.
+  The README's own house style for this is the *"whether the installed host catalogue answers X is
+  not verified here"* sentence, which for these three is now answerable and must not be overstated.
+

@@ -1935,7 +1935,7 @@ excludes it by reading `.gitignore` and only ESLint needed the entry.
 | `npm run check:fast -- tests/build` | exit **0**, 46 files / 1281 tests |
 | `npm run harness-shot` | exit **0**, 125 PNGs, pinned Chromium resolved, **no substitute named** |
 | `s14-tablecheck.mjs` | 5/5 fixtures, 41 L- rows, `{"6":41}`, uniform OK |
-| `git push` | `19d573c83..9db5fc7f8`, CI run **35652038937** |
+| `git push` | `19d573c83..9db5fc7f8`, CI run **35652038937** — **completed `success` on all five jobs** |
 
 **Not run this session, named rather than left silent:** `npm run check` in full, `npm run build`,
 `test:coverage` and its floors, `npm run analyze`, `npm run test-build`, and any vault run. CI on
@@ -2015,7 +2015,7 @@ instrument only reads.* **`s14-tablecheck.mjs` is the only read-only one of the 
 
 #### What is implemented but unverified
 
-Both commits are CI-pending at close: run **35652038937** at `9db5fc7f8` was `in_progress`. The
+Both commits are **CI-green**: run **35652038937** at `9db5fc7f8` completed `success` on all five jobs, so `npm run check` passed on all four verify legs. The
 L-38 residue's behaviour in a real vault is unknown in both directions, because the 0.72px margin
 that decides it is font-dependent and this harness resolved fallback fonts. **L-19, L-21, L-06 and
 BP-04's real-screenshot clause all still need a vault run and none was performed.**

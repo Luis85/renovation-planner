@@ -147,6 +147,14 @@ describe('every toolbar button is an icon with a name', () => {
 	 * `tests/helpers/editorIconNodes.ts`, so a file added with no map entry still draws nothing and
 	 * is still counted here. That the entry faithfully reproduces its SVG is a different claim,
 	 * checked by `tests/helpers/editorIconNodes.test.ts` and not by this file.
+	 *
+	 * **And this case reads an ABSENCE, which is a weaker thing than it looks.** While the expected
+	 * set was non-empty this file was the tree's only positive producer of `data-icon-missing`;
+	 * emptying it left every remaining assertion about that marker anywhere in `tests/**` a
+	 * negative, so deleting the line in the fake that writes it turned eight cases vacuous at once
+	 * with nothing going red — measured, at W13-A's review. `tests/helpers/obsidianIcons.test.ts`
+	 * holds the positive half now, beside the code that produces it rather than here where a later
+	 * wave could legitimately carry it off again.
 	 */
 	it('asks the harness for no glyph it has no fixture for, across both homes', async () => {
 		const rig = await designerRig();
@@ -155,8 +163,11 @@ describe('every toolbar button is an icon with a name', () => {
 		const icons = rig.wrapper.findAll(GLYPH_BEARING);
 		const missing = icons.map((icon) => icon.attributes('data-icon-missing')).filter((name) => name !== undefined);
 
-		// An empty set proves nothing about a selector that reached nothing, which is the one way
-		// this case could go green by failing.
+		// An empty set proves nothing about a selector that reached nothing, so the count is asserted
+		// first. That covers ONE of the two ways this case can go green by failing and not the
+		// other: it is equally vacuous if the fake stops WRITING `data-icon-missing` at all, which
+		// no assertion here can see, since every one of them reads the attribute's absence.
+		// `tests/helpers/obsidianIcons.test.ts` pins the producing side for that reason.
 		expect(icons).toHaveLength(TOOLBAR_LABELS.length + SHAPE_TOOLS.length);
 		expect(missing).toEqual([]);
 		rig.unmount();

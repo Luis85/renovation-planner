@@ -2,7 +2,7 @@ import type { GeometryError } from '../../../core/errors/AppError';
 import type { CircularEdge } from '../../../core/geometry/circularArc';
 import { circularEdgeIntersections, curveTolerance } from '../../../core/geometry/circularIntersections';
 import type { Point } from '../../../core/geometry/Point';
-import type { Polygon } from '../../../core/geometry/Polygon';
+import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import { err, type Result } from '../../../core/result/Result';
 import { areaOutline } from './areaOutline';
 
@@ -45,23 +45,28 @@ export function outlineCrosses(points: readonly Point[]): boolean {
 }
 
 /**
- * `areaOutline` and then the crossing rule, in that order: a collinear outline keeps its
- * `polygon-zero-area` code and nothing that reads that code moves.
- *
- * A door that must keep accepting a zero-area result composes `outlineCrosses` with
- * `createPolygon` itself instead of calling this. `SelectTool.commit` is such a door AND is
- * reached by a body drag, which is a rigid translation and so can neither create nor remove a
- * crossing; gating it there would newly refuse MOVING a zone that already crosses, so it is
- * deliberately not wired (measured, S13).
+ * `createPolygon` and then the crossing rule, and NOTHING about area: the door that must keep
+ * accepting a zero-area outline takes this one. `SelectTool.commit` is that door on its vertex
+ * arm — L-23, the zero-area vertex drag, is a policy question this module is not.
  *
  * WRITE-ONLY, like `areaOutline` itself — legacy Zone files remain readable unchanged, and a
  * vault already holding a crossing outline still loads, still draws and still bills wrongly.
  * The refusal surfaces however the door that called it already surfaces one; no door shows it
  * SPATIALLY (SDD §26's clause of that name is unmet here and this does not change it).
  */
+export function crossingFreeOutline(points: readonly Point[]): Result<Polygon, GeometryError> {
+	const polygon = createPolygon(points);
+	if (!polygon.ok) return polygon;
+	if (outlineCrosses(points)) return err({ category: 'Geometry', code: 'polygon-self-intersection', message: 'An outline may not cross itself.' });
+	return polygon;
+}
+
+/**
+ * `areaOutline` FIRST and then the crossing rule: a collinear outline keeps its
+ * `polygon-zero-area` code and nothing that reads that code moves. Every door that already
+ * required a measurable surface takes this one.
+ */
 export function simpleAreaOutline(points: readonly Point[]): Result<Polygon, GeometryError> {
 	const outline = areaOutline(points);
-	if (!outline.ok) return outline;
-	if (outlineCrosses(points)) return err({ category: 'Geometry', code: 'polygon-self-intersection', message: 'An outline may not cross itself.' });
-	return outline;
+	return outline.ok ? crossingFreeOutline(points) : outline;
 }

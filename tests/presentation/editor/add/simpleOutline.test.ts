@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { outlineCrosses, simpleAreaOutline } from '../../../../src/presentation/editor/add/simpleOutline';
+import { createPinia, setActivePinia } from 'pinia';
+import { crossingFreeOutline, outlineCrosses, simpleAreaOutline } from '../../../../src/presentation/editor/add/simpleOutline';
 import { acceptsElementPoints } from '../../../../src/presentation/editor/elements/elementDraft';
 import { DrawPolygonTool } from '../../../../src/presentation/editor/tools/draw-polygon-tool';
+import { SelectTool } from '../../../../src/presentation/editor/tools/select-tool';
 import type { Point } from '../../../../src/core/geometry/Point';
+import type { Polygon } from '../../../../src/core/geometry/Polygon';
+import { ok } from '../../../../src/core/result/Result';
 import type { SpatialElementKind } from '../../../../src/domain/spatial/SpatialElement';
-import { flushGesture as flush, pointerAt as at } from '../../../helpers/tool-context';
+import { flushGesture as flush, pointerAt as at, toolContext } from '../../../helpers/tool-context';
 import { harness, stubCommand } from '../../../helpers/drawPolygonHarness';
 
 const p = (x: number, y: number): Point => ({ x, y });
@@ -43,6 +47,22 @@ describe('outlineCrosses', () => {
 		['the L-29 corner drag', L29],
 	])('refuses %s', (_name, points) => {
 		expect(outlineCrosses(points)).toBe(true);
+	});
+});
+
+/**
+ * `createPolygon` and the crossing rule, and no area rule at all — the composition door 1's
+ * vertex arm takes so that L-23 stays open there.
+ */
+describe('crossingFreeOutline', () => {
+	it('accepts a zero-area outline and refuses a crossing one', () => {
+		expect(crossingFreeOutline([p(0, 0), p(1000, 0), p(2000, 0)])).toMatchObject({ ok: true });
+		expect(crossingFreeOutline(L29)).toMatchObject({ ok: false, error: { category: 'Geometry', code: 'polygon-self-intersection' } });
+	});
+	// `simpleAreaOutline` used to be the only caller of `createPolygon` here, so this arm was
+	// reached through `areaOutline`. It is this function's own now.
+	it('returns createPolygon\'s refusal before it looks for a crossing', () => {
+		expect(crossingFreeOutline([p(0, 0), p(1000, 0)])).toMatchObject({ ok: false, error: { code: 'polygon-too-few-points' } });
 	});
 });
 
@@ -87,6 +107,70 @@ describe('a drawing gesture that closes into a bowtie', () => {
 		expect(h.completions).toEqual([]);
 		expect(h.dispatched).toEqual([]);
 		expect(h.context.renderState.polygonSketch?.vertices).toEqual(BOWTIE);
+	});
+});
+
+/**
+ * DOOR 1 — `SelectTool.commit`, which is the gesture L-29 reproduces, driven through the real
+ * tool with real pointer events.
+ *
+ * `commit` chooses its validator on the gesture KIND because its one call site is reached by
+ * both: a vertex drag reshapes the outline and is judged, a body drag is a rigid translation
+ * (`translate` by one delta, then ONE `snapTranslation` correction added to every point) and so
+ * can neither create nor remove a crossing. The body case below is the regression that gating
+ * it anyway would cause — a user whose vault already holds a bowtie unable to MOVE it.
+ */
+const TRIANGLE = [p(0, 0), p(4000, 0), p(0, 3000)];
+function selectHarness(points: readonly Point[]): { tool: SelectTool; gestures: Polygon[]; invalid: string[] } {
+	setActivePinia(createPinia());
+	const { context, rejections } = toolContext({ worldPerScreenPixel: 1, commandDispatcher: { run: () => Promise.resolve(ok('wrote')) } });
+	const gestures: Polygon[] = [];
+	const invalid: string[] = [];
+	const tool = new SelectTool({
+		spatialObjects: () => [{ id: 'zone-a', points }],
+		createMoveGesture: (_id, forward) => { gestures.push(forward); return { execute: () => Promise.resolve(ok('wrote')), undo: () => Promise.resolve(ok('wrote')) }; },
+		reportRejected: error => rejections.push(error.code),
+		reportInvalidInput: error => invalid.push(error.code),
+	});
+	tool.activate(context);
+	return { tool, gestures, invalid };
+}
+/** Click the body to select, then grab `from` and release at `to`; drains the detached dispatch. */
+async function drag(tool: SelectTool, inside: Point, from: Point, to: Point): Promise<void> {
+	tool.pointerDown(at(inside.x, inside.y));
+	tool.pointerUp(at(inside.x, inside.y));
+	tool.pointerDown(at(from.x, from.y));
+	tool.pointerMove(at(to.x, to.y));
+	tool.pointerUp(at(to.x, to.y));
+	await flush();
+}
+
+describe('SelectTool.commit', () => {
+	it('refuses the L-29 corner drag across the opposite edge', async () => {
+		const h = selectHarness(RECTANGLE);
+		await drag(h.tool, p(1000, 1000), p(0, 3000), p(-500, -400));
+		expect({ gestures: h.gestures.length, invalid: h.invalid }).toEqual({ gestures: 0, invalid: ['polygon-self-intersection'] });
+	});
+
+	// L-23 — the zero-area vertex drag — is a policy question this slice does not answer, so
+	// door 1 composes `createPolygon` with the crossing rule and NOT `simpleAreaOutline`, which
+	// would refuse this under `polygon-zero-area`. The triangle is the fixture that can see it:
+	// no single-vertex drag of a RECTANGLE can reach zero area, so the collinear drag below is
+	// the only one of the two that discriminates.
+	it.each([
+		['a corner onto the diagonal, keeping the area', RECTANGLE, p(1000, 1000), p(0, 3000), p(2000, 1500)],
+		['a corner onto the opposite edge, collapsing the area to zero', TRIANGLE, p(500, 500), p(0, 3000), p(2000, 0)],
+	])('dispatches a vertex drag that moves %s', async (_name, points, inside, from, to) => {
+		const h = selectHarness(points);
+		await drag(h.tool, inside, from, to);
+		expect({ gestures: h.gestures.length, invalid: h.invalid, last: h.gestures.at(-1)?.points })
+			.toEqual({ gestures: 1, invalid: [], last: [...points.slice(0, -1), to] });
+	});
+
+	it('dispatches a BODY drag of a zone that already crosses', async () => {
+		const h = selectHarness(L29);
+		await drag(h.tool, p(3000, 1500), p(3000, 1500), p(3400, 1900));
+		expect({ gestures: h.gestures.length, invalid: h.invalid }).toEqual({ gestures: 1, invalid: [] });
 	});
 });
 

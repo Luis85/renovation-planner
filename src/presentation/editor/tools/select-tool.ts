@@ -14,6 +14,7 @@ import { isStepGrip, type OpeningGrip, type OpeningHandle } from '../structure/o
 import { NUDGE_STEP_MM, NUDGE_STEP_SHIFT_MM } from '../surface/keyboard';
 import { transformHandlePoints } from '../elements/transformBox';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
+import { crossingFreeOutline } from '../add/simpleOutline';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
 import type { Vector } from '../../../core/geometry/Vector';
@@ -132,7 +133,8 @@ type Gesture =
  * command, no history entry.
  * - **Dragging a vertex** replaces exactly that index in the point list through the same
  * snap → validate → dispatch funnel; undo restores the prior list, so only that vertex
- * differs by construction.
+ * differs by construction. It is the ONE arm that can reshape the outline, so it is the one
+ * `commit` judges for a self-crossing — see the note there.
  *
  * All arithmetic runs on `event.worldPoint`; handle proximity is measured in SCREEN
  * pixels converted through the current camera, so the grab region stays
@@ -418,7 +420,7 @@ export class SelectTool implements EditorTool {
 
 		const forwardPoints = this.moved(context, gesture, event, context.snapCandidates([gesture.zoneId]));
 		context.renderState.snapGuides = [];
-		void this.commit(context, gesture.zoneId, gesture.original, forwardPoints);
+		void this.commit(context, gesture, forwardPoints);
 	}
 
 	/** Retire only undispatched geometry. Selection marquees and pending writes keep their owner. */
@@ -531,13 +533,22 @@ export class SelectTool implements EditorTool {
 
 	private async commit(
 		context: EditorContext,
-		zoneId: ZoneId,
-		inverse: Polygon,
+		gesture: Gesture,
 		forwardPoints: readonly Point[],
 	): Promise<void> {
 		// Re-validation at the point geometry becomes command input: snapping is arithmetic
 		// and must not be trusted blindly (SDD §26's tool-level layer).
-		const polygonResult = createPolygon(forwardPoints);
+		//
+		// The whole GESTURE arrives rather than its zone and inverse, for the one fact the
+		// validator turns on: a vertex drag RESHAPES the outline, so it is judged for the
+		// self-crossing L-29 reproduces (a bowtie's signed area is the difference of its
+		// lobes, so the zone bills the wrong money). A body drag is a rigid translation —
+		// `moved` translates by one delta and adds ONE `snapTranslation` correction to every
+		// point — and can neither create nor remove a crossing, so judging it there would
+		// only refuse MOVING a zone a vault already holds. Neither arm judges AREA:
+		// `crossingFreeOutline` is `createPolygon` plus the crossing rule and nothing else,
+		// because the zero-area drag is a policy question this slice does not answer.
+		const polygonResult = gesture.kind === 'vertex' ? crossingFreeOutline(forwardPoints) : createPolygon(forwardPoints);
 		if (!polygonResult.ok) {
 			context.renderState.previewPolygon = null;
 			// Pre-dispatch: no command exists yet, so no indicator has heard about this.
@@ -549,7 +560,7 @@ export class SelectTool implements EditorTool {
 		context.renderState.previewPolygon = polygonResult.value.points;
 		const shown = context.renderState.previewPolygon;
 		const result = await context.commandDispatcher.run(
-			this.deps.createMoveGesture(zoneId, polygonResult.value, inverse),
+			this.deps.createMoveGesture(gesture.zoneId, polygonResult.value, gesture.original),
 		);
 		// Anything that took the field while this write was pending (a new drag) owns it now.
 		if (context.renderState.previewPolygon === shown) context.renderState.previewPolygon = null;

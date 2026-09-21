@@ -128,26 +128,37 @@ describe('every toolbar button is an icon with a name', () => {
 	});
 
 	/**
-	 * **Which glyphs the browser harness has no fixture for, EXACTLY.**
+	 * **Not one requested glyph goes unrendered in the browser harness.**
 	 * `tests/fixtures/editor-icons/` is a pinned, licensed subset and its README's rule is that an
 	 * unknown request is MARKED (`data-icon-missing`) rather than answered with a different icon —
-	 * so these three draw as empty buttons in `npm run harness` and `npm run harness-shot` while
-	 * resolving normally in a vault, where `setIcon` reaches Obsidian's own catalogue.
+	 * so a name with no fixture draws as an empty button in `npm run harness` and
+	 * `npm run harness-shot` while resolving normally in a vault, where `setIcon` reaches
+	 * Obsidian's own catalogue.
 	 *
-	 * Pinned as an exact set rather than a count so that it moves in both directions: adding one of
-	 * the three fixtures (which needs `tests/helpers/editorIconNodes.ts`, the generated node map)
-	 * turns this red, and so does a new tool quietly introducing a fourth gap.
+	 * **This case used to pin the three that WERE missing — `anchor`, `circle` and `squircle` — as
+	 * an exact set, so that landing a fixture for any of them turned it red.** It did, and the
+	 * fixtures landed; the set is empty now and the subject is the stronger claim the empty set
+	 * makes: this surface asks for nothing the harness cannot draw. The half of the old case that
+	 * still has work to do survives unchanged — a new tool quietly introducing a gap turns this
+	 * red exactly as a new fixture once did.
+	 *
+	 * **A fixture is TWO halves and this case only sees the second.** The SVG under
+	 * `tests/fixtures/editor-icons/` is provenance; what the harness renderer actually reads is
+	 * `tests/helpers/editorIconNodes.ts`, so a file added with no map entry still draws nothing and
+	 * is still counted here. That the entry faithfully reproduces its SVG is a different claim,
+	 * checked by `tests/helpers/editorIconNodes.test.ts` and not by this file.
 	 */
-	it('records the three requested glyphs the harness has no fixture for, and no others', async () => {
+	it('asks the harness for no glyph it has no fixture for, across both homes', async () => {
 		const rig = await designerRig();
-		// Both homes, or two of the three — `circle` and `squircle` are shape tools — would leave
-		// with the buttons and the set would shrink for a reason that is not about fixtures at all.
-		const missing = rig.wrapper
-			.findAll(GLYPH_BEARING)
-			.map((icon) => icon.attributes('data-icon-missing'))
-			.filter((name) => name !== undefined);
+		// Both homes, or the shape tools' glyphs would leave with their buttons and the set would
+		// shrink for a reason that has nothing to do with fixtures at all.
+		const icons = rig.wrapper.findAll(GLYPH_BEARING);
+		const missing = icons.map((icon) => icon.attributes('data-icon-missing')).filter((name) => name !== undefined);
 
-		expect(missing.toSorted()).toEqual(['anchor', 'circle', 'squircle']);
+		// An empty set proves nothing about a selector that reached nothing, which is the one way
+		// this case could go green by failing.
+		expect(icons).toHaveLength(TOOLBAR_LABELS.length + SHAPE_TOOLS.length);
+		expect(missing).toEqual([]);
 		rig.unmount();
 	});
 

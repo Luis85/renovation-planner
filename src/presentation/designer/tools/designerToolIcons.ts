@@ -32,14 +32,22 @@ import type { DESIGNER_TOOL_LABELS } from './registerDesignerTools';
  * and reachable however its button travels — which was the point of putting the discriminator
  * here instead of writing a list out in a template.
  *
- * Three of these names have no harness fixture: `tests/fixtures/editor-icons/` holds no `circle`,
- * no `squircle` and no `anchor`, so `npm run harness` marks those three `data-icon-missing`
- * rather than drawing a different glyph, which is that directory's stated rule. In a vault they
- * resolve through Obsidian's own `setIcon` like every other name here; whether the installed host
- * catalogue answers `squircle` in particular is verified nowhere in this repository, the same
- * caveat that README already records for `clipboard-paste` and `building`.
- * `designerIconToolbar.test.ts` pins that missing set EXACTLY, so adding a fixture turns a test
- * red rather than passing unnoticed.
+ * **Every name here draws in the browser harness now, and both halves of that were false until
+ * wave 13.** `tests/fixtures/editor-icons/` held no `circle`, no `squircle` and no `anchor`, so
+ * `npm run harness` marked those three `data-icon-missing` rather than drawing a different glyph,
+ * which is that directory's stated rule. All three have a pinned fixture and an entry in
+ * `tests/helpers/editorIconNodes.ts` since — an SVG without the map entry renders nothing, so it
+ * took both — and `designerIconToolbar.test.ts` pins that missing set as EMPTY. The pin therefore
+ * still moves in the direction that has work left: a tool added to this table with no fixture
+ * behind its glyph turns it red.
+ *
+ * In a vault they resolve through Obsidian's own `setIcon` like every other name here, and
+ * `squircle` in particular is no longer the open question this paragraph used to record. The
+ * repository owner ran `npm run test-build` at c6d0f893c on 2026-09-21, opened the worktree as a
+ * vault and walked the `Add` rail and the toolbar: all five icon-only buttons drew a glyph.
+ * **Read that narrowly.** The Obsidian VERSION was not captured, so it is one installed
+ * catalogue, one machine, one date — more than a harness fixture can ever prove, and less than a
+ * pinned claim. `docs/tasks/asset-designer-expansion/execution/state.json` carries the record.
  *
  * **Every glyph is distinct, and that is a rule rather than an accident**: once the label is
  * hidden the glyph is the only thing that tells two buttons apart on screen, and reusing one

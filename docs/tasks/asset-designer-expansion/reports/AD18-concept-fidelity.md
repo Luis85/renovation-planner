@@ -219,9 +219,19 @@ the concepts is of an object the user cannot make.
   and 210 px** — one line at a 191 px row box, two at 177 px. So at the width this bullet names, it
   does not wrap.
 
-  What IS true is the copy defect: `placement(s)` is an untranslated plural spelling, and that half
-  stands unamended. The orphaned hyphen was not re-checked, because the state it was reported in
-  does not occur at the stated width.
+  **AMENDED AGAIN 2026-09-21, session ten: the copy half is WITHDRAWN under ruling AD18-R7, and it
+  was wrong in both of its words.** It is not *untranslated* — `de/assetDuplicate.ts` spells
+  `Platzierung(en)`, so German has it. And it is not a lone *spelling*: `(s)` is a house convention
+  this tree argues for in writing, in `en/assetDuplicate.ts`'s own header, which says it was
+  *"copied from `view.asset-library.used-in.project` rather than invented"* and refuses a plural
+  mechanism because `t` has none. That precedent exists — `en-assetLibrary.ts` spells
+  `requirement(s)`. Three keys carry the convention and fixing one leaves the other two two lines
+  apart in the same file, so this bullet asked for a change that would make the tree less
+  consistent than it found it. `AD18-R7` in `contracts/DECISIONS.md` carries the ruling, the
+  commands that measure the convention, and the losing side.
+
+  The orphaned hyphen was never re-checked, because the state it was reported in does not occur at
+  the stated width — that half is neither confirmed nor withdrawn.
 
   **This matters beyond the bullet, because W10-A's review reasoned FROM it.** That review read this
   sentence and concluded the item-6 rail caps make "a known-bad thing 30 % worse". The measurement

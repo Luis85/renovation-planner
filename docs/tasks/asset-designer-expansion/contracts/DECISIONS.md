@@ -582,6 +582,45 @@ the same state.
 those two are an empty state and a panel, where these two would both be standing rails visible at
 once, which is the shape this repository refuses everywhere it has a name for it.
 
+### AD18-R7 — the `(s)` plural spelling STAYS; AD18's bullet calling it a defect is withdrawn. (2026-09-21)
+
+**Taken by the user**, asked before any code was written, after the integrator read the locale file
+the bullet was about and found it already argues the opposite.
+
+AD18's *"Two smaller things found in the same pass"* names *"the untranslated plural spelling
+`placement(s)`"*. `src/presentation/i18n/locales/en/assetDuplicate.ts`'s own header answers it
+directly: *"**The `(s)` plural is the house convention here**, copied from
+`view.asset-library.used-in.project` rather than invented: there is no plural mechanism in `t`, and
+inventing one for two strings would put a second answer to pluralisation in the tree."* The cited
+precedent is real — `en-assetLibrary.ts` spells `requirement(s)` and `de-assetLibrary.ts` spells
+`Anforderung(en)`.
+
+**The bullet is wrong twice, and both halves are measured rather than argued.**
+
+- It says *untranslated*. German IS translated: `de/assetDuplicate.ts` spells `Platzierung(en)`.
+  The word it wanted is *unpluralised*, which is a different complaint and a much smaller one.
+- It names one member of a convention as though it stood alone. The convention is **three keys and
+  six strings**, reached from **five call sites across four files** — the commands that print those
+  figures are in wave 12's lease table and in the report, rather than the figures being restated
+  here, because a figure in prose is a figure nothing re-runs.
+
+So fixing `placement(s)` alone would leave `requirement(s)` and `note(s)` spelled the old way, two
+lines apart in the same file, converting a consistent convention into an inconsistent one and
+falsifying the header that sits above them. **That is a card asking for the wrong thing, and a card
+asking for the wrong thing cannot be closed by testing harder.**
+
+**What ships: nothing in `src/`.** The AD18 bullet is amended to state what is true, and this ruling
+is the authority the next reader reaches before re-finding it.
+
+**The losing side, which is real and worth writing down.** `{count} placement(s)` genuinely reads
+worse than `1 placement` in the one case a user meets most often, and English and German would both
+be honest under two keys and a `count === 1` branch — no `Intl.PluralRules`, no new mechanism, just
+twelve strings where there are six. It loses on scope rather than on merit: it is a wider change
+than AD18 asked for, it overturns an argument written down in the code rather than an oversight, and
+what it buys is cosmetic on a surface whose job is to state a blast radius accurately, which the
+current spelling already does. **If it is ever taken, it must take all three keys**, and this
+paragraph is what it has to answer.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

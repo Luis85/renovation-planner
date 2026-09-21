@@ -615,3 +615,59 @@ the card caught and the reviewer confirmed independently. At the base `grep -rn 
 tests/` is 43 lines in **17** files, and 26 is `grep -rln "designerRig" tests/`. Both commands are
 printed side by side in that row, which is where the conflation came from. The hazard itself
 behaved exactly as predicted: a thrown resolver, not a failed assertion.
+
+## Wave 12 — the unreachable guard in `DesignerInspector.vue`, dispatched 2026-09-21
+
+**ONE card, and the wave started as two.** The second — AD18's `placement(s)` bullet — was
+WITHDRAWN before dispatch rather than narrowed, under ruling **AD18-R7**: the integrator read the
+locale file the bullet was about and found `en/assetDuplicate.ts`'s own header already argues the
+opposite in writing. The card would have asked for the wrong thing, and a card asking for the wrong
+thing cannot be closed by testing harder. Nothing in `src/` ships from it; the AD18 bullet is
+amended and the ruling carries the losing side.
+
+**So disjointness has nothing to intersect this wave.** What replaces the prescribed
+`git diff --name-only <base>..<sha>` intersection is a LEASE COMPLIANCE read of the single row's
+changed-file list — the same substitution wave 11 recorded, for the same reason.
+
+| Card | Worktree | Lease | Contract | Status | Conditions |
+|---|---|---|---|---|---|
+| **W12-A** — delete the unreachable first term of `showUnscaledDimensions` | `.worktrees/ad10` (reused, carries `node_modules`), branch `w12a-unreachable-guard` cut from this commit | EDIT `src/presentation/designer/inspector/DesignerInspector.vue` and `tests/presentation/designer/assetDimensions.test.ts`. EDIT any EXISTING test file **or harness fixture** that its own change turns red. CREATE any test file under `tests/`. Nothing else — no locale file, no stylesheet, no other component | wave 12 base, `r1` | dispatched | reviewed by an agent that did not write it; every count in a rewritten sentence printed by a command run AFTER the change |
+
+### What this card is, and the one thing that makes it unusual
+
+`DesignerInspector.vue`'s `showUnscaledDimensions` reads
+`props.design.dimensions !== null && props.design.dimensionsUnscaled`. **The first term is
+unreachable**, and the component's own docblock already says so and already records the
+measurement that proves it. The card's job is to delete the term, and to replace a docblock that
+explains why a redundant guard is KEPT with one that points at where the guarantee actually lives.
+
+**There is no failing test to watch for the deletion itself, and the card must not invent one.** An
+unreachable arm cannot be made to fail; a test that appeared to do so would be testing a
+hand-built DTO rather than the query, which is precisely the state the producing invariant
+excludes. The watched-red belongs to the SENTENCE the card writes, not to the deletion:
+
+- The new docblock will claim the producing invariant is pinned in
+  `tests/application/queries/getAssetDesign.test.ts`. **That pin exists** — the integrator verified
+  it rather than forwarding the old docblock's claim; it is asserted at three places in that file.
+- So: break `GetAssetDesign`'s `dimensionsUnscaled` assignment in the worktree, run that file, and
+  report the red VERBATIM. Restore. That is the evidence the comment is not an unchecked one.
+
+### Hazards, as commands rather than as figures
+
+- **`assetDimensions.test.ts` carries a stale "only"** — it says *"`DesignerInspector` was the ONLY
+  reader of `dimensionsUnscaled` in the tree"*. That is false and it is falser than the hand-off
+  recorded: the hand-off named one missed reader, and `grep -rn "dimensionsUnscaled" src/` prints
+  more. **Run that grep after the change and write the sentence from what it prints** — do not
+  inherit a number from this table, from the hand-off, or from the old comment. Count the readers,
+  and note that the grep also matches PROSE that merely names the field; this package has miscounted
+  exactly that way five times.
+- **Removing a branch arm moves coverage.** The branch floor is 98 and the change is in `src/`.
+  Coverage is the integrator's and CI's, not the card's — but read `coverage-final.json` for
+  `DesignerInspector.vue` if anything looks surprising, because the threshold cannot see one arm.
+- **The docblock above the computed is long and argues for the opposite outcome.** Replace it; do
+  not leave a paragraph defending a guard that is gone. It also cites sibling test files by name —
+  check each still exists before repeating it.
+- `DesignerInspector.vue` has a cognitive-complexity history: session eight turned CI red on this
+  exact file's template at cognitive 17 against `maxCognitive` 15. A deletion should move that the
+  safe way, but run `npx eslint` on the file rather than assuming it.
+

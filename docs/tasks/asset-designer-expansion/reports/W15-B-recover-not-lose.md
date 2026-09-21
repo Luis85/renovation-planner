@@ -1,8 +1,9 @@
 # Task report — W15-B (AD15 matrix row U05)
 
-Outcome: implemented, with one U05 clause narrowed and its refusal written down
+Outcome: implemented — every U05 clause discharged by a step, after a fix round replaced this
+card's original narrowing of the post-write-refresh clause with a walkable procedure
 Owner / worktree / branch: W15-B / `.worktrees/ad10` / `w15b-recover-not-lose`
-Base commit / candidate commit: `098067d3c` / see the wave-15 integration queue
+Base commit / candidate commit: `098067d3c` / `755aa0cd5`, then this fix round on top of it
 Accepted contract revision: `r1`
 Allowed scope and shared-file leases: two files, both CREATE, both named after this card. No
 `src/`, no `tests/`, no suite file, no matrix, no `DECISIONS.md`, no `state.json`.
@@ -22,7 +23,7 @@ Nothing else was written. `git diff --name-only 098067d3c..HEAD` prints exactly 
 |---|---|---|---|
 | U05 — "open the same definition in two leaves, make conflicting changes" | Deferred to W15-A by design | The case names [[Two designers on one asset]] and states plainly that it does not repeat it, on the `Calibrate a sheet and reserve space` precedent | None. Step 17 reaches the same conflict machinery through a hand edit rather than a second leaf, which is stated in the row and in *Deliberately NOT checked* |
 | U05 — "fail a write" | Walkable, three distinct pictures | Fault 1, steps 2 to 6. Primary is the OS read-only attribute on the `.rpgeo`; two alternatives produce different outcomes and are recorded as such | The primary rests on an unverified host claim: whether Windows' read-only bit makes `Vault.modify` throw. Named in the case's *Why a human* list, item 1 |
-| U05 — "separately fail post-write refresh" | **NARROWED** — the sequence is unwalkable, the state is walkable | Fault 2's derivation; steps 7 to 13 | The exact sequence (our write lands, our read-back fails) has no hand-applied fault. Reasons below |
+| U05 — "separately fail post-write refresh" | **Discharged by a step**, after the fix round. The original narrowing is withdrawn | Fault 2 and steps 7 to 12 for the re-read half; fault 2b and steps 12a to 12d for the write-then-failed-read-back sequence | Steps 12a to 12d are four separately verified links that nobody has executed as a sequence. Step 12c is a disk check written so that "the write did not land" is a recordable finding rather than a failed walk |
 | U05 — "attempt undo while an earlier write is unsettled" | Walkable | Steps 14 to 16 | None |
 | U05 — "close/reopen a leaf" | Walkable | Steps 21 to 24 | None. Step 24 covers `rebind`, which is the same mechanism a settings save reaches |
 | U05 — "delete/move a note externally" | Walkable, and the two are different pictures | Steps 26 (move: nothing changes) and 27 to 30 (delete: the missing panel, and the orphan) | None |
@@ -38,7 +39,11 @@ Nothing else was written. `git diff --name-only 098067d3c..HEAD` prints exactly 
 | `npx vitest run tests/infrastructure/obsidian/repositories/assetGeometrySidecar.test.ts tests/presentation/designer/assetDesignerView.test.ts tests/application/editor/reversibleAssetDesignWindows.test.ts tests/presentation/designer/designerCrossLeaf.test.ts` | same | 0 — 4 files, 77 tests passed | The remaining cited cases |
 | Read each cited case body rather than only its name | same | The assertion in each matches what its row claims | `designerRefresh` 233/312/343/555/652, `designerWriteChain` 167, `assetDesignerRoot` 483, `assetGeometrySidecar` 189/200/595 were read in full |
 | `ls tests/infrastructure/obsidian/repositories/` | same | 41 files; no orphan-after-external-delete case among them | Step 30's "asserted by nothing" claim |
-| Verdict census over the finished file | same | 32 steps: `suite` 8, `browser` 1, `obsidian` 22, `desktop` 0, `judgement` 1 | `grep -c` over the step table |
+| `npx vitest run tests/presentation/errors/saveStateAgreement.test.ts tests/application/queries/getAssetDesign.test.ts` | same, fix round | 0 — 2 files, 24 tests passed | Rows 5, 18 and the fault-2b derivation |
+| `npx vitest run tests/application/queries/getAssetDesign.test.ts -t "refuses a clearance whose span overflows rather than reporting Infinity"` | same, fix round | 0 — 1 passed, 19 skipped | The read-side half of fault 2b, run rather than reasoned |
+| Read `validateClearance` and grep `dimensionsOf` in `src/domain/asset/AssetShape.ts` | same, fix round | One hit, its own definition — `validateAssetShape` never derives | The write-side half of fault 2b |
+| Read `runForward` in `ReversibleAssetDesignCommands.ts` and the five dispatch doors in `runtime.ts` | same, fix round | `expected = this.ran ? version : (this.input.expected ?? version)`; `dispatchBackground` supplies no `expected` | Why fault 2b's gesture is Remove reference and not a drag |
+| Verdict census over the finished file | same, fix round | 36 steps: `suite` 9, `browser` 0, `obsidian` 26, `desktop` 0, `judgement` 1 | `grep -c` over the step table |
 
 ## Verification not performed
 
@@ -66,42 +71,64 @@ Nothing else was written. `git diff --name-only 098067d3c..HEAD` prints exactly 
 - **Step 32's revision arithmetic was not simulated.** The step tells the walker to count landed
   writes from the steps; the expected number was not computed here, because it depends on how many
   drags the walker actually makes in steps 14 and 16.
+- **Steps 12a to 12d were never executed as a sequence, and they are the least-supported rows in
+  the file.** Four links were verified separately — the read-side refusal by running its own test,
+  `validateClearance`'s guards and `dimensionsOf`'s absence from the write path by reading them,
+  and `runForward`'s `expected` fallback by reading it — but nothing has watched a write land over
+  a failed read-back in any environment, real or faked. The case says so in its *Why a human* list
+  and in its Runs table, and step 12c is a disk check written so the negative outcome is a
+  recordable finding.
+- **The overflow needle was never put in a real `.rpgeo`.** Whether a text editor's rendering of
+  `1e308` survives the round trip through `JSON.parse` and back is unverified.
 - **The two `.rpgeo` corruption variants were not applied to a real file.** Their error codes and
   categories come from reading `AssetGeometryStore.readUnlocked` and from
   `assetGeometrySidecar.test.ts`'s two matching cases, which were run.
 
-## The U05 clause that was narrowed, and the code that narrows it
+## The narrowing, withdrawn — and the one part of it that survives
 
-**"Separately fail post-write refresh" has no hand-reproducible fault for the SEQUENCE it names.**
+**My original claim was that U05's exact sequence has no hand-applied fault. That claim was too
+strong and is withdrawn.** The coordinator's spike is right and I have verified its mechanism at
+source: `GetAssetDesign` calls `dimensionsOf` on the footprint and again on the clearance,
+`validateAssetShape` calls it **zero** times (one hit in `src/domain/asset/AssetShape.ts`, its own
+definition), and `validateClearance` guards only `createCurvedPolygon` and `enclosesArea`, which
+tests `Number.isFinite` on the shoelace AREA. A clearance can therefore have a finite area and an
+unrepresentable span, pass every gate the write path has, and refuse on the read path. The fixture
+is not hypothetical — `getAssetDesign.test.ts`'s *"refuses a clearance whose span overflows rather
+than reporting Infinity"* seeds it, and I ran it.
 
-- `GetAssetDesignQuery.execute` reads exactly two resources: `assets.getById(assetId)` and
-  `geometry.read(assetId)`. Nothing else.
-- Every geometry write reads **both of them first**. `updateAssetShape` opens with the asset-first
-  `assets.getById` check (the function `CalibrateAsset` shares since Task B6), and
-  `AssetGeometryStore.write` opens with `readUnlocked` inside the asset's own queue. The second
-  half is pinned by `assetGeometrySidecar.test.ts` *"refuses to overwrite a sidecar it cannot
-  read"*, which was run.
-- Therefore **there is no resource the read-back touches that the write has not already read**.
-  Any fault applied to either one refuses the write, and what you observe is C08's "failed"
-  outcome, not its "written but stale" one.
-- The remaining theoretical door is `GetAssetDesign`'s own `dimensionsOf` derivation, which can
-  refuse a clearance whose span overflows while `validateAssetShape` accepts it. That is not
-  hand-applicable: the shape was validated by the write moments earlier.
-- And there is no window to reach into between the two: `withStateRefresh` makes the write and its
-  read-back one queued unit, wrapped into the chain in `runtime.ts`.
+**What survives is the RESOURCE argument, and it is why the door is not obvious.** No fault applied
+to either FILE can break the read-back alone, because both files are read by the write first; that
+is what makes fault 1 and fault 2 produce what they produce, and it is kept in the case as the
+reason the simple faults do not work. My error was the next sentence, where I dismissed the
+derivation door as *"not hand-applicable: the shape was validated by the write moments earlier"* —
+which assumes validation and derivation ask the same question, and the comments in
+`GetAssetDesign.ts` and `AssetShape.ts` say plainly that they do not. **That was a claim one grep
+would have falsified and I did not run it**, which is this repository's own recurring shape.
 
-**What IS walkable is the STATE.** `createAssetDesignChangeSource`'s fourth arm subscribes the leaf
-to `GeometrySidecarChanged`, which `VaultChangeAdapter.announceSidecar` publishes for any `.rpgeo`
-write this plugin did not make. A hand edit that makes the file unreadable provokes `refresh()`
-over a design that is still drawn, `keepPreviousOnFailure` holds it, and `AssetDesignStore` sets
-`stale` — the same field, the same notice, the same header. Steps 7 to 12 walk that, and the case
-says in its own fault-setup section that the sequence is not being tested and that no row claims it
-was.
+## Where I disagree with the spike, and it changes the step
 
-**This is not the route the integrator's brief suggested.** The brief proposed the peer-provoked
-re-read (`runtime.ts`'s `onDesignChanged`) and noted it "would make this clause depend on two
-leaves after all". It does not have to: the sidecar arm of that same subscription is reached by a
-text editor, so the clause stays in one leaf and off W15-A's lease.
+**The spike's step 4 says "now drag something", and a drag does not land the write.** After a
+failed refresh the store still holds the PREVIOUS design, so its `geometryVersion` predates the
+hand edit — and `createEditShape` passes exactly that to the command as `expected`. Every canvas
+drag, arrow key and Inspector field therefore conditions its write on a version the file no longer
+has, and `checkExpectedVersion` refuses it as `asset-geometry.external-modification`.
+`ReversibleAssetGeometryEdit`'s own docblock says that is deliberate: *"Passing the snapshot's own
+version makes the command refuse instead, which is the answer a user can act on."* So the spike's
+sequence, walked with a drag, produces C08's **refused/conflicted** outcome rather than its
+written-but-stale one — a different clause, and one step 11 already covers.
+
+**The gesture has to be one of the five doors that dispatch with no caller-supplied `expected`.**
+`runForward` reads `this.ran ? version : (this.input.expected ?? version)`, so a door that supplies
+nothing falls back to the version the adapter's own read just found, and the write lands over the
+hand edit. `runtime.ts`'s `dispatchBackground` is one — **Remove reference** — and it carries the
+needle clearance forward untouched, because `SetAssetBackground` writes
+`{ ...document, calibration: null }`, spreading the document it read. That is what steps 12a to 12d
+use, on asset B, whose preconditions now include a traced footprint and a generated clearance for
+the needle to replace.
+
+I would rather have shipped the refusal than a procedure neither of us believed, as the coordinator
+offered — but the procedure is believable once the gesture is right, so it ships, with step 12c
+written so that "the write did not land" is a finding rather than a failed walk.
 
 ## Where I disagree with the brief
 
@@ -160,14 +187,16 @@ and step 30 says so.
 - **A `src/` comment fix**: `runtime.ts`'s `writesBlocked` premise, item 2 above. One sentence.
 - **Suite file**: `docs/tests/suites/Smoke Test the Editor.md`'s `## Cases` list needs
   `[[Recover an asset design rather than lose it]]`, and its five-tier census needs re-deriving by
-  grep. This card's contribution is **32 rows: `suite` 8, `browser` 1, `obsidian` 22, `desktop` 0,
+  grep. This card's contribution is **36 rows: `suite` 9, `browser` 0, `obsidian` 26, `desktop` 0,
   `judgement` 1** — re-derive it rather than adding these numbers, per that file's own rule.
-- **Matrix**: `reports/AD15-validation-matrix.md`'s U05 row now has a case file. Note when grading
-  it that U05's "fail post-write refresh" clause is **narrowed, not discharged** — the state is
-  walkable, the sequence is not, and the case says so in its own words.
-- **Cross-card**: this file wikilinks `[[Two designers on one asset]]` (W15-A). If that card ships
-  the file under a different name the link needs updating; the two also both touch step 17's
-  subject from opposite sides and it may be worth one look that they do not contradict each other.
+- **Matrix**: `reports/AD15-validation-matrix.md`'s U05 row now has a case file, and after this fix
+  round **every U05 clause has a step**. Grade the post-write-refresh clause as discharged but
+  UNWALKED: steps 12a to 12d are reasoned from four verified links and have never been executed
+  as a sequence, which the case's Runs table and *Why a human* list both say.
+- **Cross-card**: this file wikilinks `[[Two designers on one asset]]` (W15-A, `3c06a6f4d`), and
+  its opening prose now points at step **17** — the row that actually carries the text-editor
+  foreign write — and tells a walker to take one route or the other. That matches what W15-A's
+  own step 11 says from its end.
 - **Possible future step**: whether `unrecoveredWrite` should be drawn on this surface at all.
   `save-state-store.ts` additionally records that `rebind` discards the flag on any settings save,
   which step 24 names — so even on the Plan Editor, where it IS drawn, the warning can vanish with
@@ -179,13 +208,16 @@ Schema/migration change: none — documentation only.
 Relevant renderer/export/revision consumers: none.
 Undo/no-op/conflict/failure coverage: this file is entirely about that surface; nothing was added
 to it. Steps 14, 16, 17 and 19 exercise the queued-undo, held-press, superseded-undo and
-uncompensated-undo paths respectively, each against an existing test named in the row.
+uncompensated-undo paths respectively, each against an existing test named in the row, and steps
+12a to 12d add the written-but-stale outcome.
 Identity/unit/quantity/calibration invariants: step 31 is U05's stable-id clause; step 19 is the one
 place a calibration is observed failing to come back with its note.
 Shared root/runtime/locales wiring still required: none.
-Rollback/recovery considerations: the case's faults 1 and 2 both damage a real vault deliberately.
-Its preconditions say to walk it on a vault you are willing to break; both faults are one attribute
-or one character to reverse, which is why they were chosen over renaming or deleting files.
+Rollback/recovery considerations: faults 1, 2 and 3 are each one attribute or one character to
+reverse, which is why they were chosen over renaming or deleting files. **Fault 2b is the
+exception and the case says so**: it replaces a real vertex list, so a walker has to keep the
+original to put back at step 12d. The preconditions say to walk the whole case on a vault you are
+willing to break.
 
 ## Reviewer and integrator acceptance
 

@@ -80,8 +80,8 @@ A Room’s shape is edited by dragging its corner points on the plan, or by typi
 position: right-click the Room or Area, or use its Inspector, and choose **Edit corners**. Pick a
 corner from the numbered list — it is marked on the plan and the caret lands in its X position
 field — enter X or Y in metres, watch the preview follow, then submit the dialog or **Cancel**.
-The submit button currently reads **Apply name**, a shared string not yet reworded for this
-dialog. Cancel writes nothing, and one Undo restores the outline a submitted change replaced.
+The submit button reads **Save**. Cancel writes nothing, and one Undo restores the outline a
+submitted change replaced.
 Whether this route is usable by keyboard and with assistive technology in a real vault is not
 validated yet. To add a corner, right-click
 a Room, Area, wall, path or fence and choose **Add point**: it lands on the nearest edge where you

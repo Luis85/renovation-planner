@@ -155,7 +155,7 @@ async function submit(): Promise<void> {
 				class="rp-dialog-button"
 				:aria-disabled="disabled"
 			>
-				{{ tr('editor.rename.apply') }}
+				{{ tr('dialog.form.submit') }}
 			</button>
 		</div>
 	</form>

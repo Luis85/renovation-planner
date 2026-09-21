@@ -64,21 +64,34 @@ describe('legacy asset geometry sidecars, read off the checked-in bytes', () => 
 	 * spells them out). `.default(false)` is therefore exercised off disk rather than only over a
 	 * literal that deleted the key on purpose.
 	 *
-	 * `-594.005` is the coordinate `dto/assetGeometry.test.ts` already names as the one that
-	 * catches a float coercion (`99.99` survives one); here it makes the same claim about a real
-	 * `JSON.parse`, which is the half a literal cannot make at all.
+	 * `-594.005` carries three decimals, which is the figure CLAUDE.md names as the one that
+	 * catches a coercion (`594.005` is not representable in binary floating point while `99.99`
+	 * survives one). `dto/assetGeometry.test.ts` makes that claim over a literal, on a positive
+	 * `anchor.x`; here it is made about a real `JSON.parse`, which is the half a literal cannot
+	 * make at all.
 	 */
 	it('raises a version 1 file to a shape with no details, no groups and no review flag', async () => {
 		const snapshot = await readLegacy('asset-legacy-v1', 1);
 
 		expect(snapshot.version.revision).toBe(4);
-		expect(snapshot.document.shape?.footprint.points[0]).toEqual({ x: -594.005, y: -400 });
-		expect(snapshot.document.shape?.footprintPending).toBe(false);
-		expect(snapshot.document.shape?.clearancePending).toBe(false);
-		expect(snapshot.document.shape?.anchorPending).toBe(false);
-		expect(snapshot.document.shape?.details).toEqual([]);
-		expect(snapshot.document.shape?.groups).toEqual([]);
-		expect(snapshot.document.shape?.clearanceNeedsReview).toBe(false);
+		expect(snapshot.document).toEqual({
+			calibration: null,
+			shape: {
+				footprint: { points: [{ x: -594.005, y: -400 }, { x: 600, y: -400 }, { x: 600, y: 400 }, { x: -594.005, y: 400 }] },
+				// The only checked-in sidecar carrying `traced` — `valid-project`'s is `typed` —
+				// and load-bearing only because this line asserts it.
+				footprintOrigin: 'traced',
+				footprintPending: false,
+				clearancePending: false,
+				anchorPending: false,
+				clearanceNeedsReview: false,
+				clearance: null,
+				anchor: { x: 0, y: 0 },
+				facing: 0,
+				details: [],
+				groups: [],
+			},
+		});
 	});
 
 	/**
@@ -90,11 +103,34 @@ describe('legacy asset geometry sidecars, read off the checked-in bytes', () => 
 		const snapshot = await readLegacy('asset-legacy-v2', 2);
 
 		expect(snapshot.version.revision).toBe(7);
-		expect(snapshot.document.shape?.footprint.bulges).toEqual([0.5, 0, 0, 0]);
-		expect(snapshot.document.shape?.details).toHaveLength(1);
-		expect(snapshot.document.shape?.details[0]).toMatchObject({ id: 'detail-hob', kind: 'closed', line: 'dashed', pending: false });
-		expect(snapshot.document.shape?.groups).toEqual([]);
-		expect(snapshot.document.shape?.clearanceNeedsReview).toBe(false);
+		expect(snapshot.document).toEqual({
+			calibration: null,
+			shape: {
+				footprint: {
+					points: [{ x: -300, y: -250 }, { x: 300, y: -250 }, { x: 300, y: 250 }, { x: -300, y: 250 }],
+					bulges: [0.5, 0, 0, 0],
+				},
+				footprintOrigin: 'typed',
+				footprintPending: false,
+				clearancePending: false,
+				anchorPending: false,
+				clearanceNeedsReview: false,
+				clearance: null,
+				// An anchor OFF the origin and a facing of three quarter turns, so a mapper that
+				// dropped either — or normalised the angle — cannot pass by landing on zero.
+				anchor: { x: 0, y: -250 },
+				facing: 4.71238898038469,
+				details: [{
+					id: 'detail-hob',
+					kind: 'closed',
+					name: 'hob',
+					outline: { points: [{ x: -200, y: -150 }, { x: 200, y: -150 }, { x: 200, y: 150 }, { x: -200, y: 150 }] },
+					line: 'dashed',
+					pending: false,
+				}],
+				groups: [],
+			},
+		});
 	});
 
 	/**
@@ -107,13 +143,39 @@ describe('legacy asset geometry sidecars, read off the checked-in bytes', () => 
 		const snapshot = await readLegacy('asset-legacy-v3', 3);
 
 		expect(snapshot.version.revision).toBe(11);
-		expect(snapshot.document.shape?.clearance).not.toBeNull();
-		expect(snapshot.document.shape?.clearanceNeedsReview).toBe(false);
-		expect(snapshot.document.shape?.details[0]).toMatchObject({ id: 'detail-door', kind: 'open', label: 'Door swing' });
-		expect(snapshot.document.shape?.details[0]?.outline.points).toHaveLength(2);
-		expect(snapshot.document.shape?.details[1]).toMatchObject({ id: 'detail-panel', kind: 'closed' });
-		expect(snapshot.document.shape?.groups).toEqual([
-			{ id: 'group-front', label: 'Front', members: ['detail-door', 'detail-panel'] },
-		]);
+		expect(snapshot.document).toEqual({
+			calibration: null,
+			shape: {
+				footprint: { points: [{ x: -400, y: -300 }, { x: 400, y: -300 }, { x: 400, y: 300 }, { x: -400, y: 300 }] },
+				footprintOrigin: 'typed',
+				footprintPending: false,
+				clearancePending: false,
+				anchorPending: false,
+				clearanceNeedsReview: false,
+				clearance: { points: [{ x: -400, y: -300 }, { x: 400, y: -300 }, { x: 400, y: 900 }, { x: -400, y: 900 }] },
+				anchor: { x: 0, y: 0 },
+				facing: 1.5707963267948966,
+				details: [
+					{
+						id: 'detail-door',
+						kind: 'open',
+						name: 'door',
+						label: 'Door swing',
+						outline: { points: [{ x: -400, y: 300 }, { x: -400, y: 900 }], bulges: [0.4142135623730951] },
+						line: 'dashed',
+						pending: false,
+					},
+					{
+						id: 'detail-panel',
+						kind: 'closed',
+						name: 'panel',
+						outline: { points: [{ x: -200, y: -100 }, { x: 200, y: -100 }, { x: 200, y: 100 }, { x: -200, y: 100 }] },
+						line: 'solid',
+						pending: false,
+					},
+				],
+				groups: [{ id: 'group-front', label: 'Front', members: ['detail-door', 'detail-panel'] }],
+			},
+		});
 	});
 });

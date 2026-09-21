@@ -22,7 +22,8 @@ are none. That is the honest reading of Architecture Completion Criterion 9 — 
 the mechanism accepting a migration, not about one existing. Slice 12 owns no schema.
 
 The project and plan notes beside the zone exist to make this a coherent vault, matching
-`valid-project/` and `broken-references/`; the consumer reads only the planted zone note.
+`valid-project/` and `broken-references/`; THAT consumer reads only the planted zone note.
+This vault has two consumers now — the other one is below, and reads none of these files.
 
 ## `Library/Geometry/` — three migrations that DO exist
 

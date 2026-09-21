@@ -1,124 +1,176 @@
 # Task report — W14-C (AD15 rows F08/T16 and T37)
 
 Outcome: partially implemented — **F08/T16 closed with a test; T37 reported as STRUCTURAL and
-deliberately given no test.**
+deliberately given no new case, with the evidence chain under it rebuilt after review.**
 Owner / worktree / branch: W14-C · `.worktrees/ad11` · `w14c-fixtures-and-mirror`
-Base commit / candidate commit: `7069a3d8b` / see the hand-off message
+Base commit: `7069a3d8b`
+Candidate commit (first round): `8fc9d34a8`
+Candidate commit (fix round): **`PENDING`** — filled in by the one-line commit on top of it,
+because a commit cannot name its own hash. The branch tip is the candidate.
 Accepted contract revision: wave 14 base, `r1`
 Allowed scope and shared-file leases: CREATE under `tests/vault/legacy-schema/`; EDIT
 `tests/vault/legacy-schema/README.md`, `tests/infrastructure/persistence/dto/assetGeometry.test.ts`,
 `tests/domain/asset/referenceFrame.test.ts`; CREATE any test file under `tests/`; EDIT any existing
-test file this change turns red. **No `src/` change of any kind** — `git diff --stat -- src/` is
-empty on the candidate.
+test file this change turns red. **Extended at the fix round** by the coordinator's P3
+("your call whether to take it") to `tests/domain/asset/arrangeDetails.test.ts` and
+`tests/domain/asset/openGraphicEdits.test.ts` — taken, and flagged here so disjointness can be
+re-intersected. **No `src/` change of any kind**: `git diff --stat -- src/` is empty on the
+candidate.
 
 ## Changed files and reason
 
 | File | Purpose | Within lease? |
 |---|---|---|
-| `tests/vault/legacy-schema/Library/Geometry/asset-legacy-v1.rpgeo` | Checked-in v1 asset sidecar; omits all three pending flags, carries `-594.005` | Yes — CREATE under `tests/vault/legacy-schema/` |
-| `tests/vault/legacy-schema/Library/Geometry/asset-legacy-v2.rpgeo` | Checked-in v2 sidecar; curved footprint, one detail with no `kind` and no `pending` | Yes |
-| `tests/vault/legacy-schema/Library/Geometry/asset-legacy-v3.rpgeo` | Checked-in v3 sidecar; open graphic, group, clearance with no `clearanceNeedsReview` | Yes |
+| `tests/vault/legacy-schema/Library/Geometry/asset-legacy-v1.rpgeo` | Checked-in v1 sidecar; omits all three pending flags, `traced` origin, `-594.005` | Yes — CREATE under `tests/vault/legacy-schema/` |
+| `tests/vault/legacy-schema/Library/Geometry/asset-legacy-v2.rpgeo` | Checked-in v2 sidecar; curved footprint, detail with no `kind` and no `pending`, anchor off the origin, facing at three quarter turns | Yes |
+| `tests/vault/legacy-schema/Library/Geometry/asset-legacy-v3.rpgeo` | Checked-in v3 sidecar; open graphic, labelled group, clearance with no `clearanceNeedsReview` | Yes |
 | `tests/vault/legacy-schema/README.md` | Splits the file in two so the zone note's "proves nothing about a production migration" caveat cannot be carried onto these files, which DO exercise one | Yes — explicit EDIT lease |
-| `tests/infrastructure/obsidian/repositories/assetGeometryLegacyFixtures.test.ts` | Reads all three through `ObsidianAssetGeometrySidecar` over the disk-backed fixture vault | Yes — CREATE any test file under `tests/` |
+| `tests/infrastructure/obsidian/repositories/assetGeometryLegacyFixtures.test.ts` | Reads all three through `ObsidianAssetGeometrySidecar` over the disk-backed fixture vault, each asserting the **whole** `AssetGeometryDocument` | Yes — CREATE any test file under `tests/` |
+| `tests/domain/asset/arrangeDetails.test.ts` | One assertion: `factor: -1` at `scaleDetails`, with the mirror argument beside it | **Extended lease (P3)** |
+| `tests/domain/asset/openGraphicEdits.test.ts` | One assertion: `sx: -1` at `resizeBox` | **Extended lease (P3)** |
 
-**Two leased files were deliberately NOT edited**, and the reason is the row:
-
-- `tests/infrastructure/persistence/dto/assetGeometry.test.ts` — the literals there already drive
-  the schema hard and correctly. F08's gap is that there was no FILE, not that the schema was
-  under-asserted; adding another literal there would have answered a different question.
-- `tests/domain/asset/referenceFrame.test.ts` — T37 is structural, below.
+**Two originally-leased files were deliberately NOT edited.**
+`tests/infrastructure/persistence/dto/assetGeometry.test.ts` — its literals drive the schema
+correctly; F08's gap was the absence of a FILE, not under-assertion there.
+`tests/domain/asset/referenceFrame.test.ts` — T37 is structural, below.
 
 ## Acceptance coverage
 
-| Criterion/test ID | Result | Exact evidence | Remaining issue |
+Grades in the matrix's own vocabulary.
+
+| Criterion/test ID | Proposed grade | Exact evidence | Remaining issue |
 |---|---|---|---|
-| **F08** legacy v1/v2 files | **closed** (and wider than the row asked: v1, v2 AND v3) | `assetGeometryLegacyFixtures.test.ts`, three cases, over `tests/vault/legacy-schema/Library/Geometry/*.rpgeo` read through `openFixtureVault` → `ObsidianAssetGeometrySidecar.read` → real `vault.read` → `JSON.parse` → `AssetGeometrySchema` → `validateAssetShape` | None. See "the premise was partly false" below |
-| **T16** legacy fixtures migrate with semantic equality | **closed** | Same three cases. Each asserts the version the file still DECLARES on disk, the fixture's own `revision`, and the defaults the raise supplies: v1 → `details: []`, `groups: []`, `clearanceNeedsReview: false`, three pending flags `false`; v2 → `kind: 'closed'`, `pending: false`, `groups: []`, bulges preserved; v3 → open graphic with its label, the group, clearance present and `clearanceNeedsReview: false` | None |
-| **T37** placement point and front after rotate and mirror | **STRUCTURAL — no test written, regrade proposed** | Argued below with greps | The row's sentence needs narrowing, not a test |
+| **F08** legacy v1/v2 files | **passed** | Three checked-in `.rpgeo`, one per version `raiseLegacyVersions` names, read through `openFixtureVault('legacy-schema')` → `ObsidianAssetGeometrySidecar.read` → real `vault.read` → `JSON.parse` → `AssetGeometrySchema` → `validateAssetShape` | None |
+| **T16** legacy fixtures migrate with semantic equality | **passed** | Each case asserts the **entire** `AssetGeometryDocument` with `toEqual` — `calibration` and all eleven shape fields — beside the version the file still DECLARES on disk and the fixture's own `revision`. "Semantic equality" is now literally what the case performs | None |
+| **T37** placement point and front after rotate and mirror | **structural** | No mirror operation exists; every scale door refuses a negative factor and both are now driven with one. Argued below | The row's sentence needs narrowing; proposed wording below |
 
-### F08's premise was PARTLY FALSE, and the integrator should know which part
+### C1 — the four distinguishing values are load-bearing now (the finding I was held for)
 
-The brief and the matrix both say "There is **no checked-in legacy `.rpgeo` fixture**".
-`tests/vault/valid-project/Library/Geometry/asset-designed.rpgeo` is `"schemaVersion": 1` and is
-read off disk by `assetGeometrySidecar.test.ts` ("reads a designed asset's shape off the
-checked-in sidecar"). So a legacy file existed.
+The reviewer was right and the hazard was real: `footprintOrigin`, `facing`, `anchor` and
+`calibration` were carried by the fixtures and asserted by nothing, so they could have been edited
+in the file or dropped by the mapper with all three cases green — which is the tidied-fixture
+hazard the test's own docblock claimed to close.
 
-What did **not** exist is what the row actually needs: that case asserts `revision`,
-`footprintOrigin` and the raised `Point`s — nothing about the MIGRATION. A fixture tidied up to
-`"schemaVersion": 4` would leave it green. There was no v2 or v3 file at all. The new fixtures
-close the real gap; the corrected sentence for the regrade is *"the legacy file that existed was
-not read AS a legacy file"*.
+Each case now asserts `snapshot.document` whole, with `toEqual`. That was chosen over the
+"at minimum" option deliberately: the brittleness a full `toEqual` buys is **the property
+wanted here.** A new field on `AssetShape` turns all three red, and a legacy fixture's whole
+job is to state what that field's absence in an old file must read as. A case that stayed green
+through a new field would be the instrument reaching nothing again, one version later.
 
-### T37 — STRUCTURAL. There is no mirror to test.
+**The expectations were hand-written from the fixture JSON, not copied from a run.** All three
+passed first execution, which is the only version of that claim worth making.
 
-**Mirroring an asset is not an operation this product has.** Measured three ways:
+### P2 — the T37 evidence chain, rebuilt. All three corrections accepted.
 
-1. `grep -rni "mirror" src/` returns 30 hits. Every one is the English word in a comment
-   ("mirrors `Plan.ts`", "the mirror of `expectOk`", a reactive mirror of `ToolManager`).
-   **Not one is an operation on a shape, a placement or a rendering.**
-2. `grep -rni "flip" src/` finds `SpatialElement.flipped`, which
-   `SpatialElement.ts`'s own line states belongs to a **section line** (`(element.kind ===
-   'section') !== (typeof element.flipped === 'boolean')`), and `flippedOpening` for a door
-   swing. Neither is an asset.
-3. **A negative scale is refused at every door that could produce a mirror**, and the source
-   says so in those words: `shapeEdits.ts` — *"Only a mirror flips a bulge's sign, which is why
-   a non-positive factor is refused"*; `scaleSolve.ts` — *"a negative factor is a mirror, which
-   every caller refuses"*; `arrangeDetails.ts` — *"A non-positive or non-finite factor is
-   refused"*. All three refusals are already covered
-   (`arrangeDetails.test.ts` "refuses a non-positive or non-finite scale factor",
-   `openGraphicEdits.test.ts` "…and a non-positive scale factor", plus `assetShape.test.ts`'s
-   `asset.non-positive-dimension` cases). **The category invariant is checked at the forbidden
-   thing**, which is the strongest form this guide asks for.
+My first report said *"a negative scale is refused at every door"* and cited three. The reviewer
+is right on every count, and I withdraw the chain rather than patching it:
 
-The existing `referenceFrame.test.ts` case is therefore not thin coverage of a feature — it is
-the right and complete instrument for a different claim. `mirroredX` is a TEST-LOCAL reflection
-of a polygon the test builds, and the case asserts that `anchorPresetPoint` is **equivariant**
-under reflection: a derivation that remembered which side it computed from would fail it. That is
-a property of `referenceFrame.ts`'s arithmetic, watched red by its siblings' recorded
-`max.x`/`min.x` mutation.
+- **`scaleSolve.ts` contains no refusal.** `factor = next > 0 ? next : factor / 2;` is a CLAMP.
+  Its comment — *"a negative factor is a mirror, which every caller refuses"* — is a pointer to
+  somebody else's guard, and I read a delegation as a door.
+- **`assetShape.test.ts`'s `asset.non-positive-dimension` cases are not about a scale factor.**
+  That code comes from a width and a depth through `footprintFromDimensions`. Wrong citation.
+- **The clamp arm is covered by `shapeEdits.test.ts` through `resizeToExtent`**, which I did not
+  name because I never looked for it.
 
-**The row asks for two things that cannot exist**: "no designer mirror gesture test" — there is no
-gesture; "no designer→plan mirror parity" — there is no mirrored state to be in parity about. A
-case asserting either would assert the absence of a state the types cannot express, which
-CLAUDE.md names as a branch that can never pay itself back.
+**The corrected chain, and it is now stronger than the one it replaces.** There are exactly TWO
+doors that refuse:
 
-**Proposed regrade: T37 → complete, with the row's sentence narrowed** to *"placement point and
-front after rotate; mirror is a reflection EQUIVARIANCE property of `anchorPresetPoint`, asserted
-once because an asset cannot be mirrored — every scale door refuses a non-positive factor."*
+| Door | Guard | Driven with a negative? |
+|---|---|---|
+| `scaleDetails` (`arrangeDetails.ts`) | `!Number.isFinite(spec.factor) \|\| spec.factor <= 0` | **Yes, since this commit** |
+| `scaleRefusal` (`shapeEdits.ts`, behind `resizeBox`) | `[sx, sy].every((factor) => Number.isFinite(factor) && factor > 0)` | **Yes, since this commit** |
 
-### The "writes version 3 back" question — the matrix's guess is wrong, and the reading is simple
+And `scaleSolve.ts` is a third site that neither refuses nor admits a mirror — it halves toward
+zero and hands a positive factor on.
 
-`assetGeometrySidecarDetails.test.ts`'s case is titled *"reads a version 1 file as a shape with no
-details, and writes version 3 back"*, and its assertion is
-`expect(JSON.parse(...).schemaVersion).toBe(4)`. So **the assertion is right and the TITLE is
-stale** — it was written when the DTO topped out at 3 and was not renamed when v4 landed.
+### P3 — taken. The claim is now checked at the forbidden thing.
 
-It is **not** about "a narrower schema in that file's own fixture", which was the matrix's
-reading: that file's `rawDocument` writes `schemaVersion: 1`, the store parses it with the same
-`AssetGeometrySchema` every other read uses, and the same file's own `describe('schema version 3
-fields')` block asserts `toBe(4)` too. Nothing narrower is in play.
+Both doors already had a `non-positive` case driving `0` and `NaN`. A negative shares that
+branch, so coverage does not move — but T37's claim is specifically about MIRRORING, and no case
+in the repository passed a negative to either door. One assertion each, with the argument written
+beside it rather than in this report only.
 
-**Two more stale sentences in the same file**, found by the same look and reported rather than
-fixed: its header says *"a v1 file still reads, and every write is v2"* (writes are v4), and the
-`describe('schema version 3 fields')` label. **I did not fix any of the three** — the brief says
-not to fix without establishing the reading, and having established it, the file is outside my
-lease and my change does not turn it red. **Recommended for the integrator**: rename to "writes
-version 4 back", fix the header's "every write is v2", and relabel the describe. All three are
-text-only.
+**Watched red by relaxing both guards** (`spec.factor <= 0` → `=== 0`; `factor > 0` → `!== 0`),
+and the red is unusually informative — see the verbatim below: the `ok` value that comes back
+shows the detail boxes with **reversed winding** (`720,-40 / 620,-40 / 620,-140 / 720,-140`),
+which is the mirror itself, printed by the failure.
+
+### T37 — why it is structural, stated only as wide as the checks reach
+
+1. **Both doors that could produce a mirror refuse one, and both are now driven with a negative.**
+   That is the category invariant at the forbidden thing rather than a list of places.
+2. **No mirror operation exists to test.** `grep -rniw --include=*.ts mirror src/` prints **29**
+   lines. Every count variant, since the number is load-bearing and my first report's "30" matches
+   none of them:
+
+   ```
+   grep -rni mirror src/                    62
+   grep -rni --include=*.ts mirror src/     52
+   grep -rnil mirror src/                   44
+   grep -rniw mirror src/                   34
+   grep -rniw --include=*.ts mirror src/    29
+   ```
+
+   Under `-rniw` (34 lines, all files) every hit is the English word inside comment syntax except
+   one, `src/prototypes/SaveStateMarks.vue`, which is inside a `<!-- -->` block. **Not one is an
+   operation on a shape, a placement or a rendering.**
+3. `flipped` is a **different subject that happens to be nearby**, and my first report's
+   enumeration of it read exhaustive when it was not. `SpatialElement.ts` pairs `flipped` with
+   `kind === 'section'`; there is also a live user gesture — `elementActions.flip`, surfaced by
+   `ElementGeometryActions.vue` under `tr('editor.drafting.flip')`. A section line and a door
+   swing, neither an asset. The conclusion holds; the enumeration was incomplete and is corrected.
+
+`referenceFrame.test.ts`'s single case is therefore the right instrument for the claim it makes:
+`mirroredX` is a test-local reflection of a polygon the test builds, and the case asserts
+`anchorPresetPoint` is **equivariant** under reflection — a derivation that remembered which side
+it computed from would fail it. The row's two asks name things that cannot exist: there is no
+gesture, and no mirrored state to be in parity about.
+
+**Proposed narrowed sentence for the regrade:** *"Placement point and front after rotate,
+asserted at six angles across surfaces. MIRROR is asserted once because it is a reflection
+EQUIVARIANCE property of `anchorPresetPoint` rather than an operation: no asset can be mirrored,
+and both scale doors (`scaleDetails`, `resizeBox`) refuse a negative factor, each driven with
+one."*
+
+### F08's premise was partly false, and the integrator should know which part
+
+`tests/vault/valid-project/Library/Geometry/asset-designed.rpgeo` **is** `"schemaVersion": 1` and
+is read off disk by `assetGeometrySidecar.test.ts`. What did not exist is a case reading one *as*
+a legacy file: that one asserts `revision`, `footprintOrigin` and the raised `Point`s and nothing
+about the migration, so a fixture tidied to v4 leaves it green. There was no v2 or v3 file at all.
+Corrected sentence for the regrade: *the legacy file that existed was not read as a legacy file.*
+
+### "Writes version 3 back" — two stale, one WITHDRAWN
+
+Settled reading: the case title *"writes version 3 back"* is stale and its assertion `toBe(4)` is
+right. It is **not** "a narrower schema in that file's own fixture" — `rawDocument` writes
+`schemaVersion: 1` and the store parses it with the same `AssetGeometrySchema` as every read.
+
+**I withdraw my third recommendation.** `describe('schema version 3 fields')` is NOT stale. Its
+own docblock reads *"AD04's own fields across the storage boundary"*, and AD04 is v3 — the label
+names the version that INTRODUCED the fields, not the version written. The reviewer's tell is
+decisive and I checked it: the sibling `describe('asset geometry sidecar, schema version 2')` at
+the same top level reads identically, and I did not list it, so the rule I applied was not
+consistent with itself.
+
+Two stand, both text-only and both the integrator's: the header's *"every write is v2"*, and the
+case title.
 
 ## Executed checks
 
 | Command or manual action | Commit / environment | Exit code or observed result | Evidence |
 |---|---|---|---|
-| `npx vitest run tests/infrastructure/obsidian/repositories/assetGeometryLegacyFixtures.test.ts` | working tree, node 22, Windows | 0 | `Test Files 1 passed (1) / Tests 3 passed (3)` |
-| `npx vitest run` over `legacyFixture`, `fixtureVault`, the new file, `build/encoding`, `build/spec-files` | working tree | 0 | `Test Files 5 passed (5) / Tests 32 passed | 1 skipped (33)` |
-| `npx vue-tsc -noEmit` (whole tree, `src/` + `tests/`) | working tree | 0, no diagnostics | `TSC CLEAN` |
-| `npx oxlint <new test file>` | working tree | 0, no output | exit code read, not output |
-| `npx eslint <new test file>` | working tree | 0, no output | `ESLINT CLEAN` |
-| Encoding check on all five created/edited files | working tree | no BOM, no CR in any | table below |
-| `git diff --stat -- src/` | candidate | empty | no `src/` change |
+| `npx vitest run …/assetGeometryLegacyFixtures.test.ts` | fix round, node 22, Windows | 0 | `Test Files 1 passed (1) / Tests 3 passed (3)` |
+| `npx vitest run tests/domain/asset/arrangeDetails.test.ts tests/domain/asset/openGraphicEdits.test.ts` | fix round | 0 | `Test Files 2 passed (2) / Tests 81 passed (81)` |
+| `npx vitest run` over `legacyFixture`, `fixtureVault`, the new file, `build/encoding`, `build/spec-files` | first round | 0 | `Test Files 5 passed (5) / Tests 32 passed \| 1 skipped (33)` |
+| `npx vue-tsc -noEmit` (whole tree, `src/` + `tests/`) | first round | 0, no diagnostics | `TSC CLEAN` |
+| `npx eslint` / `npx oxlint` on every `.ts` touched | fix round | 0, no output | `LINT CLEAN` |
+| Encoding check on all files created/edited | fix round | no BOM, no CR in any | table below |
+| `git status --short -- src/` after every mutation | fix round | empty | restored each time |
+| Grep census for `mirror` / `flip` | fix round | five variants tabulated above | written from what printed |
 
-### Encoding evidence (required by the brief, `node`-read bytes and not by eye)
+### Encoding evidence (bytes read in `node`, not by eye)
 
 ```
 tests/vault/legacy-schema/Library/Geometry/asset-legacy-v1.rpgeo         bom=false CR=false bytes=347
@@ -128,19 +180,16 @@ tests/infrastructure/obsidian/repositories/assetGeometryLegacyFixtures.test.ts b
 tests/vault/legacy-schema/README.md                                      bom=false CR=false bytes=3539
 ```
 
-`tests/build/encoding.test.ts` also covered them in the run above and passed: its file set is
-`git ls-files --cached --others --exclude-standard`, and all three `.rpgeo` were still untracked
-at that moment, so `--others` reached them. That is not a lucky pass — the same set reaches them
-once tracked.
+`tests/build/encoding.test.ts` also covered them and passed. **It always would have**, and my
+first report treated that as luckier than it is: its file set is
+`git ls-files --cached --others --exclude-standard`, so untracked files arrive through `--others`
+and tracked ones through `--cached`. Either way.
 
 ## Watched red — verbatim
 
-Every red below was produced by breaking the behaviour in `src/` temporarily and restoring it
-with `git checkout --` immediately after. **No `src/` change is in the candidate.**
+All `src/` mutations were restored with `git checkout -- src/`, verified by `git status`.
 
-### Red 1 — `raiseLegacyVersions` returns `input` unchanged (the raise removed)
-
-All three cases red, each naming its own file:
+### Red 1 — `raiseLegacyVersions` returns `input` unchanged
 
 ```
  × raises a version 1 file to a shape with no details, no groups and no review flag 148ms
@@ -154,8 +203,6 @@ Error: Expected ok, got error: {"category":"Validation","code":"asset-geometry.s
 
 ### Red 2 — `ClosedDetailSchemaV3`'s `kind` stops defaulting to `'closed'`
 
-Exactly the two files whose details omit `kind`:
-
 ```
  × raises a version 2 file, defaulting each graphic to closed and keeping its curves 100ms
  × raises a version 3 file, reading its open graphic and its group and leaving the clearance unflagged 85ms
@@ -166,8 +213,8 @@ Error: Expected ok, got error: {"category":"Validation","code":"asset-geometry.s
 
 ### Red 3 — `clearanceNeedsReview` defaults to `true`
 
-All three, and **v3 is the one that catches it as an ASSERTION** rather than as a validator
-refusal, which is why v3 carries a clearance at all:
+v3 catches it as an ASSERTION rather than as a validator refusal, which is why it carries a
+clearance at all:
 
 ```
  × raises a version 1 file to a shape with no details, no groups and no review flag 99ms
@@ -179,7 +226,7 @@ Error: Expected ok, got error: {"category":"Validation","code":"asset.absent-cle
 AssertionError: expected true to be false // Object.is equality
 ```
 
-### Red 4 — the fixture is actually READ (no `src/` change; the file was moved away)
+### Red 4 — the fixture is actually READ (no `src/` change; the v3 file was moved away)
 
 ```
  × raises a version 3 file, reading its open graphic and its group and leaving the clearance unflagged 119ms
@@ -187,66 +234,109 @@ Error: ENOENT: no such file or directory, open 'D:\tmp-claude\rp-vault-PmH5di\Li
       Tests  1 failed | 2 passed (3)
 ```
 
-**This is the red the brief asked for specifically**, and it is worth reading closely: it shows
-the fixture reaching the port through the temp-dir CLONE `openFixtureVault` makes, so the bytes
-under test are the checked-in bytes. It also demonstrates why the declared-version read is in the
-helper: **this port answers an absent sidecar with a SUCCESS** (`{ calibration: null, shape: null }`
-at revision 0), so without it a deleted fixture would have produced a quieter and more confusing
-failure than ENOENT.
+**This red proves one file directly, and the reviewer is right that the STRUCTURE proves all
+three**: `readLegacy` is a shared helper and its `readFileSync` runs per case, before the port
+read, against the clone. Moving two more files would have re-demonstrated the same helper.
+
+### Red 5 — C1's new assertions. One edited VALUE per fixture, all three previously unasserted.
+
+`footprintOrigin` `traced`→`typed` in v1, `facing` `4.71238898038469`→`0` in v2, a clearance
+`y` `900`→`800` in v3. No `src/` change; `git checkout -- tests/vault/legacy-schema/Library/Geometry/`
+restored them.
+
+```
+ × raises a version 1 file to a shape with no details, no groups and no review flag 157ms
+ × raises a version 2 file, defaulting each graphic to closed and keeping its curves 118ms
+ × raises a version 3 file, reading its open graphic and its group and leaving the clearance unflagged 109ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+AssertionError: expected { calibration: null, shape: { …(11) } } to deeply equal { calibration: null, shape: { …(11) } }
+- Expected
++ Received
+-     "footprintOrigin": "traced",
++     "footprintOrigin": "typed",
+AssertionError: expected { calibration: null, shape: { …(11) } } to deeply equal { calibration: null, shape: { …(11) } }
+- Expected
++ Received
+-     "facing": 4.71238898038469,
++     "facing": 0,
+AssertionError: expected { calibration: null, shape: { …(11) } } to deeply equal { calibration: null, shape: { …(11) } }
+- Expected
++ Received
+-           "y": 900,
++           "y": 800,
+      Tests  3 failed (3)
+```
+
+### Red 6 — P3's negative-factor assertions, with both guards relaxed
+
+`spec.factor <= 0` → `spec.factor === 0` in `arrangeDetails.ts`; `factor > 0` → `factor !== 0` in
+`shapeEdits.ts`. Restored.
+
+```
+ × refuses a graphic and a clearance the shape has not got, and a non-positive scale factor 21ms
+ × refuses a non-positive or non-finite scale factor 10ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+Error: Expected error, got ok: {"footprint":{"points":[{"x":-1000,"y":-500},{"x":1000,"y":-500},{"x":1000,"y":500},{"x":-1000,"y":500}]},"footprintOrigin":"typed","footprintPending":false,"clearance":null,"clearancePending":false,"anchor":{"x":0,"y":0},"anchorPending":false,"facing":0,"details":[{"id":"detail-1","name":"detail-1","line":"solid","pending":false,"kind":"closed","outline":{"points":[{"x":720,"y":-40},{"x":620,"y":-40},{"x":620,"y":-140},{"x":720,"y":-140}]}},{"id":"detail-2","name":"detail-2","line":"solid","pending":false,"kind":"closed","outline":{"points":[{"x":470,"y":-160},{"x":270,"y":-160},{"x":270,"y":-220},{"x":470,"y":-220}]}},{"id":"detail-3","name":"detail-3","line":"solid","pending":false,"kind":"closed","outline":{"points":[{"x":-10,"y":130},{"x":-50,"y":130},{"x":-50,"y":90},{"x":-10,"y":90}]}}],"clearanceNeedsReview":false,"groups":[]}
+AssertionError: expected { ok: true, value: { …(11) } } to match object { Object (error) }
+      Tests  2 failed | 79 passed (81)
+```
+
+Worth reading that `ok` value rather than skipping it: every detail box comes back with
+**reversed winding** (`720,-40 / 620,-40 / 620,-140 / 720,-140`). The mirror the guard exists to
+prevent is printed by the failure.
 
 ## Verification not performed
 
 - **`npm run check`, `check:fast`, `test:coverage`, `analyze`, `build`, `harness`,
-  `harness-shot`, `test-build`** — all explicitly not this card's to run; two other cards were
-  working on the same machine. CI on the PR is where they belong.
-- **Coverage floors** — not measured. The change adds test files and three JSON fixtures and no
-  `src/` line, so it cannot lower a floor; it may raise measured coverage of
-  `raiseLegacyVersions` and `ObsidianAssetGeometrySidecar`'s mapping arms, which is CI's to
-  report.
-- **`npm run analyze` (fallow)** — not run. Worth naming: fallow's duplication half skips
-  `*.test.ts` entirely, so the new test file is invisible to it either way; the new fixtures are
-  `.rpgeo` data.
-- **`eslint .` over the whole tree** — only the one new file was linted (plus oxlint on it). The
-  README is Markdown and the `.rpgeo` are data; neither is linted.
-- **A live vault (`npm run test-build`)** — nothing here draws, and no Obsidian API is newly
-  assumed. Not applicable, not skipped for convenience.
-- **Whether `assetGeometrySidecarDetails.test.ts`'s stale title is the ONLY stale one in that
-  file** — I read its header, the named case and the `describe` labels, and report three. I did
-  not audit every docblock in it.
+  `harness-shot`, `test-build`** — none this card's to run; other cards share the machine. CI on
+  the PR is where they belong.
+- **Coverage floors** — not measured. No `src/` line changed, so no floor can fall. P3's two
+  assertions share an existing branch, so they move no number — that is stated as the reason they
+  are worth having anyway, not as a claim that they raise coverage.
+- **`npm run analyze` (fallow)** — not run. Its duplication half skips `*.test.ts` entirely, so
+  the new test file is invisible to it regardless; the fixtures are `.rpgeo` data.
+- **`eslint .` tree-wide** — only the three `.ts` files touched were linted. The README is
+  Markdown and the `.rpgeo` are data; neither is linted.
+- **`vue-tsc` after the fix round's edits** — the first round's whole-tree run was clean, and the
+  fix round adds only assertions inside existing test bodies with no new imports or types. **Named
+  rather than claimed**: it was not re-run, and the vitest runs above do not type-check.
+- **A live vault (`npm run test-build`)** — nothing here draws and no Obsidian API is newly
+  assumed. Not applicable.
+- **Whether the two stale sentences are the ONLY stale ones in
+  `assetGeometrySidecarDetails.test.ts`** — I read its header, the named case and both `describe`
+  labels. I did not audit every docblock in it.
 
 ## Data and integration implications
 
-Schema/migration change: **none.** No `src/` change; `raiseLegacyVersions` and every schema
-version are untouched. What changed is that three legacy documents now exist as BYTES that the
-suite reads, so any future non-additive change to v1/v2/v3 reading turns these red.
+Schema/migration change: **none.** No `src/` change. What changed is that three legacy documents
+exist as BYTES the suite reads, so a future non-additive change to v1/v2/v3 reading turns these
+red — and, because each case asserts the whole document, so does a mapper that drops a field.
 
 Relevant renderer/export/revision consumers: none. The fixtures are read-only input to one test
-file; `openFixtureVault` copies the tree to a temp dir and discards it.
+file; `openFixtureVault` clones to a temp dir and discards it.
 
 Undo/no-op/conflict/failure coverage: not in scope — the new cases are reads. The write half is
-already owned by `assetGeometrySidecar.test.ts` and `assetGeometrySidecarDetails.test.ts`.
+owned by `assetGeometrySidecar.test.ts` and `assetGeometrySidecarDetails.test.ts`.
 
 Identity/unit/quantity/calibration invariants: each fixture declares `"unit": "mm"` (ADR-009) and
 an `assetId` matching its filename, so the store's `asset-id-mismatch` guard passes rather than
-being bypassed. `calibration` is `null` in all three — deliberately: calibration is not what these
-rows are about, and claiming otherwise would be a sentence wider than the check.
+being bypassed. `calibration` is `null` in all three and **is now asserted as `null`** rather than
+merely being so.
 
 Shared root/runtime/locales wiring still required: none.
 
-Rollback/recovery considerations: reverting the commit removes three fixtures and one test file
-and restores the README. Nothing in `src/` depends on any of it.
+Rollback/recovery considerations: reverting removes three fixtures and one test file, restores the
+README and drops two assertions. Nothing in `src/` depends on any of it.
 
-### Two findings for the integrator, neither fixed here
+### One finding for the integrator (the other two are now theirs by their own message)
 
-1. **`FixtureStack` does not declare `libraryFolder`, but `openFixtureVault` returns it.**
-   `tests/helpers/fixtureVault.ts` sets `libraryFolder: DEFAULT_LIBRARY_FOLDER` on the returned
-   object; the exported interface omits it, so `vue-tsc` reports
-   `TS2339: Property 'libraryFolder' does not exist on type 'FixtureStack'` at any consumer that
-   names it. `RepositoryStack` (the in-memory sibling) *does* declare it, so the two stacks
-   disagree — which is the exact drift `stackFoundation` was extracted to end. I worked around it
-   by spelling the fixture path literally, with a comment saying why, rather than editing a shared
-   helper two other cards could be in. **One line on the interface is the fix.**
-2. The three stale sentences in `assetGeometrySidecarDetails.test.ts`, listed above.
+**`FixtureStack` does not declare `libraryFolder`, but `openFixtureVault` returns it.**
+`tests/helpers/fixtureVault.ts` sets `libraryFolder: DEFAULT_LIBRARY_FOLDER` on the returned
+object while the exported interface omits it, so `vue-tsc` reports
+`TS2339: Property 'libraryFolder' does not exist on type 'FixtureStack'` at any consumer naming
+it. `RepositoryStack` does declare it, so the two stacks disagree. Worked around by spelling the
+fixture path literally with a comment saying why, rather than editing a shared helper with two
+sibling cards live.
 
 ## Reviewer and integrator acceptance
 

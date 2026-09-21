@@ -259,6 +259,12 @@ describe('moving, rotating and scaling a set', () => {
 	it('refuses a non-positive or non-finite scale factor', () => {
 		expect(code(scaleDetails(threeBoxes(), { ids: ALL, factor: 0 }))).toBe('asset.invalid-scale');
 		expect(code(scaleDetails(threeBoxes(), { ids: ALL, factor: Number.NaN }))).toBe('asset.invalid-scale');
+		// The NEGATIVE arm by name, although it shares a branch with zero. A negative factor is a
+		// MIRROR (`shapeEdits.ts`: "Only a mirror flips a bulge's sign, which is why a non-positive
+		// factor is refused"), and no asset can be mirrored anywhere in this product — so this is
+		// the door where that category claim is checked rather than argued. Zero and NaN are
+		// degenerate geometry; only this one is the operation that does not exist.
+		expect(code(scaleDetails(threeBoxes(), { ids: ALL, factor: -1 }))).toBe('asset.invalid-scale');
 	});
 
 	it('refuses a non-finite rotation through the validator rather than through a guard of its own', () => {

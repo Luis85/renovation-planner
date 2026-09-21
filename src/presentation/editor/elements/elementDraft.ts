@@ -4,7 +4,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
 import type { SpatialElement, SpatialElementKind, NamedSpatialElement } from '../../../domain/spatial/SpatialElement';
 import { outlineKind, validSpatialElement } from '../../../domain/spatial/SpatialElement';
-import { areaOutline } from '../add/areaOutline';
+import { simpleAreaOutline } from '../add/simpleOutline';
 import type { ToolId } from '../tools/editor-tool';
 import { DEFAULT_STAIR, type StairOptions } from '../../../domain/spatial/stairGeometry';
 import type { ObjectShapeMode } from './objectShape';
@@ -50,9 +50,9 @@ export function discardElementGeometry(draft: ElementDraft): void {
 	const { kind, name, shape, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
 	Object.assign(draft, createElementDraft(), { kind, name, shape, loading, busy, conflict, error });
 }
-/** Every proposal of an element's points passes here: a valid element, and an object or post outline that does not cross itself. */
+/** Every proposal of an element's points passes here: a valid element, and an object, post or hatch outline that encloses a surface and does not cross itself. */
 export function acceptsElementPoints(element: SpatialElement, points: readonly Point[]): boolean {
-	return validSpatialElement({ ...element, points }) && (!outlineKind(element.kind) || areaOutline(points).ok);
+	return validSpatialElement({ ...element, points }) && (!outlineKind(element.kind) || simpleAreaOutline(points).ok);
 }
 /** A new post or beam starts load-bearing (structural posts and beams design §3); a beam also carries the typed width. */
 function structuralFields(draft: ElementDraft): Pick<SpatialElement, 'width' | 'loadBearing'> {

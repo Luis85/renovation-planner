@@ -1,10 +1,10 @@
 import type { Point } from '../../../core/geometry/Point';
 import type { Polygon } from '../../../core/geometry/Polygon';
-import { areaOutline } from '../add/areaOutline';
+import { simpleAreaOutline } from '../add/simpleOutline';
 import { parseCoordinateMetres, type LengthRefusal } from '../shell/formatLength';
 export type CoordinateEdits = readonly Partial<Record<'x' | 'y', string>>[];
 /** Undefined means untouched; explicitly retyping the displayed value is still an edit. */
-export function outlineProposal(points: readonly Point[], edits: CoordinateEdits, accepts = (value: readonly Point[]) => areaOutline(value).ok): { polygon: Polygon | null; errors: ReadonlyMap<string, LengthRefusal> } {
+export function outlineProposal(points: readonly Point[], edits: CoordinateEdits, accepts = (value: readonly Point[]) => simpleAreaOutline(value).ok): { polygon: Polygon | null; errors: ReadonlyMap<string, LengthRefusal> } {
 	const errors = new Map<string, LengthRefusal>();
 	const next = points.map((point, index) => {
 		const value = { ...point };

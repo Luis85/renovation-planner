@@ -12,6 +12,12 @@ describe('existing outline numeric coordinates', () => {
 		const result = outlineProposal(points, [{ y: text }]);
 		expect(result.polygon).toBeNull(); expect(result.errors.has('0.y')).toBe(true);
 	});
+	/** The DEFAULT `accepts` — BP-04's typed zone-corner dialog is the one mount that reaches it. */
+	it('refuses a typed corner that would drag the outline across its own edge', () => {
+		const room = [{ x: 0, y: 0 }, { x: 4000, y: 0 }, { x: 4000, y: 3000 }, { x: 0, y: 3000 }];
+		expect(outlineProposal(room, []).polygon?.points).toEqual(room);
+		expect(outlineProposal(room, [{}, {}, {}, { x: '-0.5', y: '-0.4' }]).polygon).toBeNull();
+	});
 	it('refuses collapsed and underspecified outlines and permits signed absolute coordinates', () => {
 		expect(outlineProposal(points, points.map(() => ({ y: '0' }))).polygon).toBeNull();
 		expect(outlineProposal(points.slice(0, 2), []).polygon).toBeNull();

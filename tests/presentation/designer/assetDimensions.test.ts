@@ -172,9 +172,18 @@ describe('the designer’s dimensions dialog', () => {
 	 * in true millimetres and the warning correctly disappears, because the footprint really is
 	 * typed now.
 	 *
-	 * **A sentence stood here claiming `DesignerInspector` was the ONLY reader of
-	 * `dimensionsUnscaled` in the tree. It was false, and it is deleted rather than repaired into
-	 * a smaller number.** `grep -rn "dimensionsUnscaled" src/` prints reads in
+	 * **A sentence stood here reading "`DesignerInspector` was the ONLY reader of
+	 * `dimensionsUnscaled` in the tree". It was TRUE when it was written and it is deleted
+	 * anyway, because being true of a tree nobody can see any more is not enough.** It entered at
+	 * `d852733bd`, and at that commit's PARENT it was exact — `git grep -n "dimensionsUnscaled"
+	 * d852733bd^ -- src/` prints the producer twice, one locale comment and one reader. It stopped
+	 * holding inside the very commit that wrote it, which added `editDimensions`'s own read. So
+	 * its past tense was correct and unreadable: three separate readers in a row took it for a
+	 * statement about the tree in front of them, and a sentence three careful readers misread is
+	 * badly written whatever its truth value. Replaced with a command rather than repaired into a
+	 * smaller number, since the next number would go stale the same way.
+	 *
+	 * `grep -rn "dimensionsUnscaled" src/` prints reads in
 	 * `AssetDesignerRoot` (`gridStep`, and `editDimensions` itself — the function this case
 	 * drives), `DesignerSelectionInspector`, `DesignerUsePlan`, `DesignerInspector` and the
 	 * library's `AssetInspectorShape`; it also prints PROSE in files that only name the field, so

@@ -34,10 +34,15 @@ beforeEach(() => {
 
 /**
  * Every option overrides one thing the tests below vary. `dimensions: undefined` (the default)
- * leaves the fixture's own 1200×800 pair; passing `dimensions: null` is how a case would ask
- * for the shapeless state, though none below needs it — `assetDesignerRoot.test.ts` and
- * `assetDimensions.test.ts` are where that state's OWN surface (the empty state, not this
- * panel) is driven.
+ * leaves the fixture's own 1200×800 pair; passing `dimensions: null` is how a case asks for
+ * the shapeless state, which *draws no dimensions block at all for a shapeless asset* and
+ * *offers the dimensions editor for a shapeless asset* below both do —
+ * `grep -n "dimensions: null"` prints three lines here and two of them are those calls, the
+ * third being this sentence. It read "though none below needs it", which was already false at
+ * `d672c3c8a`, the commit that wrote it: one of those two calls was in that same commit and the
+ * other arrived at `8ea7a0551`. `assetDesignerRoot.test.ts` and `assetDimensions.test.ts` stay
+ * named for what they actually own, which is unchanged — that state's OTHER surface, the empty
+ * state rather than this panel.
  */
 function buildDesign(options: {
 	readonly dimensions?: { readonly width: number; readonly depth: number } | null;

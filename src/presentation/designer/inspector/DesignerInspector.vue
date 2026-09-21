@@ -137,16 +137,20 @@ const graphicCount = computed(() => props.design.shape?.details.length ?? 0);
  *
  * `GetAssetDesign` measures `dimensions` from the footprint whenever `shape !== null` — and
  * returns an `err`, so no DTO at all, when that measurement refuses — while `dimensionsUnscaled`
- * is `shape?.footprintPending ?? false`. On any DTO this component can be handed, therefore, a
- * `true` flag implies a non-null `dimensions`, and the dropped conjunct could only ever have
- * been `true`.
+ * is `shape?.footprintPending ?? false`. On any DTO that query PRODUCES, therefore, a `true`
+ * flag implies a non-null `dimensions`, and the dropped conjunct could only ever have been
+ * `true`. "That query produces" and not "this component can be handed", because the last
+ * paragraph below is about the difference between the two.
  *
- * **That producing invariant is pinned in `tests/application/queries/getAssetDesign.test.ts`**,
- * at *answers null dimensions rather than zeros when there is no footprint*, which asserts
- * `dimensions` null and `dimensionsUnscaled` false on one DTO — the shapeless design being the
- * only state in which the implication could part. Watched failing rather than asserted: changing
- * that query's `?? false` to `?? true` turns exactly that case red with `expected true to be
- * false`.
+ * **That producing invariant is pinned in `tests/application/queries/getAssetDesign.test.ts`,
+ * in two cases, because it has two conjuncts and one case cannot reach both.** *answers null
+ * dimensions rather than zeros when there is no footprint* holds that a shapeless design is never
+ * flagged; *measures dimensions for a PENDING footprint too, so a flagged design always has
+ * numbers* holds that a flagged one always carries figures. Each was watched failing against its
+ * own break of the query: `?? false` to `?? true` reds the first, and narrowing the derivation's
+ * guard to `shape !== null && !shape.footprintPending` reds the second and nothing else in that
+ * file. The second case exists because that half had been resting on `dimensionsOf`'s return
+ * type — an argument rather than a check, which is the thing this repository converts.
  *
  * **What no check here reaches**: `AssetDesignDto` is a plain type, so a test may hand-build one
  * carrying the flag with null dimensions, and this template will then draw the warning beside no

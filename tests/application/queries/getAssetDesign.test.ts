@@ -179,6 +179,32 @@ describe('GetAssetDesign', () => {
 	);
 
 	/**
+	 * **The OTHER half of the implication `DesignerInspector.showUnscaledDimensions` rests on**,
+	 * and it rested on a RETURN TYPE until this case existed. That computed is now
+	 * `props.design.dimensionsUnscaled` alone, which is sound only while a `true` flag arrives
+	 * with numbers to warn about. The shapeless case below pins the half that says a design with
+	 * no shape is never flagged; nothing pinned the half that says a FLAGGED design always has
+	 * `dimensions`. That one held because the derivation sits inside `if (shape !== null)` and
+	 * `dimensionsOf` refusing returns an `err` rather than a DTO — a structural argument, which
+	 * is the kind this repository asks to be turned into a check wherever one is cheap.
+	 *
+	 * Both halves on ONE DTO, because the conjunction is the claim: asserted apart, each could
+	 * pass on a different read. Distinct from the rows above, which assert the FLAG alone, and
+	 * from `derives dimensions from the footprint`, which measures a NON-pending shape — watched
+	 * red by narrowing that guard to `shape !== null && !shape.footprintPending`, which turns
+	 * this case red and leaves every other case in this file green.
+	 */
+	it('measures dimensions for a PENDING footprint too, so a flagged design always has numbers', async () => {
+		const { query, assetId, seed } = await seeded();
+		await seed({ calibration: null, shape: shapeWith('traced', true) });
+
+		const dto = expectOk(await query.execute(assetId));
+
+		expect(dto.dimensionsUnscaled).toBe(true);
+		expect(dto.dimensions).not.toBeNull();
+	});
+
+	/**
 	 * An absent sidecar is the ordinary starting state of every asset ever created, so it
 	 * reads as a shapeless design. Null rather than zeros: `{ width: 0, depth: 0 }` is a
 	 * measurement of an object nobody has drawn, and a surface printing it would be stating

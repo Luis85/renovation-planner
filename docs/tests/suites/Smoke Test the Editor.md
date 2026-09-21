@@ -85,21 +85,57 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the twenty cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the **27** cases whose
 steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
-procedure is a list. (That number said *fifteen* through five case additions, because it is
-prose beside a grep nobody re-ran for it; it is `ls docs/tests/cases/*.md` minus the one list-form
-case, taken 2026-09-05.) The verdict names the **cheapest instrument that could discharge that
+procedure is a list. (That number said *fifteen*, then *twenty*, through repeated case additions,
+because it is prose beside a grep nobody re-ran for it. **Its stated derivation was wrong as well
+as its value**: it claimed to be `ls docs/tests/cases/*.md` minus the one list-form case, which
+counts every case file — including the **22** that carry no verdict column at all, whose steps
+this paragraph's *"every step below"* therefore does not describe. `ls` minus one says 49 today;
+the population is 27. Re-derived 2026-09-21 with the loop below, which asks each file whether it
+carries a table-form verdict rather than assuming it does.)
+
+```bash
+for f in docs/tests/cases/*.md; do
+  grep -qE '^\| [0-9]+[a-z]? \| `(suite|browser|obsidian|desktop|judgement)` \|' "$f" && echo "$f"
+done | wc -l
+```
+
+The verdict names the **cheapest instrument that could discharge that
 step as written**. It is a claim about the step's own pass condition, not a report on what is
 tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 190 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 207 |
 | `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 75 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 211 |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 14 |
-| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 15 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 243 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 15 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 17 |
+
+**557 steps — 539 table rows plus the same 18 list steps in [[Canvas Navigation]] — re-run in the
+edit that added wave 15's two recovery cases.** `suite` 190 → 207, `browser` unchanged at 75,
+`obsidian` 211 → 243, `desktop` 14 → 15, `judgement` 15 → 17. Both greps below were re-run against
+this tree and print 539 + 18. [[Two designers on one asset]] contributes `suite` 8, `obsidian` 6,
+`desktop` 1 and `judgement` 1; [[Recover an asset design rather than lose it]] contributes `suite` 9,
+`obsidian` 26 and `judgement` 1. **It is additive per row and not merely in total** — 190+17,
+75+0, 211+32, 14+1, 15+2 — which is what says this increment edited no verdict outside its own two
+new files. The sum was read off the greps and the per-row agreement then confirmed it, rather than
+the other way round.
+
+**The CASE count is dropped from that sentence rather than updated, because it named no measurable
+population and had drifted from all three.** It read *"across 47 cases"* while `ls docs/tests/cases/*.md`
+printed **48**, the `## Cases` list below carried **31** bullets, and **26** files actually carried a
+verdict — and the triage paragraph above said *"the twenty cases whose steps are a table"* beside
+them. The step figures were exactly right at the same moment, which is the whole lesson: the two
+greps get re-run and the number beside them did not. Today those populations are **50**, **33** and
+**28**. If a case count is wanted here again, name which of the three it counts, and derive it:
+
+```bash
+ls docs/tests/cases/*.md | wc -l
+```
+
+**The previous measurement's own account follows, kept as history.**
 
 **505 steps across 47 cases — 487 table rows plus the same 18 list steps in
 [[Canvas Navigation]] — re-run in the edit that added the asset designer expansion's three
@@ -724,6 +760,30 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   the other of which blanks it — and its steps 4a and 4b are two RECORDED holes looked at rather
   than described: a plugin command that never enters the leaf's gated dispatcher and is therefore
   not paused, and the status bar clipping its paused hint at a sidebar's width.
+- [[Two designers on one asset]] — the asset designer's expected-version conflict, matrix row T12.
+  **Its step 1 asks a question nothing in this repository can answer**: no control this plugin owns
+  opens a second designer leaf on one asset, because every door funnels into `revealAssetDesigner`,
+  which matches on the leaf's persisted `assetId` and reveals the one that exists. So the walker
+  tries Obsidian's own tab gestures and records which produced a pair — and step 1 names exactly
+  which rows survive if none does, rather than stranding them at the held-gesture step. The
+  conflict window is a HELD drag, since the version is captured at the press and an idle second
+  leaf refreshes off the event bus within a tick; its step 12 exists because repeating a gesture
+  to "check it still conflicts" answers `no-write` and teaches the walker the opposite of the
+  truth. Its step 9 is a RECORDED hole: a conflict reaches the user as the two words **Save
+  error**, while the sentence that would explain it sits in the locale table and is routed to a
+  no-op sink.
+- [[Recover an asset design rather than lose it]] — scenario U05, and the other five clauses of it:
+  a write that fails, a read-back that fails with work still on screen, Undo pressed before the
+  previous write settled, a leaf closed and reopened, and the asset's note moved or deleted
+  underneath it. **Three different write failures draw three different pictures** — a `Persistence`
+  refusal gives a badge and no toast, while `schema-invalid` and `asset.not-found` are both
+  pre-write and give a toast and no badge — which is why its fault setup section names the obvious
+  guess as the wrong one twice over. Its steps 12a–12d are the sharpest thing in it and the least
+  supported: U05's *written-but-stale* sequence turns out to be reachable through a schema-valid
+  clearance whose SPAN is not representable, because nothing on the write path derives what the
+  read path derives — and only through a door that supplies no expected version, since after a
+  failed refresh every ordinary gesture carries a stale one and is refused instead. Nobody has
+  executed it; the row is written so that "the write did not land" is a recordable finding.
 - [[Reload a room]] — the other half of C3, and the only case in this suite that requires a full
   **restart**. Both automated reopen paths model a reopen with fresh objects over a vault that
   never left memory; step 5 is a new process, which is where this suite has already caught a

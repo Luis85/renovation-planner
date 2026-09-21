@@ -822,3 +822,79 @@ another name, earns a written argument and a regrade — never a case that asser
 state the types cannot express, which CLAUDE.md warns costs a branch it can never pay back. **A card
 that reports "this row needs no test, and here is why" has succeeded, not failed.**
 
+
+## Wave 15 — the two manual cases AD15 names no case file for, dispatched 2026-09-21
+
+**Authorized by the user** in these words: *"do both, start with the 10 rows"*. The ten rows shipped
+as wave 14; this is the second half. **T12 and U05 are the only two open matrix rows that have no
+written case at all** — the matrix names a case file for U01 through U04 and pointedly names none
+for these two, so there is no procedure to walk, only a plan.
+
+**Why these two are worth a human's time when most open rows are not.** Every leaf in this suite is
+a `FakeLeaf` that records asks rather than behaving. Real multi-leaf conflict behaviour has been
+observed by nothing, ever. That is a structural blindness rather than thin coverage, and it is what
+both cards are pointed at.
+
+### What the integrator established BEFORE writing either brief, and what it costs a card to ignore
+
+Two read-only reconnaissance agents read the designer's conflict and recovery paths. Four facts
+decide whether a step is real, and a case written without them would walk a procedure that cannot
+produce the state it names:
+
+- **No plugin control opens a second leaf on one asset.** The palette command, the asset library's
+  **Edit shape** and the project view's create flow all funnel into one `revealAssetDesigner`, which
+  matches on `assetId` and reveals the existing leaf (`revealAssetDesigner.ts`, `reveal.ts`). A
+  second leaf must come from Obsidian's own tab split or a restored layout, and **whether Obsidian
+  offers that for a third-party `ItemView` is host behaviour this repository cannot settle.**
+- **An idle second leaf does not conflict — it refreshes.** `updateAssetShape` publishes
+  `AssetDesignChanged`, every leaf subscribes through `createAssetDesignChangeSource`, and each one
+  re-reads within a tick. The conflict window is a **held gesture**: a Select or Bend drag captures
+  `geometryVersion` at the press (`designer-select-tool.ts`), so the only hand-reproducible recipe is
+  press-and-hold in one leaf, write in the other, release.
+- **Redrawing identical geometry is `no-write`, not a conflict** (`updateAssetShape.ts`, pinned by
+  `setAssetFootprint.test.ts`). A walker who repeats a gesture to "check it still conflicts" gets a
+  clean indicator and the wrong conclusion.
+- **A failed WRITE and a failed READ-BACK surface in two different widgets and neither mentions the
+  other**: the header's save-state word for the write, an additive `<p role="status">` at the foot of
+  the shell for the read. The designer has no stale strip with buttons, no **Try again**, no
+  **Open source note**, and nothing is paused.
+
+### Two `src/` findings recorded as RECORDED HOLES, by the user's decision, not fixed
+
+Both were verified by the integrator at source rather than taken on a subagent's report. Neither is
+authorized work; each becomes a step whose expected result is what the code does today, on the
+pattern `docs/tests/cases/Recover from a stale read.md` step 4a already uses.
+
+- **The designer's header reads `Saved` while its own strip says the canvas may be out of date.**
+  `DesignerHeader.vue` mounts `SaveStateIndicator`, which derives `saved-refresh-needed` from
+  `useProjectStore().stale` and `planningReadState` — and `AssetDesignerView.ts` gives the designer
+  its own Pinia, where neither is ever hydrated. That component's own docblock says it reads *"THIS
+  Plan Editor's own store"*. So `save-state.saved-refresh-needed` is in the locale table, is asserted
+  by plan-editor tests, and **cannot be produced by the asset designer**. A case expecting it would
+  be wrong about the build rather than finding a defect in it.
+- **`unrecoveredWrite` is set by the designer and drawn nowhere.** Its readers are
+  `PlanEditorRoot.vue`, `elementActions.ts`, `rotationActions.ts`, `DraftRecovery.vue` and
+  `shell/warnings.ts` — every one of them the Plan Editor. A half-undone background undo stamps the
+  flag and the user sees the same two words any other failure gives.
+
+| Card | Worktree | Lease | Contract | Status | Conditions |
+|---|---|---|---|---|---|
+| **W15-A** — matrix row **T12**, two leaves and the expected-version conflict | `.worktrees/ad07`, branch `w15a-two-leaf-conflict` | CREATE `docs/tests/cases/Two designers on one asset.md` and `docs/tasks/asset-designer-expansion/reports/W15-A-two-leaf-conflict.md`. READ anything. **No other file is written at all** — not the suite, not the matrix, not `src/`, not `tests/` | wave 15 base, `r1` | dispatched | reviewed by an agent that did not write it |
+| **W15-B** — matrix row **U05**, recover rather than lose work | `.worktrees/ad10`, branch `w15b-recover-not-lose` | CREATE `docs/tests/cases/Recover an asset design rather than lose it.md` and `docs/tasks/asset-designer-expansion/reports/W15-B-recover-not-lose.md`. READ anything. **No other file is written at all** — not the suite, not the matrix, not `src/`, not `tests/` | wave 15 base, `r1` | dispatched | reviewed by an agent that did not write it |
+
+**Disjointness is two files each, both named after the card and will be re-checked by intersecting
+`git diff --name-only <base>..<sha>` across both candidates AND their fix-round shas** — wave 14's
+W14-C gained two paths from a mid-wave lease extension, so a candidate-only check is not enough.
+
+**Three shared files are the INTEGRATOR's and are leased to neither card**, because both cards would
+otherwise edit all three: `docs/tests/suites/Smoke Test the Editor.md` (its `## Cases` list and its
+five-tier step census, which is re-derived by grep and never incremented),
+`reports/AD15-validation-matrix.md`, and the `contracts/DECISIONS.md` / `execution/state.json` pair.
+
+### The instruction both cards carry, and it is the point of this wave
+
+**A fault setup nobody has produced is a plan, not a procedure.** Wave 14's lesson was that three of
+ten rows asked for the wrong thing; this wave's equivalent risk is a step naming a fault that cannot
+be produced by hand. Derive every fault from the code, say which read or write each one breaks, and
+**where no hand-reproducible setup exists, say so and narrow the case** rather than invent one. A
+card reporting "this clause cannot be walked, and here is the code that says why" has succeeded.

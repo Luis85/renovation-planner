@@ -68,6 +68,7 @@ function deps(): PlanEditorDeps {
 		// dispatcher, so the command SERVICES are the refusal set: a case that reached one
 		// would be asking this file's question of somebody else's command.
 		commands: unavailablePlanEditorCommands(),
+		openDiagnosticsReport: () => undefined,
 		openNote: vi.fn<(entityId: string) => Promise<'opened' | 'missing' | 'failed'>>().mockResolvedValue('opened'),
 		vault: {
 			getAbstractFileByPath: () => null,

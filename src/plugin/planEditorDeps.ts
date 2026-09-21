@@ -79,6 +79,15 @@ export function planEditorDeviceSlots(adapter: LocalStorageAdapter, pluginId: st
  * and because it answers `null` for a session with no persistence at all: with settings
  * unrecovered there is no query service to hand a view, so registering one that would
  * draw an empty pane is worse than not being able to open it.
+ *
+ * **`Omit<…, 'openDiagnosticsReport'>` rather than the whole bundle, and the omission is the
+ * point.** That member opens a `plugin/` modal through
+ * `RenovationPlannerPlugin.openDiagnosticsReport()`, and this function holds no `App` and no
+ * plugin instance — it takes a root, a workspace, a vault and two slots. Composing
+ * `showDiagnosticsReport(host)` here would be a SECOND composition of an action that already
+ * has one, which is exactly the "re-decide beside it" CLAUDE.md's *one action, every input*
+ * forbids. So the member is added by `planEditorViewDeps()`, which holds `this`, and this
+ * annotation is what makes the omission a compiler-checked fact rather than a convention.
  */
 export function planEditorDeps(
 	root: CompositionRoot,
@@ -86,7 +95,7 @@ export function planEditorDeps(
 	vault: Vault,
 	clipboard: EditorClipboard,
 	panelLayout: DeviceStorage,
-): PlanEditorDeps {
+): Omit<PlanEditorDeps, 'openDiagnosticsReport'> {
 	const persistence = root.persistence;
 	return {
 		navigation: editorWorkspaceNavigation(workspace, root.logger),

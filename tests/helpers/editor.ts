@@ -150,6 +150,8 @@ export interface EditorHarness {
 	readonly focusedLeaf: () => number;
 	/** How many times the tree asked to open this leaf's plan note (`PlanEditorContext.openPlanNote`). */
 	readonly openedNote: () => number;
+	/** How many times the tree asked for the diagnostics report (`PlanEditorContext.openDiagnosticsReport`). */
+	readonly openedDiagnostics: () => number;
 	/**
 	 * `ResponsiveEditorShell`'s own root — the element that carries `data-layout`, the one the
 	 * shell's `ResizeObserver` watches, and therefore the one a case resizes to drive a layout
@@ -247,6 +249,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	let closedLeaf = 0;
 	let focusedLeaf = 0;
 	let openedNote = 0;
+	let openedDiagnostics = 0;
 	const planListeners = new Set<() => void>();
 	/** Keyed by the project id each subscription bound, because the real source FILTERS on it. */
 	const projectPlansListeners = new Map<() => void, string>();
@@ -323,6 +326,12 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		openPlanNote: () => {
 			openedNote += 1;
 			return Promise.resolve();
+		},
+		// Counted rather than stubbed, for the reason the three doors above are: the
+		// `unreadable-zones` warning row's only action calls this, and a no-op here would let a
+		// build that wired the button to nothing pass.
+		openDiagnosticsReport: () => {
+			openedDiagnostics += 1;
 		},
 	};
 
@@ -401,6 +410,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		closedLeaf: () => closedLeaf,
 		focusedLeaf: () => focusedLeaf,
 		openedNote: () => openedNote,
+		openedDiagnostics: () => openedDiagnostics,
 		rootEl,
 		unmount: () => {
 			wrapper.unmount();

@@ -313,9 +313,23 @@ function staleTriggerDeleteZoneCommand(): PlanEditorCommandServices['deleteZone'
  * `keepPreviousOnFailure` re-read fails exactly as a real vault fault would. `harnessDeps()`
  * with no argument is unaffected — every existing caller (`fixture.ts`, its own tests) calls
  * it that way, and `stale` defaults to off.
+ *
+ * `unreadable` arms the `?unreadable=N` knob: `findZonesByPlan` answers that refusal count, so
+ * the `unreadable-zones` warning row — and the **Show diagnostics report** button it carries —
+ * can be drawn at all. It was unreachable before, because the count was hard-coded to `0`.
+ *
+ * **What this knob deliberately does NOT do, stated rather than left to be discovered:** it
+ * does not remove a zone. A real refusal returns the zones that LOADED plus a count of the
+ * notes that did not, so a real vault at `unreadable=2` would draw two fewer polygons than
+ * this page does. Nothing downstream compares the two — `editorWarnings` reads the count and
+ * nothing else — and pruning the list here would also have to prune `HARNESS_STRUCTURE`'s
+ * walls and `zoneInspectorAnswering`'s answers to stay coherent, and would break any capture
+ * combining this knob with `?select=` on a pruned id. So the fake is honest about the ROW and
+ * approximate about the canvas behind it; read a capture taken through it that way.
  */
-export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEditorDeps {
+export function harnessDeps(options: { readonly stale?: boolean; readonly unreadable?: number } = {}): PlanEditorDeps {
 	const stale = options.stale === true;
+	const unreadable = Math.max(0, options.unreadable ?? 0);
 	// Closure-scoped rather than truly module-level: each capture is a fresh page navigation
 	// in a real browser, so module state resets on its own, and a counter that lived here
 	// instead would carry a call from one mount into the next if this page ever mounted the
@@ -346,7 +360,7 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			getProject: (id) => Promise.resolve(ok(id === HARNESS_PROJECT.id ? structuredClone(HARNESS_PROJECT) : null)),
 			listPlans: () => Promise.resolve(ok([structuredClone(HARNESS_PLAN)])),
 			findZonesByPlan: () =>
-				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0, structure: structuredClone(HARNESS_STRUCTURE) })),
+				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable, structure: structuredClone(HARNESS_STRUCTURE) })),
 			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`
 			// for why EMPTY rather than refused, and for what a refusal bundle costs a READ.
 			...emptyRequirementReads(),
@@ -443,6 +457,11 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 		// therefore no vault to raise a file event, and its background is a fixture rather than a
 		// file. §55 is why this page refuses a background outright.
 		onVaultFileChanged: () => () => undefined,
+		// Inert for the reason the doors above are, one layer further out: the report is a
+		// `plugin/` modal over a diagnostics ledger this page has no plugin to hold. The
+		// `unreadable-zones` row's button still renders and still presses — which is the whole
+		// point of `?unreadable=N` — it simply has nothing to open.
+		openDiagnosticsReport: () => undefined,
 	};
 }
 
@@ -452,13 +471,16 @@ export interface MountedPlanEditor {
 }
 
 /**
- * The nine harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
- * `?add`, `?room=<w>x<d>`, `?stale`, `?detail`, `?locked=<id,id>`, `?detailed=<id,id>`,
- * `?tree` and `?panels=` — for a headless capture that needs the Room Inspector, the Add menu,
- * the room task already under way, the trust path's own stale-projection warning, a fresh detail
- * plan, a locked zone, a zone with detail plans, a three-level Property tree, or collapsed side
- * panels, with nothing to click. All
- * nine are optional and independent; nothing here refuses combining them, and `?room`
+ * The harness-only knobs `?view=plan-editor` takes beside itself, for a headless capture that
+ * needs the Room Inspector, the Add menu, the room task already under way, the trust path's own
+ * stale-projection warning, refused zone notes, a fresh detail plan, a locked zone, a zone with
+ * detail plans, a three-level Property tree, or collapsed side panels, with nothing to click.
+ *
+ * **Stated as a rule rather than a count**, for the reason `page.ts`'s own knob paragraph
+ * already paid for twice: this said "nine" and named nine while the interface below declared
+ * twice that many, and the enumeration goes stale in the direction of a WEAKER claim. The
+ * members below are the list. Every one is
+ * optional and independent; nothing here refuses combining them, and `?room`
  * needs no combining with `?add`: it opens the Add menu itself on its way through, so pairing
  * the two is redundant rather than contradictory. `?stale` is the one that is not independent of
  * `?select` in EFFECT, even though both are legal on their own: see `mountPlanEditorHarness` for
@@ -505,6 +527,12 @@ export interface PlanEditorHarnessOptions {
 	 * raced against it.
 	 */
 	readonly stale?: boolean;
+	/**
+	 * `?unreadable=N` — the zone read answers N refused notes, which is the only way the
+	 * `unreadable-zones` warning row and its **Show diagnostics report** button can be drawn
+	 * at all. See `harnessDeps`'s own parameter for what this fake does NOT do.
+	 */
+	readonly unreadable?: number;
 	/** A fresh detail plan: no zones, a parent-zone guide and one ancestor (`detailPlanKnob.ts`). */
 	readonly detail?: boolean;
 	/** Comma-separated seeded zone ids answered as locked (`detailPlanKnob.ts`). */
@@ -837,7 +865,7 @@ export function mountPlanEditorHarness(
 	// view, and the leaf frame plus `tests/harness/theme.css` is what supplies the height
 	// Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
-	const base = harnessDeps({ stale: options.stale });
+	const base = harnessDeps({ stale: options.stale, unreadable: options.unreadable });
 	const workspace = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN, new URLSearchParams(location.search).has('planning')) : null;
 	const downstream = workspace && new URLSearchParams(location.search).has('downstream') ? downstreamWorkspace(workspace, leafEl) : null;
 	const deps = downstream?.deps ?? (workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true || options.outline !== undefined) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base);

@@ -81,7 +81,9 @@ const wantsAssetLibrary = params.get('view') === 'asset-library';
  * the editor is ready and `?add` opens the Add menu once it is ready (both Task 21);
  * `?room=<widthMm>x<depthMm>` (Task 14) walks Add → Room → the two length fields, so a capture
  * can show the room task with a sized rectangle under it; `?stale` (Task 14) drives the trust
- * path's own stale-projection warning through a real zero-referent zone deletion; `?detail`
+ * path's own stale-projection warning through a real zero-referent zone deletion;
+ * `?unreadable=<n>` answers that many refused zone notes, which is the only way the
+ * `unreadable-zones` warning row and its Show diagnostics report button can be drawn; `?detail`
  * (detail-plan polish, 2026-09-11) composes the plan as a fresh detail plan with no zones and a
  * parent-zone guide; `?locked=<id,id>` answers the named seeded zones as locked (ADR-0027);
  * `?detailed=<id,id>` gives each named seeded zone a detail plan (ADR-0028); `?tree` answers a
@@ -112,6 +114,8 @@ const selectZoneId = params.get('select');
 const wantsAddMenu = params.has('add');
 const room = parseRoomKnob(params.get('room'));
 const wantsStale = params.has('stale');
+/** `?unreadable=N`: how many zone notes the read refuses (`planEditor.ts`'s own knob paragraph). */
+const askedUnreadable = Number.parseInt(params.get('unreadable') ?? '', 10);
 const wantsDetail = params.has('detail');
 const lockedZoneIds = params.get('locked') ?? undefined;
 const detailedZoneIds = params.get('detailed') ?? undefined;
@@ -251,6 +255,7 @@ if (wantsIndex) {
 				reference: params.has('reference'),
 				room,
 				stale: wantsStale,
+				unreadable: Number.isFinite(askedUnreadable) ? askedUnreadable : undefined,
 				detail: wantsDetail,
 				locked: lockedZoneIds,
 				detailed: detailedZoneIds,

@@ -763,7 +763,12 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 */
 	private planEditorViewDeps(): PlanEditorDeps {
 		const { panelLayout, viewPreferences } = planEditorDeviceSlots(this.app, this.manifest.id, this.root.logger);
-		return { ...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard, panelLayout), viewPreferences };
+		// `openDiagnosticsReport` is added HERE rather than inside `planEditorDeps`, and that is
+		// the one-action-every-input rule rather than a preference: that function holds no `App`
+		// and no plugin instance, so reaching the report from there would mean composing
+		// `showDiagnosticsReport(host)` a second time. This closure calls the same public method
+		// the palette command and `SettingsTab`'s action row call.
+		return { ...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard, panelLayout), viewPreferences, openDiagnosticsReport: () => { this.openDiagnosticsReport(); } };
 	}
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */
@@ -1084,9 +1089,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
-	 * Both doors into the diagnostics report land here, and this is the whole of what either
-	 * one does — the command above and `SettingsTab`'s action row, which reaches it through
-	 * the same public method.
+	 * EVERY input that opens the diagnostics report lands here, and this is the whole of what
+	 * any of them does — CLAUDE.md's *one action, every input*, stated as the RULE rather than
+	 * as a list of doors. The list spelling went stale exactly once: it read "both doors… the
+	 * command above and `SettingsTab`'s action row" while the Plan Editor's `unreadable-zones`
+	 * warning row was becoming the third. Adding an input means calling this method; it never
+	 * means composing `showDiagnosticsReport` beside it.
+	 *
+	 * Written no wider than its check: `tests/plugin/diagnostics/diagnosticsReportDoors.test.ts`
+	 * drives the doors it names and counts the modals they open, so it catches a door that
+	 * composed its own report and can say nothing about a door nobody gave it a case for.
 	 *
 	 * `runDetached` rather than a bare `void`, and the difference from `openProjectDetail`
 	 * below is the reason rather than a preference: that one calls `navigateToProject`, which

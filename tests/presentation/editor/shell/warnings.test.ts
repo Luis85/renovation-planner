@@ -19,6 +19,7 @@ const clear: EditorWarningInput = {
 	backgroundStatus: 'none',
 	retry: noop,
 	openSourceNote: noop,
+	openDiagnosticsReport: noop,
 };
 
 describe('editorWarnings', () => {
@@ -56,6 +57,55 @@ describe('editorWarnings', () => {
 		const unreadable = warnings.find((w) => w.id === 'unreadable-zones');
 
 		expect(unreadable?.params).toStrictEqual({ count: '2' });
+	});
+
+	/**
+	 * `editor.some-zones-unreadable` has ended with "Open the diagnostics report to see which
+	 * notes refused" since it was written, and the row carried no control that could — an
+	 * instruction with no door. The label is the palette command's own key rather than a new
+	 * pair: it is the verb phrase both sibling actions on this strip already are, and it is
+	 * sentence case in both locales.
+	 */
+	it('gives the unreadable-zones row the diagnostics door its own message names', () => {
+		const open = vi.fn<() => void>();
+		const [row] = editorWarnings({ ...clear, unreadableZones: 2, openDiagnosticsReport: open });
+
+		expect(row.actions?.map((a) => [a.id, a.labelKey, a.busy])).toStrictEqual([
+			['open-diagnostics', 'command.show-diagnostics-report', false],
+		]);
+
+		row.actions?.[0].run();
+		expect(open).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * `busy` is `ProjectStore.refreshing`, and this action does not read it — a plan re-read in
+	 * flight changes nothing about the ledger the report opens over. Pinned separately from the
+	 * case above because that one passes `refreshing: false`, so it would agree with a build
+	 * that had spelled `busy: input.refreshing` here.
+	 */
+	it('never marks the diagnostics action busy, even mid-refresh', () => {
+		const [row] = editorWarnings({ ...clear, unreadableZones: 1, refreshing: true });
+
+		expect(row.actions?.map((a) => a.busy)).toStrictEqual([false]);
+	});
+
+	/**
+	 * **The census as a census.** The two `background-*` rows stay action-less, and the reason
+	 * is structural rather than "not yet": `DiagnosticEntityKind` has no background member and
+	 * every `DiagnosticsLedger.record` call site names a note or a sidecar, so a diagnostics
+	 * button here would open a report incapable of mentioning the background — an action that
+	 * cannot work, which `en-assetLibrary.ts` already refuses by name for `UnreadableStrip`.
+	 *
+	 * This passes TODAY, and deliberately: it exists so that the "give the other two the same
+	 * button for consistency" edit is a red test rather than a review comment nobody makes.
+	 * It asserts `actions` is undefined rather than empty — `PersistentWarningStrip.vue` gates
+	 * the whole group on `w.actions !== undefined`, so an empty array would render an empty
+	 * actions container.
+	 */
+	it('leaves the two background rows action-less — a report cannot name a background', () => {
+		expect(editorWarnings({ ...clear, backgroundStatus: 'missing' })[0].actions).toBeUndefined();
+		expect(editorWarnings({ ...clear, backgroundStatus: 'unreadable' })[0].actions).toBeUndefined();
 	});
 
 	it('yields background-unreadable for an unreadable background, and never both background ids', () => {

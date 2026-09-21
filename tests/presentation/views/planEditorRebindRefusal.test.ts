@@ -68,6 +68,7 @@ function deps(): PlanEditorDeps {
 	return {
 		queries: flakyQueries(),
 		commands: unavailablePlanEditorCommands(),
+		openDiagnosticsReport: () => undefined,
 		openNote: vi.fn<(entityId: string) => Promise<'opened' | 'missing' | 'failed'>>().mockResolvedValue('opened'),
 		vault: {
 			getAbstractFileByPath: () => null,

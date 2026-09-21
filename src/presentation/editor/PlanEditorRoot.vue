@@ -181,11 +181,12 @@ const backgroundStatus = ref<BackgroundStatus>('none');
  * Task 20's keyed collection over the facts the shell used to read independently — see
  * `editorWarnings`' own header for the fixed order and why the collection replaced four
  * separate `v-if`s. Task 9 widens the input with the trust path's own facts
- * (`unrecoveredWrite`, `refreshing`, `retriesFailed`) and the two callbacks every action here
+ * (`unrecoveredWrite`, `refreshing`, `retriesFailed`) and the callbacks every action here
  * dispatches through: `retry` is `runtime.refreshProjection` and nothing else (§2.3 — a
  * retry re-reads, it cannot replay a write, because this closure takes no command), and
  * `openSourceNote` is `runtime.openPlanNote`, forwarded from the context so every row's
  * action reaches the same door `EditorContextBar`'s own note-opening affordance would.
+ * `openDiagnosticsReport` is the third, injected from the composition root.
  */
 const warnings = computed(() =>
 	editorWarnings({
@@ -197,6 +198,10 @@ const warnings = computed(() =>
 		backgroundStatus: backgroundStatus.value,
 		retry: hydrate,
 		openSourceNote: () => void runtime.openPlanNote(),
+		// Straight off the context rather than through `runtime`, unlike `openSourceNote` above:
+		// the runtime forwards `openPlanNote` because the spatial-editing bundle needs it too,
+		// and this callback has exactly one reader.
+		openDiagnosticsReport: () => context.openDiagnosticsReport(),
 	}),
 );
 

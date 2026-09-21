@@ -68,6 +68,18 @@ export interface PlanEditorDeps {
 	 * `infrastructure/`.
 	 */
 	readonly openNote: (entityId: string) => Promise<ProjectOpenOutcome>;
+	/**
+	 * Opens the diagnostics report, which is `plugin/`'s modal — so this is a callback the
+	 * composition root injects rather than anything this layer could reach (the layer bans).
+	 * It lands on `RenovationPlannerPlugin.openDiagnosticsReport()`, the same public method the
+	 * palette command and `SettingsTab`'s action row already call: ONE action, every input.
+	 *
+	 * REQUIRED, for `clipboard`'s reason below: optional would mean the `unreadable-zones`
+	 * warning row CONDITIONALLY carries the button its own message tells the user to press,
+	 * and a composition that forgot it would draw the instruction with no door — the defect
+	 * this member exists to close, reintroduced silently.
+	 */
+	readonly openDiagnosticsReport: () => void;
 	readonly vault: BackgroundVault;
 	/**
 	 * The ONE clipboard the plugin holds for every Plan Editor leaf. Required, so a composition
@@ -448,6 +460,9 @@ export class PlanEditorView extends ItemView {
 				if (outcome === 'missing') notifyWarning(tr('editor.source-note-missing'));
 				// 'failed' has already been reported once, inside the opener.
 			},
+			// Passed straight through, unlike the door above: there is no leaf id to bind and
+			// nothing to await — the plugin method behind it owns its own fault door.
+			openDiagnosticsReport: this.deps.openDiagnosticsReport,
 		};
 
 		const app = createApp(PlanEditorRoot);

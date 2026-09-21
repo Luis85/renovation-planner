@@ -30,14 +30,16 @@ export type WarningSeverity = 'warning' | 'error';
  * One row's action. `retry` is the refresh, by construction (§2.3) — it re-reads through
  * `runtime.refreshProjection` and takes no command parameter, so it cannot replay a write.
  * `open-source-note` asks the context to open the plan's own note, the one surface every
- * warning here can always hand off to.
+ * warning here can always hand off to. `open-diagnostics` asks the context to open the
+ * diagnostics report, which is a PLUGIN-side modal reached through an injected callback —
+ * `presentation/` may not import `plugin/`.
  *
  * `busy` is read off the SAME flag the row's message swap already reads
  * (`ProjectStore.refreshing`) rather than a per-action flag of its own: a retry in flight and
  * an open-source-note click racing it are the same "a read is happening" fact, not two.
  */
 export interface WarningAction {
-	readonly id: 'retry' | 'open-source-note';
+	readonly id: 'retry' | 'open-source-note' | 'open-diagnostics';
 	readonly labelKey: StringKey;
 	readonly run: () => void;
 	readonly busy: boolean;
@@ -48,7 +50,19 @@ export interface EditorWarning {
 	readonly severity: WarningSeverity;
 	readonly messageKey: StringKey;
 	readonly params?: Readonly<Record<string, string>>;
-	/** Absent for a warning with nothing to do about it yet (`unreadable-zones`, `background-*`). */
+	/**
+	 * Absent for the two `background-*` rows only, and the reason is STRUCTURAL rather than
+	 * "nothing to do about it yet": `DiagnosticEntityKind`
+	 * (`src/application/ports/diagnostics.ts`) has no background member and every
+	 * `DiagnosticsLedger.record` call site names a note or a sidecar, so a diagnostics button
+	 * on a background row would open a report incapable of ever mentioning the background.
+	 * `en-assetLibrary.ts` already writes that rule down for `UnreadableStrip`'s withheld
+	 * **Open note** — an action that cannot work is worse than no action.
+	 *
+	 * What a check re-runs is only the ABSENCE (`warnings.test.ts`, "leaves the two
+	 * background rows action-less"); the reason above is an argument to re-read at the ledger,
+	 * not something this repository can assert against a type with no runtime members.
+	 */
 	readonly actions?: readonly WarningAction[];
 }
 
@@ -57,7 +71,7 @@ export interface EditorWarning {
  * post-command read-back that failed while valid data is still on screen, zone notes that
  * refused to load, the plan's background) plus the trust path's own — an unrecovered write
  * (§2.8), whether a re-read is in flight and how many have failed in a row (§2.4) — and the
- * two callbacks every action here dispatches through.
+ * callbacks every action here dispatches through.
  */
 export interface EditorWarningInput {
 	readonly unrecoveredWrite: boolean;
@@ -68,6 +82,14 @@ export interface EditorWarningInput {
 	readonly backgroundStatus: BackgroundStatus;
 	readonly retry: () => void;
 	readonly openSourceNote: () => void;
+	/**
+	 * The diagnostics report, injected all the way from the composition root: the modal lives
+	 * in `plugin/` and `presentation/` may not import it, so the callback is the seam.
+	 * REQUIRED, for `PlanEditorDeps.clipboard`'s reason — an optional one would let a
+	 * composition draw the `unreadable-zones` row with the instruction and without the button,
+	 * which is the exact defect this member exists to close.
+	 */
+	readonly openDiagnosticsReport: () => void;
 }
 
 /**
@@ -115,6 +137,23 @@ export function editorWarnings(input: EditorWarningInput): readonly EditorWarnin
 			severity: 'error',
 			messageKey: 'editor.some-zones-unreadable',
 			params: { count: String(input.unreadableZones) },
+			// The door the message already names ("Open the diagnostics report to see which notes
+			// refused") — the sentence shipped without one, which is the defect this row closes.
+			// `command.show-diagnostics-report` rather than a new key: it is the palette command's
+			// own verb phrase, already sentence case in both locales, and the two sibling actions
+			// on this strip are verb phrases too.
+			//
+			// `busy: false`, like the `unrecovered` row's action and for the same reason: `busy`
+			// is `ProjectStore.refreshing`, and a plan re-read in flight changes nothing about a
+			// ledger this button reads at open time. It is not "in flight" the way a retry is.
+			actions: [
+				{
+					id: 'open-diagnostics',
+					labelKey: 'command.show-diagnostics-report',
+					run: input.openDiagnosticsReport,
+					busy: false,
+				},
+			],
 		});
 	}
 	if (input.backgroundStatus === 'missing') {

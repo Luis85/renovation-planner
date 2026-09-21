@@ -70,7 +70,10 @@ export function downstreamWorkspace(reference: ReturnType<typeof referenceWorksp
 		return view;
 	});
 	const native = planEditorDeps(root, workspace as unknown as Workspace, vault, createEditorClipboard(), memoryDeviceStorage());
-	const deps = { ...native, vault: reference.deps.vault, onThemeChange: reference.deps.onThemeChange };
+	// `openDiagnosticsReport` is added here rather than by `planEditorDeps`, which deliberately
+	// omits it (see its own annotation): a no-op, for the reason `harnessEditorContext`'s copy
+	// gives — a browser page holds no plugin, so there is no report modal to open.
+	const deps = { ...native, openDiagnosticsReport: () => undefined, vault: reference.deps.vault, onThemeChange: reference.deps.onThemeChange };
 	const leaf = workspace.getLeaf();
 	leaf.state = { type: PLAN_EDITOR_VIEW, state: { planId: reference.plan.id } };
 	const attach = (view: PlanEditorView) => {

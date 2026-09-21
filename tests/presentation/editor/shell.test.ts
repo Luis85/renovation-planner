@@ -415,6 +415,25 @@ describe('the persistent warning strip', () => {
 		expect(harness.openedNote()).toBe(1);
 	});
 
+	/**
+	 * The `unreadable-zones` row's own door, end to end through the RENDERED strip: the message
+	 * has told the user to open the diagnostics report since it was written, and until this
+	 * slice there was no control that could. Driven by clicking the button rather than by
+	 * reading the model, because the model case in `warnings.test.ts` would pass unchanged if
+	 * `PersistentWarningStrip.vue` had stopped rendering an actions group for this id.
+	 */
+	it('Show diagnostics report asks the context for the report, once per click', async () => {
+		const harness = await mountCanvas({ unreadableZones: 1 });
+		await settle();
+		const button = harness.wrapper.find('[data-rp-warning="unreadable-zones"] button[data-rp-action="open-diagnostics"]');
+		expect(button.text()).toBe(t('en', 'command.show-diagnostics-report'));
+		expect(harness.openedDiagnostics()).toBe(0);
+
+		await button.trigger('click');
+
+		expect(harness.openedDiagnostics()).toBe(1);
+	});
+
 	it('keeps the stale row’s DOM node while its message changes after a failed retry', async () => {
 		const harness = await mountCanvas();
 		const store = useProjectStore(harness.pinia);

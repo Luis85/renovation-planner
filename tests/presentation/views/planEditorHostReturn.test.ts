@@ -11,7 +11,9 @@ import * as notices from '../../../src/presentation/notices/notify';
 installEditorEnvironment();
 afterEach(() => { vi.restoreAllMocks(); document.body.replaceChildren(); });
 async function setup() {
- const rig = await downstreamStack(), workspace = new FakeWorkspace(), deps = planEditorDeps(rig.root, workspace as never, rig.stack.deps.vault, createEditorClipboard(), memoryDeviceStorage());
+ // `planEditorDeps` deliberately omits `openDiagnosticsReport` (see its own annotation): it holds
+ // no plugin instance, so the composition root is what adds it. Added here the same way.
+ const rig = await downstreamStack(), workspace = new FakeWorkspace(), deps = { ...planEditorDeps(rig.root, workspace as never, rig.stack.deps.vault, createEditorClipboard(), memoryDeviceStorage()), openDiagnosticsReport: () => undefined };
  const view = new PlanEditorView(new FakeLeaf() as never, deps); document.body.append(view.containerEl);
  const origin = { planId: rig.plan.id, roomId: rig.roomId, workId: 'work-sand' };
  return { rig, view, deps, origin, dispose: async () => { await view.onClose(); rig.dispose(); } };

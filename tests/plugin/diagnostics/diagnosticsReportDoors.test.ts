@@ -20,6 +20,8 @@ import { DiagnosticsReportModal } from '../../../src/plugin/diagnostics/Diagnost
 import { showDiagnosticsReport } from '../../../src/plugin/diagnostics/showDiagnosticsReport';
 import { NO_WRITE_INCIDENTS } from '../../../src/application/incidents/WriteIncidentRegistry';
 import { recorder } from '../../helpers/logger';
+import { PLAN_EDITOR_VIEW, type PlanEditorDeps } from '../../../src/presentation/views/PlanEditorView';
+import { FakeLeaf } from '../../helpers/workspace';
 import type { PluginCommandHost } from '../../../src/plugin/commandHost';
 import type { DiagnosticsSnapshot } from '../../../src/application/queries/GetDiagnosticsSnapshot';
 
@@ -46,7 +48,7 @@ const definitions = (): ReturnType<SettingsTab['getSettingDefinitions']> =>
 const diagnosticsRow = (): ReturnType<SettingsTab['getSettingDefinitions']>[number] | undefined =>
 	definitions().find((row) => row.name === tr('settings.diagnostics.name'));
 
-describe('the diagnostics report has two doors', () => {
+describe('the diagnostics report has three doors', () => {
 	it('is registered as a command', () => {
 		expect(plugin.commands.map((command) => command.id)).toContain('show-diagnostics-report');
 	});
@@ -66,7 +68,17 @@ describe('the diagnostics report has two doors', () => {
 	 * its own modal separately would still be counted here — and that is the point, because the
 	 * drift this rule guards against is two compositions, not two call sites.
 	 */
-	it('both doors open the report', async () => {
+	/**
+	 * The THIRD door is the Plan Editor's `unreadable-zones` warning row, whose message has
+	 * told the user to open this report since it was written. `presentation/` may not import
+	 * `plugin/`, so what the row presses is a callback the composition root injects — and the
+	 * property under test is that it lands on the SAME public method rather than on a second
+	 * `showDiagnosticsReport` composition of its own, which is exactly what `Modal.opened`
+	 * counts. Reached through the registered view factory, so this is the wiring a user gets;
+	 * no case asserts the member merely EXISTS, because `PlanEditorDeps` requires it and the
+	 * compiler already refuses a bundle without one.
+	 */
+	it('all three doors open the report', async () => {
 		plugin.commands.find((command) => command.id === 'show-diagnostics-report')?.callback?.();
 		await Promise.resolve();
 		await Promise.resolve();
@@ -76,8 +88,12 @@ describe('the diagnostics report has two doors', () => {
 		diagnosticsRow()?.action?.(0);
 		await Promise.resolve();
 		await Promise.resolve();
+		const built = plugin.views.get(PLAN_EDITOR_VIEW)?.(new FakeLeaf() as never);
+		(built as unknown as { deps: PlanEditorDeps }).deps.openDiagnosticsReport();
+		await Promise.resolve();
+		await Promise.resolve();
 
-		expect(Modal.opened).toHaveLength(2);
+		expect(Modal.opened).toHaveLength(3);
 		expect(Modal.opened.every((modal) => modal instanceof DiagnosticsReportModal)).toBe(true);
 	});
 });

@@ -48,10 +48,17 @@ describe('assetShapeConfig', () => {
 	});
 
 	/**
-	 * The plan renderer's open-graphic arm (AD05, C10): an open path is drawn unclosed and is never
-	 * filled, whatever its `line` says, because a closing edge would be one the object has not got
-	 * and a fill needs an interior. `solid` on an open graphic is its dash pattern alone, so it gets
-	 * neither `fill` nor `dash`.
+	 * The plan renderer's open-graphic arm (AD05, C10) for a SOLID open path: drawn unclosed, because
+	 * a closing edge would be one the object has not got, and unfilled, because a fill needs an
+	 * interior — so `solid` here is a dash pattern that selects no dash rather than a fill.
+	 *
+	 * **The same arm is the whole subject of `placedOpenGraphic.test.ts` in this directory**, which
+	 * drives BOTH `line` values and is what holds the wider "whatever its line says" claim; nothing
+	 * below drives a dashed open graphic. What this case adds over that one is the two assertions
+	 * measured as non-redundant against the suite — `strokeWidth`, asserted on a detail nowhere
+	 * else, and the ABSENT `dash`, which a solid open graphic must not acquire by being open.
+	 * A near-duplicate between two `*.test.ts` files is invisible to every gate here, permanently
+	 * (CLAUDE.md, the `analyze` bullet), so the two files cross-reference each other by hand.
 	 */
 	it('draws an open graphic unclosed and unfilled even though it is solid', () => {
 		const withOpen = { ...shape, details: [openGraphic('detail-open', [{ x: -100, y: -100 }, { x: 100, y: -100 }, { x: 100, y: 100 }])] };

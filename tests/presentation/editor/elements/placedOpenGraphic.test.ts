@@ -12,6 +12,15 @@
  * Its own file rather than cases in `assetShapeConfig.test.ts` because AD11's file lease grants new
  * test files and not edits to that one; the subject is one graphic kind, which reads as a section
  * either way.
+ *
+ * **`assetShapeConfig.test.ts` has since grown a SOLID open-graphic case of its own** (wave 14,
+ * W14-A), written under an AD15 matrix row that read "that file has no open-graphic case" as
+ * "the plan renderer's open polyline is unasserted" — a true claim about a file taken for a claim
+ * about a behaviour, which this file already covered. It was kept rather than reverted for two
+ * assertions measured as non-redundant against the suite: `strokeWidth` on a detail, and the
+ * ABSENT `dash` on a solid open one. The dashed arm below is still the only place either `line`
+ * value is driven. Both files carry this pointer because a near-duplicate between two `*.test.ts`
+ * files is invisible to every gate here, permanently (CLAUDE.md, the `analyze` bullet).
  */
 import { describe, expect, it } from 'vitest';
 import { expectOk } from '../../../helpers/domain';

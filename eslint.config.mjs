@@ -747,6 +747,14 @@ export default defineConfig([
 			// worktree in place — build and oxlint both ignored it and only this step broke,
 			// which is the sentence above about this list being load-bearing, proved.
 			'.worktrees/**',
+			// Gitignored session scratch — working notes and one-off tooling that a working
+			// checkout holds and no other checkout ever does, committed by nothing, imported
+			// by nothing, shipped by nothing. Here for the same mechanism as `.worktrees/**`
+			// above rather than for tidiness: ESLint's flat config reads no `.gitignore`, so
+			// `eslint .` walks in and reddens the gate over files CI never sees. oxlint needs
+			// no matching entry and has none — it DOES read `.gitignore`, measured in both
+			// directions, so `.oxlintrc.json` is deliberately untouched by this.
+			'.superpowers/**',
 			'scripts/**',
 			'docs/**',
 			'**/*.md',

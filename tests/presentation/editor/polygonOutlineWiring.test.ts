@@ -14,9 +14,18 @@
  *
  * It lists the two ids rather than deriving them: `ToolManager` deliberately exposes no
  * registration listing (its own docblock: it "knows nothing about `select`, `pan`,
- * `draw-polygon` or any other concrete tool"), and adding an accessor for a test would be a
- * production change bought by this file alone. A THIRD polygon tool is therefore invisible
- * here, which is the honest limit of this pin.
+ * `draw-polygon` or any other concrete tool"). That is a CHOICE and not an obstacle, and the
+ * earlier wording here — "adding an accessor would be a production change" — overstated it:
+ * `ToolManager.tools` is TypeScript `private`, which is erased at runtime, so a test could
+ * reach the map today and filter it, exactly as `tool-manager.ts` says of its own `#private`
+ * field. We decline to reach through a private field to enumerate tools, which is a test
+ * restating an implementation. A THIRD polygon tool is therefore invisible here, which is the
+ * honest limit of this pin.
+ *
+ * It pins that nothing was WRITTEN, not that the user was TOLD. `activateNotices()` below only
+ * gives the notice doors a live queue to push into — every one of them is `queue?.push(…)`, so
+ * without it the refusal would silently no-op instead. NO assertion here reads a notice, and
+ * notice APPEARANCE is outside every gate in this repository anyway.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { PLAN_DTO, activateTool, canvasOf, click, rig } from '../../helpers/planEditorRig';

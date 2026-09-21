@@ -150,3 +150,38 @@ declares no modal chrome, exactly as it declares no `.notice`.
   the key recording why the second sentence is not there.
 - `docs/superpowers/specs/2026-08-27-slice-11-14-polish-design.md` — Item 2's
   "Deliberate narrowing: the warning is count-free".
+
+## Amendment — 2026-09-21: the seam has a SECOND side, and it fails the opposite way
+
+Appended, not edited: everything above stands as written and is about
+`view.project.some-unreadable` only. What it does not say is that the Plan Editor meets the
+same seam from the other direction. Both halves measured at source on this date.
+
+- **The project list has the report and no sentence pointing at it.** As the Resolution above
+  records, deliberately — `src/presentation/i18n/locales/en.ts:337` ships
+  `'Some projects could not be read.'` with nothing after it, and the comment at
+  `:327-336` gives the reason (the sentence is count-free, so it cannot corroborate the rows
+  the report would show).
+- **The Plan Editor has the sentence and no way to act on it.**
+  `src/presentation/i18n/locales/en.ts:316-317` — `editor.some-zones-unreadable` already ends
+  *"Open the diagnostics report to see which notes refused."* It is the counted sentence the
+  other key is not, so the objection above does not apply to it. But its row is pushed with no
+  `actions` array (`src/presentation/editor/shell/warnings.ts:112-118`), and
+  `PersistentWarningStrip.vue:117-130` renders the actions group under
+  `v-if="w.actions !== undefined"` — so the strip that carries the instruction offers no
+  control that follows it. The two ways to open the report are the palette command and the
+  settings ACTION row, neither of them on this surface.
+
+So the copy this Issue says "should come back" is in fact already back on one surface, without
+the door beside it. `unreadable-zones` is not alone in carrying no actions — `background-missing`
+and `background-unreadable` carry none either, which `warnings.ts:51` states about itself — but
+it is the only one of the three whose message names a surface the user is told to open.
+
+**Nothing here proposes the fix**, and no code was touched for this amendment. Recorded so the
+seam is findable from the side that has the sentence as well as from the side that has the
+report — the shape ADR-0015 already uses for a contradiction findable from only one direction.
+
+- `src/presentation/editor/shell/warnings.ts` — `editorWarnings`, the `unreadable-zones` push.
+- `src/presentation/editor/shell/PersistentWarningStrip.vue` — the `v-if` on the actions group.
+- `src/plugin/diagnostics/DiagnosticsReportModal.ts:161-162` — the report renders each note's
+  vault path as an inert `createSpan`, so neither end of this seam is clickable today.

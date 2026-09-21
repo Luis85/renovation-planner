@@ -77,9 +77,16 @@ export function crossingFreeOutline(points: readonly Point[]): Result<Polygon, G
  * `areaOutline` FIRST and then the crossing rule. Every door that already required a
  * measurable surface takes this one.
  *
- * The order is observable on exactly ONE family: an outline that is zero-area AND
- * self-crossing, which reports `polygon-zero-area` here and `polygon-self-intersection` with
- * the two steps swapped. It is NOT what keeps a merely collinear outline on its
+ * The order decides which refusal wins whenever an outline would fail BOTH steps — that is,
+ * whenever `createPolygon` succeeds, `areaOutline` still refuses, and the outline also crosses:
+ * `areaOutline`'s code here, `polygon-self-intersection` with the two steps swapped. Two codes
+ * of `areaOutline`'s reach that state, so there are two such families rather than the one this
+ * docblock claimed for one commit: `polygon-zero-area`, and `area`'s `polygon-area-overflow`
+ * (`operations.ts` — finite vertices whose enclosed area is not representable, which
+ * `createPolygon` accepts because it refuses only NON-finite coordinates). Every code
+ * `createPolygon` itself raises is order-invariant, since both steps begin with it.
+ * `simpleOutline.test.ts` pins a fixture for each family; the sentence is not wider than that.
+ * It is NOT what keeps a merely collinear outline on its
  * `polygon-zero-area` code — this docblock said that for two commits and it was false.
  * `outlineCrosses` accepts every collinear outline by construction, so those answer the same
  * either way, and swapping the steps left 76 test files and 997 tests green until

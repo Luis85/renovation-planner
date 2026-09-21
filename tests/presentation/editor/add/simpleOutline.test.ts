@@ -92,11 +92,14 @@ describe('crossingFreeOutline', () => {
 });
 
 /**
- * `areaOutline` FIRST — and the collinear row below CANNOT see that, which is why the last row
- * exists. `outlineCrosses` accepts every collinear outline by construction, so a merely
- * collinear one keeps `polygon-zero-area` under either order. The order is observable on
- * exactly one family: an outline that is zero-area AND self-crossing, which reports
- * `polygon-zero-area` here and `polygon-self-intersection` with the two steps swapped.
+ * `areaOutline` FIRST — and the collinear row below CANNOT see that, which is why the last two
+ * rows exist. `outlineCrosses` accepts every collinear outline by construction, so a merely
+ * collinear one keeps `polygon-zero-area` under either order.
+ *
+ * The order decides which refusal wins whenever an outline would fail BOTH steps: `areaOutline`'s
+ * code here, `polygon-self-intersection` with the two steps swapped. `areaOutline` reaches two
+ * codes `createPolygon` cannot — `polygon-zero-area` and `area`'s `polygon-area-overflow` — so
+ * there are two such families, and the last two rows are one fixture each.
  */
 describe('simpleAreaOutline', () => {
 	it('passes an honest outline through unchanged', () => {
@@ -108,10 +111,16 @@ describe('simpleAreaOutline', () => {
 	it.each([
 		{ points: [p(0, 0), p(1000, 0)], code: 'polygon-too-few-points' },
 		{ points: [p(0, 0), p(1000, 0), p(2000, 0)], code: 'polygon-zero-area' },
-		// The ONE fixture the ordering is observable on: the fourth corner sits on the line
-		// `4y = 3x - 12000`, where the shoelace sum vanishes, and the edge back to it crosses
-		// the first edge at (2000, 0). Both rules refuse it; the order decides under which code.
+		// Family one of the two the ordering is observable on: the fourth corner sits on the
+		// line `4y = 3x - 12000`, where the shoelace sum vanishes, and the edge back to it
+		// crosses the first edge at (2000, 0). Both rules refuse it; the order decides the code.
 		{ points: [p(0, 0), p(4000, 0), p(4000, 3000), p(0, -3000)], code: 'polygon-zero-area' },
+		// Family two: a bowtie whose coordinates are finite — so `createPolygon` accepts it —
+		// while their shoelace PRODUCTS overflow, which is `area`'s `polygon-area-overflow`.
+		// No renovation plan reaches 1e200 mm; this row exists so the docblock's "two families"
+		// is pinned rather than reasoned. Swapping the two steps reds it under
+		// `polygon-self-intersection`, exactly as it reds the row above under its own code.
+		{ points: [p(0, 0), p(1e200, 0), p(0, 1e200), p(1e200, 1e200)], code: 'polygon-area-overflow' },
 	])('leaves $code to areaOutline', ({ points, code }) => {
 		expect(simpleAreaOutline(points)).toMatchObject({ ok: false, error: { code } });
 	});

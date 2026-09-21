@@ -671,3 +671,27 @@ excludes. The watched-red belongs to the SENTENCE the card writes, not to the de
   exact file's template at cognitive 17 against `maxCognitive` 15. A deletion should move that the
   safe way, but run `npx eslint` on the file rather than assuming it.
 
+### Wave 12 closed
+
+Candidate `078e3dc84`, fix round `871802a74`, merged fast-forward, integrator repair `9dc85914b`.
+
+**Lease compliance rather than disjointness**, as the wave's own table predicted: one card has
+nothing to intersect. `git diff --name-only 82838abe3..871802a74` returns the two leased files,
+the two granted mid-wave, and the card's report. Nothing outside.
+
+**Two lease extensions were granted DURING the fix round and are recorded as granted rather than
+discovered afterwards**, which is the difference from wave 11's `assetDesigner.ts` grant.
+`tests/application/queries/getAssetDesign.test.ts` was granted so the card could pin the conjunct
+that had been resting on `dimensionsOf`'s return type — the reviewer's sharpest finding, and the
+house rule says write the guarantee to the check wherever the check can reach it cheaply. The card
+was given BOTH arms explicitly (add the assertion, or narrow the sentence and say why) because an
+unexamined answer is the only unacceptable one; it took the assertion, as a new case rather than by
+widening an `it.each` whose own docblock says the opposite thing. `designerInspector.test.ts` was
+granted for a stale claim the reviewer found that neither the card nor the integrator had swept for.
+
+**The correction that matters most this wave ran UPWARD, twice.** The card corrected the
+integrator's brief about how many places pin the invariant, and was right. The integrator then
+corrected the hand-off, the card and the reviewer about the `only reader` sentence being false — it
+was true when written, and the integrator had been the one who told the card otherwise. Both copies
+now carry the diagnosis and a command instead of a count.
+

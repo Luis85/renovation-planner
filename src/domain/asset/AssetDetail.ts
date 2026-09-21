@@ -111,9 +111,21 @@ export function mapDetailOutline(detail: AssetDetail, map: <T extends CurvedPoly
 
 /**
  * The drawable approximation of a graphic, arcs flattened: a closed RING for a closed one, an open
- * RUN for a path. The difference is not cosmetic — `polygonPolyline` drops each segment's last
- * point because the next segment starts there and the ring closes, so using it on a path loses the
- * path's final vertex.
+ * RUN for a path.
+ *
+ * **The mechanical justification this paragraph used to give was FALSE, and it is replaced rather
+ * than softened.** It said `polygonPolyline` drops each segment's last point, so using it on a path
+ * *"loses the path's final vertex"*. It does not, in either of that function's two arms: a path with
+ * no bulge returns `polygon.points` verbatim, and a curved path carries `n-1` bulges, so its wrap
+ * segment reads `bulges[n-1]` as `undefined ?? 0`, draws straight, and its `.slice(0, -1)` hands
+ * back exactly `points[n-1]` — the vertex the sentence claimed was lost. Measured over one 3-point
+ * run at six bulge configurations before this was rewritten, and re-derived from
+ * `curvePolyline.ts` by reading it.
+ *
+ * **What actually keeps the two apart is the `CurvedPath` BRAND**, as `CurvedPath.ts` says and
+ * `geometryBrands.test-d.ts` pins: a path cannot be passed where a polygon is expected, so the
+ * wrong call does not compile. That the two happen to agree on a path's own data today is a
+ * coincidence of `?? 0`, not a contract, and nothing should be built on it.
  *
  * Every surface that draws a symbol goes through this rather than reaching for one of the two
  * polyline functions directly, which is what makes "the canvas, the preview and the plan agree

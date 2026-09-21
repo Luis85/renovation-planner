@@ -265,10 +265,17 @@ describe('a mixed-space selection (ruling AD10-R1)', () => {
 	 * hands the domain a mixed selection to refuse: this block is nothing but that, and it is a
 	 * different subject from the locked-participant block above, which drives `immovable`.
 	 *
-	 * Driven through TWO controls because they are two `commit` paths: `align-left` is built in
-	 * this component's own `alignActions`, while `set-move-x` is `DesignerSetTransform`'s, which
-	 * assembles its own spec from the `ids` it was handed. A panel that filtered the pending
-	 * graphic out of one of them would pass a case that pressed only the other.
+	 * Driven through TWO controls, and the reason is the SELECTION SPEC rather than the door.
+	 * There is exactly one `commit` — `grep -n "function commit\|commit(" ` over this panel and
+	 * its two child forms prints one declaration and eight call sites, six of them in the panel
+	 * and one in each child, every one reaching that single function. What differs is who
+	 * assembles the spec it hands the domain, and there are THREE of those: the panel's own
+	 * `selection()` (align and distribute), `DesignerSetTransform`'s (from the `ids` and `locked`
+	 * it is passed) and `DesignerRepeatForm`'s. `align-left` and `set-move-x` drive the first two;
+	 * a panel that filtered the pending graphic out of one assembler would pass a case that
+	 * pressed only the other. The third, `DesignerRepeatForm`, is NOT driven here — the domain
+	 * covers `repeat` in its own `it.each(spatial)` arm, and this sentence says so rather than
+	 * letting "two controls" read as "every path".
 	 *
 	 * Nothing here is withheld, deliberately, and that is the panel's rule rather than an
 	 * oversight: which parts a control NEEDS decides whether it is drawn, and every one of these

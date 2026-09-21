@@ -30,7 +30,7 @@ import { assetDesign } from '../../helpers/assetDesign';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installObsidianDom } from '../../helpers/dom';
-import { installResizeObserver } from '../../helpers/layout';
+import { connectedObservers, installResizeObserver } from '../../helpers/layout';
 import { recorder } from '../../helpers/logger';
 import { settle } from '../../helpers/async';
 import { FakeLeaf } from '../../helpers/workspace';
@@ -48,7 +48,7 @@ installResizeObserver();
 const THE_ASSET = createAssetId();
 const OTHER_ASSET = createAssetId();
 
-/** How many open/close cycles the repeated-lifecycle case below drives; its docblock argues the number. */
+/** How many open/close cycles the lifecycle case below drives; its docblock revises §6's fifty with evidence. */
 const CYCLES = 10;
 
 /** One bundle for every leaf in a case, so two leaves really do share one composed bus. */
@@ -78,23 +78,29 @@ function leafDeps(bus: ReturnType<typeof createEventBus>, reads: string[]): Asse
 	};
 }
 
+/**
+ * At MODULE scope rather than inside the first `describe`, since the lifecycle block below opens
+ * leaves the same way and a rig reachable from one block only is the reason the next block builds
+ * a second one. `onClose` is idempotent, so a case that closes its own leaves is closed twice and
+ * neither call is wasted — the existing closed-leaf cases already relied on that.
+ */
+const openViews: AssetDesignerView[] = [];
+
+async function open(bundle: AssetDesignerDeps, assetId: string): Promise<AssetDesignerView> {
+	const view = new AssetDesignerView(new FakeLeaf() as never, bundle);
+	openViews.push(view);
+	await view.setState({ assetId }, {} as never);
+	await view.onOpen();
+	await settle();
+	return view;
+}
+
+afterEach(async () => {
+	for (const view of openViews.splice(0)) await view.onClose();
+	await settle();
+});
+
 describe('two designer leaves and one bus', () => {
-	const openViews: AssetDesignerView[] = [];
-
-	async function open(bundle: AssetDesignerDeps, assetId: string): Promise<AssetDesignerView> {
-		const view = new AssetDesignerView(new FakeLeaf() as never, bundle);
-		openViews.push(view);
-		await view.setState({ assetId }, {} as never);
-		await view.onOpen();
-		await settle();
-		return view;
-	}
-
-	afterEach(async () => {
-		for (const view of openViews.splice(0)) await view.onClose();
-		await settle();
-	});
-
 	/**
 	 * A change reaches every leaf showing that asset, not only the one that dispatched: the
 	 * refresh decorator covers the dispatching leaf alone, which is every leaf right up until
@@ -178,48 +184,82 @@ describe('two designer leaves and one bus', () => {
 		expect(reads).toEqual([]);
 	});
 
+});
+
+/**
+ * ONE leaf, opened and closed over and over — its own block because every case above needs two
+ * leaves at once and this one needs exactly one, and a case read at its `describe` is how this
+ * package misread AD15's T07 for a whole round.
+ *
+ * `scene.test.ts`'s `the editor own lifecycle` is the same subject for the plan editor, and this
+ * block deliberately takes its case name and its idiom rather than inventing a second spelling.
+ */
+describe('the designer’s own lifecycle', () => {
 	/**
-	 * The same question asked REPEATEDLY (task §6), and its two assertions were watched failing
-	 * under two different mutations, because they answer for two different resources:
+	 * **What §6 asks for, quoted rather than paraphrased**: *"No monotonic retained-listener/
+	 * observer growth"*, over *"50 repeated open/close cycles after warm-up"*. Listeners and
+	 * observers, which are both countable here — so all three resources this view acquires are
+	 * asserted, none of them waived:
 	 *
-	 * - `AssetDesignerView.unmount` skipping `this.vueApp?.unmount()` on every close after the
-	 *   first reddened this case with twenty leaked reads — and the two closed-leaf cases above
-	 *   with two. So the subscription arm is not this case's alone; what it adds there is that
-	 *   the leak ACCUMULATES, which two cycles cannot distinguish from a fixed cost.
-	 * - A stage built imperatively in `DesignerCanvas` and never destroyed reddened this case
-	 *   ALONE, `expected 17 to be 7` — every other case in this file passed, because no other
-	 *   case in the suite counts stages at all. That is the arm this case exists for, and the
-	 *   `17`/`7` is also why the expectation is a delta: those seven were this file's earlier
-	 *   cases leaking under the same mutation.
+	 * - the bus's SUBSCRIPTIONS, through the vault read a still-subscribed closed leaf would
+	 *   issue. Asserted on the query and never on a disposer having run, for the reason the block
+	 *   above states: a disposer that unsubscribes nothing satisfies the second and leaves the
+	 *   defect standing.
+	 * - `Konva.stages`, the module-level registry a mounted stage joins and a destroyed one
+	 *   leaves.
+	 * - `connectedObservers()`, the `ResizeObserver` count — `EditorSurface` constructs one at
+	 *   mount unconditionally and disconnects it at unmount, and `tests/helpers/layout.ts` calls
+	 *   that count "the leak check for a repeated mount" in as many words.
 	 *
-	 * **What this case can observe, and it is a short list.** The bus's subscriptions, through
-	 * the query the closed leaves would have issued; and `Konva.stages`, the module-level
-	 * registry every mounted stage adds itself to and every destroyed one removes itself from.
-	 * Both are counted as a DELTA against what was there when the case started, never against
-	 * zero: that registry is process-global, so an absolute expectation would be an assertion
-	 * about which file ran first in this worker.
+	 * **What is measured is a COUNT, not a heap**, and that is the honest limit rather than a
+	 * reason to drop a metric: nothing here can see a detached DOM subtree still referenced, a
+	 * closure retained by a timer, or bytes. §6 names listeners and observers, which is exactly
+	 * what is counted; it does not name bytes, and an earlier revision of this docblock said it
+	 * did — corrected against the table itself.
 	 *
-	 * **What it cannot observe**, so the sentence above is the whole claim: heap growth, a
-	 * detached DOM subtree still referenced, a timer, and anything jsdom does not implement.
-	 * §6's "monotonic growth over 50 cycles" is a HEAP measurement and no gate here can take
-	 * one — `npm run perf` is deliberately absent. What is left is a leak COUNT, and a per-cycle
-	 * leak is linear in the cycles, so ten discriminates it exactly as fifty would at a fifth of
-	 * the cost (the loop is ~0.7s of a 5s case budget, measured on this machine).
+	 * **Ten cycles rather than fifty, revised with evidence** as §6's own preamble asks. A
+	 * per-cycle leak is linear in the cycles, so ten discriminates it exactly as fifty would; ten
+	 * costs ~0.7 s of a 5 s case budget on this machine and fifty would spend most of that budget
+	 * on a slower leg for no extra discrimination. The three assertions are what §6 asks for; only
+	 * the cycle count is revised. (`scene.test.ts`'s equivalent runs three.)
 	 *
-	 * **Its subject is isolation, so read it with CLAUDE.md's `--no-isolate` warning beside it**:
-	 * `Konva.stages` is one of the four module-level states named there. Under per-file isolation
-	 * — which `vitest.config.ts` gives every file in the `suite` project — the delta is this
-	 * file's own. Under a shared registry it would not be, and the case would be measuring the
-	 * scheduler.
+	 * **The deltas are against this FILE's siblings, not against the scheduler.** The `suite`
+	 * project is per-file isolated, so an absolute zero would work today — `scene.test.ts` uses
+	 * one. It is a delta because the cases ABOVE run first in this same file and a leak of theirs
+	 * would otherwise be charged here: watch 4's mutation made that concrete, reddening this case
+	 * `expected 17 to be 7` where the seven were the earlier cases' own leaked stages. CLAUDE.md's
+	 * `--no-isolate` warning names `Konva.stages` and names case titles of exactly this shape; the
+	 * delta is also what would keep this honest if that isolation ever changed.
+	 *
+	 * **The in-loop expectations are the found-something-at-all half.** Without them a rig that
+	 * stopped mounting a canvas — or a `ResizeObserver` fake that stopped registering — would make
+	 * every assertion below a comparison of zero against zero, green and vacuous.
+	 * `scene.test.ts:the editor own lifecycle` pins `stagesBefore + 1` while mounted for the same
+	 * reason.
+	 *
+	 * Watched failing under two mutations, each reaching a different arm:
+	 *
+	 * - `AssetDesignerView.unmount` skipping `this.vueApp?.unmount()` after the first close →
+	 *   twenty leaked reads here, and two in each of the two closed-leaf cases above. So the
+	 *   subscription arm is NOT this case's alone; what repetition adds is that the leak
+	 *   ACCUMULATES, which one cycle cannot tell from a fixed cost.
+	 * - a stage built imperatively in `DesignerCanvas` and never destroyed → `expected 17 to be
+	 *   7`, this case alone. Other designer suites SELECT a stage (`Konva.stages.at(-1)`); this is
+	 *   the only one under `tests/presentation/designer/` that COUNTS them, which is why the
+	 *   mutation reached nothing else there.
 	 */
 	it('stacks nothing across repeated open and close cycles', async () => {
 		const bus = createEventBus(() => undefined);
 		const reads: string[] = [];
 		const bundle = leafDeps(bus, reads);
 		const stagesBefore = Konva.stages.length;
+		const observersBefore = connectedObservers();
 
 		for (let cycle = 0; cycle < CYCLES; cycle++) {
 			const view = await open(bundle, THE_ASSET);
+			// This rig really does acquire both, so neither delta below can pass by measuring nothing.
+			expect(Konva.stages.length).toBe(stagesBefore + 1);
+			expect(connectedObservers()).toBe(observersBefore + 1);
 			await view.onClose();
 		}
 		await settle();
@@ -231,5 +271,6 @@ describe('two designer leaves and one bus', () => {
 
 		expect(reads).toEqual([]);
 		expect(Konva.stages.length).toBe(stagesBefore);
+		expect(connectedObservers()).toBe(observersBefore);
 	});
 });

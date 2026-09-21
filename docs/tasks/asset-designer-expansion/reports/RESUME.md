@@ -24,10 +24,15 @@ walk.** Both cases are written, reviewed, fix-rounded and merged. **The walk was
 NOT been walked.** Nothing in this session moved a matrix row on evidence from a vault, and both new
 cases say so in their Runs tables and their reports.
 
-**The walk is in the session transcript rather than in a file**, as a per-step checklist with one
-expected result each — the format that took the user 20 minutes last session and moved U04. If it
-is needed again, rebuild it from the two cases' `obsidian`, `desktop` and `judgement` rows; the
-recommended ten-step subset was **A1, B7, B8, B9, B11, B12a–B12d, B30**.
+**ALL MANUAL CHECKS ARE NOW DEFERRED TO ONE TERMINAL PASS**, by the user's decision at the end of
+this session. No wave asks for a walk while agent-closable work remains.
+[`MANUAL-PASS.md`](./MANUAL-PASS.md) is the index: 84 human steps across six cases, which rows each
+discharges, the two reductions that already apply, and the gate inside it. **Do not hand the user a
+walk before the agent-closable work is done.**
+
+The per-step checklist this session produced lives in its transcript rather than in a file, and does
+not need rebuilding until the terminal pass — at which point it is rebuilt from the cases'
+`obsidian`, `desktop` and `judgement` rows, which is what `MANUAL-PASS.md` points at.
 
 ## Wave 15 — two cards, two cases, merged
 

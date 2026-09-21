@@ -101,9 +101,11 @@ const ITEM_DRAWN = ['.rp-task-banner [data-rp-object-shape="rectangle"][aria-pre
  * the same shape against a real mount.
  */
 const DETAIL_ANCESTRY_CRUMB = '.rp-context-bar__crumbs > .rp-context-bar__crumb:nth-child(2):not([aria-current])';
-// The persistent warning strip's two rows that carry an action, each waited on by its own BUTTON
-// rather than by the strip container — see the shots that use them for why that distinction is
-// load-bearing rather than fussy.
+// The persistent warning strip rows these shots wait on, each waited on by its own BUTTON rather
+// than by the strip container — see the shots that use them for why that distinction is
+// load-bearing rather than fussy. NOT a census of the strip's actioned rows: `editorWarnings`
+// (`src/presentation/editor/shell/warnings.ts`) is, and a row it grows here would go unphotographed
+// with nothing red.
 const STALE_ROW_BUTTON = '[data-rp-warning="stale"] button';
 const UNREADABLE_ROW_BUTTON = '[data-rp-warning="unreadable-zones"] button[data-rp-action="open-diagnostics"]';
 
@@ -671,9 +673,9 @@ const SHOTS = [
 	// comment states for its `[aria-disabled="false"]` wait, met a second time here.
 	{ name: 'plan-editor-stale', query: '?view=plan-editor&select=harness-kitchen&stale&theme=light', selector: STALE_ROW_BUTTON },
 	{ name: 'plan-editor-stale-narrow', query: '?view=plan-editor&select=harness-kitchen&stale', selector: STALE_ROW_BUTTON, width: 460 },
-	// The `unreadable-zones` row and its **Show diagnostics report** button — the strip's other
-	// row with an action, and the one this repository had no picture of at all until the
-	// `?unreadable=N` knob existed. Light at 1280 and dark at 460, the same two-shot split the
+	// The `unreadable-zones` row and its **Show diagnostics report** button — the row this
+	// repository had no picture of at all until the `?unreadable=N` knob existed. Light at 1280
+	// and dark at 460, the same two-shot split the
 	// stale pair above takes, and the selector waits on the ROW'S OWN BUTTON for that pair's
 	// stated reason: a wait on `.rp-warning-strip` would certify the strip mounted rather than
 	// that this row drew.
@@ -687,7 +689,8 @@ const SHOTS = [
 	// this note is repeated here rather than left only there because a picture is met by people
 	// who never open that file. These two shots are evidence about the ROW: its wording, its
 	// severity mark, its button's label, and how the three reflow at 460. They are evidence about
-	// the canvas of nothing at all.
+	// NOTHING ELSE IN FRAME — the canvas is not the only region this page draws from that
+	// unpruned list, and the earlier version of this caveat named only the canvas.
 	{ name: 'plan-editor-unreadable', query: '?view=plan-editor&unreadable=2&theme=light', selector: UNREADABLE_ROW_BUTTON },
 	{ name: 'plan-editor-unreadable-narrow', query: '?view=plan-editor&unreadable=2', selector: UNREADABLE_ROW_BUTTON, width: 460 },
 	// A LIST rather than one selector (R14, 2026-09-04): the canvas alone attaches before the

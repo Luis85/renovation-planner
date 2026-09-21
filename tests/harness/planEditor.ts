@@ -321,11 +321,12 @@ function staleTriggerDeleteZoneCommand(): PlanEditorCommandServices['deleteZone'
  * **What this knob deliberately does NOT do, stated rather than left to be discovered:** it
  * does not remove a zone. A real refusal returns the zones that LOADED plus a count of the
  * notes that did not, so a real vault at `unreadable=2` would draw two fewer polygons than
- * this page does. Nothing downstream compares the two — `editorWarnings` reads the count and
- * nothing else — and pruning the list here would also have to prune `HARNESS_STRUCTURE`'s
- * walls and `zoneInspectorAnswering`'s answers to stay coherent, and would break any capture
+ * this page does. Pruning the list here would also have to prune `HARNESS_STRUCTURE`'s walls
+ * and `zoneInspectorAnswering`'s answers to stay coherent, and would break any capture
  * combining this knob with `?select=` on a pruned id. So the fake is honest about the ROW and
- * approximate about the canvas behind it; read a capture taken through it that way.
+ * approximate about everything else the zone list feeds — the canvas is not the only one, and
+ * no list of the others is kept here because nothing would re-run it. Read a capture taken
+ * through it that way.
  */
 export function harnessDeps(options: { readonly stale?: boolean; readonly unreadable?: number } = {}): PlanEditorDeps {
 	const stale = options.stale === true;
@@ -480,9 +481,12 @@ export interface MountedPlanEditor {
  * already paid for twice: this said "nine" and named nine while the interface below declared
  * twice that many, and the enumeration goes stale in the direction of a WEAKER claim. The
  * members below are the list **this interface carries**, and every one is optional — they are
- * not the list of knobs the page takes. Four more are read straight out of `location.search` by
- * `mountPlanEditorHarness` and are declared nowhere: `?planning`, `?downstream`, `?recovery` and
- * `?fidelity`, each meaningful only over `?reference`.
+ * not the list of knobs the page takes. Others are read straight out of `location.search` and
+ * are declared nowhere — some by `mountPlanEditorHarness` itself, more by the workspaces it
+ * composes — and they are deliberately not enumerated here: the last count written in this
+ * paragraph said four and missed six one call deeper, which is the same stale-toward-weaker
+ * failure the sentence above already names. `grep -rn "location.search" tests/harness/` is the
+ * census; this paragraph is not, and nothing re-runs it.
  *
  * **They are NOT all independent, and the rule is about WHERE a knob is armed rather than about
  * which knobs they are.** `?stale` and `?unreadable` are armed inside the base dependency bundle
@@ -505,9 +509,11 @@ export interface MountedPlanEditor {
  *
  * Two combinations that are fine and read as if they might not be: `?room`
  * needs no combining with `?add`: it opens the Add menu itself on its way through, so pairing
- * the two is redundant rather than contradictory. `?stale` is the one that is not independent of
- * `?select` in EFFECT, even though both are legal on their own: see `mountPlanEditorHarness` for
- * why it sequences the two rather than racing them.
+ * the two is redundant rather than contradictory. `?stale` is not independent of `?select` in
+ * EFFECT, even though both are legal on their own: see `mountPlanEditorHarness` for why it
+ * sequences the two rather than racing them. It is not the only such pair — `?outline`'s own
+ * paragraph below carries another — and `mountPlanEditorHarness`'s composition is where they
+ * are readable, since no list of them is kept here.
  */
 export interface PlanEditorHarnessOptions {
 	/** Real commands against ephemeral memory repositories, with an editable numeric outline. */
@@ -520,6 +526,11 @@ export interface PlanEditorHarnessOptions {
 	 * further and CHOOSES corner `n` (1-based, the number the list itself shows), which is the
 	 * only way a capture can show action 3's highlight at all: nothing is highlighted until a
 	 * corner is chosen, and no gate in this repository can see a Konva fill or radius on screen.
+	 *
+	 * **Without `?select` this knob is discarded ENTIRELY, silently** — `mountPlanEditorHarness`
+	 * pushes it only when both are present — while a bare `?outline` still swaps the whole deps
+	 * bundle to `areaNumericWorkspace` and then opens nothing. This is the paragraph `page.ts`'s
+	 * own `outline:` comment points at for that dependency; it did not carry it until now.
 	 *
 	 * **Opened PROGRAMMATICALLY, and that is a harness door rather than a UI one.** That action
 	 * has no production reach yet (limitation L-24: nothing in the plugin's UI opens it; slice B

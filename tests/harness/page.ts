@@ -247,8 +247,9 @@ if (wantsIndex) {
 				numericArea: params.get('area') === 'numeric',
 				roomResize: params.get('resize') === 'room',
 				// `?outline` — BP-04's numeric outline editor, open on `?select`'s zone, and
-				// `?outline=<n>` with corner `n` chosen. Needs `?select=` to name a zone; see the
-				// option's own paragraph in `planEditor.ts`. Absent stays `undefined`, so a bare
+				// `?outline=<n>` with corner `n` chosen. Needs `?select=` to name a zone, and is
+				// discarded silently without one; see the option's own paragraph in
+				// `planEditor.ts`, which carries that half. Absent stays `undefined`, so a bare
 				// `?outline` is an empty string rather than an unset knob.
 				outline: params.has('outline') ? params.get('outline') ?? '' : undefined,
 				roomNaming: params.get('rename') === 'room',

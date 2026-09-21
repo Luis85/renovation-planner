@@ -118,9 +118,13 @@ export function mapDetailOutline(detail: AssetDetail, map: <T extends CurvedPoly
  * *"loses the path's final vertex"*. It does not, in either of that function's two arms: a path with
  * no bulge returns `polygon.points` verbatim, and a curved path carries `n-1` bulges, so its wrap
  * segment reads `bulges[n-1]` as `undefined ?? 0`, draws straight, and its `.slice(0, -1)` hands
- * back exactly `points[n-1]` — the vertex the sentence claimed was lost. Measured over one 3-point
- * run at six bulge configurations before this was rewritten, and re-derived from
- * `curvePolyline.ts` by reading it.
+ * back exactly `points[n-1]` — the vertex the sentence claimed was lost.
+ *
+ * **The suite already held this**, which is better evidence than the probe that prompted the
+ * rewrite: `tests/domain/spatial/assetPlacement.test.ts` has said since `f1cbe86ef` that *"the
+ * closing edge contributes only its start, which is the run's last point. The two agree by
+ * construction"*. Cited here rather than the probe, because a probe nobody can re-run is not
+ * evidence a later reader can check.
  *
  * **What actually keeps the two apart is the `CurvedPath` BRAND**, as `CurvedPath.ts` says and
  * `geometryBrands.test-d.ts` pins: a path cannot be passed where a polygon is expected, so the

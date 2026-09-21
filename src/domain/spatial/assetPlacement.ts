@@ -79,9 +79,11 @@ function place(points: readonly Point[], shape: AssetShape, heading: number, at:
 export function placedOutline(element: Pick<SpatialElement, 'points' | 'size'>, shape: AssetShape): PlacedOutline {
 	const heading = placementHeading(element), anchor = element.points[0], scale = placementScale(element, shape);
 	const onPlan = (outline: CurvedPolygon): Point[] => place(flattened(outline), shape, heading, anchor, scale);
-	// A graphic is flattened by its OWN kind — `detailPolyline` keeps an open path's last point,
-	// which `polygonPolyline` drops because a ring closes over it — and then placed by the same
-	// transform as everything else.
+	// A graphic is flattened by its OWN kind, and then placed by the same transform as everything
+	// else. This used to add "which `polygonPolyline` drops", which is false for a path and
+	// contradicted `assetPlacement.test.ts` two files away — that test already states the true
+	// mechanism: the closing edge contributes only its start, which IS the run's last point, so
+	// the two agree by construction. `detailPolyline` is the right call for the BRAND, not the points.
 	const graphicOnPlan = (detail: AssetDetail): Point[] => place(detailPolyline(detail, PLAN_ARC_TOLERANCE_MM), shape, heading, anchor, scale);
 	return {
 		footprint: onPlan(shape.footprint),

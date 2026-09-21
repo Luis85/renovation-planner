@@ -127,8 +127,13 @@ export type SelectedOutlineConfig = Omit<OutlineConfig, 'closed'> & { readonly c
  * `outlineOf` answers `null` for a path by design, so the accent outline was simply absent — which
  * nothing could see while nothing could create one, and which AD11's line tool makes visible the
  * moment it draws one and selects it. A detail goes through `detailPolyline`, the kind-aware
- * approximation (`polygonPolyline` drops each segment's last point, so a path drawn through it
- * loses its final vertex); the footprint and the clearance always close.
+ * approximation; the footprint and the clearance always close.
+ *
+ * **The parenthesis that used to be here was FALSE and is deleted rather than softened.** It said
+ * `polygonPolyline` drops each segment's last point *"so a path drawn through it loses its final
+ * vertex"*. It does not — see `detailPolyline`'s own header in `AssetDetail.ts`, which carries the
+ * derivation. What makes `detailPolyline` the right call here is the `CurvedPath` BRAND, not a
+ * difference in emitted points.
  */
 function selectedRun(
 	shape: AssetShape,

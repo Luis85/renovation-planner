@@ -21,7 +21,7 @@ import { detailBox } from '../../../src/domain/asset/detailEdits';
 import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
-import { graphicIds, grouped, requireDetail, threeBoxes } from '../../helpers/arrangeShapes';
+import { graphicIds, grouped, requireDetail, threeBoxes, withPending } from '../../helpers/arrangeShapes';
 import { expectOk } from '../../helpers/domain';
 import { recorder } from '../../helpers/logger';
 
@@ -254,6 +254,58 @@ describe('a locked participant', () => {
 		await press(wrapper, 'align-left');
 		expect(wrapper.find('[role="alert"]').text()).toBe(t('en', 'asset.locked-part'));
 		expect(written()).toEqual(before);
+	});
+});
+
+describe('a mixed-space selection (ruling AD10-R1)', () => {
+	/**
+	 * **The GESTURE half of the ruling.** `arrangeDetails.test.ts` asks the domain exhaustively —
+	 * `it.each(spatial)`, six operations, plus the all-pending arm that keeps the refusal about
+	 * MIXING rather than about being unscaled. What none of that can see is whether the panel ever
+	 * hands the domain a mixed selection to refuse: this block is nothing but that, and it is a
+	 * different subject from the locked-participant block above, which drives `immovable`.
+	 *
+	 * Driven through TWO controls, and the reason is the SELECTION SPEC rather than the door.
+	 * There is exactly one `commit` — `grep -n "function commit\|commit(" ` over this panel and
+	 * its two child forms prints one declaration and eight call sites, six of them in the panel
+	 * and one in each child, every one reaching that single function. What differs is who
+	 * assembles the spec it hands the domain, and there are THREE of those: the panel's own
+	 * `selection()` (align and distribute), `DesignerSetTransform`'s (from the `ids` and `locked`
+	 * it is passed) and `DesignerRepeatForm`'s. `align-left` and `set-move-x` drive the first two;
+	 * a panel that filtered the pending graphic out of one assembler would pass a case that
+	 * pressed only the other. The third, `DesignerRepeatForm`, is NOT driven here — the domain
+	 * covers `repeat` in its own `it.each(spatial)` arm, and this sentence says so rather than
+	 * letting "two controls" read as "every path".
+	 *
+	 * Nothing here is withheld, deliberately, and that is the panel's rule rather than an
+	 * oversight: which parts a control NEEDS decides whether it is drawn, and every one of these
+	 * controls needs exactly the graphics it was given. Whether those graphics share a coordinate
+	 * space is a fact about the shape the step reads when it RUNS — the same window `overlapping-
+	 * groups` is reachable through, for the same reason.
+	 */
+	it.each(['align-left', 'set-move-x'])('refuses the arrangement at %s and writes nothing', async (name) => {
+		const before = withPending(['detail-3']);
+		const { wrapper, writes, written } = mountPanel({ shape: before });
+		if (name === 'align-left') await press(wrapper, name);
+		else await commitNumber(wrapper, name, '25');
+		expect(wrapper.find('[role="alert"]').text()).toBe(t('en', 'asset.mixed-coordinate-spaces'));
+		expect(writes).toHaveLength(0);
+		expect(written()).toEqual(before);
+	});
+
+	/**
+	 * The ruling's carve-out, at the panel: **grouping stays offered and stays allowed**, because a
+	 * group carries no coordinates at all and so mixes nothing. That is why the refusal lives in
+	 * `arrangeDetails.participants` and not in the `resolveParticipants` both it and
+	 * `groupEdits.groupDetails` share — watched by moving it to that shared site, which withholds
+	 * nothing but reddens this case on the write.
+	 */
+	it('still groups a mixed selection, since a group carries no coordinates', async () => {
+		const { wrapper, written } = mountPanel({ shape: withPending(['detail-3']), selected: [graphic('detail-1'), graphic('detail-3')] });
+		expect(names(wrapper)).toContain('group');
+		await press(wrapper, 'group');
+		expect(wrapper.find('[role="alert"]').exists()).toBe(false);
+		expect(written().groups).toEqual([{ id: 'group-1', members: ['detail-1', 'detail-3'] }]);
 	});
 });
 

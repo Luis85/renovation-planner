@@ -170,7 +170,17 @@ describe('the designer’s dimensions dialog', () => {
 	 * are not real measurements yet" — and *Edit dimensions* then offered those exact
 	 * placeholder-space numbers as the default, where Save writes them as a `typed` rectangle
 	 * in true millimetres and the warning correctly disappears, because the footprint really is
-	 * typed now. `DesignerInspector` was the ONLY reader of `dimensionsUnscaled` in the tree.
+	 * typed now.
+	 *
+	 * **A sentence stood here claiming `DesignerInspector` was the ONLY reader of
+	 * `dimensionsUnscaled` in the tree. It was false, and it is deleted rather than repaired into
+	 * a smaller number.** `grep -rn "dimensionsUnscaled" src/` prints reads in
+	 * `AssetDesignerRoot` (`gridStep`, and `editDimensions` itself — the function this case
+	 * drives), `DesignerSelectionInspector`, `DesignerUsePlan`, `DesignerInspector` and the
+	 * library's `AssetInspectorShape`; it also prints PROSE in files that only name the field, so
+	 * its line count is not a reader count until each hit is read. Run it rather than trusting
+	 * this list. Nothing this case asserts ever rested on the claim: both halves below are
+	 * `editDimensions`'s own behaviour, and they hold whatever else reads the flag.
 	 *
 	 * Both halves are asserted here, because they close different things: no `initial` is the
 	 * one that stops the laundering, and the `warning` is what

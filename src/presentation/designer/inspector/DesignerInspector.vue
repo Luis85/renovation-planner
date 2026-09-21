@@ -118,31 +118,42 @@ const graphicCount = computed(() => props.design.shape?.details.length ?? 0);
  * The two conditions below are computeds rather than the expressions they replace in the
  * template, and the reason is the GATE rather than taste. `fallow`'s `maxCognitive` is 15, and
  * AD18-R2's two tabpanels took this template to 17 — every boolean operator inside a `v-if`
- * counts, and these two carried four of them between them. Naming them moves the operators into
- * two one-line functions that are nowhere near any threshold, which is the move this repository
- * has taken at every other complexity finding it has met (`AssetInspectorActions.vue`,
- * `UnreadableStrip.vue` and `DesignerUsagePlans.vue` each refuse the
- * `fallow-ignore-next-line complexity` the report itself offers, and say so where they refuse it).
+ * counts. Naming them moves the operators into one-line functions that are nowhere near any
+ * threshold, which is the move this repository has taken at every other complexity finding it
+ * has met (`AssetInspectorActions.vue`, `UnreadableStrip.vue` and `DesignerUsagePlans.vue` each
+ * refuse the `fallow-ignore-next-line complexity` the report itself offers, and say so where
+ * they refuse it).
  *
- * Neither changes what draws. They are the same expressions, moved.
+ * **Of the two, `showMultiSelectToggle` is the one that still carries an operator** — a claim
+ * about the two declarations immediately below and nothing wider — since `showUnscaledDimensions`
+ * lost its one conjunct. It stays a named computed regardless: the name is where the
+ * reason for having no second term is written down, and that reason is what a reader who met
+ * a bare `v-if` in the template would otherwise re-derive wrongly and re-add.
  */
 
 /**
- * The unscaled warning only means anything beside real dimensions, so both facts gate it together.
+ * The unscaled warning rides on `dimensionsUnscaled` ALONE, and a `dimensions !== null` beside
+ * it would be an arm nothing can reach rather than a defence.
  *
- * **The first term is REDUNDANT against `GetAssetDesign`, and is kept rather than dropped.** That
- * query sets `dimensions` from the footprint exactly when `shape !== null`, and
- * `dimensionsUnscaled` is `shape?.footprintPending ?? false` — so a `true` second term already
- * implies a non-null first. `getAssetDesign.test.ts` pins that producing invariant directly
- * (`dimensionsUnscaled` is `false` on a design with no shape, and its own comment records that the
- * field "IS `footprintPending`, with no second term"). Measured rather than reasoned: deleting the
- * first term here and running `designerInspector`, `assetDimensions` and `designerReferencePanels`
- * leaves all 70 cases GREEN, because the state it guards cannot be reached through the query.
+ * `GetAssetDesign` measures `dimensions` from the footprint whenever `shape !== null` — and
+ * returns an `err`, so no DTO at all, when that measurement refuses — while `dimensionsUnscaled`
+ * is `shape?.footprintPending ?? false`. On any DTO this component can be handed, therefore, a
+ * `true` flag implies a non-null `dimensions`, and the dropped conjunct could only ever have
+ * been `true`.
  *
- * It stays because the DTO is a plain type a test can hand-build, and because dropping it is a
- * behaviour change that belongs in its own commit rather than in one whose subject is the gate.
+ * **That producing invariant is pinned in `tests/application/queries/getAssetDesign.test.ts`**,
+ * at *answers null dimensions rather than zeros when there is no footprint*, which asserts
+ * `dimensions` null and `dimensionsUnscaled` false on one DTO — the shapeless design being the
+ * only state in which the implication could part. Watched failing rather than asserted: changing
+ * that query's `?? false` to `?? true` turns exactly that case red with `expected true to be
+ * false`.
+ *
+ * **What no check here reaches**: `AssetDesignDto` is a plain type, so a test may hand-build one
+ * carrying the flag with null dimensions, and this template will then draw the warning beside no
+ * figure. The guarantee belongs to the query, not to this component, and the sentence says so
+ * rather than claiming a component-level one.
  */
-const showUnscaledDimensions = computed(() => props.design.dimensions !== null && props.design.dimensionsUnscaled);
+const showUnscaledDimensions = computed(() => props.design.dimensionsUnscaled);
 
 /**
  * Whether the multiple-selection toggle can be drawn: the host has to have passed the setter, and

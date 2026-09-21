@@ -1,6 +1,6 @@
 /**
  * Schema version 2 (symbols spec, Decision 6): bulges and details cross the storage boundary, a v1
- * file still reads, and every write is v2 — which is what makes a v1-only build refuse the file
+ * file still reads, and every write is v4 — the header said v2 and the assertions below have said `toBe(4)` since the DTO began raising to 4 — which is what makes a v1-only build refuse the file
  * rather than silently dropping its details on its next write.
  */
 import { describe, expect, it } from 'vitest';
@@ -71,7 +71,7 @@ describe('asset geometry sidecar, schema version 2', () => {
 		expect(expectOk(await sidecar.read(assetId)).document).toEqual(document);
 	});
 
-	it('reads a version 1 file as a shape with no details, and writes version 3 back', async () => {
+	it('reads a version 1 file as a shape with no details, and writes version 4 back', async () => {
 		const { sidecar, stack, assetId, path } = seeded();
 		stack.vault.entries.set(path, rawDocument(assetId));
 

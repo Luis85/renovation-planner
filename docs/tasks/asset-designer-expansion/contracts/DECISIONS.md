@@ -621,6 +621,51 @@ what it buys is cosmetic on a surface whose job is to state a blast radius accur
 current spelling already does. **If it is ever taken, it must take all three keys**, and this
 paragraph is what it has to answer.
 
+### AD15-R1 — three matrix rows are regraded rather than given tests. (2026-09-21)
+
+**Taken by the user**, asked before wave 14 was dispatched, after the integrator split AD15's
+partial rows into those needing a vault and those needing only a test and found three of the ten
+proposed were neither.
+
+**T20 — `groups reject dangling/duplicate/NESTED` — is STRUCTURAL and gets no test.**
+`validateMembers` in `AssetShape.ts` checks each member against `known`, the set of GRAPHIC ids. A
+group id is not in that set, so a group naming another group is already refused as
+`dangling-group-member` — by the case that exists (`groupEdits.test.ts` *"refuses a graphic the
+design has not got"*). `AssetShape.ts` says *"One shallow group. `members` are detail ids"*, and C06
+asks for shallow groups. Nesting is therefore neither separately expressible nor separately
+refusable. **The losing side**: a case passing a group id as a member would document the mechanism
+where a reader is standing. It loses because it drives an already-covered path under a misleading
+name, and because asserting the absence of a state the types cannot express is the unreachable
+guard CLAUDE.md warns costs a branch it can never pay back.
+
+**T13 — `NoteVersion never used as GeometryVersion` — keeps its `partial` and the SENTENCE is
+narrowed.** `AssetRepository` and `AssetGeometrySidecar` both import the same `EntityVersion` from
+`./versioning`, so the two versions are one type and the compiler cannot refuse the swap. The hazard
+IS pinned by cases — `reversibleAssetDesign.test.ts` *"undoes a geometry edit beneath a height edit,
+rather than presenting the note version to the sidecar"*. The row asks for a guarantee this codebase
+does not have, and the honest grade says so rather than reading as an oversight. **The losing side**:
+branding the two types would make the compiler refuse it, which is real safety for a hazard a test
+can only catch where somebody thought to look. It loses on scope — a `src/` change across two ports
+and every call site, in a tree where `tests/**` is type-checked too, so the blast radius reaches the
+suite. If it is ever taken it is a wave of its own, not a card.
+
+**T01 — `L-resize keeps topology; Replace explicit` — is regraded `passed`, and the gap the row
+names DOES NOT EXIST.** The row reads as though footprint replacement lacks the warning presets and
+clearance have. Measured instead: `AssetDesignerRoot`'s `editDimensions` branches on
+`unscaled || !current?.shape`. Only that branch reaches `setFootprintFromDimensions`, which builds a
+fresh centred rectangle through `footprintFromDimensions` — and it is exactly the branch that shows
+`designer.dimensions.unscaled` as the dialog's `warning`, or where there is no shape to lose. Every
+other footprint goes to `scaleDesignToDimensions`, which SCALES: a traced L-shape keeps its corners
+and its anchor keeps the relationship the user gave it.
+
+**So a measured footprint is never silently replaced, because it is never replaced.** The
+explicitness the row asks for is delivered by a BRANCH rather than by a warning, and both arms are
+already asserted — `assetDimensions.test.ts` *"scales a calibrated L-shaped footprint instead of
+squaring it off"* for the scale arm, and *"offers no default and says why, for a footprint whose
+numbers are not measurements yet"* for the warned arm. **The losing side**: adding a replacement
+warning anyway would be a second answer to a question the code already answers, which is the shape
+this repository refuses everywhere it has a name for it.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

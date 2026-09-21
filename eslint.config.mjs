@@ -320,11 +320,24 @@ const pluginRules = obsidianmd.configs.recommendedWithLocalesEn.map((c) => ({
 }));
 
 /**
- * `SKU` is this plugin's own vocabulary (design "Asset library overview" §5, §8's
- * `view.asset-library.sku`) and `sentence-case-locale-module`'s default acronym list does not
- * carry it — measured: `SKU` mid-sentence is reported wanting `sku`. The fix widens the
- * RULE's vocabulary rather than the product's, per the ruling on that finding: changing what
- * the field is called to satisfy a linter's word list is the wrong direction.
+ * The acronym vocabulary `sentence-case-locale-module` is given for EVERY English locale
+ * module — not only the asset library's, which is what this constant was called until the
+ * axis letters joined it. It carries two kinds of word, both for the same reason: the fix
+ * widens the RULE's vocabulary rather than the product's copy, per the ruling on the `SKU`
+ * finding, because changing what a thing is called to satisfy a linter's word list is the
+ * wrong direction.
+ *
+ * `SKU` is this plugin's own word (design "Asset library overview" §5, §8's
+ * `view.asset-library.sku`) and the rule's default list does not carry it — measured: `SKU`
+ * mid-sentence is reported wanting `sku`.
+ *
+ * `X` and `Y` are the plan's axis letters (`editor.area.coordinates-hint`, and the `X`/`Y`
+ * chooser rows and fieldset legends on the same screen). The rule lowercases every non-first
+ * token that is not an acronym or a BRAND, and neither letter is in `acronyms.js` — measured.
+ * `X` passes today only because `brands.js` carries "X", the social network; `Y` has no such
+ * accident and was reported wanting `y`. So the pair is added TOGETHER: listing only `Y` would
+ * leave `X` resting on a vendor word list that can change at any release, and the two letters
+ * name one thing.
  *
  * `DEFAULT_ACRONYMS` is imported from the rule's own module rather than hand-copied, for the
  * same reason `OBSIDIAN_RESTRICTED_GLOBALS` below reads its list out of the plugin's config
@@ -348,14 +361,14 @@ const pluginRules = obsidianmd.configs.recommendedWithLocalesEn.map((c) => ({
 const localeModuleFiles = obsidianmd.configs.recommendedWithLocalesEn.find(
 	(c) => c.rules?.['obsidianmd/ui/sentence-case-locale-module'] !== undefined,
 )?.files;
-const ASSET_LIBRARY_ACRONYMS = [...DEFAULT_ACRONYMS, 'SKU'];
+const LOCALE_MODULE_ACRONYMS = [...DEFAULT_ACRONYMS, 'SKU', 'X', 'Y'];
 
 /**
  * The seven `form.new-asset.unit-symbol.*` values (`MEASUREMENT_UNIT_SYMBOLS`'s printed
  * strings for a shelf row: 'pcs', 'm', 'm²', 'm³', 'h', 'd', 'fixed') are notation, not
  * prose — a unit of measure, never a sentence a reader parses word by word — so
  * `sentence-case-locale-module` reporting them for not opening with a capital letter is the
- * rule applied outside its own domain, the same shape `ASSET_LIBRARY_ACRONYMS` above widens
+ * rule applied outside its own domain, the same shape `LOCALE_MODULE_ACRONYMS` above widens
  * for `SKU`: fix the RULE's vocabulary, not the copy, because "M²" is wrong regardless of
  * what a linter's word list wants.
  *
@@ -768,9 +781,9 @@ export default defineConfig([
 		linterOptions: { noInlineConfig: true },
 	},
 	...pluginRules,
-	// Widens `sentence-case-locale-module`'s acronym vocabulary for `SKU` — see
-	// `ASSET_LIBRARY_ACRONYMS`'s own comment above for why the fix lives here rather than in
-	// the product's copy. Placed AFTER `...pluginRules` so its `sentence-case-locale-module`
+	// Widens `sentence-case-locale-module`'s acronym vocabulary for `SKU` and the axis letters
+	// `X`/`Y` — see `LOCALE_MODULE_ACRONYMS`'s own comment above for why the fix lives here
+	// rather than in the product's copy. Placed AFTER `...pluginRules` so its `sentence-case-locale-module`
 	// entry, for the identical `files`, wins: two flat-config blocks matching one file OVERRIDE
 	// a rule key rather than merging it, which is this file's own recorded trap for
 	// `no-restricted-globals` and `no-restricted-syntax` alike.
@@ -790,7 +803,7 @@ export default defineConfig([
 		rules: {
 			'obsidianmd/ui/sentence-case-locale-module': [
 				'warn',
-				{ acronyms: ASSET_LIBRARY_ACRONYMS, ignoreRegex: [UNIT_SYMBOLS_PATTERN] },
+				{ acronyms: LOCALE_MODULE_ACRONYMS, ignoreRegex: [UNIT_SYMBOLS_PATTERN] },
 			],
 		},
 	},

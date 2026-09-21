@@ -190,7 +190,7 @@ export const editorEn = {
 	// module that produces it (`zoneOutlineAction.ts`, `runtime.zoneOutline`).
 	'editor.area.outline': 'Edit corners',
 	'editor.area.coordinates': 'Enter corner coordinates',
-	'editor.area.coordinates-hint': 'Positions in metres from the plan origin (0, 0), with X increasing to the right and y downwards. Zero and negative values are allowed. Use a decimal point or comma; input rounds to whole millimetres.',
+	'editor.area.coordinates-hint': 'Positions in metres from the plan origin (0, 0), with X increasing to the right and Y downwards. Zero and negative values are allowed. Use a decimal point or comma; input rounds to whole millimetres.',
 	'editor.area.corner': 'Corner {n}',
 	'editor.area.x': 'X position (m)',
 	'editor.area.y': 'Y position (m)',

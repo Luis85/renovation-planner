@@ -86,18 +86,24 @@ describe('every English locale module carries the sentence-case rule', () => {
 	});
 
 	/**
-	 * The `acronyms` option `eslint.config.mjs` adds for `SKU` (design "Asset library
-	 * overview" §5's own vocabulary), pinned rather than left to `npm run lint` alone: the
-	 * severity case above stays green with that option deleted entirely, since a stale
-	 * `undefined` fourth argument leaves the rule at its bare `"warn"` shape — so nothing
-	 * short of THIS assertion would notice `SKU` falling back out of scope. Watched red with
+	 * The `acronyms` option `eslint.config.mjs` adds, pinned rather than left to `npm run lint`
+	 * alone: the severity case above stays green with that option deleted entirely, since a
+	 * stale `undefined` fourth argument leaves the rule at its bare `"warn"` shape — so nothing
+	 * short of THIS assertion would notice a word falling back out of scope. Watched red with
 	 * the option removed before writing this comment.
+	 *
+	 * `SKU` is design "Asset library overview" §5's own vocabulary. `X` and `Y` are the plan's
+	 * axis letters, and the PAIR is asserted rather than `Y` alone: the rule lowercases every
+	 * non-first token that is not an acronym or a brand, and `X` is spared today only because
+	 * the plugin's `brands.js` carries the social network of that name. Drop `X` from the
+	 * config's list and `en/editor.ts` stays green on an upstream accident this repository does
+	 * not own — which is exactly the state this assertion exists to end.
 	 */
-	it.each(englishLocaleModules)('%s widens the rule with SKU as an acronym', async (file) => {
+	it.each(englishLocaleModules)('%s widens the rule with SKU and the axis letters', async (file) => {
 		const config = await resolveConfig(path.join(REPO, file));
 		const options = config.rules['obsidianmd/ui/sentence-case-locale-module'];
 
-		expect(options?.[1]).toMatchObject({ acronyms: expect.arrayContaining(['SKU']) });
+		expect(options?.[1]).toMatchObject({ acronyms: expect.arrayContaining(['SKU', 'X', 'Y']) });
 	});
 
 	/**

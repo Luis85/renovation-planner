@@ -67,6 +67,16 @@ const changed = computed(() => JSON.stringify(proposal.value.polygon?.points) !=
 const disabled = computed(() => props.blocked.value || paused.value || props.latest.value !== null || !changed.value);
 const axes = ['x', 'y'] as const;
 function value(index: number, axis: 'x' | 'y'): string { return form.values.value.edits[index]?.[axis] ?? formatMetres(props.points[index][axis]); }
+/**
+ * The same discrimination `add/AreaCornerEditor.vue` already makes over the same two keys:
+ * `proposal.errors` holds the `LengthRefusal`, so a coordinate that parsed but is too large to
+ * hold in whole millimetres says so rather than being reported as unreadable.
+ */
+function coordinateError(index: number, axis: 'x' | 'y'): string | null {
+	const error = proposal.value.errors.get(index + '.' + axis);
+	if (error === undefined) return null;
+	return tr(error === 'too-large' ? 'editor.area.coordinate-too-large' : 'editor.area.coordinate-invalid');
+}
 function input(index: number, axis: 'x' | 'y', event: Event): void {
 	const control = event.target as HTMLInputElement;
 	if (refuseInput(control, value(index, axis))) return;
@@ -124,7 +134,7 @@ async function submit(): Promise<void> {
 				v-for="axis in axes"
 				:key="axis"
 				v-slot="{ inputId, aria }"
-				:message="proposal.errors.has(index + '.' + axis) ? tr('editor.area.coordinate-invalid') : null"
+				:message="coordinateError(index, axis)"
 			>
 				<label
 					:for="inputId"
@@ -143,11 +153,22 @@ async function submit(): Promise<void> {
 				</label>
 			</FieldError>
 		</fieldset>
+		<!--
+			`error.category.geometry` is a declared FALLBACK tier (`en/errorFallback.ts`), and this
+			is a deliberate departure from picking one as copy — recorded, not ideal. It is here
+			because `editor.resize.invalid` ("enter valid dimensions … this room") is false at this
+			mount: the fields are coordinates, and `elementEditPresentation.ts` mounts this same
+			form over a fence, a path, an asset placement or a one-point text label. That key stays
+			as it is — it is CORRECT at its two other render sites, the room width/depth dialog.
+			Correct-but-generic beats specific-but-false; it also matches what `draw-polygon`
+			already toasts for the same two codes. The honest answer is a minted sentence in both
+			locales, which L-15 blocks an agent from writing.
+		-->
 		<p
 			v-if="proposal.polygon === null"
 			role="alert"
 		>
-			{{ tr('editor.resize.invalid') }}
+			{{ tr('error.category.geometry') }}
 		</p>
 		<div class="rp-dialog-actions">
 			<button

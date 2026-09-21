@@ -148,15 +148,24 @@ describe('the numeric outline editor over every zone type', () => {
 		r.harness.unmount();
 	});
 
-	it('refuses invalid, empty and out-of-range coordinates without dispatching', async () => {
+	it('refuses invalid, empty and out-of-range coordinates without dispatching, and names which refusal it was', async () => {
 		const r = await rig(reshaped('Garden'));
 		const dispatch = vi.spyOn(runtimeOf(r.harness).dispatcher, 'run');
 		await open(r);
-		for (const text of ['bad', '', '1e400']) {
+		// The per-field message DISCRIMINATES the `LengthRefusal` the proposal already holds, the
+		// way `add/AreaCornerEditor.vue` does: `10000000000000` parses perfectly and is then too
+		// large to hold in whole millimetres, which is not "enter a position in metres".
+		const refusals = [['bad', 'Enter a position in metres'], ['', 'Enter a position in metres'],
+			['1e400', 'Enter a position in metres'], ['10000000000000', 'too large to represent in whole millimetres']] as const;
+		for (const [text, field] of refusals) {
 			await form(r).get('[name="0.x"]').setValue(text);
 			await apply(r);
 			expect(formOpen(r)).toBe(true);
-			expect(form(r).find('[role="alert"]').exists()).toBe(true);
+			expect(form(r).get('.rp-field-error__message').text()).toContain(field);
+			// The alert's own TEXT, not merely its role. This form takes COORDINATES, on a zone
+			// or — at its element mount — on a fence, a path or a one-point text label, so the
+			// room width/depth sentence `editor.resize.invalid` carries was false here.
+			expect(form(r).get('[role="alert"]').text()).toBe('A geometry value is invalid.');
 			expect(runtimeOf(r.harness).renderState.previewPolygon).toBeNull();
 		}
 		expect(dispatch).not.toHaveBeenCalled();

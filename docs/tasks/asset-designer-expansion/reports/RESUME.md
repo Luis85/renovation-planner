@@ -151,6 +151,58 @@ OUTSIDE its own diff**, which is the part of the review brief that keeps earning
   they now exceed it under load. Alone the whole file is 86.72s of test time for 11 cases. Not acted
   on; recorded because the trend is the signal, not the timeout.
 
+## Wave 14 — seven AD15 rows that needed no vault. THREE cards, merged.
+
+| | |
+|---|---|
+| Base | `7069a3d8b` |
+| Candidates | `bf6ac792d` / `c6561b3e6` / `8fc9d34a8` |
+| Fix rounds | `25b79d72b` / `2ef0f85ed` / `548141a60` |
+| Merged | `ae48ce810` / `d7cce7f42` / `c2fa762d2` |
+| Regrade + ledger | `8deda6182` — CI run `35619780998` |
+
+**Ten AD15 rows moved and only five needed a test.** T07, T30, T41, F08 and T16 to `passed`;
+T21, T28, T37 and T20 to `structural`; T01 to `passed`; T13 `partial` with its sentence narrowed.
+**Every card refused at least one row.** A wave that had dutifully written ten tests would have
+written five that certify gaps.
+
+**Disjointness was checked across FIX-ROUND shas, not just candidates** — and that mattered: W14-C
+gained two paths from a mid-wave lease extension. Eleven non-docs paths, `uniq -d` empty.
+
+### The three findings worth inheriting, all against DOCUMENTS rather than code
+
+- **A row can be true about a FILE and false about a BEHAVIOUR.** T30 said *"`assetShapeConfig.test.ts`
+  has no OPEN-graphic case"* — true — and concluded the plan renderer's handling *"is unasserted"* —
+  false. `placedOpenGraphic.test.ts` had asserted more of it since AD11, four directory entries away,
+  importing the same helper. The card's own diagnosis is the durable part: **"I read the file the
+  lease named and never ran `ls` on its directory."**
+- **Check the REQUIREMENT, not the matrix's paraphrase of it.** W14-B dropped half of T41 calling §6
+  a heap measurement; `ACCEPTANCE-AND-QA.md` line 168 asks for *"No monotonic retained-listener/**observer**
+  growth"*, and `connectedObservers()` already existed in `tests/helpers/layout.ts` with six callers,
+  in a file the card already imported from. The card reached that misquote **by correcting the
+  integrator's lossy brief with the matrix** — right to push back, one rung short of the source.
+- **A fixture asserted only on its defaults is the tidied-fixture trap it claims to close.** W14-C's
+  first round left `footprintOrigin`, `facing`, `anchor` and `calibration` free to drift. Each case
+  now asserts `snapshot.document` WHOLE with `toEqual`, so a new `AssetShape` field turns all three
+  red — the brittleness is the property wanted.
+
+### Two corrections that ran UPWARD, to the integrator
+
+- Reviewer W14-A caught that the `detailPolyline` docblock fix landed in **one of three** places and
+  credited the card with a finding **the suite already held** (`assetPlacement.test.ts` since
+  `f1cbe86ef`). Both were right; `e06d9346b` finishes the grep the first commit should have run.
+- W14-A corrected the integrator's predicted mutation count: **2 failed, not 3** — a case counts once
+  however many assertions inside it fire.
+
+### CRLF: 20 files, and it will break a scripted edit
+
+`git ls-files --eol` says `i/lf w/crlf` for about twenty files under `src/` and `tests/`. **The index
+is LF and git normalises on commit, so nothing ships wrong** — but an exact-string replacement written
+with `
+` silently fails on those files, which cost two failed edits before anyone looked. Read with
+`newline=''`, detect `
+`, and build the replacement with the newline the file actually uses.
+
 ## Carried forward — each verified against the tree TODAY, not inherited
 
 - **`Show grid` defaults off** — unowned, unauthorized, and **bigger than AD18's bullet implies**:

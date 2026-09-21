@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { expectOk } from '../../../helpers/domain';
+import { openGraphic } from '../../../helpers/assetShapes';
 import { shapeFromDimensions } from '../../../../src/domain/asset/AssetShape';
 import { placementPoints } from '../../../../src/domain/spatial/assetPlacement';
 import { assetShapeConfig } from '../../../../src/presentation/editor/elements/assetShapeConfig';
@@ -44,6 +45,20 @@ describe('assetShapeConfig', () => {
 		expect(config.details[0]).toMatchObject({ name: 'asset-detail', closed: true, stroke: 'ink', fill: 'bg', points: [900, 900, 1100, 900, 1100, 1100, 900, 1100] });
 		expect(config.details[1]).toMatchObject({ name: 'asset-detail', dash: [4, 3] });
 		expect(config.details[1]).not.toHaveProperty('fill');
+	});
+
+	/**
+	 * The plan renderer's open-graphic arm (AD05, C10): an open path is drawn unclosed and is never
+	 * filled, whatever its `line` says, because a closing edge would be one the object has not got
+	 * and a fill needs an interior. `solid` on an open graphic is its dash pattern alone, so it gets
+	 * neither `fill` nor `dash`.
+	 */
+	it('draws an open graphic unclosed and unfilled even though it is solid', () => {
+		const withOpen = { ...shape, details: [openGraphic('detail-open', [{ x: -100, y: -100 }, { x: 100, y: -100 }, { x: 100, y: 100 }])] };
+		const config = assetShapeConfig(element, () => withOpen, state);
+		expect(config.details[0]).toMatchObject({ name: 'asset-detail', closed: false, stroke: 'ink', strokeWidth: 1, listening: false, points: [900, 900, 1100, 900, 1100, 1100] });
+		expect(config.details[0]).not.toHaveProperty('fill');
+		expect(config.details[0]).not.toHaveProperty('dash');
 	});
 
 	it('draws no details for a placement whose shape cannot be read', () => {

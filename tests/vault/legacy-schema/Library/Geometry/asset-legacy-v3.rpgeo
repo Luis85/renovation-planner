@@ -1,0 +1,72 @@
+{
+	"schemaVersion": 3,
+	"assetId": "asset-legacy-v3",
+	"revision": 11,
+	"unit": "mm",
+	"calibration": null,
+	"shape": {
+		"footprint": {
+			"points": [
+				[-400, -300],
+				[400, -300],
+				[400, 300],
+				[-400, 300]
+			]
+		},
+		"footprintOrigin": "typed",
+		"footprintPending": false,
+		"clearancePending": false,
+		"anchorPending": false,
+		"clearance": {
+			"points": [
+				[-400, -300],
+				[400, -300],
+				[400, 900],
+				[-400, 900]
+			]
+		},
+		"anchor": {
+			"x": 0,
+			"y": 0
+		},
+		"facing": 1.5707963267948966,
+		"details": [
+			{
+				"id": "detail-door",
+				"name": "door",
+				"kind": "open",
+				"label": "Door swing",
+				"outline": {
+					"points": [
+						[-400, 300],
+						[-400, 900]
+					],
+					"bulges": [0.4142135623730951]
+				},
+				"line": "dashed",
+				"pending": false
+			},
+			{
+				"id": "detail-panel",
+				"name": "panel",
+				"outline": {
+					"points": [
+						[-200, -100],
+						[200, -100],
+						[200, 100],
+						[-200, 100]
+					]
+				},
+				"line": "solid",
+				"pending": false
+			}
+		],
+		"groups": [
+			{
+				"id": "group-front",
+				"label": "Front",
+				"members": ["detail-door", "detail-panel"]
+			}
+		]
+	}
+}

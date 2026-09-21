@@ -123,6 +123,9 @@ describe('the transforms that keep a graphic kind', () => {
 		expect(moveOutline(shape(), { kind: 'detail', id: 'nope' }, { dx: 1, dy: 1 })).toMatchObject({ error: { code: 'asset.part-not-found' } });
 		expect(moveOutline(bare, { kind: 'clearance' }, { dx: 1, dy: 1 })).toMatchObject({ error: { code: 'asset.part-not-found' } });
 		expect(resizeBox(shape(), OPEN, { sx: 0, sy: 1 }, { x: 0, y: 0 })).toMatchObject({ error: { code: 'asset.invalid-scale' } });
+		// The negative arm by name, sharing a branch with zero and asserted anyway: a negative
+		// factor is a MIRROR, and `arrangeDetails.test.ts`'s sibling line carries the argument.
+		expect(resizeBox(shape(), OPEN, { sx: -1, sy: 1 }, { x: 0, y: 0 })).toMatchObject({ error: { code: 'asset.invalid-scale' } });
 	});
 });
 

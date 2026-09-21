@@ -108,6 +108,10 @@ const DETAIL_ANCESTRY_CRUMB = '.rp-context-bar__crumbs > .rp-context-bar__crumb:
 // with nothing red.
 const STALE_ROW_BUTTON = '[data-rp-warning="stale"] button';
 const UNREADABLE_ROW_BUTTON = '[data-rp-warning="unreadable-zones"] button[data-rp-action="open-diagnostics"]';
+// The project detail state's own diagnostics button (L-34). Waited on by the BUTTON for the
+// reason the two above are: the shots that use it would otherwise be satisfied by the resting
+// pane.
+const PROJECT_DIAGNOSTICS_BUTTON = '.rp-project-detail [data-rp-action="open-diagnostics"]';
 
 /**
  * The asset the four selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
@@ -461,6 +465,15 @@ const SHOTS = [
 		width: 460,
 		scrollTo: '.rp-asset-price-header',
 	},
+	// L-34's door on this surface: `?plans-unreadable=` is what makes the notice and its
+	// **Show diagnostics report** button drawable at all outside a vault. Both wait on the
+	// BUTTON rather than on the view wrapper, which the resting detail state satisfies just as
+	// well — a dropped knob would otherwise photograph the ordinary state under a name
+	// promising the notice and exit 0, the hazard `plan-editor-unreadable` already names. Two
+	// widths because what is in question is where a bare button lands under a notice `<p>`,
+	// and 460 is the sidebar leaf's real width where that pair either wraps or does not.
+	{ name: 'project-detail-unreadable', query: '?project=project-1&plans=3&plans-unreadable=2&theme=light', selector: PROJECT_DIAGNOSTICS_BUTTON },
+	{ name: 'project-detail-unreadable-narrow', query: '?project=project-1&plans=3&plans-unreadable=2&theme=light', selector: PROJECT_DIAGNOSTICS_BUTTON, width: 460 },
 	// The Plan Editor in both schemes: it is the first surface with real content, and the
 	// only place the layered Konva scene can be looked at outside a vault. No phone shot —
 	// SDD §61 scopes the MVP to desktop, and a canvas editor is the least mobile of the

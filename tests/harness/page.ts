@@ -238,6 +238,16 @@ if (wantsIndex) {
 	 * the END and would photograph a full list under a URL asking for an empty one.
 	 */
 	const askedPlans = Math.max(0, Number.parseInt(params.get('plans') ?? '', 10));
+	/**
+	 * `?plans-unreadable=<n>`: how many plan notes the detail read reports as refused, which is
+	 * the only way the `some-plans-unreadable` notice and the **Show diagnostics report** button
+	 * beside it can be drawn outside a vault. Clamped like the two above, for their reason.
+	 *
+	 * It arms the DETAIL state alone. The schedule section draws the same sentence and this knob
+	 * does not reach it: that surface needs `RenovationProjectDeps.work`, which this page composes
+	 * for no capture, so `?section=schedule` is not a value `mountHarness` accepts.
+	 */
+	const askedUnreadablePlans = Math.max(0, Number.parseInt(params.get('plans-unreadable') ?? '', 10));
 	view = wantsPlanEditor
 		? mountPlanEditorHarness(document.body, {
 				select: selectZoneId ?? undefined,
@@ -281,6 +291,7 @@ if (wantsIndex) {
 				: mountHarness(document.body, {
 						projectId: params.get('project'),
 						plans: Number.isFinite(askedPlans) ? askedPlans : undefined,
+						unreadablePlans: Number.isFinite(askedUnreadablePlans) ? askedUnreadablePlans : undefined,
 						projects: Number.isFinite(asked) ? asked : undefined,
 						initialQuery: params.get('q') ?? undefined,
 						section: params.get('section') === 'prices' ? 'prices' : 'details',

@@ -104,6 +104,17 @@ async function createTrade(): Promise<void> {
 				>
 					{{ tr('view.project.some-plans-unreadable') }}
 				</p>
+				<!-- The sentence above names the diagnostics report; this is the control that
+				     opens it. A SIBLING of the `<p>` rather than a child, so an assertion
+				     reading that region's text still reads the sentence alone. -->
+				<button
+					v-if="read.data.value.unreadablePlans"
+					type="button"
+					data-rp-action="open-diagnostics"
+					@click="context.openDiagnosticsReport()"
+				>
+					{{ tr('command.show-diagnostics-report') }}
+				</button>
 				<p
 					v-if="read.data.value.roomsIncomplete"
 					role="status"

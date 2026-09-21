@@ -142,6 +142,16 @@ export interface AssetLibraryDeps {
 	/** Jumps into the designer for one asset — §3.5's `Open designer` action. */
 	readonly openDesigner: (assetId: AssetId) => Promise<void>;
 	/**
+	 * Opens the diagnostics report — injected all the way from the composition root, because
+	 * the modal lives in `plugin/` and `presentation/` may not import it.
+	 *
+	 * REQUIRED rather than optional, for the reason `EditorWarningInput.openDiagnosticsReport`
+	 * already states about its own bundle: an optional member would let a composition draw
+	 * §5.1a's repair strip — whose heading tells the user to open the report — with no control
+	 * that opens it, which is the state this member exists to close.
+	 */
+	readonly openDiagnosticsReport: () => void;
+	/**
 	 * §3.6's status bar folder half — `54 assets · Renovation/Library` — a plain settings echo
 	 * rather than a query, exactly as `RenovationProjectCommandServices.defaultCurrency` mirrors
 	 * `defaultCurrency` from the same settings object: nothing here computes it, so a query

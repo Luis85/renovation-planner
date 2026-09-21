@@ -11,7 +11,7 @@
  * and one number: how many plan notes refused, and what happens to that number when the read
  * that produced it is replaced.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import ViewRoot from '../../../src/presentation/views/ViewRoot.vue';
@@ -50,11 +50,15 @@ type Listing = Awaited<ReturnType<RenovationProjectQueryServices['listPlansByPro
  * the next listing answers; the returned `replan` is the only re-hydration trigger these cases
  * need, and it is the real `onPlansChanged` listener rather than a call into the store.
  */
-function mountDetail(listing: () => Listing): { wrapper: VueWrapper; replan: () => void } {
+function mountDetail(
+	listing: () => Listing,
+	openDiagnosticsReport: () => void = () => undefined,
+): { wrapper: VueWrapper; replan: () => void } {
 	let replan!: () => void;
 	const base = defaultRenovationProjectDeps();
 	const context: RenovationProjectDeps = {
 		...base,
+		openDiagnosticsReport,
 		projectId: PROJECT.id,
 		onPlansChanged: (_projectId, listener) => {
 			replan = listener;
@@ -135,4 +139,42 @@ describe('the project detail state reports plans it could not read', () => {
 			t('en', 'view.project.some-plans-unreadable', { count: '2' }),
 		);
 	});
+});
+
+/**
+ * The door L-34 opens on this surface, and the arm it must stay off.
+ *
+ * `some-plans-unreadable` tells the user to open the diagnostics report;
+ * `all-plans-unreadable` is *"Plans could not be read."* and names nothing to open. Both draw
+ * into the same region through the same computed, so a button gated on the NOTICE rather than
+ * on the arm would offer an action one of the two sentences never mentions — the over-delivery
+ * mirror of the defect the button closes.
+ */
+describe('the diagnostics door beside the unreadable-plans notice', () => {
+	const DIAGNOSTICS = '[data-rp-action="open-diagnostics"]';
+
+	it('draws beside the sentence that names the report, and presses the injected door once', async () => {
+		const open = vi.fn<() => void>();
+		const { wrapper } = mountDetail(() => ok({ plans: [PLANS[0] as PlanSummaryDto], unreadable: 1 }), open);
+		await flushPromises();
+
+		const button = wrapper.get(DIAGNOSTICS);
+		expect(button.text()).toBe(t('en', 'command.show-diagnostics-report'));
+
+		await button.trigger('click');
+
+		expect(open).toHaveBeenCalledTimes(1);
+	});
+
+	it('draws none on the arm whose sentence names no report', async () => {
+		const { wrapper } = mountDetail(() => ok({ plans: [], unreadable: 1 }));
+		await flushPromises();
+
+		expect(wrapper.get('.rp-view-notice').text()).toBe(t('en', 'view.project.all-plans-unreadable'));
+		expect(wrapper.findAll(DIAGNOSTICS)).toHaveLength(0);
+	});
+
+	// That the button is a SIBLING of the `<p>` rather than a child is held by the first case
+	// in the describe above, which reads `.rp-view-notice` and expects the sentence ALONE —
+	// nesting the button inside it turns that case red.
 });

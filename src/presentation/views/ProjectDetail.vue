@@ -69,7 +69,7 @@ const props = defineProps<{
 	commitAssetPrice: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>;
 	logger: Logger;
 }>();
-defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []; deletePlan: [planId: string, name: string]; prices: []; schedule: []; quotes: []; toggleGuidance: []; refresh: []; retryPlans: []; scrolled: [top: number]; editState: [assetId: string, dirty: boolean, pending: boolean] }>();
+defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []; deletePlan: [planId: string, name: string]; prices: []; schedule: []; quotes: []; toggleGuidance: []; refresh: []; retryPlans: []; openDiagnostics: []; scrolled: [top: number]; editState: [assetId: string, dirty: boolean, pending: boolean] }>();
 const planEmpty = computed(() => (props.plansFailure ? null : props.emptyState));
 
 const planList = ref<InstanceType<typeof PlanList> | null>(null);
@@ -103,6 +103,16 @@ const isNew = computed(() => props.plans.length === 0 && props.unreadablePlans =
 const planRowsAbsent = computed(() => (props.plansFailure ?? null) !== null || props.plans.length === 0);
 
 /**
+ * The SOME arm, named once and read twice — by the notice below, to pick its sentence, and by
+ * the diagnostics button, to decide whether to draw at all.
+ *
+ * It is one expression rather than two because the button's gate IS the arm: only
+ * `some-plans-unreadable` names the report, so a button gated on `plansNotice !== null` would
+ * offer an action the `all-plans-unreadable` sentence never mentions.
+ */
+const somePlansUnreadable = computed(() => props.unreadablePlans > 0 && props.plans.length > 0);
+
+/**
  * The plan read's warning, and it is TWO sentences rather than one with a count.
  *
  * `all-plans-unreadable` when the read succeeded, kept nothing and refused something: the state
@@ -112,7 +122,7 @@ const planRowsAbsent = computed(() => (props.plansFailure ?? null) !== null || p
 const plansNotice = computed(() =>
 	props.unreadablePlans === 0
 		? null
-		: tr(props.plans.length === 0 ? 'view.project.all-plans-unreadable' : 'view.project.some-plans-unreadable'),
+		: tr(somePlansUnreadable.value ? 'view.project.some-plans-unreadable' : 'view.project.all-plans-unreadable'),
 );
 
 const heading = ref<HTMLElement | null>(null);
@@ -238,6 +248,17 @@ defineExpose({ focusEntry });
 				>
 					{{ plansNotice }}
 				</p>
+				<!-- Gated on the SOME arm, never on the notice's own existence, and a SIBLING
+				     of the `<p>` rather than a child so an assertion reading `.rp-view-notice`
+				     still reads the sentence alone. -->
+				<button
+					v-if="somePlansUnreadable"
+					type="button"
+					data-rp-action="open-diagnostics"
+					@click="$emit('openDiagnostics')"
+				>
+					{{ tr('command.show-diagnostics-report') }}
+				</button>
 
 				<div
 					v-if="missingPlan"

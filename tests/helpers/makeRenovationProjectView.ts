@@ -290,6 +290,9 @@ export const defaultRenovationProjectDeps = (
 	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
 	// requires a `logger` beside it.
 	const defaults: RenovationProjectDeps = {
+		// A no-op: the modal lives in `plugin/` and nothing built here holds a plugin. A case
+		// asserting the door presses overrides this member with its own spy.
+		openDiagnosticsReport: () => undefined,
 		queries: createRenovationProjectQueries({
 			listProjects: new ListProjects(projects, overlaps, listFacts),
 			getProject: new GetProject(projects),

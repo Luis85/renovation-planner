@@ -56,6 +56,7 @@ import { installObsidianDom } from '../helpers/dom';
 import { defaultRenovationProjectDeps, makeView, type SeedRepositories } from '../helpers/makeRenovationProjectView';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 import { expectOk } from '../helpers/domain';
+import { ok } from '../../src/core/result/Result';
 
 /**
  * The plans one seeded project holds, and the COUNT is the part that was measured rather than
@@ -387,8 +388,39 @@ const seedProject = (projectId: string, planCount: number) => (
  * The view is reached through a THUNK because it does not exist yet: `makeView` takes these
  * deps as its argument. Called only from a click, long after the constructor has returned.
  */
-const harnessDetailDeps = (projectId: string, planCount: number, recovery: boolean, view: () => RenovationProjectView): RenovationProjectDeps => ({
-	...defaultRenovationProjectDeps(seedProject(projectId, planCount)),
+const harnessDetailDeps = (projectId: string, planCount: number, recovery: boolean, unreadablePlans: number, view: () => RenovationProjectView): RenovationProjectDeps => {
+	// ONE seeded world, named — the spreads below all read this bundle rather than calling the
+	// factory again, which would seed a second set of repositories the view never reads.
+	const base = defaultRenovationProjectDeps(seedProject(projectId, planCount));
+	return {
+	...base,
+	/**
+	 * `?plans-unreadable=<n>`: the detail state's `some-plans-unreadable` notice and the
+	 * **Show diagnostics report** button beside it, which no capture could reach before.
+	 *
+	 * A WRAP of the seeded query rather than a corrupt note in the fixture, because the count
+	 * comes out of a repository REFUSING a read and this harness seeds real entities through
+	 * `save` — there is nothing to put in that would refuse. What it wraps is the query the
+	 * view actually calls: nothing in `mountHarness` composes a layer over `queries`
+	 * afterwards, which is measured rather than assumed — `makeView` constructs the view
+	 * against these deps and touches no member of them. That is the hazard
+	 * `unreadableKnob.test.ts` records for the plan editor's own `?unreadable=`, checked here
+	 * rather than inherited.
+	 *
+	 * `> 0` so an ordinary capture is untouched, and a refusing read is passed through
+	 * unchanged: a listing that failed outright has no count to carry.
+	 */
+	...(unreadablePlans > 0
+		? {
+				queries: {
+					...base.queries,
+					listPlansByProject: async (id: string) => {
+						const listed = await base.queries.listPlansByProject(id);
+						return listed.ok ? ok({ ...listed.value, unreadable: unreadablePlans }) : listed;
+					},
+				},
+			}
+		: {}),
 	/**
 	 * `?recovery` (P03): a stored last target naming a plan this project does not hold, which is
 	 * the ONE fact the recovery screen is derived from — `ProjectDetailState` re-reads the
@@ -408,7 +440,8 @@ const harnessDetailDeps = (projectId: string, planCount: number, recovery: boole
 	navigate: (id, section) => {
 		void view().setState({ projectId: id ?? '', ...(section === 'prices' ? { section } : {}) }, { history: true });
 	},
-});
+	};
+};
 
 /** The one plan the Continue row names, shared by the seed that saves it and the context that points at it. */
 const CONTINUE_PLAN_ID = 'home-1-plan-1' as PlanId;
@@ -477,6 +510,8 @@ export interface HarnessMountOptions {
 	readonly section?: 'details' | 'prices';
 	/** `?recovery`: the stored last target names a plan this project does not hold — P03. */
 	readonly recovery?: boolean;
+	/** `?plans-unreadable=<n>`: how many plan notes the detail read reports as refused. */
+	readonly unreadablePlans?: number;
 	/** `?projects=<n>`: the LIST state over that many of `HOME_PROJECTS`. */
 	readonly projects?: number;
 	/** `?q=<text>`: what the filter starts with. Only meaningful beside `projects`. */
@@ -514,7 +549,7 @@ export function mountHarness(root: HTMLElement, options: HarnessMountOptions = {
 	// this whole capture tool exists against.
 	const view: RenovationProjectView =
 		projectId !== undefined && projectId !== null
-			? makeView(harnessDetailDeps(projectId, planCount, options.recovery === true, () => view))
+			? makeView(harnessDetailDeps(projectId, planCount, options.recovery === true, options.unreadablePlans ?? 0, () => view))
 			: projects === undefined
 				? makeView()
 				: makeView(harnessHomeDeps(projects, initialQuery, () => view));

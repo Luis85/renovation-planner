@@ -660,6 +660,8 @@ describe('the headless harness capture script', () => {
 			'project-detail-recovery',
 			'project-detail-recovery-light',
 			'project-detail-recovery-narrow',
+			'project-detail-unreadable',
+			'project-detail-unreadable-narrow',
 		]);
 
 		// The whole FILE, not the table — see the header. A shot entry written outside `SHOTS`

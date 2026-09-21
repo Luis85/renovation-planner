@@ -32,13 +32,19 @@ import type { CompositionRoot } from './composition-root';
  * is no query service to hand over, so the view is handed one that REFUSES and draws §4's
  * *Failed, unrecoverable* row. Not registering the view at all would leave a restored library
  * leaf pointing at a view type Obsidian does not know.
+ *
+ * **`Omit<…, 'openDiagnosticsReport'>` rather than the whole bundle, for `planEditorDeps`'s
+ * reason verbatim**: that member opens a `plugin/` modal through
+ * `RenovationPlannerPlugin.openDiagnosticsReport()`, and this function holds no plugin
+ * instance. `assetLibraryViewDeps()` holds `this` and adds it; this annotation is what makes
+ * the omission a compiler-checked fact rather than a convention.
  */
 export function assetLibraryDeps(
 	root: CompositionRoot,
 	workspace: Workspace,
 	vault: Vault,
 	options: { indexScanCompleted: () => boolean },
-): AssetLibraryDeps {
+): Omit<AssetLibraryDeps, 'openDiagnosticsReport'> {
 	const persistence = root.persistence;
 	// The path-keyed opener, named once because BOTH doors below go through it: the repair
 	// strip already holds a path, and `openAssetNote` resolves one from the index first. Two

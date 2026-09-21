@@ -713,7 +713,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * exports, not a dead argument.
 	 */
 	private projectViewDeps(leaf: WorkspaceLeaf): RenovationProjectDeps {
-		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
+		// `openDiagnosticsReport` is added HERE and not inside `renovationProjectDeps`, for the
+		// reason `planEditorViewDeps` below states about its own bundle: that function holds no
+		// plugin instance, so reaching the report from there would compose the action a second
+		// time. This closure calls the same public method every other door into it calls.
+		return { ...renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
 			projectId: null,
 			// Through `navigateToProject` (Task 11), NOT a raw `setViewState`, and it closes
 			// two holes at once. A bare `void` on a rejecting `setViewState` is an unhandled
@@ -750,7 +754,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// Task 2 (design slice 22). Same `void` reasoning as `rememberContinue` above:
 			// `ContinueContextStore.clear` cannot reject either.
 			forgetContinue: (validated) => void this.continueContextStore(this.root.logger).clear(validated),
-		});
+		}), openDiagnosticsReport: () => { this.openDiagnosticsReport(); } };
 	}
 
 	/**
@@ -778,9 +782,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the Asset library's bundle, for the factory and the rebind. */
 	private assetLibraryViewDeps(): AssetLibraryDeps {
-		return assetLibraryDeps(this.root, this.app.workspace, this.app.vault, {
+		return { ...assetLibraryDeps(this.root, this.app.workspace, this.app.vault, {
 			indexScanCompleted: () => this.indexScanCompleted,
-		});
+		}), openDiagnosticsReport: () => { this.openDiagnosticsReport(); } };
 	}
 
 	/**

@@ -243,6 +243,7 @@ defineExpose({ shelvesElement });
 			v-if="store.unreadable.length > 0"
 			:entries="store.unreadable"
 			@open="(path) => void onOpenNoteRow(path)"
+			@diagnostics="context.openDiagnosticsReport()"
 		/>
 		<EmptyState
 			v-if="empty !== null"

@@ -624,6 +624,14 @@ export function createCompositionRoot(
  * remember and restore where the user was). A default here would let a composition forget one
  * and still compile — the same self-declared shape this repository already refuses, and the
  * reason Task 3's own wiring case grows an explicit fourth argument instead.
+ *
+ * **`Omit<…, 'openDiagnosticsReport'>` rather than the whole bundle, for `planEditorDeps`'s
+ * reason verbatim**: that member opens a `plugin/` modal through
+ * `RenovationPlannerPlugin.openDiagnosticsReport()`, and this function holds no plugin
+ * instance. Composing `showDiagnosticsReport(host)` here would be a second composition of an
+ * action that already has one — the "re-decide beside it" CLAUDE.md's *one action, every
+ * input* forbids. `projectViewDeps()` holds `this` and adds it; this annotation is what makes
+ * the omission a compiler-checked fact rather than a convention.
  */
 export function renovationProjectDeps(
 	root: CompositionRoot,
@@ -649,7 +657,7 @@ export function renovationProjectDeps(
 		 */
 		forgetContinue: (validated: ContinueContext) => void;
 	},
-): RenovationProjectDeps {
+): Omit<RenovationProjectDeps, 'openDiagnosticsReport'> {
 	const persistence = root.persistence;
 	return {
 		projectId: options.projectId,

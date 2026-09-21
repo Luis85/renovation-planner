@@ -24,8 +24,8 @@ async function setup(withProject = false) {
 	const stack = createRepositoryStack(), root = createCompositionRoot(DEFAULT_SETTINGS, stack.logger, stack.deps);
 	const persistence = expectDefined(root.persistence, 'real persistence'), workspace = new FakeWorkspace();
 	const navigate = vi.fn<RenovationProjectDeps['navigate']>();
-	const context = renovationProjectDeps(root, workspace as never, stack.deps.vault, { projectId: null, navigate,
-		indexScanCompleted: () => true, continueContext: () => Promise.resolve(null), rememberContinue: () => undefined, forgetContinue: () => undefined });
+	const context = { openDiagnosticsReport: () => undefined, ...renovationProjectDeps(root, workspace as never, stack.deps.vault, { projectId: null, navigate,
+		indexScanCompleted: () => true, continueContext: () => Promise.resolve(null), rememberContinue: () => undefined, forgetContinue: () => undefined }) };
 	const project = withProject ? expectOk(await context.commands.createProject.execute({ name: 'Project entry fixture' })).project.entity : null;
 	stack.metadataCache.catchUp();
 	const view = makeView(context); document.body.append(view.containerEl);

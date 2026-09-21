@@ -65,6 +65,44 @@ describe('axe against the plan editor trust path', () => {
 	});
 
 	/**
+	 * The `unreadable-zones` row WITH its **Show diagnostics report** button — the one interactive
+	 * control the diagnostics seam added, and until this case the only one in the strip that no
+	 * scan in this repository reached: every Plan Editor mount in `accessibility.test.ts` passes
+	 * `unreadable: 0` or nothing, so that row renders zero times across every axe case here.
+	 *
+	 * **What this adds over `shell.test.ts`'s own case, which is the reason for it.** That case
+	 * asserts the button's label with `button.text()` — a text READ, which agrees with a build
+	 * that put `aria-label=""` on the same element. axe computes the accessible NAME, so this is
+	 * the instrument that can see an icon-only variant or an `aria-hidden` wrapper arriving later.
+	 *
+	 * **What it still cannot see**, stated rather than left to be assumed — the ceiling paragraphs
+	 * in `accessibility.test.ts`'s header apply here unchanged: jsdom lays nothing out, so colour
+	 * contrast, a visible focus indicator and hit-target size are all outside this scan, and the
+	 * scope is the wrapper's own element rather than the document, so page-wide landmark rules are
+	 * too. Nothing here is a conformance claim and nothing here has run in a vault.
+	 *
+	 * The presence assertion is the load-bearing half, for this file's usual reason: `violations`
+	 * is `[]` on a subtree containing nothing at all, and this row draws only while
+	 * `unreadableZones > 0`. Watched red: mounting with the default store (dropping the option)
+	 * fails this exact `toBe(true)` with the button absent.
+	 */
+	it('reports no semantic violations on the unreadable-zones row with its diagnostics button', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor({ unreadableZones: 2 });
+			await settle();
+
+			expect(mounted.wrapper.find('[data-rp-warning="unreadable-zones"] button[data-rp-action="open-diagnostics"]').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
 	 * Task 9's own trust-path rule applied to the ROOM INSPECTOR — design spec §2.9: every write
 	 * control pauses while `ProjectStore.stale` holds, `aria-disabled` rather than `:disabled` so
 	 * a paused control stays focusable and its reason (`runtime.pausedReasonId`, a hidden sentence

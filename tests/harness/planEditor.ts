@@ -479,8 +479,22 @@ export interface MountedPlanEditor {
  * **Stated as a rule rather than a count**, for the reason `page.ts`'s own knob paragraph
  * already paid for twice: this said "nine" and named nine while the interface below declared
  * twice that many, and the enumeration goes stale in the direction of a WEAKER claim. The
- * members below are the list. Every one is
- * optional and independent; nothing here refuses combining them, and `?room`
+ * members below are the list. Every one is optional.
+ *
+ * **They are NOT all independent, and the rule is about WHERE a knob is armed rather than about
+ * which knobs they are.** `?stale` and `?unreadable` are armed inside the base dependency bundle
+ * (`harnessDeps`); every other knob's layer is composed OVER that bundle by
+ * `mountPlanEditorHarness`. A layer that REPLACES the query one of those two arms — rather than
+ * wrapping it — answers its own value, so the knob's whole effect is gone, with no error
+ * anywhere: the page comes up without the thing the URL asked for. Measured, both directions:
+ * `?unreadable` arms `findZonesByPlan`, which `?detail`, `?numericArea`/`?roomResize`/
+ * `?roomNaming`/`?outline` and `?reference`/`?downstream` each replace and `?locked`,
+ * `?detailed`, `?rooms` and `?tree` do not; `?stale` arms `getPlan`, which only
+ * `?reference`/`?downstream` replaces. `unreadableKnob.test.ts` is what re-runs that partition —
+ * it sees the layers that exist today and cannot see one added later, so a NEW layer overriding
+ * either query has to be added to its table by hand.
+ *
+ * Two combinations that are fine and read as if they might not be: `?room`
  * needs no combining with `?add`: it opens the Add menu itself on its way through, so pairing
  * the two is redundant rather than contradictory. `?stale` is the one that is not independent of
  * `?select` in EFFECT, even though both are legal on their own: see `mountPlanEditorHarness` for

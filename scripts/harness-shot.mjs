@@ -101,6 +101,11 @@ const ITEM_DRAWN = ['.rp-task-banner [data-rp-object-shape="rectangle"][aria-pre
  * the same shape against a real mount.
  */
 const DETAIL_ANCESTRY_CRUMB = '.rp-context-bar__crumbs > .rp-context-bar__crumb:nth-child(2):not([aria-current])';
+// The persistent warning strip's two rows that carry an action, each waited on by its own BUTTON
+// rather than by the strip container — see the shots that use them for why that distinction is
+// load-bearing rather than fussy.
+const STALE_ROW_BUTTON = '[data-rp-warning="stale"] button';
+const UNREADABLE_ROW_BUTTON = '[data-rp-warning="unreadable-zones"] button[data-rp-action="open-diagnostics"]';
 
 /**
  * The asset the four selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
@@ -664,17 +669,27 @@ const SHOTS = [
 	// wait on the container would certify the strip MOUNTED, not that the knob's write actually
 	// landed — the same "arming versus landing" hazard `plan-editor-add-room-narrow`'s own
 	// comment states for its `[aria-disabled="false"]` wait, met a second time here.
-	{
-		name: 'plan-editor-stale',
-		query: '?view=plan-editor&select=harness-kitchen&stale&theme=light',
-		selector: '[data-rp-warning="stale"] button',
-	},
-	{
-		name: 'plan-editor-stale-narrow',
-		query: '?view=plan-editor&select=harness-kitchen&stale',
-		selector: '[data-rp-warning="stale"] button',
-		width: 460,
-	},
+	{ name: 'plan-editor-stale', query: '?view=plan-editor&select=harness-kitchen&stale&theme=light', selector: STALE_ROW_BUTTON },
+	{ name: 'plan-editor-stale-narrow', query: '?view=plan-editor&select=harness-kitchen&stale', selector: STALE_ROW_BUTTON, width: 460 },
+	// The `unreadable-zones` row and its **Show diagnostics report** button — the strip's other
+	// row with an action, and the one this repository had no picture of at all until the
+	// `?unreadable=N` knob existed. Light at 1280 and dark at 460, the same two-shot split the
+	// stale pair above takes, and the selector waits on the ROW'S OWN BUTTON for that pair's
+	// stated reason: a wait on `.rp-warning-strip` would certify the strip mounted rather than
+	// that this row drew.
+	//
+	// **READ THESE TWO PICTURES WITH ONE CAVEAT, and it is about the fake rather than the code.**
+	// The canvas behind the strip still draws every seeded zone while the strip says two could not
+	// be read and "are not drawn". `?unreadable=N` sets the COUNT and removes no zone; a real
+	// vault at `unreadable=2` would draw two fewer polygons. `tests/harness/planEditor.ts`'s
+	// `harnessDeps` carries the full argument for why it stops there — pruning the list would have
+	// to prune `HARNESS_STRUCTURE`'s walls and `zoneInspectorAnswering`'s answers with it — and
+	// this note is repeated here rather than left only there because a picture is met by people
+	// who never open that file. These two shots are evidence about the ROW: its wording, its
+	// severity mark, its button's label, and how the three reflow at 460. They are evidence about
+	// the canvas of nothing at all.
+	{ name: 'plan-editor-unreadable', query: '?view=plan-editor&unreadable=2&theme=light', selector: UNREADABLE_ROW_BUTTON },
+	{ name: 'plan-editor-unreadable-narrow', query: '?view=plan-editor&unreadable=2', selector: UNREADABLE_ROW_BUTTON, width: 460 },
 	// A LIST rather than one selector (R14, 2026-09-04): the canvas alone attaches before the
 	// constrained-layout reflow has actually happened, so a wait on it could complete with the
 	// Layers/Details rail not yet on screen — the same wrong-state shape as `plan-editor-dark`'s

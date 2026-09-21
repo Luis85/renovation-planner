@@ -2,7 +2,8 @@
 
 Outcome: implemented
 Owner / worktree / branch: card W15-A / `.worktrees/ad07` / `w15a-two-leaf-conflict`
-Base commit / candidate commit: `098067d3c` / see the commit on this branch
+Base commit / candidate commit: `098067d3c` / `25d8d3c3f`, plus the fix-round commit on top of it
+(six reviewer findings, all in `docs/`; none in `src/`)
 Accepted contract revision: wave 15 base, `r1`
 Allowed scope and shared-file leases: exactly two CREATEs, both named after this card. No
 shared file was opened for writing — not `docs/tests/suites/Smoke Test the Editor.md`, not
@@ -29,9 +30,13 @@ not `src/`, not `tests/`.
 
 ## Executed checks
 
-Every `suite` row in the case names a test file AND a case name, and every one of them was
-executed from this worktree with `npx vitest run <path> -t "<case name>"` before it was cited.
-None was taken from the brief or from a subagent's report.
+Every `suite` row in the case names a test file AND a case name, and every one of them has now
+been executed from this worktree with `npx vitest run <path> -t "<case name>"`. None was taken
+from the brief or from a subagent's report. **Twenty-two of the twenty-three were run that way
+before the case was written; the twenty-third — `revealAssetDesigner.test.ts` "still gives two
+DIFFERENT assets their own leaves when they race", cited in step 4 — was covered only by the
+whole-file run until the fix round, which the first version of this sentence over-claimed and
+the reviewer caught. It is in the table below with the rest.**
 
 | Command or manual action | Commit / environment | Exit code or observed result | Evidence |
 |---|---|---|---|
@@ -50,6 +55,7 @@ None was taken from the brief or from a subagent's report.
 | `-t "reuses the leaf already showing that asset rather than opening a second"` (revealAssetDesigner) | same | 1 passed, 8 skipped | cited in step 3 |
 | `-t "does not re-set the view state of a leaf it found"` (revealAssetDesigner) | same | 1 passed, 8 skipped | cited in step 3 |
 | `-t "coalesces two opens of the SAME asset into one leaf"` (revealAssetDesigner) | same | 1 passed, 8 skipped | cited in step 4 |
+| `-t "still gives two DIFFERENT assets their own leaves when they race"` (revealAssetDesigner) | same, **fix round** | 1 passed, 8 skipped | cited in step 4; run in the fix round after the reviewer found it covered only by the whole-file run |
 | `-t "moves a dragged detail in one write, conditional on the version the press read"` (designerSelectTool) | same | 1 passed, 27 skipped | read for the press-capture claim |
 | `-t "leaves a write-boundary refusal to the indicator rather than toasting it twice"` (designerRefresh) | same | 1 passed, 21 skipped | cited in step 9 — the no-toast half of the recorded hole |
 | `-t "keeps the design on screen when a peer-provoked re-read fails, and marks it stale"` (designerRefresh) | same | 1 passed, 21 skipped | cited in step 5 |
@@ -63,7 +69,9 @@ None was taken from the brief or from a subagent's report.
 | `-t "reads the codes from versioning.ts rather than a copy"` (withSaveStateTracking) | same | 1 passed, 57 skipped | cited in step 9 |
 | `-t "carries the open asset in its own view state, so a workspace restore reopens the same asset"` (assetDesignerView) | same | 1 passed, 23 skipped | cited in step 2 |
 | `grep -oE '^\| [0-9]+[a-z]? \| \`[a-z]+\`' <case> \| sort \| uniq -c` | same | `desktop 1`, `judgement 1`, `obsidian 6`, `suite 8`; `grep -c` over the same pattern prints 16 | the verdict tally the case's own "eight of these sixteen" sentence is derived from |
-| `grep -rH '^order:' docs/tests/cases/` | same | 84 is unused; 80–83 are the three existing designer cases and 85 is the next taken | the frontmatter `order` |
+| `grep -rH '^order:' docs/tests/cases/` | same | 84 is unused. 80–83 are FOUR cases — `Design an Asset` 80, `Compose an asset from parts` 81, `Calibrate a sheet and reserve space` 82, `Take an asset from the library into a plan` 83 — three of them designer cases and the fourth a workflow one; 85 is the next taken. (This line read "80–83 are the three existing designer cases", which names four values and three cases; the conclusion was right and the arithmetic was not) | the frontmatter `order` |
+| `grep -rn revealAssetDesigner src/` and `grep -rn ASSET_DESIGNER_VIEW src/` | same, **fix round** | four call sites, three of them one binding | the door census in the case's opening — see integrator finding 6 below |
+| `grep -cE '^\\| [0-9]+[a-z]? \\| \`' <case>` and the verdict `uniq -c` | same, **fix round**, after every edit | still 16 rows; `suite` 8, `obsidian` 6, `desktop` 1, `judgement` 1 | the fix round changed prose inside rows and added no row, so "eight of these sixteen" still re-derives |
 
 ## Verification not performed
 
@@ -99,6 +107,21 @@ section:
   `contentEl` — and closing that is not this card's work.
 - **The German locale was not checked.** Step 11 quotes the English `undo.superseded` sentence.
   `de.ts` was not read, and the case does not claim anything about a German vault.
+- **W15-B's case was read in part, not in full.** For the cross-reference I read its opening
+  prose, its steps 15 to 19 and its *Deliberately NOT checked* section out of `755aa0cd5`. I did
+  not read its other twenty-odd rows, so my claim that step 17 is the ONLY overlap rests on B's
+  own two statements that it cedes the two-leaf scenario here, not on my having checked every row
+  of it against mine.
+- **The step-1 fallback map is reasoned, not walked.** "14 and 15 survive a failed step 1" comes
+  from reading those rows' own preconditions against the timed-external-write setup; nobody has
+  walked either in a vault with no second leaf, and the whole map inherits step 1's own
+  uncertainty.
+- **No single test in `tests/` was found that takes a real `asset-geometry.revision-conflict`
+  through to "badge, and no toast" on this surface.** I searched
+  `grep -rn revision-conflict tests/presentation/` and checked `designerWriteChain.test.ts` for
+  `Notice` assertions (there are none). Step 9 now states the seam as a composition of three
+  tests rather than implying one case walks it. Whether that gap is worth a test is the
+  integrator's call, not this card's.
 - **The three `Reachable by` verdicts most open to argument were not second-guessed by anyone.**
   Step 8 is `desktop` because two pointing devices are hardware; step 9 is `suite` because
   `designerRefresh.test.ts` really does assert the no-toast behaviour at this surface; step 7 is
@@ -115,8 +138,10 @@ Relevant renderer/export/revision consumers: none touched. Step 15 reads the `.r
 
 Undo/no-op/conflict/failure coverage: the point of the case. Conflict — steps 8 and 14, the two
 codes `checkExpectedVersion` mints. No-op — step 12, the `no-write` short-circuit and the badge
-that correctly does not clear over it. Undo — step 11, the ledger-generation refusal. Failure
-reporting — steps 9 and 10, the recorded hole.
+that correctly does not clear over it. Undo — step 11, the ledger-generation refusal, which is
+the one place this case and [[Recover an asset design rather than lose it]] overlap: that file's
+step 17 is the same five moves with a text editor in place of leaf B, both rows now say so, and
+a walker is told to walk it once. Failure reporting — steps 9 and 10, the recorded hole.
 
 Identity/unit/quantity/calibration invariants: untouched.
 
@@ -153,6 +178,16 @@ list, re-deriving that file's five-tier step census by grep (this case adds 16 r
    is a `Validation` code that is NOT in `WRITE_BOUNDARY_CODES`, so `affectsSaveState` answers
    false and `reportDispatchFailure` takes the toast branch. If step 8's held gesture turns out
    to be unproducible, step 11 is what keeps this case worth walking at all.
+
+   **This was NOT a sole discovery and the first version of this entry read as though it were.**
+   Card W15-B reached the same refusal independently in the same wave, from the other side: its
+   step 17 is the same five moves with a text editor in place of leaf B, quoting the same locale
+   sentence and citing the same case. B anticipated the overlap and said so in its own row; this
+   card did not, until the fix round. Both files now name the other and say to walk it once —
+   this one prefers B's form whenever step 1 has not produced a pair, since B's needs neither a
+   pair nor a second device. The narrow thing this variant still adds is that a peer LEAF's write
+   moves the ledger generation exactly as a foreign FILE write does; the two arrive through
+   different subscriptions and nothing asserts they land the same.
 4. **No `src/` defect found.** Every claim in the brief that I relied on was re-verified at
    source and all of them held. Three corrections of detail, none of them substantive:
    - The project view's create-asset door reaches `revealAssetDesigner` through
@@ -164,7 +199,35 @@ list, re-deriving that file's five-tier step census by grep (this case adds 16 r
    - `report-failure.ts`, `affects-save-state.ts` and `SaveStateIndicator.vue` live under
      `src/presentation/editor/`, not under `src/presentation/designer/`; the designer imports
      them. The behaviour the brief described is exactly right.
-5. **One thing the brief said that I would state more narrowly.** "Identical geometry is
+
+   **Corrected in the fix round: there are FOUR doors, not three.** The reviewer found
+   `editorWorkspaceNavigation.ts`, which binds the Plan Editor's `EditorNavigation.asset` — the
+   placement Inspector's "open this asset's designer" button — to the same
+   `renovationProjectOpenAsset`. So the category claim holds unchanged and is now checkable
+   rather than a list: four doors, three of them literally one binding, all four ending at
+   `revealAssetDesigner`, which `grep -rn revealAssetDesigner src/` answers. Worth knowing for
+   step 1 specifically, because a walker with a plan open may reach for that button and will get
+   the existing leaf revealed rather than a second one. **My own first census missed it because
+   my grep alternated two patterns and I read a hit on the second as a hit on the first** —
+   "measure a set with an instrument that can see all of it, and test the instrument first",
+   broken while measuring.
+5. **Two things about the fix round that are the integrator's, not mine to edit.**
+   - **The reviewer's unwalkable list omitted step 2**, and step 2 is the reviewer's own finding
+     3: its action opens *"With both leaves open"*, so it presupposes the pair and is unwalkable
+     without one exactly as 3 and 5–8 are. Step 1's map therefore reads **2, 3, 5, 6, 7, 8 and
+     16**, one row longer than the message asked for. I also split the reviewer's "5–13" rather
+     than copying it: 9, 10, 12 and 13 are observations of a **Save error** badge, and step 14
+     produces one in a single leaf, so they survive a failed step 1 provided 14 is walked first
+     and "leaf B" is read as "the only leaf". That is a more useful map than a contiguous range
+     and it is what the row now says.
+   - **W15-B's own file disagrees with itself by one step number.** Its opening prose says *"The
+     one place the two nearly meet is step 18"*, while its table row and its *Deliberately NOT
+     checked* section both say step 17 — and 17 is the row that actually carries the text-editor
+     foreign write (18 is the follow-on comparing what that refusal offered). My cross-references
+     say **17**, matching the table. B's prose is the odd one out and it is B's file, so I have
+     not touched it.
+
+6. **One thing the brief said that I would state more narrowly.** "Identical geometry is
    `no-write`, not a conflict" is true, and the sharper fact is the case
    `setAssetFootprint.test.ts` "reports no-write for an identical footprint **even when the
    expectation is stale**" — the short-circuit is above the version comparison, so a repeated

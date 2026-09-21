@@ -745,3 +745,34 @@ has work to do: a new tool introducing a gap. The set becomes empty and the case
   The README's own house style for this is the *"whether the installed host catalogue answers X is
   not verified here"* sentence, which for these three is now answerable and must not be overstated.
 
+### Wave 13 closed
+
+Candidate `129dcbfb8`, fix round `25aad5294`, merged fast-forward. One card, so lease compliance
+replaced disjointness again: the changed-file list is the ten files the row grants, the `src/` edit
+comment-only, verified with `git diff -U0` filtered of comment lines.
+
+**The review found a defect the card's own change created, and it is the most transferable thing in
+this wave.** Inverting the missing-set assertion to the empty set removed the LAST positive producer
+of `data-icon-missing` from the suite — every other occurrence in `tests/**` is a negative. The
+reviewer reached that by exhaustive grep and could not execute it, being read-only, and said so. The
+integrator executed it: deleting `parent.dataset.iconMissing = canonicalName;` from the fake left
+**10 files and 197 tests green** while turning eight cases vacuous at once.
+
+**The card then refused the reviewer's suggested site and argued a better one**, which is the
+behaviour this package wants from a fix round. The guard went in `tests/helpers/obsidianIcons.test.ts`,
+beside the module that writes the marker, rather than in the node-map file — because the hole opened
+precisely because the only positive statement lived in a CONSUMER that a later wave was right to
+empty, and putting the replacement in another consumer repeats the shape. Same mutation after the
+fix: 1 failed of 198, and the failure is the new guard.
+
+**An unrequested test file was kept on merit, not waved through.** `editorIconNodes.test.ts` compares
+every map entry against its SVG, closing a gap the README's "mechanically transcribed" had left open
+with no generator and nothing re-running it. The reviewer was asked to judge it and did: 64 files
+against 64 map keys, no duplicate instrument, parses rather than greps, twelve established siblings
+in `tests/helpers/`. It also had one case DELETED as redundant against its own neighbour.
+
+**What the suite still cannot do was done by hand.** `npm run harness` plus the in-app browser: 14
+icon bearers, zero missing, and a 72px probe screenshot confirming the five draw a rectangle, a
+rounded square, a circle, a dash and an anchor. A test proves the entry is reached and reproduces the
+upstream nodes; it cannot prove the picture is a circle.
+

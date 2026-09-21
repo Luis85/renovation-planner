@@ -334,6 +334,15 @@ clipped Add button. It was a false positive — `overflow: visible`, nothing cli
 harness's own `::after` missing-fixture marker, `squircle` being a longer word than `circle`. A harness
 artifact, not a layout defect, written down so the next reader does not re-find it as one.
 
+**AMENDED 2026-09-21, wave 13: that explanation was correct and the measurement it explains NO LONGER
+REPRODUCES.** `squircle`, `circle` and `anchor` have harness fixtures now, so nothing in this rail
+renders a `::after` marker and the 3px it contributed is gone. Anyone re-running the narrow-width
+figures in this report against a current tree will get different numbers for that button and should
+not read the difference as a regression. The withdrawal stands on its own reasoning — `overflow:
+visible` clips nothing, which was never about the marker — but the artifact that produced the 3px is
+no longer in the tree to observe. Found by the wave 13 reviewer, which was reading for stale claims
+outside its own diff.
+
 ### The dead label span — asked, not fixed
 
 The integrator asks whether `DesignerToolButton` should still emit `<span class="rp-designer-tool-label">` in

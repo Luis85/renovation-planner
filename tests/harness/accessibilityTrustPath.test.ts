@@ -71,9 +71,13 @@ describe('axe against the plan editor trust path', () => {
 	 * `unreadable: 0` or nothing, so that row renders zero times across every axe case here.
 	 *
 	 * **What this adds over `shell.test.ts`'s own case, which is the reason for it.** That case
-	 * asserts the button's label with `button.text()` — a text READ, which agrees with a build
-	 * that put `aria-label=""` on the same element. axe computes the accessible NAME, so this is
-	 * the instrument that can see an icon-only variant or an `aria-hidden` wrapper arriving later.
+	 * asserts the button's label with `button.text()` — a text READ, which stays green on a build
+	 * that wrapped that same text in `aria-hidden="true"` and left the control nameless. axe
+	 * computes the accessible NAME, so this is the instrument that can see that, or an icon-only
+	 * variant, arriving later. Measured: an `aria-hidden` wrapper reddens all four cases in this
+	 * file with `button-name`. **`aria-label=""` — the spelling this note used to name — is not
+	 * one of them:** accname skips an empty label and the name falls through to the very content
+	 * `button.text()` reads, so all four stay green. Measured too.
 	 *
 	 * **What it still cannot see**, stated rather than left to be assumed — the ceiling paragraphs
 	 * in `accessibility.test.ts`'s header apply here unchanged: jsdom lays nothing out, so colour

@@ -78,13 +78,19 @@ it('?detail discards ?unreadable — a layer that replaces the zone read drops i
  *
  * **What this case can see:** the answer `findZonesByPlan` gives for each layer built directly
  * over a base armed at 7. **What it cannot:** that `mountPlanEditorHarness` still composes these
- * layers in this order over this base — it calls the factories itself, one hop from line 868's
- * chain — and it cannot see a layer added later, because the list below is written by hand. The
- * case above is the end-to-end half for exactly that reason; this one is the census.
+ * layers in this order over this base — it calls the factories itself, one hop from the
+ * `const base = harnessDeps(…)` chain at the top of `mountPlanEditorHarness` — and it cannot see
+ * a layer added later, because the list below is written by hand. The case above is the
+ * end-to-end half for exactly that reason; this one is the census.
  *
- * `?downstream` is absent because it is not reachable alone: `downstreamWorkspace` takes a
- * `referenceWorkspace` as its base and overrides no zone read of its own, so it inherits the
- * `0` on this table's `reference` row.
+ * **`?downstream` is absent from this table and from the `?stale` one below, and NOT because it
+ * inherits anything** — the note that said so was wrong about the mechanism. `downstreamWorkspace`
+ * is not a layer over this base at all: it builds `queries` from a real composition root
+ * (`planEditorDeps(root, …)`) and spreads `reference.deps.queries` into nothing, so it replaces
+ * BOTH queries outright and discards both knobs. It takes a host element, an async fixture scan
+ * and a whole plugin root to construct, which is why it is read from the code here rather than
+ * re-run; the `0` it would answer agrees with this table's `reference` row by COINCIDENCE — both
+ * read the same fixture vault — and nothing holds the two together.
  */
 it('names which composition layers keep ?unreadable and which discard it', async () => {
 	const base = harnessDeps({ unreadable: 7 });
@@ -117,24 +123,45 @@ it('names which composition layers keep ?unreadable and which discard it', async
 });
 
 /**
- * The SAME rule for the base bundle's other knob, because the docblock states it as a rule about
- * where a knob is armed rather than as a fact about `?unreadable` — and a sentence wider than its
- * check is the defect this file exists to close, not one to reproduce one knob over.
+ * The SAME rule for the base bundle's other knob, over the SAME seven layers, because the
+ * docblock states it as a rule about where a knob is armed rather than as a fact about
+ * `?unreadable` — and a sentence wider than its check is the defect this file exists to close,
+ * not one to reproduce one knob over.
  *
- * `?stale` arms `getPlan`: the SECOND read and every one after it fail. So the partition is
- * different from the table above even though the rule is the same — `?detail` and
- * `?numericArea` leave `getPlan` alone or wrap it and keep the knob, and only `?reference`
- * replaces it outright. Two reads per layer is the whole instrument: one to get past the first,
- * one to ask whether the knob armed.
+ * **This table carried four rows while that docblock's `only` quantified over all seven**, which
+ * is the same overclaim one table further in: a mutation making `?rooms` REPLACE `getPlan` — the
+ * precise defect the sentence forbids — left this file at 4 passed. Both tables name the same
+ * seven layers now, so the two blind-spot notes above are true of both.
+ *
+ * `?stale` arms `getPlan`: the SECOND read and every one after it fail. The ANSWER differs from
+ * the table above even though the rule and the layers are the same — only `?reference` replaces
+ * `getPlan`, where three layers replace `findZonesByPlan`. Two reads per layer is the whole
+ * instrument: one to get past the first, one to ask whether the knob armed — and each layer gets
+ * a base of its OWN, because that counter lives in the bundle.
  */
 it('names which composition layers keep ?stale and which discard it', async () => {
-	expect({
-		'base (?stale alone)': await secondReadRefuses(armedStale()),
-		'?detail': await secondReadRefuses(detailPlanDeps(armedStale())),
-		'?numericArea / ?roomResize / ?roomNaming / ?outline': await secondReadRefuses(areaNumericWorkspace(armedStale(), HARNESS_PLAN, HARNESS_ZONES)),
-		'?reference': await secondReadRefuses(referenceWorkspace(armedStale(), HARNESS_PLAN).deps),
-	}).toEqual({
+	const layers: Readonly<Record<string, PlanEditorDeps>> = {
+		'base (?stale alone)': armedStale(),
+		'?locked': lockedZoneDeps(armedStale(), ['harness-kitchen']),
+		'?detailed': detailedZoneDeps(armedStale(), ['harness-kitchen']),
+		'?rooms': roomsDeps(armedStale(), 2),
+		'?tree': treePlanDeps(armedStale()),
+		'?detail': detailPlanDeps(armedStale()),
+		'?numericArea / ?roomResize / ?roomNaming / ?outline': areaNumericWorkspace(armedStale(), HARNESS_PLAN, HARNESS_ZONES),
+		'?reference': referenceWorkspace(armedStale(), HARNESS_PLAN).deps,
+	};
+
+	const armed: Record<string, boolean> = {};
+	for (const [knob, deps] of Object.entries(layers)) {
+		armed[knob] = await secondReadRefuses(deps);
+	}
+
+	expect(armed).toEqual({
 		'base (?stale alone)': true,
+		'?locked': true,
+		'?detailed': true,
+		'?rooms': true,
+		'?tree': true,
 		'?detail': true,
 		'?numericArea / ?roomResize / ?roomNaming / ?outline': true,
 		'?reference': false,

@@ -479,20 +479,29 @@ export interface MountedPlanEditor {
  * **Stated as a rule rather than a count**, for the reason `page.ts`'s own knob paragraph
  * already paid for twice: this said "nine" and named nine while the interface below declared
  * twice that many, and the enumeration goes stale in the direction of a WEAKER claim. The
- * members below are the list. Every one is optional.
+ * members below are the list **this interface carries**, and every one is optional — they are
+ * not the list of knobs the page takes. Four more are read straight out of `location.search` by
+ * `mountPlanEditorHarness` and are declared nowhere: `?planning`, `?downstream`, `?recovery` and
+ * `?fidelity`, each meaningful only over `?reference`.
  *
  * **They are NOT all independent, and the rule is about WHERE a knob is armed rather than about
  * which knobs they are.** `?stale` and `?unreadable` are armed inside the base dependency bundle
  * (`harnessDeps`); every other knob's layer is composed OVER that bundle by
  * `mountPlanEditorHarness`. A layer that REPLACES the query one of those two arms — rather than
  * wrapping it — answers its own value, so the knob's whole effect is gone, with no error
- * anywhere: the page comes up without the thing the URL asked for. Measured, both directions:
- * `?unreadable` arms `findZonesByPlan`, which `?detail`, `?numericArea`/`?roomResize`/
- * `?roomNaming`/`?outline` and `?reference`/`?downstream` each replace and `?locked`,
- * `?detailed`, `?rooms` and `?tree` do not; `?stale` arms `getPlan`, which only
- * `?reference`/`?downstream` replaces. `unreadableKnob.test.ts` is what re-runs that partition —
- * it sees the layers that exist today and cannot see one added later, so a NEW layer overriding
- * either query has to be added to its table by hand.
+ * anywhere: the page comes up without the thing the URL asked for. Measured, both directions and
+ * **over the seven layers composed over that bundle**: `?unreadable` arms `findZonesByPlan`,
+ * which `?detail`, `?numericArea`/`?roomResize`/`?roomNaming`/`?outline` and `?reference` each
+ * replace and `?locked`, `?detailed`, `?rooms` and `?tree` do not; `?stale` arms `getPlan`,
+ * which of those same seven only `?reference` replaces. `unreadableKnob.test.ts` re-runs BOTH
+ * partitions over all seven — it sees the layers that exist today and cannot see one added
+ * later, so a NEW layer overriding either query has to be added to both its tables by hand.
+ *
+ * **`?downstream` is the exception to every sentence above and is re-run by neither table.** It
+ * is not a layer over the base bundle at all: `downstreamWorkspace` builds its `queries` from a
+ * real composition root and spreads its base's into nothing, so it replaces both queries and
+ * discards both knobs. That one is read from the code — see `unreadableKnob.test.ts` for why it
+ * is not constructible there.
  *
  * Two combinations that are fine and read as if they might not be: `?room`
  * needs no combining with `?add`: it opens the Add menu itself on its way through, so pairing

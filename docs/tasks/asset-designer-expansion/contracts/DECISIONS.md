@@ -1192,6 +1192,54 @@ no-op comparison and the signed-gap convention are all settled and are not reope
 state must stay at zero overlaps — that is a floor the fix may not trade away to improve the
 toggle's case.
 
+### AD18-R15 — the stale retry is CONSTRAINED, and the defect was found by injecting a probe. (2026-09-22)
+
+**Taken by the user**, on a rendered measurement taken AFTER W20-A had merged and passed review.
+The control is correct and does what AD18-R13 rules; it LOOKS wrong, and no gate in this repository
+can see that.
+
+**Measured against the running harness at the W20-A integration sha**, `?view=asset-designer`, a
+1024 px leaf:
+
+| | |
+| --- | --- |
+| Leaf | 1024 px |
+| Notice | 1024 × 24.6, its own `background-secondary` and a 1 px `border-top` |
+| Button | **1024 × 30, `left: 0`** — the full width of the leaf |
+| Where it sits | BELOW the notice's tinted strip, on the plain background |
+
+**The cause is one declaration and it is not the card's.** `.renovation-asset-designer` is
+`display: flex; flex-direction: column` with `align-items: normal`, which resolves to `stretch`, so
+an unclassed `<button>` that is a direct child takes the whole leaf. W20-A's own report declined
+every appearance claim and said so plainly; the review then derived the stretch from the stylesheet
+without a browser. **Both were right and neither could see the picture**, which is the whole reason
+this step exists.
+
+**How it was seen at all, and the limit of that.** `tests/harness/page.ts` passes `stale` to the
+PLAN EDITOR branch only — `mountAssetDesignerHarness` takes `select`, `mode`, `draw`, `camera`,
+`pending`, `grid` and `viewMenu`, and no stale knob — so **no fixture can put the designer into this
+state and no capture can photograph it.** The measurement was taken by injecting the real markup
+from `AssetDesignerRoot.vue`'s `v-if` block into the rendered tree, the same way AD18's header
+finding was taken. **That is a PROBE and not a fixture**: it proves what the layout does with those
+two elements present and it does not make them present in any capture. A harness knob is the
+separate change that would, and it is not ruled here.
+
+**The losing side, which is real.** The control WORKS: it retries, it keeps the canvas, it swaps its
+sentence on a second failure, and it is reachable and labelled. Recording the measurement and
+letting the vault walk judge it was the other arm, and it is defensible — nobody has complained,
+and this session is long. It loses because the stale notice is the designer's entire recovery story
+and the first thing a user meets when a read fails is a full-width bar that reads as chrome rather
+than as an action.
+
+**Scope: the button's own presentation and nothing else.** AD18-R13's behaviour is settled and is
+not reopened — not `writesBlocked`, not the sibling placement (which four test files require), not
+the failure sentence, not the in-flight guard. `styles/designer.css` is at **399 of its 400-line
+cap**, so this needs a new partial and the one `@import` beside it; those two cannot be leased
+apart.
+
+**It owes a re-capture.** The fix is unfalsifiable by every gate here, so the integrator draws it
+again through the same probe and reports the number, or the card has not been checked.
+
 ### Three AD18 gaps were CLOSED BEFORE THIS SESSION, and are recorded as corrections rather than as decisions
 
 **Written this way for AD15-R2's reason: recording a correction as a decision credits a session with

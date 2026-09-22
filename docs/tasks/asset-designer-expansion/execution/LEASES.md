@@ -1085,3 +1085,27 @@ by `styles/index.css`, so no `@import` edit is owed and `index.css` is NOT in th
 **The resting state is a FLOOR, not a target.** `AD18-R14` measures the selection-driven state at
 two labels and **zero** overlapping pairs. A fix that improves the toggle by trading that away has
 made the feature worse at the width every user meets first.
+
+## Wave 22 — issued 2026-09-22, base **THIS COMMIT**, contract revision `r1`
+
+**One worker, concurrent with wave 21's fix round.** The two sets are disjoint and that is checked
+with `git diff --name-only` over both candidates before either integrates, not inferred from these
+rows. W21-A holds `dimensions/**` and `styles/designer-dimensions.css`; this card holds a NEW
+partial, `styles/index.css` and `AssetDesignerRoot.vue`.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| W22-A retry presentation | `.worktrees/ad14` · `w22a-retry-presentation` | `presentation/designer/AssetDesignerRoot.vue` (**integrator lease, sub-let** — the retry button's class attribute and its docblock, and NOTHING else), NEW `styles/designer-recovery.css` **and the ONE `@import` line for it in `styles/index.css`**, its own tests | **this commit** / `r1` | issued | candidate committed and handed off |
+
+**`styles/designer.css` is NOT in this lease and is at 399 of 400 lines.** The rule goes in the new
+partial. `styles/index.css` carries only imports and comments — a rule authored there fails the
+build.
+
+**The behaviour is settled and is not reopened.** AD18-R13 and the W20-A review between them fixed
+`writesBlocked`, the sibling placement (four test files require it), the failure sentence, the
+episode counter and the in-flight guard. This card changes how the button LOOKS and nothing else; a
+diff that touches `onRetry`, `retriesFailed`, `staleMessage` or the `v-if` has exceeded its lease.
+
+**It owes a re-capture it cannot perform.** No fixture can reach this state — `page.ts` passes
+`stale` to the Plan Editor branch only — so the card cannot draw its own result and must not claim
+one. The integrator re-runs the same injected probe and reports the number.

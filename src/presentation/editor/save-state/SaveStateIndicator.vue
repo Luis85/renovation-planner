@@ -52,8 +52,10 @@ import { usePlanningReadState } from '../planning/planningReadState';
 const props = defineProps<{
 	/**
 	 * A staleness this component cannot see from the stores below. Absent means "the stores
-	 * decide", which is what the Plan Editor's `StatusBar.vue` passes; `DesignerHeader.vue` is
-	 * the one that hands a value in. Those are the two mounts in `src/` — and do not re-measure
+	 * decide", which is what the Plan Editor's `StatusBar.vue` passes — and "absent" reaches
+	 * `shown` as `false` rather than `undefined`, since a type-declared optional boolean compiles
+	 * to `{ type: Boolean, required: false }` and Vue casts an absent one with no default to
+	 * `false`. `DesignerHeader.vue` is the one that hands a value in. Those are the two mounts in `src/` — and do not re-measure
 	 * with `grep -rn "<SaveStateIndicator" src/`, which answers THREE because this sentence
 	 * names the tag it is talking about.
 	 */

@@ -640,11 +640,23 @@ describe('reaching the runtime from a region', () => {
 
 describe('the tool framework this leaf builds', () => {
 	/**
-	 * `writesBlocked` on the designer's own `EditorContext` — design spec §2.9 has no
-	 * counterpart on this surface (no `ProjectStore`, no stale re-read a write could race), so
-	 * every context this leaf builds answers `false` and no registered tool ever asks: only the Plan
-	 * Editor's `SelectTool` reads `context.writesBlocked()`, and the designer's own
-	 * `DesignerSelectTool` does not. A probe tool registered under `'measure'` — an id this surface
+	 * `writesBlocked` on the designer's own `EditorContext` — design spec §2.9 has no counterpart
+	 * on this surface (no `ProjectStore`), so every context this leaf builds answers `false` and
+	 * no registered tool ever asks: `grep -rn "writesBlocked" src/presentation/designer/` prints
+	 * three lines and all three are in `runtime.ts`, two of them its own comment and the third the
+	 * member itself — not one READ in the directory.
+	 *
+	 * **TWO claims this docblock made until W18-C's fix round were false**, both narrowed here
+	 * rather than left standing. It said the surface has "no stale re-read a write could race",
+	 * which `assetDesignStore.stale` falsifies — and W18-C is the card that made that staleness
+	 * visible in the header. And it named `SelectTool` as the only reader of
+	 * `context.writesBlocked()` anywhere, where `ElementMove`, `ElementResize`, `ElementRotation`,
+	 * `LabelMove` and `OpeningResize` read it too; they are Plan-Editor-owned gesture helpers
+	 * `SelectTool` composes, so the designer-side conclusion survives and only the reach of the
+	 * sentence was wrong. Whether a designer write SHOULD be blocked over a stale canvas is an
+	 * open behaviour question, not something this case answers.
+	 *
+	 * A probe tool registered under `'measure'` — an id this surface
 	 * does not register; it was `'select'` until the designer registered a Select tool, when
 	 * `ToolManager.register` began refusing the duplicate — is what reaches the REAL context
 	 * `buildRuntime` builds, without reaching past `ToolManager`'s own public door.

@@ -69,8 +69,15 @@ describe('the derived Saved · refresh needed label', () => {
 	 * mounts neither store** — the Asset designer mounts its own Pinia and never hydrates
 	 * `ProjectStore` or `usePlanningReadState`, so before W18-C its header read a flat `Saved`
 	 * beside its own refresh-failed strip (contract C08). Both arms in one case: the absent prop
-	 * must leave the two stores deciding, or a Plan Editor would inherit whatever `undefined`
-	 * coerced to.
+	 * must leave the two stores deciding.
+	 *
+	 * **The absent prop is `false`, not `undefined`**, which is worth stating because the first
+	 * version of this docblock assumed the opposite. `defineProps<{ stale?: boolean }>()` compiles
+	 * to `stale: { type: Boolean, required: false }` — read off `compileScript`'s output, not
+	 * remembered — and Vue's `resolvePropValue` runs `if (isAbsent && !hasDefault) value = false`
+	 * for a prop that casts. So `props.stale === true` in the component is DEFENSIVE rather than
+	 * load-bearing: a bare `props.stale` would behave identically. The `=== true` stays as the
+	 * house spelling for an optional boolean, and this case pins the behaviour either way.
 	 *
 	 * `designerSaveStateStale.test.ts` is where the designer's own wiring is driven end to end;
 	 * this case is about the component's contract alone.

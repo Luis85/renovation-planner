@@ -1,0 +1,99 @@
+/*
+ * The asset designer's canvas rulers — card W17-B, the snapping spec's increment 3 (AD18-R9).
+ *
+ * A partial of its OWN rather than three more rules in `designer.css`, which stands at 399 lines
+ * against the assembler's 400-line cap: the seam is a budget rather than a new organising idea,
+ * exactly as `continue-row.css`'s header records for its own split. Its position in
+ * `styles/index.css` is not load-bearing, and that is a GREP rather than a check:
+ * `grep -rln "rp-designer-ruler" styles/` prints this file and nothing else, so no rule anywhere
+ * else can win or lose against one here at equal specificity. Nothing re-runs that grep — move a
+ * selector of this family into another partial and the sentence is stale with no gate to say so.
+ *
+ * **`pointer-events: none` is the load-bearing declaration in this file.** The rulers mount in
+ * `EditorSurface`'s overlay slot, whose wrapper stops every pointer event that reaches it, so a
+ * strip accepting a press would swallow the gesture the canvas needs rather than merely covering
+ * it. `.rp-dimension-labels` carries the same declaration for the same reason.
+ *
+ * Both strips are absolutely positioned inside `.rp-plan-canvas`, so they take the canvas no
+ * LAYOUT at all — which is what holds AD18-R10's binding at 580 px. What they take is a band of
+ * the drawing along two edges, which is a rendered measurement and is in the card's report.
+ *
+ * The minor ticks are a tiled gradient, positioned and sized by the component from the camera —
+ * `.rp-canvas-grid`'s own mechanism. One DOM node per tick would be some seventy per axis rebuilt
+ * on every frame of a pan, for lines a background paints for free.
+ */
+.rp-designer-rulers {
+	--rp-designer-ruler-size: 18px;
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+.rp-designer-ruler {
+	position: absolute;
+	overflow: hidden;
+	background-color: var(--background-primary);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1;
+}
+/* Both strips start at the canvas's own origin; the top one is second in the DOM and paints over
+   the corner, so a label's offset is the stage pixel of its mark with nothing subtracted. */
+.rp-designer-ruler--left {
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: var(--rp-designer-ruler-size);
+	border-right: 1px solid var(--background-modifier-border);
+	background-image: linear-gradient(to bottom, var(--background-modifier-border) 1px, transparent 1px);
+}
+.rp-designer-ruler--top {
+	top: 0;
+	right: 0;
+	left: 0;
+	height: var(--rp-designer-ruler-size);
+	border-bottom: 1px solid var(--background-modifier-border);
+	background-image: linear-gradient(to right, var(--background-modifier-border) 1px, transparent 1px);
+}
+/*
+ * `padding-inline-start` on the shared rule and not on each: it puts the number just AFTER its own
+ * tick along whichever axis the strip runs, because the left strip's labels are turned and their
+ * inline axis is vertical.
+ *
+ * **The turn is a defect fix rather than a style, found in the browser and invisible to every gate
+ * here**: jsdom lays nothing out, so a label wider than its strip measures the same as one that
+ * fits. Drawn at 1280, `250` came out as `25(` — an 18 px strip cannot hold three horizontal
+ * digits at `--font-ui-smaller`, and a four-digit step is the ordinary case at a zoomed-out camera.
+ * Widening the strip was the other repair and is worse: strip width is canvas the drawing loses on
+ * every design, at exactly the widths AD18-R10 is about, while a turned label costs none.
+ */
+.rp-designer-ruler__label {
+	position: absolute;
+	padding-inline-start: 2px;
+}
+.rp-designer-ruler--top .rp-designer-ruler__label {
+	top: 2px;
+}
+.rp-designer-ruler--left .rp-designer-ruler__label {
+	left: 2px;
+	writing-mode: vertical-rl;
+}
+/*
+ * The selection's extent, along the inner edge of each strip so it reads against the drawing
+ * rather than against the numbers. `min-width`/`min-height` because a point-shaped selection —
+ * the anchor, the facing tip — is a real extent of zero length that `selectionFrame` answers as a
+ * degenerate box, and a band with no size at all would say "nothing is selected".
+ */
+.rp-designer-ruler__extent {
+	position: absolute;
+	background-color: var(--text-accent);
+}
+.rp-designer-ruler--top .rp-designer-ruler__extent {
+	bottom: 0;
+	height: 3px;
+	min-width: 1px;
+}
+.rp-designer-ruler--left .rp-designer-ruler__extent {
+	right: 0;
+	width: 3px;
+	min-height: 1px;
+}

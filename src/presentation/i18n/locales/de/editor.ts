@@ -8,6 +8,7 @@ import { assetOpenLinesDe } from './assetOpenLines';
 import { assetReferenceDe } from './assetReference';
 import { designerToolbarIconsDe } from './designerToolbarIcons';
 import { designerTraceDe } from './designerTrace';
+import { designerRulersDe } from './designerRulers';
 import { designerAddDe } from './designerAdd';
 import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
@@ -46,6 +47,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...assetReferenceDe,
 	...designerToolbarIconsDe,
 	...designerTraceDe,
+	...designerRulersDe,
 	...designerAddDe,
 	...groupsDe,
 	...stairsArrowsDe,

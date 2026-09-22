@@ -66,6 +66,7 @@ import { anchorMark, facingArrow } from './layers/anchorLayer';
 import { selectionFrame, selectionMarks } from './layers/selectionLayer';
 import { isOutlineSelection } from './selection/designerSelection';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
+import DesignerRulers from './rulers/DesignerRulers.vue';
 import RotateArrowIcon from '../editor/elements/RotateArrowIcon.vue';
 import { selectionKeyActions } from './designerKeys';
 
@@ -352,7 +353,14 @@ onBeforeUnmount(() => stopPixelRatio());
 				:origin="grid.origin"
 			/>
 		</template>
+		<!--
+			The overlay slot: the rulers first, then whatever the shell passed down — the empty state
+			today — so a card meant to be read sits OVER the strips rather than under them. Both are
+			`position: absolute` against `.rp-plan-canvas`, and the rulers take no layout at all,
+			which is what holds AD18-R10's floor on the canvas's share of the shell.
+		-->
 		<template #overlay>
+			<DesignerRulers />
 			<slot />
 		</template>
 	</EditorSurface>

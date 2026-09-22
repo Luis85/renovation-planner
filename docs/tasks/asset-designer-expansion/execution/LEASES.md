@@ -1058,3 +1058,30 @@ asks** rather than taking it.
 **Held by the integrator and sub-let to nobody:** `docs/` in its entirety. `AD18-R13` falsifies
 step 10 of [[Recover an asset design rather than lose it]], and that rewrite is the integrator's in
 the same session that ships the behaviour.
+
+## Wave 21 — issued 2026-09-22, base **THIS COMMIT**, contract revision `r1`
+
+**One worker, running CONCURRENTLY with wave 20.** W20-A is blocked-then-unblocked on a different
+part of the tree and the two sets are disjoint; that is checked with `git diff --name-only` over both
+candidates before either integrates, not inferred from these rows.
+
+**This card exists because somebody LOOKED.** `AD18-R14` was taken on a measurement no gate here can
+produce, against the running harness, at the camera the designer opens with. W19-A's own report had
+named label collision on a small part as the likeliest real defect in its work and said it could not
+check it.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| W21-A dimension collision | `.worktrees/ad13c` · `w21a-dimension-collision` | `presentation/designer/dimensions/DesignerDimensions.vue`, `presentation/designer/dimensions/dimensionFigures.ts`, `styles/designer-dimensions.css`, its own tests | **this commit** / `r1` | issued | candidate committed and handed off |
+
+**W20-A holds `{en,de}/editor.ts` this wave**, so W21-A may NOT create a locale module. Collision
+avoidance is geometry and is expected to need no new string; **if it turns out to need one, the card
+STOPS and asks** rather than taking a composition point another card is editing. This is the seam
+that made wave 19's two cards safe and it points the other way here.
+
+**`styles/designer-dimensions.css` is W19-A's partial and is now W21-A's** — it is already imported
+by `styles/index.css`, so no `@import` edit is owed and `index.css` is NOT in this lease.
+
+**The resting state is a FLOOR, not a target.** `AD18-R14` measures the selection-driven state at
+two labels and **zero** overlapping pairs. A fix that improves the toggle by trading that away has
+made the feature worse at the width every user meets first.

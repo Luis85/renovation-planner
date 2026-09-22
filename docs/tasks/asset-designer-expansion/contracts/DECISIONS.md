@@ -1146,6 +1146,52 @@ again** button ... There are none"*, and that expectation becomes false the mome
 walker following the old text would report a pass as a failure — the same hazard session thirteen
 had to repair across five steps of that very case.
 
+### AD18-R14 — `All dimensions` owes collision avoidance, and the defect was found by LOOKING. (2026-09-22)
+
+**Taken by the user**, on a finding no gate in this repository can produce and that the card which
+built the feature explicitly could not check: it had no browser, and it named label collision on a
+small part as the likeliest real defect in its own work.
+
+**Measured against the running harness at the wave-19 integration sha**, `?view=asset-designer`, the
+vanity shape, a 1280 leaf, at the camera `DesignerCanvas` fits on mount:
+
+| State | Labels | Overlapping pairs |
+| --- | --- | --- |
+| Resting (selection-driven) | 2 | **0** |
+| `All dimensions` on | 26 | **31** |
+
+Three labels coincide **exactly** — `detail-detail-1-width`, `clearance-width` and `overall-width`
+share one 33.4 × 30 px box. `dimensionFigures` appends the overall pair LAST and every
+`.rp-designer-dimension` wrapper is `z-index: auto`, so paint and hit order is DOM order: the
+overall label is always on top and always takes the click, and **the two beneath it cannot be
+reached at all**. The independent review predicted exactly this mechanism from the code and was
+explicit that whether it was visible remained a rendered measurement. It is visible.
+
+**Three things narrow it, and the ruling is written from them rather than around them.** The
+RESTING state is clean, so the feature's default costs nothing. The crowding is OPT-IN, behind a
+toggle a user turns on. And it is CAMERA-DEPENDENT rather than structural — zooming in separates
+the labels, measured at 31 → 24 → 22 → 13 over three wheel steps, so a user who does not know why
+two labels are missing can still get at them by accident.
+
+**It is fixed anyway.** The deciding argument is that the unreachable pair is a control that does
+nothing, which this repository refuses everywhere else — the same standard `AssetDesignerRoot`'s
+empty state and `DesignerFieldRow` are held to — and a measuring surface whose measurements hide
+each other is failing at the one job the whole iteration was chosen for. *"Precision and measuring"*
+is §0's own framing.
+
+**The losing side, which is not small.** Collision avoidance has NO precedent in this tree, so it is
+a design problem solved from scratch; it widens increment 2 past what §0 specified, which named a
+toggle and not a layout engine; and **no gate here can check the result**, so whatever ships needs
+another browser pass to verify and is otherwise unfalsifiable. The arm that loses is recording the
+measurement and letting a vault walk decide whether it bothers a real user — genuinely defensible,
+and refused because an unreachable control is a defect by this repository's own standing rule
+rather than a matter of taste.
+
+**Scope is the overlay's own geometry and nothing else.** `writesBlocked`, the tool gate, the C03
+no-op comparison and the signed-gap convention are all settled and are not reopened. The resting
+state must stay at zero overlaps — that is a floor the fix may not trade away to improve the
+toggle's case.
+
 ### Three AD18 gaps were CLOSED BEFORE THIS SESSION, and are recorded as corrections rather than as decisions
 
 **Written this way for AD15-R2's reason: recording a correction as a decision credits a session with

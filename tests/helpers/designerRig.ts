@@ -172,6 +172,18 @@ export interface DesignerRig {
 	 * same instrument on the Plan Editor's zone repository.
 	 */
 	faultNextGeometryRead(): void;
+	/**
+	 * Obsidian's `css-change`, delivered to this leaf through the same context member the
+	 * composition root binds — so a case changes the palette on `document.body` and then fires
+	 * this, which is the pair a real theme switch is.
+	 *
+	 * A door rather than a construction option because the interesting moment is a flip with a
+	 * leaf already on screen and, for the gesture cases, a button already held; a rig that fired
+	 * at build time could reach neither. It is the only thing here that can re-resolve the
+	 * palette: `useThemeTokens` subscribes ONCE, at setup, and resolves again only when this is
+	 * called, so a case that changes a variable without calling it asserts about the old tokens.
+	 */
+	fireThemeChange(): void;
 	unmount(): void;
 }
 
@@ -259,6 +271,8 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 
 	const stack = createRepositoryStack();
 	const events = createEventBus();
+	/** The listeners a real `css-change` subscription holds, so `fireThemeChange` can fire them. */
+	const themeListeners = new Set<() => void>();
 	const sidecar = new FaultingSidecar(stack.assetGeometry);
 	const written = expectOk(
 		await stack.assets.save(
@@ -322,7 +336,13 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		// committed write publishes `AssetDesignChanged` and this leaf re-reads because of it,
 		// rather than because a fixture said so.
 		onDesignChanged: (listener) => createAssetDesignChangeSource(events)(assetId, listener),
-		onThemeChange: () => () => undefined,
+		// The real subscription shape, so `fireThemeChange` below delivers through the member the
+		// composition root binds rather than past it — and so the unsubscribe a leaf makes on
+		// unmount is a real one.
+		onThemeChange: (listener) => {
+			themeListeners.add(listener);
+			return () => themeListeners.delete(listener);
+		},
 		// A source that never fires, rather than one omitted: the member is required precisely so
 		// no surface can forget to answer the question, and this suite's cases are not about a file
 		// moving under the surface. `backgroundInEditor.test.ts` is where that door is driven.
@@ -395,6 +415,9 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		peer: { setFacing: setFacingCommand },
 		faultNextGeometryRead: () => {
 			sidecar.throwNext = true;
+		},
+		fireThemeChange: () => {
+			for (const listener of themeListeners) listener();
 		},
 		unmount: () => {
 			wrapper.unmount();

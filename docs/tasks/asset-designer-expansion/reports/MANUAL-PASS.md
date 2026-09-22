@@ -57,15 +57,20 @@ first**; it costs two minutes and it decides eight steps.
 
 - **U06** is REFUSED as written, not merely unrun — there is no freeze/issue workflow to exercise.
   It needs a product decision, not a walker.
-- **AD16 item 1** (benchmarks) needs the F12 fixture family, which does not exist at any size. **An
-  agent can build the fixtures; only the measurement needs a host**, so that split belongs to a wave
-  before this pass, not inside it.
+- **AD16 item 1** (benchmarks) needed the F12 fixture family, and **the agent half of that split was
+  taken by wave 16 on 2026-09-22**. `shapeWithParts` exists at 25, 250 and 1000 parts with its part,
+  vertex and curved-edge counts documented and asserted (92/917/3667 vertices, 32/332/1332 curved
+  edges), so item 1 is no longer blocked on a fixture that does not exist. **It is still blocked on
+  everything else**: §6's conditions are a warmed renderer, recorded hardware and a leaf width, and
+  there is no benchmark harness here (`npm run perf` is deliberately absent) and no host. **A walker
+  cannot discharge this either** — it needs a benchmark somebody has written, not a pair of eyes, so
+  it stays outside this pass in the other direction from the one it used to sit in.
 - **AD16 item 2** (accessibility) is partly reachable and deliberately not claimed: the jsdom axe
   scans verify no colour contrast, no visible focus indicator and no hit-target size, because jsdom
   has no rendering engine for any of the three.
 - **AD16 item 3** (moderated novice usability) needs people. Not fakeable and not faked.
 
-## The three `src/` findings this pass looks at
+## The `src/` findings this pass looks at — FOUR now, and a fifth that is not this package's
 
 Recorded as holes by the user's decision rather than fixed, so the pass is where they are
 **observed** rather than where they are closed. Each names its steps:
@@ -77,6 +82,25 @@ Recorded as holes by the user's decision rather than fixed, so the pass is where
 2. `unrecoveredWrite` is set by the designer and drawn nowhere — **B19, B20**.
 3. `runtime.ts`'s `writesBlocked` premise contradicts `assetDesignStore.stale`. A comment, not
    behaviour, and no step observes it.
+4. **Added 2026-09-22 (wave 16): `PlanAssetUsage.projectId` reaches no view.** Of every `src/` file
+   importing `AssetPlanUsage`, the only one naming `projectId` is `ListPlansUsingAsset.ts`, the query
+   that produces it; both usage panels — `AssetUsageScope.vue`, and `DesignerUsageScope.vue` through
+   `assetDesignerQueries.ts` — map the row to plan name and placement count only. So **two plans both
+   named `Kitchen` in different projects draw as two identical lines**, separable only by `:key` and
+   `data-plan-id`, neither of which a user sees. The sibling `AssetInspectorUsedIn.vue` keys on
+   `projectId` *precisely because* two projects may share one identity — the same hazard with opposite
+   answers in one directory. **No step observes it today**, because no case in this pass puts one asset
+   in two same-named plans; a walker who wants to see it should make the second project's plan share a
+   name with the first's. **Beware the grep**: a bare `projectId` search over `src/presentation/library/`
+   is NOT empty, but those hits are `ReferencingGroup` from a different query, and only the
+   `AssetPlanUsage`-importer grep settles it.
+
+**And one that is NOT this package's**, recorded here only so it is not rediscovered: `settings.units`
+binds a control and persists through `saveSettings`, and **nothing reads it** — measured three ways,
+with the display path hard-coded to `'en-US'` in `formatLength.ts` and `formatArea.ts` and both
+docblocks naming *"the per-plan units PBI"* as the increment that would change that. It is plugin-wide
+and predates the expansion, so no step here looks at it. It does bear on AD16's release-checklist box
+*"No unfinished or nonfunctional controls advertised"*, which is ticked.
 
 ## What a walker records
 

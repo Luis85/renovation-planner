@@ -114,6 +114,15 @@ afterEach(() => {
 	document.body.style.removeProperty(ZONE_STROKE);
 });
 
+/**
+ * **It answers `Konva.stages[0]`, and that registry is MODULE-level and shared with every rig this
+ * file mounts.** Safe today only because both `designerRig` cases below take their stage off the
+ * END of it (`Konva.stages.at(-1)`) and unmount in an `onTestFinished`, and Konva's
+ * `Stage.destroy` splices itself out — so index 0 is this function's own stage whenever it runs. A
+ * rig case added here WITHOUT that unmount would leave a stage in front of the queue and the
+ * trailing device-pixel-ratio case would silently assert about the wrong one rather than fail.
+ * Stated where the next author is standing, since nothing checks it.
+ */
 async function mountDesigner(shape?: AssetShape): Promise<Konva.Stage | null> {
 	const host = document.createElement('div');
 	document.body.appendChild(host);
@@ -222,9 +231,36 @@ const nodesNamed = (stage: Konva.Stage | null, selector: string): Konva.Node[] =
 
 /**
  * One node's coordinates, by what it is drawn AS rather than by which list named it, so the three
- * lists below share one reader: a line's flat `points`; a circle's centre and radius (the anchor
- * mark, the only `<VCircle>` in `GEOMETRY_NODES`); and otherwise the box a `<VRect>` occupies,
- * which is what the selection's handle marks and the rotate arrow's backing are.
+ * lists below share one reader. **Which ATTRIBUTES each branch compares is as load-bearing as which
+ * NAMES the lists carry, and this docblock says both**, because the first version of it said only
+ * the second and the gap was invisible: a capture that reads four of a mark's eight positioning
+ * fields is green for a mutation that moves the mark on screen through one of the other four.
+ *
+ * - **A line**: its flat `points`, which is the WHOLE of what a line here positions with —
+ *   `OutlineConfig` in `footprintLayer.ts` declares `points`, `closed`, the stroke pair,
+ *   `strokeScaleEnabled`, `listening`, `perfectDrawEnabled` and an optional `dash`, and no `x`,
+ *   `y`, offset or scale. So the branch is complete for its producers rather than merely short.
+ * - **A circle**: centre and radius. The anchor mark is the only `<VCircle>` in `GEOMETRY_NODES`.
+ * - **Anything else**: `x`, `y`, `width`, `height`, `offsetX`, `offsetY`, `cornerRadius`,
+ *   `rotation`, `scaleX`, `scaleY`, in that order — every field of `selectionLayer.ts`'s `mark()`
+ *   that decides where the mark lands or what shape it is, plus the two the rotate arrow's icon
+ *   group scales by. `offsetX`/`offsetY` are `radius`, so they TRANSLATE the drawn mark;
+ *   `cornerRadius` is what makes a round handle round and carries `3 * worldPerPixel` on
+ *   `.rotation-handle-button`; `rotation` is the 45 that makes a Bend edges handle a diamond.
+ *   Reading only the first four left all of those free to move — measured, not argued: mutating
+ *   `mark()`'s `offsetX` rather than its `x` left this file green.
+ *
+ * Three kinds reach that last branch, not two: the selection's handle marks and the rotate arrow's
+ * backing are `<VRect>`s, and `.rotation-handle-icon` is a `<VGroup>`. Konva's `Node` defaults
+ * `width` and `height` to `0`, so two of the group's numbers are equal on both sides of every
+ * possible flip — the same tautology `SELECTION_NODES` cites to EXCLUDE the outer `rotation-handle`
+ * group, and it is named here rather than left for a reader to notice. The group stays in because
+ * its `x`/`y` are `at.x - radius`/`at.y - radius` and its scales are `radius / 12`, which are four
+ * real numbers pinning `radius`; the outer group has none at all.
+ *
+ * `cornerRadius` is read through `getAttr` because it is a `Rect` property, not a `Node` one, and
+ * answers `undefined` on the group — `?? 0` rather than a branch, since a constant is what a
+ * comparison across a flip wants from a field that node does not have.
  *
  * The line's `points()` is SPREAD rather than held: it is the node's live array, and a capture that
  * aliased it would compare the scene to itself if a builder ever mutated one in place. Not a defect
@@ -235,7 +271,12 @@ const nodesNamed = (stage: Konva.Stage | null, selector: string): Konva.Node[] =
 function coordinatesOf(node: Konva.Node): number[] {
 	if (node instanceof Konva.Line) return [...node.points()];
 	if (node instanceof Konva.Circle) return [node.x(), node.y(), node.radius()];
-	return [node.x(), node.y(), node.width(), node.height()];
+	return [
+		node.x(), node.y(), node.width(), node.height(),
+		node.offsetX(), node.offsetY(),
+		(node.getAttr('cornerRadius') as number | undefined) ?? 0,
+		node.rotation(), node.scaleX(), node.scaleY(),
+	];
 }
 
 /**
@@ -371,6 +412,11 @@ describe('the designer palette and a theme change', () => {
  * group is deliberately out: it positions nothing — no `x`, no `y` — so it would be an entry equal
  * on both sides of any flip whatever the code did, which is the tautology `emptySelectors` exists
  * to refuse one direction of.
+ *
+ * **This list decides which NAMES are compared and `coordinatesOf` decides which ATTRIBUTES**, and
+ * the second question is the one that hid a hole: every field of `selectionMarks`'s `mark()` that
+ * positions or shapes a mark is compared, `offsetX`/`offsetY`/`cornerRadius`/`rotation` included,
+ * and that docblock is where the list and the measurement behind it live.
  */
 const SELECTION_NODES = [
 	'.asset-selection-outline',

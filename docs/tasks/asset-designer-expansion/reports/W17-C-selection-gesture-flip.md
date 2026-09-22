@@ -3,7 +3,9 @@
 Outcome: implemented, for the geometry half of the row and for the three producers W16-C named as
 open — see "What this does not close", which is shorter than W16-C's and is still not empty.
 Owner / worktree / branch: card W17-C / `.worktrees/ad10` / `w17c-selection-gesture-flip`
-Base commit / candidate commit: `480dbbc85` / this commit
+Base commit / candidate commit: `480dbbc85` / `1394864e2`, plus the fix-round commit on top of it
+(one blocking finding and four smaller ones; the blocking one changed what the check compares, so
+its red was re-taken against the fixed tree)
 Accepted contract revision: wave 17 base
 Allowed scope and shared-file leases: two MODIFY (`tests/presentation/designer/designerTheme.test.ts`,
 `tests/helpers/designerRig.ts`) and one CREATE (this report). Nothing under `src/` — the two `src/`
@@ -113,19 +115,134 @@ are NOT covered.
 
 | Criterion/test ID | Result | Exact evidence | Remaining issue |
 |---|---|---|---|
-| Matrix row **T32**, GEOMETRY half — the SELECTION's marks | **closed** | `designerTheme.test.ts` "moves the selection's palette and not one of its marks": a real Select press, a real click that selects the footprint, every distinct `THEME_TOKENS` variable flipped, `css-change` fired through the context, five selectors' coordinates compared across it | — |
+| Matrix row **T32**, GEOMETRY half — the SELECTION's marks | **closed** | `designerTheme.test.ts` "moves the selection's palette and not one of its marks": a real Select press, a real click that selects the footprint, every distinct `THEME_TOKENS` variable flipped, `css-change` fired through the context, five selectors compared across it — on ten attributes per non-line node (`x`, `y`, `width`, `height`, `offsetX`, `offsetY`, `cornerRadius`, `rotation`, `scaleX`, `scaleY`), which is every field of `mark()` that positions or shapes a mark | the four beyond `x`/`y`/`width`/`height` were added in the fix round; the first round's capture read four and was green for an `offsetX` mutation, measured |
 | Matrix row **T32**, GEOMETRY half — the GESTURE's preview | **closed for a draw tool's preview** | "moves the gesture's palette and not one of its preview coordinates": the flip happens BETWEEN the press and the release, with `.detail-preview` on the stage | the marquee, the polygon sketch and the snap guides are that layer's siblings and are asserted across no flip — see "What this does not close" |
 | Matrix row **T32**, GEOMETRY half — the committed design's marks | closed by W16-C, unchanged here | that card's case still green in this file (6 of 6) | — |
 | Matrix row **T32**, VISIBILITY/OCCLUSION half | **not closed, and not closeable here** | none attempted | jsdom has no rendering engine. See below |
 | Both new cases can fail on geometry | **watched red, once per producer** | quoted verbatim below, both mutations reverted | — |
 | Both new cases can fail on a flip that did not happen | **watched red** | quoted verbatim below | — |
 
-## Watched red — mutation 1, the selection's coordinates
+## Fix round — one blocking finding and four smaller ones
 
-`mark()` in `src/presentation/designer/layers/selectionLayer.ts` was made to derive its `x` from a
-token — `x: at.x + tokens.accent.length` — which is the smallest way a palette can be made to move a
-coordinate (`rgb(250, 4, 0)` is 14 characters, `rgb(5, 4, 0)` is 12). Verbatim, the header and the
-tail of the diff; the diff names all eight handle marks and its middle is elided where marked:
+All five were re-measured at the code here before being acted on, and one of the five was
+measured rather than accepted.
+
+**F1 (blocking) — CONFIRMED at the code, and the stronger arm taken.** `mark()` in
+`selectionLayer.ts` emits eight positioning/shape fields and the capture read four:
+`offsetX: radius` and `offsetY: radius` TRANSLATE the drawn mark, `cornerRadius` is
+`style === 'square' || style === 'diamond' ? 0 : radius` and is `3 * worldPerPixel` on
+`.rotation-handle-button`, and `rotation: 45` is spread in for a `'diamond'`, which is what
+`HANDLE_STYLE`'s `edge` entry makes a Bend edges handle. Every one comes from the same
+`tokens`-taking function whose `x` the first round mutated.
+
+**The arm taken is the first — strengthen the capture — and not the second, for two reasons.**
+The case name is the guarantee a failure report prints, and narrowing it to *"…and not one of its
+`x`, `y`, `width` or `height`"* would leave the code weak and the prose merely accurate, which is
+the wrong half of the "write the guarantee to the check" rule when the check is the cheap thing to
+move: the fix is four expressions inside an existing `toEqual`, with nothing to rebalance. And the
+dropped fields are not incidental neighbours — `offsetX`/`offsetY` decide WHERE the mark lands, so
+a capture without them is not a narrower version of the claim but a different one.
+`coordinatesOf`'s fall-through now returns `x`, `y`, `width`, `height`, `offsetX`, `offsetY`,
+`cornerRadius`, `rotation`, `scaleX`, `scaleY`. The last two are included because they are the
+rotate arrow icon group's `radius / 12` — the report's own "not asserted" caveat from the first
+round, closed rather than restated.
+
+**The review's prediction was reproduced here rather than taken on trust**, because it is the whole
+argument for the finding. With `offsetX: radius + tokens.accent.length` live in `selectionLayer.ts`
+and `coordinatesOf`'s fall-through narrowed back to the four-field version, this file answered
+`Test Files  1 passed (1)` / `Tests  6 passed (6)` — the mark moves on screen and the case is green.
+The same mutation against the FIXED capture is mutation 1 below.
+
+**F2 — CONFIRMED, and the docblock now names it.** Three node kinds reach the fall-through, not the
+two the docblock listed: the handle marks and the rotate backing are `<VRect>`s and
+`.rotation-handle-icon` is a `<VGroup>`, whose `width`/`height` default to `0` and are therefore
+equal on both sides of every flip. That is the same tautology `SELECTION_NODES` cites to exclude the
+outer `rotation-handle` group, so leaving it unremarked inside a member the list KEPT was the real
+defect. `coordinatesOf`'s docblock now names the group, says which two of its numbers are inert, and
+says why it stays anyway: its `x`/`y` are `at.x - radius`/`at.y - radius` and its scales are
+`radius / 12`, four real numbers pinning `radius`, where the outer group has none at all.
+
+**F3 — CONFIRMED, and the row is corrected.** `git show 1394864e2:… | wc -l` prints **497**, not the
+495 the table carried; 495 was measured before that commit's last docblock edit and never re-run —
+the same defect W16-C's own fix round recorded against a 299. The number for THIS commit is measured
+below and is different again, because the fix round added prose.
+
+**F4 — accepted, no code change.** Recorded as a caveat under mutation 2.
+
+**F5 — accepted.** The note is in `mountDesigner`'s own docblock, which is where the next author
+stands, rather than in this report where nobody adding a case would look.
+
+## Watched red — mutation 1, the selection's coordinates, against the FIXED capture
+
+`mark()` in `src/presentation/designer/layers/selectionLayer.ts` was made to derive its `offsetX`
+from a token — `offsetX: radius + tokens.accent.length` — which is the field F1 named and the one the
+pre-fix capture could not see (`rgb(250, 4, 0)` is 14 characters, `rgb(5, 4, 0)` is 12). The tail of
+the diff, verbatim; each handle mark now shows ten numbers rather than four, and the fifth is the
+one that moves:
+
+```
+-       54,
++       52,
+        40,
+        0,
+        0,
+        1,
+        1,
+@@ -83,11 +83,11 @@
+      [
+        -500,
+        300,
+        80,
+        80,
+-       54,
++       52,
+        40,
+        0,
+        0,
+        1,
+        1,
+@@ -95,11 +95,11 @@
+      [
+        -500,
+        0,
+        80,
+        80,
+-       54,
++       52,
+        40,
+        0,
+        0,
+        1,
+        1,
+
+ ❯ tests/presentation/designer/designerTheme.test.ts:489:53
+    487|
+    488|   expect(strokeOf(rig.stage, '.asset-selection-outline')).not.toBe(lig…
+    489|   expect(drawnGeometry(rig.stage, SELECTION_NODES)).toEqual(light.geom…
+       |                                                     ^
+    490|  });
+    491|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+```
+
+`offsetX` moves 54 → 52 while `offsetY` holds at 40 and `cornerRadius`, `rotation` and the two
+scales hold at 0, 0, 1, 1 — an x-only mutation showing through a capture that can now see it.
+Reverted with `git checkout -- src/presentation/designer/layers/selectionLayer.ts`, confirmed by
+re-reading `offsetX: radius,` at source.
+
+## Watched red — mutation 1a, the same field's `x`, quoted from the FIRST-ROUND tree
+
+The first round mutated `x: at.x + tokens.accent.length` instead, and that quote is kept below
+rather than re-taken. **The reason it still holds is structural and not an assumption**: the fixed
+capture is a strict SUPERSET of the one this red was taken against — the same first four numbers,
+plus six more — and a `toEqual` over a superset cannot pass where the subset failed. Only the `❯`
+line number and the numbers-per-mark in the diff have moved. Verbatim, the header and the tail of
+the diff; the diff names all eight handle marks and its middle is elided where marked:
 
 ```
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -250,7 +367,24 @@ AssertionError: expected { '.detail-preview': [ [ 85, …(7) ] ] } to deeply equ
 
 Four of the eight numbers shift by 2 and the other four stay put, which is the x-only mutation
 showing through. Reverted with
-`git checkout -- src/presentation/designer/layers/DesignerGestureLayer.vue`.
+`git checkout -- src/presentation/designer/layers/DesignerGestureLayer.vue`. Quoted from the
+first-round tree and still exact: the fix round changed only `coordinatesOf`'s fall-through, and a
+`.detail-preview` is a `Konva.Line`, so it never reaches that branch — only the `❯` line number has
+moved.
+
+**This red is NOT uniquely held by this case, and reads as stronger evidence than it is.**
+`designerDrawDetails.test.ts` drives the same draw-rect gesture at the same world coordinates and
+pins `.detail-preview`'s eight `points` with `toBeCloseTo`, so the same mutation would have reddened
+it too; the first round's "the other five cases in the file stay green" is true and says nothing
+about that file. Mutation 1 is the clean one — `layers.test.ts` pins only counts for those
+selectors.
+
+**And a limit of the technique, which applies to both cases.** What is unique to this card is the
+ACROSS-A-RE-RESOLVE line, and no mutation isolates it: a token-to-coordinate leak moves coordinates
+at a fixed palette too, so any mutation strong enough to redden these cases reddens a
+fixed-palette pin as well wherever one exists. The mutations are evidence the capture is live and
+reaches the right nodes; the flip is what mutation 3 covers, and the pair is the whole of what can
+be shown from here.
 
 ## Watched red — mutation 3, the anti-tautology guard
 
@@ -292,27 +426,35 @@ AssertionError: expected 'rgb(250, 4, 0)' not to be 'rgb(250, 4, 0)' // Object.i
 That is stronger than a shared guard would be: a build that re-resolved the palette everywhere except
 the layer under test fails here and would have passed a footprint-read guard. Restored from a copy
 taken before the mutation; `grep -c "rig.fireThemeChange();"` prints 2 again and `git status --short`
-shows the expected two files.
+shows the expected two files. Quoted from the first-round tree; the fix round changed neither guard
+nor `strokeOf`, so only the `❯` line numbers have moved.
 
 The third guard is `emptySelectors`, which fails when a selector reaches NOTHING — the other
 direction of the same tautology. It is not separately mutated: mutation 3 is the evidence that the
 capture is live, and the five selection selectors populate at all only because the selection and the
-tool are both real.
+tool are both real. **The review round found a property here that this card did not claim**: because
+`strokeOf` answers `undefined` for an absent node, an absent node fails BOTH guards rather than
+neither — `undefined !== undefined` is false, so the flip-took guard reddens on a missing node as
+well as on a missing flip. Recorded because it is true and was not designed in.
 
 ## Executed checks
 
 | Command or manual action | Commit / environment | Exit code or observed result | Evidence |
 |---|---|---|---|
-| `npx vitest run tests/presentation/designer/designerTheme.test.ts` | candidate, worktree `ad10` | `Test Files  1 passed (1)` / `Tests  6 passed (6)` | final run, 119.12s |
-| same, with `mark()` mutated | temporary | `Tests  1 failed \| 5 passed (6)` | quoted verbatim above, mutation reverted |
+| `npx vitest run tests/presentation/designer/designerTheme.test.ts` | fix round | `Test Files  1 passed (1)` / `Tests  6 passed (6)` | final run, 22.55s |
+| same | first round | `Test Files  1 passed (1)` / `Tests  6 passed (6)` | 119.12s |
+| same, with `mark()`'s **`offsetX`** mutated | fix round, temporary | `Tests  1 failed \| 5 passed (6)` | quoted verbatim above, mutation reverted — the F1 red against the FIXED capture |
+| same mutation, with `coordinatesOf` narrowed back to its four-field form | fix round, temporary | `Test Files  1 passed (1)` / `Tests  6 passed (6)` | the F1 prediction reproduced here rather than accepted; both changes reverted |
+| same, with `mark()`'s `x` mutated | first round, temporary | `Tests  1 failed \| 5 passed (6)` | quoted verbatim above, mutation reverted |
 | same, with `previewFlat` mutated | temporary | `Tests  1 failed \| 5 passed (6)` | quoted verbatim above, mutation reverted |
 | same, with both `fireThemeChange()` calls removed | temporary | `Tests  2 failed \| 4 passed (6)` | quoted verbatim above, restored |
 | `npx vitest run tests/presentation/designer/` | candidate | `Test Files  70 passed (70)` / `Tests  972 passed (972)` | run because `designerRig.ts` is shared by that whole directory and its `onThemeChange` behaviour changed |
 | `npx vitest run` over the three `tests/harness/accessibilityDesigner*.test.ts` files | candidate | `Test Files  3 passed (3)` / `Tests  8 passed (8)` | the only rig consumers outside `tests/presentation/designer/`, found with `grep -rln "helpers/designerRig" tests/` |
-| `npx oxlint` on both touched files | candidate | exit 0, no output — read as the EXIT CODE, since oxlint prints nothing when clean | — |
-| `npx eslint` on both touched files | candidate | exit 0, no output | run explicitly, because the edit-loop hook runs ESLint only for `.vue` |
-| `npx vue-tsc -noEmit` | candidate | exit 0 | the whole-tree type check, which is what covers `tests/**`; the rig's interface gained a required member, so this is the instrument that would find a consumer it broke |
-| `wc -l` on both touched files | candidate | 495 and 558 | under the `tests/**` cap, corroborated by the clean `eslint` above |
+| `npx oxlint` on both touched files | both rounds | exit 0, no output — read as the EXIT CODE, since oxlint prints nothing when clean | — |
+| `npx eslint` on both touched files | both rounds | exit 0, no output | run explicitly, because the edit-loop hook runs ESLint only for `.vue` |
+| `npx vue-tsc -noEmit` | both rounds | exit 0 | the whole-tree type check, which is what covers `tests/**`; the rig's interface gained a required member and the fix round added a `getAttr` cast, so this is the instrument for both |
+| `wc -l` on both touched files | fix round | **543** and 558 | under the `tests/**` cap, corroborated by the clean `eslint` above |
+| `git show 1394864e2:… \| wc -l` | fix round | **497** | F3: the first round's table said 495, a figure taken before that commit's own last docblock edit and never re-run. Corrected here, with the same failure recorded against W16-C's 299 |
 
 **One transient red, recorded because it happened and not because it means anything.** The first run
 of the three harness files together answered `Test Files  no tests` / `Errors  3 errors` in 60s, with
@@ -366,10 +508,22 @@ one the next session rediscovers from scratch.
   marquee at once. That is a card, not a widening.
 - **The outer `rotation-handle` group is deliberately uncovered**, and its docblock says so: it
   positions nothing, so including it would add an entry green on both sides of every possible flip.
-- **`rotation-handle-icon`'s scale is not asserted.** The capture reads `x`/`y`/`width`/`height` for a
-  node that is neither a line nor a circle; that group's `scaleX`/`scaleY` are `radius / 12` and are
-  outside what is compared. They derive from `worldPerPixel`, not from a token, which is the argument
-  for leaving them — and it is an argument, not a check.
+  Its CHILDREN are covered, so nothing the arrow positions with is outside the comparison.
+- **`rotation-handle-icon`'s `width`/`height` are inert.** Two of that group's ten numbers are
+  Konva's `Node` defaults of `0` and cannot move; the other eight — including the `scaleX`/`scaleY`
+  the first round listed here as uncovered, which the fix round added — are real. Recorded because a
+  member kept in a list for a reason has to state which of its numbers carry that reason.
+- **A LINE's transform is not compared**, only its `points`. That is complete for the producers here
+  rather than short: `OutlineConfig` in `footprintLayer.ts` declares no `x`, `y`, offset or scale, so
+  a line on this canvas positions with `points` alone. It would stop being complete the day a layer
+  builder gave a line a transform, and nothing would report that — the argument is at the config
+  type, not in a check.
+- **Nothing stops a future rig case in this file from breaking the trailing pixel-ratio case.**
+  `mountDesigner` answers `Konva.stages[0]` and the rig cases mint into the same module-level
+  registry; today they take `Konva.stages.at(-1)` and unmount in an `onTestFinished`, so index 0 is
+  always `mountDesigner`'s own. A rig case added without that unmount would make the last case
+  assert about the wrong stage SILENTLY. The note is in `mountDesigner`'s docblock, where the next
+  author is standing; there is no check under it.
 
 ## Data and integration implications
 

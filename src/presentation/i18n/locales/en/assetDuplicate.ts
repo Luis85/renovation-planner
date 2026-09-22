@@ -22,13 +22,27 @@
  * **The `(s)` plural is the house convention here**, copied from
  * `view.asset-library.used-in.project` rather than invented: there is no plural mechanism in `t`,
  * and inventing one for two strings would put a second answer to pluralisation in the tree.
+ * Ruling **AD18-R7** settled that it stays, and nothing below touches it.
+ *
+ * **`used-in-plans.plan` names the PROJECT as well, inside this one key rather than beside it.**
+ * A plan name is not unique across a vault — the catalogue is vault-level, so one definition is
+ * placeable from plans in different projects — and two plans both named `Kitchen` drew as two
+ * rows of identical visible text until the query carried a project name to fill this hole. A
+ * project name is not unique either, so this narrows the collision rather than removing it;
+ * `PlanAssetUsage`'s own header carries the residual arm and what closing it would cost. The
+ * alternative was a second element beside the label, and `strings.ts`'s own rule is what refuses
+ * it: *"ONE KEY PER LABEL, never a translated fragment concatenated with a name: word order and
+ * the punctuation around an interpolated name are the translator's to choose."* Markup deciding
+ * where the project sits and what separates it from the plan is exactly that concatenation, with
+ * the punctuation moved out of the translator's reach — so the parentheses are in the template,
+ * where German may spell them differently if it ever needs to.
  */
 export const assetDuplicateEn = {
 	'view.asset-library.used-in-plans': 'Used in plans',
 	'view.asset-library.used-in-plans.loading': 'Loading which plans place this…',
 	'view.asset-library.used-in-plans.failed': 'The plans that place this asset could not be read, so the scope below is unknown.',
 	'view.asset-library.used-in-plans.none': 'No plan places this asset',
-	'view.asset-library.used-in-plans.plan': '{name} — {count} placement(s)',
+	'view.asset-library.used-in-plans.plan': '{name} ({project}) — {count} placement(s)',
 	// The count is said out loud rather than drawn as a caveat marker, because a scope that is
 	// silently incomplete is worse than one that says so: this section exists to tell a user what
 	// an edit will touch, and a note it could not read is a plan it cannot promise about. "Note"

@@ -8,11 +8,44 @@ import type { ProjectRepository } from '../ports/ProjectRepository';
 import type { RepositoryError } from '../ports/repositoryErrors';
 import type { Query } from './Query';
 
-/** One plan that places the asset, and how many placements of it that plan holds. */
+/**
+ * One plan that places the asset, and how many placements of it that plan holds.
+ *
+ * **`projectName` rides beside `projectId` because a view can draw only one of the two, and it
+ * is the one this row was previously missing.** A plan name is not unique across a vault: the
+ * catalogue is vault-level since design slice 19, so one definition is placeable from plans in
+ * different projects, and two plans both named `Kitchen` rendered as two rows of identical
+ * visible text — separable only by the `:key` and the `data-plan-id`, neither of which a user
+ * sees, at the one surface whose whole job is to state a blast radius.
+ *
+ * **What that closes is the PLAN-name collision and NOT the whole hazard, and the sentence has
+ * to say so.** Two plans named `Kitchen` in two projects BOTH named `Flat renovation` still draw
+ * identically. That is not hypothetical here: `tests/harness/assetLibrary.ts` already ships two
+ * projects under that one name, and `withPathsWhereAmbiguous` in
+ * `ListRequirementsReferencing.ts` says why — *"`Project.create` trims a name and rejects only
+ * an empty one, so a collision is a thing a vault legitimately holds and nothing refuses."*
+ *
+ * **So the sibling `AssetInspectorUsedIn.vue` answers TWO hazards SEPARATELY, and this row
+ * answers only the first of them.** It keys the `v-for` on `projectId` because a name is not a
+ * unique identity, and for the USER-VISIBLE collision it escalates to a project PATH — supplied
+ * by that neighbouring query, at two levels (the folder, or the note's own path where a folder
+ * does not separate them either), and **only where two names actually collide**. Nothing here
+ * carries a path, and a second escalation is a slice of its own: it would need the project
+ * LOCATION lookup this query does not hold, and the conditional rule that decides when to draw
+ * it. Read this field as narrowing the defect rather than removing it.
+ *
+ * **Both fields, and neither is the other's replacement.** `projectId` is the identity — unique
+ * by construction, and what a future navigation door would carry — while `projectName` is the
+ * only half of it a user can read. Stated plainly rather than implied, because `projectId` is
+ * still named by no template: `grep -rn "projectId" $(grep -rl AssetPlanUsage src/)` prints this
+ * file alone, which is what it printed before this field existed and remains true after it.
+ */
 export interface PlanAssetUsage {
 	readonly planId: PlanId;
 	readonly planName: string;
 	readonly projectId: ProjectId;
+	/** The owning project's name — see the interface header for why the id alone was not enough. */
+	readonly projectName: string;
 	/** Distinct `kind: 'asset'` elements naming this asset — never zero; a plan with none is absent. */
 	readonly placements: number;
 }
@@ -137,7 +170,12 @@ export class ListPlansUsingAsset implements Query<AssetId, Result<AssetPlanUsage
 			const found = await this.plans.listByProject(project.entity.id);
 			if (isErr(found)) return found;
 			unreadable += found.value.refused;
-			unreadable += await this.collect(assetId, found.value.loaded.map((loaded) => loaded.entity), plans);
+			unreadable += await this.collect(
+				assetId,
+				project.entity.name,
+				found.value.loaded.map((loaded) => loaded.entity),
+				plans,
+			);
 		}
 
 		return ok({ plans, unreadable });
@@ -152,6 +190,7 @@ export class ListPlansUsingAsset implements Query<AssetId, Result<AssetPlanUsage
 	 */
 	private async collect(
 		assetId: AssetId,
+		projectName: string,
 		found: readonly { readonly id: PlanId; readonly name: string; readonly projectId: ProjectId }[],
 		plans: PlanAssetUsage[],
 	): Promise<number> {
@@ -164,7 +203,7 @@ export class ListPlansUsingAsset implements Query<AssetId, Result<AssetPlanUsage
 			}
 			const placements = placementCount(snapshot.value.document, assetId);
 			if (placements > 0) {
-				plans.push({ planId: plan.id, planName: plan.name, projectId: plan.projectId, placements });
+				plans.push({ planId: plan.id, planName: plan.name, projectId: plan.projectId, projectName, placements });
 			}
 		}
 		return unreadable;

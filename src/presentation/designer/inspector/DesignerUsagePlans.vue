@@ -28,10 +28,15 @@ import { tr } from '../../i18n/strings';
 defineProps<{
 	/**
 	 * One row per plan, already labelled by the parent — which is deliberate rather than
-	 * incidental. The label interpolates a plan name and a placement count into one
-	 * `view.asset-library.used-in-plans.plan` string, and that key is the library's; building
-	 * it here would put a second caller on a string whose wording the parent's header argues
-	 * about at length.
+	 * incidental. The label interpolates a plan name, its PROJECT's name and a placement count
+	 * into one `view.asset-library.used-in-plans.plan` string, and that key is the library's;
+	 * building it here would put a second caller on a string whose wording the parent's header
+	 * argues about at length.
+	 *
+	 * The project is in the label and not a second element here for the reason
+	 * `en/assetDuplicate.ts`'s header gives: `strings.ts` asks for one key per label rather than
+	 * a translated fragment with markup choosing the punctuation around an interpolated name.
+	 * It is also why this prop stays a flat `label` rather than growing a second field.
 	 */
 	rows: readonly { readonly planId: string; readonly label: string }[];
 	/**

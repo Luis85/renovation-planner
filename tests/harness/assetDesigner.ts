@@ -133,8 +133,20 @@ function assetDesignerHarnessDeps(presetId: string | null, pending: boolean): As
 				Promise.resolve(
 					ok({
 						plans: [
-							{ planId: createPlanId(), planName: 'Ground floor', projectId: createProjectId(), placements: 2 },
-							{ planId: createPlanId(), planName: 'Loft conversion', projectId: createProjectId(), placements: 1 },
+							{
+								planId: createPlanId(),
+								planName: 'Ground floor',
+								projectId: createProjectId(),
+								projectName: 'Flat renovation',
+								placements: 2,
+							},
+							{
+								planId: createPlanId(),
+								planName: 'Loft conversion',
+								projectId: createProjectId(),
+								projectName: 'Garden studio',
+								placements: 1,
+							},
 						],
 						unreadable: 0,
 					}),

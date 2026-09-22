@@ -1117,6 +1117,17 @@ that was fixing the previous instance.
   warnings, so the gate would have reddened — under the wrong rule, with the wrong message.
   A different rule KEY merges, which is why the DOM block can add to the Obsidian ruleset's
   globals only by restating them.
+- **`max-lines`'s `skipComments` does NOT skip an SFC's TEMPLATE comments**, so a long
+  `<!-- -->` block in a `.vue` file counts against the 400-line cap like code. The rule skips
+  lines covered by `sourceCode.getAllComments()`, and `vue-eslint-parser` keeps template comments
+  on `templateBody.comments` — outside the root program's comment list the rule inspects. Script
+  comments in the same file ARE skipped, which is what makes this confusing: the same reasoning
+  costs nothing in `<script>` and full price in `<template>`. Found by W20-A, which met
+  `File has too many lines (403)` on a 19-line template comment and cleared it with a one-line
+  pointer and no code change; the mechanism was then verified independently. **Put the reasoning
+  in the script docblock and leave a pointer in the template** — the prose is not the thing worth
+  deleting. Note `AssetDesignerRoot.vue` sits at roughly 388 counted lines, so that file in
+  particular has little headroom.
 - **PowerShell 5.1 writes a BOM** (`Set-Content`/`Out-File -Encoding utf8`), and
   `JSON.parse` refuses one — a BOM'd `manifest.json` broke every lint run here once, with
   an error pointing nowhere near the cause. Write files with node or an editor;

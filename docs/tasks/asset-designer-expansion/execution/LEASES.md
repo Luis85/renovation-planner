@@ -1001,3 +1001,34 @@ the grep stays honest — preserve that.
 `MANUAL-PASS.md`, `AD18-concept-fidelity.md`, `RESUME.md` and the case files under `docs/tests/`.
 AD18-R13's retry falsifies step 10 of [[Recover an asset design rather than lose it]], and that
 rewrite is the integrator's in the same session that ships the behaviour.
+
+### Lease extension GRANTED to W19-B, after the fact, and the lease was the integrator's defect
+
+**Granted: `tests/harness/assetDesigner.ts` and `tests/harness/assetLibrary.ts`, data only.** W19-B
+made `PlanAssetUsage.projectName` a REQUIRED field, so every row literal in the tree must carry it
+or `vue-tsc` fails — a forcing function, not a preference. The two harness fixtures are the only
+such literals outside the card's own test files. The edits add one string per row and change no
+assertion and no behaviour.
+
+**The card took it and flagged it rather than stopping, against a brief that told it to stop.** That
+is recorded as a process deviation and it is judged the right call on substance: the alternative was
+a tree that does not compile, and a card that stalls for a lease on a file it must edit to make the
+tree build is a card that has stopped for nothing.
+
+**The defect is the LEASE, and it is the integrator's.** This package's own recorded lease fact
+reads *"a card that may need a harness fixture gets 'any existing test file or harness fixture' in
+its lease"*. W19-A's row carries the substance of that; **W19-B's row did not, and nothing about
+W19-B made it less likely to need one** — it changes a query whose rows two harness fixtures
+construct. The rule existed, was written down, and was applied to one of two cards. **A lease fact
+that is remembered for one row and forgotten for the next is not a rule, it is a habit**, and this
+is the second time a review round has caught the integrator rather than a card.
+
+**The collision this DID risk, checked rather than assumed:** `tests/harness/assetDesigner.ts` is the
+designer harness fixture, and W19-A is building on the designer surface. Whether the two cards
+touched it is verified with `git diff --name-only` over BOTH candidate shas before either integrates,
+not inferred from the leases.
+
+**The conditional half of W19-B's lease went unused**: `presentation/read-models/{assetLibraryQueries,
+assetDesignerQueries}.ts` pass the envelope through by type, so a field added to the row threads
+without an edit. Recorded because a lease row that nobody needed is evidence about how this seam is
+shaped, not merely an unused permission.

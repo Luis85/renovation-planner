@@ -1806,7 +1806,9 @@ per-card locale split and not a second home for this surface's copy; they keep t
 second naming convention bought to evade the one instrument that makes an addition deliberate.
 
 **Six `view.asset-library.used-in-plans*`:** the heading itself, plus `.loading`, `.failed`,
-`.none`, `.plan` (interpolated: `{name}`, `{count}`) and `.unreadable` (interpolated: `{count}`).
+`.none`, `.plan` (interpolated: `{name}`, `{project}`, `{count}` — `{project}` added 2026-09-22 by W19-B, so a plan row names the project that holds it) and `.unreadable` (interpolated: `{count}`).
+
+**The key COUNT is unmoved by that**, and the distinction is the one this inventory exists to make: W19-B added a hole to an existing key rather than a key, so the pin this section carries does not move and only the interpolation list above was stale.
 
 **Seven `view.asset-library.duplicate*`:** the action label itself, plus `.title`, `.explains`,
 `.name`, `.suggested` (interpolated: `{name}`), `.confirm` and `.cancel`.

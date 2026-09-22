@@ -91,3 +91,74 @@ export function openGraphic(id: string, points: readonly Point[], bulges?: reado
 	return { id, name: id, kind: 'open', line: 'solid', pending: false, outline };
 }
 
+/** The side of one grid cell, and of the part drawn inside it, in millimetres. */
+const CELL = 100;
+const PART = 60;
+
+/**
+ * One part of `shapeWithParts`, by its index. The three kinds CYCLE, so a fixture of any size
+ * carries all three: a straight closed square (4 points, no curved edge), a circle (4 points, all
+ * four edges bulged — the only arm `validateCurvedBoundary` does any work on) and an open
+ * two-segment polyline (3 points, no curved edge, and no interior to fill).
+ *
+ * A stress fixture of nothing but rectangles would understate the cost §6 asks about, since the
+ * curved arm is the expensive one; a fixture of nothing but circles would overstate it.
+ */
+function partAt(index: number, x: number, y: number): AssetDetail {
+	const id = `part-${index + 1}`;
+	if (index % 3 === 0) return { id, name: id, outline: rect(PART, PART, x, y), line: 'solid', pending: false };
+	if (index % 3 === 1) return { id, name: id, outline: circle(PART, x, y), line: 'dashed', pending: false };
+	const half = PART / 2;
+	return openGraphic(id, [{ x: x - half, y: y - half }, { x: x + half, y: y - half }, { x: x + half, y: y + half }]);
+}
+
+/**
+ * **F12's performance fixture family: `parts` graphics on one shape, at documented vertex
+ * complexity** (`ACCEPTANCE-AND-QA.md` §1 F12 and §6 — the 250-part selection and drag fixture and
+ * the 1000-part stress one). It builds a fixture and asserts nothing: this repository has no
+ * benchmark harness and no host to run one in, so what is closed here is the fixture half.
+ *
+ * The parts are laid out on a square-ish grid of {@link CELL}-millimetre cells, each part
+ * {@link PART} millimetres across, with the footprint sized to the grid — so the graphics sit
+ * INSIDE the object rather than piled on the origin, which is what makes a hit test or a
+ * selection over this shape resemble one over a real drawing. Nothing in the domain requires
+ * that; it is what makes the fixture worth measuring.
+ *
+ * Each part's vertex count is fixed by its kind (see {@link partAt}), so the totals are
+ * arithmetic rather than a measurement. `tests/domain/asset/partFixtures.test.ts` asserts every
+ * one of them, and asserts that the whole shape is accepted by the real `validateAssetShape`:
+ *
+ * | parts | squares | circles | open paths | vertices | curved edges |
+ * |---|---|---|---|---|---|
+ * | 25 | 9 | 8 | 8 | 92 | 32 |
+ * | 250 | 84 | 83 | 83 | 917 | 332 |
+ * | 1000 | 334 | 333 | 333 | 3667 | 1332 |
+ *
+ * No group, no clearance and no pending flag: each of those is another suite's subject, and a
+ * benchmark that carried them could not say which of them it was timing.
+ */
+export function shapeWithParts(parts: number): AssetShape {
+	const columns = Math.ceil(Math.sqrt(parts));
+	const rows = Math.ceil(parts / columns);
+	const details = Array.from({ length: parts }, (_, index) =>
+		partAt(
+			index,
+			((index % columns) - (columns - 1) / 2) * CELL,
+			(Math.floor(index / columns) - (rows - 1) / 2) * CELL,
+		),
+	);
+	return expectOk(
+		validateAssetShape({
+			footprint: rect(columns * CELL, rows * CELL),
+			footprintOrigin: 'typed',
+			footprintPending: false,
+			clearance: null,
+			clearancePending: false,
+			anchor: { x: 0, y: 0 },
+			anchorPending: false,
+			facing: 0,
+			details,
+		}),
+	);
+}
+

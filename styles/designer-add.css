@@ -30,59 +30,90 @@
  * `designer.css` gives the unscaled warning: the two panels are one column, and a border under the
  * last thing in the first panel is the same line as a border over the first thing in the second.
  * It is written here because this is the element that knows it has a sibling under it.
+ *
+ * **`container-type`/`container-name` is Task 3's addition, one query container of its own.**
+ * Named `rp-designer-add` rather than reusing the outer `rp-designer` container
+ * `designer-narrow.css` and `designer-toolbar.css` already query: those measure the whole LEAF,
+ * and "the rail is narrow" (the tile grid below) is a fact about THIS element's own width, which
+ * is not a fixed fraction of the leaf's — it is `min(11rem, 22cqi)` above 35rem and `auto`, near
+ * the full stacked leaf, below it. `inline-size` only, matching `designer-narrow.css`'s own
+ * container, so nothing here claims block-axis sizing it does not own.
  */
 .rp-designer-add {
+	container-type: inline-size;
+	container-name: rp-designer-add;
 	margin-block-end: var(--size-4-3);
 	padding-block-end: var(--size-4-3);
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
 /*
- * The four drawing tools, wrapping. `flex-wrap` for `.rp-designer-tools`'s measured reason one
- * file over — a row that must reflow instead of overflow — and it matters more here: the rail's
- * own declared width is `min(11rem, 22cqi)`, which is narrower at every leaf width than the
- * toolbar this group came from.
+ * The `Basic shapes` sub-heading (Task 3) — visible now, where wave 10's group carried the same
+ * string invisibly on `aria-label`. `DesignerAddPanel.vue` points the group's `aria-labelledby` at
+ * this element's id, so the two are one string read twice rather than two copies that could drift.
+ * Sized and coloured like `designer.css`'s `.rp-designer-panel-title`, one step down, because it
+ * names a group inside the section rather than the section itself.
+ */
+.rp-designer-shapes-heading {
+	margin: 0 0 var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	line-height: var(--line-height-tight);
+}
+
+/*
+ * THE TILE GRID (Task 3) — board 01 draws a grid, not the flex-wrap row wave 11 shipped for an
+ * icon-only rail. Two columns is the default; the `@container` below degrades to one once the
+ * rail itself cannot hold two. 9rem is the one number this rule invents: it sits between the two
+ * rail widths this card's report predicts a tile column count for — 176px (the 11rem cap) and
+ * 123px (22cqi at the 35rem boundary) — each minus `.rp-designer-parts`'s 2×8px padding, so 160px
+ * stays two columns and 107px does not. Unverified here: jsdom resolves no container query, so
+ * which side of that line a real leaf lands on is the browser's question and the report's.
  */
 .rp-designer-add-shapes {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
 	gap: var(--size-4-1);
 }
 
-/*
- * ICON ONLY, AT EVERY WIDTH, WHICH IS THE ONE THING THAT DIFFERS FROM THE TOOLBAR'S TREATMENT.
- *
- * `styles/designer-toolbar.css` hides `.rp-designer-tool-label` below 80rem and draws it above,
- * and that 80rem is a measurement of the TOOLBAR's row count — it says nothing about this rail.
- * Applying it here would draw four labelled buttons at 80rem and wider inside a column whose own
- * declared cap is `min(11rem, 22cqi)`; the integrator measured the widest of the four labels,
- * `Draw rounded rectangle`, at 179px rendered at the wave-11 base, against 11rem = 176px of rail
- * before its padding. So the labelled state is one this rail has no width for at any leaf size the
- * cap admits, and it is declined rather than inherited.
- *
- * **Nothing here renders and nothing here is verified**: that 179px is a figure from the
- * integrator's browser at the BASE, not from this branch, and jsdom resolves no `cqi`. What this
- * rule guarantees is what it declares. The accessible name is untouched either way —
- * `DesignerToolButton` carries the same string as `aria-label`, which is what Obsidian draws its
- * own tooltip from, so this is a visual state and not a naming one.
- *
- * Unconditional rather than inside a query: it is a superset of the toolbar partial's narrow rule,
- * at equal specificity and with the identical declaration, so the two cannot disagree wherever
- * they overlap.
- */
-.rp-designer-add .rp-designer-tool-label {
-	display: none;
+@container rp-designer-add (width < 9rem) {
+	.rp-designer-add-shapes {
+		grid-template-columns: 1fr;
+	}
 }
 
 /*
- * The icon's own box. `designer-toolbar.css`'s equivalent is qualified with `.rp-designer-tools`
- * and so reaches nothing here; ELEMENT-qualified for that file's stated reason — a `<summary>`
- * carrying this class exists in the toolbar, and keeping both spellings the same shape is what
- * lets a reader move between them.
+ * TILES NOW, WHICH IS TASK 3'S WHOLE CHANGE — board 01 draws an icon above a VISIBLE label, not
+ * the icon-only treatment wave 11 shipped.
+ *
+ * `styles/designer-toolbar.css` hides `.rp-designer-tool-label` below 80rem, unqualified beyond
+ * `.renovation-asset-designer` — so that rule reaches this class too, at equal specificity, and
+ * the two disagree below 80rem (nearly always) unless this one wins. It wins the way wave 11's
+ * `display: none` did: unconditional, so it is never inside the toolbar's `@container`, and later
+ * in `styles/index.css`'s import order (`designer-add.css` after `designer-toolbar.css`), so equal
+ * specificity resolves to source order rather than to which one is a superset of the other.
+ *
+ * Sized down from the button's own text and centred, because a tile's label sits under a small
+ * glyph rather than beside a full-height one.
+ */
+.rp-designer-add .rp-designer-tool-label {
+	display: block;
+	font-size: var(--font-ui-smaller);
+	text-align: center;
+	line-height: var(--line-height-tight);
+}
+
+/*
+ * The tile itself: icon above label rather than beside it, which is the row-to-column flip that
+ * turns `DesignerToolButton`'s unchanged markup into a tile. `designer-toolbar.css`'s equivalent
+ * is qualified with `.rp-designer-tools` and so reaches nothing here; ELEMENT-qualified for that
+ * file's stated reason — a `<summary>` carrying this class exists in the toolbar, and keeping both
+ * spellings the same shape is what lets a reader move between them.
  */
 .rp-designer-add button.rp-designer-tool-button {
 	display: inline-flex;
+	flex-direction: column;
 	align-items: center;
 	gap: var(--size-4-1);
 }
@@ -135,8 +166,10 @@
  * The active tool wears the accent as an OUTLINE and not a fill, for `designer.css`'s measured
  * reason: `--text-on-accent` is white and `--interactive-accent` measures under the 4.5:1 AA floor
  * against it, so a filled accent button here could not carry a readable glyph. Three channels rather
- * than the toolbar's four — the tint, the accent border and `aria-pressed` — because the label this
- * rail does not draw is what carried the fourth.
+ * than the toolbar's four — the tint, the accent border and `aria-pressed`, without the toolbar's
+ * bold `font-weight` on the label. Task 3 gives the rail a visible label the bold weight could now
+ * reach, but adding a fourth channel here is not this card's change and is left to whichever one
+ * reviews the active state on purpose.
  */
 .rp-designer-add .rp-designer-tool-active,
 .rp-designer-add .rp-designer-tool-active:hover {

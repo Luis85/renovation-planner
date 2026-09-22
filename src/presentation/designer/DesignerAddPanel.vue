@@ -30,13 +30,23 @@
  * **The buttons are `DesignerToolButton`s, unchanged, which is what makes the move a move.** They
  * carry the same labels (`designer.toolbar.draw-*` — deliberately NOT renamed; `en/designerAdd.ts`
  * carries that argument), the same glyphs, the same `aria-pressed` mirror and the same active
- * class. What differs is the rule that draws them: `styles/designer-add.css` hides the text at
- * EVERY width here, where `styles/designer-toolbar.css` hides it below 80rem — that 80rem is a
- * measurement of the TOOLBAR's row count and says nothing about a rail whose own declared width is
- * capped at `min(11rem, 22cqi)`. Which of the two is right on screen is a rendered question and
- * this file cannot answer it.
+ * class. What differs is the rule that draws them: `styles/designer-add.css` no longer hides the
+ * text at all (Task 3, AD18-R16) — board 01's tiles carry a visible label under the icon, so the
+ * icon-only treatment wave 11 gave this rail is inverted here, where `styles/designer-toolbar.css`
+ * still hides its own copy of that class below 80rem, a measurement of the TOOLBAR's row count that
+ * says nothing about this rail.
+ *
+ * **Task 3 also reorders the section and turns the group's name into a heading.** Board 01 draws
+ * the preset door above `Basic shapes`, so the door is written first in the template; and the
+ * group is named by `aria-labelledby` pointing at a rendered `<h3>` rather than by repeating the
+ * string on `aria-label`, which is what makes the sub-heading visible rather than merely announced.
+ * `useId()` mints the heading's id — the house rule every other `aria-labelledby`/`aria-describedby`
+ * pairing in this codebase follows, because a literal id collides the moment two leaves of this
+ * view are open at once (ADR-0015: the Asset designer is per-asset, several leaves coexist exactly
+ * as the Plan editor's do).
  */
 import type { IconName } from 'obsidian';
+import { useId } from 'vue';
 import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
 import type { ToolId } from '../editor/tools/editor-tool';
@@ -54,6 +64,9 @@ defineProps<{
 }>();
 
 const runtime = useDesignerRuntime();
+
+/** The `Basic shapes` heading's id, minted per app rather than hard-coded — see the header above. */
+const shapesHeadingId = useId();
 
 /**
  * The four drawing tools as DATA, filtered out of `DESIGNER_TOOL_ICONS` by its `group` field —
@@ -88,15 +101,30 @@ const SHAPE_MODES: readonly { readonly id: ToolId; readonly label: StringKey; re
 		<h2 class="rp-designer-panel-title">
 			{{ tr('designer.add') }}
 		</h2>
+		<!-- Task 3, board 01's order: the preset door first, `Basic shapes` after. -->
+		<button
+			type="button"
+			class="rp-designer-start-preset"
+			@click="() => void startFromPreset()"
+		>
+			{{ tr('designer.inspector.start-preset') }}
+		</button>
 		<!--
-			The group survives the move whole, `role` and name included — it was created in wave 10
-			precisely so this card could lift it rather than re-invent it, which is why the label key
-			is `designer.shapes.group` and not a toolbar one.
+			A visible sub-heading rather than a bare `aria-label` — Task 3's tile grid draws
+			`Basic shapes` on screen, so the group is named by the heading it now has rather than by
+			repeating the string invisibly. The group survives wave 10's move whole otherwise, `role`
+			included; the label key is still `designer.shapes.group`.
 		-->
+		<h3
+			:id="shapesHeadingId"
+			class="rp-designer-shapes-heading"
+		>
+			{{ tr('designer.shapes.group') }}
+		</h3>
 		<div
 			class="rp-designer-add-shapes"
 			role="group"
-			:aria-label="tr('designer.shapes.group')"
+			:aria-labelledby="shapesHeadingId"
 		>
 			<DesignerToolButton
 				v-for="mode in SHAPE_MODES"
@@ -108,12 +136,5 @@ const SHAPE_MODES: readonly { readonly id: ToolId; readonly label: StringKey; re
 				@click="runtime.setTool(mode.id)"
 			/>
 		</div>
-		<button
-			type="button"
-			class="rp-designer-start-preset"
-			@click="() => void startFromPreset()"
-		>
-			{{ tr('designer.inspector.start-preset') }}
-		</button>
 	</section>
 </template>

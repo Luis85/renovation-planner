@@ -18,9 +18,12 @@
  * list and never could be: axe has no rule for it, so no configuration here could enable it and
  * none disabled it. `accessibility.test.ts`'s header says "does NOT verify" for that reason, which
  * is the shape a claim takes when the mechanism is absent rather than switched off. None of the
- * three is verified anywhere in this repository. The rail's buttons draw no text
- * at any width (`styles/designer-add.css`), which makes their `aria-label` the whole accessible
- * name — that attribute is checkable here, and how the glyph beside it READS is not.
+ * three is verified anywhere in this repository. Task 3 gives the rail's tiles a visible label
+ * under the icon (`styles/designer-add.css`), but each button's accessible name is still its
+ * explicit `aria-label` rather than the visible text — the two are the same string
+ * (`DesignerToolButton`'s WCAG 2.5.3 pairing), so which one axe would compute from is not a
+ * distinction this scan needs to make; the attribute is checkable here, and how the glyph and the
+ * label beside it READ is not.
  */
 import axe from 'axe-core';
 import { expect, it } from 'vitest';

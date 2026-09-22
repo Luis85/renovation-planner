@@ -102,18 +102,26 @@ describe('the Add rail', () => {
 
 	/**
 	 * The four sit in ONE named group, and the group holds exactly them — wave 10's group, lifted
-	 * whole rather than re-invented, which is why the name is still `designer.shapes.group`.
+	 * whole rather than re-invented, which is why the label string is still `designer.shapes.group`.
+	 *
+	 * **Task 3 turns that label into a visible sub-heading**, so the group is named by
+	 * `aria-labelledby` pointing at a rendered `<h3>` rather than by carrying the string itself on
+	 * `aria-label` — the group and the heading say the same words because they are the same DOM
+	 * node's text read twice, not two copies that could drift.
 	 *
 	 * Membership is read against the tool table for the reason the toolbar's version of this case
 	 * gave: a tool re-grouped in the table must MOVE the group rather than appear inside it, and a
 	 * case pinned to four hand-written names could not tell those two apart.
 	 */
-	it('holds them in one named group, under the label wave 10 minted for it', async () => {
+	it('holds them in one named group, headed by the label wave 10 minted for it', async () => {
 		const rig = await railOpen();
 		const group = rig.wrapper.find('.rp-designer-add > .rp-designer-add-shapes');
+		const headingId = group.attributes('aria-labelledby');
 
 		expect(group.attributes('role')).toBe('group');
-		expect(group.attributes('aria-label')).toBe(t('en', 'designer.shapes.group'));
+		expect(group.attributes('aria-label')).toBeUndefined();
+		expect(headingId).toBeTruthy();
+		expect(rig.wrapper.find(`h3#${headingId}`).text()).toBe(t('en', 'designer.shapes.group'));
 		expect(group.findAll('button')).toHaveLength(SHAPE_IDS.length);
 	});
 
@@ -174,6 +182,22 @@ describe('the Add rail', () => {
 	});
 
 	/**
+	 * **Task 3: the door comes FIRST, Basic shapes second — board 01's order, not wave 11's.** The
+	 * two were written in the opposite sequence when the group was merely lifted whole; ordering
+	 * them is this card's own change, so it gets a case of its own rather than riding the one above,
+	 * which only ever asked whether the door exists.
+	 */
+	it('puts the preset door before Basic shapes, following board 01', async () => {
+		const rig = await railOpen();
+		const section = rig.wrapper.find('.rp-designer-add').element;
+		const door = rig.wrapper.find('.rp-designer-start-preset').element;
+		const shapes = rig.wrapper.find('.rp-designer-add-shapes').element;
+		const children = Array.from(section.children);
+
+		expect(children.indexOf(door)).toBeLessThan(children.indexOf(shapes));
+	});
+
+	/**
 	 * **AD18-R5's load-bearing half: the `Add` section is UNCONDITIONAL.** It is the reason that
 	 * ruling stacks rather than tabs — the shape buttons activate tools, which exist whether or
 	 * not a design has been read, so the rail puts a condition on one child and none on the other
@@ -228,35 +252,87 @@ function declared(rules: readonly StyleRule[], selector: string, property: strin
 		.flatMap((rule) => rule.declarations.filter((declaration) => propertyOf(declaration) === property).map((declaration) => declaration.value));
 }
 
+/**
+ * The serialized form of a container condition, taken from the parser rather than written out —
+ * `designerIconToolbar.test.ts`'s own copy, cloned for the reason this file's other four readers
+ * already are: that file is not this card's to edit.
+ */
+const container = (query: string): string => onlyRule(`@container ${query} { .reference { color: inherit; } }`).condition;
+
 describe('what the Add rail’s stylesheet declares', () => {
 	/**
-	 * **The rail hides its button text at EVERY width, and the rule is unconditional.** Both halves
-	 * matter. `designer-toolbar.css` hides the same class only below 80rem, which is a measurement
-	 * of the toolbar's row count and governs nothing here; inheriting it would draw four labelled
-	 * buttons at 80rem and wider in a column whose own declared cap is `min(11rem, 22cqi)`. So the
-	 * declaration must exist, and it must NOT be inside a container query — a rule that acquired
-	 * one would silently restore the labelled state at exactly the widths the cap is tightest at.
+	 * **Task 3: the rail shows its tile text at EVERY width now, and the rule is unconditional.**
+	 * Board 01's tiles carry a visible label under the icon, so this rule inverts wave 11's — which
+	 * hid the same class unconditionally for the toolbar-shaped reason recorded in this partial's own
+	 * header. `designer-toolbar.css` still hides `.rp-designer-tool-label` below 80rem for the
+	 * TOOLBAR, and that rule reaches this class too since it is unqualified beyond
+	 * `.renovation-asset-designer` — so this rule has to win at equal specificity by import order
+	 * (`designer-add.css` after `designer-toolbar.css` in `styles/index.css`) rather than merely
+	 * existing, which is why `display: block` is asserted rather than the property's mere presence.
 	 *
 	 * Declared and unrendered: jsdom applies no container query and computes no width, so this is a
 	 * statement about the stylesheet and never about a rendered rail.
 	 *
-	 * **Scoped to the rules that NAME this selector, not to the partial.** A first version asserted
-	 * `rules.filter((rule) => rule.condition !== '')` was empty, which locked the whole file against
-	 * ever carrying a conditional rule — so a legitimate future `@container` about the rail's own
-	 * width would have reddened a case named for the label, and that is likely rather than
-	 * hypothetical in a column the integrator measured at 110.6–159px across the band. The case's
-	 * name is the claim and the assertion is now exactly it.
+	 * Scoped to the rules that NAME this selector, not to the partial, for the reason the
+	 * predecessor of this case gave: a legitimate future `@container` about the rail's own width
+	 * would otherwise redden a case named for the label.
 	 */
-	it('hides the rail’s button text with no container query around it', () => {
+	it('shows the rail’s tile label text at every width, unconditionally', () => {
 		const rules = partial();
 		const wanted = spelled('.rp-designer-add .rp-designer-tool-label');
 		const conditions = rules.filter((rule) => rule.selectors.map(show).includes(wanted)).map((rule) => rule.condition);
 
-		expect(declared(rules, '.rp-designer-add .rp-designer-tool-label', 'display')).toEqual(parsed('display', 'none'));
+		expect(declared(rules, '.rp-designer-add .rp-designer-tool-label', 'display')).toEqual(parsed('display', 'block'));
 		// One rule names it, and that rule sits under no condition. Listing the conditions rather
 		// than counting them means an added `@container` copy of this selector fails by showing its
 		// own prelude, which a length assertion would report as a bare number.
 		expect(conditions).toEqual(['']);
+	});
+
+	/**
+	 * **The tile: icon above label.** `DesignerToolButton`'s own docblock says whether the label
+	 * shows is the container's decision and not the component's — this is the other half of that
+	 * decision, the row-to-column flip that turns the same markup into a tile instead of the
+	 * toolbar's icon-beside-text row. Element-qualified for the reason the display/align-items rule
+	 * beside it already is: nothing else in this file carries `.rp-designer-tool-button` on a
+	 * non-`<button>` element, but the convention is kept rather than broken for one rule.
+	 */
+	it('stacks each tile’s icon above its label instead of beside it', () => {
+		const rules = partial();
+
+		expect(declared(rules, '.rp-designer-add button.rp-designer-tool-button', 'flex-direction')).toEqual(parsed('flex-direction', 'column'));
+	});
+
+	/**
+	 * **Two columns, one when the rail itself is too narrow to hold them.** The brief's own words —
+	 * board 01 draws a grid, not a wrap — so `.rp-designer-add-shapes` is a CSS grid rather than the
+	 * flex-wrap row it was under wave 11's icon-only treatment, and the degrade is a container query
+	 * keyed to `.rp-designer-add`'s OWN width (`rp-designer-add`) rather than to the outer
+	 * `rp-designer` container `designer-narrow.css` and `designer-toolbar.css` already query — the
+	 * outer container measures the whole leaf, and "the rail is narrow" is a fact about the rail,
+	 * not about the leaf holding it. 9rem sits between the two rail widths this card's report
+	 * predicts (176px and 123px, minus the parts panel's 2×8px padding): wide enough that the
+	 * 176px case keeps two columns and narrow enough that the 123px case does not.
+	 */
+	it('lays the tiles out as a two-column grid, one column once the rail itself is too narrow', () => {
+		const rules = partial();
+		const narrow = container('rp-designer-add (width < 9rem)');
+
+		expect(declared(rules, '.rp-designer-add-shapes', 'display')).toEqual(parsed('display', 'grid'));
+		expect(declared(rules, '.rp-designer-add-shapes', 'grid-template-columns')).toEqual(parsed('grid-template-columns', 'repeat(2, 1fr)'));
+		expect(declared(rules, '.rp-designer-add-shapes', 'grid-template-columns', narrow)).toEqual(parsed('grid-template-columns', '1fr'));
+	});
+
+	/**
+	 * The container itself: `.rp-designer-add` has to declare `container-type`/`container-name`
+	 * for the query above to resolve against the RAIL's width rather than falling through to the
+	 * outer `rp-designer` container and measuring the leaf instead.
+	 */
+	it('makes the Add section its own query container, named for the query above', () => {
+		const rules = partial();
+
+		expect(declared(rules, '.rp-designer-add', 'container-type')).toEqual(parsed('container-type', 'inline-size'));
+		expect(declared(rules, '.rp-designer-add', 'container-name')).toEqual(parsed('container-name', 'rp-designer-add'));
 	});
 
 	/**

@@ -118,6 +118,45 @@
 }
 
 /*
+ * The library door's icon and label side by side — the one control here that draws a glyph, so
+ * this is its own rule rather than another declaration on the shared flat-button block above,
+ * which `.rp-designer-use-plan` (no icon) shares and must not gain a `gap` it has nothing to use.
+ */
+.rp-designer-title-bar .rp-designer-open-library {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+/*
+ * BELOW THE HEADER'S NARROW WIDTH THE LABEL CLIPS, THE ICON ALONE STANDS (AD18-R16 Task 2).
+ * `rp-designer (width < 35rem)` is `designer-narrow.css`'s own stacking breakpoint and not a width
+ * invented for this button — reused rather than duplicated, so "narrow" means one thing across the
+ * surface. AD18's own report measured this button at 143.6px of a 460px header, more than the
+ * asset name kept beside it (`AD18-concept-fidelity.md`); icon-only removes that cost at exactly
+ * the width the report flagged.
+ *
+ * The clip technique `visually-hidden.css` already carries, copied rather than shared through that
+ * class: this button carries no `aria-label`, so the label's own TEXT is the accessible name, and
+ * it has to survive being off-screen rather than disappear with a sibling `display: none` — the
+ * toolbar's `.rp-designer-tool-label` rule takes that other path because ITS button carries the
+ * same string as `aria-label` already, so the visible copy is free to vanish with the picture.
+ * This button has no second copy to fall back on.
+ */
+@container rp-designer (width < 35rem) {
+	.rp-designer-title-bar .rp-designer-open-library-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+
+/*
  * AD18-R2's tab strip, at the top of the Inspector under its panel title.
  *
  * A bottom border across the whole strip with the selected tab's own border drawn over it, which is

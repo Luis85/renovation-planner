@@ -53,6 +53,7 @@ import { tr } from '../i18n/strings';
 import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
 import SaveStateIndicator from '../editor/save-state/SaveStateIndicator.vue';
 import DesignerUsePlan from './inspector/DesignerUsePlan.vue';
+import HostIcon from '../components/HostIcon.vue';
 
 defineProps<{
 	/** The design this leaf holds, or `null` while the read is in flight or after it refused. */
@@ -87,13 +88,21 @@ defineProps<{
 		class="rp-designer-title-bar"
 		:aria-label="tr('designer.header')"
 	>
+		<!--
+			Board 02's `← Back to library` (AD18-R16 Task 2). The label's own text is the accessible
+			name — no `aria-label` — because `styles/designer-header.css` CLIPS it below the header's
+			narrow width rather than hiding it, and a clipped node keeps naming the button only while it
+			is still what the button is named FROM. `HostIcon` carries `aria-hidden` itself, so the icon
+			never doubles what the label already says.
+		-->
 		<button
 			v-if="openLibrary !== undefined"
 			type="button"
 			class="rp-designer-open-library"
 			@click="openLibrary"
 		>
-			{{ tr('designer.inspector.open-library') }}
+			<HostIcon name="arrow-left" />
+			<span class="rp-designer-open-library-label">{{ tr('designer.header.back-to-library') }}</span>
 		</button>
 		<!--
 			ONE gate over both, rather than one each. They ask the identical question, and an

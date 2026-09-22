@@ -135,7 +135,30 @@ describe('the designer header', () => {
 
 	it('labels the library door from the locale rather than from a literal', () => {
 		expect(mountHeader({ openLibrary: () => undefined }).find('.rp-designer-open-library').text())
-			.toBe(t('en', 'designer.inspector.open-library'));
+			.toBe(t('en', 'designer.header.back-to-library'));
+	});
+
+	/**
+	 * AD18-R16 Task 2: board 02's `← Back to library`. `HostIcon` carries `aria-hidden` itself, so
+	 * this only has to prove the glyph is the one the board draws.
+	 */
+	it('prefixes the library door with the back arrow', async () => {
+		const wrapper = mountHeader({ openLibrary: () => undefined });
+		await flushPromises();
+
+		expect(wrapper.get('.rp-designer-open-library .rp-host-icon').attributes('data-icon')).toBe('arrow-left');
+	});
+
+	/**
+	 * The label's own text is the accessible name — no `aria-label` doubling it — because the
+	 * narrow-width state (`styles/designer-header.css`) clips that text rather than hiding it, and a
+	 * clipped node only keeps naming the button if it is still what the button is named FROM.
+	 */
+	it('names the library door from its own label text, not a duplicate aria-label', () => {
+		const button = mountHeader({ openLibrary: () => undefined }).get('.rp-designer-open-library');
+
+		expect(button.attributes('aria-label')).toBeUndefined();
+		expect(button.get('.rp-designer-open-library-label').text()).toBe(t('en', 'designer.header.back-to-library'));
 	});
 });
 

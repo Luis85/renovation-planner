@@ -135,3 +135,24 @@ describe('the designer at a sidebar leaf’s width', () => {
 		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'border-top', narrow())).toEqual(parsed('border-top', '1px solid var(--background-modifier-border)'));
 	});
 });
+
+/**
+ * AD18-R16 Task 2: the library door's label clips below the SAME 35rem the body above stacks at,
+ * rather than a width invented for this button alone — `designer-header.css`'s own comment argues
+ * why. The clip technique is `visually-hidden.css`'s, read off that partial rather than retyped, so
+ * a future edit to the utility and this rule cannot quietly drift apart.
+ */
+describe('the library door’s label below the header’s narrow width', () => {
+	const narrow = (): string => onlyRule('@container rp-designer (width < 35rem) { .reference { color: inherit; } }').condition;
+	const clipped = partial('visually-hidden.css');
+
+	it('clips the label rather than hiding it, so the text keeps naming the button', () => {
+		const rules = partial('designer-header.css');
+		const selector = '.rp-designer-title-bar .rp-designer-open-library-label';
+
+		expect(narrow()).not.toBe('');
+		for (const property of ['position', 'width', 'height', 'margin', 'padding', 'overflow', 'clip-path', 'white-space']) {
+			expect(declared(rules, selector, property, narrow())).toEqual(declared(clipped, '.rp-visually-hidden', property));
+		}
+	});
+});

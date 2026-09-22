@@ -10,6 +10,7 @@ import { useEditorRuntime } from '../runtime';
 import { useDialogStore } from '../../dialogs/dialog-store';
 import { useSelectionStore } from './selection-store';
 import { resolveSelectionTarget } from './resolveSelectionTarget';
+import { selectionGuidance } from './selectionGuidance';
 import { structureCandidates } from '../structure/structureCandidates';
 import { screenPoint, screenToWorld, stageCentreWorld, worldPerScreenPixel, STAGE_PIXELS } from '../viewport/Viewport';
 import { VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
@@ -17,7 +18,6 @@ import { useCanvasGroupActions } from './canvasGroupActions';
 import { useCanvasMenuActions, isSubmenu, type CanvasMenuAction } from './useCanvasMenuActions';
 import { canvasCandidates } from './canvasCandidates';
 import { draftingHitContext } from '../elements/draftingMarks';
-import { structureRecords } from '../structure/structureRecords';
 import { plainPress } from '../surface/keyboard';
 import { pointerOutside } from './menuKeyboard';
 import CanvasMenuList from './CanvasMenuList.vue';
@@ -31,10 +31,8 @@ const runtime = useEditorRuntime(), project = useProjectStore(), editor = useEdi
 const openedAt = shallowRef<Point>({ x: 0, y: 0 });
 const actions = useCanvasMenuActions(() => emit('openAdd'), () => openedAt.value);
 const workspace = useWorkspaceStore(), assetShapes = useAssetShapeStore();
-/** The one object the menu acts on, named the way the rest of the editor names it; nothing for an empty or multiple selection. */
-const title = computed(() => { if (selection.selectedIds.length !== 1) return null; const id = selection.selectedIds[0]; return project.zones.get(id)?.name ?? structureRecords(project.structure, project.plan?.id ?? '', project.plan?.spatialElements).find(item => item.id === id)?.name ?? null; });
 /** The conditional I00 chooser decision stays deferred: name the target that the existing resolver chose and the existing Alt route instead. */
-const targetGuidance = computed(() => title.value === null ? null : `${tr('editor.input.current-target', { target: title.value })} ${tr('editor.input.overlap-cycle-guidance')}`);
+const targetGuidance = computed(() => selectionGuidance(selection.selectedIds, project));
 let menuIds: readonly string[] = [];
 let root: HTMLElement | null = null, canvas: HTMLElement | null = null, opener: HTMLElement | null = null;
 function editing(target: EventTarget | null): boolean { return target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !== null; }

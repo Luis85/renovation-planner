@@ -251,4 +251,21 @@ describe('the guidance region', () => {
 
 		expect(harness.wrapper.find('.rp-selection-guidance').text()).toBe('');
 	});
+
+	/**
+	 * The text the region carries on a SINGLE selection, written out rather than rebuilt from the
+	 * two keys it is composed of: an assertion that glues them the way the component does cannot
+	 * fail on how they are joined. Read after ONE `nextTick()` for the reason the timing docblock
+	 * above gives — `settle()` drains the clearing timer and would find an empty string. English
+	 * only; nothing here grades the German rendering.
+	 */
+	it('names a single selected target as its own sentence, separated from the Alt-click guidance', async () => {
+		harness = await mountPlanEditorCanvas();
+		await settle();
+
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await nextTick();
+
+		expect(harness.wrapper.find('.rp-selection-guidance').text()).toBe('Current target: Kitchen. Alt-click to select another overlapping item.');
+	});
 });

@@ -392,7 +392,7 @@ const seedProject = (project: Project, planList: readonly Plan[]) => (
  *
  * `''` is the LIST, which is the sentinel `RenovationProjectView.getState` writes and
  * `projectIdFrom` parses back — not a value this page invents. `projectDestinationState` is what
- * `navigateToProject` spreads into the leaf state, so an `origin` travels here as it does there.
+ * `navigateToProject` spreads into the leaf state.
  */
 const harnessNavigate = (view: () => RenovationProjectView, drawable: readonly ProjectSection[]): RenovationProjectDeps['navigate'] =>
 	(id, destination) => {
@@ -402,8 +402,8 @@ const harnessNavigate = (view: () => RenovationProjectView, drawable: readonly P
 	};
 
 /**
- * The seeded default, plus the one member this page can honestly answer that the shared
- * default cannot: `navigate`.
+ * The seeded default, overridden with what this page can honestly answer that the shared
+ * default cannot.
  *
  * `defaultRenovationProjectDeps` leaves it inert because it has no workspace to navigate in,
  * and it says so. This page HAS the view, so Back and a project row both do here what they do

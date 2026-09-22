@@ -898,3 +898,56 @@ ten rows asked for the wrong thing; this wave's equivalent risk is a step naming
 be produced by hand. Derive every fault from the code, say which read or write each one breaks, and
 **where no hand-reproducible setup exists, say so and narrow the case** rather than invent one. A
 card reporting "this clause cannot be walked, and here is the code that says why" has succeeded.
+
+## Wave 16 — the three matrix halves a test can close, dispatched 2026-09-22
+
+**The triage that produced this wave is its own deliverable, and it found MORE rulings than cards.**
+Eleven rows were read at source against the tree. Three carry a half a jsdom test can honestly
+close; eight do not, and those land as ruling **AD15-R2** rather than as work. One of the eleven —
+**T25** — turned out to be a STALE ROW rather than an open one: commit `ef1ba2dff` (2026-09-19,
+*"close T25's two residual gaps"*) added both cases the row names as missing, and the matrix has
+been edited three times since without regrading it. That is a correction, not a decision, and it is
+recorded as one.
+
+**No card in this wave writes `src/`, a locale table, a styles partial or a document outside its own
+report.** The three `src/` findings stay recorded-only by the user's decision, asked a second time
+because the session's scope had changed since the first.
+
+| | |
+|---|---|
+| Base | this commit — the table below is IN it, not granted after the fact |
+| Contract | `r1` |
+| Cards | three, the maximum, and each one independently reviewed by an agent that did not write it |
+
+| Card | Worktree | Lease | Contract | Status | Conditions |
+|---|---|---|---|---|---|
+| **W16-A** — matrix row **F12**, the 25/250/1000 part fixture family | `.worktrees/ad11`, branch `w16a-part-fixtures` | MODIFY `tests/helpers/assetShapes.ts`. CREATE `tests/domain/asset/partFixtures.test.ts` and `docs/tasks/asset-designer-expansion/reports/W16-A-part-fixtures.md`. MAY CREATE **one** new helper under `tests/helpers/` if `assetShapes.ts` would exceed its cap, naming it in the report. READ anything. **No other file is written** — not `src/`, not a locale, not a styles partial, not the matrix | wave 16 base, `r1` | dispatched | reviewed by an agent that did not write it |
+| **W16-B** — matrix row **F10**, one definition across two projects | `.worktrees/ad10`, branch `w16b-two-project-scope` | MODIFY `tests/application/queries/listPlansUsingAsset.test.ts`. CREATE `docs/tasks/asset-designer-expansion/reports/W16-B-two-project-scope.md`. READ anything. **No other file is written** | wave 16 base, `r1` | dispatched | reviewed by an agent that did not write it |
+| **W16-C** — matrix row **T32**, a theme flip that leaves geometry alone | `.worktrees/ad07`, branch `w16c-theme-flip` | MODIFY `tests/presentation/designer/designerTheme.test.ts`. CREATE `docs/tasks/asset-designer-expansion/reports/W16-C-theme-flip.md`. MAY MODIFY an existing harness fixture under `tests/helpers/` **only** if the flip cannot be driven without one, naming it in the report and reporting the collision risk with W16-A. READ anything. **No other file is written** | wave 16 base, `r1` | dispatched | reviewed by an agent that did not write it |
+
+**Disjointness is two files each and will be re-checked by intersecting `git diff --name-only
+<base>..<sha>` across all three candidates AND their fix-round shas** — wave 14's W14-C gained two
+paths from a mid-wave lease extension, so a candidate-only check is not enough. The one path two
+cards could collide on is `tests/helpers/`, which is why W16-A names the file it may add to and
+W16-C is told to report rather than take a second one silently.
+
+**Four things are the INTEGRATOR's and are leased to no card**:
+`reports/AD15-validation-matrix.md`, the `contracts/DECISIONS.md` / `execution/state.json` pair,
+`reports/MANUAL-PASS.md`, and `reports/RESUME.md`. A card that believes a matrix row is wrong says
+so in its report; it does not edit the row.
+
+### The instruction every card in this wave carries
+
+**A row that wants no test has to be allowed to say so, and T25 is why.** This wave exists because
+eight of eleven rows turned out not to be test work, and one of the three that looked open had
+already been closed nine days earlier by a commit whose message says exactly that. So: **run `ls`
+on the directory before believing a gap exists**, list every `it(` in the file you are about to add
+to, and if the case you were asked for is already there under another name, **report that and write
+nothing**. A card reporting *"this row needs no test, and here is the commit that closed it"* has
+succeeded.
+
+**And write the guarantee to the check.** Each of these three rows has a half that stays open after
+the card is done — F12's measurement needs a host, F10's frozen half cannot exist (`r1` row 3), and
+T32's visibility half is unreachable because jsdom has no rendering engine. Say in the report which
+half you closed and which you did not, in the row's own words, so the integrator can regrade from
+the report rather than re-deriving it.

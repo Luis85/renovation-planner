@@ -5,10 +5,21 @@ Owner / worktree / branch: W17-A / `.worktrees/ad11` / `w17a-vanity-preset`
 Base commit / candidate commit: `480dbbc85` / see the commit on this branch
 Accepted contract revision: `contracts/DECISIONS.md` ruling **AD18-R8** (2026-09-22)
 Allowed scope and shared-file leases: `presetGeometry.ts`, `sanitary.ts`, `{en,de}/assetSymbols.ts`,
-`tests/domain/asset/presets/presets.test.ts`, this report. Nothing outside it was edited —
-`catalogue.ts` spreads `...SANITARY_PRESETS`, and `AssetPresetForm.vue`, `AssetPresetGallery.vue`
-and `presetPreview.ts` carry no per-id branch (`grep -rn "washbasin\|'toilet'" src/presentation/ |
-grep -v locales` prints nothing), so none of them needed one.
+`tests/domain/asset/presets/presets.test.ts`, this report — **plus, by an explicit after-the-fact
+lease extension for the fix round**, `src/presentation/designer/presets/AssetPresetForm.vue` and
+`tests/presentation/designer/assetPresetForm.test.ts`.
+
+**On "the presentation files needed no change", which the first version of this report got half
+right with the wrong instrument.** `grep -rn "washbasin\|'toilet'" src/presentation/ | grep -v
+locales` does print nothing, and `catalogue.ts` spreads `...SANITARY_PRESETS` while
+`AssetPresetForm.vue`, `AssetPresetGallery.vue` and `presetPreview.ts` carry no per-id branch — but
+**a per-id grep cannot see a COUNT, and a count is exactly what adding a preset changes.** The
+instrument that could see it is `grep -rn "fourteen" src/ tests/` (more durably: grep the current
+count word, whatever it is, together with the next one up), and it prints four preset-related hits
+outside the original lease. The count itself is
+`grep -c "definePreset(" src/domain/asset/presets/*.ts`, read per group file and summed —
+`presetGeometry.ts`'s single hit is the DEFINITION of `definePreset`, not a call, so summing that
+column blindly answers one too many. **The next card adding a preset should run both.**
 
 ## Changed files and reason
 
@@ -19,6 +30,8 @@ grep -v locales` prints nothing), so none of them needed one.
 | `src/presentation/i18n/locales/en/assetSymbols.ts` | `'preset.vanity': 'Vanity'` and `'designer.detail.cabinet': 'Cabinet'` | yes |
 | `src/presentation/i18n/locales/de/assetSymbols.ts` | `'preset.vanity': 'Waschtisch'` and `'designer.detail.cabinet': 'Unterschrank'` | yes |
 | `tests/domain/asset/presets/presets.test.ts` | the exhaustive list and its count word; one new case over AD18-R8's dimension claims | yes |
+| `src/presentation/designer/presets/AssetPresetForm.vue` | fix round F1 — three docblock sentences that said "fourteen", one of them a cross-file citation of the count word this change moved | yes, under the fix-round extension |
+| `tests/presentation/designer/assetPresetForm.test.ts` | fix round F1 — the fourth such sentence, in the `mountAttached` docblock | yes, under the fix-round extension |
 
 ## What was built, and why it is shaped this way
 
@@ -53,7 +66,7 @@ grep -v locales` prints nothing), so none of them needed one.
 | AD18-R8: a `vanity` preset in the `sanitary` group | pass | `offers all fifteen presets` lists `'toilet', 'washbasin', 'vanity', 'shower-tray', 'bathtub'` | none |
 | AD18-R8: default 800 × 450 | pass | `builds the vanity at board 01’s default and at the scenario’s 1,000 × 500` | none |
 | AD18-R8: range spans 1,000 × 500 | pass | same case builds at `{ width: 1000, depth: 500 }` and measures the footprint | none |
-| AD18-R8: no `Include basin` toggle | pass | the preset declares exactly `width` and `depth`; `PresetFieldKey` and `PresetField.kind` are untouched (`git diff` on `presetGeometry.ts` is the one union line) | none |
+| AD18-R8: no `Include basin` toggle | pass | **executably pinned**: `expect(defaultValues(vanity)).toEqual({ width: 800, depth: 450 })` — `defaultValues` maps over `preset.fields`, so a third field of any kind turns that case red rather than merely being noticed in review. Beside it, `PresetFieldKey` and `PresetField.kind` are untouched (`git diff` on `presetGeometry.ts` is the one union line) | none |
 | AD18-R8: wireframe, no artwork | pass | three ordinary outlines; nothing authored outside `sanitary.ts` | none |
 | AD15-R2 / §4 row 2: the fixture is the preset | pass | no `tests/helpers/assetShapes.ts` builder was written; the fixture is `ASSET_PRESETS.find((p) => p.id === 'vanity')` | none |
 | Generic preset contract (valid shape at default/min/max, extent, details inside the footprint, out-of-range refusal) | pass | the existing `describe.each` picked the preset up; 74 → 75 tests in the file | none |
@@ -68,6 +81,10 @@ grep -v locales` prints nothing), so none of them needed one.
 | `npx vitest run … -t "board 01"` with the carcass offset's sign flipped (flush at the FRONT) | mutated tree | exit 1 | `AssertionError: expected [ 20, +0 ] to deeply equal [ +0, 20 ]` |
 | `npx vitest run tests/domain/asset/presets tests/presentation/designer tests/presentation/i18n` | restored tree | exit 0 | `Test Files  77 passed (77)` / `Tests  1167 passed (1167)` — this is the run that covers trap 2, `assetPresetForm.test.ts`'s `"TAB"` search and its first/last keyboard pins |
 | `npx vitest run tests/domain/asset/presets` (final, restored tree) | restored tree | exit 0 | `Test Files  2 passed (2)` / `Tests  75 passed (75)` |
+| **fix round** — `npx oxlint` over both fix-round files | fix-round tree | exit 0, no output | — |
+| **fix round** — `npx eslint src/presentation/designer/presets/AssetPresetForm.vue --max-warnings 0` (by hand, since only a `.vue` gets ESLint in the edit-loop hook) | fix-round tree | exit 0 | — |
+| **fix round** — `npx vitest run tests/presentation/designer/assetPresetForm.test.ts tests/presentation/designer/assetPresetFlow.test.ts tests/domain/asset/presets` | fix-round tree | exit 0 | `Test Files  4 passed (4)` / `Tests  103 passed (103)` |
+| **fix round** — `grep -rn "fourteen\|fifteen"` over both fix-round files | fix-round tree | exit 1 (no hits) — no count word is left in either | — |
 | `npx oxlint` over all five edited files (twice — both locale edits and the mutation/restore were scripted, so the hook never saw them) | restored tree | exit 0, no output | — |
 
 ### Verbatim red 1 — the exhaustive list, automatic
@@ -112,11 +129,56 @@ sign of its offset (flush at the front instead) turns that assertion red:
 AssertionError: expected [ 20, +0 ] to deeply equal [ +0, 20 ]
 ```
 
+## Fix round (second commit on this branch)
+
+**F1 — the count this change falsified in files it did not touch.** Verified at the tree before
+acting: `grep -rn "fourteen" src/ tests/` prints ten hits, four of them about presets — three in
+`AssetPresetForm.vue` (the `CHOICES` docblock, the comment above the `preset` `shallowRef`, the
+roving-tabindex docblock above `focusedId`) and one in `assetPresetForm.test.ts` (above
+`mountAttached`). The other six are about unrelated things — fourteen error codes, fourteen call
+sites, fourteen scans, fourteen assertions, fourteen Sie-form imperatives — and are untouched.
+
+**The number, measured before it was written:** `grep -c "definePreset(" src/domain/asset/presets/*.ts`
+prints `plantsBeds.ts:3`, `sanitary.ts:5`, `seating.ts:3`, `tables.ts:4` — fifteen — with
+`presetGeometry.ts:1` being the DEFINITION rather than a call. Confirmed by a second instrument,
+`grep -h "definePreset(" … | grep -c "definePreset('"`, which counts only calls with a quoted id
+and also prints 15. The coordinator's "fifteen" is correct and this is the measurement, not the
+citation.
+
+**None of the four rewrites carries a number, and that is the decision rather than an oversight.**
+The precedent is `designerIconToolbar.test.ts`'s `TOOLBAR_LABELS` docblock, which derives its set
+from `DESIGNER_TOOL_ICONS` so that *"the day a fifth shape is added this list loses it exactly as
+the toolbar does"* — a sentence that cannot go stale because it states the rule instead of the
+count. Taken one at a time, since each had to be checked for whether the argument needs a number:
+
+| Sentence | Now reads | Why no number |
+|---|---|---|
+| `CHOICES` docblock | "one `build` call per preset per dialog open rather than one per preset per keystroke" | the argument is per-OPEN versus per-KEYSTROKE; the multiplier is the catalogue either way and never entered it |
+| above the `preset` `shallowRef` | "`presets.test.ts` pins the whole catalogue as an ordered list of ids" | this was the blocking one — a cross-file citation of another file's count word. What `offers all fifteen presets` actually pins is the ORDERED LIST, which is both stronger and stable, so the citation now names the thing rather than its length |
+| `focusedId` docblock | "a gallery of plain buttons is one tab stop PER PRESET" | the regression is one-stop-per-button against the `<select>`'s one; "per preset" states it exactly and a count only illustrated it |
+| `mountAttached` docblock | "a gallery of plain buttons is one tab stop per preset" | same sentence, same reason — the two are deliberately kept saying the same thing |
+
+**F4 — taken.** The acceptance row for the dropped toggle now cites the executable pin
+(`defaultValues(vanity)` over `preset.fields`) rather than prose and a diff.
+
+**F3 — not acted on**, as instructed: the exact `toEqual([20, 20])` beside the `toBeCloseTo` siblings
+is left alone.
+
+**The four reds quoted above were NOT re-taken, and here is why that is honest**: this fix round
+changed comments in two presentation files and nothing else, so
+`git diff --stat HEAD -- src/domain tests/domain src/presentation/i18n` printed **nothing** against
+the commit those reds were taken from — the code under each mutation and every assertion is
+byte-identical. What was re-run after the fix round is the affected suites, green below.
+
 ## Verification not performed
 
 Named rather than left blank, per the card's own instruction — the card forbids the first four and
 this machine cannot do the rest:
 
+- **The fix round's own blind spot**: `grep -rn "fourteen" src/ tests/` found the tokens that
+  SPELL the count. A sentence that stated the same count in digits, or as "the catalogue's 14", or
+  in a file the fix round did not grep (`docs/`, `styles/`, `scripts/`) is outside what that grep
+  saw. The coordinator holds the two `docs/` instances; nothing checks this class automatically.
 - **`npm run check`**, and each of its legs run whole — `build` (`vue-tsc`, so the German locale
   record's exhaustiveness and the `PresetId` union are UNCHECKED here; the de file was edited by
   script and only oxlint has read it), `lint` (`eslint .` — layer bans, budgets, the locale

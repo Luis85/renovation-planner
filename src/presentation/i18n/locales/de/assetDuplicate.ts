@@ -14,7 +14,7 @@ export const assetDuplicateDe: Record<keyof typeof assetDuplicateEn, string> = {
 	'view.asset-library.used-in-plans.loading': 'Wird geladen, welche Pläne dies platzieren …',
 	'view.asset-library.used-in-plans.failed': 'Die Pläne, die dieses Objekt platzieren, konnten nicht gelesen werden, daher ist der Umfang unten unbekannt.',
 	'view.asset-library.used-in-plans.none': 'Kein Plan platziert dieses Objekt',
-	'view.asset-library.used-in-plans.plan': '{name} — {count} Platzierung(en)',
+	'view.asset-library.used-in-plans.plan': '{name} ({project}) — {count} Platzierung(en)',
 	'view.asset-library.used-in-plans.unreadable': '{count} Notiz(en) konnten nicht gelesen werden, daher ist diese Liste möglicherweise unvollständig',
 	'view.asset-library.duplicate': 'Duplizieren',
 	'view.asset-library.duplicate.title': 'Als neues Objekt duplizieren',

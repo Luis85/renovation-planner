@@ -101,6 +101,7 @@ const rows = computed(() =>
 		planId: plan.planId,
 		label: tr('view.asset-library.used-in-plans.plan', {
 			name: plan.planName,
+			project: plan.projectName,
 			count: String(plan.placements),
 		}),
 	})),

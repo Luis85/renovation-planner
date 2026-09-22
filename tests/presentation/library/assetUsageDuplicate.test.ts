@@ -38,7 +38,7 @@ const REFUSAL = {
 function usage(overrides: Partial<AssetPlanUsage> = {}): AssetPlanUsage {
 	return {
 		plans: [
-			{ planId: createPlanId(), planName: 'Kitchen', projectId: createProjectId(), placements: 2 },
+			{ planId: createPlanId(), planName: 'Kitchen', projectId: createProjectId(), projectName: 'Flat refit', placements: 2 },
 		],
 		unreadable: 0,
 		...overrides,
@@ -112,8 +112,37 @@ describe('the duplicate panel', () => {
 		const open = await opened();
 
 		expect(open.inspector.panel.text()).toContain('Used in plans');
-		expect(open.inspector.panel.get('[data-plan-id]').text()).toBe('Kitchen — 2 placement(s)');
+		expect(open.inspector.panel.get('[data-plan-id]').text()).toBe('Kitchen (Flat refit) — 2 placement(s)');
 		expect(open.duplicate).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * **The project is named on this panel too, and that is a second assertion rather than a
+	 * duplicate of the designer's.** `AssetUsageScope.vue` and `DesignerUsageScope.vue` each build
+	 * their own rows from the same key, so a build that fixed one and not the other passes every
+	 * case the other surface owns. Two plans sharing a name is the state the field exists for: it
+	 * drew as one line of text twice, separable only by the `:key` and the `data-plan-id`.
+	 *
+	 * The expected text is LITERAL rather than `t(...)`, because `t` leaves an unmatched hole
+	 * standing — so a fixture with no `projectName` renders `{project}` on both sides of a
+	 * round-tripped assertion and the case agrees with itself.
+	 */
+	it('names each row’s project, so two plans sharing a name are two different lines', async () => {
+		const open = await opened({
+			scope: usage({
+				plans: [
+					{ planId: createPlanId(), planName: 'Kitchen', projectId: createProjectId(), projectName: 'Flat refit', placements: 2 },
+					{ planId: createPlanId(), planName: 'Kitchen', projectId: createProjectId(), projectName: 'Annexe conversion', placements: 2 },
+				],
+			}),
+		});
+
+		const rows = open.inspector.panel.findAll('[data-plan-id]').map((row) => row.text());
+		expect(rows).toEqual([
+			'Kitchen (Flat refit) — 2 placement(s)',
+			'Kitchen (Annexe conversion) — 2 placement(s)',
+		]);
+		expect(new Set(rows).size).toBe(rows.length);
 	});
 
 	it('says the scope is incomplete when some plans could not be read', async () => {

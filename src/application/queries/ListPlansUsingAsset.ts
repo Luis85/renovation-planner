@@ -8,11 +8,31 @@ import type { ProjectRepository } from '../ports/ProjectRepository';
 import type { RepositoryError } from '../ports/repositoryErrors';
 import type { Query } from './Query';
 
-/** One plan that places the asset, and how many placements of it that plan holds. */
+/**
+ * One plan that places the asset, and how many placements of it that plan holds.
+ *
+ * **`projectName` rides beside `projectId` because a view can draw only one of the two, and it
+ * is the one this row was previously missing.** A plan name is not unique across a vault: the
+ * catalogue is vault-level since design slice 19, so one definition is placeable from plans in
+ * different projects, and two plans both named `Kitchen` rendered as two rows of identical
+ * visible text — separable only by the `:key` and the `data-plan-id`, neither of which a user
+ * sees, at the one surface whose whole job is to state a blast radius. The sibling
+ * `AssetInspectorUsedIn.vue` already keys on `projectId` *precisely because* a display name is
+ * not unique, so the two answers to that hazard now agree rather than contradicting each other
+ * inside one directory.
+ *
+ * **Both fields, and neither is the other's replacement.** `projectId` is the identity — unique
+ * by construction, and what a future navigation door would carry — while `projectName` is the
+ * only half of it a user can read. Stated plainly rather than implied, because `projectId` is
+ * still named by no template: `grep -rn "projectId" $(grep -rl AssetPlanUsage src/)` prints this
+ * file alone, which is what it printed before this field existed and remains true after it.
+ */
 export interface PlanAssetUsage {
 	readonly planId: PlanId;
 	readonly planName: string;
 	readonly projectId: ProjectId;
+	/** The owning project's name — see the interface header for why the id alone was not enough. */
+	readonly projectName: string;
 	/** Distinct `kind: 'asset'` elements naming this asset — never zero; a plan with none is absent. */
 	readonly placements: number;
 }
@@ -137,7 +157,12 @@ export class ListPlansUsingAsset implements Query<AssetId, Result<AssetPlanUsage
 			const found = await this.plans.listByProject(project.entity.id);
 			if (isErr(found)) return found;
 			unreadable += found.value.refused;
-			unreadable += await this.collect(assetId, found.value.loaded.map((loaded) => loaded.entity), plans);
+			unreadable += await this.collect(
+				assetId,
+				project.entity.name,
+				found.value.loaded.map((loaded) => loaded.entity),
+				plans,
+			);
 		}
 
 		return ok({ plans, unreadable });
@@ -152,6 +177,7 @@ export class ListPlansUsingAsset implements Query<AssetId, Result<AssetPlanUsage
 	 */
 	private async collect(
 		assetId: AssetId,
+		projectName: string,
 		found: readonly { readonly id: PlanId; readonly name: string; readonly projectId: ProjectId }[],
 		plans: PlanAssetUsage[],
 	): Promise<number> {
@@ -164,7 +190,7 @@ export class ListPlansUsingAsset implements Query<AssetId, Result<AssetPlanUsage
 			}
 			const placements = placementCount(snapshot.value.document, assetId);
 			if (placements > 0) {
-				plans.push({ planId: plan.id, planName: plan.name, projectId: plan.projectId, placements });
+				plans.push({ planId: plan.id, planName: plan.name, projectId: plan.projectId, projectName, placements });
 			}
 		}
 		return unreadable;

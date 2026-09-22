@@ -50,10 +50,24 @@ type Scope = Result<AssetPlanUsage, typeof VAULT_FAILED>;
 function twoPlans(unreadable = 0): AssetPlanUsage {
 	return {
 		plans: [
-			{ planId: createPlanId(), planName: 'Kitchen', projectId: createProjectId(), placements: 2 },
-			{ planId: createPlanId(), planName: 'Utility', projectId: createProjectId(), placements: 1 },
+			{ planId: createPlanId(), planName: 'Kitchen', projectId: createProjectId(), projectName: 'Flat refit', placements: 2 },
+			{ planId: createPlanId(), planName: 'Utility', projectId: createProjectId(), projectName: 'Flat refit', placements: 1 },
 		],
 		unreadable,
+	};
+}
+
+/**
+ * Two plans with the SAME name in different projects — the state `PlanAssetUsage.projectName`
+ * exists for, and the one a fixture is least likely to produce by accident.
+ */
+function twoPlansNamedAlike(): AssetPlanUsage {
+	return {
+		plans: [
+			{ planId: createPlanId(), planName: 'Kitchen', projectId: createProjectId(), projectName: 'Flat refit', placements: 2 },
+			{ planId: createPlanId(), planName: 'Kitchen', projectId: createProjectId(), projectName: 'Annexe conversion', placements: 2 },
+		],
+		unreadable: 0,
 	};
 }
 
@@ -126,9 +140,34 @@ describe('the designer’s usage scope', () => {
 
 		expect(wrapper.find('.rp-designer-usage-title').text()).toBe(t('en', 'view.asset-library.used-in-plans'));
 		expect(wrapper.findAll('.rp-designer-usage-plans li').map((row) => row.text())).toEqual([
-			t('en', 'view.asset-library.used-in-plans.plan', { name: 'Kitchen', count: '2' }),
-			t('en', 'view.asset-library.used-in-plans.plan', { name: 'Utility', count: '1' }),
+			t('en', 'view.asset-library.used-in-plans.plan', { name: 'Kitchen', project: 'Flat refit', count: '2' }),
+			t('en', 'view.asset-library.used-in-plans.plan', { name: 'Utility', project: 'Flat refit', count: '1' }),
 		]);
+	});
+
+	/**
+	 * **The row names its PROJECT, and the assertion is on the LITERAL text rather than through
+	 * `t`.** Two plans can share a name — the catalogue is vault-level, so one definition is
+	 * placeable from plans in different projects — and until `PlanAssetUsage` carried a project
+	 * name these drew as one line of text twice, separable only by the `:key` and the
+	 * `data-plan-id`, neither of which a user sees.
+	 *
+	 * Spelled out rather than round-tripped through `t`, because round-tripping cannot see the
+	 * defect this case exists for: `t` leaves an unmatched hole standing, so a fixture that
+	 * omitted `projectName` renders `Kitchen ({project})` on BOTH sides and the assertion agrees
+	 * with itself. Measured on this branch — the sibling case above passed, unchanged, against a
+	 * component already supplying `project` from a fixture that had no such field.
+	 */
+	it('names the project on every row, so two plans sharing a name are two different lines', async () => {
+		const wrapper = inspector(context({ scope: ok(twoPlansNamedAlike()) }));
+		await flushPromises();
+
+		const rows = wrapper.findAll('.rp-designer-usage-plans li').map((row) => row.text());
+		expect(rows).toEqual([
+			'Kitchen (Flat refit) — 2 placement(s)',
+			'Kitchen (Annexe conversion) — 2 placement(s)',
+		]);
+		expect(new Set(rows).size).toBe(rows.length);
 	});
 
 	/**

@@ -27,6 +27,10 @@ import { createRepositoryStack } from '../../helpers/vault';
 const OVEN = 'asset-oven' as AssetId;
 const SINK = 'asset-sink' as AssetId;
 
+/** `makeProject`'s own default, and the project every plan in this file belongs to unless it says otherwise. */
+const PROJECT = 'Kitchen renovation';
+const ANNEXE = 'Annexe conversion';
+
 const VAULT_FAULT = {
 	category: 'Persistence',
 	code: 'vault.unexpected-failure',
@@ -131,7 +135,7 @@ describe('ListPlansUsingAsset', () => {
 		const usage = expectOk(await rig.query().execute(OVEN));
 
 		expect(usage).toEqual({
-			plans: [{ planId: kitchen, planName: 'Kitchen', projectId: rig.projectId, placements: 2 }],
+			plans: [{ planId: kitchen, planName: 'Kitchen', projectId: rig.projectId, projectName: PROJECT, placements: 2 }],
 			unreadable: 0,
 		});
 	});
@@ -148,7 +152,7 @@ describe('ListPlansUsingAsset', () => {
 		const usage = expectOk(await rig.query().execute(OVEN));
 
 		expect(usage.plans).toEqual([
-			{ planId: kitchen, planName: 'Kitchen', projectId: rig.projectId, placements: 2 },
+			{ planId: kitchen, planName: 'Kitchen', projectId: rig.projectId, projectName: PROJECT, placements: 2 },
 		]);
 	});
 
@@ -165,7 +169,7 @@ describe('ListPlansUsingAsset', () => {
 		// read their geometry would still fail this.
 		const rig = await vault();
 		const kitchen = await rig.plan('Kitchen', { current: [placement('element-1', OVEN, 0)] });
-		const annexe = await rig.project('Annexe conversion');
+		const annexe = await rig.project(ANNEXE);
 		const loft = await rig.plan(
 			'Loft',
 			{ current: [placement('element-2', OVEN, 0), placement('element-3', OVEN, 900)] },
@@ -180,12 +184,38 @@ describe('ListPlansUsingAsset', () => {
 		// projects in is not one this query promises.
 		expect(usage.plans).toEqual(
 			expect.arrayContaining([
-				{ planId: kitchen, planName: 'Kitchen', projectId: rig.projectId, placements: 1 },
-				{ planId: loft, planName: 'Loft', projectId: annexe, placements: 2 },
+				{ planId: kitchen, planName: 'Kitchen', projectId: rig.projectId, projectName: PROJECT, placements: 1 },
+				{ planId: loft, planName: 'Loft', projectId: annexe, projectName: ANNEXE, placements: 2 },
 			]),
 		);
 		expect(usage.plans).toHaveLength(2);
 		expect(usage.unreadable).toBe(0);
+	});
+
+	it('carries each row’s own project name, so two plans sharing a name are two different rows', async () => {
+		// The `src/` finding this field closes. The catalogue is vault-level since design slice 19
+		// — an `Asset` has no project — so one definition is placeable from plans in different
+		// projects, and a plan NAME is not unique across a vault. A row carrying `planName` alone
+		// renders the same text twice at the one surface whose job is to state a blast radius,
+		// separable only by `projectId`, which no view can draw. The two plans here are
+		// deliberately identical in every field a user sees EXCEPT the project.
+		const rig = await vault();
+		const here = await rig.plan('Kitchen', { current: [placement('element-1', OVEN, 0)] });
+		const annexe = await rig.project(ANNEXE);
+		const there = await rig.plan('Kitchen', { current: [placement('element-2', OVEN, 0)] }, annexe);
+
+		const usage = expectOk(await rig.query().execute(OVEN));
+
+		// `arrayContaining` plus a length, for the sibling case's reason: which rows are in the
+		// scope is the claim, and the order `listAll` walks the projects in is not one this
+		// query promises.
+		expect(usage.plans).toEqual(
+			expect.arrayContaining([
+				{ planId: here, planName: 'Kitchen', projectId: rig.projectId, projectName: PROJECT, placements: 1 },
+				{ planId: there, planName: 'Kitchen', projectId: annexe, projectName: ANNEXE, placements: 1 },
+			]),
+		);
+		expect(usage.plans).toHaveLength(2);
 	});
 
 	it('REFUSES rather than answering an empty scope when the project list cannot be read', async () => {

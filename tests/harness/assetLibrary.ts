@@ -366,7 +366,18 @@ function harnessQueries(empty: boolean): AssetLibraryQueryServices {
 				ok(
 					empty
 						? { plans: [], unreadable: 0 }
-						: { plans: [{ planId: 'pln-ground' as PlanId, planName: 'Ground floor', projectId: 'prj-hamburg-b' as ProjectId, placements: 2 }], unreadable: 1 },
+						: {
+								plans: [
+									{
+										planId: 'pln-ground' as PlanId,
+										planName: 'Ground floor',
+										projectId: 'prj-hamburg-b' as ProjectId,
+										projectName: 'Flat renovation',
+										placements: 2,
+									},
+								],
+								unreadable: 1,
+							},
 				),
 			),
 	};

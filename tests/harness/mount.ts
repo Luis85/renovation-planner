@@ -405,8 +405,8 @@ const harnessNavigate = (view: () => RenovationProjectView, drawable: readonly P
  * The seeded default, overridden with what this page can honestly answer that the shared
  * default cannot.
  *
- * `defaultRenovationProjectDeps` leaves it inert because it has no workspace to navigate in,
- * and it says so. This page HAS the view, so Back and a project row both do here what they do
+ * `defaultRenovationProjectDeps` leaves `navigate` inert because it has no workspace to navigate
+ * in, and it says so. This page HAS the view, so Back and a project row both do here what they do
  * in a vault — a `setState` round trip through the view's own state machine, which is the
  * mechanism rather than an imitation of it. A harness whose only way out of the detail state
  * is the URL bar is a tool for looking at one screen, and the pair is what a person actually

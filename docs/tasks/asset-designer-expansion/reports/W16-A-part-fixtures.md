@@ -65,11 +65,40 @@ column, not the vertex total, is the "path complexity" §6 names for the 1000-pa
 It reuses `rect`, `circle` and the file's own `openGraphic` rather than introducing geometry; no new
 constructor, no new concept, and no dependency.
 
+### What this family measures, and what it does NOT
+
+Recorded here rather than tuned, because the realism nobody can validate is realism nobody should
+pay for while the measurement half does not exist.
+
+**It measures**: part-count scaling across 25 / 250 / 1000, and genuine curved-edge cost — 1332
+curved edges at the top size is real arc work through `validateBulgeEdge`, `arcRadius` and
+`validateCurvedBoundary`, not a degenerate straight-line best case.
+
+**It does not measure**: overlap or occlusion between parts (the grid deliberately separates them,
+so a draw-order or z-fighting cost is absent); per-part **path depth** (four vertices against the
+dozens a traced outline carries, so this scales the NUMBER of parts and not the complexity of one);
+groups; a clearance; or pending coordinates. Each of those last three is another suite's subject,
+and a benchmark carrying them could not say which of them it was timing.
+
+A figure taken against this family is therefore a statement about part count and arc volume, and
+about nothing else — which is the narrower form of §6's own *"do not generalize benchmark results
+to arbitrary hardware or unlimited drawing size."*
+
+One narrower claim in the same direction: the containment case measures every part's **vertices**,
+not its arc envelope, and both its name and its docblock now say so. A bulged edge bows outside the
+chord between its endpoints, so a curved graphic can in principle reach past a box its points sit
+inside; that costs nothing here only because the one curved kind is `circle`, whose four points are
+cardinal and reach exactly the radius its arcs do — and the clearance is 20 mm either way regardless.
+
 ## The 1000-part case was checked FIRST, as the card directed
 
-Nothing in the domain refuses a shape that large. `validateDetails` iterates without a count cap,
-`validateAssetShape` asks no question about `details.length`, and the sidecar's only `.max(` on an
-array-ish field is `planGeometry.ts`'s group `name`, which is unrelated. The 1000-part shape
+Nothing in the domain refuses a shape that large. `validateDetails` iterates without a count cap and
+`validateAssetShape` asks no question about `details.length`. **No zod `.max()` in `src/` applies to
+an array LENGTH at all** — the ones that exist bound scalars (`planGeometry.ts`'s group `name` is
+`z.string().trim().min(1).max(100)`, and `treads` carries a `.max(200)`), and `memberIds`, the one
+array nearby, has a `.min(1)` and no maximum. (An earlier draft of this report called the `name`
+bound "array-ish" and named it as the only one; both were wrong, and the substance — no length cap
+anywhere on the path a 1000-part shape takes — is unchanged.) The 1000-part shape
 validates, and re-validates, in well under the case budget — the whole 12-case file runs in **97 ms**
 of test time. **There is no finding to report here**: the domain accepts the size the row asks for,
 so the family did not have to be narrowed.
@@ -151,7 +180,7 @@ the footprint — so it is exactly the kind of comment that gets a case. `footpr
 CELL, rows * CELL)` was changed to `rect(CELL, CELL)`:
 
 ```
- FAIL  |suite| tests/domain/asset/partFixtures.test.ts > shapeWithParts — F12 at its three sizes > lays every part inside the footprint at 25 parts
+ FAIL  |suite| tests/domain/asset/partFixtures.test.ts > shapeWithParts — F12 at its three sizes > lays every part's vertices inside the footprint at 25 parts
 AssertionError: expected [ 'part-1', 'part-2', 'part-3', …(21) ] to deeply equal []
 
 - Expected
@@ -161,11 +190,38 @@ AssertionError: expected [ 'part-1', 'part-2', 'part-3', …(21) ] to deeply equ
 + [
 +   "part-1",
 +   "part-2",
-+   "part-3",
 ```
 
 All three were restored and the file re-run green (`Tests 12 passed (12)`) before anything was
 committed.
+
+### Two further measurements, taken in the fix round
+
+Both were run to check a claim this report's own prose was making, and both changed the prose rather
+than the code.
+
+**4. The `?? []` fallback in `curvedEdgeCount` IS load-bearing.** Removing it and reading
+`detail.outline.bulges.filter(...)` directly:
+
+```
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+TypeError: Cannot read properties of undefined (reading 'filter')
+```
+
+**5. The `!== 0` filter beside it is NOT.** Reducing the counter to `(detail.outline.bulges ?? []).length`
+leaves every case green:
+
+```
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+```
+
+That is a complete proof that the squares and the open polylines carry no `bulges` array at all
+rather than an array of zeros — an array of zeros would have non-zero length, and the circles alone
+account for the whole 1332 (333 × 4). The docblock claimed both parts were load-bearing; it now
+claims it of the fallback only, names `stadium` (`[0, 1, 0, 1]`) and `roundFront` (`[0, 0, 1, 0]`)
+as the mixed arrays the filter really guards, and records that no fixture here carries one. **No
+`stadium` case was added**: it would buy a property this card does not need.
 
 ## Verification not performed
 
@@ -198,8 +254,39 @@ committed.
 
   **What the integrator can regrade F12 to is therefore "partial", not "adequate"**: the fixture
   exists at all three sizes with its complexity documented and asserted, and every §6 row that
-  rests on it remains **not-run**. The matrix's own line 194 — *"Needs F12's 250-part fixture, which
-  does not exist"* — has lost exactly its second clause and keeps its first.
+  rests on it remains **not-run**.
+
+### The exact matrix edits this card owes
+
+`AD15-validation-matrix.md` is outside this card's lease and was not touched. **Three rows state a
+reason this card falsifies**, and the replacement text for each is given here so the integrator
+applies it rather than re-deriving it. An earlier draft of this report named only the first of the
+§6 rows and described the correction to it wrongly; both are fixed below.
+
+**Row `F12 25/250/1000 parts` (line 63)** — grade `none` → `partial`:
+
+```
+| F12 25/250/1000 parts | **partial** | The fixture family exists at all three sizes since W16-A — `shapeWithParts` in `tests/helpers/assetShapes.ts`, driven by `tests/domain/asset/partFixtures.test.ts`, with part, vertex and curved-edge counts documented and asserted, and every size accepted by the real `validateAssetShape`. **The measurement half is untouched**: §6's targets need a benchmark harness and a host, neither of which exists here |
+```
+
+**Line 194, selection response** — the clause that dies is *"which does not exist"*. **The clause
+that stays load-bearing is the THIRD, "and a warmed renderer in a host"**, which is the whole reason
+this row is still `not-run`:
+
+```
+| Selection response p95 ≤ 100 ms | **not-run** | F12's 250-part fixture exists since W16-A; still needs a warmed renderer in a host, which nothing in this repository can provide |
+```
+
+**Line 197, stress at 1000 parts** — its entire stated reason, *"No fixture at any size"*, is now
+false:
+
+```
+| Stress at 1000 parts | **not-run** | F12's 1000-part fixture exists since W16-A, at 3667 vertices and 1332 curved edges; still needs a host to observe crash, write-burst and UI-lock behaviour in |
+```
+
+**Line 195, drag frame time, needs NO edit** — checked rather than assumed. It reads `Same, plus a
+real compositor. jsdom draws nothing`, and its `Same` refers to line 194's reason; once 194 is
+corrected, 195 inherits the correction and stays accurate as written.
 
 ## Data and integration implications
 

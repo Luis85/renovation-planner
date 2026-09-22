@@ -27,9 +27,20 @@ const vertexCount = (shape: AssetShape): number =>
 	shape.details.reduce((total, detail) => total + detail.outline.points.length, 0);
 
 /**
- * Every edge that actually curves. `createCurvedPolygon` drops `bulges` altogether when all of
- * them are zero, so a straight graphic reaches this with no array at all — which is why the
- * fallback and the `!== 0` filter are both load-bearing rather than defensive.
+ * Every edge that actually curves.
+ *
+ * **The `?? []` fallback is load-bearing here**, measured rather than argued: `createCurvedPolygon`
+ * drops `bulges` altogether when `hasCurves` is false, so a straight graphic reaches this with no
+ * array at all, and removing the fallback fails five cases with `TypeError: Cannot read properties
+ * of undefined (reading 'filter')`.
+ *
+ * **The `!== 0` filter is NOT exercised by anything in this file**, and this sentence says so
+ * rather than claiming a reach it has not got. Every outline that reaches this counter carries
+ * either no array (squares and open polylines) or four non-zero bulges (circles), so deleting the
+ * filter leaves all 12 cases green — measured. It is still correct in general, guarding the MIXED
+ * arrays `presetGeometry`'s `stadium` (`[0, 1, 0, 1]`) and `roundFront` (`[0, 0, 1, 0]`) produce,
+ * and a `stadium` case to drive it was considered and refused: it buys a property this card does
+ * not need, at the cost of a fixture nobody asked for.
  */
 const curvedEdgeCount = (shape: AssetShape): number =>
 	shape.details.reduce((total, detail) => total + (detail.outline.bulges ?? []).filter((bulge) => bulge !== 0).length, 0);
@@ -105,8 +116,15 @@ describe('shapeWithParts — F12 at its three sizes', () => {
 	 * what makes a hit test or a rubber-band selection over this fixture resemble one over a real
 	 * drawing. Nothing in the domain requires it — no rule relates a graphic to the footprint — so
 	 * it is a claim in a comment and therefore gets a case.
+	 *
+	 * **It measures every part's VERTICES, not its arc envelope.** A bulged edge bows outside the
+	 * chord between its endpoints, so a curved graphic can in principle reach past a box its points
+	 * sit inside. That is not a gap here only because the one curved kind is `circle`, whose four
+	 * points are cardinal and reach exactly the radius its arcs do — and the margin is 20 mm either
+	 * way regardless. Widening this to envelopes would need `boundingBoxOf` over the arcs and buys
+	 * nothing this fixture family can use.
 	 */
-	it.each(SIZES)('lays every part inside the footprint at $parts parts', ({ parts }) => {
+	it.each(SIZES)('lays every part\'s vertices inside the footprint at $parts parts', ({ parts }) => {
 		const shape = shapeWithParts(parts);
 		const box = expectOk(boundingBoxOf(shape.footprint));
 		const outside = shape.details.filter((detail) =>

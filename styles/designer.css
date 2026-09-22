@@ -389,11 +389,12 @@
 }
 
 /*
- * The grid step and the zoom: standing facts about the view, muted like the hint beside them.
- * One rule rather than two identical ones, because they are the same KIND of thing and a reader
- * who changes the treatment of one means both.
+ * The grid step: a standing fact about the view, muted like the hint beside it.
+ *
+ * **`.rp-designer-zoom` left this rule at AD18-R16's Task 1**: that class named the status
+ * region's `Zoom NN%` span and now names the toolbar's zoom-cluster group instead, whose own
+ * layout lives in `styles/designer-toolbar.css` — left in, it reached that unrelated div.
  */
-.rp-designer-grid-step,
-.rp-designer-zoom {
+.rp-designer-grid-step {
 	color: var(--text-muted);
 }

@@ -25,6 +25,7 @@ import { settle } from '../../helpers/editor';
 import { designerRig, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { screenPoint } from '../../../src/presentation/editor/viewport/Viewport';
 import { editableShape, shapeWithOpenGraphic, toiletShape } from '../../helpers/assetShapes';
 
 /**
@@ -496,6 +497,30 @@ describe('the zoom cluster', () => {
 	});
 
 	/**
+	 * Refused while a pan is held — `blocked()`'s own reason: a camera move under a drag would
+	 * change what the drag lands on. The precedent for this shape is the Plan Editor's own
+	 * `EditorViewMenu` case (`tests/presentation/editor/editorView.test.ts`, "zooms about the
+	 * stage center and refuses camera or snap changes during a pan"): `editor.beginPan` starts a
+	 * gesture with no DOM event behind it, which is enough to set `dragState`, and the assertion
+	 * is referential (`toBe`, not `toBeCloseTo`) so a button that quietly reassigned the SAME
+	 * numbers back would still fail it.
+	 */
+	it('refuses to zoom while a pan is held', async () => {
+		const rig = await designerRig();
+		const editor = useEditorStore(rig.pinia);
+		editor.beginPan(screenPoint(1, 1), 1);
+		const held = editor.viewport;
+
+		zoomButton(rig, 'zoom-out').click();
+		await settle();
+		zoomButton(rig, 'zoom-in').click();
+		await settle();
+
+		expect(editor.viewport).toBe(held);
+		rig.unmount();
+	});
+
+	/**
 	 * The readout tracks the SAME `editorStore.viewport` the buttons write, whole percent —
 	 * `assetDesignerRoot.test.ts` used to pin this rounding over the status region; it is this
 	 * cluster's own claim now.
@@ -560,6 +585,20 @@ describe('the zoom cluster', () => {
 		await settle();
 
 		expect(editor.viewport).toEqual(before);
+		rig.unmount();
+	});
+
+	/** The SAME guard the zoom buttons take, and for the same reason: a fit under a held pan would change what the drag lands on. */
+	it('refuses to fit while a pan is held', async () => {
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		editor.beginPan(screenPoint(1, 1), 1);
+		const held = editor.viewport;
+
+		zoomButton(rig, 'zoom-fit').click();
+		await settle();
+
+		expect(editor.viewport).toBe(held);
 		rig.unmount();
 	});
 });

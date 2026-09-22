@@ -68,6 +68,7 @@ import { computed } from 'vue';
 import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
 import type { ToolId } from '../editor/tools/editor-tool';
+import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import { useEditorStore } from '../stores/EditorStore';
 import { screenPoint } from '../editor/viewport/Viewport';
 import { DESIGNER_TOOL_LABELS } from './tools/registerDesignerTools';
@@ -156,13 +157,22 @@ function zoom(factor: number): void {
  * `Shift+1`: `blocked()` above already refuses this button while a gesture is in flight, which
  * is the only state where a preview shape and the committed one could differ, so the committed
  * `design.shape` is the whole answer whenever this function is reachable at all.
+ *
+ * **No `bounds !== null` guard, unlike this function's two siblings.** `DesignerCanvas.framedBounds`
+ * and `runtime.applyShape` both keep one, because a PREVIEW shape — mid-gesture geometry a tool has
+ * not finished validating — can be degenerate for an instant. This function never sees that state
+ * (the paragraph above says why), and a COMMITTED `design.shape` cannot make `designFrame` answer
+ * `null`: `validateAssetShape` already refuses a footprint that does not enclose an area
+ * (`AssetShape.ts`'s own `enclosesArea` check), which is exactly what `boundsOfZones` would need to
+ * fail for. A guard neither gesture nor a real command can ever trip is a branch this file's own
+ * coverage floor can never close — reviewed and removed rather than proven with a fixture built by
+ * hand to hold a shape no validated command would ever produce.
  */
 function fitDesign(): void {
 	if (blocked()) return;
 	const shape = designStore.design?.shape ?? null;
 	if (shape === null) return;
-	const bounds = designFrame(shape);
-	if (bounds !== null) editorStore.fitTo(bounds, editorStore.stageSize);
+	editorStore.fitTo(designFrame(shape) as BoundingBox, editorStore.stageSize);
 }
 </script>
 

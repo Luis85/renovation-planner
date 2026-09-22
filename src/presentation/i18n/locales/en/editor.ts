@@ -8,6 +8,7 @@ import { assetOpenLinesEn } from './assetOpenLines';
 import { assetReferenceEn } from './assetReference';
 import { designerToolbarIconsEn } from './designerToolbarIcons';
 import { designerTraceEn } from './designerTrace';
+import { designerRulersEn } from './designerRulers';
 import { designerAddEn } from './designerAdd';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
@@ -58,6 +59,7 @@ export const editorEn = {
 	...assetReferenceEn,
 	...designerToolbarIconsEn,
 	...designerTraceEn,
+	...designerRulersEn,
 	...designerAddEn,
 	...groupsEn,
 	...stairsArrowsEn,

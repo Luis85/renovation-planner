@@ -863,8 +863,11 @@ export const en = {
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',
 	'save-state.save-error': 'Save error',
-	// Derived, not a fifth state: `saved` AND `ProjectStore.stale`. The middle dot is the
-	// component library's own spelling of this label.
+	// Derived, not a fifth state: `saved` AND a staleness — `ProjectStore.stale`,
+	// `usePlanningReadState().failed`, or the `stale` prop a surface with neither store hands in
+	// (the Asset Designer, which mounts its own Pinia and imports neither). This comment named
+	// only the first for as long as it existed, and was one short before the prop as well. The
+	// middle dot is the component library's own spelling of this label.
 	'save-state.saved-refresh-needed': 'Saved · refresh needed',
 	// I00 reserves the captions consumed by the mode-header packet. The existing
 	// `renovation.plan`/`.renovate`/`.review` keys remain the short radio labels.

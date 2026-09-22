@@ -64,6 +64,40 @@ describe('the derived Saved · refresh needed label', () => {
 		expect(wrapper.find('.rp-save-state-saved-refresh-needed').exists()).toBe(true);
 	});
 
+	/**
+	 * **The `stale` PROP, which is the only way this qualifier is reachable on a surface that
+	 * mounts neither store** — the Asset designer mounts its own Pinia and never hydrates
+	 * `ProjectStore` or `usePlanningReadState`, so before W18-C its header read a flat `Saved`
+	 * beside its own refresh-failed strip (contract C08). Both arms in one case: the absent prop
+	 * must leave the two stores deciding, or a Plan Editor would inherit whatever `undefined`
+	 * coerced to.
+	 *
+	 * `designerSaveStateStale.test.ts` is where the designer's own wiring is driven end to end;
+	 * this case is about the component's contract alone.
+	 */
+	it('takes a caller-supplied staleness, and says nothing about one when no prop is passed', async () => {
+		const withProp = mount(SaveStateIndicator, { props: { stale: true } });
+		const without = mount(SaveStateIndicator);
+		await withProp.vm.$nextTick();
+
+		expect(withProp.text()).toBe('Saved · refresh needed');
+		expect(withProp.find('.rp-save-state-saved-refresh-needed').exists()).toBe(true);
+		expect(without.text()).toBe('Saved');
+
+		await withProp.setProps({ stale: false });
+		expect(withProp.text()).toBe('Saved');
+	});
+
+	/** The qualifier applies to `saved` alone, whichever source the staleness came from. */
+	it('does not say refresh needed over a save error from the prop either', async () => {
+		const wrapper = mount(SaveStateIndicator, { props: { stale: true } });
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.resolveErr();
+		await wrapper.vm.$nextTick();
+		expect(wrapper.text()).toBe('Save error');
+	});
+
 	it('does not say refresh needed over a save error', async () => {
 		const wrapper = mount(SaveStateIndicator);
 		const store = useSaveStateStore();

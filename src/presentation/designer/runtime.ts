@@ -526,9 +526,17 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			writeLedger: geometryLedger,
 			renderState,
 			subject: { id: assetId, calibration: store.design?.calibration ?? null },
-			// The Plan Editor's trust path (design spec §2.2) has no counterpart here: this
-			// surface has no `ProjectStore` and no re-read that can go stale over an asset's own
-			// design, so nothing ever blocks a write on that account.
+			// The Plan Editor's trust path (design spec §2.2) has no counterpart here: this surface
+			// has no `ProjectStore`, and no tool it registers asks — only the Plan Editor's
+			// `SelectTool` reads `context.writesBlocked()`, which `designerRefresh.test.ts`'s
+			// 'answers false for writesBlocked' pins through the real context this builds.
+			//
+			// **A re-read here CAN go stale**, and this comment claimed otherwise until W18-C:
+			// `assetDesignStore.stale` is set on a keep-on-failure re-read and is drawn by
+			// `AssetDesignerRoot` — as a strip, and since W18-C as the save state's own
+			// `Saved · refresh needed` qualifier. What is true is only the sentence below it:
+			// nothing on this surface blocks a write on that account. Whether it SHOULD is a
+			// behaviour question W18-C reported rather than answered.
 			writesBlocked: () => false,
 		}),
 	);

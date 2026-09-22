@@ -184,9 +184,31 @@ describe('the interruptions C05 names', () => {
 	};
 
 	/**
-	 * Escape and a tool switch (`cancel`), and `pointercancel` / focus loss / a release outside the
-	 * leaf, which `EditorSurface` all route to `abandonGesture`. Every one leaves the same three
-	 * facts: no band, no set composed, and no write.
+	 * Escape and a tool switch (`cancel`), and `pointercancel` / focus loss / this surface's own
+	 * unmount, which `EditorSurface` routes to `abandonGesture` through
+	 * `toolManager.cancelInterruptedGesture()`. Every one leaves the same three facts: no band, no
+	 * set composed, and no write.
+	 *
+	 * **The unmount is a THIRD door and not the `view teardown` row below**, which is the mistake
+	 * available here: that row drives `deactivate()`, reached from `ToolManager`'s `dispose()`,
+	 * `setActiveTool` and `clearActiveTool` — `editorFormActions.ts` calls `dispose()` from the
+	 * RUNTIME's unmount, never the surface's. `EditorSurface`'s own `onBeforeUnmount` goes through
+	 * `releaseInterruptedInputs` and its comment says why: the responsive shell removes the canvas
+	 * below its floor width, so a press whose release is never coming must abandon and not cancel,
+	 * and a multi-click draft crosses the unmount intact.
+	 *
+	 * **A release outside the leaf is NOT one of them, and this sentence used to say it was.**
+	 * `grep -n "cancelInterruptedGesture()" src/presentation/editor/surface/EditorSurface.vue`
+	 * prints THREE lines and only two of them are calls — the third is that file's own prose about
+	 * a fixed ordering defect. The two are in `onPointerCancel` and in `releaseInterruptedInputs`,
+	 * which `onBlur` and `onBeforeUnmount` are the callers of — and `onPointerLeave` reaches neither:
+	 * it abandons `panOverride` and the camera drag and stops. What a release outside the leaf
+	 * actually does is the OPPOSITE of an interruption: `onPointerDown` calls `setPointerCapture` on
+	 * both arms, so the release is delivered back to the captured container and the gesture COMMITS.
+	 * `dropMarquee`'s docblock in `designer-select-tool.ts` was corrected for exactly this sentence,
+	 * and `designerCanvasGestureOwnership.test.ts`'s *"a sweep released outside the leaf"* asserts
+	 * the commit against the real mounted surface. The CASES below were always sound — they call
+	 * `tool.abandonGesture()` directly — so only the naming was wrong.
 	 *
 	 * The selection they leave is the one the press cleared, PUT BACK — the review round's F4 fix, and
 	 * what `MarqueeSelection.cancel` does on the other surface. This case asserted no restore until
@@ -194,7 +216,7 @@ describe('the interruptions C05 names', () => {
 	 */
 	it.each([
 		['Escape or a tool switch', (rig: SelectToolRig): void => rig.tool.cancel()],
-		['pointercancel, blur or a release outside the leaf', (rig: SelectToolRig): void => rig.tool.abandonGesture()],
+		['pointercancel, blur or surface unmount', (rig: SelectToolRig): void => rig.tool.abandonGesture()],
 		['view teardown', (rig: SelectToolRig): void => rig.tool.deactivate()],
 	])('takes the band away and composes nothing: %s', (_name, interrupt) => {
 		const rig = interrupted(interrupt);

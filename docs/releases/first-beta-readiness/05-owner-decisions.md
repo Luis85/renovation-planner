@@ -1,4 +1,4 @@
-# Owner decisions — four open questions before the first beta
+# Owner decisions before the first beta
 
 Assembled 2026-09-19 from the records named at the foot of each section. **Nothing here is a
 recommendation.** Each section states a situation, what a user would see, the options that have
@@ -34,7 +34,7 @@ so ("Closing the category is L-06's subject"). They are presented once so an own
 
 | Id | The question | Needs a vault run? | What it blocks |
 |---|---|---|---|
-| Q1 (L-06 + L-11) | Some half-failed writes are recorded and some are silently discarded, and no check says which. Does that stand for a first beta? | No to decide. Yes to verify any fix in situ. | G1 — data trust. The tracker names this as the one BP-02 limitation still open. |
+| Q1 (L-06 + L-11) | Some half-failed writes are recorded and some are silently discarded, and no check says which. Does that stand for a first beta? | No to decide. Yes to verify any fix in situ. | G1 — data trust. The tracker's G1 row names it among the owner questions, Q1 to Q3, that its evaluation waits on. |
 | Q2 (L-19) | Changing a setting while a project is being created can leave that project in the old folder, invisible in the list, with the user told nothing — so they may create it twice. Does that block first beta? | **Yes** — which of two arms production takes is unverified. | G1 — data trust. Accepted by ruling R-S7-11; only the release call is open. |
 | Q3 (L-21) | May a view that is still on screen write to the vault after the plugin has been unloaded? | **Yes** — whether Obsidian leaves such a view alive, and in what order, is unverified. | G1, and five of BP-03 F3's six test rows, deliberately unwritten. |
 | Q4 | Q4 does not exist as a separate question: L-11 folds into Q1 for the reason in section 1. | — | — |
@@ -350,8 +350,10 @@ record requests rather than behaving, and the mock plugin base unregisters nothi
   re-driven for Q1 and one of them did not hold — it is flagged in section 3 where it sits.
 - **It does not size the Q1 category.** How many raise sites reach no recorder is unmeasured, and
   every count in section 3 is a count of what has been *named*.
-- **It covers no other open limitation.** L-03, L-04, L-14, L-15, L-17, L-18 and L-20 are open or
-  partly open in the tracker and are out of scope here.
+- **It covers no other open limitation beyond section 8's pointers.** The tracker's "Decisions and
+  explicit limitations" table is the list of what is open or partly open. This section keeps no
+  list of its own, because the one it kept went stale: it named L-04, which is REFUTED, and none
+  of the owner questions in section 8.
 - **It claims no verification in Obsidian, on any device, with any screen reader, or of any
   performance property.** None has been performed on this branch, ever. Q2 and Q3 each need one
   vault run before their answer can be acted on with confidence, and Q1 needs one before any fix to
@@ -359,3 +361,39 @@ record requests rather than behaving, and the mock plugin base unregisters nothi
 - **It adds no user-facing copy.** Any option here that would need a new user-visible message is
   blocked behind limitation L-15 until a human writes the second language, and the option's row
   says so.
+
+## 8. Other open owner questions, recorded in the tracker
+
+Added 2026-09-23 (session 17). These are owner questions the tracker records outside Q1 to Q3.
+This is a reading of the tracker on that date, not a census, and nothing here decides any of them.
+Each names the tracker row that carries its evidence.
+
+- **L-23: a vertex drag can write a zero-area straight Zone to the vault**, which BP-04's typed
+  dialog then refuses to save. The recorded remedy (`enclosesArea` in `Zone.withGeometry`) changes
+  behaviour at a trust boundary: a vault already holding such a Zone keeps loading but refuses
+  further edits. It waits on a recorded trade (R-S12-7). Tracker row L-23.
+- **L-33's residue: whether to mint a sentence naming the cause of a whole-outline refusal.** The
+  outline dialog now shows the fallback-tier `error.category.geometry` sentence, which the locale
+  file's own convention treats as a defect worth a key to avoid. Minting one needs German, which
+  L-15 keeps out of an agent's hands. Tracker row L-33.
+- **L-36: one form's two axis labels are written in two English registers**
+  (`Starting horizontal coordinate (m)` beside `Start Y (m)`). Both remedies are copy judgements,
+  and the symmetric one needs German that L-15 blocks. Tracker row L-36, to be revisited with
+  L-33's residue.
+- **L-37: two strings that tell the user to open the diagnostics report arrive as toasts, which
+  cannot carry an action.** The question is whether a notice in this plugin should be able to
+  carry an action at all. The row records it as not blocking a first beta. Tracker row L-37.
+- **L-43: on mobile the Asset Library can create, edit and delete assets, while the beta scope
+  reads "mobile read-only".** A P0 candidate under the plan's own rule, and a choice between
+  guarding the library on mobile and narrowing the mobile claim. It is a source reading; nothing
+  has been run on a device. Tracker row L-43 and package BP-09.
+- **BP-05: the plan's clause "rejected/no-op operations do not add history".** Its no-op half
+  contradicts `CommandHistory.runNow`, which puts a no-write gesture on the undo stack by design,
+  and the Done PBI `docs/requirements/Undo and redo.md` records that half as NARROWED at its
+  criterion 6. Narrow the clause, or change the code. Tracker row BP-05.
+- **BP-08: which performance targets a run is judged against.** The plan's targets and the PBI
+  `docs/requirements/Meet editor performance and cleanup budgets.md` disagree, and the plan requires
+  a recorded decision for a changed target. Tracker row BP-08.
+- **BP-10: copy for a help entry and for a fictional sample label.** A help entry needs a new
+  command name and new copy, and labelling the sample fictional changes `sample.project.name` in
+  both locales. Tracker row BP-10.

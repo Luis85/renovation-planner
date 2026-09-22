@@ -40,8 +40,12 @@
  * is DOM order. So the last figure appended took every click and the two under it could not be
  * reached at all. `spreadLabels` is
  * the whole of the answer and it is in the pure module; this component hands it the stage points
- * `worldToScreen` just produced and draws what comes back. The RESTING state is untouched by
- * construction: a label sharing no row with another is returned exactly where it asked to be.
+ * `worldToScreen` just produced and draws what comes back. The state AD18-R14 measured as its floor
+ * — nothing selected, two labels — is untouched by construction, since a label sharing no row with
+ * another is returned exactly where it asked to be. **A SELECTED part is a different state and two
+ * of its eight labels do move**, which that module's own numbers record and
+ * `dimensionCollision.test.ts` asserts by exact array; three of those eight shared one row before
+ * this card, so it is a fix rather than a cost.
  *
  * **Nothing is drawn over an UNSCALED design.** `dimensionsUnscaled` is a footprint captured
  * before the asset had a scale, whose coordinates are placeholder pixels; a millimetre reading

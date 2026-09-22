@@ -46,12 +46,18 @@ function drawn(rig: DesignerRig): [string, string, string][] {
 
 const at = (x: number, y: number): ScreenPoint => screenPoint(x, y);
 
-/** Every pair of placed points that would land on one row, as names, so a failure says WHICH. */
+/**
+ * Every pair of placed points that would land on one row, as names, so a failure says WHICH.
+ *
+ * The two numbers are `SAME_COLUMN_PX` and `SAME_ROW_PX` restated rather than imported, which is
+ * deliberate: a test that reads the constant it is checking passes when the constant moves. If
+ * `spreadLabels` is retuned, this is a second place to edit and the case is meant to go red first.
+ */
 function sharing(points: readonly ScreenPoint[], names: readonly string[]): string[] {
 	const pairs: string[] = [];
 	points.forEach((one, index) => {
 		points.slice(index + 1).forEach((other, offset) => {
-			if (Math.abs(one.x - other.x) < 40 && Math.abs(one.y - other.y) < 8) {
+			if (Math.abs(one.x - other.x) < 15 && Math.abs(one.y - other.y) < 8) {
 				pairs.push(`${names[index]} / ${names[index + 1 + offset]}`);
 			}
 		});
@@ -109,15 +115,41 @@ describe('where the designer puts a label that another one would cover', () => {
 	});
 
 	/**
-	 * A label is pushed four steps and no further. Uncapped the sweep still terminates, but a label
-	 * 700 px from the edge it measures is a worse lie than two labels on one row; the sixth of six
-	 * coincident anchors therefore keeps its fourth slot and overlaps the fifth, which is a PARTIAL
-	 * overlap and still clickable.
+	 * **The column reach is a CONTAINMENT bound, not a box width**, so a pair far enough apart along
+	 * the row that neither reading can swallow the other whole is left alone even though their boxes
+	 * plainly overlap. 20 px is inside a ~33 px label and outside the 15 px bound.
+	 *
+	 * The first version of this rule used the label's own ~40 px width here, which moved this pair
+	 * and every one like it: 79 placements against 60 across ten cameras, for one label MORE left
+	 * covered rather than fewer. `SAME_COLUMN_PX` carries that table.
 	 */
-	it('stops pushing a label after four steps and lets the rest overlap', () => {
+	it('leaves a pair whose boxes overlap but whose readings cannot contain each other', () => {
+		expect(spreadLabels([at(48, 18), at(68, 18)], STAGE)).toEqual([at(48, 18), at(68, 18)]);
+	});
+
+	/**
+	 * A label is pushed four steps and no further, because an uncapped sweep pushes one clean off a
+	 * canvas that is `overflow: hidden`.
+	 *
+	 * **THE LAST TWO LAND ON ONE POINT, AND THAT IS AD18-R14's ORIGINAL DEFECT SURVIVING AT THE
+	 * BOTTOM OF THE FIX FOR IT.** The fifth and sixth both exhaust the cap, so the fifth is painted
+	 * under the sixth and cannot be pressed at all. This case exists to PIN that residual rather
+	 * than to bless it: the first version of this file called it a partial overlap and therefore
+	 * still clickable, which the assertion three lines down already disproved.
+	 *
+	 * It needs six labels on one point, which is far outside the camera AD18-R14 measured —
+	 * `MIN_ZOOM` is 0.01, ten wheel-steps further out. `MAX_STEPS`' docblock carries why neither
+	 * alternative dominates.
+	 */
+	it('stops pushing a label after four steps, and the sixth then hides the fifth', () => {
 		const six = Array.from({ length: 6 }, () => at(48, 18));
 
-		expect(spreadLabels(six, STAGE).map((point) => point.y)).toEqual([18, 48, 78, 108, 138, 138]);
+		const placed = spreadLabels(six, STAGE);
+
+		// The residual FIRST, because vitest stops a case at its first failing expect and this is
+		// the assertion the docblock above is about.
+		expect(placed[4]).toEqual(placed[5]);
+		expect(placed.map((point) => point.y)).toEqual([18, 48, 78, 108, 138, 138]);
 	});
 
 	/**
@@ -141,8 +173,12 @@ describe('what the mounted overlay draws once the rule has run', () => {
 	 * **The defect, end to end, through the real View menu checkbox.** `clearance-width` and
 	 * `overall-width` both want (48, 18) over `editableShape()`; before this card the overall label
 	 * was drawn last at that exact point and covered the clearance's outright, so a user could not
-	 * press the clearance's reading at all. The two `top` values differing is the whole of what
-	 * makes both reachable.
+	 * press the clearance's reading at all.
+	 *
+	 * **Read the assertion as exactly what it says: DISTINCT POSITIONS, not proven reachability.**
+	 * Two labels one pixel apart are distinct and the earlier is still covered whole; jsdom computes
+	 * no layout, so nothing here can measure a box or a hit. What this pins is that the defect's own
+	 * signature — fourteen labels occupying twelve points — is gone.
 	 */
 	it('draws no two All dimensions labels at one point', async () => {
 		const rig = await designer();
@@ -164,12 +200,12 @@ describe('what the mounted overlay draws once the rule has run', () => {
 	 * overall pair — appended last by `dimensionFigures`, which is why it was the label on top —
 	 * steps down into the canvas.
 	 *
-	 * **THREE boxes rather than one, and that is the cascade rather than a surprise.** The two rows
-	 * below the anchor were already taken by `detail-1`'s right offset at (73, 48) and by the
-	 * clearance's own top offset, which had been pushed to (48, 78) for the same reason. Written
-	 * from the run rather than from arithmetic: the first draft of this case predicted one step,
-	 * and hand-walking a greedy sweep over fourteen labels is exactly the arithmetic a person gets
-	 * wrong.
+	 * **TWO boxes rather than one, and that is the cascade rather than a surprise.** The row below
+	 * the anchor was already taken by the clearance's own top offset, which had been pushed to
+	 * (48, 48) for the same reason. Written from the run rather than from arithmetic: the first
+	 * draft of this case predicted one step, and hand-walking a greedy sweep over fourteen labels is
+	 * exactly the arithmetic a person gets wrong. (It read THREE boxes while `SAME_COLUMN_PX` was
+	 * the label's own width rather than the containment bound.)
 	 */
 	it('keeps the part’s own label on the anchor and steps the overall one off it', async () => {
 		const rig = await designer();
@@ -177,29 +213,60 @@ describe('what the mounted overlay draws once the rule has run', () => {
 			await rig.wrapper.get('.rp-designer-tools [data-rp-view="all-dimensions"]').setValue(true);
 
 			expect(drawn(rig)).toContainEqual(['clearance-width', '48px', '18px']);
-			expect(drawn(rig)).toContainEqual(['overall-width', '48px', '108px']);
+			expect(drawn(rig)).toContainEqual(['overall-width', '48px', '78px']);
 		} finally {
 			rig.unmount();
 		}
 	});
 
 	/**
-	 * The floor again, at the surface rather than at the rule: with the toggle off the overlay draws
-	 * the overall pair exactly where `designerDimensions.test.ts` has always asserted it does.
-	 * Selecting a part is the other resting shape and is asserted the same way.
+	 * **AD18-R14's floor, at the surface rather than at the rule**: with nothing selected the
+	 * overlay draws the two labels the ruling measured, at exactly the pixels
+	 * `designerDimensions.test.ts` has always asserted, and this rule moves neither.
 	 */
-	it('moves nothing in the resting state, with or without a selection', async () => {
+	it('moves neither label of the unselected resting state', async () => {
 		const rig = await designer();
 		try {
 			expect(drawn(rig)).toEqual([['overall-width', '48px', '18px'], ['overall-depth', '-2px', '48px']]);
+		} finally {
+			rig.unmount();
+		}
+	});
 
+	/**
+	 * **Selecting a part DOES move two of its eight labels, and this case exists to say which.**
+	 * An earlier version of it was called "moves nothing … with or without a selection" and asserted
+	 * `toContainEqual` on exactly the two labels that stay put, so it read as a floor while the
+	 * module's own docblock recorded the movement — the claim was the defect, not the behaviour.
+	 *
+	 * The behaviour is a FIX rather than a regression, and the distinction is what makes the
+	 * renaming sufficient: three of these eight anchors sat on y = 48 before this card
+	 * (`detail-1`'s depth at (8, 48), its left offset at (3, 48) and the overall depth at (-2, 48)),
+	 * so the selected state was never at zero overlaps. AD18-R14's floor is the state it measured —
+	 * the unselected pair above, at zero overlapping pairs — and that is untouched.
+	 *
+	 * Asserted by EXACT ARRAY, in DOM order, so a future retune cannot move a third label quietly.
+	 */
+	it('moves two of the eight labels a selected part draws, and names them', async () => {
+		const rig = await designer();
+		try {
 			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
 			await settle();
 
 			// detail-1 is (-400, -100) to (0, 100), so its width label's anchor is (-200, -100) —
-			// (28, 38) at this camera — and its left offset's is (-450, 0), which is (3, 48).
-			expect(drawn(rig)).toContainEqual(['detail-detail-1-width', '28px', '38px']);
-			expect(drawn(rig)).toContainEqual(['overall-width', '48px', '18px']);
+			// (28, 38) at this camera — and its left offset's is (-450, 0), which is (3, 48). That
+			// offset and the overall depth are the two that move, each off `detail-1`'s own depth
+			// label at (8, 48); every other row here is the anchor untouched.
+			expect(drawn(rig)).toEqual([
+				['detail-detail-1-width', '28px', '38px'],
+				['detail-detail-1-depth', '8px', '48px'],
+				['detail-detail-1-offset-left', '3px', '78px'],
+				['detail-detail-1-offset-right', '73px', '48px'],
+				['detail-detail-1-offset-top', '28px', '28px'],
+				['detail-detail-1-offset-bottom', '28px', '68px'],
+				['overall-width', '48px', '18px'],
+				['overall-depth', '-2px', '108px'],
+			]);
 		} finally {
 			rig.unmount();
 		}

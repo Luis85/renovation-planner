@@ -9,8 +9,8 @@
  * a DOM node.
  *
  * **Two exported FUNCTIONS, and the second works in PIXELS rather than millimetres.** Counted from
- * `grep -n "^export" ` over this file after the change, which prints three lines — `DimensionFigure`
- * is the third and is a type. `dimensionFigures`
+ * `grep -n "^export"` over this file after the change, which prints three lines — the FIRST is
+ * `DimensionFigure` and is a type. `dimensionFigures`
  * answers what is measured and where in the world it belongs; `spreadLabels` answers where a label
  * is actually drawn once the camera has crowded several of them onto one row — AD18-R14, whose
  * whole subject is a box that has a size only on a stage. It is here rather than in the component
@@ -288,44 +288,88 @@ export function dimensionFigures(
 }
 
 /**
- * The label's NOMINAL box, in stage pixels, and the only model this module has of something only a
- * browser draws.
+ * One label's drawn height, in stage pixels — AD18-R14's measured box (*"one 33.4 x 30 px box"*),
+ * and the step the sweep below takes. Stepping by a FULL height is what makes two stacked labels
+ * share no pixels vertically at all, whatever their widths.
  *
- * `30` is the height AD18-R14 measured against the running harness (*"one 33.4 x 30 px box"*).
- * `40` is that same measurement's width rounded UP, because the box it measured held a three-digit
- * reading and a four-digit one is wider, and nothing here has a font to ask. Both numbers are a
- * MODEL: every guarantee below is stated over ANCHORS and never over rendered boxes, which is what
- * keeps the sentence honest in a suite where jsdom computes no layout.
+ * It is a MODEL of something only a browser draws. Every guarantee here is stated over ANCHORS and
+ * never over rendered boxes, which is what keeps the sentence honest in a suite where jsdom
+ * computes no layout.
  */
-const LABEL_BOX = { width: 40, height: 30 } as const;
+const LABEL_HEIGHT_PX = 30;
 
 /**
  * How near, vertically, two anchors have to be before the later label COVERS the earlier one.
  *
  * Every label is the same height — one line of `--font-ui-smaller` in a box with a fixed
  * `min-height` and fixed padding — so a pair on genuinely different rows always leaves a strip of
- * the lower one exposed, whatever their widths. A pair within a few pixels of one row does not: the
- * wider reading swallows the narrower one whole, which is exactly the three-labels-in-one-box
- * defect AD18-R14 measured. So the predicate is "same row, overlapping column", not "boxes
- * intersect" — see `spreadLabels` for why the wider predicate was measured and refused.
+ * the lower one exposed, whatever their widths. A pair within a few pixels of one row does not.
+ *
+ * **Read this as PRESSABLE and not as READABLE, which is narrower than it looks.** The strip it
+ * guarantees is at the bottom of a 30 px box whose digits are centred in it, so between roughly 8
+ * and 20 px of separation the lower label is clickable while its number may still be hidden behind
+ * the one above. Raising the threshold buys legibility by moving more labels; whether that trade is
+ * worth taking is a rendered judgement and is on the card's browser list.
  */
 const SAME_ROW_PX = 8;
 
 /**
+ * How near, HORIZONTALLY, before that row is the same row in the sense that matters.
+ *
+ * **This is a containment bound and not a box width, and the first version of this file got that
+ * wrong.** A label is lost when a LATER one covers it whole, which needs their centres within
+ * `(wider − narrower) / 2`. Widths here run from about 20 px for a one-glyph `0` — a zero gap draws
+ * one — to about 46 px for a five-glyph signed reading like `-1050`, since `gapOf` is signed and
+ * the repository's own fixture already produces a negative. So the worst containment offset is
+ * about 13 px and anything above it catches every case; the label's own ~40 px WIDTH is a different
+ * quantity and using it only moved labels that were never at risk.
+ *
+ * Measured rather than derived alone, over `editableShape()` under `All dimensions` at ten cameras
+ * from `MIN_ZOOM` to 0.5 — 140 placements, counting labels left more than 90% covered by a later
+ * one against labels moved:
+ *
+ * | reach | left covered | moved |
+ * | --- | --- | --- |
+ * | none (today's defect) | 36 | 0 |
+ * | exact coincidence only | 17 | 20 |
+ * | 12 px | 8 | 58 |
+ * | **15 px** | **8** | **60** |
+ * | 40 px (the first version) | 9 | 79 |
+ *
+ * 15 is the smallest measured value that clears the 13 px bound with a margin. 12 is a placement or
+ * two cheaper and sits UNDER it, which is buying two placements with the property the rule exists
+ * for.
+ */
+const SAME_COLUMN_PX = 15;
+
+/**
  * How far one label may be pushed off its own anchor, in steps.
  *
- * Uncapped, the sweep below still terminates — each step is a whole box and the placed set is
- * finite — but a label 700 px from the edge it measures is a worse lie than two labels sharing a
- * row. Four steps is 120 px: enough for the clusters this surface actually produces (AD18-R14's
- * worst was THREE labels in one box) and short enough that a moved label is still read against its
- * own part. A figure still covered at the cap keeps its last slot and overlaps, which is a partial
- * overlap and therefore still clickable.
+ * Uncapped, the sweep below still terminates — each step is a whole label height and the placed set
+ * is finite — but a label 700 px from the edge it measures is a worse lie than two labels sharing a
+ * row, and at this surface's zoom-out it would be pushed clean off a canvas that is
+ * `overflow: hidden`. Four steps is 120 px: enough for the clusters this surface actually produces
+ * (AD18-R14's worst was THREE labels in one box) and short enough that a moved label is still read
+ * against its own part.
+ *
+ * **THE CAP HAS A RESIDUAL AND IT IS THE ORIGINAL DEFECT.** A figure still covered here keeps its
+ * last slot — and so does the next one, so two labels that exhaust the cap land on the SAME POINT
+ * and the earlier is drawn under the later and cannot be pressed at all. That is AD18-R14's own
+ * *"the two beneath it cannot be reached at all"*, surviving at the bottom of the fix for it, and
+ * `dimensionCollision.test.ts` asserts it rather than leaving it to be discovered. It needs six
+ * labels on one point, which this surface reaches only far outside the camera AD18-R14 measured —
+ * `MIN_ZOOM` is 0.01, ten wheel-steps further out, where the whole shape is a few pixels wide.
+ *
+ * Both alternatives were considered and neither dominates. Stepping past the cap until the point is
+ * free restores distinctness and pays for it by pushing a label off a clipped canvas, which is
+ * unreachable AND invisible. A chooser that collapses a jammed group is the arm that actually
+ * closes it, and it needs a locale string this card may not add.
  */
 const MAX_STEPS = 4;
 
 /** Whether `later` would sit on `earlier`'s row, near enough along it to cover the reading. */
 function sharesRow(later: ScreenPoint, earlier: ScreenPoint): boolean {
-	return Math.abs(later.x - earlier.x) < LABEL_BOX.width && Math.abs(later.y - earlier.y) < SAME_ROW_PX;
+	return Math.abs(later.x - earlier.x) < SAME_COLUMN_PX && Math.abs(later.y - earlier.y) < SAME_ROW_PX;
 }
 
 /**
@@ -334,7 +378,7 @@ function sharesRow(later: ScreenPoint, earlier: ScreenPoint): boolean {
  * has a size in. A collision at a zoomed-out camera is not one two wheel steps later, which
  * AD18-R14 measured as 31 overlapping pairs falling to 13.
  *
- * **The rule: a label that would land on an already-placed label's row steps one full box height
+ * **The rule: a label that would land on an already-placed label's row steps one full label height
  * away, repeatedly, up to `MAX_STEPS`.** Earlier wins, and the order is `dimensionFigures`' own —
  * a part's own figures first and the overall pair appended last — so the label with the more
  * specific subject keeps its true anchor and the outer measurement stacks off it, which is how a
@@ -348,7 +392,11 @@ function sharesRow(later: ScreenPoint, earlier: ScreenPoint): boolean {
  * `.rp-plan-canvas` is `overflow: hidden` and `DesignerCanvas` fits an opened asset with only
  * `FIT_PADDING_PX`'s 48 px of margin, so the overall pair sits 48 px from the top edge and an
  * unconditional outward step would clip it. A clipped label is a total loss; a label pushed inward
- * over the drawing is not.
+ * over the drawing is not. **That holds while the stage is at least 240 px tall** — worst travel is
+ * `MAX_STEPS` x `LABEL_HEIGHT_PX` each way and the rule is symmetric about the middle — and it
+ * INVERTS on one input: `EditorStore` initialises `stageSize` to `{ 0, 0 }`, so until the resize
+ * observer first reports, `stage.height / 2` is 0, every anchor reads as the bottom half and every
+ * step goes up. Transient, and it resolves itself on the first report.
  *
  * **The WIDER predicate — separate every pair whose boxes intersect at all — was measured and
  * refused, and the numbers are the argument.** Over `editableShape()` at the designer's own
@@ -356,24 +404,31 @@ function sharesRow(later: ScreenPoint, earlier: ScreenPoint): boolean {
  *
  * | predicate | selected `detail-1` (8 labels) | `All dimensions` (14 labels) |
  * | --- | --- | --- |
- * | this one | **2** moved, 30 px and 60 px | **5** moved, 90 px at worst |
+ * | this one | **2** moved, 60 px at worst | **5** moved, 60 px at worst |
  * | boxes intersect | **6** moved, three at the 120 px cap | **12** moved, five at the cap |
  *
  * A label at the cap is one the sweep did NOT resolve, so the wider predicate buys a scattered
  * overlay and still leaves overlaps — which is the layout engine AD18-R14's losing side warned §0
- * never asked for, arriving without even the property it was reached for.
+ * never asked for, arriving without even the property it was reached for. The NARROWER arm —
+ * stepping only exactly coincident anchors — was measured too and is in `SAME_COLUMN_PX`: it moves
+ * a third as many labels and leaves twice as many covered, because a wide reading swallows a narrow
+ * one whole without landing on it.
  *
- * **What this does NOT claim.** It is stated over anchors and a modelled box, so it cannot say that
- * nothing is occluded on screen — a label whose reading is far wider than `LABEL_BOX.width` can
- * still clip a neighbour's edge. What it does guarantee is testable here: an anchor that shares no
- * row is returned UNMOVED, which is the floor AD18-R14 sets on the resting state, and no returned
- * point shares a row with an earlier one unless that label exhausted `MAX_STEPS`.
+ * **What this does NOT claim, stated wider than the first version of this paragraph did.** It is a
+ * rule about ANCHORS with a modelled box, so it cannot say nothing is occluded on screen, and three
+ * cases are outside it by construction rather than by accident: two labels just over `SAME_ROW_PX`
+ * apart, where the lower one is pressable but its digits may not be legible; two LATER labels that
+ * straddle an earlier one, covering it between them while sharing a row with neither; and a pair
+ * that both exhaust `MAX_STEPS`, which land on one point — see there. What it does guarantee is
+ * testable here: an anchor that shares no row is returned UNMOVED, which is the floor AD18-R14 sets
+ * on the resting state, and no returned point shares a row with an earlier one unless that label
+ * exhausted `MAX_STEPS`.
  */
 export function spreadLabels(anchors: readonly ScreenPoint[], stage: StageSize): ScreenPoint[] {
 	const placed: ScreenPoint[] = [];
 	const covered = (point: ScreenPoint): boolean => placed.some((other) => sharesRow(point, other));
 	for (const anchor of anchors) {
-		const step = anchor.y < stage.height / 2 ? LABEL_BOX.height : -LABEL_BOX.height;
+		const step = anchor.y < stage.height / 2 ? LABEL_HEIGHT_PX : -LABEL_HEIGHT_PX;
 		let at = anchor;
 		for (let steps = 0; steps < MAX_STEPS && covered(at); steps += 1) {
 			at = screenPoint(at.x, at.y + step);

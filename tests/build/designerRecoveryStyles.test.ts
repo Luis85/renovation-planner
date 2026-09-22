@@ -43,12 +43,19 @@ const declaredBy = (css: string, selector: string): string[] =>
 		.flatMap((rule) => rule.declarations)
 		.map((declaration) => propertyOf(declaration));
 
-/** The parsed value of every `align-self` the rule spelled `selector` declares, in source order. */
-const alignSelfIn = (css: string, selector: string): unknown[] =>
+/**
+ * The parsed value of every `property` the rule spelled `selector` declares, in source order.
+ *
+ * `unknown` rather than a lightningcss type, because the parser's node differs per property — a
+ * `self-position` for `align-self`, a token list for an `outline` carrying a `var()`, and
+ * `outline-offset` arriving as `custom` because lightningcss's grammar does not model it. Callers
+ * compare against the shape they expect, which is what makes each comparison exact.
+ */
+const valuesOf = (css: string, selector: string, property: string): unknown[] =>
 	stylesheetRules(css)
 		.filter((rule) => rule.selectors.some((one) => show(one) === selector))
 		.flatMap((rule) => rule.declarations)
-		.flatMap((declaration) => (declaration.property === 'align-self' ? [declaration.value] : []));
+		.flatMap((declaration) => (propertyOf(declaration) === property ? [declaration.value] : []));
 
 describe('the designer recovery partial', () => {
 	/**
@@ -59,7 +66,47 @@ describe('the designer recovery partial', () => {
 	 */
 	it('opts the retry out of the shell column’s stretch, and sets all four margins', () => {
 		expect(declaredBy(SHEET, `.${RETRY}`)).toEqual(['align-self', 'margin-block', 'margin-inline']);
-		expect(alignSelfIn(SHEET, `.${RETRY}`)).toEqual([{ type: 'self-position', overflow: null, value: 'flex-start' }]);
+		expect(valuesOf(SHEET, `.${RETRY}`, 'align-self')).toEqual([{ type: 'self-position', overflow: null, value: 'flex-start' }]);
+	});
+
+	/**
+	 * **THE FOCUS RING WAS GUARDED BY NOTHING until this case, and that was measured rather than
+	 * suspected**: deleting the whole `:focus-visible` rule left this file, `buttonFocusRing` and
+	 * `focusReach` green — 282 tests across four files. `declaredBy` filters on the EXACT selector,
+	 * deliberately, so the case above never sees this rule; `classesNamed` is satisfied by the
+	 * resting one; and the two focus scans only require a ring on a FLATTENED button, which this is
+	 * not, since nothing here suppresses Obsidian's `box-shadow`.
+	 *
+	 * What the rule is for, and therefore what each assertion protects: Obsidian's own
+	 * `button:focus-visible` shadow measures 2.29:1 dark and 1.88:1 light (`styles/forms.css`),
+	 * under WCAG 1.4.11's 3:1, against `--interactive-accent`'s 4.00:1 and 3.43:1. Swapping the
+	 * token, dropping the rule or turning the offset negative each reddens a different line here.
+	 *
+	 * `2` and not `-2`: the offset is POSITIVE because the margin insets the button and leaves room
+	 * for a ring outside it. Both spellings are live in this project — six designer rules use `1px`
+	 * and four use `-2px` — so the value is asserted rather than left to whichever a reader copies.
+	 */
+	it('rings its own focus with the accent token, at a positive offset', () => {
+		const focus = `.${RETRY}:focus-visible`;
+
+		expect(declaredBy(SHEET, focus)).toEqual(['outline', 'outline-offset']);
+		// A `custom` declaration's value carries its own `name`, which is why this is not a bare
+		// token list the way `outline`'s is.
+		expect(valuesOf(SHEET, focus, 'outline-offset')).toEqual([
+			{ name: 'outline-offset', value: [{ type: 'length', value: { unit: 'px', value: 2 } }] },
+		]);
+		// `outline` arrives UNPARSED — a `var()` anywhere in a value stops lightningcss folding it
+		// into a typed node — so the token list is under `value`, and the token that matters is the
+		// variable reference. `arrayContaining` rather than the whole list: the width and the style
+		// beside it are not what this case is about.
+		expect(valuesOf(SHEET, focus, 'outline')).toEqual([
+			{
+				propertyId: { property: 'outline' },
+				value: expect.arrayContaining([
+					{ type: 'var', value: { name: { ident: '--interactive-accent', from: null }, fallback: null } },
+				]) as unknown,
+			},
+		]);
 	});
 
 	/**
@@ -73,8 +120,11 @@ describe('the designer recovery partial', () => {
 	it('does not answer for one subject out of another rule’s body', () => {
 		const strayed = `.${RETRY} { margin-block: 0 } .rp-designer-notice { align-self: flex-start }`;
 
-		expect(alignSelfIn(strayed, `.${RETRY}`)).toEqual([]);
-		expect(alignSelfIn(`.${RETRY}:focus-visible { align-self: flex-start }`, `.${RETRY}`)).toEqual([]);
+		expect(valuesOf(strayed, `.${RETRY}`, 'align-self')).toEqual([]);
+		expect(valuesOf(`.${RETRY}:focus-visible { align-self: flex-start }`, `.${RETRY}`, 'align-self')).toEqual([]);
+		// And the other way: the RESTING rule must not answer for the focus one either, which is
+		// the arm that matters now that a real `:focus-visible` rule sits beside it.
+		expect(declaredBy(`.${RETRY} { outline: 2px solid var(--interactive-accent) }`, `.${RETRY}:focus-visible`)).toEqual([]);
 	});
 
 	/**

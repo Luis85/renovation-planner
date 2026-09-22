@@ -92,37 +92,50 @@ first**; it costs two minutes and it decides eight steps.
   has no rendering engine for any of the three.
 - **AD16 item 3** (moderated novice usability) needs people. Not fakeable and not faked.
 
-## The `src/` findings this pass looks at — FOUR now, and a fifth that is not this package's
+## The `src/` findings this pass looks at — ONE now, and a second that is not this package's
 
-Recorded as holes by the user's decision rather than fixed, so the pass is where they are
-**observed** rather than where they are closed. Each names its steps:
+**This section named FOUR findings and a fifth until 2026-09-22, and three of the four were already
+closed when it said so.** That is the failure this whole document exists to prevent, sitting inside
+the document: the section above it correctly recorded two of them as fixed while this list went on
+asserting the opposite, and a walker reads the list rather than the narrative. Recounted against the
+tree rather than edited down from the old text.
 
-1. The designer's header reads `Saved` beside its own out-of-date strip, and
-   `save-state.saved-refresh-needed` cannot be produced on that surface at all — **B9, B11** of
-   [[Recover an asset design rather than lose it]]. Against C08's *"Saved must not imply that a
-   stale canvas is current"* this is the sharpest open question in the package.
-2. `unrecoveredWrite` is set by the designer and drawn nowhere — **B19, B20**.
-3. `runtime.ts`'s `writesBlocked` premise contradicts `assetDesignStore.stale`. A comment, not
-   behaviour, and no step observes it.
-4. **Added 2026-09-22 (wave 16): `PlanAssetUsage.projectId` reaches no view.** Of every `src/` file
-   importing `AssetPlanUsage`, the only one naming `projectId` is `ListPlansUsingAsset.ts`, the query
-   that produces it; both usage panels — `AssetUsageScope.vue`, and `DesignerUsageScope.vue` through
-   `assetDesignerQueries.ts` — map the row to plan name and placement count only. So **two plans both
-   named `Kitchen` in different projects draw as two identical lines**, separable only by `:key` and
-   `data-plan-id`, neither of which a user sees. The sibling `AssetInspectorUsedIn.vue` keys on
-   `projectId` *precisely because* two projects may share one identity — the same hazard with opposite
-   answers in one directory. **No step observes it today**, because no case in this pass puts one asset
-   in two same-named plans; a walker who wants to see it should make the second project's plan share a
-   name with the first's. **Beware the grep**: a bare `projectId` search over `src/presentation/library/`
-   is NOT empty, but those hits are `ReferencingGroup` from a different query, and only the
-   `AssetPlanUsage`-importer grep settles it.
+**Closed, and named here only so nobody re-finds them as defects:**
 
-**And one that is NOT this package's**, recorded here only so it is not rediscovered: `settings.units`
-binds a control and persists through `saveSettings`, and **nothing reads it** — measured three ways,
-with the display path hard-coded to `'en-US'` in `formatLength.ts` and `formatArea.ts` and both
-docblocks naming *"the per-plan units PBI"* as the increment that would change that. It is plugin-wide
-and predates the expansion, so no step here looks at it. It does bear on AD16's release-checklist box
-*"No unfinished or nonfunctional controls advertised"*, which is ticked.
+- The designer's header reading `Saved` beside its own out-of-date strip — **fixed by W18-C**
+  (2026-09-22). `SaveStateIndicator` takes an optional `stale` prop and `AssetDesignerRoot` passes
+  the same `staleAfterRefresh` that draws the notice, so the two cannot disagree. The old claim that
+  `save-state.saved-refresh-needed` *"cannot be produced on that surface at all"* is false; steps 9,
+  11, 12a and 12b are regression guards that fail if the bare word comes back.
+- `runtime.ts`'s `writesBlocked` premise contradicting `assetDesignStore.stale` — **fixed by
+  W18-C**, a comment rather than behaviour, and the same over-claim was found duplicated in
+  `designerRefresh.test.ts`.
+- `PlanAssetUsage.projectId` reaching no view — **fixed by W19-B** (2026-09-22). Plan usage rows now
+  name the project that holds them, so two plans both called `Kitchen` in different projects no
+  longer draw as identical lines. **Read the guarantee narrowly**: it separates two
+  differently-named projects and nothing more, so two `Kitchen` plans in two projects BOTH named
+  `Flat renovation` still draw identically — the neighbouring `withPathsWhereAmbiguous` is what
+  escalates to a path for that, and `ListPlansUsingAsset.ts`'s own header names the residual arm.
+
+**Still open, and the only one this pass observes:**
+
+1. **`unrecoveredWrite` is set by the designer and drawn on no surface the designer renders** —
+   **B19, B20**. The designer's dispatcher wraps the save-state tracker and it dispatches at least
+   one command that can set the flag, yet `grep -rn "unrecoveredWrite" src/presentation/designer/`
+   returns nothing. **The inherited phrase "drawn nowhere" is FALSE and is not repeated here**: the
+   flag has nine consumer files, every one of them Plan Editor or Project Work. It stayed
+   record-only on 2026-09-22 by the user's decision, and closing it needs a row in
+   `AssetDesignerRoot.vue` plus a NEW locale key — `editor.unrecovered` reads *"Inspect the floor's
+   note"* and an asset designer cannot borrow it.
+
+**And one that is NOT this package's**, recorded only so it is not rediscovered: `settings.units`
+binds a control and persists through `saveSettings`, and **nothing outside `src/plugin/settings/`
+reads it** — re-measured 2026-09-22, with the display path hard-coded to `'en-US'` and `m²` in
+`formatLength.ts` and `formatArea.ts`, both docblocks naming *"the per-plan units PBI"*. **That is a
+PER-PLAN fact, which this global setting could not satisfy even if a reader existed**, so the honest
+fix is that PBI rather than a patch. It is plugin-wide and predates the expansion, so no step here
+looks at it. It does bear on AD16's release-checklist box *"No unfinished or nonfunctional controls
+advertised"*, which is ticked.
 
 ## What a walker records
 

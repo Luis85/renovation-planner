@@ -960,3 +960,44 @@ the card is done — F12's measurement needs a host, F10's frozen half cannot ex
 T32's visibility half is unreachable because jsdom has no rendering engine. Say in the report which
 half you closed and which you did not, in the row's own words, so the integrator can regrade from
 the report rather than re-deriving it.
+
+## Wave 19 — issued 2026-09-22, base **THIS COMMIT**, contract revision `r1`
+
+**Two workers, not three.** Body 4 produced no cards at all — all three AD18 gaps proposed to this
+session were already closed at the tree — and the two cards that remain are the ones the user
+authorized in a single batched ruling round: the approved spec's **increment 2** and the `src/`
+finding **B**. Rulings `AD18-R11`, `AD18-R12` and `AD18-R13` are in the base commit, so both cards
+read them rather than being told them.
+
+**The base is THIS COMMIT and the table cannot name its own sha**, for the reason every
+hand-off in this package has run into: recording the sha would move HEAD past the value just
+written. The integrator records it in `execution/state.json` and hands each card its exact base
+sha in the brief, so no worker derives it from this file.
+
+**Disjointness is checked, not intended, and the locale seam is the part worth reading.** W19-A adds
+a NEW locale module, so it touches the single composition point `{en,de}/editor.ts`. W19-B edits the
+EXISTING `{en,de}/assetDuplicate.ts` **in place**, which by this package's own recorded lease fact
+does **not** touch `editor.ts`. That is the whole reason these two can run in one wave. Both cards
+reach into `src/presentation/designer/`, and no file appears in both rows.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| W19-A dimensions on canvas | `.worktrees/ad11` · `w19a-dimensions-on-canvas` | NEW `presentation/designer/dimensions/**` (component plus a pure geometry module beside it, the `rulers/` shape), `presentation/designer/DesignerCanvas.vue`, `presentation/designer/DesignerViewMenu.vue`, `presentation/designer/grid/designerGrid.ts` (**docblock only** — the FOUR-consumer sentence, updated in the same edit as the fifth call), `presentation/designer/rulers/DesignerRulers.vue` and `styles/designer-rulers.css` (**the pointer-events sentence correction AD18-R11 mandates, and nothing else in either file**), `presentation/designer/runtime.ts` (**integrator lease, sub-let** — the leaf-local `allDimensions` ref, AD18-R12), `presentation/designer/AssetDesignerRoot.vue` (**integrator lease, sub-let**), NEW `styles/designer-dimensions.css` **and the ONE `@import` line for it in `styles/index.css`**, NEW `i18n/locales/{en,de}/assetDimensionsOnCanvas.ts` **and the import+spread lines in `{en,de}/editor.ts`**, its own tests | **this commit** / `r1` | issued | candidate committed and handed off |
+| W19-B plan usage project name | `.worktrees/ad13b` · `w19b-usage-project-name` | `application/queries/ListPlansUsingAsset.ts`, `presentation/library/AssetUsageScope.vue`, `presentation/designer/inspector/DesignerUsageScope.vue`, `presentation/designer/inspector/DesignerUsagePlans.vue`, `presentation/read-models/{assetLibraryQueries,assetDesignerQueries}.ts` **only if the envelope shape has to be threaded**, `i18n/locales/{en,de}/assetDuplicate.ts` (**edited in place — this card does NOT touch `editor.ts`**), its own tests | **this commit** / `r1` | issued | candidate committed and handed off |
+
+**Three integrator-owned files are sub-let to W19-A, granted explicitly and in writing here rather
+than after the fact**, because this package has already paid once for a lease extension that could
+not be made cleanly: `runtime.ts` (AD18-R12 puts the toggle's `ref` there and nowhere else — a
+persisted alternative was refused for widening a shared Plan Editor contract), `AssetDesignerRoot.vue`
+(the wiring seam) and `styles/index.css` (**one `@import` line only**). A styles partial and its
+`@import` cannot be leased apart, which is why they are one row rather than two.
+
+**`designerGrid.ts` is a DOCBLOCK-ONLY lease and the distinction is load-bearing.** Its sentence
+names FOUR consumers and there are four; a fifth call makes that sentence wrong in the same commit
+that adds it. The file deliberately does not spell the function name with its bracket in prose so
+the grep stays honest — preserve that.
+
+**Held by the integrator and sub-let to nobody this wave:** `docs/` in its entirety, including
+`MANUAL-PASS.md`, `AD18-concept-fidelity.md`, `RESUME.md` and the case files under `docs/tests/`.
+AD18-R13's retry falsifies step 10 of [[Recover an asset design rather than lose it]], and that
+rewrite is the integrator's in the same session that ships the behaviour.

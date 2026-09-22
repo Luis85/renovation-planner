@@ -1013,6 +1013,196 @@ settling what was already settled.**
   `editShape.test.ts`. No row is owed. **This is the T25 shape exactly, one session later**: a claim
   in a hand-off that nobody re-ran against the document it was about.
 
+### AD18-R11 — increment 2 ships IN FULL as a DOM overlay, and the premise that the overlay slot forbids interactivity is FALSE. (2026-09-22)
+
+**Taken by the user**, who chose the full increment over two narrower arms. This is the approved
+2026-09-15 spec's **increment 2**, the last one owed of three; AD18-R9 delivered increment 3 before
+it, deliberately, and recorded that so nobody read rulers' presence as evidence 2 had landed.
+
+**§0 specifies it verbatim** and this ruling reopens none of it: *"Dimensions on canvas — overall
+width × depth along the footprint, the selected part's size and its offsets to the footprint edges,
+each value a button opening an inline field, updated live from the drag preview, an 'All dimensions'
+view toggle, and no numbers on an unscaled part."* The decision table above it fixes the mechanism
+for the whole iteration — **DOM overlay in `EditorSurface`'s overlay slot, positioned by
+`worldToScreen`**, the `RoomDimensionLabels` pattern, with Konva labels and a hybrid both refused.
+
+**The session brief called the pointer-events question "the single biggest unknown ... it deserves a
+decision put to the user if it forces a mechanism change". It forces nothing, because the premise
+was false.** Measured rather than reasoned:
+
+- `.rp-plan-overlay` declares **no `pointer-events` at all**. Its whole rule is `display: contents`
+  (`styles/editor.css:189-191`). A grep of `styles/` for that class returns that rule and one prose
+  mention.
+- The four `.stop` modifiers on the wrapper (`EditorSurface.vue:1151-1157`) are **bubble-phase**.
+  A child's own handler runs first, in the target phase, untouched; the modifiers only keep the
+  event from reaching `.rp-plan-canvas`'s camera handlers. They are a shield FOR the canvas, not a
+  shield AGAINST the overlay. `EditorSurface.vue`'s own comment already said so.
+- **`RoomDimensionLabels` — the precedent the spec names — is this feature, already shipped and
+  fully interactive.** `RoomDimensionButton.vue` is a real `<button>`; `InlineRoomDimension.vue` is
+  a real `<form>` with a focused `<input inputmode="decimal">`; `RoomDimensionControls.vue` swaps
+  them on `draft?.axis === axis`; and focus returns to the button on close.
+- The pattern is `pointer-events: none` on the CONTAINER so the children can set `auto`
+  (`styles/editor-direct-actions.css:2` and `:8`). Interactive DOM already lives in the designer's
+  own overlay slot today — `DesignerEntryPaths`' three `.rp-empty-state__action` buttons.
+
+**So the cost of interactive labels is one CSS line plus `@keydown.stop` on the inline form root**,
+the keyboard twin `AddMenu` already carries for the same reason.
+
+**A sentence this ruling REFUSES to let a third file inherit.** `DesignerRulers.vue`'s header and
+`styles/designer-rulers.css` both justify their `pointer-events: none` by claiming that, because the
+wrapper carries `@pointerdown.stop`, *"a ruler accepting a press would silently eat the gesture the
+canvas needs"*. That is a non-sequitur: the `.stop` handlers do not make an accepting child eat
+anything. The correct reason to put `none` on a container is so its children may opt back in — which
+is what `.rp-dimension-labels` does two files away, the same declaration with the opposite
+conclusion. **The dimensions card corrects both sentences in the same edit**, because a sibling
+partial is exactly how this would reach a third file.
+
+**Scope: the full increment, including the inline editing.** Put to the user as three arms — the
+full increment, read-only annotations with editing as a second card, or overall-plus-part-size with
+the offsets deferred — and the user chose the full increment. **The losing side is real and is the
+same one AD18-R9 weighed**: this is the largest single card this package has run, and the two
+narrower arms would each have been smaller and more obviously correct. It loses for AD18-R9's
+reason — a half-delivered increment is one whose boundary a later reader has to re-derive — and
+because the half that looks riskiest, the inline field, is the half with a complete shipped
+precedent.
+
+**What is NOT reusable, and the card must not try.** `InlineRoomDimension`'s props take a
+`RoomDimensionDraft` carrying `submit()`, `error`, `form.values`, `blocked` and a `controls` triple —
+a Plan Editor task object with no designer equivalent, whose edits go through `editShape`/`ShapeEdit`.
+**Take the pattern, not the components.**
+
+**Two bindings this ruling carries forward from AD18-R9 and R10, because they are about the same
+overlay:** every measured number reads the PREVIEW (`preview.value ?? design.value?.shape`), never
+the committed shape — the ruler card was sent back for exactly that, and the spec's own words are
+*"updated live from the drag preview"*; and only the grid step and origin read the committed shape,
+so a drag does not slide the grid under itself. **`designerGrid`'s docblock names FOUR consumers and
+there are four.** A fifth call updates that sentence in the same edit.
+
+**No gate here can see any of this.** jsdom lays nothing out, so the positioning, the occlusion and
+whether a label is legible at a 460 px leaf are a rendered measurement or they are nothing.
+
+### AD18-R12 — the `All dimensions` toggle is LEAF-LOCAL and is not persisted. (2026-09-22)
+
+**Taken by the user.** It becomes `DesignerViewMenu`'s fourth row; there are three today — Grid,
+Snap to objects, Reference opacity — counted from `data-rp-view` rather than remembered.
+
+**It is the Reference-opacity kind of row, not the Grid kind.** A plain `ref` on
+`useDesignerRuntime()`, destructured in setup so `v-model` unwraps it. The menu's own header already
+blesses two kinds of row and this is the second.
+
+**The losing side, which the user accepted:** the toggle forgets across sessions and across the
+`rebind` that a settings save performs, so a user who wants all dimensions shown re-ticks it every
+time they open the designer.
+
+**Why the persisted arm lost, and it is a layering argument rather than a cost one.** Grid and Snap
+persist through `EditorViewPreferences` in `PlanEditorContext.ts`, whose `read()` and `write()`
+signatures name `gridVisible` and `snappingEnabled` literally, plus `useViewPreferences.ts`. That
+type is consumed by the **Plan Editor**. Persisting a designer-only view toggle would widen a shared
+Plan Editor contract to carry a field the Plan Editor has no use for — which is the wrong direction
+for a decision about one surface. If the toggle is ever reported as wanting memory, that is the
+change to make and this paragraph is what it has to answer.
+
+### AD18-R13 — the designer owes a RETRY, not a write block and not the pause disclosure. (2026-09-22)
+
+**Taken by the user**, on a question W18-C opened rather than answered and which this package had
+been carrying as three questions rather than one: whether a designer write should be blocked while
+the canvas is stale, whether the surface owes a retry action, and whether it owes the hidden pause
+disclosure the Plan Editor's strip carries.
+
+**The fact that decides it was measured, and it is not the one the framing implied.**
+`assetDesignStore`'s `stale` is set at exactly ONE place — a re-read that FAILED on a
+non-authoritative error while real content is already on screen. **It is never set by a failed
+write.** So the in-memory design a stale canvas is showing is still exactly what the user drew; what
+has gone wrong is the vault-side read, not the drawing. And `stale` is cleared by ANY successful
+hydration — *"the ONE event that retires a stale-data warning"*, in the store's own words.
+
+**Therefore a `Try again` that re-hydrates IS C08's reconcile.** C08 requires that *"a retry after an
+uncertain write must reconcile before repeating it"*, and a hydrate is precisely a reconcile: it
+re-reads the vault and, on success, retires the warning. The designer gets that door, on the stale
+notice, which is today a bare `<p class="rp-designer-notice" role="status">` with no children.
+
+**`writesBlocked: () => false` is UNCHANGED and is now a ruling rather than an accident.** The
+Plan-Editor-matching arm was refused for a reason that is not about cost: because `stale` comes from
+a READ failure, blocking writes would freeze a surface whose in-memory design is perfectly valid on
+account of a vault hiccup, taking a gesture away from a user mid-drawing — and the designer has no
+undo-safe recovery path to give it back. A gate that punishes the user for the vault's failure is
+the wrong gate.
+
+**The pause disclosure is refused WITH the block, and deliberately as one decision.** The Plan
+Editor's hidden `pausedReason` sentence exists so that every paused control's `aria-describedby` has
+something to name; with nothing paused here, that sentence would describe a state this surface does
+not enter, and a reference naming an id no element carries is what axe reports as
+`aria-valid-attr-value`. The two travel together or neither does.
+
+**The losing side, stated plainly:** a user can still go on editing a canvas the vault has moved
+past. The retry is a door OUT, not a stop. What makes that acceptable rather than merely cheap is
+that the write path already refuses rather than overwrites — `AssetGeometryStore.write` opens by
+reading the file — so the failure mode is a refused write and a toast, not a silent clobber, which
+is the outcome C08 actually protects.
+
+**This changes a manual-pass step and the change is owed in the same session.**
+`docs/tests/cases/Recover an asset design rather than lose it.md` step 10 reads *"Look for a **Try
+again** button ... There are none"*, and that expectation becomes false the moment this ships. A
+walker following the old text would report a pass as a failure — the same hazard session thirteen
+had to repair across five steps of that very case.
+
+### Three AD18 gaps were CLOSED BEFORE THIS SESSION, and are recorded as corrections rather than as decisions
+
+**Written this way for AD15-R2's reason: recording a correction as a decision credits a session with
+settling what was already settled.** All three were proposed to this session as outstanding work, by
+`RESUME.md` and by the session brief, and none of them was work. Read at the tree:
+
+- **"The `Add` half of the Add/Parts rail does not exist"** — `DesignerAddPanel.vue` exists, is
+  imported by `AssetDesignerRoot.vue` and is mounted above `DesignerPartsPanel` in the same region.
+  The rail's `role="tab"` count stays 0 **by AD18-R5**, the presets stay a modal **by AD18-R6**, and
+  the shape buttons MOVED rather than duplicated **by AD18-R3**. Every element the gap named as
+  missing is present or explicitly ruled out.
+- **"A wrapping text toolbar"** — the gap section nominated its own instrument,
+  `grep -rn "HostIcon" src/presentation/designer/`, and recorded it returning **0**. It returns
+  **3**. The shape buttons are filtered out of `DesignerToolbar`, and `styles/designer-toolbar.css`
+  carries the post-change rendered measurement the gap section said was owed.
+- **"Reference tracing is guided once, in prose, then not at all"** — `DesignerTraceChecklist.vue`
+  exists, draws five steps with `aria-current="step"`, and is mounted OUTSIDE
+  `DesignerReferenceStatus`'s `v-if` on purpose, so it is no longer an empty state only.
+
+**`AD18-concept-fidelity.md` was behind the tree on all three and `RESUME.md` inherited it.**
+That document records gap 4 as CLOSED and gap 8 as AMENDED inline; gaps 3 and 7 carry no such line
+at all, and gap 5's amendment ends by saying the repair is still owed. The amendment lines are added
+in the same session as this ruling. **The instrument that settles a gap is the tree, and a gap list
+is a document about the tree rather than the tree itself.**
+
+**One residue is carried rather than closed, and it is a LOOK rather than a gap**: the `Add` rail's
+height cost at a 460 px leaf, what takes the second visual toolbar row at 460 px, and whether the
+trace checklist's current row reads as a highlight at all. Each was named by the card that created
+it. None is checkable by any gate here.
+
+### The three `src/` findings: B is taken, A and C stay record-only (2026-09-22)
+
+**Taken by the user, re-asked because the scope had changed again.**
+
+**B is in scope** — `PlanAssetUsage.projectId`. Re-verified, and it is NARROWER and worse than the
+inherited wording: the field reaches no consumer at all. `PlanAssetUsage` is imported by **no file**;
+the five importers of the `AssetPlanUsage` envelope name `projectId` **nowhere**. So two plans both
+named `Kitchen` in different projects draw as two rows of identical visible text, while the sibling
+`AssetInspectorUsedIn.vue` keys on `projectId` *precisely because* a display name is not unique —
+the same hazard with opposite answers in one directory. **Closing it is bigger than recorded**: the
+field is an ID, and no view can draw an id, so the query must also carry a project NAME.
+
+**A stays record-only** — `unrecoveredWrite`. The designer sets it, provably (its dispatcher wraps
+the save-state tracker, and `SetAssetBackground` can return an uncompensated error), and
+`grep -rn "unrecoveredWrite" src/presentation/designer/` returns **zero**. **The inherited phrase
+"drawn nowhere" is false and is not repeated here**: it has nine consumer files, every one of them
+Plan Editor or Project Work. It stays record-only this session because closing it needs a row in
+`AssetDesignerRoot.vue`, which is the dimensions card's lease, and a NEW locale key —
+`editor.unrecovered` reads *"Inspect the floor's note"* and is not reusable by an asset designer.
+Manual-pass steps **B19, B20** continue to observe it.
+
+**C stays out of this package** — `settings.units`. Nothing outside `src/plugin/settings/` reads it;
+both formatters hard-code `'en-US'` and `m²` and both docblocks defer to *"the per-plan units PBI"*.
+**That is a PER-PLAN fact, which this global setting cannot satisfy even if a reader existed**, so
+the honest fix is that PBI rather than a patch here. It bears on AD16's ticked *"No unfinished or
+nonfunctional controls advertised"* and is recorded so it is not rediscovered.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

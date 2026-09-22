@@ -92,6 +92,19 @@ resting state across the full leaf width.
 
 ### 3. The `Add` half of the Add/Parts rail does not exist
 
+**CLOSED before session fourteen, and recorded here because this document was behind the tree.**
+`DesignerAddPanel.vue` exists, is imported by `AssetDesignerRoot.vue` and is mounted above
+`DesignerPartsPanel` in the same left region. Every element this section named as missing is now
+present or explicitly ruled out: the rail's `role="tab"` count stays **0 by AD18-R5** (stacked,
+not tabbed), the presets stay a **modal by AD18-R6**, and the shape buttons **MOVED rather than
+duplicated, by AD18-R3**. The preset search field this section attributes to board 02 already
+ships, inside that modal.
+
+**This section carried no closure line for two sessions while the code was in the tree**, and
+`RESUME.md` inherited that and proposed it to session fourteen as outstanding work. What is left
+is not a gap but a LOOK: the rail's height cost at a 460 px leaf, named as unmeasured by
+AD18-R5 and by W11-A's own report, and checkable by no gate here.
+
 **§4 row 1 is one of only two ADOPT rows**: *"Large central canvas, Add/Parts on the left,
 contextual properties on the right — adopt the composition and adapt it to actual Obsidian leaf
 dimensions."*
@@ -185,6 +198,19 @@ frees 502.0 px of button and four gaps, leaving the ten remaining plus the summa
 against 1264 px available — one row, if it holds. It is owed a rendered check on the candidate, and
 this sentence is deliberately not written as though that check had happened.
 
+**CLOSED before session fourteen. The rendered check the paragraph above says is owed HAS since
+happened, and this document did not record it.** The instrument this section nominated for itself —
+`grep -rn "HostIcon" src/presentation/designer/`, recorded above as returning **0** — returns
+**3**. The four shape buttons are filtered out of `DesignerToolbar` and drawn by `DesignerAddPanel`
+instead (AD18-R3), and `styles/designer-toolbar.css` carries the post-change rendered measurement in
+its own docblock, naming a commit, a browser and a per-button `top`: one row at 1280 with the labels
+shown, and 69 to 32 at 1280, 32 to 32 at 760, 69 to 32 at 580 across the band.
+
+**Read the closure narrowly, because one figure in it is still unexplained**: at 460 px the region
+measures 65.9 px over a single tool row, and nobody knows what takes the second visual row.
+`designer-toolbar.css` says so itself. That is a carried-forward LOOK, not the wrapping-text-toolbar
+gap this section was written about.
+
 `grep -rn "HostIcon" src/presentation/designer/` returns **0**, against 20+ files under
 `src/presentation/editor/`. C12 asks to *"match the current Plan Editor's interaction
 conventions"*, and `DesignerToolbar.vue`'s own docblock records that the Plan Editor's text toolbar
@@ -208,6 +234,18 @@ Both boards tab this panel; they disagree on the tab set (see above), so the spl
 this package has to take rather than copy.
 
 ### 7. Reference tracing is guided once, in prose, then not at all
+
+**CLOSED before session fourteen, and recorded here because this document was behind the tree.**
+`DesignerTraceChecklist.vue` exists and draws the five steps — AD12-R1's deleted step 3 absent,
+count pinned by a test — with the current row carrying `aria-current="step"` and finished rows a
+visually hidden `designer.trace.done`. It is mounted **outside** `DesignerReferenceStatus`'s
+`v-if="relevant"` on purpose, so the sequence is no longer prose in an empty state: the guide is
+drawn for an asset that has no reference at all.
+
+**This section carried no closure line while the code was in the tree**, and `RESUME.md`
+inherited that. What remains is a LOOK rather than a gap, and W10-B's own report named it: whether
+the weight change on the current row reads as a highlight at all. AD18-R4 was itself taken
+against a rendered description rather than a rendered picture.
 
 Board 02 draws a six-step checklist with the current step highlighted: choose image → calibrate
 scale → *lock reference* → trace footprint → add details → verify dimensions.

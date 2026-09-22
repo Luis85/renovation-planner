@@ -21,6 +21,12 @@
  * `grid`, `shape`, `background` and `pixelsPerWorldUnit` are `computed`s over things that are not
  * the palette. The narrower sentence is the one with a check under it.
  *
+ * Three lists carry that geometry, because the producers draw at three different moments: the
+ * COMMITTED design's marks (`GEOMETRY_NODES`, on the stage as soon as a shape is read), the
+ * SELECTION's (`SELECTION_NODES`, only while something is selected under Select) and the
+ * GESTURE's (`GESTURE_NODES`, only while a button is held). The last two are driven through
+ * `designerRig` rather than this file's own `mountDesigner`, whose commands all refuse.
+ *
  * What no case in this file can reach is the other half of that row — whether the result is
  * VISIBLE, or occluded — for the reason `layers.test.ts`'s header already gives: jsdom draws
  * nothing and lays nothing out.
@@ -40,6 +46,8 @@ import {
 } from '../../../src/presentation/designer/AssetDesignerContext';
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { THEME_TOKENS } from '../../../src/presentation/editor/theme/themeTokens';
+import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import { t } from '../../../src/presentation/i18n/strings';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
 import { ok } from '../../../src/core/result/Result';
 import { assetDesign } from '../../helpers/assetDesign';
@@ -51,6 +59,7 @@ import { installResizeObserver, placeAt, resizeTo } from '../../helpers/layout';
 import { recorder } from '../../helpers/logger';
 import { settle } from '../../helpers/editor';
 import { unwiredPlanUsage } from '../../helpers/designerQueries';
+import { click, designerRig, held, selecting } from '../../helpers/designerRig';
 
 const ZONE_STROKE = '--text-normal';
 
@@ -105,6 +114,15 @@ afterEach(() => {
 	document.body.style.removeProperty(ZONE_STROKE);
 });
 
+/**
+ * **It answers `Konva.stages[0]`, and that registry is MODULE-level and shared with every rig this
+ * file mounts.** Safe today only because both `designerRig` cases below take their stage off the
+ * END of it (`Konva.stages.at(-1)`) and unmount in an `onTestFinished`, and Konva's
+ * `Stage.destroy` splices itself out — so index 0 is this function's own stage whenever it runs. A
+ * rig case added here WITHOUT that unmount would leave a stage in front of the queue and the
+ * trailing device-pixel-ratio case would silently assert about the wrong one rather than fail.
+ * Stated where the next author is standing, since nothing checks it.
+ */
 async function mountDesigner(shape?: AssetShape): Promise<Konva.Stage | null> {
 	const host = document.createElement('div');
 	document.body.appendChild(host);
@@ -169,22 +187,21 @@ function clearPalette(): void {
  * `grep -oE "name: '[a-z-]+'" src/presentation/designer/DesignerCanvas.vue | sort -u` prints ten
  * names, and these are that ten less `asset-selection-outline`, `asset-selection-handle` and
  * `asset-rotate-stem`. Those three are the SELECTION's marks and the case below selects nothing,
- * so they draw nothing and a theme change could not move them. The background and the gesture
- * layer name their nodes in their own components, so they are outside that grep's universe;
- * `CanvasGrid.vue` is outside it for a DIFFERENT reason — it names no Konva node at all, being a
- * `<div class="rp-canvas-grid">` mounted outside `<VStage>` — and
- * `editor/elements/RotateArrowIcon.vue` is outside it because it lives in another file, while
- * naming `rotation-handle`, `rotation-handle-button` and `rotation-handle-icon` and taking
- * `tokens`.
+ * so they draw nothing here — they are `SELECTION_NODES`, asserted across the same flip by a case
+ * that does select something, and the two lists together name all ten. The background and the
+ * gesture layer name their nodes in their own components, so they are outside that grep's
+ * universe — the gesture's one name is `GESTURE_NODES`; `CanvasGrid.vue` is outside it for a
+ * DIFFERENT reason — it names no Konva node at all, being a `<div class="rp-canvas-grid">`
+ * mounted outside `<VStage>` — and `editor/elements/RotateArrowIcon.vue` is outside it because it
+ * lives in another file, while naming `rotation-handle`, `rotation-handle-button` and
+ * `rotation-handle-icon` and taking `tokens`.
  *
- * **So what this list closes is the COMMITTED DESIGN's geometry and not the surface's.**
- * `selectionMarks` takes `tokens` and emits `points: flatPoints(run.points)` and `x`/`y` marks;
- * `RotateArrowIcon` takes `tokens` and emits a `VRect` at real coordinates;
- * `DesignerGestureLayer` takes `tokens` too. All three are token-consuming geometry producers
- * whose coordinates NO case asserts across a theme flip, because covering them needs a mount that
- * selects something and one that draws a gesture — a card of its own, not a widening of this
- * list. A wider list here would instead add entries that are empty on both sides of the flip,
- * which is the tautology the non-empty check below exists to refuse.
+ * **So what this list closes is the COMMITTED DESIGN's geometry and not the surface's**, which is
+ * a statement about this list and no longer about the file: `selectionMarks`, `RotateArrowIcon`
+ * and `DesignerGestureLayer` are token-consuming geometry producers too, and the describe below
+ * this one asserts their coordinates across the same flip from a mount that selects something and
+ * one that holds a gesture. Widening THIS list to reach them would instead add entries that are
+ * empty on both sides of the flip, which is the tautology `emptySelectors` exists to refuse.
  */
 const GEOMETRY_NODES = [
 	'.asset-footprint-outline',
@@ -213,29 +230,86 @@ const GEOMETRY_NODES = [
 const nodesNamed = (stage: Konva.Stage | null, selector: string): Konva.Node[] => stage?.find(`${selector}`) ?? [];
 
 /**
- * The drawn coordinates, read off the SCENE: a line's flat `points`, and the anchor's centre and
- * radius, which is the only one of `GEOMETRY_NODES` drawn as a `<VCircle>` rather than a
- * `<VLine>` and so the only one carrying no points array.
+ * One node's coordinates, by what it is drawn AS rather than by which list named it, so the three
+ * lists below share one reader. **Which ATTRIBUTES each branch compares is as load-bearing as which
+ * NAMES the lists carry, and this docblock says both**, because the first version of it said only
+ * the second and the gap was invisible: a capture that reads four of a mark's eight positioning
+ * fields is green for a mutation that moves the mark on screen through one of the other four.
+ *
+ * - **A line**: its flat `points`, which is the WHOLE of what a line here positions with —
+ *   `OutlineConfig` in `footprintLayer.ts` declares `points`, `closed`, the stroke pair,
+ *   `strokeScaleEnabled`, `listening`, `perfectDrawEnabled` and an optional `dash`, and no `x`,
+ *   `y`, offset or scale. So the branch is complete for its producers rather than merely short.
+ * - **A circle**: centre and radius. The anchor mark is the only `<VCircle>` in `GEOMETRY_NODES`.
+ * - **Anything else**: `x`, `y`, `width`, `height`, `offsetX`, `offsetY`, `cornerRadius`,
+ *   `rotation`, `scaleX`, `scaleY`, in that order — every field of `selectionLayer.ts`'s `mark()`
+ *   that decides where the mark lands or what shape it is, plus the two the rotate arrow's icon
+ *   group scales by. `offsetX`/`offsetY` are `radius`, so they TRANSLATE the drawn mark;
+ *   `cornerRadius` is what makes a round handle round and carries `3 * worldPerPixel` on
+ *   `.rotation-handle-button`; `rotation` is the 45 that makes a Bend edges handle a diamond.
+ *   Reading only the first four left all of those free to move — measured, not argued: mutating
+ *   `mark()`'s `offsetX` rather than its `x` left this file green.
+ *
+ * Three kinds reach that last branch, not two: the selection's handle marks and the rotate arrow's
+ * backing are `<VRect>`s, and `.rotation-handle-icon` is a `<VGroup>`. Konva's `Node` defaults
+ * `width` and `height` to `0`, so two of the group's numbers are equal on both sides of every
+ * possible flip — the same tautology `SELECTION_NODES` cites to EXCLUDE the outer `rotation-handle`
+ * group, and it is named here rather than left for a reader to notice. The group stays in because
+ * its `x`/`y` are `at.x - radius`/`at.y - radius` and its scales are `radius / 12`, which are four
+ * real numbers pinning `radius`; the outer group has none at all.
+ *
+ * `cornerRadius` is read through `getAttr` because it is a `Rect` property, not a `Node` one, and
+ * answers `undefined` on the group — `?? 0` rather than a branch, since a constant is what a
+ * comparison across a flip wants from a field that node does not have.
+ *
+ * The line's `points()` is SPREAD rather than held: it is the node's live array, and a capture that
+ * aliased it would compare the scene to itself if a builder ever mutated one in place. Not a defect
+ * today — the layer builders allocate a fresh array per computed run — but
+ * `tests/presentation/editor/scene.test.ts` already spells a before/after capture `[...line.points()]`
+ * for this reason, and one character retires the question.
+ */
+function coordinatesOf(node: Konva.Node): number[] {
+	if (node instanceof Konva.Line) return [...node.points()];
+	if (node instanceof Konva.Circle) return [node.x(), node.y(), node.radius()];
+	return [
+		node.x(), node.y(), node.width(), node.height(),
+		node.offsetX(), node.offsetY(),
+		(node.getAttr('cornerRadius') as number | undefined) ?? 0,
+		node.rotation(), node.scaleX(), node.scaleY(),
+	];
+}
+
+/**
+ * The drawn coordinates for a list of node names, read off the SCENE.
  *
  * Read from the stage rather than from the fixture on purpose. The fixture is what the theme
  * path cannot reach, so comparing it across a flip would be comparing a constant to itself; these
  * numbers are the output of `footprintOutline`, `detailOutlines`, `footprintEdge`,
- * `clearanceOutline`, `anchorMark` and `facingArrow`, every one of which takes the palette as a
- * parameter and is a `computed` over it in `DesignerCanvas`.
+ * `clearanceOutline`, `anchorMark` and `facingArrow` for `GEOMETRY_NODES`, and of `selectionMarks`,
+ * `RotateArrowIcon` and `DesignerGestureLayer` for the two lists beside it — every one of which
+ * takes the palette as a parameter.
  */
-function drawnGeometry(stage: Konva.Stage | null): Record<string, number[][]> {
-	return Object.fromEntries(GEOMETRY_NODES.map((selector) => [
+function drawnGeometry(stage: Konva.Stage | null, selectors: readonly string[]): Record<string, number[][]> {
+	return Object.fromEntries(selectors.map((selector) => [
 		selector,
-		// The line's `points()` is SPREAD rather than held: it is the node's live array, and a
-		// capture that aliased it would compare the scene to itself if a builder ever mutated one
-		// in place. Not a defect today — the layer builders allocate a fresh array per computed run
-		// — but `tests/presentation/editor/scene.test.ts` already spells a before/after capture
-		// `[...line.points()]` for this reason, and one character retires the question.
-		nodesNamed(stage, selector).map((node) => (node instanceof Konva.Circle
-			? [node.x(), node.y(), node.radius()]
-			: [...(node as Konva.Line).points()])),
+		// Wrapped rather than passed by reference: oxlint's `unicorn/no-array-callback-reference`
+		// refuses the bare identifier, and an iterator's extra arguments are exactly the hazard.
+		nodesNamed(stage, selector).map((node) => coordinatesOf(node)),
 	]));
 }
+
+/**
+ * The selectors a capture reached NOTHING for. A list that is not empty is a capture comparing an
+ * empty object to an empty object, which is green forever and evidence of nothing — a renamed node,
+ * a layer that never rendered, a selection that was never made, a gesture that never started.
+ */
+function emptySelectors(captured: Record<string, number[][]>): string[] {
+	return Object.entries(captured).filter(([, nodes]) => nodes.length === 0).map(([selector]) => selector);
+}
+
+/** One node's stroke, which IS a token: the flip-took guard for a list whose own subject is that node. */
+const strokeOf = (stage: Konva.Stage | null, selector: string): string | undefined =>
+	nodesNamed(stage, selector).at(0)?.getAttr('stroke') as string | undefined;
 
 describe('the designer palette and a theme change', () => {
 	it('re-resolves the drawn stroke when Obsidian reports a css-change', async () => {
@@ -305,18 +379,147 @@ describe('the designer palette and a theme change', () => {
 		onTestFinished(clearPalette);
 		applyPalette(250);
 		const stage = await mountDesigner(editableShape());
-		const light = { stroke: footprintStroke(stage), geometry: drawnGeometry(stage) };
+		const light = { stroke: footprintStroke(stage), geometry: drawnGeometry(stage, GEOMETRY_NODES) };
 		// The capture has to have FOUND something. A selector that reached nothing — a renamed
 		// node, a layer that never rendered, a stage that never mounted — would make the
 		// comparison below an empty object against an empty object, green forever.
-		expect(Object.entries(light.geometry).filter(([, nodes]) => nodes.length === 0)).toEqual([]);
+		expect(emptySelectors(light.geometry)).toEqual([]);
 
 		applyPalette(5);
 		for (const listener of themeListeners) listener();
 		await settle();
 
 		expect(footprintStroke(stage)).not.toBe(light.stroke);
-		expect(drawnGeometry(stage)).toEqual(light.geometry);
+		expect(drawnGeometry(stage, GEOMETRY_NODES)).toEqual(light.geometry);
+	});
+});
+
+/**
+ * The SELECTION's own marks, which the case above cannot reach because it selects nothing.
+ *
+ * Written from the grep `GEOMETRY_NODES`'s docblock carries rather than from memory. Run again
+ * after this list was added, it prints the same ten names — `asset-anchor-mark`,
+ * `asset-clearance-outline`, `asset-detail`, `asset-facing-head`, `asset-facing-shaft`,
+ * `asset-footprint-edge`, `asset-footprint-outline`, `asset-rotate-stem`,
+ * `asset-selection-handle`, `asset-selection-outline` — and the two lists together now name all
+ * ten, where `GEOMETRY_NODES` alone named seven.
+ *
+ * Two names here are NOT in that grep's universe, because they are drawn in another file:
+ * `grep -oE "name: '[a-z-]+'" src/presentation/editor/elements/RotateArrowIcon.vue | sort -u`
+ * prints `rotation-handle`, `rotation-handle-button` and `rotation-handle-icon`. The middle one is
+ * the arrow's canvas-coloured backing, at `at.x - backing`/`at.y - backing`; the last is the group
+ * the lucide paths are drawn in, at `at.x - radius`/`at.y - radius`. The OUTER `rotation-handle`
+ * group is deliberately out: it positions nothing — no `x`, no `y` — so it would be an entry equal
+ * on both sides of any flip whatever the code did, which is the tautology `emptySelectors` exists
+ * to refuse one direction of.
+ *
+ * **This list decides which NAMES are compared and `coordinatesOf` decides which ATTRIBUTES**, and
+ * the second question is the one that hid a hole: every field of `selectionMarks`'s `mark()` that
+ * positions or shapes a mark is compared, `offsetX`/`offsetY`/`cornerRadius`/`rotation` included,
+ * and that docblock is where the list and the measurement behind it live.
+ */
+const SELECTION_NODES = [
+	'.asset-selection-outline',
+	'.asset-selection-handle',
+	'.asset-rotate-stem',
+	'.rotation-handle-button',
+	'.rotation-handle-icon',
+] as const;
+
+/**
+ * The GESTURE in flight. `grep -oE "name: '[a-z-]+'" src/presentation/designer/layers/DesignerGestureLayer.vue | sort -u`
+ * prints exactly one name, `detail-preview`, which is the only node that layer's own template
+ * draws; its three siblings — `GestureSketch`, `MarqueeOverlay` and `SnapGuides` — name their nodes
+ * in `editor/layers/`, take `tokens` too, and are NOT covered here. Saying which gesture is
+ * covered is the honest form: this list closes a draw tool's preview across a flip and says
+ * nothing about a marquee, a sketch or a snap guide.
+ */
+const GESTURE_NODES = ['.detail-preview'] as const;
+
+/**
+ * The same flip as the case above, against the two things that case could not put on the stage:
+ * marks that exist only while something is SELECTED, and a preview that exists only while a button
+ * is HELD. Both are the real mounted designer, through `designerRig` — not this file's own
+ * `mountDesigner`, whose context binds `unavailableAssetDesignerCommands()` and whose tools
+ * therefore refuse before they draw anything. (Not "the rig every gesture case here drives":
+ * `selecting()`'s own docblock measures that claim and falsifies it — three sweep-subject cases
+ * under `tools/` and `selection/` drive no rig at all.)
+ *
+ * The flip travels the same seam: a whole palette on `document.body`, then Obsidian's `css-change`
+ * through the context's own `onThemeChange`, which is `rig.fireThemeChange()`. The class half of a
+ * real flip is as inert here as it is above, for the reason `applyPalette` states.
+ *
+ * **What these cases do NOT establish**, in the same words the geometry case uses: jsdom has no
+ * rendering engine, so whether a handle is legible against the ground it lands on, or whether a
+ * preview is occluded by the shape under it, is unobservable at any effort. What is checked is
+ * that a palette change moves colours and moves no coordinate.
+ */
+describe('the designer selection, the gesture in flight, and a theme change', () => {
+	/**
+	 * A footprint selected under Select, which is the arm that puts all five of `SELECTION_NODES`
+	 * on the stage at once: the accent restroke, eight box handle marks, the rotate stem, and the
+	 * arrow's backing and icon group. `DesignerCanvas` drops the handles and the rotate mark under
+	 * any tool but Select, so reaching the tool by its button is load-bearing rather than tidy —
+	 * `selecting()` is that press.
+	 *
+	 * The flip-took guard is the SELECTION's own stroke rather than the footprint's, because the
+	 * subject is the selection layer: `selectionMarks` strokes the outline in `tokens.accent`, so a
+	 * build that re-resolved the palette everywhere except this layer fails here and would pass a
+	 * guard read off `.asset-footprint`.
+	 */
+	it("moves the selection's palette and not one of its marks", async () => {
+		onTestFinished(clearPalette);
+		applyPalette(250);
+		const rig = await selecting();
+		onTestFinished(() => rig.unmount());
+		// Inside `editableShape()`'s footprint (x -500..500, y -300..300), right of `detail-1` and
+		// clear of `detail-2`'s circle at (250, 0) r 200 — so the pick is the footprint itself, and
+		// the assertion below says so rather than leaving a mis-pick to show up as an empty capture.
+		click(rig, { x: 450, y: -250 });
+		await settle();
+		expect(useAssetDesignStore(rig.pinia).selection).toEqual({ kind: 'footprint' });
+		const light = { stroke: strokeOf(rig.stage, '.asset-selection-outline'), geometry: drawnGeometry(rig.stage, SELECTION_NODES) };
+		expect(emptySelectors(light.geometry)).toEqual([]);
+
+		applyPalette(5);
+		rig.fireThemeChange();
+		await settle();
+
+		expect(strokeOf(rig.stage, '.asset-selection-outline')).not.toBe(light.stroke);
+		expect(drawnGeometry(rig.stage, SELECTION_NODES)).toEqual(light.geometry);
+	});
+
+	/**
+	 * A theme switched MID-GESTURE, which is the only moment `detail-preview` exists: the layer
+	 * draws it from `renderState.previewPolygon` and takes it away on the release.
+	 *
+	 * `held` rather than `drag`: the rig's `drag` releases in the same tick, so no render lands
+	 * between its move and its release and there would be nothing on the stage to flip against.
+	 * The release still comes, at the end — a press this rig sends is never left without one, and
+	 * a gesture abandoned by the test would be an input no hand can produce.
+	 */
+	it("moves the gesture's palette and not one of its preview coordinates", async () => {
+		onTestFinished(clearPalette);
+		applyPalette(250);
+		const rig = await designerRig({ shape: editableShape() });
+		onTestFinished(() => rig.unmount());
+		rig.toolbarButton(t('en', 'designer.toolbar.draw-rect')).click();
+		await settle();
+		held(rig, 'pointerdown', { x: 200, y: 200 }, 1);
+		held(rig, 'pointermove', { x: 600, y: 500 }, 1);
+		await settle();
+		const light = { stroke: strokeOf(rig.stage, '.detail-preview'), geometry: drawnGeometry(rig.stage, GESTURE_NODES) };
+		expect(emptySelectors(light.geometry)).toEqual([]);
+
+		applyPalette(5);
+		rig.fireThemeChange();
+		await settle();
+
+		expect(strokeOf(rig.stage, '.detail-preview')).not.toBe(light.stroke);
+		expect(drawnGeometry(rig.stage, GESTURE_NODES)).toEqual(light.geometry);
+
+		held(rig, 'pointerup', { x: 600, y: 500 }, 0);
+		await settle();
 	});
 });
 

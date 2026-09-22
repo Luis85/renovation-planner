@@ -183,6 +183,14 @@ const staleNoticeId = useId();
  * things. The cost is that the control sits outside the live region, which `aria-describedby`
  * answers for a reader who tabs to it without having read the sentence.
  *
+ * **`class="rp-designer-retry"` is PRESENTATION and carries no behaviour** (card W22-A, ruling
+ * AD18-R15). Being a direct child of `.renovation-asset-designer` — a column flex container that
+ * declares no `align-items` — the unclassed button stretched to the leaf, drawing 1024 x 30 at a
+ * 1024 px leaf and reading as a second toolbar rather than as an action. The class exists so that
+ * `styles/designer-recovery.css` has something to hang `align-self: flex-start` on, and that file
+ * carries the rest, including what it refused. The accessible name, the `aria-describedby`
+ * association and the `aria-disabled` semantics are untouched by it.
+ *
  * **What none of this can claim**: `role="status"` announces a CHANGE, and this region enters
  * the document already carrying its text, so the FIRST appearance may not be announced at all.
  * That is the property `PersistentWarningStrip` engineers by rendering its container
@@ -735,6 +743,7 @@ onMounted(() => {
 			</p>
 			<button
 				type="button"
+				class="rp-designer-retry"
 				data-rp-action="retry"
 				:aria-describedby="staleNoticeId"
 				:aria-disabled="retrying ? 'true' : undefined"

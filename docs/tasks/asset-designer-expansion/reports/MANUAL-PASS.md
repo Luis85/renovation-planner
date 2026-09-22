@@ -19,7 +19,8 @@ overlooked.**
 
 ## What the pass consists of
 
-**84 human steps across six cases**, measured rather than remembered:
+**90 human steps across six cases**, measured rather than remembered — re-derived on 2026-09-22
+against the finished wave-17/18 tree with the command below, run verbatim as it is printed:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -32,12 +33,33 @@ done
 
 | Case | Human steps | Of total | Discharges |
 |---|---|---|---|
-| [[Design an Asset]] | 19 | 65 | U01 (with the next row) |
+| [[Design an Asset]] | **25** | 71 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
 | [[Compose an asset from parts]] | 2 | 38 | U02, U03 (its Repeat section) |
 | [[Calibrate a sheet and reserve space]] | 9 | 36 | U04 — **7 already confirmed**, see below |
 | [[Recover an asset design rather than lose it]] | 27 | 36 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
+
+**What waves 17 and 18 ADDED to this pass, and why the total moved from 84 to 90.** A session that
+ships a feature grows the walk, and saying so is part of shipping it.
+
+- **Six new steps in [[Design an Asset]]**, in a new section of its own: four for the canvas rulers
+  and two for the vanity preset. **Neither has ever been seen in Obsidian.** The rulers were drawn
+  and measured in the browser harness, which applies layout but declares none of a themed vault's
+  colours; the vanity was measured for geometry and **never looked at as a picture at all**. So these
+  are first sightings rather than regression checks, which is what makes them worth a person's time.
+  One of the six is a `judgement` step and is the only instrument that can answer it: AD18-R10 was
+  settled on the canvas COLUMN's share, which the ruler does not move, and the ruler's 18 px per axis
+  of occlusion was **disclosed rather than binding** — 272 px of drawing in a 290 px canvas at a
+  580 px leaf. If that reads as too tight, hiding the rulers below the 35 rem breakpoint is the
+  recorded remedy and that step is its trigger.
+- **Five REWRITTEN steps in [[Recover an asset design rather than lose it]]** — 9, 10, 11, 12a and
+  12b — and the count did not move because none was added. This is the half worth reading before
+  walking: those steps recorded a defect that **has since been fixed**, so a walker following the old
+  text would report a pass as a failure. Step 9 said in as many words that *Saved · refresh needed*
+  *"cannot be produced by this surface at all"*; W18-C made it producible, and the step is now a
+  regression guard that fails if the bare word comes back. Step 10's *"the comment beside it gives a
+  false reason"* is discharged, with its expectation unchanged.
 
 **Two reductions apply and both are already recorded in the cases themselves.** U04's steps 3, 7, 9,
 12, 13, 14 and 34 were confirmed in a live vault on the `test-build` of `c69ec364d`, so only its

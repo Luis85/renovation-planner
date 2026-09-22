@@ -152,6 +152,27 @@ calibrated spec sheet.
 | 51 | `obsidian` | On an asset with a calibrated spec sheet, tick Show grid | The grid lines are visible over the drawing, not hidden behind it | The grid mounted above the stage — the harness refuses a background document, so no capture can show it |
 | 52 | `obsidian` | On an asset whose spec sheet is calibrated, trace an L-shaped footprint with no details, then Edit dimensions and type a new width | The outline keeps its six corners and its notch at the new overall size | The footprint replaced by a rectangle — the defect this row exists for |
 
+## Steps — the canvas rulers and the vanity preset
+
+**Added 2026-09-22 (wave 17).** Both are new and **neither has ever been looked at in Obsidian**.
+The rulers were drawn and measured in the browser harness, which applies layout but is not a vault
+and declares none of Obsidian's theming beyond the vendored defaults; the vanity preset has been
+measured for geometry and never seen as a picture at all. Everything below is therefore a first
+sighting rather than a regression check, which is the one thing that makes these steps worth a
+person's time.
+
+Preconditions: an asset with a **calibrated** spec sheet and a traced footprint, open in its
+designer. Step 57 needs a second asset with **no** dimensions set.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 53 | `obsidian` | Look at the top and left edges of the canvas | A thin ruler runs along each, ticked, with millimetre numbers on the larger ticks. Both are inside the canvas area — neither has pushed the drawing, the Parts rail or the Inspector | The rulers not drawing at all in a real vault. They are a DOM overlay in `EditorSurface`'s overlay slot rather than a Konva layer, which is what the 2026-09-15 spec's own decision table chose, and the harness is the only place they have been seen |
+| 54 | `obsidian` | Pan the canvas a long way in both directions, then zoom right out and right in | The numbers change as the camera moves and always read the millimetres under the marks; the tick spacing coarsens and refines in the 1/5/10/50/100/500 series rather than crowding or vanishing; the ticks stay the same size on screen at every zoom | A ruler drawn in world space rather than screen space, and a step function that does not follow the camera. `designerGrid` answers step and origin for the drawn grid, the snapped grid, the status readout and now the rulers, so a disagreement here is a disagreement with the grid you can tick on |
+| 55 | `obsidian` | Click Select and select one part, then move it | A band on each ruler marks that part's extent and **follows the drag live**, arriving where the part lands | The extent reading the committed shape instead of the preview, which was the review finding on this card: every other reading of "where the selection is" follows the preview, so a lagging band is two answers to one question 18 px apart |
+| 56 | `judgement` | With nothing selected, read the rulers at a **sidebar-width** leaf (drag the leaf narrow) and say whether the drawing still has enough room | Your judgement, recorded either way | **The one thing no gate and no harness can answer.** AD18-R10 was settled on the canvas COLUMN's share, which the ruler does not move at all, and the ruler's 18 px per axis of occlusion was disclosed rather than binding — 272 px of drawing in a 290 px canvas at a 580 px leaf. If that reads as too tight, the recorded remedy is hiding the rulers below the 35 rem breakpoint, and this step is where that gets triggered |
+| 57 | `obsidian` | On the asset with no dimensions, open **Start from preset**, find **Vanity** under Bathroom, and look at its thumbnail before applying | The card draws a vanity in wireframe — a cabinet outline, a basin and a tap hole — legible at thumbnail size and recognisably not the Washbasin card beside it | A preset whose geometry is correct and whose PICTURE is not. `presetThumbnail` derives the card from the built shape, so nothing was authored and nothing was reviewed by eye; W17-A's own report says the vanity was measured and never looked at |
+| 58 | `obsidian` | Apply it at its defaults, then Edit dimensions and read the width and depth | 800 × 450 mm, and the drawing on the canvas matches the thumbnail | The two recorded sizes disagreeing in the product. Board 01 draws 800 × 450 and this package's own end-to-end scenario says 1,000 × 500; AD18-R8 takes the board for the default and a range that spans the scenario, so typing 1000 × 500 must also be accepted |
+
 ## Deliberately NOT checked
 
 - **Replacing an already-set background.** The "Choose a background" button vanishes the

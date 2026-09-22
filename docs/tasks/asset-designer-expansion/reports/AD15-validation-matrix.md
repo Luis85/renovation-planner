@@ -154,8 +154,13 @@ the last one. And a naive grep for a bolded grade word answers **79** rather tha
 also counts the legend table and inline prose; the `awk` above keys on the row id and the Grade
 FIELD, which is why it is written here rather than described.
 
-The partial count is the number worth carrying forward. It is not 20 failures — it is 20 places
-where the instrument is narrower than the row that asks for it, each with its gap named. **T25,
+The partial count is the number worth carrying forward, and it is whatever the `awk` above prints
+rather than whatever this sentence says — **it read "20" until 2026-09-22 (session thirteen) against
+an actual 10**, which is the fourth time a figure in this paragraph went stale and the second time it
+did so in a paragraph that had just been given an instrument to prevent exactly that. The instrument
+was added directly above and this sentence was not re-read, because it is prose beside a table and
+not a row in it. Whatever the number is, it is not that many failures: it is that many places where
+the instrument is narrower than the row that asks for it, each with its gap named. **T25,
 T40 and T42 were the three to close first**: a gesture surface whose DOM-level cancellation was
 asserted only through another surface's fixture, a quantity-isolation claim resting on a note edit,
 and a compact-pane claim resting on stylesheet text.

@@ -123,6 +123,29 @@ Nothing overlaps, so that gate passes while the ADOPT row fails. Wave 8's W8-B c
 that container query against the mounted tree, so a regression here is at last visible to a test —
 but only for `display`-shaped hiding, which is a different question from proportion.
 
+**CLOSED 2026-09-22 (session thirteen) by ruling AD18-R10. The figures above are superseded and the
+item had been standing open on numbers its own fix had already moved.** Re-measured in a browser
+after the rail work: **68.8 % at 1280, 50.0 % at 760, 50.0 % at 580**, against the 68.8 / 47.4 / 31.0
+recorded above. The rails shrink now, so the canvas no longer absorbs the whole loss, and the worst
+case is no longer the width immediately above `designer-narrow.css`'s own breakpoint.
+
+**Whether 50 % satisfies §4 row 1 was a DECISION nobody had taken, not a defect**, and it is now
+taken: it does. Row 1's own sentence is what settles it — *"adopt the composition and adapt it to
+actual Obsidian leaf dimensions"* — and at a 580 px leaf a two-rail composition leaving the drawing
+half the shell is that adaptation rather than a failure of it.
+
+**One obligation falls out of the ruling and binds future work rather than closing with it**: a top
+and left ruler takes canvas on both axes at exactly the widths where there is least of it, so
+AD18-R10 requires the ruler card to measure its own cost in a real browser, report the figure, and
+refuse to ship if the canvas drops below 50 % at 580. **No gate here can check that** — jsdom
+computes no layout — so it is a rendered measurement or it is nothing.
+
+**A numbering trap worth naming, because this document uses two schemes and the next reader will
+meet both.** These `###` sections run 1–8; the *Sequencing* table below runs 1–7 and is ordered by
+cost over effort, so the two disagree. *"Item 6"* means **this section** (canvas proportion) in the
+sequencing table's numbering and **the 887 px inspector** in this list's. *"Item 8"* can only be this
+list's, because the sequencing table has no 8. Cite a section by its TITLE where it matters.
+
 ### 5. A wrapping text toolbar, against the Plan Editor's own convention
 
 **14** text buttons — re-counted by the integrator against the running harness, not inherited.
@@ -206,6 +229,36 @@ forgotten. Worth naming here because the boards' single worked example exists no
 product, which is part of why the shipped surface "does not look like" them: every screenshot in
 the concepts is of an object the user cannot make.
 
+**AMENDED 2026-09-22 (session thirteen) by ruling AD18-R8: a vanity ships as a PRESET, and the
+preset IS the fixture. The ownership sentence above is also stale twice over.**
+
+The user authorized a preset directly — *"add the vanity preset and canvas rulers and also close
+existing gaps"* — which is **wider than §4 row 2 asks for**. Row 2 says, at source, *"Adopt as a test
+fixture; dimensions are illustrative, not construction recommendations."* Every summary of it says
+"vanity" and drops the word that matters. The widening is authorized and is recorded in AD18-R8 so a
+later session does not "correct" it back to fixture-only.
+
+**The fixture half was REFUSED rather than forgotten, and this section never said so.** AD15-R2
+(2026-09-22) declined a composed-vanity builder in `tests/helpers/assetShapes.ts` on two named
+grounds: with no consumer it is a dead export and `npm run analyze` fails on one, and with a consumer
+that consumer re-drives `arrangeDetails.test.ts` and `groupEdits.test.ts` under a themed name.
+**A preset removes both premises** — it is `src/` product code whose consumers are `ASSET_PRESETS`,
+`AssetPresetForm.vue` and `presetThumbnail`, and it is driven by `presets.test.ts`'s existing
+`describe.each` rather than by a themed re-drive. So F02's fixture is the preset itself, reached as
+`ASSET_PRESETS.find((p) => p.id === 'vanity')`, and no builder is written. AD15-R2's losing side
+stands unchanged for the builder it was actually about.
+
+**Board 01's *Include basin* toggle is DROPPED**, under this document's own first rule: it has
+nowhere to live (`PresetFieldKey` is a closed ten-key union, `kind` is exactly
+`'length' | 'count' | 'angle'`, so there is no boolean and no `height`), and a vanity without a basin
+is a cabinet while `washbasin` already ships for the basin-only case. **Wood-grain artwork stays
+absent** under §4 row 12 — the thumbnail is derived from the built shape, so nothing is authored.
+
+**The two recorded sizes disagree and both are in this package**: board 01 draws **800 × 450** under
+Bathroom, while `references/previous-expansion-concept.md` §11's end-to-end scenario says *"creates a
+1,000 × 500 mm vanity"*. The preset takes 800 × 450 as its DEFAULT with a range spanning 1,000 × 500,
+so neither document is contradicted.
+
 ## Two smaller things found in the same pass
 
 - **`Used in plans` wraps badly at 224 px** — `Loft conversion — 1 placement(s)` renders over two
@@ -247,6 +300,24 @@ the concepts is of an object the user cannot make.
 - **`Show grid` defaults off.** A measurement surface opens with no visible scale reference and no
   zoom readout at the same time. Neither alone is a defect; together they are what makes the empty
   canvas read as a blank void rather than a drawing board.
+
+  **WITHDRAWN 2026-09-22 (session thirteen). Both halves of the pairing are gone, and the default was
+  never a defect.** The zoom readout shipped at `cf305ad88`, so the "at the same time" that carried
+  this bullet no longer holds. And the default is a DECISION, taken and written down before this
+  bullet was written: the approved snapping spec's §2.6 says *"Defaults as the plan editor's: Grid
+  off, Snap on."* A default that matches the surface next door, on purpose, is not a void.
+
+  **A separate inherited claim about this is also false and is recorded here because it reached two
+  hand-offs.** It read *"one shared `WorkspaceStore.gridVisible` … flipping the designer flips the
+  Plan Editor"*, and nothing about it survives measurement: each view calls `app.use(createPinia())`,
+  `WorkspaceStore`'s own header ends *"Each leaf has its own Pinia scope"*, and the per-device slots
+  are **different keys** — `assetDesignerDeviceSlots`' `${pluginId}:designer-view` against
+  `planEditorDeviceSlots`' `${pluginId}:editor-view`. So §2.6's *"their own slot, separate from the
+  plan editor's"* is already satisfied. **The source of the error is one parenthetical** in
+  `DesignerCanvas.vue` — *"(its `gridVisible` is shared)"* — which is about layer visibility being a
+  Plan Editor concern and reads as though it were about the value. What is genuinely owed is small:
+  `assetDesignerDeviceSlots`' docblock asserts that separation in prose and **no test pins that the
+  two keys differ.**
 
 ## Sequencing, and what each item costs
 

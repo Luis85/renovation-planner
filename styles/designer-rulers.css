@@ -1,9 +1,14 @@
 /*
  * The asset designer's canvas rulers — card W17-B, the snapping spec's increment 3 (AD18-R9).
  *
- * A partial of its OWN rather than three more rules in `designer.css`, which stands at 399 lines
- * against the assembler's 400-line cap: the seam is a budget rather than a new organising idea,
- * exactly as `continue-row.css`'s header records for its own split. Its position in
+ * A partial of its OWN rather than more rules in `designer.css`: that file is at the assembler's
+ * 400-line cap, and the seam is a budget rather than a new organising idea — exactly as
+ * `continue-row.css`'s header records for its own split. **The argument is the CAP, never a
+ * figure.** `designer-add.css` counts FIVE sibling partials that each wrote down a line count for
+ * `designer.css` and were each falsified by somebody adding a comment to it, and
+ * `designer-trace.css` says outright to read `wc -l styles/designer.css` rather than any number
+ * written there or in a sibling. This partial is not the sixth; the first version of this header
+ * was, and it carried the number in from the card brief that dictated it. Its position in
  * `styles/index.css` is not load-bearing, and that is a GREP rather than a check:
  * `grep -rln "rp-designer-ruler" styles/` prints this file and nothing else, so no rule anywhere
  * else can win or lose against one here at equal specificity. Nothing re-runs that grep — move a
@@ -36,8 +41,27 @@
 	font-size: var(--font-ui-smaller);
 	line-height: 1;
 }
-/* Both strips start at the canvas's own origin; the top one is second in the DOM and paints over
-   the corner, so a label's offset is the stage pixel of its mark with nothing subtracted. */
+/*
+ * Both strips start at the canvas's own origin; the top one is second in the DOM and paints over
+ * the corner, so a label's offset is the stage pixel of its mark with nothing subtracted.
+ *
+ * **What that costs is one mark, accepted by THIS FILE and not by any ruling.** AD18-R10's
+ * amendment settles the canvas's share and says in as many words that it does not settle this;
+ * the two are different questions and the occlusion below is the card's own call. A left-strip label
+ * whose mark falls in the top 18 px is behind the top strip's opaque background. LOOKED AT rather
+ * than reasoned about: at 1280 on the toilet preset, panning 40 px up put the ruler's `0` into that
+ * band and it disappeared from the strip, leaving it reading 250, 500, 750… That mark is still in
+ * the DOM, so `designerRulers.test.ts` asserting a left label at `8px` is asserting presence and
+ * NOT visibility — its own comment says so, because jsdom is blind to this exactly as it was blind
+ * to the clipped `250` above.
+ *
+ * Every cheap repair only moves the casualty: giving the left strip the corner loses a top-strip
+ * mark instead, and starting the left strip below the corner puts the 18 px in TypeScript as well
+ * as here, which is one definition of the size becoming two. What would actually remove it is a
+ * third layer holding both strips' marks above both backgrounds — markup, a possible clash of two
+ * labels in one 18 px square, and a rework of every selector below, for one number at one camera.
+ * That is the change to make if this ever matters; it does not yet.
+ */
 .rp-designer-ruler--left {
 	top: 0;
 	bottom: 0;

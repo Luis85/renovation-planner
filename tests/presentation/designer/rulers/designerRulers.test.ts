@@ -27,7 +27,9 @@ import { useAssetDesignStore } from '../../../../src/presentation/designer/store
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
 import { t } from '../../../../src/presentation/i18n/strings';
 import type { AssetDesignDto } from '../../../../src/application/queries/GetAssetDesign';
+import { footprintFromDimensions, type AssetShape } from '../../../../src/domain/asset/AssetShape';
 import { assetDesign } from '../../../helpers/assetDesign';
+import { expectOk } from '../../../helpers/domain';
 import { toiletShape } from '../../../helpers/assetShapes';
 import { designerRig } from '../../../helpers/designerRig';
 import { settle } from '../../../helpers/editor';
@@ -47,6 +49,12 @@ function rulers(design: AssetDesignDto | null): { wrapper: VueWrapper; pinia: Pi
 	editor.viewport = DEFAULT_VIEWPORT;
 	editor.setStageSize(STAGE);
 	return { wrapper, pinia };
+}
+
+/** The fixture's shape, refused loudly rather than asserted past: `assetDesign()` always has one. */
+function shapeOf(view: AssetDesignDto): AssetShape {
+	if (view.shape === null) throw new Error('this case needs a design with a shape');
+	return view.shape;
 }
 
 /** A strip's own element, by its modifier. Throws rather than answering a silent `undefined`. */
@@ -92,6 +100,11 @@ describe('what the designer’s rulers draw', () => {
 		expect(labels(wrapper, 'top')).toEqual([['2500', '238px'], ['5000', '488px'], ['7500', '738px']]);
 		// On y the span reaches back past the origin, so the corner the grid counts from is on screen
 		// and the ruler reads 0 there.
+		//
+		// **`['0', '8px']` asserts PRESENCE and not visibility**: 8 px is inside the top strip's own
+		// 18 px band, and that strip is later in the DOM with an opaque background, so in a browser
+		// this particular label is behind it — measured, at 1280, by panning until the mark entered
+		// the corner. `styles/designer-rulers.css` carries why that is accepted; jsdom cannot see it.
 		expect(labels(wrapper, 'left')).toEqual([['0', '8px'], ['2500', '258px'], ['5000', '508px']]);
 		wrapper.unmount();
 	});
@@ -121,6 +134,42 @@ describe('what the designer’s rulers draw', () => {
 		expect([top.style.left, top.style.width]).toEqual(['-12px', '120px']);
 		const left = wrapper.get('.rp-designer-ruler--left .rp-designer-ruler__extent').element as HTMLElement;
 		expect([left.style.top, left.style.height]).toEqual(['8px', '80px']);
+		wrapper.unmount();
+	});
+
+	/**
+	 * **Every other reading of "where the selection is" on this surface follows the gesture's
+	 * preview** — `DesignerCanvas`'s `shape` is `preview ?? design.shape`, and both `selectionMarks`
+	 * and `framedBounds` are computed from it — so a band left on the committed millimetres would be
+	 * the two-answers defect rather than the avoidance of it. The spec's increment 2 says its
+	 * dimensions are "updated live from the drag preview"; this is the same direction.
+	 *
+	 * **The FRAME stays committed and that is the other half of the case.** §2.4 argues the
+	 * committed origin so that dragging the footprint does not slide the grid under the drag, so the
+	 * tiling is asserted NOT to move in the same breath: the ruler stands still and the mark on it
+	 * travels, which is what a ruler does.
+	 */
+	it('moves the extent band with a gesture’s preview while the ruler itself stands still', async () => {
+		const committed = assetDesign();
+		const { wrapper, pinia } = rulers(committed);
+		const store = useAssetDesignStore(pinia);
+		store.select({ kind: 'footprint' });
+		await settle();
+		const band = () => {
+			const element = wrapper.get('.rp-designer-ruler--top .rp-designer-ruler__extent').element as HTMLElement;
+			return [element.style.left, element.style.width];
+		};
+		expect(band()).toEqual(['-12px', '120px']);
+
+		store.setPreview({ ...shapeOf(committed), footprint: expectOk(footprintFromDimensions(2400, 1600)) });
+		await settle();
+
+		// The preview's footprint spans -1200..1200, which is -72 px wide of 240 px.
+		expect(band()).toEqual(['-72px', '240px']);
+		const left = wrapper.get('.rp-designer-ruler--left .rp-designer-ruler__extent').element as HTMLElement;
+		expect([left.style.top, left.style.height]).toEqual(['-32px', '160px']);
+		// The grid's origin is still the COMMITTED footprint's corner, so the ticks have not moved.
+		expect(strip(wrapper, 'top').style.backgroundPosition).toBe('-12px 0px');
 		wrapper.unmount();
 	});
 
@@ -195,8 +244,8 @@ describe('the rulers’ stylesheet', () => {
 
 		expect(declared(rules, '.rp-designer-rulers', 'pointer-events')).toEqual([reference('pointer-events', 'none')]);
 		expect(declared(rules, '.rp-designer-rulers', 'position')).toEqual([reference('position', 'absolute')]);
+		expect(declared(rules, '.rp-designer-ruler', 'position')).toEqual([reference('position', 'absolute')]);
 		for (const side of ['.rp-designer-ruler--top', '.rp-designer-ruler--left']) {
-			expect(declared(rules, '.rp-designer-ruler', 'position')).toEqual([reference('position', 'absolute')]);
 			expect(declared(rules, side, 'top')).toEqual([reference('top', '0')]);
 		}
 	});

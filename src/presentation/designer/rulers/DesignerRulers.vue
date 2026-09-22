@@ -16,19 +16,39 @@
  * `@pointercancel.stop` and `@wheel.stop`, so a ruler accepting a press would silently eat the
  * gesture the canvas needs rather than merely sitting on top of it.
  *
- * **It costs the canvas no LAYOUT, which is what satisfies AD18-R10.** That ruling binds this
- * card to not taking the canvas below 50% of the shell at 580 px; two absolutely positioned
- * strips inside the canvas region leave `.rp-designer-parts`, `.rp-designer-canvas` and
- * `.rp-designer-inspector` measuring exactly what they measured before, at every width. What
- * they DO cost is OCCLUSION — a band along two edges of the drawing — and no gate here can see
- * either figure, because jsdom computes no layout. Both are measured in a browser and recorded in
- * `docs/tasks/asset-designer-expansion/reports/W17-B-canvas-rulers.md`.
+ * **It costs the canvas no LAYOUT, and AD18-R10 was AMENDED to say that is what its floor means.**
+ * Two absolutely positioned strips inside the canvas region leave `.rp-designer-parts`,
+ * `.rp-designer-canvas` and `.rp-designer-inspector` measuring exactly what they measured before,
+ * at every width: the column is 50.0% of the shell at 580 px with the rulers and without them, to
+ * the hundredth of a pixel. The ruling's sentence had a second reading — the DRAWING area after
+ * the strips' own occlusion, 272.02 of 580, **46.9%** — and the amendment ("the binding is the
+ * canvas COLUMN's share, and the drawing figure is disclosed beside it") takes the first, because
+ * the second is unsatisfiable rather than strict: the column sits at exactly 50.0%, so any ruler
+ * of any size would breach it and AD18-R10 read that way would forbid what AD18-R9 authorises.
+ *
+ * **So the 46.9% is a real cost to a real user at a sidebar leaf, disclosed rather than
+ * dissolved** — 18 px of a 290 px canvas is 6.2% of the drawing spent on the only scale reference
+ * this surface has, the grid being off by default (§2.6). It is written here so that nobody
+ * re-derives it later as a discovery. No gate can see either figure, because jsdom computes no
+ * layout; both are measured in a browser in
+ * `docs/tasks/asset-designer-expansion/reports/W17-B-canvas-rulers.md`. If the narrow case is ever
+ * reported as too tight, the cheap change the amendment names is hiding the rulers below
+ * `designer-narrow.css`'s 35 rem breakpoint.
  *
  * **The step is `designerGrid`'s**, which makes the ruler the fourth reading of one function
  * rather than a second opinion about what a step is. Zero is that function's ORIGIN — the
  * committed footprint's box minimum — for the reason the grid counts from there: an offset from
  * the footprint's edge is then a whole number of steps on the ruler as well as on the grid, where
  * a ruler counted from the asset's middle would put every such offset on an odd number.
+ *
+ * **The FRAME is committed and the MARK is live, and the two readings are deliberate.** The step
+ * and the origin come from `view.shape`, so §2.4's rule holds — dragging the footprint does not
+ * slide the ruler under the drag. The extent band comes from `preview ?? view.shape`, which is
+ * what `DesignerCanvas`'s own `shape` reads and therefore what `selectionMarks` and `framedBounds`
+ * already follow: a band left on the committed millimetres while the selection box on the canvas
+ * travels IS two answers to where the selection is during one drag, and it is the defect the first
+ * version of this file shipped while its comment claimed to be avoiding it. The spec's increment 2
+ * puts its dimensions "updated live from the drag preview", which is the same direction.
  *
  * **Nothing is drawn over an UNSCALED design.** `dimensionsUnscaled` is a footprint captured
  * before the asset had a scale, whose coordinates are placeholder pixels; a millimetre ruler over
@@ -59,7 +79,7 @@ import { useAssetDesignStore } from '../stores/assetDesignStore';
 import { rulerLabels } from './rulerMarks';
 
 const editor = useEditorStore();
-const { design, selection } = storeToRefs(useAssetDesignStore());
+const { design, selection, preview } = storeToRefs(useAssetDesignStore());
 
 /**
  * ONE computed rather than a chain of them, and that is a coverage decision as much as a
@@ -81,9 +101,10 @@ const model = computed(() => {
 	const y = (mm: number): number => worldToScreen({ x: origin.x, y: origin.y + mm }, viewport, STAGE_PIXELS).y;
 	const near = screenToWorld(screenPoint(0, 0), viewport, STAGE_PIXELS);
 	const far = screenToWorld(screenPoint(editor.stageSize.width, editor.stageSize.height), viewport, STAGE_PIXELS);
-	// The COMMITTED shape's, like the grid's own origin: a gesture's preview moves the part, and an
-	// extent mark sliding with it would be two answers to where the selection is during one drag.
-	const box = view.shape === null ? null : selectionFrame(view.shape, selection.value, perPixel);
+	// The gesture's PREVIEW while one is live, exactly as `DesignerCanvas`'s own `shape` reads it —
+	// see this component's header for why the band follows it and the tiling above does not.
+	const drawn = preview.value ?? view.shape;
+	const box = drawn === null ? null : selectionFrame(drawn, selection.value, perPixel);
 	return {
 		step,
 		tick: x(step) - x(0),

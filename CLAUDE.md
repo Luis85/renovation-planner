@@ -1117,6 +1117,19 @@ that was fixing the previous instance.
   warnings, so the gate would have reddened — under the wrong rule, with the wrong message.
   A different rule KEY merges, which is why the DOM block can add to the Obsidian ruleset's
   globals only by restating them.
+- **`node scripts/styles-assemble.mjs` is NOT a command and exits 0 whatever the stylesheet
+  says.** That module exports `assembleStyles()` and has no CLI entry — no `import.meta.url`
+  guard, no `process.argv`, no top-level call — so invoking it directly runs nothing, prints
+  nothing and succeeds. **The gate is intact and lives elsewhere**: `scripts/vite-assembled-styles.mjs`
+  calls `assembleStyles()` in the build, and `tests/build/styles.test.ts` drives it directly, so an
+  unimported partial, an over-cap partial and a hard-coded colour each still fail `npm run check`.
+  What does NOT work is the thing that looks like a check. Session fourteen told three cards to run
+  it and read its exit code; two of them reported `exit 0` as evidence for a stylesheet they had
+  changed, and the number meant nothing. **To exercise the assembler by hand, run
+  `npx vitest run tests/build/styles.test.ts`, or import `assembleStyles` and call it** — that is
+  what the test does and what the build does. This is the general shape of the measure-with-an-
+  instrument-that-can-see-it rule: a command that exits 0 because it did nothing is indistinguishable
+  from one that exits 0 because everything passed.
 - **`max-lines`'s `skipComments` does NOT skip an SFC's TEMPLATE comments**, so a long
   `<!-- -->` block in a `.vue` file counts against the 400-line cap like code. The rule skips
   lines covered by `sourceCode.getAllComments()`, and `vue-eslint-parser` keeps template comments

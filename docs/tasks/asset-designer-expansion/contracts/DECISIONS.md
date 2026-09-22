@@ -1171,7 +1171,7 @@ explicit that whether it was visible remained a rendered measurement. It is visi
 RESTING state is clean, so the feature's default costs nothing. The crowding is OPT-IN, behind a
 toggle a user turns on. And it is CAMERA-DEPENDENT rather than structural — zooming in separates
 the labels, measured at 31 → 24 → 22 → 13 over three wheel steps, so a user who does not know why
-two labels are missing can still get at them by accident.
+two labels are missing can still get at them by accident. **That series describes the state BEFORE the fix and is not advice for the state after it** — the re-capture below measures the shipped rule at 0 → 1 → 0 unclickable over the same gesture, so zoom changes which labels crowd rather than relieving the crowding, and the manual pass says so.
 
 **It is fixed anyway.** The deciding argument is that the unreachable pair is a control that does
 nothing, which this repository refuses everywhere else — the same standard `AssetDesignerRoot`'s
@@ -1191,6 +1191,47 @@ rather than a matter of taste.
 no-op comparison and the signed-gap convention are all settled and are not reopened. The resting
 state must stay at zero overlaps — that is a floor the fix may not trade away to improve the
 toggle's case.
+
+#### The re-capture, RUN — and it took THREE rounds to satisfy this ruling
+
+**Round 2 did not meet the charter and the browser is what said so.** Drawn at the merged sha, a
+1280 leaf, the vanity, at the fit camera: overlapping pairs fell 31 → 14 and exact coincidences fell
+3 → 0, exactly as that round predicted. But a reachability sweep — sampling a grid across every
+label's box with `elementFromPoint` — found **two labels of 26 with no clickable point at all**,
+which is what this ruling forbids in as many words.
+
+**The mechanism was the one the review had predicted and said nothing here would catch.** Measured:
+`detail-detail-1-offset-top` is 20.5 px wide at y 127, and three later, wider labels sit at
+dy **+10.5, −8.1 and −19.1**. Every one is outside the pairwise same-row threshold of 8, so the rule
+correctly saw no collision with any of them — and together they blanketed its full 30 px height.
+**A union is not a pair, and no pairwise rule can reach it.**
+
+**Round 3 closed it, and its prediction was TESTED rather than trusted.** The card stated, before the
+capture: *"Unclickable: 0. Any non-zero is a failure of this round. Overlapping pairs: 16. I'm wrong
+if it's outside 14–18."* Measured: **0 unclickable, 15 pairs**, resting unchanged. Both inside the
+stated bound.
+
+| At the fit camera, 1280 leaf, 26 labels | Before | Round 2 | **Round 3** |
+| --- | --- | --- | --- |
+| Overlapping pairs | 31 | 14 | **15** |
+| Exact coincidences | 3 | 0 | **0** |
+| **Labels with no clickable point** | — | **2** | **0** |
+| Resting state (2 labels) | 0 pairs | 0 pairs | **0 pairs, 0 unclickable** |
+
+**A RESIDUAL REMAINS AT INTERMEDIATE ZOOMS AND IS NOT DISSOLVED.** One wheel step in from fit, **one**
+label of the 14 still inside the canvas had no clickable point (`detail-detail-1-offset-right`); at
+two steps, none of the 2 remaining did. So the charter is met **at the camera the designer opens
+with**, which is the state every user meets, and a mid-zoom state can still hide one. Smaller than
+what it replaced, and not nothing. This paragraph exists so nobody reads "0 unclickable" as
+unconditional.
+
+**Two instrument lessons, pointing opposite ways.** A first reachability sweep reported that zooming
+made things WORSE — 2, then 13, 23, 24 — which was `elementFromPoint` returning null for labels
+pushed outside the viewport, so CLIPPING was being scored as COLLISION. Restricted to labels whose
+box lies inside `.rp-plan-canvas`, the honest series is 0 → 1 → 0. And an earlier probe, which set an
+inline width on a flex child whose track overrode it, returned a perfectly clean "one line at every
+width" for a measurement it never performed. **An instrument that over-reports and one that reaches
+nothing are the same defect**, and both appeared within an hour.
 
 ### AD18-R15 — the stale retry is CONSTRAINED, and the defect was found by injecting a probe. (2026-09-22)
 
@@ -1239,6 +1280,28 @@ apart.
 
 **It owes a re-capture.** The fix is unfalsifiable by every gate here, so the integrator draws it
 again through the same probe and reports the number, or the card has not been checked.
+
+#### The re-capture, RUN — all six checks met
+
+Drawn at the merged sha through the same injected probe, at a **1280** leaf, against the six checks
+the card named:
+
+| Check | Before | After |
+| --- | --- | --- |
+| Button width | **the full leaf** | **75.5 px**, intrinsic |
+| Button left | 0 | **8 px** |
+| Button height | 30 | 30 |
+| Notice still full width, with its tint | yes | yes |
+| Gap | — | **4 px below**, 0 above, so it sits against the strip |
+| Reads as an action | **no** — a bar across the leaf | **yes** |
+
+**The alignment intent is verified rather than asserted**: the button's box left is 8 px and the
+notice's `padding-left` is 8 px, so its edge sits under the first character of the sentence, which is
+what the partial says it is for. `align-self` computes to `flex-start`.
+
+**The judgement half stays a judgement.** It reads as an action to the integrator's eye in the
+harness, which declares none of a themed vault's colours; the manual pass carries it as a `judgement`
+step for a person in a vault, which is the only instrument that can settle it.
 
 ### Three AD18 gaps were CLOSED BEFORE THIS SESSION, and are recorded as corrections rather than as decisions
 

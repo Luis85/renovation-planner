@@ -36,7 +36,7 @@ asks for a width and a depth in millimetres and writes a rectangle. This is the 
 it needs no drawing and no calibration: an object typed as 1200 × 800 is immediately placeable.
 Once a shape exists the same button reads **Edit dimensions**.
 
-**Start from a preset.** **Start from preset** opens a gallery of fourteen shapes in four groups —
+**Start from a preset.** **Start from preset** opens a gallery of every shipped preset, in four groups —
 Tables, Seating, Bathroom, Plants and beds — with a search over the names as they are displayed, so
 searching in German finds the German names. Choosing one shows its own parameters (a width and a
 depth, or a diameter, a seat count, a canopy diameter) and **Apply preset** writes the result. It
@@ -347,7 +347,7 @@ either narrowed or left out.
   rotate handle and snaps a facing drag. Whether the camera, the grid, fit-to-view or the tools
   carry further bindings was not traced; `Shift+1` appears in a code comment as a "frame the design"
   shortcut but was not confirmed at its binding site.
-- **What the preset parameters do at their edges.** The fourteen presets and their field labels are
+- **What the preset parameters do at their edges.** The presets and their field labels are
   listed in the code; which combinations are refused as "not a shape that can be built" was not
   enumerated.
 - **Snapping in detail.** The View menu's **Show grid** and **Snap to objects** were read at the

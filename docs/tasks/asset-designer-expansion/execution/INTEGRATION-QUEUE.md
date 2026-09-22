@@ -434,7 +434,9 @@ exactly its 98 floor:
 ## Still outstanding, and not closable from this environment
 
 - [ ] **No capture of anything this wave drew.** The pinned Chromium cannot be installed here. Three
-      surfaces are unphotographed: a fourteen-thumbnail preset gallery in a dialog, three stacked
+      surfaces are unphotographed: a whole-catalogue thumbnail preset gallery in a dialog (fifteen
+      thumbnails since the vanity landed, and the number is the catalogue's rather than this item's),
+      three stacked
       overlay buttons on the empty state, and a fifteen-button seven-field Arrange block in a
       sidebar leaf. **This is the check most likely to find the next defect**, because layout is
       what a capture measures and no layout engine in this repository does. The 460 px narrow width

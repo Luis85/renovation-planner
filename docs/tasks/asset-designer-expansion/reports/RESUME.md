@@ -1,224 +1,202 @@
-# RESUME — session thirteen's hand-off
+# RESUME — session fourteen's hand-off
 
-**Rewritten 2026-09-22, replacing session twelve's packet wholesale**, for the reason every packet
+**Rewritten 2026-09-22, replacing session thirteen's packet wholesale**, for the reason every packet
 before it gave: a hand-off that is appended to goes stale in a way a reader cannot detect.
 
 Branch `renovation-planner-asset-designer-bc5539`, worktree
 `D:\Projects\renovation-planner\.claude\worktrees\renovation-planner-asset-designer-bc5539`.
 PR [#230](https://github.com/Luis85/renovation-planner/pull/230), still **DRAFT**. Asked directly
 whether the beta was ready, the user said **"not ready, keep working"**, and nothing since has
-changed that. Nobody marks it ready on their own initiative.
+changed that. **Nobody marks it ready on their own initiative.**
 
 | | |
 |---|---|
-| Last CI-verified sha | **`a901cb746`** — run [`35742079847`](https://github.com/Luis85/renovation-planner/actions/runs/35742079847), `verify` ×4 plus `audit`, **all success**, read by run id. **That sha carries every `src/`, `styles/` and test change from both waves**, so the gates that matter are settled on it. Wave 17 alone was separately green at `2dbc7b39a` (run [`35737160544`](https://github.com/Luis85/renovation-planner/actions/runs/35737160544)). GitGuardian reported `skipping` on both, which is not a pass and not a failure |
-| HEAD | **Documentation only above that sha, and the check is a command rather than a number**: `git diff --name-only a901cb746..HEAD` touches nothing outside `docs/`. **A hand-off cannot name its own sha** — every correction to this table moves HEAD past whatever it just said — so the last two attempts at this line were stale the moment they were written. Confirm the newest run yourself: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 1 --json databaseId,headSha,status` then `gh run view <id> --json status,conclusion,jobs`. Tree clean, pushed |
-| `origin/main` | `ed5c50b76`, and it IS the merge base, so nothing rebases. The local `main` ref is stale — fetch before reading it |
+| HEAD | **A hand-off cannot name its own sha** — every correction to this line moves HEAD past what it just said, and the last three attempts at it were stale when written. Confirm yourself: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 1 --json databaseId,headSha,status` then `gh run view <id> --json status,conclusion,jobs`. Tree clean, pushed |
+| Last sha confirmed green **before** the final push | **`9d146abbc`** — run [`35774126753`](https://github.com/Luis85/renovation-planner/actions/runs/35774126753), `verify` ×4 plus `audit`, **all success**, read by run id. That sha carries waves 19 and 20 in full. **Waves 21 and 22 were pushed after it and their run must be read by id** — do not assume |
+| Earlier green legs | `56d1dc918` (run `35758375566`) and `e6171b699` (run `35765414243`), both all-success. GitGuardian reports `skipping` on every run, which is neither a pass nor a failure |
+| `origin/main` | `ed5c50b76`, and it **IS** the merge base, so nothing rebases. The local `main` ref is stale — fetch before reading it |
 
 ## What this session was, in one line
 
-**The first session in six to write `src/`.** Every wave before it was docs and tests, so gates that
-had been green *by construction* were live for the first time — the coverage floors, the stylesheet
-build, `eslint .` and `analyze`. They passed. Say that plainly, because the previous five hand-offs
-could not.
+**The session that finished the approved measurement iteration** — increment 2 of three, the last
+one owed — and then spent four more waves on defects that only a browser could see.
 
 ## What shipped
 
-**The vanity preset** (AD18-R8) — the fifteenth in `ASSET_PRESETS`, in the `sanitary` group,
-**800 × 450 mm** default with a range spanning the package scenario's 1,000 × 500. No `Include basin`
-toggle: `PresetFieldKey` is a closed ten-key union with no boolean and no `height`, and a vanity
-without a basin is a cabinet while `washbasin` already ships for that case. Wireframe only — the
-thumbnail is derived by `presetThumbnail` from the built shape, so no artwork exists to review.
+**Dimensions on canvas (AD18-R11)** — the approved 2026-09-15 spec's **increment 2, in full**.
+Overall width × depth, the selected part's size, its four **signed** offsets to the footprint edges,
+each a real `<button>` swapping to a real `<form>` with a focused `<input>`, every number read from
+`preview ?? design.shape`, an `All dimensions` view row, and no numbers on an unscaled part — gated
+per DESIGN **and** per PART, which the card worked out rather than transcribed. **That closes the
+iteration**: increment 1 (snapping/guides/grid) and increment 3 (rulers, delivered out of order
+under AD18-R9) were already in.
 
-**Canvas rulers** (AD18-R9) — the approved 2026-09-15 spec's **increment 3, in full**, including the
-selection's extent. Top and left millimetre rulers following the camera, as a **DOM overlay** in
-`EditorSurface`'s overlay slot on `designerGrid`'s step function.
+**The stale notice's `Try again` (AD18-R13)** — a retry and nothing else. `writesBlocked` stays
+`false` and stays pinned; the write block and the pause disclosure were refused together, on the
+merits.
 
-**Four more gaps closed** — a category scan that nothing under `src/presentation/designer/` registers
-a DOM listener; a test pinning that the designer's device slot really is separate from the Plan
-Editor's; a dead CSS rule deleted and a third `held` clone retired; and the designer's `Saved` label
-stopped claiming a stale canvas is current.
+**Collision avoidance for `All dimensions` (AD18-R14)** and **the retry's presentation (AD18-R15)** —
+both found by drawing the merged code in a browser, both invisible to every gate here.
 
-## THE STANDING RULE, UNCHANGED — and this session grew what it covers
+**The project on every plan usage row (W19-B)** — two plans both named `Kitchen` in different
+projects no longer render as identical lines.
+
+## THE STANDING RULE, UNCHANGED — and this session grew what it covers a lot
 
 **Every vault check is deferred to ONE terminal manual pass, by the user's decision.**
 [`MANUAL-PASS.md`](./MANUAL-PASS.md) is the index and was **re-derived against this tree** with the
-command it prints, run verbatim: **90 human steps across six cases**, up from 84.
+command it prints: **109 human steps across six cases**, up from 90.
 
-**Read this before walking, because it is the part that will otherwise waste your time.**
+**Read this before walking.**
 
-- **Six steps ADDED** to [[Design an Asset]], in a section of its own — four for the rulers, two for
-  the vanity. **Neither has ever been seen in Obsidian.** The rulers were drawn in the browser
-  harness, which applies layout but declares none of a themed vault's colours; the vanity was
-  measured for geometry and **never looked at as a picture in any instrument**. These are first
-  sightings, not regression checks.
-- **Five steps REWRITTEN** in [[Recover an asset design rather than lose it]] — 9, 10, 11, 12a, 12b —
-  **with none added, so that case's count did not move.** Those steps recorded a defect that has
-  since been fixed, and **a walker following the old text would report a pass as a failure.** Step 9
-  said in as many words that `Saved · refresh needed` *"cannot be produced by this surface at all"*.
-  It can now. That step is a regression guard that fails if the bare word comes back.
+- **Thirteen new steps in [[Design an Asset]] for dimensions on canvas.** Nothing in it has been seen
+  in Obsidian. **Two of the thirteen are regression guards rather than first sightings** — step 63
+  (typing back the shown number writes nothing) and step 67 (every label vanishes under a draw tool,
+  without which tracing is impossible). Both cover defects a review caught before merge.
+- **Six new steps in [[Recover an asset design rather than lose it]] for the retry.** **That state
+  cannot be reached by any instrument except a person in a vault** — `page.ts` passes its `stale`
+  knob to the PLAN EDITOR branch only, so no fixture and no capture can draw it.
+- **Three steps were REWRITTEN and one of them would have failed a passing build.** Steps 10, 12 and
+  an out-of-scope bullet all said the designer has no `Try again`. Step 10 read *"There are none"*.
+  Step 12's expectation is UNCHANGED and only its reason was false — that notice still heals
+  unprompted, and pressing the button to clear it would itself be a defect.
+- **Two steps are `judgement` steps over measured residuals**, each naming the number it judges.
 
 **This session did NOT hand over a walk.** The next session is the terminal manual pass.
 
-## Both headline features have been MEASURED and barely LOOKED AT
+## The triage was the first deliverable and it produced ZERO cards — fourth session running
 
-This is the sharpest thing to carry forward and it is not a defect in either card.
+`RESUME` and the session brief both named AD18 gaps 3, 5 and 7 as outstanding. **All three were
+already closed at the tree.** The toolbar gap had nominated its own instrument —
+`grep -rn "HostIcon" src/presentation/designer/`, recorded as returning **0** — and it returns **3**.
+`DesignerAddPanel.vue` and `DesignerTraceChecklist.vue` both exist and are mounted.
 
-- The rulers were rendered and measured in a real browser — canvas share **68.8 % at 1280 and 50.0 %
-  at 580, identical to the hundredth of a pixel with and without them**, because the overlay draws
-  inside the canvas rather than displacing it. The browser earned its place twice: it found the left
-  strip drawing `250` as `25(` (three digits in 18 px, fixed with `writing-mode`), and the card went
-  back and **looked** at a reviewer's reasoned-but-unseen occlusion finding rather than arguing about
-  it. But the harness is not a vault: it declares no `.notice` chrome at all and none of a themed
-  vault's accent.
-- The vanity preset has no capture and no vault sighting. Its own card says it was *"measured and
-  never LOOKED at"*.
+They are recorded as **corrections rather than decisions**, per AD15-R2's rule: recording a
+correction as a decision credits a session with settling what was already settled. `AD18-concept-fidelity.md`
+was behind the tree on all three and the hand-off inherited it; the amendment lines are added.
 
-**`npm run harness-shot` is still unavailable** — there is no pinned Chromium on this machine and
-`npx playwright install chromium` is forbidden here because it emptied `node_modules` once.
+**Plan the round for rulings rather than cards.** Five rulings, five cards.
 
-## The triage was the first deliverable, and most of it was not work — third session running
+## The brief's single biggest named unknown was a FALSE PREMISE — fifth in two sessions
 
-Fourteen rows read **at source against the tree**; **five were real work**. Wave 14 found three of
-ten, wave 16 eight of eleven were rulings. **Plan the round for rulings rather than cards.**
+It said the overlay slot stops pointer events and that interactive DOM might force a mechanism
+change. Measured: `.rp-plan-overlay` declares **no `pointer-events` at all** (its whole rule is
+`display: contents`), and `EditorSurface`'s four `.stop` modifiers are **bubble-phase**, shielding
+the canvas FROM the overlay rather than the overlay from the user. `RoomDimensionLabels` — the
+precedent the spec names — is already this exact feature and is fully interactive.
 
-**Four inherited premises were FALSE**, and this is the pattern worth carrying rather than the rows:
+**Check the requirement at source, never through a summary — including through this file.**
 
-- **Rulers were said to be "on no list at all".** They are increment 3 of an approved spec that had
-  already chosen their mechanism and already refused Konva. Finding that out changed the job before a
-  line was written.
-- **"No ruler anywhere and no precedent to copy."** `rulerGeometry.ts` exists. It is the calibration
-  segment's screen-pixel marks and is **not** reusable — which is the honest form of the claim, not a
-  contradiction of it.
-- **`Show grid` "flipping the designer flips the Plan Editor".** False in both halves: the slots are
-  `designer-view` and `editor-view` and each view mounts its own Pinia. The default-off is the
-  spec's own §2.6. The source of the error was one parenthetical about layer visibility.
-- **`reversibleAssetDesignWindows.test.ts` "claimed by NO matrix row".** Row **T08** already cites
-  it. That is the T25 shape one session later: a hand-off claim nobody re-ran against the document it
-  was about.
+## THE REVIEWS CAUGHT THE INTEGRATOR FIVE TIMES
 
-## The reviews caught the INTEGRATOR twice
+This is the sharpest thing to carry forward. Every one was a brief or an instruction, not code:
 
-Same lesson session twelve recorded, arriving twice more:
+- **The pointer-events premise** above.
+- **The C03 rounding fix.** The brief said comparing a typed number against the ROUNDED display value
+  would not stop the quantizing write. It is what stops it — the field shows the rounded value, so
+  that is the number a user leaves alone. The card produced the red before fixing.
+- **`PlanEditorRoot` "wires `retry: hydrate`".** True and misleading: that `hydrate` is a LOCAL
+  function calling the keep-previous refresh. The designer's `runtime.hydrate` blanks. W20-A blocked
+  itself, wrote a probe and was right.
+- **A lease that should have been granted and was not** (W19-B's harness fixtures), and **a lease
+  granted against a guess that cost a card a wave** (W19-A never needed `AssetDesignerRoot.vue`).
+- **A count repeated without checking.** A review enumerated twelve rules and called them ten; the
+  integrator passed "ten" to a card; the grep said twelve. The card then found its own citation had
+  falsified its own grep by quoting the declaration verbatim. **Three levels of correction on one
+  number.**
 
-- A suspicion the integrator wrote into W17-C's review brief — that the "all ten" arithmetic could
-  not be right — was **disproved by the reviewer in the card's favour**.
-- The grep the integrator recommended for counting presets **over-counts by one**, because
-  `presetGeometry.ts` holds `definePreset`'s own definition. W17-A found that with a better
-  instrument rather than taking "fifteen" on trust.
+**Tell every card to verify fix instructions at the code before applying them.** All five did.
 
-**Corrections travel in every direction, including into your own instructions to a card.** Tell every
-card to verify fix instructions at the code before applying them; all six did, and all six were right
-to.
+## Instruments lied in BOTH directions, within an hour
 
-## Five cards found something their brief did not predict
+- **A probe that reached nothing looked exactly like a clean result.** Setting an inline width on the
+  library inspector returned "one line at every width from 328 down to 160" — because a flex track
+  overrode it and the host never moved. Caught only by asserting `probeReached` rather than reading
+  the numbers.
+- **A sweep that over-reported.** A reachability count said zooming made collisions worse (2 → 13 →
+  23) because `elementFromPoint` returns null outside the viewport, so CLIPPING was scored as
+  COLLISION. Restricted to labels inside the canvas clip, the honest series is 0 → 1 → 0.
+- **`node scripts/styles-assemble.mjs` runs nothing and exits 0**, having no CLI entry at all. Three
+  of this session's briefs told cards to read its exit code. The gate was never in the command line —
+  the build calls `assembleStyles` through a Vite plugin, and `tests/build/styles.test.ts` drives it.
+  **Now in `CLAUDE.md`**, with the general shape: a command that exits 0 because it did nothing is
+  indistinguishable from one that exits 0 because everything passed.
 
-The argument for the independent-reviewer step, six sessions running, and for briefing cards to
-report rather than expand:
+**Make every DOM probe throw when its selector misses, and judge only what is inside the clip.**
 
-- **W17-C** — `designerRig`'s `onThemeChange` was `() => () => undefined`, **a source that never
-  fires**, so no case built on that rig could flip a theme at all. The gap was reachability, not
-  behaviour.
-- **W17-B** — the browser found `25(`; and its review found the extent band read the *committed*
-  shape while every other reading of "where the selection is" follows the preview, with the comment
-  defending it arguing against the option it had taken.
-- **W18-B** — settled a contradiction between two test files from `EditorSurface` and `tool-manager`
-  rather than from either test, because two tests disagreeing cannot decide between themselves.
-- **W18-C** — repairing an over-claiming comment, wrote a fresh false "only"; fixing that turned up
-  **the same over-claim living in a second file its first commit was never pointed at**.
-- **W17-A** — corrected the integrator's grep.
+## `src/` findings — one FIXED, one record-only, one not this package's
 
-## `src/` findings — two FIXED this session, three still record-only
+The user was re-asked once, since the scope had changed again.
 
-The user was re-asked once, since the scope had changed, and chose to fix 1 and 3.
+- **FIXED: `PlanAssetUsage.projectId`.** Narrower than inherited — it reached **no consumer at all**,
+  and `PlanAssetUsage` is imported by no file. Closing it needed a project **NAME**, which the type
+  did not carry. **Read the guarantee narrowly**: it separates two differently-named projects and
+  nothing more, so two `Kitchen` plans in two projects both named `Flat renovation` still draw
+  identically. `withPathsWhereAmbiguous` is the neighbour that escalates to a path.
+- **Record-only: `unrecoveredWrite`.** The designer sets it and no designer surface draws it. **The
+  inherited phrase "drawn nowhere" is FALSE** — nine consumer files, none under `designer/`. Steps
+  **B19, B20**.
+- **Not this package's: `settings.units`.** Nothing outside `src/plugin/settings/` reads it. **The
+  per-plan units PBI is a PER-PLAN fact this global setting could not satisfy even if something read
+  it**, so the honest fix is that PBI. Bears on AD16's ticked *"No unfinished or nonfunctional
+  controls advertised"*.
 
-1. **FIXED.** The designer's header read `Saved` beside its own stale strip, and
-   `save-state.saved-refresh-needed` could not be produced there at all. One optional `stale` prop,
-   with `AssetDesignerRoot` passing the same `staleAfterRefresh` that draws the notice, so the two
-   cannot disagree. **Against C08 this was the sharpest open question in the package and it is
-   closed.**
-3. **FIXED.** `runtime.ts`'s `writesBlocked` comment contradicted `assetDesignStore.stale`. Narrowed,
-   behaviour untouched — and the same over-claim was found duplicated in `designerRefresh.test.ts`.
+## What is still OWED, so nobody reads the merged shas as completeness
 
-Still record-only, unchanged:
-
-2. **`unrecoveredWrite` is set by the designer and drawn nowhere the designer renders.** Note the
-   inherited wording "drawn nowhere" is wrong: nine consumers exist, none under `designer/`. Steps
-   **B19, B20**.
-4. **`PlanAssetUsage.projectId` reaches no view**, so two plans both named `Kitchen` in different
-   projects render identically. **Grep trap**: a bare `projectId` search over
-   `src/presentation/library/` is NOT empty; those hits are `ReferencingGroup` from a different
-   query, and only the `AssetPlanUsage`-importer grep settles it.
-5. **NOT this package's** — `settings.units` binds a control, persists, and nothing reads it. Bears
-   on **AD16's ticked** *"No unfinished or nonfunctional controls advertised"*.
-
-**And one opened by this session's own fix**: whether a designer write should be **blocked** while
-the canvas is stale. It is now three questions rather than one — `writesBlocked`, a retry action, and
-the pause disclosure the Plan Editor's strip carries. `writesBlocked: () => false` is unchanged and
-deliberate; the Plan Editor blocks, and C08's reconcile-before-retry points the same way.
-
-## What is still OWED on AD18, so nobody reads the merged shas as completeness
-
-- **Increment 2 of the 2026-09-15 spec — dimensions on canvas.** It has **neither a spec nor a plan
-  document written**. Rulers (increment 3) were delivered *before* it, deliberately; AD18-R9 records
-  that so nobody takes their presence as evidence that 2 landed.
-- **AD18 items 3, 5 and 7** of its own gap list: the `Add` rail's remaining half, the toolbar, and
-  the guided trace checklist.
-- **A numbering trap now named in AD18 itself**: that document carries two schemes — gap sections
-  1–8 and a sequencing table 1–7 — so *"item 6"* means two different things. **Cite by title.**
+- **The terminal manual pass.** 109 steps. That is the next session.
+- **A residual at intermediate zooms**, recorded in AD18-R14: one label of the fourteen still on
+  screen has no clickable point one wheel step in from fit. The charter is met at the camera the
+  designer opens with; it is not unconditional.
+- **No harness knob puts the designer into `stale`**, so the retry has no capture and no fixture.
+  Adding one is a separate change nothing has ruled.
+- **`dimensionFigures.ts` is 568 raw lines** and holds two rules in two coordinate spaces. A
+  `labelSpread.ts` beside it is the seam if a third arrives. It passes `max-lines` because
+  `skipComments`/`skipBlankLines` are on.
+- **Three `judgement` steps** now sit in the pass over things only a person can settle.
 
 ## Carried forward, verified — do not re-inherit blind
 
-- **The 460 px toolbar's second row is still unexplained**, and `designer-toolbar.css` says so
-  itself. Needs a real browser.
-- **`80rem` IS 1280 px of LEAF**, not viewport — `@container rp-designer` on the Vue root with
-  `container-type: inline-size`.
+- **`max-lines`'s `skipComments` does NOT skip an SFC's TEMPLATE comments.** A long `<!-- -->` block
+  counts against the 400-line cap while the same prose in `<script>` does not. In `CLAUDE.md` now.
+  `AssetDesignerRoot.vue` sits near 392 of 400 counted.
+- **The wrap measurement in AD18 was superseded** — plan usage rows went 1 line to 2 at a 224 px rail
+  once the project was added. Bounded: no overflow, no clipping, no horizontal scroll. The figure to
+  distrust is the library at 760, where the row survives **by one pixel** against a fifteen-character
+  fixture name.
 - **German `Vorlage` — WITHDRAWN.** The collision does not exist. Do not carry it again.
-
-## Three stale-citation repairs landed, and the lesson under them
-
-W18-B's change falsified three sentences in files it had no lease on; it found one, the review found
-another, it found the third when asked. Its own lesson, recorded: **it ran the collateral grep for
-the table label it changed and never for the header sentence it changed.** A changed sentence
-deserves the same grep a changed identifier gets.
-
-`LEASES.md`'s stale paragraph was **marked rather than rewritten**, because it records why a past
-lease was drawn where it was and editing it would falsify that record.
 
 ## This machine
 
-7.8 GB RAM, **SHARED** — another session was running a gate in a different worktree throughout this
-one. Check WHAT is running, not how many:
+7.8 GB RAM, **SHARED**. Check WHAT is running, not how many:
 
 ```
 powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId,CommandLine | Format-List"
 ```
 
+- **Four orphaned `npm run harness` dev servers from the previous session were still running** at the
+  start of this one, out of `.worktrees/ad07`. Kill leftovers before starting.
 - Prefix every node-spawning command: `export TEMP=D:/tmp-claude TMP=D:/tmp-claude`
 - **Workers run narrow `npx vitest run <paths>` only.** `check` / `check:fast` / `test:coverage` /
-  `analyze` are the integrator's, and this session ran the full gate **in CI on the PR** rather than
-  locally — which worked, and is the workflow to keep.
-- Watch CI **by run id**: `gh run view <id> --json status,headSha,conclusion,jobs`. Do not push
-  repeatedly in quick succession; it cancels in-flight runs.
-- The exit-code trap stands: read the log's own `Test Files` line, never the exit code alone.
-- **A quoted heredoc broke on this session's prose too** — write the script to a file, or use
-  `python` with index-based splicing for anything containing a typographic dash.
-- **The docs use typographic dashes.** An exact-string edit against them fails silently in a shell;
-  splice by index.
+  `analyze` are the integrator's, and this session ran the full gate **in CI on the PR** throughout,
+  which worked and is the workflow to keep.
+- Watch CI **by run id**. Do not push repeatedly in quick succession; it cancels in-flight runs.
+- **A quoted heredoc breaks on an apostrophe or a typographic dash.** It broke twice this session.
+  Write the script to a file and splice by an anchor, and **anchor on content, never a line number**.
 - Worktrees under `.worktrees/` carry `node_modules`, reusable with `git switch -c`. This session
-  used `ad07`, `ad10`, `ad11`, `ad13b`, `ad13c`, `ad14`; `ad08r` and `adq` were untouched.
-- **`SendMessage` to the card's ORIGINAL author is still right for a fix round. Seven sessions
-  running.** All six cards this session verified their fix instructions at the code first, and one
-  **reproduced the reviewer's prediction** — a green run with the mutation applied — before fixing
-  it, then re-took the red against the FIXED tree.
+  used `ad10`, `ad11`, `ad13b`, `ad13c`, `ad14`.
+- **`SendMessage` to the card's ORIGINAL author is still right for a fix round. Eight sessions
+  running.** Every card this session verified its fix instructions at the code first, and three found
+  an instruction wrong.
 
 ## The rule this session paid for
 
-**A brief is not evidence, including one written by the last session that finished.** Four of this
-session's inherited premises were false, and the two that mattered most — that rulers were ungoverned
-and that a preset fixture had been overlooked — would each have produced the wrong work. Both were
-settled by reading the governing document at source rather than through any summary of it.
+**A card that names what it could not check is what makes the check cheap for whoever holds the
+instrument.** W19-B had no browser and named the wrap at the right width; it was there. W19-A named
+label collision on a small part as the likeliest real defect in its own work; it was there. W22-A
+said no fixture could photograph its result and named the six things a re-capture must measure; all
+six were measurable and all six passed.
 
-The corollary, for whoever writes the next brief: **§4 row 2 says "fixture" and every summary of it
-says "vanity"**. Check the requirement at source, never through a summary — including through this
-file.
+**And the corollary, which cost three rounds on one card: a prediction is worth more than a claim.**
+W21-A round 3 wrote down *"Unclickable: 0. Any non-zero is a failure of this round. Overlapping
+pairs: 16. I'm wrong if it's outside 14–18"* before the capture. It measured 0 and 15. **Ask cards
+for numbers they can be wrong about**, then go and measure them.

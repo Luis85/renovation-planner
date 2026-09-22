@@ -29,7 +29,7 @@
  * level up and leaves it unchecked. A registry the root iterates has the same hole — nothing
  * makes a later task add its entry.
  */
-import { computed, markRaw, onMounted, ref, useId } from 'vue';
+import { computed, markRaw, onMounted, ref, useId, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
@@ -73,9 +73,18 @@ const workspace = useWorkspaceStore(), editorStore = useEditorStore();
 
 /**
  * The leaf's live machinery (Task B3a), provided here so the regions later tasks mount can
- * inject it. The return value is used immediately: `runtime.hydrate` is THE read — the mount,
- * the retry below, and the cross-leaf subscription the runtime itself disposes all go through
- * one routine rather than three spellings of it.
+ * inject it. The return value is used immediately: this file performs THREE reads through it,
+ * and they are not all the same door.
+ *
+ * `runtime.hydrate` (blank on failure) is the mount and `onFailureAction`'s retry — a leaf with
+ * nothing on screen has nothing to keep. `runtime.refresh` (keep-previous) is `onRetry`, the
+ * stale notice's own retry, which runs over a canvas that is still drawn.
+ *
+ * **This paragraph said `runtime.hydrate` was THE read, naming the mount, "the retry" and the
+ * cross-leaf subscription.** Two thirds of that was already false when W20-A arrived — the
+ * subscription takes `refresh` inside `runtime.ts` and never reaches this file — and "the
+ * retry" stopped being singular the moment this surface had two. Rewritten from the call sites
+ * rather than from the old sentence.
  */
 const runtime = provideDesignerRuntime(context);
 const designStore = useAssetDesignStore();
@@ -115,15 +124,32 @@ const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value
  * **TWO refs, because they answer different questions.** `retrying` is a press in flight, which
  * `onRetry` withholds the second read on. `retriesFailed` is how many presses in a row have come
  * back still stale, and it exists so the sentence can MOVE: a notice whose text is identical
- * after a press cannot be told apart from a press that did nothing. It counts an EPISODE rather
- * than the life of the leaf — the success that retires the notice resets it — and the Plan
- * Editor's strip swaps `editor.refresh-failed` for `editor.refresh-failed.again` off the same
- * fact, held there in `ProjectStore` because that store has one and this one does not.
+ * after a press cannot be told apart from a press that did nothing. The Plan Editor's strip
+ * swaps `editor.refresh-failed` for `editor.refresh-failed.again` off the same fact, held there
+ * in `ProjectStore` because that store has one and this one does not.
+ *
+ * **The count is reset by the EPISODE ending, not by the handler**, which is the review finding
+ * this watcher exists for and not a refactor of one. `stale` is cleared by ANY successful
+ * hydration, and three doors reach one without ever running `onRetry`'s `finally`: the mount,
+ * the post-command read-back and the cross-leaf subscription. A reset written only into that
+ * `finally` therefore survived all three, and the NEXT unrelated failure — one nobody had
+ * retried — opened reading "failed again". Watching the fact itself is what makes the rule
+ * hold for the fourth door too, whoever adds it.
  */
 const retrying = ref(false);
 const retriesFailed = ref(0);
+watch(stale, (isStale) => {
+	if (!isStale) retriesFailed.value = 0;
+});
 const staleMessage = computed<StringKey>(() => (retriesFailed.value > 0 ? 'designer.refresh-failed.again' : 'designer.refresh-failed'));
-/** Per Vue app, so two designer leaves in one workspace cannot hand the same id to two elements. */
+/**
+ * `useId` is unique only PER APP — its counter lives on the `AppContext` and every app defaults
+ * to the prefix `v` — so two designer leaves would otherwise mint the same `v-…-N`. What makes
+ * this unique across leaves is `AssetDesignerView`'s `app.config.idPrefix = nextAppIdPrefix()`,
+ * pinned by `tests/build/appIdPrefix.test.ts`. `DialogHost.vue` and `PropertyTreeNode.vue` state
+ * the same pairing; this comment claimed per-app uniqueness was the reason, which is the reason
+ * the collision exists rather than the reason it does not.
+ */
 const staleNoticeId = useId();
 
 /**
@@ -132,10 +158,21 @@ const staleNoticeId = useId();
  * does nothing, and the pairing `PersistentWarningStrip` already uses for the same gesture. A
  * build that only dimmed the button would issue a second read on the second press.
  *
- * `finally` and not `then`, so a THROWN read releases the control and counts as the failed retry
- * it is. Detached with `void` exactly as this file's other two reads are (`onFailureAction` and
- * the mount): a thrown read is no more handled here than there, and converting one is a change
- * to every read on this surface rather than to this button.
+ * `finally` and not `then`, so a REJECTED read releases the control and counts as the failed
+ * retry it is. Detached with `void` exactly as this file's other two reads are
+ * (`onFailureAction` and the mount), and **that is a real divergence from the Plan Editor
+ * rather than a match**: its own stale retry wraps `runtime.refreshProjection()` in
+ * `.catch(cause => notifyFault(…, 'editor.refresh.failed'))`. Here a thrown read still reaches
+ * the user — the `finally` runs, the control releases and the sentence becomes the "again" one —
+ * but the FAULT itself is neither logged nor toasted. Closing that is a change to all three
+ * reads on this surface plus the copy they would need, not to this button, and it is named here
+ * so the next reader finds the difference rather than assuming the two surfaces agree.
+ *
+ * A read that threw SYNCHRONOUSLY would skip the `finally` and strand `retrying`. Not
+ * reachable through the async `store.hydrate` — an `async function` rejects rather than
+ * throwing — and reachable in principle through `readingFor`'s own `context.indexScanCompleted()`,
+ * evaluated before that call. Left unguarded deliberately: an unreachable guard costs a branch
+ * it can never pay back, which is this repository's own rule about coverage headroom.
  *
  * **The button is a SIBLING of `.rp-designer-notice` in the template, not a child of it**, and
  * that is measured rather than preferred. Three cases in three files
@@ -158,9 +195,13 @@ function onRetry(): void {
 	retrying.value = true;
 	void runtime.refresh().finally(() => {
 		retrying.value = false;
-		// Read once the read has SETTLED, which is what makes it this retry's outcome: `stale`
-		// survives a keep-previous failure and is cleared by the one success arm.
-		retriesFailed.value = stale.value ? retriesFailed.value + 1 : 0;
+		// Counting only. The RESET belongs to the watcher above, because three other doors end
+		// an episode without reaching this line. Read once the read has settled, which is what
+		// makes it this retry's outcome: `stale` survives a keep-previous failure and is
+		// cleared by the one success arm — so a press superseded by a peer read that already
+		// succeeded counts as nothing, which is the right answer for a press whose own read
+		// never decided anything.
+		if (stale.value) retriesFailed.value += 1;
 	});
 }
 

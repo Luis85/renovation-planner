@@ -67,10 +67,17 @@ interface Rig {
 	readonly reads: number[];
 	/** What the NEXT read through the context answers; the mount's has already happened. */
 	answerWith: (answer: Answer) => void;
+	/**
+	 * A peer leaf's edit, delivered through the real subscription the runtime holds — a read
+	 * this leaf's user did not ask for and cannot press. `designerSaveStateStale.test.ts`
+	 * drives the same door under the name `peerChanged`.
+	 */
+	peerChanged: () => void;
 }
 
 async function rig(): Promise<Rig> {
 	const reads: number[] = [];
+	const peers: (() => void)[] = [];
 	let answer: Answer = readsFine;
 	const ctx: AssetDesignerContext = {
 		assetId: ASSET_ID,
@@ -85,7 +92,10 @@ async function rig(): Promise<Rig> {
 		logger: recorder,
 		picker: null,
 		vault: emptyBackgroundVault(),
-		onDesignChanged: () => () => undefined,
+		onDesignChanged: (listener: () => void) => {
+			peers.push(listener);
+			return () => undefined;
+		},
 		onThemeChange: () => () => undefined,
 		onVaultFileChanged: () => () => undefined,
 		indexScanCompleted: () => true,
@@ -102,6 +112,9 @@ async function rig(): Promise<Rig> {
 		reads,
 		answerWith: (next: Answer) => {
 			answer = next;
+		},
+		peerChanged: () => {
+			for (const listener of peers) listener();
 		},
 	};
 }
@@ -200,5 +213,39 @@ describe('the stale notice’s way out', () => {
 		await nextTick();
 		expect(notices(wrapper)).not.toContain(t('en', 'designer.refresh-failed'));
 		expect(retryButton(wrapper).exists()).toBe(false);
+	});
+
+	/**
+	 * **The reset has to key on the EPISODE, not on the handler**, and that is the whole of this
+	 * case. `stale` is cleared by ANY successful hydration, and three doors reach one without
+	 * going through the button: the mount, the post-command read-back and the cross-leaf
+	 * subscription this case drives. A count reset only inside `onRetry` survives all three, so
+	 * the next unrelated failure — which nobody has retried — would open reading *"failed
+	 * again"*.
+	 *
+	 * Driven through the peer door deliberately: the button's own path passes either way, so a
+	 * case pressing it again could not tell the two implementations apart.
+	 */
+	it('forgets a failed retry once the episode ends through a door that is not the button', async () => {
+		const { wrapper, pinia, peerChanged, answerWith } = await rig();
+		await goStale(pinia);
+		answerWith(() => Promise.resolve(err(VAULT_FAILED)));
+		await retryButton(wrapper).trigger('click');
+		await flushPromises();
+		await nextTick();
+		expect(notices(wrapper)).toContain(t('en', 'designer.refresh-failed.again'));
+
+		// The vault recovers, and a PEER's edit is what re-reads. No press anywhere.
+		answerWith(readsFine);
+		peerChanged();
+		await flushPromises();
+		await nextTick();
+		expect(notices(wrapper)).not.toContain(t('en', 'designer.refresh-failed.again'));
+
+		// A later, unrelated read failure is a NEW episode, and nobody has retried this one.
+		await goStale(pinia);
+
+		expect(notices(wrapper)).toContain(t('en', 'designer.refresh-failed'));
+		expect(notices(wrapper)).not.toContain(t('en', 'designer.refresh-failed.again'));
 	});
 });

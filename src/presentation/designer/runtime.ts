@@ -453,20 +453,13 @@ function leafStores(): {
  * session and turns true once, when `onLayoutReady` has run the vault scan — so a runtime
  * that snapshotted it at mount would hold `false` for the life of a restored leaf and go on
  * declining to believe an authoritative miss forever.
-	const read = (keepPreviousOnFailure: boolean): Promise<void> =>
-		store.hydrate(context.queries, context.assetId, {
-			indexScanCompleted: context.indexScanCompleted(),
-			keepPreviousOnFailure,
-		});
-
-	const hydrate = (): Promise<void> => read(false);
-	/**
+ *
  * The two doors are the SPLIT, named rather than spelled as a boolean at each call site:
  * a refresh keeps what is on screen when its read fails, a hydration has nothing to keep.
  * The same split `ProjectStore` draws, and the reason is that a refresh runs over content
  * the vault already holds — blanking the canvas would replace "possibly stale" with
  * definitely nothing.
-	 *
+ *
  * **`refresh` has THREE callers and one of them is outside this file**, which is why it is a
  * named door and, since W20-A, a member of `DesignerRuntime` rather than a local. Written
  * from `grep -rn "refresh" src/presentation/designer/runtime.ts` plus `grep -rn
@@ -482,7 +475,7 @@ function leafStores(): {
  * argument for exporting THIS door rather than letting a view assemble the read itself. A flag
  * at each call site is a rule somebody has to remember at a fourth door; a named function is
  * not.
-	 *
+ *
  * **What it cannot suppress**, in the two places `AssetDesignStore.hydrate` bounds it. A leaf
  * with nothing on screen: the keep-previous arm is guarded on `status === 'ready'`, so the
  * `ProjectIndexRebuilt` arm of `createAssetDesignChangeSource` — which reaches a leaf

@@ -2,7 +2,7 @@
 
 Outcome: **implemented**
 Owner / worktree / branch: W20-A / `.worktrees/ad10` / `w20a-stale-retry`
-Base commit / candidate commit: `8efcf3b01` / this commit
+Base commit / candidate commit: `8efcf3b01` / `3a7eebaaa` plus this fix-round commit
 Accepted contract revision: `docs/tasks/asset-designer-expansion/contracts/DECISIONS.md`, ruling
 **AD18-R13**, contracts **C08** (*"a retry after an uncertain write must reconcile before repeating
 it"*) and **C12**.
@@ -23,6 +23,15 @@ read.
 `writesBlocked: () => false` is untouched, nothing is paused, and no `pausedReason` disclosure was
 added — AD18-R13 refuses those together, and `designerRefresh.test.ts`'s pin on that member is
 unchanged.
+
+**The count of failed retries belongs to the EPISODE**, reset by a `watch` on `stale` rather than
+by the button's own handler, because three other doors end an episode without the button — the fix
+round's blocking finding, and the paragraph below carries it.
+
+**Not this card's, and named so the trade is traceable:** how the button LOOKS. It is an unclassed
+`<button>` in a `flex-direction: column` shell, so it stretches the leaf width and sits below the
+tinted strip rather than inside it. `styles/designer.css` is at 399/400 and a fix needs the partial
+split first, which is outside this lease; the integrator holds the capture and the decision.
 
 ## The blocker this card was re-issued over, and what it turned into
 
@@ -81,6 +90,11 @@ the sentence.
 
 - The read is `runtime.refresh` — keep-previous — so `AssetDesignStore` holds `status === 'ready'`,
   the design and `stale`. **The canvas is not taken away and the notice does not vanish.**
+  **One failure is exempt and correctly so** (review F5, which found this sentence stated wider
+  than the mechanism): an authoritative `asset.not-found` — the note really is gone, after the
+  index scan — takes `AssetDesignStore.hydrate`'s `authoritativeMiss` arm, blanks and draws the
+  failure panel, because the whole argument for keeping is "over data the vault has". The
+  keep-previous guarantee is about a read that FAILED, never one that answered.
 - `retriesFailed` goes up, so the sentence becomes *"Re-reading this asset failed again; what you
   see may still be out of date."* A press that changed nothing on screen would be
   indistinguishable from a press that did nothing; this is what moves.
@@ -92,28 +106,119 @@ the sentence.
 
 ## Every branch introduced, and what drives each
 
-Measured from `coverage-final.json`, not from a summary line: a designer-only coverage run
-(`--coverage.reportsDirectory=D:/tmp-claude/w20a-cov`) reports `AssetDesignerRoot.vue` at
-**123/124 statements, 25/25 functions, 115/117 branches** and
-`src/presentation/designer/runtime.ts` at **94/94, 56/56, 21/21**.
+Measured from `coverage-final.json`, not from a summary line, and **re-measured after the fix
+round**: a designer-only coverage run reports `AssetDesignerRoot.vue` at **127/128 statements,
+26/26 functions, 117/119 branches** and `src/presentation/designer/runtime.ts` at **94/94, 56/56,
+21/21**. The fix round took branches 117 → 119 and covered 115 → 117, so both arms the watcher
+adds are driven.
 
 | Branch | True arm driven by | False arm driven by |
 |---|---|---|
 | `if (retrying.value) return;` (`onRetry`) | case 3's second press while the read is held | every other press in all three cases |
 | `retriesFailed.value > 0 ? '…again' : '…'` (`staleMessage`) | case 2, after the failed retry | cases 1 and 3, and the notice's first appearance |
-| `stale.value ? retriesFailed + 1 : 0` (the `finally`) | case 2 | case 1, where the success resets the count |
+| `if (stale.value) retriesFailed += 1` (the `finally`) | case 2 | case 1, where the read succeeded and nothing is counted |
+| `if (!isStale)` (the `watch` on `stale`) | case 4's peer success, and case 1's | `goStale` in every case, where `stale` goes true |
 | `retrying ? 'true' : undefined` (`:aria-disabled`) | case 3, in flight | case 2, asserted `toBeUndefined()` after release |
 | `v-if="staleAfterRefresh"` over the notice **and** the button | every case, after `goStale` | the mount, and case 1 after the success |
 
-**The file's only uncovered arm is not this card's**: statement and branch at
-`AssetDesignerRoot.vue`'s `editDimensions` — `if (dialogs.current !== null) return;` — which this
-diff does not touch. Read narrowly: that is a designer-directory run, so another suite may cover it;
-what the run establishes is that **no arm this card added is uncovered**.
+**The file's uncovered arms are TWO, not one, and neither is this card's** — review F6, and the
+first version of this sentence counted one because the reader script collapsed two different `if`s
+onto one line. Counted in units, from the branch map:
+
+1. `editDimensions`'s `if (dialogs.current !== null) return;` — the TRUE arm, with its `return`
+   statement, never driven;
+2. `onEmptyStateAction`'s `if (emptyStateKey.value === 'noShape')` — the implicit ELSE arm.
+
+Both are outside this diff. Read the run narrowly: it is designer-only, so another suite may reach
+them; what it establishes is that **no arm this card added is uncovered**.
+
+## Fix round — what the independent review changed
+
+Twelve findings; one blocked, three were mine to fix, and two more were repaired because the file
+was already open. Every one was checked at the code before it was applied.
+
+### F1 (BLOCKING) — the reset keyed on the handler, not on the episode
+
+Confirmed at the code: `retriesFailed` had exactly one writer, inside `onRetry`'s `finally`, while
+`stale` is cleared by ANY successful hydration. Three doors reach one without ever running that
+`finally` — the mount, the post-command read-back and the cross-leaf subscription — so a leaf that
+had failed a retry once kept the count forever, and the NEXT unrelated failure opened reading
+*"failed again"* for a failure nobody had retried.
+
+`watch(stale, …)` now resets it and the `finally` only COUNTS. Watching the fact rather than
+writing the reset into one handler is what makes the rule hold for the fourth door, whoever adds
+it — which is this repository's own "check at the forbidden thing" rule pointed at state.
+
+**The red, watched through the PEER door and not the button**, because the button's own path
+passes either way:
+
+```
+ FAIL  |suite| tests/presentation/designer/designerStaleRetry.test.ts > the stale notice’s way out > forgets a failed retry once the episode ends through a door that is not the button
+AssertionError: expected [ …(2) ] to include 'This asset could not be re-read after…'
+ ❯ tests/presentation/designer/designerStaleRetry.test.ts:248:28
+```
+
+`Tests 1 failed | 3 passed (4)` — the three button cases green throughout, which is the finding in
+one line. The rig grew a `peerChanged()` that fires the real `onDesignChanged` listener the runtime
+registers, the same door `designerSaveStateStale.test.ts` drives under that name.
+
+### F2 — the `useId()` comment gave the INVERTED reason
+
+Verified: `AssetDesignerView.ts` sets `app.config.idPrefix = nextAppIdPrefix()`, pinned by
+`tests/build/appIdPrefix.test.ts`. Per-app uniqueness is why two leaves CAN collide, not why they
+cannot. The comment now says which mechanism holds the property, the way `DialogHost.vue` and
+`PropertyTreeNode.vue` already do. The property itself never changed.
+
+### F11 — a stale "THE read" paragraph eighty lines above the new code
+
+`provideDesignerRuntime`'s docblock called `runtime.hydrate` THE read and named the mount, "the
+retry" and the cross-leaf subscription. The subscription half was already false before this card
+(it takes `refresh`, inside `runtime.ts`, and never reaches this file) and "the retry" stopped
+being singular the moment this surface had two. Rewritten from the call sites: `hydrate` is the
+mount and `onFailureAction`, `refresh` is `onRetry`.
+
+**The finding is fair and the lesson is the narrow one**: greps were run for the identifier that
+changed (`refresh`) and not for the prose about the identifier that did not (`hydrate`).
+
+### F12 — stranded code inside `readingFor`'s doc comment
+
+Seven lines of live-looking `const read = …` / `const hydrate = …`, a nested `/**` and two stray
+continuation lines sat INSIDE that comment, present at base. Judged in scope and fixed: it is the
+comment this card rewrote the second half of, it is comment text so no behaviour can move, and a
+reader of the new paragraph is exactly the person the stranded copy misleads.
+
+### F10 — checked, and the reviewer is right where I expected them to be wrong
+
+I went to `PlanEditorRoot.vue` expecting its `refreshProjection()` call to be as bare as mine.
+It is not: its local wrapper is
+`void runtime.refreshProjection().catch(cause => { if (root.value) notifyFault(cause, …, 'editor.refresh.failed'); })`.
+So the divergence is real — that surface reports a thrown read and this one does not — and it is
+now stated in `onRetry`'s docblock rather than glossed as "consistent with this file". Not closed:
+closing it is a change to all three reads here plus the copy they would need.
+
+**One correction to the finding's wording.** The synchronous-throw path is not merely "not
+reachable today": it cannot come from `store.hydrate`, because an `async function` rejects rather
+than throwing — but `readingFor`'s `context.indexScanCompleted()` is evaluated synchronously before
+that call and is a host callback, so the path exists in principle. Left unguarded on purpose and
+said so: an unreachable guard costs a branch it can never pay back.
+
+### F9 — dissolved by F1's fix, as the review suggested it might
+
+A retry superseded by a peer read that already succeeded now increments nothing: the `finally`
+reads `stale` AFTER the read settles, and a peer success has already cleared it. The `if` says so
+in one line where the old ternary needed two readings.
+
+### F8 — unchanged and disclosed
+
+A successful retry unmounts the `v-if` and drops focus to `<body>`; a failed one patches in place
+and keeps it. Already disclosed as the strip property this shape forgoes, and `ViewFailure`'s retry
+has the same shape.
 
 ## Acceptance coverage
 
 | Criterion/test ID | Result | Exact evidence | Remaining issue |
 |---|---|---|---|
+| The "again" sentence belongs to the EPISODE, not to the handler (review F1) | Pass | `designerStaleRetry.test.ts` › `forgets a failed retry once the episode ends through a door that is not the button` | — |
 | AD18-R13 — the stale notice owes a retry that re-hydrates | Pass | `designerStaleRetry.test.ts` › `offers a retry that re-reads, and a read that succeeds retires the notice with it` | — |
 | AD18-R13 / C08 — a retry must not cost the canvas | Pass | same file › `keeps the canvas and says the read failed AGAIN when the retry's own read fails` — asserts the again-sentence, the button, a non-null design and **no** `.rp-view-failure` | — |
 | AD18-R13 — no write block, no pause disclosure | Pass | `designerRefresh.test.ts` › `answers false for writesBlocked…` unchanged and green; no `pausedReason`, no `:disabled`, no dimmed control in the diff | — |
@@ -133,6 +238,9 @@ what the run establishes is that **no arm this card added is uncovered**.
 | `npx vitest run tests/presentation/i18n tests/harness/accessibilityDesigner{Add,Selection,Reference}.test.ts` | same | `8 passed (8) / 130 passed (130)` | terminal |
 | `npx vitest run tests/build/localeModuleSentenceCase.test.ts` | same | `1 passed (1) / 85 passed (85)` | the new locale pair is inside that derived walk |
 | `npx vitest run` over the seven-file blast radius, after the last `runtime.ts` edit | same | `7 passed (7) / 80 passed (80)` | terminal |
+| `npx vitest run tests/presentation/designer/designerStaleRetry.test.ts` with the F1 case and no fix | fix round | `1 failed / 3 passed (4)` | the red above, through the peer door |
+| `npx vitest run tests/presentation/designer` + coverage, after the fix round | fix round | `77 passed (77) / 1064 passed (1064)`, exit 0 | the branch table above |
+| `npx oxlint` / `npx eslint` / `npx vue-tsc -noEmit`, after the fix round | fix round | 0 / 0 / 0 | terminal |
 | `npx vue-tsc -noEmit` | same | exit 0 | whole program, `tests/**` included |
 | `npx oxlint <8 changed files>` / `npx eslint <same>` | same | exit 0 / exit 0 | read the exit code — oxlint prints nothing when clean |
 | `wc -l styles/designer.css` | same | `399` | the cap check the lease asked for |

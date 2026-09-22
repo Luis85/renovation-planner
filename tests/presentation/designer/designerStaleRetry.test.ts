@@ -248,4 +248,43 @@ describe('the stale notice’s way out', () => {
 		expect(notices(wrapper)).toContain(t('en', 'designer.refresh-failed'));
 		expect(notices(wrapper)).not.toContain(t('en', 'designer.refresh-failed.again'));
 	});
+
+	/**
+	 * **The one END of card W22-A that jsdom can hold: the control is CLASSED.** Ruling AD18-R15,
+	 * which found the unclassed button stretching to the whole leaf — a direct child of
+	 * `.renovation-asset-designer`, a column flex container with no `align-items`, drawing
+	 * 1024 x 30 at a 1024 px leaf.
+	 *
+	 * The class is the hook and nothing else; `styles/designer-recovery.css` carries what hangs on
+	 * it, and `tests/build/designerRecoveryStyles.test.ts` is what fails when that rule is
+	 * tidied away. Two instruments because a rename breaks one end at a time.
+	 *
+	 * **This asserts NOTHING about the rendered box and cannot.** jsdom resolves no CSS, and no
+	 * fixture reaches this state either: `tests/harness/page.ts` passes its `stale` knob to the
+	 * PLAN EDITOR branch only, so no capture can photograph the result. The measurement is an
+	 * injected probe's and is re-run by hand.
+	 *
+	 * The three attributes are re-asserted BESIDE the class rather than left to the cases above,
+	 * because the lease this card worked under forbids touching any of them: an edit that added
+	 * the class and dropped `aria-describedby` in the same tag would pass every case above, since
+	 * each of them reads a different one.
+	 */
+	it('classes the control so the stylesheet can constrain it, and changes none of its semantics', async () => {
+		const { wrapper, pinia } = await rig();
+		await goStale(pinia);
+
+		const button = retryButton(wrapper);
+
+		expect(button.classes()).toContain('rp-designer-retry');
+		expect(button.text()).toBe(t('en', 'designer.refresh-failed.retry'));
+		expect(button.attributes('aria-disabled')).toBeUndefined();
+		// The notice the button POINTS AT, by id — never `find('.rp-designer-notice')`, for the
+		// reason `notices` above records: a background notice wears the same class here.
+		expect(
+			wrapper
+				.findAll('.rp-designer-notice')
+				.filter((notice) => notice.attributes('id') === button.attributes('aria-describedby'))
+				.map((notice) => notice.text()),
+		).toEqual([t('en', 'designer.refresh-failed')]);
+	});
 });

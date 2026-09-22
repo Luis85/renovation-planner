@@ -814,6 +814,171 @@ consumer re-drives paths `arrangeDetails.test.ts` and `groupEdits.test.ts` alrea
 themed name that makes the coverage look wider than it is — which is AD15-R1's T20 losing side
 verbatim, one ruling later.
 
+### AD18-R8 — the vanity ships as a PRESET, and the preset IS §4 row 2's fixture. (2026-09-22)
+
+**Taken by the user, asked before any code was written**, in these words: *"add the vanity preset and
+canvas rulers and also close existing gaps."* A preset is wider than §4 row 2 asks for, so this
+ruling exists to record the widening as authorized rather than leaving a later session to "correct"
+it back to fixture-only.
+
+**§4 row 2 says fixture, and every summary of it says vanity.** Read at source it is: *"Vanity as an
+integrated example | Adopt as a test fixture; dimensions are illustrative, not construction
+recommendations."* The user has authorized a preset in addition. That is added scope, taken
+deliberately.
+
+**The important half is that this does not overturn AD15-R2 — it removes the premise AD15-R2 rested
+on.** That ruling refused a composed-vanity BUILDER, and named exactly two reasons, both about a
+`tests/helpers/assetShapes.ts` export: with no consumer it is a dead export and `npm run analyze`
+fails on one, and with a consumer that consumer re-drives `arrangeDetails.test.ts` and
+`groupEdits.test.ts` under a themed name. **A preset answers both.** It lives in
+`src/domain/asset/presets/sanitary.ts`, and `ASSET_PRESETS`, `AssetPresetForm.vue` and
+`presetThumbnail` are real product consumers, so it is not a dead export; and the test that drives it
+is `presets.test.ts`'s existing `describe.each`, which is the preset contract rather than a themed
+re-drive of the arrange and group suites. **So F02's fixture is the preset**, reached as
+`ASSET_PRESETS.find((p) => p.id === 'vanity')`, and no `tests/helpers/` builder is written. AD15-R2's
+losing side stands unchanged for the builder it was actually about.
+
+**The `Include basin` toggle is DROPPED.** Board 01 draws one and it has nowhere to live:
+`PresetFieldKey` is a closed union of ten keys and `PresetField.kind` is exactly
+`'length' | 'count' | 'angle'`, so there is no boolean and no `height`. Three arms were put to the
+user and the toggle lost on semantics before it lost on cost — **a vanity without a basin is a
+cabinet**, and `washbasin` already ships as its own preset for the basin-only case, so the control
+would have an off position that duplicates a neighbouring preset. This is AD18's *"a board element
+that is absent is not automatically a defect"* rule applied to a control rather than to a picture.
+
+**The losing side:** modelling it as a `count` of 0/1 needed no domain change and would have kept the
+board's control. It loses because it renders as a number field where the board draws a switch, and
+because it ships a preset that can build a basin-less slab nobody asked for. If a vanity ever needs a
+genuine option, the honest form is the boolean kind, not a count wearing one.
+
+**Dimensions: 800 × 450 mm default, with a range that spans 1,000 × 500.** The two recorded figures
+disagree and both are in this package: board 01 draws 800 × 450 under Bathroom, while
+`references/previous-expansion-concept.md` §11's end-to-end scenario says *"creates a 1,000 × 500 mm
+vanity"*. The board wins the DEFAULT because it is the artefact the user was looking at when they
+said the surface *"does not look like the design-concepts"*; the range carries the scenario so that
+walk stays reachable by typing rather than being contradicted. §4 row 2's own sentence governs both:
+*dimensions are illustrative, not construction recommendations.*
+
+**Wood-grain artwork stays absent** under §4 row 12; the preset ships as wireframe, and its thumbnail
+is derived by `presetThumbnail` from the built shape, so no artwork is authored at all.
+
+### AD18-R9 — canvas rulers are the approved spec's increment 3, built in full, as a DOM overlay. (2026-09-22)
+
+**Taken by the user**, who asked for canvas rulers directly. The session brief that proposed them
+said rulers were *"on no list at all"* and that there was *"NO ruler anywhere and no precedent to
+copy"*. **Both are false, and finding that out changed the job before a line was written.**
+
+**Rulers are governed.** `docs/superpowers/specs/2026-09-15-asset-designer-snapping-and-guides-design.md`
+§0 — approved section by section in brainstorming on 2026-09-15 — splits that iteration into three
+increments and names the third: *"Rulers — top and left millimetre rulers following the camera, with
+the selection's extent marked, on this document's step function."* `reports/AD00-baseline.md` item 4
+records the same thing from the other side: *"The repository's own owed increments — dimensions on
+canvas and rulers — are in no AD card and belong in the wave plan."* So this is an owed increment
+being delivered, not a board element being adopted, and **§4 governs none of it** — a grep of §4's
+twelve correction rows and of every ruling in this document returns nothing about rulers.
+
+**The mechanism was already decided and is not reopened here.** That spec's own decision table, under
+*"Decisions already taken for the whole iteration, so increments 2 and 3 do not reopen them"*, reads:
+*"Canvas annotations (dimensions, rulers) | DOM overlay in `EditorSurface`'s overlay slot, positioned
+by `worldToScreen` — the plan editor's `RoomDimensionLabels` pattern. Konva labels were refused."*
+The two refusals it records are a clickable Konva node fighting a hit test where every designer layer
+is `listening: false`, and a hybrid whose two render cadences visibly lag each other during a drag.
+**A Konva ruler layer is therefore already refused**, which is worth stating because the obvious
+reading of the designer's `layers/` directory is that a ruler belongs in it.
+
+**Measured rather than assumed, the mechanism is available today.** `EditorSurface.vue` exposes the
+named `overlay` slot; `DesignerCanvas.vue` forwards its own default slot into it
+(`<template #overlay><slot /></template>`); and `AssetDesignerRoot.vue` already passes a child
+through that path, its own comment saying so. `RoomDimensionLabels.vue` is the shipped pattern,
+positioned by `worldToScreen(point, editor.viewport, STAGE_PIXELS)` and styled `position: absolute;
+inset: 0; pointer-events: none`. **That last property is load-bearing rather than cosmetic**: the
+overlay wrapper carries `@pointerdown.stop`, `@pointerup.stop`, `@pointercancel.stop` and
+`@wheel.stop`, so a ruler that accepted pointer events would silently eat gestures the canvas needs.
+
+**The step function is `designerGrid`, and there is no second one.**
+`src/presentation/designer/grid/designerGrid.ts` answers `{ step, origin }` over the series
+`[1, 5, 10, 50, 100, 500, 1000, 5000]` mm at `MIN_STEP_PX = 12`, counted from the committed
+footprint's box minimum. Its own docblock says *"ONE function for the drawn grid, the snapped grid
+and the status readout, so the three cannot disagree"* — **a ruler is its fourth consumer, and that
+sentence is updated in the same edit**, which is this repository's rule about a count stated in a
+comment.
+
+**`src/presentation/editor/layers/rulerGeometry.ts` is NOT the precedent, and the name is a trap.**
+It is the calibration segment's marks — a spine, two end bars and ticks along one arbitrary segment —
+and its own header states that its spacing is *"screen pixels, and deliberately not world
+millimetres"* because the gesture runs before the plan has a scale, so *"these ticks are a visual
+metaphor ... never a scale to count off"*. Its only nontrivial part, `affordableSpacing`, decimates by
+doubling until 48 ticks fit; a canvas-edge millimetre ruler needs the opposite — a world-anchored
+origin and a round-number step, which is `designerGrid`. Two further greps mislead in the same
+direction and are named here so the next reader does not re-find them: `CanvasGrid.vue` calls the
+GRID *"the Plan Editor's visual ruler"* in prose, and `creationCatalogue.ts`'s `'ruler'` is a lucide
+icon name for the measurement tool.
+
+**Scope: the full increment 3, including the selection's extent.** Put to the user as three arms —
+rulers alone with the extent deferred, the full increment, or increment 2 first — and the user chose
+the full increment. **The losing side is real**: the extent marking couples the card to the selection
+store, where rulers alone need only the camera and the step function, and that seam would have made a
+smaller and more obviously correct card. It loses because the spec defines increment 3 as both halves
+and a half-delivered increment is one a later reader has to re-derive the boundary of.
+
+**Increment 2 (dimensions on canvas) is NOT a prerequisite and REMAINS OWED.** Rulers need the camera
+and `designerGrid`, both shipped with increment 1; nothing in them reads a dimension annotation.
+Delivering 3 before 2 is a deliberate reordering of an approved spec and is recorded as such here, so
+that a later reader does not take the presence of rulers as evidence that increment 2 landed. It has
+neither a spec nor a plan document written.
+
+### AD18-R10 — a 50% canvas share SATISFIES §4 row 1 at narrow widths, and the ruler is bound to it. (2026-09-22)
+
+**Taken by the user.** AD18 item 6 recorded the canvas at 68.8% of the shell at 1280, 47.4% at 760
+and 31.0% at 580, against §4 row 1's ADOPT of a *"large central canvas"*. Re-measured in a browser on
+2026-09-22 after the rail work: **68.8% at 1280, 50.0% at 760, 50.0% at 580** — the rails shrink now
+and the canvas no longer absorbs the whole loss. **Whether 50% satisfies that row was a decision
+nobody had taken**, and item 6 had been sitting as an open defect on the strength of figures its own
+fix had superseded.
+
+**It is ruled satisfied.** The board implies roughly 65 to 70%, which §4 row 1 itself qualifies —
+*"adopt the composition and adapt it to actual Obsidian leaf dimensions"* — and at a 580 px leaf a
+two-rail composition that leaves the drawing half the shell is the adaptation that row asks for
+rather than a failure of it.
+
+**The ruler is bound to that number, and that binding is the half worth keeping.** A top and left
+ruler takes canvas away on both axes, at exactly the widths where there is least of it, so the ruler
+card **must measure its own cost in a real browser and report the figure**, and **must not take the
+canvas below 50% at 580**. Without that binding this ruling would quietly license the regression it
+was taken to prevent. No gate in this repository can check it: jsdom computes no layout, so this is a
+rendered measurement or it is nothing.
+
+**The losing side:** leaving item 6 open would have kept pressure on the rails and might have bought
+the board's 65 to 70% back. It loses because the remaining rail width is `designer-narrow.css`'s
+shared lease, and because the measured gain from 31.0% to 50.0% already answers the complaint the
+item was written about; reopening it now would spend a wave on a proportion the user has looked at
+and accepted.
+
+### Two rows that were NEVER OPEN, recorded as corrections rather than as decisions
+
+Both entered this session's proposed gap set as live candidates and neither was work. They are
+written here for AD15-R2's reason: **recording a correction as a decision credits a session with
+settling what was already settled.**
+
+- **`Show grid` defaults off is CORRECT, and the designer's slot is NOT shared.** The inherited claim
+  was *"one shared `WorkspaceStore.gridVisible` ... flipping the designer flips the Plan Editor"*, and
+  it is false in both halves. The default is the approved spec's own §2.6 — *"Defaults as the plan
+  editor's: Grid off, Snap on"* — so it is a decision, not a defect. And the surfaces do not share a
+  value: each view calls `app.use(createPinia())`, `WorkspaceStore`'s header ends *"Each leaf has its
+  own Pinia scope"*, and the per-device slots are different keys — `assetDesignerDeviceSlots`'
+  `${pluginId}:designer-view` against `planEditorDeviceSlots`' `${pluginId}:editor-view`. §2.6's
+  *"their own slot, separate from the plan editor's"* is already satisfied. **The source of the false
+  claim is one parenthetical**, `DesignerCanvas.vue`'s *"(its `gridVisible` is shared)"*, which is
+  about layer visibility being a Plan Editor concern and reads as though it were about the value.
+  What IS owed is small, and is a card rather than a ruling: `assetDesignerDeviceSlots`' docblock
+  asserts the separation in prose and **no test pins that the two keys differ**.
+- **`reversibleAssetDesignWindows.test.ts` is NOT unclaimed by the matrix.** `RESUME.md` called it
+  *"the strongest two-leaf evidence in the repository, claimed by NO matrix row"* and proposed a row
+  for it. `grep -n reversibleAssetDesignWindows` over `reports/AD15-validation-matrix.md` prints one
+  hit, in row **T08**, which already cites it beside `designerWriteChain.test.ts` and
+  `editShape.test.ts`. No row is owed. **This is the T25 shape exactly, one session later**: a claim
+  in a hand-off that nobody re-ran against the document it was about.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

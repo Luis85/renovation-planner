@@ -5,7 +5,7 @@
  * Plan Editor's `EditorViewMenu` drives, per leaf, with its dismissal (`useDisclosureDismissal`); remembered per
  * device by `AssetDesignerRoot`'s `useViewPreferences`. No zoom or fit actions: nothing asked for them here.
  *
- * **The third row is the reference's opacity** (AD12-R1), and it differs from the two above it in
+ * **The REFERENCE OPACITY row** (AD12-R1) differs from Grid and Snap in
  * both directions worth stating. It is NOT remembered per device: it is a leaf-local view
  * preference held on the runtime as a plain `ref`, written nowhere, exactly as `PartView` is — so
  * it reaches no command, no note, no sidecar and no undo entry, and a reopened leaf starts fully
@@ -16,6 +16,22 @@
  * **The floor is 0.1 and not 0**, deliberately: a fully transparent sheet is indistinguishable
  * from one that failed to load, and this surface's two background notices — missing and
  * unreadable — would then be saying nothing about the picture the user cannot see.
+ *
+ * **The `All dimensions` row** (AD18-R12) is the reference opacity's kind of row
+ * rather than Grid's: a plain `ref` on `useDesignerRuntime()`, leaf-local and persisted nowhere. It
+ * widens the on-canvas dimensions from the selection alone to every part. The persisted arm was
+ * refused for a layering reason rather than a cost one — `runtime.ts`'s `allDimensions` carries the
+ * whole account — and unlike the opacity row it is drawn UNCONDITIONALLY. Both halves of that are
+ * deliberate. It has no predicate because every state that withdraws the overlay — an unscaled
+ * design, or a drawing tool being active — is one the user changes from moment to moment, where a
+ * reference either exists for this asset or does not. And it sits BEFORE the opacity row rather
+ * than last, so the rows that are always there keep a fixed order: a row that appears and
+ * disappears between two fixed ones would move its neighbour under the pointer.
+ *
+ * **No row is addressed here by its POSITION**, and that is a correction rather than a style: this
+ * header called the opacity "the third row" and this one "the fourth" for exactly as long as it
+ * took to add a row above the opacity, at which point both sentences were false and the template
+ * was the only thing that knew.
  *
  * **There is no lock row and one is not owed.** Every designer layer is `listening: false` and no
  * tool moves the background, so the property a lock names already holds (AD12-R1).
@@ -36,7 +52,7 @@ const runtime = useDesignerRuntime();
  * the ref. `runtime.backgroundOpacity` — a property access on a plain object — is not unwrapped,
  * the same trap `DesignerCanvas` records about `editorRefs.activeToolId` from the other side.
  */
-const { backgroundOpacity } = runtime;
+const { backgroundOpacity, allDimensions } = runtime;
 const designStore = useAssetDesignStore();
 /** Whether there is a sheet to fade at all. `undefined` while the design is still being read. */
 const hasReference = computed(() => (designStore.design?.background ?? null) !== null);
@@ -72,6 +88,11 @@ function toggleSnap(event: Event): void {
 				data-rp-view="snap"
 				@change="toggleSnap"
 			>{{ tr('editor.view.snap') }}</label>
+			<label><input
+				v-model="allDimensions"
+				type="checkbox"
+				data-rp-view="all-dimensions"
+			>{{ tr('designer.view.all-dimensions') }}</label>
 			<label v-if="hasReference">{{ tr('designer.view.reference-opacity') }}<input
 				v-model.number="backgroundOpacity"
 				type="range"

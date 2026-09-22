@@ -14,10 +14,18 @@
  * else can win or lose against one here at equal specificity. Nothing re-runs that grep — move a
  * selector of this family into another partial and the sentence is stale with no gate to say so.
  *
- * **`pointer-events: none` is the load-bearing declaration in this file.** The rulers mount in
- * `EditorSurface`'s overlay slot, whose wrapper stops every pointer event that reaches it, so a
- * strip accepting a press would swallow the gesture the canvas needs rather than merely covering
- * it. `.rp-dimension-labels` carries the same declaration for the same reason.
+ * **`pointer-events: none` is the load-bearing declaration in this file**, and the reason is that
+ * `none` on a CONTAINER is what lets its children opt back in with `auto`. These strips have no
+ * child that should: a ruler is a reading and not a control, so a press on one must reach the
+ * canvas underneath and start the pan the user meant. `.rp-dimension-labels` and
+ * `.rp-designer-dimensions` carry the same declaration and take the other half of it — their
+ * children DO set `auto`, because they are buttons.
+ *
+ * **The reason first written here was a non-sequitur and AD18-R11 corrects it.** It said the
+ * overlay slot's wrapper stops every pointer event that reaches it, so a strip accepting a press
+ * would swallow the gesture. Those `.stop` modifiers are bubble-phase — a child's own handler runs
+ * first, in the target phase, untouched — so they shield the canvas FROM the overlay rather than
+ * the overlay from the user, and an accepting child swallows nothing.
  *
  * Both strips are absolutely positioned inside `.rp-plan-canvas`, so they take the canvas no
  * LAYOUT at all — which is what holds AD18-R10's binding at 580 px. What they take is a band of

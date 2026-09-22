@@ -235,9 +235,19 @@ describe('where the mounted designer puts its rulers', () => {
 
 describe('the rulers’ stylesheet', () => {
 	/**
-	 * The overlay slot's wrapper carries `@pointerdown.stop` and its three siblings, so a ruler that
-	 * accepted a press would eat the gesture rather than sit over it. Declared on the pair's root and
-	 * inherited, exactly as `.rp-dimension-labels` declares it.
+	 * `pointer-events: none` on a CONTAINER is what lets its children opt back in with `auto`, and a
+	 * ruler has no child that should: it is a reading and not a control, so a press on one must reach
+	 * the canvas underneath and start the pan the user meant. Declared on the pair's root and
+	 * inherited, exactly as `.rp-dimension-labels` declares it — and as `.rp-designer-dimensions`
+	 * does, which takes the other half, because its children ARE buttons.
+	 *
+	 * **The reason this docblock gave was a non-sequitur, and AD18-R11 refused it.** It said the
+	 * overlay slot's wrapper carries `@pointerdown.stop` and its three siblings, *"so a ruler that
+	 * accepted a press would eat the gesture rather than sit over it"*. Those modifiers are
+	 * BUBBLE-phase: a child's own handler runs first, in the target phase, untouched, so they shield
+	 * the canvas FROM the overlay rather than the overlay from the user. That ruling corrected the
+	 * same sentence in `DesignerRulers.vue` and in `styles/designer-rulers.css`, and predicted a
+	 * sibling would carry a third copy; this was it.
 	 */
 	it('takes no pointer and no layout from the canvas', () => {
 		const rules = partial('designer-rulers.css');

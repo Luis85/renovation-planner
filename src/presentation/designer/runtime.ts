@@ -109,6 +109,23 @@ export interface DesignerRuntime {
 	 */
 	readonly backgroundOpacity: Ref<number>;
 	/**
+	 * The View menu's `All dimensions` row (snapping spec §0's increment 2; AD18-R11), which widens
+	 * the on-canvas dimensions from the selection alone to every part.
+	 *
+	 * **Leaf-local and written NOWHERE, by AD18-R12** — `backgroundOpacity`'s kind of row exactly,
+	 * not `gridVisible`'s. The persisted arm was refused on a layering argument rather than a cost
+	 * one: Grid and Snap ride `EditorViewPreferences`, whose `read()` and `write()` name
+	 * `gridVisible` and `snappingEnabled` literally and which the PLAN EDITOR consumes, so
+	 * persisting a designer-only toggle would widen a shared Plan Editor contract to carry a field
+	 * the Plan Editor has no use for. The accepted cost is that the toggle forgets across sessions
+	 * and across the `rebind` a settings save performs; if it is ever reported as wanting memory,
+	 * that is the change to make and this paragraph is what it has to answer.
+	 *
+	 * A `Ref` and not a getter for `backgroundOpacity`'s reason: `DesignerViewMenu` binds it with
+	 * `v-model`.
+	 */
+	readonly allDimensions: Ref<boolean>;
+	/**
 	 * Task B8's gesture, the same shape as `setBackground` above and for the same reason: a
 	 * click-bound dispatch with no field to show a refusal under, so it swallows the `Result`
 	 * itself through `notifyIfRefused`/`reportDispatchFault` rather than handing it back. TWO
@@ -490,6 +507,8 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	// A view preference and nothing else — see `DesignerRuntime.backgroundOpacity`. Here rather
 	// than in `writingFor` because it writes nothing.
 	const backgroundOpacity = ref(1);
+	// The same kind of thing and here for the same reason — see `DesignerRuntime.allDimensions`.
+	const allDimensions = ref(false);
 	/**
 	 * TWO ledgers, because an asset is two resources under one id — see `DesignWriteLedgers`.
 	 * Only the geometry one is reachable from this surface's tools, every one of which writes the
@@ -664,6 +683,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		setBackground,
 		removeBackground,
 		backgroundOpacity,
+		allDimensions,
 		setFootprintFromDimensions,
 		applyShape,
 		commitHeight,

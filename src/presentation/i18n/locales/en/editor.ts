@@ -9,6 +9,7 @@ import { assetReferenceEn } from './assetReference';
 import { designerToolbarIconsEn } from './designerToolbarIcons';
 import { designerTraceEn } from './designerTrace';
 import { designerRulersEn } from './designerRulers';
+import { assetDimensionsOnCanvasEn } from './assetDimensionsOnCanvas';
 import { designerAddEn } from './designerAdd';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
@@ -60,6 +61,7 @@ export const editorEn = {
 	...designerToolbarIconsEn,
 	...designerTraceEn,
 	...designerRulersEn,
+	...assetDimensionsOnCanvasEn,
 	...designerAddEn,
 	...groupsEn,
 	...stairsArrowsEn,

@@ -67,6 +67,7 @@ import { selectionFrame, selectionMarks } from './layers/selectionLayer';
 import { isOutlineSelection } from './selection/designerSelection';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
 import DesignerRulers from './rulers/DesignerRulers.vue';
+import DesignerDimensions from './dimensions/DesignerDimensions.vue';
 import RotateArrowIcon from '../editor/elements/RotateArrowIcon.vue';
 import { selectionKeyActions } from './designerKeys';
 
@@ -354,13 +355,21 @@ onBeforeUnmount(() => stopPixelRatio());
 			/>
 		</template>
 		<!--
-			The overlay slot: the rulers first, then whatever the shell passed down — the empty state
-			today — so a card meant to be read sits OVER the strips rather than under them. Both are
-			`position: absolute` against `.rp-plan-canvas`, and the rulers take no layout at all,
-			which is what holds AD18-R10's floor on the canvas's share of the shell.
+			The overlay slot: the rulers first, then the dimensions, then whatever the shell passed
+			down — the empty state today — so a card meant to be read sits OVER both rather than
+			under them. All three are `position: absolute` against `.rp-plan-canvas`, and neither
+			annotation takes any layout at all, which is what holds AD18-R10's floor on the canvas's
+			share of the shell.
+
+			The dimensions come SECOND on purpose, and it is the one ordering here that is not
+			merely about reading: they carry the only controls of the three — real buttons and a
+			real form (AD18-R11) — so they must paint over the rulers' strips rather than under
+			them, and the empty state must still paint over everything, since a surface with
+			nothing drawn has nothing to measure.
 		-->
 		<template #overlay>
 			<DesignerRulers />
+			<DesignerDimensions />
 			<slot />
 		</template>
 	</EditorSurface>

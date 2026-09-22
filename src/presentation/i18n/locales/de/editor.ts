@@ -9,6 +9,7 @@ import { assetReferenceDe } from './assetReference';
 import { designerToolbarIconsDe } from './designerToolbarIcons';
 import { designerTraceDe } from './designerTrace';
 import { designerRulersDe } from './designerRulers';
+import { assetDimensionsOnCanvasDe } from './assetDimensionsOnCanvas';
 import { designerAddDe } from './designerAdd';
 import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
@@ -48,6 +49,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...designerToolbarIconsDe,
 	...designerTraceDe,
 	...designerRulersDe,
+	...assetDimensionsOnCanvasDe,
 	...designerAddDe,
 	...groupsDe,
 	...stairsArrowsDe,

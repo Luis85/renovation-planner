@@ -107,7 +107,6 @@ export const assetSymbolsDe: Record<keyof typeof assetSymbolsEn, string> = {
 	'designer.selection.count': '{count} Teile ausgewählt',
 	'designer.selection.angle.hint': 'Ein Winkel von 0 zeigt nach rechts, 90 nach unten',
 	'designer.status.grid': 'Raster {step} mm',
-	'designer.status.zoom': 'Zoom {percent}%',
 	'designer.parts': 'Teile',
 	'designer.parts.empty': 'Dieses Objekt hat noch keine Teile. Maße festlegen oder mit einer Vorlage beginnen.',
 	'designer.parts.reference': 'Referenzvorlage',

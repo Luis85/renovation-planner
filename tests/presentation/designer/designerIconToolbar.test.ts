@@ -49,6 +49,11 @@ const TOOLBAR_LABELS: readonly StringKey[] = [
 	) as StringKey[]),
 	'designer.toolbar.undo',
 	'designer.toolbar.redo',
+	// AD18 item 1's zoom cluster (ruling AD18-R16, Task 1) — the toolbar's trailing three buttons,
+	// after Undo/Redo and before the View menu's own `<summary>`, which draws no `button` at all.
+	'editor.view.zoom-out',
+	'editor.view.zoom-in',
+	'designer.toolbar.zoom-fit',
 ];
 
 /**

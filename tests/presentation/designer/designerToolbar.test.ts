@@ -24,7 +24,8 @@ import { DESIGNER_TOOL_LABELS } from '../../../src/presentation/designer/tools/r
 import { settle } from '../../helpers/editor';
 import { designerRig, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
-import { shapeWithOpenGraphic, toiletShape } from '../../helpers/assetShapes';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { editableShape, shapeWithOpenGraphic, toiletShape } from '../../helpers/assetShapes';
 
 /**
  * Every tool the toolbar offers, as `(id, label)` pairs read from the table the toolbar itself
@@ -39,6 +40,11 @@ const TOOLS = Object.entries(DESIGNER_TOOL_LABELS) as [string, StringKey][];
 function press(rig: DesignerRig, label: StringKey): Promise<void> {
 	rig.toolbarButton(t('en', label)).click();
 	return settle();
+}
+
+/** A zoom cluster button by its `data-rp-view` hook — the three are icon-only, so no label text finds them. */
+function zoomButton(rig: DesignerRig, which: 'zoom-out' | 'zoom-in' | 'zoom-fit'): HTMLButtonElement {
+	return rig.wrapper.get(`.rp-designer-zoom [data-rp-view="${which}"]`).element as HTMLButtonElement;
 }
 
 describe('every tool the toolbar offers', () => {
@@ -130,10 +136,18 @@ describe('every tool the toolbar offers', () => {
 	 * `Add` rail does, exactly once each. Deleting four names from a list is the shape of change
 	 * that can silently mean "these buttons are gone", which is why the other half is a case and
 	 * not this sentence.
+	 *
+	 * **The zoom cluster's three buttons are excluded from this query since AD18-R16's Task 1**,
+	 * deliberately rather than by accident: they are icon-only (empty `.text()`), so folding them
+	 * into this list would read as three blank rows nobody could tell apart. `the zoom cluster`
+	 * below is where their own labels (through `aria-label`, in `designerIconToolbar.test.ts`) and
+	 * their order (in this file's own markup case) are pinned.
 	 */
 	it('offers Pan, Select, every non-drawing design tool, Undo and Redo, in that order', async () => {
 		const rig = await designerRig();
-		const labels = rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.text());
+		const labels = rig.wrapper.findAll('.rp-designer-tools button')
+			.filter((button) => button.element.closest('.rp-designer-zoom') === null)
+			.map((button) => button.text());
 		expect(labels).toEqual([
 			t('en', 'designer.toolbar.pan'),
 			t('en', 'designer.toolbar.select'),
@@ -427,17 +441,125 @@ describe('the selection mode buttons', () => {
  * name. The mode buttons keep their describing tooltips, pinned in `the selection mode buttons` above.
  *
  * The View menu (snapping spec §5) mounts AFTER that group now, so it — not the history group — is the
- * toolbar's own last child; the history group's own position, right before it, is what is pinned here.
+ * toolbar's own last child; the history group's own position is pinned here too, and since AD18-R16's
+ * Task 1 it sits before the zoom cluster rather than directly before the View menu — the cluster is the
+ * new element between them.
  */
 describe('the toolbar’s own markup', () => {
-	it('groups Undo and Redo last before the View menu, and gives no button a tooltip repeating its label', async () => {
+	it('groups Undo and Redo before the zoom cluster and the View menu, and gives no button a tooltip repeating its label', async () => {
 		const rig = await designerRig();
 		const history = rig.wrapper.find('.rp-designer-tools > .rp-designer-history');
+		const zoomCluster = rig.wrapper.find('.rp-designer-tools > .rp-designer-zoom');
 
 		expect(history.findAll('button').map((button) => button.text())).toEqual([t('en', 'designer.toolbar.undo'), t('en', 'designer.toolbar.redo')]);
 		expect(rig.wrapper.find('.rp-designer-tools').element.lastElementChild).toBe(rig.wrapper.find('.rp-designer-tools > .rp-view-menu').element);
-		expect(history.element.nextElementSibling).toBe(rig.wrapper.find('.rp-designer-tools > .rp-view-menu').element);
+		expect(history.element.nextElementSibling).toBe(zoomCluster.element);
+		expect(zoomCluster.element.nextElementSibling).toBe(rig.wrapper.find('.rp-designer-tools > .rp-view-menu').element);
 		expect(rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.attributes('title')).filter((title) => title !== undefined)).toEqual([]);
+		rig.unmount();
+	});
+});
+
+/**
+ * AD18 item 1's zoom cluster (ruling AD18-R16, Task 1): board 01's `− 100% +` beside undo/redo,
+ * with a fit button added since the toolbar has no `Shift+1` shortcut a mouse-only user can reach.
+ *
+ * Each button is found by its `data-rp-view` hook rather than by label text, because these three
+ * are icon-only — `designerIconToolbar.test.ts`'s "names every toolbar button..." case is where
+ * the accessible-name half of that claim (aria-label, one glyph, no tooltip) is pinned; this file
+ * is about what pressing them DOES, the same split the rest of this suite already keeps.
+ */
+describe('the zoom cluster', () => {
+	it('is a named group of its own, beside undo/redo and before the View menu', async () => {
+		const rig = await designerRig();
+		const group = rig.wrapper.find('.rp-designer-zoom');
+
+		expect(group.attributes('role')).toBe('group');
+		expect(group.attributes('aria-label')).toBe(t('en', 'designer.toolbar.zoom'));
+		rig.unmount();
+	});
+
+	it('zooms out and in by a factor of 1.25, about the stage centre', async () => {
+		const rig = await designerRig();
+		const editor = useEditorStore(rig.pinia);
+		const started = editor.viewport.zoom;
+
+		zoomButton(rig, 'zoom-out').click();
+		await settle();
+		expect(editor.viewport.zoom).toBeCloseTo(started / 1.25);
+
+		const afterOut = editor.viewport.zoom;
+		zoomButton(rig, 'zoom-in').click();
+		await settle();
+		expect(editor.viewport.zoom).toBeCloseTo(afterOut * 1.25);
+		rig.unmount();
+	});
+
+	/**
+	 * The readout tracks the SAME `editorStore.viewport` the buttons write, whole percent —
+	 * `assetDesignerRoot.test.ts` used to pin this rounding over the status region; it is this
+	 * cluster's own claim now.
+	 */
+	it('shows the camera scale as a whole percent, and follows it', async () => {
+		const rig = await designerRig();
+		const editor = useEditorStore(rig.pinia);
+		const readout = () => rig.wrapper.get('.rp-designer-zoom output');
+
+		expect(readout().text()).toBe(`${Math.round(editor.viewport.zoom * 100)}%`);
+
+		editor.viewport = { ...editor.viewport, zoom: 0.425 };
+		await settle();
+
+		// Whole percent, `StatusBar`'s rule: 42.5 rounds rather than printing a jittering digit.
+		expect(readout().text()).toBe('43%');
+		rig.unmount();
+	});
+
+	/**
+	 * A scale over a leaf with no design is a fact about nothing, the same gate the status region
+	 * used to take before AD18-R16's Task 1 moved the readout here.
+	 *
+	 * **Asserted in `assetDesignerRoot.test.ts` and not here**, because `designerRig` has no door
+	 * onto a REFUSED read: `unrecoveredSettings` swaps the command bundle, not the query, so the
+	 * design still loads over it, and `faultNextGeometryRead` arms the NEXT read rather than the
+	 * mount's own. `assetDesignerRoot.test.ts` already builds a leaf over
+	 * `unavailableAssetDesignerQueries()` for its own "keeps every region when the read refuses"
+	 * case, and that is where "keeps the cluster, states no scale" is pinned too.
+	 */
+
+	/**
+	 * The SAME fit the designer opens framed to (`DesignerCanvas`'s own opening watch), reached a
+	 * third time rather than rewritten — `runtime.ts`'s `designFrame` docblock names this button as
+	 * its third caller. Zoomed away from that camera and back, so the case can tell "restores it"
+	 * from "never moved".
+	 */
+	it('fits the design back to the camera it opened at', async () => {
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		const opened = editor.viewport;
+
+		zoomButton(rig, 'zoom-out').click();
+		await settle();
+		expect(editor.viewport.zoom).not.toBeCloseTo(opened.zoom);
+
+		zoomButton(rig, 'zoom-fit').click();
+		await settle();
+		expect(editor.viewport.zoom).toBeCloseTo(opened.zoom);
+		expect(editor.viewport.pan.x).toBeCloseTo(opened.pan.x);
+		expect(editor.viewport.pan.y).toBeCloseTo(opened.pan.y);
+		rig.unmount();
+	});
+
+	/** A design with no shape has nothing to fit, so the button is a no-op rather than a jump to the default camera. */
+	it('does nothing when there is no shape to fit', async () => {
+		const rig = await designerRig({ shape: null, camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		const before = editor.viewport;
+
+		zoomButton(rig, 'zoom-fit').click();
+		await settle();
+
+		expect(editor.viewport).toEqual(before);
 		rig.unmount();
 	});
 });

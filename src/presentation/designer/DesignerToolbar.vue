@@ -33,18 +33,24 @@
  *
  * **Every button draws a native icon now (AD18 item 3), and its text is drawn beside that icon
  * or hidden, depending on the leaf's width.** `grep -rn "HostIcon" src/presentation/designer/`
- * answered 0 before this card, against 40 files under `src/presentation/editor/`
+ * answered 0 before AD18 item 3, against 40 files under `src/presentation/editor/`
  * (`grep -rln`) — the measurement behind C12's "match the current Plan Editor's interaction
- * conventions". It answers THREE lines now, and one of them is this sentence: the import and the
- * element both live in `DesignerToolButton.vue`, which is the one component in this directory
- * that draws a glyph. What the width decides is spelled in `styles/designer-toolbar.css` and
- * argued there, not here — and note that its rule is NOT scoped to `.rp-designer-tools`, so
- * below 80rem it reaches the `Add` rail's labels as well; the rail hides its own at every width
- * in `styles/designer-add.css`, at the same specificity and with the same declaration, and that
- * file is where the overlap is argued. Neither sentence belongs here. WHICH glyph each tool wears
- * is `tools/designerToolIcons.ts`, a module rather than a `const` in this file because a
- * `<script setup>` binding is not a module export and AD18 item 5's `Add` rail has to be able to
- * import it — which, since this card, it does.
+ * conventions". It answered THREE lines after that card: the import and the element both lived
+ * in `DesignerToolButton.vue`, the one component in this directory that drew a glyph, plus this
+ * sentence. **It answers SEVEN now, and this file is a second importer since AD18-R16's Task 1**:
+ * the zoom cluster's four buttons draw a bare `HostIcon` in a plain `<button>` rather than
+ * through `DesignerToolButton`, because that component always carries a label span (and must not
+ * grow a prop that hides it — its own docblock's correction) while the cluster has no width at
+ * which one is shown. `DesignerToolButton` is still the one component that draws an icon BESIDE
+ * a label; a bare `HostIcon` beside no label at all is this file's own second convention now, not
+ * a second one competing with it. What the width decides for the labelled buttons is spelled in
+ * `styles/designer-toolbar.css` and argued there, not here — and note that its rule is NOT scoped
+ * to `.rp-designer-tools`, so below 80rem it reaches the `Add` rail's labels as well; the rail
+ * hides its own at every width in `styles/designer-add.css`, at the same specificity and with the
+ * same declaration, and that file is where the overlap is argued. Neither sentence belongs here.
+ * WHICH glyph each tool wears is `tools/designerToolIcons.ts`, a module rather than a `const` in
+ * this file because a `<script setup>` binding is not a module export and AD18 item 5's `Add`
+ * rail has to be able to import it — which, since this card, it does.
  *
  * **No button here carries a `title`.** Its label is its accessible name — as visible text and
  * as `aria-label`, the same string — so a tooltip repeating it shows a sighted user nothing new
@@ -54,22 +60,29 @@
  * `title`s describe a gesture, which is why `DesignerSelectionModes` keeps them. Undo and Redo
  * are ONE group, `.rp-designer-history`, which `designer.css` ends on whichever row it wraps
  * to — the `flex: 1` spacer it replaces stopped pushing once the toolbar wrapped (finding 5).
+ * The zoom cluster keeps the same rule for the same reason: its accessible names ARE its labels,
+ * so a `title` would repeat every one of them.
  */
 import type { IconName } from 'obsidian';
+import { computed } from 'vue';
 import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
 import type { ToolId } from '../editor/tools/editor-tool';
+import { useEditorStore } from '../stores/EditorStore';
+import { screenPoint } from '../editor/viewport/Viewport';
 import { DESIGNER_TOOL_LABELS } from './tools/registerDesignerTools';
 import { DESIGNER_TOOL_ICONS } from './tools/designerToolIcons';
-import { useDesignerRuntime } from './runtime';
+import { designFrame, useDesignerRuntime } from './runtime';
 import { isOutlineSelection } from './selection/designerSelection';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import DesignerSelectionModes from './DesignerSelectionModes.vue';
 import DesignerToolButton from './DesignerToolButton.vue';
 import DesignerViewMenu from './DesignerViewMenu.vue';
+import HostIcon from '../components/HostIcon.vue';
 
 const runtime = useDesignerRuntime();
 const designStore = useAssetDesignStore();
+const editorStore = useEditorStore();
 
 /**
  * The mode buttons as DATA, one row per selectable mode — `null` being camera mode, which has
@@ -98,6 +111,59 @@ const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey; r
 		return entry.group === 'shape' ? [] : [{ id: id as ToolId, label: label as StringKey, icon: entry.icon as IconName }];
 	}),
 ];
+
+/**
+ * The camera's scale, whole percent — moved here from the status region (AD18 item 1, ruling
+ * AD18-R16's Task 1). `StatusBar`'s own `zoomPercent` sets the precedent for rounding: a readout
+ * that jitters in its last digit is one people stop reading.
+ *
+ * **Two standing answers to one question was refused rather than duplicated.** The status
+ * region stated it beside the Shift hint and the grid step; the concept boards draw it beside
+ * undo/redo instead, so it moved rather than growing a second reader. `AssetDesignerRoot.vue`'s
+ * `.rp-designer-status` no longer states it — `assetDesignerRoot.test.ts` pins the absence.
+ *
+ * Gated on `design !== null` at the template, same as the region it left: a scale stated over a
+ * leaf that is loading or failed is a fact about nothing, and `AssetDesignStore.fail` blanks
+ * `design` for both.
+ */
+const zoomPercent = computed(() => Math.round(editorStore.viewport.zoom * 100));
+
+/**
+ * Refused while a gesture is running — a pan, or a tool's own drag — the same guard
+ * `EditorViewMenu.vue`'s `blocked()` gives its own zoom and fit buttons: a camera move under a
+ * held drag would change what the drag lands on.
+ */
+function blocked(): boolean {
+	return runtime.toolManager.gestureInFlight || editorStore.dragState !== null;
+}
+
+/**
+ * The zoom cluster's two buttons — factor 1.25 about the stage centre, exactly as
+ * `EditorViewMenu.vue`'s own `zoom()` does it, because a keyboard-reachable button has no
+ * pointer position to anchor on.
+ */
+function zoom(factor: number): void {
+	if (blocked()) return;
+	editorStore.zoomByFactor(screenPoint(editorStore.stageSize.width / 2, editorStore.stageSize.height / 2), factor);
+}
+
+/**
+ * The fit button — the SAME fit the designer's opening camera uses, called a third time rather
+ * than rewritten: `designFrame` is already the one definition `DesignerCanvas`'s opening watch
+ * and `runtime.applyShape`'s preset fit share, so this button cannot drift from either of them.
+ *
+ * `preview` is deliberately not read here the way `DesignerCanvas.framedBounds` reads it for
+ * `Shift+1`: `blocked()` above already refuses this button while a gesture is in flight, which
+ * is the only state where a preview shape and the committed one could differ, so the committed
+ * `design.shape` is the whole answer whenever this function is reachable at all.
+ */
+function fitDesign(): void {
+	if (blocked()) return;
+	const shape = designStore.design?.shape ?? null;
+	if (shape === null) return;
+	const bounds = designFrame(shape);
+	if (bounds !== null) editorStore.fitTo(bounds, editorStore.stageSize);
+}
 </script>
 
 <template>
@@ -129,6 +195,51 @@ const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey; r
 				:disabled="!runtime.canRedo.value"
 				@click="runtime.redo()"
 			/>
+		</div>
+		<!--
+			AD18 item 1's zoom cluster: board 01 draws `− 100% +` beside undo/redo, board 02
+			`100% ▾` — a `role="group"` here rather than two separate controls, so a screen reader
+			hears one cluster rather than three unrelated buttons. Icon-only, unlike the mode
+			buttons above: there is no width at which this cluster grows a visible label, so
+			`aria-label` alone is each button's accessible name — no `title` either, the same
+			convention this file's own header records for every other button here.
+		-->
+		<div
+			class="rp-designer-zoom"
+			role="group"
+			:aria-label="tr('designer.toolbar.zoom')"
+		>
+			<button
+				type="button"
+				class="rp-designer-tool-button"
+				data-rp-view="zoom-out"
+				:aria-label="tr('editor.view.zoom-out')"
+				@click="zoom(1 / 1.25)"
+			>
+				<HostIcon name="circle-minus" />
+			</button>
+			<output
+				v-if="designStore.design !== null"
+				:aria-label="tr('editor.zoom')"
+			>{{ zoomPercent }}%</output>
+			<button
+				type="button"
+				class="rp-designer-tool-button"
+				data-rp-view="zoom-in"
+				:aria-label="tr('editor.view.zoom-in')"
+				@click="zoom(1.25)"
+			>
+				<HostIcon name="circle-plus" />
+			</button>
+			<button
+				type="button"
+				class="rp-designer-tool-button"
+				data-rp-view="zoom-fit"
+				:aria-label="tr('designer.toolbar.zoom-fit')"
+				@click="fitDesign()"
+			>
+				<HostIcon name="maximize" />
+			</button>
 		</div>
 		<DesignerViewMenu />
 	</div>

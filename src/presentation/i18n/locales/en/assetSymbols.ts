@@ -123,10 +123,9 @@ export const assetSymbolsEn = {
 	// Under the facing's angle field, as its description: `facingTip` adds the sine to y, and y grows DOWN the screen.
 	'designer.selection.angle.hint': 'An angle of 0 points right, and 90 points down',
 	// The status row while the grid is shown (snapping spec 2026-09-15 §2.6); withheld while the footprint is unscaled.
+	// The camera's scale used to sit beside it (`designer.status.zoom`) and moved into the toolbar's
+	// own zoom cluster at AD18-R16's Task 1 — see `DesignerToolbar.vue`'s `zoomPercent`.
 	'designer.status.grid': 'Grid {step} mm',
-	// Beside it, and shown whenever a design is drawn: the camera's scale. `StatusBar`'s spelling for
-	// the Plan Editor, so the two surfaces read alike (AD18 item 1).
-	'designer.status.zoom': 'Zoom {percent}%',
 	// AD09's Parts panel: the list itself, its empty line, and the row controls. `designer.selection.*`
 	// already names the footprint, the clearance, the anchor and the facing, so those are not repeated.
 	'designer.parts': 'Parts',

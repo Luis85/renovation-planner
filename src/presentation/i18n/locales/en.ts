@@ -738,6 +738,14 @@ export const en = {
 	'designer.toolbar.set-anchor': 'Set anchor',
 	'designer.toolbar.set-facing': 'Set facing',
 	'designer.toolbar.calibrate': 'Calibrate',
+	// AD18 item 1's zoom cluster (ruling AD18-R16, Task 1). Two more designer-owned keys for the
+	// same note-33 reason the three above are: the group name and the fit button are chrome this
+	// surface owns, not a share of the Plan Editor's `editor.view.*` namespace. The cluster's
+	// zoom-out, zoom-in and readout DO borrow that namespace (`editor.view.zoom-out`/`-in`,
+	// `editor.zoom`), because those three already say the right thing about a camera's scale on
+	// either surface.
+	'designer.toolbar.zoom': 'Zoom',
+	'designer.toolbar.zoom-fit': 'Fit design',
 	// The asset's own recalibration warning. NOT `editor.calibrate.recalibrate.*`, which names
 	// zones and a plan — and the two questions differ in more than the noun: a plan's
 	// calibration rescales every coordinate it owns, while an asset's converts only the

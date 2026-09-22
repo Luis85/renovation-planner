@@ -155,3 +155,26 @@
 		width: min(14rem, 28cqi);
 	}
 }
+
+/*
+ * AD18 item 1's zoom cluster (ruling AD18-R16, Task 1), beside undo/redo in the trailing group —
+ * board 01's `− 100% +`. Its buttons carry `.rp-designer-tool-button` like every other control in
+ * this toolbar, so the row above (padding, colour, the focus ring, `:hover`, `:disabled`) already
+ * covers them at no new specificity cost; this rule adds only what those buttons do not already
+ * have, the row layout and the readout's own width.
+ */
+.renovation-asset-designer .rp-designer-zoom {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+/*
+ * A fixed width so the cluster does not resize its neighbours by a digit — `2%` reads narrower
+ * than `43%` — the same reading `styles/editor-reference-viewport.css` gives its own zoom output.
+ */
+.renovation-asset-designer .rp-designer-zoom output {
+	min-width: 3em;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}

@@ -9,7 +9,7 @@
  * figure per frame.
  *
  * The button's visible text is the integer alone, the way a ruler's tick and
- * `designer.status.zoom` render theirs; the unit reaches a screen reader through
+ * the toolbar's zoom readout (`DesignerToolbar.vue`'s `zoomPercent`) render theirs; the unit reaches a screen reader through
  * `designer.dimension.value` and is on the canvas beside the strip rather than in every label.
  * Putting "mm" on that number is safe for `DesignerRulers`' reason: the overlay draws nothing
  * over a design whose `dimensionsUnscaled` is set, so a placeholder pixel never gets a unit.

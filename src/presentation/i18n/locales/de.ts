@@ -483,6 +483,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.toolbar.set-anchor': 'Ankerpunkt setzen',
 	'designer.toolbar.set-facing': 'Ausrichtung setzen',
 	'designer.toolbar.calibrate': 'Kalibrieren',
+	'designer.toolbar.zoom': 'Zoom',
+	'designer.toolbar.zoom-fit': 'Entwurf einpassen',
 	'designer.calibrate.recalibrate.title': 'Ohne Maßstab Nachgezeichnetes neu skalieren?',
 	'designer.calibrate.recalibrate.message':
 		'Ein Teil der Geometrie dieses Objekts wurde nachgezeichnet, bevor ein Maßstab vorlag. Beim Festlegen des Maßstabs wird sie in Millimeter umgerechnet. Sie können den Vorgang rückgängig machen.',

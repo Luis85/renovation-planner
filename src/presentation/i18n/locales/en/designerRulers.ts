@@ -2,7 +2,7 @@
  * The canvas rulers' copy — card W17-B, the asset designer snapping spec's increment 3 (AD18-R9).
  *
  * **ONE string, and the ruler's own numbers are deliberately not among them.** A labelled tick is
- * an integer the template renders directly, the way `designer.status.zoom` renders its percent;
+ * an integer the template renders directly, the way `DesignerToolbar.vue`'s zoom readout renders its percent;
  * what needs a table is the ACCESSIBLE NAME of the pair, because the ticks sit inside a
  * `role="img"` and a screen reader is told the scale rather than read a list of loose integers.
  *

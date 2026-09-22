@@ -228,8 +228,9 @@ const DISPATCH_FAULT_EVENT = 'designer.dispatch.faulted';
  * fitted. Arcs count: `boundsOfZones` hands each `CurvedPolygon` to `boundingBoxOf`, which reads
  * arc extrema (`layers.test.ts` holds that for a curved table's outer arc).
  *
- * ONE definition for its two callers, `DesignerCanvas.framedBounds` (`Shift+1`) and `applyShape`
- * below, so the fit after a preset cannot drift from the shortcut's.
+ * ONE definition for its three callers, `DesignerCanvas.framedBounds` (`Shift+1`), `applyShape`
+ * below and `DesignerToolbar`'s zoom cluster (AD18 item 1, ruling AD18-R16) — so the fit after a
+ * preset and the toolbar's own Fit button cannot drift from the opening camera's.
  */
 export function designFrame(shape: AssetShape): BoundingBox | null {
 	return boundsOfZones([shape.footprint, ...(shape.clearance === null ? [] : [shape.clearance])]);

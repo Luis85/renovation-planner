@@ -17,6 +17,14 @@
  * from one that failed to load, and this surface's two background notices — missing and
  * unreadable — would then be saying nothing about the picture the user cannot see.
  *
+ * **The fourth row is `All dimensions`** (AD18-R12), and it is the reference opacity's kind of row
+ * rather than Grid's: a plain `ref` on `useDesignerRuntime()`, leaf-local and persisted nowhere. It
+ * widens the on-canvas dimensions from the selection alone to every part. The persisted arm was
+ * refused for a layering reason rather than a cost one — `runtime.ts`'s `allDimensions` carries the
+ * whole account — and unlike the opacity row it is drawn unconditionally, because there is no state
+ * in which it controls nothing: the overlay it widens is gated on the design being SCALED, which
+ * changes under the user, where a reference either exists or does not.
+ *
  * **There is no lock row and one is not owed.** Every designer layer is `listening: false` and no
  * tool moves the background, so the property a lock names already holds (AD12-R1).
  */
@@ -36,7 +44,7 @@ const runtime = useDesignerRuntime();
  * the ref. `runtime.backgroundOpacity` — a property access on a plain object — is not unwrapped,
  * the same trap `DesignerCanvas` records about `editorRefs.activeToolId` from the other side.
  */
-const { backgroundOpacity } = runtime;
+const { backgroundOpacity, allDimensions } = runtime;
 const designStore = useAssetDesignStore();
 /** Whether there is a sheet to fade at all. `undefined` while the design is still being read. */
 const hasReference = computed(() => (designStore.design?.background ?? null) !== null);
@@ -72,6 +80,11 @@ function toggleSnap(event: Event): void {
 				data-rp-view="snap"
 				@change="toggleSnap"
 			>{{ tr('editor.view.snap') }}</label>
+			<label><input
+				v-model="allDimensions"
+				type="checkbox"
+				data-rp-view="all-dimensions"
+			>{{ tr('designer.view.all-dimensions') }}</label>
 			<label v-if="hasReference">{{ tr('designer.view.reference-opacity') }}<input
 				v-model.number="backgroundOpacity"
 				type="range"

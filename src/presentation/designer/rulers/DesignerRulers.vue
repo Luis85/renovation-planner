@@ -12,9 +12,17 @@
  * what resolves its `position: absolute` against `.rp-plan-canvas` rather than against the shell.
  *
  * **`pointer-events: none` in `styles/designer-rulers.css` is load-bearing rather than
- * cosmetic**: that slot's wrapper carries `@pointerdown.stop`, `@pointerup.stop`,
- * `@pointercancel.stop` and `@wheel.stop`, so a ruler accepting a press would silently eat the
- * gesture the canvas needs rather than merely sitting on top of it.
+ * cosmetic**: `none` on a CONTAINER is what lets its children opt back in with `auto`, and these
+ * strips have no children that should — a ruler is a reading and not a control, so a press
+ * landing on one must reach the canvas underneath and start the pan the user meant.
+ *
+ * **The reason first written here was a non-sequitur and AD18-R11 corrects it.** It said that,
+ * because the slot's wrapper carries `@pointerdown.stop` and its three siblings, *"a ruler
+ * accepting a press would silently eat the gesture the canvas needs"*. Those modifiers are
+ * BUBBLE-phase: a child's own handler runs first, in the target phase, untouched, so they are a
+ * shield for the canvas against the overlay and not the reverse, and they make an accepting child
+ * eat nothing. `DesignerDimensions` two files away is the proof — the same overlay slot, real
+ * buttons and a real form in it.
  *
  * **It costs the canvas no LAYOUT, and AD18-R10 was AMENDED to say that is what its floor means.**
  * Two absolutely positioned strips inside the canvas region leave `.rp-designer-parts`,

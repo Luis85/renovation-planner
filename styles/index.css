@@ -84,6 +84,7 @@
 @import "./designer-toolbar.css";
 @import "./designer-add.css";
 @import "./designer-rulers.css";
+@import "./designer-dimensions.css";
 @import "./designer-narrow.css";
 @import "./diagnostics.css";
 @import "./asset-library.css";

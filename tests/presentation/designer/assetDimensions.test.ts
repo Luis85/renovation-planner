@@ -183,12 +183,21 @@ describe('the designer’s dimensions dialog', () => {
 	 * badly written whatever its truth value. Replaced with a command rather than repaired into a
 	 * smaller number, since the next number would go stale the same way.
 	 *
-	 * `grep -rn "dimensionsUnscaled" src/` prints reads in
-	 * `AssetDesignerRoot` (`gridStep`, and `editDimensions` itself — the function this case
-	 * drives), `DesignerSelectionInspector`, `DesignerUsePlan`, `DesignerInspector` and the
-	 * library's `AssetInspectorShape`; it also prints PROSE in files that only name the field, so
-	 * its line count is not a reader count until each hit is read. Run it rather than trusting
-	 * this list. Nothing this case asserts ever rested on the claim: both halves below are
+	 * `grep -rn "dimensionsUnscaled" src/` is the instrument. Its hits split two ways and the
+	 * split can only be made by READING each one: some are reads of the flag, and some are PROSE
+	 * in files that merely name it — a docblock explaining why a unit is withheld names the field
+	 * without reading it. So the line count is not a reader count, and **no list and no number is
+	 * kept here on purpose.**
+	 *
+	 * **That sentence replaces an enumeration, and the enumeration is why.** The paragraph above
+	 * concluded that a count *"would go stale the same way"* and said it was replaced with a
+	 * command — and then named five components anyway, two paragraphs after arguing not to. It
+	 * went stale twice more: `DesignerRulers` became a reader with the canvas rulers and was never
+	 * added, and the dimensions overlay made another. Both were found by a reviewer reading the
+	 * tree, not by anything that runs. A list kept beside an argument against keeping lists is the
+	 * shape this docblock has now failed at twice; the command is the whole of what is kept.
+	 *
+	 * Nothing this case asserts ever rested on the claim: both halves below are
 	 * `editDimensions`'s own behaviour, and they hold whatever else reads the flag.
 	 *
 	 * Both halves are asserted here, because they close different things: no `initial` is the

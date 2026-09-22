@@ -24,8 +24,8 @@ const emit = defineEmits<{ submit: [shape: AssetShape] }>();
  * Every choice the gallery can draw, with its picture, built ONCE PER FORM — this is `<script
  * setup>`, so it is the `setup()` body and the array is rebuilt each time the dialog opens, not
  * each time the module loads. What it is not is a `computed`: a thumbnail is the preset at its own
- * defaults, so nothing about it changes while the user types, and this is fourteen `build` calls
- * per dialog open rather than fourteen per keystroke of the search field.
+ * defaults, so nothing about it changes while the user types, and this is one `build` call per
+ * preset per dialog open rather than one per preset per keystroke of the search field.
  *
  * (The docblock here said "at module scope" and was wrong about the mechanism while being right
  * about the cost — AD07 review, FIX 5.2.)
@@ -33,7 +33,8 @@ const emit = defineEmits<{ submit: [shape: AssetShape] }>();
 const CHOICES = ASSET_PRESETS.map((preset) => ({ preset, thumbnail: presetThumbnail(preset) }));
 
 // `[0]`, not `.at(0)`: `lib` is ES2021 and `Array.prototype.at` is ES2022. The catalogue is never
-// empty — `presets.test.ts` pins all fourteen — so there is no "no preset" state to guard.
+// empty — `presets.test.ts` pins the whole catalogue as an ordered list of ids — so there is no
+// "no preset" state to guard.
 const preset = shallowRef<AssetPreset>(ASSET_PRESETS[0]);
 
 /** `string | number` for the reason `KnownDistanceForm` gives: `v-model` on a number input yields either. */
@@ -64,9 +65,10 @@ const groups = computed(() => {
 
 /**
  * THE GALLERY IS ONE TAB STOP (AD07 review, FIX 3). A `<select>` is one tab stop with arrow keys;
- * fourteen plain buttons are fourteen, which is a keyboard regression against the control this
- * replaced. The fix is WAI-ARIA's roving tabindex, copied from `DesignerPartsPanel.vue` rather than
- * invented again — that list is the same shape and AD08-R1 blesses it partly for being it.
+ * a gallery of plain buttons is one tab stop PER PRESET, which is a keyboard regression against
+ * the control this replaced. The fix is WAI-ARIA's roving tabindex, copied from
+ * `DesignerPartsPanel.vue` rather than invented again — that list is the same shape and AD08-R1
+ * blesses it partly for being it.
  *
  * The choice the tab stop is on, held as an ID rather than an index so the search re-flowing the
  * gallery moves the stop with its button instead of leaving it on whatever slid into that slot.

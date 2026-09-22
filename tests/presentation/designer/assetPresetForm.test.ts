@@ -196,7 +196,7 @@ describe('the preset gallery AD07 put in place of the select', () => {
 
 /**
  * AD07 review, FIX 3: the `<select>` this gallery replaced was ONE tab stop with arrow keys and
- * native type-ahead, and fourteen plain buttons are fourteen. The gallery is one tab stop again —
+ * native type-ahead, and a gallery of plain buttons is one tab stop per preset. It is one tab stop again —
  * WAI-ARIA's roving tabindex, the pattern `DesignerPartsPanel.vue` already runs for the Parts list
  * and the one ruling AD08-R1 blesses that list partly for ("a single tab stop with
  * Up/Down/Home/End").

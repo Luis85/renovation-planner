@@ -17,7 +17,7 @@ import { validateAssetShape, type AssetShape } from '../AssetShape';
 export type PresetId =
 	| 'rect-table' | 'round-table' | 'oval-table' | 'curved-table'
 	| 'chair' | 'armchair' | 'sofa'
-	| 'toilet' | 'washbasin' | 'shower-tray' | 'bathtub'
+	| 'toilet' | 'washbasin' | 'vanity' | 'shower-tray' | 'bathtub'
 	| 'tree' | 'shrub' | 'bed';
 export type PresetGroup = 'tables' | 'seating' | 'sanitary' | 'plants-beds';
 export type PresetFieldKey = 'width' | 'depth' | 'diameter' | 'length' | 'radius' | 'sweep' | 'seats' | 'canopy' | 'trunk' | 'pillows';

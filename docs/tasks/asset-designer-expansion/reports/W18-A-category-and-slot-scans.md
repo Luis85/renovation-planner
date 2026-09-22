@@ -113,7 +113,9 @@ make.
 | `npx oxlint <both new files>` | candidate | 0 (prints nothing when clean) | exit code read explicitly |
 | `npx vue-tsc -noEmit` | candidate | 0, no output | `tests/**` is in `tsconfig.json`'s `include`, so both new files were checked |
 | `grep -rn "addEventListener" src/presentation/designer/` | candidate | exit 1, zero hits | the card's premise, verified before the check was written |
-| Reachability probe (throwaway, deleted): `reachableFrom('src/presentation/designer/AssetDesignerView.ts', repoTree, ['src/presentation/'])` | candidate | 232 files, 167 outside the directory, 6 of them registering a listener | the measurement behind choosing the DIRECTORY as the file set; recorded in the test's header |
+| Reachability probe (throwaway, re-run in the fix round and deleted again): `reachableFrom('src/presentation/designer/AssetDesignerView.ts', repoTree, ['src/presentation/'])` with `LISTENER_DOORS` applied to the 167 | candidate | 232 files, 167 outside the directory, **5 FILES** among them registering a listener (`notify.ts` 6 calls, the other four 1 each) | the measurement behind choosing the DIRECTORY as the file set; recorded in the test's header. The first version of this row and of that header said six, which was `notify.ts`'s CALL count read as a file count — corrected in both places |
+| `grep -rnE "\.(on[a-z]+)\s*=" src/presentation/designer/`, and the same over `src/` | candidate | exit 1 / no output | no handler-property assignment exists, so naming it as a blind spot rather than checking it leaves no live hole |
+| `grep -rn "@keydown\|:on-keydown" src/presentation/designer/` | candidate | 9 lines: 7 `@keydown` bindings, 1 `:on-keydown` prop, 1 prose line in `AssetDesignerRoot.vue`'s docblock | T27's nine key doors are eight real bindings today; the header now attributes it that way |
 
 ## Verification not performed
 
@@ -131,7 +133,9 @@ make.
 - **`npm run harness` / `npm run harness-shot`** — nothing here draws; no capture was taken or owed.
 - **What the task-1 scan structurally cannot see**, named in its header and repeated here so the
   reviewer does not read it wider: a listener door reached under another name (an alias, a computed
-  member, a helper elsewhere that registers on its caller's behalf and is not in `LISTENER_DOORS`); an
+  member, a helper elsewhere that registers on its caller's behalf and is not in `LISTENER_DOORS`); a
+  HANDLER PROPERTY assignment (`el.onkeydown = …`), which is not a call at all — zero exist anywhere
+  in `src/`, measured, and closing it would mean enumerating handler property names; an
   SFC `<template>`, which is not parsed at all; anything installed at RUNTIME by a dependency; and a
   component OUTSIDE `src/presentation/designer/` that the designer mounts and that listens on its own
   — the file set is the directory, not the composed tree, and the probe above is why.

@@ -23,10 +23,13 @@
  * measurement behind it.** Every `.ts` and `.vue` under `src/presentation/designer/` — 67 files
  * when this was written, pinned as non-empty rather than as a count. The alternative was
  * `reachableFrom('src/presentation/designer/AssetDesignerView.ts', …)`, which reaches 232 files,
- * 167 of them outside this directory, and SIX of those register a listener: `use-owner-listener`
- * (the shared composable itself), `use-disclosure-dismissal` and `EditorSurface.vue` (its two
- * callers, a `'document'`/`'pointerdown'` dismissal and a `'window'`/`'blur'`),
- * `followPixelRatio` (a media query), and `notify.ts` (six listeners on the toast it builds).
+ * 167 of them outside this directory. Five FILES among those 167 register a listener, and the
+ * number is labelled because the first version of this paragraph said six — `notify.ts`'s six
+ * CALLS, read as a file count, which is CLAUDE.md's *"a false sentence FROM a correct count"*
+ * exactly. They are `use-owner-listener` (the shared composable itself), `use-disclosure-dismissal`
+ * and `EditorSurface.vue` (its two callers, a `'document'`/`'pointerdown'` dismissal and a
+ * `'window'`/`'blur'`), `followPixelRatio` (a media query), and `notify.ts` (six listeners on the
+ * toast it builds). Naming them is what settles this; the count is a convenience.
  * None is a KEY listener, so T27's claim survives the composed tree — but a scan of it would be
  * red on modules this directory does not own, and exempting them by name would turn a category
  * check back into a list. So: the directory is the claim, and what it excludes is a component
@@ -46,9 +49,17 @@
  *   member (`el['add' + 'EventListener']`), or a helper in another directory that registers on
  *   its caller's behalf and is not one of `LISTENER_DOORS`. That is the same bound
  *   `registration-locality.test.ts` names for the same technique;
+ * - a HANDLER PROPERTY: `el.onkeydown = handler` registers a listener and is not a CALL, so
+ *   `callsOf` structurally cannot see it. Named as a blind spot rather than closed, because the
+ *   claim does not need it — `grep -rnE "\.(on[a-z]+)\s*=" src/presentation/designer/` exits 1 and
+ *   the same grep over all of `src/` finds no assignment either — and because closing it means
+ *   `assignedTo`, which matches ONE spelled left side, so covering the shape would mean
+ *   enumerating handler property names: a list inside a category check, which is the thing this
+ *   file exists instead of;
  * - a TEMPLATE: an SFC's `<template>` block is not parsed here at all. That is deliberate and
- *   is the point — a `@keydown` binding is element-local by construction and is exactly the
- *   shape T27 found nine of;
+ *   is the point — a `@keydown` binding is element-local by construction. T27 recorded nine key
+ *   doors; eight are real bindings today (seven `@keydown` plus `AssetPresetForm.vue`'s
+ *   `:on-keydown` prop), the ninth hit being prose inside `AssetDesignerRoot.vue`'s own docblock;
  * - anything at RUNTIME. This is a source scan, so a listener a dependency installs on the
  *   designer's behalf (Konva's own stage listeners, for instance) is outside it.
  */

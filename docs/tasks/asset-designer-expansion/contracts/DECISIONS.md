@@ -954,6 +954,40 @@ shared lease, and because the measured gain from 31.0% to 50.0% already answers 
 item was written about; reopening it now would spend a wave on a proportion the user has looked at
 and accepted.
 
+#### AMENDED the same day: the binding is the canvas COLUMN's share, and the drawing figure is disclosed beside it
+
+**The ruling as first written had two readings, and W17-B's independent review found them.** Measured
+in a browser on the ruler candidate at a 580 px leaf: the canvas COLUMN is **290.02 px, 50.0%**, and
+the ruler moves it **not at all** — before and after agree to the hundredth of a pixel, because the
+overlay draws inside the canvas rather than displacing it. But the ruler occupies **18 px per axis**,
+so the DRAWING area is 272.02 × 794 of 290.02 × 812, and 272.02 of 580 is **46.9%** — under the
+floor. The sentence *"must not take the canvas below 50% at 580"* does not say which of the two it
+means, and the clause above it — *"a top and left ruler takes canvas away on both axes"* — reads like
+the second.
+
+**Taken by the user: the COLUMN's share binds.** The decisive argument is that the other reading is
+**unsatisfiable rather than strict**: the column sits at exactly 50.0%, so *any* ruler of any size at
+580 falls below it, and AD18-R10 read that way would forbid precisely what AD18-R9 authorizes. A
+binding that cannot be met by the thing it governs is a drafting fault, not a high standard.
+
+**So the ruler ships at every width, and the 46.9% is DISCLOSED rather than dissolved.** It is a real
+cost to a real user at a sidebar leaf, and it is written here, in the ruler's own report and in the
+component, so that nobody re-derives it later as a discovery. What the binding still did is the work
+it was taken for: it forced a rendered measurement that no gate in this repository can perform, and
+that measurement is what turned an assumption into two numbers.
+
+**The losing side, which is not hypothetical.** Hiding the rulers below `designer-narrow.css`'s 35 rem
+breakpoint would have kept the full 290 px of drawing at the width where there is least of it, for a
+container-query rule and a test. It loses because the surface where a millimetre reference helps most
+is the cramped one, and because 18 px of a 290 px canvas is 6.2% spent on the only scale reference the
+designer has — the grid still defaults off, by §2.6. **If the narrow case is ever reported as too
+tight, that is the change to make and it is cheap**; this paragraph is what it has to answer.
+
+**One thing this amendment does NOT settle**, and the review was right to keep it separate: at 580 the
+left ruler's topmost labels sit under the opaque top strip, which is an occlusion defect of the same
+family as the `25(` clipping the candidate found and fixed, and is invisible to jsdom for the same
+reason. That is the card's to close, not this ruling's.
+
 ### Two rows that were NEVER OPEN, recorded as corrections rather than as decisions
 
 Both entered this session's proposed gap set as live candidates and neither was work. They are

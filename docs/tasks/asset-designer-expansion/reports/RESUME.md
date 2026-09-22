@@ -12,7 +12,7 @@ changed that. **Nobody marks it ready on their own initiative.**
 | | |
 |---|---|
 | HEAD | **A hand-off cannot name its own sha** — every correction to this line moves HEAD past what it just said, and the last three attempts at it were stale when written. Confirm yourself: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 1 --json databaseId,headSha,status` then `gh run view <id> --json status,conclusion,jobs`. Tree clean, pushed |
-| Last sha confirmed green **before** the final push | **`9d146abbc`** — run [`35774126753`](https://github.com/Luis85/renovation-planner/actions/runs/35774126753), `verify` ×4 plus `audit`, **all success**, read by run id. That sha carries waves 19 and 20 in full. **Waves 21 and 22 were pushed after it and their run must be read by id** — do not assume |
+| Last sha confirmed green | **`cd26b2d07`** — run [`35781280048`](https://github.com/Luis85/renovation-planner/actions/runs/35781280048), `verify` ×4 plus `audit`, **all success**, read by run id. **That sha carries every `src/`, `styles/` and test change from all four waves** (19–22), so the gates that matter are settled on it. Everything above it is `docs/` only — check with `git diff --name-only cd26b2d07..HEAD`. Note `gh run watch --exit-status` exited 4 on this run while the run itself was green: read the run by id, never the watcher's exit code |
 | Earlier green legs | `56d1dc918` (run `35758375566`) and `e6171b699` (run `35765414243`), both all-success. GitGuardian reports `skipping` on every run, which is neither a pass nor a failure |
 | `origin/main` | `ed5c50b76`, and it **IS** the merge base, so nothing rebases. The local `main` ref is stale — fetch before reading it |
 

@@ -40,9 +40,37 @@ export interface DimensionFigure {
 	readonly label: StringKey;
 	/** World millimetres, at the middle of whatever the figure spans. */
 	readonly at: Point;
-	/** Whole millimetres, as every geometry field in the Inspector shows them. */
+	/** The CANONICAL millimetres; the surface rounds them for display and `unchanged` knows it does. */
 	readonly value: number;
-	readonly edit: (typed: number) => (shape: AssetShape) => Result<AssetShape, ValidationError>;
+	/**
+	 * What typing `typed` writes — or **`null` for "nothing to do"**, which `editShape` resolves as
+	 * `no-write` and therefore dispatches nothing and pushes no undo entry. See `unchanged`.
+	 */
+	readonly edit: (typed: number) => (shape: AssetShape) => Result<AssetShape, ValidationError> | null;
+}
+
+/**
+ * **Typing the current value is no command at all** — contract C03 in as many words, and C05's
+ * *"a cancelled/refused/no-op gesture is none"*. Nothing below this answers it: `editShape`'s only
+ * no-op door fires on a `null` EDIT, `SetAssetShapeCommand`'s `ALWAYS_CHANGED` compares nothing
+ * deliberately, and `CommandHistory` pushes for any ok result and clears redo. So the figure has
+ * to answer it, and this is where.
+ *
+ * **BOTH spellings of "the current value" are refused, and the second is the one C03 names
+ * separately.** The button and the field show `Math.round(value)`, so on a footprint measuring
+ * 999.6 the field opens reading `1000`; a user who changes nothing and presses Apply has typed the
+ * value they were SHOWN. Comparing only against the canonical 999.6 would write 1000 and quantize
+ * the six tenths away — *"do not quantize canonical values merely because the inspector displays
+ * rounded measurements"*, reached by a user who edited nothing.
+ *
+ * `AssetDesignerRoot.editDimensions` already took this decision for the whole-design form and
+ * states the trade this inherits: *"a footprint measuring 1200.4 is offered as 1200, and a user
+ * typing 1200 there means 'leave it as it is' rather than 'trim four tenths of a millimetre'."*
+ * The cost is real and is the same one — 1000 cannot be typed onto a 999.6 part through this
+ * field, because that gesture is indistinguishable from leaving it alone.
+ */
+function unchanged(typed: number, current: number): boolean {
+	return typed === current || typed === Math.round(current);
 }
 
 /** A `PartBox` read back as the corners the figures are placed against. */
@@ -74,6 +102,19 @@ function corners(box: PartBox): Corners {
 }
 
 /**
+ * `resizeToExtent`, unless the typed extent is the one the part already has — see `unchanged`.
+ * The part is re-measured off the shape the edit is HANDED, never off the render that drew it.
+ *
+ * A part the shape has lost falls through to `resizeToExtent`, which answers `part-not-found`
+ * itself: the refusal belongs to the function that owns what a part is, and a second guard here
+ * would be a second answer to the same question.
+ */
+function resized(shape: AssetShape, part: OutlinePart, axis: 'width' | 'depth', typed: number): Result<AssetShape, ValidationError> | null {
+	const box = partMeasure(shape, part);
+	return box !== null && unchanged(typed, box[axis]) ? null : resizeToExtent(shape, part, axis, typed);
+}
+
+/**
  * The size pair for one part, placed against its own box: the width above its top edge and the
  * depth against its left one, which is where `RoomDimensionLabels` anchors the plan editor's
  * equivalent pair.
@@ -85,14 +126,14 @@ function sizeFigures(part: OutlinePart, box: Corners, key: string, labels: reado
 			label: labels[0],
 			at: { x: box.centre.x, y: box.min.y },
 			value: box.max.x - box.min.x,
-			edit: (typed) => (shape) => resizeToExtent(shape, part, 'width', typed),
+			edit: (typed) => (shape) => resized(shape, part, 'width', typed),
 		},
 		{
 			name: `${key}-depth`,
 			label: labels[1],
 			at: { x: box.min.x, y: box.centre.y },
 			value: box.max.y - box.min.y,
-			edit: (typed) => (shape) => resizeToExtent(shape, part, 'depth', typed),
+			edit: (typed) => (shape) => resized(shape, part, 'depth', typed),
 		},
 	];
 }
@@ -157,8 +198,9 @@ function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corn
 			edit: (typed: number) => (shape: AssetShape) => {
 				const current = partMeasure(shape, part);
 				if (current === null) return err(partNotFound(part));
-				const by = spec.sign * (typed - gapOf(corners(current), footprintCorners(shape), spec));
-				return moveOutline(shape, part, spec.axis === 'x' ? { dx: by, dy: 0 } : { dx: 0, dy: by });
+				const gap = gapOf(corners(current), footprintCorners(shape), spec);
+				if (unchanged(typed, gap)) return null;
+				return moveOutline(shape, part, spec.axis === 'x' ? { dx: spec.sign * (typed - gap), dy: 0 } : { dx: 0, dy: spec.sign * (typed - gap) });
 			},
 		};
 	});
@@ -175,6 +217,14 @@ const PART_LABELS: readonly [StringKey, StringKey] = ['designer.dimension.width'
  * answer to what a part's dimensions are. Off, it is the selection — the spec's *"selection-driven,
  * with a view toggle to show all"*. On, it is every drawable detail plus the clearance.
  *
+ * **A HIDDEN part is not measured either, and that is a second per-part fact rather than the same
+ * one.** `DesignerCanvas` drops a hidden graphic from what it draws, through this same
+ * `partView.hidden` set, so measuring one would put six editable millimetre labels over nothing —
+ * and under `All dimensions` a user who hid a part to get it out of the way would get its numbers
+ * back. `locked` is deliberately NOT asked beside it: `DesignerSelectionInspector` already lets a
+ * locked part be resized by typing, and a lock that stopped one field and not the other would be
+ * two answers to what a lock means.
+ *
  * **A PENDING part is not measured, in either mode.** §0's *"no numbers on an unscaled part"* is
  * read at the part and not only at the design: a detail or clearance captured over an uncalibrated
  * background carries placeholder pixels that calibration later multiplies, so a millimetre drawn
@@ -185,15 +235,15 @@ const PART_LABELS: readonly [StringKey, StringKey] = ['designer.dimension.width'
  * because it is a fact about the DTO rather than about the shape.
  *
  * Filtering the selection through the same list is what makes the two modes agree: a selected
- * pending detail draws nothing, exactly as it would under `all`. It also means every part named
+ * pending or hidden detail draws nothing, exactly as it would under `all`. It also means every part named
  * here is one the shape has, which is what lets the caller measure without a null arm.
  *
  * A selection that is the footprint, the anchor or the facing contributes nothing: the footprint
  * is already the overall pair, and the other two are points. See this module's header.
  */
-function measuredParts(shape: AssetShape, selection: DesignerSelection | null, all: boolean): OutlinePart[] {
+function measuredParts(shape: AssetShape, selection: DesignerSelection | null, all: boolean, hidden: ReadonlySet<string>): OutlinePart[] {
 	const clearance = shape.clearance === null || shape.clearancePending ? [] : [CLEARANCE];
-	const drawable = shape.details.filter((detail) => !detail.pending);
+	const drawable = shape.details.filter((detail) => !detail.pending && !hidden.has(detail.id));
 	if (all) return [...drawable.map((detail) => asPart(detail)), ...clearance];
 	if (selection === null) return [];
 	const id = selection.kind === 'detail' ? selection.id : null;
@@ -209,10 +259,15 @@ function measuredParts(shape: AssetShape, selection: DesignerSelection | null, a
  * Only the overall pair for a shape with nothing measurable selected, and that is never empty:
  * every `AssetShape` has a footprint, which is what `footprintCorners` rests on.
  */
-export function dimensionFigures(shape: AssetShape, selection: DesignerSelection | null, all: boolean): DimensionFigure[] {
+export function dimensionFigures(
+	shape: AssetShape,
+	selection: DesignerSelection | null,
+	all: boolean,
+	hidden: ReadonlySet<string>,
+): DimensionFigure[] {
 	const outer = footprintCorners(shape);
 	const overall = sizeFigures(FOOTPRINT, outer, 'overall', ['designer.dimension.overall-width', 'designer.dimension.overall-depth']);
-	return measuredParts(shape, selection, all).flatMap((part) => {
+	return measuredParts(shape, selection, all, hidden).flatMap((part) => {
 		// `measuredParts` names only parts the shape HAS — it derives them from `shape.details` and
 		// from `shape.clearance` rather than from the selection — so this cast rests on the same
 		// kind of guarantee `footprintCorners` does, and a guard here would be undrivable.

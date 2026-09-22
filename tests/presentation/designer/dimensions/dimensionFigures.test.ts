@@ -19,13 +19,31 @@ import { partMeasure } from '../../../../src/presentation/designer/selection/par
 import type { DesignerSelection } from '../../../../src/presentation/designer/selection/designerSelection';
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import type { OutlinePart } from '../../../../src/domain/asset/shapeEdits';
+import { footprintFromDimensions } from '../../../../src/domain/asset/AssetShape';
 import { editableShape } from '../../../helpers/assetShapes';
 import { expectOk } from '../../../helpers/domain';
 
 const TOP: OutlinePart = { kind: 'detail', id: 'detail-1' };
+const NOTHING_HIDDEN: ReadonlySet<string> = new Set();
 
-function figures(selection: DesignerSelection | null, all = false, shape: AssetShape = editableShape()): DimensionFigure[] {
-	return dimensionFigures(shape, selection, all);
+function figures(
+	selection: DesignerSelection | null,
+	all = false,
+	shape: AssetShape = editableShape(),
+	hidden: ReadonlySet<string> = NOTHING_HIDDEN,
+): DimensionFigure[] {
+	return dimensionFigures(shape, selection, all, hidden);
+}
+
+/**
+ * The shape `edit` writes, refusing a `null` loudly. **`null` is a real answer here and means "no
+ * command at all"** (C03), so a case that expects a WRITE has to say which it expected rather than
+ * letting `expectOk` swallow the distinction.
+ */
+function written(figure: DimensionFigure, typed: number, shape: AssetShape = editableShape()): AssetShape {
+	const result = figure.edit(typed)(shape);
+	if (result === null) throw new Error(`${figure.name} answered no-write for ${String(typed)}, which this case did not expect`);
+	return expectOk(result);
 }
 
 /** One figure by name, refused loudly rather than read off an `undefined`. */
@@ -43,8 +61,7 @@ const reading = (list: readonly DimensionFigure[], name: string): [number, numbe
 
 /** The part's box after `edit` has run, so a case asserts the SHAPE rather than the figure it typed into. */
 function after(figure: DimensionFigure, typed: number, part: OutlinePart): { min: number; max: number } {
-	const written = expectOk(figure.edit(typed)(editableShape()));
-	const box = partMeasure(written, part);
+	const box = partMeasure(written(figure, typed), part);
 	if (box === null) throw new Error('the edited shape lost the part');
 	return { min: box.centre.x - box.width / 2, max: box.centre.x + box.width / 2 };
 }
@@ -171,6 +188,33 @@ describe('which figures the designer draws over a design', () => {
 	});
 
 	/**
+	 * **A HIDDEN part is not measured, which is a second per-part fact and not the pending one.**
+	 * `DesignerCanvas` drops a hidden graphic from what it draws through this same `partView.hidden`
+	 * set, so measuring one would put six editable millimetre labels over nothing — and a user who
+	 * hid a part to get it out of the way would get its numbers back the moment they ticked
+	 * `All dimensions`.
+	 *
+	 * Both modes again, because the selection and the toggle reach a part by different paths.
+	 */
+	it('measures no hidden part, neither selected nor under the toggle', () => {
+		const hidden = new Set(['detail-1']);
+
+		expect(figures(TOP, false, editableShape(), hidden).map((figure) => figure.name)).toEqual(['overall-width', 'overall-depth']);
+		expect(figures(null, true, editableShape(), hidden).some((figure) => figure.name.startsWith('detail-detail-1-'))).toBe(false);
+	});
+
+	/**
+	 * `locked` is deliberately NOT asked beside `hidden`, and this case pins the decision rather
+	 * than the absence of code: `DesignerSelectionInspector` already lets a locked part be resized
+	 * by typing, so a lock that stopped this field and not that one would be two answers to what a
+	 * lock means. Nothing here consults it, and a locked part measures exactly as it did.
+	 */
+	it('measures a locked part exactly as an unlocked one', () => {
+		expect(figures(TOP).map((figure) => [figure.name, figure.value]))
+			.toEqual(figures(TOP, false, editableShape(), NOTHING_HIDDEN).map((figure) => [figure.name, figure.value]));
+	});
+
+	/**
 	 * A selection naming a detail the shape has not got draws nothing for it — the frame between a
 	 * peer's delete landing and the store pruning the selection, which `DesignerSelectionInspector`'s
 	 * `exists` guard covers on the other surface.
@@ -200,10 +244,10 @@ describe('what typing a figure back writes', () => {
 	 * round trip, rather than the arithmetic restated.
 	 */
 	it('moves a part the other way for a right offset, and the new gap reads what was typed', () => {
-		const moved = expectOk(named(figures(TOP), 'detail-detail-1-offset-right').edit(600)(editableShape()));
+		const moved = written(named(figures(TOP), 'detail-detail-1-offset-right'), 600);
 
-		expect(named(dimensionFigures(moved, TOP, false), 'detail-detail-1-offset-right').value).toBe(600);
-		expect(named(dimensionFigures(moved, TOP, false), 'detail-detail-1-width').value).toBe(400);
+		expect(named(dimensionFigures(moved, TOP, false, NOTHING_HIDDEN), 'detail-detail-1-offset-right').value).toBe(600);
+		expect(named(dimensionFigures(moved, TOP, false, NOTHING_HIDDEN), 'detail-detail-1-width').value).toBe(400);
 	});
 
 	/**
@@ -212,8 +256,8 @@ describe('what typing a figure back writes', () => {
 	 * every case that only ever typed a left or a right.
 	 */
 	it.each([['top'], ['bottom']] as const)('moves a part along y for the %s offset', (edge: string) => {
-		const moved = expectOk(named(figures(TOP), `detail-detail-1-offset-${edge}`).edit(300)(editableShape()));
-		const again = dimensionFigures(moved, TOP, false);
+		const moved = written(named(figures(TOP), `detail-detail-1-offset-${edge}`), 300);
+		const again = dimensionFigures(moved, TOP, false, NOTHING_HIDDEN);
 
 		expect(named(again, `detail-detail-1-offset-${edge}`).value).toBe(300);
 		expect(named(again, 'detail-detail-1-depth').value).toBe(200);
@@ -249,19 +293,87 @@ describe('what typing a figure back writes', () => {
 	 */
 	it('measures the offset off the shape the edit is handed, not the one that was drawn', () => {
 		const rendered = figures(TOP);
-		const moved = expectOk(named(rendered, 'detail-detail-1-offset-left').edit(200)(editableShape()));
+		const moved = written(named(rendered, 'detail-detail-1-offset-left'), 200);
 
-		const again = expectOk(named(rendered, 'detail-detail-1-offset-left').edit(150)(moved));
+		const again = written(named(rendered, 'detail-detail-1-offset-left'), 150, moved);
 
 		expect(partMeasure(again, TOP)?.centre.x).toBe(-150);
 	});
 
 	/** A part deleted between the render and the write is refused by name rather than written past. */
 	it('refuses an offset for a part the shape no longer has', () => {
-		const figure = named(figures(TOP), 'detail-detail-1-offset-left');
+		const result = named(figures(TOP), 'detail-detail-1-offset-left').edit(150)(editableShape({ details: [] }));
 
-		const result = figure.edit(150)(editableShape({ details: [] }));
+		expect(result === null ? null : result.ok).toBe(false);
+	});
 
-		expect(result.ok).toBe(false);
+	/**
+	 * **F3's gap, closed: the DEPTH edit is executed here.** Both of its arrow functions had zero
+	 * hits in `coverage-final.json` while every width case passed, which is precisely where a
+	 * `'width'`/`'depth'` transposition would have lived — the twin of the axis red watched for the
+	 * offsets, which the size pair had no equivalent of.
+	 */
+	it('resizes a part along depth, about its own centre', () => {
+		const box = partMeasure(written(named(figures(TOP), 'detail-detail-1-depth'), 100), TOP);
+
+		expect(box === null ? null : [box.centre.y - box.depth / 2, box.centre.y + box.depth / 2]).toEqual([-50, 50]);
+	});
+});
+
+describe('typing the current value, which is no command at all', () => {
+	/**
+	 * **C03 in as many words**: *"Typing the current value, Escape and cancelling a dialog create no
+	 * command/history entry"*, and C05's *"a cancelled/refused/no-op gesture is none"*.
+	 *
+	 * Nothing below the figure answers this, which is why the figure has to. `editShape`'s only
+	 * no-op door fires on a `null` EDIT; `SetAssetShapeCommand`'s `ALWAYS_CHANGED` is
+	 * `() => false` with a docblock saying nothing is compared, deliberately; and `CommandHistory`
+	 * pushes for any ok result and clears the redo stack. So before this, typing back the number a
+	 * figure already showed wrote a vault revision, pushed an undo entry and discarded redo.
+	 *
+	 * Every family is driven, because the three build their edits through different functions and
+	 * a guard added to one of them would leave the other two writing.
+	 */
+	it.each([
+		['overall-width', 1000],
+		['detail-detail-1-width', 400],
+		['detail-detail-1-depth', 200],
+		['detail-detail-1-offset-left', 100],
+		['detail-detail-1-offset-right', 500],
+		['detail-detail-1-offset-top', 200],
+		['detail-detail-1-offset-bottom', 200],
+	])('answers no-write when %s is typed its own value, %i', (name: string, current: number) => {
+		expect(named(figures(TOP), name).edit(current)(editableShape())).toBeNull();
+	});
+
+	/**
+	 * **The clause C03 states separately, and the one the first version of this card missed
+	 * entirely**: *"do not quantize canonical values merely because the inspector displays rounded
+	 * measurements"*.
+	 *
+	 * The button and the field both show `Math.round(value)`, so a footprint measuring 999.6 opens
+	 * a field reading `1000`. A user who changes nothing and presses Apply has typed the value they
+	 * were SHOWN — and comparing only against the canonical 999.6 would have written 1000 and lost
+	 * the six tenths, in a gesture that edited nothing.
+	 *
+	 * `AssetDesignerRoot.editDimensions` took this decision first for the whole-design form and
+	 * states the cost this inherits: 1000 cannot be typed onto a 999.6 part through this field,
+	 * because that gesture is indistinguishable from leaving it alone.
+	 */
+	it('answers no-write for the ROUNDED number the field actually showed', () => {
+		const odd = editableShape({ footprint: expectOk(footprintFromDimensions(999.6, 600)) });
+		const figure = named(figures(null, false, odd), 'overall-width');
+
+		expect(figure.value).toBe(999.6);
+		expect(figure.edit(Math.round(figure.value))(odd)).toBeNull();
+		// A number the user actually changed still writes, so the guard is not a wall.
+		expect(figure.edit(1001)(odd)).not.toBeNull();
+	});
+
+	/** A part deleted between the render and the write is refused rather than read as a no-op. */
+	it('refuses rather than answering no-write when the part is gone', () => {
+		const result = named(figures(TOP), 'detail-detail-1-offset-left').edit(100)(editableShape({ details: [] }));
+
+		expect(result === null ? null : result.ok).toBe(false);
 	});
 });

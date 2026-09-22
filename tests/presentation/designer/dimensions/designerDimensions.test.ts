@@ -26,7 +26,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { t } from '../../../../src/presentation/i18n/strings';
+import type { StringKey } from '../../../../src/presentation/i18n/locales/en';
 import { useAssetDesignStore } from '../../../../src/presentation/designer/stores/assetDesignStore';
+import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
 import { footprintFromDimensions } from '../../../../src/domain/asset/AssetShape';
 import { editableShape } from '../../../helpers/assetShapes';
 import { expectOk } from '../../../helpers/domain';
@@ -157,6 +159,123 @@ describe('what the designer’s dimensions draw', () => {
 			expect(names).toContain('clearance-offset-bottom');
 			// `detail-2` is PENDING, so it is withheld in this mode exactly as it is when selected.
 			expect(names.some((name) => name.startsWith('detail-detail-2-'))).toBe(false);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+
+	/**
+	 * **The half of the `RoomDimensionLabels` pattern that keeps the canvas usable.** The overall
+	 * pair anchors on the middles of the footprint's top and left edges — exactly the outline a user
+	 * traces against — and its buttons carry `pointer-events: auto`. Under a drawing tool a press
+	 * there would land on the button in the target phase, the slot wrapper's `@pointerdown.stop`
+	 * would keep the bubbled event off the canvas, the vertex would never be taken, and the release
+	 * would open an edit form over the drawing.
+	 *
+	 * AD18-R11 settled whether the slot PERMITS a control. It did not license a control sitting over
+	 * a gesture. No gate in this repository can see the defect — jsdom lays nothing out — so this
+	 * drives the tool id and asserts the overlay, which is the reachable half of the claim.
+	 */
+	it.each([
+		['designer.toolbar.trace-footprint'],
+		['designer.toolbar.draw-rect'],
+		['designer.toolbar.set-anchor'],
+	] as const)('withdraws every figure while %s is the active tool', async (label: StringKey) => {
+		const rig = await designer();
+		try {
+			expect(buttons(rig)).not.toEqual([]);
+
+			rig.toolbarButton(t('en', label)).click();
+			await settle();
+
+			expect(buttons(rig)).toEqual([]);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/** And Select puts them back, which is what makes the gate a gate rather than a switch-off. */
+	it('draws them under Select, and under the camera the designer opens with', async () => {
+		const rig = await designer();
+		try {
+			expect(buttons(rig).map(([name]) => name)).toEqual(['overall-width', 'overall-depth']);
+
+			rig.toolbarButton(t('en', 'designer.toolbar.trace-footprint')).click();
+			await settle();
+			rig.toolbarButton(t('en', 'designer.toolbar.select')).click();
+			await settle();
+
+			expect(buttons(rig).map(([name]) => name)).toEqual(['overall-width', 'overall-depth']);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * **The open field grows INTO the canvas.** `.rp-plan-canvas` is `overflow: hidden` and
+	 * `DesignerCanvas` fits an opened asset with a 48 px margin, so the overall pair's anchors sit
+	 * near the top and left edges; the first version lifted every form a full height above its
+	 * anchor unconditionally and both were clipped on open, at the camera this surface chooses for
+	 * itself.
+	 *
+	 * The assertion is on the TRANSFORM rather than on a rendered box, because jsdom measures
+	 * nothing — but the transform is the whole of the decision, and `0` on an axis means the box
+	 * starts at the anchor and runs away from the near edge.
+	 */
+	it('grows an open field away from the nearer canvas edge, and centres a button on its mark', async () => {
+		const rig = await designer();
+		try {
+			const anchor = (name: string): string => (button(rig, name).parentElement as HTMLElement).style.transform;
+			expect(anchor('overall-width')).toBe('translate(-50%, -50%)');
+
+			await openField(rig, 'overall-width');
+
+			// (48, 18) on an 800 x 600 stage is the top-left quadrant, so the field runs down-right.
+			const field = rig.wrapper.get('.rp-designer-dimension__form').element.parentElement as HTMLElement;
+			expect(field.style.transform).toBe('translate(0, 0)');
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * The other quadrant, which is the half a single camera cannot reach: panned so the same anchor
+	 * lands past both midpoints of the stage, the field has to run UP and LEFT instead. Without both
+	 * arms driven, a `placement` that answered one direction for every anchor would pass.
+	 */
+	it('grows an open field up and left when its mark sits in the far quadrant', async () => {
+		const rig = await designer();
+		try {
+			// screen = (world - pan) * zoom, so this puts (0, -300) at (500, 470) on an 800 x 600 stage.
+			useEditorStore(rig.pinia).viewport = { pan: { x: -5000, y: -5000 }, zoom: 0.1 };
+			await settle();
+
+			await openField(rig, 'overall-width');
+
+			const field = rig.wrapper.get('.rp-designer-dimension__form').element.parentElement as HTMLElement;
+			expect(field.style.transform).toBe('translate(-100%, -100%)');
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * **The arm `open`'s own comment describes**, driven rather than disclosed: a write landing in
+	 * the very tick the field is drawn withdraws the figure, so there is no input left to focus.
+	 * Reproduced by mutating the store synchronously after the press, which is the same tick
+	 * `open()` is waiting out — the one way this overlay's DOM changes without a gesture.
+	 */
+	it('focuses nothing when the figure is withdrawn in the tick its field was drawn', async () => {
+		const rig = await designer();
+		try {
+			const store = useAssetDesignStore(rig.pinia);
+			button(rig, 'overall-width').click();
+			store.design = store.design === null ? null : { ...store.design, dimensionsUnscaled: true };
+			await settle();
+
+			expect(rig.wrapper.findAll('.rp-designer-dimension__form')).toHaveLength(0);
+			expect(document.activeElement).toBe(document.body);
 		} finally {
 			rig.unmount();
 		}
@@ -350,11 +469,12 @@ describe('the inline field a dimension opens', () => {
 	});
 
 	/**
-	 * **A figure can be withdrawn while its field is open** — the design goes unscaled, or the part
-	 * is deleted by a peer — and a submission then has nothing to write. It is refused rather than
-	 * written past, which is the arm `editing` exists for.
+	 * **A figure withdrawn while its field is open takes the field with it**, and there is no
+	 * submission left to refuse — which is why `submit` no longer carries a guard for one. The form
+	 * renders only inside the `v-for` entry of a currently measured figure, so a submit event cannot
+	 * arrive after the figure has gone.
 	 */
-	it('refuses a submission whose figure is no longer measured', async () => {
+	it('takes the open field away with the figure it belonged to', async () => {
 		const rig = await designer();
 		try {
 			await openField(rig, 'overall-width');
@@ -364,6 +484,66 @@ describe('the inline field a dimension opens', () => {
 
 			expect(rig.wrapper.findAll('.rp-designer-dimension__form')).toHaveLength(0);
 			expect(rig.wrapper.findAll('.rp-designer-dimension__value')).toHaveLength(0);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * **And the DRAFT goes with it.** A figure can leave `figures` with no gesture of this overlay's
+	 * — here a deselect — and the `v-for` unmounts the form with no hand-off. Before the watch, the
+	 * draft survived: re-selecting the part drew the field open again, unfocused, still holding the
+	 * text that was typed and the refusal that was showing.
+	 *
+	 * Driven with a REFUSAL on screen as well as text, because the two are cleared by the same line
+	 * and a fix that cleared only one would leave a stale alert over a fresh field.
+	 */
+	it('clears a draft whose figure was withdrawn, so re-selecting opens a button and not a stale field', async () => {
+		const rig = await designer();
+		try {
+			const store = useAssetDesignStore(rig.pinia);
+			store.select({ kind: 'detail', id: 'detail-1' });
+			await settle();
+			await openField(rig, 'detail-detail-1-width');
+			await type(rig, 'wide');
+			await submit(rig);
+			expect(rig.wrapper.findAll('.rp-designer-dimension__error')).toHaveLength(1);
+
+			store.select(null);
+			await settle();
+			store.select({ kind: 'detail', id: 'detail-1' });
+			await settle();
+
+			expect(rig.wrapper.findAll('.rp-designer-dimension__form')).toHaveLength(0);
+			expect(rig.wrapper.findAll('.rp-designer-dimension__error')).toHaveLength(0);
+			expect(buttons(rig)).toContainEqual(['detail-detail-1-width', '400']);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * **C03, through the whole mounted stack**: typing the value a figure already shows dispatches
+	 * nothing at all. The `no-write` still closes the field, because from the user's side pressing
+	 * Apply on an unchanged number is done either way.
+	 *
+	 * Asserted at the SAVE INDICATOR rather than by spying: the rig writes to a real vault through
+	 * the real command, so a write that happened would be a write the surface reports. The version
+	 * is read from the store, which is what a revision moves.
+	 */
+	it('writes nothing when the value typed is the one already shown', async () => {
+		const rig = await designer();
+		try {
+			const store = useAssetDesignStore(rig.pinia);
+			const before = store.design?.geometryVersion.revision;
+			await openField(rig, 'overall-width');
+			await type(rig, '1000');
+
+			await submit(rig);
+
+			expect(store.design?.geometryVersion.revision).toBe(before);
+			expect(rig.wrapper.findAll('.rp-designer-dimension__form')).toHaveLength(0);
+			expect(buttons(rig)).toContainEqual(['overall-width', '1000']);
 		} finally {
 			rig.unmount();
 		}

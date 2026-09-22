@@ -45,7 +45,7 @@
  * The container is a plain `<div>` and not a `role="img"`: unlike the rulers' ticks these ARE
  * controls, and a group role over them would take them out of the tab order they need.
  */
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
@@ -57,7 +57,7 @@ import { dimensionFigures, type DimensionFigure } from './dimensionFigures';
 
 const editor = useEditorStore();
 const { design, selection, preview } = storeToRefs(useAssetDesignStore());
-const { allDimensions, editShape } = useDesignerRuntime();
+const { allDimensions, editShape, activeToolId, partView } = useDesignerRuntime();
 
 /** The overlay's own element, so focus is handed back within it and never stolen from elsewhere. */
 const root = ref<HTMLElement | null>(null);
@@ -76,10 +76,31 @@ const draft = ref<{ readonly name: string; text: string } | null>(null);
 /** The refusal the last submission answered, shown inside the open field and cleared by the next one. */
 const refusal = ref<string | null>(null);
 
-/** A figure with its world point already resolved to the two CSS lengths the template writes. */
+/** A figure with its world point already resolved to the CSS the template writes. */
 interface PlacedFigure extends Omit<DimensionFigure, 'at'> {
-	readonly style: { readonly left: string; readonly top: string };
+	readonly style: { readonly left: string; readonly top: string; readonly transform: string };
 }
+
+/**
+ * **The tools under which dimensions are drawn at all**, which is the half of the
+ * `RoomDimensionLabels` pattern that keeps the canvas usable and which AD18-R11 did not license
+ * dropping: that ruling settled whether the overlay slot PERMITS a control, not whether one should
+ * sit over a gesture.
+ *
+ * `null` is camera mode and `select` is the tool that grabs handles — the two modes in which
+ * nothing is being drawn on the canvas. The other ten ids this surface registers are click or drag
+ * gestures ON the drawing, and the overall pair anchors on the middles of the footprint's top and
+ * left edges — exactly the outline a user traces against. A press there lands on a button in the
+ * target phase, the slot wrapper's `@pointerdown.stop` then keeps the bubbled event off the
+ * canvas, the vertex is never taken, and the release opens an edit form over the drawing. With
+ * `All dimensions` on, six more holes per part.
+ *
+ * Stated as the ALLOWED set rather than the forbidden one, so a tool added later is out until
+ * somebody decides it is in. `AssetDesignerRoot` withdraws the empty state on
+ * `activeToolId !== null`, which is the same convention read at a surface with no reason to be
+ * live under Select either.
+ */
+const MEASURING_TOOLS: readonly (string | null)[] = [null, 'select'];
 
 /**
  * ONE computed over the whole overlay, as `DesignerRulers`' own model is and for its reason: every
@@ -89,28 +110,74 @@ interface PlacedFigure extends Omit<DimensionFigure, 'at'> {
  */
 const figures = computed((): readonly PlacedFigure[] => {
 	const view = design.value;
-	if (view === null || view.dimensionsUnscaled) return [];
+	if (view === null || view.dimensionsUnscaled || !MEASURING_TOOLS.includes(activeToolId.value)) return [];
 	// The gesture's PREVIEW while one is live, exactly as `DesignerCanvas`'s own `shape` reads it.
 	const drawn = preview.value ?? view.shape;
 	if (drawn === null) return [];
-	return dimensionFigures(drawn, selection.value, allDimensions.value).map((figure) => {
+	const editing = draft.value?.name;
+	return dimensionFigures(drawn, selection.value, allDimensions.value, partView.hidden.value).map((figure) => {
 		const { at, ...rest } = figure;
 		const point = worldToScreen(at, editor.viewport, STAGE_PIXELS);
-		return { ...rest, style: { left: `${String(point.x)}px`, top: `${String(point.y)}px` } };
+		const style = { left: `${String(point.x)}px`, top: `${String(point.y)}px`, transform: placement(point, figure.name === editing) };
+		return { ...rest, style };
 	});
 });
 
-/** The open figure, re-read from `figures` each render so its edit is built against the live shape. */
-const editing = computed(() => figures.value.find((figure) => figure.name === draft.value?.name) ?? null);
+/**
+ * Where a figure's box sits relative to its own mark — and, when its FIELD is open, which way that
+ * field grows.
+ *
+ * **`.rp-plan-canvas` is `overflow: hidden`, so a form drawn past an edge is cut off rather than
+ * merely awkward.** The first version of this overlay lifted every open form a full height above
+ * its anchor unconditionally, and `DesignerCanvas` fits an opened asset with `FIT_PADDING_PX`'s
+ * 48 px margin — so the overall pair's anchors sit 48 px from the top and left edges and BOTH of
+ * their forms were clipped on open, at the camera this surface chooses for itself. Structural, and
+ * answerable from the code rather than from a browser.
+ *
+ * **The repair states no SIZE**, which is what keeps this file from holding a second copy of the
+ * stylesheet's own box: a form anchored in the top half grows DOWN and one in the left half grows
+ * RIGHT, so it always grows into the canvas and away from the nearer edge. Only which side of the
+ * middle the anchor is on is asked. `RoomDimensionLabels` clamps with hard-coded pixel constants
+ * instead — the same fix with the box written down twice, which that surface needs because its
+ * field is fitted between a taskbar and a rail rather than anchored on a point.
+ *
+ * A BUTTON stays centred on its mark, which is what makes a number read as belonging to the gap or
+ * the edge it sits on.
+ */
+function placement(point: { x: number; y: number }, isOpen: boolean): string {
+	if (!isOpen) return 'translate(-50%, -50%)';
+	const across = point.x < editor.stageSize.width / 2 ? '0' : '-100%';
+	const down = point.y < editor.stageSize.height / 2 ? '0' : '-100%';
+	return `translate(${across}, ${down})`;
+}
+
+/**
+ * **A figure can leave `figures` with no gesture of this overlay's** — the selection clears, the
+ * toggle goes off, a tool is picked, a peer's write lands — and the `v-for` then unmounts the open
+ * form with no hand-off at all. Without this the draft survives: re-selecting the part drew the
+ * field open again, unfocused, holding the text and the refusal from before.
+ *
+ * Focus still falls to `<body>` in that moment, and this does not pretend otherwise. There is
+ * nothing in the overlay to hand it to — every way OUT that a user takes goes through `close`,
+ * which hands focus back to the button — and taking it to the canvas on a peer's write would move
+ * a user who was typing somewhere else entirely.
+ */
+watch(figures, (list) => {
+	const field = draft.value;
+	if (field === null || list.some((figure) => figure.name === field.name)) return;
+	draft.value = null;
+	refusal.value = null;
+});
 
 async function open(figure: PlacedFigure): Promise<void> {
 	refusal.value = null;
 	draft.value = { name: figure.name, text: String(Math.round(figure.value)) };
 	await nextTick();
 	const input = control.value[0];
-	// Present on every path a user can take: the field was drawn on the tick just awaited. The arm
-	// exists because a peer's write landing in that same tick can withdraw the figure, which is the
-	// only way this overlay's DOM changes without a gesture.
+	// Present on every path a user takes: the field was drawn on the tick just awaited. The arm is
+	// for a write landing in that same tick and withdrawing the figure — the one way this overlay's
+	// DOM changes without a gesture — and it is DRIVEN rather than disclosed, by the case
+	// `designerDimensions.test.ts` mutates the store in that tick.
 	if (input === undefined) return;
 	input.focus();
 	input.select();
@@ -132,12 +199,18 @@ async function close(name: string): Promise<void> {
 	root.value?.querySelector<HTMLElement>(`[data-rp-dimension="${name}"]`)?.focus();
 }
 
-async function submit(): Promise<void> {
-	const figure = editing.value, text = draft.value?.text ?? '';
+/**
+ * The figure and the text come from the TEMPLATE rather than being looked up here, which is what
+ * removes two guards nothing could ever drive: the form renders only inside the `v-for` entry of a
+ * figure that is currently measured, and only while `draft` is set, so a submit event cannot
+ * arrive without either. Looking them up again would have been two `null` arms no test could
+ * reach, and an unreachable guard costs a branch it can never pay back.
+ */
+async function submit(figure: PlacedFigure, text: string): Promise<void> {
 	// `Number('')` is 0 and `Number(' ')` is 0, so the emptiness is asked before the parse rather
 	// than by `Number.isFinite`, which would accept both as a typed zero.
 	const typed = text.trim() === '' ? Number.NaN : Number(text);
-	if (figure === null || !Number.isFinite(typed)) {
+	if (!Number.isFinite(typed)) {
 		refusal.value = tr('designer.dimension.unavailable');
 		return;
 	}
@@ -165,7 +238,7 @@ async function submit(): Promise<void> {
 				v-if="draft !== null && draft.name === figure.name"
 				class="rp-designer-dimension__form"
 				:aria-label="tr('designer.dimension.edit', { name: tr(figure.label) })"
-				@submit.prevent="void submit()"
+				@submit.prevent="void submit(figure, draft.text)"
 				@keydown.stop
 				@keydown.escape.prevent="void close(figure.name)"
 			>

@@ -16,8 +16,11 @@
  *
  * `designer.dimension.unavailable` is the refusal shown inside the open field, and it is
  * deliberately NOT the one a command answers — `trError` already maps those. This one is for the
- * value a text field can hold and the geometry cannot use: an empty box, a word, or a number
- * outside what the edit accepts.
+ * one thing a text field can hold that never reaches the geometry at all: an entry that is not a
+ * number. **It does not say "whole" millimetres**, which the first version did: the field parses
+ * with `Number` and accepts a decimal, and `partExtent.ts`'s own docblock is this repository's
+ * statement that a wrong why is not a why. What it does not accept is refused by the domain and
+ * shown through `trError` instead.
  */
 export const assetDimensionsOnCanvasEn = {
 	'designer.dimension.overall-width': 'Overall width',
@@ -30,6 +33,6 @@ export const assetDimensionsOnCanvasEn = {
 	'designer.dimension.offset-bottom': 'Offset from the bottom edge',
 	'designer.dimension.value': '{name} {value} mm',
 	'designer.dimension.edit': 'Edit {name}',
-	'designer.dimension.unavailable': 'Type a size in whole millimetres.',
+	'designer.dimension.unavailable': 'Type a size in millimetres.',
 	'designer.view.all-dimensions': 'All dimensions',
 } as const;

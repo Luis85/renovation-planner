@@ -8,9 +8,14 @@
  * `designer-trace.css` says outright to run `wc -l styles/designer.css` rather than trust any
  * number written there or in a sibling. This header repeats neither. The seam is a budget, not a
  * new organising idea. Its position in `styles/index.css` is not load-bearing, and that is a GREP
- * rather than a check: `grep -rln "rp-designer-dimension" styles/` prints this file and nothing
- * else, so no rule elsewhere can win or lose against one here at equal specificity. Nothing
- * re-runs that grep — move a selector of this family into another partial and the sentence is
+ * rather than a check: `grep -rln "rp-designer-dimension" styles/` prints this file and
+ * `designer-rulers.css`, whose header NAMES `.rp-designer-dimensions` in prose and declares
+ * nothing of this family — so no rule elsewhere can win or lose against one here at equal
+ * specificity. **The first version of this sentence said "and nothing else", and the very commit
+ * that wrote it had already made that false** by adding that prose mention two files away: the
+ * repository's own rule is to write the sentence from what the grep printed AFTER the change, and
+ * `grid/designerGrid.ts` two directories away spells out how to avoid exactly this. Nothing
+ * re-runs the grep — move a selector of this family into another partial and the sentence is
  * stale with no gate to say so.
  *
  * **`pointer-events` is the load-bearing pair in this file, and it is a pair rather than one
@@ -30,24 +35,23 @@
 	pointer-events: none;
 }
 /*
- * Centred on the world point its figure measures, so a size label sits on the middle of the edge
- * it states and an offset label in the middle of the gap it states. `translate` rather than a
- * margin because the component writes only `left` and `top`: the offset is half of whatever the
- * label's own text makes it, which is a width no TypeScript here knows.
+ * **The `transform` is NOT here, deliberately**, and it is the one placement fact this file does
+ * not own: a button is centred on its mark and an open field grows away from the nearer canvas
+ * edge, which is a question about where the anchor sits on the stage and therefore the
+ * component's. `DesignerDimensions.vue`'s `placement` carries the whole argument, including why a
+ * fixed lift clipped every form on open. Writing a `transform` here would be a second answer that
+ * silently wins or loses by source order.
  */
 .rp-designer-dimension {
 	position: absolute;
-	transform: translate(-50%, -50%);
 }
 /*
- * The open field is drawn from the same anchor as the button it replaced, so it would be centred
- * on the mark and cover the geometry being measured. It is lifted clear instead, and given a
- * stacking order above its neighbours: two anchors 30 px apart are ordinary on a small part, and
- * a form drawn under the next label along is a form whose Apply button cannot be pressed.
+ * The open field stacks above its neighbours: two anchors 30 px apart are ordinary on a small
+ * part, and a form drawn under the next label along is a form whose Apply button cannot be
+ * pressed.
  */
 .rp-designer-dimension:has(.rp-designer-dimension__form) {
 	z-index: 2;
-	transform: translate(-50%, -100%);
 }
 .rp-designer-dimension__value,
 .rp-designer-dimension__form {

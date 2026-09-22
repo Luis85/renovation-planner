@@ -1,5 +1,9 @@
 # Task report — W19-A (dimensions on canvas)
 
+**Round 2 amends this report throughout.** Nine reviewer findings, two of which blocked. What
+changed is in "Round 2" at the foot; the sections above are corrected in place where round 1 was
+wrong, with the correction marked. Nothing that was true in round 1 was removed.
+
 Outcome: implemented
 Owner / worktree / branch: W19-A · `.worktrees/ad11` · `w19a-dimensions-on-canvas`
 Base commit / candidate commit: `3e2bc2032` / recorded by the integrator at hand-off
@@ -202,7 +206,14 @@ comment records the measurement.
 | `submit`: `!result.ok` both ways | "shows a refused write's own mapped message" / the two writing cases |
 | template: form vs button; `refusal !== null` | every field case |
 
-**Three arms are NOT driven and each is disclosed rather than defended.**
+**ROUND 2 CORRECTION: this list was wrong in three ways and is superseded by a MEASUREMENT.**
+It named three arms; the instrument showed four, and two rows of the table above cited a case that
+could not reach the code they claimed (the withdrawal case never submits — it asserts the form is
+gone). Round 2 removed two of the arms as structurally unreachable, drove the rest, and re-measured:
+**both files now carry zero uncovered statements, functions and branches.** The evidence is under
+"Round 2". The paragraph below is kept as the record of what round 1 believed.
+
+**Round 1's three arms, NOT driven and disclosed rather than defended.**
 
 - `view === null` in `figures`. `AssetDesignerRoot` mounts the canvas only over a design it has
   already read, so a mounted overlay never sees `null`. It is kept because `design` is a store ref
@@ -249,16 +260,15 @@ Relevant renderer/export/revision consumers: none. Dimensions are an editing aid
 (C10) — they reach no layer, no thumbnail, no placement and no export. The toggle reaches nothing
 the vault holds.
 
-Undo/no-op/conflict/failure coverage: undo and redo are the runtime's, unchanged — a write from
+Undo/no-op/conflict/failure coverage (**round 2: the no-op half of this paragraph was wrong and is
+corrected under "Round 2", F1**). Undo and redo are the runtime's, unchanged — a write from
 this overlay pushes exactly the entry an Inspector field's does. Failure is covered in both
 families: a value the field can hold and the geometry cannot (`designer.dimension.unavailable`,
 no dispatch at all, so no undo entry), and a refusal the domain answers (through `trError`, field
-stays open). A submission whose figure has been withdrawn dispatches nothing. **No no-op
-suppression was added**: typing back the number a figure already shows dispatches a real edit,
-where `AssetDesignerRoot.editDimensions` compares against its offered `initial` first. Left that
-way deliberately — `editDimensions` is a whole-design replacement where an accidental Save is
-destructive, while this is a 1 mm-resolution field whose "no change" write is the identity and
-whose undo entry is harmless. Worth a reviewer's eye.
+stays open). A submission whose figure has been withdrawn dispatches nothing. ~~**No no-op suppression was added**: typing back the number a figure already shows dispatches a
+real edit … Left that way deliberately … Worth a reviewer's eye.~~ **That paragraph was WRONG and
+the judgement it offered was not one this card had to make.** C03 is an accepted contract and says
+it verbatim; the reviewer was right and round 2 fixes both of its clauses. See "Round 2", F1.
 
 Identity/unit/quantity/calibration invariants: every figure is world millimetres and is drawn only
 where the part it measures is scaled — the two-level gate above. The button's text is
@@ -275,6 +285,248 @@ Rollback/recovery considerations: reverting this card removes an overlay and a m
 no residue — nothing was persisted, no schema moved, and the two corrected sentences are prose. The
 only cross-file coupling is the `@import` line and the two locale spreads, which fail the build
 loudly rather than silently if half-reverted.
+
+---
+
+# Round 2 — the reviewer's nine findings
+
+Candidate: this branch's second commit. Same narrow gates. Lease unchanged plus
+`tests/presentation/designer/rulers/designerRulers.test.ts`, granted in writing for the third-copy
+item.
+
+**Eight of nine applied. One instruction inside F1 was checked and found WRONG, and the correct
+fix is the opposite of what it said** — measured as a red, below.
+
+| # | Finding | Outcome |
+|---|---|---|
+| F1 | The no-op is a C03 violation, both clauses | applied; **the prescribed comparison was backwards** |
+| F2 | No active-tool gate | applied |
+| F3 | The depth edit is executed by no test | applied |
+| F4 | The undriven-branch account is wrong in three ways | applied — two guards removed, the rest driven |
+| F5 | `All dimensions` draws over HIDDEN parts | applied |
+| F6 | The draft is never cleared when its figure is withdrawn | applied |
+| F7 | The open form is clipped, deterministically, on open | applied |
+| F8 | Two new grep sentences are false | applied, both |
+| F9 | `DesignerViewMenu`'s header contradicts its template | applied |
+| — | The third copy of AD18-R11's refuted sentence | applied |
+| note | `designer.dimension.unavailable` is narrower than its behaviour | applied |
+
+## F1 — the no-op, and the one instruction that was wrong
+
+**Confirmed at the code, in full.** C03: *"Typing the current value, Escape and cancelling a
+dialog create no command/history entry … Do not quantize canonical values merely because the
+inspector displays rounded measurements."* C05: *"A cancelled/refused/no-op gesture is none."*
+Nothing downstream answers it — `createEditShape`'s only no-op door is `if (next === null) return
+ok('no-write')` and my edits returned a `Result`; `SetAssetShapeCommand` holds
+`const ALWAYS_CHANGED: ShapeUnchanged = () => false` under a docblock saying nothing is compared,
+deliberately. So typing back the shown number wrote a vault revision. **Measured, not argued:**
+removing the fix turns the mounted case red with `AssertionError: expected 2 to be 1` on
+`geometryVersion.revision`.
+
+The figure now answers `null` for a no-op, through one `unchanged(typed, current)` used by all
+three families.
+
+**The instruction I did not follow.** The brief said: *"comparing the typed number against the
+ROUNDED display value is not enough, because that is exactly the case that loses the 0.6 mm."*
+**That is backwards, and the red proves which way round it goes.** With `unchanged` comparing
+against the CANONICAL value alone, the rounded case fails:
+
+```
+× answers no-write for the ROUNDED number the field actually showed
+AssertionError: expected { ok: true, value: { …(11) } } to be null
+```
+
+A 999.6 mm footprint opens a field reading `1000`; comparing against 999.6 finds them different
+and writes 1000, quantizing the six tenths away. Comparing against the ROUNDED value is exactly
+what stops that. `unchanged` therefore refuses **both** spellings of "the current value" —
+`typed === current || typed === Math.round(current)` — because both are things a user may have
+typed meaning "leave it". The cost is the one `AssetDesignerRoot.editDimensions` already accepted
+in prose for the whole-design form: 1000 cannot be typed onto a 999.6 part through this field,
+because that gesture is indistinguishable from leaving it alone.
+
+Escape and Cancel were already clean; the brief says so and the existing `it.each` covers them.
+
+## F2 — the active-tool gate
+
+**Confirmed.** `grep -n activeToolId` over the component returned nothing; the overall pair anchors
+on the middles of the footprint's top and left edges, which is the outline a user traces against,
+with `pointer-events: auto` at all times.
+
+One correction to the brief's arithmetic, which does not change the fix: it says seven tools. The
+surface registers **eleven** (`DESIGNER_TOOL_LABELS`) — the seven named plus `set-anchor`,
+`set-facing`, `calibrate` and `select`. So ten of them are click or drag gestures on the drawing.
+
+`MEASURING_TOOLS` is `[null, 'select']`, stated as the ALLOWED set so a tool added later is out
+until somebody decides it is in. `null` is camera mode, which matters: it is what the designer
+opens in, and gating on `'select'` alone would have hidden the headline feature on open.
+
+## F3 — the depth edit
+
+**Confirmed by the instrument, not by reading.** Both arrow functions on that line had zero hits.
+Driven now, and the red is real: transposing `'depth'` to `'width'` gives
+`AssertionError: expected [ -100, 100 ] to deeply equal [ -50, 50 ]`.
+
+## F4 — the guards, removed rather than driven
+
+**Confirmed, including the misattribution.** Two of the arms are structurally unreachable from the
+DOM — the form renders only inside the `v-for` entry of a currently measured figure and only while
+`draft` is set, so a submit event cannot arrive without either. `submit` now takes the figure and
+the text as ARGUMENTS from the template, which deletes the `editing` computed, the `figure === null`
+guard and the `?? ''` fallback together. That is the repository's own rule applied rather than a
+branch driven into existence.
+
+The third arm — `if (input === undefined)` in `open()` — is a real timing race and is now DRIVEN,
+by mutating the store synchronously in the tick `open()` is waiting out.
+
+## F5 — hidden parts
+
+**Confirmed.** `DesignerCanvas` drops hidden details through `partView.hidden`, so labels would
+have floated over nothing. `dimensionFigures` now takes the hidden set and filters `drawable` with
+it, so the selection path and the toggle path share one answer. `locked` is deliberately not asked
+beside it, per the brief, and there is now a case pinning that decision rather than its absence.
+
+## F6 — the stale draft
+
+**Confirmed, and reproduced.** A `watch` on `figures` clears the draft and the refusal when the
+open figure leaves. Focus still falls to `<body>` in that moment and the docblock says so plainly:
+there is nothing in the overlay to hand it to, and taking it to the canvas on a peer's write would
+move a user who was typing elsewhere.
+
+## F7 — the clipping
+
+**Confirmed structurally**: `.rp-plan-canvas` is `overflow: hidden`, `FIT_PADDING_PX` is 48, and
+`translate(-50%, -100%)` lifted every form entirely above its anchor. The brief was right that this
+is answerable from the code.
+
+**The repair states no SIZE**, which is the part worth reviewing. A form anchored in the top half
+grows down and one in the left half grows right, so it always grows into the canvas — only which
+side of the middle the anchor is on is asked. `RoomDimensionLabels` clamps with hard-coded pixel
+constants instead; that is the same fix with the stylesheet's box written down twice, and this
+surface can avoid it because its field is anchored on a point rather than fitted between a taskbar
+and a rail. The `transform` moved out of `designer-dimensions.css` entirely so there is one
+answer, and the stylesheet says why it no longer holds one.
+
+## F8 and F9 — the sentences
+
+Both grep sentences confirmed false and both rewritten from what the grep prints **after** the
+change. (a) `grep -rln "rp-designer-dimension" styles/` prints two files, the second being the
+prose mention my own AD18-R11 correction inserted — caught inside the commit that made it, which
+is the exact trap `grid/designerGrid.ts` two directories away spells out. (b) `Versatz` prints one
+line: that sentence.
+
+F9 confirmed: the template order is grid, snap, all-dimensions, reference-opacity, so both
+"third row"/"fourth row" sentences were false. Rewritten to address each row by NAME, with the
+ordering decision stated — the unconditional row sits before the conditional one so the rows that
+are always there keep a fixed order.
+
+## The copy note
+
+Applied. `designer.dimension.unavailable` said "whole millimetres" while the field parses with
+`Number` and accepts a decimal, and it was also the message for the `figure === null` arm that F4
+deleted. Now "Type a size in millimetres." / "Geben Sie ein Maß in Millimetern ein.", and the
+module's docblock records that a wrong why is not a why.
+
+## Reds watched in round 2, verbatim
+
+1. **`unchanged` returning `false` — no no-op door at all.** Seven `it.each` rows plus the rounded
+   case: `AssertionError: expected { ok: true, value: { …(11) } } to be null`, `Tests 8 failed | 23 passed (31)`.
+2. **`unchanged` comparing against the canonical value ONLY** — C03's quantization clause:
+   `× answers no-write for the ROUNDED number the field actually showed`
+   `AssertionError: expected { ok: true, value: { …(11) } } to be null` — `Tests 1 failed | 30 passed (31)`.
+3. **The depth edit transposed to `'width'`:**
+   `× resizes a part along depth, about its own centre` — `AssertionError: expected [ -100, 100 ] to deeply equal [ -50, 50 ]`
+   `× answers no-write when detail-detail-1-depth is typed its own value, 200` — `Tests 2 failed | 29 passed (31)`.
+4. **The hidden filter removed:**
+   `× measures no hidden part, neither selected nor under the toggle`
+   `AssertionError: expected [ 'detail-detail-1-width', …(7) ] to deeply equal [ 'overall-width', 'overall-depth' ]`.
+5. **The active-tool gate removed:** three rows —
+   `× withdraws every figure while designer.toolbar.trace-footprint is the active tool` (and `draw-rect`, `set-anchor`)
+   `AssertionError: expected [ [ 'overall-width', '1000' ], …(1) ] to deeply equal []` — `Tests 3 failed | 23 passed (26)`.
+6. **`placement` restored to the fixed lift:**
+   `× grows an open field away from the nearer canvas edge, and centres a button on its mark`
+   `AssertionError: expected 'translate(-50%, -100%)' to be 'translate(0, 0)'`.
+7. **The draft-clearing watch emptied:**
+   `× clears a draft whose figure was withdrawn, so re-selecting opens a button and not a stale field`
+   `AssertionError: expected [ DOMWrapper{ …(3) } ] to have a length of +0 but got 1`.
+8. **The mounted C03 case, to prove its assertion is not vacuous** — with `unchanged` returning
+   `false`: `× writes nothing when the value typed is the one already shown`
+   `AssertionError: expected 2 to be 1 // Object.is equality`. A real vault revision moved.
+
+## Branches added in round 2, and what drives each
+
+| Branch | Driven by |
+|---|---|
+| `unchanged`: `typed === current` | the seven-row `it.each` |
+| `unchanged`: `typed === Math.round(current)` | "answers no-write for the ROUNDED number the field actually showed" |
+| `resized`: `box !== null` both ways | every size case / "refuses rather than answering no-write when the part is gone" |
+| `measuredParts`: `hidden.has(id)` both ways | "measures no hidden part…" / every other case |
+| `figures`: `MEASURING_TOOLS.includes(...)` both ways | the three-tool `it.each` / "draws them under Select…" |
+| `placement`: `isOpen` both ways | the button transform and the two field cases |
+| `placement`: the x and y quadrant ternaries, both arms each | "grows an open field away from the nearer canvas edge" and "…up and left when its mark sits in the far quadrant" |
+| the `watch`: `field === null` / found / not found | ordinary renders / "clears a draft whose figure was withdrawn" |
+| `open`: `input === undefined` both ways | every field case / "focuses nothing when the figure is withdrawn in the tick its field was drawn" |
+
+Two branches were REMOVED rather than driven — `submit`'s `figure === null` and the `?? ''`
+fallback — by passing both from the template. An unreachable guard costs a branch it can never pay
+back.
+
+## The corrected undriven-branch list — MEASURED
+
+`npx vitest run tests/presentation/designer/dimensions/ --coverage` with `reportsDirectory` pointed
+at a scratch path (so nothing touches the shared `coverage/`), read out of `coverage-final.json`
+per file:
+
+```
+== DesignerDimensions.vue   | uncovered stmts 0 fns 0 partial branches 0
+== dimensionFigures.ts      | uncovered stmts 0 fns 0 partial branches 0
+```
+
+**The list is empty.** Round 1 named three arms and reasoned about them; the instrument found four,
+two of which should not have existed. This is the card's own "read `coverage-final.json` for the
+changed files, the threshold cannot see one arm" instruction turned on itself.
+
+## Round 2 gates
+
+| Command | Result |
+|---|---|
+| `npx vitest run tests/presentation/designer/dimensions/dimensionFigures.test.ts` | `Test Files 1 passed (1) / Tests 31 passed (31)` |
+| `npx vitest run tests/presentation/designer/dimensions/designerDimensions.test.ts` | `Test Files 1 passed (1) / Tests 28 passed (28)` |
+| `npx vitest run tests/presentation/designer/ tests/presentation/i18n tests/build/styles.test.ts` | `Test Files 82 passed (82) / Tests 1260 passed (1260)` |
+| `npx vitest run tests/harness` | `Test Files 34 passed (34) / Tests 399 passed (399)` — includes the three designer axe scans |
+| `npx vue-tsc -noEmit` | no output |
+| `npx eslint` over every changed file, `npx oxlint` over the same | no output, exit 0 |
+| `node scripts/styles-assemble.mjs` | exit 0; partial now 112 lines against the 400 cap |
+
+## Round 2: still not verified
+
+Everything round 1 listed stays true, with one item REMOVED from it and one narrowed:
+
+- **The clipping is no longer an unrendered claim** — F7 was answerable from the code and is fixed
+  and tested at the transform. What is still unrendered is whether the form, now growing into the
+  canvas, overlaps a neighbouring label on a small part.
+- **No browser, at any width.** Still the integrator's instrument. Where a label lands, whether two
+  collide on a 200 mm detail at a zoomed-out camera, contrast, focus ring and hit size: unseen.
+- **`npm run check`, `check:fast`, `test:coverage` and `analyze` still NOT run** — forbidden to
+  workers. The coverage figure above is a NARROW measurement over two files with thresholds off,
+  not the gate; no `eslint .`, no `fallow`, no `vite build`.
+- **No manual case in a vault**, and none written — `docs/` remains the integrator's.
+- **axe still does not open a dimension field.** The buttons are scanned and pass; the form's
+  `aria-label`, its label/input association and its `role="alert"` are asserted structurally here
+  and by nothing else.
+- **The German copy is still unreviewed by a German speaker.**
+- **F2's defect itself was never observed in a browser.** The gate is reasoned from the mechanism —
+  bubble-phase `.stop`, `pointer-events: auto`, the anchors' positions — and tested at the tool id.
+  That a press on a label under `trace-footprint` really did eat the vertex is not something any
+  instrument here can show.
+
+## Outside the lease after round 2
+
+`tests/presentation/designer/assetDimensions.test.ts`'s stale `dimensionsUnscaled` reader list is
+**unchanged and still owed** — it omits `DesignerRulers` and now also `DesignerDimensions`. Not in
+the lease. The third-copy item WAS granted and is done: after this round,
+`grep -rn "eat the gesture\|accepting a press\|accepted a press\|swallow the gesture" src/ tests/ styles/`
+prints four lines, every one an attributed quote inside the refutation that corrects it, and no
+live copy anywhere.
 
 ## Reviewer and integrator acceptance
 

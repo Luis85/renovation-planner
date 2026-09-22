@@ -11,7 +11,8 @@ beta was ready, the user said **"not ready, keep working"**.
 
 | | |
 |---|---|
-| HEAD | see the integration commit at the end of this file — pushed, tree clean |
+| Last CI-verified sha | **`f07002d45`** — run [`35696919541`](https://github.com/Luis85/renovation-planner/actions/runs/35696919541), `verify` ×4 plus `audit`, **all success**, read by run id. GitGuardian reported `skipping` rather than passing, which is not a failure and is recorded as what it was |
+| HEAD | **one documentation-only commit above `f07002d45`** — the one correcting this very line, which could not name its own sha. Confirm its own run before trusting it. Pushed, tree clean |
 | `origin/main` | `ed5c50b76`. The **local `main` ref is stale** — fetch before reading it. Merge base with `origin/main` IS `origin/main`, so nothing needs rebasing |
 | Suite at integration | **1074 test files, 11896 passed, 1 skipped, ZERO failures** (`check:fast`, exit 0, read from the log's own `Test Files` line rather than the exit code) |
 

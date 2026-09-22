@@ -229,17 +229,28 @@ describe('an interrupted designer gesture, interrupted through the DOM', () => {
  * header: if `TO` ever lands inside the pane, this case must go red rather than quietly become a
  * case about an ordinary release.
  *
- * **This case CONTRADICTS a sibling, and the pointer belongs here because that sibling cannot
- * carry it.** `tests/presentation/designer/tools/designerSelectMarquee.test.ts` still says the
- * refuted thing twice — in the docblock above its `it.each` (*"`pointercancel` / focus loss / a
- * release outside the leaf, which `EditorSurface` all route to `abandonGesture`"*) and in that
- * table's own label, `'pointercancel, blur or a release outside the leaf'`. Both are verbatim the
- * sentence `dropMarquee`'s docblock was corrected for. Its CASES are sound — they call
- * `tool.abandonGesture()` directly and assert what an abandonment leaves, which is true of the two
- * inputs that really do reach it; it is the third item in each list that names a door
- * `EditorSurface` does not have. Named here rather than fixed there because that file is another
- * lease, and because ADR-0015's rule applies: a contradiction findable from only one side is one
- * the next reader resolves the wrong way.
+ * **This case once CONTRADICTED a sibling; the contradiction is DISCHARGED and the pointer stays
+ * because it records how it was settled.** `tests/presentation/designer/tools/designerSelectMarquee.test.ts`
+ * said the refuted thing twice — in the docblock above its `it.each` (*"`pointercancel` / focus loss /
+ * a release outside the leaf, which `EditorSurface` all route to `abandonGesture`"*) and in that
+ * table's own label. Both were verbatim the sentence `dropMarquee`'s docblock had already been
+ * corrected for. Its CASES were always sound — they call `tool.abandonGesture()` directly and assert
+ * what an abandonment leaves, which is true of the two inputs that really do reach it; it was the
+ * third item in each list that named a door `EditorSurface` does not have.
+ *
+ * **W18-B fixed it on 2026-09-22, and settled the direction from `src/` rather than from either
+ * test** — which is the part worth keeping, because two tests disagreeing cannot decide between
+ * themselves. `onPointerLeave` reaches neither cancellation door; `cancelInterruptedGesture()` is
+ * called only from `onPointerCancel` and from `releaseInterruptedInputs`, whose callers are `onBlur`
+ * and `onBeforeUnmount`; and `setPointerCapture` is called on both arms of `onPointerDown`, so a
+ * captured release outside the leaf retargets back and COMMITS. That file's label now reads
+ * `'pointercancel, blur or surface unmount'`, the third door having been added after checking that
+ * the `'view teardown'` row below it does not already cover one — `deactivate()` is reached only
+ * from `ToolManager`, never from the surface unmounting.
+ *
+ * ADR-0015's rule is why the pointer was written in the first place and why it is amended rather
+ * than deleted: a contradiction findable from only one side is one the next reader resolves the
+ * wrong way.
  */
 describe('a sweep released outside the leaf', () => {
 	it('commits the selection rather than abandoning it', async () => {

@@ -243,13 +243,22 @@ there.
 table rather than in a dispatch message** — the rule this ledger's opening sentence states and which
 this package has broken twice, once by scope and once by timing.
 
-**The style cap is measured, and it is why neither row names `styles/designer.css`.** That partial is
+**The style cap is measured, and it is why neither row names `styles/designer.css`.** That partial was
 at **388 lines** against `MAX_LINES = 400` in `scripts/styles-assemble.mjs` — twelve lines and the
-build fails rather than warns. `styles/designer-object.css` is at **61**, its own header scopes it to
+build fails rather than warns. `styles/designer-object.css` was at **61**, its own header scoped it to
 *"the designer Inspector's OBJECT block: which asset this is, the way back to the catalogue"*, and a
 statement of which plans place THIS asset is exactly that block. So AD13-C3's rules go there, and no
 `styles/index.css` edit is owed — a new partial would need that entry-file line, and an entry file
 importing a partial that does not yet exist fails the build in the worker's own tree.
+
+> **Both figures and the quotation above are AS OF AD13-C3 and are stale now (checked 2026-09-22, W18-B
+> integration).** `designer.css` is at **399** — one line under the cap, not twelve — and
+> `designer-object.css` is at **111**. The quoted header no longer reads that way: W18-B rewrote it when
+> it deleted `.rp-designer-inspector .rp-designer-asset-name`, which AD18-R1 had left matching nothing.
+> Left as written rather than edited in place, because this paragraph records why a PAST lease was drawn
+> where it was and rewriting it would falsify that record — but a present-tense quotation of a header
+> that has since changed is exactly the citation this package keeps paying for, so it is marked rather
+> than left to be re-found. **Read `wc -l` rather than any figure here.**
 
 **`styles/designer-object.css`'s position in `index.css` is load-bearing** and its header says so:
 these rules were authored at the END of `designer.css`, so an equal-specificity pair is decided by

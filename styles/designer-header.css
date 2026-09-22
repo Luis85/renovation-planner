@@ -12,11 +12,14 @@
  * written from what `grep -rln '\.<class>\b' styles/` printed for each of the eight classes below
  * AFTER this file existed, rather than from the shape of the change. Seven of them are declared
  * here and nowhere else in the sheet, so nothing can win or lose against those by order.
- * `.rp-designer-asset-name` is the eighth: `designer-object.css` still carries
- * `.rp-designer-inspector .rp-designer-asset-name` from when the Inspector drew the name, and that
- * rule now matches nothing — it is a file this card had no lease on, so it is reported rather than
- * deleted. The two selectors are disjoint whichever order they load in, so the position stays free
- * either way, and this file sits with the other `designer-*` partials for a reader's sake.
+ * `.rp-designer-asset-name` WAS the eighth and is no longer an exception. `designer-object.css`
+ * carried `.rp-designer-inspector .rp-designer-asset-name` from when the Inspector drew the name;
+ * once AD18-R1 moved the name into the header that rule matched nothing, and **W18-B deleted it on
+ * 2026-09-22** — this sentence reported it while this file held no lease on that one, and the
+ * report is discharged. So all EIGHT are declared here and nowhere else in the sheet, and this
+ * partial's position in `index.css` is now unconditionally free rather than free because two
+ * selectors happened to be disjoint. It sits with the other `designer-*` partials for a reader's
+ * sake.
  *
  * (`designer.css` NAMES `.rp-designer-open-library` and `.rp-designer-use-plan` in a comment and in
  * no selector: the two were dropped from its flat-button rules in the same change.)

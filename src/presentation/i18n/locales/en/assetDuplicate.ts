@@ -27,7 +27,9 @@
  * **`used-in-plans.plan` names the PROJECT as well, inside this one key rather than beside it.**
  * A plan name is not unique across a vault — the catalogue is vault-level, so one definition is
  * placeable from plans in different projects — and two plans both named `Kitchen` drew as two
- * rows of identical visible text until the query carried a project name to fill this hole. The
+ * rows of identical visible text until the query carried a project name to fill this hole. A
+ * project name is not unique either, so this narrows the collision rather than removing it;
+ * `PlanAssetUsage`'s own header carries the residual arm and what closing it would cost. The
  * alternative was a second element beside the label, and `strings.ts`'s own rule is what refuses
  * it: *"ONE KEY PER LABEL, never a translated fragment concatenated with a name: word order and
  * the punctuation around an interpolated name are the translator's to choose."* Markup deciding

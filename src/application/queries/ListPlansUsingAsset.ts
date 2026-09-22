@@ -16,10 +16,23 @@ import type { Query } from './Query';
  * catalogue is vault-level since design slice 19, so one definition is placeable from plans in
  * different projects, and two plans both named `Kitchen` rendered as two rows of identical
  * visible text — separable only by the `:key` and the `data-plan-id`, neither of which a user
- * sees, at the one surface whose whole job is to state a blast radius. The sibling
- * `AssetInspectorUsedIn.vue` already keys on `projectId` *precisely because* a display name is
- * not unique, so the two answers to that hazard now agree rather than contradicting each other
- * inside one directory.
+ * sees, at the one surface whose whole job is to state a blast radius.
+ *
+ * **What that closes is the PLAN-name collision and NOT the whole hazard, and the sentence has
+ * to say so.** Two plans named `Kitchen` in two projects BOTH named `Flat renovation` still draw
+ * identically. That is not hypothetical here: `tests/harness/assetLibrary.ts` already ships two
+ * projects under that one name, and `withPathsWhereAmbiguous` in
+ * `ListRequirementsReferencing.ts` says why — *"`Project.create` trims a name and rejects only
+ * an empty one, so a collision is a thing a vault legitimately holds and nothing refuses."*
+ *
+ * **So the sibling `AssetInspectorUsedIn.vue` answers TWO hazards SEPARATELY, and this row
+ * answers only the first of them.** It keys the `v-for` on `projectId` because a name is not a
+ * unique identity, and for the USER-VISIBLE collision it escalates to a project PATH — supplied
+ * by that neighbouring query, at two levels (the folder, or the note's own path where a folder
+ * does not separate them either), and **only where two names actually collide**. Nothing here
+ * carries a path, and a second escalation is a slice of its own: it would need the project
+ * LOCATION lookup this query does not hold, and the conditional rule that decides when to draw
+ * it. Read this field as narrowing the defect rather than removing it.
  *
  * **Both fields, and neither is the other's replacement.** `projectId` is the identity — unique
  * by construction, and what a future navigation door would carry — while `projectName` is the

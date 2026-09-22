@@ -20,8 +20,12 @@ needed.
 2. **Two files outside the lease list were edited and the extension is ASSUMED, not granted** —
    `tests/harness/assetDesigner.ts` and `tests/harness/assetLibrary.ts`. `projectName` is a
    REQUIRED field on `PlanAssetUsage`, so every literal constructing a row must carry it or
-   `vue-tsc` fails the tree; `grep -rn "planName" src/ tests/` is the complete list of those
-   literals and these two harness fixtures are the only ones outside this card's own test files.
+   `vue-tsc` fails the tree. **The instrument that settles that set is `npx vue-tsc -noEmit`
+   (exit 0, whole tree), NOT the grep** — an earlier revision of this line called
+   `grep -rn "planName" src/ tests/` *"the complete list"*, which it cannot be: it over-reports
+   on unrelated `planName` keys and would miss a spread, a builder or a cast. The grep found the
+   files; the compiler is what proves none was missed. These two harness fixtures are the only
+   ones outside this card's own test files.
    The edits are data only — one string per row, no behaviour, no assertion — and neither file
    appears in W19-A's lease row. **If the integrator declines the extension, the alternative is a
    tree that does not compile**, so the extension is requested here rather than the change being
@@ -51,10 +55,21 @@ because a separate element occupies a second line ALWAYS while an inline qualifi
 only when the combined text exceeds the rail.
 
 **Also refused: conditional disclosure** (name the project only when two rows would otherwise be
-identical). It is a legitimate design and it loses on merit here. It adds a branch with two arms
-to cover against a 98% branch floor; it leaves a lone `Kitchen` row unqualified, so a user reading
-one row still cannot tell which project it belongs to; and the rule would have to be re-derived by
-every later reader of two panels that build the label independently.
+identical). It adds a branch with two arms to cover against a 98% branch floor; it leaves a lone
+`Kitchen` row unqualified, so a user reading one row still cannot tell which project it belongs
+to; and the rule would have to be re-derived by every later reader of two panels that build the
+label independently.
+
+**Correction, fix round — that paragraph argued past a precedent I did not know was there, and
+the reviewer is right to say so.** Conditional disclosure is not a mechanism this tree lacks: it
+is exactly what `ListRequirementsReferencing.withPathsWhereAmbiguous` already pays for, at TWO
+levels (a folder, escalating to the note's own path where a folder does not separate the rows
+either), and it is the reason the sibling has a path to draw at all. So the honest statement of
+the trade is narrower than the one above: conditional disclosure is a REAL option with a working
+precedent one file away, and it loses here on the branch budget, on the lone-row case and on
+needing a project LOCATION lookup this query does not hold — not on being a shape this repository
+avoids. The decision stands; the argument for it is now the one that survives reading the
+neighbour.
 
 ## Changed files and reason
 
@@ -84,7 +99,7 @@ argument for the unconditional form over conditional disclosure, against a 98% b
 
 | Criterion/test ID | Result | Exact evidence | Remaining issue |
 |---|---|---|---|
-| `src/` finding **B** — `PlanAssetUsage.projectId` reaches no consumer, so two same-named plans render identically | closed for what a user SEES | `listPlansUsingAsset.test.ts` *"carries each row's own project name, so two plans sharing a name are two different rows"*; `designerUsageScope.test.ts` *"names the project on every row…"*; `assetUsageDuplicate.test.ts` *"names each row's project…"* | `projectId` ITSELF is still named by no template. The charter's words are *"the query must **also** carry a project NAME"*, so the id stays as the row's identity; the interface docblock says this outright with the grep under it rather than implying the field is now read |
+| `src/` finding **B** — `PlanAssetUsage.projectId` reaches no consumer, so two same-named plans render identically | **narrowed, not closed** — corrected at the fix round | `listPlansUsingAsset.test.ts` *"carries each row's own project name, so two plans sharing a name are two different rows"*; `designerUsageScope.test.ts` *"names the project on every row…"*; `assetUsageDuplicate.test.ts` *"names each row's project…"* | **Two residual arms, both now named in `PlanAssetUsage`'s header rather than only here.** (1) Two plans named `Kitchen` in two projects BOTH named `Flat renovation` still render identically — a project name is no more unique than a plan name, and `withPathsWhereAmbiguous` says why: *"`Project.create` trims a name and rejects only an empty one, so a collision is a thing a vault legitimately holds and nothing refuses."* `tests/harness/assetLibrary.ts` already ships that exact pair. Closing it needs a project PATH, which needs the location lookup this query does not hold. (2) `projectId` ITSELF is still named by no template; the charter's words are *"the query must **also** carry a project NAME"*, so the id stays as the row's identity |
 | The two panels do not disagree | asserted separately on each | Two cases, one per surface. They build their rows independently, so a fix to one is invisible to the other's suite | — |
 | AD18-R7 — `(s)` / `(en)` untouched | held | `git diff` on both locale files shows the plural spelling byte-identical; the en header now cites the ruling | — |
 | No new locale module, `editor.ts` untouched | held | `git diff --name-only` lists neither aggregator | — |
@@ -102,7 +117,8 @@ argument for the unconditional form over conditional disclosure, against a 98% b
 | `npx oxlint <11 changed files>` | candidate | exit 0, nothing printed | Exit code read, not the silence |
 | `npx eslint <11 changed files> --max-warnings 0` | candidate | exit 0 | — |
 | `grep -rn "projectId" $(grep -rl AssetPlanUsage src/)` | candidate, run AFTER the change | 8 lines, every one in `ListPlansUsingAsset.ts` | The docblock sentence is written from this output |
-| `grep -rn "planName" src/ tests/` | candidate | The complete set of row literals; the five test files above are all of them | Established the harness-fixture blast radius |
+| `grep -rn "planName" src/ tests/` | candidate | Located the row literals — **not** a proof that it found them all; see the note above the changed-files table | `vue-tsc -noEmit` is the instrument that settles the set |
+| `grep -rn "placement(s)\|Platzierung(en)\|used-in-plans\|Used in plans\|{name} — {count}" docs/` | fix round | Three stale records outside `docs/tasks/`, listed below | The sweep at the width the first revision should have used |
 
 ### The red, verbatim
 
@@ -195,8 +211,17 @@ Three things the integrator should weigh with a browser, none of which this sess
    punctuation.
 
 `npm run harness-shot prototype:…`-style entry captures and the fixed `asset-designer` /
-`asset-library` shots both draw these panels from the two harness fixtures this card updated, so
-the picture is available to whoever has a browser.
+`asset-library` shots both draw these panels from the two harness fixtures this card updated
+(`asset-designer-narrow` captures at width 460, which is the pane rather than the rail), so the
+picture is available to whoever has a browser.
+
+**Do not read those captures as evidence that the disambiguation WORKS.** Neither fixture renders
+the collision the field exists for: `assetDesigner.ts` gives two differently-named plans in
+differently-named projects, and `assetLibrary.ts`'s usage scope holds a single row. So the
+parenthetical photographs as decoration. That is deliberate and is also the WORST case for the
+wrap risk above — the longest rows with the least justification on screen — which is the right
+picture to measure against. The collision itself is asserted in jsdom by the two new view cases
+and nowhere else.
 
 ## Data and integration implications
 
@@ -225,7 +250,33 @@ exactly. The field is not persisted anywhere, so there is no data to migrate bac
 ## Records outside this card's lease that now disagree with the tree
 
 Reported rather than edited — `docs/` is the integrator's this wave, and these are the citations a
-later reader would resolve the wrong way:
+later reader would resolve the wrong way.
+
+**The first revision of this list swept `docs/tasks/` and called it `docs/`, which is the same
+defect this card exists to fix, one directory wider.** Re-run at the right width at the fix round
+(the command is in the checks table), it prints **two more**, and the first of them is the one
+that would have cost a human an hour:
+
+- **`docs/tests/cases/Take an asset from the library into a plan.md`, step 3** — states the
+  expected row as *plan name* — *n* placement(s). It now reads *plan name* (*project name*) —
+  *n* placement(s), so **a human walking that case in a vault would report a pass as a failure**.
+  Found by the reviewer, not by me. **DO NOT let this ship unedited**; the integrator holds
+  `docs/` and the fix is one cell.
+- **`docs/user-experience/archive/asset-library-overview-DESIGN-SPEC.md`, Amendment 6** — its key
+  inventory reads *"`.plan` (interpolated: `{name}`, `{count}`)"*, which is now `{name}`,
+  `{project}`, `{count}`. **The KEY COUNT it pins (87 → 100) is unaffected** — no key was added —
+  and that document is the authority every `src/presentation/library/` section number cites, so
+  the stale half is the interpolation list alone. Neither the reviewer nor the first revision
+  named this one.
+
+Nothing else outside `docs/tasks/` matched. One adjacent hit was read and is **NOT** caused by
+this card: `docs/using-asset-designer.md` says *"The designer does not tell you which plans those
+are… The designer's Inspector shows the asset's name, its dimensions and its own controls, and no
+usage list."* That was already false before this commit — `DesignerUsageScope.vue` draws exactly
+such a list in the designer's Inspector, which is AD13-R1's whole subject — and this change
+neither created nor worsened it. Recorded so the next sweep does not attribute it here.
+
+The five under `docs/tasks/`, unchanged from the first revision:
 
 - `docs/tasks/asset-designer-expansion/execution/state.json`, the "FOURTH `src/` finding" entry —
   describes the defect in the present tense.

@@ -11,6 +11,7 @@ import { designerTraceDe } from './designerTrace';
 import { designerRulersDe } from './designerRulers';
 import { assetDimensionsOnCanvasDe } from './assetDimensionsOnCanvas';
 import { designerAddDe } from './designerAdd';
+import { designerRecoveryDe } from './designerRecovery';
 import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
@@ -51,6 +52,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...designerRulersDe,
 	...assetDimensionsOnCanvasDe,
 	...designerAddDe,
+	...designerRecoveryDe,
 	...groupsDe,
 	...stairsArrowsDe,
 	...structuralDe,

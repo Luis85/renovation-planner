@@ -11,6 +11,7 @@ import { designerTraceEn } from './designerTrace';
 import { designerRulersEn } from './designerRulers';
 import { assetDimensionsOnCanvasEn } from './assetDimensionsOnCanvas';
 import { designerAddEn } from './designerAdd';
+import { designerRecoveryEn } from './designerRecovery';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
@@ -63,6 +64,7 @@ export const editorEn = {
 	...designerRulersEn,
 	...assetDimensionsOnCanvasEn,
 	...designerAddEn,
+	...designerRecoveryEn,
 	...groupsEn,
 	...stairsArrowsEn,
 	...structuralEn,

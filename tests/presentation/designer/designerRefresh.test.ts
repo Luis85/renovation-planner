@@ -653,8 +653,16 @@ describe('the tool framework this leaf builds', () => {
 	 * `context.writesBlocked()` anywhere, where `ElementMove`, `ElementResize`, `ElementRotation`,
 	 * `LabelMove` and `OpeningResize` read it too; they are Plan-Editor-owned gesture helpers
 	 * `SelectTool` composes, so the designer-side conclusion survives and only the reach of the
-	 * sentence was wrong. Whether a designer write SHOULD be blocked over a stale canvas is an
-	 * open behaviour question, not something this case answers.
+	 * sentence was wrong.
+	 *
+	 * **It then called whether a designer write SHOULD be blocked over a stale canvas an open
+	 * behaviour question. AD18-R13 has since answered it: no.** `stale` here is set by a failed
+	 * READ and never by a failed write, so blocking would freeze a surface whose design is
+	 * valid; the ruling gives the stale notice a `Try again` instead
+	 * (`designerStaleRetry.test.ts`) and refuses the pause disclosure with the block. So
+	 * `false` is a DECISION this case pins, rather than the absence of one it used to describe
+	 * — the assertion below is unchanged, and is exactly what would catch the ruling being
+	 * quietly reversed.
 	 *
 	 * A probe tool registered under `'measure'` — an id this surface
 	 * does not register; it was `'select'` until the designer registered a Select tool, when

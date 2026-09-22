@@ -160,6 +160,19 @@ export interface DesignerRuntime {
 	 */
 	readonly hydrate: () => Promise<void>;
 	/**
+	 * Re-read this leaf's design KEEPING what is drawn when the read fails — `readingFor`'s
+	 * other door, exposed since W20-A because the stale notice's `Try again` is a caller
+	 * outside this file.
+	 *
+	 * **The split decides what a failed press costs**, and the two spellings are one word
+	 * apart at the call site. `hydrate` above blanks, which is right for a leaf with nothing
+	 * to keep and wrong for a retry pressed OVER drawn content: the press would replace a
+	 * design the vault still has with the failure panel, the same defect `readingFor` records
+	 * the cross-leaf subscription causing before it was moved here. AD18-R13 rules the retry a
+	 * door OUT of the stale notice and never a way to lose the canvas, which is this door.
+	 */
+	readonly refresh: () => Promise<void>;
+	/**
 	 * This leaf's tool framework (design slice B5). Held HERE rather than inside
 	 * `DesignerCanvas`, which is where Task B4 built it while nothing registered a tool: the
 	 * toolbar mounts in the shell's own region and is not the canvas's child, so a manager
@@ -440,27 +453,29 @@ function leafStores(): {
  * session and turns true once, when `onLayoutReady` has run the vault scan — so a runtime
  * that snapshotted it at mount would hold `false` for the life of a restored leaf and go on
  * declining to believe an authoritative miss forever.
-	const read = (keepPreviousOnFailure: boolean): Promise<void> =>
-		store.hydrate(context.queries, context.assetId, {
-			indexScanCompleted: context.indexScanCompleted(),
-			keepPreviousOnFailure,
-		});
-
-	const hydrate = (): Promise<void> => read(false);
-	/**
+ *
  * The two doors are the SPLIT, named rather than spelled as a boolean at each call site:
  * a refresh keeps what is on screen when its read fails, a hydration has nothing to keep.
  * The same split `ProjectStore` draws, and the reason is that a refresh runs over content
  * the vault already holds — blanking the canvas would replace "possibly stale" with
  * definitely nothing.
-	 *
- * **`refresh` has TWO callers, and the second is why this is a named door.** The
- * post-command read-back is the obvious one; the cross-leaf subscription below is the one
- * that took `hydrate` and should not have. Whether WE made the write or a peer leaf did is
- * not a difference the user's canvas can tell, so a transient failure re-reading after a
- * peer's edit blanked a valid design and put the failure panel over it. A flag at each call
- * site is a rule somebody has to remember at a third door; a named function is not.
-	 *
+ *
+ * **`refresh` has THREE callers and one of them is outside this file**, which is why it is a
+ * named door and, since W20-A, a member of `DesignerRuntime` rather than a local. Written
+ * from `grep -rn "refresh" src/presentation/designer/runtime.ts` plus `grep -rn
+ * "runtime\.refresh" src/presentation/designer/`, after the edit that added the third: the
+ * post-command read-back (`dispatchingFor` below), the cross-leaf subscription at the foot of
+ * `buildRuntime`, and `AssetDesignerRoot`'s `onRetry` — the stale notice's `Try again`, which
+ * AD18-R13 rules this surface owes.
+ *
+ * The subscription is the one that took `hydrate` and should not have. Whether WE made the
+ * write or a peer leaf did is not a difference the user's canvas can tell, so a transient
+ * failure re-reading after a peer's edit blanked a valid design and put the failure panel over
+ * it — and the retry arrives at the identical hazard from the third direction, which is the
+ * argument for exporting THIS door rather than letting a view assemble the read itself. A flag
+ * at each call site is a rule somebody has to remember at a fourth door; a named function is
+ * not.
+ *
  * **What it cannot suppress**, in the two places `AssetDesignStore.hydrate` bounds it. A leaf
  * with nothing on screen: the keep-previous arm is guarded on `status === 'ready'`, so the
  * `ProjectIndexRebuilt` arm of `createAssetDesignChangeSource` — which reaches a leaf
@@ -564,8 +579,16 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			// `assetDesignStore.stale` is set on a keep-on-failure re-read and is drawn by
 			// `AssetDesignerRoot` — as a strip, and since W18-C as the save state's own
 			// `Saved · refresh needed` qualifier. What stays true is the sentence below:
-			// nothing on this surface blocks a write on that account. Whether it SHOULD is a
-			// behaviour question W18-C reported rather than answered.
+			// nothing on this surface blocks a write on that account.
+			//
+			// **Whether it SHOULD was the open question W18-C reported, and AD18-R13 has since
+			// ANSWERED it: no.** `stale` here is set by a failed READ and never by a failed
+			// write, so the design on screen is still exactly what the user drew; blocking
+			// would freeze a valid surface over a vault hiccup and take a gesture away from
+			// somebody mid-drawing. The same ruling refuses the Plan Editor's hidden
+			// `pausedReason` sentence WITH the block — with nothing paused, its id would be
+			// named by no element — and gives the stale notice a `Try again` instead, which
+			// `refresh` above is the door for. So this member stays `false` by decision.
 			writesBlocked: () => false,
 		}),
 	);
@@ -687,7 +710,9 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		setFootprintFromDimensions,
 		applyShape,
 		commitHeight,
-		hydrate,
+		// The two READ doors on one line, which is not a style choice: this function is at its
+		// 100-line budget and the pair is one fact — `readingFor`'s split, handed on whole.
+		hydrate, refresh,
 		toolManager,
 		renderState,
 		activeToolId,

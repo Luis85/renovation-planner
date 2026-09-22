@@ -29,7 +29,7 @@
  * level up and leaves it unchecked. A registry the root iterates has the same hole — nothing
  * makes a later task add its entry.
  */
-import { computed, markRaw, onMounted, ref } from 'vue';
+import { computed, markRaw, onMounted, ref, useId, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
@@ -73,9 +73,18 @@ const workspace = useWorkspaceStore(), editorStore = useEditorStore();
 
 /**
  * The leaf's live machinery (Task B3a), provided here so the regions later tasks mount can
- * inject it. The return value is used immediately: `runtime.hydrate` is THE read — the mount,
- * the retry below, and the cross-leaf subscription the runtime itself disposes all go through
- * one routine rather than three spellings of it.
+ * inject it. The return value is used immediately: this file performs THREE reads through it,
+ * and they are not all the same door.
+ *
+ * `runtime.hydrate` (blank on failure) is the mount and `onFailureAction`'s retry — a leaf with
+ * nothing on screen has nothing to keep. `runtime.refresh` (keep-previous) is `onRetry`, the
+ * stale notice's own retry, which runs over a canvas that is still drawn.
+ *
+ * **This paragraph said `runtime.hydrate` was THE read, naming the mount, "the retry" and the
+ * cross-leaf subscription.** Two thirds of that was already false when W20-A arrived — the
+ * subscription takes `refresh` inside `runtime.ts` and never reaches this file — and "the
+ * retry" stopped being singular the moment this surface had two. Rewritten from the call sites
+ * rather than from the old sentence.
  */
 const runtime = provideDesignerRuntime(context);
 const designStore = useAssetDesignStore();
@@ -99,6 +108,102 @@ const { design, error, status, stale, selection, selected } = storeToRefs(design
  * the two places a user looks".
  */
 const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value);
+
+/**
+ * The way OUT of that notice — ruling AD18-R13, and contract C08's *"a retry after an uncertain
+ * write must reconcile before repeating it"*. A re-read IS that reconcile: a successful one is
+ * what `assetDesignStore` calls *"the ONE event that retires a stale-data warning"*, and this
+ * closure takes no command, so the control can re-read and can never replay a write.
+ *
+ * **`runtime.refresh` and never `runtime.hydrate`.** They are one word apart at this call site
+ * and they are not interchangeable: `hydrate` blanks on failure, so a press whose own read
+ * failed would take the canvas away from a user who is still drawing on it and put the failure
+ * panel over a design the vault still has. AD18-R13 rules the retry a door OUT of the notice
+ * rather than a way to lose the canvas, and `runtime.ts`'s `refresh` member carries the rest.
+ *
+ * **TWO refs, because they answer different questions.** `retrying` is a press in flight, which
+ * `onRetry` withholds the second read on. `retriesFailed` is how many presses in a row have come
+ * back still stale, and it exists so the sentence can MOVE: a notice whose text is identical
+ * after a press cannot be told apart from a press that did nothing. The Plan Editor's strip
+ * swaps `editor.refresh-failed` for `editor.refresh-failed.again` off the same fact, held there
+ * in `ProjectStore` because that store has one and this one does not.
+ *
+ * **The count is reset by the EPISODE ending, not by the handler**, which is the review finding
+ * this watcher exists for and not a refactor of one. `stale` is cleared by ANY successful
+ * hydration, and three doors reach one without ever running `onRetry`'s `finally`: the mount,
+ * the post-command read-back and the cross-leaf subscription. A reset written only into that
+ * `finally` therefore survived all three, and the NEXT unrelated failure — one nobody had
+ * retried — opened reading "failed again". Watching the fact itself is what makes the rule
+ * hold for the fourth door too, whoever adds it.
+ */
+const retrying = ref(false);
+const retriesFailed = ref(0);
+watch(stale, (isStale) => {
+	if (!isStale) retriesFailed.value = 0;
+});
+const staleMessage = computed<StringKey>(() => (retriesFailed.value > 0 ? 'designer.refresh-failed.again' : 'designer.refresh-failed'));
+/**
+ * `useId` is unique only PER APP — its counter lives on the `AppContext` and every app defaults
+ * to the prefix `v` — so two designer leaves would otherwise mint the same `v-…-N`. What makes
+ * this unique across leaves is `AssetDesignerView`'s `app.config.idPrefix = nextAppIdPrefix()`,
+ * pinned by `tests/build/appIdPrefix.test.ts`. `DialogHost.vue` and `PropertyTreeNode.vue` state
+ * the same pairing; this comment claimed per-app uniqueness was the reason, which is the reason
+ * the collision exists rather than the reason it does not.
+ */
+const staleNoticeId = useId();
+
+/**
+ * The control is `aria-disabled` while busy and never `:disabled`, so the click still arrives
+ * and THIS early return is what withholds the read — the repository's rule about a control that
+ * does nothing, and the pairing `PersistentWarningStrip` already uses for the same gesture. A
+ * build that only dimmed the button would issue a second read on the second press.
+ *
+ * `finally` and not `then`, so a REJECTED read releases the control and counts as the failed
+ * retry it is. Detached with `void` exactly as this file's other two reads are
+ * (`onFailureAction` and the mount), and **that is a real divergence from the Plan Editor
+ * rather than a match**: its own stale retry wraps `runtime.refreshProjection()` in
+ * `.catch(cause => notifyFault(…, 'editor.refresh.failed'))`. Here a thrown read still reaches
+ * the user — the `finally` runs, the control releases and the sentence becomes the "again" one —
+ * but the FAULT itself is neither logged nor toasted. Closing that is a change to all three
+ * reads on this surface plus the copy they would need, not to this button, and it is named here
+ * so the next reader finds the difference rather than assuming the two surfaces agree.
+ *
+ * A read that threw SYNCHRONOUSLY would skip the `finally` and strand `retrying`. Not
+ * reachable through the async `store.hydrate` — an `async function` rejects rather than
+ * throwing — and reachable in principle through `readingFor`'s own `context.indexScanCompleted()`,
+ * evaluated before that call. Left unguarded deliberately: an unreachable guard costs a branch
+ * it can never pay back, which is this repository's own rule about coverage headroom.
+ *
+ * **The button is a SIBLING of `.rp-designer-notice` in the template, not a child of it**, and
+ * that is measured rather than preferred. Three cases in three files
+ * (`assetDesignerRoot.test.ts`, `designerResponsiveShell.test.ts`,
+ * `designerSaveStateStale.test.ts`) read that element's WHOLE text as equal to the sentence, and
+ * `designerBackground.test.ts` maps every element wearing the class to its text: across this
+ * suite the class means "a message", and a control inside one of them would make it mean two
+ * things. The cost is that the control sits outside the live region, which `aria-describedby`
+ * answers for a reader who tabs to it without having read the sentence.
+ *
+ * **What none of this can claim**: `role="status"` announces a CHANGE, and this region enters
+ * the document already carrying its text, so the FIRST appearance may not be announced at all.
+ * That is the property `PersistentWarningStrip` engineers by rendering its container
+ * unconditionally and a `v-if`'d paragraph cannot have; it is unchanged by this card and stated
+ * rather than implied. What a retry does move is the TEXT, which is the change an announcement
+ * needs — and no assertion here reaches the announcement itself, since jsdom has no AT.
+ */
+function onRetry(): void {
+	if (retrying.value) return;
+	retrying.value = true;
+	void runtime.refresh().finally(() => {
+		retrying.value = false;
+		// Counting only. The RESET belongs to the watcher above, because three other doors end
+		// an episode without reaching this line. Read once the read has settled, which is what
+		// makes it this retry's outcome: `stale` survives a keep-previous failure and is
+		// cleared by the one success arm — so a press superseded by a peer read that already
+		// succeeded counts as nothing, which is the right answer for a press whose own read
+		// never decided anything.
+		if (stale.value) retriesFailed.value += 1;
+	});
+}
 
 /**
  * What became of the spec sheet this asset names — the plan editor's own
@@ -616,13 +721,28 @@ onMounted(() => {
 				/>
 			</div>
 		</div>
-		<p
-			v-if="staleAfterRefresh"
-			class="rp-designer-notice"
-			role="status"
-		>
-			{{ tr('designer.refresh-failed') }}
-		</p>
+		<!-- The stale notice and the one control AD18-R13 gives it; `onRetry`'s docblock above
+			carries why the button is a SIBLING of the notice rather than a child, and what
+			`role="status"` does and does not announce here. -->
+
+		<template v-if="staleAfterRefresh">
+			<p
+				:id="staleNoticeId"
+				class="rp-designer-notice"
+				role="status"
+			>
+				{{ tr(staleMessage) }}
+			</p>
+			<button
+				type="button"
+				data-rp-action="retry"
+				:aria-describedby="staleNoticeId"
+				:aria-disabled="retrying ? 'true' : undefined"
+				@click="onRetry"
+			>
+				{{ tr('designer.refresh-failed.retry') }}
+			</button>
+		</template>
 		<p
 			v-if="backgroundStatus === 'missing'"
 			class="rp-designer-notice"

@@ -11,8 +11,8 @@ changed that. Nobody marks it ready on their own initiative.
 
 | | |
 |---|---|
-| Last CI-verified sha | **`2dbc7b39a`** — run [`35737160544`](https://github.com/Luis85/renovation-planner/actions/runs/35737160544), `verify` ×4 plus `audit`, **all success**, read by run id. GitGuardian reported `skipping`, which is not a pass and not a failure |
-| HEAD | above that sha. A second run was started on `a901cb746` and **its result is not recorded here** — confirm it, or the run on whatever HEAD you find, by run id before trusting anything above `2dbc7b39a` |
+| Last CI-verified sha | **`a901cb746`** — run [`35742079847`](https://github.com/Luis85/renovation-planner/actions/runs/35742079847), `verify` ×4 plus `audit`, **all success**, read by run id. **That sha carries every `src/`, `styles/` and test change from both waves**, so the gates that matter are settled on it. Wave 17 alone was separately green at `2dbc7b39a` (run [`35737160544`](https://github.com/Luis85/renovation-planner/actions/runs/35737160544)). GitGuardian reported `skipping` on both, which is not a pass and not a failure |
+| HEAD | **`ff1950195`** — three commits above that sha, and **`git diff --name-only a901cb746..HEAD` touches only `docs/`**: the manual-pass re-derivation, the AD18 ledger entry and this file. Its own run is [`35745539698`](https://github.com/Luis85/renovation-planner/actions/runs/35745539698) — **started, not confirmed here. Confirm it by run id before trusting it**, the way session twelve's packet had to say about its own last commit. Tree clean, pushed |
 | `origin/main` | `ed5c50b76`, and it IS the merge base, so nothing rebases. The local `main` ref is stale — fetch before reading it |
 
 ## What this session was, in one line

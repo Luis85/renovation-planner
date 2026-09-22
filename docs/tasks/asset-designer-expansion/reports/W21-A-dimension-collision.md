@@ -1,7 +1,12 @@
 # Task report — W21-A (dimension collision)
 
-**Round 2 amends this report throughout.** Ten reviewer findings; three claims here were WRONG and
-one arm had not been measured. What changed is in "Round 2" at the foot; the sections above are
+**Rounds 2 and 3 amend this report throughout.** Round 2 answered ten review findings (three claims
+here were WRONG and one arm had not been measured); ROUND 3 answers a browser re-capture that
+confirmed the fix and refused the charter — two labels still had no reachable point — and closes it
+with a second rule about the UNION of covering labels. Round 3 is at the foot and is the authority
+where it and an earlier section disagree.
+
+Round 2: What changed is in "Round 2" at the foot; the sections above are
 corrected in place where round 1 was wrong, with the correction marked. Nothing that was true in
 round 1 was removed.
 
@@ -92,7 +97,7 @@ answer to a question the geometry has already settled.
 | Criterion/test ID | Result | Exact evidence | Remaining issue |
 |---|---|---|---|
 | AD18-R14: the `All dimensions` state gets collision avoidance | met | `dimensionCollision.test.ts` "leaves no two labels on one row across the whole All dimensions set" — the same set, at the same camera, asserted to share a row BEFORE and not after | the anchors' rule, not the rendered boxes — see below |
-| AD18-R14: no drawn label is impossible to click | met in the measured case, NOT as a category — **round 2 widened this row** | the exact-coincidence pair `clearance-width` / `overall-width` is drawn at two different `top` values; the mounted case asserts every drawn label has a distinct `left\|top` | The assertion is DISTINCT POSITIONS, which is weaker than reachability in three ways round 1 did not name: two labels 1 px apart are distinct and the earlier is still covered; two LATER labels can straddle an earlier one and cover it between them while sharing a row with neither; and a pair that both exhaust `MAX_STEPS` land on ONE POINT, which is the original defect and is now pinned by a test rather than mis-described. All three are in `spreadLabels`' "What this does NOT claim" |
+| AD18-R14: no drawn label is impossible to click | **MET as measured, round 3** — a browser re-capture of round 2 found two labels with no reachable point, and round 3 closes them | "leaves every label of the vanity’s All dimensions frame a strip, at the camera it opens with" reconstructs the capture's own 26-label frame, asserts the two dead labels BY NAME without the rule and none with it, measured on a grid sample rather than by the rule's own arithmetic | Two escapes remain, both named in `spreadLabels`: a pair just over `SAME_ROW_PX` apart is pressable but may not be legible, and a jam that exhausts `MAX_STEPS` repeats a slot — bounded at five distinct slots for six labels, asserted rather than hoped for. Still a rule about ANCHORS and a MODELLED box, so a vault at a larger UI font is outside it |
 | AD18-R14: the resting state stays at ZERO overlapping pairs | met | "returns an anchor untouched when nothing else wants its row" (pure) and "moves neither label of the unselected resting state" (mounted, asserting the overall pair at exactly `48px`/`18px` and `-2px`/`48px`) | **Round 2 corrected the evidence.** Round 1 cited a case called "moves nothing in the resting state, with or without a selection" whose SELECTION arm asserted `toContainEqual` on exactly the two labels that do not move, while the module's own table recorded two that do. The floor AD18-R14 sets is the state it MEASURED — nothing selected, two labels — and that is untouched; the selected state is a different one and moves two of its eight |
 | A selected part's labels: what moves, named | met, ROUND 2 | "moves two of the eight labels a selected part draws, and names them" — the full list by exact array in DOM order | Three of those eight anchors shared y = 48 before this card, so the movement is a fix rather than a regression. The claim was the defect, not the behaviour |
 | AD18-R14: the resting state stays at TWO labels | met | the mounted resting case asserts the full list by exact array; `designerDimensions.test.ts`'s own "mounts in the canvas overlay…" still asserts the same two at the same pixels, unchanged and green | — |
@@ -405,6 +410,164 @@ rather than the single opening camera.
 Unchanged from round 1 and still NOT run: `npm run check`, `check:fast`, `test:coverage` and
 `analyze`; any browser at any width; any manual vault case; any axe scan of the staggered state;
 and every test directory outside `tests/presentation/designer/`.
+
+## Round 3 — closing the union case the browser found
+
+**The re-capture confirmed the fix and refused the charter**, and it was right on both counts: the
+exact-coincidence defect AD18-R14 was written about is gone, and two labels still had no reachable
+point anywhere in their box. Round 2's own "What this does NOT claim" had named the mechanism —
+*"two LATER labels that straddle an earlier one, covering it between them while sharing a row with
+neither"* — so this round closes a gap that was disclosed rather than one that was hidden. Being
+disclosed is not being fixed.
+
+### What was added: a SECOND rule, about the union
+
+A candidate slot is now refused when it would EITHER sit on an already-placed label's row — the
+pairwise rule, unchanged — OR leave one with no clear strip at all once every label drawn over it is
+counted **together**. The second is not a widening of the first and cannot be expressed as one: the
+capture's victim had three coverers at 8.1, 10.5 and 19.1 px, every one correctly outside
+`SAME_ROW_PX`, which together blanketed its whole 30 px height.
+
+Three things had to arrive with it:
+
+- **A label's WIDTH, from the digits it draws.** `spreadLabels` now takes `{ at, value }` per label
+  instead of a bare point, because "does this cover that" is a question about boxes and the box's
+  width is the number's glyph count. The model — 14 px of chrome plus 6.4 px per tabular digit — is
+  the one round 2 derived, and **the re-capture validated it to within 0.2 px at three widths**
+  (20.5 / 26.9 / 33.4 measured against 20.4 / 26.8 / 33.2 predicted). It still models one font at
+  one size and says so.
+- **`SPAN_SLACK_PX = 4`** — how much of a victim's width a coverer may leave showing and still count
+  as covering it. A four-pixel strip down a label's side is not a hit target.
+- **`MIN_BAND_PX = 10`** — how much of a label's height must stay clear of everything drawn over it.
+  Ten pixels is a third of the box across its full width. **Measured, not chosen**: twelve keeps the
+  overlap count at the fit camera but starts moving four of a selected part's eight labels instead
+  of two, and that is the floor. Ten is the largest value that holds it.
+
+### And one thing CHANGED at the cap, which the ruling asked me to flag
+
+**The cap's step count is unchanged at four. What happens when it runs out is not.** It used to take
+the last slot it had stepped to, so two labels that both ran out landed on one point — F1's
+residual. It now scores the five candidate slots by the widest band each leaves the worst-affected
+label and takes the best. That is free: the same five positions, one of which it was going to pick
+anyway.
+
+**On the browser-measured frame this is the whole of the difference between one dead label and
+none** — reverting just this, with the union rule left in, leaves `clearance-offset-top` unreachable
+(red 10 below). The residual is not gone and is now precisely statable: five slots cannot hold six
+labels, so one must repeat another. What changed is WHICH it repeats — the emptiest, not the last.
+
+### What was measured, and the arms refused
+
+Over the **real vanity preset** (26 labels), at the **real `fitViewport` camera**, on a 1280 x 800
+stage, with "unreachable" sampled on a grid across each box exactly as the capture's
+`elementFromPoint` sweep does — **and counted only for labels lying fully inside the canvas**, which
+is the integrator's own instrument lesson taken rather than re-learned:
+
+| rule | unreachable @fit | unreachable, 7 cameras | moved | pairs @fit | pairs, 7 cameras |
+|---|---|---|---|---|---|
+| none (the defect) | 2 | 7 | 0 | 30 | 156 |
+| pairwise only (round 2) | 1 | 6 | 59 | 12 | 102 |
+| **pairwise + union (shipped)** | **0** | **0** | **56** | **14** | **85** |
+| every intersecting pair | 1 | 5 | 89 | 18 | 107 |
+| union alone, no pairwise | 0 | 0 | 27 | 22 | 127 |
+
+**Two arms refused, for opposite reasons.**
+
+- **Separate every intersecting pair.** Moves half again as many labels (89) and STILL leaves five
+  unreachable, because the extra movement exhausts `MAX_STEPS` far more often — which is the same
+  arm round 2 refused, now refused again with a better instrument and for a sharper reason: it does
+  not even buy the property it costs so much for.
+- **Drop the pairwise rule, keep only the union one.** Genuinely tempting and the closest call of
+  the three rounds: 0 unreachable everywhere at **less than half the movement** (27 against 56).
+  It is refused because it gives back most of the overlap reduction this card exists for —
+  22 overlapping pairs at the fit camera against 14, where the defect started at 30. The losing
+  side is real: a quieter rule that moves 29 fewer labels is on the table if a browser pass decides
+  the movement reads worse than the overlap does.
+
+A finer sweep of the two thresholds is in the module: every combination of span slack {0, 4, 8, 12}
+and band {6, 8, 10, 12, 14} reached **zero unreachable at every camera**, so the two numbers were
+chosen on movement and on the selected-state floor rather than on reachability, which none of them
+threatened.
+
+### The floors, held
+
+| state | before this round | after |
+|---|---|---|
+| unselected resting, `editableShape` | 2 labels, 0 moved, 0 overlapping pairs | **unchanged** — asserted by exact array |
+| unselected resting, vanity at fit | 2 labels, 0 moved, 0 unreachable, 0 pairs | **unchanged** |
+| selected part, `editableShape` | 8 labels, **2** moved | **2** — the same exact array, byte for byte |
+| selected part, vanity at fit | 8 labels, 4 moved, 0 unreachable | **4**, 0 unreachable — unchanged |
+
+The selected-state exact-array case is what pins the `MIN_BAND_PX = 10` choice: at 12 it goes red
+with four labels moving (red 11b).
+
+### My prediction for the re-capture
+
+Stated as numbers, at 1280, vanity, `All dimensions`, the fit camera:
+
+- **Labels completely unclickable: 0.** This is the claim. My model says 0 at the fit camera and at
+  every other camera I measured; I would treat any non-zero as a failure of this round.
+- **Overlapping pairs: 16.** My model reads 12 for the merged rule where the capture read 14, so it
+  under-reads by about 2; it reads 14 for this one. **I will be wrong if the count is outside
+  14–18.** The rise of about 2 is the price of the union rule and is the only regression I expect.
+- **Resting state: 2 labels, 0 overlapping pairs, 0 unclickable.** Unchanged.
+- **Zoomed in one step and two:** unreachable stays 0, overlapping pairs fall. My model reads 13 and
+  2 at 1.5x and 2x, against the merged rule's 16 and 2 — so this round should read BETTER than the
+  merged one at every camera except the fit one.
+
+### Reds watched in round 3, verbatim
+
+9. **The union half removed from `hides`, pairwise only** — the merged rule:
+   `× keeps a strip of a narrow label clear when three wider ones would blanket it together`
+   `AssertionError: expected 0 to be greater than 0`
+   `× moves the second of two coverers that are each harmless alone`
+   `AssertionError: expected { x: 600, y: 132 } to not deeply equal { x: 600, y: 132 }`
+   `Tests 2 failed | 14 passed (16)`
+10. **The scored fallback removed, taking the last slot stepped to** — union rule left in:
+    `× leaves every label of the vanity’s All dimensions frame a strip, at the camera it opens with`
+    `AssertionError: expected [ 'clearance-offset-top' ] to deeply equal []`
+    `Tests 1 failed | 16 passed (17)` — one of the capture's own two dead labels, by name.
+    **This red is why that case exists**: the first attempt at it passed all seventeen smaller cases
+    with the fallback reverted, and only the real 26-label frame could tell the two apart.
+11. **`MIN_BAND_PX` raised to 12**, the value the selected-state floor refuses:
+    `× moves two of the eight labels a selected part draws, and names them`
+    `AssertionError: expected [ …(8) ] to deeply equal [ …(8) ]`
+    `Tests 1 failed | 17 passed (18)`
+12. **The width model made a single nominal width** (`GLYPH_PX * 3` for every label):
+    `× covers a one-glyph reading with a four-glyph one that a single nominal width would miss`
+    `AssertionError: expected { x: 612, y: 129 } to not deeply equal { x: 612, y: 129 }`
+    `Tests 1 failed | 17 passed (18)` — this case was ADDED in this round because the first attempt
+    at the mutation passed everything, so the model was a claim with nothing under it.
+13. **`freeBand` dropping the gap after the last cut** (`return widest`):
+    eleven cases red, including
+    `× stops pushing a label after four steps, and then repeats a slot rather than inventing one`
+    `AssertionError: expected [ 18, 18, 18, 18, 18 ] to deeply equal [ 18, 48, 78, 108, 138 ]`
+    and `× leaves every label of the vanity’s All dimensions frame a strip…`
+    `AssertionError: expected [ 'detail-detail-1-offset-top', …(1) ] to deeply equal []`
+    `Tests 11 failed | 6 passed (17)`
+14. **`SPAN_SLACK_PX` widened to a whole label height (30)**:
+    `× leaves a pair whose boxes overlap but whose readings cannot contain each other`
+    `AssertionError: expected [ { x: 48, y: 18 }, { x: 68, y: 48 } ] to deeply equal [ { x: 48, y: 18 }, { x: 68, y: 18 } ]`
+    plus three more — `Tests 4 failed | 14 passed (18)`
+
+### Round 3 checks
+
+| Command | Result |
+|---|---|
+| `npx vitest run tests/presentation/designer/dimensions/` | `Test Files 3 passed (3) / Tests 77 passed (77)` |
+| `npx vitest run tests/presentation/designer/` | `Test Files 77 passed (77) / Tests 1078 passed (1078)` |
+| coverage for the two changed files, scratch reports directory | **zero** uncovered statements, functions and branch arms — held across eight branch points in the new code |
+| `npx vue-tsc -noEmit`, `npx eslint …`, `npx oxlint …`, `node scripts/styles-assemble.mjs` | exit 0, no output |
+| `wc -l` | `dimensionFigures.ts` 568, `DesignerDimensions.vue` 318, `dimensionCollision.test.ts` 423, `styles/designer-dimensions.css` 112 (unchanged, still leased and still untouched) |
+
+Still NOT run, unchanged from rounds 1 and 2: `npm run check`, `check:fast`, `test:coverage`,
+`analyze`; any browser at any width; any manual vault case; any axe scan; and every test directory
+outside `tests/presentation/designer/`.
+
+**`dimensionFigures.ts` is 568 lines**, which is worth flagging rather than burying: it now holds
+two rules in two coordinate spaces and the pure module is the largest file in this lease. A
+`labelSpread.ts` beside it is the seam if a third arrives; a new source file is still outside this
+card's lease.
 
 ## Reviewer and integrator acceptance
 

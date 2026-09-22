@@ -130,12 +130,16 @@ const figures = computed((): readonly PlacedFigure[] => {
 	if (drawn === null) return [];
 	const editing = draft.value?.name;
 	const drawing = dimensionFigures(drawn, selection.value, allDimensions.value, partView.hidden.value);
-	// AD18-R14: several figures can want one row of pixels at a zoomed-out camera, and the one
-	// drawn last covers the ones beneath it outright — a control that cannot be pressed. The rule
-	// is `spreadLabels`', in the pure module, because a label box has a size only in stage pixels
-	// and this is where world millimetres have just become some. Nothing else about the figure
-	// changes, so the two lists stay index-for-index.
-	const points = spreadLabels(drawing.map((figure) => worldToScreen(figure.at, editor.viewport, STAGE_PIXELS)), editor.stageSize);
+	// AD18-R14: several figures can want one row of pixels at a zoomed-out camera, and the ones
+	// drawn later cover the ones beneath them — a control that cannot be pressed. The rule is
+	// `spreadLabels`', in the pure module, because a label box has a size only in stage pixels and
+	// this is where world millimetres have just become some. It is handed the VALUE as well as the
+	// point because the box's width is the digits the button draws, and only the number knows how
+	// many there are. Nothing else about the figure changes, so the two lists stay index-for-index.
+	const points = spreadLabels(
+		drawing.map((figure) => ({ at: worldToScreen(figure.at, editor.viewport, STAGE_PIXELS), value: figure.value })),
+		editor.stageSize,
+	);
 	return drawing.map((figure, index) => {
 		// The world point is DROPPED here rather than carried: `spreadLabels` has already answered
 		// where this label goes, and a `PlacedFigure` holding both would offer two answers.

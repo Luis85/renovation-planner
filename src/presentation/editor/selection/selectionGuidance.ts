@@ -8,8 +8,12 @@ import { structureRecords } from '../structure/structureRecords';
  * an empty or multiple selection, and nothing for an id neither the zones nor the structure
  * records name.
  *
- * The ids are a PARAMETER rather than read from the selection store, because a caller may be a
- * watcher holding the incoming value while the store has already moved on.
+ * The ids are a PARAMETER rather than read from the selection store: this answers about the ids it
+ * is handed and reads no selection state of its own. It was first justified here by a watcher
+ * caller holding a value the store had already moved past — measured and REFUTED: Vue coalesces
+ * changes made in one flush into a single firing and reads the watcher's new value at job time, so
+ * a watcher's `ids` and the store's own value are the same at the call. Passing either is
+ * behaviour-identical, so no test can discriminate them, and nothing re-runs this paragraph.
  *
  * The `. ` between them is here rather than in the locale string because the separator belongs
  * to the composition rather than to either key. Without it the shell's `role="status"` region

@@ -6,14 +6,11 @@ import { FIXTURE_ZONES } from '../../../helpers/planFixtures';
 import { WALL_LOOP } from '../../../helpers/structure';
 
 /**
- * The one composition behind the canvas menu's target tooltip and the shell's `role="status"`
- * region, which held a copy of it each.
- *
  * The expected sentences are WRITTEN OUT rather than rebuilt from the two keys they are made of.
  * An assertion that joins `editor.input.current-target` and `editor.input.overlap-cycle-guidance`
- * the way the function does cannot fail on how the function joins them — which is how a run-on
- * survived five such assertions. These are the English renderings; nothing here grades the
- * German ones.
+ * the way the function does cannot fail on how the function joins them — which is how the run-on
+ * this file exists for survived the assertions already written about it. These are the English
+ * renderings; nothing here grades the German ones.
  */
 describe('selectionGuidance', () => {
 	it('names the target as its own sentence before the Alt-click route, for a zone and for a wall', () => {

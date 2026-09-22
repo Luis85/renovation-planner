@@ -662,6 +662,8 @@ describe('the headless harness capture script', () => {
 			'project-detail-recovery-narrow',
 			'project-detail-unreadable',
 			'project-detail-unreadable-narrow',
+			'project-schedule-unreadable',
+			'project-schedule-unreadable-narrow',
 		]);
 
 		// The whole FILE, not the table — see the header. A shot entry written outside `SHOTS`
@@ -957,6 +959,21 @@ describe('the headless harness capture script', () => {
 		expect(query('project-detail-recovery').get('theme')).toBeNull();
 		expect(query('project-detail-recovery-light').get('theme')).toBe('light');
 		expect(shot('project-detail-recovery-narrow').width).toBe(460);
+	});
+
+	/**
+	 * L-40's two, and `&section=schedule` is what makes them different from the detail state's
+	 * pair: without it `page.ts` opens `details`, which draws its own diagnostics button under the
+	 * same `&plans-unreadable=`. So the selector is pinned with it — scoped to `.rp-project-work`,
+	 * the schedule section's own class, since `.rp-project-detail` is on both surfaces.
+	 */
+	it('takes the schedule section through the parameter that opens it, waiting on its own button', () => {
+		const two = ['project-schedule-unreadable', 'project-schedule-unreadable-narrow'];
+		const reaching = two.filter((name) => query(name).get('section') === 'schedule' && query(name).get('plans-unreadable') === '2');
+
+		expect(reaching).toEqual(two);
+		for (const name of two) expect(shot(name).selector).toBe('.rp-project-work [data-rp-action="open-diagnostics"]');
+		expect(shot('project-schedule-unreadable-narrow').width).toBe(460);
 	});
 
 	/**

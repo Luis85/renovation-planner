@@ -57,6 +57,8 @@ import { defaultRenovationProjectDeps, makeView, type SeedRepositories } from '.
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 import { expectOk } from '../helpers/domain';
 import { ok } from '../../src/core/result/Result';
+import { projectDestinationState, type ProjectSection } from '../../src/application/navigation/ProjectDestination';
+import { harnessProjectWork } from './scheduleKnob';
 
 /**
  * The plans one seeded project holds, and the COUNT is the part that was measured rather than
@@ -312,13 +314,10 @@ const seedHome = (count: number) => (
  * one that could not be photographed at all before it existed: the START variant is the detail
  * state a just-created project lands on, and every capture of this surface held 26 plans.
  */
-const seedProject = (projectId: string, planCount: number) => (
-	{ projects, plans, assets, overrides }: SeedRepositories,
-): void => {
-	const id = projectId as ProjectId;
-	const project = expectOk(
+const harnessProject = (projectId: string): Project =>
+	expectOk(
 		Project.create({
-			id,
+			id: projectId as ProjectId,
 			name: 'Maple Street, ground floor refit',
 			status: 'EXECUTION',
 			// GBP against a EUR catalogue, which is this increment's CENTRAL case: the library
@@ -329,6 +328,18 @@ const seedProject = (projectId: string, planCount: number) => (
 		}),
 	);
 
+// Built once and handed to both the in-memory seed and `harnessProjectWork`, so the two worlds
+// hold the same entities rather than two spellings of them.
+const harnessPlans = (projectId: ProjectId, planCount: number): Plan[] =>
+	HARNESS_PLAN_NAMES.slice(0, planCount).map((name, index) =>
+		expectOk(Plan.create({ id: `plan-${index + 1}` as PlanId, projectId, name })),
+	);
+
+const seedProject = (project: Project, planList: readonly Plan[]) => (
+	{ projects, plans, assets, overrides }: SeedRepositories,
+): void => {
+	const id = project.id;
+
 	// Checked rather than discarded, and the reason is what this fixture is for: a failed save
 	// leaves an empty world, both captures then photograph the LIST, and they wait on
 	// `.renovation-planner-view`, which the list satisfies — so `npm run harness-shot` would
@@ -336,11 +347,7 @@ const seedProject = (projectId: string, planCount: number) => (
 	// mechanism that is made loud, and it is not this file's.
 	expectSeeded(projects.save(project, 'absent'));
 
-	HARNESS_PLAN_NAMES.slice(0, planCount).forEach((name, index) => {
-		const plan = expectOk(Plan.create({ id: `plan-${index + 1}` as PlanId, projectId: id, name }));
-
-		expectSeeded(plans.save(plan, 'absent'));
-	});
+	planList.forEach((plan) => expectSeeded(plans.save(plan, 'absent')));
 
 	// The catalogue, plus this project's own price for one of it — so the capture shows a row
 	// with an override beside two without, which is the comparison the section exists for.
@@ -375,6 +382,26 @@ const seedProject = (projectId: string, planCount: number) => (
 };
 
 /**
+ * Both bundles' `navigate`: a `setState` round trip through the view, forwarding a section only
+ * when the bundle it serves can draw it and dropping every other to `details`.
+ *
+ * `drawable` is per bundle because the LIST bundle composes no `work`, so it forwards no
+ * `schedule`. `quotes` is in neither: nothing here composes `RenovationProjectDeps.quotes`.
+ * `scheduleKnob.test.ts` clicks the detail state's Schedule button and asserts the schedule
+ * section draws.
+ *
+ * `''` is the LIST, which is the sentinel `RenovationProjectView.getState` writes and
+ * `projectIdFrom` parses back — not a value this page invents. `projectDestinationState` is what
+ * `navigateToProject` spreads into the leaf state, so an `origin` travels here as it does there.
+ */
+const harnessNavigate = (view: () => RenovationProjectView, drawable: readonly ProjectSection[]): RenovationProjectDeps['navigate'] =>
+	(id, destination) => {
+		const section = typeof destination === 'string' ? destination : destination?.section;
+		const state = section !== undefined && drawable.includes(section) ? projectDestinationState(destination) : {};
+		void view().setState({ projectId: id ?? '', ...state }, { history: true });
+	};
+
+/**
  * The seeded default, plus the one member this page can honestly answer that the shared
  * default cannot: `navigate`.
  *
@@ -389,11 +416,15 @@ const seedProject = (projectId: string, planCount: number) => (
  * deps as its argument. Called only from a click, long after the constructor has returned.
  */
 const harnessDetailDeps = (projectId: string, planCount: number, recovery: boolean, unreadablePlans: number, view: () => RenovationProjectView): RenovationProjectDeps => {
+	const project = harnessProject(projectId);
+	const planList = harnessPlans(project.id, planCount);
 	// ONE seeded world, named — the spreads below all read this bundle rather than calling the
 	// factory again, which would seed a second set of repositories the view never reads.
-	const base = defaultRenovationProjectDeps(seedProject(projectId, planCount));
+	const base = defaultRenovationProjectDeps(seedProject(project, planList));
 	return {
 	...base,
+	// `?section=schedule`'s surface; `scheduleKnob.ts` says what is real in it and what is not.
+	work: harnessProjectWork(project, planList, unreadablePlans),
 	/**
 	 * `?plans-unreadable=<n>`: the detail state's `some-plans-unreadable` notice and the
 	 * **Show diagnostics report** button beside it, which no capture could reach before.
@@ -435,11 +466,7 @@ const harnessDetailDeps = (projectId: string, planCount: number, recovery: boole
 	 * detail state and nothing about it moves.
 	 */
 	...(recovery ? { continueContext: () => Promise.resolve({ projectId, planId: 'plan-removed' }) } : {}),
-	// `''` is the LIST, which is the sentinel `RenovationProjectView.getState` writes and
-	// `projectIdFrom` parses back — not a value this page invents.
-	navigate: (id, section) => {
-		void view().setState({ projectId: id ?? '', ...(section === 'prices' ? { section } : {}) }, { history: true });
-	},
+	navigate: harnessNavigate(view, ['prices', 'schedule']),
 	};
 };
 
@@ -476,9 +503,7 @@ const harnessHomeDeps = (
 		expectSeeded(repositories.plans.save(plan, 'absent'));
 	}),
 	initialQuery,
-	navigate: (id, section) => {
-		void view().setState({ projectId: id ?? '', ...(section === 'prices' ? { section } : {}) }, { history: true });
-	},
+	navigate: harnessNavigate(view, ['prices']),
 	continueContext: () =>
 		Promise.resolve(count < 1 ? null : { projectId: 'home-1', planId: CONTINUE_PLAN_ID }),
 });
@@ -507,7 +532,8 @@ export interface HarnessMountOptions {
 	 * which is what every capture before design slice 22 took; `0` is the START variant.
 	 */
 	readonly plans?: number;
-	readonly section?: 'details' | 'prices';
+	/** `?section=`: the section the detail state opens on. Not `quotes`: nothing here composes its services. */
+	readonly section?: 'details' | 'prices' | 'schedule';
 	/** `?recovery`: the stored last target names a plan this project does not hold — P03. */
 	readonly recovery?: boolean;
 	/** `?plans-unreadable=<n>`: how many plan notes the detail read reports as refused. */

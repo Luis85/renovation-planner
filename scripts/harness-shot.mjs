@@ -112,6 +112,10 @@ const UNREADABLE_ROW_BUTTON = '[data-rp-warning="unreadable-zones"] button[data-
 // reason the two above are: the shots that use it would otherwise be satisfied by the resting
 // pane.
 const PROJECT_DIAGNOSTICS_BUTTON = '.rp-project-detail [data-rp-action="open-diagnostics"]';
+// The schedule section's (L-40). Its own class rather than the one above, which the schedule's
+// section also carries — so a `&section=schedule` that stopped reaching it would satisfy that one
+// with the detail state's button.
+const PROJECT_SCHEDULE_DIAGNOSTICS_BUTTON = '.rp-project-work [data-rp-action="open-diagnostics"]';
 
 /**
  * The asset the four selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
@@ -474,6 +478,9 @@ const SHOTS = [
 	// and 460 is the sidebar leaf's real width where that pair either wraps or does not.
 	{ name: 'project-detail-unreadable', query: '?project=project-1&plans=3&plans-unreadable=2&theme=light', selector: PROJECT_DIAGNOSTICS_BUTTON },
 	{ name: 'project-detail-unreadable-narrow', query: '?project=project-1&plans=3&plans-unreadable=2&theme=light', selector: PROJECT_DIAGNOSTICS_BUTTON, width: 460 },
+	// The same door on the schedule section (L-40), at the same two widths for the same reason.
+	{ name: 'project-schedule-unreadable', query: '?project=project-1&plans=3&plans-unreadable=2&section=schedule&theme=light', selector: PROJECT_SCHEDULE_DIAGNOSTICS_BUTTON },
+	{ name: 'project-schedule-unreadable-narrow', query: '?project=project-1&plans=3&plans-unreadable=2&section=schedule&theme=light', selector: PROJECT_SCHEDULE_DIAGNOSTICS_BUTTON, width: 460 },
 	// The Plan Editor in both schemes: it is the first surface with real content, and the
 	// only place the layered Konva scene can be looked at outside a vault. No phone shot —
 	// SDD §61 scopes the MVP to desktop, and a canvas editor is the least mobile of the

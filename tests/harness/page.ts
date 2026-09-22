@@ -239,15 +239,18 @@ if (wantsIndex) {
 	 */
 	const askedPlans = Math.max(0, Number.parseInt(params.get('plans') ?? '', 10));
 	/**
-	 * `?plans-unreadable=<n>`: how many plan notes the detail read reports as refused, which is
-	 * the only way the `some-plans-unreadable` notice and the **Show diagnostics report** button
-	 * beside it can be drawn outside a vault. Clamped like the two above, for their reason.
+	 * `?plans-unreadable=<n>`: how many plan notes the project's reads report as refused, which
+	 * draws the `some-plans-unreadable` notice and the **Show diagnostics report** button beside
+	 * it outside a vault. Clamped like the two above, for their reason.
 	 *
-	 * It arms the DETAIL state alone. The schedule section draws the same sentence and this knob
-	 * does not reach it: that surface needs `RenovationProjectDeps.work`, which this page composes
-	 * for no capture, so `?section=schedule` is not a value `mountHarness` accepts.
+	 * It reaches both surfaces that draw that sentence, by two different mechanisms: the detail
+	 * state through `mount.ts`'s wrap of `listPlansByProject`, and `&section=schedule` through
+	 * plan notes `scheduleKnob.ts` damages, so the schedule's count is a refused read.
+	 * `scheduleKnob.test.ts` drives the second through this file.
 	 */
 	const askedUnreadablePlans = Math.max(0, Number.parseInt(params.get('plans-unreadable') ?? '', 10));
+	// `quotes` falls to `details` with every other value: nothing here composes its services.
+	const askedSection = params.get('section');
 	view = wantsPlanEditor
 		? mountPlanEditorHarness(document.body, {
 				select: selectZoneId ?? undefined,
@@ -294,7 +297,7 @@ if (wantsIndex) {
 						unreadablePlans: Number.isFinite(askedUnreadablePlans) ? askedUnreadablePlans : undefined,
 						projects: Number.isFinite(asked) ? asked : undefined,
 						initialQuery: params.get('q') ?? undefined,
-						section: params.get('section') === 'prices' ? 'prices' : 'details',
+						section: askedSection === 'prices' || askedSection === 'schedule' ? askedSection : 'details',
 						// `?recovery` (P03): present at all, like `?phone` and `?add` — the screen
 						// either is the recovery one or is not, so a value would be a second way to
 						// say the same thing.

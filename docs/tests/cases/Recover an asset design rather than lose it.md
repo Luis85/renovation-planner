@@ -248,6 +248,28 @@ they do not claim.
 | 31 | `obsidian` | Open asset A's `.rpgeo` in the text editor and read its `assetId` and `revision` | `assetId` is the same id the asset has had since the preconditions — it never changed across a failed write, a stale read, an undo, a close and reopen, a settings save or a plugin reload — and it matches the filename | U05's "stable IDs" clause, and the whole of it. An id that moved would break the sidecar's derived path (ADR-0014) and orphan the design silently, since an absent sidecar reads as a shapeless asset rather than as an error |
 | 32 | `obsidian` | Compare `revision` against the number of gestures that actually landed during this walk — count them from the steps, not from memory: the successful drags in steps 6, 12's aftermath, 14 (two, minus one undo), 16 and 17 | The revision advanced once per landed write and once per landed undo, and not at all for any of the refused ones. In particular it did **not** move for steps 3, 5, 11 or 19's sidecar half | U05's "no repeated mutations" clause, measured on disk rather than inferred from the screen. There is no retry path in this designer's write chain at all, and the guards are the serial chain, the conditional writes, the `no-write` short-circuit and the ledger generation — but `assetGeometrySidecar.test.ts` "refuses a stale expectation and leaves the bytes on disk untouched" is the only one of those anything has watched against real bytes, and it watches a fake vault. This is the first count taken on a real one |
 
+### Steps — the stale notice's way out
+
+**Added 2026-09-22 (wave 20), and this is the half of the case that CHANGED rather than grew.**
+Ruling **AD18-R13** gave the stale notice a `Try again` and refused both a write block and the plan
+editor's hidden pause disclosure. Steps 10 and 12 above were rewritten for it; these five are new.
+
+**Nothing here has been seen in Obsidian, and it cannot be**: `tests/harness/page.ts` passes its
+`stale` knob to the PLAN EDITOR branch only, so no harness fixture and no capture can put the
+designer into this state. A person in a vault is the only instrument that has ever drawn it.
+
+These run from the state step 7 leaves you in — the stale notice showing over a design that is
+still drawn.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 33 | `obsidian` | Look just below the stale notice | A **Try again** button is there. It is a SIBLING of the notice, not inside it, and nothing anywhere in the designer is dimmed | AD18-R13's whole ruling in one look: a door OUT, and no paused controls beside it. The sibling placement is load-bearing — four test files read the notice's text as EQUAL to its sentence, so a button inside it would make that class mean two things |
+| 34 | `judgement` | Before pressing anything, say whether the button reads as an ACTION belonging to the notice, or as a bar of chrome across the leaf | Your judgement, recorded either way | **A known defect with a fix that no gate can verify.** Measured in a browser at a 1024 px leaf, the button first shipped **1024 px wide** — the full leaf — sitting below the notice's tinted strip on the plain background, reading as a second toolbar. Ruling AD18-R15 constrained it. This step is where a person says whether the constraint worked |
+| 35 | `obsidian` | With the fault still in place, press **Try again** | The notice **stays**, the canvas **stays** — the design is not blanked and no failure panel appears — and the sentence changes to *"Re-reading this asset failed again; what you see may still be out of date."* | The defect the card blocked itself on rather than shipping. The only read door on the runtime blanks on failure; a retry wired to it would have replaced a design the vault still has with the failure panel, which is the one outcome the ruling forbids. **If the canvas goes blank here, that is exactly that defect** |
+| 36 | `obsidian` | Press **Try again** several times in a row, quickly | Each press is answered; nothing stacks up, nothing flickers, and the button never becomes permanently dead | The in-flight guard. It withholds the second read rather than disabling the control, so the button keeps its focus and its accessible name while a read is running |
+| 37 | `obsidian` | Now repair the fault in the text editor, return to the designer and press **Try again** | The notice, the button and the header's **Saved · refresh needed** all disappear **together**, and the canvas shows the repaired file | The three widgets reading one fact. They share the same value, so a build where the notice clears and the header still says `Saved · refresh needed` has two answers to one vault state — straight against C08 |
+| 38 | `obsidian` | Break the file again, let the notice appear, and read its sentence **without pressing anything** | It reads the FIRST sentence — *"could not be re-read"* — **not** the *"failed again"* one | A defect found in review. The counter that swaps the sentence was reset only by the button's own handler, so a retry you made in an earlier episode kept counting: a later, unrelated failure announced itself as a failure you had already retried. **If you see "again" on a fresh failure you never retried, that defect is back** |
+
 ## Deliberately NOT checked
 
 - **Two leaves on one asset, and the expected-version conflict between them.**

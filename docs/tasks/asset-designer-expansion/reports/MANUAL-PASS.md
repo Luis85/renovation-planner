@@ -19,8 +19,10 @@ overlooked.**
 
 ## What the pass consists of
 
-**90 human steps across six cases**, measured rather than remembered — re-derived on 2026-09-22
-against the finished wave-17/18 tree with the command below, run verbatim as it is printed:
+**109 human steps across six cases**, measured rather than remembered — re-derived on 2026-09-22
+against the finished wave-19/20/21 tree with the command below, run verbatim as it is printed.
+**Do not trust this number; run the command.** It has been 84, then 90, then this, and each time
+the session that moved it was the session that had just shipped the thing it was counting:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -33,33 +35,43 @@ done
 
 | Case | Human steps | Of total | Discharges |
 |---|---|---|---|
-| [[Design an Asset]] | **25** | 71 | U01 (with the next row) |
+| [[Design an Asset]] | **38** | 84 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
 | [[Compose an asset from parts]] | 2 | 38 | U02, U03 (its Repeat section) |
 | [[Calibrate a sheet and reserve space]] | 9 | 36 | U04 — **7 already confirmed**, see below |
-| [[Recover an asset design rather than lose it]] | 27 | 36 | U05 |
+| [[Recover an asset design rather than lose it]] | **33** | 42 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
 
-**What waves 17 and 18 ADDED to this pass, and why the total moved from 84 to 90.** A session that
-ships a feature grows the walk, and saying so is part of shipping it.
+**What session fourteen ADDED, and why the total moved from 90 to 109.** A session that ships a
+feature grows the walk, and saying so is part of shipping it. **Nineteen new steps**, in two
+sections, and the sections matter more than the number.
 
-- **Six new steps in [[Design an Asset]]**, in a new section of its own: four for the canvas rulers
-  and two for the vanity preset. **Neither has ever been seen in Obsidian.** The rulers were drawn
-  and measured in the browser harness, which applies layout but declares none of a themed vault's
-  colours; the vanity was measured for geometry and **never looked at as a picture at all**. So these
-  are first sightings rather than regression checks, which is what makes them worth a person's time.
-  One of the six is a `judgement` step and is the only instrument that can answer it: AD18-R10 was
-  settled on the canvas COLUMN's share, which the ruler does not move, and the ruler's 18 px per axis
-  of occlusion was **disclosed rather than binding** — 272 px of drawing in a 290 px canvas at a
-  580 px leaf. If that reads as too tight, hiding the rulers below the 35 rem breakpoint is the
-  recorded remedy and that step is its trigger.
-- **Five REWRITTEN steps in [[Recover an asset design rather than lose it]]** — 9, 10, 11, 12a and
-  12b — and the count did not move because none was added. This is the half worth reading before
-  walking: those steps recorded a defect that **has since been fixed**, so a walker following the old
-  text would report a pass as a failure. Step 9 said in as many words that *Saved · refresh needed*
-  *"cannot be produced by this surface at all"*; W18-C made it producible, and the step is now a
-  regression guard that fails if the bare word comes back. Step 10's *"the comment beside it gives a
-  false reason"* is discharged, with its expectation unchanged.
+- **Thirteen in [[Design an Asset]], for dimensions on canvas** — the approved 2026-09-15 spec's
+  **increment 2**, the last of that iteration's three and the headline of this session. **Nothing in
+  it has been seen in Obsidian.** It was drawn and measured in the browser harness, which applies
+  layout but is not a vault. **Two of the thirteen are regression guards rather than first
+  sightings**, and both cover defects a review caught before merge: step 63, that typing back the
+  number a field already shows writes nothing and pushes no undo entry (C03), and step 67, that
+  every dimension label disappears under a draw tool — without which a press on the footprint's top
+  or left edge, exactly where a user traces, is taken by a button and the gesture never starts.
+  **Step 70 is a `judgement` step over a known residual**: a browser pass measured 14 overlapping
+  pairs and **two of 26 labels with no clickable point at all**, and that step is where a person
+  says whether what is left matters.
+- **Six in [[Recover an asset design rather than lose it]], for the stale notice's `Try again`**
+  (**AD18-R13**). **This state cannot be reached by any instrument except a person in a vault** —
+  `tests/harness/page.ts` passes its `stale` knob to the PLAN EDITOR branch only, so no fixture and
+  no capture can draw it. Step 35 is the one to read first: it guards the defect the card blocked
+  itself on rather than shipping, where a retry wired to the blanking read would have replaced a
+  design the vault still holds with the failure panel. Step 34 is a `judgement` over **AD18-R15**,
+  because the button first rendered the full width of the leaf and a person is the only judge of
+  whether the fix reads as an action.
+
+**Three steps were REWRITTEN rather than added, and this is the half that will otherwise waste your
+time.** Steps 10 and 12 of [[Recover an asset design rather than lose it]] and its out-of-scope
+bullet all said the designer has no `Try again`. It has one now. **Step 10's old text would fail a
+passing build** — it read *"There are none"* — and step 12's expectation is UNCHANGED while only
+its reason was false: that notice still heals unprompted, and pressing the button to clear it would
+itself be a defect.
 
 **Two reductions apply and both are already recorded in the cases themselves.** U04's steps 3, 7, 9,
 12, 13, 14 and 34 were confirmed in a live vault on the `test-build` of `c69ec364d`, so only its

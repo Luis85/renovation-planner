@@ -173,6 +173,39 @@ designer. Step 57 needs a second asset with **no** dimensions set.
 | 57 | `obsidian` | On the asset with no dimensions, open **Start from preset**, find **Vanity** under Bathroom, and look at its thumbnail before applying | The card draws a vanity in wireframe — a cabinet outline, a basin and a tap hole — legible at thumbnail size and recognisably not the Washbasin card beside it | A preset whose geometry is correct and whose PICTURE is not. `presetThumbnail` derives the card from the built shape, so nothing was authored and nothing was reviewed by eye; W17-A's own report says the vanity was measured and never looked at |
 | 58 | `obsidian` | Apply it at its defaults, then Edit dimensions and read the width and depth | 800 × 450 mm, and the drawing on the canvas matches the thumbnail | The two recorded sizes disagreeing in the product. Board 01 draws 800 × 450 and this package's own end-to-end scenario says 1,000 × 500; AD18-R8 takes the board for the default and a range that spans the scenario, so typing 1000 × 500 must also be accepted |
 
+## Steps — dimensions on canvas
+
+**Added 2026-09-22 (wave 19). This is the approved 2026-09-15 spec's increment 2, the last of that
+iteration's three, and NOTHING here has been seen in Obsidian.** It was drawn and measured in the
+browser harness, which applies layout but is not a vault and declares none of a themed vault's
+colours. So these are first sightings rather than regression checks — except steps 63 and 67, which
+are guards over two defects a review caught before merge and which would be real bugs if they came
+back.
+
+**Two of these steps exist because no gate in this repository can see what they check.** jsdom
+computes no layout, so where a label lands, whether two collide, and whether a number is legible are
+answerable only by a person or a browser.
+
+Preconditions: an asset with a **calibrated** spec sheet, a traced footprint and **at least two
+detail parts**, open in its designer, the **Select** tool active. Step 70 needs a second asset whose
+footprint was traced **before** any scale was set.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 59 | `obsidian` | With nothing selected, look at the footprint | Two numbers sit along it — the overall width across the top and the overall depth down the left — each a **button**, not plain text | The overall pair being selection-independent. They are the only two the resting state draws, and a build that draws none here has lost the whole feature quietly |
+| 60 | `obsidian` | Select one detail part | Six more numbers appear around it: its **width** and **depth**, and its offsets from the **left**, **right**, **top** and **bottom** footprint edges. The overall pair is still there | The spec's *"the selected part's size and its offsets to the footprint edges"*. Not per-edge lengths — those are deliberately out of the iteration |
+| 61 | `obsidian` | Read the offsets on a part that overhangs the footprint, or on the **clearance** if it reaches outside | At least one offset reads a **negative** number | A gap is SIGNED. Unsigned, a part 200 inside and one 200 outside read identically, and typing the number back would have to guess which you meant |
+| 62 | `obsidian` | Click any number | It becomes a text field, **already focused**, with the number selected and a keyboard ready to type over it | The button-to-field swap the spec asks for. A field that opens unfocused makes every edit two gestures; the card shipped that defect once and its own test caught it |
+| 63 | `obsidian` | Type **exactly the number it already shows** and press Apply, then press **Undo** | Nothing on the canvas moves, and **Undo does not undo this** — it undoes whatever you did before it, or nothing | **C03: *"typing the current value … creates no command/history entry."*** This was a real defect found in review: the write landed, took a vault revision and cleared the redo stack. If Undo now steps over a no-op edit, that defect is back |
+| 64 | `obsidian` | Open a field on a part whose true size is not a round number, and press Apply without typing | Nothing changes | The same rule's third clause — *"do not quantize canonical values merely because the inspector displays rounded measurements."* The field shows a rounded number; accepting it must not WRITE that rounding back over the real one |
+| 65 | `obsidian` | Open a field, type a different number, press Apply | The part resizes to it and the canvas redraws | That the control is not decorative. Also that the refusal path stays quiet on a good value |
+| 66 | `obsidian` | Open a field and press **Escape** | The field closes, nothing is written, and focus returns to the button you opened | C03's other two clauses — Escape and cancel create no entry — and the focus return, without which a keyboard user is dropped to the top of the leaf |
+| 67 | `obsidian` | Click **Trace footprint** (or any draw tool), then look at the canvas | **Every dimension number disappears.** Click Select again and they come back | The sharpest defect this feature had, caught in review and invisible to every gate. The overall pair anchors on the footprint's top and left edges — exactly where you trace — so with the labels live, a press there was taken by a button and the gesture never started. If numbers are still drawn under a draw tool, tracing is broken |
+| 68 | `obsidian` | Back on Select, drag a part slowly | The numbers **change as you drag** and agree with where the part is at that moment — not where it started | *"Updated live from the drag preview."* A build reading the committed shape shows the old numbers during the whole drag, which is two answers to where the part is |
+| 69 | `obsidian` | Open the **View** menu and tick **All dimensions** | Numbers appear for every measured part at once, not only the selected one. Untick it and they go back to the selection's | The view toggle the spec asks for, and that it is a VIEW rather than a selection change — your selection must survive the tick |
+| 70 | `judgement` | With **All dimensions** still on, try to read and to CLICK every number on screen. Say whether any is hidden under another, or unreadable | Your judgement, recorded either way — and name any number you could not click | **The one thing no instrument here can settle, and a known residual.** A browser pass measured 14 overlapping pairs at this state and **two of 26 labels with no clickable point at all**, where a short reading sits under longer neighbours. Ruling AD18-R14 required this fixed and a further round narrowed it; this step is where a person says whether what is left matters. **Zooming in separates them**, so try that before judging it fatal |
+| 71 | `obsidian` | Open the asset whose footprint was traced before any scale was set | **No numbers are drawn at all**, not even the overall pair, and no field can be opened | *"No numbers on an unscaled part."* Those coordinates are placeholder pixels, so a millimetre reading over them is a confident lie. The gate is per DESIGN and per PART — a pending part inside an otherwise scaled asset must also stay bare |
+
 ## Deliberately NOT checked
 
 - **Replacing an already-set background.** The "Choose a background" button vanishes the

@@ -33,6 +33,16 @@
  * the ruler card, which was sent back for exactly this. Nothing here reads the committed shape at
  * all: unlike the rulers, no part of this overlay is a frame that a drag must not slide.
  *
+ * **A label that would be covered by another one moves, which is AD18-R14.** `All dimensions` at
+ * the camera `DesignerCanvas` fits on mount put three readings in one 33.4 x 30 px box, and since
+ * `styles/designer-dimensions.css` lifts a wrapper only while it holds an open FORM — its one
+ * `z-index`, grepped — a wrapper holding a button is `auto` and the paint and hit order among them
+ * is DOM order. So the last figure appended took every click and the two under it could not be
+ * reached at all. `spreadLabels` is
+ * the whole of the answer and it is in the pure module; this component hands it the stage points
+ * `worldToScreen` just produced and draws what comes back. The RESTING state is untouched by
+ * construction: a label sharing no row with another is returned exactly where it asked to be.
+ *
  * **Nothing is drawn over an UNSCALED design.** `dimensionsUnscaled` is a footprint captured
  * before the asset had a scale, whose coordinates are placeholder pixels; a millimetre reading
  * over it would put a unit on a number that is not a measurement, which is the rule the status
@@ -53,7 +63,7 @@ import { useEditorStore } from '../../stores/EditorStore';
 import { STAGE_PIXELS, worldToScreen } from '../../editor/viewport/Viewport';
 import { useAssetDesignStore } from '../stores/assetDesignStore';
 import { useDesignerRuntime } from '../runtime';
-import { dimensionFigures, type DimensionFigure } from './dimensionFigures';
+import { dimensionFigures, spreadLabels, type DimensionFigure } from './dimensionFigures';
 
 const editor = useEditorStore();
 const { design, selection, preview } = storeToRefs(useAssetDesignStore());
@@ -115,9 +125,18 @@ const figures = computed((): readonly PlacedFigure[] => {
 	const drawn = preview.value ?? view.shape;
 	if (drawn === null) return [];
 	const editing = draft.value?.name;
-	return dimensionFigures(drawn, selection.value, allDimensions.value, partView.hidden.value).map((figure) => {
-		const { at, ...rest } = figure;
-		const point = worldToScreen(at, editor.viewport, STAGE_PIXELS);
+	const drawing = dimensionFigures(drawn, selection.value, allDimensions.value, partView.hidden.value);
+	// AD18-R14: several figures can want one row of pixels at a zoomed-out camera, and the one
+	// drawn last covers the ones beneath it outright — a control that cannot be pressed. The rule
+	// is `spreadLabels`', in the pure module, because a label box has a size only in stage pixels
+	// and this is where world millimetres have just become some. Nothing else about the figure
+	// changes, so the two lists stay index-for-index.
+	const points = spreadLabels(drawing.map((figure) => worldToScreen(figure.at, editor.viewport, STAGE_PIXELS)), editor.stageSize);
+	return drawing.map((figure, index) => {
+		// The world point is DROPPED here rather than carried: `spreadLabels` has already answered
+		// where this label goes, and a `PlacedFigure` holding both would offer two answers.
+		const { at: _at, ...rest } = figure;
+		const point = points[index];
 		const style = { left: `${String(point.x)}px`, top: `${String(point.y)}px`, transform: placement(point, figure.name === editing) };
 		return { ...rest, style };
 	});
@@ -143,6 +162,11 @@ const figures = computed((): readonly PlacedFigure[] => {
  *
  * A BUTTON stays centred on its mark, which is what makes a number read as belonging to the gap or
  * the edge it sits on.
+ *
+ * `point` is the one `spreadLabels` settled on rather than the raw anchor, because a form has to
+ * grow away from the edge it is ACTUALLY at — and the two differ for any label AD18-R14's rule
+ * moved. A label pushed far enough to cross the middle therefore opens its form the other way,
+ * which is this function answering the question it was written to answer and not a special case.
  */
 function placement(point: { x: number; y: number }, isOpen: boolean): string {
 	if (!isOpen) return 'translate(-50%, -50%)';

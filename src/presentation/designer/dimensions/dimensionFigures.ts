@@ -8,6 +8,15 @@
  * the component owns only `worldToScreen` and the markup. Nothing here reads a store, a camera or
  * a DOM node.
  *
+ * **Two exported FUNCTIONS, and the second works in PIXELS rather than millimetres.** Counted from
+ * `grep -n "^export" ` over this file after the change, which prints three lines — `DimensionFigure`
+ * is the third and is a type. `dimensionFigures`
+ * answers what is measured and where in the world it belongs; `spreadLabels` answers where a label
+ * is actually drawn once the camera has crowded several of them onto one row — AD18-R14, whose
+ * whole subject is a box that has a size only on a stage. It is here rather than in the component
+ * for this module's founding reason: it is a rule about positions, it reads nothing but its two
+ * arguments, and a rule that lives in an SFC is a rule no node test can put a case on.
+ *
  * **Which measurements, and which are NOT here.** The spec's decision table fixes the set for the
  * whole iteration — overall size, part size, offsets from edges, and explicitly *"not per-edge
  * lengths"* — so this module answers those three families and no fourth.
@@ -25,6 +34,7 @@ import { err, type Result } from '../../../core/result/Result';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { AssetDetail } from '../../../domain/asset/AssetDetail';
 import { moveOutline, partNotFound, type OutlinePart } from '../../../domain/asset/shapeEdits';
+import { screenPoint, type ScreenPoint, type StageSize } from '../../editor/viewport/Viewport';
 import type { StringKey } from '../../i18n/locales/en';
 import type { DesignerSelection } from '../selection/designerSelection';
 import { partMeasure, resizeToExtent, type PartBox } from '../selection/partExtent';
@@ -275,4 +285,100 @@ export function dimensionFigures(
 		const key = part.kind === 'detail' ? `detail-${part.id}` : part.kind;
 		return [...sizeFigures(part, box, key, PART_LABELS), ...offsetFigures(part, key, box, outer)];
 	}).concat(overall);
+}
+
+/**
+ * The label's NOMINAL box, in stage pixels, and the only model this module has of something only a
+ * browser draws.
+ *
+ * `30` is the height AD18-R14 measured against the running harness (*"one 33.4 x 30 px box"*).
+ * `40` is that same measurement's width rounded UP, because the box it measured held a three-digit
+ * reading and a four-digit one is wider, and nothing here has a font to ask. Both numbers are a
+ * MODEL: every guarantee below is stated over ANCHORS and never over rendered boxes, which is what
+ * keeps the sentence honest in a suite where jsdom computes no layout.
+ */
+const LABEL_BOX = { width: 40, height: 30 } as const;
+
+/**
+ * How near, vertically, two anchors have to be before the later label COVERS the earlier one.
+ *
+ * Every label is the same height — one line of `--font-ui-smaller` in a box with a fixed
+ * `min-height` and fixed padding — so a pair on genuinely different rows always leaves a strip of
+ * the lower one exposed, whatever their widths. A pair within a few pixels of one row does not: the
+ * wider reading swallows the narrower one whole, which is exactly the three-labels-in-one-box
+ * defect AD18-R14 measured. So the predicate is "same row, overlapping column", not "boxes
+ * intersect" — see `spreadLabels` for why the wider predicate was measured and refused.
+ */
+const SAME_ROW_PX = 8;
+
+/**
+ * How far one label may be pushed off its own anchor, in steps.
+ *
+ * Uncapped, the sweep below still terminates — each step is a whole box and the placed set is
+ * finite — but a label 700 px from the edge it measures is a worse lie than two labels sharing a
+ * row. Four steps is 120 px: enough for the clusters this surface actually produces (AD18-R14's
+ * worst was THREE labels in one box) and short enough that a moved label is still read against its
+ * own part. A figure still covered at the cap keeps its last slot and overlaps, which is a partial
+ * overlap and therefore still clickable.
+ */
+const MAX_STEPS = 4;
+
+/** Whether `later` would sit on `earlier`'s row, near enough along it to cover the reading. */
+function sharesRow(later: ScreenPoint, earlier: ScreenPoint): boolean {
+	return Math.abs(later.x - earlier.x) < LABEL_BOX.width && Math.abs(later.y - earlier.y) < SAME_ROW_PX;
+}
+
+/**
+ * Where each label is actually drawn, given where each one WANTS to be — AD18-R14's collision
+ * avoidance for the `All dimensions` state, in stage pixels because that is the space a label box
+ * has a size in. A collision at a zoomed-out camera is not one two wheel steps later, which
+ * AD18-R14 measured as 31 overlapping pairs falling to 13.
+ *
+ * **The rule: a label that would land on an already-placed label's row steps one full box height
+ * away, repeatedly, up to `MAX_STEPS`.** Earlier wins, and the order is `dimensionFigures`' own —
+ * a part's own figures first and the overall pair appended last — so the label with the more
+ * specific subject keeps its true anchor and the outer measurement stacks off it, which is how a
+ * drafting dimension chain reads. `.concat(overall)` is what makes that true and is the reason the
+ * defect presented as *the overall label is always on top and always takes the click*: the overlay's
+ * one `z-index` lifts a wrapper only while it holds an open FORM, so among the buttons paint and
+ * hit order is DOM order.
+ *
+ * **It steps DOWN from an anchor in the stage's top half and UP from one in the bottom half**, the
+ * same rule `DesignerDimensions.placement` uses for an open field and for the same measured reason:
+ * `.rp-plan-canvas` is `overflow: hidden` and `DesignerCanvas` fits an opened asset with only
+ * `FIT_PADDING_PX`'s 48 px of margin, so the overall pair sits 48 px from the top edge and an
+ * unconditional outward step would clip it. A clipped label is a total loss; a label pushed inward
+ * over the drawing is not.
+ *
+ * **The WIDER predicate — separate every pair whose boxes intersect at all — was measured and
+ * refused, and the numbers are the argument.** Over `editableShape()` at the designer's own
+ * opening camera, where the whole shape is barely a hundred pixels across:
+ *
+ * | predicate | selected `detail-1` (8 labels) | `All dimensions` (14 labels) |
+ * | --- | --- | --- |
+ * | this one | **2** moved, 30 px and 60 px | **5** moved, 90 px at worst |
+ * | boxes intersect | **6** moved, three at the 120 px cap | **12** moved, five at the cap |
+ *
+ * A label at the cap is one the sweep did NOT resolve, so the wider predicate buys a scattered
+ * overlay and still leaves overlaps — which is the layout engine AD18-R14's losing side warned §0
+ * never asked for, arriving without even the property it was reached for.
+ *
+ * **What this does NOT claim.** It is stated over anchors and a modelled box, so it cannot say that
+ * nothing is occluded on screen — a label whose reading is far wider than `LABEL_BOX.width` can
+ * still clip a neighbour's edge. What it does guarantee is testable here: an anchor that shares no
+ * row is returned UNMOVED, which is the floor AD18-R14 sets on the resting state, and no returned
+ * point shares a row with an earlier one unless that label exhausted `MAX_STEPS`.
+ */
+export function spreadLabels(anchors: readonly ScreenPoint[], stage: StageSize): ScreenPoint[] {
+	const placed: ScreenPoint[] = [];
+	const covered = (point: ScreenPoint): boolean => placed.some((other) => sharesRow(point, other));
+	for (const anchor of anchors) {
+		const step = anchor.y < stage.height / 2 ? LABEL_BOX.height : -LABEL_BOX.height;
+		let at = anchor;
+		for (let steps = 0; steps < MAX_STEPS && covered(at); steps += 1) {
+			at = screenPoint(at.x, at.y + step);
+		}
+		placed.push(at);
+	}
+	return placed;
 }

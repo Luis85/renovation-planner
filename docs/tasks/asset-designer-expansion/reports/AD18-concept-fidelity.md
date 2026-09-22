@@ -335,6 +335,44 @@ so neither document is contradicted.
   Where the original reading may have come from, left as a question rather than a claim: a 460 px
   leaf, where `designer-narrow.css` stacks the columns and the inspector is no longer 224 px at all.
   Nobody has re-measured that width, so nobody should say.
+
+  **AMENDED AGAIN 2026-09-22, session fourteen, wave 19 integration: the 2026-09-20 measurement is
+  SUPERSEDED, and this time the row really does take a second line at 224 px.** W19-B put the holding
+  project into the row (`'{name} ({project}) — {count} placement(s)'`) so that two plans both named
+  `Kitchen` in different projects stop drawing identically. Measured in a real browser against the
+  running harness at the integration sha, which is the only instrument here that lays text out:
+
+  | Surface | Leaf | Rail | Row box | Was | Now |
+  |---|---|---|---|---|---|
+  | Designer inspector | 1280 | **224** | **191** | 1 line | **2 lines** |
+  | Designer inspector | 580 | 162.4 | 129.4 | 2 lines | **3 lines** |
+  | Library inspector | 1024 | 327.7 | 287.7 | 1 line | 1 line |
+  | Library inspector | 760 | 280 | 255 | 1 line | 1 line, **by 1.0 px** |
+  | Library inspector | 580 | 240 | 215 | 1 line | **2 lines** |
+
+  **The rail and the row box came out at 224 and 191, the same two numbers the 2026-09-20 amendment
+  recorded**, which is what makes this a re-measurement of the same box rather than of a different
+  one. What changed is the string: the old text needs 164.3 px and fits; the new needs 254 px and does
+  not. So the sentence *"at the width this bullet names, it does not wrap"* was true when written and
+  is now false, and the threshold it recorded — a second line appearing between 224 and 210 px — no
+  longer describes anything.
+
+  **Read the cost narrowly, because it is bounded and nothing is broken.** At 1280 the designer
+  inspector reports `scrollHeight` **812** against `clientHeight` **812** — it does not overflow, there
+  is no clipping and the document takes no horizontal scroll at any width measured. The whole cost is
+  **31.2 px** of vertical space over two rows that currently fits. At 760 in the library the row
+  survives **by one pixel**, which is the figure to distrust first: the fixture's project name is
+  `Flat renovation`, fifteen characters, and any longer real name wraps there too.
+
+  **Neither harness fixture renders the collision the field exists for** — `assetDesigner.ts` gives two
+  differently-named plans in differently-named projects — so the captures show the parenthetical as
+  decoration rather than as disambiguation, and it is also the worst case for width. W19-B's own report
+  says so. Do not read those pictures as evidence the mechanism works.
+
+  **This was a predicted risk, not a discovered one.** W19-B had no browser and named the wrap as an
+  unrendered consequence of its own change, at the right width, in its report. The measurement confirms
+  it. **A card that names what it could not check is what makes the check cheap for whoever has the
+  instrument**, and this is the second time in two sessions that has paid.
 - **`Show grid` defaults off.** A measurement surface opens with no visible scale reference and no
   zoom readout at the same time. Neither alone is a defect; together they are what makes the empty
   canvas read as a blank void rather than a drawing board.

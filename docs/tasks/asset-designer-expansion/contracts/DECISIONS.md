@@ -1360,6 +1360,38 @@ both formatters hard-code `'en-US'` and `m²` and both docblocks defer to *"the 
 the honest fix is that PBI rather than a patch here. It bears on AD16's ticked *"No unfinished or
 nonfunctional controls advertised"* and is recorded so it is not rediscovered.
 
+### AD18-R16 — twelve further board gaps are CLOSED as a parity round, and each is outside every earlier ruling. (2026-09-22)
+
+**Taken by the user**, asked directly in session fifteen after a fresh audit of the running harness
+against both concept boards, in three batched questions of four gaps each. **All twelve were
+approved.** None is in AD18's *Deliberately absent* table, and none contradicts AD18-R1…R15:
+
+| Gap | Board | Shipped before |
+|---|---|---|
+| Toolbar zoom cluster (− / % / + / fit); the readout MOVES out of the status region | 01, 02 | status-region readout, no controls |
+| Labelled Basic-shape tiles in the Add rail | 01 | four unlabelled icons |
+| Canvas legend (clearance, footprint, details, placement point, front direction), View toggle, leaf-local | 01 | none |
+| Back-to-library arrow in the header | 02 | text `Open library` |
+| Compact field rows, short label + unit suffix, full label kept as accessible name | 01, 02 | label stacked above input |
+| Arrange set-transform and Repeat folded into closed disclosures | 01 | always open |
+| Height grouped with Dimensions; `Select multiple parts` moves to the Parts panel | 01 | split by an unrelated checkbox |
+| Placement point as a segmented `Back centre | Centre | Custom` control | 01 | text row and two buttons |
+| Asset thumbnail and category chip atop the Object tab — no name, per AD18-R1 | 02 | none |
+| Align and distribute as icon buttons | 01, 02 | ten text buttons |
+| Right-click menu (Group, Ungroup, Duplicate, Delete) plus Ctrl+G / Ctrl+Shift+G | 02 | Delete and Ctrl+D keys only |
+| Corner radius for rounded rectangles, ONLY if read back from geometry with no schema change | 02 | fixed quarter-short-side radius |
+
+**The user also approved downloading the pinned Lucide SVGs** (revision `2bfb9bb1`) the new icons
+need as harness fixtures. Nothing downloaded ships in the plugin.
+
+**What this does NOT reopen.** The *Deliberately absent* rows stand; Board 01's third `Style` tab
+stays refused (AD18-R2); the presets stay a modal (AD18-R6); the rail stays stacked (AD18-R5). The
+corner-radius item carries its own stop condition — AD11 item 2's *"store parameter intent only if
+subsequent edits can maintain it"* — so a card that finds it needs a schema change returns to the
+user rather than taking one.
+
+The work plan is [`reports/AD18-parity-round-plan.md`](../reports/AD18-parity-round-plan.md).
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

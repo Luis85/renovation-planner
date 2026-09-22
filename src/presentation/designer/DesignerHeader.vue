@@ -31,6 +31,12 @@
  * harness and not about "every suite": `designerHeader.test.ts` binds `openLibrary` in the case
  * that presses it, which is what proves the control works when a door IS composed behind it.)
  *
+ * **The save state it carries is qualified by THIS leaf's staleness (W18-C, contract C08).** A
+ * write that landed over a canvas the leaf could then not re-read is `Saved` and not current, and
+ * `SaveStateIndicator`'s own two stores cannot see that here — they are the Plan Editor's, and
+ * this leaf's Pinia never hydrates either. So the fact arrives as a prop from the root, from the
+ * same `staleAfterRefresh` the refresh-failed strip is drawn from.
+ *
  * **What the `design !== null` gate covers is TWO of the four, not three of them.** The name and
  * `DesignerUsePlan` are inside it: a leaf whose read is in flight or refused has no name to state
  * and no asset to take into a plan. `SaveStateIndicator` is outside it because a save state is
@@ -55,6 +61,17 @@ defineProps<{
 	openLibrary?: () => void;
 	/** The way forward into a plan (AD13), passed straight through to `DesignerUsePlan`. */
 	usePlan?: (assetId: string) => void;
+	/**
+	 * Is the canvas drawing a design the leaf can no longer confirm — `AssetDesignerRoot`'s
+	 * `staleAfterRefresh`, passed straight through to `SaveStateIndicator`.
+	 *
+	 * **The root's computed rather than a second read of `assetDesignStore.stale` here**, so the
+	 * qualifier on this label and the refresh-failed strip below the body cannot disagree: they
+	 * are one expression rendered twice. `SaveStateIndicator`'s own docblock carries why that
+	 * fact has to arrive as a prop at all — its two stores are a Plan Editor's, and neither is
+	 * ever hydrated in this leaf's Pinia.
+	 */
+	stale?: boolean;
 }>();
 </script>
 
@@ -101,6 +118,6 @@ defineProps<{
 				:use-plan="usePlan"
 			/>
 		</template>
-		<SaveStateIndicator />
+		<SaveStateIndicator :stale="stale" />
 	</header>
 </template>

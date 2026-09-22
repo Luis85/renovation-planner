@@ -64,6 +64,47 @@ describe('the derived Saved · refresh needed label', () => {
 		expect(wrapper.find('.rp-save-state-saved-refresh-needed').exists()).toBe(true);
 	});
 
+	/**
+	 * **The `stale` PROP, which is the only way this qualifier is reachable on a surface that
+	 * mounts neither store** — the Asset designer mounts its own Pinia and never hydrates
+	 * `ProjectStore` or `usePlanningReadState`, so before W18-C its header read a flat `Saved`
+	 * beside its own refresh-failed strip (contract C08). Both arms in one case: the absent prop
+	 * must leave the two stores deciding.
+	 *
+	 * **The absent prop is `false`, not `undefined`**, which is worth stating because the first
+	 * version of this docblock assumed the opposite. `defineProps<{ stale?: boolean }>()` compiles
+	 * to `stale: { type: Boolean, required: false }` — read off `compileScript`'s output, not
+	 * remembered — and Vue's `resolvePropValue` runs `if (isAbsent && !hasDefault) value = false`
+	 * for a prop that casts. So `props.stale === true` in the component is DEFENSIVE rather than
+	 * load-bearing: a bare `props.stale` would behave identically. The `=== true` stays as the
+	 * house spelling for an optional boolean, and this case pins the behaviour either way.
+	 *
+	 * `designerSaveStateStale.test.ts` is where the designer's own wiring is driven end to end;
+	 * this case is about the component's contract alone.
+	 */
+	it('takes a caller-supplied staleness, and says nothing about one when no prop is passed', async () => {
+		const withProp = mount(SaveStateIndicator, { props: { stale: true } });
+		const without = mount(SaveStateIndicator);
+		await withProp.vm.$nextTick();
+
+		expect(withProp.text()).toBe('Saved · refresh needed');
+		expect(withProp.find('.rp-save-state-saved-refresh-needed').exists()).toBe(true);
+		expect(without.text()).toBe('Saved');
+
+		await withProp.setProps({ stale: false });
+		expect(withProp.text()).toBe('Saved');
+	});
+
+	/** The qualifier applies to `saved` alone, whichever source the staleness came from. */
+	it('does not say refresh needed over a save error from the prop either', async () => {
+		const wrapper = mount(SaveStateIndicator, { props: { stale: true } });
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.resolveErr();
+		await wrapper.vm.$nextTick();
+		expect(wrapper.text()).toBe('Save error');
+	});
+
 	it('does not say refresh needed over a save error', async () => {
 		const wrapper = mount(SaveStateIndicator);
 		const store = useSaveStateStore();

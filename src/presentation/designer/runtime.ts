@@ -526,9 +526,27 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			writeLedger: geometryLedger,
 			renderState,
 			subject: { id: assetId, calibration: store.design?.calibration ?? null },
-			// The Plan Editor's trust path (design spec §2.2) has no counterpart here: this
-			// surface has no `ProjectStore` and no re-read that can go stale over an asset's own
-			// design, so nothing ever blocks a write on that account.
+			// The Plan Editor's trust path (design spec §2.2) has no counterpart here: nothing
+			// under `src/presentation/designer/` READS this, so every tool `registerDesignerTools`
+			// registers is answered `false` by a member none of them asks for.
+			//
+			// **The claim is about this directory and says nothing about the Plan Editor's**,
+			// which is the W18-C fix round's finding: the first version of this comment named
+			// `SelectTool` as the only reader of `context.writesBlocked()` anywhere, and
+			// `grep -rn "writesBlocked" src/` refutes that — `ElementMove`, `ElementResize`,
+			// `ElementRotation`, `LabelMove` and `OpeningResize` read it off an `EditorContext`
+			// too, all of them Plan-Editor-owned gesture helpers `SelectTool` composes. The
+			// narrower sentence is the one this file needs and the one it can hold: the same grep
+			// over `src/presentation/designer/` prints three lines, all of them in THIS file — two
+			// lines of this very comment, and the member below — so do not read a count off it as
+			// READS. There are none.
+			//
+			// **A re-read here CAN go stale**, and this comment claimed otherwise until W18-C:
+			// `assetDesignStore.stale` is set on a keep-on-failure re-read and is drawn by
+			// `AssetDesignerRoot` — as a strip, and since W18-C as the save state's own
+			// `Saved · refresh needed` qualifier. What stays true is the sentence below:
+			// nothing on this surface blocks a write on that account. Whether it SHOULD is a
+			// behaviour question W18-C reported rather than answered.
 			writesBlocked: () => false,
 		}),
 	);

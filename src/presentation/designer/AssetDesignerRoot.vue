@@ -89,6 +89,14 @@ const { design, error, status, stale, selection, selected } = storeToRefs(design
  * the write succeeded, the indicator said Saved, and the canvas silently showed pre-command
  * geometry. `'ready'` is the whole point of the guard: any other status is already replaced by
  * the failure state, and this exists only for the case where there IS content to keep showing.
+ *
+ * **Rendered TWICE, and that is the point rather than a duplication (W18-C, contract C08).** It
+ * qualifies the header's save state — `Saved · refresh needed`, the standing answer to "is my
+ * work safe" — and it draws the strip below, the sentence saying what happened. ONE expression
+ * behind both, so the two cannot disagree the way they did while the header read a flat `Saved`
+ * over this very strip. Not a second answer to one question: the pairing is the one
+ * `stalePath.e2e.test.ts` already pins on the Plan Editor as "the two surfaces that say so, in
+ * the two places a user looks".
  */
 const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value);
 
@@ -480,6 +488,7 @@ onMounted(() => {
 				:design="design"
 				:open-library="context.openLibrary"
 				:use-plan="context.usePlan"
+				:stale="staleAfterRefresh"
 			/>
 		</div>
 		<!--

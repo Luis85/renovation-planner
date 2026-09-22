@@ -1,6 +1,13 @@
 /*
- * The designer Inspector's OBJECT block: which asset this is, the way back to the catalogue, and
- * the multi-selection controls (AD06, AD08).
+ * The designer Inspector's OBJECT block: the way back to the catalogue, the multi-selection
+ * controls (AD06, AD08) and the usage scope (AD13-R1).
+ *
+ * WHICH asset this is was drawn here until AD18-R1 moved the name into the header bar, and this
+ * partial carried `.rp-designer-inspector .rp-designer-asset-name` for a while afterwards while
+ * matching nothing — `DesignerHeader.vue`'s `<h2>` is the only element in `src/` with that class
+ * and `AssetDesignerRoot.vue` renders it in `.rp-designer-header`, a sibling of the body that
+ * holds `.rp-designer-inspector`. The live rule is `designer-header.css`'s
+ * `.rp-designer-title-bar .rp-designer-asset-name`, and the dead one is gone.
  *
  * Split out of `designer.css` because that partial reached the 400-line cap, which is the same
  * reason `editor-status.css` and `editor-requirements.css` exist. Its position in `index.css` is
@@ -8,19 +15,6 @@
  * authored at the END of that file: an equal-specificity pair is decided by order, so moving them
  * earlier would change which wins.
  */
-
-/**
- * The asset's own name, under its section heading (AD06). Normal text at the panel's own size —
- * it identifies the subject rather than labelling a field, so it is neither a heading nor muted.
- * `overflow-wrap` because a user's name for an object is theirs: a long one wraps inside the panel
- * instead of widening it, which at a sidebar's width would push the canvas into a sliver.
- */
-.rp-designer-inspector .rp-designer-asset-name {
-	margin: 0 0 var(--size-4-2);
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
-	overflow-wrap: anywhere;
-}
 
 /**
  * How many parts are selected, and the control that builds the set (AD08). The count is a status

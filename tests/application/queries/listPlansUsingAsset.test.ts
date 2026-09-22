@@ -16,6 +16,7 @@ import type { ProjectRepository } from '../../../src/application/ports/ProjectRe
 import { err, ok } from '../../../src/core/result/Result';
 import type { AssetId } from '../../../src/domain/asset/AssetId';
 import type { PlanId } from '../../../src/domain/plan/PlanId';
+import type { ProjectId } from '../../../src/domain/project/ProjectId';
 import { placementPoints } from '../../../src/domain/spatial/assetPlacement';
 import type { SpatialElement } from '../../../src/domain/spatial/SpatialElement';
 import { ObsidianPlanGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
@@ -54,12 +55,29 @@ async function vault() {
 		stack,
 		projectId: project.id,
 		geometry,
-		/** A plan note plus, where given, the elements its sidecar holds in each structure. */
+		/**
+		 * A second project note, saved the same way the first one is.
+		 *
+		 * Here rather than in a case, because the rig owns the vault and a project saved past it
+		 * would be one `projectId` the rig could not name.
+		 */
+		async project(name: string): Promise<ProjectId> {
+			const other = makeProject({ name });
+			expectOk(await stack.projects.save(other, 'absent'));
+			return other.id;
+		},
+		/**
+		 * A plan note plus, where given, the elements its sidecar holds in each structure.
+		 *
+		 * `inProject` defaults to the project the rig opened with, so every case whose subject is
+		 * not the project boundary reads exactly as it did before this parameter existed.
+		 */
 		async plan(
 			name: string,
 			elements: { current?: readonly SpatialElement[]; intended?: readonly SpatialElement[] } = {},
+			inProject: ProjectId = project.id,
 		): Promise<PlanId> {
-			const plan = makePlan({ projectId: project.id, name });
+			const plan = makePlan({ projectId: inProject, name });
 			expectOk(await stack.plans.save(plan, 'absent'));
 			if (elements.current === undefined && elements.intended === undefined) return plan.id;
 			const baseline = expectOk(await geometry.read(plan.id));
@@ -132,6 +150,42 @@ describe('ListPlansUsingAsset', () => {
 		expect(usage.plans).toEqual([
 			{ planId: kitchen, planName: 'Kitchen', projectId: rig.projectId, placements: 2 },
 		]);
+	});
+
+	it('names the plans of EVERY project that places the asset, each row carrying its own project', async () => {
+		// F10's two-project half. The catalogue is vault-level since design slice 19 — an `Asset`
+		// has no project field — so one definition is placeable from plans belonging to different
+		// projects, and the scope a user consults before an impactful change has to name all of
+		// them. Every other case in this file lives inside the single project `vault()` opens
+		// with, where a walk that answered from the FIRST project only would look exactly like a
+		// walk that answered from all of them.
+		//
+		// `Garage` is here to keep the length assertion honest: it belongs to the second project
+		// and places nothing, so a query that reached that project by listing its plans but never
+		// read their geometry would still fail this.
+		const rig = await vault();
+		const kitchen = await rig.plan('Kitchen', { current: [placement('element-1', OVEN, 0)] });
+		const annexe = await rig.project('Annexe conversion');
+		const loft = await rig.plan(
+			'Loft',
+			{ current: [placement('element-2', OVEN, 0), placement('element-3', OVEN, 900)] },
+			annexe,
+		);
+		await rig.plan('Garage', { current: [CABINET] }, annexe);
+
+		const usage = expectOk(await rig.query().execute(OVEN));
+
+		// `arrayContaining` plus a length, the shape `listProjects.test.ts` uses for the same
+		// question: which rows are in the scope is the claim, and the order `listAll` walks the
+		// projects in is not one this query promises.
+		expect(usage.plans).toEqual(
+			expect.arrayContaining([
+				{ planId: kitchen, planName: 'Kitchen', projectId: rig.projectId, placements: 1 },
+				{ planId: loft, planName: 'Loft', projectId: annexe, placements: 2 },
+			]),
+		);
+		expect(usage.plans).toHaveLength(2);
+		expect(usage.unreadable).toBe(0);
 	});
 
 	it('REFUSES rather than answering an empty scope when the project list cannot be read', async () => {

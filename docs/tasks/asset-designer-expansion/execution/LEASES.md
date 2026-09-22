@@ -1032,3 +1032,29 @@ not inferred from the leases.
 assetDesignerQueries}.ts` pass the envelope through by type, so a field added to the row threads
 without an edit. Recorded because a lease row that nobody needed is evidence about how this seam is
 shaped, not merely an unused permission.
+
+## Wave 20 — issued 2026-09-22, base **THIS COMMIT**, contract revision `r1`
+
+**One worker.** Wave 19's two leases are RELEASED; both cards are integrated and the W19-B leg is
+CI-green. What remains authorized is the behaviour `AD18-R13` rules and nothing else.
+
+**This card could have run in wave 19 and did not, and the reason is worth recording rather than
+hiding**: it needs `AssetDesignerRoot.vue`, which was sub-let to W19-A — and W19-A then turned out
+not to need that file at all, because `DesignerCanvas` already forwards its default slot into the
+overlay. So the sub-let was unnecessary and it cost this card a wave. **A lease granted against a
+guess is a lease that serialises work for nothing**, which is the opposite failure from wave 19's
+other one, where a lease that should have been granted was not.
+
+| Task | Worker/worktree | Exact files or nonoverlapping scope | Base/contract | Status | Release condition |
+|---|---|---|---|---|---|
+| W20-A stale retry | `.worktrees/ad10` · `w20a-stale-retry` | `presentation/designer/AssetDesignerRoot.vue` (**integrator lease, sub-let**), an existing `i18n/locales/{en,de}/<designer module>.ts` pair **edited in place** (NOT a new module, so `editor.ts` stays untouched), its own tests | **this commit** / `r1` | issued | candidate committed and handed off |
+
+**`styles/designer.css` is at the 400-line cap with ONE line of headroom** — run `wc -l` rather than
+trusting that. This card is expected to need NO new CSS: the retry is a control on an existing
+notice and the tree already has button affordances it can reuse. **If it turns out to need a new
+partial, that is a lease extension and an `@import` in `styles/index.css`, and the card STOPS and
+asks** rather than taking it.
+
+**Held by the integrator and sub-let to nobody:** `docs/` in its entirety. `AD18-R13` falsifies
+step 10 of [[Recover an asset design rather than lose it]], and that rewrite is the integrator's in
+the same session that ships the behaviour.

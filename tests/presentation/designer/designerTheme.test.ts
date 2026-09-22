@@ -14,11 +14,16 @@
  * equally refreshed by a build that never hands the new value to a layer.
  *
  * The same reasoning is why the GEOMETRY is asserted across a flip here too (matrix row T32):
- * every layer config on this canvas is a `computed` over the resolved palette, so a theme change
+ * every config behind `GEOMETRY_NODES` is a `computed` over `tokens.value`, so a theme change
  * re-runs the point packing for all of them and the coordinates are a thing a theme change can
- * really move. What no case in this file can reach is the other half of that row — whether the
- * result is VISIBLE, or occluded — for the reason `layers.test.ts`'s header already gives: jsdom
- * draws nothing and lays nothing out.
+ * really move. **Not "every config on this canvas"** — `designerLayerConfig(…)` and its four
+ * siblings are built inline in the template and take no tokens, and `transform`, `worldPerPixel`,
+ * `grid`, `shape`, `background` and `pixelsPerWorldUnit` are `computed`s over things that are not
+ * the palette. The narrower sentence is the one with a check under it.
+ *
+ * What no case in this file can reach is the other half of that row — whether the result is
+ * VISIBLE, or occluded — for the reason `layers.test.ts`'s header already gives: jsdom draws
+ * nothing and lays nothing out.
  *
  * The monitor's pixel ratio is the same shape of question — a canvas kept current as its
  * surroundings change — so its one wiring case lives here rather than in a file of its own.
@@ -164,10 +169,22 @@ function clearPalette(): void {
  * `grep -oE "name: '[a-z-]+'" src/presentation/designer/DesignerCanvas.vue | sort -u` prints ten
  * names, and these are that ten less `asset-selection-outline`, `asset-selection-handle` and
  * `asset-rotate-stem`. Those three are the SELECTION's marks and the case below selects nothing,
- * so they draw nothing and a theme change could not move them; the grid, the background and the
- * gesture layer name their nodes in their own components and are not the design's geometry
- * either. A wider list would have entries that are empty on both sides of the flip, which is the
- * tautology this file's non-empty check exists to refuse.
+ * so they draw nothing and a theme change could not move them. The background and the gesture
+ * layer name their nodes in their own components, so they are outside that grep's universe;
+ * `CanvasGrid.vue` is outside it for a DIFFERENT reason — it names no Konva node at all, being a
+ * `<div class="rp-canvas-grid">` mounted outside `<VStage>` — and
+ * `editor/elements/RotateArrowIcon.vue` is outside it because it lives in another file, while
+ * naming `rotation-handle`, `rotation-handle-button` and `rotation-handle-icon` and taking
+ * `tokens`.
+ *
+ * **So what this list closes is the COMMITTED DESIGN's geometry and not the surface's.**
+ * `selectionMarks` takes `tokens` and emits `points: flatPoints(run.points)` and `x`/`y` marks;
+ * `RotateArrowIcon` takes `tokens` and emits a `VRect` at real coordinates;
+ * `DesignerGestureLayer` takes `tokens` too. All three are token-consuming geometry producers
+ * whose coordinates NO case asserts across a theme flip, because covering them needs a mount that
+ * selects something and one that draws a gesture — a card of its own, not a widening of this
+ * list. A wider list here would instead add entries that are empty on both sides of the flip,
+ * which is the tautology the non-empty check below exists to refuse.
  */
 const GEOMETRY_NODES = [
 	'.asset-footprint-outline',
@@ -181,11 +198,17 @@ const GEOMETRY_NODES = [
 
 /**
  * Konva's selector lookup, wrapped for one reason worth stating where it is: `stage.find(name)`
- * with an identifier argument trips oxlint's `unicorn/no-array-callback-reference`, which reads
- * any `.find(ident)` as an array iterator handed a function reference. The argument here is a
- * selector STRING, and the template literal is what says so — measured against the three call
- * forms, it and an explicit cast are the two the rule accepts, and a cast would be claiming a
- * type rather than building a string.
+ * with an identifier argument trips oxlint's `unicorn/no-array-callback-reference`, which takes
+ * the identifier for a function reference handed to an array iterator.
+ *
+ * **The rule keys on a BARE-IDENTIFIER receiver**, which is narrower than "any `.find(ident)`" and
+ * is measured rather than assumed: a probe of four call forms reports `stage.find(sel)` and stays
+ * silent on `harness.wrapper.find(sel)`, on `obj.inner.find(sel)` and on the template-literal
+ * form. That is why `rig.wrapper.find(OPACITY)` in `designerReferenceView.test.ts` and its
+ * siblings pass an identifier to `.find` and lint clean, and why only the `stage.` receiver here
+ * needs anything. The argument is a selector STRING and the template literal is what says so; an
+ * explicit cast is the only other form the rule accepts, and it would be claiming a type rather
+ * than building a string.
  */
 const nodesNamed = (stage: Konva.Stage | null, selector: string): Konva.Node[] => stage?.find(`${selector}`) ?? [];
 
@@ -203,9 +226,14 @@ const nodesNamed = (stage: Konva.Stage | null, selector: string): Konva.Node[] =
 function drawnGeometry(stage: Konva.Stage | null): Record<string, number[][]> {
 	return Object.fromEntries(GEOMETRY_NODES.map((selector) => [
 		selector,
+		// The line's `points()` is SPREAD rather than held: it is the node's live array, and a
+		// capture that aliased it would compare the scene to itself if a builder ever mutated one
+		// in place. Not a defect today — the layer builders allocate a fresh array per computed run
+		// — but `tests/presentation/editor/scene.test.ts` already spells a before/after capture
+		// `[...line.points()]` for this reason, and one character retires the question.
 		nodesNamed(stage, selector).map((node) => (node instanceof Konva.Circle
 			? [node.x(), node.y(), node.radius()]
-			: (node as Konva.Line).points())),
+			: [...(node as Konva.Line).points()])),
 	]));
 }
 
@@ -248,11 +276,13 @@ describe('the designer palette and a theme change', () => {
 	 * nothing would pass this one on the geometry alone, which is why the flip is asserted to have
 	 * TAKEN before the geometry is compared.
 	 *
-	 * It can fail, which is the thing to check before trusting it. Every config on this canvas is
-	 * a `computed` over `tokens.value` in `DesignerCanvas` — `footprintOutline`, `detailOutlines`,
-	 * `footprintEdge`, `clearanceOutline`, `anchorMark` and `facingArrow` each take the palette as
-	 * a parameter — so a theme change genuinely re-runs the point packing for all of them, and the
-	 * comparison is between two SCENES rather than between the fixture and itself. Watched red:
+	 * It can fail, which is the thing to check before trusting it. Every config behind
+	 * `GEOMETRY_NODES` is a `computed` over `tokens.value` in `DesignerCanvas` — `footprintOutline`,
+	 * `detailOutlines`, `footprintEdge`, `clearanceOutline`, `anchorMark` and `facingArrow` each
+	 * take the palette as a parameter — so a theme change genuinely re-runs the point packing for
+	 * all of them, and the comparison is between two SCENES rather than between the fixture and
+	 * itself. (Not every config on the canvas: the `VLayer` configs and six other `computed`s take
+	 * no tokens at all, and `GEOMETRY_NODES`'s own docblock carries that distinction.) Watched red:
 	 * rebuilding the restroke's points from `tokens.zoneStroke.length` inside `footprintEdge`
 	 * reddens exactly this case, on `.asset-footprint-edge`, with the rest of the file green.
 	 *
@@ -263,10 +293,13 @@ describe('the designer palette and a theme change', () => {
 	 * `tests/helpers/assetShapes.ts` exports `toiletShape` and `shapeWithOpenGraphic` beside it,
 	 * and either would also fill the list.
 	 *
-	 * **The row's OTHER half is not closed here and cannot be.** T32 asks for visibility and
-	 * occlusion as well, and jsdom has no rendering engine: nothing in this suite can observe
-	 * whether a line is legible against its ground or whether one covers another. A vault is the
-	 * only instrument for that half, and this case makes no claim about it.
+	 * **Two things this case does NOT close**, so the row is not graded from it alone. T32 asks
+	 * for visibility and occlusion as well, and jsdom has no rendering engine: nothing in this
+	 * suite can observe whether a line is legible against its ground or whether one covers
+	 * another — a vault, or a capture in both schemes, is the only instrument for that. And the
+	 * geometry half itself is closed for the COMMITTED DESIGN's marks only: the selection's and
+	 * the gesture's geometry consume `tokens` too and are asserted across no flip, for the reason
+	 * `GEOMETRY_NODES`'s docblock gives.
 	 */
 	it('moves the whole palette and not one drawn coordinate', async () => {
 		onTestFinished(clearPalette);

@@ -666,6 +666,154 @@ numbers are not measurements yet"* for the warned arm. **The losing side**: addi
 warning anyway would be a second answer to a question the code already answers, which is the shape
 this repository refuses everywhere it has a name for it.
 
+### AD15-R2 — six of AD15's remaining rows are ruled rather than tested, and two were never open. (2026-09-22)
+
+**Taken by the user**, asked before wave 16 was dispatched, after the integrator read all eleven of
+AD15's remaining agent-reachable rows AT SOURCE against the tree. Three carry a half a jsdom test
+can honestly close and became wave 16's cards (F10, F12, T32). The other eight are this ruling.
+
+**The title says "six" and "two" rather than "eight" deliberately, and the distinction is the point
+of the entry.** Six rows are DECISIONS — the user chose a regrade over a test, and each carries the
+side that lost. **Two rows were never open at all**: T25 was closed nine days before the triage read
+it, and T34 had already been assigned to the deferred manual pass. Recording those two as decisions
+would credit this session with settling questions that were already settled, which is the shape
+AD15-R1's own preamble warns about from the other direction.
+
+**AD15-R1 is the precedent and this follows its format**, including its most useful habit: every
+decision names **the losing side**, because a ruling that only argues for itself reads as settled
+when it was a judgement.
+
+---
+
+#### The two that were never open
+
+**T25 — `Escape, pointercancel, blur and outside release are safe` — the ROW was stale, and this is
+a correction rather than a decision.** The row's text names two reasons it is not `passed`: that
+*"the `keyDoors.ts` arm of `gestureInFlight()` is not driven — only the wheel door is"*, and that a
+release outside the leaf commits while *"nothing asserts that commit"*. **Both were false when the
+triage read them.** Commit `ef1ba2dff` (2026-09-19), whose message is *"Share the designer sweep
+vocabulary, and close T25's two residual gaps"*, added exactly those two cases to
+`tests/presentation/designer/designerCanvasGestureOwnership.test.ts`: *"lets the keyboard go again:
+the zoom key zooms once the gesture has been abandoned"*, which drives the key door and asserts
+refused-then-free in that order so that a surface never gating the keyboard would fail; and a
+`describe('a sweep released outside the leaf')` whose case is *"commits the selection rather than
+abandoning it"*.
+
+**The matrix was edited three times after that commit — `896a5f6a9`, `8deda6182`, `4bc2ba5b7`, all
+on 2026-09-21 — and none of them regraded T25.** That is the failure worth recording: a row is
+re-read by whoever is editing the rows beside it, and nobody was editing this one.
+
+**The row stays `partial`, for a DIFFERENT reason, and the new reason is narrower and mechanical.**
+The outside-release case does not observe what a browser would: `jsdom` implements no pointer
+capture at all — `setPointerCapture` is `undefined` on an element there, which is why
+`EditorSurface` spells the call `?.()` — so the case drives the SHAPE capture produces (a release
+dispatched at the container carrying coordinates outside its own bounding rect) and its own docblock
+says it claims no more. The remaining gap is the browser, not the suite.
+
+**T34 — `Use in plan places the real definition, returns context` — is not a triage row.** It is
+already assigned to the deferred manual pass: `reports/MANUAL-PASS.md`'s table reads *"Take an asset
+from the library into a plan — 19 human steps — discharges **U01, T34**"*. It was carried into this
+session's triage set by mistake and is recorded here so the next reader does not carry it again. No
+work is owed and no grade changes.
+
+---
+
+#### The six decisions
+
+**T27 — `keyboard input in forms/notes is not consumed by designer shortcuts` — the NOTE-EDITOR half
+is STRUCTURAL and gets no test.** Measured in this edit rather than recalled: `src/presentation/
+designer/` registers **nine** key doors, every one a template binding on an element inside the
+designer's own tree (`DesignerInspector.vue` three, `AssetDesignerRoot.vue` two, and one each in
+`AssetPresetGallery.vue`, `DesignerPartsPanel.vue`, `DesignerViewMenu.vue` and `AssetPresetForm.vue`
+through an `:on-keydown` prop). Nothing the designer mounts registers a key listener above its own
+subtree: the only `listenOnOwner` call in anything it composes is `EditorSurface.vue`'s `'window'`,
+`'blur'`, and the three other `listenOnOwner` calls in `src/` are `'document'`/`'pointerdown'` — a
+disclosure dismissal and two Plan Editor menus. The two bare `addEventListener('keydown', …)` calls
+in `src/` are both a Plan Editor component binding its own root.
+
+**So a keystroke in a Markdown or CodeMirror editor cannot reach a designer handler, because a note
+editor is a different leaf and there is nothing above the designer's subtree to reach.** §6's own
+preamble in `ACCEPTANCE-AND-QA.md` agrees from the requirement side: *"Only the latter validates
+host back/forward, per-leaf subject restoration, plugin remount/unload and interaction with a note
+editor."* The designer's own boundary stays asserted by the cases the row already cites.
+
+**The losing side, and it is the strongest of the six.** A CATEGORY check — a source scan asserting
+that nothing under `src/presentation/designer/` registers an owner-level key listener — would hold
+for code not yet written, which is exactly the form CLAUDE.md prefers over driving the paths
+somebody thought of, and the instruments for it already exist (`tests/helpers/parsedSource.ts`,
+`tests/helpers/importGraph.ts`). It loses **only on scope**, not on merit: the row's stated layer is
+*Browser + real host*, so even a perfect structural check leaves the row `partial`, and this session
+was scoped to closing rows rather than to adding guards. **It is a live candidate for a later wave
+and should not be read as refused.**
+
+**T05 — `canonical values survive unit change and fractional editing` — the DISPLAY-UNIT half
+assumes a NAMED FUTURE increment, and the setting that looks like that feature is INERT.** The
+mm-canonical and fractional-input halves stay asserted by the cases the row already cites. The
+display-unit half was measured three ways and all three agree: `\.units\b` over `src/` reaches only
+`src/plugin/settings/` and the two locale tables that label the row; a destructured `{ units } =`
+has **zero** hits; and the `Units` type is declared in `settings.ts`, named in one **comment** in
+`ProjectIndex.ts`, and referenced nowhere else. Every test that names it sits under `tests/plugin/`.
+The display path is hard-coded in the other direction: `formatLength.ts` and `formatArea.ts` each
+build an `Intl.NumberFormat('en-US', …)`, and both docblocks name *"the per-plan units PBI"* as the
+increment that would make that locale a variable.
+
+**A finding falls out of this that is larger than the row, and it is recorded rather than acted
+on.** `settings.units` binds a control in the settings pane and persists through `saveSettings`, and
+**nothing reads it**. AD16's release checklist ticks *"No unfinished or nonfunctional controls
+advertised"*. That box is at least arguable while this row exists. It is **out of this package's
+scope** — the setting is plugin-wide and predates the expansion — and it is written here because it
+was measured here, so a later session finds it from the decisions side rather than rediscovering it.
+
+**The losing side**: none worth taking. A test for the display-unit half would have to invent the
+feature first, and a row cannot be closed by building what it assumes.
+
+**T26 — `click-after-drag does not clear or retarget` — the sentence is NARROWED to the mechanical
+reason.** The row previously read *"Narrower in LAYER: the row says browser and every case is
+jsdom"*, which reads as a scope complaint and invites the next reader to try harder in jsdom. The
+real reason is mechanical and settles it: **jsdom implements no pointer capture**, measured —
+`setPointerCapture` is `undefined` on an element there — so the browser semantics that
+click-after-drag depends on cannot be produced in this suite under any amount of effort. The
+behaviour stays asserted at the layer that is reachable.
+
+**The losing side**: the in-app browser driving `npm run harness` could demonstrate it, and one
+session's demonstration produces no repeatable gate. A picture nobody re-runs is not evidence a
+later session can rely on, which is the same argument this repository already makes about an unrun
+manual case.
+
+**T08 — `undo/redo cannot overtake write/read-back` — the guarantee is at the PORT layer and the
+sentence now says so.** The row asks for session/fault injection; the faults are injected at fake
+ports, because there is no session boundary in this environment to inject at. The behaviour is
+asserted densely by the three files the row already cites. **The losing side**: none available
+without a host — which is the honest form of this row rather than a defect in it.
+
+**T42 — `compact panes keep actions and errors reachable` — the refusal already written INTO the row
+is promoted here, unchanged, so it is findable from the decisions side.** It **must never be graded
+`passed`** from an environment with no pinned Chromium, and there is none on this machine;
+`npx playwright install chromium` is forbidden here because it emptied `node_modules` once. jsdom
+applies no container query, so `styles/designer-narrow.css`'s `@container rp-designer (width <
+35rem)` block has zero effect in every case and nothing in the suite sees the compact layout.
+
+**What the row already carries and this ruling keeps**: that narrow block declares only
+`flex-direction`, `flex`, `width` and border swaps and **no `display`/`visibility` at all**, so it
+hides nothing and the invariance the file does assert would hold in a real browser too. That is a
+reason to believe the row will grade well, and it is not evidence that it does. **The losing side**:
+capturing with `RP_CHROMIUM_EXECUTABLE` pointed at some other browser on disk would produce a
+picture, and this repository's own rule is that a capture taken with an unannounced substitute is
+one somebody then reasons about as if it were the pinned browser's.
+
+**F02 — `composed vanity` — regraded to point at the whole-workflow instrument that already
+exists.** Measured: the string `vanity` appears nowhere in `src/`, `tests/` or `docs/tests/`. The
+whole-workflow instrument F02 asks for is `docs/tests/cases/Compose an asset from parts.md`, which
+is written and unwalked, so the row takes the grade U05 took for the identical reason: **`not-run` —
+a written case exists**.
+
+**The losing side**: a composed-vanity BUILDER is trivially writable and would sit naturally beside
+`toiletShape()` in `tests/helpers/assetShapes.ts`. It loses **twice**. With no consumer it is a dead
+export and `npm run analyze` fails on one — that gate currently reports zero. With a consumer, that
+consumer re-drives paths `arrangeDetails.test.ts` and `groupEdits.test.ts` already cover, under a
+themed name that makes the coverage look wider than it is — which is AD15-R1's T20 losing side
+verbatim, one ruling later.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

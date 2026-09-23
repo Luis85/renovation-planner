@@ -36,57 +36,43 @@
 }
 
 /*
- * THE LABEL IS DRAWN AT 80rem AND WIDER AND NOWHERE ELSE, and 80rem is a MEASUREMENT rather than
- * a taste — but read the next three paragraphs in order, because the measurement it was set from
- * was falsified before this rule was a week old and is true again only since AD18 item 5.
+ * THE LABEL IS HIDDEN AT EVERY WIDTH NOW (AD18-R17 Task 2), and the 80rem breakpoint this
+ * replaced is retired rather than widened: boards 01 and 02 both draw this row icon-only, with
+ * no width at which the text returns. `aria-label`, which `DesignerToolButton.vue` carries
+ * unconditionally, stays every button's accessible name and — Obsidian draws its own tooltip
+ * from it — its tooltip too, so icon-only is not icon-only-with-no-fallback.
  *
- * **WHERE THE NUMBER CAME FROM, kept because it is the record.** AD18 measured the labelled
- * toolbar PRE-ICON: all fourteen tool buttons on one row at 1280px, against two rows at 760 and
- * three at 580 (`top` 32/70/108), with region heights of 65.9px, 69px and 107px. So the rule was
- * written to show the text exactly where it had been measured to fit and hide it everywhere it
- * had been measured to wrap, and 80rem is 1280px at Obsidian's 16px root.
+ * **80rem's history, kept short because the number itself (1280px at Obsidian's 16px root) no
+ * longer gates anything here.** The rule this replaced was measured PRE-ICON at one row at
+ * 1280px against two rows at 760 and three at 580, falsified once AD18 item 3's glyphs widened
+ * every label past that fit, and true again only once AD18-R3 moved the four Basic-shape buttons
+ * into the `Add` rail. `designerIconToolbar.test.ts` reads what this rule DECLARES — jsdom
+ * applies no container query — so none of those figures were ever a check, only an argument, and
+ * the argument this paragraph used to carry is superseded rather than corrected.
  *
- * **WHAT FALSIFIED IT, and it was this file's own card rather than sloppiness.** AD18 measured
- * before the icons that AD18 item 3 was adding. A glyph plus `gap: var(--size-4-1)` costs about
- * 22px a button, and the widest label — `Draw rounded rectangle` — went from AD18's 157px to
- * 179px. The integrator rendered the wave-11 base (`720fe6b21`) and found 1280 was no longer one
- * row: ten buttons at `top: 32`, FOUR wrapping to `top: 70` — `Set facing`, `Calibrate`, `Undo`
- * and `Redo`, named rather than counted — with `DesignerViewMenu`'s `<summary>` at 72 and the
- * region at 69px. Two tool rows and three visual rows, where the comment claimed one and two.
+ * **The trade the retired rule argued against is the one AD18-R17 takes.** It kept the label at
+ * 80rem and wider because "unlabelled glyphs are a learnability cost this surface has no tooltip
+ * test and no rendered check to price" — true still, and outweighed now by matching what both
+ * concept boards draw. The `Add` rail took the icon-only side of that same trade first
+ * (`styles/designer-add.css`'s history, before AD18-R16 Task 3 reversed IT the other way); this
+ * toolbar takes it second, for a different reason (board fidelity, not rail crowding).
  *
- * **WHAT MADE IT TRUE, which is AD18 item 5 and not a change to this rule.** AD18-R3 moved the
- * four Basic-shape buttons into the `Add` rail, taking their width out of this row. The
- * integrator rendered the candidate (`f9b43fa27`) and measured, at 1280 with the labels SHOWN:
- * every remaining tool button at `top: 33`, the summary at `top: 34`, the region **32px**. One
- * row, and one visual row. Across the band: 69 → 32 at 1280, 32 → 32 at 760, 69 → 32 at 580,
- * 69 → 65.9 at 460 — one tool row at every one of the four. **At 460 the region is still 65.9px
- * over a single button row, so something there takes a second visual row and this comment does
- * not say what**; nobody has chased it and a guess would be the same defect as the one above.
+ * `display: none` and not the `.rp-visually-hidden` clip, unchanged: the accessible name is
+ * `aria-label`, so clipping the text would leave it in the accessibility tree SECOND,
+ * contributing nothing, where hiding it outright says what is meant.
  *
- * Every figure in the last two paragraphs is the INTEGRATOR's, in a real browser, at the commit
- * each names. Nothing in this repository renders: jsdom applies no container query and computes
- * no width, so `designerIconToolbar.test.ts` reads what this rule DECLARES and never what it does.
- *
- * The losing side is worth writing down: always-on icons would be one state instead of two, and
- * were refused because unlabelled glyphs are a learnability cost this surface has no tooltip test
- * and no rendered check to price — where `aria-label`, which `DesignerToolButton.vue` carries at
- * every width, is what Obsidian draws its own tooltip from. **The `Add` rail took the other side
- * of that trade for itself** (`styles/designer-add.css` hides its labels at every width, and
- * argues it there), so both states now ship, one per container.
- *
- * `display: none` and not the `.rp-visually-hidden` clip, because the accessible name is
- * `aria-label` in both states: clipping the text would leave it in the accessibility tree
- * SECOND, contributing nothing, where hiding it outright says what is meant.
- *
- * **This rule is NOT scoped to `.rp-designer-tools` and the omission is load-bearing**, so it
- * reaches the rail's labels below 80rem too. That is harmless rather than accidental: the rail's
- * own rule is the identical declaration at the identical (0,2,0) specificity, so wherever the two
- * overlap they agree. `designer-add.css` carries that argument at the rule that depends on it.
+ * **Still not scoped to `.rp-designer-tools`, and the omission is still load-bearing** — it
+ * reaches the `Add` rail's own `.rp-designer-tool-label` too, at the identical (0,2,0)
+ * specificity `styles/designer-add.css`'s rule carries. The two now DISAGREE everywhere they
+ * overlap rather than agreeing as they did before Task 3 (the rail shows its tile labels at every
+ * width; this rule hides them at every width), and the rail wins regardless: `styles/index.css`
+ * imports `designer-add.css` after this partial, and equal specificity resolves to source order.
+ * `designerAddRail.test.ts`'s "shows the rail's tile label text at every width, unconditionally"
+ * is the check on the rail's half of that; this file has no case of its own on the overlap,
+ * because jsdom cannot render either import to see which one paints.
  */
-@container rp-designer (width < 80rem) {
-	.renovation-asset-designer .rp-designer-tool-label {
-		display: none;
-	}
+.renovation-asset-designer .rp-designer-tool-label {
+	display: none;
 }
 
 /*

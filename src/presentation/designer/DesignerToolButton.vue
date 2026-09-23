@@ -4,23 +4,24 @@
  * label beside it, and that label again as the button's `aria-label` (AD18 item 3).
  *
  * **WHETHER THE VISIBLE LABEL IS DRAWN IS THE CONTAINER'S DECISION AND NOT THIS COMPONENT'S.**
- * `styles/designer-toolbar.css` hides `.rp-designer-tool-label` below 80rem;
- * `styles/designer-add.css` hides the rail's at EVERY width. This file knows about neither, takes
- * no `showLabel` prop and must not grow one — that would be a second authority on a question a
+ * `styles/designer-toolbar.css` hides `.rp-designer-tool-label` at every width now (AD18-R17
+ * Task 2, retiring the 80rem breakpoint it used to sit under); `styles/designer-add.css` shows
+ * the rail's at every width instead (AD18-R16 Task 3). This file knows about neither, takes no
+ * `showLabel` prop and must not grow one — that would be a second authority on a question a
  * stylesheet already answers, and this component carries a recorded correction about exactly that
  * shape (`pressed`/`disabled` as props, below).
  *
  * **So "both spellings are LIVE, which is why neither is dead markup" — what this docblock said
- * before AD18 item 5 — stopped being true of every call site.** In the toolbar at 80rem and wider
- * both are drawn and they are the SAME string, which is what WCAG 2.5.3 asks of a visible label
- * and an accessible name that could otherwise disagree. Everywhere else the span is hidden and
- * `aria-label` is the whole accessible name — and in the rail that is every width, so there the
- * span is never seen. It is kept rather than removed, deliberately: `display: none` takes it out
- * of the accessibility tree too, so it costs nothing in either tree, and the rail's treatment is
- * one CSS rule that one line could reverse, where deleting the span would make that a component
- * change. Neither state is checkable here in any case — jsdom applies no container query and
- * computes no width, so what a test reads is the attribute, and what `designerIconToolbar.test.ts`
- * reads of a rule is what it DECLARES.
+ * before AD18 item 5 — is false of every call site now, and Task 2 is what closed the last one.**
+ * The toolbar used to draw both at 80rem and wider, the same string, which is what WCAG 2.5.3
+ * asks of a visible label and an accessible name that could otherwise disagree; Task 2 hides the
+ * span there unconditionally instead, so `aria-label` alone is the accessible name at every call
+ * site now, and the visible span survives only in the rail's tiles. It is kept in the markup
+ * rather than removed, deliberately: `display: none` takes it out of the accessibility tree too,
+ * so it costs nothing in either tree, and a future toolbar reversal is one CSS rule away, where
+ * deleting the span would make that a component change. Neither state is checkable here in any
+ * case — jsdom applies no container query and computes no width, so what a test reads is the
+ * attribute, and what `designerIconToolbar.test.ts` reads of a rule is what it DECLARES.
  *
  * ONE component rather than the markup written out per call site. `grep -rn "DesignerToolButton"
  * src/presentation/designer/` prints NINE lines in this edit — one in this file, which is this

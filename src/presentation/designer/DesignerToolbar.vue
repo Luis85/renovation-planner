@@ -31,23 +31,25 @@
  * a plan: the camera is ephemeral UI (SDD §15) and never a command, so "no active tool" is what
  * pans and zooms here.
  *
- * **Every button draws a native icon now (AD18 item 3), and its text is drawn beside that icon
- * or hidden, depending on the leaf's width.** `grep -rn "HostIcon" src/presentation/designer/`
- * answered 0 before AD18 item 3, against 40 files under `src/presentation/editor/`
- * (`grep -rln`) — the measurement behind C12's "match the current Plan Editor's interaction
- * conventions". It answered THREE lines after that card: the import and the element both lived
- * in `DesignerToolButton.vue`, the one component in this directory that drew a glyph, plus this
- * sentence. **It answers SEVEN now, and this file is a second importer since AD18-R16's Task 1**:
- * the zoom cluster's four buttons draw a bare `HostIcon` in a plain `<button>` rather than
- * through `DesignerToolButton`, because that component always carries a label span (and must not
- * grow a prop that hides it — its own docblock's correction) while the cluster has no width at
- * which one is shown. `DesignerToolButton` is still the one component that draws an icon BESIDE
- * a label; a bare `HostIcon` beside no label at all is this file's own second convention now, not
- * a second one competing with it. What the width decides for the labelled buttons is spelled in
- * `styles/designer-toolbar.css` and argued there, not here — and note that its rule is NOT scoped
- * to `.rp-designer-tools`, so below 80rem it reaches the `Add` rail's labels as well; the rail
- * hides its own at every width in `styles/designer-add.css`, at the same specificity and with the
- * same declaration, and that file is where the overlap is argued. Neither sentence belongs here.
+ * **Every button draws a native icon now (AD18 item 3), and AD18-R17's Task 2 hides its text at
+ * every width rather than only below a breakpoint — boards 01 and 02 both draw this row
+ * icon-only.** `grep -rn "HostIcon" src/presentation/designer/` answered 0 before AD18 item 3,
+ * against 40 files under `src/presentation/editor/` (`grep -rln`) — the measurement behind C12's
+ * "match the current Plan Editor's interaction conventions". It answered THREE lines after that
+ * card: the import and the element both lived in `DesignerToolButton.vue`, the one component in
+ * this directory that drew a glyph, plus this sentence. **It answers SEVEN now, and this file is
+ * a second importer since AD18-R16's Task 1**: the zoom cluster's four buttons draw a bare
+ * `HostIcon` in a plain `<button>` rather than through `DesignerToolButton`, because that
+ * component always carries a label span (and must not grow a prop that hides it — its own
+ * docblock's correction) while the cluster has no width at which one is shown — which every
+ * button in this toolbar now shares, unconditionally, since Task 2. `DesignerToolButton` is
+ * still the one component that draws an icon BESIDE a label; a bare `HostIcon` beside no label
+ * at all is this file's own second convention now, not a second one competing with it. WHETHER
+ * the label draws is spelled in `styles/designer-toolbar.css` and argued there, not here — the
+ * rule is NOT scoped to `.rp-designer-tools`, so it also reaches the `Add` rail's own copy of
+ * `.rp-designer-tool-label`; that rail shows its own at every width instead (AD18-R16 Task 3) and
+ * wins the overlap by import order, which that partial's own comment argues. Neither sentence
+ * belongs here.
  * WHICH glyph each tool wears is `tools/designerToolIcons.ts`, a module rather than a `const` in
  * this file because a `<script setup>` binding is not a module export and AD18 item 5's `Add`
  * rail has to be able to import it — which, since this card, it does.
@@ -217,10 +219,15 @@ const fitAriaDisabled = computed(() => ((designStore.design?.shape ?? null) === 
 		<!--
 			AD18 item 1's zoom cluster: board 01 draws `− 100% +` beside undo/redo, board 02
 			`100% ▾` — a `role="group"` here rather than two separate controls, so a screen reader
-			hears one cluster rather than three unrelated buttons. Icon-only, unlike the mode
-			buttons above: there is no width at which this cluster grows a visible label, so
-			`aria-label` alone is each button's accessible name — no `title` either, the same
-			convention this file's own header records for every other button here.
+			hears one cluster rather than three unrelated buttons. Icon-only by MARKUP rather than
+			by CSS, unlike the mode buttons above (Task 2 made those icon-only too, but through
+			`styles/designer-toolbar.css` hiding a label span `DesignerToolButton` still renders):
+			this cluster's buttons carry no label markup at all, so there is no width at which one
+			could reappear. `aria-label` alone is each button's accessible name either way — no
+			`title`, the same convention this file's own header records for every other button
+			here. Magnifiers (`zoom-out`/`zoom-in`) since Task 2, matching board 01's glyphs —
+			`circle-minus`/`circle-plus` were last round's choice, made when `minus` still belonged
+			to `draw-line`.
 		-->
 		<div
 			class="rp-designer-zoom"
@@ -234,7 +241,7 @@ const fitAriaDisabled = computed(() => ((designStore.design?.shape ?? null) === 
 				:aria-label="tr('editor.view.zoom-out')"
 				@click="zoom(1 / 1.25)"
 			>
-				<HostIcon name="circle-minus" />
+				<HostIcon name="zoom-out" />
 			</button>
 			<output
 				v-if="designStore.design !== null"
@@ -247,7 +254,7 @@ const fitAriaDisabled = computed(() => ((designStore.design?.shape ?? null) === 
 				:aria-label="tr('editor.view.zoom-in')"
 				@click="zoom(1.25)"
 			>
-				<HostIcon name="circle-plus" />
+				<HostIcon name="zoom-in" />
 			</button>
 			<button
 				type="button"

@@ -224,17 +224,18 @@ describe('the Basic shapes group', () => {
 
 describe('what the stylesheet declares', () => {
 	/**
-	 * The label is hidden below 80rem and the rule lives under that container query and no other.
-	 * Both halves matter: a `display: none` that escaped its query would hide the text at every
-	 * width, and a query naming a container nothing declares would apply nowhere — the failure
-	 * `designerNarrowQueryResolved.test.ts` records having shipped once already.
+	 * AD18-R17 (Task 2): the label is hidden at EVERY width now, not only below 80rem — boards 01
+	 * and 02 both draw the tool row icon-only, so the container query that used to gate this
+	 * declaration is gone rather than widened. Asserted both ways: the rule carries no condition
+	 * at all (`condition === ''`), and the OLD narrow condition names it nowhere, so a stray copy
+	 * left behind under the retired query would still be caught.
 	 */
-	it('draws the button text only at 80rem and wider', () => {
+	it('hides the button text at every width, unconditionally', () => {
 		const rules = TOOLBAR_SHEET();
 		const narrow = container('rp-designer (width < 80rem)');
 
-		expect(declared(rules, '.renovation-asset-designer .rp-designer-tool-label', 'display', narrow)).toEqual(parsed('display', 'none'));
-		expect(declared(rules, '.renovation-asset-designer .rp-designer-tool-label', 'display')).toEqual([]);
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-tool-label', 'display')).toEqual(parsed('display', 'none'));
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-tool-label', 'display', narrow)).toEqual([]);
 	});
 
 	/**

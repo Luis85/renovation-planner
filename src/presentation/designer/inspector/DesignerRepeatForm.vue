@@ -26,6 +26,11 @@
  * shows. A `max` attribute alone would leave a pasted value through, and a second copy of the limit
  * here is the pair that drifts — which is why the `max` attribute reads `MAX_REPEAT_COPIES` itself
  * and the refusal copy states no number at all.
+ *
+ * **The whole form is its own `<details>`/`<summary>` now (AD18-R16 Task 6), closed by default.**
+ * The boards fold this as `› Advanced`; the summary carries the heading this file already drew as
+ * an `<h3>`, so the section keeps the same name and gains only the fold. `GroupControls.vue`'s bare
+ * disclosure is the shape borrowed — no dismissal composable, no persisted state, matching C12.
  */
 import { computed, ref } from 'vue';
 import { unwrap } from '../../../core/result/Result';
@@ -105,81 +110,83 @@ function run(): void {
 </script>
 
 <template>
-	<h3 class="rp-designer-panel-title rp-designer-section-title">
-		{{ tr('designer.arrange.repeat') }}
-	</h3>
-	<DesignerFieldRowShell short="designer.arrange.repeat.count">
-		<input
-			type="number"
-			name="repeat-count"
-			min="1"
-			:max="MAX_REPEAT_COPIES"
-			step="1"
-			inputmode="numeric"
-			:aria-label="tr('designer.arrange.repeat.count')"
-			:value="count"
-			@input="count = ($event.target as HTMLInputElement).value"
-		>
-	</DesignerFieldRowShell>
-	<DesignerFieldRowShell
-		short="designer.arrange.repeat.spacing.short"
-		unit="mm"
-	>
-		<input
-			type="number"
-			name="repeat-spacing"
-			step="any"
-			inputmode="decimal"
-			:aria-label="tr('designer.arrange.repeat.spacing')"
-			:value="spacing"
-			@input="spacing = ($event.target as HTMLInputElement).value"
-		>
-	</DesignerFieldRowShell>
-	<label class="rp-designer-field">
-		{{ tr('designer.arrange.repeat.axis') }}
-		<select
-			v-model="axis"
-			name="repeat-axis"
-		>
-			<option
-				v-for="value in AXES"
-				:key="value"
-				:value="value"
+	<details class="rp-designer-collapsible">
+		<summary class="rp-designer-panel-title rp-designer-section-title">
+			{{ tr('designer.arrange.repeat') }}
+		</summary>
+		<DesignerFieldRowShell short="designer.arrange.repeat.count">
+			<input
+				type="number"
+				name="repeat-count"
+				min="1"
+				:max="MAX_REPEAT_COPIES"
+				step="1"
+				inputmode="numeric"
+				:aria-label="tr('designer.arrange.repeat.count')"
+				:value="count"
+				@input="count = ($event.target as HTMLInputElement).value"
 			>
-				{{ tr(`designer.arrange.repeat.axis.${value}`) }}
-			</option>
-		</select>
-	</label>
-	<label class="rp-designer-field">
-		{{ tr('designer.arrange.repeat.mode') }}
-		<select
-			v-model="mode"
-			name="repeat-mode"
+		</DesignerFieldRowShell>
+		<DesignerFieldRowShell
+			short="designer.arrange.repeat.spacing.short"
+			unit="mm"
 		>
-			<option
-				v-for="value in MODES"
-				:key="value"
-				:value="value"
+			<input
+				type="number"
+				name="repeat-spacing"
+				step="any"
+				inputmode="decimal"
+				:aria-label="tr('designer.arrange.repeat.spacing')"
+				:value="spacing"
+				@input="spacing = ($event.target as HTMLInputElement).value"
 			>
-				{{ tr(`designer.arrange.repeat.mode.${value}`) }}
-			</option>
-		</select>
-	</label>
-	<p
-		v-if="preview !== null"
-		class="rp-designer-field-hint"
-		data-rp-preview="repeat"
-	>
-		{{ preview }}
-	</p>
-	<div class="rp-designer-selection-actions">
-		<button
-			type="button"
-			class="rp-designer-selection-button"
-			name="repeat-run"
-			@click="run"
+		</DesignerFieldRowShell>
+		<label class="rp-designer-field">
+			{{ tr('designer.arrange.repeat.axis') }}
+			<select
+				v-model="axis"
+				name="repeat-axis"
+			>
+				<option
+					v-for="value in AXES"
+					:key="value"
+					:value="value"
+				>
+					{{ tr(`designer.arrange.repeat.axis.${value}`) }}
+				</option>
+			</select>
+		</label>
+		<label class="rp-designer-field">
+			{{ tr('designer.arrange.repeat.mode') }}
+			<select
+				v-model="mode"
+				name="repeat-mode"
+			>
+				<option
+					v-for="value in MODES"
+					:key="value"
+					:value="value"
+				>
+					{{ tr(`designer.arrange.repeat.mode.${value}`) }}
+				</option>
+			</select>
+		</label>
+		<p
+			v-if="preview !== null"
+			class="rp-designer-field-hint"
+			data-rp-preview="repeat"
 		>
-			{{ tr('designer.arrange.repeat.run') }}
-		</button>
-	</div>
+			{{ preview }}
+		</p>
+		<div class="rp-designer-selection-actions">
+			<button
+				type="button"
+				class="rp-designer-selection-button"
+				name="repeat-run"
+				@click="run"
+			>
+				{{ tr('designer.arrange.repeat.run') }}
+			</button>
+		</div>
+	</details>
 </template>

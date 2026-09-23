@@ -530,3 +530,52 @@ describe('the refusal alert', () => {
 		expect(wrapper.find('[role="alert"]').exists()).toBe(false);
 	});
 });
+
+/**
+ * AD18-R16 Task 6: the boards fold their advanced groups, and with a detail selected this panel
+ * used to draw the set-transform fields and the whole Repeat form open every time, which is most
+ * of what made the Inspector long. Group, align and distribute stay outside the fold — they are
+ * the primary multi-selection actions and the brief says so explicitly.
+ */
+describe('the transform and repeat folds (AD18-R16 Task 6)', () => {
+	it('starts both folds closed, each named by its own section title', () => {
+		const { wrapper } = mountPanel();
+		const folds = wrapper.findAll('.rp-designer-collapsible');
+		expect(folds).toHaveLength(2);
+		expect(folds.map((fold) => (fold.element as HTMLDetailsElement).open)).toEqual([false, false]);
+		expect(folds[0]?.get('summary').text()).toBe(t('en', 'designer.arrange.transform'));
+		expect(folds[1]?.get('summary').text()).toBe(t('en', 'designer.arrange.repeat'));
+	});
+
+	/** Contract C12: opening one exposes its fields, which the domain contract only reaches once the browser draws them open. */
+	it('exposes the set-transform fields once its fold is opened', () => {
+		const { wrapper } = mountPanel();
+		const [transformFold] = wrapper.findAll('.rp-designer-collapsible');
+		const details = transformFold?.element as HTMLDetailsElement;
+		expect(details.querySelector('[name="set-move-x"]')?.closest('[open]')).toBeNull();
+
+		details.open = true;
+
+		expect(details.open).toBe(true);
+		expect(details.querySelector('[name="set-move-x"]')?.closest('[open]')).toBe(details);
+	});
+
+	it('exposes the Repeat fields once its fold is opened', () => {
+		const { wrapper } = mountPanel({ selected: [graphic('detail-1')] });
+		const [, repeatFold] = wrapper.findAll('.rp-designer-collapsible');
+		const details = repeatFold?.element as HTMLDetailsElement;
+		expect(details.querySelector('[name="repeat-count"]')?.closest('[open]')).toBeNull();
+
+		details.open = true;
+
+		expect(details.querySelector('[name="repeat-count"]')?.closest('[open]')).toBe(details);
+	});
+
+	/** Group / align / distribute are the primary multi-selection actions and stay outside either fold. */
+	it('keeps group, align and distribute outside any fold', () => {
+		const { wrapper } = mountPanel({ selected: ALL });
+		for (const name of ['group', 'align-left', 'distribute-centres-x']) {
+			expect(wrapper.get(`[name="${name}"]`).element.closest('details')).toBeNull();
+		}
+	});
+});

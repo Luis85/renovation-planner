@@ -20,6 +20,7 @@ export const assetArrangeDe: Record<keyof typeof assetArrangeEn, string> = {
 	'designer.arrange.distribute.centres-y': 'Mittelpunkte senkrecht gleichmäßig verteilen',
 	'designer.arrange.distribute.gaps-x': 'Abstände waagerecht angleichen',
 	'designer.arrange.distribute.gaps-y': 'Abstände senkrecht angleichen',
+	'designer.arrange.transform': 'Transformieren',
 	'designer.arrange.move-x': 'Waagerecht verschieben in Millimetern',
 	'designer.arrange.move-y': 'Senkrecht verschieben in Millimetern',
 	'designer.arrange.scale-by': 'Skalieren um den Faktor',

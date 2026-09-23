@@ -43,6 +43,12 @@ export const assetArrangeEn = {
 	'designer.arrange.distribute.centres-y': 'Even centres down',
 	'designer.arrange.distribute.gaps-x': 'Even gaps across',
 	'designer.arrange.distribute.gaps-y': 'Even gaps down',
+	// The set-transform fold's summary (AD18-R16 Task 6, contract C12): the boards fold this
+	// group as `› Advanced`, and the code had no title of its own to reuse — the fields sat
+	// under the panel's own "Arrange" heading with nothing naming them separately — so this key
+	// is new rather than moved, chosen to match `editor.group.transform`'s vocabulary for the
+	// same shape (move/rotate together) on the Plan Editor's side.
+	'designer.arrange.transform': 'Transform',
 	'designer.arrange.move-x': 'Move across in millimetres',
 	'designer.arrange.move-y': 'Move down in millimetres',
 	'designer.arrange.scale-by': 'Scale by a factor',

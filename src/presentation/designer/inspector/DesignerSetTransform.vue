@@ -15,10 +15,17 @@
  * Its own component for the reason `DesignerFieldRow` and `DesignerActionButton` are theirs: fallow
  * scores template complexity per SFC, and the panel that mounts this already carries three button
  * loops and a select.
+ *
+ * **Closed by default behind its own `<details>`/`<summary>` (AD18-R16 Task 6)**: the boards fold
+ * this group as `› Advanced`, and with a detail selected these four fields used to draw open every
+ * time, which is most of what made the panel long. `GroupControls.vue`'s bare disclosure is the
+ * shape borrowed — no dismissal composable, no persisted state, since C12 (Open state is leaf-local
+ * and not persisted) asks for exactly that and nothing more.
  */
 import { computed } from 'vue';
 import { moveDetails, rotateDetails, scaleDetails } from '../../../domain/asset/arrangeDetails';
 import type { StringKey } from '../../i18n/locales/en';
+import { tr } from '../../i18n/strings';
 import type { ShapeEdit } from '../selection/editShape';
 import DesignerFieldRow from './DesignerFieldRow.vue';
 
@@ -75,14 +82,19 @@ async function onNumber(field: ByField, event: Event): Promise<void> {
 </script>
 
 <template>
-	<DesignerFieldRow
-		v-for="field in fields"
-		:key="field.name"
-		:name="field.name"
-		:label="field.label"
-		:short="field.short"
-		:unit="field.unit"
-		:value="field.resting"
-		:on-change="(event: Event) => void onNumber(field, event)"
-	/>
+	<details class="rp-designer-collapsible">
+		<summary class="rp-designer-panel-title rp-designer-section-title">
+			{{ tr('designer.arrange.transform') }}
+		</summary>
+		<DesignerFieldRow
+			v-for="field in fields"
+			:key="field.name"
+			:name="field.name"
+			:label="field.label"
+			:short="field.short"
+			:unit="field.unit"
+			:value="field.resting"
+			:on-change="(event: Event) => void onNumber(field, event)"
+		/>
+	</details>
 </template>

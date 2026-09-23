@@ -64,4 +64,6 @@ export const editorIconNodes: Readonly<Record<string, readonly { tag: string; at
   "squircle": [{"tag":"path","attributes":{"d":"M12 3c7.2 0 9 1.8 9 9s-1.8 9-9 9-9-1.8-9-9 1.8-9 9-9"}}],
   "circle": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}}],
   "anchor": [{"tag":"path","attributes":{"d":"M12 6v16"}},{"tag":"path","attributes":{"d":"m19 13 2-1a9 9 0 0 1-18 0l2 1"}},{"tag":"path","attributes":{"d":"M9 11h6"}},{"tag":"circle","attributes":{"cx":"12","cy":"4","r":"2"}}],
+  "crosshair": [{"tag":"circle","attributes":{"cx":"12","cy":"12","r":"10"}},{"tag":"line","attributes":{"x1":"22","x2":"18","y1":"12","y2":"12"}},{"tag":"line","attributes":{"x1":"6","x2":"2","y1":"12","y2":"12"}},{"tag":"line","attributes":{"x1":"12","x2":"12","y1":"6","y2":"2"}},{"tag":"line","attributes":{"x1":"12","x2":"12","y1":"22","y2":"18"}}],
+  "panel-bottom": [{"tag":"rect","attributes":{"width":"18","height":"18","x":"3","y":"3","rx":"2"}},{"tag":"path","attributes":{"d":"M3 15h18"}}],
 };

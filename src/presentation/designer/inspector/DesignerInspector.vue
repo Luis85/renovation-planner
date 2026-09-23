@@ -60,6 +60,12 @@ const props = defineProps<{
 	 */
 	removeBackground: () => Promise<void>;
 	editDimensions: () => Promise<void>;
+	/**
+	 * Task 8's `Custom` placement segment, passed straight through to `DesignerReferencePlacement`
+	 * for the same reason `removeBackground` is above: that component is mounted bare in
+	 * `designerReferencePanels.test.ts`, so it takes this rather than reading `useDesignerRuntime()`.
+	 */
+	activateAnchorTool: () => void;
 	logger: Logger;
 	/** The part the canvas has selected, `null` for none; its section is keyed by part, so choosing another starts it fresh. */
 	selection: DesignerSelection | null;
@@ -507,6 +513,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 			<DesignerReferencePlacement
 				:design="design"
 				:edit-shape="editShape"
+				:activate-anchor-tool="activateAnchorTool"
 			/>
 			<DesignerClearanceHelper
 				:design="design"

@@ -24,10 +24,12 @@ import type { DesignerSelection } from '../../../src/presentation/designer/selec
 
 let setHeight: ReturnType<typeof vi.fn<(height: number | null) => Promise<DispatchResult>>>;
 let editDimensions: ReturnType<typeof vi.fn<() => Promise<void>>>;
+let activateAnchorTool: ReturnType<typeof vi.fn<() => void>>;
 
 beforeEach(() => {
 	setHeight = vi.fn<(height: number | null) => Promise<DispatchResult>>().mockResolvedValue(ok('wrote'));
 	editDimensions = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+	activateAnchorTool = vi.fn<() => void>();
 });
 
 /**
@@ -78,6 +80,7 @@ function mountInspector(
 			design: buildDesign(options),
 			setHeight,
 			editDimensions,
+			activateAnchorTool,
 			logger: recorder,
 			// Required, and never pressed by these cases: `designerReferenceView.test.ts` drives the gesture.
 			removeBackground: async (): Promise<void> => {},

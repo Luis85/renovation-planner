@@ -35,6 +35,7 @@
  * already anchored at its centre answers `editShape`'s `null`, which dispatches no
  * `SetAssetShape` and pushes no undo entry.
  */
+import type { IconName } from 'obsidian';
 import { computed, ref } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { AppError } from '../../../core/errors/AppError';
@@ -45,12 +46,27 @@ import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import type { EditShape } from '../selection/editShape';
 import { anchorPresetPoint, currentAnchorPreset, facingQuarter, type AnchorPreset } from '../../../domain/asset/referenceFrame';
+import HostIcon from '../../components/HostIcon.vue';
 
-const props = defineProps<{ design: AssetDesignDto; editShape: EditShape }>();
+const props = defineProps<{
+	design: AssetDesignDto;
+	editShape: EditShape;
+	/**
+	 * Task 8's `Custom` segment: switches the canvas to the existing `SetAnchorTool` rather than
+	 * writing a point itself — the tool's own `pointerDown` is what places one, on whatever the user
+	 * clicks next. Threaded from `AssetDesignerRoot` through `DesignerInspector` rather than read off
+	 * `useDesignerRuntime()` here, for the reason this file's own header already gives for every
+	 * other collaborator: this component is mounted BARE in `designerReferencePanels.test.ts`, and a
+	 * runtime injection throws on a mount with no leaf behind it.
+	 */
+	activateAnchorTool: () => void;
+}>();
 
-const PRESETS: readonly { readonly preset: AnchorPreset; readonly label: StringKey }[] = [
-	{ preset: 'centre', label: 'designer.placement.centre' },
-	{ preset: 'back-centre', label: 'designer.placement.back-centre' },
+/** Icons per AD18-R16 Task 8: `crosshair` for the geometric middle, `panel-bottom` for a point on
+ * one edge of the box — see the report for why that glyph over another Lucide name. */
+const PRESETS: readonly { readonly preset: AnchorPreset; readonly label: StringKey; readonly icon: IconName }[] = [
+	{ preset: 'centre', label: 'designer.placement.centre', icon: 'crosshair' },
+	{ preset: 'back-centre', label: 'designer.placement.back-centre', icon: 'panel-bottom' },
 ];
 
 /** In quarter order — 0 is +x, and +y renders DOWN the sheet (`Viewport.sceneConfig` never flips it). */
@@ -64,18 +80,17 @@ const FRONT_LABELS: readonly StringKey[] = [
 const refusal = ref<AppError | null>(null);
 
 /**
- * Both readouts and the `v-if` from ONE computed, rather than three each asking whether there is a
+ * The readout and the `v-if` from ONE computed, rather than two each asking whether there is a
  * shape. A shapeless asset has no placement point and no front, so there is one absence here and
- * one guard for it — three would each carry an arm that only the same state reaches, and two of
- * them would be arms nothing could ever read: a `computed` is lazy, so a null branch behind a
- * `v-if` that never renders is a branch no test can enter.
+ * one guard for it. `preset` used to feed a text readout too (`point: tr(...)`, Task 8 deleted it
+ * with the `<dl>` row it filled) and still decides which of the three toggle buttons is pressed —
+ * `null` for neither preset, the "custom" the group's third segment answers to.
  */
 const view = computed(() => {
 	const design = props.design.shape;
 	if (design === null) return null;
 	const preset = currentAnchorPreset(design.footprint, design.facing, design.anchor);
-	const named = PRESETS.find((entry) => entry.preset === preset);
-	return { preset, point: tr(named?.label ?? 'designer.placement.custom'), front: frontLabel(design.facing) };
+	return { preset, front: frontLabel(design.facing) };
 });
 
 /**
@@ -112,12 +127,22 @@ async function choose(preset: AnchorPreset): Promise<void> {
 			{{ tr('designer.placement') }}
 		</h3>
 		<dl class="rp-designer-reference-fields">
-			<dt>{{ tr('designer.placement.point') }}</dt>
-			<dd>{{ view.point }}</dd>
 			<dt>{{ tr('designer.placement.front') }}</dt>
 			<dd>{{ view.front }}</dd>
 		</dl>
-		<div class="rp-designer-selection-actions">
+		<!--
+			Task 8 (AD18-R16): board 01's `Back centre | Centre | Custom` segmented control, replacing
+			the old `Placement point: …` text row and its two plain buttons with a NAMED group of three
+			toggle buttons. `Custom` dispatches nothing itself — it hands the canvas to the existing
+			`SetAnchorTool` the toolbar's own `Set anchor` button already activates, and the user's next
+			click is what places the point. It is pressed exactly when `view.preset` is `null`: neither
+			preset, which is the same "custom" `designer.placement.custom` already named as a readout.
+		-->
+		<div
+			class="rp-designer-selection-actions rp-designer-placement-modes"
+			role="group"
+			:aria-label="tr('designer.placement.point')"
+		>
 			<button
 				v-for="entry in PRESETS"
 				:key="entry.preset"
@@ -127,7 +152,18 @@ async function choose(preset: AnchorPreset): Promise<void> {
 				:aria-pressed="view.preset === entry.preset"
 				@click="() => void choose(entry.preset)"
 			>
-				{{ tr(entry.label) }}
+				<HostIcon :name="entry.icon" />
+				<span>{{ tr(entry.label) }}</span>
+			</button>
+			<button
+				type="button"
+				class="rp-designer-selection-button"
+				name="placement-custom"
+				:aria-pressed="view.preset === null"
+				@click="activateAnchorTool()"
+			>
+				<HostIcon name="anchor" />
+				<span>{{ tr('designer.placement.custom') }}</span>
 			</button>
 		</div>
 		<p class="rp-designer-field-hint">

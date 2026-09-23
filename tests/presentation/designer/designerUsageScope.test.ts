@@ -109,6 +109,7 @@ function inspector(leaf?: AssetDesignerContext): VueWrapper {
 			setHeight: vi.fn<(height: number | null) => Promise<DispatchResult>>().mockResolvedValue(ok('wrote')),
 			removeBackground: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 			editDimensions: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+			activateAnchorTool: vi.fn<() => void>(),
 			logger: recorder,
 			selection: null,
 			// A write door nothing in this file presses: every case here is about what the usage

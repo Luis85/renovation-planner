@@ -55,3 +55,7 @@ and walked the asset designer in a real vault, where all five icon-only buttons 
 — so that installed catalogue does answer `squircle`, `circle` and `anchor`. The Obsidian
 VERSION was not captured, so this is one catalogue on one machine on one date rather than a
 pinned claim, and nothing re-runs it.
+
+`crosshair.svg` (the asset designer's Placement point group, Centre) and `panel-bottom.svg`
+(the same group's Back centre) were taken from the same pinned revision. Whether the installed
+host catalogue answers either name is not verified here.

@@ -405,6 +405,15 @@ async function editDimensions(): Promise<void> {
 	await notifyIfRefused(runtime.editShape((shape) => scaleDesignToDimensions(shape, result.width, result.depth)));
 }
 
+/**
+ * Task 8's `Custom` placement segment (AD18-R16): the same `set-anchor` tool the toolbar's own
+ * `Set anchor` button already activates, through the one `setTool` door (SDD §66's "one action,
+ * every input") rather than a second, independently-decided activation.
+ */
+function activateAnchorTool(): void {
+	runtime.setTool('set-anchor');
+}
+
 /** `FormDialog` carries its payload as `unknown`; the command validates the shape itself. */
 function isShape(values: unknown): values is AssetShape {
 	return typeof values === 'object' && values !== null && 'footprint' in values && 'details' in values;
@@ -702,6 +711,7 @@ onMounted(() => {
 					:set-height="runtime.commitHeight"
 					:remove-background="runtime.removeBackground"
 					:edit-dimensions="editDimensions"
+					:activate-anchor-tool="activateAnchorTool"
 					:logger="context.logger"
 					:selection="selection"
 					:edit-shape="runtime.editShape"

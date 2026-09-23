@@ -160,24 +160,60 @@ describe('the reference status block', () => {
 });
 
 describe('the placement presets', () => {
-	it('reads the anchor as the preset it is sitting on', () => {
+	/**
+	 * Task 8's `Custom` segment: never asserted BY this file's `chain()` helper, which knows only
+	 * `editShape`, so it is its own spy. Fresh `vi.fn()` per mount would work too, but ONE shared
+	 * spy that every case starts from a clean `mockClear()` is what `press`-style helpers elsewhere
+	 * in this suite already do for a collaborator nothing here writes through.
+	 */
+	const activateAnchorTool = vi.fn<() => void>();
+
+	/** Every mount in this describe needs the same two doors; only `design` and `editShape` vary. */
+	function mountPlacement(design: AssetDesignDto, editShape: ReturnType<typeof chain>['editShape']) {
+		return mount(DesignerReferencePlacement, { props: { design, editShape, activateAnchorTool } });
+	}
+
+	it('reads the anchor as the preset it is sitting on, and presses neither its sibling nor Custom', () => {
 		const { editShape } = chain(baseShape());
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign(), editShape } });
+		const wrapper = mountPlacement(assetDesign(), editShape);
 		expect(wrapper.text()).toContain(t('en', 'designer.placement.centre'));
 		expect(wrapper.find('[name="placement-centre"]').attributes('aria-pressed')).toBe('true');
+		expect(wrapper.find('[name="placement-back-centre"]').attributes('aria-pressed')).toBe('false');
+		expect(wrapper.find('[name="placement-custom"]').attributes('aria-pressed')).toBe('false');
 	});
 
-	it('reads an anchor on neither preset as a custom point', () => {
+	/** The other named preset, so a case that only ever anchored at `centre` cannot pass by coincidence. */
+	it('reads the anchor as back-centre when it sits there, and presses neither its sibling nor Custom', () => {
+		const shape: AssetShape = { ...baseShape(), anchor: { x: -600, y: 0 } };
+		const { editShape } = chain(shape);
+		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
+		expect(wrapper.find('[name="placement-back-centre"]').attributes('aria-pressed')).toBe('true');
+		expect(wrapper.find('[name="placement-centre"]').attributes('aria-pressed')).toBe('false');
+		expect(wrapper.find('[name="placement-custom"]').attributes('aria-pressed')).toBe('false');
+	});
+
+	/** The third anchor situation (AD18-R16 Task 8): neither preset, which is what `Custom` answers to. */
+	it('reads an anchor on neither preset as Custom, pressed, with neither named preset pressed', () => {
 		const shape: AssetShape = { ...baseShape(), anchor: { x: 123, y: 45 } };
 		const { editShape } = chain(shape);
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign({ shape }), editShape } });
+		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
 		expect(wrapper.text()).toContain(t('en', 'designer.placement.custom'));
+		expect(wrapper.find('[name="placement-custom"]').attributes('aria-pressed')).toBe('true');
+		expect(wrapper.find('[name="placement-centre"]').attributes('aria-pressed')).toBe('false');
+		expect(wrapper.find('[name="placement-back-centre"]').attributes('aria-pressed')).toBe('false');
+	});
+
+	/** The group `role="group"` names, once — pinned separately from any one button's own name. */
+	it('names the three-button group "Placement point", the row the buttons replaced', () => {
+		const { editShape } = chain(baseShape());
+		const wrapper = mountPlacement(assetDesign(), editShape);
+		expect(wrapper.find('[role="group"]').attributes('aria-label')).toBe(t('en', 'designer.placement.point'));
 	});
 
 	it('moves the anchor to the back of the facing frame, and changes nothing else', async () => {
 		const shape = baseShape();
 		const { editShape, writes, written } = chain(shape);
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign({ shape }), editShape } });
+		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
 
 		await press(wrapper, 'placement-back-centre');
 
@@ -192,7 +228,7 @@ describe('the placement presets', () => {
 	/** C05: a press that would change nothing dispatches nothing, so it pushes no undo entry. */
 	it('writes nothing when the anchor is already on the preset pressed', async () => {
 		const { editShape, writes } = chain(baseShape());
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign(), editShape } });
+		const wrapper = mountPlacement(assetDesign(), editShape);
 
 		await press(wrapper, 'placement-centre');
 
@@ -213,7 +249,7 @@ describe('the placement presets', () => {
 		// refused, and the assertion read the fixture's own untouched `false`.
 		const shape: AssetShape = { ...baseShape(), footprintOrigin: 'traced', footprintPending: true, anchorPending: false };
 		const { editShape, written } = chain(shape);
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign({ shape }), editShape } });
+		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
 
 		await press(wrapper, 'placement-back-centre');
 
@@ -228,14 +264,14 @@ describe('the placement presets', () => {
 	])('says where the front points at facing %s', (facing, key) => {
 		const shape: AssetShape = { ...baseShape(), facing };
 		const { editShape } = chain(shape);
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign({ shape }), editShape } });
+		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
 		expect(wrapper.text()).toContain(t('en', key));
 	});
 
 	it('falls back to an angle measured from a named direction for a front between two axes', () => {
 		const shape: AssetShape = { ...baseShape(), facing: Math.PI / 4 };
 		const { editShape } = chain(shape);
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign({ shape }), editShape } });
+		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
 		expect(wrapper.text()).toContain(t('en', 'designer.placement.front.angle', { degrees: '45' }));
 	});
 
@@ -247,7 +283,7 @@ describe('the placement presets', () => {
 	it('writes when only the pending flag is wrong, because the flag is what the point means', async () => {
 		const shape: AssetShape = { ...baseShape(), footprintOrigin: 'traced', footprintPending: true, anchorPending: false };
 		const { editShape, writes, written } = chain(shape);
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign({ shape }), editShape } });
+		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
 
 		await press(wrapper, 'placement-centre');
 
@@ -260,7 +296,7 @@ describe('the placement presets', () => {
 	it('writes nothing for a footprint with no coordinates to measure', async () => {
 		const shape: AssetShape = { ...baseShape(), footprint: { points: [] } };
 		const { editShape, writes } = chain(shape);
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign({ shape }), editShape } });
+		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
 
 		await press(wrapper, 'placement-back-centre');
 
@@ -271,7 +307,7 @@ describe('the placement presets', () => {
 	it('shows a refused write beside the controls rather than swallowing it', async () => {
 		const refusal: ValidationError = { category: 'Validation', code: 'asset.invalid-footprint', message: 'no' };
 		const { editShape } = chain(baseShape(), refusal);
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign(), editShape } });
+		const wrapper = mountPlacement(assetDesign(), editShape);
 
 		await press(wrapper, 'placement-back-centre');
 
@@ -280,8 +316,24 @@ describe('the placement presets', () => {
 
 	it('draws nothing for an asset with no shape to place', () => {
 		const { editShape } = chain(baseShape());
-		const wrapper = mount(DesignerReferencePlacement, { props: { design: assetDesign({ shape: null }), editShape } });
+		const wrapper = mountPlacement(assetDesign({ shape: null }), editShape);
 		expect(wrapper.find('.rp-designer-placement').exists()).toBe(false);
+	});
+
+	/**
+	 * `Custom` (AD18-R16 Task 8) is the one segment that dispatches no shape edit at all: it hands
+	 * the canvas to the existing `SetAnchorTool` and the user's next click is what writes a point.
+	 */
+	it('activates the anchor tool on Custom, and writes no shape edit', async () => {
+		activateAnchorTool.mockClear();
+		const { editShape, writes } = chain(baseShape());
+		const wrapper = mountPlacement(assetDesign(), editShape);
+
+		await press(wrapper, 'placement-custom');
+
+		expect(activateAnchorTool).toHaveBeenCalledTimes(1);
+		expect(editShape).not.toHaveBeenCalled();
+		expect(writes).toHaveLength(0);
 	});
 });
 
@@ -449,6 +501,7 @@ describe('mounted in the real inspector', () => {
 				design: assetDesign({ shape, calibration: CALIBRATION }),
 				setHeight: vi.fn<(height: number | null) => Promise<DispatchResult>>().mockResolvedValue(ok('wrote')),
 				editDimensions: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+				activateAnchorTool: vi.fn<() => void>(),
 				logger: recorder,
 				removeBackground,
 				selection: null,

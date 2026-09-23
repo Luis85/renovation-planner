@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { referencePoint, type ReferenceAppearance } from '../../../src/domain/plan/ReferenceAppearance';
 import { previewTransform } from '../../../src/presentation/editor/reference/referenceSetup';
-import { referenceSourcePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
+import { dragRotation, formatDegrees, nudgeRotation, reachableHandlePoint, referenceScreenCentre, referenceSourcePoint, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
 
 const appearance: ReferenceAppearance = { crop: { x: 20, y: 30, width: 800, height: 600 }, rotation: 0, opacity: 0.65, visible: true, locked: true };
 it.each([0, 45, 90, -15, -180])('keeps the original source pixel under the pointer through pan and zoom at %s°', rotation => {
@@ -23,4 +23,78 @@ it('fits the available viewport, rejects clicks outside the cropped image and bo
 	expect(zoomReference(large, { x: 200, y: 100 }, 1e8, large.scale).scale).toBe(large.scale * 32);
 	expect(zoomReference(large, { x: 200, y: 100 }, 1e-8, large.scale).scale).toBe(large.scale / 4);
 	expect(zoomReference(large, { x: 200, y: 100 }, NaN, large.scale)).toBe(large);
+});
+
+it('finds the crop centre on screen, with and without rotation and crop offset', () => {
+	const view = { x: 10, y: 20, scale: 2 };
+	const noRotation: ReferenceAppearance = { ...appearance, rotation: 0 };
+	expect(referenceScreenCentre(view, noRotation)).toEqual({ x: 10 + 400 * 2, y: 20 + 300 * 2 });
+
+	const rotated: ReferenceAppearance = { ...appearance, rotation: 90 };
+	const centre = referenceScreenCentre(view, rotated);
+	expect(centre.x).toBeCloseTo(10 - 300 * 2, 8);
+	expect(centre.y).toBeCloseTo(20 + 400 * 2, 8);
+});
+
+it.each([
+	[0, { x: 0, y: -10 }],
+	[90, { x: 10, y: 0 }],
+	[-90, { x: -10, y: 0 }],
+	[180, { x: 0, y: 10 }],
+])('places the handle at rotation %s°', (rotation, offset) => {
+	const centre = { x: 50, y: 50 };
+	const point = rotationHandlePoint(centre, rotation, 10);
+	expect(point.x).toBeCloseTo(centre.x + offset.x, 8);
+	expect(point.y).toBeCloseTo(centre.y + offset.y, 8);
+});
+
+it('turns a quarter clockwise into +90', () => {
+	const start = { x: 0, y: -10 };
+	const current = { x: 10, y: 0 };
+	expect(dragRotation(0, start, current, false)).toBeCloseTo(90, 8);
+});
+
+it('normalises the wrap-around into [-180, 180]', () => {
+	const start = { x: 10, y: 0 };
+	const current = { x: 10 * Math.cos(20 * Math.PI / 180), y: 10 * Math.sin(20 * Math.PI / 180) };
+	expect(dragRotation(170, start, current, false)).toBeCloseTo(-170, 8);
+});
+
+it('snaps to the nearest 15° when snap is set, else rounds to 0.1°', () => {
+	const start = { x: 10, y: 0 };
+	const current = { x: 10 * Math.cos(37.4 * Math.PI / 180), y: 10 * Math.sin(37.4 * Math.PI / 180) };
+	expect(dragRotation(0, start, current, true)).toBeCloseTo(30, 8);
+	expect(dragRotation(0, start, current, false)).toBeCloseTo(37.4, 8);
+});
+
+it('leaves rotation unchanged when either pointer is within 1px of its centre', () => {
+	expect(dragRotation(42, { x: 0.5, y: 0 }, { x: 10, y: 0 }, false)).toBe(42);
+	expect(dragRotation(42, { x: 10, y: 0 }, { x: 0.5, y: 0 }, false)).toBe(42);
+});
+
+it('nudges rotation by a step, wrapping into range and rounding away float drift', () => {
+	expect(nudgeRotation(0.2, 0.1)).toBe(0.3);
+	expect(nudgeRotation(180, 1)).toBe(-179);
+	expect(nudgeRotation(-180, -1)).toBe(179);
+});
+
+it('formats an angle in the given language, one decimal at most and no grouping', () => {
+	expect(formatDegrees(12.3, 'en')).toBe('12.3°');
+	expect(formatDegrees(12.3, 'de')).toBe('12,3°');
+	expect(formatDegrees(-90, 'en')).toBe('-90°');
+	expect(formatDegrees(-0, 'en')).toBe('0°');
+	expect(formatDegrees(-0.04, 'de')).toBe('0°');
+});
+
+function near(point: { x: number; y: number }, x: number, y: number): void { expect(point.x).toBeCloseTo(x, 9); expect(point.y).toBeCloseTo(y, 9); }
+it('keeps the knob where it is when on-screen, and pulls it along its direction line into the inset canvas when not', () => {
+	const size = { width: 400, height: 220 };
+	expect(reachableHandlePoint({ x: 200, y: 110 }, 30, 94, size, 16)).toEqual(rotationHandlePoint({ x: 200, y: 110 }, 30, 94));
+	near(reachableHandlePoint({ x: -100, y: 110 }, 90, 94, size, 16), 16, 110);
+	near(reachableHandlePoint({ x: 10, y: 110 }, 90, 1000, size, 16), 384, 110);
+	near(reachableHandlePoint({ x: 500, y: 110 }, 90, 94, size, 16), 384, 110);
+	near(reachableHandlePoint({ x: -100, y: 300 }, 0, 94, size, 16), 16, 204);
+	near(reachableHandlePoint({ x: 100, y: 300 }, 0, 20, size, 16), 100, 204);
+	const collapsed = reachableHandlePoint({ x: 0, y: 0 }, 45, -16, { width: 0, height: 0 }, 16);
+	expect(Number.isFinite(collapsed.x) && Number.isFinite(collapsed.y)).toBe(true);
 });

@@ -143,6 +143,48 @@ describe('the placement point group’s three equal segments', () => {
 			parsed('overflow-wrap', 'anywhere'),
 		);
 	});
+
+	/**
+	 * AD18 second parity round, task 1: the integrator measured `Custom` — one word, so
+	 * `overflow-wrap: anywhere` above had no space to prefer over a mid-word break — splitting
+	 * `Custo` / `m` inside the 61px column. A SEPARATE rule in `designer-add.css` from the shared
+	 * tile shape above (the previous case's own selector list stays untouched), narrowing this
+	 * segment's own text the same way `.rp-designer-add .rp-designer-tool-label` narrows an
+	 * Add-rail tile's. jsdom resolves no layout, so this asserts the declared values exist in the
+	 * assembled sheet; whether they are enough is the integrator's measurement.
+	 */
+	it('narrows the segment’s own text and padding, so a one-word label has room not to split', () => {
+		const rules = partial('designer-add.css');
+		const selector = '.rp-designer-placement-modes .rp-designer-selection-button';
+
+		expect(declared(rules, selector, 'font-size')).toEqual(parsed('font-size', 'var(--font-ui-smaller)'));
+		expect(declared(rules, selector, 'padding-inline')).toEqual(parsed('padding-inline', 'var(--size-4-1)'));
+	});
+});
+
+/**
+ * AD18 second parity round, task 1: the card's `stroke-width: 1.5px` used to sit on the `<svg>`
+ * itself, read in `preview.viewBox`'s own millimetre units — for the vanity preset's
+ * `-440 -265 880 530` box drawn into a 40px picture, that measured 0.07px on screen. jsdom draws
+ * nothing, so what this suite can check is that the declared fix exists in the assembled sheet,
+ * not that it is visible; the integrator's capture is that check.
+ */
+describe('the asset card’s thumbnail strokes', () => {
+	const rules = partial('designer-object.css');
+
+	it('reads stroke-width in screen pixels rather than viewBox units, on both the footprint and a detail', () => {
+		for (const selector of ['.rp-designer-inspector .rp-designer-asset-thumbnail__footprint', '.rp-designer-inspector .rp-designer-asset-thumbnail__detail']) {
+			expect(declared(rules, selector, 'vector-effect')).toEqual(parsed('vector-effect', 'non-scaling-stroke'));
+			expect(declared(rules, selector, 'stroke-width')).toEqual(parsed('stroke-width', '1.5'));
+		}
+	});
+
+	it('dashes only a detail carrying the dashed modifier class', () => {
+		expect(declared(rules, '.rp-designer-inspector .rp-designer-asset-thumbnail__detail--dashed', 'stroke-dasharray')).toEqual(
+			parsed('stroke-dasharray', '4 3'),
+		);
+		expect(declared(rules, '.rp-designer-inspector .rp-designer-asset-thumbnail__footprint', 'stroke-dasharray')).toEqual([]);
+	});
 });
 
 describe('the inspector’s headings, hint and unavailable actions', () => {

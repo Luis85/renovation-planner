@@ -19,9 +19,16 @@
  * brief's other suggestion and takes an `AssetOutline` — a `ListAssetOutlines` read this leaf
  * does not have and would cost a new query and port to get. `presetPreview` takes the
  * `AssetShape` this leaf already reads off `design.shape`, and `AssetPresetForm.vue` already
- * draws its `footprint` path in exactly this decorative shape. Only the footprint is drawn, not
- * `.details`: the brief asks for "the asset's own footprint", and `AssetMark.vue`'s own
- * decorative mark draws no interior detail either.
+ * draws its `footprint` path in exactly this decorative shape.
+ *
+ * **AD18 second parity round, task 1: the footprint AND `.details` are both drawn now**, one
+ * `<path>` per detail, a dashed one carrying `__detail--dashed` — `AssetPresetGallery.vue`'s own
+ * `<path v-for="detail in ...details">` is the shape this markup copies, because board 02's card
+ * shows the object with its interior and the gallery is where this leaf's own stroke-visibility
+ * fix (`vector-effect: non-scaling-stroke`, `styles/designer-object.css`) already had a
+ * precedent — the round-1 card drew the outline only and, at a 40px thumbnail of a
+ * millimetre-scale `viewBox`, its `stroke-width: 1.5px` measured 0.07px on screen: invisible,
+ * not merely thin.
  *
  * **Decorative and `aria-hidden`, like `AssetMark.vue`'s own mark** — the category text beside
  * it is the one accessible statement of what this is, so the drawing states nothing a second
@@ -53,7 +60,17 @@ const preview = computed(() => (props.design.shape === null ? null : presetPrevi
 			:viewBox="preview.viewBox"
 			aria-hidden="true"
 		>
-			<path :d="preview.footprint" />
+			<path
+				class="rp-designer-asset-thumbnail__footprint"
+				:d="preview.footprint"
+			/>
+			<path
+				v-for="(detail, index) in preview.details"
+				:key="index"
+				class="rp-designer-asset-thumbnail__detail"
+				:class="{ 'rp-designer-asset-thumbnail__detail--dashed': detail.dashed }"
+				:d="detail.d"
+			/>
 		</svg>
 		<span class="rp-designer-asset-category">{{ tr(ASSET_CATEGORY_LABELS[design.category]) }}</span>
 	</div>

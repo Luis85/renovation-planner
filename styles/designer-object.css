@@ -128,11 +128,33 @@
 	width: 40px;
 	height: 40px;
 	flex: none;
+	color: var(--text-muted);
+}
+
+/*
+ * AD18 second parity round, task 1: the round-1 card put `stroke-width` on the `<svg>` itself, in
+ * `preview.viewBox`'s own millimetre units — the vanity's `-440 -265 880 530` — so a declared
+ * `1.5px` measured 0.07px once the 880-unit-wide box was drawn into a 40px picture, invisible
+ * rather than merely thin. `designer.css`'s `.rp-asset-preset-preview__footprint` /
+ * `__detail` already carries the fix for the identical squeeze (a bigger dialog preview scaling
+ * a smaller footprint by a smaller factor, but the same mechanism): `vector-effect:
+ * non-scaling-stroke` reads `stroke-width` in SCREEN pixels rather than viewBox units, so it is
+ * reused here rather than invented. Per-path now, not on the `<svg>`, because a detail's own
+ * dashed pattern (below) has to sit beside a stroke rule rather than fight one inherited from the
+ * root.
+ */
+.rp-designer-inspector .rp-designer-asset-thumbnail__footprint,
+.rp-designer-inspector .rp-designer-asset-thumbnail__detail {
 	fill: none;
 	stroke: currentColor;
 	stroke-width: 1.5;
 	stroke-linejoin: round;
-	color: var(--text-muted);
+	vector-effect: non-scaling-stroke;
+}
+
+/* Dashed marks a detail drawn "overhead or hidden" (`AssetDetail.ts`'s `DetailLine` doc, Decision 4) — the same `4 3` pattern `designer.css`'s preset preview already uses for the same source data. */
+.rp-designer-inspector .rp-designer-asset-thumbnail__detail--dashed {
+	stroke-dasharray: 4 3;
 }
 
 .rp-designer-inspector .rp-designer-asset-category {

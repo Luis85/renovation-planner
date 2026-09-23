@@ -16,6 +16,7 @@ import type { DispatchResult } from '../../../src/application/commands/DispatchO
 import { t } from '../../../src/presentation/i18n/strings';
 import { ASSET_CATEGORY_LABELS } from '../../../src/presentation/views/assetLabels';
 import { assetDesign } from '../../helpers/assetDesign';
+import { editableShape } from '../../helpers/assetShapes';
 import { recorder } from '../../helpers/logger';
 
 describe('the asset card', () => {
@@ -38,6 +39,22 @@ describe('the asset card', () => {
 		const wrapper = mount(DesignerAssetCard, { props: { design: assetDesign({ shape: null }) } });
 
 		expect(wrapper.find('.rp-designer-asset-thumbnail').exists()).toBe(false);
+	});
+
+	/**
+	 * AD18 second parity round, task 1: board 02's card shows the object with its interior, not
+	 * only its outline. `editableShape()` carries exactly one solid detail (`detail-1`) and one
+	 * dashed one (`detail-2`) beside its footprint (`tests/helpers/assetShapes.ts`), so this is
+	 * one path per detail plus the footprint, four in total, with the dashed one marked.
+	 */
+	it('draws the footprint and one path per detail, a dashed detail marked dashed', () => {
+		const wrapper = mount(DesignerAssetCard, { props: { design: assetDesign({ shape: editableShape() }) } });
+
+		expect(wrapper.find('.rp-designer-asset-thumbnail__footprint').exists()).toBe(true);
+		const details = wrapper.findAll('.rp-designer-asset-thumbnail__detail');
+		expect(details).toHaveLength(2);
+		expect(details.filter((detail) => detail.classes('rp-designer-asset-thumbnail__detail--dashed'))).toHaveLength(1);
+		expect(details.filter((detail) => !detail.classes('rp-designer-asset-thumbnail__detail--dashed'))).toHaveLength(1);
 	});
 });
 

@@ -165,6 +165,33 @@
 }
 
 /*
+ * AD18 second parity round, task 1: the integrator's browser measurement found `Custom` — one
+ * word, with no space for `designer-selection.css`'s `overflow-wrap: anywhere` (on the label
+ * span, that file's own rule) to prefer over a mid-word break — splitting `Custo` / `m` inside a
+ * 61px-wide, three-column segment at a 1280 leaf. This is a SECOND, SEPARATE rule rather than a
+ * change to the shared tile shape above, for the reason `designerStyles.test.ts`'s own
+ * "reuses the Add rail's tile layout" case asserts: that block's declared values must stay
+ * identical to `.rp-designer-add button.rp-designer-tool-button`'s, and the Add rail's own
+ * two-column tiles are not this squeeze — they already get their extra room from a wider
+ * grid track. `.rp-designer-add .rp-designer-tool-label` narrows an Add-rail tile's VISIBLE
+ * label the identical way, for the identical reason (a small glyph above it, not a line of text
+ * beside it); this reaches the button rather than a label span because
+ * `DesignerReferencePlacement.vue`'s `<span>` here carries no class of its own for a
+ * font-size rule to hang off, and `font-size` inherits down to it regardless.
+ *
+ * Two independent levers, since neither alone is verified here (no browser in this task): the
+ * label drops from `--font-ui-small` (13px) to `--font-ui-smaller` (12px), and the inline padding
+ * halves from `--size-4-2` (8px a side) to `--size-4-1` (4px a side) — content width for the
+ * label goes from about 45px to about 53px at this measured 61px column. `designer-selection.css`
+ * owns the column width itself (Task 4), so it is not a lever available here. A PREDICTION, not a
+ * measurement: the integrator's capture is the check.
+ */
+.rp-designer-placement-modes .rp-designer-selection-button {
+	padding-inline: var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
  * THE GLYPH, LARGER THAN THE TOOLBAR'S (fix round) — board 01 draws roughly 24–32px icons, and
  * `.rp-host-icon`'s own default (`editor-icons.css`) is 18px, sized for sitting beside a line of
  * text rather than reading as a tile's own picture. 28px matches the size this codebase already

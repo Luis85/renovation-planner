@@ -106,6 +106,8 @@ async function generate(): Promise<void> {
 		});
 	});
 	refusal.value = result.ok ? null : result.error;
+	// A boundary the user just asked for is never born invisible: Generate switches the layer back on.
+	if (result.ok && showClearance !== null) showClearance.value = true;
 }
 </script>
 

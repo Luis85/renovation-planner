@@ -70,6 +70,8 @@ export interface DesignerSelectToolDeps {
 	 */
 	readonly locked?: () => ReadonlySet<string>;
 	readonly hidden?: () => ReadonlySet<string>;
+	/** The leaf's `showClearance` is off (AD18-R17): handed to `hitDesign` the same way, read per press. */
+	readonly clearanceHidden?: () => boolean;
 	readonly setPreview: (shape: AssetShape | null) => void;
 	/** One reversible SetAssetShape write, conditional on `expected`. */
 	readonly createCommand: (shape: AssetShape, expected: EntityVersion) => UndoableCommand;
@@ -124,7 +126,7 @@ interface Marquee {
 	readonly context: EditorContext;
 	readonly shape: AssetShape;
 	readonly from: Point;
-	readonly hidden: { readonly hidden?: ReadonlySet<string> };
+	readonly hidden: { readonly hidden?: ReadonlySet<string>; readonly clearanceHidden: boolean };
 	/** Shift, or the sticky "select multiple" control: this sweep ADDS rather than replaces. */
 	readonly additive: boolean;
 	/** What was selected when the press landed, for the cancellation that has to put it back. */
@@ -289,7 +291,10 @@ export class DesignerSelectTool implements EditorTool {
 			return;
 		}
 		const selection = this.deps.selection();
-		const hidden: { readonly hidden?: ReadonlySet<string> } = this.deps.hidden === undefined ? {} : { hidden: this.deps.hidden() };
+		const hidden: Marquee['hidden'] = {
+			...(this.deps.hidden === undefined ? {} : { hidden: this.deps.hidden() }),
+			clearanceHidden: this.deps.clearanceHidden?.() === true,
+		};
 		const hit = hitDesign(design.shape, event.worldPoint, {
 			selection,
 			mode: this.deps.mode(),

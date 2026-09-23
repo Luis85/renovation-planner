@@ -22,7 +22,9 @@ import { rect } from '../../../src/domain/asset/presets/presetGeometry';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
 import { editableShape } from '../../helpers/assetShapes';
-import { designerRig } from '../../helpers/designerRig';
+import { click, designerRig, selecting, type DesignerRig } from '../../helpers/designerRig';
+import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import type { Point } from '../../../src/core/geometry/Point';
 import { settle } from '../../helpers/editor';
 
 type NullableEdit = (shape: AssetShape) => Result<AssetShape, ValidationError> | null;
@@ -152,6 +154,92 @@ describe('the Show clearance switch', () => {
 		const rig = await designerRig({ shape: editableShape({ clearance: null }), camera: 'default' });
 		try {
 			expect(rig.wrapper.find('[name="show-clearance"]').exists()).toBe(false);
+		} finally {
+			rig.unmount();
+		}
+	});
+});
+
+// Inside `editableShape()`'s clearance, outside its 1000 x 600 footprint and every detail.
+const BAND: Point = { x: 600, y: 0 };
+
+async function hiding(): Promise<DesignerRig> {
+	const rig = await selecting(editableShape());
+	await rig.wrapper.get('[name="show-clearance"]').setValue(false);
+	await settle();
+	return rig;
+}
+
+const selection = (rig: DesignerRig) => useAssetDesignStore(rig.pinia).selection;
+const legendKinds = (rig: DesignerRig) => rig.wrapper.findAll('.rp-designer-legend__swatch').map((swatch) => swatch.classes().find((name) => name.startsWith('rp-designer-legend__swatch--')));
+
+/**
+ * AD18-R17 review: "off" means off everywhere on the canvas, not just in the pixels. A press on the
+ * empty-looking band falls through exactly as a Parts-hidden graphic's does (`hitDesign` owns that
+ * rule), and the legend stops explaining a boundary it is not drawing. The Parts row stays the
+ * deliberate way in.
+ */
+describe('with Show clearance off', () => {
+	it('selects the clearance from its band while it is drawn', async () => {
+		const rig = await selecting(editableShape());
+		try {
+			click(rig, BAND);
+			await settle();
+			expect(selection(rig)).toEqual({ kind: 'clearance' });
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	it('lets a press on the band fall through to nothing, so the hidden clearance cannot be selected or deleted by it', async () => {
+		const rig = await hiding();
+		try {
+			click(rig, BAND);
+			await settle();
+			expect(selection(rig)).toBeNull();
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	it('drops the legend’s Clearance row, and puts it back when switched on', async () => {
+		const rig = await hiding();
+		try {
+			expect(legendKinds(rig)).not.toContain('rp-designer-legend__swatch--clearance');
+			expect(legendKinds(rig)).toContain('rp-designer-legend__swatch--footprint');
+
+			await rig.wrapper.get('[name="show-clearance"]').setValue(true);
+			await settle();
+			expect(legendKinds(rig)).toContain('rp-designer-legend__swatch--clearance');
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	it('switches back on when Generate writes a new boundary, so it is never born invisible', async () => {
+		const rig = await hiding();
+		try {
+			const field = rig.wrapper.get('[name="clearance-all-sides"]');
+			(field.element as HTMLInputElement).value = '250';
+			await field.trigger('input');
+			await rig.wrapper.get('[name="generate-clearance"]').trigger('click');
+			await settle();
+
+			expect((rig.wrapper.get('[name="show-clearance"]').element as HTMLInputElement).checked).toBe(true);
+			expect(rig.stage.findOne('.asset-clearance')?.visible()).toBe(true);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	it('still selects it from its Parts row, which draws the selection outline over the hidden layer', async () => {
+		const rig = await hiding();
+		try {
+			(rig.wrapper.element.querySelector('.rp-designer-part-row[name="clearance"]') as HTMLButtonElement).click();
+			await settle();
+			expect(selection(rig)).toEqual({ kind: 'clearance' });
+			expect(rig.stage.findOne('.asset-clearance')?.visible()).toBe(false);
+			expect(rig.stage.findOne('.asset-selection-outline')).toBeDefined();
 		} finally {
 			rig.unmount();
 		}

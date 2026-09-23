@@ -127,6 +127,12 @@ describe('a hidden graphic', () => {
 		expect(hitDesign(TOILET, inBowl, { selection: null, mode: 'transform', worldPerPixel: 1 })).toEqual(part({ kind: 'detail', id: 'detail-2' }));
 	});
 
+	it('lets a press on the clearance band fall through to nothing while Show clearance is off (AD18-R17)', () => {
+		const band = { x: 300, y: 0 };
+		expect(hitDesign(TOILET, band, { selection: null, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })).toBeNull();
+		expect(hitDesign(TOILET, { x: 150, y: 0 }, { selection: null, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })).toEqual(part(FOOTPRINT));
+	});
+
 	it('lets the press fall through to the footprint beneath it once it is hidden', () => {
 		expect(hitDesign(TOILET, inBowl, { selection: null, mode: 'transform', worldPerPixel: 1, hidden: new Set(['detail-2']) })).toEqual(
 			part({ kind: 'footprint' }),

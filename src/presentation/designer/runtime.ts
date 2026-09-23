@@ -311,12 +311,12 @@ function selectToolDeps(
 	assetId: AssetId,
 	chain: Pick<ReturnType<typeof createWriteChain>, 'writing' | 'settled'>,
 	/**
-	 * The leaf's EPHEMERAL UI, as one argument rather than two: the sticky select-multiple mode and
-	 * the Parts panel's hidden and locked sets. Bundled because `selectToolDeps` sits at its
-	 * five-parameter budget and because the two belong together — neither is a fact about the design,
-	 * both are per-leaf, and both are read per press.
+	 * The leaf's EPHEMERAL UI, as one argument rather than three: the sticky select-multiple mode,
+	 * the Parts panel's hidden and locked sets, and the `Show clearance` switch. Bundled because
+	 * `selectToolDeps` sits at its five-parameter budget and because they belong together — none is a
+	 * fact about the design, all are per-leaf, and all are read per press.
 	 */
-	ui: { readonly multiSelectionMode: Ref<boolean>; readonly partView: PartView },
+	ui: { readonly multiSelectionMode: Ref<boolean>; readonly partView: PartView; readonly showClearance: Ref<boolean> },
 ): DesignerSelectToolDeps {
 	return {
 		design: () => {
@@ -341,6 +341,7 @@ function selectToolDeps(
 		multiSelectionMode: () => ui.multiSelectionMode.value,
 		locked: () => ui.partView.locked.value,
 		hidden: () => ui.partView.hidden.value,
+		clearanceHidden: () => !ui.showClearance.value,
 		setPreview: (shape) => store.setPreview(shape),
 		createCommand: (shape, expected) => edits.setShape({ assetId, shape, expected }),
 		reportRejected: reportDispatchFailure,
@@ -636,7 +637,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		reportInvalidInput: notifyOperationFailure,
 		// A completed trace or drawn detail returns to Select, which this surface registers since Decision 10.
 		returnToSelect: () => setTool('select'),
-		selectTool: selectToolDeps(store, edits, assetId, chain, { multiSelectionMode, partView }),
+		selectTool: selectToolDeps(store, edits, assetId, chain, { multiSelectionMode, partView, showClearance }),
 		...calibrationDeps(useDialogStore(), store),
 		...detailDeps(store),
 	});
@@ -764,9 +765,9 @@ export function useDesignerRuntime(): DesignerRuntime {
 
 /**
  * The leaf's `showClearance`, or `null` where no runtime is provided — for `DesignerClearanceHelper`,
- * which sits inside `DesignerInspector`, which test files mount BARE on purpose (`grep -rln "mount(DesignerInspector" tests/`) (that
- * component's `removeBackground` docblock says why). `useDesignerRuntime()` there would make every
- * one of them throw. Inside a leaf the runtime is always provided, so the `null` arm is a bare mount
+ * which sits inside `DesignerInspector`. Several test files mount that inspector BARE on purpose, and
+ * its `removeBackground` docblock says why; `grep -rln "mount(DesignerInspector" tests/` lists them.
+ * `useDesignerRuntime()` in the helper would make every one of those mounts throw. Inside a leaf the runtime is always provided, so the `null` arm is a bare mount
  * and nothing else: the switch is simply not drawn there, and `designerClearanceHelper.test.ts`
  * drives the real wiring to prove it IS drawn in a leaf.
  */

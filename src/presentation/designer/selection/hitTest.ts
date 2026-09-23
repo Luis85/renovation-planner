@@ -78,6 +78,12 @@ export function hitDesign(
 		 * would have to re-decide what the press would otherwise have hit.
 		 */
 		readonly hidden?: ReadonlySet<string>;
+		/**
+		 * The Clearance section's `Show clearance` switch is OFF (AD18-R17): the same rule as `hidden`,
+		 * for the one part `hidden` cannot name. That set holds DETAIL ids, which are arbitrary strings
+		 * in a sidecar, so a sentinel key there could collide with a real detail's id.
+		 */
+		readonly clearanceHidden?: boolean;
 	},
 ): DesignerHit {
 	const radius = VERTEX_GRAB_RADIUS_PX * state.worldPerPixel;
@@ -89,6 +95,6 @@ export function hitDesign(
 	const detail = shape.details.findLast((candidate) => !hidden.has(candidate.id) && hitsGraphic(candidate, point, radius));
 	if (detail !== undefined) return part({ kind: 'detail', id: detail.id });
 	if (curvedContains(shape.footprint, point)) return part({ kind: 'footprint' });
-	if (shape.clearance !== null && curvedContains(shape.clearance, point)) return part({ kind: 'clearance' });
+	if (shape.clearance !== null && state.clearanceHidden !== true && curvedContains(shape.clearance, point)) return part({ kind: 'clearance' });
 	return null;
 }

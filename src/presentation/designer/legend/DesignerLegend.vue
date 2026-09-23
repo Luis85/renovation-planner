@@ -31,6 +31,10 @@
  * sits OUTSIDE the legend's `v-if`, because it outlives both the `Legend` toggle and the narrow
  * breakpoint that hides the legend; its own docblock says why. Over the empty state both are absent
  * and the key is an empty box that takes no press.
+ *
+ * **No Clearance row while the Clearance section's `Show clearance` switch is off** (AD18-R17): a
+ * swatch explaining a boundary the canvas is not drawing would describe nothing on screen. Filtered
+ * here rather than in `legendRows`, which answers what a SHAPE has, not what this leaf shows.
  */
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -41,9 +45,9 @@ import { legendRows } from './legendRows';
 import DesignerScaleBar from './DesignerScaleBar.vue';
 
 const { design, preview } = storeToRefs(useAssetDesignStore());
-const { showLegend } = useDesignerRuntime();
+const { showLegend, showClearance } = useDesignerRuntime();
 
-const rows = computed(() => (showLegend.value ? legendRows(preview.value ?? design.value?.shape ?? null) : []));
+const rows = computed(() => (showLegend.value ? legendRows(preview.value ?? design.value?.shape ?? null) : []).filter((row) => showClearance.value || row.kind !== 'clearance'));
 </script>
 
 <template>

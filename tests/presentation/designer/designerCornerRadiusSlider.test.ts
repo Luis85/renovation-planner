@@ -100,6 +100,23 @@ describe('the corner radius slider', () => {
 		expect(slider(wrapper).attributes('aria-valuetext')).toBe('90 mm');
 	});
 
+	/**
+	 * ANY refresh hands the slider back to the design, including one that leaves the radius where it was —
+	 * a refused commit at 80 followed by a Width edit that keeps 150. Keyed on the radius alone, nothing
+	 * would change and the thumb and its text would stay on 80 indefinitely.
+	 */
+	it('goes back to the design’s radius on a refresh that leaves the radius unchanged', async () => {
+		const { wrapper } = mountFor(shapeWithRoundedRect());
+		const input = slider(wrapper);
+		(input.element as HTMLInputElement).value = '80';
+		await input.trigger('input');
+
+		await wrapper.setProps({ design: assetDesign({ shape: shapeWithRoundedRect(roundedRect(1400, 600, 150, 20, 30)) }) });
+
+		expect(slider(wrapper).attributes('aria-valuetext')).toBe('150 mm');
+		expect((slider(wrapper).element as HTMLInputElement).value).toBe('150');
+	});
+
 	it('commits nothing while it is dragged, and ONE edit when it is let go', async () => {
 		const { wrapper, editShape, applied } = mountFor(shapeWithRoundedRect());
 		const input = slider(wrapper);

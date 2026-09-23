@@ -19,6 +19,9 @@
  * field's; `aria-valuetext` says the value WITH its unit (`60 mm`). That text follows the thumb while it
  * moves (`moving`, set on `input`), and falls back to the design's radius once the design refreshes — so
  * it never announces a figure the thumb is not on, and a refused commit leaves both where the user put them.
+ * "Refreshes" means ANY new design: the watch keys on the field OBJECT, which the inspector's `lines`
+ * rebuilds from every design it is handed, not on the radius — a refresh that keeps the radius (a Width
+ * edit after a refused slider commit) would otherwise leave the thumb on the refused figure for good.
  * The bound `value` reads `moving` too: Vue re-patches an input's `value` on every render, so the render
  * the text causes would otherwise snap the thumb back to the stored radius mid-drag.
  *
@@ -43,7 +46,7 @@ const pairId = useId();
 
 /** The slider's value while the thumb is somewhere the design does not have yet; `null` once it does. */
 const moving = ref<number | null>(null);
-watch(() => props.slider?.field.value, () => {
+watch(() => props.slider?.field, () => {
 	moving.value = null;
 });
 

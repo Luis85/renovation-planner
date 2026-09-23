@@ -272,6 +272,38 @@ describe('the designer’s inspector', () => {
 		expect(setHeight).not.toHaveBeenCalled();
 		expect((input.element as HTMLInputElement).value).toBe('900');
 	});
+
+	/**
+	 * AD18-R16 Task 5's follow-up: Height draws the same compact-row PRESENTATION
+	 * `DesignerFieldRow` draws, without becoming that component — it keeps `FieldError`'s
+	 * draft/commit/cancel/pending contract, unaffected by every case above this one.
+	 */
+	it('draws the height field as a compact row: a short label, the full sentence as the accessible name, and an mm suffix', () => {
+		const input = mountInspector({ height: 900 }).find('input[name="height"]');
+		const row = (input.element as HTMLInputElement).closest('.rp-designer-field-row') as HTMLElement;
+
+		expect(row.querySelector('.rp-designer-field-row__label')?.textContent).toBe(t('en', 'designer.inspector.height.short'));
+		expect(input.attributes('aria-label')).toBe(t('en', 'designer.inspector.height'));
+		expect(row.querySelector('.rp-designer-field-row__unit')?.textContent).toBe('mm');
+	});
+
+	/** `FieldError`'s own message stays a sibling AFTER the row, exactly where it drew before this task. */
+	it('keeps the height error text under the row rather than inside it', async () => {
+		setHeight.mockResolvedValue(err({ category: 'Validation', code: 'asset.negative-height', message: 'x' }));
+		const wrapper = mountInspector({ height: 900 });
+		const input = wrapper.find('input[name="height"]');
+
+		await input.setValue('-10');
+		await input.trigger('blur');
+		await flushPromises();
+
+		const errorField = wrapper.get('.rp-field-error');
+		const row = errorField.get('.rp-designer-field-row');
+		const message = errorField.get('.rp-field-error__message');
+		const position = row.element.compareDocumentPosition(message.element);
+
+		expect(Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+	});
 });
 
 

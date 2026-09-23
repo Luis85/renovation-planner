@@ -54,6 +54,14 @@ export const assetReferenceEn = {
 	'designer.clearance.back': 'Behind',
 	'designer.clearance.left': 'To its left',
 	'designer.clearance.right': 'To its right',
+	// The compact row's short visible labels (AD18-R16 Task 5 follow-up): `DesignerClearanceHelper`
+	// draws `DesignerFieldRowShell`'s row now, keeping the four sentences above as each
+	// input's `aria-label`. Not swapped onto `DesignerFieldRow` itself — the draft stays raw
+	// TEXT, committed once by the Generate button (C03); only the presentation is shared.
+	'designer.clearance.front.short': 'Front',
+	'designer.clearance.back.short': 'Back',
+	'designer.clearance.left.short': 'Left',
+	'designer.clearance.right.short': 'Right',
 	'designer.clearance.generate': 'Generate clearance',
 	'designer.clearance.hint': 'These four numbers generate a new boundary. They are your own allowances, not a standard.',
 	'designer.clearance.replaces': 'This replaces the boundary this object already has.',

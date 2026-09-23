@@ -54,6 +54,10 @@ export const assetArrangeEn = {
 	'designer.arrange.repeat': 'Repeat',
 	'designer.arrange.repeat.count': 'Copies',
 	'designer.arrange.repeat.spacing': 'Spacing in millimetres',
+	// The compact row's short visible label for Spacing (AD18-R16 Task 5 follow-up); Copies
+	// needs no separate key, since `designer.arrange.repeat.count` ("Copies") is already the
+	// short form and is passed as both the row's visible text and its accessible name.
+	'designer.arrange.repeat.spacing.short': 'Spacing',
 	'designer.arrange.repeat.axis': 'Direction',
 	'designer.arrange.repeat.axis.x': 'Across',
 	'designer.arrange.repeat.axis.y': 'Down',

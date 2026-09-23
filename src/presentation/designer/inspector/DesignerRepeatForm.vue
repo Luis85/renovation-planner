@@ -39,6 +39,7 @@ import { detailBox } from '../../../domain/asset/detailEdits';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { tr } from '../../i18n/strings';
 import type { ShapeEdit } from '../selection/editShape';
+import DesignerFieldRowShell from './DesignerFieldRowShell.vue';
 
 const props = defineProps<{
 	shape: AssetShape;
@@ -107,8 +108,7 @@ function run(): void {
 	<h3 class="rp-designer-panel-title rp-designer-section-title">
 		{{ tr('designer.arrange.repeat') }}
 	</h3>
-	<label class="rp-designer-field">
-		{{ tr('designer.arrange.repeat.count') }}
+	<DesignerFieldRowShell short="designer.arrange.repeat.count">
 		<input
 			type="number"
 			name="repeat-count"
@@ -116,21 +116,25 @@ function run(): void {
 			:max="MAX_REPEAT_COPIES"
 			step="1"
 			inputmode="numeric"
+			:aria-label="tr('designer.arrange.repeat.count')"
 			:value="count"
 			@input="count = ($event.target as HTMLInputElement).value"
 		>
-	</label>
-	<label class="rp-designer-field">
-		{{ tr('designer.arrange.repeat.spacing') }}
+	</DesignerFieldRowShell>
+	<DesignerFieldRowShell
+		short="designer.arrange.repeat.spacing.short"
+		unit="mm"
+	>
 		<input
 			type="number"
 			name="repeat-spacing"
 			step="any"
 			inputmode="decimal"
+			:aria-label="tr('designer.arrange.repeat.spacing')"
 			:value="spacing"
 			@input="spacing = ($event.target as HTMLInputElement).value"
 		>
-	</label>
+	</DesignerFieldRowShell>
 	<label class="rp-designer-field">
 		{{ tr('designer.arrange.repeat.axis') }}
 		<select

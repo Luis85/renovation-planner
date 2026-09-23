@@ -20,18 +20,22 @@
  * per leaf's app, and per instance of this component, which is what lets the same field kind
  * repeat safely.
  *
- * **Not every millimetre input in the inspector draws through this component.** The clearance
- * helper's four setbacks and the repeat form's spacing keep raw text drafts committed by a button
- * press rather than by `change` (`DesignerClearanceHelper`'s and `DesignerRepeatForm`'s own
- * docblocks state why, C03) — rounding their draft on every keystroke, which this component's
- * `Math.round(value)` would do, is the exact corruption those two already refuse. The asset's own
- * Height field (`DesignerInspector.vue`) commits through `FieldError`'s draft/pending/cancel
- * contract, which this component's plain `@change` does not carry. None of the three is
- * mechanical to converge onto this shape.
+ * **Not every millimetre input in the inspector draws through this component's `@change`
+ * shape.** The clearance helper's four setbacks and the repeat form's Copies and Spacing keep
+ * raw text drafts committed by a button press rather than by `change` (`DesignerClearanceHelper`'s
+ * and `DesignerRepeatForm`'s own docblocks state why, C03) — rounding their draft on every
+ * keystroke, which this component's `Math.round(value)` would do, is the exact corruption those
+ * two already refuse. The asset's own Height field (`DesignerInspector.vue`) commits through
+ * `FieldError`'s draft/pending/cancel contract, which this component's plain `@change` does not
+ * carry. None of the three is mechanical to converge onto THIS component — but the row itself
+ * (the short label, the control column, the unit suffix) is the same picture for all four, so it
+ * is `DesignerFieldRowShell`'s, and this component is now written ON TOP of that shell rather
+ * than drawing its own copy of the row (AD18-R16 Task 5's follow-up).
  */
 import { useId } from 'vue';
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
+import DesignerFieldRowShell from './DesignerFieldRowShell.vue';
 
 defineProps<{
 	name: string;
@@ -50,26 +54,21 @@ const hintId = useId();
 </script>
 
 <template>
-	<label class="rp-designer-field-row">
-		<span class="rp-designer-field-row__label">{{ tr(short) }}</span>
-		<span class="rp-designer-field-row__control">
-			<input
-				type="number"
-				:name="name"
-				step="any"
-				inputmode="decimal"
-				:value="Math.round(value)"
-				:aria-label="tr(label)"
-				:aria-describedby="hint === undefined ? undefined : hintId"
-				@change="onChange"
-			>
-			<span
-				v-if="unit !== undefined"
-				class="rp-designer-field-row__unit"
-				aria-hidden="true"
-			>{{ unit }}</span>
-		</span>
-	</label>
+	<DesignerFieldRowShell
+		:short="short"
+		:unit="unit"
+	>
+		<input
+			type="number"
+			:name="name"
+			step="any"
+			inputmode="decimal"
+			:value="Math.round(value)"
+			:aria-label="tr(label)"
+			:aria-describedby="hint === undefined ? undefined : hintId"
+			@change="onChange"
+		>
+	</DesignerFieldRowShell>
 	<p
 		v-if="hint !== undefined"
 		:id="hintId"

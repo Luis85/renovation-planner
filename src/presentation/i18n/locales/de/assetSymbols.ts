@@ -111,6 +111,10 @@ export const assetSymbolsDe: Record<keyof typeof assetSymbolsEn, string> = {
 	'designer.inspector.tabs': 'Inspektorbereiche',
 	'designer.inspector.tab.object': 'Objekt',
 	'designer.inspector.tab.reference': 'Referenz',
+	// Moved from `de.ts` (AD18-R16 Task 5's follow-up); see `en/assetSymbols.ts`'s own comment.
+	'designer.inspector.height': 'Höhe in Millimetern',
+	'designer.inspector.height.short': 'Höhe',
+	'designer.inspector.height.unparseable': 'Geben Sie eine Höhe als Zahl ein, oder leeren Sie das Feld.',
 	'designer.selection.toggle-mode': 'Mehrere Teile auswählen',
 	'designer.selection.count': '{count} Teile ausgewählt',
 	'designer.selection.angle.hint': 'Ein Winkel von 0 zeigt nach rechts, 90 nach unten',

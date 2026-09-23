@@ -303,6 +303,29 @@ describe('the four-side clearance helper', () => {
 	});
 
 	/**
+	 * AD18-R16 Task 5's follow-up: the same compact-row PRESENTATION `DesignerFieldRow` draws,
+	 * without swapping the component in — the draft stays raw text (C03, asserted below by the
+	 * cases that still commit only on the Generate press). A short visible label, the existing
+	 * sentence carried over as the accessible name, and the `mm` suffix withheld from it.
+	 */
+	it('draws each side as a compact row: a short visible label, the full sentence as the accessible name, and an mm suffix', () => {
+		const { wrapper } = mountHelper(baseShape());
+		const rows = wrapper.findAll('.rp-designer-field-row');
+
+		expect(rows).toHaveLength(4);
+		([
+			['front', 'designer.clearance.front.short', 'designer.clearance.front'],
+			['back', 'designer.clearance.back.short', 'designer.clearance.back'],
+			['left', 'designer.clearance.left.short', 'designer.clearance.left'],
+			['right', 'designer.clearance.right.short', 'designer.clearance.right'],
+		] as const).forEach(([side, shortKey, labelKey], index) => {
+			expect(rows[index].find('.rp-designer-field-row__label').text()).toBe(t('en', shortKey));
+			expect(wrapper.find(`[name="clearance-${side}"]`).attributes('aria-label')).toBe(t('en', labelKey));
+			expect(rows[index].find('.rp-designer-field-row__unit').text()).toBe('mm');
+		});
+	});
+
+	/**
 	 * C07: four setbacks are not what an arbitrary curved outline means. WITHHELD rather than
 	 * disabled — a live control that can only refuse is the defect AD10's review already found.
 	 */

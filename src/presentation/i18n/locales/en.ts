@@ -793,8 +793,11 @@ export const en = {
 	// The same gesture named for what it DOES in the state it is offered from: with no shape
 	// there is nothing to edit, and this is the one control that creates one.
 	'designer.inspector.set-dimensions': 'Set dimensions',
-	'designer.inspector.height': 'Height in millimetres',
-	'designer.inspector.height.unparseable': 'Enter a height as a number, or clear it.',
+	// `designer.inspector.height` and its two siblings moved to `en/assetSymbols.ts` (AD18-R16
+	// Task 5's follow-up) rather than growing here: this file was already over its 400-line
+	// `max-lines` cap before that edit (402, pre-existing and unrelated to this task — every
+	// other `designer.inspector.*` key already lives in that module), and one more inline key
+	// would have made a real violation worse instead of leaving it exactly where it was found.
 	// Task B8's dialog kind (`asset-dimensions`), reached from BOTH the no-shape empty state
 	// and this inspector's own Edit dimensions control — the same width/depth vocabulary
 	// `form.new-asset.width`/`.depth` already uses, minus their "(optional)" suffix: both

@@ -29,6 +29,7 @@ export const assetArrangeDe: Record<keyof typeof assetArrangeEn, string> = {
 	'designer.arrange.repeat': 'Wiederholen',
 	'designer.arrange.repeat.count': 'Kopien',
 	'designer.arrange.repeat.spacing': 'Abstand in Millimetern',
+	'designer.arrange.repeat.spacing.short': 'Abstand',
 	'designer.arrange.repeat.axis': 'Richtung',
 	'designer.arrange.repeat.axis.x': 'Waagerecht',
 	'designer.arrange.repeat.axis.y': 'Senkrecht',

@@ -39,6 +39,10 @@ export const assetReferenceDe: Record<keyof typeof assetReferenceEn, string> = {
 	'designer.clearance.back': 'Dahinter',
 	'designer.clearance.left': 'Links davon',
 	'designer.clearance.right': 'Rechts davon',
+	'designer.clearance.front.short': 'Vorne',
+	'designer.clearance.back.short': 'Hinten',
+	'designer.clearance.left.short': 'Links',
+	'designer.clearance.right.short': 'Rechts',
 	'designer.clearance.generate': 'Freiraum erzeugen',
 	'designer.clearance.hint':
 		'Diese vier Zahlen erzeugen eine neue Grenze. Es sind Ihre eigenen Vorgaben, kein Standard.',

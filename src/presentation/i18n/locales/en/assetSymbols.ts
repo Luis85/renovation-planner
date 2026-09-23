@@ -134,6 +134,13 @@ export const assetSymbolsEn = {
 	'designer.inspector.tabs': 'Inspector sections',
 	'designer.inspector.tab.object': 'Object',
 	'designer.inspector.tab.reference': 'Reference',
+	// Moved from `en.ts` (AD18-R16 Task 5's follow-up): that file was already over its 400-line
+	// cap, and every other `designer.inspector.*` key already lives here. Height draws
+	// `DesignerFieldRowShell`'s compact row now, through `FieldError`'s slot, and keeps the
+	// full sentence as the input's `aria-label`; `.unparseable` is unchanged.
+	'designer.inspector.height': 'Height in millimetres',
+	'designer.inspector.height.short': 'Height',
+	'designer.inspector.height.unparseable': 'Enter a height as a number, or clear it.',
 	'designer.selection.toggle-mode': 'Select multiple parts',
 	'designer.selection.count': '{count} parts selected',
 	// Under the facing's angle field, as its description: `facingTip` adds the sine to y, and y grows DOWN the screen.

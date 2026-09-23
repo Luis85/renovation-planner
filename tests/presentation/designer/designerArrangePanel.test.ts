@@ -366,6 +366,30 @@ describe('moving, rotating and scaling the set', () => {
 });
 
 describe('repeating', () => {
+	/**
+	 * AD18-R16 Task 5's follow-up: Copies and Spacing draw the same compact-row PRESENTATION
+	 * `DesignerFieldRow` draws, without becoming that component — the draft stays raw text,
+	 * committed only on Repeat's own press (C03, unaffected by every case around this one).
+	 * Scoped through each field's own `closest`, since the panel's Arrange section above also
+	 * draws `.rp-designer-field-row`s (through `DesignerFieldRow` itself) and a bare
+	 * `findAll` would count both.
+	 */
+	it('draws Copies and Spacing as compact rows: a short label, the accessible name, and Spacing’s mm suffix', () => {
+		const { wrapper } = mountPanel({ selected: [graphic('detail-1')] });
+
+		const count = wrapper.get('[name="repeat-count"]').element as HTMLInputElement;
+		const countRow = count.closest('.rp-designer-field-row') as HTMLElement;
+		expect(countRow.querySelector('.rp-designer-field-row__label')?.textContent).toBe(t('en', 'designer.arrange.repeat.count'));
+		expect(count.getAttribute('aria-label')).toBe(t('en', 'designer.arrange.repeat.count'));
+		expect(countRow.querySelector('.rp-designer-field-row__unit')).toBeNull();
+
+		const spacing = wrapper.get('[name="repeat-spacing"]').element as HTMLInputElement;
+		const spacingRow = spacing.closest('.rp-designer-field-row') as HTMLElement;
+		expect(spacingRow.querySelector('.rp-designer-field-row__label')?.textContent).toBe(t('en', 'designer.arrange.repeat.spacing.short'));
+		expect(spacing.getAttribute('aria-label')).toBe(t('en', 'designer.arrange.repeat.spacing'));
+		expect(spacingRow.querySelector('.rp-designer-field-row__unit')?.textContent).toBe('mm');
+	});
+
 	it('previews the step it will apply, and says a different one for each spacing mode', async () => {
 		const { wrapper } = mountPanel({ selected: [graphic('detail-1')] });
 		await type(wrapper, 'repeat-count', '3');

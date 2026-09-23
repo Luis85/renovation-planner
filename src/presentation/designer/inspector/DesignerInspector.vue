@@ -40,6 +40,7 @@ import { trError } from '../../i18n/toUserMessage';
 import { reportDispatchFailure } from '../../editor/report-failure';
 import { tr } from '../../i18n/strings';
 import FieldError from '../../components/FieldError.vue';
+import DesignerFieldRowShell from './DesignerFieldRowShell.vue';
 
 const props = defineProps<{
 	design: AssetDesignDto;
@@ -507,11 +508,10 @@ function onTabKeydown(event: KeyboardEvent): void {
 				v-slot="{ inputId, aria }"
 				:message="height.error.value"
 			>
-				<label
-					class="rp-designer-field"
-					:for="inputId"
+				<DesignerFieldRowShell
+					short="designer.inspector.height.short"
+					unit="mm"
 				>
-					{{ tr('designer.inspector.height') }}
 					<input
 						:id="inputId"
 						v-bind="aria"
@@ -519,6 +519,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 						name="height"
 						min="0"
 						step="any"
+						:aria-label="tr('designer.inspector.height')"
 						:aria-busy="height.pending.value"
 						:value="height.draft.value"
 						@input="height.onInput(($event.target as HTMLInputElement).value)"
@@ -526,7 +527,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 						@keydown.enter="height.onCommit()"
 						@keydown.esc.stop="height.onCancel()"
 					>
-				</label>
+				</DesignerFieldRowShell>
 			</FieldError>
 			<!--
 				**Placement and reserved space** (AD12), siblings of the asset's own block rather than

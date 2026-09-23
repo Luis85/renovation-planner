@@ -505,8 +505,9 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Dieser Umriss wurde gezeichnet, bevor ein Maßstab vorlag; diese Zahlen sind noch keine echten Maße.',
 	'designer.inspector.edit-dimensions': 'Maße bearbeiten',
 	'designer.inspector.set-dimensions': 'Maße festlegen',
-	'designer.inspector.height': 'Höhe in Millimetern',
-	'designer.inspector.height.unparseable': 'Geben Sie eine Höhe als Zahl ein, oder leeren Sie das Feld.',
+	// `designer.inspector.height` and its two siblings moved to `de/assetSymbols.ts` (AD18-R16
+	// Task 5's follow-up): `en.ts`'s counterpart was already over its 400-line cap, and every
+	// other `designer.inspector.*` key already lives in that pair of modules.
 	'designer.dimensions.edit.title': 'Maße dieses Objekts festlegen',
 	// „Objekt“, nie „Material“. Statt der aktuellen Zahlen und nicht daneben: das Formular
 	// bleibt leer, damit Platzhalterwerte nicht als echte Millimeter gespeichert werden.

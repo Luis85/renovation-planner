@@ -34,16 +34,17 @@ import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import type { EditShape } from '../selection/editShape';
 import { clearanceRectangle, facingQuarter, rectangularFootprint, type ClearanceSetbacks } from '../../../domain/asset/referenceFrame';
+import DesignerFieldRowShell from './DesignerFieldRowShell.vue';
 
 const props = defineProps<{ design: AssetDesignDto; editShape: EditShape }>();
 
 type Side = keyof ClearanceSetbacks;
 
-const SIDES: readonly { readonly side: Side; readonly label: StringKey }[] = [
-	{ side: 'front', label: 'designer.clearance.front' },
-	{ side: 'back', label: 'designer.clearance.back' },
-	{ side: 'left', label: 'designer.clearance.left' },
-	{ side: 'right', label: 'designer.clearance.right' },
+const SIDES: readonly { readonly side: Side; readonly label: StringKey; readonly short: StringKey }[] = [
+	{ side: 'front', label: 'designer.clearance.front', short: 'designer.clearance.front.short' },
+	{ side: 'back', label: 'designer.clearance.back', short: 'designer.clearance.back.short' },
+	{ side: 'left', label: 'designer.clearance.left', short: 'designer.clearance.left.short' },
+	{ side: 'right', label: 'designer.clearance.right', short: 'designer.clearance.right.short' },
 ];
 
 /**
@@ -102,21 +103,22 @@ async function generate(): Promise<void> {
 			<p class="rp-designer-field-hint">
 				{{ tr('designer.clearance.hint') }}
 			</p>
-			<label
+			<DesignerFieldRowShell
 				v-for="entry in SIDES"
 				:key="entry.side"
-				class="rp-designer-field"
+				:short="entry.short"
+				unit="mm"
 			>
-				{{ tr(entry.label) }}
 				<input
 					type="number"
 					step="any"
 					inputmode="decimal"
 					:name="`clearance-${entry.side}`"
+					:aria-label="tr(entry.label)"
 					:value="draft[entry.side]"
 					@input="draft[entry.side] = ($event.target as HTMLInputElement).value"
 				>
-			</label>
+			</DesignerFieldRowShell>
 			<p
 				v-if="replaces"
 				class="rp-designer-unscaled"

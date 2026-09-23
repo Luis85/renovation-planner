@@ -397,6 +397,23 @@ Each names the tracker row that carries its evidence.
   command name and new copy, and labelling the sample fictional changes `sample.project.name` in
   both locales. Tracker row BP-10.
 
+Added 2026-09-23 (session 19):
+
+- **L-46: whether each Rooms-and-areas row should stay two sequential Tab stops.** Each row of
+  `RoomSummaryList.vue` is a select button and a lock toggle, so an 80-room floor puts 160 Tab
+  stops after the section's summary while it is open. No binding spec, ADR, PBI or test says
+  whether that is intended. Keep it, or make the list one composite stop with the lock reachable
+  inside it. Tracker row L-46, for BP-07.
+- **L-47: the colours of two editor-shell texts that axe reports in the harness.** The context
+  bar's "Renovate" label (2.6:1) and the Layers panel's "Set scale" link (4.25:1), in the
+  harness's light scenario over Obsidian's reduced default CSS. This is an axe finding in a
+  browser render, not a contrast verification. A colour change is a design decision, and the
+  recovery driver's default path cannot pass its axe assertion until it is made. Tracker row
+  L-47, for BP-07.
+- **BP-06: copy for a PDF page that does not exist.** Refusing page 3 of a two-page PDF by name
+  needs a new sentence, and perhaps a "page X of N" label, in both locales. L-15 keeps the German
+  from an agent. Tracker row BP-06, whose session 19 log scopes the change.
+
 **Decided since, and no longer open:**
 
 - **L-43, decided by the release owner on 2026-09-23: "guard the asset library on mobile."** The

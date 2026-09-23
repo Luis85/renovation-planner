@@ -257,11 +257,14 @@
  * The suffix sits inside the input's trailing edge (`position: absolute` below), so the input
  * needs room on its right not to draw digits under it, and the native spinner arrows — which
  * would otherwise sit exactly where the suffix does — are turned off. Text is right-aligned so a
- * short value reads next to its unit rather than off at the field's leading edge.
+ * short value reads next to its unit rather than off at the field's leading edge. The boards draw
+ * "800  mm" with a gap (AD18-R17): the unit sits 4px in and "mm" is ~21px, so 28px leaves ~4px before
+ * it; no left padding keeps "-1200" (~33px at 13px) inside a 65px paired field (65 - 2 - 28 = 35px).
  */
 .rp-designer-field-row__control input {
 	width: 100%;
-	padding-right: var(--size-4-6);
+	padding-right: calc(var(--size-4-6) + var(--size-4-1));
+	padding-left: 0;
 	text-align: right;
 	appearance: textfield;
 }
@@ -275,7 +278,7 @@
 .rp-designer-field-row__unit {
 	position: absolute;
 	top: 50%;
-	right: var(--size-4-2);
+	right: var(--size-4-1);
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	transform: translateY(-50%);

@@ -21,7 +21,7 @@
  * Numbers show whole millimetres and whole degrees and commit on `change` (blur or Enter). A typed
  * Width or Depth lands the typed CURVE-AWARE extent (`resizeToExtent`), which a plain factor does not
  * on an arc — and on a curved part it can move the other extent too, since its arcs keep their bulges
- * (Decision 9) — except on a rounded rectangle, which is rebuilt as one (`resized`, AD18-R17). A refusal `editShape` answers is shown in ONE alert and cleared by the next commit that
+ * (Decision 9) — except on a rounded rectangle, which `resizeToExtent` rebuilds as one (AD18-R17). A refusal `editShape` answers is shown in ONE alert and cleared by the next commit that
  * lands. Rotate-by applies and resets to 0: a detail stores no rotation to show.
  *
  * A detail's name is a stable key (Decision 8): the field shows its `designer.detail.<name>` label
@@ -36,7 +36,7 @@ import type { DispatchResult } from '../../../application/commands/DispatchOutco
 import type { AppError } from '../../../core/errors/AppError';
 import type { DetailLine } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
-import { cornerRadiusOf, resizeRoundedRect, roundedCorner, setCornerRadius } from '../../../domain/asset/cornerRadius';
+import { cornerRadiusOf, roundedCorner, setCornerRadius } from '../../../domain/asset/cornerRadius';
 import { deleteDetail, fitFootprintToDetails, reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
 import {
 	moveAnchor,
@@ -161,23 +161,14 @@ interface FieldLine {
 
 const single = (field: NumberField): FieldLine => ({ name: field.name, fields: [field] });
 
-/**
- * A Width or Depth edit. **A rounded rectangle stays one** (AD18-R17): `resizeRoundedRect` rebuilds it with
- * its radius kept or clamped, and answers `null` for anything else — a footprint never reaches it — which
- * falls through to the curve-aware resize every other part has always had.
- */
-function resized(current: AssetShape, part: OutlinePart, axis: 'width' | 'depth', value: number): ReturnType<typeof resizeToExtent> {
-	return (part.kind === 'detail' ? resizeRoundedRect(current, part.id, axis, value) : null) ?? resizeToExtent(current, part, axis, value);
-}
-
 function sizeLine(part: OutlinePart): FieldLine {
 	const { width, depth } = boxOf(part);
 	return {
 		name: 'size',
 		pair: 'designer.selection.fields.size',
 		fields: [
-			{ name: 'width', label: 'designer.preset.field.width', short: 'designer.preset.field.width.short', unit: 'mm', value: width, edit: (value) => (current) => resized(current, part, 'width', value) },
-			{ name: 'depth', label: 'designer.preset.field.depth', short: 'designer.preset.field.depth.short', unit: 'mm', value: depth, edit: (value) => (current) => resized(current, part, 'depth', value) },
+			{ name: 'width', label: 'designer.preset.field.width', short: 'designer.preset.field.width.short', unit: 'mm', value: width, edit: (value) => (current) => resizeToExtent(current, part, 'width', value) },
+			{ name: 'depth', label: 'designer.preset.field.depth', short: 'designer.preset.field.depth.short', unit: 'mm', value: depth, edit: (value) => (current) => resizeToExtent(current, part, 'depth', value) },
 		],
 	};
 }
@@ -220,7 +211,7 @@ const selectedDetails = computed(() =>
  * Corner radius, for a graphic that IS a rounded rectangle and nothing else (AD18-R16 Task 12), with a
  * slider beside it (AD18-R17). The value is read back from the geometry — nothing stores a radius (AD11
  * item 2) — so a graphic turned off the axes or reshaped by a vertex or a bend simply stops being offered
- * one. A Width or Depth edit no longer does: `resized` keeps it a rounded rectangle.
+ * one. A Width or Depth edit no longer does: `resizeToExtent` keeps it a rounded rectangle.
  */
 function cornerLines(): FieldLine[] {
 	return selectedDetails.value.flatMap((detail): FieldLine[] => {

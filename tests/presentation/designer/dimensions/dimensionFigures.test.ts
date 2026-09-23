@@ -20,7 +20,8 @@ import type { DesignerSelection } from '../../../../src/presentation/designer/se
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import type { OutlinePart } from '../../../../src/domain/asset/shapeEdits';
 import { footprintFromDimensions } from '../../../../src/domain/asset/AssetShape';
-import { editableShape } from '../../../helpers/assetShapes';
+import { roundedRect } from '../../../../src/domain/asset/presets/presetGeometry';
+import { editableShape, shapeWithRoundedRect } from '../../../helpers/assetShapes';
 import { expectOk } from '../../../helpers/domain';
 
 const TOP: OutlinePart = { kind: 'detail', id: 'detail-1' };
@@ -375,5 +376,15 @@ describe('typing the current value, which is no command at all', () => {
 		const result = named(figures(TOP), 'detail-detail-1-offset-left').edit(100)(editableShape({ details: [] }));
 
 		expect(result === null ? null : result.ok).toBe(false);
+	});
+});
+
+/** AD18-R17: typing a Width or Depth into a rounded rectangle's own dimension label keeps its corners round. */
+describe('a rounded rectangle’s dimension labels', () => {
+	it('keep its radius through a typed width', () => {
+		const shape = shapeWithRoundedRect();
+		const figure = named(figures({ kind: 'detail', id: 'detail-3' }, false, shape), 'detail-detail-3-width');
+
+		expect(written(figure, 1400, shape).details.find((detail) => detail.id === 'detail-3')?.outline).toEqual(roundedRect(1400, 600, 150, 20, 30));
 	});
 });

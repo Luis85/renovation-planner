@@ -4,7 +4,8 @@ import { ok } from '../../../../src/core/result/Result';
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import { outlineOf, type OutlinePart } from '../../../../src/domain/asset/shapeEdits';
 import { partBox, resizeToExtent, withPartBox } from '../../../../src/presentation/designer/selection/partExtent';
-import { editableShape, toiletShape } from '../../../helpers/assetShapes';
+import { roundedRect } from '../../../../src/domain/asset/presets/presetGeometry';
+import { editableShape, shapeWithRoundedRect, toiletShape } from '../../../helpers/assetShapes';
 import { expectDefined, expectOk } from '../../../helpers/domain';
 
 /**
@@ -119,5 +120,23 @@ describe('resizeToExtent', () => {
 		const refused = resizeToExtent(TOILET, { kind: 'detail', id: 'detail-9' }, 'depth', 900);
 
 		expect(refused.ok ? null : refused.error.code).toBe('asset.part-not-found');
+	});
+});
+
+/**
+ * AD18-R17: a Width or Depth edit keeps a rounded rectangle one, through `resizeRoundedRect`, on EVERY
+ * door that types an extent — the inspector's fields and the canvas's dimension labels both land here.
+ * `cornerRadius.test.ts` holds the clamp arithmetic; this holds that the door reaches it.
+ */
+const ROUNDED: OutlinePart = { kind: 'detail', id: 'detail-3' };
+const roundedOutline = (shape: AssetShape) => shape.details.find((detail) => detail.id === 'detail-3')?.outline;
+
+describe('resizeToExtent on a rounded rectangle', () => {
+	it('keeps its radius and stays a rounded rectangle', () => {
+		expect(roundedOutline(expectOk(resizeToExtent(shapeWithRoundedRect(), ROUNDED, 'width', 1400)))).toEqual(roundedRect(1400, 600, 150, 20, 30));
+	});
+
+	it('clamps the radius where the new box has no room for it', () => {
+		expect(roundedOutline(expectOk(resizeToExtent(shapeWithRoundedRect(), ROUNDED, 'depth', 200)))).toEqual(roundedRect(1000, 200, 99, 20, 30));
 	});
 });

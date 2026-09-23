@@ -47,23 +47,13 @@ export const assetSymbolsEn = {
 	'designer.selection.line': 'Line',
 	'designer.selection.line.solid': 'Solid',
 	'designer.selection.line.dashed': 'Dashed',
-	// "Centre x in millimetres" and "Position x in millimetres" failed `sentence-case-locale-module`;
-	// the "Horizontal …" / "Vertical …" spellings pass.
-	'designer.selection.centre-x': 'Horizontal centre in millimetres',
-	'designer.selection.centre-y': 'Vertical centre in millimetres',
 	'designer.selection.rotate-by': 'Rotation to apply in degrees',
-	'designer.selection.position-x': 'Horizontal position in millimetres',
-	'designer.selection.position-y': 'Vertical position in millimetres',
 	'designer.selection.angle': 'Angle in degrees',
 	// The same compact-row split as the preset fields above, for the selection inspector's own
 	// fields and `DesignerSetTransform`'s "by" fields, which reuse `rotate-by`.
-	'designer.selection.centre-x.short': 'Horizontal centre',
-	'designer.selection.centre-y.short': 'Vertical centre',
 	// "Rotation" rather than "Rotate by": WCAG 2.5.3 needs the visible short label inside the
 	// full sentence ("Rotation to apply in degrees"), and "Rotate by" is not a substring of it.
 	'designer.selection.rotate-by.short': 'Rotation',
-	'designer.selection.position-x.short': 'Horizontal position',
-	'designer.selection.position-y.short': 'Vertical position',
 	'designer.selection.angle.short': 'Angle',
 	'designer.selection.bring-forward': 'Bring forward',
 	'designer.selection.send-backward': 'Send backward',

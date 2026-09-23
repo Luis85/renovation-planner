@@ -5,6 +5,7 @@ import { boundingBoxOf } from '../../../core/geometry/operations';
 import type { ValidationError } from '../../../core/errors/AppError';
 import { err, unwrap, type Result } from '../../../core/result/Result';
 import { assetError } from '../../../domain/asset/Asset.errors';
+import { resizeRoundedRect } from '../../../domain/asset/cornerRadius';
 import { solveScale } from '../../../domain/asset/scaleSolve';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { detailBox } from '../../../domain/asset/detailEdits';
@@ -86,6 +87,12 @@ export function withPartBox(
  * measured, by removing the guard and reading the message the inspector then shows — which describes
  * a value they did not type. C12 asks a control that cannot do what is asked to say why; a wrong why
  * is not a why.
+ *
+ * **A rounded rectangle stays one** (AD18-R17): `resizeRoundedRect` rebuilds it with its radius kept or
+ * clamped, and answers `null` for every other part, which then takes the solve below exactly as before.
+ * Here rather than at a caller because every door that types an extent lands here — the inspector's
+ * Width and Depth and the canvas's dimension labels — and a guard at one door would leave the other
+ * dropping the corners.
  */
 export function resizeToExtent(
 	shape: AssetShape,
@@ -93,6 +100,8 @@ export function resizeToExtent(
 	axis: 'width' | 'depth',
 	target: number,
 ): Result<AssetShape, ValidationError> {
+	const rounded = part.kind === 'detail' ? resizeRoundedRect(shape, part.id, axis, target) : null;
+	if (rounded !== null) return rounded;
 	return withPartBox(shape, part, (start) => {
 		if (start[axis] === 0) {
 			return err(assetError('extent-not-scalable', `This graphic has no ${axis}, so scaling cannot give it one.`));

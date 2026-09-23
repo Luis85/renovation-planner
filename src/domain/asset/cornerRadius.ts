@@ -91,9 +91,14 @@ function rebuilt(shape: AssetShape, detail: AssetDetail, box: RoundedBox): Resul
  *
  * `null` means "not mine": the graphic is missing, is no rounded rectangle (a stretched one, one turned off
  * the axes), or no whole-millimetre radius fits the new box (a target of 2 mm or less, zero or negative).
- * The caller then resizes as it always has, which is also where a missing part or a bad extent is refused.
- * A rounded rectangle's extent is its point box — its quarter arcs are tangent to the sides — so `target`
- * is the curve-aware extent the inspector's field shows.
+ * The caller — `resizeToExtent`, which every door typing a Width or Depth goes through — then resizes as it
+ * always has, which is also where a missing part or a bad extent is refused. A rounded rectangle's extent
+ * is its point box — its quarter arcs are tangent to the sides — so `target` is the curve-aware extent the
+ * inspector's field and the canvas's dimension label show.
+ *
+ * The canvas's HANDLE resize does not come here, deliberately: it previews a non-uniform scale
+ * (`resizeBox`), so committing a rebuilt rounded rectangle would disagree with its own preview, and
+ * AD18-R17 covers Width/Depth edits only (recorded by the integrator as an open item).
  */
 export function resizeRoundedRect(shape: AssetShape, id: string, axis: 'width' | 'depth', target: number): Result<AssetShape, ValidationError> | null {
 	const detail = shape.details.find((found) => found.id === id);

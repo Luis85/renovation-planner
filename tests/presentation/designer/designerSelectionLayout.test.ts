@@ -74,34 +74,37 @@ describe('the paired rows', () => {
 	 * named by.
 	 */
 	it.each([
-		['detail', 'centre-x', 'designer.selection.fields.centre-x', 'designer.selection.centre-x', 'X'],
-		['detail', 'centre-y', 'designer.selection.fields.centre-y', 'designer.selection.centre-y', 'Y'],
-		['detail', 'width', 'designer.preset.field.width', 'designer.preset.field.width', 'Width'],
-		['detail', 'depth', 'designer.preset.field.depth', 'designer.preset.field.depth', 'Depth'],
-		['anchor', 'position-x', 'designer.selection.fields.position-x', 'designer.selection.position-x', 'X'],
-		['anchor', 'position-y', 'designer.selection.fields.position-y', 'designer.selection.position-y', 'Y'],
-	] as const)('names the %s’s %s by its visible label and its whole sentence', (kind, name, labelKey, sentenceKey, spoken) => {
+		['detail', 'centre-x', 'designer.selection.fields.centre-x', 'horizontal centre in millimetres', 'X'],
+		['detail', 'centre-y', 'designer.selection.fields.centre-y', 'vertical centre in millimetres', 'Y'],
+		['detail', 'width', 'designer.preset.field.width', 'width in millimetres', 'Width'],
+		['detail', 'depth', 'designer.preset.field.depth', 'depth in millimetres', 'Depth'],
+		['anchor', 'position-x', 'designer.selection.fields.position-x', 'horizontal position in millimetres', 'X'],
+		['anchor', 'position-y', 'designer.selection.fields.position-y', 'vertical position in millimetres', 'Y'],
+	] as const)('names the %s’s %s by its visible label and its whole sentence', (kind, name, labelKey, sentence, spoken) => {
 		const wrapper = mountFor(kind === 'anchor' ? { kind } : { kind, id: 'detail-2' });
 		const input = wrapper.get(`[name="${name}"]`).element;
 
 		expect(accessibleName(input)).toBe(t('en', labelKey));
-		expect(accessibleName(input).toLowerCase()).toContain(t('en', sentenceKey).toLowerCase());
+		expect(accessibleName(input).toLowerCase()).toContain(sentence);
 		expect(accessibleName(input).startsWith(spoken)).toBe(true);
 		expect(input.closest('.rp-designer-field-row')?.querySelector('.rp-designer-field-row__label')?.textContent).toBe(spoken);
 		wrapper.unmount();
 	});
 
-	it.each(['en', 'de'] as const)('keeps every paired sentence whole and led by its visible short label, in %s', (language) => {
-		([
-			['centre-x', 'designer.selection.centre-x'],
-			['centre-y', 'designer.selection.centre-y'],
-			['position-x', 'designer.selection.position-x'],
-			['position-y', 'designer.selection.position-y'],
-		] as const).forEach(([field, sentence]) => {
-			const name = t(language, `designer.selection.fields.${field}` as StringKey);
-			expect(name.startsWith(t(language, `designer.selection.fields.${field}.short` as StringKey))).toBe(true);
-			expect(name.toLowerCase()).toContain(t(language, sentence).toLowerCase());
-		});
+	/** The sentences each field was named by before it was paired, which the paired name still carries whole. */
+	it.each([
+		['en', 'centre-x', 'horizontal centre in millimetres'],
+		['en', 'centre-y', 'vertical centre in millimetres'],
+		['en', 'position-x', 'horizontal position in millimetres'],
+		['en', 'position-y', 'vertical position in millimetres'],
+		['de', 'centre-x', 'horizontale mitte in millimetern'],
+		['de', 'centre-y', 'vertikale mitte in millimetern'],
+		['de', 'position-x', 'horizontale position in millimetern'],
+		['de', 'position-y', 'vertikale position in millimetern'],
+	] as const)('keeps the %s %s sentence whole and led by its visible short label', (language, field, sentence) => {
+		const name = t(language, `designer.selection.fields.${field}` as StringKey);
+		expect(name.startsWith(t(language, `designer.selection.fields.${field}.short` as StringKey))).toBe(true);
+		expect(name.toLowerCase()).toContain(sentence);
 	});
 });
 

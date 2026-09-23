@@ -4,7 +4,7 @@
  * rectangular outline, which GENERATE a boundary.
  *
  * **It generates and never reads back.** C07 is explicit — *"Keep arbitrary traced boundaries …
- * do not infer four setbacks from an arbitrary curved polygon"* — so the fields start at zero
+ * do not infer four setbacks from an arbitrary curved polygon"* — so the fields start EMPTY
  * whatever boundary the object already has, and nothing here ever turns an existing clearance
  * into four numbers. An arbitrary traced polygon is therefore untouched by this panel until the
  * user presses the button, and the warning above it says the press replaces what is there.
@@ -24,8 +24,19 @@
  * the rectangle, reaches `validateAssetShape` through the same door every other edit takes and
  * comes back as a coded refusal this panel shows. A guard here would be a second answer to a
  * question the domain already answers, and would leave that validator's own arm unreachable.
+ *
+ * **AD18-R17 (board 01) put three things around those fields, and none of them is stored.**
+ * `All sides` is one field whose typing fills all four drafts; what it SHOWS is derived from them —
+ * the shared text while the four agree, blank the moment one side differs — so there is no fifth
+ * draft to fall out of step, and `generate` reads the four exactly as before. The four fields move
+ * into an `Advanced` fold, the Arrange panel's bare `.rp-designer-collapsible`, closed by default
+ * with its open state its own. And `Show clearance` is a switch over the leaf runtime's
+ * `showClearance`, which hides the canvas's clearance layer: a VIEW preference (AD18-R12's kind),
+ * drawn only when there is a clearance to hide, and outside the `supported` arm because hiding a
+ * traced curve means as much as hiding a generated rectangle.
  */
 import { computed, reactive, ref } from 'vue';
+import { useShowClearance } from '../runtime';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { AppError } from '../../../core/errors/AppError';
 import { validateAssetShape } from '../../../domain/asset/AssetShape';
@@ -53,6 +64,13 @@ const SIDES: readonly { readonly side: Side; readonly label: StringKey; readonly
  * untypeable. `Number` is applied once, in `generate`.
  */
 const draft = reactive<Record<Side, string>>({ front: '', back: '', left: '', right: '' });
+/** The four drafts' shared text, or blank once they disagree — derived, never a fifth draft. */
+const allSides = computed(() => (SIDES.every(({ side }) => draft[side] === draft.front) ? draft.front : ''));
+function fillAllSides(value: string): void {
+	for (const { side } of SIDES) draft[side] = value;
+}
+/** `null` on a bare mount with no leaf runtime — see `useShowClearance`. */
+const showClearance = useShowClearance();
 const refusal = ref<AppError | null>(null);
 
 const shape = computed(() => props.design.shape);
@@ -99,26 +117,59 @@ async function generate(): Promise<void> {
 		<h3 class="rp-designer-panel-title rp-designer-section-title">
 			{{ tr('designer.clearance') }}
 		</h3>
+		<label
+			v-if="showClearance !== null && replaces"
+			class="rp-designer-clearance-toggle"
+		>
+			<input
+				v-model="showClearance"
+				type="checkbox"
+				role="switch"
+				name="show-clearance"
+			>
+			{{ tr('designer.clearance.show') }}
+		</label>
 		<template v-if="supported">
 			<p class="rp-designer-field-hint">
 				{{ tr('designer.clearance.hint') }}
 			</p>
 			<DesignerFieldRowShell
-				v-for="entry in SIDES"
-				:key="entry.side"
-				:short="entry.short"
+				short="designer.clearance.all-sides.short"
 				unit="mm"
 			>
 				<input
 					type="number"
 					step="any"
 					inputmode="decimal"
-					:name="`clearance-${entry.side}`"
-					:aria-label="tr(entry.label)"
-					:value="draft[entry.side]"
-					@input="draft[entry.side] = ($event.target as HTMLInputElement).value"
+					name="clearance-all-sides"
+					:aria-label="tr('designer.clearance.all-sides')"
+					:value="allSides"
+					@input="fillAllSides(($event.target as HTMLInputElement).value)"
 				>
 			</DesignerFieldRowShell>
+			<details class="rp-designer-collapsible">
+				<summary>
+					<h4 class="rp-designer-panel-title rp-designer-section-title">
+						{{ tr('designer.clearance.advanced') }}
+					</h4>
+				</summary>
+				<DesignerFieldRowShell
+					v-for="entry in SIDES"
+					:key="entry.side"
+					:short="entry.short"
+					unit="mm"
+				>
+					<input
+						type="number"
+						step="any"
+						inputmode="decimal"
+						:name="`clearance-${entry.side}`"
+						:aria-label="tr(entry.label)"
+						:value="draft[entry.side]"
+						@input="draft[entry.side] = ($event.target as HTMLInputElement).value"
+					>
+				</DesignerFieldRowShell>
+			</details>
 			<p
 				v-if="replaces"
 				class="rp-designer-unscaled"

@@ -139,6 +139,17 @@ export interface DesignerRuntime {
 	 */
 	readonly showLegend: Ref<boolean>;
 	/**
+	 * The Clearance section's `Show clearance` switch (AD18-R17, board 01), which shows or hides the
+	 * canvas's clearance LAYER — the boundary itself, not the legend's row for it.
+	 *
+	 * **`showLegend`'s kind of row exactly, by the same AD18-R12 precedent** — leaf-local, written
+	 * NOWHERE, default `true` because a clearance the design has is a clearance the canvas shows until
+	 * somebody asks otherwise. It reaches no command, no note, no sidecar and no undo entry, and it
+	 * does not survive a reopened leaf. A component that is also mounted BARE reads it through
+	 * `useShowClearance` below; anything else reads it off this runtime.
+	 */
+	readonly showClearance: Ref<boolean>;
+	/**
 	 * Task B8's gesture, the same shape as `setBackground` above and for the same reason: a
 	 * click-bound dispatch with no field to show a refusal under, so it swallows the `Result`
 	 * itself through `notifyIfRefused`/`reportDispatchFault` rather than handing it back. TWO
@@ -533,10 +544,10 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const { editor, selection, workspace, viewportAdapter, snapService } = leafStores();
 
 	const renderState = reactive(new RenderState());
-	// Three view preferences and nothing else, here rather than in `writingFor` because none of
-	// them writes anything — see `DesignerRuntime.backgroundOpacity`, `.allDimensions` and
-	// `.showLegend` for each one's own account.
-	const backgroundOpacity = ref(1), allDimensions = ref(false), showLegend = ref(true);
+	// Four view preferences and nothing else, here rather than in `writingFor` because none of
+	// them writes anything — see `DesignerRuntime.backgroundOpacity`, `.allDimensions`,
+	// `.showLegend` and `.showClearance` for each one's own account.
+	const backgroundOpacity = ref(1), allDimensions = ref(false), showLegend = ref(true), showClearance = ref(true);
 	/**
 	 * TWO ledgers, because an asset is two resources under one id — see `DesignWriteLedgers`.
 	 * Only the geometry one is reachable from this surface's tools, every one of which writes the
@@ -718,7 +729,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		redo,
 		setBackground,
 		removeBackground,
-		backgroundOpacity, allDimensions, showLegend,
+		backgroundOpacity, allDimensions, showLegend, showClearance,
 		setFootprintFromDimensions,
 		applyShape,
 		commitHeight,
@@ -749,4 +760,17 @@ export function useDesignerRuntime(): DesignerRuntime {
 		throw new Error('The asset designer was mounted without a DesignerRuntime.');
 	}
 	return runtime;
+}
+
+/**
+ * The leaf's `showClearance`, or `null` where no runtime is provided — for `DesignerClearanceHelper`,
+ * which sits inside `DesignerInspector`, which test files mount BARE on purpose (`grep -rln "mount(DesignerInspector" tests/`) (that
+ * component's `removeBackground` docblock says why). `useDesignerRuntime()` there would make every
+ * one of them throw. Inside a leaf the runtime is always provided, so the `null` arm is a bare mount
+ * and nothing else: the switch is simply not drawn there, and `designerClearanceHelper.test.ts`
+ * drives the real wiring to prove it IS drawn in a leaf.
+ */
+export function useShowClearance(): Ref<boolean> | null {
+	const runtime = inject(DESIGNER_RUNTIME, null);
+	return runtime === null ? null : runtime.showClearance;
 }

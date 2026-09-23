@@ -104,7 +104,7 @@ const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.
-const { toolManager, renderState, setTool, editShape, activeToolId, partView, backgroundOpacity } = useDesignerRuntime();
+const { toolManager, renderState, setTool, editShape, activeToolId, partView, backgroundOpacity, showClearance } = useDesignerRuntime();
 /**
  * An arrow key nudges the designer's selection (symbols spec, Decision 10) by `EditorSurface`'s own
  * `arrowVector` — 10 mm a press, 100 mm with Shift — as one conditional shape write per press, under
@@ -292,7 +292,7 @@ onBeforeUnmount(() => stopPixelRatio());
 						:config="{ ...footprintEdgeLine, name: 'asset-footprint-edge' }"
 					/>
 				</VLayer>
-				<VLayer :config="designerLayerConfig('asset-clearance', transform)">
+				<VLayer :config="{ ...designerLayerConfig('asset-clearance', transform), visible: showClearance }">
 					<VLine
 						v-if="clearance !== null"
 						:config="{ ...clearance, name: 'asset-clearance-outline' }"

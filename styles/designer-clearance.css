@@ -1,5 +1,25 @@
 /*
- * The clearance helper's link control and its Advanced fold (AD18-R17). Created empty by the
- * integrator so that each task in the second parity round owns one partial and no two tasks edit
- * the same stylesheet.
+ * The clearance helper's Show clearance switch and its Advanced fold (AD18-R17). One partial per
+ * task in the second parity round, so no two tasks edit the same stylesheet.
  */
+
+/*
+ * The switch is Obsidian's own themed checkbox with its label beside it — `DesignerViewMenu`'s rows
+ * are the same element. No pill is drawn: the host's `input[type=checkbox]` rule already owns the
+ * checkbox's appearance, and a second one here would have to undo it without a browser to check.
+ */
+.rp-designer-clearance-toggle {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * The fold's chevron, 24px summary and focus ring are `.rp-designer-collapsible`'s own; this only
+ * spaces the four side rows inside an open fold, which the section's flex `gap` cannot reach
+ * because they are children of the `<details>`, not of the section.
+ */
+.rp-designer-clearance .rp-designer-collapsible > :not(summary) {
+	margin-top: var(--size-4-2);
+}

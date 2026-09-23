@@ -358,7 +358,8 @@ describe('the four-side clearance helper', () => {
 	 */
 	it('draws each side as a compact row: a short visible label, the full sentence as the accessible name, and an mm suffix', () => {
 		const { wrapper } = mountHelper(baseShape());
-		const rows = wrapper.findAll('.rp-designer-field-row');
+		// The four sides only: AD18-R17 folded them under `Advanced`, beside an `All sides` row outside it.
+		const rows = wrapper.findAll('details .rp-designer-field-row');
 
 		expect(rows).toHaveLength(4);
 		([

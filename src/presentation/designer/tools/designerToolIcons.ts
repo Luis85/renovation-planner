@@ -59,12 +59,12 @@ import type { StringKey } from '../../i18n/locales/en';
  * stale claim in this file is as much a defect as one in the code it describes.** Wave 11 shipped
  * `styles/designer-add.css` hiding `.rp-designer-tool-label` unconditionally, which is what the
  * paragraph above used to say; board 01 draws a visible label under the icon instead, so that rule
- * now shows the text at every width. `styles/designer-toolbar.css` still hides its own copy below
- * 80rem, unchanged. So the `'shape'` rows are icon-only ONLY at a narrow toolbar-adjacent leaf,
- * same as every other row, and glyph distinctness is no longer the rail's ONLY signal — the tile's
+ * now shows the text at every width. `styles/designer-toolbar.css` hides the TOOLBAR's copy at
+ * every width since AD18-R17 Task 2 (it was below 80rem). So the `'shape'` rows, all in the rail,
+ * are never icon-only, and glyph distinctness is no longer the rail's ONLY signal — the tile's
  * own short label (`designer.add.tile-*`, below) tells two tiles apart too — but
- * `designerIconToolbar.test.ts` still refuses a reused glyph regardless, since the toolbar's own
- * icon-only state at a narrow leaf never went away.
+ * `designerIconToolbar.test.ts` still refuses a reused glyph regardless, since every toolbar
+ * button is icon-only at every width and a glyph shared with a rail tile would be reused copy.
  */
 export const DESIGNER_TOOL_ICONS = {
 	select: { icon: 'mouse-pointer-2', group: 'tool' },

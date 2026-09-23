@@ -43,7 +43,7 @@ export const assetReferenceDe: Record<keyof typeof assetReferenceEn, string> = {
 	'designer.clearance.right.short': 'Rechts',
 	'designer.clearance.generate': 'Freiraum erzeugen',
 	'designer.clearance.hint':
-		'Diese vier Zahlen erzeugen eine neue Grenze. Es sind Ihre eigenen Vorgaben, kein Standard.',
+		'Was Sie hier eingeben, erzeugt eine neue Grenze. Es sind Ihre eigenen Vorgaben, kein Standard.',
 	'designer.clearance.replaces': 'Das ersetzt die Grenze, die dieses Objekt bereits hat.',
 	'designer.clearance.unsupported':
 		'Ein vierseitiger Helfer braucht einen rechteckigen Umriss und eine Front entlang einer Achse. Zeichnen Sie stattdessen eine Grenze nach.',

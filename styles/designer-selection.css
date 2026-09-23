@@ -140,9 +140,9 @@
  * `overflow-wrap: anywhere` on the SPAN, element-selected rather than through a shared class,
  * because `designer-add.css`'s own `.rp-designer-tool-label` (which already carries this
  * declaration for the `Add` rail) is reached, unqualified beyond `.renovation-asset-designer`, by
- * `designer-toolbar.css`'s `display: none` below 80rem — a rule about the whole LEAF's width, not
- * this group's own. Wearing that class here would hide these labels whenever the leaf narrows,
- * which a segmented control with no icon-only fallback state must not do.
+ * `designer-toolbar.css`'s `display: none` — at EVERY width since AD18-R17 Task 2, not only below
+ * the retired 80rem. Wearing that class here would hide these labels outright, which a segmented
+ * control with no icon-only fallback state must not do.
  */
 .rp-designer-placement-modes .rp-designer-selection-button span {
 	overflow-wrap: anywhere;

@@ -32,9 +32,9 @@
  * argument), the same glyphs, the same `aria-pressed` mirror and the same active class. What
  * differs is the rule that draws them: `styles/designer-add.css` no longer hides the text at all
  * (Task 3, AD18-R16) — board 01's tiles carry a visible label under the icon, so the icon-only
- * treatment wave 11 gave this rail is inverted here, where `styles/designer-toolbar.css` still
- * hides its own copy of that class below 80rem, a measurement of the TOOLBAR's row count that says
- * nothing about this rail.
+ * treatment wave 11 gave this rail is inverted here, where `styles/designer-toolbar.css` hides
+ * its own copy of that class at every width (AD18-R17 Task 2), a decision about the TOOLBAR that
+ * says nothing about this rail.
  *
  * **Task 3's fix round adds a SECOND label, the tile's own.** The integrator's rendered check
  * found the grid overflowing (`repeat(2, 1fr)` sized each column to its longest unbreakable

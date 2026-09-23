@@ -356,21 +356,21 @@ onBeforeUnmount(() => stopPixelRatio());
 			/>
 		</template>
 		<!--
-			The overlay slot: the rulers first, then the dimensions, then the legend (AD18-R16
+			The overlay slot: the rulers first, then the dimensions, then the key (AD18-R16
 			Task 4), then whatever the shell passed down — the empty state today — so a card
 			meant to be read sits OVER all three rather than under them. All four are
 			`position: absolute` against `.rp-plan-canvas`, and none of them takes any layout at
 			all, which is what holds AD18-R10's floor on the canvas's share of the shell.
 
-			The dimensions come SECOND, ahead of the legend, and it is the one ordering here that
-			is not merely about reading: they carry the only controls of the four — real buttons
-			and a real form (AD18-R11) — so they must paint over the rulers' strips rather than
-			under them. The legend takes no press at all and sits in the canvas's bottom-left
-			corner, away from where the rulers and the dimension labels draw, so its own place in
-			this order costs it nothing. The empty state must still paint over everything, since a
-			surface with nothing drawn has nothing to measure — and nothing to explain the
-			vocabulary of, which is `legendRows.ts`'s own account of why the legend draws no row
-			at all over the same `null` shape that state answers.
+			The dimensions come SECOND, and it is the one ordering here that is not merely about
+			reading: they carry the only controls of the four — real buttons and a real form
+			(AD18-R11) — so they must paint over the rulers' strips. The key after them (the legend
+			over `DesignerScaleBar`) takes no press but is OPAQUE, and a camera can put a label in
+			its corner, so DOM order alone would bury that label: `z-index: 1` on a resting label,
+			in `designer-dimensions.css`, is what keeps it pressable. The empty state must still
+			paint over everything, since a surface with nothing drawn has nothing to measure — and
+			nothing to explain the vocabulary of, which is `legendRows.ts`'s own account of why
+			the legend draws no row at all over the same `null` shape that state answers.
 		-->
 		<template #overlay>
 			<DesignerRulers />

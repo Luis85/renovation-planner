@@ -104,9 +104,9 @@
  * TILES NOW, WHICH IS TASK 3'S WHOLE CHANGE — board 01 draws an icon above a VISIBLE label, not
  * the icon-only treatment wave 11 shipped.
  *
- * `styles/designer-toolbar.css` hides `.rp-designer-tool-label` below 80rem, unqualified beyond
- * `.renovation-asset-designer` — so that rule reaches this class too, at equal specificity, and
- * the two disagree below 80rem (nearly always) unless this one wins. It wins the way wave 11's
+ * `styles/designer-toolbar.css` hides `.rp-designer-tool-label` at every width (AD18-R17 Task 2),
+ * unqualified beyond `.renovation-asset-designer` — so that rule reaches this class too, at equal
+ * specificity, and the two disagree at every width unless this one wins. It wins the way wave 11's
  * `display: none` did: unconditional, so it is never inside the toolbar's `@container`, and later
  * in `styles/index.css`'s import order (`designer-add.css` after `designer-toolbar.css`), so equal
  * specificity resolves to source order rather than to which one is a superset of the other.

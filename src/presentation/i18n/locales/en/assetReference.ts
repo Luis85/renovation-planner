@@ -61,7 +61,7 @@ export const assetReferenceEn = {
 	'designer.clearance.left.short': 'Left',
 	'designer.clearance.right.short': 'Right',
 	'designer.clearance.generate': 'Generate clearance',
-	'designer.clearance.hint': 'These four numbers generate a new boundary. They are your own allowances, not a standard.',
+	'designer.clearance.hint': 'What you enter here generates a new boundary. These are your own allowances, not a standard.',
 	'designer.clearance.replaces': 'This replaces the boundary this object already has.',
 	'designer.clearance.unsupported':
 		'A four-sided helper needs a rectangular outline and a front pointing along an axis. Trace a boundary instead.',

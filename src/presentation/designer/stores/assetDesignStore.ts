@@ -143,7 +143,9 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 	 * Make `next` the FOCUSED part: a member moves to the end without the set changing, and a part that
 	 * is not a member is selected alone (`select`). The context menu's right-click (AD18-R16 Task 11),
 	 * and the Plan Editor's own `selection.focus` for the same gesture — every per-part action reads the
-	 * focused member, so a right-click on one member of three must make THAT one the subject.
+	 * focused member, so a right-click on one member of three must make THAT one the subject. It stays
+	 * reordered even when the menu is then dismissed with Escape: the Inspector's part and the Arrange
+	 * panel's key object follow the right-clicked member, as they do in the Plan Editor.
 	 */
 	function focus(next: DesignerSelection): void {
 		const others = selected.value.filter((member) => !sameSelection(member, next));

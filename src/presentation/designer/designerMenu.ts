@@ -125,17 +125,20 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 	/**
 	 * Focus goes back to the opener at once, and the action runs. A write can then unmount the opener —
 	 * Delete removes its Parts row, and a group re-nests rows — and a browser drops focus to `<body>`
-	 * when the focused element goes. So once the action has settled and redrawn, focus that has left the
-	 * designer is handed to the CANVAS: it is the one control every one of these writes leaves standing
-	 * (a Parts row may be the very thing removed, and the list itself is not a focus target), and it is
-	 * where the same four actions' keys work, so the next keystroke still means something. It is always
+	 * when the focused element goes. So once the action has settled and redrawn, focus the browser
+	 * DROPPED (to `<body>`, or nowhere) is handed to the CANVAS — and only dropped focus: the await spans
+	 * the vault write, and a user who clicked into a note or opened an Obsidian modal meanwhile keeps
+	 * their focus there, or their next Backspace would delete a part. The canvas, because it is the one
+	 * control every one of these writes leaves standing (a Parts row may be the very thing removed, and
+	 * the list itself is not a focus target), and it is where the same four actions' keys work, so the
+	 * next keystroke still means something. It is always
 	 * there: a failed read-back after a write keeps the previous design drawn (`runtime.refresh`).
 	 */
 	async function runAndRefocus(action: CanvasMenuAction): Promise<void> {
 		close();
 		await action.run();
 		await nextTick();
-		if (!root.contains(document.activeElement)) (root.querySelector('.rp-plan-canvas') as HTMLElement).focus();
+		if ([null, document.body].includes(document.activeElement)) (root.querySelector('.rp-plan-canvas') as HTMLElement).focus();
 	}
 
 	return reactive({

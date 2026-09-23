@@ -431,7 +431,26 @@ describe('focus after an action from a Parts row', () => {
 		rig.unmount();
 	});
 
-	it('stays in the designer when Group re-nests the rows', async () => {
+	it('stays wherever the user took it while the write was in flight', async () => {
+		const rig = await selecting(TOILET);
+		const note = document.createElement('button');
+		document.body.appendChild(note);
+		row(rig, 'detail:detail-2').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		await settle();
+		item(rig, 'delete').click();
+		// Before the vault write settles: a click into a note, or an Obsidian modal opening on `<body>`.
+		note.focus();
+		await settle();
+
+		expect(row(rig, 'detail:detail-2')).toBeNull();
+		expect(document.activeElement).toBe(note);
+		note.remove();
+		rig.unmount();
+	});
+
+	// An OUTCOME check, not proof of the fallback: jsdom keeps focus on a row Vue re-nests, so this
+	// passes with the fallback removed too. The Delete case above is the one that proves it.
+	it('leaves focus in the designer after Group re-nests the rows', async () => {
 		const rig = await selecting(TOILET);
 		const store = useAssetDesignStore(rig.pinia);
 		store.select(DETAIL_1);

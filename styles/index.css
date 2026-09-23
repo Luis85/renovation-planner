@@ -86,6 +86,9 @@
 @import "./designer-rulers.css";
 @import "./designer-dimensions.css";
 @import "./designer-legend.css";
+@import "./designer-fields.css";
+@import "./designer-placement.css";
+@import "./designer-clearance.css";
 @import "./designer-narrow.css";
 @import "./designer-recovery.css";
 @import "./diagnostics.css";

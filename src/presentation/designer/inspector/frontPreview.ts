@@ -4,16 +4,6 @@ import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { facingTip } from '../layers/anchorLayer';
 import { presetPreview } from '../presets/presetPreview';
 
-/** The Front direction picker's mini preview (AD18-R17): a square picture, the outline, and the front arrow. */
-export interface FrontPreview {
-	readonly viewBox: string;
-	readonly footprint: string;
-	/** `x1 y1 x2 y2`, world millimetres, from the outline's middle to the canvas arrow's own tip direction. */
-	readonly shaft: readonly number[];
-	/** The head's three corners, world millimetres: the tip, then the two barbs. */
-	readonly head: readonly number[];
-}
-
 /** How far the arrow reaches from the outline's middle, as a share of the outline's longer side. */
 const REACH = 0.4;
 /** Clear space around the picture's square, as a share of that side, so the head never touches the edge. */
@@ -22,6 +12,11 @@ const MARGIN = 0.1;
 const HEAD = 0.25;
 
 /**
+ * The Front direction picker's mini preview (AD18-R17): a square `viewBox`, the outline's path,
+ * the arrow's `shaft` (`x1 y1 x2 y2`, from the outline's middle to the head's base) and its
+ * `head` (the tip, then the two barbs), all in world millimetres. The return type is inferred
+ * rather than named: one caller, and a named export nothing imports is an `unused-exports` finding.
+ *
  * The outline through `presetPreview` (the card's renderer, never a third one) and the arrow's
  * direction through `facingTip` — the function the CANVAS places its arrow's tip with. So the
  * preview cannot disagree with the canvas about which way `facing` points (C04): both take the same
@@ -37,7 +32,7 @@ const HEAD = 0.25;
  * this caller (always handed a shape) could never take, and an unreachable arm is a coverage branch
  * nothing can pay back. Its head is two lines of arithmetic, restated below at thumbnail scale.
  */
-export function frontPreview(shape: AssetShape): FrontPreview {
+export function frontPreview(shape: AssetShape) {
 	const { minX, minY, maxX, maxY } = extentOf(polygonPolyline(shape.footprint, 2));
 	const side = Math.max(maxX - minX, maxY - minY);
 	const middle = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };

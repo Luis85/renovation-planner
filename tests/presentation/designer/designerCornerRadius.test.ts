@@ -11,10 +11,10 @@ import { flushPromises, mount } from '@vue/test-utils';
 import DesignerSelectionInspector from '../../../src/presentation/designer/inspector/DesignerSelectionInspector.vue';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { ValidationError } from '../../../src/core/errors/AppError';
-import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
 import { roundedRect } from '../../../src/domain/asset/presets/presetGeometry';
 import { rotate } from '../../../src/core/geometry/operations';
+import type { EditShape } from '../../../src/presentation/designer/selection/editShape';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
@@ -23,14 +23,22 @@ import { expectOk } from '../../helpers/domain';
 import { settle } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
 
-type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
+/**
+ * The inspector's `editShape` is the leaf's own `EditShape` since AD18-R17, whose edit may answer `null`
+ * for "nothing to do" (a corner radius committed at the radius it has). No case in this file commits one,
+ * so the fake refuses it loudly rather than inventing a result.
+ */
+function handed(result: Result<AssetShape, ValidationError> | null): Result<AssetShape, ValidationError> {
+	if (result === null) throw new Error('an edit answered nothing to do; this fake does not model it');
+	return result;
+}
 
 const ROUNDED = { kind: 'detail', id: 'detail-3' } as const;
 
 function mountFor(shape: AssetShape, selection: { kind: 'detail'; id: string } = ROUNDED) {
 	const applied: Result<AssetShape, ValidationError>[] = [];
-	const editShape = vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>((edit) => {
-		const result = edit(shape);
+	const editShape = vi.fn<EditShape>((edit) => {
+		const result = handed(edit(shape));
 		applied.push(result);
 		return Promise.resolve(result.ok ? ok('wrote') : err(result.error));
 	});

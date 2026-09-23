@@ -1,10 +1,12 @@
 <script setup lang="ts">
 /**
  * The inspector for ONE selected part (asset designer symbols spec, "Inspector for the selection",
- * and Amendments 1 and 2): a detail's name, line, centre, size, a rounded rectangle's corner radius
- * (AD18-R16 Task 12) and a rotate-by field, with ordering, duplicate and delete; the footprint's size
- * and Fit to details; the clearance's delete; the anchor's position; the facing's angle. A PENDING part's lengths — a footprint's size, a detail's centre and size,
- * the anchor's position — are placeholder pixels, so they are withheld.
+ * and Amendments 1 and 2): a detail's name, centre, size, a rounded rectangle's corner radius
+ * (AD18-R16 Task 12) and a rotate-by field, its line and its ordering folded under `Appearance` and
+ * `Order`, then duplicate and delete; the footprint's size and Fit to details; the clearance's delete;
+ * the anchor's position; the facing's angle. Centre, size and the anchor's position are PAIRED rows
+ * (AD18-R17, `DesignerFieldLine`). A PENDING part's lengths — a footprint's size, a detail's centre
+ * and size, the anchor's position — are placeholder pixels, so they are withheld.
  *
  * **Every control is one `editShape` call over a pure domain edit**, so a field, a button and a
  * canvas gesture reach the vault through the same `SetAssetShape` door with the same `expected`
@@ -19,7 +21,7 @@
  * Numbers show whole millimetres and whole degrees and commit on `change` (blur or Enter). A typed
  * Width or Depth lands the typed CURVE-AWARE extent (`resizeToExtent`), which a plain factor does not
  * on an arc — and on a curved part it can move the other extent too, since its arcs keep their bulges
- * (Decision 9). A refusal `editShape` answers is shown in ONE alert and cleared by the next commit that
+ * (Decision 9) — except on a rounded rectangle, which is rebuilt as one (`resized`, AD18-R17). A refusal `editShape` answers is shown in ONE alert and cleared by the next commit that
  * lands. Rotate-by applies and resets to 0: a detail stores no rotation to show.
  *
  * A detail's name is a stable key (Decision 8): the field shows its `designer.detail.<name>` label
@@ -34,7 +36,7 @@ import type { DispatchResult } from '../../../application/commands/DispatchOutco
 import type { AppError } from '../../../core/errors/AppError';
 import type { DetailLine } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
-import { cornerRadiusOf, setCornerRadius } from '../../../domain/asset/cornerRadius';
+import { cornerRadiusOf, resizeRoundedRect, roundedCorner, setCornerRadius } from '../../../domain/asset/cornerRadius';
 import { deleteDetail, fitFootprintToDetails, reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
 import {
 	moveAnchor,
@@ -48,19 +50,23 @@ import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { duplicateAndSelect } from '../designerKeys';
-import type { ShapeEdit } from '../selection/editShape';
+import type { EditShape } from '../selection/editShape';
 import { selectionExists, type DesignerSelection } from '../selection/designerSelection';
 import { partMeasure, resizeToExtent, withPartBox, type PartBox } from '../selection/partExtent';
-import DesignerFieldRow from './DesignerFieldRow.vue';
+import DesignerFieldLine from './DesignerFieldLine.vue';
 import DesignerDetailFields from './DesignerDetailFields.vue';
+import DesignerSelectionFolds from './DesignerSelectionFolds.vue';
 import DesignerActionButton from './DesignerActionButton.vue';
 
 const props = defineProps<{
 	design: AssetDesignDto;
 	selection: DesignerSelection;
-	editShape: (edit: ShapeEdit) => Promise<DispatchResult>;
+	editShape: EditShape;
 	select: (next: DesignerSelection | null) => void;
 }>();
+
+/** A whole-shape edit, or `null` for "nothing to do" — which `editShape` resolves as `no-write` and never dispatches. */
+type Edit = Parameters<EditShape>[0];
 
 interface NumberField {
 	readonly name: string;
@@ -71,7 +77,7 @@ interface NumberField {
 	/** `mm`, `°`, or left out for a field with no unit (none here — every field below is a length or an angle). */
 	readonly unit?: 'mm' | '°';
 	readonly value: number;
-	readonly edit: (value: number) => ShapeEdit;
+	readonly edit: (value: number) => Edit;
 	readonly resets?: true;
 	/** A one-line description drawn under the field and linked by `aria-describedby`; only the facing's angle has one. */
 	readonly hint?: StringKey;
@@ -125,7 +131,7 @@ async function show(written: Promise<DispatchResult>): Promise<boolean> {
 	return result.ok;
 }
 
-function commit(edit: ShapeEdit): Promise<boolean> {
+function commit(edit: Edit): Promise<boolean> {
 	return show(props.editShape(edit));
 }
 
@@ -142,31 +148,67 @@ function boxOf(part: OutlinePart): PartBox {
 	return partMeasure(shape.value, part) as PartBox;
 }
 
-function sizeFields(part: OutlinePart): NumberField[] {
-	const { width, depth } = boxOf(part);
-	return [
-		{ name: 'width', label: 'designer.preset.field.width', short: 'designer.preset.field.width.short', unit: 'mm', value: width, edit: (value) => (current) => resizeToExtent(current, part, 'width', value) },
-		{ name: 'depth', label: 'designer.preset.field.depth', short: 'designer.preset.field.depth.short', unit: 'mm', value: depth, edit: (value) => (current) => resizeToExtent(current, part, 'depth', value) },
-	];
+/**
+ * One line of the section: a single field, a PAIR under one visible name (AD18-R17, board 01 panel 4), or
+ * the corner radius with its slider. `DesignerFieldLine` draws it.
+ */
+interface FieldLine {
+	readonly name: string;
+	readonly fields: readonly NumberField[];
+	readonly pair?: StringKey;
+	readonly slider?: { readonly field: NumberField; readonly label: StringKey; readonly largest: number };
 }
 
-function detailFields(part: OutlinePart): NumberField[] {
+const single = (field: NumberField): FieldLine => ({ name: field.name, fields: [field] });
+
+/**
+ * A Width or Depth edit. **A rounded rectangle stays one** (AD18-R17): `resizeRoundedRect` rebuilds it with
+ * its radius kept or clamped, and answers `null` for anything else — a footprint never reaches it — which
+ * falls through to the curve-aware resize every other part has always had.
+ */
+function resized(current: AssetShape, part: OutlinePart, axis: 'width' | 'depth', value: number): ReturnType<typeof resizeToExtent> {
+	return (part.kind === 'detail' ? resizeRoundedRect(current, part.id, axis, value) : null) ?? resizeToExtent(current, part, axis, value);
+}
+
+function sizeLine(part: OutlinePart): FieldLine {
+	const { width, depth } = boxOf(part);
+	return {
+		name: 'size',
+		pair: 'designer.selection.fields.size',
+		fields: [
+			{ name: 'width', label: 'designer.preset.field.width', short: 'designer.preset.field.width.short', unit: 'mm', value: width, edit: (value) => (current) => resized(current, part, 'width', value) },
+			{ name: 'depth', label: 'designer.preset.field.depth', short: 'designer.preset.field.depth.short', unit: 'mm', value: depth, edit: (value) => (current) => resized(current, part, 'depth', value) },
+		],
+	};
+}
+
+function detailLines(part: OutlinePart): FieldLine[] {
 	const { centre } = boxOf(part);
 	return [
-		{ name: 'centre-x', label: 'designer.selection.centre-x', short: 'designer.selection.centre-x.short', unit: 'mm', value: centre.x, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: value - box.centre.x, dy: 0 })) },
-		{ name: 'centre-y', label: 'designer.selection.centre-y', short: 'designer.selection.centre-y.short', unit: 'mm', value: centre.y, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: 0, dy: value - box.centre.y })) },
-		...sizeFields(part),
-		...cornerFields(),
-		{ name: 'rotate-by', label: 'designer.selection.rotate-by', short: 'designer.selection.rotate-by.short', unit: '°', value: 0, edit: (value) => (current) => withPartBox(current, part, (box) => rotateOutline(current, part, radians(value), box.centre)), resets: true },
+		{
+			name: 'position',
+			pair: 'designer.selection.fields.position',
+			fields: [
+				{ name: 'centre-x', label: 'designer.selection.fields.centre-x', short: 'designer.selection.fields.centre-x.short', unit: 'mm', value: centre.x, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: value - box.centre.x, dy: 0 })) },
+				{ name: 'centre-y', label: 'designer.selection.fields.centre-y', short: 'designer.selection.fields.centre-y.short', unit: 'mm', value: centre.y, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: 0, dy: value - box.centre.y })) },
+			],
+		},
+		sizeLine(part),
+		...cornerLines(),
+		single({ name: 'rotate-by', label: 'designer.selection.rotate-by', short: 'designer.selection.rotate-by.short', unit: '°', value: 0, edit: (value) => (current) => withPartBox(current, part, (box) => rotateOutline(current, part, radians(value), box.centre)), resets: true }),
 	];
 }
 
-function anchorFields(): NumberField[] {
+function anchorLine(): FieldLine {
 	const { x, y } = shape.value.anchor;
-	return [
-		{ name: 'position-x', label: 'designer.selection.position-x', short: 'designer.selection.position-x.short', unit: 'mm', value: x, edit: (value) => (current) => moveAnchor(current, { x: value, y: current.anchor.y }) },
-		{ name: 'position-y', label: 'designer.selection.position-y', short: 'designer.selection.position-y.short', unit: 'mm', value: y, edit: (value) => (current) => moveAnchor(current, { x: current.anchor.x, y: value }) },
-	];
+	return {
+		name: 'position',
+		pair: 'designer.selection.fields.position',
+		fields: [
+			{ name: 'position-x', label: 'designer.selection.fields.position-x', short: 'designer.selection.fields.position-x.short', unit: 'mm', value: x, edit: (value) => (current) => moveAnchor(current, { x: value, y: current.anchor.y }) },
+			{ name: 'position-y', label: 'designer.selection.fields.position-y', short: 'designer.selection.fields.position-y.short', unit: 'mm', value: y, edit: (value) => (current) => moveAnchor(current, { x: current.anchor.x, y: value }) },
+		],
+	};
 }
 
 /** The selected detail as a one-item list, so the template's closures see it without a narrowing to lose. */
@@ -175,17 +217,32 @@ const selectedDetails = computed(() =>
 );
 
 /**
- * Corner radius, for a graphic that IS a rounded rectangle and nothing else (AD18-R16 Task 12). The value
- * is read back from the geometry — nothing stores a radius (AD11 item 2) — so a graphic resized along one
- * axis, turned off the axes or reshaped by a vertex or a bend simply stops being offered one.
+ * Corner radius, for a graphic that IS a rounded rectangle and nothing else (AD18-R16 Task 12), with a
+ * slider beside it (AD18-R17). The value is read back from the geometry — nothing stores a radius (AD11
+ * item 2) — so a graphic turned off the axes or reshaped by a vertex or a bend simply stops being offered
+ * one. A Width or Depth edit no longer does: `resized` keeps it a rounded rectangle.
  */
-function cornerFields(): NumberField[] {
-	return selectedDetails.value.flatMap((detail): NumberField[] => {
-		const radius = cornerRadiusOf(detail);
-		return radius === null
-			? []
-			: [{ name: 'corner-radius', label: 'designer.selection.corner-radius', short: 'designer.selection.corner-radius.short', unit: 'mm', value: radius, edit: (value) => (current) => setCornerRadius(current, detail.id, value) }];
+function cornerLines(): FieldLine[] {
+	return selectedDetails.value.flatMap((detail): FieldLine[] => {
+		const corner = roundedCorner(detail);
+		if (corner === null) return [];
+		const field: NumberField = { name: 'corner-radius', label: 'designer.selection.corner-radius', short: 'designer.selection.corner-radius.short', unit: 'mm', value: corner.radius, edit: (value) => radiusEdit(detail.id, value) };
+		return [{ name: field.name, fields: [field], slider: { field, label: 'designer.selection.fields.corner-radius-slider', largest: corner.largest } }];
 	});
+}
+
+/**
+ * **Committing the radius the graphic already has is no command** (C03; C05's *"a no-op gesture is
+ * none"*): letting the slider go where it started, or typing the figure the field shows. Both spellings
+ * count — the canonical radius and the whole millimetre drawn for it — exactly as `dimensionFigures`'
+ * `unchanged` counts them for a typed extent. Measured on the shape the edit is HANDED, never the render.
+ */
+function radiusEdit(id: string, value: number): Edit {
+	return (current) => {
+		const detail = current.details.find((item) => item.id === id);
+		const radius = detail === undefined ? null : cornerRadiusOf(detail);
+		return radius !== null && (value === radius || value === Math.round(radius)) ? null : setCornerRadius(current, id, value);
+	};
 }
 
 /**
@@ -218,37 +275,46 @@ const pendingPart = computed(() =>
  */
 const openGraphic = computed(() => selectedDetails.value.some((item) => item.kind === 'open'));
 
-const fields = computed((): readonly NumberField[] => {
+const lines = computed((): readonly FieldLine[] => {
 	const selection = props.selection;
 	switch (selection.kind) {
 		case 'detail':
-			return pendingPart.value ? detailFields(selection).filter((field) => field.name === 'rotate-by') : detailFields(selection);
+			return pendingPart.value ? detailLines(selection).filter((line) => line.name === 'rotate-by') : detailLines(selection);
 		case 'footprint':
 			// A pending footprint's numbers are placeholder pixels; the Dimensions block below says so.
-			return props.design.dimensionsUnscaled ? [] : sizeFields(selection);
+			return props.design.dimensionsUnscaled ? [] : [sizeLine(selection)];
 		case 'clearance':
 			return [];
 		case 'anchor':
-			return pendingPart.value ? [] : anchorFields();
+			return pendingPart.value ? [] : [anchorLine()];
 		default: {
 			// Exhaustive at compile time: a new kind of selection reaches this line and fails to narrow.
 			const _facing: 'facing' = selection.kind;
-			return [{ name: 'angle', label: 'designer.selection.angle', short: 'designer.selection.angle.short', unit: '°', hint: 'designer.selection.angle.hint', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
+			return [single({ name: 'angle', label: 'designer.selection.angle', short: 'designer.selection.angle.short', unit: '°', hint: 'designer.selection.angle.hint', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) })];
 		}
 	}
 });
 
-function detailActions(id: string): Action[] {
+/** Bring forward and Send backward, which `DesignerSelectionFolds` folds under `Order` (AD18-R17); none for any other part. */
+const orderActions = computed((): readonly Action[] => {
+	if (props.selection.kind !== 'detail') return [];
+	const id = props.selection.id;
 	const details = shape.value.details;
 	const index = details.findIndex((item) => item.id === id);
 	return [
 		{ name: 'bring-forward', label: 'designer.selection.bring-forward', disabled: index === details.length - 1, run: () => void commit((current) => reorderDetail(current, id, 'forward')) },
 		{ name: 'send-backward', label: 'designer.selection.send-backward', disabled: index === 0, run: () => void commit((current) => reorderDetail(current, id, 'backward')) },
+	];
+});
+
+function detailActions(id: string): Action[] {
+	return [
 		{ name: 'duplicate', label: 'designer.selection.duplicate', disabled: false, run: () => void show(duplicateAndSelect(props.editShape, id, props.select)) },
 		{ name: 'delete', label: 'designer.selection.delete', disabled: false, run: () => void commit((current) => deleteDetail(current, id)) },
 	];
 }
 
+/** The actions drawn in the open, under the folds: Duplicate and Delete, Fit to details, the clearance's Delete. */
 const actions = computed((): readonly Action[] => {
 	const selection = props.selection;
 	if (selection.kind === 'detail') return detailActions(selection.id);
@@ -307,18 +373,19 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 		<DesignerDetailFields
 			:details="selectedDetails"
 			:on-name="onName"
-			:on-line="onLine"
 		/>
-		<DesignerFieldRow
-			v-for="field in fields"
-			:key="field.name"
-			:name="field.name"
-			:label="field.label"
-			:short="field.short"
-			:unit="field.unit"
-			:value="field.value"
-			:hint="field.hint"
-			:on-change="(event: Event) => void onNumber(field, event)"
+		<DesignerFieldLine
+			v-for="line in lines"
+			:key="line.name"
+			:fields="line.fields"
+			:pair="line.pair"
+			:slider="line.slider"
+			:on-number="(field: NumberField, event: Event) => void onNumber(field, event)"
+		/>
+		<DesignerSelectionFolds
+			:details="selectedDetails"
+			:on-line="onLine"
+			:order="orderActions"
 		/>
 		<div
 			v-if="actions.length > 0"

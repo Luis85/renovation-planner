@@ -2,4 +2,126 @@
  * The selection inspector's paired rows, its Appearance and Order folds and the corner-radius
  * slider (AD18-R17). Created empty by the integrator so that each task in the second parity round
  * owns one partial and no two tasks edit the same stylesheet.
+ *
+ * Every rule is scoped under `.rp-designer-selection`, so nothing here reaches the Arrange panel's
+ * rows or folds, which draw through the same components. Obsidian variables only (SDD §84).
+ * Declared and unrendered: jsdom lays nothing out, so every width below is a PREDICTION until the
+ * harness measures it.
  */
+
+/*
+ * A line of one field keeps the section's own 8px rhythm between the row and a hint under it — the
+ * gap the section's flex column gave them before each line had a wrapper of its own.
+ */
+.rp-designer-selection .rp-designer-field-line {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+/*
+ * A PAIR (board 01 panel 4): the pair's name, then two fields side by side, each with its short label
+ * ABOVE its input. Above rather than beside because the rail is 224px (208px inside its padding) and
+ * `Size Width [..] Depth [..]` in one line leaves an input about 43px wide — about 11px for digits once
+ * the `mm` suffix has its room. With the labels above, each input takes half of what the name leaves:
+ * predicted ~83px for Size and ~71px for Position at a 1280 leaf.
+ *
+ * The name is aligned to the INPUTS, not to the labels over them: `align-self: end` puts it on the
+ * inputs' line and `line-height` the input's own height centres it there.
+ */
+.rp-designer-selection .rp-designer-field-pair {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+	gap: var(--size-4-1) var(--size-4-2);
+	align-items: end;
+}
+
+.rp-designer-selection .rp-designer-field-pair__label {
+	align-self: end;
+	line-height: var(--input-height);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.rp-designer-selection .rp-designer-field-pair .rp-designer-field-row {
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--size-4-1);
+	min-width: 0;
+}
+
+.rp-designer-selection .rp-designer-field-pair .rp-designer-field-row__label {
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-designer-selection .rp-designer-field-pair .rp-designer-field-row__control {
+	width: auto;
+}
+
+/*
+ * Where the rail is being compressed (below the same 50rem `designer-selection.css` stacks every
+ * compact row at), the pair's name takes a line of its own and the two fields share the next — at
+ * the rail's measured floor, 123px, that is two ~57px inputs rather than two ~28px ones.
+ */
+@container rp-designer (width < 50rem) {
+	.rp-designer-selection .rp-designer-field-pair {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	}
+
+	.rp-designer-selection .rp-designer-field-pair__label {
+		grid-column: 1 / -1;
+		line-height: normal;
+	}
+}
+
+/*
+ * The corner radius with its slider BESIDE the number field (board 02 panel 8): the label on the
+ * first line, then the slider and the number field side by side. The label and the number stay one
+ * `<label>` (`DesignerFieldRowShell`'s), so that `<label>` spans both lines as a SUBGRID and places
+ * its two children into this grid's tracks, leaving the slider the cell beside the number. The
+ * slider stays outside the `<label>`: a label may hold only the one control it labels.
+ *
+ * Predicted at a 1280 leaf: a 120px slider beside the 80px field (208 − 80 − 8 gap). At every width
+ * this shape holds — the container rule that stacks a compact row is outranked here.
+ */
+.rp-designer-selection .rp-designer-radius-field {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 5rem;
+	gap: var(--size-4-1) var(--size-4-2);
+	align-items: center;
+}
+
+.rp-designer-selection .rp-designer-radius-field > .rp-designer-field-row {
+	display: grid;
+	grid-row: 1 / 3;
+	grid-column: 1 / -1;
+	grid-template-rows: subgrid;
+	grid-template-columns: subgrid;
+}
+
+.rp-designer-selection .rp-designer-radius-field > .rp-designer-field-row > .rp-designer-field-row__label {
+	grid-column: 1 / -1;
+}
+
+.rp-designer-selection .rp-designer-radius-field > .rp-designer-field-row > .rp-designer-field-row__control {
+	grid-row: 2;
+	grid-column: 2;
+	width: auto;
+}
+
+.rp-designer-selection .rp-designer-radius-field__slider {
+	grid-row: 2;
+	grid-column: 1;
+	width: 100%;
+	min-width: 0;
+	margin: 0;
+}
+
+/*
+ * The Appearance and Order folds are the Arrange panel's `.rp-designer-collapsible` (its summary's
+ * 24px hit target, chevron and focus ring are that rule's); this only spaces an OPEN fold's content
+ * off its summary, which the Arrange panel's rows do not need.
+ */
+.rp-designer-selection .rp-designer-collapsible > :not(summary) {
+	margin-top: var(--size-4-1);
+}

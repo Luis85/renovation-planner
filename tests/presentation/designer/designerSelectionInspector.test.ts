@@ -28,6 +28,7 @@ import {
 } from '../../../src/domain/asset/detailEdits';
 import { moveAnchor, removeClearance, setFacing } from '../../../src/domain/asset/shapeEdits';
 import { sameSelection, type DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
+import type { EditShape } from '../../../src/presentation/designer/selection/editShape';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
@@ -36,7 +37,15 @@ import { expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
 
-type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
+/**
+ * The inspector's `editShape` is the leaf's own `EditShape` since AD18-R17, whose edit may answer `null`
+ * for "nothing to do" (a corner radius committed at the radius it has). No case in this file commits one,
+ * so the fake refuses it loudly rather than inventing a result.
+ */
+function handed(result: Result<AssetShape, ValidationError> | null): Result<AssetShape, ValidationError> {
+	if (result === null) throw new Error('an edit answered nothing to do; this fake does not model it');
+	return result;
+}
 
 const TOILET = toiletShape();
 
@@ -59,8 +68,8 @@ function mountFor(selection: DesignerSelection, shape: AssetShape | null = TOILE
 	const applied: Result<AssetShape, ValidationError>[] = [];
 	// Only read for a mounted section, which exists only over a shape.
 	let live = shape as AssetShape;
-	const editShape = vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>((edit) => {
-		const result = edit(live);
+	const editShape = vi.fn<EditShape>((edit) => {
+		const result = handed(edit(live));
 		applied.push(result);
 		if (advances && result.ok) live = result.value;
 		return Promise.resolve(answer ?? (result.ok ? ok('wrote') : err(result.error)));
@@ -156,7 +165,7 @@ describe('what the inspector offers for each kind of part', () => {
 	it('offers no Width or Depth for a footprint whose numbers are not measurements yet', () => {
 		const mountWith = (dimensionsUnscaled: boolean) =>
 			mount(DesignerSelectionInspector, {
-				props: { design: assetDesign({ shape: TOILET, dimensionsUnscaled }), selection: { kind: 'footprint' }, editShape: vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>(), select: vi.fn<(next: DesignerSelection | null) => void>() },
+				props: { design: assetDesign({ shape: TOILET, dimensionsUnscaled }), selection: { kind: 'footprint' }, editShape: vi.fn<EditShape>(), select: vi.fn<(next: DesignerSelection | null) => void>() },
 			});
 
 		expect(numberFields(mountWith(true))).toEqual({});
@@ -191,12 +200,12 @@ describe('what the inspector offers for each kind of part', () => {
 		([
 			[detail, 'width', 'designer.preset.field.width.short', 'designer.preset.field.width', 'mm'],
 			[detail, 'depth', 'designer.preset.field.depth.short', 'designer.preset.field.depth', 'mm'],
-			[detail, 'centre-x', 'designer.selection.centre-x.short', 'designer.selection.centre-x', 'mm'],
-			[detail, 'centre-y', 'designer.selection.centre-y.short', 'designer.selection.centre-y', 'mm'],
+			[detail, 'centre-x', 'designer.selection.fields.centre-x.short', 'designer.selection.fields.centre-x', 'mm'],
+			[detail, 'centre-y', 'designer.selection.fields.centre-y.short', 'designer.selection.fields.centre-y', 'mm'],
 			[detail, 'rotate-by', 'designer.selection.rotate-by.short', 'designer.selection.rotate-by', '°'],
 			[rounded, 'corner-radius', 'designer.selection.corner-radius.short', 'designer.selection.corner-radius', 'mm'],
-			[anchor, 'position-x', 'designer.selection.position-x.short', 'designer.selection.position-x', 'mm'],
-			[anchor, 'position-y', 'designer.selection.position-y.short', 'designer.selection.position-y', 'mm'],
+			[anchor, 'position-x', 'designer.selection.fields.position-x.short', 'designer.selection.fields.position-x', 'mm'],
+			[anchor, 'position-y', 'designer.selection.fields.position-y.short', 'designer.selection.fields.position-y', 'mm'],
 			[facing, 'angle', 'designer.selection.angle.short', 'designer.selection.angle', '°'],
 		] as const).forEach(([wrapper, name, shortKey, labelKey, unit]) => {
 			const input = wrapper.get(`[name="${name}"]`).element as HTMLInputElement;
@@ -277,7 +286,7 @@ describe('what the inspector offers for each kind of part', () => {
 			props: {
 				design: assetDesign({ shape: { ...TOILET, footprintOrigin: 'traced', footprintPending: true }, dimensionsUnscaled: true }),
 				selection: { kind: 'footprint' },
-				editShape: vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>(),
+				editShape: vi.fn<EditShape>(),
 				select: vi.fn<(next: DesignerSelection | null) => void>(),
 			},
 		});

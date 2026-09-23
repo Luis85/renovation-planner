@@ -60,6 +60,51 @@ function roundedBoxOf(detail: AssetDetail): RoundedBox | null {
 export const cornerRadiusOf = (detail: AssetDetail): number | null => roundedBoxOf(detail)?.radius ?? null;
 
 /**
+ * The largest WHOLE-millimetre radius `setCornerRadius` accepts for a box: strictly under half the shorter
+ * side, since at exactly half two of the eight points coincide. Whole because it is what the inspector's
+ * slider can reach (AD18-R17), and what a resize clamps to, so a clamped radius lands on the slider's end.
+ */
+const largestWholeRadius = (width: number, depth: number): number => Math.ceil(Math.min(width, depth) / 2) - 1;
+
+/** A rounded rectangle's radius and the largest whole-millimetre one its box accepts, or `null` as `cornerRadiusOf`. */
+export function roundedCorner(detail: AssetDetail): { readonly radius: number; readonly largest: number } | null {
+	const box = roundedBoxOf(detail);
+	return box === null ? null : { radius: box.radius, largest: largestWholeRadius(box.width, box.depth) };
+}
+
+/** `detail` rebuilt as the rounded rectangle `box` describes, keeping its id, name, line and pending flag, and the whole shape validated. */
+function rebuilt(shape: AssetShape, detail: AssetDetail, box: RoundedBox): Result<AssetShape, ValidationError> {
+	const outline = roundedRect(box.width, box.depth, box.radius, box.centre.x, box.centre.y);
+	return validateAssetShape({ ...shape, details: shape.details.map((item) => (item.id === detail.id ? { ...detail, kind: 'closed', outline } : item)) });
+}
+
+/**
+ * A Width or Depth edit that keeps a rounded rectangle one (AD18-R17): the box takes `target` along `axis`
+ * about its own centre, and the radius is kept where the new box has room for it and clamped to the largest
+ * whole millimetre under half the new shorter side where it has not. ONE whole-shape edit, and nothing
+ * stored — AD11 item 2's *"store parameter intent only if subsequent edits can maintain it"*, this being
+ * the subsequent edit that maintains it.
+ *
+ * **`min(old radius, half the new shorter side)` is what was asked, and exactly half is refused**, for
+ * `setCornerRadius`'s own reason: two points coincide and the outline is self-intersecting. The clamp is
+ * the slider's end instead.
+ *
+ * `null` means "not mine": the graphic is missing, is no rounded rectangle (a stretched one, one turned off
+ * the axes), or no whole-millimetre radius fits the new box (a target of 2 mm or less, zero or negative).
+ * The caller then resizes as it always has, which is also where a missing part or a bad extent is refused.
+ * A rounded rectangle's extent is its point box — its quarter arcs are tangent to the sides — so `target`
+ * is the curve-aware extent the inspector's field shows.
+ */
+export function resizeRoundedRect(shape: AssetShape, id: string, axis: 'width' | 'depth', target: number): Result<AssetShape, ValidationError> | null {
+	const detail = shape.details.find((found) => found.id === id);
+	const box = detail === undefined ? null : roundedBoxOf(detail);
+	if (detail === undefined || box === null) return null;
+	const [width, depth] = axis === 'width' ? [target, box.depth] : [box.width, target];
+	const radius = Math.min(box.radius, largestWholeRadius(width, depth));
+	return radius > 0 ? rebuilt(shape, detail, { width, depth, radius, centre: box.centre }) : null;
+}
+
+/**
  * The rounded rectangle `id` names, rebuilt about the same box with `radius` — ONE whole-shape edit, so
  * the inspector's field writes it as one undo entry through `editShape`.
  *
@@ -76,6 +121,5 @@ export function setCornerRadius(shape: AssetShape, id: string, radius: number): 
 	if (!(radius > 0 && radius < Math.min(box.width, box.depth) / 2)) {
 		return err(assetError('corner-radius-out-of-range', `A corner radius must be more than 0 and under half the shorter side; got ${String(radius)}.`));
 	}
-	const outline = roundedRect(box.width, box.depth, radius, box.centre.x, box.centre.y);
-	return validateAssetShape({ ...shape, details: shape.details.map((item) => (item.id === id ? { ...detail, kind: 'closed', outline } : item)) });
+	return rebuilt(shape, detail, { ...box, radius });
 }

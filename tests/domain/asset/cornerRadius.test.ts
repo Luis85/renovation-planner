@@ -11,7 +11,7 @@ import type { CurvedPolygon } from '../../../src/core/geometry/CurvedPolygon';
 import { rotate, scale, translate } from '../../../src/core/geometry/operations';
 import type { AssetDetail } from '../../../src/domain/asset/AssetDetail';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
-import { cornerRadiusOf, setCornerRadius } from '../../../src/domain/asset/cornerRadius';
+import { cornerRadiusOf, resizeRoundedRect, roundedCorner, setCornerRadius } from '../../../src/domain/asset/cornerRadius';
 import { circle, rect, roundedRect } from '../../../src/domain/asset/presets/presetGeometry';
 import { editableShape, openGraphic, OPEN_POINTS, ROUNDED_RECT as ROUNDED, shapeWithRoundedRect as withRounded } from '../../helpers/assetShapes';
 import { expectErr, expectOk } from '../../helpers/domain';
@@ -95,5 +95,69 @@ describe('setCornerRadius', () => {
 
 	it('refuses a graphic the shape does not have', () => {
 		expect(expectErr(setCornerRadius(editableShape(), 'detail-9', 50)).code).toBe('asset.part-not-found');
+	});
+});
+
+/**
+ * AD18-R17: a Width or Depth edit on a rounded rectangle keeps it one, with its radius kept where the new
+ * box still has room for it and clamped where it has not. Nothing is stored — the radius is read back and
+ * the outline rebuilt through `roundedRect`, exactly as `setCornerRadius` rebuilds it.
+ */
+describe('resizeRoundedRect', () => {
+	const resized = (shape: AssetShape, axis: 'width' | 'depth', target: number): AssetDetail => {
+		const result = resizeRoundedRect(shape, 'detail-3', axis, target);
+		if (result === null) throw new Error('not rebuilt');
+		return detailOf(expectOk(result));
+	};
+
+	it('keeps the radius through a width edit that leaves room for it, about the same centre, keeping id, name, line and pending', () => {
+		const shape = withRounded();
+
+		expect(resized(shape, 'width', 1400)).toEqual({ ...detailOf(shape), kind: 'closed', outline: roundedRect(1400, 600, 150, 20, 30) });
+	});
+
+	it('keeps it through a depth edit that leaves room for it', () => {
+		expect(resized(withRounded(), 'depth', 400).outline).toEqual(roundedRect(1000, 400, 150, 20, 30));
+	});
+
+	it.each([
+		['whole', 200, 99],
+		['not whole', 251, 125],
+		['exactly twice the old radius', 300, 149],
+	] as const)('clamps to the largest whole millimetre under half the new shorter side, at a half that is %s', (_, depth, radius) => {
+		const detail = resized(withRounded(), 'depth', depth);
+
+		expect(detail.outline).toEqual(roundedRect(1000, depth, radius, 20, 30));
+		expect(cornerRadiusOf(detail)).toBe(radius);
+	});
+
+	it('measures a quarter-turned rounded rectangle on the axes it now has', () => {
+		const shape = withRounded(rotate(ROUNDED, Math.PI / 2, { x: 20, y: 30 }));
+
+		const outline = resized(shape, 'width', 800).outline;
+
+		expect(outline.points.map(({ x, y }) => [x, y])).toEqual(roundedRect(800, 1000, 150, 20, 30).points.map(({ x, y }) => [expect.closeTo(x, 9), expect.closeTo(y, 9)]));
+	});
+
+	it.each([
+		['rotated off the axes, which is never offered a radius', withRounded(rotate(ROUNDED, Math.PI / 6, { x: 20, y: 30 })), 'detail-3'],
+		['a plain rectangle', withRounded(), 'detail-1'],
+		['a graphic the shape does not have', withRounded(), 'detail-9'],
+	] as const)('answers null for %s, so the caller resizes it as it always has', (_, shape, id) => {
+		expect(resizeRoundedRect(shape, id, 'width', 1400)).toBeNull();
+	});
+
+	it.each([2, 0, -100])('answers null for a target of %s, where no whole millimetre fits, leaving the refusal or the stretch to the caller', (target) => {
+		expect(resizeRoundedRect(withRounded(), 'detail-3', 'depth', target)).toBeNull();
+	});
+});
+
+describe('roundedCorner', () => {
+	it('reads the radius and the largest whole-millimetre radius the box accepts', () => {
+		expect(roundedCorner(closed(ROUNDED))).toEqual({ radius: 150, largest: 299 });
+	});
+
+	it('says no for anything one radius does not describe', () => {
+		expect(roundedCorner(closed(rect(1000, 600)))).toBeNull();
 	});
 });

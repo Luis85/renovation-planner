@@ -138,7 +138,7 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 		close();
 		await action.run();
 		await nextTick();
-		if ([null, document.body].includes(document.activeElement)) (root.querySelector('.rp-plan-canvas') as HTMLElement).focus();
+		if (([null, document.body] as (Element | null)[]).includes(document.activeElement)) (root.querySelector('.rp-plan-canvas') as HTMLElement).focus();
 	}
 
 	return reactive({

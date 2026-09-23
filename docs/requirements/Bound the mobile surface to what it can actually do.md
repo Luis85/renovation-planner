@@ -134,11 +134,10 @@ command id changed, because a user's hotkey is bound to it.
   library draws one `.rp-view-notice.rp-mobile-notice` with `view.mobile.read-only`. `New asset`
   (the toolbar and the empty catalogue's action), `Open designer`, `Delete`, the definition fields
   and `Save` stay drawn, refused (`disabled`, `aria-disabled` or `readonly`) and described by that
-  notice, and each gesture's handler refuses as well. Search, selection, the shelves, `Open note`
-  and the `Used in` links stay live. `tests/presentation/library/assetLibraryMobile.test.ts`
-  drives those gestures over the real view against a spy on every command door and on the
-  designer launch, with the same gestures on desktop as its positive control. Not measured on a
-  device, which the last item below still covers.
+  notice, and each gesture's handler refuses as well. Search, selection and the shelves stay
+  live. `tests/presentation/library/assetLibraryMobile.test.ts` drives those gestures over the
+  real view against a spy on every command door and on the designer launch, with the same
+  gestures on desktop as its positive control. Not measured on a device.
 - **`ProjectWorkState` and `QuoteComparisonState`'s `blocked`-disabled controls carry no
   per-control `aria-describedby`.** Those two states disable on their own `blocked` computed
   (`readOnly` is one of its inputs in `QuoteComparisonState`), and the notice draws above them

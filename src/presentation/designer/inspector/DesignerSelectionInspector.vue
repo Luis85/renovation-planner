@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
  * The inspector for ONE selected part (asset designer symbols spec, "Inspector for the selection",
- * and Amendments 1 and 2): a detail's name, line, centre, size and a rotate-by field, with ordering,
- * duplicate and delete; the footprint's size and Fit to details; the clearance's delete; the anchor's
- * position; the facing's angle. A PENDING part's lengths — a footprint's size, a detail's centre and size,
+ * and Amendments 1 and 2): a detail's name, line, centre, size, a rounded rectangle's corner radius
+ * (AD18-R16 Task 12) and a rotate-by field, with ordering, duplicate and delete; the footprint's size
+ * and Fit to details; the clearance's delete; the anchor's position; the facing's angle. A PENDING part's lengths — a footprint's size, a detail's centre and size,
  * the anchor's position — are placeholder pixels, so they are withheld.
  *
  * **Every control is one `editShape` call over a pure domain edit**, so a field, a button and a
@@ -34,6 +34,7 @@ import type { DispatchResult } from '../../../application/commands/DispatchOutco
 import type { AppError } from '../../../core/errors/AppError';
 import type { DetailLine } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
+import { cornerRadiusOf, setCornerRadius } from '../../../domain/asset/cornerRadius';
 import { deleteDetail, fitFootprintToDetails, reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
 import {
 	moveAnchor,
@@ -155,6 +156,7 @@ function detailFields(part: OutlinePart): NumberField[] {
 		{ name: 'centre-x', label: 'designer.selection.centre-x', short: 'designer.selection.centre-x.short', unit: 'mm', value: centre.x, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: value - box.centre.x, dy: 0 })) },
 		{ name: 'centre-y', label: 'designer.selection.centre-y', short: 'designer.selection.centre-y.short', unit: 'mm', value: centre.y, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: 0, dy: value - box.centre.y })) },
 		...sizeFields(part),
+		...cornerFields(),
 		{ name: 'rotate-by', label: 'designer.selection.rotate-by', short: 'designer.selection.rotate-by.short', unit: '°', value: 0, edit: (value) => (current) => withPartBox(current, part, (box) => rotateOutline(current, part, radians(value), box.centre)), resets: true },
 	];
 }
@@ -171,6 +173,20 @@ function anchorFields(): NumberField[] {
 const selectedDetails = computed(() =>
 	shape.value.details.filter((item) => props.selection.kind === 'detail' && item.id === props.selection.id),
 );
+
+/**
+ * Corner radius, for a graphic that IS a rounded rectangle and nothing else (AD18-R16 Task 12). The value
+ * is read back from the geometry — nothing stores a radius (AD11 item 2) — so a graphic resized along one
+ * axis, turned off the axes or reshaped by a vertex or a bend simply stops being offered one.
+ */
+function cornerFields(): NumberField[] {
+	return selectedDetails.value.flatMap((detail): NumberField[] => {
+		const radius = cornerRadiusOf(detail);
+		return radius === null
+			? []
+			: [{ name: 'corner-radius', label: 'designer.selection.corner-radius', short: 'designer.selection.corner-radius.short', unit: 'mm', value: radius, edit: (value) => (current) => setCornerRadius(current, detail.id, value) }];
+	});
+}
 
 /**
  * A detail or the anchor captured before a scale existed (spec Amendment 2): its numbers are placeholder

@@ -10,6 +10,9 @@
  * on an open graphic: a closed one must enclose an area, so neither of its extents can be zero.
  * The other refusals a line's fields can answer — `asset.part-not-found`, `asset.invalid-detail`,
  * `asset.invalid-scale` — already have their sentences and are not repeated here.
+ *
+ * The rounded rectangle's Corner radius field (AD18-R16 Task 12) lives here too, beside the tool
+ * that draws one: its label pair and its two refusals, both raised by `setCornerRadius`.
  */
 export const assetOpenLinesEn = {
 	'designer.toolbar.draw-line': 'Draw line',
@@ -23,4 +26,8 @@ export const assetOpenLinesEn = {
 	// only in a docblock leaves a user pressing a mode whose handles never appear.
 	'designer.selection.mode.transform.open': 'A line has no resize or rotate handles: drag it to move it, or set its centre, size and rotation in the fields below',
 	'asset.extent-not-scalable': 'This line is flat along that axis, so a size cannot stretch it there. Rotate it or move an end instead.',
+	'designer.selection.corner-radius': 'Corner radius in millimetres',
+	'designer.selection.corner-radius.short': 'Corner radius',
+	'asset.corner-radius-out-of-range': 'A corner radius must be more than 0 and less than half the rectangle’s shorter side.',
+	'asset.not-rounded-rectangle': 'This graphic is no longer a rounded rectangle, so it has no corner radius to set.',
 } as const;

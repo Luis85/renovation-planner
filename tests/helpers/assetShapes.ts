@@ -8,7 +8,7 @@ import type { Point } from '../../src/core/geometry/Point';
 import type { AssetDetail } from '../../src/domain/asset/AssetDetail';
 import { validateAssetShape, type AssetShape } from '../../src/domain/asset/AssetShape';
 import { ASSET_PRESETS } from '../../src/domain/asset/presets/catalogue';
-import { circle, defaultValues, rect } from '../../src/domain/asset/presets/presetGeometry';
+import { circle, defaultValues, rect, roundedRect } from '../../src/domain/asset/presets/presetGeometry';
 import { expectDefined, expectOk } from './domain';
 
 /** The bulge of a quarter-circle edge — what `circle` gives each of its four edges. */
@@ -78,6 +78,19 @@ export const OPEN_POINTS = [{ x: -300, y: -200 }, { x: 0, y: -200 }, { x: 0, y: 
 export function shapeWithOpenGraphic(): AssetShape {
 	const base = editableShape();
 	return expectOk(validateAssetShape({ ...base, details: [...base.details, openGraphic('detail-3', OPEN_POINTS)] }));
+}
+
+/** What `draw-rounded-rect` writes for a 1000 x 600 drag about (20, 30): corners of 150, a quarter of the shorter side. */
+export const ROUNDED_RECT = roundedRect(1000, 600, 150, 20, 30);
+
+/**
+ * `editableShape()` with a ROUNDED RECTANGLE appended as `detail-3` — `ROUNDED_RECT` unless a case
+ * hands in the outline it is about (AD18-R16 Task 12). Solid and measured, so its corner radius is a
+ * field the inspector offers.
+ */
+export function shapeWithRoundedRect(outline: CurvedPolygon = ROUNDED_RECT): AssetShape {
+	const base = editableShape();
+	return expectOk(validateAssetShape({ ...base, details: [...base.details, { id: 'detail-3', name: 'rounded-rectangle', line: 'solid', pending: false, outline }] }));
 }
 
 /**

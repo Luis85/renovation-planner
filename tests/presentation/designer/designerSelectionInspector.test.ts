@@ -31,7 +31,7 @@ import { sameSelection, type DesignerSelection } from '../../../src/presentation
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
-import { openGraphic, shapeWithOpenGraphic, toiletShape } from '../../helpers/assetShapes';
+import { openGraphic, shapeWithOpenGraphic, shapeWithRoundedRect, toiletShape } from '../../helpers/assetShapes';
 import { expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
@@ -186,6 +186,7 @@ describe('what the inspector offers for each kind of part', () => {
 		const detail = mountFor(BOWL).wrapper;
 		const anchor = mountFor({ kind: 'anchor' }).wrapper;
 		const facing = mountFor({ kind: 'facing' }).wrapper;
+		const rounded = mountFor({ kind: 'detail', id: 'detail-3' }, shapeWithRoundedRect()).wrapper;
 
 		([
 			[detail, 'width', 'designer.preset.field.width.short', 'designer.preset.field.width', 'mm'],
@@ -193,6 +194,7 @@ describe('what the inspector offers for each kind of part', () => {
 			[detail, 'centre-x', 'designer.selection.centre-x.short', 'designer.selection.centre-x', 'mm'],
 			[detail, 'centre-y', 'designer.selection.centre-y.short', 'designer.selection.centre-y', 'mm'],
 			[detail, 'rotate-by', 'designer.selection.rotate-by.short', 'designer.selection.rotate-by', '°'],
+			[rounded, 'corner-radius', 'designer.selection.corner-radius.short', 'designer.selection.corner-radius', 'mm'],
 			[anchor, 'position-x', 'designer.selection.position-x.short', 'designer.selection.position-x', 'mm'],
 			[anchor, 'position-y', 'designer.selection.position-y.short', 'designer.selection.position-y', 'mm'],
 			[facing, 'angle', 'designer.selection.angle.short', 'designer.selection.angle', '°'],

@@ -128,7 +128,7 @@ function ring(radius: number, count: number, bulge: number, cx: number, cy: numb
 	return { points, bulges: points.map(() => bulge) };
 }
 
-const QUARTER_BULGE = Math.tan(Math.PI / 8);
+export const QUARTER_BULGE = Math.tan(Math.PI / 8);
 export const circle = (diameter: number, cx = 0, cy = 0): CurvedPolygon => ring(diameter / 2, 4, QUARTER_BULGE, cx, cy);
 
 /** A scalloped outline inside a circle of `diameter`: lobes on a smaller ring, bowed outward, peaks under the circle. */
@@ -183,13 +183,15 @@ export function ringSector(outerRadius: number, depth: number, sweepDegrees: num
  * Eight points, wound as `rect` winds four, with a corner arc on every second edge. `radius` must
  * be positive and strictly under half the shorter side; at exactly half, two of the eight points
  * coincide, and above it the outline crosses itself. **Nothing here checks that**, deliberately:
- * the only caller derives the radius FROM the sides (`roundedRectOutline`, AD11), so an
- * out-of-range value is unreachable from the product, and a guard nothing can drive costs a branch
- * it can never pay back. What a caller handing one in would get is `createCurvedPolygon`'s own
- * refusal, through `validateAssetShape`, which is where every other geometry rule is already asked.
+ * its two callers each keep the radius in range before calling — `roundedRectOutline` (AD11)
+ * derives it FROM the sides, and `setCornerRadius` (AD18-R16 Task 12) refuses a typed one outside
+ * (0, half) with a sentence of its own. What any other caller handing one in would get is
+ * `createCurvedPolygon`'s own refusal, through `validateAssetShape`, which is where every other
+ * geometry rule is already asked.
  *
  * No radius is STORED anywhere (AD11, item 2): what is written is ordinary points and bulges, which
- * is the answer presets already give. A later edit therefore maintains nothing — a nonuniform
+ * is the answer presets already give — `cornerRadiusOf` reads one back from them instead, and only
+ * while they are still exactly this shape. A later edit therefore maintains nothing — a nonuniform
  * resize keeps each corner's bulge through its new chord, which is r1's stated approximation rather
  * than a circle, and the existing bend handle edits a corner like any other curved edge.
  */

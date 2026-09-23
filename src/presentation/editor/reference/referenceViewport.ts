@@ -49,11 +49,15 @@ export function dragRotation(startRotation: number, start: Point, current: Point
 	const epsilon = 1;
 	if (Math.hypot(start.x, start.y) < epsilon || Math.hypot(current.x, current.y) < epsilon) return startRotation;
 	const delta = (Math.atan2(current.y, current.x) - Math.atan2(start.y, start.x)) * 180 / Math.PI;
-	const rotation = normalizeRotation(startRotation + delta);
-	return snap ? Math.round(rotation / 15) * 15 : Math.round(rotation * 10) / 10;
+	return snap ? Math.round(normalizeRotation(startRotation + delta) / 15) * 15 : nudgeRotation(startRotation, delta);
 }
 
 /** `rotation` moved by `delta` degrees, wrapped into [-180, 180] and rounded to 0.1° so repeated nudges do not drift. */
 export function nudgeRotation(rotation: number, delta: number): number {
 	return Math.round(normalizeRotation(rotation + delta) * 10) / 10;
+}
+
+/** An angle for display in `language`: at most one decimal, no grouping, with the degree sign. */
+export function formatDegrees(degrees: number, language: string): string {
+	return `${new Intl.NumberFormat(language, { maximumFractionDigits: 1, useGrouping: false }).format(degrees)}°`;
 }

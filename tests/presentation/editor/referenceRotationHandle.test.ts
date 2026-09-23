@@ -5,7 +5,7 @@ import { nextTick } from 'vue';
 import type { Point } from '../../../src/core/geometry/Point';
 import ReferencePreview from '../../../src/presentation/editor/reference/ReferencePreview.vue';
 import { previewTransform } from '../../../src/presentation/editor/reference/referenceSetup';
-import { referenceScreenCentre, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
+import { formatDegrees, referenceScreenCentre, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
 import { expectDefined } from '../../helpers/domain';
 import { backingCanvas, installCanvas } from '../../helpers/canvas';
 import { installResizeObserver, placeAt } from '../../helpers/layout';
@@ -150,10 +150,105 @@ it('keeps the zoom and the on-screen image centre through a rotation, and refits
 	const fit = previewTransform(appearance), zoomed = zoomReference(fit, { x: 200, y: 110 }, 1.25, fit.scale).scale;
 	await w.setProps({ appearance: { ...appearance, rotation: expectDefined(rotations(w)[0], 'nudged rotation') } });
 	expect(scale.mock.calls.at(-1)).toEqual([zoomed, zoomed]);
-	// The readout is relative to the ROTATED image's fit, so the same absolute zoom reads a point higher.
-	expect(w.get('output').text()).toBe(`${Math.round(zoomed / previewTransform({ ...appearance, rotation: 1 }).scale * 100)}%`);
+	expect(w.get('output').text()).toBe('125%');
 	const expected = rotationHandlePoint({ x: centre.x + 32, y: centre.y }, 1, radius), drawn = expectDefined(arc.mock.calls.at(-1), 'knob drawn');
 	expect(drawn[0]).toBeCloseTo(expected.x, 6); expect(drawn[1]).toBeCloseTo(expected.y, 6);
 	await w.setProps({ appearance: { ...appearance, rotation: 1, crop: { ...appearance.crop, width: 300 } } });
 	expect(w.get('output').text()).toBe('100%');
+});
+
+async function spied(canvas: HTMLCanvasElement) {
+	await nextTick();
+	const backing = expectDefined(backingCanvas(canvas), 'preview backing canvas');
+	backing.width = canvas.width; backing.height = canvas.height;
+	const context = backing.getContext('2d');
+	return { arc: vi.spyOn(context, 'arc'), scale: vi.spyOn(context, 'scale'), stroke: vi.spyOn(context, 'stroke'), fillText: vi.spyOn(context, 'fillText'), fillRect: vi.spyOn(context, 'fillRect') };
+}
+const quarter = { x: centre.x + radius, y: centre.y };
+
+it('refits a rotation that arrives at fit and measures the drag about the centre the refit keeps', async () => {
+	const { w, canvas } = setup(true);
+	const { arc, scale } = await spied(canvas);
+	const turned = { ...appearance, rotation: 45 }, fit = previewTransform(turned);
+	await w.setProps({ appearance: turned });
+	expect(scale.mock.calls.at(-1)).toEqual([fit.scale, fit.scale]); expect(w.get('output').text()).toBe('100%');
+	const knob45 = rotationHandlePoint(centre, 45, radius), drawn = expectDefined(arc.mock.calls.at(-1), 'knob drawn');
+	expect(drawn[0]).toBeCloseTo(knob45.x, 6); expect(drawn[1]).toBeCloseTo(knob45.y, 6);
+	pointer(canvas, 'pointerdown', knob45); pointer(canvas, 'pointermove', rotationHandlePoint(centre, 60, radius));
+	await w.setProps({ appearance: { ...appearance, rotation: expectDefined(rotations(w)[0], 'first drag rotation') } });
+	pointer(canvas, 'pointermove', quarter); expect(rotations(w)[1]).toBeCloseTo(90, 5);
+	pointer(canvas, 'pointerup', quarter);
+});
+
+it.each(['wheel', 'drag'])('keeps the zoom through a rotation once the view moved by %s, and refits again after F', async how => {
+	const { w, canvas } = setup(true);
+	const { scale } = await spied(canvas);
+	if (how === 'wheel') canvas.dispatchEvent(new WheelEvent('wheel', { clientX: 200, clientY: 110, deltaY: -100, bubbles: true, cancelable: true }));
+	else { pointer(canvas, 'pointerdown', { x: 10, y: 10 }); pointer(canvas, 'pointermove', { x: 60, y: 40 }); pointer(canvas, 'pointerup', { x: 60, y: 40 }); }
+	await nextTick();
+	const before = expectDefined(scale.mock.calls.at(-1), 'moved scale');
+	await w.setProps({ appearance: { ...appearance, rotation: 45 } });
+	expect(scale.mock.calls.at(-1)).toEqual(before);
+	await w.get('canvas').trigger('keydown', { key: 'f' });
+	await w.setProps({ appearance: { ...appearance, rotation: 90 } });
+	const fit = previewTransform({ ...appearance, rotation: 90 }).scale;
+	expect(scale.mock.calls.at(-1)).toEqual([fit, fit]);
+});
+
+it('holds the zoom readout and limits to the last fit through a rotation', async () => {
+	const { w } = setup(true);
+	for (let index = 0; index < 20; index++) await w.get('[data-rp-reference-view="zoom-in"]').trigger('click');
+	expect(w.get('output').text()).toBe('3200%');
+	await w.setProps({ appearance: { ...appearance, rotation: 45 } }); expect(w.get('output').text()).toBe('3200%');
+	await w.get('[data-rp-reference-view="zoom-in"]').trigger('click'); expect(w.get('output').text()).toBe('3200%');
+	await w.get('canvas').trigger('keydown', { key: 'f' }); expect(w.get('output').text()).toBe('100%');
+});
+
+it('draws the knob outlined at rest and larger and filled while hovered or dragged', async () => {
+	const { w, canvas } = setup(true);
+	const { arc, stroke } = await spied(canvas);
+	const radiusDrawn = () => expectDefined(arc.mock.calls.at(-1), 'knob drawn')[2];
+	await w.setProps({ appearance: { ...appearance, opacity: 0.5 } });
+	expect(radiusDrawn()).toBe(7);
+	expect(expectDefined(stroke.mock.invocationCallOrder.at(-1), 'outline')).toBeGreaterThan(expectDefined(arc.mock.invocationCallOrder.at(-1), 'arc'));
+	pointer(canvas, 'pointermove', knob); await nextTick(); expect(radiusDrawn()).toBe(9);
+	expect(expectDefined(stroke.mock.invocationCallOrder.at(-1), 'stem')).toBeLessThan(expectDefined(arc.mock.invocationCallOrder.at(-1), 'arc'));
+	pointer(canvas, 'pointermove', { x: 10, y: 10 }); await nextTick(); expect(radiusDrawn()).toBe(7);
+	pointer(canvas, 'pointerdown', knob); await nextTick(); expect(radiusDrawn()).toBe(9);
+	pointer(canvas, 'pointerup', knob); await nextTick(); expect(radiusDrawn()).toBe(7);
+});
+
+it('labels the angle beside the knob, inside the canvas, only while dragging or nudging', async () => {
+	const { w, canvas } = setup(true);
+	const { fillText, fillRect } = await spied(canvas);
+	const angles = () => fillText.mock.calls.filter(([text]) => text.endsWith('°'));
+	pointer(canvas, 'pointerdown', knob); pointer(canvas, 'pointermove', quarter);
+	await w.setProps({ appearance: { ...appearance, rotation: 90 } });
+	expect(angles().at(-1)?.[0]).toBe(formatDegrees(90, 'en'));
+	pointer(canvas, 'pointerup', quarter); fillText.mockClear();
+	await w.setProps({ appearance: { ...appearance, rotation: 90, opacity: 0.5 } }); expect(angles()).toEqual([]);
+	for (let index = 0; index < 20; index++) await w.get('canvas').trigger('keydown', { key: 'ArrowLeft' });
+	await w.get('canvas').trigger('keydown', { key: ']' }); await w.setProps({ appearance: { ...appearance, rotation: 91 } });
+	const [text, x, y] = expectDefined(angles().at(-1), 'nudge label');
+	const [left, top, width] = expectDefined(fillRect.mock.calls.at(-1), 'label box');
+	expect(text).toBe('91°'); expect(x).toBeGreaterThan(left); expect(y).toBeGreaterThan(top); expect(left + width).toBeLessThanOrEqual(400); expect(top + 18).toBeLessThanOrEqual(220);
+	await w.get('canvas').trigger('keyup', { key: ']' }); fillText.mockClear();
+	await w.setProps({ appearance: { ...appearance, rotation: 91, opacity: 0.5 } }); expect(angles()).toEqual([]);
+	await w.get('canvas').trigger('keydown', { key: '[' }); await w.get('canvas').trigger('blur'); fillText.mockClear();
+	await w.setProps({ appearance: { ...appearance, rotation: 90 } }); expect(angles()).toEqual([]);
+});
+
+it('announces the angle politely when a drag ends or a nudge lands, not on every move', async () => {
+	const { w, canvas } = setup(true);
+	const region = w.get('[aria-live="polite"]');
+	expect(region.classes()).toContain('rp-visually-hidden'); expect(region.text()).toBe('');
+	pointer(canvas, 'pointerdown', knob); pointer(canvas, 'pointermove', quarter); await nextTick();
+	expect(region.text()).toBe('');
+	pointer(canvas, 'pointerup', quarter); await nextTick();
+	const dragged = expectDefined(rotations(w).at(-1), 'dragged rotation');
+	expect(region.text()).toBe(tr('editor.reference.rotation-announce', { angle: formatDegrees(dragged, 'en') }));
+	await w.get('canvas').trigger('keydown', { key: ']' });
+	expect(region.text()).toBe(tr('editor.reference.rotation-announce', { angle: '1°' }));
+	pointer(canvas, 'pointerdown', knob); pointer(canvas, 'pointerup', knob); await nextTick();
+	expect(region.text()).toBe(tr('editor.reference.rotation-announce', { angle: '1°' }));
 });

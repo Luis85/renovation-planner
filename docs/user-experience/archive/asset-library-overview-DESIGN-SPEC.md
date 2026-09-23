@@ -1846,6 +1846,56 @@ The longest German shelf label is `Benutzerdefiniert` (17 characters). Shelf hea
 so they clip nothing — which is the second reason there is no column header row, where a translator
 would have no such room.
 
+**Amendment 7 (2026-09-24, asset-designer-expansion Task 10, ruling AD18-R18 in
+`docs/tasks/asset-designer-expansion/contracts/DECISIONS.md`): the library gains a GRID view
+beside its List, a category sidebar, a filter button and a `Create your own` card.** The user
+took this ruling, and it amends this document in the places listed here and nowhere else.
+
+- **§3.1 no longer says "nothing else" about the toolbar.** Two controls join it:
+  - **The funnel** shows and hides the category sidebar. Its name, *Filter by category*, is
+    visually hidden, and while a filter holds it also names that category in words.
+  - **A `Grid | List` switch**: two `aria-pressed` buttons in a named group. Each has an icon and
+    a word, and below 35rem the words are visually hidden rather than removed.
+- **List is the default and draws exactly as §3.2–§3.4 specify.** Grid replaces the shelves with
+  one tile per asset:
+  - Each tile shows §3.4's mark at tile size, the name (up to two lines, then an ellipsis) and the
+    size in the row's wording.
+  - Tiles run in name order across categories, which is §6.1's order for a flat list.
+  - A tile selects into the same inspector a row does. It carries `aria-current` and §3.4's words
+    by `aria-describedby`, from outside the button.
+  - The keyboard is §6.2's one focus manager: `←`/`→` move one stop, and `↑`/`↓` move one row of
+    the grid's resolved column tracks.
+- **The sidebar lists `All` plus §3.2's derived shelf list**, from the same function. It covers
+  the declared vocabulary, empty categories included, and any undeclared category present, with
+  its icon. The sidebar FILTERS the shelves in both layouts and manages nothing.
+- **The sidebar's visibility is leaf-local and is not view state.**
+  - Until the funnel is pressed, the sidebar shows in Grid and whenever a filter holds, and not
+    over an unfiltered List.
+  - Below §7's 35rem rung, an unpressed sidebar is withdrawn: a 10rem column is a third of a
+    460px leaf, so the funnel reveals it.
+  - A selection hides the sidebar together with the shelves.
+  - The funnel's `aria-expanded` is asked of the DOM, as §6.2 asks about the narrow swap.
+- **The grid ends with a `Create your own` card**, whose button is §3.1's existing `New asset`
+  door. A create clears a filter that would hide the new asset, just as it clears the search.
+- **§6.3's view state gains two keys:**
+  - `layout`: `'grid'` or `'list'`, default `'list'`.
+  - `category`: a category, or `''` for All, which is the default.
+  - Each key is written only when it differs from its default. A leaf that never used either
+    keeps the `{ assetId, expanded }` shape it had before.
+  - Both keys are parsed leniently, as `expanded` is. **Neither is a navigation**:
+    `AssetLibraryView.setState` leaves `result.history` false for them, as it does for the other
+    two keys.
+- **§8's inventory grows by eight keys, with no ordinal assigned (per Amendment 4).** The pin in
+  `tests/presentation/i18n/strings.test.ts` moves **100 → 108** in both locales. The keys are:
+  - `view.asset-library.layout.label`, `.layout.grid` and `.layout.list`;
+  - `view.asset-library.filter`, `.categories` and `.category.all`;
+  - `view.asset-library.create-card.title` and `.create-card.hint`.
+  The card's button reuses `view.asset-library.new-asset`, because it is the same door.
+
+**§10's anti-goals stand unchanged.** The sidebar is a filter over the shelves' own axis, not a sort
+control. The Grid carries no totals, no bulk edit and no multi-select, and nothing on this surface
+places an asset.
+
 ---
 
 ## 9. Accessibility

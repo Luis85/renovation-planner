@@ -8,6 +8,7 @@ import AssetLibraryBody from './AssetLibraryBody.vue';
 import AssetLibraryBrowseControls from './AssetLibraryBrowseControls.vue';
 import AssetCategoryNav from './AssetCategoryNav.vue';
 import { shelvesOf } from './shelfList';
+import { useCategorySidebar } from './useCategorySidebar';
 import { DEFAULT_BROWSE, type LibraryBrowse, type LibraryLayout } from './libraryBrowse';
 import { useAssetLibraryContext } from './AssetLibraryContext';
 import { focusRowAt, focusWithin, rowPositionOf, shelvesWithdrawn } from './shelfFocus';
@@ -153,14 +154,8 @@ function chooseCategory(next: string): void {
 	publish(selectedId.value, expandedCategories.value);
 }
 
-// The funnel's press is leaf-local and deliberately not view state. Until the first press the
-// sidebar follows the view: open in Grid (board 01), and open on a filter so a filtered catalogue
-// shows why, but closed over an unfiltered List, which is the List exactly as it was.
-const filterShown = ref<boolean | null>(null);
-const sidebarOpen = computed(() => filterShown.value ?? (layout.value === 'grid' || categoryFilter.value !== ''));
-function toggleFilter(): void {
-	filterShown.value = !sidebarOpen.value;
-}
+// The funnel and the sidebar it shows — `useCategorySidebar.ts` carries the rules.
+const sidebar = useCategorySidebar(shellEl, layout, categoryFilter);
 // The sidebar's list is the shelves' own derivation, over what the search leaves drawn.
 const shelves = computed(() => shelvesOf(store.visibleEntries));
 
@@ -306,9 +301,9 @@ watch(context.assetId, async (assetId) => {
 				<AssetLibraryBrowseControls
 					:layout="layout"
 					:category="categoryFilter"
-					:sidebar-open="sidebarOpen"
+					:sidebar-open="sidebar.shown.value"
 					@layout="setLayout"
-					@toggle-filter="toggleFilter"
+					@toggle-filter="sidebar.toggle"
 				/>
 				<button
 					type="button"
@@ -327,7 +322,8 @@ watch(context.assetId, async (assetId) => {
 				</div>
 				<template v-else>
 					<AssetCategoryNav
-						:open="sidebarOpen"
+						:open="sidebar.wanted.value"
+						:auto="sidebar.auto.value"
 						:shelves="shelves"
 						:category="categoryFilter"
 						@choose="chooseCategory"

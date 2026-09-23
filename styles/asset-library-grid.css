@@ -112,10 +112,13 @@
 }
 
 /* A flattened row, like the shelves' own rows: no box, no shadow, and `height: auto` with
-   `white-space: normal` so a wrapped label grows the row rather than overflowing Obsidian's 30px. */
+   `white-space: normal` so a wrapped label grows the row rather than overflowing Obsidian's 30px.
+   `justify-content` too, because Obsidian's `button` centres its content and board 01 draws the
+   icon and label LEFT-aligned down a list (measured centred at 521bf09b2). */
 .rp-al-categories .rp-al-category {
 	display: flex;
 	align-items: center;
+	justify-content: flex-start;
 	gap: var(--size-4-2);
 	width: 100%;
 	height: auto;
@@ -194,6 +197,7 @@
 	flex-direction: column;
 	gap: var(--size-2-2);
 	width: 100%;
+	min-width: 0;
 	height: 100%;
 	padding: var(--size-4-2);
 	border: 1px solid var(--background-modifier-border);
@@ -250,16 +254,28 @@
 	vector-effect: non-scaling-stroke;
 }
 
+/*
+ * Up to TWO lines, then an ellipsis. The tile inherits Obsidian's `button { white-space: nowrap }`,
+ * and at 460px three names in the harness fixture ran 2 to 10px past a 134px tile (measured at
+ * 521bf09b2). So `white-space` is released here, a word longer than the tile may break
+ * anywhere, and the line clamp is what still bounds the height.
+ */
 .rp-al-tiles .rp-al-tile__name {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
 	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	overflow-wrap: anywhere;
+	white-space: normal;
 }
 
 /* `min-height` holds one line for a tile with no size to print, so its name sits where every
-   other tile's name sits. */
+   other tile's name sits. It wraps rather than overflowing, for the name's reason. */
 .rp-al-tiles .rp-al-tile__size {
 	min-height: 1.5em;
+	overflow-wrap: anywhere;
+	white-space: normal;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	font-variant-numeric: tabular-nums;
@@ -318,6 +334,14 @@
 	/* A selection gives the pane to the inspector (asset-library.css), and the sidebar leaves
 	   with the shelves it filters. */
 	.renovation-asset-library[data-selected-asset-id]:not([data-selected-asset-id='']) .rp-al-categories {
+		display: none;
+	}
+
+	/* A 10rem column is a third of a 460px sidebar leaf, so below this rung the sidebar waits to be
+	   asked for: withdrawn until the funnel is pressed (`--auto`), and shown in full once it is.
+	   `useCategorySidebar.ts` asks the DOM whether it is laid out, so the funnel's
+	   `aria-expanded` follows this rule without repeating its width. */
+	.rp-al-categories--auto {
 		display: none;
 	}
 

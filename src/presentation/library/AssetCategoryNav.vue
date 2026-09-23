@@ -30,6 +30,8 @@ const props = defineProps<{
 	 * carries no conditional for it.
 	 */
 	open: boolean;
+	/** Not yet pressed: the stylesheet withdraws it below §7's 35rem rung (`useCategorySidebar.ts`). */
+	auto: boolean;
 }>();
 
 const emit = defineEmits<{ choose: [category: string] }>();
@@ -58,6 +60,7 @@ const options = computed(() => [
 	<ul
 		v-show="open"
 		class="rp-al-categories"
+		:class="{ 'rp-al-categories--auto': auto }"
 		:aria-label="tr('view.asset-library.categories')"
 		@keydown.down="moveFocus($event, 1)"
 		@keydown.up="moveFocus($event, -1)"

@@ -23,6 +23,7 @@ import { installObsidianDom } from '../../helpers/dom';
 import { settle } from '../../helpers/async';
 import { anEntry, definite, mountRoot } from '../../helpers/assetLibraryRootHarness';
 import { installNarrowComposition } from './narrowComposition';
+import { connectedObservers, installResizeObserver, resizeTo } from '../../helpers/layout';
 
 installObsidianDom();
 
@@ -76,7 +77,7 @@ describe('the sidebar', () => {
 	/** §3.2's group 2 cannot reach a shelf today, so the `tag` arm is driven at the component. */
 	it('marks a category the build does not declare with the tag icon', async () => {
 		const nav = mount(AssetCategoryNav, {
-			props: { shelves: [{ category: 'insulation', label: 'insulation', entries: [] }], category: '', open: true },
+			props: { shelves: [{ category: 'insulation', label: 'insulation', entries: [] }], category: '', open: true, auto: false },
 		});
 		mounted.push(nav);
 		await settle();
@@ -127,12 +128,57 @@ describe('the sidebar', () => {
 		installed.push(installNarrowComposition());
 		const root = await mountLibrary();
 		await layout(root, 'grid');
+		await funnel(root).trigger('click');
 		expect(sidebarShown(root)).toBe(true);
 
 		await definite(root.findAll('button.rp-al-tile').find((el) => el.text().includes('Sofa'))).trigger('click');
 		await settle();
 
 		expect(sidebarShown(root)).toBe(false);
+		expect(funnel(root).attributes('aria-expanded')).toBe('false');
+	});
+});
+
+/**
+ * §7 below 35rem: a 10rem column is a third of a sidebar leaf, so an unpressed sidebar waits for
+ * the funnel there. `installNarrowComposition` installs the shipped rung's rules without their
+ * `@container` wrapper, which stands in for a pane below the breakpoint.
+ */
+describe('the sidebar in a narrow pane', () => {
+	it('starts withdrawn in Grid, and the funnel shows and hides it truthfully', async () => {
+		installed.push(installNarrowComposition());
+		const root = await mountLibrary();
+		await layout(root, 'grid');
+
+		expect(sidebarShown(root)).toBe(false);
+		expect(funnel(root).attributes('aria-expanded')).toBe('false');
+
+		await funnel(root).trigger('click');
+		expect(sidebarShown(root)).toBe(true);
+		expect(funnel(root).attributes('aria-expanded')).toBe('true');
+
+		await funnel(root).trigger('click');
+		expect(sidebarShown(root)).toBe(false);
+		expect(funnel(root).attributes('aria-expanded')).toBe('false');
+	});
+
+	/** A pane resized across the rung changes what shows with no press, and the funnel follows it. */
+	it('re-asks the DOM when the pane is resized', async () => {
+		installResizeObserver();
+		const root = await mountLibrary();
+		await layout(root, 'grid');
+		expect(funnel(root).attributes('aria-expanded')).toBe('true');
+
+		installed.push(installNarrowComposition());
+		resizeTo(root.element as HTMLElement, 460, 600);
+		await settle();
+
+		expect(sidebarShown(root)).toBe(false);
+		expect(funnel(root).attributes('aria-expanded')).toBe('false');
+
+		mounted.splice(mounted.indexOf(root), 1);
+		root.unmount();
+		expect(connectedObservers()).toBe(0);
 	});
 });
 

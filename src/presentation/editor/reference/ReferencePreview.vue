@@ -5,17 +5,23 @@ import type { ReferenceAppearance } from '../../../domain/plan/ReferenceAppearan
 import { referencePoint } from '../../../domain/plan/ReferenceAppearance';
 import type { BackgroundRenderModel } from '../layers/background/BackgroundRenderModel';
 import { previewTransform } from './referenceSetup';
-import { referenceSourcePoint, zoomReference, type ReferenceViewport } from './referenceViewport';
-import { tr } from '../../i18n/strings';
-const props = defineProps<{ raster: Extract<BackgroundRenderModel, { kind: 'raster' }>; appearance: ReferenceAppearance; points: readonly (Point | null)[]; measuring: boolean; onThemeChange?: (listener: () => void) => () => void }>();
-const emit = defineEmits<{ point: [point: Point] }>();
+import { dragRotation, formatDegrees, nudgeRotation, reachableHandlePoint, referenceScreenCentre, referenceSourcePoint, zoomReference, type ReferenceViewport } from './referenceViewport';
+import { currentLanguage, tr } from '../../i18n/strings';
+const props = defineProps<{ raster: Extract<BackgroundRenderModel, { kind: 'raster' }>; appearance: ReferenceAppearance; points: readonly (Point | null)[]; measuring: boolean; rotatable?: boolean; onThemeChange?: (listener: () => void) => () => void }>();
+const emit = defineEmits<{ point: [point: Point]; rotation: [degrees: number] }>();
 const canvas = ref<HTMLCanvasElement | null>(null), size = ref({ width: 400, height: 220 });
-const view = ref<ReferenceViewport>(previewTransform(props.appearance)), panMode = ref(false), space = ref(false), dragging = ref(false);
+const view = ref<ReferenceViewport>(previewTransform(props.appearance)), panMode = ref(false), space = ref(false), dragging = ref(false), rotating = ref(false), overHandle = ref(false), nudging = ref(false);
+// The scale as of the last `fit()`: the readout and zoom limits hold still through a rotation. `atFit` until the user zooms or pans.
+const fitScale = ref(view.value.scale), announcement = ref('');
+let atFit = true, nudgeTimer: ReturnType<typeof setTimeout> | undefined;
 const hintId = useId();
-const zoomPercent = computed(() => Math.round(view.value.scale / previewTransform(props.appearance, size.value).scale * 100));
+const hint = computed(() => props.rotatable ? 'editor.reference.gestures-rotate' : props.measuring && !panMode.value && !space.value ? 'editor.reference.gestures-measure' : 'editor.reference.gestures');
+const zoomPercent = computed(() => Math.round(view.value.scale / fitScale.value * 100));
 let observer: ResizeObserver | undefined, unsubscribe: (() => void) | undefined;
-let gesture: { id: number; start: Point; view: ReferenceViewport; moved: boolean; navigationOnly: boolean } | null = null;
+let gesture: { id: number; start: Point; view: ReferenceViewport; moved: boolean; navigationOnly: boolean; rotate?: { rotation: number; from: Point; last?: number } } | null = null;
 let suppressClick = false;
+/** The margin that keeps the knob, and the guides' crossing, inside the canvas. */
+const inset = 16;
 function draw(): void {
 	const element = canvas.value, context = element?.getContext('2d');
 	if (!element || !context) return;
@@ -32,8 +38,9 @@ function draw(): void {
 	const crop = props.appearance.crop;
 	context.drawImage(props.raster.image, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
 	context.restore();
-	const styles = getComputedStyle(element);
-	context.strokeStyle = styles.color; context.lineWidth = 2;
+	const styles = getComputedStyle(element), ink = { accent: styles.color, surface: styles.backgroundColor, text: getComputedStyle(element.parentElement as HTMLElement).color };
+	context.font = `12px ${styles.fontFamily || 'sans-serif'}`;
+	context.strokeStyle = ink.accent; context.lineWidth = 2;
 	context.beginPath();
 	let previous: Point | null = null;
 	props.points.forEach((point, index) => {
@@ -41,17 +48,58 @@ function draw(): void {
 		const p = referencePoint(point, props.appearance, view.value.scale), x = p.x + view.value.x, y = p.y + view.value.y;
 		if (previous) context.lineTo(x, y); else context.moveTo(x, y);
 		previous = point;
-		context.fillStyle = styles.color; context.fillRect(x - 4, y - 4, 8, 8);
-		if (x >= 0 && x <= size.value.width && y >= 0 && y <= size.value.height) {
-			const labelX = Math.max(2, Math.min(size.value.width - 20, x + 6)), labelY = Math.max(2, Math.min(size.value.height - 20, y - 18));
-			context.fillStyle = styles.backgroundColor; context.fillRect(labelX, labelY, 18, 18);
-			context.fillStyle = getComputedStyle(element.parentElement as HTMLElement).color;
-			context.font = `12px ${styles.fontFamily || 'sans-serif'}`; context.fillText(index === 0 ? 'A' : 'B', labelX + 4, labelY + 13);
-		}
+		context.fillStyle = ink.accent; context.fillRect(x - 4, y - 4, 8, 8);
+		if (x >= 0 && x <= size.value.width && y >= 0 && y <= size.value.height) drawLabel(context, ink, index === 0 ? 'A' : 'B', { x: x + 6, y: y - 18 });
 	});
 	context.stroke();
+	if (props.rotatable) drawHandle(context, ink);
 }
-function fit(): void { view.value = previewTransform(props.appearance, size.value); }
+type Ink = { accent: string; surface: string; text: string };
+/** A boxed label at `at`, pulled back inside the canvas. */
+function drawLabel(context: CanvasRenderingContext2D, ink: Ink, text: string, at: Point, width = 18): void {
+	const left = Math.max(2, Math.min(size.value.width - width - 2, at.x)), top = Math.max(2, Math.min(size.value.height - 20, at.y));
+	context.fillStyle = ink.surface; context.fillRect(left, top, width, 18);
+	context.fillStyle = ink.text; context.fillText(text, left + 4, top + 13);
+}
+/** The knob on its stem: outlined at rest, larger and filled while hovered or dragged. While rotating, centre guides and the angle. */
+function drawHandle(context: CanvasRenderingContext2D, ink: Ink): void {
+	const { centre, knob } = handle(), active = overHandle.value || rotating.value;
+	context.strokeStyle = ink.accent; context.fillStyle = active ? ink.accent : ink.surface; context.lineWidth = 1;
+	context.beginPath();
+	if (rotating.value) {
+		// Through the centre clamped into the knob's inset, so they stay visible (clear of the focus outline) when the centre is panned away.
+		const x = Math.max(inset, Math.min(size.value.width - inset, centre.x)), y = Math.max(inset, Math.min(size.value.height - inset, centre.y));
+		context.moveTo(0, y); context.lineTo(size.value.width, y);
+		context.moveTo(x, 0); context.lineTo(x, size.value.height);
+		context.stroke(); context.beginPath();
+	}
+	context.lineWidth = 2; context.moveTo(knob.x, knob.y); context.lineTo(centre.x, centre.y);
+	context.stroke();
+	context.beginPath(); context.arc(knob.x, knob.y, active ? 9 : 7, 0, 2 * Math.PI); context.fill();
+	if (!active) context.stroke();
+	if (!rotating.value && !nudging.value) return;
+	const angle = formatDegrees(props.appearance.rotation, currentLanguage());
+	drawLabel(context, ink, angle, { x: knob.x + 12, y: knob.y - 9 }, context.measureText(angle).width + 8);
+}
+function handle(): { centre: Point; knob: Point } {
+	const centre = referenceScreenCentre(view.value, props.appearance);
+	return { centre, knob: reachableHandlePoint(centre, props.appearance.rotation, Math.min(size.value.width, size.value.height) / 2 - inset, size.value, inset) };
+}
+/** `point` relative to the image's live on-screen centre, which a rotation's refit moves. */
+function fromCentre(point: Point): Point {
+	const centre = referenceScreenCentre(view.value, props.appearance);
+	return { x: point.x - centre.x, y: point.y - centre.y };
+}
+function onHandle(point: Point): boolean {
+	const { knob } = handle();
+	return props.rotatable && !panMode.value && !space.value && Math.hypot(point.x - knob.x, point.y - knob.y) <= 12;
+}
+function fit(): void { view.value = previewTransform(props.appearance, size.value); fitScale.value = view.value.scale; atFit = true; }
+/** After a rotation change: keep the zoom and shift the view so the image's on-screen centre stays put. */
+function keepCentre(previousRotation: number): void {
+	const before = referenceScreenCentre(view.value, { ...props.appearance, rotation: previousRotation }), after = referenceScreenCentre(view.value, props.appearance);
+	view.value = { ...view.value, x: view.value.x + before.x - after.x, y: view.value.y + before.y - after.y };
+}
 function measure(): void {
 	const rect = canvas.value?.getBoundingClientRect();
 	if (!rect || rect.width <= 0 || rect.height <= 0) return;
@@ -66,7 +114,7 @@ function previewPointerPoint(event: MouseEvent): Point | null {
 	return rect && rect.width > 0 && rect.height > 0 ? { x: (event.clientX - rect.left) * size.value.width / rect.width, y: (event.clientY - rect.top) * size.value.height / rect.height } : null;
 }
 function zoom(factor: number, anchor = { x: size.value.width / 2, y: size.value.height / 2 }): void {
-	view.value = zoomReference(view.value, anchor, factor, previewTransform(props.appearance, size.value).scale);
+	atFit = false; view.value = zoomReference(view.value, anchor, factor, fitScale.value);
 }
 function wheel(event: WheelEvent): void {
 	const point = previewPointerPoint(event);
@@ -84,31 +132,47 @@ function start(event: PointerEvent): void {
 	if (gesture || (event.button !== 0 && event.button !== 1)) return;
 	const point = previewPointerPoint(event);
 	if (!point) return;
-	suppressClick = false;
-	gesture = { id: event.pointerId, start: point, view: view.value, moved: false, navigationOnly: event.button === 1 || panMode.value || space.value || !props.measuring };
+	suppressClick = false; stopNudge();
+	rotating.value = event.button === 0 && onHandle(point);
+	gesture = { id: event.pointerId, start: point, view: view.value, moved: false, navigationOnly: event.button === 1 || panMode.value || space.value || !props.measuring, rotate: rotating.value ? { rotation: props.appearance.rotation, from: fromCentre(point) } : undefined };
 	canvas.value?.setPointerCapture?.(event.pointerId);
 	if (event.button === 1) event.preventDefault();
 }
 function move(event: PointerEvent): void {
-	if (!gesture || gesture.id !== event.pointerId) return;
 	const point = previewPointerPoint(event);
-	if (!point) return;
+	if (!gesture) { overHandle.value = !!point && onHandle(point); return; }
+	if (gesture.id !== event.pointerId || !point) return;
+	if (gesture.rotate) { gesture.moved = true; gesture.rotate.last = dragRotation(gesture.rotate.rotation, gesture.rotate.from, fromCentre(point), event.shiftKey); emit('rotation', gesture.rotate.last); return; }
 	const dx = point.x - gesture.start.x, dy = point.y - gesture.start.y;
 	if (!gesture.moved && Math.hypot(dx, dy) < 3) return;
-	gesture.moved = true; dragging.value = true;
+	gesture.moved = true; dragging.value = true; atFit = false;
 	view.value = { ...gesture.view, x: gesture.view.x + dx, y: gesture.view.y + dy };
 }
 function end(event?: PointerEvent): void {
 	if (gesture && event && gesture.id !== event.pointerId) return;
 	const ended = gesture;
-	gesture = null; dragging.value = false;
+	gesture = null; dragging.value = false; rotating.value = false;
 	if (!ended) return;
 	suppressClick = !event || ended.moved || ended.navigationOnly;
 	if (canvas.value?.hasPointerCapture?.(ended.id)) canvas.value.releasePointerCapture(ended.id);
+	if (ended.rotate?.last !== undefined) announce(ended.rotate.last);
 }
+/** Tells assistive tech the angle once a drag ends or a nudge lands, never per pointermove. */
+function announce(degrees: number): void { announcement.value = tr('editor.reference.rotation-announce', { angle: formatDegrees(degrees, currentLanguage()) }); }
+const rotateKeys: Readonly<Record<string, number>> = { '[': -1, ']': 1, '{': -1, '}': 1 };
+function altGraph(event: KeyboardEvent): boolean { return (event.ctrlKey && event.altKey) || event.getModifierState('AltGraph'); }
 const panKeys: Readonly<Record<string, Point>> = { arrowleft: { x: 1, y: 0 }, arrowright: { x: -1, y: 0 }, arrowup: { x: 0, y: 1 }, arrowdown: { x: 0, y: -1 } };
 
+/** `[`/`]` nudge rotation. AltGr arrives as Ctrl+Alt (or as AltGraph), and it is how they are typed on e.g. a German layout. */
+function rotateKey(event: KeyboardEvent): boolean {
+	if (!props.rotatable || !rotateKeys[event.key] || event.metaKey || ((event.altKey || event.ctrlKey) && !altGraph(event))) return false;
+	const rotation = nudgeRotation(props.appearance.rotation, rotateKeys[event.key] * (event.shiftKey ? 0.1 : 1));
+	clearTimeout(nudgeTimer); nudging.value = true; nudgeTimer = setTimeout(stopNudge, 800);
+	emit('rotation', rotation); announce(rotation);
+	return true;
+}
 function keydown(event: KeyboardEvent): void {
+	if (rotateKey(event)) { event.preventDefault(); event.stopPropagation(); return; }
 	if (event.altKey || event.ctrlKey || event.metaKey) return;
 	const key = event.key.toLowerCase();
 	if (key === ' ') space.value = true;
@@ -117,18 +181,24 @@ function keydown(event: KeyboardEvent): void {
 	else if (key === '-') zoom(1 / 1.25);
 	else if (panKeys[key]) {
 		const distance = event.shiftKey ? 80 : 32;
-		view.value = { ...view.value, x: view.value.x + panKeys[key].x * distance, y: view.value.y + panKeys[key].y * distance };
+		atFit = false; view.value = { ...view.value, x: view.value.x + panKeys[key].x * distance, y: view.value.y + panKeys[key].y * distance };
 	} else return;
 	event.preventDefault(); event.stopPropagation();
 }
 function keyup(event: KeyboardEvent): void { if (event.key === ' ') { space.value = false; event.preventDefault(); event.stopPropagation(); } }
-function blur(): void { space.value = false; end(); }
+/** The nudge label lingers 800ms after the last nudge, so a tap is visible; a held key re-arms it. Keyup is not asked: AltGr released first reports another key. */
+function stopNudge(): void { clearTimeout(nudgeTimer); nudgeTimer = undefined; nudging.value = false; }
+function blur(): void { space.value = false; stopNudge(); end(); }
 onMounted(() => { measure(); fit(); draw(); observer = new ResizeObserver(measure); observer.observe(canvas.value as HTMLCanvasElement); unsubscribe = props.onThemeChange?.(draw); });
-onBeforeUnmount(() => { observer?.disconnect(); unsubscribe?.(); end(); });
+onBeforeUnmount(() => { observer?.disconnect(); unsubscribe?.(); end(); stopNudge(); });
 watch(view, draw);
 watch(() => props.measuring, measuring => { end(); if (measuring) panMode.value = false; });
-watch(() => [props.raster, props.appearance.crop.x, props.appearance.crop.y, props.appearance.crop.width, props.appearance.crop.height, props.appearance.rotation], fit);
-watch(() => [props.appearance.opacity, props.points], draw, { deep: true });
+// A rotation at fit refits, so a turned scan never spills past the corners. One watcher, so a change of source or crop always refits even when the rotation moved in the same tick.
+watch(() => [props.raster, props.appearance.crop.x, props.appearance.crop.y, props.appearance.crop.width, props.appearance.crop.height, props.appearance.rotation] as const, (next, previous) => {
+	if (!atFit && next.slice(0, 5).every((value, index) => value === previous[index])) keepCentre(previous[5]); else fit();
+});
+watch(() => props.rotatable, () => { end(); overHandle.value = false; });
+watch(() => [props.appearance.opacity, props.points, props.rotatable, rotating.value, overHandle.value, nudging.value], draw, { deep: true });
 </script>
 <template>
 	<div class="rp-reference-viewport">
@@ -173,7 +243,7 @@ watch(() => [props.appearance.opacity, props.points], draw, { deep: true });
 			width="400"
 			height="220"
 			class="rp-reference-preview"
-			:class="{ 'is-panning': dragging, 'is-navigation': panMode || space || !measuring }"
+			:class="{ 'is-panning': dragging, 'is-navigation': panMode || space || !measuring, 'is-over-handle': overHandle, 'is-rotating': rotating }"
 			role="img"
 			tabindex="0"
 			:aria-label="tr('editor.reference.preview')"
@@ -193,7 +263,13 @@ watch(() => [props.appearance.opacity, props.points], draw, { deep: true });
 			:id="hintId"
 			class="rp-reference-viewport__hint"
 		>
-			{{ tr(measuring && !panMode && !space ? 'editor.reference.gestures-measure' : 'editor.reference.gestures') }}
+			{{ tr(hint) }}
+		</p>
+		<p
+			class="rp-visually-hidden"
+			aria-live="polite"
+		>
+			{{ announcement }}
 		</p>
 	</div>
 </template>

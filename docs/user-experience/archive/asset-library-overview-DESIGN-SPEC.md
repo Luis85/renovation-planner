@@ -1888,7 +1888,9 @@ took this ruling, and it amends this document in the places listed here and nowh
 - **§4 gains a third empty state, for a filter that leaves nothing drawn.** The store's *No
   assets* and *No matches* still decide first. When they do not apply and the chosen category
   draws nothing, the pane says *No matches in Fixture* while searching and *No assets in Plant*
-  otherwise. Its action, *Show all categories*, clears the filter and puts focus on `All`. §6.1's
+  otherwise. Its action, *Show all categories*, clears the filter. Focus then goes to `All` while
+  the sidebar shows. While the sidebar is hidden (an unpressed List, closed by the funnel, or
+  withdrawn below 35rem), focus goes to the search field, `focusWithin`'s fallback. §6.1's
   announced count is the count of what is drawn, meaning the matches in the chosen category.
 - **§6.3's view state gains two keys:**
   - `layout`: `'grid'` or `'list'`, default `'list'`.

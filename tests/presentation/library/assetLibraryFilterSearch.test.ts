@@ -86,6 +86,19 @@ describe.each(['grid', 'list'] as const)('a search under a category filter, in %
 		);
 	});
 
+	/** With the sidebar closed there is no `All` to land on, so focus falls back to the search. */
+	it('puts focus on the search field when the sidebar is closed', async () => {
+		const root = await mountLibrary(view);
+		await choose(root, 'form.new-asset.category.furniture');
+		await search(root, 'plank');
+		await root.get('button.rp-al-filter').trigger('click');
+
+		await root.get('.rp-empty-state__action').trigger('click');
+		await settle();
+
+		expect(document.activeElement).toBe(root.get('.rp-al-search__input').element);
+	});
+
 	/** No search, and a declared category holding nothing: the same honesty, worded for it. */
 	it('says a category holds no assets yet', async () => {
 		const root = await mountLibrary(view);

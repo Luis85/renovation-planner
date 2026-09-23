@@ -93,15 +93,6 @@ const context = useAssetLibraryContext();
 const store = useAssetLibraryStore();
 
 /**
- * §6.1's announcement, and `''` when nothing is being searched for.
- *
- * The `<p role="status">` it feeds is drawn UNCONDITIONALLY, which is design slice 13's own
- * finding applied here rather than rediscovered: a live region attributed on a container that
- * APPEARS is announced by nothing, because the region and its first content arrive together.
- * The region is present and empty from the ready branch's first paint and is written into on
- * each keystroke, which is the shape that actually speaks.
- */
-/**
  * What is DRAWN: the search's matches narrowed to the sidebar's category (AD18-R18). The count
  * below, the empty state and the mark batch all read this, so none of them speaks about a set
  * the pane is not showing.
@@ -110,6 +101,15 @@ const inCategory = computed((): readonly CatalogueEntryDto[] =>
 	props.category === '' ? store.visibleEntries : store.visibleEntries.filter((entry) => entry.category === props.category),
 );
 
+/**
+ * §6.1's announcement, and `''` when nothing is being searched for.
+ *
+ * The `<p role="status">` it feeds is drawn UNCONDITIONALLY, which is design slice 13's own
+ * finding applied here rather than rediscovered: a live region attributed on a container that
+ * APPEARS is announced by nothing, because the region and its first content arrive together.
+ * The region is present and empty from the ready branch's first paint and is written into on
+ * each keystroke, which is the shape that actually speaks.
+ */
 const matchCount = computed(() =>
 	store.searching
 		? tr('view.asset-library.search.results', { count: String(inCategory.value.length) })

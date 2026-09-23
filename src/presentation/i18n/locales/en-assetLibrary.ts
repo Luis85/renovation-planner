@@ -208,8 +208,8 @@ export const enAssetLibrary = {
 	'view.asset-library.layout.label': 'View',
 	'view.asset-library.layout.grid': 'Grid',
 	'view.asset-library.layout.list': 'List',
-	// AD18-R18's category sidebar and the funnel that shows it. The funnel's name is visually
-	// hidden beside its icon; `All` is the sidebar's first choice.
+	// AD18-R18's category sidebar and the funnel that shows it. The funnel's name is its
+	// `aria-label` (Obsidian's tooltip reads nothing else); `All` is the sidebar's first choice.
 	'view.asset-library.filter': 'Filter by category',
 	'view.asset-library.categories': 'Categories',
 	'view.asset-library.category.all': 'All',

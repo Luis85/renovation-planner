@@ -7,7 +7,7 @@ experiment that would settle it. Choosing is the release owner's.
 
 ## 1. How to use this document
 
-Read it once and answer four questions. Answering them:
+Read it once and answer the questions in sections 3 to 5. Answering them:
 
 - **does** decide whether each named behaviour is acceptable in a first beta, and unblocks the G1
   data-trust gate evaluation and five blocked test rows (section 6);
@@ -17,11 +17,11 @@ Read it once and answer four questions. Answering them:
   been run in an Obsidian vault.** No native, device, screen-reader or performance verification
   has been performed or is claimed anywhere in this document.
 
-Three of the four questions have a residual fact that only a vault run can settle, and each says so
-in the sentence that needs it. The word **unverified** in this document always means exactly that:
+Where a question has a residual fact that only a vault run can settle, it says so in the sentence
+that needs it. The word **unverified** in this document always means exactly that:
 measured on a test rig, never in Obsidian.
 
-Two of the four are already **accepted by a recorded ruling** (Q2 by R-S7-11, Q3's test-row half by
+Q2 and Q3 are already **accepted by a recorded ruling** (Q2 by R-S7-11, Q3's test-row half by
 R-S8-3/R-S8-4). Those rulings are not being re-opened here; what is open is whether the accepted
 residual blocks a first beta.
 
@@ -330,7 +330,7 @@ record requests rather than behaving, and the mock plugin base unregisters nothi
 - Fix commit `f5a7f219e`; helper promotion `45c88a73e`
 - Tracker row L-21 and the session 8 log in `03-execution-tracker.md`
 
-## 6. What answering all four unblocks
+## 6. What answering Q1 to Q3 unblocks
 
 - **The G1 data-trust gate evaluation.** The tracker's gate table records G1 as "not evaluated",
   with two owner calls standing between it and an evaluation — L-19's duplicate-project risk and
@@ -339,7 +339,10 @@ record requests rather than behaving, and the mock plugin base unregisters nothi
 - **Five of BP-03 F3's six test rows.** The package's test column is locked at 1 of 6 for the
   reason in section 5. Answering Q3 says what the other five should assert; until then writing them
   would certify a behaviour nobody has decided is correct.
-- **Nothing else.** No other package in the register is blocked on these four.
+- **BP-02's remaining work.** The register's BP-02 row records no further action in that package
+  until Q1 is answered.
+- **The production candidate, indirectly.** The register's BP-12 row says the candidate depends on
+  the selected production changes, several of which wait on owner questions in this document.
 
 ## 7. What this document does not cover
 

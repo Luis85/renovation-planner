@@ -62,6 +62,22 @@ inventing a channel:
 *Unsaved Changes* being a mark rather than an absence is the row worth defending. An indicator
 that shows nothing when there is unsaved work is indistinguishable from one that has crashed.
 
+**Saved carries a relative time once this session has saved** (AD18-R19, on both surfaces that
+mount the indicator — the Plan Editor's status bar and the Asset designer's header). It is a
+qualifier on the Saved word, not a fifth state:
+
+| Since the last save this session | Reads |
+| --- | --- |
+| No save yet | `Saved` — an earlier save's time is not known |
+| Under a minute | `Saved just now` |
+| 1 to 59 minutes | `Saved N min ago` |
+| An hour or more | `Saved at HH:MM`, in the host language's own clock format |
+
+The time is counted from a `savedAt` the save-state store stamps when a write lands, on a minute
+tick that starts at that save (so *just now* lasts exactly the first minute) and only once there
+is one. **Saved · refresh needed** keeps precedence and carries no time: a stale canvas must never
+read as freshly saved (contract C08).
+
 ## Contract
 
 **Given** the save state. **Emits**, in the Save Error case only, a retry request.
@@ -86,6 +102,14 @@ word precisely so that this component cannot be built as three coloured dots.
 It is also a live region, and unlike [[Status bar]] as a whole its changes are all meaningful:
 four discrete transitions, none of them continuous. *Saving* is the exception worth care — a
 fast save that flickers through Saving to Saved announces twice for one event.
+
+**The relative time is never announced.** A minute tick is not an event, and in the Plan Editor
+the indicator sits inside the status bar's `role="status"` region, where any text change is read
+out. So while a relative time shows, the visible phrase (`Saved just now`) is `aria-hidden` and a
+visually-hidden copy of the plain state word (`Saved`) stands beside it: that word is what a
+screen reader has, and what the Saving → Saved transition announces. The designer's header is not
+live and gets the same markup, one indicator with one spelling. The cost, accepted: a screen reader
+never hears the time on either surface.
 
 ## Open
 

@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import SaveStateIndicator from '../../../../src/presentation/editor/save-state/SaveStateIndicator.vue';
@@ -22,6 +23,16 @@ vi.mock('obsidian', async (importOriginal) => ({
 
 const SAVED_AT = new Date(2026, 8, 23, 14, 5);
 const MINUTE = 60_000;
+
+/**
+ * Fake time forward, then one render. Synchronous on purpose: the tick callback is synchronous, so
+ * nothing here waits on a real macrotask — `advanceTimersByTimeAsync` did, and timed out once on a
+ * contended machine.
+ */
+async function advance(ms: number): Promise<void> {
+	vi.advanceTimersByTime(ms);
+	await nextTick();
+}
 
 function saved(): void {
 	const store = useSaveStateStore();
@@ -67,7 +78,7 @@ describe('the relative save time', () => {
 
 	it('stays plain Saved with no save this session, however long the leaf stays open', async () => {
 		const wrapper = mount(SaveStateIndicator);
-		await vi.advanceTimersByTimeAsync(2 * 60 * MINUTE);
+		await advance(2 * 60 * MINUTE);
 		expect(wrapper.text()).toBe('Saved');
 		expect(wrapper.find('.rp-visually-hidden').exists()).toBe(false);
 	});
@@ -78,13 +89,13 @@ describe('the relative save time', () => {
 		await wrapper.vm.$nextTick();
 		expect(shown(wrapper)).toBe('Saved just now');
 
-		await vi.advanceTimersByTimeAsync(MINUTE);
+		await advance(MINUTE);
 		expect(shown(wrapper)).toBe('Saved 1 min ago');
 
-		await vi.advanceTimersByTimeAsync(58 * MINUTE);
+		await advance(58 * MINUTE);
 		expect(shown(wrapper)).toBe('Saved 59 min ago');
 
-		await vi.advanceTimersByTimeAsync(MINUTE);
+		await advance(MINUTE);
 		const clock = new Intl.DateTimeFormat('en', { timeStyle: 'short' }).format(SAVED_AT);
 		expect(shown(wrapper)).toBe(`Saved at ${clock}`);
 	});
@@ -92,7 +103,7 @@ describe('the relative save time', () => {
 	it('counts again from a newer save', async () => {
 		const wrapper = mount(SaveStateIndicator);
 		saved();
-		await vi.advanceTimersByTimeAsync(5 * MINUTE);
+		await advance(5 * MINUTE);
 		expect(shown(wrapper)).toBe('Saved 5 min ago');
 
 		saved();
@@ -112,7 +123,7 @@ describe('the relative save time', () => {
 		await wrapper.vm.$nextTick();
 		expect(spoken(wrapper)).toBe('Saved');
 
-		await vi.advanceTimersByTimeAsync(MINUTE);
+		await advance(MINUTE);
 		expect(shown(wrapper)).toBe('Saved 1 min ago');
 		expect(spoken(wrapper)).toBe('Saved');
 	});
@@ -136,15 +147,43 @@ describe('the relative save time', () => {
 		expect(shown(wrapper)).toBe('Gerade gespeichert');
 		expect(spoken(wrapper)).toBe('Gespeichert');
 
-		await vi.advanceTimersByTimeAsync(3 * MINUTE);
+		await advance(3 * MINUTE);
 		expect(shown(wrapper)).toBe('Vor 3 Min. gespeichert');
 
-		await vi.advanceTimersByTimeAsync(60 * MINUTE);
+		await advance(60 * MINUTE);
 		expect(shown(wrapper)).toBe('Um 14:05 gespeichert');
 	});
 
-	it('stops its minute tick when it unmounts, so no leaf leaks a timer', () => {
+	it('keeps just now for the whole first minute after a save that lands between ticks', async () => {
 		const wrapper = mount(SaveStateIndicator);
+		await advance(MINUTE / 2);
+		saved();
+		await nextTick();
+
+		await advance(MINUTE - 1000);
+		expect(shown(wrapper)).toBe('Saved just now');
+		await advance(1000);
+		expect(shown(wrapper)).toBe('Saved 1 min ago');
+	});
+
+	it('ticks for a leaf that mounts after its store already saw a save', async () => {
+		saved();
+		const wrapper = mount(SaveStateIndicator);
+		expect(shown(wrapper)).toBe('Saved just now');
+		await advance(2 * MINUTE);
+		expect(shown(wrapper)).toBe('Saved 2 min ago');
+	});
+
+	it('runs no tick until a save lands, one after, and none once it unmounts', async () => {
+		const wrapper = mount(SaveStateIndicator);
+		expect(vi.getTimerCount()).toBe(0);
+		saved();
+		await nextTick();
+		// A later save RESTARTS the tick rather than adding a second one. The clock has to move
+		// between the two, or the stamp is unchanged and nothing restarts at all.
+		await advance(1000);
+		saved();
+		await nextTick();
 		expect(vi.getTimerCount()).toBe(1);
 		wrapper.unmount();
 		expect(vi.getTimerCount()).toBe(0);

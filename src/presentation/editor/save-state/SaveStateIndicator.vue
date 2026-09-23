@@ -55,7 +55,7 @@
  * hear. The designer's header is not live, and gets the same markup anyway: one indicator, one
  * spelling. The cost is that a screen reader never hears the time on either surface.
  */
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { currentLanguage, tr } from '../../i18n/strings';
 import { SAVE_STATE_KEYS } from './save-state';
@@ -89,17 +89,31 @@ const label = computed(() =>
 );
 
 const MINUTE = 60_000;
-/** The minute tick the relative phrase moves on, cleared with the component so no leaf leaks it. */
+/**
+ * The minute tick the relative phrase moves on, ALIGNED TO THE SAVE rather than to the mount: each
+ * new `savedAt` resets `now` and restarts the interval from there, so "just now" lasts exactly the
+ * first minute. A mount-aligned tick let a save landing just after it read "just now" for ~119 s.
+ * Nothing runs until this session has saved — a leaf with nothing to say does not wake every
+ * minute — and the interval is cleared with the component so no leaf leaks it. `immediate`
+ * covers a mount that arrives after a save already landed in this leaf's store.
+ */
 const now = ref(Date.now());
-const tick = window.setInterval(() => {
-	now.value = Date.now();
-}, MINUTE);
+let tick: number | undefined;
+watch(
+	savedAt,
+	(at) => {
+		if (at === null) return;
+		now.value = Date.now();
+		window.clearInterval(tick);
+		tick = window.setInterval(() => {
+			now.value = Date.now();
+		}, MINUTE);
+	},
+	{ immediate: true },
+);
 onBeforeUnmount(() => window.clearInterval(tick));
 
-/**
- * `null` means "say the label alone". `now` may lag a fresh stamp by up to a minute, so a
- * negative elapsed time is a save that has only just landed.
- */
+/** `null` means "say the label alone". */
 const relative = computed(() => {
 	if (shown.value !== 'saved' || savedAt.value === null) return null;
 	const minutes = Math.floor((now.value - savedAt.value) / MINUTE);
@@ -115,7 +129,7 @@ const relative = computed(() => {
 	<span
 		class="rp-save-state-label"
 		:class="`rp-save-state-${shown}`"
-	><span
+	><!-- One line on purpose: no whitespace text nodes between the spans, which exact-text pins ("SavedSaved just now") rely on. --><span
 		class="rp-save-state-mark"
 		aria-hidden="true"
 	/><template v-if="relative === null">{{ label }}</template><template v-else><span class="rp-visually-hidden">{{ label }}</span><span aria-hidden="true">{{ relative }}</span></template></span>

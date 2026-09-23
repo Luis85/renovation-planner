@@ -26,7 +26,7 @@ import { t } from '../../../src/presentation/i18n/strings';
 import { accessibleName } from '../../helpers/accessibleName';
 import { assetDesign } from '../../helpers/assetDesign';
 import { editableShape, ROUNDED_RECT, shapeWithRoundedRect } from '../../helpers/assetShapes';
-import { expectOk } from '../../helpers/domain';
+import { expectDefined, expectOk } from '../../helpers/domain';
 import { settle } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
 
@@ -58,7 +58,7 @@ async function commit(wrapper: VueWrapper, name: string, value: string): Promise
 }
 
 const outlineOf = (result: Result<AssetShape, ValidationError> | null | undefined) =>
-	expectOk(result ?? err({ code: 'none' } as unknown as ValidationError)).details.find((detail) => detail.id === 'detail-3')?.outline;
+	expectOk(expectDefined(result, 'an applied edit')).details.find((detail) => detail.id === 'detail-3')?.outline;
 
 describe('the corner radius slider', () => {
 	it('sits beside the number field over the whole-millimetre radii setCornerRadius accepts', () => {
@@ -81,6 +81,23 @@ describe('the corner radius slider', () => {
 
 		expect(accessibleName(slider(wrapper).element)).toBe(t('en', 'designer.selection.fields.corner-radius-slider'));
 		expect(accessibleName(slider(wrapper).element)).not.toBe(accessibleName(wrapper.get('[name="corner-radius"]').element));
+	});
+
+	/**
+	 * The value is announced WITH its unit, and follows the thumb: a drag moves it before any commit, and
+	 * the design's refresh hands it back to the stored radius.
+	 */
+	it('says its value with its unit, following the thumb until the design refreshes', async () => {
+		const { wrapper } = mountFor(shapeWithRoundedRect());
+		const input = slider(wrapper);
+		expect(input.attributes('aria-valuetext')).toBe(t('en', 'designer.selection.fields.corner-radius-value', { value: '150' }));
+
+		(input.element as HTMLInputElement).value = '80';
+		await input.trigger('input');
+		expect(input.attributes('aria-valuetext')).toBe('80 mm');
+
+		await wrapper.setProps({ design: assetDesign({ shape: shapeWithRoundedRect(roundedRect(1000, 600, 90, 20, 30)) }) });
+		expect(slider(wrapper).attributes('aria-valuetext')).toBe('90 mm');
 	});
 
 	it('commits nothing while it is dragged, and ONE edit when it is let go', async () => {

@@ -131,6 +131,19 @@ describe('resizeRoundedRect', () => {
 		expect(cornerRadiusOf(detail)).toBe(radius);
 	});
 
+	/**
+	 * Clamp only when the old radius no longer fits: a non-whole radius in the last millimetre under half
+	 * (150.4 on a 301 side, half 150.5) is kept through an edit that leaves room for it, rather than being
+	 * rounded down to the slider's whole-millimetre end.
+	 */
+	it('keeps a non-whole radius in the last millimetre under half through a width increase', () => {
+		const detail = resized(withRounded(roundedRect(1000, 301, 150.4, 20, 30)), 'width', 1200);
+
+		// Read back off stored points, so ~1e-14 of float noise rides on the radius: near, not equal.
+		expect(detail.outline.points.map(({ x, y }) => [x, y])).toEqual(roundedRect(1200, 301, 150.4, 20, 30).points.map(({ x, y }) => [expect.closeTo(x, 9), expect.closeTo(y, 9)]));
+		expect(cornerRadiusOf(detail)).toBeCloseTo(150.4, 9);
+	});
+
 	it('measures a quarter-turned rounded rectangle on the axes it now has', () => {
 		const shape = withRounded(rotate(ROUNDED, Math.PI / 2, { x: 20, y: 30 }));
 

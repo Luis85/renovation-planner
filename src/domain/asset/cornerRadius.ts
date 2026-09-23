@@ -87,7 +87,8 @@ function rebuilt(shape: AssetShape, detail: AssetDetail, box: RoundedBox): Resul
  *
  * **`min(old radius, half the new shorter side)` is what was asked, and exactly half is refused**, for
  * `setCornerRadius`'s own reason: two points coincide and the outline is self-intersecting. The clamp is
- * the slider's end instead.
+ * the slider's end instead, and is taken ONLY when the old radius no longer fits under half — a non-whole
+ * radius that still fits (150.4 on a 301 side) is kept exactly, never rounded down to a whole millimetre.
  *
  * `null` means "not mine": the graphic is missing, is no rounded rectangle (a stretched one, one turned off
  * the axes), or no whole-millimetre radius fits the new box (a target of 2 mm or less, zero or negative).
@@ -105,7 +106,7 @@ export function resizeRoundedRect(shape: AssetShape, id: string, axis: 'width' |
 	const box = detail === undefined ? null : roundedBoxOf(detail);
 	if (detail === undefined || box === null) return null;
 	const [width, depth] = axis === 'width' ? [target, box.depth] : [box.width, target];
-	const radius = Math.min(box.radius, largestWholeRadius(width, depth));
+	const radius = box.radius < Math.min(width, depth) / 2 ? box.radius : largestWholeRadius(width, depth);
 	return radius > 0 ? rebuilt(shape, detail, { width, depth, radius, centre: box.centre }) : null;
 }
 

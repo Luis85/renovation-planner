@@ -12,7 +12,8 @@ export const designerSelectionLayoutDe: Record<keyof typeof designerSelectionLay
 	'designer.selection.fields.position-x.short': 'X',
 	'designer.selection.fields.position-y': 'Y-Position, vertikale Position in Millimetern',
 	'designer.selection.fields.position-y.short': 'Y',
-	'designer.selection.fields.corner-radius-slider': 'Eckenradius-Schieberegler',
+	'designer.selection.fields.corner-radius-slider': 'Eckenradius in ganzen Millimetern',
+	'designer.selection.fields.corner-radius-value': '{value} mm',
 	'designer.selection.fields.appearance': 'Darstellung',
 	'designer.selection.fields.order': 'Reihenfolge',
 };

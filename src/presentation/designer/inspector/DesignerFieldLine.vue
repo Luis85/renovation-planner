@@ -6,23 +6,31 @@
  * compact row's; this only decides what sits around them.
  *
  * **A pair is a named `role="group"`**, labelled by the visible pair name, and each input inside keeps an
- * accessible name that starts with what a sighted user reads beside it (`Position X, horizontal centre in
- * millimetres`) — WCAG 2.5.3 for a label split across two elements.
+ * accessible name that starts with the short label a sighted user reads over it (`X position, horizontal
+ * centre in millimetres`) — WCAG 2.5.3 for a label split across two elements.
  *
  * **The slider commits on `change`, never on `input`** (C05: intermediate moves are not commands), through
  * the same `onNumber` the number field uses — so its edit, its no-op on the current radius (C03) and its
  * refusal are the field's own. Its range is `1` to the largest whole millimetre `setCornerRadius` accepts
  * (`roundedCorner`), stepped by 1, because the stored ceiling is exclusive and a range input's is not.
+ * Chromium fires `change` on every arrow keypress, so each key step is one command — a drag is one.
+ *
+ * Its name (`Corner radius in whole millimetres`) carries the visible label and differs from the number
+ * field's; `aria-valuetext` says the value WITH its unit (`60 mm`). That text follows the thumb while it
+ * moves (`moving`, set on `input`), and falls back to the design's radius once the design refreshes — so
+ * it never announces a figure the thumb is not on, and a refused commit leaves both where the user put them.
+ * The bound `value` reads `moving` too: Vue re-patches an input's `value` on every render, so the render
+ * the text causes would otherwise snap the thumb back to the stored radius mid-drag.
  *
  * Generic over the caller's field type, so `onNumber` hands back the very object it was given — the
  * inspector's field with its `edit` — without this component knowing what an edit is.
  */
-import { useId } from 'vue';
+import { ref, useId, watch } from 'vue';
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 import DesignerFieldRow from './DesignerFieldRow.vue';
 
-defineProps<{
+const props = defineProps<{
 	fields: readonly F[];
 	/** The pair's visible name; absent for a line of one field. */
 	pair?: StringKey;
@@ -32,6 +40,14 @@ defineProps<{
 }>();
 
 const pairId = useId();
+
+/** The slider's value while the thumb is somewhere the design does not have yet; `null` once it does. */
+const moving = ref<number | null>(null);
+watch(() => props.slider?.field.value, () => {
+	moving.value = null;
+});
+
+const valueText = (value: number): string => tr('designer.selection.fields.corner-radius-value', { value: String(value) });
 </script>
 
 <template>
@@ -65,8 +81,10 @@ const pairId = useId();
 			min="1"
 			:max="slider.largest"
 			step="1"
-			:value="Math.round(slider.field.value)"
+			:value="moving ?? Math.round(slider.field.value)"
 			:aria-label="tr(slider.label)"
+			:aria-valuetext="valueText(moving ?? Math.round(slider.field.value))"
+			@input="moving = ($event.target as HTMLInputElement).valueAsNumber"
 			@change="onNumber(slider.field, $event)"
 		>
 	</div>

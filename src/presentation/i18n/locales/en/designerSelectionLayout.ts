@@ -19,7 +19,9 @@ export const designerSelectionLayoutEn = {
 	'designer.selection.fields.position-x.short': 'X',
 	'designer.selection.fields.position-y': 'Y position, vertical position in millimetres',
 	'designer.selection.fields.position-y.short': 'Y',
-	'designer.selection.fields.corner-radius-slider': 'Corner radius slider',
+	// Named without its role (a screen reader already says "slider"), apart from the number field's name.
+	'designer.selection.fields.corner-radius-slider': 'Corner radius in whole millimetres',
+	'designer.selection.fields.corner-radius-value': '{value} mm',
 	'designer.selection.fields.appearance': 'Appearance',
 	'designer.selection.fields.order': 'Order',
 } as const;

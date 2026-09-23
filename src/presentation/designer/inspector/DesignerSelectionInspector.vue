@@ -21,8 +21,9 @@
  * Numbers show whole millimetres and whole degrees and commit on `change` (blur or Enter). A typed
  * Width or Depth lands the typed CURVE-AWARE extent (`resizeToExtent`), which a plain factor does not
  * on an arc — and on a curved part it can move the other extent too, since its arcs keep their bulges
- * (Decision 9) — except on a rounded rectangle, which `resizeToExtent` rebuilds as one (AD18-R17). A refusal `editShape` answers is shown in ONE alert and cleared by the next commit that
- * lands. Rotate-by applies and resets to 0: a detail stores no rotation to show.
+ * (Decision 9) — except on a rounded rectangle, which `resizeToExtent` rebuilds as one (AD18-R17). A
+ * refusal `editShape` answers is shown in ONE alert and cleared by the next commit that lands. Rotate-by
+ * applies and resets to 0: a detail stores no rotation to show.
  *
  * A detail's name is a stable key (Decision 8): the field shows its `designer.detail.<name>` label
  * where one exists and the stored name otherwise, and a typed name is written as typed.

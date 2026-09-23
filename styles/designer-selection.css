@@ -263,11 +263,19 @@
  * glyph rather than a `HostIcon`, for that file's stated reason: a `<summary>` may not carry the
  * heading AND an icon without the icon joining the summary's own accessible name, and a
  * border-drawn glyph is announced by nothing at all.
+ *
+ * **`min-height`/`padding-inline` are the SAME precedent's, not a fresh measurement** (review
+ * round: the first version of this rule shipped without them and measured 17px tall, under WCAG
+ * 2.5.8's 24px target). `.rp-project-list__completed > summary`'s own comment states the reason;
+ * `designerStyles.test.ts` pins both against that selector's declared values directly, so the two
+ * cannot drift apart unnoticed the way this one already did once.
  */
 .rp-designer-collapsible > summary {
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
+	min-height: var(--size-4-6);
+	padding-inline: var(--size-4-2);
 	list-style: none;
 	cursor: pointer;
 }

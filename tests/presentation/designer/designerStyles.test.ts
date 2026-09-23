@@ -105,6 +105,25 @@ describe('the inspector’s headings, hint and unavailable actions', () => {
 	it('draws a field hint in muted text', () => {
 		expect(declared(partial('designer-selection.css'), '.rp-designer-field-hint', 'color')).toEqual(parsed('color', 'var(--text-muted)'));
 	});
+
+	/**
+	 * AD18-R16 Task 6 review (Important finding): the integrator measured the transform and
+	 * repeat folds' `<summary>` at 17px tall, under WCAG 2.5.8's 24px target minimum. The
+	 * borrowed precedent, `.rp-project-list__completed > summary`, carries
+	 * `min-height: var(--size-4-6); padding-inline: var(--size-4-2);` for exactly this reason,
+	 * and the new rule had dropped both. Pinned against the SAME declared values on the
+	 * precedent selector, so the two cannot quietly drift apart the way this one already did.
+	 */
+	it('gives the transform and repeat folds’ summary the same 24px hit target the completed-projects disclosure wears', () => {
+		const rules = partial('designer-selection.css');
+		const precedent = declared(partial('project-list.css'), '.rp-project-list__completed > summary', 'min-height');
+
+		expect(precedent).toEqual(parsed('min-height', 'var(--size-4-6)'));
+		expect(declared(rules, '.rp-designer-collapsible > summary', 'min-height')).toEqual(precedent);
+		expect(declared(rules, '.rp-designer-collapsible > summary', 'padding-inline')).toEqual(
+			declared(partial('project-list.css'), '.rp-project-list__completed > summary', 'padding-inline'),
+		);
+	});
 });
 
 /**

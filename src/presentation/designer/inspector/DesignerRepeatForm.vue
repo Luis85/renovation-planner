@@ -111,8 +111,10 @@ function run(): void {
 
 <template>
 	<details class="rp-designer-collapsible">
-		<summary class="rp-designer-panel-title rp-designer-section-title">
-			{{ tr('designer.arrange.repeat') }}
+		<summary>
+			<h3 class="rp-designer-panel-title rp-designer-section-title">
+				{{ tr('designer.arrange.repeat') }}
+			</h3>
 		</summary>
 		<DesignerFieldRowShell short="designer.arrange.repeat.count">
 			<input

@@ -137,11 +137,11 @@
  * the width the report flagged.
  *
  * The clip technique `visually-hidden.css` already carries, copied rather than shared through that
- * class: this button carries no `aria-label`, so the label's own TEXT is the accessible name, and
- * it has to survive being off-screen rather than disappear with a sibling `display: none` — the
- * toolbar's `.rp-designer-tool-label` rule takes that other path because ITS button carries the
- * same string as `aria-label` already, so the visible copy is free to vanish with the picture.
- * This button has no second copy to fall back on.
+ * class: the accessible name comes from `aria-label` now (final-fix-wave item 10, `DesignerHeader.vue`'s
+ * own comment on the button), the same string as this label's text, so shrinking the visible copy to
+ * a 1px box rather than a sibling `display: none` is no longer what KEEPS the name — it is what keeps
+ * this exact string readable by a sighted user who zooms or overrides the clip, which `display: none`
+ * would not.
  */
 @container rp-designer (width < 35rem) {
 	.rp-designer-title-bar .rp-designer-open-library-label {

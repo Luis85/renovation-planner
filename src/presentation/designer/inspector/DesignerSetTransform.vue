@@ -83,8 +83,10 @@ async function onNumber(field: ByField, event: Event): Promise<void> {
 
 <template>
 	<details class="rp-designer-collapsible">
-		<summary class="rp-designer-panel-title rp-designer-section-title">
-			{{ tr('designer.arrange.transform') }}
+		<summary>
+			<h3 class="rp-designer-panel-title rp-designer-section-title">
+				{{ tr('designer.arrange.transform') }}
+			</h3>
 		</summary>
 		<DesignerFieldRow
 			v-for="field in fields"

@@ -150,14 +150,17 @@ describe('the designer header', () => {
 	});
 
 	/**
-	 * The label's own text is the accessible name — no `aria-label` doubling it — because the
-	 * narrow-width state (`styles/designer-header.css`) clips that text rather than hiding it, and a
-	 * clipped node only keeps naming the button if it is still what the button is named FROM.
+	 * Final-fix-wave item 10: `aria-label` now carries the SAME string as the visible label —
+	 * label-in-name holds trivially — rather than leaving the accessible name to the text content
+	 * alone. Below the header's narrow width the visible copy shrinks to a 1px box
+	 * (`styles/designer-header.css`), which keeps it in the accessibility tree but gave Obsidian's
+	 * own hover tooltip nothing to read: that tooltip is drawn from `aria-label` specifically, and
+	 * an icon-only button with no tooltip at all was the defect this fixes at every width.
 	 */
-	it('names the library door from its own label text, not a duplicate aria-label', () => {
+	it('names the library door with an aria-label equal to its visible label text', () => {
 		const button = mountHeader({ openLibrary: () => undefined }).get('.rp-designer-open-library');
 
-		expect(button.attributes('aria-label')).toBeUndefined();
+		expect(button.attributes('aria-label')).toBe(t('en', 'designer.header.back-to-library'));
 		expect(button.get('.rp-designer-open-library-label').text()).toBe(t('en', 'designer.header.back-to-library'));
 	});
 });

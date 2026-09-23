@@ -59,7 +59,9 @@ export const assetSymbolsEn = {
 	// fields and `DesignerSetTransform`'s "by" fields, which reuse `rotate-by`.
 	'designer.selection.centre-x.short': 'Horizontal centre',
 	'designer.selection.centre-y.short': 'Vertical centre',
-	'designer.selection.rotate-by.short': 'Rotate by',
+	// "Rotation" rather than "Rotate by": WCAG 2.5.3 needs the visible short label inside the
+	// full sentence ("Rotation to apply in degrees"), and "Rotate by" is not a substring of it.
+	'designer.selection.rotate-by.short': 'Rotation',
 	'designer.selection.position-x.short': 'Horizontal position',
 	'designer.selection.position-y.short': 'Vertical position',
 	'designer.selection.angle.short': 'Angle',

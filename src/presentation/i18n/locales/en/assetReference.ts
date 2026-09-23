@@ -51,7 +51,9 @@ export const assetReferenceEn = {
 	'designer.placement.front.angle': '{degrees}° from the right of the drawing',
 	'designer.clearance': 'Clearance',
 	'designer.clearance.front': 'In front',
-	'designer.clearance.back': 'Behind',
+	// "At the back" rather than "Behind": WCAG 2.5.3 needs the visible short label ("Back")
+	// inside this sentence, and "Behind" does not contain it.
+	'designer.clearance.back': 'At the back',
 	'designer.clearance.left': 'To its left',
 	'designer.clearance.right': 'To its right',
 	// The compact row's short visible labels (AD18-R16 Task 5 follow-up): `DesignerClearanceHelper`

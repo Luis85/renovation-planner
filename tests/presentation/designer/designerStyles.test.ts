@@ -102,10 +102,11 @@ describe('the placement point group’s three equal segments', () => {
 	});
 
 	/**
-	 * No `align-items` here, DELIBERATELY UNLIKE `designer-add.css`'s own grid (`align-items:
-	 * start` there): grid's default `stretch` is what gives "Centre" and "Custom" the same height
-	 * as a two-line "Back centre" rather than leaving them visibly shorter — three different
-	 * heights would still read as three buttons rather than one control.
+	 * No `align-items` here — the SAME answer `designer-add.css`'s own grid now gives, since that
+	 * file's final-fix-wave item 5 dropped the `align-items: start` it briefly carried. Grid's
+	 * default `stretch` is what gives "Centre" and "Custom" the same height as a two-line "Back
+	 * centre" rather than leaving them visibly shorter — three different heights would still read
+	 * as three buttons rather than one control.
 	 */
 	it('sets no align-items on the group, so its segments stretch to an equal height', () => {
 		expect(declared(partial('designer-selection.css'), '.rp-designer-placement-modes', 'align-items')).toEqual([]);

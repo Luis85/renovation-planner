@@ -371,9 +371,11 @@ describe('what the Add rail’s stylesheet declares', () => {
 	 * padding): wide enough that the 176px case keeps two columns and narrow enough that the 123px
 	 * case does not.
 	 *
-	 * `align-items: start` restores the reviewer's Minor: grid's own default (`stretch`) would grow
-	 * every tile in a row to its tallest neighbour's height, which is the wrong picture once tiles
-	 * of different label-line-counts size to their own content.
+	 * **No `align-items` override (final-fix-wave item 5).** A prior round set `align-items: start`
+	 * so a one-line tile would not stretch to a two-line neighbour's height; the integrator's
+	 * capture found that trade producing the opposite defect — two tiles in the same row at 58px
+	 * and 73px, reading as uneven, loose buttons rather than one grid. Grid's own default `stretch`
+	 * is what `.rp-designer-placement-modes` already uses for the identical shape.
 	 */
 	it('lays the tiles out as a two-column grid, one column once the rail itself is too narrow', () => {
 		const rules = partial();
@@ -381,7 +383,7 @@ describe('what the Add rail’s stylesheet declares', () => {
 
 		expect(declared(rules, '.rp-designer-add-shapes', 'display')).toEqual(parsed('display', 'grid'));
 		expect(declared(rules, '.rp-designer-add-shapes', 'grid-template-columns')).toEqual(parsed('grid-template-columns', 'repeat(2, minmax(0, 1fr))'));
-		expect(declared(rules, '.rp-designer-add-shapes', 'align-items')).toEqual(parsed('align-items', 'start'));
+		expect(declared(rules, '.rp-designer-add-shapes', 'align-items')).toEqual([]);
 		expect(declared(rules, '.rp-designer-add-shapes', 'grid-template-columns', narrow)).toEqual(parsed('grid-template-columns', 'minmax(0, 1fr)'));
 	});
 

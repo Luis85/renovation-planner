@@ -35,8 +35,11 @@ export const assetReferenceDe: Record<keyof typeof assetReferenceEn, string> = {
 	'designer.placement.front.up': 'Zum oberen Rand der Zeichnung',
 	'designer.placement.front.angle': '{degrees}° von der rechten Seite der Zeichnung',
 	'designer.clearance': 'Freiraum',
-	'designer.clearance.front': 'Davor',
-	'designer.clearance.back': 'Dahinter',
+	// "Direkt vorne"/"Direkt hinten" rather than "Davor"/"Dahinter": WCAG 2.5.3 needs the
+	// visible short label ("Vorne"/"Hinten") inside this sentence, and the contracted forms
+	// do not contain them.
+	'designer.clearance.front': 'Direkt vorne',
+	'designer.clearance.back': 'Direkt hinten',
 	'designer.clearance.left': 'Links davon',
 	'designer.clearance.right': 'Rechts davon',
 	'designer.clearance.front.short': 'Vorne',

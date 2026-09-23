@@ -80,17 +80,17 @@
  * floor, so both tracks split the container's own width exactly in half regardless of what is
  * inside them, and the label wraps within that fixed width instead of forcing it wider.
  *
- * **`align-items: start`, restoring the reviewer's Minor.** Grid's own default is `stretch`, which
- * would stretch every tile in a row to the height of its tallest neighbour — harmless once tiles
- * size to their own content (below), but still the wrong picture for four tiles whose labels wrap
- * to different line counts: a one-line "Circle" tile has no reason to grow to a two-line "Rounded
- * rectangle" tile's height. `start` keeps each tile exactly as tall as its own icon-plus-label and
- * top-aligns the row, which is board 01's picture rather than a padded one.
+ * **No `align-items` override (final-fix-wave item 5, reverting the previous round's `start`).**
+ * That round set `align-items: start` so a one-line "Circle" tile would not stretch to a two-line
+ * "Rounded rectangle" tile's height — and the integrator's capture found the opposite defect it
+ * traded in for: two tiles in the SAME row (58px and 73px) reading as uneven, loose buttons rather
+ * than one grid. Grid's own default `stretch` gives every tile in a row the row's own height, the
+ * same fix `.rp-designer-placement-modes` already carries in `designer-selection.css` for the
+ * identical shape — that file's own comment is the fuller account of the trade.
  */
 .rp-designer-add-shapes {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	align-items: start;
 	gap: var(--size-4-1);
 }
 
@@ -141,17 +141,18 @@
  * wrapped one- or two-line label; kept, a tile's content painted past its own fixed-height box and
  * OVER the tile below it in the grid, which is what the integrator's 460px stacked-leaf capture
  * showed — "Draw rectangle" drawn over the circle tile's icon in the row underneath. `auto` lets
- * each button's box grow to whatever its own icon-plus-label needs, which is also what makes
- * `align-items: start` above meaningful rather than moot.
+ * each button's box grow to whatever its own icon-plus-label needs, which is what the grid's own
+ * default `stretch` then equalises across a row (final-fix-wave item 5, above) — a fixed height
+ * here would fight that either way.
  *
  * **Shared with the Inspector's Placement point group since AD18-R16 Task 8's fix round** — the
  * identical icon-above-label fix for the identical cause (Obsidian's base `button` rule), so the
  * second occurrence is this selector EXTENDED rather than a second copy of the six declarations
  * in `styles/designer-selection.css`. `.rp-designer-placement-modes` gives its OWN three-column
- * grid and its OWN `align-items` answer (deliberately the opposite of this rule's neighbour
- * above — see that file) around this shared tile shape; nothing here reaches `.rp-designer-add`'s
- * two-column grid or its `start` alignment, since the two container rules are separate and only
- * this per-tile rule is shared.
+ * grid around this shared tile shape and now takes the SAME `align-items` answer this rule's
+ * neighbour above does — no override, so both stretch — since final-fix-wave item 5 dropped the
+ * two grids' one disagreement; nothing here reaches `.rp-designer-add`'s two-column grid, since
+ * the two container rules are separate and only this per-tile rule is shared.
  */
 .rp-designer-add button.rp-designer-tool-button,
 .rp-designer-placement-modes .rp-designer-selection-button {

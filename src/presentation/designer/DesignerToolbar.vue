@@ -174,6 +174,14 @@ function fitDesign(): void {
 	if (shape === null) return;
 	editorStore.fitTo(designFrame(shape) as BoundingBox, editorStore.stageSize);
 }
+
+/**
+ * `aria-disabled` is only ever the literal string `'true'`, never `'false'` — house pattern,
+ * `DesignerActionButton.vue`'s own `ariaDisabled`. Gated on `design?.shape` alone, not
+ * `blocked()`: the zoom-in/out buttons beside this one take no visual state for a held gesture
+ * either, and `fitDesign` already refuses the click for both reasons above.
+ */
+const fitAriaDisabled = computed(() => ((designStore.design?.shape ?? null) === null ? 'true' : undefined));
 </script>
 
 <template>
@@ -246,6 +254,7 @@ function fitDesign(): void {
 				class="rp-designer-tool-button"
 				data-rp-view="zoom-fit"
 				:aria-label="tr('designer.toolbar.zoom-fit')"
+				:aria-disabled="fitAriaDisabled"
 				@click="fitDesign()"
 			>
 				<HostIcon name="maximize" />

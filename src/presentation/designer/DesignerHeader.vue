@@ -89,16 +89,22 @@ defineProps<{
 		:aria-label="tr('designer.header')"
 	>
 		<!--
-			Board 02's `← Back to library` (AD18-R16 Task 2). The label's own text is the accessible
-			name — no `aria-label` — because `styles/designer-header.css` CLIPS it below the header's
-			narrow width rather than hiding it, and a clipped node keeps naming the button only while it
-			is still what the button is named FROM. `HostIcon` carries `aria-hidden` itself, so the icon
+			Board 02's `← Back to library` (AD18-R16 Task 2). `aria-label` now carries the SAME string
+			as the visible label (final-fix-wave item 10) — label-in-name holds trivially — rather than
+			leaving the accessible name to the text content alone: below the header's narrow width
+			`styles/designer-header.css` shrinks that text to the standard visually-hidden 1px box, which
+			keeps it in the accessibility tree but gives Obsidian's OWN hover tooltip nothing to read,
+			since that tooltip is drawn from `aria-label` specifically and not from a computed accessible
+			name (this file's header docblock on `DesignerToolButton`-style controls states the same
+			house fact). An icon-only button with no tooltip at all was the defect; `aria-label` fixes it
+			at every width, not only the narrow one. `HostIcon` carries `aria-hidden` itself, so the icon
 			never doubles what the label already says.
 		-->
 		<button
 			v-if="openLibrary !== undefined"
 			type="button"
 			class="rp-designer-open-library"
+			:aria-label="tr('designer.header.back-to-library')"
 			@click="openLibrary"
 		>
 			<HostIcon name="arrow-left" />

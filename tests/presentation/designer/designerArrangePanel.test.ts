@@ -602,6 +602,25 @@ describe('the transform and repeat folds (AD18-R16 Task 6)', () => {
 		expect(folds[1]?.get('summary').text()).toBe(t('en', 'designer.arrange.repeat'));
 	});
 
+	/**
+	 * Final-fix-wave item 8: each summary used to draw its title as bare text carrying the heading
+	 * CLASSES with no heading ELEMENT, which took both out of heading navigation. Restored as an
+	 * `<h3>` inside the summary — the same level `DesignerSelectionInspector`'s and
+	 * `DesignerReferencePlacement`'s own section titles use, so the outline still reads
+	 * h2 (asset name) → h3 (section) → h4 (a section's own subsection) in order.
+	 */
+	it('carries each fold’s title as an h3, so heading navigation still reaches it', () => {
+		const { wrapper } = mountPanel();
+		const folds = wrapper.findAll('.rp-designer-collapsible');
+
+		const transformHeading = folds[0]?.get('summary h3');
+		const repeatHeading = folds[1]?.get('summary h3');
+		expect(transformHeading?.element.tagName).toBe('H3');
+		expect(transformHeading?.text()).toBe(t('en', 'designer.arrange.transform'));
+		expect(repeatHeading?.element.tagName).toBe('H3');
+		expect(repeatHeading?.text()).toBe(t('en', 'designer.arrange.repeat'));
+	});
+
 	/** Contract C12: opening one exposes its fields, which the domain contract only reaches once the browser draws them open. */
 	it('exposes the set-transform fields once its fold is opened', () => {
 		const { wrapper } = mountPanel();

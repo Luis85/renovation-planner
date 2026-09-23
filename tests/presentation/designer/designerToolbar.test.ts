@@ -575,16 +575,32 @@ describe('the zoom cluster', () => {
 		rig.unmount();
 	});
 
-	/** A design with no shape has nothing to fit, so the button is a no-op rather than a jump to the default camera. */
-	it('does nothing when there is no shape to fit', async () => {
+	/**
+	 * A design with no shape has nothing to fit, so the button is a no-op rather than a jump to
+	 * the default camera — and says so, `aria-disabled`, the same house pattern
+	 * `DesignerActionButton.vue`'s own `ariaDisabled` uses, rather than a live control silently
+	 * doing nothing (final-fix-wave item 4).
+	 */
+	it('does nothing when there is no shape to fit, and marks the button aria-disabled', async () => {
 		const rig = await designerRig({ shape: null, camera: 'opened' });
 		const editor = useEditorStore(rig.pinia);
 		const before = editor.viewport;
 
-		zoomButton(rig, 'zoom-fit').click();
+		const button = zoomButton(rig, 'zoom-fit');
+		expect(button.getAttribute('aria-disabled')).toBe('true');
+
+		button.click();
 		await settle();
 
 		expect(editor.viewport).toEqual(before);
+		rig.unmount();
+	});
+
+	/** The counterpart of the case above: a design that HAS a shape draws no `aria-disabled` at all. */
+	it('leaves the fit button off aria-disabled when there is a shape to fit', async () => {
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
+
+		expect(zoomButton(rig, 'zoom-fit').getAttribute('aria-disabled')).toBeNull();
 		rig.unmount();
 	});
 

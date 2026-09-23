@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * One numeric field of the selection inspector (`DesignerSelectionInspector`'s width, depth,
- * centre, rotate-by, position and facing-angle rows, and `DesignerSetTransform`'s four "by"
- * fields), split out so its optional hint paragraph carries its own template-complexity budget
+ * centre, rotate-by, position, facing-angle and corner-radius rows, and `DesignerSetTransform`'s
+ * four "by" fields), split out so its optional hint paragraph carries its own template-complexity budget
  * instead of sharing one with the `v-for` that repeats it (fallow's template complexity is
  * scored per SFC).
  *

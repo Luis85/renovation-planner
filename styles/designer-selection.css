@@ -122,11 +122,12 @@
  * the width of its longest unbreakable run, which is what forced an uneven split there too.
  * Three columns here for three segments rather than two.
  *
- * **No `align-items` override, DELIBERATELY UNLIKE `designer-add.css`'s grid** (`align-items:
- * start` there, so a one-line tile does not stretch to a two-line neighbour's height). Here the
- * opposite is wanted: grid's own default `stretch` gives every segment the row's own height, so
- * "Back centre" wrapping to two lines does not leave "Centre" and "Custom" visibly shorter next
- * to it — three DIFFERENT heights would read as three buttons again, not one control.
+ * **No `align-items` override — SAME answer as `designer-add.css`'s grid since that file's own
+ * final-fix-wave item 5** (that round tried `align-items: start` there, then reverted it once the
+ * integrator's capture found it producing the identical defect this group was already written to
+ * avoid). Grid's own default `stretch` gives every segment the row's own height, so "Back centre"
+ * wrapping to two lines does not leave "Centre" and "Custom" visibly shorter next to it — three
+ * DIFFERENT heights would read as three buttons again, not one control.
  */
 .rp-designer-placement-modes {
 	display: grid;
@@ -216,9 +217,13 @@
 /*
  * `DesignerFieldRow`'s compact row (AD18-R16 Task 5, both concept boards' `Width [800 mm]`): a
  * short label to the left, the input and its unit suffix to the right. Its own class rather than
- * `designer.css`'s `.rp-designer-field`, which stays the stacked shape for the clearance helper's
- * four setbacks, the repeat form's fields and the asset's own Height — none of them converged
- * (`DesignerFieldRow.vue`'s own docblock says why), so their layout must not move under them.
+ * `designer.css`'s `.rp-designer-field`, which stays the stacked shape for whatever still draws
+ * through it directly. The clearance helper's four setbacks, the repeat form's fields and the
+ * asset's own Height all converged onto this PRESENTATION (`DesignerFieldRowShell`) since —
+ * `DesignerFieldRow.vue`'s own docblock says so — but not onto `DesignerFieldRow` itself, whose
+ * plain `@change` shape would round a raw draft on every keystroke, the exact corruption each of
+ * those three already refuses; that is the distinction still worth keeping, not a claim that
+ * nothing converged.
  *
  * **Stacks below the inspector's OWN resting width, not at a width of its own.** `50rem` (800px)
  * is exactly where `designer-toolbar.css`'s `min(14rem, 28cqi)` cap starts binding — above it the
@@ -352,6 +357,18 @@
 	padding-inline: var(--size-4-2);
 	list-style: none;
 	cursor: pointer;
+}
+
+/*
+ * The `<h3>` restored inside each summary (final-fix-wave item 8, heading navigation): it carries
+ * `.rp-designer-panel-title`'s own `margin: 0 0 var(--size-4-2)` unless this overrides it, and that
+ * bottom margin would grow the flex item's box past the row's own `min-height` above, pushing the
+ * text off-centre inside a taller hit target than the 24px one measured for. The same trade
+ * `.rp-project-list__completed > summary .rp-project-list__group-title`'s own comment states, for
+ * `padding` rather than `margin` there.
+ */
+.rp-designer-collapsible > summary .rp-designer-panel-title {
+	margin: 0;
 }
 
 .rp-designer-collapsible > summary::-webkit-details-marker {

@@ -65,6 +65,15 @@ describe('the clearance row’s figure', () => {
 		expect(said(editableShape(), 'clearance')).toBe('Clearance');
 	});
 
+	it('names no figure when the near sides agree and a far side does not', () => {
+		// x -800..900 by y -600..600: 300 off the left, the back and the front, but 400 off the right.
+		expect(said(editableShape({ clearance: rect(1700, 1200, 50, 0) }), 'clearance')).toBe('Clearance');
+	});
+
+	it('names no figure for a setback that would round to 0 mm', () => {
+		expect(said(editableShape({ clearance: rect(1000.6, 600.6) }), 'clearance')).toBe('Clearance');
+	});
+
 	it('names no figure when the clearance is not a rectangle, even one centred on the footprint', () => {
 		expect(said(editableShape({ clearance: circle(2000) }), 'clearance')).toBe('Clearance');
 	});

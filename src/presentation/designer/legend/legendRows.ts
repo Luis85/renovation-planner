@@ -74,9 +74,10 @@ export function legendRows(shape: AssetShape | null): readonly LegendRow[] {
  * sides, else `null`. AD18-R17: a single figure over an asymmetric boundary would be a false
  * measurement, and C07 refuses to infer four setbacks from an arbitrary polygon — so both outlines
  * must be axis-aligned rectangles (`rectangularFootprint`, the predicate the clearance helper
- * withholds its fields on), the clearance must be the footprint's box grown by the same positive
- * amount each way (within `coincident`'s tolerance, since the helper's sums are floating point),
- * and neither outline may be PENDING, since a difference in sheet pixels is not a millimetre.
+ * withholds its fields on), the clearance must be the footprint's box grown by the same amount
+ * each way (within `coincident`'s tolerance, since the helper's sums are floating point) and that
+ * amount must still read at least 1 mm once rounded as the label rounds it, and neither outline may
+ * be PENDING, since a difference in sheet pixels is not a millimetre.
  *
  * Written here because nothing reads a setback BACK today: `DesignerClearanceHelper` generates a
  * boundary and, by its own docblock, never turns one into numbers. This reads one number, only
@@ -90,5 +91,5 @@ function uniformSetback(shape: AssetShape, clearance: NonNullable<AssetShape['cl
 	const setback = inner.min.x - outer.min.x;
 	const grownMin = { x: inner.min.x - setback, y: inner.min.y - setback };
 	const grownMax = { x: inner.max.x + setback, y: inner.max.y + setback };
-	return setback > 0 && coincident(grownMin, outer.min) && coincident(grownMax, outer.max) ? setback : null;
+	return Math.round(setback) > 0 && coincident(grownMin, outer.min) && coincident(grownMax, outer.max) ? setback : null;
 }

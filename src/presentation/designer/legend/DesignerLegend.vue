@@ -21,6 +21,10 @@
  * `allDimensions` already takes on `DesignerRuntime`: a plain leaf-local `ref`, default ON,
  * written nowhere. `runtime.ts`'s `showLegend` member carries the account.
  *
+ * **The rows read the gesture's PREVIEW while one is live** (`preview ?? design.shape`), the
+ * binding AD18-R11 carries forward and `DesignerRulers` / `DesignerDimensions` already follow: a
+ * clearance dragged out of true must stop claiming one figure during the drag, not after it.
+ *
  * **The root is the canvas KEY, not the legend** (AD18-R17 Task 6): one bottom-left column holding
  * the legend and, below it, `DesignerScaleBar`. One positioned box rather than two is what keeps the
  * two from overlapping without either knowing the other's height — they stack in flow. The scale bar
@@ -36,10 +40,10 @@ import { useDesignerRuntime } from '../runtime';
 import { legendRows } from './legendRows';
 import DesignerScaleBar from './DesignerScaleBar.vue';
 
-const { design } = storeToRefs(useAssetDesignStore());
+const { design, preview } = storeToRefs(useAssetDesignStore());
 const { showLegend } = useDesignerRuntime();
 
-const rows = computed(() => (showLegend.value ? legendRows(design.value?.shape ?? null) : []));
+const rows = computed(() => (showLegend.value ? legendRows(preview.value ?? design.value?.shape ?? null) : []));
 </script>
 
 <template>

@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { rect } from '../../../../src/domain/asset/presets/presetGeometry';
+import { useAssetDesignStore } from '../../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { editableShape } from '../../../helpers/assetShapes';
 import { designerRig, type DesignerRig } from '../../../helpers/designerRig';
@@ -67,6 +68,25 @@ describe('what the designer’s legend draws', () => {
 				['clearance', t('en', 'designer.legend.clearance.uniform', { size: '300' })],
 				['placement', t('en', 'designer.legend.placement-point.back-centre')],
 			]);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	it('reads the gesture’s preview while one is live, so a clearance dragged out of true stops claiming a figure', async () => {
+		const uniform = editableShape({ clearance: rect(1600, 1200) });
+		const rig = await designerRig({ shape: uniform, camera: 'default' });
+		try {
+			const clearanceRow = (): string | undefined => rows(rig).find(([kind]) => kind === 'clearance')?.[1];
+			expect(clearanceRow()).toBe(t('en', 'designer.legend.clearance.uniform', { size: '300' }));
+
+			useAssetDesignStore(rig.pinia).setPreview({ ...uniform, clearance: rect(1700, 1200, 50, 0) });
+			await settle();
+			expect(clearanceRow()).toBe(t('en', 'designer.legend.clearance'));
+
+			useAssetDesignStore(rig.pinia).setPreview(null);
+			await settle();
+			expect(clearanceRow()).toBe(t('en', 'designer.legend.clearance.uniform', { size: '300' }));
 		} finally {
 			rig.unmount();
 		}

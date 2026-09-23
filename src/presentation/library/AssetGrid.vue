@@ -54,7 +54,10 @@ const emit = defineEmits<{ select: [assetId: AssetId]; create: [] }>();
 				:ordinal="ordinal"
 				@select="emit('select', $event)"
 			/>
-			<li class="rp-al-create-card">
+			<li
+				class="rp-al-create-card"
+				data-full-row
+			>
 				<HostIcon name="pencil" />
 				<div class="rp-al-create-card__body">
 					<p class="rp-al-create-card__title">

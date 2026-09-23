@@ -33,16 +33,6 @@
 	outline-offset: 2px;
 }
 
-/* Visually hidden, so the button's accessible name is its words while the eye reads the icon. */
-.rp-al-filter .rp-al-filter__label {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-}
-
 .rp-al-filter .rp-al-filter__category {
 	max-width: 8rem;
 	overflow: hidden;
@@ -328,12 +318,19 @@
 
 /* ---- §7, below 35rem ----------------------------------------------------------------------- */
 
-/* The switch's words step out of sight and stay in the accessible name, so a sidebar-width pane
-   keeps room for the search field. The icons still say which is which. */
+/* The switch's words leave the layout, so a sidebar-width pane keeps room for the search field.
+   Each button's `aria-label` is its word, so the name and Obsidian's tooltip stay, and the icons
+   still say which is which. */
 @container rp-al (width < 35rem) {
 	/* A selection gives the pane to the inspector (asset-library.css), and the sidebar leaves
 	   with the shelves it filters. */
 	.renovation-asset-library[data-selected-asset-id]:not([data-selected-asset-id='']) .rp-al-categories {
+		display: none;
+	}
+
+	/* While the inspector owns the pane, a funnel would open a sidebar that the rule above keeps
+	   hidden, so it leaves with it rather than pressing into nothing. */
+	.renovation-asset-library[data-selected-asset-id]:not([data-selected-asset-id='']) .rp-al-filter {
 		display: none;
 	}
 
@@ -346,11 +343,6 @@
 	}
 
 	.rp-al-layout .rp-al-layout__word {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
+		display: none;
 	}
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { useLibraryDraftGuard } from './libraryDraftGuard';
 import DialogHost from '../dialogs/DialogHost.vue';
 import ViewFailure from '../components/ViewFailure.vue';
@@ -82,6 +82,13 @@ watch(browseSource, (browse) => {
 	layout.value = browse.layout;
 	categoryFilter.value = browse.category;
 });
+// The sidebar's list is the shelves' own derivation, over what the search leaves drawn.
+const categoryShelves = computed(() => shelvesOf(store.visibleEntries));
+// The filter as drawn: a category no shelf draws (a stale or hand-edited layout) reads as All, so
+// nothing is filtered to a category the sidebar cannot even show as pressed.
+const activeCategory = computed(() =>
+	categoryShelves.value.some((shelf) => shelf.category === categoryFilter.value) ? categoryFilter.value : '',
+);
 
 const showingSelection = ref(true);
 watch(
@@ -124,7 +131,7 @@ watch(paneAssetId, async (now, before) => {
 }, { flush: 'sync' });
 
 function publish(assetId: AssetId | null, expanded: ReadonlySet<string>): void {
-	context.publishViewState(assetId ?? '', [...expanded], { layout: layout.value, category: categoryFilter.value });
+	context.publishViewState(assetId ?? '', [...expanded], { layout: layout.value, category: activeCategory.value });
 }
 
 async function focusAfterSwap(selector: string, swapped: () => boolean): Promise<void> {
@@ -154,10 +161,15 @@ function chooseCategory(next: string): void {
 	publish(selectedId.value, expandedCategories.value);
 }
 
+/** The filtered-to-nothing state's action removes the button pressed, so focus goes to `All`. */
+function onClearFilter(): void {
+	chooseCategory('');
+	void focusAfterSwap('.rp-al-category[aria-pressed="true"]', () => true);
+}
+
 // The funnel and the sidebar it shows — `useCategorySidebar.ts` carries the rules.
-const sidebar = useCategorySidebar(shellEl, layout, categoryFilter);
-// The sidebar's list is the shelves' own derivation, over what the search leaves drawn.
-const shelves = computed(() => shelvesOf(store.visibleEntries));
+const sidebar = useCategorySidebar(shellEl, layout, activeCategory);
+const sidebarId = useId();
 
 function toggleShelf(category: string): void {
 	const next = new Set(expandedCategories.value);
@@ -300,8 +312,9 @@ watch(context.assetId, async (assetId) => {
 				</div>
 				<AssetLibraryBrowseControls
 					:layout="layout"
-					:category="categoryFilter"
+					:category="activeCategory"
 					:sidebar-open="sidebar.shown.value"
+					:sidebar-id="sidebarId"
 					@layout="setLayout"
 					@toggle-filter="sidebar.toggle"
 				/>
@@ -322,10 +335,11 @@ watch(context.assetId, async (assetId) => {
 				</div>
 				<template v-else>
 					<AssetCategoryNav
+						:id="sidebarId"
 						:open="sidebar.wanted.value"
 						:auto="sidebar.auto.value"
-						:shelves="shelves"
-						:category="categoryFilter"
+						:shelves="categoryShelves"
+						:category="activeCategory"
 						@choose="chooseCategory"
 					/>
 					<AssetLibraryBody
@@ -333,11 +347,12 @@ watch(context.assetId, async (assetId) => {
 						:expanded="expandedCategories"
 						:selected-id="selectedId"
 						:layout="layout"
-						:category="categoryFilter"
+						:category="activeCategory"
 						@toggle="toggleShelf"
 						@select="onSelect"
 						@create="onCreateAsset"
 						@clear-search="onClearSearch"
+						@clear-filter="onClearFilter"
 						@rehydrate="() => void hydrate()"
 					/>
 					<AssetInspector

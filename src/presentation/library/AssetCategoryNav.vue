@@ -32,6 +32,8 @@ const props = defineProps<{
 	open: boolean;
 	/** Not yet pressed: the stylesheet withdraws it below §7's 35rem rung (`useCategorySidebar.ts`). */
 	auto: boolean;
+	/** The funnel's `aria-controls` target. */
+	id: string;
 }>();
 
 const emit = defineEmits<{ choose: [category: string] }>();
@@ -59,6 +61,7 @@ const options = computed(() => [
 <template>
 	<ul
 		v-show="open"
+		:id="id"
 		class="rp-al-categories"
 		:class="{ 'rp-al-categories--auto': auto }"
 		:aria-label="tr('view.asset-library.categories')"

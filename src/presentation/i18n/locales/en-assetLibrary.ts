@@ -216,4 +216,11 @@ export const enAssetLibrary = {
 	// AD18-R18's `Create your own` card at the end of the grid, over the `New asset` door.
 	'view.asset-library.create-card.title': 'Create your own',
 	'view.asset-library.create-card.hint': 'Cannot find what you need? Design your own asset.',
+	// The funnel's name while a filter holds, carrying the category word it shows (WCAG 2.5.3).
+	'view.asset-library.filter.active': 'Filter by category, {category}',
+	// AD18-R18's empty state for a category filter that leaves nothing drawn, searching or not.
+	'view.asset-library.filtered.no-matches': 'No matches in {category}',
+	'view.asset-library.filtered.none': 'No assets in {category}',
+	'view.asset-library.filtered.body': 'Other categories may hold what you are looking for.',
+	'view.asset-library.filtered.action': 'Show all categories',
 } as const;

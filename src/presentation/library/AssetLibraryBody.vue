@@ -63,6 +63,7 @@ import { tr } from '../i18n/strings';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueEntries';
 import type { LibraryLayout } from './libraryBrowse';
+import { categoryLabel } from './shelfList';
 
 const props = defineProps<{
 	/** Which shelf categories are open — the ROOT's, per this file's own header. */
@@ -82,6 +83,8 @@ const emit = defineEmits<{
 	create: [];
 	/** §4's other empty-state action — see `onEmptyStateAction` for why it leaves this file. */
 	'clear-search': [];
+	/** AD18-R18's filtered-to-nothing state clears the category filter, which the root owns. */
+	'clear-filter': [];
 	/** The listing this pane was drawn from is stale — see this file's own header. */
 	rehydrate: [];
 }>();
@@ -98,21 +101,49 @@ const store = useAssetLibraryStore();
  * The region is present and empty from the ready branch's first paint and is written into on
  * each keystroke, which is the shape that actually speaks.
  */
+/**
+ * What is DRAWN: the search's matches narrowed to the sidebar's category (AD18-R18). The count
+ * below, the empty state and the mark batch all read this, so none of them speaks about a set
+ * the pane is not showing.
+ */
+const inCategory = computed((): readonly CatalogueEntryDto[] =>
+	props.category === '' ? store.visibleEntries : store.visibleEntries.filter((entry) => entry.category === props.category),
+);
+
 const matchCount = computed(() =>
 	store.searching
-		? tr('view.asset-library.search.results', { count: String(store.visibleEntries.length) })
+		? tr('view.asset-library.search.results', { count: String(inCategory.value.length) })
 		: '',
 );
+
+/**
+ * AD18-R18's third empty state: the catalogue has assets (and, while searching, matches), and the
+ * category filter leaves none of them drawn. The store's key cannot know the filter, which is the
+ * root's view state, so this is decided here, after the store has had its say. It names the
+ * category, and its action clears the filter rather than the search, because the filter is what
+ * emptied the pane.
+ */
+const filteredEmpty = computed(() => {
+	if (props.category === '' || inCategory.value.length > 0) return null;
+	const category = categoryLabel(props.category);
+	return {
+		headline: tr(store.searching ? 'view.asset-library.filtered.no-matches' : 'view.asset-library.filtered.none', { category }),
+		body: tr('view.asset-library.filtered.body'),
+		actionLabel: tr('view.asset-library.filtered.action'),
+	};
+});
 
 /**
  * `null` for a normal render, or the resolved props for whichever of §4's two action-bearing
  * keys `AssetLibraryStore.emptyStateKey` answers. That getter is already guarded on
  * `status === 'ready'` and already refuses unconditionally on `unreadable.length > 0` — this
- * component adds no second policy on top of it.
+ * component adds no second policy on top of it. Only when it answers `null` does AD18-R18's
+ * filtered state above get a say.
  */
 const empty = computed(() => {
 	const key = store.emptyStateKey;
-	return key === null ? null : resolveEmptyState(EMPTY_STATE_CONTENT.assetLibrary[key]);
+	if (key !== null) return resolveEmptyState(EMPTY_STATE_CONTENT.assetLibrary[key]);
+	return filteredEmpty.value;
 });
 
 /**
@@ -130,7 +161,8 @@ const empty = computed(() => {
  */
 function onEmptyStateAction(): void {
 	if (store.emptyStateKey === 'noAssets') emit('create');
-	else emit('clear-search');
+	else if (store.emptyStateKey === 'noMatches') emit('clear-search');
+	else emit('clear-filter');
 }
 
 /**
@@ -187,10 +219,6 @@ function onEmptyStateAction(): void {
  * afterwards; a NAME survives every edit that does not delete its subject. Fourteenth instance
  * of this class on the branch, and the second inside a round fixing an instance of it.)
  */
-const inCategory = computed((): readonly CatalogueEntryDto[] =>
-	props.category === '' ? store.visibleEntries : store.visibleEntries.filter((entry) => entry.category === props.category),
-);
-
 const drawnAssetIds = computed((): readonly AssetId[] =>
 	(store.searching || props.layout === 'grid'
 		? inCategory.value

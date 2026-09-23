@@ -113,6 +113,18 @@ describe('the layout in Obsidian\'s view state', () => {
 		]);
 	});
 
+	/** A category no shelf draws (a hand-edited or stale layout) falls back to All: nothing empty. */
+	it('reads an orphaned category as All', async () => {
+		const view = await openLibrary();
+
+		await view.setState({ assetId: '', layout: 'grid', category: 'insulation' }, {} as never);
+		await settle();
+
+		expect(view.contentEl.querySelectorAll('.rp-al-tile')).toHaveLength(2);
+		const pressed = view.contentEl.querySelector('.rp-al-category[aria-pressed="true"]');
+		expect(pressed?.textContent).toBe(tr('view.asset-library.category.all'));
+	});
+
 	it('never records a layout or a category change as a navigation', async () => {
 		const view = await openLibrary();
 		const result = {} as never as { history?: boolean };

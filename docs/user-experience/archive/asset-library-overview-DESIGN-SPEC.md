@@ -1468,7 +1468,7 @@ Every gesture reachable without a pointer, per PRODUCT.md's binding WCAG 2.2 AA 
 
 | Key | Does |
 | --- | --- |
-| `Tab` | Moves through: search, `New asset`, each **collapsible** shelf header, each row of an expanded shelf, the inspector's fields and actions |
+| `Tab` | Moves through: search, the category funnel, `Grid` and `List`, `New asset`, each category in the sidebar while it shows, each **collapsible** shelf header, each row of an expanded shelf (in Grid: each tile, then the `Create your own` card's button), the inspector's fields and actions — Amendment 7 (§8) added the funnel, the switch, the sidebar and the tiles |
 | `Enter` / `Space` on a collapsible shelf header | Toggles the shelf |
 | `Enter` / `Space` on a row | Selects it into the inspector |
 | `↑` / `↓` within a shelf | Moves between rows, wrapping into the next **focusable** header at the ends — empty shelves are skipped, having no header to focus |
@@ -1851,11 +1851,18 @@ would have no such room.
 beside its List, a category sidebar, a filter button and a `Create your own` card.** The user
 took this ruling, and it amends this document in the places listed here and nowhere else.
 
-- **§3.1 no longer says "nothing else" about the toolbar.** Two controls join it:
-  - **The funnel** shows and hides the category sidebar. Its name, *Filter by category*, is
-    visually hidden, and while a filter holds it also names that category in words.
+- **§3.1 no longer says "nothing else" about the toolbar.** Two controls join it, and each carries
+  an `aria-label`, because Obsidian draws its hover tooltip from `aria-label` and from nothing
+  else:
+  - **The funnel** shows and hides the category sidebar (`aria-expanded`, and `aria-controls`
+    naming the sidebar). It is an icon while no filter holds, named *Filter by category*. While
+    a filter holds it also shows the category in words, and its name carries that same word —
+    *Filter by category, Fixture* — so the name contains the visible text (WCAG 2.5.3). Below
+    35rem, while the inspector owns the pane, the funnel leaves the toolbar with the sidebar it
+    would open.
   - **A `Grid | List` switch**: two `aria-pressed` buttons in a named group. Each has an icon and
-    a word, and below 35rem the words are visually hidden rather than removed.
+    a word, with the word as its `aria-label`, so below 35rem the word leaves the layout and the
+    name and the tooltip stay.
 - **List is the default and draws exactly as §3.2–§3.4 specify.** Grid replaces the shelves with
   one tile per asset:
   - Each tile shows §3.4's mark at tile size, the name (up to two lines, then an ellipsis) and the
@@ -1864,7 +1871,8 @@ took this ruling, and it amends this document in the places listed here and nowh
   - A tile selects into the same inspector a row does. It carries `aria-current` and §3.4's words
     by `aria-describedby`, from outside the button.
   - The keyboard is §6.2's one focus manager: `←`/`→` move one stop, and `↑`/`↓` move one row of
-    the grid's resolved column tracks.
+    the grid's resolved column tracks. `↓` from a column with nothing below lands on the last
+    stop, and `↑` from the full-width card lands on the first tile of the last row.
 - **The sidebar lists `All` plus §3.2's derived shelf list**, from the same function. It covers
   the declared vocabulary, empty categories included, and any undeclared category present, with
   its icon. The sidebar FILTERS the shelves in both layouts and manages nothing.
@@ -1877,19 +1885,29 @@ took this ruling, and it amends this document in the places listed here and nowh
   - The funnel's `aria-expanded` is asked of the DOM, as §6.2 asks about the narrow swap.
 - **The grid ends with a `Create your own` card**, whose button is §3.1's existing `New asset`
   door. A create clears a filter that would hide the new asset, just as it clears the search.
+- **§4 gains a third empty state, for a filter that leaves nothing drawn.** The store's *No
+  assets* and *No matches* still decide first. When they do not apply and the chosen category
+  draws nothing, the pane says *No matches in Fixture* while searching and *No assets in Plant*
+  otherwise. Its action, *Show all categories*, clears the filter and puts focus on `All`. §6.1's
+  announced count is the count of what is drawn, meaning the matches in the chosen category.
 - **§6.3's view state gains two keys:**
   - `layout`: `'grid'` or `'list'`, default `'list'`.
   - `category`: a category, or `''` for All, which is the default.
   - Each key is written only when it differs from its default. A leaf that never used either
     keeps the `{ assetId, expanded }` shape it had before.
-  - Both keys are parsed leniently, as `expanded` is. **Neither is a navigation**:
+  - Both keys are parsed leniently, as `expanded` is. A `category` that no shelf draws, from a
+    stale or hand-edited layout, reads as `All`: nothing is filtered to a category the sidebar
+    cannot show as pressed. **Neither is a navigation**:
     `AssetLibraryView.setState` leaves `result.history` false for them, as it does for the other
     two keys.
-- **§8's inventory grows by eight keys, with no ordinal assigned (per Amendment 4).** The pin in
-  `tests/presentation/i18n/strings.test.ts` moves **100 → 108** in both locales. The keys are:
+- **§8's inventory grows by thirteen keys, with no ordinal assigned (per Amendment 4).** The pin in
+  `tests/presentation/i18n/strings.test.ts` moves **100 → 113** in both locales. The keys are:
   - `view.asset-library.layout.label`, `.layout.grid` and `.layout.list`;
-  - `view.asset-library.filter`, `.categories` and `.category.all`;
-  - `view.asset-library.create-card.title` and `.create-card.hint`.
+  - `view.asset-library.filter`, `.filter.active` (interpolated: `{category}`), `.categories` and
+    `.category.all`;
+  - `view.asset-library.create-card.title` and `.create-card.hint`;
+  - `view.asset-library.filtered.no-matches` and `.filtered.none` (both interpolated:
+    `{category}`), `.filtered.body` and `.filtered.action`.
   The card's button reuses `view.asset-library.new-asset`, because it is the same door.
 
 **§10's anti-goals stand unchanged.** The sidebar is a filter over the shelves' own axis, not a sort

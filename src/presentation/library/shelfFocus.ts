@@ -96,14 +96,14 @@ export function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
  * axis: `moveFocus` steps one stop, `moveFocusByRow` one row of the grid (AD18-R18). Landing on
  * the stop that already has focus does nothing, which is the clamp's own end.
  */
-function stepFocus(event: KeyboardEvent, pick: (here: number, count: number) => number): void {
+function stepFocus(event: KeyboardEvent, pick: (here: number, count: number, stop: HTMLElement) => number): void {
 	// `currentTarget` is non-null for the whole of a dispatch, and this handler is bound in a
 	// template on the region itself — so there is no null arm here for a test to drive.
 	const region = event.currentTarget as HTMLElement;
 	const stops = focusStops(region);
 	const here = stops.indexOf(region.ownerDocument.activeElement as HTMLElement);
 	if (here === -1) return;
-	const next = stops[pick(here, stops.length)];
+	const next = stops[pick(here, stops.length, stops[here])];
 	if (next === undefined || next === stops[here]) return;
 	event.preventDefault();
 	next.focus();
@@ -122,6 +122,9 @@ function columnsOf(grid: HTMLElement): number {
 	return Math.max(tracks.length, 1);
 }
 
+/** Marks a grid item that spans every column (the Grid view's `Create your own` card). */
+const FULL_ROW = '[data-full-row]';
+
 /**
  * `↑`/`↓` over the Grid view's tiles (AD18-R18): the SAME model as the shelves, with one row of
  * the grid as the step instead of one stop — `←`/`→` stay `moveFocus`. Bound on the grid element
@@ -129,11 +132,17 @@ function columnsOf(grid: HTMLElement): number {
  *
  * Down CLAMPS to the last stop, so a tile over the short last row (or the full-width create card
  * below it) is reachable; up does not, because every tile has a row above it until the first,
- * where nothing happens, exactly as `moveFocus` does at its ends.
+ * where nothing happens, exactly as `moveFocus` does at its ends. The one exception is a stop
+ * marked `data-full-row`, whose row above is the last row of tiles however short it is.
  */
 export function moveFocusByRow(event: KeyboardEvent, sign: 1 | -1): void {
 	const columns = columnsOf(event.currentTarget as HTMLElement);
-	stepFocus(event, (here, count) => (sign > 0 ? Math.min(here + columns, count - 1) : here - columns));
+	stepFocus(event, (here, count, stop) => {
+		if (sign > 0) return Math.min(here + columns, count - 1);
+		// A stop spanning the whole row sits under the LAST row of tiles however short that row
+		// is, so `↑` lands on that row's first stop rather than a full row of tracks further up.
+		return stop.closest(FULL_ROW) === null ? here - columns : Math.floor((here - 1) / columns) * columns;
+	});
 }
 
 /** The class §7's narrow composition takes off the layout, and the element this asks about. */

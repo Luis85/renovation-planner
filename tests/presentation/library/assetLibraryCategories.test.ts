@@ -77,7 +77,7 @@ describe('the sidebar', () => {
 	/** §3.2's group 2 cannot reach a shelf today, so the `tag` arm is driven at the component. */
 	it('marks a category the build does not declare with the tag icon', async () => {
 		const nav = mount(AssetCategoryNav, {
-			props: { shelves: [{ category: 'insulation', label: 'insulation', entries: [] }], category: '', open: true, auto: false },
+			props: { shelves: [{ category: 'insulation', label: 'insulation', entries: [] }], category: '', open: true, auto: false, id: 'sidebar' },
 		});
 		mounted.push(nav);
 		await settle();
@@ -218,7 +218,7 @@ describe('the funnel', () => {
 
 		expect(funnel(root).text()).toContain(tr('form.new-asset.category.plant'));
 		expect(funnel(root).classes()).toContain('rp-al-filter--on');
-		expect(funnel(root).text()).toContain(tr('view.asset-library.filter'));
+		expect(funnel(root).attributes('aria-label')).toContain(tr('form.new-asset.category.plant'));
 	});
 });
 

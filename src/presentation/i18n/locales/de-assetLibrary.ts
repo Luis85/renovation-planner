@@ -147,4 +147,9 @@ export const deAssetLibrary = {
 	'view.asset-library.category.all': 'Alle',
 	'view.asset-library.create-card.title': 'Eigenes erstellen',
 	'view.asset-library.create-card.hint': 'Nicht gefunden, was Sie suchen? Entwerfen Sie Ihr eigenes Objekt.',
+	'view.asset-library.filter.active': 'Nach Kategorie filtern, {category}',
+	'view.asset-library.filtered.no-matches': 'Keine Treffer in {category}',
+	'view.asset-library.filtered.none': 'Keine Objekte in {category}',
+	'view.asset-library.filtered.body': 'Andere Kategorien enthalten vielleicht, was Sie suchen.',
+	'view.asset-library.filtered.action': 'Alle Kategorien anzeigen',
 } satisfies Partial<Record<StringKey, string>>;

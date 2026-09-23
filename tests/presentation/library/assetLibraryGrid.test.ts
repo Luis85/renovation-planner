@@ -203,6 +203,16 @@ describe('the arrow keys over the grid', () => {
 		expect(again.defaultPrevented).toBe(false);
 	});
 
+	/** The card spans the row under a short last row, so `↑` lands on that row's first tile. */
+	it('rises from the full-width Create card into the short last row, not past it', async () => {
+		const root = await gridOfThree();
+		(root.get('.rp-al-create-card__action').element as HTMLElement).focus();
+
+		await press(root, 'ArrowUp');
+
+		expect(focusedName()).toBe('Table');
+	});
+
 	/**
 	 * jsdom answers the SPECIFIED track list, `repeat(auto-fill, …)`, where a browser answers the
 	 * used one. That string splits into three words, and only lengths count as tracks, so a grid

@@ -470,16 +470,17 @@ describe('interpolation', () => {
 	 * AD13's lease, and the pin's own paragraph above records that the guarantee here is *the
 	 * count cannot move silently*, never *the spec was amended*.
 	 *
-	 * 100 → 108: AD18-R18's Grid view added eight — the toolbar's `Grid | List` switch
+	 * 100 → 113: AD18-R18's Grid view added thirteen — the toolbar's `Grid | List` switch
 	 * (`view.asset-library.layout.label`, `.layout.grid`, `.layout.list`), the category sidebar and
-	 * its funnel (`view.asset-library.filter`, `.categories`, `.category.all`) and the grid's
-	 * `Create your own` card (`view.asset-library.create-card.title`, `.create-card.hint`). The
-	 * ruling amends §3.1 ("no view switcher … no filter menu"), and the §8 amendment is OWED and not
-	 * made: the spec is outside Task 10's files.
+	 * its funnel (`view.asset-library.filter`, `.filter.active`, `.categories`, `.category.all`),
+	 * the grid's `Create your own` card (`view.asset-library.create-card.title`, `.create-card.hint`)
+	 * and the filtered-to-nothing empty state (`view.asset-library.filtered.no-matches`, `.none`,
+	 * `.body`, `.action`). The ruling amends §3.1 ("no view switcher … no filter menu"), and the
+	 * spec's Amendment 7 records it and this count.
 	 */
-	it('pins the Asset library inventory at 108 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(108);
-		expect(assetLibraryKeys(de)).toHaveLength(108);
+	it('pins the Asset library inventory at 113 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(113);
+		expect(assetLibraryKeys(de)).toHaveLength(113);
 	});
 });
 

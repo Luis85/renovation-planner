@@ -151,6 +151,17 @@ export interface DesignerRuntime {
 	 * It hides the clearance from the canvas's pixels, presses and legend, but NOT from the fit:
 	 * `designFrame` stays the one fit definition and reads no view state, the precedent Parts-hidden
 	 * graphics already set.
+	 *
+	 * **A boundary the user asks for is never born invisible**, so every gesture that CREATES one
+	 * switches this back on. There are three such gestures and three doors, and no fourth place all
+	 * of them pass through: arming `trace-clearance` (`clearanceRevealingSwitch` below, wrapped
+	 * round `setTool`, which the toolbar, the Add rail and the key doors all call), applying a preset
+	 * that carries one (`applyShape` below), and Generate (`DesignerClearanceHelper`, which writes
+	 * through the shape-agnostic `editShape`). A watch on the design's clearance was the other
+	 * candidate and is refused: absent-to-present never fires in the case this rule exists for — the
+	 * switch is only drawn while a clearance exists, so hiding one and then tracing is a REPLACEMENT
+	 * — and a watch for any change fires on a rotate, a resize or a calibration too, each of which
+	 * maps the clearance it already has and none of which asked to see it.
 	 */
 	readonly showClearance: Ref<boolean>;
 	/**
@@ -262,6 +273,19 @@ const DISPATCH_FAULT_EVENT = 'designer.dispatch.faulted';
  */
 export function designFrame(shape: AssetShape): BoundingBox | null {
 	return boundsOfZones([shape.footprint, ...(shape.clearance === null ? [] : [shape.clearance])]);
+}
+
+/**
+ * `setTool`, plus `showClearance`'s arming rule: switching to `trace-clearance` shows the layer
+ * the traced boundary will be drawn on, so the commit does not appear to draw nothing. Arming
+ * rather than completing, because the user then also sees the boundary the trace replaces. A
+ * function outside `buildRuntime` for its 100-line budget.
+ */
+function clearanceRevealingSwitch(switchTool: (id: ToolId | null) => void, showClearance: Ref<boolean>): (id: ToolId | null) => void {
+	return (id) => {
+		switchTool(id);
+		if (id === 'trace-clearance') showClearance.value = true;
+	};
 }
 
 /**
@@ -632,7 +656,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * all `createToolSwitch` needs.
 	 */
 	const { activeToolId } = storeToRefs(editor);
-	const setTool = createToolSwitch(toolManager, activeToolId);
+	const setTool = clearanceRevealingSwitch(createToolSwitch(toolManager, activeToolId), showClearance);
 
 	registerDesignerTools(toolManager, {
 		assetId,
@@ -703,6 +727,8 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		// `fitTo` the plan editor's `selectAndFrame` takes. An OPENED asset is framed once by `DesignerCanvas`.
 		const bounds = designFrame(shape);
 		if (result?.ok === true && bounds !== null) editor.fitTo(bounds, editor.stageSize);
+		// A preset's clearance is a boundary the user just asked for: `DesignerRuntime.showClearance`'s rule.
+		if (result?.ok === true && shape.clearance !== null) showClearance.value = true;
 	}
 	function commitHeight(height: number | null): Promise<DispatchResult> {
 		return toolDispatcher.run(edits.setHeight({ assetId, height }));

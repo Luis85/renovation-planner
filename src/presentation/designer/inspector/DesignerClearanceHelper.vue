@@ -36,6 +36,11 @@
  * traced curve means as much as hiding a generated rectangle. The switch and the fold are drawn by
  * `DesignerClearanceToggle` and `DesignerClearanceSides`, split out to keep this template under
  * fallow's cognitive threshold; the drafts and the switch-on after Generate stay here.
+ *
+ * **That switch-on is one of THREE**, because a clearance comes into being through three doors:
+ * Generate here, arming `trace-clearance` and applying a preset that carries one. The rule and
+ * the other two live in `runtime.ts` — `DesignerRuntime.showClearance` says why no single hook
+ * catches all three.
  */
 import { computed, reactive, ref } from 'vue';
 import { useShowClearance } from '../runtime';
@@ -113,7 +118,7 @@ async function generate(): Promise<void> {
 		});
 	});
 	refusal.value = result.ok ? null : result.error;
-	// A boundary the user just asked for is never born invisible: Generate switches the layer back on.
+	// A boundary the user just asked for is never born invisible (`DesignerRuntime.showClearance`): Generate's door.
 	if (result.ok && showClearance !== null) showClearance.value = true;
 }
 </script>

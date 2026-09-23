@@ -52,7 +52,7 @@ Other findings below are carried forward from the earlier source review and are 
 | The inspected native acceptance document is preparation, not acceptance of the current candidate. | Reverified at handoff baseline. [S06] | BP-00, BP-13 |
 | The general recovery guide acknowledges no general durable crash journal and the remount warning limitation. | Earlier review; recheck current source. [S07] | BP-02, BP-11 |
 | Manual cases already exist; do not recreate the catalogue. | Earlier review. [S08] | BP-00, BP-13 |
-| Desktop editing and mobile read-only are the existing product boundary; real-device evidence was outstanding in the inspected mobile case. The tree does not yet honour mobile read-only for the Asset Library (`03-execution-tracker.md` L-43). | Earlier review; recheck before support claims. [S09, S10] | BP-09 |
+| Desktop editing and mobile read-only are the existing product boundary; real-device evidence was outstanding in the inspected mobile case. Since the owner's L-43 decision (2026-09-23), the Asset Library's writes are guarded on mobile, in code and in jsdom and not on a device (`03-execution-tracker.md` L-43). | Earlier review; recheck before support claims. [S09, S10] | BP-09 |
 | The sample-project command is review scaffolding, not yet a complete user onboarding experience. | Earlier review. [S11] | BP-10 |
 | Room-heavy zoom performance has already been improved; old slow measurements must not be treated as an unfixed defect. | Earlier performance ledger. [S12] | BP-08 |
 | Release, product, and recovery documents contain historical statements that do not consistently describe the implemented editor. | Earlier review. [S07, S09, S13] | BP-11 |
@@ -319,7 +319,7 @@ No calendar estimate is asserted. Size and sequence work after BP-00 using the a
 
 **User outcome:** know which parts of the plugin are supported on their device, with no route into an unusable editor.
 
-**Starting points:** `manifest.json`, platform guards in views/commands, `PRODUCT.md`, and `docs/tests/cases/Read projects on mobile.md`. The inspected scope is desktop editing and mobile read-only (see the tracker's L-43 row); the mobile case explicitly lacked real-device results at the earlier review. [S09, S10]
+**Starting points:** `manifest.json`, platform guards in views/commands, `PRODUCT.md`, and `docs/tests/cases/Read projects on mobile.md`. The inspected scope is desktop editing and mobile read-only, which the owner's L-43 decision (2026-09-23) kept by guarding the Asset Library on mobile, in jsdom only (see the tracker's L-43 row); the mobile case explicitly lacked real-device results at the earlier review. [S09, S10]
 
 **Actions**
 

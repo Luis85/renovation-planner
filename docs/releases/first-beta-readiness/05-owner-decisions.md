@@ -386,10 +386,6 @@ Each names the tracker row that carries its evidence.
 - **L-37: two strings that tell the user to open the diagnostics report arrive as toasts, which
   cannot carry an action.** The question is whether a notice in this plugin should be able to
   carry an action at all. The row records it as not blocking a first beta. Tracker row L-37.
-- **L-43: on mobile the Asset Library can create, edit and delete assets, while the beta scope
-  reads "mobile read-only".** A P0 candidate under the plan's own rule, and a choice between
-  guarding the library on mobile and narrowing the mobile claim. It is a source reading; nothing
-  has been run on a device. Tracker row L-43 and package BP-09.
 - **BP-05: the plan's clause "rejected/no-op operations do not add history".** Its no-op half
   contradicts `CommandHistory.runNow`, which puts a no-write gesture on the undo stack by design,
   and the Done PBI `docs/requirements/Undo and redo.md` records that half as NARROWED at its
@@ -400,3 +396,12 @@ Each names the tracker row that carries its evidence.
 - **BP-10: copy for a help entry and for a fictional sample label.** A help entry needs a new
   command name and new copy, and labelling the sample fictional changes `sample.project.name` in
   both locales. Tracker row BP-10.
+
+**Decided since, and no longer open:**
+
+- **L-43, decided by the release owner on 2026-09-23: "guard the asset library on mobile."** The
+  question was whether the Asset Library, which could create, edit and delete assets on mobile,
+  should be guarded there or the beta's "mobile read-only" claim narrowed. The claim stands.
+  `20ff37f29` refuses the library's writes on mobile with the `view.mobile.read-only` sentence,
+  tested in jsdom. Nothing has been run on a device, so a published mobile claim still waits on
+  BP-09's device run. Tracker row L-43 and package BP-09.

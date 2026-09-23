@@ -5,16 +5,17 @@ import type { ReferenceAppearance } from '../../../domain/plan/ReferenceAppearan
 import { referencePoint } from '../../../domain/plan/ReferenceAppearance';
 import type { BackgroundRenderModel } from '../layers/background/BackgroundRenderModel';
 import { previewTransform } from './referenceSetup';
-import { referenceSourcePoint, zoomReference, type ReferenceViewport } from './referenceViewport';
+import { dragRotation, nudgeRotation, referenceScreenCentre, referenceSourcePoint, rotationHandlePoint, zoomReference, type ReferenceViewport } from './referenceViewport';
 import { tr } from '../../i18n/strings';
-const props = defineProps<{ raster: Extract<BackgroundRenderModel, { kind: 'raster' }>; appearance: ReferenceAppearance; points: readonly (Point | null)[]; measuring: boolean; onThemeChange?: (listener: () => void) => () => void }>();
-const emit = defineEmits<{ point: [point: Point] }>();
+const props = defineProps<{ raster: Extract<BackgroundRenderModel, { kind: 'raster' }>; appearance: ReferenceAppearance; points: readonly (Point | null)[]; measuring: boolean; rotatable?: boolean; onThemeChange?: (listener: () => void) => () => void }>();
+const emit = defineEmits<{ point: [point: Point]; rotation: [degrees: number] }>();
 const canvas = ref<HTMLCanvasElement | null>(null), size = ref({ width: 400, height: 220 });
-const view = ref<ReferenceViewport>(previewTransform(props.appearance)), panMode = ref(false), space = ref(false), dragging = ref(false);
+const view = ref<ReferenceViewport>(previewTransform(props.appearance)), panMode = ref(false), space = ref(false), dragging = ref(false), rotating = ref(false), overHandle = ref(false);
 const hintId = useId();
+const hint = computed(() => props.rotatable ? 'editor.reference.gestures-rotate' : props.measuring && !panMode.value && !space.value ? 'editor.reference.gestures-measure' : 'editor.reference.gestures');
 const zoomPercent = computed(() => Math.round(view.value.scale / previewTransform(props.appearance, size.value).scale * 100));
 let observer: ResizeObserver | undefined, unsubscribe: (() => void) | undefined;
-let gesture: { id: number; start: Point; view: ReferenceViewport; moved: boolean; navigationOnly: boolean } | null = null;
+let gesture: { id: number; start: Point; view: ReferenceViewport; moved: boolean; navigationOnly: boolean; rotate?: { rotation: number; centre: Point } } | null = null;
 let suppressClick = false;
 function draw(): void {
 	const element = canvas.value, context = element?.getContext('2d');
@@ -50,6 +51,28 @@ function draw(): void {
 		}
 	});
 	context.stroke();
+	if (props.rotatable) drawHandle(context, styles.color);
+}
+/** The rotation knob on its stem, plus centre guides while a rotate drag is in flight. */
+function drawHandle(context: CanvasRenderingContext2D, colour: string): void {
+	const { centre, knob } = handle();
+	context.strokeStyle = colour; context.fillStyle = colour; context.lineWidth = 2;
+	context.beginPath();
+	if (rotating.value) {
+		context.moveTo(0, centre.y); context.lineTo(size.value.width, centre.y);
+		context.moveTo(centre.x, 0); context.lineTo(centre.x, size.value.height);
+	}
+	context.moveTo(centre.x, centre.y); context.lineTo(knob.x, knob.y);
+	context.stroke();
+	context.beginPath(); context.arc(knob.x, knob.y, 7, 0, 2 * Math.PI); context.fill();
+}
+function handle(): { centre: Point; knob: Point } {
+	const centre = referenceScreenCentre(view.value, props.appearance);
+	return { centre, knob: rotationHandlePoint(centre, props.appearance.rotation, Math.min(size.value.width, size.value.height) / 2 - 16) };
+}
+function onHandle(point: Point): boolean {
+	const { knob } = handle();
+	return props.rotatable && Math.hypot(point.x - knob.x, point.y - knob.y) <= 12;
 }
 function fit(): void { view.value = previewTransform(props.appearance, size.value); }
 function measure(): void {
@@ -85,14 +108,16 @@ function start(event: PointerEvent): void {
 	const point = previewPointerPoint(event);
 	if (!point) return;
 	suppressClick = false;
-	gesture = { id: event.pointerId, start: point, view: view.value, moved: false, navigationOnly: event.button === 1 || panMode.value || space.value || !props.measuring };
+	rotating.value = event.button === 0 && onHandle(point);
+	gesture = { id: event.pointerId, start: point, view: view.value, moved: false, navigationOnly: event.button === 1 || panMode.value || space.value || !props.measuring, rotate: rotating.value ? { rotation: props.appearance.rotation, centre: handle().centre } : undefined };
 	canvas.value?.setPointerCapture?.(event.pointerId);
 	if (event.button === 1) event.preventDefault();
 }
 function move(event: PointerEvent): void {
-	if (!gesture || gesture.id !== event.pointerId) return;
 	const point = previewPointerPoint(event);
-	if (!point) return;
+	if (!gesture) { overHandle.value = !!point && onHandle(point); return; }
+	if (gesture.id !== event.pointerId || !point) return;
+	if (gesture.rotate) { emit('rotation', dragRotation(gesture.rotate.rotation, gesture.rotate.centre, gesture.start, point, event.shiftKey)); return; }
 	const dx = point.x - gesture.start.x, dy = point.y - gesture.start.y;
 	if (!gesture.moved && Math.hypot(dx, dy) < 3) return;
 	gesture.moved = true; dragging.value = true;
@@ -101,11 +126,12 @@ function move(event: PointerEvent): void {
 function end(event?: PointerEvent): void {
 	if (gesture && event && gesture.id !== event.pointerId) return;
 	const ended = gesture;
-	gesture = null; dragging.value = false;
+	gesture = null; dragging.value = false; rotating.value = false;
 	if (!ended) return;
 	suppressClick = !event || ended.moved || ended.navigationOnly;
 	if (canvas.value?.hasPointerCapture?.(ended.id)) canvas.value.releasePointerCapture(ended.id);
 }
+const rotateKeys: Readonly<Record<string, number>> = { '[': -1, ']': 1, '{': -1, '}': 1 };
 const panKeys: Readonly<Record<string, Point>> = { arrowleft: { x: 1, y: 0 }, arrowright: { x: -1, y: 0 }, arrowup: { x: 0, y: 1 }, arrowdown: { x: 0, y: -1 } };
 
 function keydown(event: KeyboardEvent): void {
@@ -115,6 +141,7 @@ function keydown(event: KeyboardEvent): void {
 	else if (key === 'f') fit();
 	else if (key === '+' || key === '=') zoom(1.25);
 	else if (key === '-') zoom(1 / 1.25);
+	else if (props.rotatable && rotateKeys[key]) emit('rotation', nudgeRotation(props.appearance.rotation, rotateKeys[key] * (event.shiftKey ? 0.1 : 1)));
 	else if (panKeys[key]) {
 		const distance = event.shiftKey ? 80 : 32;
 		view.value = { ...view.value, x: view.value.x + panKeys[key].x * distance, y: view.value.y + panKeys[key].y * distance };
@@ -128,7 +155,7 @@ onBeforeUnmount(() => { observer?.disconnect(); unsubscribe?.(); end(); });
 watch(view, draw);
 watch(() => props.measuring, measuring => { end(); if (measuring) panMode.value = false; });
 watch(() => [props.raster, props.appearance.crop.x, props.appearance.crop.y, props.appearance.crop.width, props.appearance.crop.height, props.appearance.rotation], fit);
-watch(() => [props.appearance.opacity, props.points], draw, { deep: true });
+watch(() => [props.appearance.opacity, props.points, props.rotatable, rotating.value], draw, { deep: true });
 </script>
 <template>
 	<div class="rp-reference-viewport">
@@ -173,7 +200,7 @@ watch(() => [props.appearance.opacity, props.points], draw, { deep: true });
 			width="400"
 			height="220"
 			class="rp-reference-preview"
-			:class="{ 'is-panning': dragging, 'is-navigation': panMode || space || !measuring }"
+			:class="{ 'is-panning': dragging, 'is-navigation': panMode || space || !measuring, 'is-over-handle': overHandle, 'is-rotating': rotating }"
 			role="img"
 			tabindex="0"
 			:aria-label="tr('editor.reference.preview')"
@@ -193,7 +220,7 @@ watch(() => [props.appearance.opacity, props.points], draw, { deep: true });
 			:id="hintId"
 			class="rp-reference-viewport__hint"
 		>
-			{{ tr(measuring && !panMode && !space ? 'editor.reference.gestures-measure' : 'editor.reference.gestures') }}
+			{{ tr(hint) }}
 		</p>
 	</div>
 </template>

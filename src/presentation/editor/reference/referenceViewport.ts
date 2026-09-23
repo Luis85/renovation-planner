@@ -50,3 +50,8 @@ export function dragRotation(startRotation: number, centre: Point, start: Point,
 	const rotation = normalizeRotation(startRotation + delta);
 	return snap ? Math.round(rotation / 15) * 15 : Math.round(rotation * 10) / 10;
 }
+
+/** `rotation` moved by `delta` degrees, wrapped into [-180, 180] and rounded to 0.1° so repeated nudges do not drift. */
+export function nudgeRotation(rotation: number, delta: number): number {
+	return Math.round(normalizeRotation(rotation + delta) * 10) / 10;
+}

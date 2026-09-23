@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { referencePoint, type ReferenceAppearance } from '../../../src/domain/plan/ReferenceAppearance';
 import { previewTransform } from '../../../src/presentation/editor/reference/referenceSetup';
-import { dragRotation, referenceScreenCentre, referenceSourcePoint, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
+import { dragRotation, nudgeRotation, referenceScreenCentre, referenceSourcePoint, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
 
 const appearance: ReferenceAppearance = { crop: { x: 20, y: 30, width: 800, height: 600 }, rotation: 0, opacity: 0.65, visible: true, locked: true };
 it.each([0, 45, 90, -15, -180])('keeps the original source pixel under the pointer through pan and zoom at %s°', rotation => {
@@ -74,4 +74,10 @@ it('leaves rotation unchanged when either pointer is within 1px of the centre', 
 	const centre = { x: 50, y: 50 };
 	expect(dragRotation(42, centre, { x: 50.5, y: 50 }, { x: 60, y: 50 }, false)).toBe(42);
 	expect(dragRotation(42, centre, { x: 60, y: 50 }, { x: 50.5, y: 50 }, false)).toBe(42);
+});
+
+it('nudges rotation by a step, wrapping into range and rounding away float drift', () => {
+	expect(nudgeRotation(0.2, 0.1)).toBe(0.3);
+	expect(nudgeRotation(180, 1)).toBe(-179);
+	expect(nudgeRotation(-180, -1)).toBe(179);
 });
